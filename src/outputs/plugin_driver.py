@@ -123,8 +123,9 @@ class OutputPluginDriver:
         self._clock = clock if clock is not None else _time_module.monotonic
         self._output_runtime = OutputRuntime()
         # H12: the device client reports contact and classified failures to
-        # the board's health (see src/outputs/health.py).
-        self.plugin.http.health = self._output_runtime.health
+        # the board's health (see src/outputs/health.py), which reads this
+        # device's breaker live.
+        self._bind_health(self._output_runtime)
         self._last_send_throttled = False
         self._last_send_retry_after: int | None = None
         self._last_send_preempted = False
@@ -259,7 +260,11 @@ class OutputPluginDriver:
         if self._output_runtime.transition_runner is not None:
             runtime.transition_runner = self._output_runtime.transition_runner
         self._output_runtime = runtime
+        self._bind_health(runtime)
+
+    def _bind_health(self, runtime: OutputRuntime) -> None:
         self.plugin.http.health = runtime.health
+        runtime.health.breaker = self._breaker_is_open
 
     def set_transition_runner(self, runner: Any | None) -> None:
         self._output_runtime.transition_runner = runner
@@ -296,6 +301,13 @@ class OutputPluginDriver:
     def _breaker_key(self) -> str:
         return f"{self.connection_label}|{self.device_key()}"
 
+    def _breaker_is_open(self) -> bool:
+        """Whether this device's breaker is refusing writes now (health's ``breaker_open``)."""
+        if self.first_party:
+            return False
+        state = output_breakers().state(self._breaker_key(), self._clock())
+        return state is not None and state.open
+
     def _breaker_refusal(self, admission: Admission) -> WriteResult | None:
         """A failed result when the device's breaker is open, else ``None``.
 
@@ -308,7 +320,8 @@ class OutputPluginDriver:
         if streak is None:
             return None
         self._output_runtime.release_send(admission)
-        self._output_runtime.health.record_error("breaker_open")
+        # Not a contact attempt: health keeps the failure that opened the
+        # breaker as last_error, and reports breaker_open beside it.
         self.last_write_error = (
             f"Output {self.connection_label} stopped after {streak.failures} failed writes in a row; "
             f"retrying in {breakers.cooldown_seconds:.0f}s. Last failure: {streak.last_failure}"

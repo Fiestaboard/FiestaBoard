@@ -172,8 +172,9 @@ class BoardDetail(BoardSummary):
         default_factory=HealthSummary,
         description=(
             "When the hub last reached this board (last_connected_at, latency_ms), when a frame last landed "
-            "(last_update_at), and the last failed contact (last_error_at, last_error), since the hub started. "
-            "reachable says whether the last contact is newer than the last error."
+            "(last_update_at), and the last failed contact (last_error_at, last_error); these survive a hub restart. "
+            "reachable says whether this hub process last reached the board or failed to, and breaker_open whether "
+            "writes are held back after repeated failures."
         ),
     )
     layers: list[CanvasLayerModel] | None = Field(

@@ -186,24 +186,28 @@ async def get_status():
             if not isinstance(board, dict) or not board.get("id"):
                 continue
             bid = board["id"]
+            # One board's failure must not hide the boards after it.
             try:
-                configured = service.get_board_client(bid) is not None
+                try:
+                    configured = service.get_board_client(bid) is not None
+                except Exception:
+                    configured = False
+                active_page_id = settings_service.get_active_page_id(board_id=bid)
+                if not isinstance(active_page_id, str):
+                    active_page_id = None
+                init_error = init_errors.get(bid)
+                if not isinstance(init_error, str):
+                    init_error = None
+                status.boards[bid] = BoardStatus(
+                    configured=configured,
+                    paused=runtime._board_is_paused(bid),
+                    active_page_id=active_page_id,
+                    error=init_error,
+                    output_status=_output_status(board),
+                    health=board_health(service, bid),
+                )
             except Exception:
-                configured = False
-            active_page_id = settings_service.get_active_page_id(board_id=bid)
-            if not isinstance(active_page_id, str):
-                active_page_id = None
-            init_error = init_errors.get(bid)
-            if not isinstance(init_error, str):
-                init_error = None
-            status.boards[bid] = BoardStatus(
-                configured=configured,
-                paused=runtime._board_is_paused(bid),
-                active_page_id=active_page_id,
-                error=init_error,
-                output_status=_output_status(board),
-                health=board_health(service, bid),
-            )
+                logger.warning("Status for board %s unavailable", bid, exc_info=True)
     except Exception as e:
         logger.debug(f"Per-board status unavailable: {e}")
     return status

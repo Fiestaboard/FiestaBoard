@@ -175,10 +175,11 @@ def test_a_throttle_the_device_reports_is_contact():
         (500, "server_error"),
         (404, "unexpected_status"),
         # A bad address in the board's settings: the board was never tried.
-        (requests.exceptions.InvalidURL("bad host"), "misconfigured"),
-        (requests.exceptions.MissingSchema("no scheme"), "misconfigured"),
-        (requests.exceptions.InvalidSchema("gopher://"), "misconfigured"),
-        (requests.exceptions.InvalidHeader("bad token header"), "misconfigured"),
+        (requests.exceptions.InvalidURL("bad host"), "invalid_request"),
+        (requests.exceptions.MissingSchema("no scheme"), "invalid_request"),
+        (requests.exceptions.InvalidSchema("gopher://"), "invalid_request"),
+        (requests.exceptions.InvalidHeader("bad token header"), "invalid_request"),
+        (requests.exceptions.InvalidJSONError("body is not JSON"), "invalid_request"),
     ],
 )
 def test_each_failure_is_classified(answer, code):
@@ -565,9 +566,10 @@ def test_a_failed_rename_leaves_the_previous_file_whole(tmp_path, monkeypatch):
 
 
 def test_the_apps_shutdown_flushes_board_health(monkeypatch):
+    from fastapi.testclient import TestClient
+
     from src.api_server import app
     from src.outputs import health as module
-    from fastapi.testclient import TestClient
 
     flushed = []
     monkeypatch.setattr("src.system.mdns.start_mdns", lambda *a, **k: True)

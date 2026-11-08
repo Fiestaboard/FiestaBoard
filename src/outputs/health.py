@@ -10,11 +10,17 @@ rebuild (a board re-save) hands on.
   that reports "unchanged" without a request proves nothing.
 - **Failures** are classified there too, with :data:`~src.outputs.hooks.FailureClass`
   (``auth``, ``unreachable``, ``timeout``, ``server_error``,
-  ``unexpected_status``, ``blocked``), so a plugin that swallows its exception
-  still shows the real cause. :class:`~src.outputs.plugin_driver.OutputPluginDriver`
-  adds what HTTP cannot see: ``write_failed`` (the output said so, and no HTTP
-  failure explains it), ``raised``, ``timeout`` (the write ran past its
-  budget), ``breaker_open``, ``bad_response`` and ``read_failed`` (reads).
+  ``unexpected_status``, ``blocked``), plus ``invalid_request`` when the
+  request could not even be built (a bad address or header in the board's
+  settings), so a plugin that swallows its exception still shows the real
+  cause. :class:`~src.outputs.plugin_driver.OutputPluginDriver` adds what HTTP
+  cannot see: ``write_failed`` (the output said so, and no HTTP failure
+  explains it), ``raised``, ``timeout`` (the write ran past its budget),
+  ``bad_response`` and ``read_failed`` (reads).
+- **The circuit breaker** is ``breaker_open``, a flag read live from the
+  breaker, *beside* ``last_error``. A refused write never reaches the device,
+  so it is not a contact attempt and never replaces the cause: a board whose
+  token is wrong keeps reading ``auth`` while the hub holds its writes back.
 - **Updates** (``last_update_at``) are frames that landed. A pull output
   (FiestaPanel) records updates only; the hub never contacts it, and its
   viewers' liveness is H13b's ``last_shown_at``.
@@ -26,22 +32,37 @@ and ``latency_ms`` is the cloud round trip.
 **Persistence, light.** ``last_connected_at``, ``last_update_at``,
 ``last_error_at`` and ``last_error`` survive a restart in
 ``<data>/board_health.json``. A change marks the board dirty; the file is
-written at most every :data:`HEALTH_FLUSH_INTERVAL_SECONDS` and on shutdown
-(:func:`flush_board_health`), never per frame. ``reachable`` and ``latency_ms``
-are unknown again after a restart, until this process has its own contact or
-failure.
+written at most every :data:`HEALTH_FLUSH_INTERVAL_SECONDS`: at once when the
+interval has passed, otherwise by a timer at the end of it, so an idle board's
+last change is not left waiting for the next one. It is also written on
+shutdown (:func:`flush_board_health`), and never per frame. A crash loses at
+most the last interval's changes. Writes are atomic (``*.tmp`` and a rename)
+and serialised, so an older snapshot can never land after a newer one.
+
+The file is validated on load: an entry keeps only finite, in-range numeric
+instants and codes this build knows. A rollback can leave a newer build's
+codes behind; they read as unknown (null) rather than failing a status read.
+A removed board's entry is dropped (:func:`forget_board_health`).
+
+``reachable`` and ``latency_ms`` are unknown again after a restart, until this
+process has its own contact or failure. ``reachable`` then follows this
+process's *last event* (a contact or a failure), never a comparison of wall
+times: a FiestaPi has no real-time clock and can boot reading earlier than an
+error persisted before the reboot, until NTP syncs.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
+import math
 import threading
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Literal, get_args
 
 from pydantic import BaseModel, Field
 
@@ -60,13 +81,18 @@ ErrorCode = Literal[
     "server_error",
     "unexpected_status",
     "blocked",
+    # The request could not be built: a bad address, header or body.
+    "invalid_request",
     # What only the driver sees.
     "write_failed",
     "raised",
-    "breaker_open",
     "bad_response",
     "read_failed",
 ]
+_KNOWN_CODES = frozenset(get_args(ErrorCode))
+_INSTANTS = ("last_connected_at", "last_update_at", "last_error_at")
+#: 9999-12-31T23:59:59Z, the last instant ``datetime`` can show.
+_LATEST_EPOCH = 253_402_300_799.0
 
 
 class HealthSummary(BaseModel):
@@ -88,17 +114,44 @@ class HealthSummary(BaseModel):
         default=None,
         description=(
             "Why it failed. From the device's answer: auth (credential refused), unreachable, timeout, "
-            "server_error, unexpected_status, blocked (host not allowed). From the hub: write_failed, raised, "
-            "breaker_open (writes paused after repeated failures), bad_response, read_failed."
+            "server_error, unexpected_status, blocked (host not allowed), invalid_request (the request could not "
+            "be built: a bad address or header in the board's settings). From the hub: write_failed, raised, "
+            "bad_response, read_failed. Kept while breaker_open holds writes back."
         ),
     )
     reachable: bool | None = Field(
         default=None,
         description=(
-            "True when the last contact is newer than the last error, false when not, null until this hub process "
-            "has had either (and always for a FiestaPanel, which the hub never contacts)."
+            "True when this hub process's last event for the board was a contact, false when it was a failure, "
+            "null until it has had either (and always for a FiestaPanel, which the hub never contacts)."
         ),
     )
+    breaker_open: bool = Field(
+        default=False,
+        description=(
+            "True while the hub holds writes back after repeated failures (it retries every few minutes). "
+            "last_error still says what the failures were."
+        ),
+    )
+
+
+def _valid_instant(value) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and 0 < value <= _LATEST_EPOCH
+    )
+
+
+def _clean(entry) -> dict | None:
+    """*entry* as this build can read it, or ``None`` when it is not an entry at all."""
+    if not isinstance(entry, dict):
+        return None
+    cleaned: dict = {key: float(entry[key]) if _valid_instant(entry.get(key)) else None for key in _INSTANTS}
+    code = entry.get("last_error")
+    cleaned["last_error"] = code if isinstance(code, str) and code in _KNOWN_CODES else None
+    return cleaned
 
 
 def _instant(epoch: float | None) -> str | None:
@@ -110,54 +163,115 @@ def _instant(epoch: float | None) -> str | None:
 class HealthStore:
     """The persisted part of every board's health, in one small JSON file."""
 
-    def __init__(self, path: Path, clock: Callable[[], float] = time.time) -> None:
+    def __init__(
+        self,
+        path: Path,
+        clock: Callable[[], float] = time.time,
+        timer: Callable[..., threading.Timer] = threading.Timer,
+    ) -> None:
         self.path = path
         self.clock = clock
+        self._timer_factory = timer
         self._lock = threading.Lock()
+        #: Held across snapshot and write, so writes land in the order they were taken.
+        self._write_lock = threading.Lock()
         self._data: dict[str, dict] = {}
         self._dirty = False
         self._written_at: float | None = None
+        self._timer: threading.Timer | None = None
+        self._closed = False
         try:
             loaded = json.loads(path.read_text())
-            if isinstance(loaded, dict):
-                self._data = {k: v for k, v in loaded.items() if isinstance(v, dict)}
         except FileNotFoundError:
-            pass
+            loaded = {}
         except (OSError, ValueError):
             logger.warning("Could not read %s; board health starts empty", path, exc_info=True)
+            loaded = {}
+        if not isinstance(loaded, dict):
+            logger.warning("%s is not an object; board health starts empty", path)
+            loaded = {}
+        for board_id, entry in loaded.items():
+            cleaned = _clean(entry)
+            if cleaned is not None:
+                self._data[board_id] = cleaned
 
     def get(self, board_id: str) -> dict:
         with self._lock:
             return dict(self._data.get(board_id) or {})
 
     def update(self, board_id: str, values: dict) -> None:
-        """Remember *values* for *board_id*; write now only if the interval has passed."""
+        """Remember *values* for *board_id*; write now if the interval has passed, else at its end."""
         with self._lock:
             self._data[board_id] = values
             self._dirty = True
-            due = self._written_at is None or self.clock() - self._written_at >= HEALTH_FLUSH_INTERVAL_SECONDS
+            elapsed = None if self._written_at is None else self.clock() - self._written_at
+            due = elapsed is None or elapsed >= HEALTH_FLUSH_INTERVAL_SECONDS
+            if not due:
+                self._arm_timer(HEALTH_FLUSH_INTERVAL_SECONDS - elapsed)
         if due:
             self.flush()
 
+    def forget(self, board_id: str) -> None:
+        """Drop a removed board's entry, and write that now (removals are rare)."""
+        with self._lock:
+            if self._data.pop(board_id, None) is None:
+                return
+            self._dirty = True
+        self.flush()
+
     def flush(self) -> None:
         with self._lock:
+            self._disarm_timer()
             if not self._dirty:
                 return
             self._written_at = self.clock()
         self._write()
 
-    def _write(self) -> None:
+    def close(self) -> None:
+        """Stop the pending timer, if any (tests; a store being replaced)."""
         with self._lock:
-            snapshot = json.dumps(self._data, sort_keys=True)
-            self._dirty = False
-        try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._closed = True
+            self._disarm_timer()
+
+    # The timer helpers run under self._lock.
+    def _arm_timer(self, delay: float) -> None:
+        if self._timer is not None or self._closed:
+            return
+        timer = self._timer_factory(max(0.0, delay), self._on_timer)
+        timer.daemon = True
+        self._timer = timer
+        timer.start()
+
+    def _disarm_timer(self) -> None:
+        if self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
+
+    def _on_timer(self) -> None:
+        with self._lock:
+            self._timer = None
+            if self._closed:
+                return
+        self.flush()
+
+    def _write(self) -> None:
+        with self._write_lock:
+            with self._lock:
+                snapshot = json.dumps(self._data, sort_keys=True)
+                self._dirty = False
             tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(snapshot)
-            tmp.replace(self.path)
-        except OSError:
-            # Health is advisory: a failed write must never fail a send.
-            logger.warning("Could not write %s", self.path, exc_info=True)
+            try:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                tmp.write_text(snapshot)
+                tmp.replace(self.path)
+            except OSError:
+                # Health is advisory: a failed write must never fail a send.
+                # It stays pending, so the next flush (or shutdown) tries again.
+                logger.warning("Could not write %s", self.path, exc_info=True)
+                with self._lock:
+                    self._dirty = True
+                with contextlib.suppress(OSError):
+                    tmp.unlink(missing_ok=True)
 
 
 _store: HealthStore | None = None
@@ -178,6 +292,8 @@ def reset_health_store() -> None:
     """Forget the store (tests; a fresh process reads the file again)."""
     global _store
     with _store_lock:
+        if _store is not None:
+            _store.close()
         _store = None
 
 
@@ -185,6 +301,11 @@ def flush_board_health() -> None:
     """Write any pending board health now (the app's shutdown)."""
     if _store is not None:
         _store.flush()
+
+
+def forget_board_health(board_id: str) -> None:
+    """Drop a removed board's persisted health."""
+    health_store().forget(board_id)
 
 
 class BoardHealth:
@@ -203,8 +324,10 @@ class BoardHealth:
         self._error_at: float | None = stored.get("last_error_at")
         self._error: str | None = stored.get("last_error")
         self._latency_ms: int | None = None
-        #: Whether this process has seen a contact or failure (``reachable`` needs one).
-        self._live = False
+        #: This process's last event, ``"contact"`` or ``"error"`` (``reachable`` needs one).
+        self._last_event: str | None = None
+        #: Whether the device's circuit breaker is open now; the driver binds it.
+        self.breaker: Callable[[], bool] | None = None
         #: Failures recorded so far, so the driver can tell whether HTTP explained one.
         self.error_count = 0
 
@@ -213,7 +336,7 @@ class BoardHealth:
         with self._lock:
             self._connected_at = self.clock()
             self._latency_ms = max(0, round(seconds * 1000))
-            self._live = True
+            self._last_event = "contact"
         self._persist()
 
     def record_update(self) -> None:
@@ -227,7 +350,7 @@ class BoardHealth:
         with self._lock:
             self._error_at = self.clock()
             self._error = code
-            self._live = True
+            self._last_event = "error"
             self.error_count += 1
         self._persist()
 
@@ -243,20 +366,28 @@ class BoardHealth:
             }
         health_store().update(self.board_id, values)
 
+    def _breaker_open(self) -> bool:
+        probe = self.breaker
+        if probe is None:
+            return False
+        try:
+            return bool(probe())
+        except Exception:
+            logger.debug("Could not read the breaker for %s", self.board_id, exc_info=True)
+            return False
+
     def as_dict(self) -> dict:
+        breaker_open = self._breaker_open()
         with self._lock:
-            connected, error = self._connected_at, self._error_at
-            if not self._live:
-                reachable = None
-            else:
-                reachable = error is None or (connected is not None and connected >= error)
+            reachable = None if self._last_event is None else self._last_event == "contact"
             return {
-                "last_connected_at": _instant(connected),
+                "last_connected_at": _instant(self._connected_at),
                 "last_update_at": _instant(self._updated_at),
                 "latency_ms": self._latency_ms,
-                "last_error_at": _instant(error),
+                "last_error_at": _instant(self._error_at),
                 "last_error": self._error,
                 "reachable": reachable,
+                "breaker_open": breaker_open,
             }
 
     def summary(self) -> HealthSummary:
@@ -265,9 +396,11 @@ class BoardHealth:
 
 def board_health(service, board_id: str) -> HealthSummary:
     """*board_id*'s health from the live service, or an all-null summary when it has no runtime."""
-    try:
+    try:  # a health read must never break a status poll
         runtime = service.runtime_for(board_id) if service is not None else None
         health = getattr(getattr(runtime, "output", None), "health", None)
-    except Exception:  # a health read must never break a status poll
-        health = None
-    return health.summary() if isinstance(health, BoardHealth) else HealthSummary()
+        if isinstance(health, BoardHealth):
+            return health.summary()
+    except Exception:
+        logger.warning("Could not report the health of board %s", board_id, exc_info=True)
+    return HealthSummary()

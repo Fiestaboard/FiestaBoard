@@ -76,6 +76,15 @@ __all__ = [
 
 #: ``(connect, read)`` seconds for a request that names no timeout.
 DEFAULT_TIMEOUT: tuple[float, float] = (3.05, 10.0)
+#: Requests that fail before anything is sent (health's ``invalid_request``).
+_INVALID_REQUEST = (
+    requests.exceptions.MissingSchema,
+    requests.exceptions.InvalidSchema,
+    requests.exceptions.InvalidURL,
+    requests.exceptions.URLRequired,
+    requests.exceptions.InvalidHeader,
+    requests.exceptions.InvalidJSONError,
+)
 
 
 class _Cancellable(Protocol):
@@ -218,6 +227,11 @@ class OutputHttp:
             raise
         except requests.exceptions.Timeout:
             self._note_failure("timeout")
+            raise
+        except _INVALID_REQUEST:
+            # Never sent: the address, a header or the body is malformed,
+            # usually the board's settings. Not the board being unreachable.
+            self._note_failure("invalid_request")
             raise
         except requests.exceptions.RequestException:
             self._note_failure("unreachable")
