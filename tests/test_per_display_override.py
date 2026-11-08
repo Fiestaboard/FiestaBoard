@@ -197,11 +197,31 @@ def test_rest_sets_reads_and_clears_one_board(client, boards):  # noqa: F811
     assert client.get(f"/settings/temporary-override?board_id={second}").json()["active"] is False
 
 
-def test_rest_unknown_board_is_404(client, boards):  # noqa: F811
-    assert client.get("/settings/temporary-override?board_id=nope").status_code == 404
+def test_rest_writes_to_an_unknown_board_are_404(client, boards):  # noqa: F811
     response = client.post("/settings/temporary-override", json={"template": ["X"], "board_id": "nope"})
     assert response.status_code == 404
     assert client.delete("/settings/temporary-override?board_id=nope").status_code == 404
+
+
+def test_rest_reads_of_an_unknown_board_fall_back(client, boards):  # noqa: F811
+    # API_CONVENTIONS "writes 404, reads fall back": a poll racing a board's
+    # deletion gets the correct answer for a missing board, not an error.
+    body = client.get("/settings/temporary-override?board_id=nope").json()
+    assert body["active"] is False and body["board_id"] == "nope"
+    active = client.get("/schedules/active/page?board_id=nope")
+    assert active.status_code == 200 and active.json()["temporary_override"]["active"] is False
+
+
+def test_the_internal_primary_key_is_never_reachable_from_the_api(client, boards):  # noqa: F811
+    # Security F3: "__primary__" is the store's key for "no board yet"; over
+    # HTTP it is just an unknown board, never another name for the primary.
+    assert client.post("/settings/temporary-override", json={"template": ["MINE"]}).status_code == 200
+    read = client.get(f"/settings/temporary-override?board_id={PRIMARY_RUNTIME_KEY}").json()
+    assert read["active"] is False and read["board_id"] == PRIMARY_RUNTIME_KEY
+    write = client.post("/settings/temporary-override", json={"template": ["X"], "board_id": PRIMARY_RUNTIME_KEY})
+    assert write.status_code == 404
+    assert client.delete(f"/settings/temporary-override?board_id={PRIMARY_RUNTIME_KEY}").status_code == 404
+    assert client.get("/settings/temporary-override").json()["template"] == ["MINE"]
 
 
 def test_rest_without_a_board_is_the_primary(client, boards):  # noqa: F811
@@ -356,3 +376,94 @@ def test_engine_harness_override_shape_is_per_board():
     settings = _settings_service([_board("b1", "One"), _board("b2", "Two")], override={"b2": SimpleNamespace()})
     assert settings.consume_temporary_override(board_id="b1") is None
     assert settings.consume_temporary_override(board_id="b2") is not None
+
+
+# --- Review follow-ups (#2451) ------------------------------------------------------------
+
+
+def test_listing_while_an_expiry_lands_does_not_fail(store):
+    """Fable's defect: listing iterated the shared dict while the display loop
+    expired an entry under the lock. A second thread expires board-2 in the
+    middle of the listing; it must wait for the lock, not break the iteration."""
+    import threading
+
+    store.set_temporary_override(TemporaryOverride(page_id="p1", expires_at=_later()), board_id="board-1")
+    store.set_temporary_override(TemporaryOverride(page_id="p2", expires_at=_earlier()), board_id="board-2")
+    racer: list[threading.Thread] = []
+
+    class ExpiresMidIteration(dict):
+        def items(self):
+            for index, item in enumerate(super().items()):
+                if index == 0:
+                    thread = threading.Thread(target=store.consume_temporary_override, kwargs={"board_id": "board-2"})
+                    racer.append(thread)
+                    thread.start()
+                    thread.join(0.3)
+                yield item
+
+    store._temporary_overrides = ExpiresMidIteration(store._temporary_overrides)
+    try:
+        assert set(store.list_temporary_overrides()) == {"board-1"}
+    finally:
+        for thread in racer:
+            thread.join(2)
+    assert store.peek_temporary_override(board_id="board-2") is None
+
+
+def test_an_override_set_before_any_board_moves_to_the_first_board(tmp_path, mock_config):
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"board": {"board_type": "black", "boards": []}}))
+    svc = SettingsService(settings_file=str(path))
+    svc._board.boards = []
+    svc.set_temporary_override(TemporaryOverride(page_id="p0"))
+    assert set(svc.peek_all_temporary_overrides()) == {PRIMARY_RUNTIME_KEY}
+    board = svc.add_board({"name": "First", "device_type": "flagship"}).boards[0]
+    assert set(svc.peek_all_temporary_overrides()) == {board["id"]}
+    assert set(svc.list_temporary_overrides()) == {board["id"]}
+    assert svc.get_temporary_override().page_id == "p0"
+
+
+@pytest.mark.parametrize("field", ["template", "line_metadata"])
+def test_oversized_override_content_is_refused(client, boards, field):  # noqa: F811
+    # Security F1: a per-line cap keeps one request from parking ~1 MB per board in settings.json.
+    _, second = boards
+    if field == "template":
+        body = {"template": ["X" * 2049], "board_id": second}
+    else:
+        body = {"template": ["X"], "line_metadata": [{"alignment": "left", "pad": "y" * 9000}], "board_id": second}
+    response = client.post("/settings/temporary-override", json=body)
+    assert response.status_code == 422, response.text
+
+
+def test_a_line_at_the_cap_is_accepted(client, boards):  # noqa: F811
+    _, second = boards
+    # 2048 characters of template source is far more than any board row needs.
+    response = client.post("/settings/temporary-override", json={"template": ["X" * 2048], "board_id": second})
+    assert response.status_code == 200, response.text
+
+
+def test_an_override_beats_silence_on_a_secondary_board():
+    boards_ = [_board("b1", "One"), _board("b2", "Two", port=7001)]
+    svc, _clients = _service_with_runtimes(boards_)
+    pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BETA"}, "pO": {"content": "OVR"}})
+    schedule = _schedule_service({"b1": "pA", "b2": "pB"})
+    settings = _settings_service(boards_, override={"b2": _override("pO", _later())})
+
+    _drive(svc, boards_, settings=settings, pages=pages, schedule=schedule, silence=True)
+
+    assert svc.runtimes["b2"].last_active_page_id == "pO"  # the override, not the indicator
+    assert svc.runtimes["b1"].snoozing_message_sent is True  # the primary is silenced as before
+
+
+def test_a_trigger_on_the_primary_still_beats_its_override_and_leaves_others_alone():
+    boards_ = [_board("b1", "One"), _board("b2", "Two", port=7001)]
+    svc, clients = _service_with_runtimes(boards_)
+    pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BETA"}, "pO": {"content": "OVR"}})
+    schedule = _schedule_service({"b1": "pA", "b2": "pB"})
+    settings = _settings_service(boards_, override={"b1": _override("pO", _later()), "b2": _override("pO", _later())})
+
+    _drive(svc, boards_, settings=settings, pages=pages, schedule=schedule, trigger_content="DOORBELL")
+
+    doorbell = [4, 15, 15, 18, 2, 5, 12, 12]  # D-O-O-R-B-E-L-L in board character codes
+    assert clients["b1"].render.call_args.args[0][0][:8] == doorbell  # the trigger wins on the primary
+    assert svc.runtimes["b2"].last_active_page_id == "pO"  # the secondary keeps its own override
