@@ -27,9 +27,9 @@ describe("grid bounds", () => {
     expect([MIN_GRID_ROWS, MIN_GRID_COLS, MAX_GRID_ROWS, MAX_GRID_COLS]).toEqual([3, 15, 96, 128]);
   });
 
-  it("an LED board in pixels has a 3x10 floor, the lowest any board goes (src/devices.py)", () => {
-    expect([MIN_LED_GRID_ROWS, MIN_LED_GRID_COLS]).toEqual([3, 10]);
-    expect([ABSOLUTE_MIN_GRID_ROWS, ABSOLUTE_MIN_GRID_COLS]).toEqual([3, 10]);
+  it("an LED board in pixels has a 1x5 floor, the lowest any board goes (src/devices.py)", () => {
+    expect([MIN_LED_GRID_ROWS, MIN_LED_GRID_COLS]).toEqual([1, 5]);
+    expect([ABSOLUTE_MIN_GRID_ROWS, ABSOLUTE_MIN_GRID_COLS]).toEqual([1, 5]);
   });
 });
 
@@ -55,8 +55,9 @@ describe("resolveDimensions — panel", () => {
     expect(sizeKey("panel", 1, 1, 8, 10)).toBe("panel:8x10");
   });
 
-  it("clamps each axis into the grid bounds, down to the 3x10 absolute minimum", () => {
-    expect(resolveDimensions("panel", 1, 1, 1, 2)).toEqual({ rows: 3, cols: 10 });
+  it("clamps each axis into the grid bounds, down to the 1x5 absolute minimum", () => {
+    expect(resolveDimensions("panel", 1, 1, 0, 2)).toEqual({ rows: 1, cols: 5 });
+    expect(resolveDimensions("panel", 1, 1, 1, 8)).toEqual({ rows: 1, cols: 8 });
     expect(resolveDimensions("panel", 1, 1, 500, 500)).toEqual({ rows: MAX_GRID_ROWS, cols: MAX_GRID_COLS });
   });
 

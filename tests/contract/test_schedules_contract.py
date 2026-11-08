@@ -52,7 +52,7 @@ class TestListSchedulesContract:
         ):
             svc = Mock()
             svc.list_schedules.return_value = []
-            svc.get_default_page.return_value = None
+            svc.get_default_page_state.return_value = {"default_page_id": None, "revision": "default-generation"}
             mock_svc.return_value = svc
 
             ss = Mock()
@@ -70,7 +70,7 @@ class TestListSchedulesContract:
         ):
             svc = Mock()
             svc.list_schedules.return_value = []
-            svc.get_default_page.return_value = None
+            svc.get_default_page_state.return_value = {"default_page_id": None, "revision": "default-generation"}
             mock_svc.return_value = svc
 
             ss = Mock()
@@ -82,6 +82,8 @@ class TestListSchedulesContract:
         data = resp.json()
         assert "schedules" in data
         assert "total" in data
+        assert data["default_page_revision"] == "default-generation"
+        assert data["default_page_edit_protocol"] == "schedule-default-revision-v1"
 
     def test_schedules_is_list(self, client):
         with (
@@ -90,7 +92,7 @@ class TestListSchedulesContract:
         ):
             svc = Mock()
             svc.list_schedules.return_value = []
-            svc.get_default_page.return_value = None
+            svc.get_default_page_state.return_value = {"default_page_id": None, "revision": "default-generation"}
             mock_svc.return_value = svc
 
             ss = Mock()
@@ -108,7 +110,7 @@ class TestListSchedulesContract:
         ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
-            svc.get_default_page.return_value = None
+            svc.get_default_page_state.return_value = {"default_page_id": None, "revision": "default-generation"}
             mock_svc.return_value = svc
 
             ss = Mock()
@@ -127,7 +129,7 @@ class TestListSchedulesContract:
         ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
-            svc.get_default_page.return_value = None
+            svc.get_default_page_state.return_value = {"default_page_id": None, "revision": "default-generation"}
             mock_svc.return_value = svc
 
             ss = Mock()
@@ -150,7 +152,7 @@ class TestListSchedulesContract:
         ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
-            svc.get_default_page.return_value = None
+            svc.get_default_page_state.return_value = {"default_page_id": None, "revision": "default-generation"}
             mock_svc.return_value = svc
 
             ss = Mock()
@@ -339,7 +341,7 @@ class TestDefaultPageContract:
     def test_returns_200(self, client):
         with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
-            svc.get_default_page.return_value = None
+            svc.get_default_page_state.return_value = {"default_page_id": None, "revision": "default-generation"}
             mock_svc.return_value = svc
 
             resp = client.get("/schedules/default-page")
@@ -349,18 +351,20 @@ class TestDefaultPageContract:
     def test_response_has_default_page_id(self, client):
         with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
-            svc.get_default_page.return_value = None
+            svc.get_default_page_state.return_value = {"default_page_id": None, "revision": "default-generation"}
             mock_svc.return_value = svc
 
             resp = client.get("/schedules/default-page")
 
         data = resp.json()
         assert "default_page_id" in data
+        assert data["revision"] == "default-generation"
+        assert data["edit_protocol"] == "schedule-default-revision-v1"
 
     def test_null_default_page_is_valid(self, client):
         with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
-            svc.get_default_page.return_value = None
+            svc.get_default_page_state.return_value = {"default_page_id": None, "revision": "default-generation"}
             mock_svc.return_value = svc
 
             resp = client.get("/schedules/default-page")
@@ -371,7 +375,10 @@ class TestDefaultPageContract:
     def test_set_default_page_id_reflects_in_response(self, client):
         with patch("src.schedules.routes.get_schedule_service") as mock_svc:
             svc = Mock()
-            svc.get_default_page.return_value = "my-default-page"
+            svc.get_default_page_state.return_value = {
+                "default_page_id": "my-default-page",
+                "revision": "default-generation",
+            }
             mock_svc.return_value = svc
 
             resp = client.get("/schedules/default-page")

@@ -19,7 +19,7 @@ name: CodeQL
 
 on:
   push:
-    branches: [ main, next ]
+    branches: [ main, alpha ]
     paths-ignore:
       - '**/*.md'
       - '**/*.mdx'
