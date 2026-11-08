@@ -1598,7 +1598,12 @@ class PluginRegistry:
             # Unload
             old_plugin = self._plugins.pop(plugin_id, None)
             if old_plugin is not None:
-                retire_plugin_object(plugin_id, old_plugin, what="removed plugin")
+                loaded = self._loader.loaded_plugins.get(plugin_id)
+                # reload_plugin retires the object the loader owns. Only
+                # retire a distinct registry reference here, never that
+                # same object a second time (even if its cleanup raises).
+                if loaded is None or loaded[0] is not old_plugin:
+                    retire_plugin_object(plugin_id, old_plugin, what="removed plugin")
             if plugin_id in self._manifests:
                 del self._manifests[plugin_id]
 
