@@ -459,6 +459,39 @@ class PageStorage:
         logger.info(f"Created page: {page.id} ({page.name})")
         return page
 
+    def replace_demo(self, page: Page) -> str | None:
+        """Commit a demo and its predecessor's removal in one snapshot.
+
+        Return the old page ID, or None for a first creation. Readers keep
+        the old snapshot until persistence succeeds; failed writes publish
+        nothing. The replacement retains the normal fresh-page ID contract.
+        """
+        if not page.demo_plugin_id:
+            raise ValueError("A demo page must identify its plugin")
+        errors = page.validate_config()
+        if errors:
+            raise ValueError(f"Invalid page configuration: {errors}")
+        with self._store.lock:
+            existing = next(
+                (
+                    stored
+                    for stored in self.list_all()
+                    if stored.demo_plugin_id == page.demo_plugin_id and stored.device_type == page.device_type
+                ),
+                None,
+            )
+            old_id = existing.id if existing is not None else None
+            if page.id in self._pages and page.id != old_id:
+                raise ValueError(f"Page with ID {page.id} already exists")
+            page = page.model_copy(update={"revision": str(uuid.uuid4())})
+            pages = dict(self._pages)
+            if old_id is not None:
+                del pages[old_id]
+            pages[page.id] = page
+            self._save(pages)
+            self._pages = pages
+        return old_id
+
     def check_revision(self, page_id: str, expected_revision: str | None) -> None:
         """Check under the mutation lock; callers may extend the critical section."""
         with self.lock:
