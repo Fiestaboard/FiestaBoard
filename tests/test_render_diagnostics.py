@@ -317,7 +317,10 @@ def test_validate_leaves_a_string_template_alone(client):
 
 # ── review follow-ups: a bounded payload, and the surviving mutants ─────────
 
-LONG = '{{= REPT(REPT("A",1024),1024) }}'
+#: 16 KB: longer than a Flagship could show, within any formula length cap.
+LONG = '{{= REPT(REPT("A",1024),16) }}'
+#: The review's one-line megabyte (a capped evaluator answers #VALUE instead).
+NESTED = '{{= REPT(REPT("A",1024),1024) }}'
 
 
 def test_a_long_formula_value_is_cut_and_flagged(engine):
@@ -357,6 +360,13 @@ def test_render_with_diagnostics_of_a_long_formula_stays_small(client):
     assert response.status_code == 200, response.text
     assert len(response.content) < 16 * 1024
     assert response.json()["diagnostics"]["formulas"][0]["value_truncated"] is True
+
+
+def test_render_with_diagnostics_of_nested_rept_stays_small(client):
+    response = client.post("/templates/render", json={"template": [NESTED], "diagnostics": True})
+
+    assert response.status_code == 200, response.text
+    assert len(response.content) < 16 * 1024
 
 
 def test_a_row_exactly_the_board_width_is_not_cut(engine):
