@@ -211,6 +211,18 @@ describe("API Extended Tests", () => {
       expect(result.id).toBe("page-1");
     });
 
+    it("deletePage sends the revision as a query precondition", async () => {
+      let revision: string | null = null;
+      server.use(
+        http.delete(`${API_BASE}/v1/pages/:id`, ({ request }) => {
+          revision = new URL(request.url).searchParams.get("expected_revision");
+          return HttpResponse.json({ id: "page-1" });
+        }),
+      );
+      await api.deletePage("page-1", "loaded revision/1");
+      expect(revision).toBe("loaded revision/1");
+    });
+
     it("previewPage sends POST", async () => {
       const result = await api.previewPage("page-1");
       expect(result.page_id).toBe("page-1");

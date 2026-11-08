@@ -14,13 +14,17 @@ from fastapi.testclient import TestClient
 from src.pages.models import Page
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
-
 from src.plugins import routes
 from src.plugins.manifest import DemoPageSchema
 from src.plugins.service import PluginService
 from src.storage.json_store import write_json_atomic
 
 json_dump = json.dump
+
+
+def persisted(page):
+    """Runtime revision tokens intentionally change when alpha reloads a store."""
+    return page.model_dump(exclude={"revision"}) if page is not None else None
 
 
 class DemoPageReplacement(unittest.TestCase):
@@ -64,7 +68,7 @@ class DemoPageReplacement(unittest.TestCase):
             "disk": self.path.read_bytes() == before,
             "no leaked staging file": not list(self.path.parent.glob("pages.json.*.tmp")),
             "memory": self.storage.get(self.old.id) is self.old,
-            "reload": PageStorage(str(self.path)).get(self.old.id) == self.old,
+            "reload": persisted(PageStorage(str(self.path)).get(self.old.id)) == persisted(self.old),
             "preview": self.service._preview_cache.get(self.old.id) is self.cached,
             "no phantom": not any(page.name == "Replacement" for page in self.storage.list_all()),
             "other geometry": self.storage.get(self.note.id) is self.note,
@@ -79,14 +83,14 @@ class DemoPageReplacement(unittest.TestCase):
         unrelated = self.storage.create(Page(name="Unrelated", type="template", template=["unrelated"]))
         reloaded = PageStorage(str(self.path))
         with self.subTest(boundary="after unrelated save"):
-            self.assertEqual(reloaded.get(self.old.id), self.old)
+            self.assertEqual(persisted(reloaded.get(self.old.id)), persisted(self.old))
         with self.subTest(boundary="no failed replacement on disk"):
             self.assertFalse(any(page.name == "Replacement" for page in reloaded.list_all()))
         fresh, recreated = self.service.create_demo_page("qa_demo", self.demo("Retry"))
         self.assertTrue(recreated)
         self.assertNotEqual(fresh.id, self.old.id)
         self.assertIsNone(self.storage.get(self.old.id))
-        self.assertEqual(PageStorage(str(self.path)).get(fresh.id), fresh)
+        self.assertEqual(persisted(PageStorage(str(self.path)).get(fresh.id)), persisted(fresh))
         self.assertEqual(self.storage.get(unrelated.id), unrelated)
         self.assertNotIn(self.old.id, self.service._preview_cache)
 
@@ -141,7 +145,7 @@ class DemoPageReplacement(unittest.TestCase):
                 with self.subTest(boundary="memory before commit"):
                     self.assertIs(self.storage.get(self.old.id), self.old)
                 with self.subTest(boundary="disk before commit"):
-                    self.assertEqual(PageStorage(str(self.path)).get(self.old.id), self.old)
+                    self.assertEqual(persisted(PageStorage(str(self.path)).get(self.old.id)), persisted(self.old))
                 with self.subTest(boundary="preview before commit"):
                     self.assertIs(self.service._preview_cache.get(self.old.id), self.cached)
             finally:

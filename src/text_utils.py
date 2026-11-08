@@ -1,4 +1,4 @@
-"""Shared text utilities for alignment/wrap prefix parsing."""
+"""Shared text utilities: alignment/wrap prefix parsing, counted nouns."""
 
 import re
 
@@ -28,3 +28,12 @@ def extract_alignment_from_line(line: str) -> tuple[str, bool, str]:
         return (m.group(1).lower(), wrap_enabled, remaining[m.end() :])
 
     return ("left", wrap_enabled, remaining)
+
+
+def count_noun(count: int, singular: str, plural: str | None = None) -> str:
+    """``"1 row"`` / ``"8 rows"``: *count* with the noun in the right number.
+
+    *plural* defaults to *singular* + ``"s"``; pass it for an irregular one
+    (``count_noun(n, "entry", "entries")``).
+    """
+    return f"{count} {singular if count == 1 else (plural or singular + 's')}"

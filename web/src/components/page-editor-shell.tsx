@@ -24,6 +24,8 @@ export interface PageEditorShellProps {
   pageId?: string;
   /** Device type for new pages (ignored when pageId is set). */
   deviceType?: DeviceType;
+  /** Display selected in the Pages filter for a new page. */
+  targetBoardId?: string;
   /** If true, ignore and clear any saved draft for a new page. */
   skipDraft?: boolean;
   onClose: () => void;
@@ -35,7 +37,14 @@ export interface PageEditorShellProps {
  * so the AI assistant can read and edit the current page from anywhere
  * in the app.
  */
-export function PageEditorShell({ pageId, deviceType, skipDraft, onClose, onSave }: PageEditorShellProps) {
+export function PageEditorShell({
+  pageId,
+  deviceType,
+  targetBoardId,
+  skipDraft,
+  onClose,
+  onSave,
+}: PageEditorShellProps) {
   const builderRef = useRef<PageBuilderHandle>(null);
   const { register, unregister } = usePageEditorBridge();
   const t = useTranslations("pageBuilder");
@@ -59,6 +68,7 @@ export function PageEditorShell({ pageId, deviceType, skipDraft, onClose, onSave
       getSnapshot: () => call("getCurrentPage")?.() ?? null,
       getPageId: () => pageId,
       hasUnsavedChanges: () => call("hasUnsavedChanges")?.() ?? false,
+      revealText: () => call("revealText")?.(),
       beginStaging: () => call("beginStaging")?.(),
       stageName: (value) => call("stageName")?.(value),
       stageLine: (index, value) => call("stageLine")?.(index, value),
@@ -105,6 +115,7 @@ export function PageEditorShell({ pageId, deviceType, skipDraft, onClose, onSave
             ref={builderRef}
             pageId={pageId}
             deviceType={deviceType}
+            targetBoardId={targetBoardId}
             skipDraft={skipDraft}
             onClose={onClose}
             onSave={onSave}

@@ -3,6 +3,7 @@
 import logging
 from contextlib import ExitStack
 from copy import deepcopy
+from uuid import uuid4
 
 from src.collections.service import get_collection_service
 from src.config import resolve_silence_schedule
@@ -73,7 +74,10 @@ def prepare_resize_journal(
         "silence": _slot(silence.get("by_board") or {}, bid),
         "silence_by_board_present": "by_board" in silence,
         "silence_effective": resolve_silence_schedule(silence, bid)["page_id"],
-        "schedules": [entry.model_dump(mode="json") for entry in schedules.list_schedules(bid)],
+        "schedules": [
+            entry.model_dump(mode="json", exclude={"revision", "edit_protocol"})
+            for entry in schedules.list_schedules(bid)
+        ],
         "expected": expected,
         "copies": deepcopy(summary),
     }
@@ -170,14 +174,16 @@ def recover_pending_panel_resizes() -> int:
                 current = schedules.get(raw["id"])
                 if current is None:
                     raise ValueError("A schedule was removed after conversion began")
-                current_data = current.model_dump(mode="json")
-                proposed = {**raw, "page_id": expected["schedules"][raw["id"]]}
+                # Journals written by older builds may contain runtime fields.
+                # Generations are never restored or compared as document data.
+                original_data = {k: v for k, v in raw.items() if k not in {"updated_at", "revision", "edit_protocol"}}
+                current_data = current.model_dump(mode="json", exclude={"revision", "edit_protocol"})
+                proposed = {**original_data, "page_id": expected["schedules"][raw["id"]]}
                 for data in (current_data, proposed):
                     data.pop("updated_at", None)
-                original_data = {k: v for k, v in raw.items() if k != "updated_at"}
                 if current_data not in (original_data, proposed):
                     raise ValueError("Schedule edits were made after conversion began")
-                restored_entries.append(ScheduleEntry.model_validate(raw))
+                restored_entries.append(ScheduleEntry.model_validate(raw).model_copy(update={"revision": str(uuid4())}))
             for kind, storage in (("page_copies", pages), ("collection_copies", collections)):
                 if any(not storage.exists(copy["from_id"]) for copy in record["copies"][kind]):
                     raise ValueError("Original content was removed after conversion began")
@@ -204,6 +210,7 @@ def recover_pending_panel_resizes() -> int:
             for entry in restored_entries:
                 schedules._schedules[entry.id] = entry
             _restore_slot(schedules._default_page_by_board, bid, record["default"])
+            schedules.default_revision = str(uuid4())
             schedules._save()
             features = config._config.setdefault("features", {})
             feature = features.setdefault("silence_schedule", {})

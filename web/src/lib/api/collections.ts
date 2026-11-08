@@ -33,6 +33,8 @@ export interface RandomModeConfig {
 
 export interface Collection {
   id: string;
+  revision?: string;
+  edit_protocol?: "collection-revision-v1";
   name: string;
   page_ids: string[];
   selection_mode: CollectionSelectionMode;
@@ -53,6 +55,7 @@ export interface CollectionCreate {
 }
 
 export interface CollectionUpdate {
+  expected_revision?: string;
   name?: string;
   page_ids?: string[];
   selection_mode?: CollectionSelectionMode;
@@ -94,8 +97,11 @@ export const collectionsApi = {
       body: JSON.stringify(data),
     }),
 
-  deleteCollection: (collectionId: string) =>
-    fetchApi<CollectionDeleteResponse>(`/v1/collections/${collectionId}`, {
-      method: "DELETE",
-    }),
+  deleteCollection: (collectionId: string, expectedRevision?: string) =>
+    fetchApi<CollectionDeleteResponse>(
+      `/v1/collections/${collectionId}${expectedRevision ? `?expected_revision=${encodeURIComponent(expectedRevision)}` : ""}`,
+      {
+        method: "DELETE",
+      },
+    ),
 };

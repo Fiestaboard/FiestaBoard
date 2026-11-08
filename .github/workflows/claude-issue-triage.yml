@@ -116,6 +116,11 @@ jobs:
             3. Add or update a test that would have caught the bug.
                **Docs-only fixes don't need a test** — skip this step if the
                only files touched are `*.md`.
+               If the fix changes anything that ships (app code, plugins,
+               the web UI — see "Changesets (releases)" in CLAUDE.md), also
+               commit a changeset file `.changeset/issue-${{ github.event.issue.number }}.md`
+               (frontmatter `"fiestaboard": patch`, then one user-facing
+               sentence). Without it CI's Release guards check fails.
             4. Open a pull request against `main`. Draft state depends on
                the issue flavor:
                - For docs-flavored issues (labels include `docs` or
