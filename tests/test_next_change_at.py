@@ -154,6 +154,21 @@ def test_nothing_within_the_horizon_is_null(board, clock):
     assert (change.at, change.reason, change.page_id) == (None, None, None)
 
 
+def test_a_boundary_just_past_the_horizon_is_null(board, clock):
+    board_id, pages = board
+    # Eight days and one hour ahead: beyond the 8-day horizon.
+    _schedule(board_id, pages["Work"], "13:00", "14:00", recurrence_type="one_off_date", one_off_date="2026-11-17")
+    clock(_la(2026, 11, 9, 12, 0))
+    assert _next(board_id).at is None
+
+
+def test_a_boundary_just_inside_the_horizon_is_reported(board, clock):
+    board_id, pages = board
+    _schedule(board_id, pages["Work"], "11:00", "14:00", recurrence_type="one_off_date", one_off_date="2026-11-17")
+    clock(_la(2026, 11, 9, 12, 0))
+    assert _next(board_id).at == _utc(_la(2026, 11, 17, 11, 0))
+
+
 def test_manual_mode_has_no_schedule_boundary(board, clock):
     from src.settings.service import get_settings_service
 
@@ -219,7 +234,7 @@ def test_an_override_reverting_to_a_page_names_it(board, clock):
 
 
 def test_an_override_reverting_to_blank_names_no_page(board, clock):
-    board_id, pages = board
+    board_id, _pages = board
     clock(_tomorrow_at(8, 0))
     _override(board_id, _tomorrow_at(8, 30), revert_mode="blank")
     change = _next(board_id)
@@ -292,7 +307,7 @@ def test_a_window_opening_before_the_next_boundary(board, clock, monkeypatch):
 
 
 def test_an_override_beats_silence(board, clock, monkeypatch):
-    board_id, pages = board
+    board_id, _pages = board
     clock(_tomorrow_at(1, 0))
     _silence(monkeypatch, active=True, at=_tomorrow_at(7, 0).astimezone(UTC).isoformat())
     _override(board_id, _tomorrow_at(2, 0))
