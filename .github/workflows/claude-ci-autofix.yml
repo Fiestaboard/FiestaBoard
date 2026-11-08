@@ -6,8 +6,7 @@ name: 'Claude: CI Auto-Fix'
 # PRs out of a permanent red state.
 #
 # Trigger: workflow_run on the CI workflow completing. We act ONLY when the
-# run concluded `failure`, was triggered by a `pull_request` (not push /
-# merge_group), lives on an automation branch, and is NOT from a fork.
+# run concluded `failure`, was triggered by a `pull_request` (not a push), lives on an automation branch, and is NOT from a fork.
 # (workflow_run carries full secrets, so the fork guard is mandatory.)
 #
 # Loop safety — three guards, in order:
