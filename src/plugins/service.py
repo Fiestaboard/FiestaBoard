@@ -698,28 +698,14 @@ class PluginService:
         if registry.get_plugin_source(plugin_id) is None:
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
 
-        # Collect instance compound keys before uninstall so we can purge their configs
-        instance_keys = [
-            p["id"] for p in registry.list_plugins() if p.get("base_plugin_id") == plugin_id and p.get("instance_label")
-        ]
+        def forget_connections(connection_ids: list[str]) -> None:
+            oauth_service = self.oauth_service
+            for identity in connection_ids:
+                oauth_service.forget(identity)
 
-        errors = registry.uninstall_external_plugin(plugin_id)
+        errors = registry.uninstall_external_plugin(plugin_id, on_committed=forget_connections)
         if errors:
             raise PluginOperationRejected("; ".join(errors))
-
-        # Purge persisted configs for both the base plugin and every named
-        # instance. The base-id delete is critical: without it the v2→v3
-        # auto-migration would see the leftover entry as orphaned on the next
-        # boot and silently reinstall the plugin the user just deleted (#937).
-        config_manager = self.config_manager
-        oauth_service = self.oauth_service
-        for compound_key in instance_keys:
-            config_manager.delete_plugin_config(compound_key)
-            oauth_service.forget(compound_key)
-        config_manager.delete_plugin_config(plugin_id)
-        # Tokens for a plugin that is gone are credentials nobody can see or
-        # revoke from the UI; do not leave them on disk.
-        oauth_service.forget(plugin_id)
 
     def _validated_update_path(self, plugin_id: str) -> None:
         """Guard an external plugin's local path before letting it near git.

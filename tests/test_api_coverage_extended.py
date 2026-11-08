@@ -758,45 +758,36 @@ class TestPluginManagement:
         assert "repository not found" in resp.json()["detail"]
 
     def test_uninstall_deletes_base_plugin_config(self, client):
-        """Regression for #937: uninstalling a base plugin must purge its persisted
-        config so the v2→v3 auto-migration does not treat it as orphaned on the
-        next boot and silently re-install it."""
-        mock_registry = Mock()
-        mock_registry.list_plugins.return_value = [
-            {"id": "muni", "base_plugin_id": "muni", "instance_label": None},
-        ]
-        mock_registry.uninstall_external_plugin.return_value = []
-        mock_cm = Mock()
-        with (
-            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
-            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
-        ):
-            resp = client.delete("/plugins/muni/uninstall")
-        assert resp.status_code == 200
-        mock_cm.delete_plugin_config.assert_any_call("muni")
+        """A real uninstall purges base config durably, preventing re-migration."""
+        import json
+
+        from tests.test_plugin_uninstall_cleanup_ownership import installed_plugin, join_cleanup_threads
+
+        with installed_plugin() as (manager, registry, code, path), join_cleanup_threads():
+            with patch("src.plugins.routes.get_plugin_registry", return_value=registry):
+                resp = client.delete("/plugins/qa_uninstall/uninstall")
+            assert resp.status_code == 200
+            assert manager.get_plugin_config("qa_uninstall") is None
+            saved = json.loads(path.read_text())
+            assert "qa_uninstall" not in saved["plugins"]
+            assert "qa_uninstall" in saved["removed_plugins"]
+            assert not code.exists()
 
     def test_uninstall_deletes_base_and_instance_configs(self, client):
-        """When the uninstalled plugin has named instances, the endpoint must
-        delete each instance's persisted config AND the base plugin's persisted
-        config (the missing base-id delete is the root cause of #937)."""
-        mock_registry = Mock()
-        mock_registry.list_plugins.return_value = [
-            {"id": "weather:sf", "base_plugin_id": "weather", "instance_label": "sf"},
-            {"id": "weather:nyc", "base_plugin_id": "weather", "instance_label": "nyc"},
-            {"id": "weather", "base_plugin_id": "weather", "instance_label": None},
-        ]
-        mock_registry.uninstall_external_plugin.return_value = []
-        mock_cm = Mock()
-        with (
-            patch("src.plugins.routes.PLUGIN_SYSTEM_AVAILABLE", True),
-            patch("src.plugins.routes.get_plugin_registry", return_value=mock_registry),
-            patch("src.plugins.routes.get_config_manager", return_value=mock_cm),
-        ):
-            resp = client.delete("/plugins/weather/uninstall")
-        assert resp.status_code == 200
-        called_keys = {call.args[0] for call in mock_cm.delete_plugin_config.call_args_list}
-        assert called_keys == {"weather:sf", "weather:nyc", "weather"}
+        """Uninstall purges base/instances together and preserves unrelated config."""
+        import json
+
+        from tests.test_plugin_uninstall_cleanup_ownership import installed_plugin, join_cleanup_threads
+
+        with installed_plugin() as (manager, registry, _, path), join_cleanup_threads():
+            manager.set_plugin_config("unrelated", {"enabled": False, "label": "KEEP"})
+            with patch("src.plugins.routes.get_plugin_registry", return_value=registry):
+                resp = client.delete("/plugins/qa_uninstall/uninstall")
+            assert resp.status_code == 200
+            expected = {"unrelated": {"enabled": False, "label": "KEEP"}}
+            assert manager.get_all_plugin_configs() == expected
+            assert json.loads(path.read_text())["plugins"] == expected
+            assert registry.plugins == {}
 
     def test_uninstall_failure_preserves_config(self, client):
         """If the registry refuses the uninstall, the persisted config must NOT

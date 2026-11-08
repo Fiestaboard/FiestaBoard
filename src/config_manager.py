@@ -2149,6 +2149,29 @@ class ConfigManager:
             candidate["removed_plugins"] = sorted({*removed, plugin_id})
             self._save_internal(candidate)
 
+    def uninstall_plugin_config(self, plugin_id: str) -> list[str]:
+        """Commit base/instance config removal and its tombstone together.
+
+        Caller stages code removal before this write and retires live objects
+        only after it returns. Failed writes publish neither partial config
+        deletion nor the removal marker, and do not bump the generation.
+        """
+        if not isinstance(plugin_id, str) or not plugin_id:
+            raise ValueError("plugin_id must be a nonempty string")
+        with self._file_lock:
+            candidate = self._deep_copy(self._config)
+            plugins = candidate.get("plugins", {})
+            prefix = f"{plugin_id}:"
+            purged = [key for key in plugins if key == plugin_id or key.startswith(prefix)]
+            candidate["plugins"] = {
+                key: value for key, value in plugins.items() if key != plugin_id and not key.startswith(prefix)
+            }
+            removed = candidate.get("removed_plugins")
+            removed = [pid for pid in removed if isinstance(pid, str) and pid] if isinstance(removed, list) else []
+            candidate["removed_plugins"] = sorted({*removed, plugin_id})
+            self._save_internal(candidate)
+            return purged
+
     def get_enabled_plugins(self) -> list[str]:
         """Get list of enabled plugin IDs.
 

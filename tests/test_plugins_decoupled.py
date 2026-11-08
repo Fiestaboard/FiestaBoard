@@ -297,7 +297,7 @@ assert registry.delete_instance.call_args.args == ("alpha", "office")
 assert set(registry.delete_instance.call_args.kwargs) == {"before_change"}
 registry.install_from_registry.assert_called_once_with("beta")
 registry.install_from_git.assert_called_once()
-registry.uninstall_external_plugin.assert_called_once_with("ext")
+registry.uninstall_external_plugin.assert_called_once_with("ext", on_committed=ANY)
 registry.check_for_updates.assert_called_once()
 config_manager.set_plugin_config.assert_called()
 config_manager.get_plugin_env_overrides.assert_called()

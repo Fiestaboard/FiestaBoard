@@ -276,7 +276,9 @@ class _ContractRegistry:
     def install_from_git(self, repository: str, plugin_id: str | None = None, branch: str = "") -> list[str]:
         return []
 
-    def uninstall_external_plugin(self, plugin_id: str) -> list[str]:
+    def uninstall_external_plugin(self, plugin_id: str, *, on_committed=None) -> list[str]:
+        if plugin_id == "ext_plugin" and on_committed is not None:
+            on_committed([plugin_id])
         return [] if plugin_id == "ext_plugin" else [f"Plugin '{plugin_id}' is a built-in plugin"]
 
     def check_for_updates(self) -> dict[str, bool]:
