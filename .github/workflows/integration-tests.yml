@@ -271,5 +271,5 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: integration-results-${{ github.event_name }}
-          path: web/test-results/
+          path: web/playwright-test-results/
           retention-days: 14

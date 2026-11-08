@@ -34,6 +34,7 @@ This file is the pre-conversion recording of the two converted routes.
 
 from __future__ import annotations
 
+import socket
 from unittest.mock import Mock, patch
 
 import pytest
@@ -48,7 +49,14 @@ ALLOWED_HOSTS = "src.plugin_support.routes._get_generic_data_allowed_hosts"
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    # HTTP is already mocked below; DNS must be deterministic too. Keep the
+    # real URL/allowlist guards, supplying only the fixture host's public IP.
+    def fixture_dns(host, port, *args, **kwargs):
+        assert host == "example.com", f"Unexpected DNS request in contract test: {host}"
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", fixture_dns)
     return TestClient(app)
 
 

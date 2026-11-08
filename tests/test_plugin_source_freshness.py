@@ -290,12 +290,16 @@ class PluginSourceFreshness(unittest.TestCase):
                     self.assertIn("qa_virtual_helper", [item.name for item in pkgutil.iter_modules([str(virtual)])])
 
     def test_package_resource_reader_survives_fresh_source_loading(self):
-        source = code_for("qa_cache_resources").replace(
-            b"from src.plugins.base",
-            b"import sys\nfrom importlib import resources\nfrom src.plugins.base",
-        ).replace(
-            b"'marker':MARKER",
-            b"'marker':resources.files(sys.modules[__name__]).joinpath('payload.txt').read_text()+MARKER",
+        source = (
+            code_for("qa_cache_resources")
+            .replace(
+                b"from src.plugins.base",
+                b"import sys\nfrom importlib import resources\nfrom src.plugins.base",
+            )
+            .replace(
+                b"'marker':MARKER",
+                b"'marker':resources.files(sys.modules[__name__]).joinpath('payload.txt').read_text()+MARKER",
+            )
         )
         code = data_plugin(self.root, "qa_cache_resources", source)
         (code / "payload.txt").write_text("PAYLOAD:")
@@ -356,12 +360,11 @@ sys.path_hooks.insert(0, custom_hook)
         self.cold_hook_plugin("qa_cache_init_hook", True)
 
     def test_first_party_reload_reads_current_entry_and_relative_source(self):
-        from src.outputs.first_party import FirstPartySource, _evict, import_first_party_package
         import plugins
+        from src.outputs.first_party import FirstPartySource, _evict, import_first_party_package
+
         name = "plugins.vestaboard"
-        previous = {
-            key: value for key, value in sys.modules.items() if key == name or key.startswith(name + ".")
-        }
+        previous = {key: value for key, value in sys.modules.items() if key == name or key.startswith(name + ".")}
         missing = object()
         attribute = vars(plugins).get("vestaboard", missing)
         code = self.root / "vestaboard"
@@ -389,17 +392,13 @@ sys.path_hooks.insert(0, custom_hook)
     def test_symlinked_source_outside_plugin_keeps_ordinary_cache_policy(self):
         outside = self.root / "outside.py"
         outside.write_text("VALUE = 'OLD'\n")
-        source = code_for("qa_cache_link").replace(
-            b"MARKER = 'OLD'", b"from .linked import VALUE as MARKER"
-        )
+        source = code_for("qa_cache_link").replace(b"MARKER = 'OLD'", b"from .linked import VALUE as MARKER")
         code = data_plugin(self.root / "plugins", "qa_cache_link", source)
         leaf = code / "linked.py"
         leaf.symlink_to(outside)
         prime(leaf)
         replace_same_key(outside, b"'OLD'", b"'NEW'")
-        self.assertEqual(
-            self.loader(code.parent).load_plugin("qa_cache_link").fetch_data().data["marker"], "OLD"
-        )
+        self.assertEqual(self.loader(code.parent).load_plugin("qa_cache_link").fetch_data().data["marker"], "OLD")
 
     def test_http_update_executes_the_successfully_checked_out_source(self):
         identity = "qa_cache_http"

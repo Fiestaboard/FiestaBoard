@@ -238,6 +238,7 @@ def test_parse_tool_call_update_collection():
             "op": "update_collection",
             "args": {
                 "collection_id": "collection:abc",
+                "expected_revision": "original-generation",
                 "page_ids": ["x", "y"],
             },
         }
@@ -289,6 +290,7 @@ def test_parse_tool_call_update_schedule():
             "op": "update_schedule",
             "args": {
                 "schedule_id": "sch-abc",
+                "expected_revision": "original-generation",
                 "enabled": False,
             },
         }
@@ -303,7 +305,7 @@ def test_parse_tool_call_delete_schedule():
     call = parse_tool_call(
         {
             "op": "delete_schedule",
-            "args": {"schedule_id": "sch-xyz"},
+            "args": {"schedule_id": "sch-xyz", "expected_revision": "original-generation"},
         }
     )
     assert call.op == "delete_schedule"

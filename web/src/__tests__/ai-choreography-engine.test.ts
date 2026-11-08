@@ -29,6 +29,7 @@ function makeCtx(overrides: Partial<ChoreographyContext> = {}): {
     isMounted: vi.fn(() => true),
     pageId: vi.fn(() => undefined),
     hasUnsavedChanges: vi.fn(() => false),
+    revealText: vi.fn(),
     begin: vi.fn(),
     setName: vi.fn(),
     setLine: vi.fn(),
