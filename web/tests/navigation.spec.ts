@@ -76,7 +76,7 @@ test.describe("Navigation", () => {
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
-    await page.getByRole("menuitem", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
 
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 10_000 });
   });
@@ -103,7 +103,7 @@ test.describe("Navigation", () => {
 
     const htmlEl = page.locator("html");
 
-    // One open, three choices. A radio group does not close its menu on
+    // One open, three choices. The segmented control does not close its popover on
     // pick — that is the point of it, and re-clicking the trigger between
     // choices would close the menu rather than reopen it, then race the
     // exit animation. Each assertion names the state it expects rather
@@ -111,16 +111,16 @@ test.describe("Navigation", () => {
     // only ever do.
     await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
 
-    await page.getByRole("menuitemradio", { name: "Dark" }).click();
+    await page.getByRole("radio", { name: "Dark" }).click();
     await expect(htmlEl).toHaveClass(/\bdark\b/);
 
-    await page.getByRole("menuitemradio", { name: "Light" }).click();
+    await page.getByRole("radio", { name: "Light" }).click();
     await expect(htmlEl).not.toHaveClass(/\bdark\b/);
 
     // System is what a fresh install runs on, and what the toggle this
     // replaces had no way to express.
-    await page.getByRole("menuitemradio", { name: "System" }).click();
-    await expect(page.getByRole("menuitemradio", { name: "System" })).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("radio", { name: "System" }).click();
+    await expect(page.getByRole("radio", { name: "System" })).toHaveAttribute("aria-checked", "true");
   });
 
   test("the About box reports the version the API reports", async ({ page }) => {
@@ -133,9 +133,9 @@ test.describe("Navigation", () => {
     const { running_version: runningVersion } = await res.json();
 
     await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
-    await page.getByRole("menuitem", { name: /About FiestaBoard/ }).click();
+    await page.getByRole("button", { name: /About FiestaBoard/ }).click();
 
-    const about = page.getByRole("dialog");
+    const about = page.getByRole("dialog", { name: "Fiesta Board", exact: true });
     await expect(about).toBeVisible();
     // The number on screen is the number the server is running, not a
     // build-time constant baked into the bundle.

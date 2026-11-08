@@ -43,6 +43,8 @@ export type RecurrenceType = "weekly" | "annual_date" | "one_off_date";
 
 export interface ScheduleEntry {
   id: string;
+  revision?: string;
+  edit_protocol?: "schedule-revision-v1";
   board_id?: string; // Optional; "" or omitted = default board
   page_id: string;
   start_time: string; // HH:MM format
@@ -89,6 +91,7 @@ export interface ScheduleCreate {
 }
 
 export interface ScheduleUpdate {
+  expected_revision?: string;
   board_id?: string;
   page_id?: string;
   start_time?: string;
@@ -113,6 +116,8 @@ export interface SchedulesResponse {
   // Both per-board fields are null on the cross-board listing
   // (`board_id=*`), which has no single board to answer for.
   default_page_id: string | null;
+  default_page_revision?: string;
+  default_page_edit_protocol?: "schedule-default-revision-v1";
   enabled: boolean | null;
 }
 
@@ -237,7 +242,7 @@ export interface SilenceScheduleSettings {
   config?: Partial<SilenceScheduleConfig>;
 }
 
-/** Global schedule behaviour — not per-board (see `/schedules/enabled` for that). */
+/** Schedule re-enabling behavior for one board. */
 export interface ScheduleBehaviorSettings {
   /**
    * When true, turning schedule mode back on leaves the board on its manual
@@ -277,10 +282,13 @@ export const schedulesApi = {
       body: JSON.stringify(data),
     }),
 
-  deleteSchedule: (scheduleId: string) =>
-    fetchApi<ScheduleDeleteResponse>(`/v1/schedules/${scheduleId}`, {
-      method: "DELETE",
-    }),
+  deleteSchedule: (scheduleId: string, expectedRevision?: string) =>
+    fetchApi<ScheduleDeleteResponse>(
+      `/v1/schedules/${scheduleId}${expectedRevision ? `?expected_revision=${encodeURIComponent(expectedRevision)}` : ""}`,
+      {
+        method: "DELETE",
+      },
+    ),
 
   getActiveSchedule: (boardId?: string) =>
     fetchApi<ActiveScheduleResponse>(
@@ -299,11 +307,19 @@ export const schedulesApi = {
   // (and the same page-exists 404) that the /schedules setters did. The
   // response widens from `{default_page_id}` / `{enabled}` to the whole
   // BoardDetail; no caller read the old body.
-  setDefaultPage: (pageId: string | null, boardId?: string) =>
-    fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`, {
-      method: "PATCH",
-      body: JSON.stringify({ default_page_id: pageId }),
-    }),
+  setDefaultPage: async (pageId: string | null, boardId?: string, expectedRevision?: string) =>
+    expectedRevision
+      ? fetchApi<{ default_page_id: string | null; revision: string; edit_protocol: "schedule-default-revision-v1" }>(
+          "/schedules/default-page",
+          {
+            method: "PUT",
+            body: JSON.stringify({ page_id: pageId, board_id: boardId, expected_revision: expectedRevision }),
+          },
+        )
+      : fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ default_page_id: pageId }),
+        }),
 
   setScheduleEnabled: (enabled: boolean, boardId?: string) =>
     fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`, {
@@ -351,14 +367,20 @@ export const schedulesApi = {
       body: JSON.stringify(data),
     }),
 
-  // Global schedule behaviour (#1950). PUT takes a StrictBool server-side, so
+  // Per-board schedule behavior. Omitted boardId targets the primary board.
+  // PUT takes a StrictBool server-side, so
   // a non-boolean is refused with 422 rather than coerced.
-  getScheduleSettings: () => fetchApi<ScheduleBehaviorSettings>("/schedules/settings"),
+  getScheduleSettings: (boardId?: string) =>
+    fetchApi<ScheduleBehaviorSettings>(
+      typeof boardId === "string" && boardId
+        ? `/schedules/settings?board_id=${encodeURIComponent(boardId)}`
+        : "/schedules/settings",
+    ),
 
-  setScheduleSettings: (settings: ScheduleBehaviorSettings) =>
+  setScheduleSettings: (settings: ScheduleBehaviorSettings, boardId?: string) =>
     fetchApi<ScheduleBehaviorSettings>("/schedules/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
+      body: JSON.stringify({ ...settings, ...(boardId ? { board_id: boardId } : {}) }),
     }),
 };

@@ -23,6 +23,7 @@ import {
   Box,
   Button,
   Flex,
+  Input,
   Select,
   SelectContent,
   SelectGroup,
@@ -110,7 +111,7 @@ function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (
       <label className="text-xs font-medium" htmlFor={`board-name-${board.id}`}>
         {t("boardNameLabel")}
       </label>
-      <input
+      <Input
         id={`board-name-${board.id}`}
         type="text"
         value={draft}
@@ -120,7 +121,7 @@ function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (
         onChange={(e) => setDraft(e.target.value)}
         onBlur={handleBlur}
         placeholder={t("boardNamePlaceholder")}
-        className="w-full h-8 px-2 text-xs rounded-md border bg-background"
+        className="h-8 px-2 text-xs bg-background shadow-none"
         data-testid="board-name-input"
       />
     </Stack>
@@ -660,13 +661,13 @@ export function BoardEditor({
               <Flex align="end" gap="2">
                 <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
                   {t("notesWideLabel")}
-                  <input
+                  <Input
                     type="number"
                     min={1}
                     max={MAX_NOTES_PER_AXIS}
                     value={board.notes_wide ?? 1}
                     onChange={(e) => handleCustomDim("notes_wide", e.target.value)}
-                    className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
+                    className="h-8 w-16 px-2 text-xs bg-background shadow-none"
                   />
                 </label>
                 <Text as="span" size="xs" tone="muted" className="pb-1.5">
@@ -674,13 +675,13 @@ export function BoardEditor({
                 </Text>
                 <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
                   {t("notesTallLabel")}
-                  <input
+                  <Input
                     type="number"
                     min={1}
                     max={MAX_NOTES_PER_AXIS}
                     value={board.notes_tall ?? 1}
                     onChange={(e) => handleCustomDim("notes_tall", e.target.value)}
-                    className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
+                    className="h-8 w-16 px-2 text-xs bg-background shadow-none"
                   />
                 </label>
               </Flex>

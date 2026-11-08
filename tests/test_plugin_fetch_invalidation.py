@@ -206,7 +206,7 @@ class TestPluginFetchInvalidation(unittest.TestCase):
 
     def test_context_rechecks_completed_and_cached_answers_after_other_fetches(self):
         for warm in (False, True):
-            with self.subTest(warm=warm), self.setup_plugins() as (registry, plugin, service, _):
+            with self.subTest(warm=warm), self.setup_plugins() as (registry, _plugin, service, _):
                 answered = threading.Event()
                 if warm:
                     registry.fetch_plugin_data("probe")

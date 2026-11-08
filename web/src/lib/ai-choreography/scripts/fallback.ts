@@ -6,7 +6,7 @@ import type { ChoreographyScript, Step } from "../types";
 export const fallbackScript: ChoreographyScript = {
   narrate(call, ctx) {
     if (call.read_only) return [];
-    const { href, anchor } = homeFor(call);
+    const { href, anchor } = homeFor(call, ctx.currentBoardId?.(), ctx.primaryBoardId?.());
     return [
       { kind: "navigate", href },
       { kind: "waitFor", anchor, timeoutMs: 1500 },
@@ -15,7 +15,7 @@ export const fallbackScript: ChoreographyScript = {
   },
   settle(call, _result, ctx) {
     if (call.read_only) return [];
-    const { anchor } = homeFor(call);
+    const { anchor } = homeFor(call, ctx.currentBoardId?.(), ctx.primaryBoardId?.());
     return landed(anchor, ctx.t("done", { tool: ctx.label(call) }));
   },
   fail(call, result, ctx) {
@@ -25,8 +25,8 @@ export const fallbackScript: ChoreographyScript = {
   stop() {
     return [{ kind: "clearGhosts" }, { kind: "hide" }];
   },
-  approvalAnchor(call) {
-    return homeFor(call).anchor;
+  approvalAnchor(call, ctx) {
+    return homeFor(call, ctx.currentBoardId?.(), ctx.primaryBoardId?.()).anchor;
   },
 };
 

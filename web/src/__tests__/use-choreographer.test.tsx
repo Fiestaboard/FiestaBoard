@@ -32,6 +32,7 @@ function makeCtx(): ChoreographyContext & { navigated: string[] } {
       isMounted: () => false,
       pageId: () => undefined,
       hasUnsavedChanges: () => false,
+      revealText: vi.fn(),
       begin: vi.fn(),
       setName: vi.fn(),
       setLine: vi.fn(),
