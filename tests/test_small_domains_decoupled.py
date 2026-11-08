@@ -159,7 +159,9 @@ with (
     assert live.sent_to_board is False, live
 
 engine.get_available_variables.assert_called_once()
-engine.validate_template.assert_called_once_with("HELLO")
+# RE-PINNED (H4): validate passes the width it measures at (#1176) and the
+# per-line wrap metadata; with no board or geometry that is the Flagship's 22.
+engine.validate_template.assert_called_once_with("HELLO", cols=22, line_metadata=None)
 assert engine.render.call_count == 2
 settings_service.get_board_settings.assert_called_once()
 

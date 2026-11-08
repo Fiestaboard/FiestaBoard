@@ -1028,10 +1028,11 @@ class TestTemplateEndpoints:
         assert response.json()["valid"] is True
 
     def test_validate_template_with_errors(self, client, mock_template_engine):
-        error = Mock()
-        error.line = 1
-        error.column = 5
-        error.message = "Unknown variable"
+        from src.templates.engine import TemplateError
+
+        # RE-PINNED (H4): a real TemplateError, which now carries a code; a bare
+        # Mock has none for the response to serialise.
+        error = TemplateError(line=1, column=5, message="Unknown source: bad", code="unknown_source")
         mock_template_engine.validate_template.return_value = [error]
         response = client.post("/templates/validate", json={"template": "{{bad.var}}"})
         assert response.status_code == 200
