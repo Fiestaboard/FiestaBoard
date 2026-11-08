@@ -390,14 +390,16 @@ def test_quiet_hours_starting_land_on_the_configured_minute(loud_board, clock):
 
 
 def test_quiet_hours_ending_agree_with_panel_status(loud_board, clock):
-    from src.panels.status import panel_status
+    # Panel status's silenced_until is _instant(silence_window_end(board), to_minute=True).
+    from src import board_guards
+    from src.panels.status import _instant
 
     board_id, _ = loud_board
     _quiet_hours(board_id)
     clock(datetime(2026, 11, 9, 7, 0, 0, 337_000, tzinfo=UTC))
     change = _next(board_id)
     assert (change.at, change.reason) == ("2026-11-09T15:00:00+00:00", "silence_ends")
-    assert change.at == panel_status(board_id).silenced_until
+    assert change.at == _instant(board_guards.silence_window_end(board_id), to_minute=True)
 
 
 def _collection(pages, interval=300):

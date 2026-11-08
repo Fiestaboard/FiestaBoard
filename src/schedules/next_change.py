@@ -65,6 +65,20 @@ def _parse(value: str | None) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
+def _on_the_minute(value: datetime | None) -> datetime | None:
+    """*value* rounded to the nearest minute.
+
+    Quiet hours are configured to the minute, but ``board_guards.silence_timing``
+    reports the boundary as ``now + whole seconds``, which keeps now's
+    microseconds and lands up to a second either side of it. Rounding recovers
+    the configured minute, the same rule panel status's ``silenced_until``
+    applies (``src/panels/status.py``, ``_instant(..., to_minute=True)``).
+    """
+    if value is None:
+        return None
+    return (value + timedelta(seconds=30)).replace(second=0, microsecond=0)
+
+
 def wall_to_utc(wall: datetime, zone: tzinfo) -> datetime:
     """The first UTC instant at which the wall clock in *zone* reads *wall* or later.
 
@@ -170,7 +184,7 @@ def next_change(board_id: str) -> NextChange:
 
     silence = Config.silence_config_for(board_id) or {}
     timing = board_guards.silence_timing(silence) if silence.get("enabled") else None
-    boundary = _parse(timing.next_change_at) if timing else None
+    boundary = _on_the_minute(_parse(timing.next_change_at)) if timing else None
     if timing is not None and timing.active:
         return (
             NextChange(_instant(boundary), "silence_ends", _page_at(board_id, boundary, zone)) if boundary else _NOTHING
