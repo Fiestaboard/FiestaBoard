@@ -16,13 +16,37 @@ so a client had to re-derive it from the ``charset`` id. Pinned here:
 
 from __future__ import annotations
 
+import json
+import shutil
+
 import pytest
 from fastapi.testclient import TestClient
 
 from src.outputs.display_profile import FEATURES, display_profile_for_board
+from src.plugins.loader import PluginLoader
 from tests import test_led_board_layout as layout
 
 output_plugin = layout.output_plugin
+
+
+@pytest.fixture
+def small_led_output(tmp_path):
+    """The recording output offering a TC001 (32 x 8, RGB) and a MAX7219 (32 x 8, one lit colour)."""
+    root = tmp_path / "plugins"
+    target = root / layout.PLUGIN_ID
+    shutil.copytree(layout.FIXTURE, target, ignore=shutil.ignore_patterns("__pycache__"))
+    manifest_path = target / "manifest.json"
+    manifest = json.loads(manifest_path.read_text("utf-8"))
+    manifest["output"].pop("character_set")
+    manifest_path.write_text(json.dumps(manifest), "utf-8")
+    models_path = target / "output" / "device-models.json"
+    models = json.loads(models_path.read_text("utf-8"))
+    models_path.write_text(json.dumps([models[0], "ulanzi_tc001_awtrix", "max7219_4in1"]), "utf-8")
+    loader = PluginLoader(plugins_dir=root, external_dirs=[])
+    assert loader.load_plugin(layout.PLUGIN_ID) is not None, loader.load_errors
+    yield loader
+    loader.unload_plugin(layout.PLUGIN_ID)
+
 
 DRAWING_KEYS = {
     "source",
@@ -89,6 +113,28 @@ def test_a_pixoo_reports_what_its_output_declares(client, output_plugin):
     assert drawing["icons"] == list(profile.icons) and "sun" in drawing["icons"]
     assert drawing["features"] == {feature: profile.supports(feature) for feature in FEATURES}
     assert drawing["features"]["lowercase"] and drawing["features"]["pixels"] and drawing["features"]["rgb"]
+
+
+def test_a_tc001_reports_its_wide_pixel_size(client, small_led_output):
+    tc001 = {**layout.PIXOO, "id": "tc001-1", "device_model": "ulanzi_tc001_awtrix", "grid_rows": 1, "grid_cols": 8}
+    boards = _set_boards([layout.HALL, tc001])
+
+    drawing = _drawing(client, boards[1]["id"])
+
+    assert (drawing["pixel_width"], drawing["pixel_height"]) == (32, 8)
+    assert drawing["features"]["pixels"] is True
+
+
+def test_a_single_colour_panel_reports_its_lit_colour(client, small_led_output):
+    sign = {**layout.PIXOO, "id": "max-1", "device_model": "max7219_4in1", "grid_rows": 1, "grid_cols": 8}
+    boards = _set_boards([layout.HALL, sign])
+    profile = display_profile_for_board(boards[1])
+    assert profile is not None and profile.monochrome
+
+    drawing = _drawing(client, boards[1]["id"])
+
+    assert (drawing["color"], drawing["monochrome"]) == ("mono", profile.monochrome)
+    assert drawing["features"]["rgb"] is False
 
 
 def test_the_seamless_tile_style_draws_solid_shapes(client, output_plugin):
