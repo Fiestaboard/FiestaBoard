@@ -209,7 +209,22 @@
     "displayFilter": "Ekran filtresi",
     "allPages": "Tüm sayfalar",
     "libraryCount": "{count, plural, one {# sayfa} other {# sayfa}}",
-    "clearFilter": "Tüm sayfaları göster"
+    "clearFilter": "Tüm sayfaları göster",
+    "searchLabel": "Sayfa ara",
+    "searchPlaceholder": "Adlarda veya kayıtlı içerikte ara",
+    "searchHint": "Seçilen ekran filtresindeki adlarda ve kayıtlı içerikte arama yapar.",
+    "clearSearch": "Aramayı temizle",
+    "sortLabel": "Sayfaları sırala",
+    "sortNameAsc": "Ad A–Z",
+    "sortNameDesc": "Ad Z–A",
+    "sortCreatedDesc": "En yeni oluşturulan",
+    "sortCreatedAsc": "En eski oluşturulan",
+    "sortUpdatedDesc": "En son güncellenen",
+    "sortUpdatedAsc": "En önce güncellenen",
+    "noMatches": "Eşleşen sayfa yok",
+    "searchCount": "{total} sayfadan {count} tanesi",
+    "loadError": "Sayfalar yüklenemedi. Aramanız korunuyor.",
+    "retryLoading": "Sayfaları yüklemeyi yeniden dene"
   },
   "collections": {
     "title": "Döngüler",

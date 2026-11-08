@@ -209,7 +209,22 @@
     "displayFilter": "디스플레이 필터",
     "allPages": "모든 페이지",
     "libraryCount": "{count, plural, one {페이지 #개} other {페이지 #개}}",
-    "clearFilter": "모든 페이지 표시"
+    "clearFilter": "모든 페이지 표시",
+    "searchLabel": "페이지 검색",
+    "searchPlaceholder": "이름 또는 저장된 내용 검색",
+    "searchHint": "선택한 디스플레이 필터에서 이름과 저장된 콘텐츠를 검색합니다.",
+    "clearSearch": "검색 지우기",
+    "sortLabel": "페이지 정렬",
+    "sortNameAsc": "이름 A–Z",
+    "sortNameDesc": "이름 Z–A",
+    "sortCreatedDesc": "최근 생성순",
+    "sortCreatedAsc": "오래된 생성순",
+    "sortUpdatedDesc": "최근 수정순",
+    "sortUpdatedAsc": "오래된 수정순",
+    "noMatches": "일치하는 페이지가 없습니다",
+    "searchCount": "전체 {total}개 중 {count}개 페이지",
+    "loadError": "페이지를 불러올 수 없습니다. 검색 조건은 유지됩니다.",
+    "retryLoading": "페이지 불러오기 재시도"
   },
   "collections": {
     "title": "캐러셀",

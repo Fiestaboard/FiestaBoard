@@ -165,7 +165,22 @@
     "displayFilter": "Display filter",
     "allPages": "All pages",
     "libraryCount": "{count, plural, one {# page} other {# pages}}",
-    "clearFilter": "Show all pages"
+    "clearFilter": "Show all pages",
+    "searchLabel": "Search pages",
+    "searchPlaceholder": "Search names or saved content",
+    "searchHint": "Searches names and saved content in the selected display filter.",
+    "clearSearch": "Clear search",
+    "sortLabel": "Sort pages",
+    "sortNameAsc": "Name A–Z",
+    "sortNameDesc": "Name Z–A",
+    "sortCreatedDesc": "Newest created",
+    "sortCreatedAsc": "Oldest created",
+    "sortUpdatedDesc": "Recently updated",
+    "sortUpdatedAsc": "Updated oldest first",
+    "noMatches": "No matching pages",
+    "searchCount": "{count} of {total} pages",
+    "loadError": "Could not load pages. Your search is kept.",
+    "retryLoading": "Retry loading pages"
   },
   "collections": {
     "title": "Collections",

@@ -209,7 +209,22 @@
     "displayFilter": "Schermfilter",
     "allPages": "Alle pagina’s",
     "libraryCount": "{count, plural, one {# pagina} other {# pagina’s}}",
-    "clearFilter": "Alle pagina’s tonen"
+    "clearFilter": "Alle pagina’s tonen",
+    "searchLabel": "Pagina’s zoeken",
+    "searchPlaceholder": "Zoek namen of opgeslagen inhoud",
+    "searchHint": "Doorzoekt namen en opgeslagen inhoud binnen het geselecteerde schermfilter.",
+    "clearSearch": "Zoekopdracht wissen",
+    "sortLabel": "Pagina’s sorteren",
+    "sortNameAsc": "Naam A–Z",
+    "sortNameDesc": "Naam Z–A",
+    "sortCreatedDesc": "Nieuwste eerst",
+    "sortCreatedAsc": "Oudste eerst",
+    "sortUpdatedDesc": "Laatst bijgewerkt",
+    "sortUpdatedAsc": "Langst niet bijgewerkt",
+    "noMatches": "Geen overeenkomende pagina’s",
+    "searchCount": "{count} van {total} pagina’s",
+    "loadError": "Pagina’s konden niet worden geladen. Je zoekopdracht blijft behouden.",
+    "retryLoading": "Pagina’s opnieuw laden"
   },
   "collections": {
     "title": "Carrousels",

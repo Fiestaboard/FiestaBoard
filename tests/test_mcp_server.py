@@ -120,7 +120,9 @@ def mock_registry():
     # These four return a list of error strings; an empty list means success.
     # autospec would otherwise hand back a truthy MagicMock, which every
     # caller reads as "it failed".
+    registry.validate_plugin_config.return_value = []
     registry.set_plugin_config.return_value = []
+    registry.apply_stored_config.return_value = []
     registry.install_from_registry.return_value = []
     registry.uninstall_external_plugin.return_value = []
     registry.enable_plugin.return_value = True
@@ -723,8 +725,8 @@ class TestConfigurePlugin:
         )
         assert result["status"] == "success"
         assert result["plugin_id"] == "openweather"
-        registry.set_plugin_config.assert_called_once()
-        plugin_id, merged = registry.set_plugin_config.call_args[0]
+        registry.apply_stored_config.assert_called_once()
+        plugin_id, merged = registry.apply_stored_config.call_args[0]
         assert plugin_id == "openweather"
         # Both the newly-set key and the previously-stored one.
         assert merged["api_key"] == "new-key"
@@ -743,7 +745,7 @@ class TestConfigurePlugin:
 
     def test_validation_errors_are_reported_not_swallowed(self, mcp, plugin_services):
         registry, config_manager = plugin_services
-        registry.set_plugin_config.return_value = ["station_id is required"]
+        registry.validate_plugin_config.return_value = ["station_id is required"]
         message = _call_tool_expect_error(
             mcp,
             "configure_plugin",
