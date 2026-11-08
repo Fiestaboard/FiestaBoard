@@ -58,9 +58,11 @@ def _seconds_per_step() -> float:
 
 
 def _within_budget_time(elapsed: float, steps: int) -> bool:
-    """Whether *elapsed* is what about *steps* evaluation steps cost here
-    (3x slack, plus a fixed allowance for building the 32 K-item list)."""
-    return elapsed < 3 * steps * _seconds_per_step() + 0.5
+    """Whether *elapsed* is about what *steps* evaluation steps cost here:
+    10x slack (parallel test workers make the measured step rate noisy), plus
+    a fixed allowance for building the 32 K-item list. Unbounded, these
+    formulas take minutes."""
+    return elapsed < 10 * steps * _seconds_per_step() + 1.0
 
 
 def _timed(formula: str) -> tuple[str, float]:
