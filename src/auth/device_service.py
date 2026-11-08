@@ -35,6 +35,39 @@ PAIRING_SECONDS = 300
 _INVALID_PAIRING = "That pairing code is invalid or was already used. Show a new code in the web app."
 
 logger = logging.getLogger(__name__)
+#: One line per sign-out of another device, whoever did it (browser or phone).
+audit = logging.getLogger("src.auth.audit")
+
+
+def log_sign_out(actor: SessionRecord, target: SessionRecord) -> None:
+    """Audit *actor* signing out *target*: kinds, session ids and device names, never tokens."""
+    audit.info(
+        "Sign-out: %s %s (%s) signed out %s %s (%s)",
+        actor.kind,
+        actor.id,
+        actor.device_name,
+        target.kind,
+        target.id,
+        target.device_name,
+    )
+
+
+def _instant(ms: int) -> str:
+    from datetime import UTC, datetime
+
+    return datetime.fromtimestamp(ms // 1000, UTC).isoformat()
+
+
+def shown_on(views: list[tuple[str, int]], panels: set[str]) -> dict:
+    """``shown_panels`` and ``last_shown_at`` for one viewer. A deleted panel is no longer "shown on" anything."""
+    shown = [{"panel_id": p, "last_shown_at": _instant(ms)} for p, ms in views if p in panels]
+    return {"shown_panels": shown, "last_shown_at": shown[0]["last_shown_at"] if shown else None}
+
+
+def live_panel_ids() -> set[str]:
+    from src.panels.service import get_panel_service
+
+    return {p.id for p in get_panel_service().list_panels()}
 
 
 def hub_identity() -> tuple[str, str]:
@@ -366,13 +399,31 @@ class DeviceService:
             if row.kind == "tv" and row.account_generation == phone.account_generation
         ]
 
+    def phone_tv_rows(self, phone: SessionRecord) -> list[dict]:
+        """The ``PhoneTV`` rows for *phone*: TV fields, where each was last shown, and ``approved_by_you``."""
+        rows = self.phone_tvs(phone)
+        mine = self.store.approved_by(phone.id)
+        views = self.store.panel_views(phone.username)
+        panels = live_panel_ids() if views else set()
+        result = []
+        for row in rows:
+            summary = row.summary()
+            del summary["kind"]  # always "tv" here; the model refuses unknown fields
+            result.append({**summary, **shown_on(views.get(row.id, []), panels), "approved_by_you": row.id in mine})
+        return result
+
     def revoke_tv(self, phone: SessionRecord, session_id: str) -> SessionRecord:
-        """Sign out one of the account's TVs. Anything else is the same ``not_found``."""
+        """Sign out one of the account's TVs. Anything else is the same ``not_found``.
+
+        The limit (20 a minute per phone) counts misses too. It bounds churn; it
+        does not stop a stolen phone from signing out every TV over a few minutes.
+        """
         self.limit("tv-revoke:" + phone.id, 20)
         target = next((row for row in self.phone_tvs(phone) if row.id == session_id), None)
         if target is None:
             raise AuthFlowError("not_found", "No signed-in TV with that id.", 404)
         self.store.revoke_session(phone.username, session_id)
+        log_sign_out(phone, target)
         return target
 
     def cancel(self, code: str) -> None:

@@ -113,7 +113,10 @@ class SessionStore:
         db.execute("DELETE FROM limits WHERE started_ms < ?", (now - 600_000,))
         # Keep finished offers briefly so the web page can still read the outcome.
         db.execute("DELETE FROM pairings WHERE expires_ms < ?", (now - 600_000,))
-        db.execute("DELETE FROM session_approvals WHERE session_id NOT IN (SELECT id FROM sessions)")
+        # An approval goes with its TV: when it expires or is signed out.
+        db.execute(
+            "DELETE FROM session_approvals WHERE session_id NOT IN (SELECT id FROM sessions WHERE revoked_ms IS NULL)"
+        )
         db.execute("DELETE FROM panel_views WHERE session_id NOT IN (SELECT id FROM sessions WHERE revoked_ms IS NULL)")
 
     def create_session(self, record: SessionRecord, *, connection: sqlite3.Connection | None = None) -> None:

@@ -283,8 +283,13 @@ A signed-in phone can list the account's signed-in TVs (`GET /auth/device/tvs`) 
 sign one out (`DELETE /auth/device/tvs/{id}`). Each TV shows whether this phone
 approved it. A phone sees and signs out **TVs only**: browsers and other phones are
 managed from **Signed-in devices** in the web app, and a phone signs itself out with
-`DELETE /auth/device/session`. A phone can sign out up to 20 TVs a minute, and each
-sign-out is logged.
+`DELETE /auth/device/session`.
+
+A phone can make 20 sign-out attempts a minute, including attempts on ids that don't
+match a TV. That limit slows a stolen phone down; it does not stop it from signing out
+every TV over a few minutes. If a phone is lost, revoke it in **Signed-in devices**. Every
+sign-out of another device, from a browser or a phone, is logged with the session ids
+and device names involved (never the credentials).
 
 ### Plugin sign-in from the phone
 

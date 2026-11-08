@@ -136,6 +136,9 @@ class SessionSummary(BaseModel):
 class PhoneTV(BaseModel):
     """A signed-in TV, as the phone app sees it. No digests, usernames or approver ids."""
 
+    # A field nobody listed here is an error, not a silent drop.
+    model_config = ConfigDict(extra="forbid")
+
     id: str = Field(description="The TV's sign-in id: the handle for DELETE /auth/device/tvs/{id}.")
     device_name: str
     client_id: str
