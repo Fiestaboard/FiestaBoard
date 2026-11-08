@@ -95,7 +95,9 @@
     "updateAvailable": "Uppdatering tillgänglig",
     "updateTo": "Uppdatera till {version}",
     "about": "Om FiestaBoard",
-    "signOut": "Logga ut"
+    "signOut": "Logga ut",
+    "popoverLabel": "Kontomeny",
+    "account": "Konto"
   },
   "aboutDialog": {
     "description": "Versions- och systeminformation för den här FiestaBoard.",
@@ -203,7 +205,11 @@
     "importDialogCancel": "Avbryt",
     "importDialogImport": "Importera",
     "importDialogImporting": "Importerar...",
-    "toastImported": "”{name}” har lagts till bland dina sidor"
+    "toastImported": "”{name}” har lagts till bland dina sidor",
+    "displayFilter": "Skärmfilter",
+    "allPages": "Alla sidor",
+    "libraryCount": "{count, plural, one {# sida} other {# sidor}}",
+    "clearFilter": "Visa alla sidor"
   },
   "collections": {
     "title": "Karuseller",
@@ -300,7 +306,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "Visningsläge",
+    "gridView": "Rutnätsvy",
+    "listView": "Listvy",
+    "libraryCount": "{count, plural, one {# karusell} other {# karuseller}}",
+    "movePageUp": "Flytta {name} uppåt",
+    "movePageDown": "Flytta {name} nedåt",
+    "removePage": "Ta bort {name}",
+    "moveRuleUp": "Flytta regel {number} uppåt",
+    "moveRuleDown": "Flytta regel {number} nedåt",
+    "notFound": "Den här karusellen kunde inte hittas.",
+    "loadFailed": "Karusellerna kunde inte läsas in. Försök igen.",
+    "backToCollections": "Tillbaka till karuseller",
+    "discardChangesTitle": "Kasta osparade ändringar?",
+    "discardChangesDescription": "Din karusell har osparade ändringar.",
+    "keepEditing": "Fortsätt redigera",
+    "discardAndLeave": "Kasta och lämna",
+    "retryButton": "Försök igen"
   },
   "schedule": {
     "title": "Schema",
@@ -638,7 +661,13 @@
       "createAction": "Skapa demosida",
       "recreateAction": "Skapa om demosidan",
       "requirementsWarning": "Konfigurera de obligatoriska inställningarna nedan innan du skapar en demosida."
-    }
+    },
+    "catalogCount": "{count} integrationer",
+    "previousResults": "Föregående resultat",
+    "nextResults": "Nästa resultat",
+    "resultsPage": "Sida {current} av {total}",
+    "allCategories": "Alla kategorier",
+    "categoryFilter": "Integrationskategori"
   },
   "settings": {
     "title": "Inställningar",
@@ -739,7 +768,15 @@
       "confirmDescription": "Du håller på att återställa <file></file>. Dina befintliga sidor, karuseller, scheman och din konfiguration skrivs över. En kopia med tidsstämpel av varje befintlig fil sparas bredvid den nya, så att du kan rulla tillbaka manuellt vid behov.",
       "restoringButton": "Återställer…",
       "restoreButton": "Återställ säkerhetskopia"
-    }
+    },
+    "groupIdentity": "Instans",
+    "groupAppearance": "Utseende och tillgänglighet",
+    "groupRegional": "Språk, tid och plats",
+    "groupConnections": "Anslutningar",
+    "displaySilenceTitle": "Skärmarnas tysta scheman",
+    "displaySilenceDescription": "Varje skärm har egna tysta tider. Öppna fliken Uppspelning för en skärm för att ändra dess schema.",
+    "openDisplayPlayback": "Öppna uppspelningsinställningar för {name}",
+    "openDisplays": "Hantera skärmar"
   },
   "offline": {
     "youreOffline": "Du är offline",
@@ -1166,7 +1203,12 @@
     "liveSilencePreviewOnly": "Liveutdata visar bara en förhandsgranskning. Tavlan förblir tyst.",
     "liveSendAnyway": "Skicka till tavlan ändå",
     "liveSilenceOverriding": "Liveutdata väcker tavlan under tystnaden.",
-    "liveStopOverriding": "Sluta skicka"
+    "liveStopOverriding": "Sluta skicka",
+    "editingSurfaceLabel": "Sidinnehåll",
+    "textMode": "Text",
+    "canvasesMode": "Ritytor",
+    "showPreview": "Visa förhandsvisning och liveutmatning",
+    "hidePreview": "Dölj förhandsvisning och liveutmatning"
   },
   "displaySettings": {
     "unnamedBoard": "Namnlös tavla",
@@ -1271,7 +1313,15 @@
       "speedTitle": "Hastighet",
       "pluginsDescription": "Bildruta-för-bildruta-animationer som skrivmaskin och upplösning (föråldrat). Gäller alla skärmar.",
       "pluginsSavedToast": "Inställningen för övergångsplugins har sparats.",
-      "pluginsSaveFailedToast": "Kunde inte spara inställningen för övergångsplugins: {error}"
+      "pluginsSaveFailedToast": "Kunde inte spara inställningen för övergångsplugins: {error}",
+      "replay": "Spela upp förhandsvisningen igen",
+      "nativePreviewNote": "Visar rutornas ordning och rytm. Utseendet på hårdvaran kan skilja sig.",
+      "pluginPreviewUnavailable": "Förhandsvisning saknas för detta övergångstillägg.",
+      "savedUnavailable": "Sparat val: {name} (inte tillgängligt)",
+      "reducedMotionNote": "Minskad rörelse är aktiverad. Förhandsvisningen visar det färdiga meddelandet.",
+      "cloudPreviewNote": "Den här skärmen ändrar allt innehåll samtidigt.",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "HEJ VARLDEN"
     },
     "add": {
       "title": "Lägg till en skärm",
@@ -1339,7 +1389,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "Översikt",
+    "tabSettings": "Inställningar",
+    "tabPlayback": "Uppspelning",
+    "tabsLabel": "Skärmsektioner"
   },
   "systemUpdate": {
     "updateAvailable": "Uppdatering tillgänglig",
@@ -1751,9 +1805,9 @@
     "welcomeSendError": "Misslyckades skicka",
     "welcomeDefault": "Lämna tom för att använda standardhälsningen",
     "timezoneLabel": "Tidszon",
-    "animationsTitle": "Animationer",
-    "animationsDescription": "Finjustera rörelse separat för board-förhandsgranskningen och resten av appen",
-    "boardAnimationsLabel": "Board-animationer",
+    "animationsTitle": "Grafik och förhandsvisningar",
+    "animationsDescription": "Styr rörelser i hela appen. Dessa inställningar gäller alla förhandsvisningar på skärmen.",
+    "boardAnimationsLabel": "Tavelförhandsvisningar",
     "boardAnimationsHint": "Split-flap-vändningen när rutor ändras",
     "boardAnimationsOn": "På",
     "boardAnimationsDesktop": "Endast skrivbord",
@@ -1767,7 +1821,7 @@
     "siteAnimationsOff": "Av",
     "animationsReduceMotionOverride": "”Minska rörelse” är aktiverat, vilket åsidosätter dessa inställningar.",
     "flapSpeedLabel": "Vändhastighet",
-    "flapSpeedHint": "Hur länge varje ruta visar ett tecken medan boarden landar",
+    "flapSpeedHint": "Välj rytmen för förhandsvisningar av klafftavlor i hela appen.",
     "flapSpeed_hardware": "Snabbast",
     "flapSpeed_quick": "Snabb",
     "flapSpeed_standard": "Standard",
@@ -1779,7 +1833,7 @@
     "flapSpeed_relaxedHint": "{ms} ms — en långsam, medveten vändning för stämningsskärmar.",
     "flapSpeedPreviewLabel": "Förhandsvisning",
     "flapSpeedInactive": "Board-animationer är avstängda, så vändhastigheten spelar ingen roll.",
-    "flapSpeedScreenOnlyNote": "Detta ändrar bara board-förhandsvisningen på skärmen. Takten för din fysiska Vestaboards egna övergångar ställs in separat, under Schemaläggning → Board-övergångar."
+    "flapSpeedScreenOnlyNote": "Detta styr endast tavelförhandsvisningen på skärmen. Ändra hårdvarans tidsinställningar under Skärmar → Uppspelning → Tavlans övergångar."
   },
   "monitor": {
     "title": "Monitor",
@@ -2921,7 +2975,9 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "Ytorna godkändes inte: {message}",
     "notPixelNotice": "Den här sidan har pixelytor. Den här tavlan kan inte rita dem, så deras områden förblir tomma. Förhandsgranska sidan på en LED-pixeltavla för att redigera dem.",
-    "markerTitle": "En yta börjar på den här raden (inte en del av texten)"
+    "markerTitle": "En yta börjar på den här raden (inte en del av texten)",
+    "drawLayerHint": "Rita redigerar bara pixlar. Sidans förhandsvisning visar arbetsytans bakgrund och former.",
+    "drawSourceHint": "Den här arbetsytan använder en källa. När du ritar redigeras reservpixlarna; förhandsvisningen visar källan när den är tillgänglig."
   },
   "silenceNotice": {
     "untilTitle": "Tyst till {time}",
@@ -2984,5 +3040,9 @@
     "confirm": "Bekräfta",
     "revokeDevice": "Återkalla åtkomst för {name}",
     "retry": "Försök igen"
+  },
+  "plugins": {
+    "communityBadge": "Gemenskap",
+    "communityDescription": "Publicerat utanför FiestaBoards organisation på GitHub."
   }
 }

@@ -507,10 +507,12 @@ def test_restore_survives_a_concurrent_settings_save(monkeypatch):
     settings_file = data_dir / "settings.json"
     svc = get_settings_service()  # the live singleton — owns the settings lock
 
-    restore_payload = {
-        "transitions": {"strategy": "column"},
-        "padding_so_the_restore_is_longer_than_the_settings_dump": "x" * 512,
-    }
+    # Use the current supported shape: restore now reloads the same settings
+    # owner immediately, which would migrate/seed a legacy partial document.
+    # Keep the exact byte-content assertion below for this concurrent-write test.
+    svc._save_to_file()
+    restore_payload = json.loads(settings_file.read_text())
+    restore_payload["padding_so_the_restore_is_longer_than_the_settings_dump"] = "x" * 512
     backup = {
         BACKUP_FILE_MARKER: True,
         "schema_version": BACKUP_SCHEMA_VERSION,

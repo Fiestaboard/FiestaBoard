@@ -23,6 +23,7 @@ test, which is where the reviewer will ask why.
 from __future__ import annotations
 
 from email.utils import parsedate_to_datetime
+from unittest.mock import ANY
 
 import pytest
 from fastapi.testclient import TestClient
@@ -112,7 +113,8 @@ def test_the_cohort_shares_the_clock_the_plugin_routes_already_started():
 
 #: ``(method, path, status, body)`` for the reads that answer deterministically
 #: on an empty install. The bodies are what unmodified ``next`` answers,
-#: captured before the dependencies were added and pinned verbatim: this is the
+#: captured before the dependencies were added and pinned verbatim, with the
+#: additive native-editing metadata repinned for schedules: this is the
 #: "behaviour must not change" half of the contract, and it is worthless unless
 #: the expected value came from the tree without the change in it.
 UNCHANGED_READS = [
@@ -122,7 +124,14 @@ UNCHANGED_READS = [
         "GET",
         "/schedules",
         200,
-        {"schedules": [], "total": 0, "default_page_id": None, "enabled": False},
+        {
+            "schedules": [],
+            "total": 0,
+            "default_page_id": None,
+            "enabled": False,
+            "default_page_revision": ANY,
+            "default_page_edit_protocol": "schedule-default-revision-v1",
+        },
     ),
     (
         "GET",
@@ -140,6 +149,9 @@ def test_a_superseded_route_answers_exactly_as_before_and_says_so(client, method
 
     assert response.status_code == status, response.text
     assert response.json() == body
+    if path == "/schedules":
+        assert isinstance(response.json()["default_page_revision"], str)
+        assert response.json()["default_page_revision"]
 
     assert response.headers["Deprecation"] == "true"
     assert response.headers["Sunset"] == SUPERSEDED_BY_V1_SUNSET
