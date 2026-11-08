@@ -2661,6 +2661,12 @@ class DisplayService:
                         # exactly what was sent; there is nothing to read back.
                         if getattr(client, "is_virtual", False) is not True:
                             self.request_board_refresh(board_id)
+                        # MQTT's current_page follows the page on the board;
+                        # push it now rather than at the next 30 s sync
+                        # (issue #2436). Lazy: display_runtime imports main.
+                        from .display_runtime import _publish_mqtt_state_update
+
+                        _publish_mqtt_state_update()
                     else:
                         logger.debug("Active page unchanged at board level")
                     return was_sent

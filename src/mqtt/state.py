@@ -2,6 +2,7 @@
 
 import json
 import logging
+import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -10,6 +11,25 @@ if TYPE_CHECKING:
     from .client import MQTTClient
 
 logger = logging.getLogger(__name__)
+
+# The engine records a silence page as ``__silence_page__:<page id>``.
+_SILENCE_PAGE_PREFIX = "__silence_page__:"
+
+
+def _shown_page_ref(shown: str | None) -> str | None:
+    """Turn the engine's last-shown id into a page reference (issue #2436).
+
+    ``None``: unknown (nothing sent yet, out-of-band content), so callers
+    fall back to the configured selection. ``""``: the board shows no page
+    (the silence indicator, a trigger message). Otherwise the page id.
+    """
+    if shown is None:
+        return None
+    if shown.startswith(_SILENCE_PAGE_PREFIX):
+        return shown[len(_SILENCE_PAGE_PREFIX) :]
+    if shown.startswith("__"):
+        return ""
+    return shown
 
 
 class StatePublisher:
@@ -29,22 +49,38 @@ class StatePublisher:
         self._prev_silence_mode: bool | None = None
         self._prev_schedule_enabled: bool | None = None
         self._prev_display_running: bool | None = None
+        # The sync loop and the board send worker both publish (issue #2436).
+        # Serialize whole passes so a pass that read the old page can never
+        # publish it after a newer pass published the new one.
+        self._publish_lock = threading.Lock()
 
     def gather_and_publish(self) -> None:
         """Read state from services and publish changed values."""
-        state = self._gather_state()
-        attributes = self._gather_attributes()
-        for object_id, value in state.items():
-            if self._cache.get(object_id) != value:
-                self._client.publish_state(object_id, value)
-                self._cache[object_id] = value
-        # Publish JSON attributes for entities that support them
-        for object_id, attrs in attributes.items():
-            attrs_json = json.dumps(attrs)
-            cache_key = f"__attrs__{object_id}"
-            if self._cache.get(cache_key) != attrs_json:
-                self._client.publish_attributes(object_id, attrs_json)
-                self._cache[cache_key] = attrs_json
+        with self._publish_lock:
+            state = self._gather_state()
+            attributes = self._gather_attributes()
+            for object_id, value in state.items():
+                if self._cache.get(object_id) != value:
+                    self._client.publish_state(object_id, value)
+                    self._cache[object_id] = value
+            # Publish JSON attributes for entities that support them
+            for object_id, attrs in attributes.items():
+                attrs_json = json.dumps(attrs)
+                cache_key = f"__attrs__{object_id}"
+                if self._cache.get(cache_key) != attrs_json:
+                    self._client.publish_attributes(object_id, attrs_json)
+                    self._cache[cache_key] = attrs_json
+
+    @staticmethod
+    def _shown_page(board_id: str | None = None) -> str | None:
+        """The page reference a board shows now; see :func:`_shown_page_ref`."""
+        try:
+            from src.display_runtime import displayed_page_id
+
+            return _shown_page_ref(displayed_page_id(board_id))
+        except Exception:
+            logger.debug("Could not read the displayed page")
+            return None
 
     def publish_event(self, object_id: str, event_type: str, attributes: dict | None = None) -> None:
         """Publish an event entity payload (JSON with event_type key)."""
@@ -80,13 +116,12 @@ class StatePublisher:
             # active_page, current_page: page name. With no active page,
             # publish the select's stable no-page option — HA rejects
             # states that aren't in the options list (issue #1794).
+            from .content import content_name
             from .discovery import NO_ACTIVE_PAGE_OPTION
 
             active_id = settings.get_active_page_id()
             page_name = NO_ACTIVE_PAGE_OPTION
             if active_id:
-                from .content import content_name
-
                 page_name = content_name(active_id, page_service) or NO_ACTIVE_PAGE_OPTION
             # While the primary board shows out-of-band content (a manual
             # MQTT/HTTP write, which persists per issue #1794), the board is
@@ -98,6 +133,14 @@ class StatePublisher:
                 page_name = NO_ACTIVE_PAGE_OPTION
             out["active_page"] = page_name
             out["current_page"] = page_name
+            # The select is the control, so it keeps the configured page. The
+            # sensor reports what the board shows: a schedule, collection,
+            # override or silence page picks something else (issue #2436).
+            # Out-of-band content reads as unknown here and keeps the no-page
+            # option set above.
+            shown = self._shown_page()
+            if shown is not None:
+                out["current_page"] = (content_name(shown, page_service) if shown else None) or NO_ACTIVE_PAGE_OPTION
             # The select retains its configured collection target. The sensor
             # follows actual device buttons; unknown/foreign is no page.
             from src.display_runtime import native_page_selection
@@ -205,12 +248,16 @@ class StatePublisher:
             reference_id = active_id
             from src.display_runtime import native_page_selection
 
+            # The page the board shows, not the selection (issue #2436).
+            shown = self._shown_page()
+            if shown is not None:
+                active_id = shown
             selected = native_page_selection(reference_id)
             if selected is not None:
                 active_id = selected.page_id
             pages = page_service.list_pages()
             page_attrs: dict = {"page_id": active_id or ""}
-            if selected is not None:
+            if selected is not None or (shown is not None and shown != reference_id):
                 page_attrs["reference_id"] = reference_id
             for idx, page in enumerate(pages):
                 if page.id == active_id:
@@ -231,6 +278,9 @@ class StatePublisher:
                     bid = board["id"]
                     board_page_id = settings.get_active_page_id(board_id=bid)
                     board_reference_id = board_page_id
+                    board_shown = self._shown_page(bid)
+                    if board_shown is not None:
+                        board_page_id = board_shown
                     board_selection = native_page_selection(board_reference_id, bid)
                     if board_selection is not None:
                         board_page_id = board_selection.page_id
@@ -242,7 +292,7 @@ class StatePublisher:
 
                         board_page_name = content_name(board_page_id, page_service) or ""
                     by_board[bid] = {"page_id": board_page_id, "page_name": board_page_name}
-                    if board_selection is not None:
+                    if board_selection is not None or (board_shown is not None and board_shown != board_reference_id):
                         by_board[bid]["reference_id"] = board_reference_id
                 if by_board:
                     page_attrs["by_board"] = by_board
