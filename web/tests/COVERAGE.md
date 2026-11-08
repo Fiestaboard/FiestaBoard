@@ -22,9 +22,9 @@ Playwright browser → nginx → React Router v7 + Vite UI
 ### Which CI job runs which specs
 
 This is the part that matters most: a spec no job runs reads as coverage while
-asserting nothing. Every one of these jobs runs on **`pull_request` and
-`merge_group`**, so the merge queue gates on the merged result, not just the PR
-head.
+asserting nothing. Every one of these jobs runs on **`pull_request`**,
+including the Changesets Version PR, so a release gates on the merged result,
+not just each PR's head.
 
 | Job                                         | Specs                                                    | Why it's separate                                                                           |
 | ------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -32,7 +32,7 @@ head.
 | `ai-mcp-e2e-tests` (ci.yml)                 | `ai.spec.ts`, `mcp.spec.ts` — `RUN_AI_TESTS=1`           | Needs the `mock-llm` sidecar; `ai.spec.ts` writes global `/settings/ai` state               |
 | `auth-e2e-tests` (ci.yml)                   | `auth.spec.ts` — `RUN_AUTH_TESTS=1`                      | Needs a container booted with `FIESTABOARD_AUTH_ENABLED=true`                               |
 | `ingress-e2e-tests` (ci.yml)                | `ingress.spec.ts` — `RUN_INGRESS_TESTS=1`                | Needs the HA Ingress nginx simulator in front of a production bundle                        |
-| `integration-tests` (integration-tests.yml) | `integration.spec.ts` on PRs, whole suite in the queue   | Smoke subset early, full suite as the last gate                                             |
+| `integration-tests` (integration-tests.yml) | `integration.spec.ts` on PRs, whole suite on Version PR  | Smoke subset early, full suite as the last gate                                             |
 | _not run in CI_                             | `generate-screenshots.spec.ts`, `draw-mode-demo.spec.ts` | Authoring tools that produce docs assets, not tests — allowlisted in the reachability guard |
 
 The opt-in `RUN_*` flags live in `web/playwright.config.ts`. Adding a new flag
