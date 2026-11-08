@@ -1728,6 +1728,13 @@ class ConfigManager:
             entry.update({k: v for k, v in values.items() if k in SILENCE_SCHEDULE_KEYS})
             by_board[board_id] = entry
             silence["by_board"] = by_board
+            # The file is per-board from this save on. Keep the on-disk
+            # snapshot in step (as prune does), or the deferred
+            # migrate_silence_schedule_to_per_board guard still sees a
+            # pre-#1788 file and, at the first enabled silence check, replaces
+            # every board's window with the install-wide one. On a fresh
+            # install that wiped the first quiet hours anyone set.
+            self._raw_features.setdefault("silence_schedule", {})["by_board"] = self._deep_copy(by_board)
             self._save_internal()
         logger.info("Silence schedule for board %s updated", board_id)
         return True
@@ -1757,11 +1764,11 @@ class ConfigManager:
             if not isinstance(by_board, dict) or board_id not in by_board:
                 return False
             by_board.pop(board_id)
-            # Keep the on-disk snapshot in step so the structural migration
-            # guard still sees this install as migrated.
-            raw = self._raw_features.get("silence_schedule")
-            if isinstance(raw, dict) and isinstance(raw.get("by_board"), dict):
-                raw["by_board"].pop(board_id, None)
+            # Stamp the on-disk snapshot as per-board (as the migration and
+            # set_silence_schedule_for_board do), even if it was empty, so the
+            # deferred migration guard can never re-seed and clobber the
+            # remaining boards' windows, whatever order things run in.
+            self._raw_features.setdefault("silence_schedule", {})["by_board"] = self._deep_copy(by_board)
             self._save_internal()
         logger.info("Pruned silence schedule override for board %s", board_id)
         return True
