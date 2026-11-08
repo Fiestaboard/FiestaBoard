@@ -436,3 +436,30 @@ def test_the_handler_itself_refuses_a_tv_token(auth):
     with pytest.raises(AuthFlowError) as raised:
         _phone(request)
     assert raised.value.status == 401
+
+
+# --- Control bytes never reach the audit log (security F6) ----------------------
+
+_HOSTILE_AGENT = "Mozilla/5.0 \x1b[31mRED\x1b[0m \x9b31mCSI\x9b0m end"
+
+
+def _printable(text):
+    return all(ch.isprintable() for ch in text)
+
+
+def test_a_browser_name_is_stored_without_control_bytes(auth):
+    client = TestClient(app, headers={"User-Agent": _HOSTILE_AGENT.encode("latin-1")})
+    assert client.post("/auth/login", json={"username": "admin", "password": PASSWORD}).status_code == 200
+    names = [row.device_name for row in auth.sessions.list_sessions("admin") if row.kind == "browser"]
+    assert names and all(_printable(name) for name in names)
+    assert "RED" in names[0] and "CSI" in names[0]
+
+
+def test_the_audit_line_is_printable_even_for_an_old_raw_name(auth, browser, caplog):
+    # A row stored before the fix can still carry the raw User-Agent.
+    victim = _forge(auth, "browser", device_name=_HOSTILE_AGENT)
+    with caplog.at_level(logging.INFO, logger=AUDIT):
+        assert browser.delete("/auth/sessions/" + victim).status_code == 200
+    lines = _audit_lines(caplog)
+    assert len(lines) == 1 and _printable(lines[0])
+    assert "\x1b" not in lines[0] and "\x9b" not in lines[0]
