@@ -314,6 +314,9 @@ def _no_store(response: Response) -> None:
     response.headers["Cache-Control"] = "no-store"
 
 
+_view_failure_warned = False
+
+
 async def _record_tv_view(request: Request | None, panel_id: str) -> None:
     """Note a signed-in TV's frame fetch for the "Shown on" list.
 
@@ -336,7 +339,12 @@ async def _record_tv_view(request: Request | None, panel_id: str) -> None:
         if store.panel_view_due(session_id, panel_id):
             await run_in_threadpool(store.record_panel_view, session_id, panel_id)
     except Exception:
-        logger.debug("Could not record the panel view", exc_info=True)
+        # Warn once per process so write-only trouble is visible without
+        # logging every 2 s poll; later failures stay at debug.
+        global _view_failure_warned
+        level = logging.DEBUG if _view_failure_warned else logging.WARNING
+        _view_failure_warned = True
+        logger.log(level, "Could not record the panel view", exc_info=True)
 
 
 @router.get(
