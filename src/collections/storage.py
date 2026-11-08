@@ -9,9 +9,11 @@ legacy ``data/carousels.json`` file (carousel: prefixed IDs, flat
 import json
 import logging
 import threading
+import uuid
 from collections.abc import Callable
 from datetime import datetime
 
+from src.pages.storage import PageRevisionConflict
 from src.storage.json_store import JsonStore
 
 from .models import COLLECTION_ID_PREFIX, Collection
@@ -58,6 +60,13 @@ def import_legacy_carousels(raw_carousels: list[dict]) -> list[dict]:
 # Schema migrations operate on the raw ``collections`` list.
 # Each function returns the count of records it modified.
 MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = []
+
+
+class CollectionRevisionConflict(PageRevisionConflict):
+    def __init__(self):
+        ValueError.__init__(
+            self, "Collection changed since it was loaded. Reload the collection before saving or deleting."
+        )
 
 
 def _adapt_migration(fn: Callable[[list[dict]], int]) -> Callable[[dict], int]:
@@ -147,11 +156,15 @@ class CollectionStorage:
 
     def _hydrate_record(self, record: dict) -> None:
         """Parse a raw dict into a Collection and add it to the cache."""
+        # A backup or older API export may contain runtime metadata. Never
+        # validate/trust it as document data or let malformed tokens hide content.
+        record = {key: value for key, value in record.items() if key not in {"revision", "edit_protocol"}}
         if "created_at" in record and isinstance(record["created_at"], str):
             record["created_at"] = datetime.fromisoformat(record["created_at"])
         if "updated_at" in record and isinstance(record["updated_at"], str):
             record["updated_at"] = datetime.fromisoformat(record["updated_at"])
         collection = Collection(**record)
+        collection.revision = str(uuid.uuid4())
         self._collections[collection.id] = collection
 
     # --- load / save -----------------------------------------------------
@@ -163,6 +176,10 @@ class CollectionStorage:
         return self._store.lock
 
     def _load(self) -> None:
+        with self.lock:
+            self._load_locked()
+
+    def _load_locked(self) -> None:
         # First-run path: import legacy carousels.json if present.
         if self._import_legacy_carousels_if_needed():
             self._save()
@@ -218,7 +235,7 @@ class CollectionStorage:
         try:
             records = []
             for c in self._collections.values():
-                record = c.model_dump()
+                record = c.model_dump(exclude={"revision", "edit_protocol"})
                 if record.get("created_at"):
                     record["created_at"] = record["created_at"].isoformat()
                 if record.get("updated_at"):
@@ -258,13 +275,15 @@ class CollectionStorage:
             errors = collection.validate_config()
             if errors:
                 raise ValueError(f"Invalid collection configuration: {errors}")
+            collection = collection.model_copy(update={"revision": str(uuid.uuid4())}, deep=True)
             self._collections[collection.id] = collection
             self._save()
         logger.info(f"Created collection: {collection.id} ({collection.name})")
         return collection
 
-    def update(self, collection_id: str, updates: dict) -> Collection | None:
+    def update(self, collection_id: str, updates: dict, *, expected_revision: str | None = None) -> Collection | None:
         with self._store.lock:
+            self.check_revision(collection_id, expected_revision)
             return self._update_locked(collection_id, updates)
 
     def _update_locked(self, collection_id: str, updates: dict) -> Collection | None:
@@ -274,9 +293,14 @@ class CollectionStorage:
         current = self._collections[collection_id]
         current_dict = current.model_dump()
         for key, value in updates.items():
-            if key in current_dict and value is not None:
+            if (
+                key not in {"revision", "edit_protocol", "id", "created_at", "updated_at"}
+                and key in current_dict
+                and (value is not None or key in {"variable", "random"})
+            ):
                 current_dict[key] = value
 
+        current_dict["revision"] = str(uuid.uuid4())
         current_dict["updated_at"] = datetime.utcnow()
         updated = Collection(**current_dict)
 
@@ -289,8 +313,15 @@ class CollectionStorage:
         logger.info(f"Updated collection: {collection_id}")
         return updated
 
-    def delete(self, collection_id: str) -> bool:
+    def check_revision(self, collection_id: str, expected_revision: str | None) -> None:
+        with self.lock:
+            current = self._collections.get(collection_id)
+            if current is not None and expected_revision is not None and current.revision != expected_revision:
+                raise CollectionRevisionConflict()
+
+    def delete(self, collection_id: str, *, expected_revision: str | None = None) -> bool:
         with self._store.lock:
+            self.check_revision(collection_id, expected_revision)
             if collection_id not in self._collections:
                 return False
             del self._collections[collection_id]

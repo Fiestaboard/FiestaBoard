@@ -1050,14 +1050,14 @@ class TestBoardScan:
             response = client.post("/config/board/scan", json={"timeout": 2.0})
             assert response.status_code == 200
             assert response.json()["boards"] == []
-            mock_scan.assert_called_once_with("vestaboard", timeout=2.0)
+            mock_scan.assert_called_once_with("vestaboard", timeout=2.0, hint=None)
 
     def test_scan_timeout_clamped(self, client):
         """Timeout is clamped to [1, 15]."""
         with patch("src.outputs.registry.discover_devices", return_value=[]) as mock_scan:
             response = client.post("/config/board/scan", json={"timeout": 100})
             assert response.status_code == 200
-            mock_scan.assert_called_once_with("vestaboard", timeout=15.0)
+            mock_scan.assert_called_once_with("vestaboard", timeout=15.0, hint=None)
 
 
 # ===========================================================================

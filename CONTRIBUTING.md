@@ -88,6 +88,13 @@ If you open PRs of that nature, we may **close them without merge** and **ban yo
 ### 1. Open a pull request
 
 - **Target branch**: Open your PR against `main`.
+- **Changeset**: If your PR changes what ships (app code, plugins, the web UI,
+  the image), run `npx changeset`, pick `patch`/`minor`/`major`, write one
+  user-facing line, and commit the file it creates. CI's **Release guards**
+  check fails without one. Changes that release nothing need none. See
+  [Releasing](./docs/internal/development/RELEASING.md).
+- **Release channels**: `main` ships stable releases. `alpha` ships `-beta.N`
+  prereleases; target it only for work that is meant for the beta channel.
 - **Description**: Explain what changed and why. Reference any related issues.
 - **Scope**: Keep the PR focused. One feature or fix per PR is easier to review.
 
