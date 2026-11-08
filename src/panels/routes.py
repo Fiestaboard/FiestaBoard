@@ -31,7 +31,8 @@ import logging
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from starlette.concurrency import run_in_threadpool
 
 from src.api_errors import errors
 from src.board_chars import characters_to_message
@@ -313,6 +314,39 @@ def _no_store(response: Response) -> None:
     response.headers["Cache-Control"] = "no-store"
 
 
+_view_failure_warned = False
+
+
+async def _record_tv_view(request: Request | None, panel_id: str) -> None:
+    """Note a signed-in TV's frame fetch for the "Shown on" list.
+
+    Only the revocable TV credential identifies a viewer: anonymous ``/p/``
+    browsers have no stable identity, and a browser cookie here is the web
+    editor's own preview. Nothing recorded is ever returned on ``/panel/*``;
+    it is read back on the browser-gated ``GET /auth/sessions``. Best effort:
+    storage trouble must never cost a TV its frame.
+    """
+    # FastAPI always injects the request; a direct call (no request) has no viewer.
+    if request is None:
+        return
+    session_id = request.scope.get("auth_session_id")
+    if request.scope.get("auth_kind") != "tv" or not session_id:
+        return
+    try:
+        from src.auth.service import get_auth_service
+
+        store = get_auth_service().sessions
+        if store.panel_view_due(session_id, panel_id):
+            await run_in_threadpool(store.record_panel_view, session_id, panel_id)
+    except Exception:
+        # Warn once per process so write-only trouble is visible without
+        # logging every 2 s poll; later failures stay at debug.
+        global _view_failure_warned
+        level = logging.DEBUG if _view_failure_warned else logging.WARNING
+        _view_failure_warned = True
+        logger.log(level, "Could not record the panel view", exc_info=True)
+
+
 @router.get(
     "/panel/{panel_id}",
     response_model=PanelPublicResponse,
@@ -369,7 +403,7 @@ async def get_panel_public(panel_id: str):
     response_model_exclude_unset=True,
     responses=errors(404),
 )
-async def get_panel_frame(panel_id: str):
+async def get_panel_frame(panel_id: str, request: Request = None):  # type: ignore[assignment]
     """Public viewer frame: the board's last-frame store. No auth.
 
     Served from core: the board's live runtime keeps the last frame sent
@@ -383,6 +417,7 @@ async def get_panel_frame(panel_id: str):
     panel = get_panel_service().get_panel_by_ref(panel_id)
     if panel is None:
         raise HTTPException(status_code=404, detail=_panel_not_found_detail(panel_id))
+    await _record_tv_view(request, panel.id)
     board = _find_board(panel.board_id)
     dims = _board_dims(board) if board is not None else resolve_dimensions("flagship")
     from .geometry import resolve_panel_geometry
