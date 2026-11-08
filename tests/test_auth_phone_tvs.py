@@ -5,6 +5,7 @@ Per Jev D14, phones manage TVs through a narrow surface: TV sessions only.
 browser or a phone. A phone signs itself out with ``DELETE /auth/device/session``.
 """
 
+import json
 import logging
 
 import pytest
@@ -205,14 +206,181 @@ def test_revokes_are_rate_limited_per_phone(auth, phone):
     _not_found(other.delete("/auth/device/tvs/nope"))
 
 
-def test_a_revoke_is_logged_without_the_token(auth, phone, caplog):
+AUDIT = "src.auth.audit"
+
+
+def _audit_lines(caplog):
+    return [r.getMessage() for r in caplog.records if r.name == AUDIT]
+
+
+def test_a_phone_revoke_is_audited_without_the_token(auth, phone, caplog):
     client, token = phone
     tv = sign_in(TV)
-    with caplog.at_level(logging.INFO, logger="src.auth.device_routes"):
+    with caplog.at_level(logging.INFO, logger=AUDIT):
         assert client.delete("/auth/device/tvs/" + tv["session_id"]).status_code == 200
-    lines = [r.getMessage() for r in caplog.records if r.name == "src.auth.device_routes"]
-    assert any(tv["session_id"] in line and token["session_id"] in line for line in lines)
+    lines = _audit_lines(caplog)
+    assert lines == [
+        f"Sign-out: mobile {token['session_id']} ({IOS['device_name']}) signed out "
+        f"tv {tv['session_id']} ({TV['device_name']})"
+    ]
     assert all(tv["access_token"] not in line and token["access_token"] not in line for line in lines)
+
+
+def test_a_browser_revoke_is_audited_the_same_way(auth, browser, caplog):
+    tv = sign_in(TV)
+    browser_id = browser.get("/auth/sessions").json()["current_session_id"]
+    with caplog.at_level(logging.INFO, logger=AUDIT):
+        assert browser.delete("/auth/sessions/" + tv["session_id"]).status_code == 200
+    lines = _audit_lines(caplog)
+    assert len(lines) == 1
+    assert lines[0].startswith(f"Sign-out: browser {browser_id} (")
+    assert lines[0].endswith(f"signed out tv {tv['session_id']} ({TV['device_name']})")
+
+
+def test_a_browser_revoke_of_an_unknown_id_is_not_audited(auth, browser, caplog):
+    with caplog.at_level(logging.INFO, logger=AUDIT):
+        assert browser.delete("/auth/sessions/nope").status_code == 200
+    assert _audit_lines(caplog) == []
+
+
+# --- Every miss looks the same (security F5) ------------------------------------
+
+
+def _forge(auth, kind, username="admin", **changes):
+    from src.auth.session_models import SessionRecord
+
+    now = auth.sessions.clock_ms()
+    user = auth.get_user("admin")
+    record = SessionRecord(
+        id="forged-" + kind + "-" + username,
+        digest="d-" + kind + "-" + username,
+        username=username,
+        account_generation=user.get("sessions_valid_after_ms", 0),
+        kind=kind,
+        device_name="Forged",
+        client_id="fiestaboard-tvos",
+        app_version="1",
+        method="password",
+        created_ms=now,
+        expires_ms=now + 3_600_000,
+        last_active_ms=now,
+    )
+    auth.sessions.create_session(record.__class__(**{**record.__dict__, **changes}))
+    return record.id
+
+
+def _miss_ids(auth, browser, phone_token):
+    revoked, expired, old = sign_in(TV), sign_in(GTV), sign_in({**TV, "device_name": "Old"})
+    auth.sessions.revoke_session("admin", revoked["session_id"])
+    with auth.sessions.transaction() as db:
+        db.execute("UPDATE sessions SET expires_ms=1 WHERE id=?", (expired["session_id"],))
+        db.execute("UPDATE sessions SET account_generation=account_generation-1 WHERE id=?", (old["session_id"],))
+    return {
+        "browser": browser.get("/auth/sessions").json()["current_session_id"],
+        "other phone": sign_in(ANDROID)["session_id"],
+        "self": phone_token["session_id"],
+        "unknown": "A" * 22,
+        "revoked": revoked["session_id"],
+        "expired": expired["session_id"],
+        "old generation": old["session_id"],
+        "legacy": _forge(auth, "legacy"),
+        "another user's tv": _forge(auth, "tv", username="someone-else"),
+    }
+
+
+def test_every_miss_is_the_same_404(auth, browser, phone):
+    client, token = phone
+    shapes = {}
+    for label, session_id in _miss_ids(auth, browser, token).items():
+        with auth.sessions.transaction() as db:
+            db.execute("DELETE FROM limits")
+        response = client.delete("/auth/device/tvs/" + session_id)
+        headers = {k: v for k, v in response.headers.items() if k.lower() != "date"}
+        shapes[label] = (response.status_code, response.text, tuple(sorted(headers.items())))
+    assert len(set(shapes.values())) == 1, shapes
+    status, body, _ = next(iter(shapes.values()))
+    assert status == 404 and json.loads(body) == {"error": "not_found", "detail": "No signed-in TV with that id."}
+    # None of the targets was touched.
+    assert client.get("/v1/status").status_code == 200
+    assert browser.get("/auth/sessions").status_code == 200
+
+
+def test_an_operator_api_token_cannot_manage_tvs(auth, monkeypatch):
+    monkeypatch.setenv("FIESTABOARD_MCP_TOKEN", "operator-token-for-tests-0123456789")
+    client = bearer_client("operator-token-for-tests-0123456789")
+    tv = sign_in(TV)
+    assert client.get("/auth/device/tvs").status_code == 401
+    assert client.delete("/auth/device/tvs/" + tv["session_id"]).status_code == 401
+    assert bearer_client(tv["access_token"]).get("/panels").status_code == 200
+
+
+def test_a_cookie_never_widens_the_phone_bearer(auth, browser, phone):
+    _, token = phone
+    browser_id = browser.get("/auth/sessions").json()["current_session_id"]
+    browser.headers["Authorization"] = "Bearer " + token["access_token"]
+    response = browser.delete("/auth/device/tvs/" + browser_id)
+    assert response.status_code == 404
+    del browser.headers["Authorization"]
+    assert browser.get("/auth/sessions").status_code == 200
+
+
+def test_a_cookie_does_not_rescue_a_bad_phone_bearer(auth, browser):
+    browser.headers["Authorization"] = "Bearer fb_mob_" + "x" * 43
+    assert browser.get("/auth/device/tvs").status_code == 401
+
+
+# --- Shared revoke side effects (Fable note 3, security F3) ---------------------
+
+
+def test_a_phone_revoke_drops_the_tvs_panel_views(auth, phone):
+    client, _ = phone
+    tv = sign_in(TV)
+    assert auth.sessions.record_panel_view(tv["session_id"], "living-room")
+    assert client.delete("/auth/device/tvs/" + tv["session_id"]).status_code == 200
+    with auth.sessions.transaction() as db:
+        rows = db.execute("SELECT COUNT(*) FROM panel_views WHERE session_id=?", (tv["session_id"],)).fetchone()
+    assert rows[0] == 0
+
+
+def _approvals(auth, session_id):
+    with auth.sessions.transaction() as db:
+        return db.execute("SELECT COUNT(*) FROM session_approvals WHERE session_id=?", (session_id,)).fetchone()[0]
+
+
+def test_an_approval_goes_with_its_expired_tv(auth, phone):
+    client, _ = phone
+    tv = approved_tv(auth, client)
+    assert _approvals(auth, tv["session_id"]) == 1
+    now = auth.sessions.clock_ms()
+    auth.sessions.clock_ms = lambda: now + 366 * 24 * 3600 * 1000
+    auth.sessions.list_sessions("admin")  # any registry read runs cleanup
+    assert _approvals(auth, tv["session_id"]) == 0
+
+
+def test_an_approval_goes_with_its_revoked_tv(auth, phone):
+    client, _ = phone
+    tv = approved_tv(auth, client)
+    assert client.delete("/auth/device/tvs/" + tv["session_id"]).status_code == 200
+    auth.sessions.list_sessions("admin")
+    assert _approvals(auth, tv["session_id"]) == 0
+
+
+# --- Shape of the row (Fable note 1) ---------------------------------------------
+
+
+def test_the_tv_row_model_refuses_unknown_fields():
+    from src.auth.device_models import PhoneTV
+
+    assert PhoneTV.model_config.get("extra") == "forbid"
+
+
+def test_the_route_module_does_not_reach_into_other_routers():
+    import ast
+    import pathlib
+
+    tree = ast.parse(pathlib.Path("src/auth/device_routes.py").read_text())
+    imported = {node.module or "" for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
+    assert "session_routes" not in imported and "src.panels.service" not in imported
 
 
 # --- Who may call ----------------------------------------------------------------
