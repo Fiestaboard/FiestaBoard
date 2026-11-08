@@ -356,3 +356,81 @@ def test_get_board_reports_the_next_change(client, board, clock, board_client): 
     assert detail["next_change_at"] == "2026-11-09T17:00:00+00:00"
     assert detail["next_change_reason"] == "schedule"
     assert detail["next_page_id"] == pages["Work"]
+
+
+# --- Review follow-ups (#2452) ------------------------------------------------------------
+
+
+@pytest.fixture
+def loud_board(client, boards):  # noqa: F811
+    """The primary board with schedule mode on and the REAL silence arithmetic."""
+    from src.settings.service import get_settings_service
+
+    primary, _ = boards
+    get_settings_service().set_schedule_enabled(True, board_id=primary)
+    pages = {name: _seed_page(client, name) for name in ("Breakfast", "Work")}
+    return primary, pages
+
+
+def _quiet_hours(board_id, start="06:00+00:00", end="15:00+00:00"):
+    from src.config_manager import get_config_manager
+
+    get_config_manager().set_silence_schedule_for_board(
+        board_id, {"enabled": True, "start_time": start, "end_time": end, "mode": "indicator"}
+    )
+
+
+def test_quiet_hours_starting_land_on_the_configured_minute(loud_board, clock):
+    # silence_timing keeps now's microseconds; a boundary must not land a second early.
+    board_id, _ = loud_board
+    _quiet_hours(board_id)
+    clock(datetime(2026, 11, 9, 4, 0, 0, 337_000, tzinfo=UTC))
+    change = _next(board_id)
+    assert (change.at, change.reason) == ("2026-11-09T06:00:00+00:00", "silence_starts")
+
+
+def test_quiet_hours_ending_agree_with_panel_status(loud_board, clock):
+    from src.panels.status import panel_status
+
+    board_id, _ = loud_board
+    _quiet_hours(board_id)
+    clock(datetime(2026, 11, 9, 7, 0, 0, 337_000, tzinfo=UTC))
+    change = _next(board_id)
+    assert (change.at, change.reason) == ("2026-11-09T15:00:00+00:00", "silence_ends")
+    assert change.at == panel_status(board_id).silenced_until
+
+
+def _collection(pages, interval=300):
+    from src.collections.models import CollectionCreate, TimeModeConfig
+    from src.collections.service import get_collection_service
+
+    return get_collection_service().create_collection(
+        CollectionCreate(name="Mix", page_ids=list(pages), time=TimeModeConfig(interval_seconds=interval))
+    )
+
+
+def test_an_override_whose_collection_rotates_before_it_ends(board, clock):
+    from src.settings.service import TemporaryOverride, get_settings_service
+
+    board_id, pages = board
+    mix = _collection([pages["Work"], pages["Evening"]])
+    start = _tomorrow_at(8, 0)  # a whole 300 s slot boundary
+    clock(start)
+    get_settings_service().set_temporary_override(
+        TemporaryOverride(page_id=mix.id, expires_at=_tomorrow_at(9, 30).isoformat()), board_id=board_id
+    )
+    change = _next(board_id)
+    assert (change.at, change.reason, change.page_id) == (_utc(start + timedelta(seconds=300)), "collection", None)
+
+
+def test_a_device_driven_collection_is_not_a_hub_rotation(board, clock, monkeypatch):
+    board_id, pages = board
+    mix = _collection([pages["Work"], pages["Evening"]])
+    _schedule(board_id, mix.id, "09:00", "17:00")
+    monkeypatch.setattr(
+        "src.display_runtime.native_page_selection", lambda ref, board_id=None: object() if ref == mix.id else None
+    )
+    clock(datetime(2026, 11, 9, 18, 2, 0, tzinfo=UTC))  # 10:02 PST
+    change = _next(board_id)
+    # The device's buttons and dwell decide; the next hub-known change is the window's end.
+    assert (change.at, change.reason) == (_utc(_la(2026, 11, 9, 17, 0)), "schedule")
