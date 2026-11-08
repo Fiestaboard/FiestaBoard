@@ -830,6 +830,7 @@ class DisplayService:
                 if self.runtimes.get(rt.board_id) is not rt:
                     logger.debug("Board %s: runtime replaced mid-send; dropping post-send bookkeeping", board_id)
                     return False
+                shown_before = rt.last_active_page_id
                 try:
                     ret = on_complete(success, was_sent, exc)
                 except Exception as e:  # bookkeeping must never kill the worker
@@ -837,6 +838,16 @@ class DisplayService:
                     ret = False
             if job_errors:
                 job.fail_reason = job_errors[0][1]
+            if ret or rt.last_active_page_id != shown_before:
+                # Something landed (a page, a silence indicator or page, a
+                # trigger message, a blank board), or the engine learned which
+                # page is up without writing: after a restart the driver can
+                # find it already on the board. MQTT's current_page follows the
+                # board, so push it now rather than at the next 30 s sync
+                # (issue #2436). Lazy import: display_runtime imports main.
+                from .display_runtime import _publish_mqtt_state_update
+
+                _publish_mqtt_state_update()
             return ret
 
         worker = self._worker_for(rt)

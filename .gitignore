@@ -67,6 +67,7 @@ Thumbs.db
 config/config.yaml
 !config/config.yaml.example
 config.json
+!.changeset/config.json
 # Scrubbed data dirs from past releases (fake values only) that the upgrade
 # and rollback tests boot; their config.json is the point of the fixture.
 !tests/fixtures/upgrade/*/config.json
