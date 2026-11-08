@@ -181,7 +181,7 @@ describe("ActivePageDisplay", () => {
 
     // Collection name links to the collections editor.
     const collectionLink = screen.getByRole("link", { name: /Edit collection "Test Collection"/i });
-    expect(collectionLink).toHaveAttribute("href", "/collections");
+    expect(collectionLink).toHaveAttribute("href", "/collections/collection%3Atest-collection-id");
 
     // The member page the collection is currently rendering links to its editor.
     const pageLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });

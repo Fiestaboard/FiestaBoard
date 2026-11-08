@@ -168,6 +168,10 @@ class JsonStore:
                 self._run_migrations(data)
                 self.migrated = True
             self._data = data
+            # An explicit successful reload is the recovery boundary after
+            # restoring a supported document over a refused future schema.
+            # Failed/absent-file loads and cached saves keep the refusal latched.
+            self._refused_future_schema = False
             return data
 
     def save(self, data: Any) -> None:

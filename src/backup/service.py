@@ -201,13 +201,43 @@ class BackupService:
                 for filename in DATA_FILES:
                     key = filename[:-5]
                     payload = data_section.get(key)
-                    legacy = payload is None and key == "collections" and data_section.get("carousels") is not None
-                    if legacy:
-                        filename = "carousels.json"
-                        payload = data_section["carousels"]
+                    if payload is None and key == "collections":
+                        # Convert legacy data into the live owner's file even if
+                        # collections.json already exists. A first-run importer
+                        # would otherwise skip this restore on an existing install.
+                        legacy = data_section.get("carousels")
+                        if legacy is not None:
+                            from src.collections.storage import CURRENT_SCHEMA_VERSION, import_legacy_carousels
+
+                            payload = {
+                                "schema_version": CURRENT_SCHEMA_VERSION,
+                                "collections": import_legacy_carousels(legacy.get("carousels", [])),
+                            }
                     if payload is None:
                         skipped.append(filename)
                         continue
+                    if (
+                        key in {"pages", "collections", "schedules"}
+                        and isinstance(payload, dict)
+                        and isinstance(payload.get(key), list)
+                    ):
+                        # Runtime protocol metadata is never persisted, including
+                        # API-shaped backups. Only reserved record-level names are
+                        # stripped; opaque extension JSON stays untouched.
+                        payload = {
+                            **payload,
+                            key: [
+                                {
+                                    name: value
+                                    for name, value in record.items()
+                                    if name
+                                    not in {"revision", "edit_protocol", "document_protocol", "expected_revision"}
+                                }
+                                if isinstance(record, dict)
+                                else record
+                                for record in payload.get(key, [])
+                            ],
+                        }
                     with self._owning_lock(filename):
                         path = self.data_dir / filename
                         write = _RestoreWrite(path, self._file_state(path))
@@ -217,10 +247,14 @@ class BackupService:
                         try:
                             if self._write_json_with_backup(path, payload, timestamp):
                                 backed_up.append(filename)
+                            # Reload can migrate and resave the restored file.
+                            # Capture its final outcome under the same owner lock,
+                            # including writes made before a reload raises.
+                            self._reload_owner(filename)
                         finally:
                             write.after = self._file_state(path)
                             write.after_known = True
-                    restored.append(filename + " (legacy)" if legacy else filename)
+                    restored.append(filename)
             except Exception as exc:
                 logger.exception("Restore file phase failed at %s; attempting recovery", filename)
                 message = self._recover_restore(writes, timestamp)
@@ -268,6 +302,33 @@ class BackupService:
         return self.import_from_dict(backup, reinstall_plugins=reinstall_plugins)
 
     # ── helpers ─────────────────────────────────────────────────────────
+
+    def _reload_owner(self, filename: str) -> None:
+        """Refresh an existing live owner after a restore or compensation."""
+        if filename == "pages.json":
+            # Keep the SAME live owner: requests already holding
+            # this service must not save its pre-restore cache back
+            # over the restored file. Reload also rotates every
+            # runtime page revision before releasing the lock.
+            from src.pages.service import get_page_service
+
+            pages = get_page_service()
+            if pages.storage.storage_file.resolve() == (self.data_dir / filename).resolve():
+                pages.storage._load()
+                pages.invalidate_preview_cache()
+        elif filename == "settings.json":
+            from src.settings.service import get_settings_service
+
+            owner = get_settings_service()
+            if owner.settings_file.resolve() == (self.data_dir / filename).resolve():
+                owner.reload()
+        elif filename in {"collections.json", "schedules.json"}:
+            from src.collections.service import get_collection_service
+            from src.schedules.service import get_schedule_service
+
+            owner = (get_collection_service() if filename == "collections.json" else get_schedule_service()).storage
+            if owner.storage_file.resolve() == (self.data_dir / filename).resolve():
+                owner._load()
 
     @staticmethod
     def _file_state(path: Path) -> tuple[bytes, int] | None:
@@ -321,6 +382,7 @@ class BackupService:
                         failures.append(f"{write.path.name} changed or could not be verified")
                         continue
                     self._restore_file(write)
+                    self._reload_owner(write.path.name)
             except Exception:
                 failures.append(f"{write.path.name} could not be recovered")
                 logger.exception("Restore recovery failed for %s", write.path.name)
@@ -615,15 +677,13 @@ def _reload_services() -> list[str]:
         logger.exception("Failed to reload config manager")
         errors.append("config: reload failed (see server logs)")
 
-    # Settings, pages, collections, schedules: drop singletons so the next
-    # access re-reads from the freshly written JSON files.
-    for module_path, attr in (
-        ("src.settings.service", "_settings_service"),
-        ("src.pages.service", "_page_service"),
-        ("src.collections.service", "_collection_service"),
-        ("src.schedules.service", "_schedule_service"),
-        ("src.panels.service", "_panel_service"),
-    ):
+    # Pages were reloaded in place under their owning lock during the write.
+    # Never drop that owner: in-flight requests can still hold its service.
+    # Collections and schedules likewise retain the owner reloaded during the
+    # locked write. Old service references must observe the restored cache.
+    # Settings is also reloaded in place, keeping cross-store lock identity
+    # stable for requests already holding a service while restore completes.
+    for module_path, attr in (("src.panels.service", "_panel_service"),):
         try:
             import importlib
 

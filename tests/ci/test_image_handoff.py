@@ -10,7 +10,15 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.parametrize("image_id,load_status", [("sha256:expected", 0), ("sha256:wrong", 0), ("sha256:expected", 12)])
+@pytest.mark.parametrize(
+    "image_id,load_status",
+    [
+        ("sha256:expected", 0),  # classic image store: config digest
+        ("sha256:digest", 0),  # containerd image store (Docker 29): manifest digest
+        ("sha256:wrong", 0),
+        ("sha256:expected", 12),
+    ],
+)
 def test_image_load_rejects_failures_and_wrong_image(tmp_path, image_id, load_status):
     jobs = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())["jobs"]
     for job_name in ("e2e-tests", "specialized-e2e-tests"):
@@ -30,18 +38,21 @@ def test_image_load_rejects_failures_and_wrong_image(tmp_path, image_id, load_st
                 "PATH": f"{tmp_path}:{os.environ['PATH']}",
                 "RUNNER_TEMP": str(tmp_path),
                 "EXPECTED_IMAGE_ID": "sha256:expected",
+                "EXPECTED_IMAGE_DIGEST": "sha256:digest",
             },
             capture_output=True,
             text=True,
             timeout=5,
         )
-        assert (result.returncode == 0) == (load_status == 0 and image_id == "sha256:expected")
+        accepted = image_id in ("sha256:expected", "sha256:digest")
+        assert (result.returncode == 0) == (load_status == 0 and accepted)
 
 
 def test_consumers_download_this_runs_artifact_and_verify_producer_identity():
     jobs = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())["jobs"]
     producer = jobs["build-test-image"]
     assert producer["outputs"]["image_id"] == "${{ steps.build.outputs.imageid }}"
+    assert producer["outputs"]["image_digest"] == "${{ steps.build.outputs.digest }}"
     upload = next(s for s in producer["steps"] if s.get("uses", "").startswith("actions/upload-artifact"))
     for job_name in ("e2e-tests", "specialized-e2e-tests"):
         job = jobs[job_name]
@@ -51,3 +62,4 @@ def test_consumers_download_this_runs_artifact_and_verify_producer_identity():
         assert "run-id" not in download["with"]
         verify = next(s for s in job["steps"] if s.get("name") == "Load and verify test image")
         assert verify["env"]["EXPECTED_IMAGE_ID"] == "${{ needs.build-test-image.outputs.image_id }}"
+        assert verify["env"]["EXPECTED_IMAGE_DIGEST"] == "${{ needs.build-test-image.outputs.image_digest }}"

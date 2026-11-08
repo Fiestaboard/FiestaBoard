@@ -248,6 +248,29 @@ When creating examples, documentation, or test data:
 2. Replace any real addresses, coordinates, or personal data with generic examples
 3. Verify no API keys or credentials are hardcoded (even in comments)
 
+## Changesets (releases)
+
+FiestaBoard releases through Changesets (`docs/internal/development/RELEASING.md`).
+A PR that changes what ships — anything the Dockerfile copies into the image
+(`src/`, `web/`, `plugins/`, `requirements.txt`, nginx/supervisord configs, …)
+or `pi-image/` — must add a changeset, or CI's **Release guards** job fails.
+Tests, Markdown, docs, CI and `fiestaupdater/` need none.
+
+`npx changeset` is interactive; in automation write the file directly as
+`.changeset/<short-kebab-name>.md`:
+
+```md
+---
+"fiestaboard": patch
+---
+
+One user-facing sentence about what changed (it goes into CHANGELOG.md and the release notes).
+```
+
+Use `minor` for a new feature, `major` for a breaking change, `patch` otherwise.
+Never edit versions in `package.json`, `web/package.json` or `src/__init__.py`
+by hand, and never edit `CHANGELOG.md` — the Version PR does both.
+
 ## Development Artifacts
 
 ### No Temporary Markdown Files

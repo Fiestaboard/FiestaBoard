@@ -93,7 +93,7 @@ async def _dispatch(op_name: str, args: dict[str, Any]) -> dict[str, Any]:
 @router.post(
     "/operations",
     response_model=OperationResponse,
-    responses=errors(400, 404, 422),
+    responses=errors(400, 404, 412, 422),
     summary="Execute one chat-grammar operation server-side",
 )
 async def execute_operation(request: OperationRequest) -> OperationResponse:
@@ -102,6 +102,7 @@ async def execute_operation(request: OperationRequest) -> OperationResponse:
     - unknown op, or an op the chat grammar does not spell → **404**
     - an op the web UI applies in the browser → **400** naming the op
     - args that fail the grammar's schema → **422** with pydantic's detail
+    - a draft's original revision no longer matches → **412**; retain and reconcile it
     - an executor that reported failure → **400** with its message
     """
     try:
@@ -135,7 +136,8 @@ async def execute_operation(request: OperationRequest) -> OperationResponse:
 
     if envelope.get("status") != "success":
         detail = envelope.get("error") or envelope.get("message") or f"Operation {request.op!r} failed."
-        raise HTTPException(status_code=400, detail=str(detail))
+        status = 412 if envelope.get("error_code") == "revision_conflict" else 400
+        raise HTTPException(status_code=status, detail=str(detail))
 
     return OperationResponse(
         op=request.op,
