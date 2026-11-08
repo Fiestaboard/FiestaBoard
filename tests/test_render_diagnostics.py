@@ -106,13 +106,26 @@ def test_a_missing_value_reports_ref_with_the_reason(engine):
 
     formula = report.formulas[0].to_json()
     assert formula["error"] == "#REF"
-    assert "Missing value" in formula["message"]
+    assert formula["message"] == "No value at nope.count"
 
 
-def test_a_formula_value_is_what_the_board_shows(engine):
-    rows, report = _report(engine, ['{{= FORMATDATE(NOW(), "HH:mm:ss") }}'])
+def test_a_missing_list_names_the_list_not_the_loop_item(engine):
+    _, report = _report(engine, ["{{= FOREACH(nope.items, item.route) }}"])
 
-    assert report.formulas[0].value == rows[0].strip()
+    formula = report.formulas[0].to_json()
+    assert (formula["error"], formula["message"]) == ("#REF", "No value at nope.items")
+
+
+def test_a_formula_value_is_what_the_board_shows_at_the_renders_instant(engine):
+    from datetime import datetime
+
+    from src.templates.expressions import RENDER_CLOCK_KEY
+
+    report = RenderReport()
+    context = {**CTX, RENDER_CLOCK_KEY: datetime(2001, 2, 3, 4, 5, 6)}
+    rows = engine.render_lines(['{{= FORMATDATE(NOW(), "HH:mm:ss") }}'], context, report=report).split("\n")
+
+    assert report.formulas[0].value == rows[0].strip() == "04:05:06"
 
 
 def test_formulas_on_lines_past_the_board_are_still_reported(engine):
@@ -147,7 +160,7 @@ def test_a_list_stopped_by_a_line_below_says_which_and_what_it_hid(engine):
     assert (entry["first_row"], entry["rows_wanted"], entry["rows_shown"]) == (2, 7, 3)
     assert (entry["clip"], entry["clip_line"]) == ("stopped_by_line", 5)
     assert entry["hidden"] == ["J 15M", "14 21M", "49 27M", "KT 8:15"]
-    assert entry["widest"] == 5
+    assert entry["widest"] == 6  # "49 12M", the widest of the three rows shown
     assert rows[1].strip() == "J DUE"
 
 
@@ -169,7 +182,7 @@ def test_a_line_past_the_last_row_is_beyond_the_board(engine):
 
 
 def test_a_list_that_runs_off_the_bottom_is_clipped_by_the_board(engine):
-    lines = ["A", "B", "C", "D", '{{= FOREACH(transit.three, item.route) }}', ""]
+    lines = ["A", "B", "C", "D", "{{= FOREACH(transit.three, item.route) }}", ""]
     _, report = _report(engine, lines)
 
     entry = _line(report, 5)
@@ -194,7 +207,7 @@ def test_a_wrapped_line_with_room_shows_every_row(engine):
 
     entry = _line(report, 1)
     assert (entry["rows_wanted"], entry["rows_shown"], entry["clip"]) == (2, 2, None)
-    assert _line(report, 2)["clip"] == "covered"
+    assert (_line(report, 2)["clip"], _line(report, 2)["clip_line"]) == ("covered", 1)
 
 
 def test_an_over_wide_line_is_measured_and_cut(engine):
@@ -205,7 +218,7 @@ def test_an_over_wide_line_is_measured_and_cut(engine):
 
 
 def test_hidden_rows_are_capped_at_the_boards_height(engine):
-    _, report = _report(engine, ['{{= FOREACH(transit.many, item.route) }}'], device_type="note")
+    _, report = _report(engine, ["{{= FOREACH(transit.many, item.route) }}"], device_type="note")
 
     entry = _line(report, 1)
     assert (entry["rows_wanted"], entry["rows_shown"]) == (20, 3)
@@ -288,7 +301,9 @@ def test_validate_flags_a_list_line_past_the_boards_rows(client):
 
 
 def test_validate_allows_blank_lines_past_the_rows(client):
-    body = client.post("/templates/validate", json={"template": ["A", "B", "C", "", "  "], "device_type": "note"}).json()
+    body = client.post(
+        "/templates/validate", json={"template": ["A", "B", "C", "", "  "], "device_type": "note"}
+    ).json()
 
     assert body == {"valid": True, "errors": [], "rows": 3, "cols": 15}
 

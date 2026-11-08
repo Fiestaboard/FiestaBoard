@@ -2150,22 +2150,70 @@ def evaluate(expression: str, context: dict[str, Any] | None = None) -> str:
     the surrounding template. ``#SYNTAX`` errors include the source-character
     offset where they were detected (``#SYNTAX:12``) when one is available.
     """
+    return evaluate_detailed(expression, context).value
+
+
+@dataclass(frozen=True)
+class Evaluation:
+    """:func:`evaluate_detailed`'s answer.
+
+    ``value`` is exactly what :func:`evaluate` renders (an error renders as
+    its tag, ``#SYNTAX:<pos>`` included). ``error`` is the bare tag when the
+    formula failed, ``error_at`` the ``#SYNTAX`` offset in the expression,
+    and ``message`` the evaluator's reason when it gave one.
+    """
+
+    value: str
+    error: str | None = None
+    error_at: int | None = None
+    message: str | None = None
+
+
+def _failed(exc: FormulaError) -> Evaluation:
+    pos = exc.pos if exc.code == "#SYNTAX" else None
+    value = f"#SYNTAX:{pos}" if pos is not None else exc.code
+    message = exc.message if exc.message and exc.message != exc.code else None
+    return Evaluation(value=value, error=exc.code, error_at=pos, message=message)
+
+
+def _first_missing_path(tree: _Node, context: dict[str, Any]) -> str | None:
+    """The first plugin path in *tree* (``source.field…``) with no value, for a
+    ``#REF``'s message. Loop locals (``item``, ``index``) are skipped: they
+    only resolve inside their loop."""
+    pending: list[_Node] = [tree]
+    while pending:
+        node = pending.pop(0)
+        if isinstance(node, _Var):
+            root = node.path.split(".", 1)[0].lower()
+            if "." in node.path and root not in LOOP_LOCAL_NAMES and _is_error(_lookup_variable(node.path, context)):
+                return node.path
+        elif isinstance(node, _Unary):
+            pending.append(node.operand)
+        elif isinstance(node, _Binary):
+            pending.extend((node.left, node.right))
+        elif isinstance(node, _Call):
+            pending.extend(node.args)
+    return None
+
+
+def evaluate_detailed(expression: str, context: dict[str, Any] | None = None) -> Evaluation:
+    """:func:`evaluate`, with the error kept apart from the text (the editor's
+    per-formula value, H5). The one implementation both share."""
     ctx = context or {}
     try:
         tokens = _tokenize(expression)
         tree = _Parser(tokens).parse()
         result = _eval_node(tree, ctx)
     except FormulaError as exc:
-        if exc.code == "#SYNTAX" and exc.pos is not None:
-            return f"#SYNTAX:{exc.pos}"
-        return exc.code
+        return _failed(exc)
     if _is_error(result):
-        return result.code
+        missing = _first_missing_path(tree, ctx) if result.code == "#REF" else None
+        return Evaluation(value=result.code, error=result.code, message=f"No value at {missing}" if missing else None)
     try:
-        return _to_string(result)
+        return Evaluation(value=_to_string(result))
     except FormulaError as exc:
         # An expression whose *result* is an array (``{{= plugin.games }}``).
-        return exc.code
+        return _failed(exc)
 
 
 def expression_plugin_ids(expression: str) -> set[str] | None:
