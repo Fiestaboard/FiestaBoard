@@ -1059,6 +1059,16 @@ class PluginRegistry:
         logger.info(f"Disabled plugin: {plugin_id}")
         return True
 
+    def validate_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
+        """Validate without publishing config, clearing caches or running change hooks."""
+        with self._lock:
+            plugin = self._plugins.get(plugin_id)
+            if plugin is None:
+                return [f"Plugin not found: {plugin_id}"]
+            errors = plugin._validate_refresh_seconds(config)
+            errors.extend(plugin.validate_config(config))
+            return errors
+
     def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
         """Set configuration for a plugin.
 
@@ -1076,8 +1086,7 @@ class PluginRegistry:
             plugin = self._plugins[plugin_id]
 
             # Validate config (base refresh_seconds + plugin-specific)
-            errors = plugin._validate_refresh_seconds(config)
-            errors.extend(plugin.validate_config(config))
+            errors = self.validate_plugin_config(plugin_id, config)
             if errors:
                 return errors
 
