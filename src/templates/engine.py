@@ -48,7 +48,14 @@ from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
 from .colors import is_color_code as _is_color_code
-from .expressions import ensure_render_clock, evaluate_value, find_formulas, render_expressions, validate_expression
+from .expressions import (
+    MAX_STRING_LENGTH,
+    ensure_render_clock,
+    evaluate_value,
+    find_formulas,
+    render_expressions,
+    validate_expression,
+)
 from .filters import FILTER_NAMES
 
 logger = logging.getLogger(__name__)
@@ -1764,7 +1771,9 @@ class TemplateEngine:
 
             if filter_name == "pad":
                 try:
-                    width = int(arg)
+                    # Bounded like a formula's text: no board is wider, and an
+                    # unbounded width would let one template allocate gigabytes.
+                    width = min(int(arg), MAX_STRING_LENGTH)
                     return value.ljust(width)[:width]
                 except ValueError:
                     return value
@@ -1778,7 +1787,7 @@ class TemplateEngine:
 
             elif filter_name == "zeropad":
                 try:
-                    width = int(arg)
+                    width = min(int(arg), MAX_STRING_LENGTH)
                 except ValueError:
                     return value
                 if width <= 0:

@@ -62,7 +62,7 @@ def test_triple_nested_rept_is_value():
 
 
 def test_a_concatenation_chain_past_the_limit_is_value():
-    assert evaluate(f'LEN(REPT({A_1K},63) & {A_1K})') == "65536"
+    assert evaluate(f"LEN(REPT({A_1K},63) & {A_1K})") == "65536"
     assert evaluate(f'REPT({A_1K},63) & {A_1K} & "B"') == "#VALUE"
 
 
@@ -151,3 +151,37 @@ def test_render_answers_the_attack_quickly_and_small(_isolated_data_dir):
     assert elapsed < 3
     assert len(response.content) < 4096
     assert response.json()["lines"][0].strip() == "#VALUE"
+
+
+# ── each builder checks before it builds, not one step after ────────────────
+#
+# The choke point alone would stop each of these, but only after building a
+# string many times the limit. Each function's own check keeps the work near
+# the limit: the peak allocation stays a few megabytes.
+
+X64 = f"LET(x, {A_64K}, {{}})"
+ITEMS = 'SPLIT(REPT(REPT("a,",1000),30), ",")'
+
+
+@pytest.mark.parametrize(
+    "formula",
+    [
+        f"REPT({A_64K}, 1024)",
+        X64.format("CONCAT(" + ", ".join(["x"] * 200) + ")"),
+        f'REPLACE({A_64K}, "A", {A_1K})',
+        f'REGEXREPLACE({A_64K}, "A", REPT("B",1000))',
+        f"JOIN({ITEMS}, {A_1K})",
+        f'FOREACH({ITEMS}, item & REPT("x",1000))',
+        "FIXED(1, 100000000)",
+        'PAD("A", 100000000)',
+    ],
+    ids=["rept", "concat", "replace", "regexreplace", "join", "foreach", "fixed", "pad"],
+)
+def test_a_builder_stops_before_it_builds_past_the_limit(formula):
+    tracemalloc.start()
+    try:
+        assert evaluate(formula) == "#VALUE"
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert peak < 8 * 1024 * 1024
