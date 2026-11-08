@@ -33,6 +33,7 @@ class FormulaReport:
     error: str | None = None
     error_at: int | None = None
     message: str | None = None
+    value_truncated: bool = False
 
     def to_json(self) -> dict[str, Any]:
         return asdict(self)

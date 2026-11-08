@@ -80,6 +80,7 @@ def test_a_formula_reports_its_span_and_value(engine):
         "error": None,
         "error_at": None,
         "message": None,
+        "value_truncated": False,
     }
 
 
@@ -312,3 +313,69 @@ def test_validate_leaves_a_string_template_alone(client):
     body = client.post("/templates/validate", json={"template": "A\nB\nC\nD", "device_type": "note"}).json()
 
     assert body["valid"] is True
+
+
+# ── review follow-ups: a bounded payload, and the surviving mutants ─────────
+
+LONG = '{{= REPT(REPT("A",1024),1024) }}'
+
+
+def test_a_long_formula_value_is_cut_and_flagged(engine):
+    _, report = _report(engine, [LONG])
+
+    formula = report.formulas[0].to_json()
+    assert formula["value_truncated"] is True
+    assert len(formula["value"]) == 4096
+
+
+def test_a_short_formula_value_is_whole(engine):
+    _, report = _report(engine, ["{{= 1 + 2 }}"])
+
+    assert report.formulas[0].to_json()["value_truncated"] is False
+
+
+def test_a_big_boards_value_limit_is_its_area(engine):
+    many = "{{= FOREACH(transit.many, REPT(item.route, 200)) }}"
+    _, report = _report(engine, [many], device_type="panel", grid_rows=96, grid_cols=128)
+
+    formula = report.formulas[0].to_json()
+    assert formula["value_truncated"] is False
+    assert len(formula["value"]) > 4096
+
+
+def test_hidden_rows_are_cut_to_the_board_width(engine):
+    wide = '{{= FOREACH(transit.many, REPT("W", 500)) }}'
+    _, report = _report(engine, [wide], device_type="note")
+
+    entry = _line(report, 1)
+    assert entry["hidden"] and all(row == "W" * 15 for row in entry["hidden"])
+
+
+def test_render_with_diagnostics_of_a_long_formula_stays_small(client):
+    response = client.post("/templates/render", json={"template": [LONG], "diagnostics": True})
+
+    assert response.status_code == 200, response.text
+    assert len(response.content) < 16 * 1024
+    assert response.json()["diagnostics"]["formulas"][0]["value_truncated"] is True
+
+
+def test_a_row_exactly_the_board_width_is_not_cut(engine):
+    _, report = _report(engine, ["A" * 22])
+
+    entry = _line(report, 1)
+    assert (entry["widest"], entry["cut"]) == (22, False)
+
+
+def test_fill_space_does_not_count_toward_the_widest_row(engine):
+    _, report = _report(engine, ["AB{{fill_space}}CD"])
+
+    entry = _line(report, 1)
+    assert (entry["widest"], entry["cut"]) == (4, False)
+
+
+def test_a_missing_loop_field_is_not_reported_as_a_plugin_path(engine):
+    _, report = _report(engine, ["{{= FOREACH(transit.etas, item.absent) }}"])
+
+    formula = report.formulas[0].to_json()
+    assert formula["error"] == "#REF"
+    assert formula["message"] is None

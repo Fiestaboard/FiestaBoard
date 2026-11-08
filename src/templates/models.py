@@ -199,6 +199,10 @@ class FormulaDiagnostic(BaseModel):
     )
     error_at: int | None = Field(default=None, description="For #SYNTAX: the character offset in source.")
     message: str | None = Field(default=None, description="Why it failed, in the evaluator's words, when known.")
+    value_truncated: bool = Field(
+        default=False,
+        description="True when value was cut: it keeps the larger of 4096 characters and the board's area.",
+    )
 
 
 class LineDiagnostic(BaseModel):
@@ -222,7 +226,11 @@ class LineDiagnostic(BaseModel):
     widest: int = Field(default=0, description="The widest row it showed, in drawn tiles.")
     cut: bool = Field(default=False, description="Whether a row it showed was wider than the board, and so cut.")
     hidden: list[str] = Field(
-        default_factory=list, description="The rows that did not land, as rendered (at most the board's row count)."
+        default_factory=list,
+        description=(
+            "The rows that did not land, each cut to the board's width as it would show (at most the board's row "
+            "count)."
+        ),
     )
 
 
