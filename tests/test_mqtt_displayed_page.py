@@ -132,7 +132,10 @@ class TestCurrentPageFollowsTheBoard:
         assert by_board["b2"]["reference_id"] == "pX"
 
     def test_before_any_send_current_page_falls_back_to_the_selection(self):
-        """Nothing sent yet (fresh start): the selection is the best answer."""
+        """Nothing sent yet (fresh start): the selection is the best answer.
+
+        A guard on behaviour that must not change, so it passes with or
+        without the fix."""
         boards = [_board("b1", "One")]
         svc, _clients = _service_with_runtimes(boards)
 
@@ -140,6 +143,101 @@ class TestCurrentPageFollowsTheBoard:
 
         assert state["current_page"] == "Manual"
         assert attrs["current_page"]["page_id"] == "pX"
+
+    def test_attributes_omit_reference_id_when_the_board_shows_the_selection(self):
+        boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
+        manual = {"b1": "pA", "b2": "pB"}
+        svc, _clients = _service_with_runtimes(boards)
+        _drive(svc, boards, pages=_engine_pages(), schedule=_schedule_service({"b1": "pA", "b2": "pB"}))
+
+        _state, attrs = _gather(svc, boards, manual)
+
+        assert "reference_id" not in attrs["current_page"]
+        assert "reference_id" not in attrs["current_page"]["by_board"]["b2"]
+
+    def test_attributes_omit_reference_id_when_there_is_no_selection(self):
+        """A board with no selected page showing no page has nothing to refer to."""
+        boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
+        svc, _clients = _service_with_runtimes(boards)
+        _drive(
+            svc,
+            boards,
+            settings=_settings_service(boards, manual={"b2": "pB"}),
+            pages=_engine_pages(),
+            schedule=_schedule_service({"b1": "pA", "b2": "pB"}),
+            silence=True,
+        )
+
+        _state, attrs = _gather(svc, boards, {"b1": "pX"})
+
+        assert attrs["current_page"]["by_board"]["b2"]["page_id"] == ""
+        assert "reference_id" not in attrs["current_page"]["by_board"]["b2"]
+
+    def test_temporary_override_reports_the_override_page(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        override = SimpleNamespace(
+            is_inline=False,
+            is_expired=lambda: False,
+            page_id="pS",
+            revert_mode="schedule",
+            revert_page_id=None,
+        )
+        _drive(
+            svc,
+            boards,
+            settings=_settings_service(boards, override=override),
+            pages=_engine_pages(),
+            schedule=_schedule_service({"b1": "pA"}),
+        )
+
+        state, _attrs = _gather(svc, boards, {"b1": "pX"})
+
+        assert state["current_page"] == "Quiet"
+
+    def test_inline_one_off_override_reports_no_page(self):
+        """One-off content is recorded as ``__adhoc__``: no stored page."""
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        override = SimpleNamespace(
+            is_inline=True,
+            is_expired=lambda: False,
+            template=["ONE OFF"],
+            line_metadata=None,
+            device_type="flagship",
+            notes_wide=1,
+            notes_tall=1,
+            revert_mode="schedule",
+            revert_page_id=None,
+            page_id=None,
+        )
+        pages = _engine_pages()
+        pages.render_page.side_effect = lambda page, **_kwargs: SimpleNamespace(
+            available=True, formatted="ONE OFF", error=None
+        )
+        _drive(
+            svc,
+            boards,
+            settings=_settings_service(boards, override=override),
+            pages=pages,
+            schedule=_schedule_service({"b1": "pA"}),
+        )
+        assert svc.runtimes["b1"].last_active_page_id == "__adhoc__"
+
+        state, _attrs = _gather(svc, boards, {"b1": "pX"})
+
+        assert state["current_page"] == NO_ACTIVE_PAGE_OPTION
+
+    def test_trigger_message_reports_no_page(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        _drive(
+            svc, boards, pages=_engine_pages(), schedule=_schedule_service({"b1": "pA"}), trigger_content="DOOR OPEN"
+        )
+
+        state, _attrs = _gather(svc, boards, {"b1": "pX"})
+
+        assert state["current_page"] == NO_ACTIVE_PAGE_OPTION
 
     def test_silence_indicator_reports_no_page(self):
         boards = [_board("b1", "One")]
@@ -176,6 +274,28 @@ class TestPageSendPublishesPromptly:
         svc, _clients = _service_with_runtimes(boards)
         with patch("src.display_runtime._publish_mqtt_state_update") as push:
             _drive(svc, boards, pages=_engine_pages(), schedule=_schedule_service({"b1": "pA"}))
+
+        push.assert_called_once_with()
+
+    def test_silence_indicator_send_pushes_mqtt_state(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        with patch("src.display_runtime._publish_mqtt_state_update") as push:
+            _drive(svc, boards, pages=_engine_pages(), schedule=_schedule_service({"b1": "pA"}), silence=True)
+
+        push.assert_called_once_with()
+
+    def test_trigger_message_send_pushes_mqtt_state(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        with patch("src.display_runtime._publish_mqtt_state_update") as push:
+            _drive(
+                svc,
+                boards,
+                pages=_engine_pages(),
+                schedule=_schedule_service({"b1": "pA"}),
+                trigger_content="DOOR OPEN",
+            )
 
         push.assert_called_once_with()
 
@@ -230,9 +350,17 @@ class TestConcurrentGathers:
             slow = threading.Thread(target=pub.gather_and_publish)
             slow.start()
             assert first_entered.wait(timeout=5)
-            fast = threading.Thread(target=pub.gather_and_publish)
+            fast_done = threading.Event()
+
+            def fast_pass():
+                pub.gather_and_publish()
+                fast_done.set()
+
+            fast = threading.Thread(target=fast_pass)
             fast.start()
-            fast.join(timeout=0.5)
+            # Unserialized, the fast pass finishes while the slow one is
+            # parked; serialized, it cannot start until the slow one ends.
+            fast_done.wait(timeout=0.2)
             release_first.set()
             slow.join(timeout=5)
             fast.join(timeout=5)

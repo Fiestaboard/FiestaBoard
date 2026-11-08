@@ -21,7 +21,8 @@ def _shown_page_ref(shown: str | None) -> str | None:
 
     ``None``: unknown (nothing sent yet, out-of-band content), so callers
     fall back to the configured selection. ``""``: the board shows no page
-    (the silence indicator, a trigger message). Otherwise the page id.
+    (the silence indicator ``__silence__``, a trigger message ``__trigger__``,
+    one-off content ``__adhoc__``). Otherwise the page id.
     """
     if shown is None:
         return None
@@ -257,7 +258,7 @@ class StatePublisher:
                 active_id = selected.page_id
             pages = page_service.list_pages()
             page_attrs: dict = {"page_id": active_id or ""}
-            if selected is not None or (shown is not None and shown != reference_id):
+            if selected is not None or (shown is not None and (shown or None) != (reference_id or None)):
                 page_attrs["reference_id"] = reference_id
             for idx, page in enumerate(pages):
                 if page.id == active_id:
@@ -292,7 +293,9 @@ class StatePublisher:
 
                         board_page_name = content_name(board_page_id, page_service) or ""
                     by_board[bid] = {"page_id": board_page_id, "page_name": board_page_name}
-                    if board_selection is not None or (board_shown is not None and board_shown != board_reference_id):
+                    if board_selection is not None or (
+                        board_shown is not None and (board_shown or None) != (board_reference_id or None)
+                    ):
                         by_board[bid]["reference_id"] = board_reference_id
                 if by_board:
                     page_attrs["by_board"] = by_board

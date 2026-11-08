@@ -153,7 +153,8 @@ def displayed_page_id(board_id=None) -> str | None:
 
     ``None`` when nothing is known: no service yet, nothing sent since
     startup, or out-of-band content on the board. Engine sentinels
-    (``__silence__``, ``__trigger__``, ``__silence_page__:<id>``) come back
+    (``__silence__``, ``__trigger__``, ``__adhoc__``,
+    ``__silence_page__:<id>``) come back
     as-is for the caller to interpret (issue #2436).
     """
     service = peek_service()

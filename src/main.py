@@ -837,6 +837,14 @@ class DisplayService:
                     ret = False
             if job_errors:
                 job.fail_reason = job_errors[0][1]
+            if ret:
+                # Something landed: a page, a silence indicator or page, a
+                # trigger message, a blank board. MQTT's current_page follows
+                # the board, so push it now rather than at the next 30 s sync
+                # (issue #2436). Lazy import: display_runtime imports main.
+                from .display_runtime import _publish_mqtt_state_update
+
+                _publish_mqtt_state_update()
             return ret
 
         worker = self._worker_for(rt)
@@ -2661,12 +2669,6 @@ class DisplayService:
                         # exactly what was sent; there is nothing to read back.
                         if getattr(client, "is_virtual", False) is not True:
                             self.request_board_refresh(board_id)
-                        # MQTT's current_page follows the page on the board;
-                        # push it now rather than at the next 30 s sync
-                        # (issue #2436). Lazy: display_runtime imports main.
-                        from .display_runtime import _publish_mqtt_state_update
-
-                        _publish_mqtt_state_update()
                     else:
                         logger.debug("Active page unchanged at board level")
                     return was_sent
