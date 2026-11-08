@@ -31,6 +31,14 @@ A_1K = 'REPT("A",1024)'
 A_64K = f"REPT({A_1K},64)"
 
 
+def _failure(formula: str) -> expressions.FormulaError:
+    """The error that ends *formula*, read from the evaluator itself (not via
+    H5's ``evaluate_detailed``, so these tests also run on the 10.x lines)."""
+    with pytest.raises(expressions.FormulaError) as caught:
+        expressions._eval_node(expressions._Parser(expressions._tokenize(formula)).parse(), {})
+    return caught.value
+
+
 def _timed(formula: str) -> tuple[str, float]:
     started = time.perf_counter()
     value = evaluate(formula)
@@ -55,10 +63,10 @@ def test_nested_foreach_stops_fast():
 
 
 def test_an_over_budget_formula_says_why():
-    outcome = expressions.evaluate_detailed(f"COUNT(FILTER({A}, COUNT(FILTER({A}, TRUE)) > 0))")
+    failure = _failure(f"COUNT(FILTER({A}, COUNT(FILTER({A}, TRUE)) > 0))")
 
-    assert outcome.error == "#VALUE"
-    assert "too much work" in (outcome.message or "")
+    assert failure.code == "#VALUE"
+    assert "too much work" in failure.message
 
 
 # ── the budgets sit far above a real board ──────────────────────────────────
@@ -183,17 +191,18 @@ def test_the_regex_budget_is_what_stops_it(monkeypatch):
         return clock[0]
 
     monkeypatch.setattr(expressions, "_regex_clock", slow_clock)
-    outcome = expressions.evaluate_detailed('COUNT(FILTER(SPLIT(REPT("ab ",1000)), REGEXMATCH(item, "^a")))')
+    failure = _failure('COUNT(FILTER(SPLIT(REPT("ab ",1000)), REGEXMATCH(item, "^a")))')
 
-    assert outcome.error == "#VALUE"
-    assert "too much work" in (outcome.message or "")
+    assert failure.code == "#VALUE"
+    assert "too much work" in failure.message
 
 
 def test_the_parenthesis_limit_is_what_stops_it():
-    outcome = expressions.evaluate_detailed("(" * 5000 + "1" + ")" * 5000)
+    with pytest.raises(expressions.FormulaError) as caught:
+        expressions._Parser(expressions._tokenize("(" * 5000 + "1" + ")" * 5000)).parse()
 
-    assert outcome.error == "#SYNTAX"
-    assert f"{expressions.MAX_PAREN_DEPTH} parentheses" in (outcome.message or "")
+    assert caught.value.code == "#SYNTAX"
+    assert f"{expressions.MAX_PAREN_DEPTH} parentheses" in caught.value.message
 
 
 def test_a_long_chain_past_the_depth_limit_is_syntax_before_python_would_fail():
