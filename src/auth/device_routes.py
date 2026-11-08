@@ -15,6 +15,7 @@ from .device_models import (
     DeviceTokenResult,
     EnrollmentSettings,
     PendingDevice,
+    PhoneTVList,
     Success,
     UserCode,
 )
@@ -127,4 +128,35 @@ def revoke_self(request: Request):
     if not session:
         raise AuthFlowError("unauthorized", "This sign-in is no longer valid.", 401)
     auth.sessions.revoke_session(session.username, session.id)
+    return Success()
+
+
+def _phone(request: Request):
+    """The calling phone's session. Browsers manage devices at /auth/sessions instead."""
+    service = DeviceService(get_auth_service())
+    phone = service.authenticate_mobile(_bearer_from(request) or "")
+    if not phone:
+        raise AuthFlowError("unauthorized", "Only a signed-in FiestaBoard phone app can manage TVs here.", 401)
+    return phone, service
+
+
+@router.get("/tvs", response_model=PhoneTVList, responses=RESPONSES)
+def phone_tvs(request: Request):
+    """The account's signed-in TVs, newest first, for the phone app. Phone sign-in only.
+
+    Lists TV sign-ins only, never browsers or phones (those are managed from
+    the web app). ``approved_by_you`` marks the TVs whose code this phone approved.
+    """
+    phone, service = _phone(request)
+    return PhoneTVList(tvs=service.phone_tv_rows(phone))
+
+
+@router.delete("/tvs/{session_id}", response_model=Success, responses=errors(401, 403, 404, 429, 503))
+def revoke_phone_tv(session_id: str, request: Request):
+    """Sign out one of the account's TVs from the phone app. TVs only: anything else is 404.
+
+    Limited to 20 attempts a minute per phone, misses included, and audited.
+    """
+    phone, service = _phone(request)
+    service.revoke_tv(phone, session_id)
     return Success()

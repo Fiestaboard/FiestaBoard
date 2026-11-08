@@ -170,6 +170,22 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/auth/device/tvs",
+      "methods": [
+        "GET"
+      ],
+      "name": "phone_tvs",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/tvs/{session_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "revoke_phone_tv",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/auth/disable",
       "methods": [
         "POST"
