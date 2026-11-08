@@ -64,6 +64,19 @@ describe("AnimationSettings — board flip speed", () => {
     });
   });
 
+  it("supports arrow-key selection while saving the global preview preference", async () => {
+    withDisplaySettings({ board_flap_speed: "quick" });
+    const bodies = captureDisplayUpdate();
+    const user = userEvent.setup();
+    render(<AnimationSettings />, { wrapper: TestWrapper });
+    const quick = await screen.findByRole("radio", { name: "Quick" });
+    await waitFor(() => expect(quick).toBeChecked());
+    quick.focus();
+    await user.keyboard("{ArrowRight}");
+    await waitFor(() => expect(bodies).toContainEqual({ board_flap_speed: "standard" }));
+    expect(bodies.every((body) => !("board_id" in body))).toBe(true);
+  });
+
   it("marks Standard as the default even when another preset is selected", async () => {
     // The per-preset hint below the group says "the default" — but only for
     // whichever preset is currently selected, so a user on Relaxed has no way

@@ -3,6 +3,7 @@
  * Subarea: pages.list
  */
 import {
+  API_URL,
   configureBoard,
   createPage,
   deleteAllPages,
@@ -138,35 +139,42 @@ test.describe("regression: pages.list", () => {
     await nav;
   });
 
-  /** UX node: pages.list.device-tab-flagship */
-  test("pages.list.device-tab-flagship — Flagship tab is active and renders flagship pages only", async ({ page }) => {
-    await ensureTwoBoards();
+  /** UX node: pages.list.display-filter-flagship */
+  test("pages.list.display-filter-flagship — configured flagship display filters incompatible pages", async ({
+    page,
+  }) => {
+    await resetToSingleBoard();
+    const { board1Id } = await ensureTwoBoards();
+    const settings = await (await fetch(`${API_URL}/settings/board`)).json();
+    const flagship = settings.boards.find((board: { id: string }) => board.id === board1Id);
     try {
       await createPage("Flagship Only", ["A", "", "", "", "", ""], "flagship");
+      await createPage("Note Only", ["NOTE", "", ""], "note");
       await page.goto("/pages");
-      const flagshipTab = page.getByRole("tab", { name: /Flagship/i }).first();
-      await expect(flagshipTab).toBeVisible({ timeout: 10_000 });
-      await flagshipTab.click();
-      await expect(flagshipTab).toHaveAttribute("aria-selected", "true");
+      const filter = page.getByRole("combobox", { name: "Display filter" });
+      await filter.click();
+      await page.getByRole("option", { name: flagship.name, exact: true }).click();
+      await expect(filter).toHaveText(flagship.name);
       await expect(page.getByText("Flagship Only").first()).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText("Note Only", { exact: true })).toBeHidden();
     } finally {
       await resetToSingleBoard();
     }
   });
 
-  /** UX node: pages.list.device-tab-note */
-  test("pages.list.device-tab-note — Note tab New Page click lands on /pages/new?device=note", async ({ page }) => {
-    await ensureTwoBoards();
+  /** UX node: pages.list.display-filter-note */
+  test("pages.list.display-filter-note — New Page targets the filtered Note display", async ({ page }) => {
+    await resetToSingleBoard();
+    const { board2Id } = await ensureTwoBoards();
+    const settings = await (await fetch(`${API_URL}/settings/board`)).json();
+    const note = settings.boards.find((board: { id: string }) => board.id === board2Id);
     try {
       await page.goto("/pages");
-      const noteTab = page.getByRole("tab", { name: /Note/i }).first();
-      await expect(noteTab).toBeVisible({ timeout: 10_000 });
-      await noteTab.click();
-      const newBtn = page.getByRole("link", { name: /New Page|Create.*page/i }).first();
-      if (await newBtn.isVisible().catch(() => false)) {
-        const href = await newBtn.getAttribute("href");
-        expect(href).toContain("device=note");
-      }
+      await page.getByRole("combobox", { name: "Display filter" }).click();
+      await page.getByRole("option", { name: note.name, exact: true }).click();
+      await page.getByRole("button", { name: "New Page", exact: true }).click();
+      await page.waitForURL(`**/pages/new?board=${board2Id}`);
+      await expect(page.getByRole("combobox", { name: "Change board size" })).toHaveText("Note");
     } finally {
       await resetToSingleBoard();
     }

@@ -7,7 +7,9 @@
       "path_template": "/schedules",
       "status": 200,
       "shape": {
+        "default_page_edit_protocol": "str",
         "default_page_id": "null",
+        "default_page_revision": "str",
         "enabled": "bool",
         "schedules": [],
         "total": "int"
@@ -25,6 +27,7 @@
         "created_at": "str",
         "custom_days": "null",
         "day_pattern": "str",
+        "edit_protocol": "str",
         "enabled": "bool",
         "end_sun_offset": "int",
         "end_time": "str",
@@ -36,6 +39,7 @@
         "recurrence_type": "str",
         "resolved_end_time": "str",
         "resolved_start_time": "str",
+        "revision": "str",
         "start_sun_offset": "int",
         "start_time": "str",
         "start_type": "str",
@@ -70,7 +74,9 @@
       "path_template": "/schedules",
       "status": 200,
       "shape": {
+        "default_page_edit_protocol": "str",
         "default_page_id": "null",
+        "default_page_revision": "str",
         "enabled": "bool",
         "schedules": [
           {
@@ -80,6 +86,7 @@
             "created_at": "str",
             "custom_days": "null",
             "day_pattern": "str",
+            "edit_protocol": "str",
             "enabled": "bool",
             "end_sun_offset": "int",
             "end_time": "str",
@@ -91,6 +98,7 @@
             "recurrence_type": "str",
             "resolved_end_time": "str",
             "resolved_start_time": "str",
+            "revision": "str",
             "start_sun_offset": "int",
             "start_time": "str",
             "start_type": "str",
@@ -106,7 +114,9 @@
       "path_template": "/schedules",
       "status": 200,
       "shape": {
+        "default_page_edit_protocol": "str",
         "default_page_id": "null",
+        "default_page_revision": "null",
         "enabled": "null",
         "schedules": [
           {
@@ -116,6 +126,7 @@
             "created_at": "str",
             "custom_days": "null",
             "day_pattern": "str",
+            "edit_protocol": "str",
             "enabled": "bool",
             "end_sun_offset": "int",
             "end_time": "str",
@@ -127,6 +138,7 @@
             "recurrence_type": "str",
             "resolved_end_time": "str",
             "resolved_start_time": "str",
+            "revision": "str",
             "start_sun_offset": "int",
             "start_time": "str",
             "start_type": "str",
@@ -296,7 +308,9 @@
       "path_template": "/schedules/default-page",
       "status": 200,
       "shape": {
-        "default_page_id": "null"
+        "default_page_id": "null",
+        "edit_protocol": "str",
+        "revision": "str"
       }
     },
     {
@@ -305,7 +319,9 @@
       "path_template": "/schedules/default-page",
       "status": 200,
       "shape": {
-        "default_page_id": "str"
+        "default_page_id": "str",
+        "edit_protocol": "str",
+        "revision": "str"
       }
     },
     {
@@ -348,6 +364,7 @@
         "created_at": "str",
         "custom_days": "null",
         "day_pattern": "str",
+        "edit_protocol": "str",
         "enabled": "bool",
         "end_sun_offset": "int",
         "end_time": "str",
@@ -359,6 +376,7 @@
         "recurrence_type": "str",
         "resolved_end_time": "str",
         "resolved_start_time": "str",
+        "revision": "str",
         "start_sun_offset": "int",
         "start_time": "str",
         "start_type": "str",
@@ -386,6 +404,7 @@
         "created_at": "str",
         "custom_days": "null",
         "day_pattern": "str",
+        "edit_protocol": "str",
         "enabled": "bool",
         "end_sun_offset": "int",
         "end_time": "str",
@@ -397,6 +416,7 @@
         "recurrence_type": "str",
         "resolved_end_time": "str",
         "resolved_start_time": "str",
+        "revision": "str",
         "start_sun_offset": "int",
         "start_time": "str",
         "start_type": "str",

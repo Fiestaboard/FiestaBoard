@@ -212,7 +212,9 @@ class PluginUpdateOperationLock(unittest.TestCase):
                     "0.1.0" if second_fails else "0.3.0",
                 )
             with self.subTest(state="refusal provenance"):
-                self.assertEqual(manager.get_refused_plugin_update(PLUGIN_ID)["sha"], incoming if second_fails else rejected)
+                self.assertEqual(
+                    manager.get_refused_plugin_update(PLUGIN_ID)["sha"], incoming if second_fails else rejected
+                )
 
     def test_other_plugin_can_install_while_output_reload_is_paused(self):
         with installed_output() as (root, _, external, _, _, registry):

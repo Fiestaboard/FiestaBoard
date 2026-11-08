@@ -146,6 +146,8 @@ test.describe("Draw mode", () => {
     await enterDrawMode(page);
     await pickBrush(page, "red");
 
+    // Raw mouse gestures do not scroll targets into view like locator.click().
+    await tile(page, 2, 2).scrollIntoViewIfNeeded();
     const start = await tile(page, 2, 2).boundingBox();
     expect(start).toBeTruthy();
     await page.mouse.move(start!.x + start!.width / 2, start!.y + start!.height / 2);
@@ -440,6 +442,7 @@ test.describe("Draw mode", () => {
     // A drag stroke still paints multiple cells at this scale (tiles are
     // only a few px wide in the fit-to-width preview).
     await pickBrush(page, "red");
+    await tile(page, 12, 58).scrollIntoViewIfNeeded();
     const start = await tile(page, 12, 58).boundingBox();
     expect(start).toBeTruthy();
     await page.mouse.move(start!.x + start!.width / 2, start!.y + start!.height / 2);

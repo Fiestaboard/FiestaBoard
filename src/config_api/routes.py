@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from src.api_deprecation import flat_board_fields_notice
 from src.api_errors import errors
@@ -363,7 +363,11 @@ async def enable_local_api(request: EnablementTokenRequest):
 
 
 @router.post("/config/board/scan", response_model=BoardScanResponse, responses=errors(422))
-async def scan_for_boards(request: BoardScanRequest = BoardScanRequest()):
+async def scan_for_boards(
+    request: BoardScanRequest = BoardScanRequest(),
+    # FastAPI always injects it; a direct call (no browser) has none.
+    http_request: Request = None,  # type: ignore[assignment]
+):
     """
     Scan the local network for Vestaboard devices.
 
@@ -381,11 +385,16 @@ async def scan_for_boards(request: BoardScanRequest = BoardScanRequest()):
     """
     # The scan is the vestaboard output's ``discover`` hook; this legacy
     # route stays (pinned in tests/golden/api_routes.json) and delegates.
+    from src.outputs.client_hint import HINT_SOURCE_CLIENT, HINT_SOURCE_NONE, client_lan_hint
     from src.outputs.registry import VESTABOARD, discover_devices
 
     timeout = min(max(float(request.timeout or 4.0), 1.0), 15.0)
 
-    boards = discover_devices(VESTABOARD, timeout=timeout)
+    # The body names no network, so the scan's only hint is the requesting
+    # browser's own address, when it is a usable one.
+    hint = client_lan_hint(http_request)
+    logger.debug("Vestaboard scan: network hint from %s", HINT_SOURCE_CLIENT if hint else HINT_SOURCE_NONE)
+    boards = discover_devices(VESTABOARD, timeout=timeout, hint=hint)
     return BoardScanResponse(boards=boards)
 
 
