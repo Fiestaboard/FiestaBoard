@@ -7,9 +7,11 @@ Includes schema versioning and automatic migration on startup.
 import json
 import logging
 import threading
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 
+from src.pages.storage import PageRevisionConflict
 from src.storage.json_store import JsonStore
 
 from .models import DEFAULT_BOARD_ID, ScheduleEntry
@@ -85,6 +87,21 @@ MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
 ]
 
 
+class ScheduleRevisionConflict(PageRevisionConflict):
+    def __init__(self):
+        ValueError.__init__(
+            self, "Schedule changed since it was loaded. Reload the schedule before saving or deleting."
+        )
+
+
+class DefaultPageRevisionConflict(PageRevisionConflict):
+    def __init__(self):
+        ValueError.__init__(
+            self,
+            "Default page or board settings changed since they were loaded. Reload before changing the default page.",
+        )
+
+
 class ScheduleStorage:
     """JSON file-based storage for schedule entries.
 
@@ -107,6 +124,7 @@ class ScheduleStorage:
         self.storage_file = self._store.path
 
         # In-memory cache
+        self.default_revision = str(uuid.uuid4())
         self._schedules: dict[str, ScheduleEntry] = {}
         self._default_page_id: str | None = None  # legacy single default
         self._default_page_by_board: dict[str, str] = {}  # board_id -> page_id
@@ -128,7 +146,12 @@ class ScheduleStorage:
         return self._store.lock
 
     def _load(self) -> None:
+        with self.lock:
+            self._load_locked()
+
+    def _load_locked(self) -> None:
         """Load schedules from storage file, running migrations if needed."""
+        self.default_revision = str(uuid.uuid4())
         try:
             data = self._store.load()
             if data is None:
@@ -148,6 +171,11 @@ class ScheduleStorage:
                 raw_snapshot = dict(schedule_data) if isinstance(schedule_data, dict) else schedule_data
                 try:
                     if isinstance(schedule_data, dict):
+                        schedule_data = {
+                            key: value
+                            for key, value in schedule_data.items()
+                            if key not in {"revision", "edit_protocol"}
+                        }
                         if "board_id" not in schedule_data:
                             schedule_data["board_id"] = DEFAULT_BOARD_ID
                         if "created_at" in schedule_data and isinstance(schedule_data["created_at"], str):
@@ -156,6 +184,7 @@ class ScheduleStorage:
                             schedule_data["updated_at"] = datetime.fromisoformat(schedule_data["updated_at"])
 
                     schedule = ScheduleEntry(**schedule_data)
+                    schedule.revision = str(uuid.uuid4())
                     self._schedules[schedule.id] = schedule
                 except Exception as e:
                     schedule_id = raw_snapshot.get("id", "<unknown>") if isinstance(raw_snapshot, dict) else "<unknown>"
@@ -190,14 +219,14 @@ class ScheduleStorage:
             self._failed_entries = []
 
     def _save(self, *, defaults: tuple[str | None, dict[str, str]] | None = None) -> None:
-        """Save schedules to storage file atomically via the storage kernel."""
+        """Persist schedules with current defaults or an unpublished candidate."""
         default_page_id, default_page_by_board = (
             (self._default_page_id, self._default_page_by_board) if defaults is None else defaults
         )
         try:
             schedules_out: list[dict] = []
             for schedule in self._schedules.values():
-                schedule_data = schedule.model_dump()
+                schedule_data = schedule.model_dump(exclude={"revision", "edit_protocol"})
                 # Convert datetime objects to ISO strings for JSON serialization
                 if isinstance(schedule_data.get("created_at"), datetime):
                     schedule_data["created_at"] = schedule_data["created_at"].isoformat()
@@ -269,12 +298,13 @@ class ScheduleStorage:
             errors = schedule.validate_config()
             if errors:
                 raise ValueError(f"Invalid schedule configuration: {errors}")
+            schedule = schedule.model_copy(update={"revision": str(uuid.uuid4())}, deep=True)
             self._schedules[schedule.id] = schedule
             self._save()
         logger.info(f"Created schedule: {schedule.id} (board_id={schedule.board_id})")
         return schedule
 
-    def update(self, schedule_id: str, updates: dict) -> ScheduleEntry | None:
+    def update(self, schedule_id: str, updates: dict, *, expected_revision: str | None = None) -> ScheduleEntry | None:
         """Update an existing schedule.
 
         Args:
@@ -285,6 +315,7 @@ class ScheduleStorage:
             Updated schedule if found, None otherwise
         """
         with self._store.lock:
+            self.check_revision(schedule_id, expected_revision)
             return self._update_locked(schedule_id, updates)
 
     def _update_locked(self, schedule_id: str, updates: dict) -> ScheduleEntry | None:
@@ -294,7 +325,7 @@ class ScheduleStorage:
         schedule = self._schedules[schedule_id]
 
         # Apply updates
-        schedule_dict = schedule.model_dump()
+        schedule_dict = schedule.model_dump(exclude={"revision", "edit_protocol"})
         # Fields that are allowed to be set to None explicitly
         nullable_fields = {
             "end_time",
@@ -308,10 +339,15 @@ class ScheduleStorage:
             "one_off_end_date",
         }
         for key, value in updates.items():
-            if key in schedule_dict and (value is not None or key in nullable_fields):
+            if (
+                key not in {"revision", "edit_protocol", "id", "created_at", "updated_at"}
+                and key in schedule_dict
+                and (value is not None or key in nullable_fields)
+            ):
                 schedule_dict[key] = value
 
         # Update timestamp
+        schedule_dict["revision"] = str(uuid.uuid4())
         schedule_dict["updated_at"] = datetime.now(UTC)
 
         # Recreate schedule with updates
@@ -327,7 +363,13 @@ class ScheduleStorage:
         logger.info(f"Updated schedule: {schedule_id}")
         return updated_schedule
 
-    def delete(self, schedule_id: str) -> bool:
+    def check_revision(self, schedule_id: str, expected_revision: str | None) -> None:
+        with self.lock:
+            current = self._schedules.get(schedule_id)
+            if current is not None and expected_revision is not None and current.revision != expected_revision:
+                raise ScheduleRevisionConflict()
+
+    def delete(self, schedule_id: str, *, expected_revision: str | None = None) -> bool:
         """Delete a schedule.
 
         Args:
@@ -337,6 +379,7 @@ class ScheduleStorage:
             True if deleted, False if not found
         """
         with self._store.lock:
+            self.check_revision(schedule_id, expected_revision)
             if schedule_id not in self._schedules:
                 return False
 
@@ -370,11 +413,18 @@ class ScheduleStorage:
             return self._default_page_id
 
     def set_default_page_id(
-        self, page_id: str | None, board_id: str | None = None, *, clear_legacy: bool = False
+        self,
+        page_id: str | None,
+        board_id: str | None = None,
+        *,
+        clear_legacy: bool = False,
+        expected_revision: str | None = None,
     ) -> None:
         """Set a board default, optionally clearing its legacy alias in the same commit."""
         bid = board_id or DEFAULT_BOARD_ID
         with self._store.lock:
+            if expected_revision is not None and self.default_revision != expected_revision:
+                raise DefaultPageRevisionConflict()
             default_page_id = self._default_page_id
             default_page_by_board = dict(self._default_page_by_board)
             if bid == DEFAULT_BOARD_ID:
@@ -391,4 +441,5 @@ class ScheduleStorage:
             self._save(defaults=(default_page_id, default_page_by_board))
             self._default_page_id = default_page_id
             self._default_page_by_board = default_page_by_board
+            self.default_revision = str(uuid.uuid4())
         logger.info(f"Set default page ID for board {bid!r} to: {page_id}")

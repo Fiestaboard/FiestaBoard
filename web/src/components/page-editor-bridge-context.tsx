@@ -14,6 +14,7 @@ export interface EditorHandlers {
   getSnapshot: () => CurrentPageSnapshot | null;
   getPageId: () => string | undefined;
   hasUnsavedChanges: () => boolean;
+  revealText: () => void;
   beginStaging: () => void;
   stageName: (value: string) => void;
   stageLine: (index: number, value: string) => void;
@@ -66,6 +67,7 @@ export function PageEditorBridgeProvider({ children }: { children: React.ReactNo
       isMounted: () => handlersRef.current !== null,
       pageId: () => handlersRef.current?.getPageId(),
       hasUnsavedChanges: () => handlersRef.current?.hasUnsavedChanges() ?? false,
+      revealText: () => handlersRef.current?.revealText(),
       begin: () => handlersRef.current?.beginStaging(),
       setName: (value) => handlersRef.current?.stageName(value),
       setLine: (index, value) => handlersRef.current?.stageLine(index, value),

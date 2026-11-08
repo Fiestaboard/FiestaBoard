@@ -14,7 +14,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 874
+        "height": 600
       },
       "capturedAtMobile": {
         "width": 390,
@@ -116,7 +116,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 707
+        "height": 781
       },
       "capturedAtMobile": {
         "width": 390,
@@ -136,7 +136,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 707
+        "height": 781
       },
       "capturedAtMobile": {
         "width": 390,
@@ -156,7 +156,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 707
+        "height": 781
       },
       "capturedAtMobile": {
         "width": 390,
@@ -176,7 +176,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 707
+        "height": 781
       },
       "capturedAtMobile": {
         "width": 390,
@@ -196,7 +196,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 713
+        "height": 723
       },
       "capturedAtMobile": {
         "width": 390,
@@ -216,13 +216,12 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 600
       },
       "capturedAtMobile": {
         "width": 390,
         "height": 844
-      },
-      "viewportSpecific": true
+      }
     },
     "page-editor-grid": {
       "file": "page-editor-grid.html",
@@ -237,13 +236,12 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 600
       },
       "capturedAtMobile": {
         "width": 390,
         "height": 844
-      },
-      "viewportSpecific": true
+      }
     },
     "page-editor-preview": {
       "file": "page-editor-preview.html",
@@ -258,13 +256,12 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 600
       },
       "capturedAtMobile": {
         "width": 390,
         "height": 844
-      },
-      "viewportSpecific": true
+      }
     },
     "page-editor-variable-picker-open": {
       "file": "page-editor-variable-picker-open.html",
@@ -279,7 +276,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 600
       },
       "capturedAtMobile": {
         "width": 390,
@@ -300,13 +297,12 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 600
       },
       "capturedAtMobile": {
         "width": 390,
         "height": 844
-      },
-      "viewportSpecific": true
+      }
     },
     "page-editor-wysiwyg": {
       "file": "page-editor-wysiwyg.html",
@@ -321,13 +317,12 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 600
       },
       "capturedAtMobile": {
         "width": 390,
         "height": 844
-      },
-      "viewportSpecific": true
+      }
     },
     "pages-list": {
       "file": "pages-list.html",
@@ -382,7 +377,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 707
+        "height": 781
       },
       "capturedAtMobile": {
         "width": 390,
@@ -625,14 +620,13 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 600
       },
       "capturedAtMobile": {
         "width": 390,
         "height": 844
       },
-      "frame": ".ProseMirror",
-      "viewportSpecific": true
+      "frame": ".ProseMirror"
     }
   }
 }

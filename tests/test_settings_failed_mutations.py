@@ -14,7 +14,6 @@ from src.schedules.models import ScheduleEntry
 from src.schedules.storage import ScheduleStorage
 from src.settings.service import SettingsService, TemporaryOverride
 
-
 SETTINGS_WRITES = (
     ("output", lambda s: s.set_output_target("ui")),
     ("active primary", lambda s: s.set_active_page_id("rejected")),
@@ -89,7 +88,7 @@ class TestSettingsFailedMutations(unittest.TestCase):
                 original_bytes = path.read_bytes()
                 observed = []
 
-                def refuse_commit(*args, **kwargs):
+                def refuse_commit(*args, observed=observed, service=service, **kwargs):
                     observed.append(settings_snapshot(service))
                     raise OSError(errno.ENOSPC, "synthetic disk full")
 
@@ -101,6 +100,8 @@ class TestSettingsFailedMutations(unittest.TestCase):
                 service.set_polling_interval(90)
                 expected = copy.deepcopy(before)
                 expected["polling"]["interval_seconds"] = 90
+                # Alpha stores polling preferences on each board as well as the legacy mirror.
+                expected["board"]["boards"][0]["polling_interval_seconds"] = 90
                 self.assertEqual(settings_snapshot(SettingsService(str(path))), expected)
                 self.assertEqual(after_failure, before)
                 self.assertEqual(observed, [before])
@@ -114,7 +115,7 @@ class TestSettingsFailedMutations(unittest.TestCase):
                 observed = []
                 replace = os.replace
 
-                def observe_commit(source, destination):
+                def observe_commit(source, destination, path=path, observed=observed, service=service, replace=replace):
                     if Path(destination) == path:
                         observed.append(settings_snapshot(service))
                     return replace(source, destination)
@@ -172,7 +173,7 @@ class TestScheduleDefaultFailedMutations(unittest.TestCase):
                     original_bytes = path.read_bytes()
                     observed = []
 
-                    def refuse_commit(*args, **kwargs):
+                    def refuse_commit(*args, observed=observed, service=service, **kwargs):
                         observed.append([service.get_default_page_id(b) for b in (None, "b1", "b2")])
                         raise OSError(errno.ENOSPC, "synthetic disk full")
 
@@ -213,7 +214,7 @@ class TestScheduleDefaultFailedMutations(unittest.TestCase):
                 replace = os.replace
                 writes = 0
 
-                def fail_commit(source, destination):
+                def fail_commit(source, destination, failing_write=failing_write, replace=replace):
                     nonlocal writes
                     writes += 1
                     if writes == failing_write:

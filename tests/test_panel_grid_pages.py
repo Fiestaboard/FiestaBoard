@@ -41,9 +41,14 @@ class TestPageModel:
         with pytest.raises(ValidationError):
             PageCreate(name="x", type="template", template=["HI"], device_type="panel")
 
-    def test_a_grid_below_one_note_is_rejected(self):
+    def test_a_page_at_1x8_validates(self):
+        page = _panel_page(grid_rows=1, grid_cols=8)
+        assert (page.grid_rows, page.grid_cols) == (1, 8)
+
+    @pytest.mark.parametrize("axis", [{"grid_rows": 0}, {"grid_cols": 4}])
+    def test_a_page_below_the_absolute_floor_is_refused(self, axis):
         with pytest.raises(ValidationError):
-            _panel_page(grid_rows=2)
+            _panel_page(**axis)
 
     def test_a_grid_above_the_maximum_is_rejected(self):
         with pytest.raises(ValidationError):

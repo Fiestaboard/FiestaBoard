@@ -1,95 +1,117 @@
 "use client";
 
-import { Flex, Input, Label, PageSection, Skeleton, Stack, Text } from "@fiestaboard/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Flex, Input, Label, PageSection, Stack, Text } from "@fiestaboard/ui";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Timer } from "lucide-react";
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
+import { queryKeys } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import { api } from "@/lib/api";
+import { api, type BoardInstance, type BoardSettings, type PollingSettings } from "@/lib/api";
 
-export function UpdateIntervals() {
+import { isPluginOutputBoard, isVirtualBoard } from "./output-boards";
+
+type IntervalFieldName = keyof PollingSettings;
+
+/** A required target keeps these controls independent of the sidebar selection. */
+export function UpdateIntervals({ board }: { board: BoardInstance }) {
+  return <BoardUpdateIntervals key={board.id} board={board} />;
+}
+
+function BoardUpdateIntervals({ board }: { board: BoardInstance }) {
   const t = useTranslations("generalSettings");
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
+  const serverValues: PollingSettings = {
+    interval_seconds: board.polling_interval_seconds ?? 15,
+    board_read_interval_local: board.board_read_interval_local ?? 30,
+    board_read_interval_cloud: board.board_read_interval_cloud ?? 180,
+  };
+  const [saved, setSaved] = useState(serverValues);
+  const [draft, setDraft] = useState(() => ({
+    interval_seconds: String(serverValues.interval_seconds),
+    board_read_interval_local: String(serverValues.board_read_interval_local),
+    board_read_interval_cloud: String(serverValues.board_read_interval_cloud),
+  }));
+  if (
+    useDepsChanged([board.polling_interval_seconds, board.board_read_interval_local, board.board_read_interval_cloud])
+  ) {
+    setSaved(serverValues);
+    setDraft({
+      interval_seconds: String(serverValues.interval_seconds),
+      board_read_interval_local: String(serverValues.board_read_interval_local),
+      board_read_interval_cloud: String(serverValues.board_read_interval_cloud),
+    });
+  }
 
-  const [pollingInterval, setPollingInterval] = useState(15);
-  const [boardReadIntervalLocal, setBoardReadIntervalLocal] = useState(30);
-  const [boardReadIntervalCloud, setBoardReadIntervalCloud] = useState(180);
-
-  const { data: allSettings, isLoading } = useQuery({
-    queryKey: ["all-settings"],
-    queryFn: api.getAllSettings,
-  });
-
-  const deferredPolling = useDeferredValue(allSettings?.polling);
-  const initializedRef = useRef(false);
-  const [initialized, setInitialized] = useState(false);
-
-  useEffect(() => {
-    if (deferredPolling && !initializedRef.current) {
-      setPollingInterval(deferredPolling.interval_seconds);
-      setBoardReadIntervalLocal(deferredPolling.board_read_interval_local ?? 30);
-      setBoardReadIntervalCloud(deferredPolling.board_read_interval_cloud ?? 180);
-      initializedRef.current = true;
-      setInitialized(true);
-    }
-  }, [deferredPolling]);
-
-  const updatePollingMutation = useMutation({
-    mutationFn: (updates: Parameters<typeof api.updatePollingSettings>[0]) => api.updatePollingSettings(updates),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["polling-settings"] });
+  const mutation = useMutation({
+    mutationFn: ({ field, value }: { field: IntervalFieldName; value: number }) =>
+      api.updatePollingSettings({ [field]: value }, board.id),
+    onSuccess: (result, { field, value }) => {
+      const persisted = result[field] ?? value;
+      setSaved((previous) => ({ ...previous, [field]: persisted }));
+      setDraft((previous) => ({ ...previous, [field]: String(persisted) }));
+      const boardField = field === "interval_seconds" ? "polling_interval_seconds" : field;
+      queryClient.setQueryData<BoardSettings>(
+        queryKeys.boardSettings,
+        (previous) =>
+          previous && {
+            ...previous,
+            boards: previous.boards.map((item) => (item.id === board.id ? { ...item, [boardField]: persisted } : item)),
+          },
+      );
+      queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
       queryClient.invalidateQueries({ queryKey: ["all-settings"] });
-      if (data.requires_restart) {
-        toast.success(t("toastPollingUpdatedRestart"), { duration: 5000 });
-      } else {
-        toast.success(t("toastPollingUpdated"));
-      }
+      toast.success(t(field === "interval_seconds" ? "toastPollingUpdated" : "toastBoardReadIntervalUpdated"));
     },
-    onError: (error: Error) => {
-      toast.error(t("toastPollingFailed", { error: error.message }));
-    },
-  });
-
-  const updateBoardReadIntervalMutation = useMutation({
-    mutationFn: (updates: Parameters<typeof api.updatePollingSettings>[0]) => api.updatePollingSettings(updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["polling-settings"] });
-      queryClient.invalidateQueries({ queryKey: ["all-settings"] });
-      toast.success(t("toastBoardReadIntervalUpdated"));
-    },
-    onError: (error: Error) => {
-      toast.error(t("toastBoardReadIntervalFailed", { error: error.message }));
+    onError: (error: Error, { field }) => {
+      setDraft((previous) => ({ ...previous, [field]: String(saved[field]) }));
+      toast.error(
+        t(field === "interval_seconds" ? "toastPollingFailed" : "toastBoardReadIntervalFailed", {
+          error: error.message,
+        }),
+      );
     },
   });
 
-  const isSaving = updatePollingMutation.isPending || updateBoardReadIntervalMutation.isPending;
+  const fields = [
+    {
+      field: "interval_seconds",
+      id: "polling-interval",
+      min: 10,
+      label: "boardUpdateIntervalLabel",
+      description: "boardUpdateIntervalDescription",
+    },
+    {
+      field: "board_read_interval_local",
+      id: "board-read-local",
+      min: 20,
+      label: "boardReadIntervalLocalLabel",
+      description: "boardReadIntervalLocalDescription",
+    },
+    {
+      field: "board_read_interval_cloud",
+      id: "board-read-cloud",
+      min: 20,
+      label: "boardReadIntervalCloudLabel",
+      description: "boardReadIntervalCloudDescription",
+    },
+  ] as const;
 
-  const handlePollingIntervalChange = (value: string) => {
-    const interval = parseInt(value, 10);
-    if (!isNaN(interval) && interval >= 10) {
-      setPollingInterval(interval);
-    }
-  };
-
-  const handlePollingIntervalBlur = () => {
-    updatePollingMutation.mutate({ interval_seconds: pollingInterval });
-  };
-
-  const handleBoardReadIntervalLocalBlur = () => {
-    const clamped = Math.max(20, boardReadIntervalLocal);
-    setBoardReadIntervalLocal(clamped);
-    updateBoardReadIntervalMutation.mutate({ board_read_interval_local: clamped });
-  };
-
-  const handleBoardReadIntervalCloudBlur = () => {
-    const clamped = Math.max(20, boardReadIntervalCloud);
-    setBoardReadIntervalCloud(clamped);
-    updateBoardReadIntervalMutation.mutate({ board_read_interval_cloud: clamped });
-  };
+  const readMode = board.output_config?.api_mode ?? board.api_mode;
+  const visibleFields = fields.filter(({ field }) => {
+    if (field === "interval_seconds") return true;
+    if (isVirtualBoard(board)) return false;
+    // An output plugin can read back through its own transport; its api_mode
+    // compatibility field does not describe that capability.
+    if (isPluginOutputBoard(board)) return true;
+    if (readMode === "cloud") return field === "board_read_interval_cloud";
+    if (readMode === "local") return field === "board_read_interval_local";
+    return true;
+  });
 
   return (
     <PageSection
@@ -99,114 +121,43 @@ export function UpdateIntervals() {
       contentClassName="space-y-6"
       {...anchorProps("settings.polling")}
     >
-      {isLoading || !initialized ? (
-        <Stack gap="6">
-          <Stack gap="2">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-10 w-32" />
-            <Skeleton className="h-3 w-40" />
-          </Stack>
-          <Stack gap="2">
-            <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-10 w-32" />
-          </Stack>
-          <Stack gap="2">
-            <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-10 w-32" />
-          </Stack>
+      {visibleFields.map(({ field, id, min, label, description }) => (
+        <Stack key={field} gap="2">
+          <Label htmlFor={id} className="text-sm font-medium">
+            {t(label)}
+          </Label>
+          <Text size="xs" tone="muted">
+            {t(description)}
+          </Text>
+          <Flex align="center" gap="3">
+            <Input
+              id={id}
+              type="number"
+              min={min}
+              max={3600}
+              step={1}
+              required
+              value={draft[field]}
+              onChange={(event) => setDraft((previous) => ({ ...previous, [field]: event.target.value }))}
+              onBlur={(event) => {
+                if (!event.currentTarget.reportValidity()) return;
+                const value = Number(draft[field]);
+                if (value !== saved[field]) mutation.mutate({ field, value });
+              }}
+              disabled={mutation.isPending}
+              className="w-32"
+            />
+            <Text as="span" tone="muted">
+              {tc("seconds")}
+            </Text>
+          </Flex>
+          {field === "board_read_interval_cloud" && Number(draft[field]) < 60 && (
+            <Text size="xs" tone="warning">
+              {t("boardReadIntervalWarning")}
+            </Text>
+          )}
         </Stack>
-      ) : (
-        <>
-          <Stack gap="2">
-            <Label htmlFor="polling-interval" className="text-sm font-medium">
-              {t("boardUpdateIntervalLabel")}
-            </Label>
-            <Text size="xs" tone="muted">
-              {t("boardUpdateIntervalDescription")}
-            </Text>
-            <Flex align="center" gap="3">
-              <Input
-                id="polling-interval"
-                type="number"
-                min={10}
-                max={3600}
-                value={pollingInterval}
-                onChange={(e) => handlePollingIntervalChange(e.target.value)}
-                onBlur={handlePollingIntervalBlur}
-                disabled={isSaving}
-                className="w-32"
-              />
-              <Text as="span" tone="muted">
-                {tc("seconds")}
-              </Text>
-            </Flex>
-            <Text size="xs" tone="muted">
-              {t("requiresServiceRestart")}
-            </Text>
-          </Stack>
-
-          <Stack gap="2">
-            <Label htmlFor="board-read-local" className="text-sm font-medium">
-              {t("boardReadIntervalLocalLabel")}
-            </Label>
-            <Text size="xs" tone="muted">
-              {t("boardReadIntervalLocalDescription")}
-            </Text>
-            <Flex align="center" gap="3">
-              <Input
-                id="board-read-local"
-                type="number"
-                min={20}
-                max={3600}
-                value={boardReadIntervalLocal}
-                onChange={(e) => {
-                  const v = parseInt(e.target.value, 10);
-                  if (!isNaN(v)) setBoardReadIntervalLocal(v);
-                }}
-                onBlur={handleBoardReadIntervalLocalBlur}
-                disabled={updateBoardReadIntervalMutation.isPending}
-                className="w-32"
-              />
-              <Text as="span" tone="muted">
-                {tc("seconds")}
-              </Text>
-            </Flex>
-          </Stack>
-
-          <Stack gap="2">
-            <Label htmlFor="board-read-cloud" className="text-sm font-medium">
-              {t("boardReadIntervalCloudLabel")}
-            </Label>
-            <Text size="xs" tone="muted">
-              {t("boardReadIntervalCloudDescription")}
-            </Text>
-            <Flex align="center" gap="3">
-              <Input
-                id="board-read-cloud"
-                type="number"
-                min={20}
-                max={3600}
-                value={boardReadIntervalCloud}
-                onChange={(e) => {
-                  const v = parseInt(e.target.value, 10);
-                  if (!isNaN(v)) setBoardReadIntervalCloud(v);
-                }}
-                onBlur={handleBoardReadIntervalCloudBlur}
-                disabled={updateBoardReadIntervalMutation.isPending}
-                className="w-32"
-              />
-              <Text as="span" tone="muted">
-                {tc("seconds")}
-              </Text>
-            </Flex>
-            {boardReadIntervalCloud < 60 && (
-              <Text size="xs" tone="warning">
-                {t("boardReadIntervalWarning")}
-              </Text>
-            )}
-          </Stack>
-        </>
-      )}
+      ))}
     </PageSection>
   );
 }
