@@ -138,8 +138,8 @@ def test_an_expired_override_is_not_reported(client, panel, panel_is_primary):
 
 
 def test_an_override_on_the_primary_board_does_not_mark_a_secondary_panel(client, panel):
-    """The override store drives the primary board only (src/main.py), so a
-    panel on any other board must not claim it — that would be a lie."""
+    """H1: overrides are per display. The primary board's override belongs to
+    the primary board; a panel on any other board must not claim it."""
     _arm_override((datetime.now(UTC) + timedelta(hours=1)).isoformat())
     status = _status(client, panel)
     assert (status["override_active"], status["override_expires_at"], status["mode"]) == (False, None, "manual")
