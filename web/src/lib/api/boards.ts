@@ -312,6 +312,14 @@ export interface BoardInstance {
   paused?: boolean;
   /** Per-board schedule mode (issue #1242). Emitted on every GET /settings/board. */
   schedule_enabled?: boolean;
+  /** Content refresh interval for this board, in seconds (10–3600; default 15). */
+  polling_interval_seconds?: number;
+  /** Local read-back interval for this board, in seconds (20–3600; default 30). */
+  board_read_interval_local?: number;
+  /** Network read-back interval for this board, in seconds (20–3600; default 180). */
+  board_read_interval_cloud?: number;
+  /** Keep manual content until the next schedule window after re-enabling. */
+  schedule_defer_on_reenable?: boolean;
   /**
    * Put this board's content back when another app overwrites it (issue
    * #2354). Absent on boards saved before the setting existed, which means on.

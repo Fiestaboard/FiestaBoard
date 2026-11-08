@@ -134,14 +134,23 @@ def _create_panel(client: TestClient, name: str = "Kitchen TV") -> dict:
 # ── restart round-trips ─────────────────────────────────────────────────────
 
 
+def _assert_page_content_and_new_generation(client, before, after):
+    """Only the runtime generation changes; every content field still matches."""
+    assert after["revision"] and after["revision"] != before["revision"]
+    assert {k: v for k, v in after.items() if k != "revision"} == {k: v for k, v in before.items() if k != "revision"}
+    stale = client.put(f"/pages/{before['id']}", json={"name": "Stale draft", "expected_revision": before["revision"]})
+    assert stale.status_code == 412, stale.text
+    assert client.get(f"/pages/{before['id']}").json() == after
+
+
 def test_page_survives_a_restart(client, isolated_data_dir):
-    """A page created through the API is byte-identical after a restart."""
+    """Page content survives restart while the prior runtime generation expires."""
     created = _create_page(client)
 
     after = _restart(isolated_data_dir).get(f"/pages/{created['id']}")
 
     assert after.status_code == 200, after.text
-    assert after.json() == created
+    _assert_page_content_and_new_generation(client, created, after.json())
 
 
 def test_schedule_survives_a_restart(client, isolated_data_dir):
@@ -294,7 +303,7 @@ def test_backup_import_restores_a_deleted_page(client, isolated_data_dir):
 
     restored = client.get(f"/pages/{page['id']}")
     assert restored.status_code == 200, restored.text
-    assert restored.json() == page
+    _assert_page_content_and_new_generation(client, page, restored.json())
 
 
 def test_backup_import_restores_overwritten_settings(client):
@@ -401,7 +410,7 @@ def test_restored_state_survives_a_restart(client, isolated_data_dir):
     after = _restart(isolated_data_dir).get(f"/pages/{page['id']}")
 
     assert after.status_code == 200, after.text
-    assert after.json() == page
+    _assert_page_content_and_new_generation(client, page, after.json())
 
 
 def test_import_rejects_a_document_that_is_not_a_backup(client, isolated_data_dir):

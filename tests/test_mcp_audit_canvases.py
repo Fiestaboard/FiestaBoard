@@ -108,6 +108,9 @@ def test_current_display_returns_canvases_needed_to_start_a_new_page(mcp, boards
     settings.set_active_page_id(page_id, board_id="pixoo-1")
     current = _call(mcp, "get_current_display", board_id="pixoo-1")
     assert current["page_id"] == page_id
+    assert current["revision"] == pages.get_page(page_id).revision
+    assert current["edit_protocol"] == "page-revision-v1"
+    assert current["document_protocol"] == "page-document-v1"
     assert current.get("canvases") == pages.get_page(page_id).model_dump()["canvases"]
 
 

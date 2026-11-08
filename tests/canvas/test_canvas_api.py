@@ -81,16 +81,8 @@ def _red(layer_json) -> bool:
 def test_the_page_api_stores_and_returns_canvases(api):
     client, _ = api
     page_id = _create(client, device_type="panel", grid_rows=10, grid_cols=16)
-    assert client.get(f"/pages/{page_id}").json()["canvases"] == [
-        {
-            "id": "sun",
-            "area": CANVAS["area"],
-            "bleed": [],
-            "scale": 1,
-            "text": "hide",
-            "content": {"background": "#ff0000", "palette": {}, "shapes": [], "pixels": []},
-        }
-    ]
+    # Page documents preserve canvas omission; typed render defaults still apply.
+    assert client.get(f"/pages/{page_id}").json()["canvases"] == [CANVAS]
 
 
 def test_an_area_past_the_grid_is_a_422(api):

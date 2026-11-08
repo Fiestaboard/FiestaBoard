@@ -16,6 +16,22 @@ vi.mock("@/hooks/use-router", () => ({
 }));
 
 import { GeneralSettings } from "@/components/general-settings";
+import type { BoardInstance } from "@/lib/api";
+
+const board = {
+  id: "default",
+  name: "Flagship",
+  device_type: "flagship",
+  board_color: "black",
+  enabled: true,
+  api_mode: "local",
+  host: "",
+  local_api_key: "",
+  cloud_key: "",
+  polling_interval_seconds: 300,
+  board_read_interval_local: 30,
+  board_read_interval_cloud: 180,
+} satisfies BoardInstance;
 
 // Test wrapper with providers
 function TestWrapper({ children }: { children: React.ReactNode }) {
@@ -35,7 +51,7 @@ describe("GeneralSettings", () => {
   });
 
   it("shows loading skeleton initially", () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Card titles render immediately (outside the loading skeleton)
     expect(screen.getAllByText("Update Intervals").length).toBeGreaterThan(0);
@@ -43,7 +59,7 @@ describe("GeneralSettings", () => {
   });
 
   it("renders general settings card", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getAllByText("Board Update Interval").length).toBeGreaterThan(0);
@@ -52,7 +68,7 @@ describe("GeneralSettings", () => {
   });
 
   it("shows board update interval input", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(document.getElementById("polling-interval")).toBeInTheDocument();
@@ -60,7 +76,7 @@ describe("GeneralSettings", () => {
   });
 
   it("shows board update interval label", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getAllByText("Board Update Interval").length).toBeGreaterThan(0);
@@ -68,7 +84,7 @@ describe("GeneralSettings", () => {
   });
 
   it("shows silence schedule toggle", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getAllByText("Silence Schedule").length).toBeGreaterThan(0);
@@ -78,7 +94,7 @@ describe("GeneralSettings", () => {
 
   it("shows silence time pickers when enabled", async () => {
     const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Wait for data to fully load including deferred values by checking
     // that the polling input has its value from the API mock (300)
@@ -89,7 +105,9 @@ describe("GeneralSettings", () => {
     });
 
     // Get the silence schedule toggle
-    const silenceToggle = screen.getAllByRole("switch").find((s) => s.getAttribute("id") === "silence-enabled");
+    const silenceToggle = (await screen.findAllByRole("switch")).find(
+      (s) => s.getAttribute("id") === "silence-enabled",
+    );
     expect(silenceToggle).toBeDefined();
 
     await user.click(silenceToggle!);
@@ -105,7 +123,7 @@ describe("GeneralSettings", () => {
   });
 
   it("shows polling interval value from API", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
@@ -116,7 +134,7 @@ describe("GeneralSettings", () => {
 
   it("allows updating the polling interval", async () => {
     const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
@@ -133,7 +151,7 @@ describe("GeneralSettings", () => {
   });
 
   it("renders both the polling and silence sections", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(document.getElementById("polling-interval")).toBeInTheDocument();
@@ -142,7 +160,7 @@ describe("GeneralSettings", () => {
   });
 
   it("displays board update interval description", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText(/How often the board checks for content updates/i)).toBeInTheDocument();
@@ -150,7 +168,7 @@ describe("GeneralSettings", () => {
   });
 
   it("displays silence schedule description", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getAllByText(/Prevent board updates during specified hours/i).length).toBeGreaterThan(0);
@@ -158,7 +176,7 @@ describe("GeneralSettings", () => {
   });
 
   it("renders all sections in correct order", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(
       () => {

@@ -22,6 +22,19 @@ import {
 const TEST_PLUGIN_ID = "date_time";
 const TEST_PLUGIN_NAME = "Date & Time";
 
+// Chromium exposes the real Clipboard API only on secure/trusted origins.
+// CI uses HTTP bridge IPs for its isolated app containers; trust only those
+// configured test origins in this spec's browser, without changing the app.
+const clipboardOrigins = (process.env.WORKER_URLS || process.env.BASE_URL || "http://localhost:4420")
+  .split(",")
+  .map((url) => new URL(url).origin)
+  .join(",");
+test.use({
+  // Full Chromium honors the origin allowlist; headless-shell does not.
+  channel: "chromium",
+  launchOptions: { args: [`--unsafely-treat-insecure-origin-as-secure=${clipboardOrigins}`] },
+});
+
 // Track demo page IDs to clean up after tests
 const createdDemoPageIds = new Set<string>();
 
@@ -265,9 +278,11 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
     await expect(varsTable).toBeVisible({ timeout: 5_000 });
 
-    // Pin to the `time` row by its accessible name; the trailing space prevents
-    // a substring match against `time_12h`, `time_24h`, `time_english`, etc.
-    const timeRow = varsTable.getByRole("row", { name: new RegExp(`^${TEST_PLUGIN_ID}\\.time `) });
+    // Identify the row by its exact copy control, so similarly named tokens
+    // such as time_12h, time_24h, and time_english cannot match.
+    const timeRow = varsTable.getByRole("row").filter({
+      has: page.getByRole("button", { name: `Copy ${TEST_PLUGIN_ID}.time`, exact: true }),
+    });
     await expect(timeRow).toBeVisible({ timeout: 5_000 });
 
     // The "Current Value" cell is the 3rd column. Wait until it renders the live
@@ -302,7 +317,9 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     }
 
     // A grouped variable still renders as a copyable row beneath its group header.
-    const timeRow = varsTable.getByRole("row", { name: new RegExp(`^${TEST_PLUGIN_ID}\\.time `) });
+    const timeRow = varsTable.getByRole("row").filter({
+      has: page.getByRole("button", { name: `Copy ${TEST_PLUGIN_ID}.time`, exact: true }),
+    });
     await expect(timeRow).toBeVisible({ timeout: 5_000 });
   });
 
@@ -350,7 +367,9 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
 
     // The `time` row's Current Value cell falls back to the "Unavailable"
     // placeholder rather than a live value or a crashing render.
-    const timeRow = varsTable.getByRole("row", { name: new RegExp(`^${TEST_PLUGIN_ID}\\.time `) });
+    const timeRow = varsTable.getByRole("row").filter({
+      has: page.getByRole("button", { name: `Copy ${TEST_PLUGIN_ID}.time`, exact: true }),
+    });
     const valueCell = timeRow.locator("td").nth(2);
     await expect(valueCell).toHaveText("Unavailable", { timeout: 5_000 });
 
@@ -362,12 +381,12 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * UX node: integrations.plugin.config-sheet.copy-variable
    * Route: /integrations (sheet)
    * Preconditions: plugin:has-template-vars
-   * Interactions: click:copy on a template variable row
+   * Interactions: click the template variable copy control
    * Expected: clipboard receives variable token; 'Copied' toast/feedback
    * Source refs: web/src/components/integrations/*
-   * Coverage status: uncovered
+   * Coverage status: covered
    */
-  test("integrations.plugin.config-sheet.copy-variable — Template Variables section renders in config sheet", async ({
+  test("integrations.plugin.config-sheet.copy-variable — copies the complete template token", async ({
     page,
     context,
   }) => {
@@ -375,9 +394,12 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await openConfigSheet(page);
     const varsHeading = page.getByRole("heading", { name: /Template Variables/i });
     await expect(varsHeading).toBeVisible({ timeout: 15_000 });
-    // The variable row selector is fragile (code: has-text matching may not
-    // resolve in CI's Sheet portal). Section visibility is the stable signal
-    // that the copy-variable affordance is reachable.
+    const copyButton = page.getByRole("button", { name: `Copy ${TEST_PLUGIN_ID}.time`, exact: true });
+    await expect(copyButton).toBeVisible();
+    await page.evaluate(() => navigator.clipboard.writeText("before-copy"));
+    await copyButton.click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(`{{${TEST_PLUGIN_ID}.time}}`);
+    await expect(page.getByRole("button", { name: `Copied ${TEST_PLUGIN_ID}.time`, exact: true })).toBeVisible();
   });
 
   /**

@@ -5,19 +5,20 @@ export const MAX_NOTES_PER_AXIS = 8;
 /**
  * Panel grid bounds (mirror src/devices.py). A "panel" (FiestaPanel, a virtual
  * board on a TV) is sized per character, so its grid is any rows × cols in
- * this range — never smaller than one Note.
+ * this range — never smaller than one Note. An LED panel may go down to the
+ * MIN_LED_GRID_* floor below (ABSOLUTE_MIN_GRID_* is the lower of the two).
  */
 export const MIN_GRID_ROWS = NOTE_ROWS;
 export const MIN_GRID_COLS = NOTE_COLS;
 export const MAX_GRID_ROWS = 96;
 export const MAX_GRID_COLS = 128;
 /**
- * The floor of an LED board measured in pixels (mirror src/devices.py): 3 × 10,
- * so a legible 5x7 face fits (a Divoom Pixoo 64 at 5x7 is 8 × 10). FiestaPanel
+ * The floor of an LED board measured in pixels (mirror src/devices.py): 1 × 5,
+ * so a 1 × 8 Ulanzi TC001 fits (a Divoom Pixoo 64 at 5x7 is 8 × 10). FiestaPanel
  * autofit (computeAutofitGrid) and Vestaboards keep the Note floor above.
  */
-export const MIN_LED_GRID_ROWS = 3;
-export const MIN_LED_GRID_COLS = 10;
+export const MIN_LED_GRID_ROWS = 1;
+export const MIN_LED_GRID_COLS = 5;
 /** The smallest grid any board can have: the lower floor on each axis. */
 export const ABSOLUTE_MIN_GRID_ROWS = Math.min(MIN_GRID_ROWS, MIN_LED_GRID_ROWS);
 export const ABSOLUTE_MIN_GRID_COLS = Math.min(MIN_GRID_COLS, MIN_LED_GRID_COLS);
@@ -94,7 +95,7 @@ export interface GridFloor {
 
 /**
  * Dimensions of a panel grid, each axis clamped into [floor, MAX_GRID_*].
- * The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 3 × 10),
+ * The floor defaults to the absolute minimum (ABSOLUTE_MIN_GRID_*, 1 × 5),
  * so an LED board's 8 × 10 grid is kept (mirrors Python clamp_grid). A
  * missing axis resolves to the Note minimum (matching `@fiestaboard/ui` and
  * BoardInstance), where Python's panel_dimensions() raises — the UI must
