@@ -1,3 +1,4 @@
+# ruff: noqa: F811 - pytest fixtures are imported from their home modules
 """H8: ``GET /schedules/active/page?at=``, the schedule at a given instant.
 
 The same answer as "now", for ``at``: the page the schedule (or the manual
@@ -35,7 +36,7 @@ def quiet(monkeypatch):
 
 
 @pytest.fixture
-def board(client, boards, la_hub, quiet):  # noqa: F811
+def board(client, boards, la_hub, quiet):
     from src.settings.service import get_settings_service
 
     primary, _ = boards
@@ -69,14 +70,14 @@ def _at(hour, minute=0, day=None) -> datetime:
     return datetime(day.year, day.month, day.day, hour, minute, tzinfo=LA)
 
 
-def _get(client, board_id, at=None):  # noqa: F811
+def _get(client, board_id, at=None):
     params = {"board_id": board_id}
     if at is not None:
         params["at"] = at if isinstance(at, str) else at.isoformat()
     return client.get("/schedules/active/page", params=params)
 
 
-def _ok(client, board_id, at=None):  # noqa: F811
+def _ok(client, board_id, at=None):
     response = _get(client, board_id, at)
     assert response.status_code == 200, response.text
     return response.json()
@@ -232,9 +233,11 @@ def test_silenced_says_whether_quiet_hours_cover_the_instant(client, board, monk
 # ── bounds and fallbacks ────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("at", ["yesterday", (datetime.now(UTC) + timedelta(days=400)).isoformat()])
+@pytest.mark.parametrize("at", ["yesterday", "400-days-ahead"])
 def test_a_malformed_or_far_instant_is_rejected(client, board, at):
     board_id, _ = board
+    if at == "400-days-ahead":
+        at = (datetime.now(UTC) + timedelta(days=400)).isoformat()
 
     assert _get(client, board_id, at).status_code == 422
 
@@ -243,3 +246,14 @@ def test_an_unknown_board_still_reads(client, board):
     _, _ = board
 
     assert _get(client, "no-such-board", _at(8, 0)).status_code == 200
+
+
+def test_a_quiet_window_that_crosses_midnight_utc_still_covers_both_sides(client, board, monkeypatch):
+    board_id, _ = board
+    # 3-5 PM in Los Angeles is 23:00-01:00 UTC: the window wraps in UTC.
+    window = {"enabled": True, "mode": "indicator", "start_time": "15:00-08:00", "end_time": "17:00-08:00"}
+    monkeypatch.setattr(Config, "silence_config_for", staticmethod(lambda board_id=None: window))
+
+    assert _ok(client, board_id, _at(15, 30))["silenced"] is True
+    assert _ok(client, board_id, _at(16, 30))["silenced"] is True
+    assert _ok(client, board_id, _at(18, 0))["silenced"] is False

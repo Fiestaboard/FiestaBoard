@@ -442,6 +442,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/collections/{collection_id}/dry-run",
+      "methods": [
+        "POST"
+      ],
+      "name": "dry_run_collection",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/config",
       "methods": [
         "GET"

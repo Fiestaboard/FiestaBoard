@@ -1,3 +1,4 @@
+# ruff: noqa: F811 - pytest fixtures are imported from their home modules
 """H8: ``POST /collections/{id}/dry-run``, which page a collection would pick.
 
 The 2.11 rule tester ("Which page wins tomorrow at 3:00 PM? Rain 70%"):
@@ -10,6 +11,7 @@ data mode are H6's preview. Read-only: nothing is stored, no board touched.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from tests.test_schedule_at import _at, _collection, _schedule, board, la_hub, quiet  # noqa: F401
@@ -20,7 +22,7 @@ LATE = "HOUR(NOW()) >= 15"
 
 
 @pytest.fixture
-def menu(client, board):  # noqa: F811
+def menu(client, board):
     board_id, pages = board
     rules = [
         {"expression": RAIN, "page_id": pages["Evening"]},
@@ -34,11 +36,11 @@ def menu(client, board):  # noqa: F811
     return board_id, pages, collection
 
 
-def _dry(client, collection_id, **body):  # noqa: F811
+def _dry(client, collection_id, **body):
     return client.post(f"/collections/{collection_id}/dry-run", json=body)
 
 
-def _ok(client, collection_id, **body):  # noqa: F811
+def _ok(client, collection_id, **body):
     response = _dry(client, collection_id, **body)
     assert response.status_code == 200, response.text
     return response.json()
