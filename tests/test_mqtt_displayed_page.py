@@ -299,6 +299,18 @@ class TestPageSendPublishesPromptly:
 
         push.assert_called_once_with()
 
+    def test_first_pass_onto_a_board_already_showing_the_page_pushes(self):
+        """After a restart the driver can find the page already on the board
+        and skip the write; the engine still learns which page is up."""
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].render.return_value = (True, False)
+        with patch("src.display_runtime._publish_mqtt_state_update") as push:
+            _drive(svc, boards, pages=_engine_pages(), schedule=_schedule_service({"b1": "pA"}))
+
+        assert svc.runtimes["b1"].last_active_page_id == "pA"
+        push.assert_called_once_with()
+
     def test_unchanged_pass_does_not_push_again(self):
         boards = [_board("b1", "One")]
         svc, _clients = _service_with_runtimes(boards)
