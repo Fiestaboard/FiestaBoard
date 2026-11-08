@@ -47,6 +47,8 @@ weakened.
 
 from __future__ import annotations
 
+from unittest.mock import ANY
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -191,7 +193,14 @@ def test_list_is_empty_on_a_fresh_install(client):
     response = client.get("/schedules")
 
     assert response.status_code == 200
-    assert response.json() == {"schedules": [], "total": 0, "default_page_id": None, "enabled": False}
+    assert response.json() == {
+        "schedules": [],
+        "total": 0,
+        "default_page_id": None,
+        "enabled": False,
+        "default_page_revision": ANY,
+        "default_page_edit_protocol": "schedule-default-revision-v1",
+    }
 
 
 def test_list_returns_the_created_schedules_and_a_matching_total(client, page_id):
@@ -430,7 +439,11 @@ def test_default_page_is_null_on_a_fresh_install(client):
     response = client.get("/schedules/default-page")
 
     assert response.status_code == 200
-    assert response.json() == {"default_page_id": None}
+    assert response.json() == {
+        "default_page_id": None,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
 
 
 def test_set_default_page_stores_it_and_reads_back(client, page_id):
@@ -439,8 +452,16 @@ def test_set_default_page_stores_it_and_reads_back(client, page_id):
     assert response.status_code == 200
     # RE-PINNED: bare body (was {"status": "success", "default_page_id": ...}),
     # byte-identical to what GET on the same path answers.
-    assert response.json() == {"default_page_id": page_id}
-    assert client.get("/schedules/default-page").json() == {"default_page_id": page_id}
+    assert response.json() == {
+        "default_page_id": page_id,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
+    assert client.get("/schedules/default-page").json() == {
+        "default_page_id": page_id,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
 
 
 def test_set_default_page_to_null_clears_it(client, page_id):
@@ -449,8 +470,16 @@ def test_set_default_page_to_null_clears_it(client, page_id):
     response = client.put("/schedules/default-page", json={"page_id": None})
 
     assert response.status_code == 200
-    assert response.json() == {"default_page_id": None}  # RE-PINNED: bare body
-    assert client.get("/schedules/default-page").json() == {"default_page_id": None}
+    assert response.json() == {
+        "default_page_id": None,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }  # RE-PINNED: bare body
+    assert client.get("/schedules/default-page").json() == {
+        "default_page_id": None,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
 
 
 def test_set_default_page_without_page_id_422s(client):
@@ -464,7 +493,11 @@ def test_set_default_page_without_page_id_422s(client):
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["body", "page_id"]
-    assert client.get("/schedules/default-page").json() == {"default_page_id": None}
+    assert client.get("/schedules/default-page").json() == {
+        "default_page_id": None,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
 
 
 def test_set_default_page_to_an_unknown_page_404s_naming_the_page(client):
@@ -488,14 +521,22 @@ def test_set_default_page_for_an_unknown_board_404s_and_stores_nothing(client, p
 
     assert response.status_code == 404
     assert response.json() == {"detail": f"Board not found: {GHOST_BOARD}"}
-    assert client.get("/schedules/default-page", params={"board_id": GHOST_BOARD}).json() == {"default_page_id": None}
+    assert client.get("/schedules/default-page", params={"board_id": GHOST_BOARD}).json() == {
+        "default_page_id": None,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
 
 
 def test_default_page_read_for_an_unknown_board_falls_back_rather_than_404(client):
     response = client.get("/schedules/default-page", params={"board_id": GHOST_BOARD})
 
     assert response.status_code == 200
-    assert response.json() == {"default_page_id": None}
+    assert response.json() == {
+        "default_page_id": None,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
 
 
 # ── GET / PUT /schedules/enabled ────────────────────────────────────────────

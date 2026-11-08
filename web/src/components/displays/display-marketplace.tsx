@@ -20,6 +20,13 @@ import {
   AlertTitle,
   Box,
   Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
   Flex,
   Grid,
   Heading,
@@ -35,12 +42,12 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { GitInstallFields, useGitPluginInstall } from "@/components/plugin-git-install";
+import { PluginProvenance } from "@/components/plugin-provenance";
 import { OUTPUTS_QUERY_KEY } from "@/components/settings/output-boards";
 import Link from "@/components/smart-link";
 import { useTranslations } from "@/i18n/translations";
 import type { AvailableOutput } from "@/lib/api";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 import {
   CatalogAvailability,
@@ -119,7 +126,17 @@ export function DisplayMarketplace({ onAdd }: { onAdd: (output: { id: string; na
         style={{ animationDelay: `${index * 60}ms` }}
         name={output.name}
         description={output.description}
-        authorLabel={authorLabel}
+        authorLabel={
+          <Text as="span" className="inline-flex flex-wrap items-center gap-2">
+            {authorLabel}
+            <PluginProvenance
+              repository={
+                plugins.data?.plugins.find((p) => p.id === output.id)?.source?.repository_url ??
+                registry.data?.entries.find((entry) => entry.id === output.id)?.repository
+              }
+            />
+          </Text>
+        }
         renderLink={({ className, children }) => (
           <Link href={addDisplayHref(output.id)} className={className}>
             {children}
@@ -284,75 +301,89 @@ export function BringYourOwnDisplay({ onAdd }: { onAdd: (output: { id: string; n
   };
 
   return (
-    <Stack gap="3" className="rounded-xl border border-dashed p-4" data-testid="display-marketplace-build">
-      <Heading level={2} size="sm">
-        {t("buildTitle")}
-      </Heading>
-      <Text size="sm" tone="muted">
-        {t("buildBody")}
-      </Text>
-      <GitInstallFields
-        install={gitInstall}
-        idPrefix="display-git"
-        urlPlaceholder="https://github.com/user/fiestaboard-output--my-display.git"
-      />
-      <Flex align="center" gap="3" wrap>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => void sideLoad()}
-          disabled={gitInstall.isInstalling || !gitInstall.canInstall}
-        >
-          {gitInstall.isInstalling ? (
-            <Spinner label={null} className="mr-1 h-3.5 w-3.5" />
-          ) : (
-            <Download className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          {gitInstall.isInstalling ? t("installing") : t("gitInstall")}
-        </Button>
-        <Text size="sm">
-          <TextLink href={OUTPUT_PLUGIN_GUIDE_URL} target="_blank" rel="noopener noreferrer">
-            {t("buildLink")}
-          </TextLink>
-        </Text>
+    <Dialog>
+      <Flex align="center" justify="between" gap="3" wrap className="border-t pt-3">
+        <TextLink href={OUTPUT_PLUGIN_GUIDE_URL} target="_blank" rel="noopener noreferrer">
+          {t("buildLink")}
+        </TextLink>
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline">
+            {t("gitInstall")}
+          </Button>
+        </DialogTrigger>
       </Flex>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("buildTitle")}</DialogTitle>
+          <DialogDescription>{t("buildBody")}</DialogDescription>
+        </DialogHeader>
+        <Stack gap="3" data-testid="display-marketplace-build">
+          <GitInstallFields
+            install={gitInstall}
+            idPrefix="display-git"
+            urlPlaceholder="https://github.com/user/fiestaboard-output--my-display.git"
+          />
+          <Flex align="center" gap="3" wrap>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void sideLoad()}
+              disabled={gitInstall.isInstalling || !gitInstall.canInstall}
+            >
+              {gitInstall.isInstalling ? (
+                <Spinner label={null} className="mr-1 h-3.5 w-3.5" />
+              ) : (
+                <Download className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              {gitInstall.isInstalling ? t("installing") : t("gitInstall")}
+            </Button>
+            <Text size="sm">
+              <TextLink href={OUTPUT_PLUGIN_GUIDE_URL} target="_blank" rel="noopener noreferrer">
+                {t("buildLink")}
+              </TextLink>
+            </Text>
+          </Flex>
 
-      {outcome?.kind === "display" && (
-        <Alert variant="success">
-          <AlertDescription>
-            <Flex align="center" justify="between" gap="3" wrap>
-              <Text size="sm">{t("toastInstalled", { name: outcome.name })}</Text>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => onAdd({ id: outcome.id, name: outcome.name })}
-                aria-label={t("addLabel", { name: outcome.name })}
-              >
-                <Plus className="mr-1 h-3 w-3" aria-hidden="true" />
-                {t("add")}
-              </Button>
-            </Flex>
-          </AlertDescription>
-        </Alert>
-      )}
-      {outcome?.kind === "data" && (
-        <Alert>
-          <AlertDescription>
-            <Flex align="center" justify="between" gap="3" wrap>
-              <Text size="sm">{t("gitInstalledData", { pluginId: outcome.pluginId })}</Text>
-              <Button asChild type="button" size="sm" variant="outline">
-                <Link href="/integrations?tab=installed">{t("gitOpenIntegrations")}</Link>
-              </Button>
-            </Flex>
-          </AlertDescription>
-        </Alert>
-      )}
-      {outcome?.kind === "error" && (
-        <Alert variant="destructive" aria-labelledby={failedTitleId}>
-          <AlertTitle id={failedTitleId}>{t("gitFailedTitle")}</AlertTitle>
-          <AlertDescription>{outcome.message}</AlertDescription>
-        </Alert>
-      )}
-    </Stack>
+          {outcome?.kind === "display" && (
+            <Alert variant="success">
+              <AlertDescription>
+                <Flex align="center" justify="between" gap="3" wrap>
+                  <Text size="sm">{t("toastInstalled", { name: outcome.name })}</Text>
+                  <DialogClose asChild>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => onAdd({ id: outcome.id, name: outcome.name })}
+                      aria-label={t("addLabel", { name: outcome.name })}
+                    >
+                      <Plus className="mr-1 h-3 w-3" aria-hidden="true" />
+                      {t("add")}
+                    </Button>
+                  </DialogClose>
+                </Flex>
+              </AlertDescription>
+            </Alert>
+          )}
+          {outcome?.kind === "data" && (
+            <Alert>
+              <AlertDescription>
+                <Flex align="center" justify="between" gap="3" wrap>
+                  <Text size="sm">{t("gitInstalledData", { pluginId: outcome.pluginId })}</Text>
+                  <Button asChild type="button" size="sm" variant="outline">
+                    <Link href="/integrations?tab=installed">{t("gitOpenIntegrations")}</Link>
+                  </Button>
+                </Flex>
+              </AlertDescription>
+            </Alert>
+          )}
+          {outcome?.kind === "error" && (
+            <Alert variant="destructive" aria-labelledby={failedTitleId}>
+              <AlertTitle id={failedTitleId}>{t("gitFailedTitle")}</AlertTitle>
+              <AlertDescription>{outcome.message}</AlertDescription>
+            </Alert>
+          )}
+        </Stack>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -7,6 +7,7 @@ import signal
 import threading
 import time
 from contextlib import contextmanager
+from typing import Any
 
 import schedule
 
@@ -26,10 +27,11 @@ from .devices import (
 from .displays.send_worker import BoardSendWorker, SendJob
 from .outputs import OutputDriver, OutputRuntime
 from .outputs.breaker import write_failure_reason
-from .outputs.cells import output_character_set, project_message
+from .outputs.cells import cells_from_codes, output_character_set, project_message
 from .outputs.display_profile import render_kw
 from .outputs.factory import build_driver
 from .outputs.hooks import DevicePoll
+from .outputs.native_playlist import NativePageSelection, NativePlaylist, NativePlaylistEntry
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
 from .pages.models import LineMetadata, Page
@@ -246,6 +248,7 @@ class BoardRuntime:
         # back, or two consecutive polls — what external-write detection
         # needs — drift apart.
         self.poll_attempted_at: float | None = None
+        self.device_poll_attempted_at: float | None = None
 
         # The last frame the poll CONFIRMED another writer put on this board,
         # and when (``time.time()``) — issue #1945. Set in the same branch
@@ -280,6 +283,7 @@ class BoardRuntime:
         # of the next collection-boundary check for this board. 0.0 means
         # "check immediately".
         self.next_collection_check: float = 0.0
+        self.last_refresh_at: float | None = None
 
         # Render short-circuit memo (issue #1883): the triple
         # ``(render fingerprint, rendered content, page id)`` from the last
@@ -296,12 +300,20 @@ class BoardRuntime:
         # throttled send — invalidates this memo for free, and a future one
         # cannot forget to.
         self.last_render: tuple[str, str, str] | None = None
+        self.native_playlist: NativePlaylist | None = None
+        self.native_selection: NativePageSelection | None = None
+        # Intended native target, including attempts that failed before any
+        # playlist was installed. Those must report unknown, not clock state.
+        self.native_reference_id: str | None = None
 
     def content_delivered(self) -> None:
         """FiestaBoard just wrote this board: neither out-of-band content
         (#1831) nor another app's (#2354) is on it any more."""
         self.showing_out_of_band = False
         self.overwritten_at = None
+        self.native_playlist = None
+        self.native_selection = None
+        self.native_reference_id = None
 
     @property
     def client(self) -> OutputDriver | None:
@@ -818,6 +830,7 @@ class DisplayService:
                 if self.runtimes.get(rt.board_id) is not rt:
                     logger.debug("Board %s: runtime replaced mid-send; dropping post-send bookkeeping", board_id)
                     return False
+                shown_before = rt.last_active_page_id
                 try:
                     ret = on_complete(success, was_sent, exc)
                 except Exception as e:  # bookkeeping must never kill the worker
@@ -825,6 +838,16 @@ class DisplayService:
                     ret = False
             if job_errors:
                 job.fail_reason = job_errors[0][1]
+            if ret or rt.last_active_page_id != shown_before:
+                # Something landed (a page, a silence indicator or page, a
+                # trigger message, a blank board), or the engine learned which
+                # page is up without writing: after a restart the driver can
+                # find it already on the board. MQTT's current_page follows the
+                # board, so push it now rather than at the next 30 s sync
+                # (issue #2436). Lazy import: display_runtime imports main.
+                from .display_runtime import _publish_mqtt_state_update
+
+                _publish_mqtt_state_update()
             return ret
 
         worker = self._worker_for(rt)
@@ -1170,6 +1193,8 @@ class DisplayService:
             return
         rt.last_active_page_content = None
         rt.last_active_page_id = None
+        rt.native_playlist = None
+        rt.native_selection = None
         if rt.client is not None:
             rt.client.clear_cache()
 
@@ -1202,16 +1227,10 @@ class DisplayService:
     def _board_poll_tick(self, primary_interval: float) -> float:
         """How long the poll loop sleeps between passes.
 
-        The shorter of the primary's interval and the two configured ones: a
-        cloud primary must not stretch the loop past the local interval, or a
-        local secondary would be read every 180 s. A local primary's cadence
-        is exactly what it was.
+        A fast tick notices live settings changes; each board's read-back
+        and device probes have their own cadence gates.
         """
-        try:
-            polling = get_settings_service().get_polling_settings()
-            return min(primary_interval, polling.board_read_interval_local, polling.board_read_interval_cloud)
-        except Exception:
-            return primary_interval
+        return min(1, primary_interval)
 
     def _board_poll_loop(self) -> None:
         """Background thread: periodically read every readable board's state and cache it.
@@ -1275,10 +1294,14 @@ class DisplayService:
         scheduling jitter, so a board due every tick is read every tick.
         One board's failure never skips the rest.
         """
-        polling = get_settings_service().get_polling_settings()
+        settings = get_settings_service()
         now = time.monotonic()
         for rt in self._runtimes_in_poll_order():
             last = rt.poll_attempted_at
+            try:
+                polling = settings.get_polling_settings(board_id=rt.board_id)
+            except ValueError:
+                continue  # settings removal can precede runtime teardown
             if last is not None:
                 interval = _board_read_interval_for(rt.client, polling)
                 if now - last + POLL_CADENCE_SLACK_SECONDS < interval:
@@ -1376,6 +1399,17 @@ class DisplayService:
             board_id = rt.board_id or key
             if settings.is_paused(board_id=board_id) is True:
                 continue
+            try:
+                interval = settings.get_polling_settings(board_id=board_id).board_read_interval_local
+            except ValueError:
+                continue  # settings removal can precede runtime teardown
+            now = time.monotonic()
+            if (
+                rt.device_poll_attempted_at is not None
+                and now - rt.device_poll_attempted_at + POLL_CADENCE_SLACK_SECONDS < interval
+            ):
+                continue
+            rt.device_poll_attempted_at = now
             news = poll()
             if not isinstance(news, DevicePoll):
                 continue
@@ -1397,6 +1431,41 @@ class DisplayService:
                     rt.overwritten_at = time.time()
                     logger.info("Board %s: another client wrote its device", board_id)
                 self._restore_after_overwrite(rt, board_id, settings, key=key)
+            elif isinstance(news.native_selection, NativePageSelection) and rt.native_playlist is not None:
+                selected = news.native_selection.page_id
+                members = {entry.page_id for entry in rt.native_playlist.entries}
+                rt.native_selection = NativePageSelection(selected if selected in members else None)
+                rt.last_active_page_id = rt.native_selection.page_id
+
+    def displayed_page_id(self, board_id=None) -> str | None:
+        """The last confirmed visible page, including hardware button selection.
+
+        The configured reference remains in settings. A synchronized native
+        playlist without selection feedback has no confirmed visible member.
+        """
+        rt = self.runtime_for(board_id) if board_id is not None else self._primary_runtime()
+        if rt is None or rt.showing_out_of_band:
+            return None
+        return rt.last_active_page_id
+
+    def native_rotation_active(self, board_id=None) -> bool:
+        rt = self.runtime_for(board_id) if board_id is not None else self._primary_runtime()
+        return rt is not None and rt.native_playlist is not None and not rt.showing_out_of_band
+
+    def native_page_selection(self, reference_id, board_id=None) -> NativePageSelection | None:
+        """None for a legacy reference, a selection wrapper for a native one."""
+        # Feedback only exists for an initialized native runtime. Do not use
+        # runtime_for's settings-backed legacy alias resolution here: optional
+        # telemetry must not initialize settings for a missing board client.
+        rt = self.runtimes.get(board_id) if board_id is not None else self._primary_runtime()
+        if rt is None or getattr(rt, "native_reference_id", None) != reference_id or reference_id is None:
+            return None
+        selection = rt.native_selection
+        return (
+            selection
+            if isinstance(selection, NativePageSelection) and not rt.showing_out_of_band
+            else NativePageSelection(None)
+        )
 
     def _restore_after_overwrite(self, rt: BoardRuntime, board_id, settings, *, key=None) -> None:
         """Put a board's content back after another app overwrote it (#2354).
@@ -1779,7 +1848,9 @@ class DisplayService:
         return {ref: data.get(ref) for ref in sorted_refs}
 
     @staticmethod
-    def _render_fingerprint(page, active_page_id, page_service, contexts, *, override_active: bool) -> str | None:
+    def _render_fingerprint(
+        page, active_page_id, page_service, contexts, *, override_active: bool, display: Any = None
+    ) -> str | None:
         """Hash every input a template render reads, or None if not computable.
 
         Issue #1883. ``render_page`` for a template page is a pure function of
@@ -1844,6 +1915,10 @@ class DisplayService:
                 return None  # cannot see config writes -> cannot skip a render
 
             size = size_key(*geometry_of(page))
+            if display is not None:
+                # The same key shared_context_for files the render's context
+                # (and its payload hashes) under.
+                size = f"{size}|{display.key}"
             sorted_refs = tuple(sorted(refs))
             # ``id(page)`` and ``updated_at`` together: every stored mutation
             # bumps updated_at, and the identity check additionally catches a
@@ -1872,6 +1947,7 @@ class DisplayService:
                     contexts,
                     *geometry_of(page),
                     plugin_ids=refs,
+                    display=display,
                 )
                 if not isinstance(context, dict):
                     return None
@@ -1899,7 +1975,7 @@ class DisplayService:
     # Per-board display engine (single tick loop)
     # ------------------------------------------------------------------ #
 
-    def check_and_send_active_page(self, *, wait: bool = True) -> bool:
+    def check_and_send_active_page(self, *, wait: bool = True, board_ids: set[str] | None = None) -> bool:
         """Drive every configured board from its schedule/active page.
 
         Back-compat entry point (retained for /refresh, /force-refresh, MQTT,
@@ -1912,6 +1988,8 @@ class DisplayService:
         board's send has actually finished, exactly as when the render ran
         inline. The engine's run loop passes ``wait=False`` so its tick only
         *enqueues* sends on the per-board workers (issue #1755).
+        ``board_ids`` limits an engine cadence pass to the boards due now;
+        omitted means all boards for manual refreshes and explicit wakes.
 
         Returns:
             True if content was sent to the PRIMARY board (``wait=False``:
@@ -1924,14 +2002,18 @@ class DisplayService:
         # consumer in the same pass — other boards of that size, variable-mode
         # collection resolution — reuses it. Keyed by size_key; filled lazily.
         contexts: dict[str, dict] = {}
-        sent = self.check_and_send_for_board(primary_id, rt, is_primary=True, contexts=contexts, wait=wait)
+        sent = False
+        if board_ids is None or primary_id in board_ids:
+            sent = self.check_and_send_for_board(primary_id, rt, is_primary=True, contexts=contexts, wait=wait)
         try:
-            self._drive_secondary_boards(contexts, wait=wait)
+            self._drive_secondary_boards(contexts, wait=wait, board_ids=board_ids)
         except Exception as e:  # secondaries must never break the primary loop
             logger.error(f"Error updating secondary boards: {e}")
         return sent
 
-    def _drive_secondary_boards(self, contexts: dict[str, dict] | None = None, *, wait: bool = True) -> None:
+    def _drive_secondary_boards(
+        self, contexts: dict[str, dict] | None = None, *, wait: bool = True, board_ids: set[str] | None = None
+    ) -> None:
         """Drive every board after the first through the unified per-board path.
 
         Each board raising is isolated so one failure never blocks the others.
@@ -1947,6 +2029,8 @@ class DisplayService:
                 continue
             board_id = board.get("id")
             if not board_id:
+                continue
+            if board_ids is not None and board_id not in board_ids:
                 continue
             rt = self.runtimes.get(board_id)
             if rt is None:
@@ -1964,7 +2048,7 @@ class DisplayService:
 
         Turning schedule mode back on normally repaints the board at once: the
         active page is re-resolved from the clock on every pass, so the board
-        jumps to whichever window is current. With ``schedule.defer_on_reenable``
+        jumps to whichever window is current. With the board's ``schedule_defer_on_reenable``
         on, the re-enable instead records the schedule entry winning right then,
         and the board keeps showing its manual page until a *different* entry
         wins -- the next scheduled time it would have changed anyway.
@@ -1979,7 +2063,7 @@ class DisplayService:
         settings_service = get_settings_service()
         arming = rt.last_schedule_enabled is False and rt.schedule_defer_key is None
         if arming:
-            if not settings_service.get_schedule_settings().defer_on_reenable:
+            if not settings_service.get_schedule_settings(board_id=board_id).defer_on_reenable:
                 return False
         elif rt.schedule_defer_key is None:
             return False
@@ -2316,6 +2400,34 @@ class DisplayService:
                 # Resolve collections: if the active ref is a collection, determine
                 # which underlying page should be shown right now.
                 collection_service = get_collection_service()
+                if (
+                    silence_mode_active
+                    and not override_active
+                    and silence_config.get("mode") == "freeze"
+                    and rt.native_playlist is not None
+                ):
+                    return self._freeze_native_playlist(rt, board_id, wait=wait)
+                if (
+                    not override_active
+                    and not silence_mode_active
+                    and getattr(rt.client, "native_rotation_enabled", False) is True
+                ):
+                    collection = (
+                        collection_service.get_collection(active_page_id) if is_collection_id(active_page_id) else None
+                    )
+                    if not is_collection_id(active_page_id) or (
+                        collection is not None and collection.selection_mode == "time"
+                    ):
+                        return self._send_native_reference(
+                            rt,
+                            board_id,
+                            active_page_id,
+                            collection,
+                            page_service,
+                            board=board,
+                            contexts=contexts,
+                            wait=wait,
+                        )
                 if is_collection_id(active_page_id):
                     # Variable-mode collections evaluate rules against the
                     # BOARD-AGNOSTIC plugin context (board=None, the pre-#1752
@@ -2356,7 +2468,12 @@ class DisplayService:
                 # BELOW the render, so returning early here would skip it.
                 if not silence_mode_active:
                     fingerprint = self._render_fingerprint(
-                        page, active_page_id, page_service, contexts, override_active=override_active
+                        page,
+                        active_page_id,
+                        page_service,
+                        contexts,
+                        override_active=override_active,
+                        display=_extended_kw(rt.client).get("display"),
                     )
                     if (
                         fingerprint is not None
@@ -2589,6 +2706,173 @@ class DisplayService:
             self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
             logger.error(f"Error checking active page for board {board_id}: {e}")
             return False
+
+    def _send_native_reference(
+        self, rt, board_id, reference_id, collection, page_service, *, board, contexts, wait
+    ) -> bool:
+        """Render the complete snapshot before queuing one native reconciliation."""
+        if rt.native_reference_id != reference_id:
+            rt.native_selection = None
+            if rt.silence_queued_shown is None:
+                rt.last_active_page_id = None
+        rt.native_reference_id = reference_id
+        page_ids = list(collection.page_ids) if collection is not None else [reference_id]
+        if not page_ids:
+            self._record_send_error(rt, board_id, f"Native collection is empty: {reference_id}")
+            return False
+        duration = collection.time.interval_seconds * 1000 if collection is not None else 0
+        source = board if board is not None else self._board_dict_for(board_id)
+        entries = []
+        rendered = {}
+        content_keys = {}
+        # Even direct callers share member dependencies during this pass.
+        contexts = contexts if contexts is not None else {}
+        for page_id in page_ids:
+            if page_id in rendered:
+                entries.append(rendered[page_id])
+                continue
+            page = page_service.get_page(page_id)
+            if page is None or (source is not None and not pages_compatible_with_board(page, source)):
+                self._record_send_error(rt, board_id, f"Native playlist page missing or incompatible: {page_id}")
+                return False
+            result = page_service.preview_page(
+                page_id, force_refresh=True, contexts=contexts, **_extended_kw(rt.client)
+            )
+            if result is None or not result.available:
+                reason = getattr(result, "error", None) or f"Failed to render native playlist page: {page_id}"
+                self._record_send_error(rt, board_id, reason)
+                return False
+            dims = dimensions_of(page)
+            codes, rich = _project(rt.client, result.formatted, dims.rows, dims.cols, _result_layers(result))
+            entry = NativePlaylistEntry(page_id, rich.get("cells") or cells_from_codes(codes), duration)
+            rendered[page_id] = entry
+            content_keys[page_id] = _content_key(result)
+            entries.append(entry)
+        playlist = NativePlaylist(str(board_id), reference_id, tuple(entries))
+        shown = rt.silence_queued_shown
+        if shown is not None:
+            if not wait and self._send_in_flight(rt, ("trigger", shown)):
+                return False
+            rt.silence_queued_shown = None
+            if rt.last_active_page_content == shown and rt.last_active_page_id == "__trigger__":
+                # Adopt this snapshot as the source baseline for the message
+                # just delivered. It persists until that source changes.
+                rt.native_playlist = playlist
+                rt.native_selection = None
+                rt.last_active_page_id = None
+                rt.showing_out_of_band = True
+                return False
+        # An out-of-band manual write persists until the source content changes,
+        # like the normal page-content dedupe. Reconciliation must not undo it.
+        if rt.showing_out_of_band and playlist == rt.native_playlist:
+            return False
+        # Content keys include canvas bitmap bytes as well as markup text.
+        key = (
+            "native_playlist",
+            reference_id,
+            tuple((e.page_id, e.duration_ms, content_keys[e.page_id]) for e in entries),
+        )
+        if not wait and self._send_in_flight(rt, key):
+            return False
+        client = rt.client
+        sink = self._error_sink()
+        outcome = None
+
+        def send():
+            nonlocal outcome
+            outcome = client.sync_native_playlist(playlist, with_outcome=True)
+            return outcome.success, outcome.was_sent
+
+        def completed(success, was_sent, exc):
+            if exc is not None:
+                return self._send_exception_fallout(rt, board_id, exc, sink)
+            if success and outcome is not None and not outcome.throttled and not outcome.superseded:
+                selection = (
+                    rt.native_selection
+                    if rt.native_playlist is not None and rt.native_playlist.reference_id == reference_id
+                    else None
+                )
+                rt.content_delivered()
+                rt.native_playlist = playlist
+                rt.native_reference_id = reference_id
+                rt.native_selection = selection
+                rt.last_active_page_content = None
+                members = {entry.page_id for entry in playlist.entries}
+                rt.last_active_page_id = (
+                    selection.page_id if selection is not None and selection.page_id in members else None
+                )
+                return was_sent
+            if not success:
+                rt.native_selection = None
+                rt.last_active_page_id = None
+                reason = write_failure_reason(client)
+                self._record_send_error_to(
+                    rt,
+                    board_id,
+                    f"Failed to synchronize native playlist: {reference_id}" + (f" ({reason})" if reason else ""),
+                    sink,
+                )
+            return False
+
+        return self._dispatch_send(
+            rt,
+            board_id,
+            key=key,
+            send=send,
+            on_complete=completed,
+            wait=wait,
+            sink=sink,
+        )
+
+    def _freeze_native_playlist(self, rt, board_id, *, wait) -> bool:
+        """Retire owned rotation with a still of the last confirmed selection.
+
+        A foreign/unknown selection stays untouched: freezing foreign firmware
+        rotation would require changing global device settings.
+        """
+        from .markup import tokens_to_codes
+
+        if rt.showing_out_of_band:
+            rt.snoozing_message_sent = True
+            return False
+        selected = rt.native_selection.page_id if rt.native_selection is not None else None
+        entry = next((e for e in rt.native_playlist.entries if e.page_id == selected), None)
+        if entry is None:
+            rt.snoozing_message_sent = True
+            return False
+        client = rt.client
+        sink = self._error_sink()
+        outcome = None
+
+        def send():
+            nonlocal outcome
+            outcome = client.render(
+                [tokens_to_codes(row) for row in entry.cells], cells=entry.cells, force=True, with_outcome=True
+            )
+            return outcome.success, outcome.was_sent
+
+        def completed(success, was_sent, exc):
+            if exc is not None:
+                return self._send_exception_fallout(rt, board_id, exc, sink)
+            if success and outcome is not None and not outcome.throttled and not outcome.superseded:
+                rt.content_delivered()
+                rt.last_active_page_id = selected
+                rt.last_active_page_content = None
+                rt.snoozing_message_sent = True
+                return was_sent
+            if not success:
+                self._record_send_error_to(rt, board_id, "Failed to freeze native playlist", sink)
+            return False
+
+        return self._dispatch_send(
+            rt,
+            board_id,
+            key=("native_freeze", selected),
+            send=send,
+            on_complete=completed,
+            wait=wait,
+            sink=sink,
+        )
 
     # ------------------------------------------------------------------ #
     # Temporary override helpers
@@ -3239,6 +3523,20 @@ class DisplayService:
             return get_schedule_service().get_active_page_id(now.time(), now.strftime("%A").lower(), board_id=board_id)
         return settings_service.get_active_page_id(board_id=board_id)
 
+    def _boards_due_for_refresh(self, now: float) -> set[str]:
+        """Evaluate every board's live interval without sharing cadence gates."""
+        settings = get_settings_service()
+        due = set()
+        for rt in self.runtimes.values():
+            try:
+                interval = settings.get_polling_interval(board_id=rt.board_id)
+            except ValueError:
+                continue  # settings removal can precede runtime teardown
+            if rt.last_refresh_at is None or now - rt.last_refresh_at >= interval:
+                due.add(rt.board_id)
+                rt.last_refresh_at = now
+        return due
+
     def run(self):
         """Run the main service loop."""
         self.running = True
@@ -3250,32 +3548,33 @@ class DisplayService:
         schedule.clear()
 
         settings_service = get_settings_service()
-        polling_interval = settings_service.get_polling_interval()
 
         # Engine passes are fire-and-forget (issue #1755): the tick only
         # enqueues each board's send on its worker, so one board's long
         # transition cannot stall the other boards, the 1 Hz silence
         # detector, or collection rotation.
-        def engine_pass() -> bool:
-            return self.check_and_send_active_page(wait=False)
-
-        schedule.every(polling_interval).seconds.do(engine_pass)
-        logger.info(f"Active page polling scheduled every {polling_interval} seconds")
+        def engine_pass(board_ids=None) -> bool:
+            if board_ids is None:
+                return self.check_and_send_active_page(wait=False)
+            return self.check_and_send_active_page(wait=False, board_ids=board_ids)
 
         logger.info("Sending initial active page...")
         engine_pass()
+        started = time.time()
+        for rt in self.runtimes.values():
+            rt.last_refresh_at = started
 
         logger.info("Service started, waiting for scheduled updates...")
         try:
             while self.running:
                 schedule.run_pending()
+                refresh_due = self._boards_due_for_refresh(time.time())
+                if refresh_due:
+                    engine_pass(refresh_due)
 
-                # 1-second silence-boundary detector. The schedule library only
-                # fires check_and_send_active_page every polling_interval seconds,
-                # so without this the silence page could appear up to ~15s after
-                # the configured start time (longer if the user raised the poll
-                # interval). A cheap per-board silence check each second lets us
-                # catch the transition within ~1s. Windows are per board
+                # A cheap silence-boundary check each second catches a
+                # transition promptly even when a board's content refresh
+                # interval is long. Windows are per board
                 # (issue #1788), so ANY board flipping forces the update.
                 if self._silence_state_changed():
                     engine_pass()
@@ -3286,12 +3585,15 @@ class DisplayService:
                 # secondary collection never depends on the primary selection.
                 now = time.time()
                 self._ensure_primary_runtime()
-                collection_due = False
+                collection_due = set()
                 for rt in list(self.runtimes.values()):
                     if now < rt.next_collection_check:
                         continue
-                    rt.next_collection_check = now + polling_interval
                     board_id = self._get_first_board_id() if rt is self._primary_runtime() else rt.board_id
+                    try:
+                        rt.next_collection_check = now + settings_service.get_polling_interval(board_id=board_id)
+                    except ValueError:
+                        continue  # removed while runtime workers stop
                     if settings_service.is_paused(board_id=board_id) is True:
                         continue
                     ref_id = self._get_active_ref_id(board_id)
@@ -3299,11 +3601,11 @@ class DisplayService:
                         collection_service = get_collection_service()
                         secs = collection_service.seconds_until_next_check(ref_id, now)
                         if secs is not None:
-                            collection_due = True
+                            collection_due.add(board_id)
                             rt.next_collection_check = now + max(1, secs)
                 # Coalesce coincident boundaries into one shared-context pass.
                 if collection_due:
-                    engine_pass()
+                    engine_pass(collection_due)
                 time.sleep(1)
                 # A page change woke the engine: its pass runs on this step.
                 if self.take_wake():

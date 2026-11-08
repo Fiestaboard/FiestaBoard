@@ -8,6 +8,8 @@ import logging
 from dataclasses import dataclass
 from datetime import date, time, timedelta
 
+# Public service error contract: adapters need no persistence-layer import.
+from src.pages.storage import PageRevisionConflict as PageRevisionConflict
 from src.settings.service import get_settings_service
 
 from .models import (
@@ -20,7 +22,7 @@ from .models import (
     ScheduleUpdate,
     ScheduleValidationResult,
 )
-from .storage import ScheduleStorage
+from .storage import DefaultPageRevisionConflict, ScheduleStorage
 from .sun_times import (
     get_effective_timezone,
     get_today_in_timezone,
@@ -134,13 +136,31 @@ class ScheduleService:
             ValueError: If the (possibly updated) page is size-incompatible
                 with the (possibly updated) board (issue #1245)
         """
-        updates = data.model_dump(exclude_unset=True)
-        existing = self.storage.get(schedule_id)
-        if existing is not None and ("page_id" in updates or "board_id" in updates):
-            effective_page_id = updates.get("page_id", existing.page_id)
-            effective_board_id = updates.get("board_id", existing.board_id)
-            self._validate_page_size(effective_page_id, effective_board_id)
-        return self.storage.update(schedule_id, updates)
+        from contextlib import ExitStack
+
+        from src.collections.service import get_collection_service
+        from src.config_manager import get_config_manager
+        from src.pages.service import get_page_service
+
+        updates = data.model_dump(exclude_unset=True, exclude={"expected_revision"})
+        with ExitStack() as locks:
+            for lock in (
+                get_settings_service().lock,
+                get_config_manager().lock,
+                get_page_service().storage.lock,
+                get_collection_service().storage.lock,
+                self.storage.lock,
+            ):
+                locks.enter_context(lock)
+            self.storage.check_revision(schedule_id, data.expected_revision)
+            existing = self.storage.get(schedule_id)
+            if existing is not None and ("page_id" in updates or "board_id" in updates):
+                effective_page_id = updates.get("page_id") or existing.page_id
+                effective_board_id = updates.get("board_id")
+                if effective_board_id is None:
+                    effective_board_id = existing.board_id
+                self._validate_page_size(effective_page_id, effective_board_id)
+            return self.storage.update(schedule_id, updates, expected_revision=data.expected_revision)
 
     @staticmethod
     def _validate_page_size(page_ref: str | None, board_id: str | None) -> None:
@@ -156,7 +176,7 @@ class ScheduleService:
         if not result.ok:
             raise ValueError(result.error)
 
-    def delete_schedule(self, schedule_id: str) -> bool:
+    def delete_schedule(self, schedule_id: str, *, expected_revision: str | None = None) -> bool:
         """Delete a schedule.
 
         Args:
@@ -165,7 +185,7 @@ class ScheduleService:
         Returns:
             True if deleted, False if not found
         """
-        return self.storage.delete(schedule_id)
+        return self.storage.delete(schedule_id, expected_revision=expected_revision)
 
     # Active page resolution
 
@@ -338,22 +358,48 @@ class ScheduleService:
     # legacy value would otherwise reappear (storage falls back to it) the
     # moment that entry is cleared.
 
-    @staticmethod
-    def _primary_board_id() -> str | None:
-        return get_settings_service().get_primary_board_id() or None
-
     def get_default_page(self, board_id: str | None = None) -> str | None:
         """Get the default page ID for schedule gaps for the given board."""
-        bid = board_id or self._primary_board_id() or DEFAULT_BOARD_ID
-        return self.storage.get_default_page_id(board_id=bid)
+        return self.get_default_page_state(board_id)["default_page_id"]
 
-    def set_default_page(self, page_id: str | None, board_id: str | None = None) -> None:
+    def _default_page_state_locked(self, settings, board_id: str | None) -> dict:
+        bid = board_id or settings.get_primary_board_id() or DEFAULT_BOARD_ID
+        return {
+            "default_page_id": self.storage.get_default_page_id(bid),
+            "revision": f"{self.storage.default_revision}:{settings.runtime_revision}",
+        }
+
+    def get_default_page_revision(self, board_id: str | None = None) -> str:
+        """Conservative token for all defaults and primary-fallback identity.
+
+        All default writes and persisted settings changes invalidate it, even
+        unrelated writes. Settings generation prevents primary-board ABA reuse.
+        The owning settings lock precedes the schedules lock.
+        """
+        return self.get_default_page_state(board_id)["revision"]
+
+    def get_default_page_state(self, board_id: str | None = None) -> dict:
+        settings = get_settings_service()
+        with settings.lock, self.storage.lock:
+            return self._default_page_state_locked(settings, board_id)
+
+    def set_default_page(
+        self, page_id: str | None, board_id: str | None = None, *, expected_revision: str | None = None
+    ) -> dict:
         """Set the default page ID for schedule gaps for the given board."""
-        primary_id = self._primary_board_id()
-        bid = board_id or primary_id or DEFAULT_BOARD_ID
-        self.storage.set_default_page_id(page_id, board_id=bid)
-        if primary_id and bid == primary_id:
-            self.storage.set_default_page_id(None, board_id=DEFAULT_BOARD_ID)
+        settings = get_settings_service()
+        with settings.lock, self.storage.lock:
+            if (
+                expected_revision is not None
+                and expected_revision != self._default_page_state_locked(settings, board_id)["revision"]
+            ):
+                raise DefaultPageRevisionConflict()
+            primary_id = settings.get_primary_board_id()
+            bid = board_id or primary_id or DEFAULT_BOARD_ID
+            self.storage.set_default_page_id(page_id, board_id=bid)
+            if primary_id and bid == primary_id:
+                self.storage.set_default_page_id(None, board_id=DEFAULT_BOARD_ID)
+            return self._default_page_state_locked(settings, board_id)
 
     # Validation
 
