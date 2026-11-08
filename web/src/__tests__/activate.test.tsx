@@ -92,7 +92,7 @@ it("explains disabled enrollment", async () => {
     ),
   );
   render(<Activate />);
-  await screen.findByText(/TV sign-in is disabled/i);
+  await screen.findByText(/Device sign-in is disabled/i);
   expect(approved).toBe(0);
 });
 

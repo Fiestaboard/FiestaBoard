@@ -16,6 +16,13 @@ Public paths (no auth required):
       its signed ``state`` rather than a cookie
     * CORS preflight (``OPTIONS``) requests
 
+Native sign-ins (``fb_tv_`` and ``fb_mob_`` Bearer tokens):
+    Issued by ``/auth/device/*`` to the TV and phone apps and checked first,
+    in every auth mode. A TV token (scope ``tv_panels``) reaches the panel
+    routes only; a phone token (scope ``control``) reaches ``/v1`` and the
+    listed control routes. The lists live in ``src/auth/scopes.py``; anything
+    else is 403. A revoked or expired native token is 401 everywhere.
+
 Bearer-token paths (``/mcp/*`` and ``/v1/*``):
     If an API token is configured (``FIESTABOARD_MCP_TOKEN`` or the value
     stored via Settings), the MCP endpoint requires an
@@ -37,7 +44,6 @@ Bearer-token paths (``/mcp/*`` and ``/v1/*``):
 from __future__ import annotations
 
 import logging
-import re
 import sqlite3
 from collections.abc import Iterable
 
@@ -47,7 +53,8 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from .device_models import AuthFlowError
-from .device_service import DeviceService
+from .device_service import MOBILE_TOKEN_PREFIX, TV_TOKEN_PREFIX, DeviceService
+from .scopes import CONTROL, TV_PANELS, permits
 from .service import (
     SESSION_COOKIE_NAME,
     auth_mode,
@@ -58,6 +65,21 @@ from .service import (
 from .session_store import SessionLimit
 
 logger = logging.getLogger(__name__)
+
+# A TV may change only how its own screen presents the board.
+_TV_PATCH_FIELDS = frozenset(
+    {
+        "screen_diagonal_inches",
+        "screen_aspect_w",
+        "screen_aspect_h",
+        "calibration_scale",
+        "animations_enabled",
+        "render_style",
+    }
+)
+
+# Native session kind -> (scope, words used in the refusal).
+_NATIVE = {"tv": (TV_PANELS, "TV"), "mobile": (CONTROL, "phone")}
 
 # Path prefixes that never require authentication.
 _PUBLIC_PREFIXES: tuple = (
@@ -213,47 +235,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path
         supplied = _bearer_from(request)
-        if supplied and supplied.startswith("fb_tv_"):
-            svc = await run_in_threadpool(get_auth_service)
-            session = await run_in_threadpool(DeviceService(svc).authenticate_tv, supplied)
-            if session is None:
-                return JSONResponse(
-                    {"error": "unauthorized", "detail": "This TV sign-in expired or was revoked."}, status_code=401
-                )
-            allowed = (
-                (
-                    request.method == "GET"
-                    and (path in ("/auth/status", "/panels") or re.fullmatch(r"/panel/[^/]+(?:/frame)?", path))
-                )
-                or (request.method == "PATCH" and re.fullmatch(r"/panels/[^/]+", path))
-                or (request.method == "DELETE" and path == "/auth/device/session")
-            )
-            if not allowed:
-                return JSONResponse(
-                    {"error": "forbidden", "detail": "This TV sign-in does not permit that operation."}, status_code=403
-                )
-            if request.method == "PATCH":
-                try:
-                    body = await request.json()
-                except (ValueError, UnicodeDecodeError):
-                    return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
-                fields = {
-                    "screen_diagonal_inches",
-                    "screen_aspect_w",
-                    "screen_aspect_h",
-                    "calibration_scale",
-                    "animations_enabled",
-                    "render_style",
-                }
-                if not isinstance(body, dict) or not body or not set(body).issubset(fields):
-                    return JSONResponse(
-                        {"error": "forbidden", "detail": "This TV can only update screen presentation settings."},
-                        status_code=403,
-                    )
-            request.scope["auth_kind"] = "tv"
-            request.scope["auth_user"] = session.username
-            request.scope["auth_session_id"] = session.id
-            return await call_next(request)
+        if supplied and supplied.startswith((TV_TOKEN_PREFIX, MOBILE_TOKEN_PREFIX)):
+            return await self._dispatch_native(request, call_next, supplied)
 
         # MCP endpoint: a *configured* bearer token is enforced in every
         # auth mode, including "disabled". Auth mode governs the browser
@@ -318,4 +301,41 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Stash the authenticated user on the request scope for downstream
         # handlers that want to know who's calling.
         request.scope["auth_user"] = username
+        return await call_next(request)
+
+    async def _dispatch_native(self, request: Request, call_next, token: str):
+        """A TV or phone Bearer. Checked in every auth mode, before any public path.
+
+        Such a token is never anonymous: an expired or revoked one is a 401 even
+        on a public path, and a valid one reaches only its scope's routes
+        (src/auth/scopes.py), whatever cookie comes with it.
+        """
+        path, method = request.url.path, request.method
+        svc = await run_in_threadpool(get_auth_service)
+        session = await run_in_threadpool(DeviceService(svc).authenticate_native, token)
+        if session is None:
+            device = "phone" if token.startswith(MOBILE_TOKEN_PREFIX) else "TV"
+            return JSONResponse(
+                {"error": "unauthorized", "detail": f"This {device} sign-in expired or was revoked."}, status_code=401
+            )
+        scope, device = _NATIVE[session.kind]
+        if not permits(scope, method, path):
+            return JSONResponse(
+                {"error": "forbidden", "detail": f"This {device} sign-in does not permit that operation."},
+                status_code=403,
+            )
+        if scope == TV_PANELS and method == "PATCH":
+            try:
+                body = await request.json()
+            except (ValueError, UnicodeDecodeError):
+                return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
+            if not isinstance(body, dict) or not body or not set(body).issubset(_TV_PATCH_FIELDS):
+                return JSONResponse(
+                    {"error": "forbidden", "detail": "This TV can only update screen presentation settings."},
+                    status_code=403,
+                )
+        request.scope["auth_kind"] = session.kind
+        request.scope["auth_scope"] = scope
+        request.scope["auth_user"] = session.username
+        request.scope["auth_session_id"] = session.id
         return await call_next(request)

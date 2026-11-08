@@ -246,10 +246,10 @@ def _request_identity(request: Request, svc) -> tuple[str | None, str | None]:
     username = svc.verify_session(cookie) if cookie else None
     kind = "browser" if username else None
     bearer = _bearer_from(request)
-    if bearer and bearer.startswith("fb_tv_"):
-        session = DeviceService(svc).authenticate_tv(bearer)
+    if bearer and bearer.startswith(("fb_tv_", "fb_mob_")):
+        session = DeviceService(svc).authenticate_native(bearer)
         username = session.username if session else None
-        kind = "tv" if session else None
+        kind = session.kind if session else None
     return username, kind
 
 

@@ -11,9 +11,14 @@ class AuthFlowError(Exception):
         self.error, self.detail, self.status, self.retry_after = error, detail, status, retry_after
 
 
+# TVs get the ``tv_panels`` scope; phones get ``control``. See src/auth/scopes.py.
+NativeClientId = Literal["fiestaboard-tvos", "fiestaboard-androidtv", "fiestaboard-ios", "fiestaboard-android"]
+NativeScope = Literal["tv_panels", "control"]
+
+
 class DeviceMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    client_id: Literal["fiestaboard-tvos", "fiestaboard-androidtv"]
+    client_id: NativeClientId
     device_name: str = Field(min_length=1, max_length=100, pattern=r"^[^\x00-\x1f\x7f]+$")
     app_version: str = Field(min_length=1, max_length=40, pattern=r"^[^\x00-\x1f\x7f]+$")
 
@@ -28,7 +33,7 @@ class DeviceCode(BaseModel):
 
 
 class DeviceExchange(DeviceCode):
-    client_id: Literal["fiestaboard-tvos", "fiestaboard-androidtv"]
+    client_id: NativeClientId
 
 
 class UserCode(BaseModel):
@@ -49,7 +54,7 @@ class DeviceTokenResult(BaseModel):
     token_type: Literal["Bearer"] = "Bearer"
     expires_in: int = 31536000
     session_id: str
-    scope: Literal["tv_panels"] = "tv_panels"
+    scope: NativeScope = "tv_panels"
 
 
 class PendingDevice(BaseModel):
@@ -58,7 +63,7 @@ class PendingDevice(BaseModel):
     device_name: str
     app_version: str
     expires_in: int
-    scope: Literal["tv_panels"] = "tv_panels"
+    scope: NativeScope = "tv_panels"
 
 
 class EnrollmentSettings(BaseModel):
@@ -87,7 +92,7 @@ class PanelShown(BaseModel):
 
 class SessionSummary(BaseModel):
     id: str
-    kind: Literal["browser", "tv", "legacy"]
+    kind: Literal["browser", "tv", "mobile", "legacy"]
     device_name: str
     client_id: str
     app_version: str

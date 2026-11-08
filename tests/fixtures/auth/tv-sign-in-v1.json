@@ -110,7 +110,7 @@
       "status": 403,
       "body": {
         "error": "feature_disabled",
-        "detail": "TV sign-in is disabled."
+        "detail": "Device sign-in is disabled."
       }
     },
     "unauthorized": {
