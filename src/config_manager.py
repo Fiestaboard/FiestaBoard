@@ -1289,8 +1289,9 @@ class ConfigManager:
         """
         try:
             with self._file_lock:
-                if "general" not in self._config:
-                    self._config["general"] = {}
+                had_general = "general" in self._config
+                previous = self._config.get("general", {})
+                updated = self._deep_copy(previous)
 
                 for key, value in settings.items():
                     if key in DEFAULT_CONFIG.get("general", {}):
@@ -1298,9 +1299,20 @@ class ConfigManager:
                         if key in SENSITIVE_FIELDS and value == "***":
                             logger.debug(f"Preserving existing value for masked field: general.{key}")
                             continue
-                        self._config["general"][key] = value
+                        updated[key] = value
 
-                self._save_internal()
+                self._config["general"] = updated
+                try:
+                    self._save_internal()
+                except Exception:
+                    # Keep rollback inside the reader/writer lock so a rejected
+                    # timezone cannot leak into a later save or suppress the
+                    # TimeService reset on a successful retry.
+                    if had_general:
+                        self._config["general"] = previous
+                    else:
+                        self._config.pop("general", None)
+                    raise
             logger.info("General settings updated")
             return True
         except Exception as e:
@@ -1968,15 +1980,11 @@ class ConfigManager:
             True if successful.
         """
         with self._file_lock:
-            if "plugins" not in self._config:
-                self._config["plugins"] = {}
-
-            # Preserve sensitive fields if they're masked
-            existing = self._config["plugins"].get(plugin_id, {})
-            config.update(unmask_sensitive_values(config, existing))
-
-            self._config["plugins"][plugin_id] = config
-            self._save_internal()
+            candidate = self._deep_copy(self._config)
+            plugins = candidate.setdefault("plugins", {})
+            existing = plugins.get(plugin_id, {})
+            plugins[plugin_id] = unmask_sensitive_values(config, existing)
+            self._save_internal(candidate)
 
         logger.info(f"Plugin '{plugin_id}' configuration updated")
         return True

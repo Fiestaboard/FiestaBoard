@@ -467,7 +467,7 @@ class PluginService:
         config = unmask_sensitive_values(config, stored_config)
 
         # Validate configuration against manifest schema
-        errors = registry.set_plugin_config(plugin_id, config)
+        errors = registry.validate_plugin_config(plugin_id, config)
         if errors:
             logger.error(f"Plugin '{plugin_id}' config validation failed: {errors}")
             raise PluginConfigInvalid(f"Configuration for '{plugin_id}' failed validation.", errors)
@@ -475,8 +475,15 @@ class PluginService:
         # Save to config file
         config_manager.set_plugin_config(plugin_id, config)
 
+        # Only durable configuration may clear caches or run plugin-authored
+        # on_config_change hooks. Stored config remains authoritative even if
+        # validation changes between the preflight and application.
+        apply_errors = registry.apply_stored_config(plugin_id, config)
+        if apply_errors:
+            logger.warning("Stored config for %s applied with validation warnings: %s", plugin_id, apply_errors)
+
         # Re-seed the LIVE registry config from the overlaid read. Persisting
-        # env-free is correct, but the validation call above also installed
+        # env-free is correct, but the application above installed
         # that env-free dict as the live config — killing a working
         # env-supplied credential until restart (#1864 review). Named
         # instances never have an overlay, so this is a no-op for them.

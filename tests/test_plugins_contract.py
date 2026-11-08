@@ -237,15 +237,19 @@ class _ContractRegistry:
         return [] if key in self.plugins else [f"Instance not found: {key}"]
 
     def apply_stored_config(self, compound_key: str, stored: dict[str, Any]) -> list[str]:
+        # Capture applied values before later callers can mutate the payload.
+        self.applied.append(copy.deepcopy(stored))
         return []
 
     # -- mutation surface ---------------------------------------------------
-    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
-        # Snapshot: the endpoint hands the *same dict object* down the chain
-        # and un-masks it in place, so a call-args assertion would inspect the
-        # already-repaired dict and pass no matter what.
-        self.applied.append(copy.deepcopy(config))
+    def validate_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
         return list(self.config_errors)
+
+    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
+        errors = self.validate_plugin_config(plugin_id, config)
+        if errors:
+            return errors
+        return self.apply_stored_config(plugin_id, config)
 
     def enable_plugin(self, plugin_id: str, *, before_change=None) -> bool:
         if self.enable_ok and before_change is not None:

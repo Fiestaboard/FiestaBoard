@@ -209,7 +209,22 @@
     "displayFilter": "Filtro per schermo",
     "allPages": "Tutte le pagine",
     "libraryCount": "{count, plural, one {# pagina} other {# pagine}}",
-    "clearFilter": "Mostra tutte le pagine"
+    "clearFilter": "Mostra tutte le pagine",
+    "searchLabel": "Cerca pagine",
+    "searchPlaceholder": "Cerca nomi o contenuti salvati",
+    "searchHint": "Cerca nomi e contenuti salvati nel filtro dello schermo selezionato.",
+    "clearSearch": "Cancella ricerca",
+    "sortLabel": "Ordina pagine",
+    "sortNameAsc": "Nome A–Z",
+    "sortNameDesc": "Nome Z–A",
+    "sortCreatedDesc": "Create più di recente",
+    "sortCreatedAsc": "Create meno di recente",
+    "sortUpdatedDesc": "Aggiornate più di recente",
+    "sortUpdatedAsc": "Aggiornate meno di recente",
+    "noMatches": "Nessuna pagina corrispondente",
+    "searchCount": "{count} di {total} pagine",
+    "loadError": "Impossibile caricare le pagine. La ricerca è conservata.",
+    "retryLoading": "Riprova a caricare le pagine"
   },
   "collections": {
     "title": "Caroselli",

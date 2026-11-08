@@ -100,7 +100,9 @@ registry.list_instances.return_value = [{"label": "work", "key": "alpha:work", "
 registry.create_instance.return_value = []
 registry.apply_stored_config.return_value = []
 registry.delete_instance.return_value = []
+registry.validate_plugin_config.return_value = []
 registry.set_plugin_config.return_value = []
+registry.apply_stored_config.return_value = []
 registry.enable_plugin.return_value = True
 registry.disable_plugin.return_value = True
 for method in (registry.enable_plugin, registry.disable_plugin):
@@ -269,7 +271,7 @@ registry.list_plugins.assert_called()  # GET /plugins, and again by uninstall
 registry.get_load_errors.assert_called_once()
 registry.get_fetch_breaker_status.assert_called_once()
 registry.get_registry_entries.assert_called_once()
-registry.set_plugin_config.assert_called()
+registry.apply_stored_config.assert_called()
 registry.enable_plugin.assert_called()
 registry.disable_plugin.assert_called_once_with("alpha", before_change=ANY)
 registry.fetch_plugin_data.assert_called_once_with("alpha")

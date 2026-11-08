@@ -447,7 +447,7 @@ async def debug_network_diagnostics():
     board = board_view(board) if board else {}
 
     try:
-        return run_full_diagnostics(board)
+        return await asyncio.to_thread(run_full_diagnostics, board)
     except Exception as e:
         logger.error(f"Error running network diagnostics: {e}")
         raise HTTPException(status_code=500, detail="Network diagnostics failed") from e

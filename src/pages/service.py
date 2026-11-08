@@ -462,19 +462,13 @@ class PageService:
             created_at=datetime.now(UTC),
         )
 
-        # Built (and validated) before the old demo goes, so an invalid demo
-        # leaves the existing page in place.
-        recreated = False
-        existing = self.get_demo_page(plugin_id, device_type=demo.device_type)
-        if existing:
-            self.storage.delete(existing.id)
-            self._invalidate_cache(existing.id)
-            recreated = True
-            logger.info(f"Deleted existing demo page {existing.id} for plugin {plugin_id}")
-
-        created = self.storage.create(page)
-        logger.info(f"Created demo page {created.id} for plugin {plugin_id}")
-        return created, recreated
+        # Commit replacement and removal together. A failed save leaves both
+        # the existing page and its preview intact, so regeneration is retryable.
+        old_id = self.storage.replace_demo(page)
+        if old_id is not None:
+            self._invalidate_cache(old_id)
+        logger.info(f"Created demo page {page.id} for plugin {plugin_id}")
+        return self.storage.get(page.id), old_id is not None
 
     # Rendering
 

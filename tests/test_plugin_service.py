@@ -34,10 +34,12 @@ class _Recorder:
 def _service(recorder: _Recorder, *, config_errors: list[str] | None = None) -> PluginService:
     registry = Mock()
     registry.get_plugin.return_value = object()
-    registry.set_plugin_config.side_effect = lambda pid, cfg: (
+    registry.validate_plugin_config.side_effect = lambda pid, cfg: (
         recorder.steps.append("validate"),
         list(config_errors or []),
     )[1]
+    registry.apply_stored_config.side_effect = lambda pid, cfg: (recorder.steps.append("apply"), [])[1]
+    registry.set_plugin_config.return_value = []
 
     def change_enabled(_pid, *, before_change=None, enabled):
         if before_change is not None:
@@ -93,7 +95,7 @@ def test_update_plugin_config_runs_validate_persist_reset_in_order():
 
     masked = svc.update_plugin_config("alpha", {"api_key": "new_key", "location": "NYC"})
 
-    assert rec.steps == ["validate", *ORCHESTRATION_TAIL]
+    assert rec.steps == ["validate", "persist", "apply", "reset_display", "reset_template"]
     # The response echoes the full config that was just saved, masked.
     assert masked == {"api_key": "***", "location": "***"}
 
@@ -116,7 +118,7 @@ def test_update_plugin_config_unmasks_the_sentinel_before_validation():
 
     svc.update_plugin_config("alpha", {"api_key": "***"})
 
-    seen = svc.registry.set_plugin_config.call_args[0][1]
+    seen = svc.registry.validate_plugin_config.call_args[0][1]
     assert seen["api_key"] == "test_key_123"
 
 

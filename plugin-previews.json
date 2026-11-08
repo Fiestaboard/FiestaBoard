@@ -2398,6 +2398,19 @@
         }
       ]
     },
+    "ulanzi_tc001": {
+      "teaser": "ULANZI TC001",
+      "previews": [
+        {
+          "device_type": "note",
+          "rows": [
+            "  ULANZI TC001 ",
+            "   AWTRIX NG   ",
+            "    {63}{64}{65}{66}{67}{68}{69}    "
+          ]
+        }
+      ]
+    },
     "ulanzi_tc002": {
       "teaser": "ULANZI TC002",
       "previews": [

@@ -431,7 +431,7 @@ class TestRefreshSecondsBypass:
         ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
-            reg.set_plugin_config.return_value = ["Refresh interval must be at least 30 seconds"]
+            reg.validate_plugin_config.return_value = ["Refresh interval must be at least 30 seconds"]
             mock_reg_get.return_value = reg
 
             response = client.put(
@@ -453,7 +453,9 @@ class TestRefreshSecondsBypass:
         ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
+            reg.validate_plugin_config.return_value = []
             reg.set_plugin_config.return_value = []
+            reg.apply_stored_config.return_value = []
             mock_reg_get.return_value = reg
 
             cm = Mock()

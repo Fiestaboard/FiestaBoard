@@ -65,7 +65,9 @@ for method in (registry.enable_plugin, registry.disable_plugin):
 registry.install_from_registry.return_value = []
 registry.uninstall_external_plugin.return_value = []
 registry.list_plugins.return_value = []
+registry.validate_plugin_config.return_value = []
 registry.set_plugin_config.return_value = []
+registry.apply_stored_config.return_value = []
 # Reassigned per call, because two tools read it for opposite reasons:
 # uninstall needs a source to exist (no source is now a 404, review finding 6)
 # and the update tool wants the clean "no source" refusal.
@@ -114,7 +116,7 @@ with (
 registry.install_from_registry.assert_called_once_with("stocks")
 registry.enable_plugin.assert_called()
 registry.disable_plugin.assert_called_once_with("stocks", before_change=ANY)
-registry.set_plugin_config.assert_called_once()
+registry.apply_stored_config.assert_called_once()
 registry.uninstall_external_plugin.assert_called_once_with("stocks")
 config_manager.enable_plugin.assert_called()
 config_manager.set_plugin_config.assert_called_once()

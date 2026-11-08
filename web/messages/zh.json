@@ -209,7 +209,22 @@
     "displayFilter": "按显示设备筛选",
     "allPages": "所有页面",
     "libraryCount": "{count, plural, one {# 个页面} other {# 个页面}}",
-    "clearFilter": "显示所有页面"
+    "clearFilter": "显示所有页面",
+    "searchLabel": "搜索页面",
+    "searchPlaceholder": "搜索名称或已保存的内容",
+    "searchHint": "在所选显示屏筛选范围内搜索名称和已保存的内容。",
+    "clearSearch": "清除搜索",
+    "sortLabel": "页面排序",
+    "sortNameAsc": "名称 A–Z",
+    "sortNameDesc": "名称 Z–A",
+    "sortCreatedDesc": "创建时间从新到旧",
+    "sortCreatedAsc": "创建时间从旧到新",
+    "sortUpdatedDesc": "更新时间从新到旧",
+    "sortUpdatedAsc": "更新时间从旧到新",
+    "noMatches": "没有匹配的页面",
+    "searchCount": "共 {total} 个页面，显示 {count} 个",
+    "loadError": "无法加载页面。搜索条件已保留。",
+    "retryLoading": "重试加载页面"
   },
   "collections": {
     "title": "轮播",

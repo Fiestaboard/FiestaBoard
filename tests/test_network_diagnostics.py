@@ -574,3 +574,49 @@ class TestErrorTextSanitization:
         assert result["ok"] is False
         assert self.SENTINEL not in repr(result)
         assert result["error"] == "Connection failed"
+
+
+def test_dns_probe_never_changes_the_process_socket_default(monkeypatch):
+    changed = []
+    monkeypatch.setattr(socket, "setdefaulttimeout", changed.append)
+    monkeypatch.setattr(socket, "gethostbyname", lambda hostname: "192.0.2.1")
+
+    result = check_dns_resolution("example.invalid", timeout=0.01)
+
+    assert result["ok"] is True
+    assert changed == []
+
+
+def test_overlapping_dns_probes_preserve_the_process_socket_default(monkeypatch):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    first_entered = threading.Event()
+    second_entered = threading.Event()
+    finish_second = threading.Event()
+    original = socket.getdefaulttimeout()
+
+    def resolve(hostname):
+        if hostname == "first.invalid":
+            first_entered.set()
+            assert second_entered.wait(3)
+        else:
+            second_entered.set()
+            assert finish_second.wait(3)
+        return "192.0.2.1"
+
+    monkeypatch.setattr(socket, "gethostbyname", resolve)
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(check_dns_resolution, "first.invalid", timeout=0.25)
+            assert first_entered.wait(3)
+            second = pool.submit(check_dns_resolution, "second.invalid", timeout=0.5)
+            try:
+                assert first.result(timeout=3)["ok"] is True
+            finally:
+                finish_second.set()
+            assert second.result(timeout=3)["ok"] is True
+        assert socket.getdefaulttimeout() == original
+    finally:
+        finish_second.set()
+        socket.setdefaulttimeout(original)
