@@ -1390,52 +1390,64 @@ class DisplayService:
 
         Every board, not only the primary; never a paused board (hands-off,
         maybe unplugged — the same rule as the read-back poll).
+        A failure recovering one board must not skip the rest of the pass.
         """
         settings = get_settings_service()
         for key, rt in list(self.runtimes.items()):
-            poll = getattr(rt.client, "poll_device", None)
-            if not callable(poll):
-                continue
-            board_id = rt.board_id or key
-            if settings.is_paused(board_id=board_id) is True:
-                continue
             try:
-                interval = settings.get_polling_settings(board_id=board_id).board_read_interval_local
-            except ValueError:
-                continue  # settings removal can precede runtime teardown
-            now = time.monotonic()
-            if (
-                rt.device_poll_attempted_at is not None
-                and now - rt.device_poll_attempted_at + POLL_CADENCE_SLACK_SECONDS < interval
-            ):
-                continue
-            rt.device_poll_attempted_at = now
-            news = poll()
-            if not isinstance(news, DevicePoll):
-                continue
-            moved = bool(news.config)
-            if moved:
-                settings.update_board_output_config(board_id, news.config)
-            if news.restarted or moved:
-                logger.info(
-                    "Board %s: its device %s; re-sending the board's content",
-                    board_id,
-                    "moved to new settings" if moved else "restarted",
-                )
-                self.invalidate_board_content(key)
-            elif news.overwritten is True:
-                rt.showing_out_of_band = True
-                if rt.overwritten_at is None:
-                    # The first report is the detection: a device may keep
-                    # reporting the same overwrite until core writes it again.
-                    rt.overwritten_at = time.time()
-                    logger.info("Board %s: another client wrote its device", board_id)
-                self._restore_after_overwrite(rt, board_id, settings, key=key)
-            elif isinstance(news.native_selection, NativePageSelection) and rt.native_playlist is not None:
-                selected = news.native_selection.page_id
-                members = {entry.page_id for entry in rt.native_playlist.entries}
-                rt.native_selection = NativePageSelection(selected if selected in members else None)
-                rt.last_active_page_id = rt.native_selection.page_id
+                self._poll_output_device_once(key, rt, settings)
+            except Exception:
+                logger.exception("Board %s: output device recovery failed", rt.board_id or key)
+
+    def _poll_output_device_once(self, key: str, rt: BoardRuntime, settings) -> None:
+        """Poll and recover one board without owning the rest of the pass."""
+        poll = getattr(rt.client, "poll_device", None)
+        if not callable(poll):
+            return
+        board_id = rt.board_id or key
+        if settings.is_paused(board_id=board_id) is True:
+            return
+        try:
+            interval = settings.get_polling_settings(board_id=board_id).board_read_interval_local
+        except ValueError:
+            return  # settings removal can precede runtime teardown
+        now = time.monotonic()
+        if (
+            rt.device_poll_attempted_at is not None
+            and now - rt.device_poll_attempted_at + POLL_CADENCE_SLACK_SECONDS < interval
+        ):
+            return
+        rt.device_poll_attempted_at = now
+        news = poll()
+        # A settings rebuild may retire this runtime while the device is polled.
+        # Never publish an old connection's settings, recovery or native selection.
+        if self.runtimes.get(key) is not rt:
+            return
+        if not isinstance(news, DevicePoll):
+            return
+        moved = bool(news.config)
+        if moved:
+            settings.update_board_output_config(board_id, news.config)
+        if news.restarted or moved:
+            logger.info(
+                "Board %s: its device %s; re-sending the board's content",
+                board_id,
+                "moved to new settings" if moved else "restarted",
+            )
+            self.invalidate_board_content(key)
+        elif news.overwritten is True:
+            rt.showing_out_of_band = True
+            if rt.overwritten_at is None:
+                # The first report is the detection: a device may keep
+                # reporting the same overwrite until core writes it again.
+                rt.overwritten_at = time.time()
+                logger.info("Board %s: another client wrote its device", board_id)
+            self._restore_after_overwrite(rt, board_id, settings, key=key)
+        elif isinstance(news.native_selection, NativePageSelection) and rt.native_playlist is not None:
+            selected = news.native_selection.page_id
+            members = {entry.page_id for entry in rt.native_playlist.entries}
+            rt.native_selection = NativePageSelection(selected if selected in members else None)
+            rt.last_active_page_id = rt.native_selection.page_id
 
     def displayed_page_id(self, board_id=None) -> str | None:
         """The last confirmed visible page, including hardware button selection.
