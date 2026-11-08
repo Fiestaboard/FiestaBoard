@@ -989,7 +989,7 @@ class ConfigManager:
         """
         return self._config_generation
 
-    def _save_internal(self) -> None:
+    def _save_internal(self, candidate: dict[str, Any] | None = None) -> None:
         """Internal save without acquiring lock (called from locked context).
 
         Writes go through :func:`src.atomic_io.write_json_atomic` (process-
@@ -1004,16 +1004,24 @@ class ConfigManager:
         of any PUT that stores the value already stored. Only the disk write is
         conditional; the generation bump below is not.
         """
-        # Bump BEFORE the write (and regardless of its outcome): the in-memory
+        # Staged callers publish and invalidate only after a successful save.
+        # Legacy no-argument callers already mutated live state, so they
+        # bump BEFORE the write (and regardless of its outcome): the in-memory
         # config this process reads from has already changed by the time any
         # caller reaches a save, so generation-keyed caches must invalidate
         # even when the disk write fails (issue #1752). This must NOT become
         # conditional on the write happening — a caller that mutated the config
         # and then wrote identical bytes still changed what this process reads
         # if the file on disk was ahead of it.
-        self._config_generation = getattr(self, "_config_generation", 0) + 1
+        if candidate is None:
+            self._config_generation = getattr(self, "_config_generation", 0) + 1
         try:
-            if write_json_atomic(self._config_path, self._config, if_changed=True):
+            data = self._config if candidate is None else candidate
+            changed = write_json_atomic(self._config_path, data, if_changed=True)
+            if candidate is not None:
+                self._config = candidate
+                self._config_generation = getattr(self, "_config_generation", 0) + 1
+            if changed:
                 logger.debug(f"Saved config to {self._config_path}")
             else:
                 logger.debug(f"Config unchanged on disk; skipped rewrite of {self._config_path}")
@@ -1281,8 +1289,9 @@ class ConfigManager:
         """
         try:
             with self._file_lock:
-                if "general" not in self._config:
-                    self._config["general"] = {}
+                had_general = "general" in self._config
+                previous = self._config.get("general", {})
+                updated = self._deep_copy(previous)
 
                 for key, value in settings.items():
                     if key in DEFAULT_CONFIG.get("general", {}):
@@ -1290,9 +1299,20 @@ class ConfigManager:
                         if key in SENSITIVE_FIELDS and value == "***":
                             logger.debug(f"Preserving existing value for masked field: general.{key}")
                             continue
-                        self._config["general"][key] = value
+                        updated[key] = value
 
-                self._save_internal()
+                self._config["general"] = updated
+                try:
+                    self._save_internal()
+                except Exception:
+                    # Keep rollback inside the reader/writer lock so a rejected
+                    # timezone cannot leak into a later save or suppress the
+                    # TimeService reset on a successful retry.
+                    if had_general:
+                        self._config["general"] = previous
+                    else:
+                        self._config.pop("general", None)
+                    raise
             logger.info("General settings updated")
             return True
         except Exception as e:
@@ -1960,15 +1980,11 @@ class ConfigManager:
             True if successful.
         """
         with self._file_lock:
-            if "plugins" not in self._config:
-                self._config["plugins"] = {}
-
-            # Preserve sensitive fields if they're masked
-            existing = self._config["plugins"].get(plugin_id, {})
-            config.update(unmask_sensitive_values(config, existing))
-
-            self._config["plugins"][plugin_id] = config
-            self._save_internal()
+            candidate = self._deep_copy(self._config)
+            plugins = candidate.setdefault("plugins", {})
+            existing = plugins.get(plugin_id, {})
+            plugins[plugin_id] = unmask_sensitive_values(config, existing)
+            self._save_internal(candidate)
 
         logger.info(f"Plugin '{plugin_id}' configuration updated")
         return True
@@ -1984,21 +2000,18 @@ class ConfigManager:
             True if successful.
         """
         with self._file_lock:
-            if "plugins" not in self._config:
-                self._config["plugins"] = {}
-
-            if plugin_id not in self._config["plugins"]:
-                self._config["plugins"][plugin_id] = {}
+            candidate = self._deep_copy(self._config)
+            plugins = candidate.setdefault("plugins", {})
 
             # Merge updates, restoring masked sensitive fields from what is
             # already stored. Shares unmask_sensitive_values with
             # set_plugin_config: a flat top-level check here would go on
             # persisting "***" over secrets nested in dicts and lists, which is
             # exactly the drift that produced #1743.
-            existing = self._config["plugins"][plugin_id]
+            existing = plugins.setdefault(plugin_id, {})
             existing.update(unmask_sensitive_values(updates, existing))
 
-            self._save_internal()
+            self._save_internal(candidate)
 
         logger.debug(f"Plugin '{plugin_id}' configuration updated")
         return True
@@ -2070,6 +2083,36 @@ class ConfigManager:
         configs = self.get_all_plugin_configs()
         return self._mask_sensitive(configs)
 
+    def prepare_plugin_instance_config(self, plugin_id: str) -> dict[str, Any] | None:
+        """Commit an instance's presence and clear its removal marker together.
+
+        Return its previous config for live adoption (None when absent).
+        Absent or empty configs receive the fresh disabled default.
+        Existing saved settings are preserved, including when the plugin is
+        temporarily missing from the live registry.
+        """
+        with self._file_lock:
+            candidate = self._deep_copy(self._config)
+            plugins = candidate.setdefault("plugins", {})
+            stored = self._deep_copy(plugins.get(plugin_id))
+            if not stored:
+                plugins[plugin_id] = {"enabled": False}
+            removed = candidate.get("removed_plugins")
+            if isinstance(removed, list):
+                prefix = f"{plugin_id}:"
+                kept = [
+                    pid
+                    for pid in removed
+                    if isinstance(pid, str) and pid and pid != plugin_id and not pid.startswith(prefix)
+                ]
+                if kept:
+                    candidate["removed_plugins"] = kept
+                else:
+                    candidate.pop("removed_plugins", None)
+            if candidate != self._config:
+                self._save_internal(candidate)
+            return stored
+
     def delete_plugin_config(self, plugin_id: str) -> bool:
         """Delete configuration for a specific plugin.
 
@@ -2091,6 +2134,43 @@ class ConfigManager:
 
         logger.info(f"Plugin '{plugin_id}' configuration deleted")
         return True
+
+    def delete_plugin_instance_config(self, plugin_id: str) -> None:
+        """Atomically remove an instance's config and record deliberate removal.
+
+        Publish neither half in memory until the combined file commits, so a
+        rejected delete remains retryable and cannot leak into another save.
+        """
+        with self._file_lock:
+            candidate = self._deep_copy(self._config)
+            candidate.get("plugins", {}).pop(plugin_id, None)
+            removed = candidate.get("removed_plugins")
+            removed = [pid for pid in removed if isinstance(pid, str) and pid] if isinstance(removed, list) else []
+            candidate["removed_plugins"] = sorted({*removed, plugin_id})
+            self._save_internal(candidate)
+
+    def uninstall_plugin_config(self, plugin_id: str) -> list[str]:
+        """Commit base/instance config removal and its tombstone together.
+
+        Caller stages code removal before this write and retires live objects
+        only after it returns. Failed writes publish neither partial config
+        deletion nor the removal marker, and do not bump the generation.
+        """
+        if not isinstance(plugin_id, str) or not plugin_id:
+            raise ValueError("plugin_id must be a nonempty string")
+        with self._file_lock:
+            candidate = self._deep_copy(self._config)
+            plugins = candidate.get("plugins", {})
+            prefix = f"{plugin_id}:"
+            purged = [key for key in plugins if key == plugin_id or key.startswith(prefix)]
+            candidate["plugins"] = {
+                key: value for key, value in plugins.items() if key != plugin_id and not key.startswith(prefix)
+            }
+            removed = candidate.get("removed_plugins")
+            removed = [pid for pid in removed if isinstance(pid, str) and pid] if isinstance(removed, list) else []
+            candidate["removed_plugins"] = sorted({*removed, plugin_id})
+            self._save_internal(candidate)
+            return purged
 
     def get_enabled_plugins(self) -> list[str]:
         """Get list of enabled plugin IDs.

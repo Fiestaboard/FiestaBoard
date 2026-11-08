@@ -1,7 +1,7 @@
 """Plugin orchestration service (issue #1757).
 
-One place for the mutate → persist → reset-display → reset-template-engine
-sequence that five REST handlers used to copy-paste (config update, enable,
+One place to coordinate mutation, persistence and display/template resets
+that five REST handlers used to copy-paste (config update, enable,
 disable, instance create, instance delete), and the only code allowed to
 touch ``ConfigManager._mask_sensitive`` and ``PluginRegistry._update_status``
 — routes and MCP tools go through the public wrappers here instead.
@@ -467,7 +467,7 @@ class PluginService:
         config = unmask_sensitive_values(config, stored_config)
 
         # Validate configuration against manifest schema
-        errors = registry.set_plugin_config(plugin_id, config)
+        errors = registry.validate_plugin_config(plugin_id, config)
         if errors:
             logger.error(f"Plugin '{plugin_id}' config validation failed: {errors}")
             raise PluginConfigInvalid(f"Configuration for '{plugin_id}' failed validation.", errors)
@@ -475,8 +475,15 @@ class PluginService:
         # Save to config file
         config_manager.set_plugin_config(plugin_id, config)
 
+        # Only durable configuration may clear caches or run plugin-authored
+        # on_config_change hooks. Stored config remains authoritative even if
+        # validation changes between the preflight and application.
+        apply_errors = registry.apply_stored_config(plugin_id, config)
+        if apply_errors:
+            logger.warning("Stored config for %s applied with validation warnings: %s", plugin_id, apply_errors)
+
         # Re-seed the LIVE registry config from the overlaid read. Persisting
-        # env-free is correct, but the validation call above also installed
+        # env-free is correct, but the application above installed
         # that env-free dict as the live config — killing a working
         # env-supplied credential until restart (#1864 review). Named
         # instances never have an overlay, so this is a no-op for them.
@@ -500,7 +507,7 @@ class PluginService:
         return self.mask_config(config_manager.get_plugin_config(plugin_id))
 
     def enable_plugin(self, plugin_id: str) -> None:
-        """Enable a plugin in the registry and persist the flag to config."""
+        """Persist an accepted enable request before changing the live plugin."""
         registry = self.registry
         if not registry.get_plugin(plugin_id):
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
@@ -509,16 +516,15 @@ class PluginService:
                 "Output plugins are used by their boards; enable or resume the board instead."
             )
 
-        if not registry.enable_plugin(plugin_id):
+        if not registry.enable_plugin(plugin_id, before_change=lambda: self.config_manager.enable_plugin(plugin_id)):
             raise PluginOperationRejected(f"Failed to enable plugin: {plugin_id}")
 
-        self.config_manager.enable_plugin(plugin_id)
         self.reset_runtime()
 
         logger.info(f"Plugin '{plugin_id}' enabled")
 
     def disable_plugin(self, plugin_id: str) -> None:
-        """Disable a plugin in the registry and persist the flag to config."""
+        """Persist an accepted disable request before changing the live plugin."""
         registry = self.registry
         if not registry.get_plugin(plugin_id):
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
@@ -527,10 +533,9 @@ class PluginService:
                 "Output plugins are used by their boards; disable or pause the board instead."
             )
 
-        if not registry.disable_plugin(plugin_id):
+        if not registry.disable_plugin(plugin_id, before_change=lambda: self.config_manager.disable_plugin(plugin_id)):
             raise PluginOperationRejected(f"Failed to disable plugin: {plugin_id}")
 
-        self.config_manager.disable_plugin(plugin_id)
         self.reset_runtime()
 
         logger.info(f"Plugin '{plugin_id}' disabled")
@@ -551,13 +556,18 @@ class PluginService:
         if not registry.get_plugin(base_id):
             raise PluginNotFound(f"Plugin not found: {base_id}")
 
-        errors = registry.create_instance(base_id, label)
+        compound_key = registry.make_instance_key(base_id, label)
+        config_manager = self.config_manager
+        stored = None
+
+        def prepare_config():
+            nonlocal stored
+            stored = config_manager.prepare_plugin_instance_config(compound_key)
+
+        errors = registry.create_instance(base_id, label, before_change=prepare_config)
         if errors:
             raise PluginOperationRejected("; ".join(errors))
 
-        compound_key = registry.make_instance_key(base_id, label)
-
-        config_manager = self.config_manager
         # The registry can come up without its named instances — an unreadable
         # config.json, or a base plugin that failed to load, both leave the
         # stored entries untouched but drop the live instances. The UI then
@@ -565,7 +575,6 @@ class PluginService:
         # persisting an empty config here used to overwrite their saved
         # settings with `{"enabled": false}`, so the plugin fell back to
         # manifest defaults. Adopt whatever is still on disk instead.
-        stored = config_manager.get_plugin_config(compound_key)
         if stored:
             errors = registry.apply_stored_config(compound_key, stored)
             if errors:
@@ -577,12 +586,6 @@ class PluginService:
             if stored.get("enabled"):
                 registry.enable_plugin(compound_key)
             logger.info("Re-created instance '%s' adopted its existing stored config", compound_key)
-        else:
-            # Persist empty config so the instance survives restarts
-            config_manager.set_plugin_config(compound_key, {"enabled": False})
-        # Re-creating an instance is an explicit user action — drop any
-        # deliberate-removal tombstone left by a prior delete (#1394).
-        config_manager.clear_plugin_removed(compound_key)
 
         # Reset services so the new instance is available to templates immediately
         self.reset_runtime()
@@ -609,15 +612,18 @@ class PluginService:
         if registry.get_plugin(compound_key) is None:
             raise PluginNotFound(f"Instance not found: {compound_key}")
 
-        errors = registry.delete_instance(base_id, instance_label)
+        # The registry accepts the target under its lock before persisting.
+        # A failed combined config/tombstone write must not retire a working
+        # instance or make the same deletion impossible to retry.
+        config_manager = self.config_manager
+        errors = registry.delete_instance(
+            base_id,
+            instance_label,
+            before_change=lambda: config_manager.delete_plugin_instance_config(compound_key),
+        )
         if errors:
             raise PluginOperationRejected("; ".join(errors))
 
-        # Remove persisted config and tombstone the compound key so a
-        # post-upgrade auto-restore cannot resurrect the deleted instance (#1394).
-        config_manager = self.config_manager
-        config_manager.delete_plugin_config(compound_key)
-        config_manager.mark_plugin_removed(compound_key)
         # An instance's OAuth connection is its own; it goes with it.
         self.oauth_service.forget(compound_key)
 
@@ -692,28 +698,14 @@ class PluginService:
         if registry.get_plugin_source(plugin_id) is None:
             raise PluginNotFound(f"Plugin not found: {plugin_id}")
 
-        # Collect instance compound keys before uninstall so we can purge their configs
-        instance_keys = [
-            p["id"] for p in registry.list_plugins() if p.get("base_plugin_id") == plugin_id and p.get("instance_label")
-        ]
+        def forget_connections(connection_ids: list[str]) -> None:
+            oauth_service = self.oauth_service
+            for identity in connection_ids:
+                oauth_service.forget(identity)
 
-        errors = registry.uninstall_external_plugin(plugin_id)
+        errors = registry.uninstall_external_plugin(plugin_id, on_committed=forget_connections)
         if errors:
             raise PluginOperationRejected("; ".join(errors))
-
-        # Purge persisted configs for both the base plugin and every named
-        # instance. The base-id delete is critical: without it the v2→v3
-        # auto-migration would see the leftover entry as orphaned on the next
-        # boot and silently reinstall the plugin the user just deleted (#937).
-        config_manager = self.config_manager
-        oauth_service = self.oauth_service
-        for compound_key in instance_keys:
-            config_manager.delete_plugin_config(compound_key)
-            oauth_service.forget(compound_key)
-        config_manager.delete_plugin_config(plugin_id)
-        # Tokens for a plugin that is gone are credentials nobody can see or
-        # revoke from the UI; do not leave them on disk.
-        oauth_service.forget(plugin_id)
 
     def _validated_update_path(self, plugin_id: str) -> None:
         """Guard an external plugin's local path before letting it near git.

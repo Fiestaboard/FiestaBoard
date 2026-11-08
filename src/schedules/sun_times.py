@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from astral import LocationInfo
-from astral.sun import sun
+from astral.sun import sunrise, sunset
 
 logger = logging.getLogger(__name__)
 
@@ -88,10 +88,12 @@ def get_sun_times(
             latitude=latitude,
             longitude=longitude,
         )
-        s = sun(location.observer, date=target_date, tzinfo=tz)
+        # Civil dawn/dusk can be absent even when sunrise and sunset occur.
+        # Request only the events schedules use, so unrelated twilight cannot
+        # force an otherwise valid schedule back to its stored fallback.
         return {
-            "sunrise": s["sunrise"],
-            "sunset": s["sunset"],
+            "sunrise": sunrise(location.observer, date=target_date, tzinfo=tz),
+            "sunset": sunset(location.observer, date=target_date, tzinfo=tz),
         }
     except Exception as e:
         logger.warning(f"Failed to compute sun times for {target_date}: {e}")

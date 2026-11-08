@@ -209,7 +209,22 @@
     "displayFilter": "Skärmfilter",
     "allPages": "Alla sidor",
     "libraryCount": "{count, plural, one {# sida} other {# sidor}}",
-    "clearFilter": "Visa alla sidor"
+    "clearFilter": "Visa alla sidor",
+    "searchLabel": "Sök sidor",
+    "searchPlaceholder": "Sök namn eller sparat innehåll",
+    "searchHint": "Söker efter namn och sparat innehåll i det valda skärmfiltret.",
+    "clearSearch": "Rensa sökning",
+    "sortLabel": "Sortera sidor",
+    "sortNameAsc": "Namn A–Ö",
+    "sortNameDesc": "Namn Ö–A",
+    "sortCreatedDesc": "Nyast skapade",
+    "sortCreatedAsc": "Äldst skapade",
+    "sortUpdatedDesc": "Senast uppdaterade",
+    "sortUpdatedAsc": "Tidigast uppdaterade",
+    "noMatches": "Inga matchande sidor",
+    "searchCount": "{count} av {total} sidor",
+    "loadError": "Kunde inte läsa in sidorna. Din sökning finns kvar.",
+    "retryLoading": "Försök läsa in sidorna igen"
   },
   "collections": {
     "title": "Karuseller",

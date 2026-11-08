@@ -229,28 +229,44 @@ class _ContractRegistry:
     def list_instances(self, base_id: str) -> list[dict[str, Any]]:
         return [{"label": "work", "enabled": False}] if base_id == "alpha" else []
 
-    def create_instance(self, base_id: str, label: str) -> list[str]:
-        return [] if label != "bad label" else ["Invalid instance label"]
+    def create_instance(self, base_id: str, label: str, *, before_change=None) -> list[str]:
+        if label == "bad label":
+            return ["Invalid instance label"]
+        if before_change is not None:
+            before_change()
+        return []
 
-    def delete_instance(self, base_id: str, label: str) -> list[str]:
+    def delete_instance(self, base_id: str, label: str, *, before_change=None) -> list[str]:
         key = self.make_instance_key(base_id, label)
-        return [] if key in self.plugins else [f"Instance not found: {key}"]
+        if key not in self.plugins:
+            return [f"Instance not found: {key}"]
+        if before_change is not None:
+            before_change()
+        return []
 
     def apply_stored_config(self, compound_key: str, stored: dict[str, Any]) -> list[str]:
+        # Capture applied values before later callers can mutate the payload.
+        self.applied.append(copy.deepcopy(stored))
         return []
 
     # -- mutation surface ---------------------------------------------------
-    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
-        # Snapshot: the endpoint hands the *same dict object* down the chain
-        # and un-masks it in place, so a call-args assertion would inspect the
-        # already-repaired dict and pass no matter what.
-        self.applied.append(copy.deepcopy(config))
+    def validate_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
         return list(self.config_errors)
 
-    def enable_plugin(self, plugin_id: str) -> bool:
+    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
+        errors = self.validate_plugin_config(plugin_id, config)
+        if errors:
+            return errors
+        return self.apply_stored_config(plugin_id, config)
+
+    def enable_plugin(self, plugin_id: str, *, before_change=None) -> bool:
+        if self.enable_ok and before_change is not None:
+            before_change()
         return self.enable_ok
 
-    def disable_plugin(self, plugin_id: str) -> bool:
+    def disable_plugin(self, plugin_id: str, *, before_change=None) -> bool:
+        if before_change is not None:
+            before_change()
         return True
 
     # -- install / update surface -------------------------------------------
@@ -260,7 +276,9 @@ class _ContractRegistry:
     def install_from_git(self, repository: str, plugin_id: str | None = None, branch: str = "") -> list[str]:
         return []
 
-    def uninstall_external_plugin(self, plugin_id: str) -> list[str]:
+    def uninstall_external_plugin(self, plugin_id: str, *, on_committed=None) -> list[str]:
+        if plugin_id == "ext_plugin" and on_committed is not None:
+            on_committed([plugin_id])
         return [] if plugin_id == "ext_plugin" else [f"Plugin '{plugin_id}' is a built-in plugin"]
 
     def check_for_updates(self) -> dict[str, bool]:
@@ -302,6 +320,17 @@ class _ContractConfigManager:
 
     def delete_plugin_config(self, plugin_id: str) -> None:
         self.configs.pop(plugin_id, None)
+
+    def delete_plugin_instance_config(self, plugin_id: str) -> None:
+        self.delete_plugin_config(plugin_id)
+        self.mark_plugin_removed(plugin_id)
+
+    def prepare_plugin_instance_config(self, plugin_id: str) -> dict | None:
+        stored = self.get_plugin_config(plugin_id)
+        if not stored:
+            self.set_plugin_config(plugin_id, {"enabled": False})
+        self.clear_plugin_removed(plugin_id)
+        return stored
 
     def mark_plugin_removed(self, plugin_id: str) -> None:
         self.removed.add(plugin_id)

@@ -209,7 +209,22 @@
     "displayFilter": "Filtro de ecrã",
     "allPages": "Todas as páginas",
     "libraryCount": "{count, plural, one {# página} other {# páginas}}",
-    "clearFilter": "Mostrar todas as páginas"
+    "clearFilter": "Mostrar todas as páginas",
+    "searchLabel": "Pesquisar páginas",
+    "searchPlaceholder": "Pesquisar nomes ou conteúdo guardado",
+    "searchHint": "Pesquisa nomes e conteúdo guardado no filtro de ecrã selecionado.",
+    "clearSearch": "Limpar pesquisa",
+    "sortLabel": "Ordenar páginas",
+    "sortNameAsc": "Nome A–Z",
+    "sortNameDesc": "Nome Z–A",
+    "sortCreatedDesc": "Criação mais recente",
+    "sortCreatedAsc": "Criação mais antiga",
+    "sortUpdatedDesc": "Atualização mais recente",
+    "sortUpdatedAsc": "Atualização mais antiga",
+    "noMatches": "Nenhuma página correspondente",
+    "searchCount": "{count} de {total} páginas",
+    "loadError": "Não foi possível carregar as páginas. A pesquisa foi mantida.",
+    "retryLoading": "Tentar carregar páginas novamente"
   },
   "collections": {
     "title": "Carrosséis",

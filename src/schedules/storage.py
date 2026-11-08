@@ -218,11 +218,20 @@ class ScheduleStorage:
             self._default_page_by_board = {}
             self._failed_entries = []
 
-    def _save(self) -> None:
-        """Save schedules to storage file atomically via the storage kernel."""
+    def _save(
+        self,
+        schedules: dict[str, ScheduleEntry] | None = None,
+        *,
+        defaults: tuple[str | None, dict[str, str]] | None = None,
+    ) -> None:
+        """Persist schedules and defaults, or unpublished candidates of either."""
+        schedules = self._schedules if schedules is None else schedules
+        default_page_id, default_page_by_board = (
+            (self._default_page_id, self._default_page_by_board) if defaults is None else defaults
+        )
         try:
             schedules_out: list[dict] = []
-            for schedule in self._schedules.values():
+            for schedule in schedules.values():
                 schedule_data = schedule.model_dump(exclude={"revision", "edit_protocol"})
                 # Convert datetime objects to ISO strings for JSON serialization
                 if isinstance(schedule_data.get("created_at"), datetime):
@@ -238,8 +247,8 @@ class ScheduleStorage:
             data = {
                 "schema_version": CURRENT_SCHEMA_VERSION,
                 "schedules": schedules_out,
-                "default_page_id": self._default_page_id,
-                "default_page_by_board": self._default_page_by_board,
+                "default_page_id": default_page_id,
+                "default_page_by_board": default_page_by_board,
             }
 
             # Datetimes are already coerced to ISO strings while building
@@ -247,7 +256,7 @@ class ScheduleStorage:
             # _failed_entries), so write data straight out — atomically.
             self._store.save(data)
 
-            logger.debug(f"Saved {len(self._schedules)} schedules to storage")
+            logger.debug(f"Saved {len(schedules)} schedules to storage")
 
         except OSError as e:
             logger.error(f"Failed to save schedules file: {e}")
@@ -296,8 +305,9 @@ class ScheduleStorage:
             if errors:
                 raise ValueError(f"Invalid schedule configuration: {errors}")
             schedule = schedule.model_copy(update={"revision": str(uuid.uuid4())}, deep=True)
-            self._schedules[schedule.id] = schedule
-            self._save()
+            schedules = self._schedules | {schedule.id: schedule}
+            self._save(schedules)
+            self._schedules = schedules
         logger.info(f"Created schedule: {schedule.id} (board_id={schedule.board_id})")
         return schedule
 
@@ -354,8 +364,9 @@ class ScheduleStorage:
         if errors:
             raise ValueError(f"Invalid schedule configuration: {errors}")
 
-        self._schedules[schedule_id] = updated_schedule
-        self._save()
+        schedules = self._schedules | {schedule_id: updated_schedule}
+        self._save(schedules)
+        self._schedules = schedules
 
         logger.info(f"Updated schedule: {schedule_id}")
         return updated_schedule
@@ -380,8 +391,10 @@ class ScheduleStorage:
             if schedule_id not in self._schedules:
                 return False
 
-            del self._schedules[schedule_id]
-            self._save()
+            schedules = self._schedules.copy()
+            del schedules[schedule_id]
+            self._save(schedules)
+            self._schedules = schedules
 
         logger.info(f"Deleted schedule: {schedule_id}")
         return True
@@ -404,26 +417,39 @@ class ScheduleStorage:
     def get_default_page_id(self, board_id: str | None = None) -> str | None:
         """Get the default page ID for schedule gaps for the given board."""
         bid = board_id or DEFAULT_BOARD_ID
-        if bid in self._default_page_by_board:
-            return self._default_page_by_board[bid] or None
-        return self._default_page_id
+        with self._store.lock:
+            if bid in self._default_page_by_board:
+                return self._default_page_by_board[bid] or None
+            return self._default_page_id
 
     def set_default_page_id(
-        self, page_id: str | None, board_id: str | None = None, *, expected_revision: str | None = None
+        self,
+        page_id: str | None,
+        board_id: str | None = None,
+        *,
+        clear_legacy: bool = False,
+        expected_revision: str | None = None,
     ) -> None:
-        """Set the default page ID for schedule gaps for the given board."""
+        """Set a board default, optionally clearing its legacy alias in the same commit."""
         bid = board_id or DEFAULT_BOARD_ID
         with self._store.lock:
             if expected_revision is not None and self.default_revision != expected_revision:
                 raise DefaultPageRevisionConflict()
-            self.default_revision = str(uuid.uuid4())
+            default_page_id = self._default_page_id
+            default_page_by_board = dict(self._default_page_by_board)
             if bid == DEFAULT_BOARD_ID:
-                self._default_page_id = page_id
+                default_page_id = page_id
             if page_id:
-                self._default_page_by_board[bid] = page_id
+                default_page_by_board[bid] = page_id
             else:
-                self._default_page_by_board.pop(bid, None)
+                default_page_by_board.pop(bid, None)
                 if bid == DEFAULT_BOARD_ID:
-                    self._default_page_id = None
-            self._save()
+                    default_page_id = None
+            if clear_legacy and bid != DEFAULT_BOARD_ID:
+                default_page_id = None
+                default_page_by_board.pop(DEFAULT_BOARD_ID, None)
+            self._save(defaults=(default_page_id, default_page_by_board))
+            self._default_page_id = default_page_id
+            self._default_page_by_board = default_page_by_board
+            self.default_revision = str(uuid.uuid4())
         logger.info(f"Set default page ID for board {bid!r} to: {page_id}")

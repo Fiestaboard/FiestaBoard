@@ -3,7 +3,7 @@
 These are lockfile regressions, not evidence of a running vulnerable service.
 Storybook: GHSA-f2ph-cmg5-wxc8 / GHSA-px85-f4q5-jh77 (10.6.2 fixes).
 markdown-it: 15.0.3 fixes quadratic parsing of references and inline HTML.
-follow-redirects: GHSA-8r9p-f939-6h3c (1.16.1 fixes sensitiveHeaders escaping).
+follow-redirects: GHSA-mrwp-f3q8-3g9p (1.16.2 fixes cross-realm sensitiveHeaders).
 """
 
 import json
@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
     [
         ("web/package-lock.json", "storybook", (10, 6, 2)),
         ("package-lock.json", "markdown-it", (15, 0, 3)),
-        ("web/package-lock.json", "follow-redirects", (1, 16, 1)),
+        ("web/package-lock.json", "follow-redirects", (1, 16, 2)),
     ],
 )
 def test_locked_developer_tool_includes_known_security_fixes(lockfile, package, minimum):

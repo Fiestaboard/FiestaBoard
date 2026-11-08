@@ -554,25 +554,22 @@ def test_deleting_a_plugin_instance_deletes_its_tokens(service, monkeypatch):
 
 
 def test_uninstalling_a_plugin_deletes_its_tokens_and_its_instances_tokens(service):
-    from unittest.mock import MagicMock
-
     from src.plugins.service import PluginService
+    from tests.test_plugin_uninstall_cleanup_ownership import installed_plugin, join_cleanup_threads
 
-    for key in ("music", "music:kitchen", "git"):
+    for key in ("qa_uninstall", "qa_uninstall:one", "qa_uninstall:two", "git"):
         service._store.put(key, TokenSet(access_token=f"{key}-token"))
-    plugin_registry = MagicMock()
-    plugin_registry.list_plugins.return_value = [
-        {"id": "music", "base_plugin_id": "music", "instance_label": None},
-        {"id": "music:kitchen", "base_plugin_id": "music", "instance_label": "kitchen"},
-    ]
-    plugin_registry.uninstall_external_plugin.return_value = []
-    plugins = PluginService(
-        registry=plugin_registry, config_manager=MagicMock(), reset_display=lambda: None, reset_template=lambda: None
-    )
-
-    plugins.uninstall("music")
+    with installed_plugin() as (manager, plugin_registry, _, _), join_cleanup_threads():
+        plugins = PluginService(
+            registry=plugin_registry,
+            config_manager=manager,
+            reset_display=lambda: None,
+            reset_template=lambda: None,
+        )
+        plugins.uninstall("qa_uninstall")
 
     assert service._store.ids() == ["git"]
+    assert service._store.get("git").access_token == "git-token"
 
 
 def test_a_failed_uninstall_keeps_the_tokens(service):
