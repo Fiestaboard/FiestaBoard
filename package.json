@@ -41,9 +41,13 @@
     "docs:lint:contract": "node scripts/lint-docs-contract.mjs",
     "docs:lint:frontmatter": "node scripts/lint-docs-frontmatter.mjs",
     "docs:lint:markdown": "markdownlint-cli2",
-    "docs:lint:spell": "cspell lint --no-progress --no-must-find-files"
+    "docs:lint:spell": "cspell lint --no-progress --no-must-find-files",
+    "changeset": "changeset",
+    "version-packages": "changeset version && node scripts/version-sync.js"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
     "cspell": "^10.0.1",
     "markdownlint-cli2": "^0.24.0"
   }
