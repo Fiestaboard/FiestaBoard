@@ -18,6 +18,22 @@ vi.mock("@/hooks/use-router", () => ({
 }));
 
 import { GeneralSettings } from "@/components/general-settings";
+import type { BoardInstance } from "@/lib/api";
+
+const board = {
+  id: "default",
+  name: "Flagship",
+  device_type: "flagship",
+  board_color: "black",
+  enabled: true,
+  api_mode: "local",
+  host: "",
+  local_api_key: "",
+  cloud_key: "",
+  polling_interval_seconds: 300,
+  board_read_interval_local: 30,
+  board_read_interval_cloud: 180,
+} satisfies BoardInstance;
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
@@ -42,7 +58,7 @@ describe("GeneralSettings extended", () => {
   });
 
   it("handles polling interval change with valid value", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const input = document.getElementById("polling-interval");
@@ -56,27 +72,24 @@ describe("GeneralSettings extended", () => {
     expect(pollingInput).toBeInTheDocument();
   });
 
-  it("ignores polling interval change with value less than 10", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+  it("marks a polling interval below 10 invalid", async () => {
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(document.getElementById("polling-interval")).toBeInTheDocument();
     });
 
     const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
-    const _beforeValue = pollingInput.value;
     fireEvent.change(pollingInput, { target: { value: "5" } });
 
     await waitFor(() => {
-      // handlePollingIntervalChange ignores values < 10, state unchanged
-      expect(pollingInput.value).not.toBe("5");
-      expect(parseInt(pollingInput.value, 10)).toBeGreaterThanOrEqual(10);
+      expect(pollingInput).toBeInvalid();
     });
   });
 
   it("shows silence time pickers when enabled including end time", async () => {
     const user = userEvent.setup();
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const pollingInput = document.getElementById("polling-interval") as HTMLInputElement;
@@ -84,7 +97,9 @@ describe("GeneralSettings extended", () => {
       expect(parseInt(pollingInput.value, 10)).toBe(300);
     });
 
-    const silenceToggle = screen.getAllByRole("switch").find((s) => s.getAttribute("id") === "silence-enabled");
+    const silenceToggle = (await screen.findAllByRole("switch")).find(
+      (s) => s.getAttribute("id") === "silence-enabled",
+    );
     expect(silenceToggle).toBeDefined();
     await user.click(silenceToggle!);
 
@@ -96,23 +111,23 @@ describe("GeneralSettings extended", () => {
   });
 
   it("displays Board Update Interval description", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText(/How often the board checks for content updates/i)).toBeInTheDocument();
     });
   });
 
-  it("displays Requires service restart note for polling", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+  it("does not require a service restart for polling changes", async () => {
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText(/Requires service restart/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Requires service restart/i)).not.toBeInTheDocument();
     });
   });
 
   it("renders polling interval and silence schedule sections", async () => {
-    render(<GeneralSettings />, { wrapper: TestWrapper });
+    render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(document.getElementById("polling-interval")).toBeInTheDocument();

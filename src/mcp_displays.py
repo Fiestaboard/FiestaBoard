@@ -161,10 +161,10 @@ def register_display_tools(tool: Any, tool_error: type[Exception]) -> None:
             output_config: Optional temporary connection edits.
         """
         from .outputs.models import SavedBoardActionRequest
-        from .outputs.routes import run_board_action
+        from .outputs.routes import board_action
 
         try:
-            result = await run_board_action(
+            result = await board_action(
                 board_id, action, SavedBoardActionRequest(input=inputs or {}, output_config=output_config)
             )
         except HTTPException as exc:
