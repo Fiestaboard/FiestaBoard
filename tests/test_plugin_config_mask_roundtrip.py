@@ -64,7 +64,9 @@ def mask_env(tmp_path):
 
     registry = Mock()
     registry.get_plugin.return_value = Mock()
-    registry.set_plugin_config.side_effect = lambda _pid, config: applied.append(copy.deepcopy(config)) or []
+    registry.validate_plugin_config.return_value = []
+    registry.apply_stored_config.side_effect = lambda _pid, config: applied.append(copy.deepcopy(config)) or []
+    registry.set_plugin_config.side_effect = registry.apply_stored_config.side_effect
 
     with (
         patch("src.plugins.routes.get_plugin_registry", return_value=registry),

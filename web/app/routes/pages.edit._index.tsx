@@ -1,25 +1,18 @@
 import { Text } from "@fiestaboard/ui";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { PageEditorShell } from "@/components/page-editor-shell";
+import { useSearchParams } from "@/hooks/use-router";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useTranslations } from "@/i18n/translations";
-
-/** Read the `?id` query parameter (works with the static SPA build). */
-function readPageIdFromUrl(): string | null {
-  if (typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get("id");
-}
 
 export default function EditPage() {
   const tCommon = useTranslations("common");
   const { push } = useViewTransition();
 
-  // Read the id in the state initializer, not a mount effect: the effect
-  // version always rendered "Loading…" once even when the id was right there
-  // in the URL (react-hooks/set-state-in-effect, issue #1568). The redirect
-  // stays in an effect — navigating during render is not allowed.
-  const [pageId] = useState(readPageIdFromUrl);
+  // Search-only navigation keeps this route mounted. Follow the router's
+  // committed ID, after the editor's unsaved-changes guard allows navigation.
+  const pageId = useSearchParams().get("id");
 
   useEffect(() => {
     if (!pageId) {
@@ -43,5 +36,6 @@ export default function EditPage() {
     );
   }
 
-  return <PageEditorShell pageId={pageId} onClose={handleClose} onSave={handleSave} />;
+  // A different document gets fresh form state, even if its fetch fails.
+  return <PageEditorShell key={pageId} pageId={pageId} onClose={handleClose} onSave={handleSave} />;
 }

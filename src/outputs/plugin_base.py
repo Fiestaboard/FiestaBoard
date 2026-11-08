@@ -243,10 +243,28 @@ class OutputPluginBase(ABC):
     #: output whose viewer draws the 0–71 grid itself (FiestaPanel).
     markup_follows_charset: ClassVar[bool] = True
 
-    #: True while core runs a forced write (its dedupe bypassed): an output
-    #: that keeps per-device dedupe of its own re-sends everything too. Set
-    #: by core around each write; read it, never set it.
-    forced: bool = False
+    @property
+    def forced(self) -> bool:
+        """Whether this thread's write bypasses per-device dedupe.
+
+        Core binds this around each write; plugins only read it. A timed-out
+        writer can outlive its call, so its cleanup must not clear a newer
+        writer's flag on the same instance.
+
+        Like the HTTP cancel scope, this belongs to the calling thread.
+        Capture its value before dispatching work to a helper thread.
+        """
+        state = getattr(self, "_forced_state", None)
+        return getattr(state, "value", False)
+
+    @forced.setter
+    def forced(self, value: bool) -> None:
+        state = getattr(self, "_forced_state", None)
+        if state is None:
+            # Also support outputs whose constructor skips super().__init__.
+            # setdefault retains one holder if two first writes race.
+            state = self.__dict__.setdefault("_forced_state", threading.local())
+        state.value = value
 
     # What core resolved for the board (bind_board); class-level defaults so a
     # subclass that skips super().__init__ still reads "unknown".

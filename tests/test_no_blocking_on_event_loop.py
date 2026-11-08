@@ -105,6 +105,22 @@ def test_display_get_fetches_off_the_loop(client, monkeypatch):
     assert response.json()["message"] == "STUB"
 
 
+def test_network_diagnostics_runs_its_blocking_checks_off_the_loop(client, monkeypatch):
+    diagnostics = {
+        "dns": {"ok": True},
+        "internet": {"ok": True},
+        "vestaboard": {"ok": True},
+        "overall_ok": True,
+        "recommendations": [],
+    }
+    monkeypatch.setattr("src.network_diagnostics.run_full_diagnostics", off_loop(diagnostics))
+
+    response = client.get("/debug/network-diagnostics")
+
+    assert response.status_code == 200
+    assert response.json()["overall_ok"] is True
+
+
 # ---------------------------------------------------------------------------
 # Demand-driven render: /templates/render must not fetch every plugin
 # ---------------------------------------------------------------------------
@@ -164,6 +180,7 @@ BLOCKING_NAMES = {
     "read_current_message",
     "send_characters",
     "get_display",
+    "run_full_diagnostics",
     "render_lines",
 }
 BOARD_RENDER_RECEIVERS = {"board_client", "vb_client", "client"}

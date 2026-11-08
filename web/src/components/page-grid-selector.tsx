@@ -30,7 +30,7 @@ import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
-import { useTranslations } from "@/i18n/translations";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
   BoardInstance,
@@ -44,6 +44,7 @@ import type {
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { boardForShape, isLedModel, resolveBoardModel } from "@/lib/device-preview";
+import { type PageLibraryQuery, selectLibraryPages } from "@/lib/page-library-query";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -628,6 +629,8 @@ export interface PageGridSelectorProps {
   filterByCurrentBoardSize?: boolean;
   /** Library filter: compatibility with a specific configured display. */
   compatibleBoard?: BoardInstance;
+  /** Opt-in saved-content search/sort for the library; assignment pickers keep their defaults. */
+  libraryQuery?: PageLibraryQuery;
 }
 
 export function PageGridSelector({
@@ -641,11 +644,21 @@ export function PageGridSelector({
   showCollections = true,
   filterByCurrentBoardSize = false,
   compatibleBoard,
+  libraryQuery,
 }: PageGridSelectorProps) {
   const t = useTranslations("pageGridSelector");
+  const tPages = useTranslations("pages");
+  const locale = useLocale();
   const effectiveLabel = label === undefined ? t("selectPageLabel") : label;
   // Fetch all pages
-  const { data: pagesData, isLoading: isLoadingPages } = usePages();
+  const {
+    data: pagesData,
+    dataUpdatedAt: pagesUpdatedAt,
+    isLoading: isLoadingPages,
+    isError: pagesError,
+    isFetching: fetchingPages,
+    refetch: retryPages,
+  } = usePages();
 
   // Fetch collections
   const { data: collectionsData } = useCollections();
@@ -663,7 +676,12 @@ export function PageGridSelector({
 
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
   const allPages = useMemo(() => pagesData?.pages || [], [pagesData]);
-  const pages = useMemo(() => {
+  const previewEpoch = useMemo(() => ({ pages: allPages, updatedAt: pagesUpdatedAt }), [allPages, pagesUpdatedAt]);
+  const latestPreviewEpoch = useRef(previewEpoch);
+  useEffect(() => {
+    latestPreviewEpoch.current = previewEpoch;
+  }, [previewEpoch]);
+  const scopedPages = useMemo(() => {
     let result = allPages;
     if (deviceTypeFilter) {
       result = result.filter((p) => (p.device_type || "flagship") === deviceTypeFilter);
@@ -674,6 +692,10 @@ export function PageGridSelector({
     if (compatibleBoard) result = result.filter((page) => pagesCompatibleWithBoard(page, compatibleBoard));
     return result;
   }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard, compatibleBoard]);
+  const pages = useMemo(
+    () => (libraryQuery ? selectLibraryPages(scopedPages, libraryQuery, locale) : scopedPages),
+    [scopedPages, libraryQuery, locale],
+  );
 
   // The board each page previews as: the current board when the page fits it,
   // else the first board it fits. An LED board's model draws the thumbnail,
@@ -703,10 +725,21 @@ export function PageGridSelector({
   // State for batch preview data — only what the network produced. Both
   // outcomes are kept: a failed entry is still an answer for that page, and
   // `previewsPending` below asks "did every requested id come back?".
-  const [fetchedPreviews, setFetchedPreviews] = useState<
-    Record<string, { preview: PagePreviewBatchEntry; pageUpdatedAt: string }>
-  >({});
-  const [failedFetches, setFailedFetches] = useState<Record<string, string>>({});
+  const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, PagePreviewBatchEntry>>({});
+  // Search/sort may change while a batch is in flight. Reuse its answer for
+  // the same page revision and target rather than rerendering it per keystroke.
+  type PreviewRequest = { result: Promise<PagePreviewBatchEntry>; failedAt?: typeof previewEpoch };
+  const previewRequests = useRef(new Map<string, PreviewRequest>());
+  const requestKeys = useMemo(
+    () =>
+      Object.fromEntries(
+        pages.map((page) => [
+          page.id,
+          JSON.stringify([page.id, previewTargets[page.id]?.richBoardId ?? null, page.updated_at ?? ""]),
+        ]),
+      ),
+    [pages, previewTargets],
+  );
 
   // Splitting the cache lookup out of the effect is what removes the
   // set-state-in-effect warnings here (issue #1568): reading localStorage is
@@ -737,22 +770,15 @@ export function PageGridSelector({
   const previews = useMemo(() => {
     const merged: Record<string, PagePreviewResponse> = { ...initialPreviews };
     for (const page of pages) {
-      const key = previewCacheKey(page.id, previewTargets[page.id]?.richBoardId ?? null);
-      const fetched = fetchedPreviews[key];
-      if (fetched?.pageUpdatedAt === (page.updated_at || "") && fetched.preview.available) {
-        merged[page.id] = fetched.preview;
-      }
+      const preview = fetchedPreviews[requestKeys[page.id]];
+      if (preview?.available) merged[page.id] = preview;
     }
     return merged;
-  }, [initialPreviews, fetchedPreviews, pages, previewTargets]);
+  }, [initialPreviews, fetchedPreviews, pages, requestKeys]);
 
   // Still waiting only while a page we need has neither a cache hit nor a
   // fetched result, and the fetch hasn't given up.
-  const previewsPending = pagesToFetch.some((id) => {
-    const key = previewCacheKey(id, previewTargets[id]?.richBoardId ?? null);
-    const updatedAt = pages.find((page) => page.id === id)?.updated_at || "";
-    return fetchedPreviews[key]?.pageUpdatedAt !== updatedAt && failedFetches[key] !== updatedAt;
-  });
+  const previewsPending = pagesToFetch.some((id) => !(requestKeys[id] in fetchedPreviews));
 
   // Fetch missing previews in batch
   useEffect(() => {
@@ -763,63 +789,79 @@ export function PageGridSelector({
     let mounted = true;
 
     const fetchBatchPreviews = async () => {
-      try {
-        // One batch per board the pages preview as: the split-flap ones in a
-        // plain batch (exactly as before), each LED board's in its own.
-        const groups = new Map<string | null, string[]>();
-        for (const id of pagesToFetch) {
-          const key = previewTargets[id]?.richBoardId ?? null;
-          groups.set(key, [...(groups.get(key) ?? []), id]);
-        }
-        const results = await Promise.all(
-          [...groups].map(async ([boardId, ids]) => ({
-            boardId,
-            result: boardId ? await api.previewPagesBatch(ids, boardId) : await api.previewPagesBatch(ids),
-          })),
-        );
-        // The effect's target snapshot owns these answers. Switching filters
-        // cancels this commit, so a late response cannot populate another target.
-        if (!mounted) return;
-        const newCachedPreviews = getCachedPreviews();
-        const fetched: Record<string, { preview: PagePreviewBatchEntry; pageUpdatedAt: string }> = {};
-        for (const { boardId, result } of results) {
-          for (const [pageId, preview] of Object.entries(result.previews ?? {})) {
-            const page = pages.find((candidate) => candidate.id === pageId);
-            if (!page) continue;
-            const key = previewCacheKey(pageId, boardId);
-            fetched[key] = { preview, pageUpdatedAt: page.updated_at || "" };
-            if (preview.available) {
-              newCachedPreviews[key] = {
-                preview,
-                pageUpdatedAt: page.updated_at || "",
-                cachedAt: new Date().toISOString(),
-              };
-            }
-          }
-        }
-        setCachedPreviews(newCachedPreviews);
-        setFetchedPreviews((prev) => ({ ...prev, ...fetched }));
-      } catch (error) {
-        console.error("Failed to fetch batch previews:", error);
-        if (mounted) {
-          setFailedFetches((prev) => {
-            const failed = { ...prev };
-            for (const id of pagesToFetch) {
-              const key = previewCacheKey(id, previewTargets[id]?.richBoardId ?? null);
-              failed[key] = pages.find((page) => page.id === id)?.updated_at || "";
-            }
-            return failed;
+      // Register every newly needed identity before awaiting any batch, so a
+      // subsequent effect can share pending and unavailable answers as well.
+      const groups = new Map<string | null, string[]>();
+      for (const id of pagesToFetch) {
+        const previous = previewRequests.current.get(requestKeys[id]);
+        if (previous && (!previous.failedAt || previous.failedAt === previewEpoch)) continue;
+        const boardId = previewTargets[id]?.richBoardId ?? null;
+        groups.set(boardId, [...(groups.get(boardId) ?? []), id]);
+      }
+      for (const [boardId, ids] of groups) {
+        const batch = (boardId ? api.previewPagesBatch(ids, boardId) : api.previewPagesBatch(ids))
+          .then((result) => result.previews ?? {})
+          .catch((error) => {
+            console.error("Failed to fetch batch previews:", error);
+            return {} as Record<string, PagePreviewBatchEntry>;
           });
+        for (const id of ids) {
+          const key = requestKeys[id];
+          const request: PreviewRequest = {
+            result: batch.then<PagePreviewBatchEntry>((entries) => {
+              const preview: PagePreviewBatchEntry = entries[id] ?? { available: false, error: "Preview unavailable" };
+              // Revalidate unavailable results after page data refreshes,
+              // while typing/sorting continue sharing the same attempt.
+              if (!preview.available) request.failedAt = latestPreviewEpoch.current;
+              return preview;
+            }),
+          };
+          previewRequests.current.set(key, request);
         }
       }
+      const results = await Promise.all(
+        pagesToFetch.map(async (id) => ({
+          id,
+          preview: await previewRequests.current.get(requestKeys[id])!.result,
+        })),
+      );
+      if (!mounted) return;
+
+      // Merge current storage, not the snapshot from before another batch may
+      // have finished. Only the current query/target's answers enter the view.
+      const cached = getCachedPreviews();
+      const fetched: Record<string, PagePreviewBatchEntry> = {};
+      for (const { id, preview } of results) {
+        fetched[requestKeys[id]] = preview;
+        if (preview.available) {
+          const page = pages.find((candidate) => candidate.id === id)!;
+          cached[previewCacheKey(id, previewTargets[id]?.richBoardId ?? null)] = {
+            preview,
+            pageUpdatedAt: page.updated_at || "",
+            cachedAt: new Date().toISOString(),
+          };
+        }
+      }
+      setCachedPreviews(cached);
+      setFetchedPreviews((previous) => ({ ...previous, ...fetched }));
     };
 
-    fetchBatchPreviews();
-
+    void fetchBatchPreviews();
     return () => {
       mounted = false;
     };
-  }, [pagesToFetch, pages, previewTargets]);
+  }, [pagesToFetch, pages, previewTargets, requestKeys, previewEpoch]);
+
+  if (libraryQuery && pagesError && !pagesData) {
+    return (
+      <Stack gap="3" role="alert">
+        <Text>{tPages("loadError")}</Text>
+        <Button variant="outline" onClick={() => void retryPages()} disabled={fetchingPages}>
+          {tPages("retryLoading")}
+        </Button>
+      </Stack>
+    );
+  }
 
   if (isLoadingPages) {
     return (
@@ -850,7 +892,11 @@ export function PageGridSelector({
 
   // All pages exist but none match the current board's size: explain the
   // filter instead of claiming no pages were created (issue #1249).
-  if (pages.length === 0 && allPages.length > 0 && ((filterByCurrentBoardSize && currentBoard) || compatibleBoard)) {
+  if (
+    scopedPages.length === 0 &&
+    allPages.length > 0 &&
+    ((filterByCurrentBoardSize && currentBoard) || compatibleBoard)
+  ) {
     return (
       <Card>
         <CardContent className="py-6">
@@ -870,6 +916,17 @@ export function PageGridSelector({
           />
         </CardContent>
       </Card>
+    );
+  }
+
+  if (libraryQuery && scopedPages.length > 0 && pages.length === 0) {
+    return (
+      <Stack gap="2" role="status">
+        <Text weight="medium">{tPages("noMatches")}</Text>
+        <Text size="sm" tone="muted">
+          {tPages("searchHint")}
+        </Text>
+      </Stack>
     );
   }
 
@@ -972,6 +1029,11 @@ export function PageGridSelector({
   if (!showCollectionItems) {
     return (
       <Box>
+        {libraryQuery && (
+          <Text size="xs" tone="muted" className="mb-3 block" role="status">
+            {tPages("searchCount", { count: pages.length, total: scopedPages.length })}
+          </Text>
+        )}
         {effectiveLabel && (
           <Text size="xs" weight="medium" tone="muted" className="mb-3">
             {effectiveLabel}

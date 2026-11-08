@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from src.api_server import app
 from src.outputs import OutputRuntime
+from tests.plugin_lifecycle_helpers import support_lifecycle_persistence
 
 
 @pytest.fixture
@@ -347,7 +348,10 @@ def mock_plugin_registry():
         reg.list_instances.return_value = []
         reg.enable_plugin.return_value = True
         reg.disable_plugin.return_value = True
+        reg.validate_plugin_config.return_value = []
+        support_lifecycle_persistence(reg)
         reg.set_plugin_config.return_value = []
+        reg.apply_stored_config.return_value = []
         from src.plugins.base import PluginResult
 
         reg.fetch_plugin_data.return_value = PluginResult(
@@ -882,7 +886,7 @@ class TestPluginEndpoints:
         assert response.status_code == 404
 
     def test_update_plugin_config_validation_error(self, client, mock_plugin_registry, mock_config_manager):
-        mock_plugin_registry.set_plugin_config.return_value = ["api_key is required"]
+        mock_plugin_registry.validate_plugin_config.return_value = ["api_key is required"]
         response = client.put("/plugins/weather/config", json={"config": {}})
         assert response.status_code == 400
 
