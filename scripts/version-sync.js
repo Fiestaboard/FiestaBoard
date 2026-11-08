@@ -2,96 +2,47 @@
 
 /**
  * Version Sync Script
- * 
- * Synchronizes version across multiple files:
- * - package.json (root)
+ *
+ * Copies the version in the root package.json into every other file that
+ * records it:
+ * - package-lock.json (root version fields only)
  * - web/package.json
  * - web/package-lock.json (root version fields only)
  * - src/__init__.py
- * 
+ *
+ * Changesets owns the version: `npm run version-packages` runs
+ * `changeset version` (which bumps the root package.json and writes
+ * CHANGELOG.md) and then this script. Prerelease versions from the alpha
+ * branch (`10.4.0-beta.0`) are committed like any other, so the running app's
+ * `__version__` is the truth on every channel.
+ *
  * Usage:
- *   node scripts/version-sync.js               # Just sync versions
- *   node scripts/version-sync.js patch         # Bump patch version
- *   node scripts/version-sync.js minor         # Bump minor version
- *   node scripts/version-sync.js major         # Bump major version
+ *   node scripts/version-sync.js
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// File paths
 const ROOT_DIR = path.join(__dirname, '..');
 const ROOT_PACKAGE_JSON = path.join(ROOT_DIR, 'package.json');
+const ROOT_PACKAGE_LOCK = path.join(ROOT_DIR, 'package-lock.json');
 const WEB_PACKAGE_JSON = path.join(ROOT_DIR, 'web', 'package.json');
 const WEB_PACKAGE_LOCK = path.join(ROOT_DIR, 'web', 'package-lock.json');
 const PYTHON_INIT_FILE = path.join(ROOT_DIR, 'src', '__init__.py');
 
-/**
- * Parse semver version string
- */
-function parseVersion(version) {
-  const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
-  if (!match) {
-    throw new Error(`Invalid version format: ${version}`);
-  }
-  return {
-    major: parseInt(match[1], 10),
-    minor: parseInt(match[2], 10),
-    patch: parseInt(match[3], 10),
-  };
-}
+/** X.Y.Z or X.Y.Z-pre.N — what the update checker's _parse_version accepts. */
+const VERSION_RE = /^\d+\.\d+\.\d+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$/;
 
-/**
- * Format version object to string
- */
-function formatVersion(version) {
-  return `${version.major}.${version.minor}.${version.patch}`;
-}
-
-/**
- * Bump version according to type
- */
-function bumpVersion(currentVersion, bumpType) {
-  const version = parseVersion(currentVersion);
-  
-  switch (bumpType) {
-    case 'major':
-      version.major += 1;
-      version.minor = 0;
-      version.patch = 0;
-      break;
-    case 'minor':
-      version.minor += 1;
-      version.patch = 0;
-      break;
-    case 'patch':
-      version.patch += 1;
-      break;
-    default:
-      throw new Error(`Invalid bump type: ${bumpType}. Use: major, minor, or patch`);
-  }
-  
-  return formatVersion(version);
-}
-
-/**
- * Read and parse JSON file
- */
 function readJsonFile(filePath) {
-  const content = fs.readFileSync(filePath, 'utf8');
-  return JSON.parse(content);
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
-/**
- * Write JSON file with formatting
- */
 function writeJsonFile(filePath, data) {
-  const content = JSON.stringify(data, null, 2) + '\n';
-  fs.writeFileSync(filePath, content, 'utf8');
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf8');
 }
 
 /**
- * Update the root version fields in web/package-lock.json.
+ * Update the root version fields in a package-lock.json.
  *
  * npm records the manifest's own version twice in the lockfile — at the top
  * level and again under packages[""] — and leaving them behind makes the
@@ -102,127 +53,73 @@ function writeJsonFile(filePath, data) {
 function updateLockVersion(filePath, newVersion) {
   const lock = readJsonFile(filePath);
   const oldVersion = lock.version;
-
   lock.version = newVersion;
   if (lock.packages && lock.packages['']) {
     lock.packages[''].version = newVersion;
   }
-
   writeJsonFile(filePath, lock);
-
   return oldVersion;
 }
 
-/**
- * Update Python __init__.py file with new version
- */
+function updatePackageVersion(filePath, newVersion) {
+  const pkg = readJsonFile(filePath);
+  const oldVersion = pkg.version;
+  pkg.version = newVersion;
+  writeJsonFile(filePath, pkg);
+  return oldVersion;
+}
+
+/** Update `__version__ = "x.y.z"` in a Python module. */
 function updatePythonVersion(filePath, newVersion) {
   let content = fs.readFileSync(filePath, 'utf8');
-  
-  // Match __version__ = "x.y.z" with various quote styles
   const versionRegex = /__version__\s*=\s*["']([^"']+)["']/;
   const match = content.match(versionRegex);
-  
   if (!match) {
     throw new Error(`Could not find __version__ in ${filePath}`);
   }
-  
-  // Replace with new version, preserving quote style
   content = content.replace(versionRegex, `__version__ = "${newVersion}"`);
-  
   fs.writeFileSync(filePath, content, 'utf8');
-  
-  return match[1]; // Return old version
+  return match[1];
 }
 
-/**
- * Main function
- */
+function report(filePath, oldVersion, newVersion) {
+  const rel = path.relative(ROOT_DIR, filePath);
+  if (oldVersion !== newVersion) {
+    console.log(`✅ Updated ${rel}: ${oldVersion} → ${newVersion}`);
+  } else {
+    console.log(`✓  ${rel}: ${newVersion} (unchanged)`);
+  }
+}
+
 function main() {
-  const args = process.argv.slice(2);
-  const bumpType = args[0]; // undefined, 'major', 'minor', or 'patch'
-  
-  console.log('🔄 Version Sync Script\n');
-  
-  // Read current version from root package.json
-  const rootPackage = readJsonFile(ROOT_PACKAGE_JSON);
-  let currentVersion = rootPackage.version;
-  
-  console.log(`📦 Current version: ${currentVersion}`);
-  
-  // Bump version if requested
-  let newVersion = currentVersion;
-  if (bumpType) {
-    try {
-      newVersion = bumpVersion(currentVersion, bumpType);
-      console.log(`⬆️  Bumping ${bumpType} version: ${currentVersion} → ${newVersion}\n`);
-    } catch (error) {
-      console.error(`❌ Error: ${error.message}`);
-      process.exit(1);
-    }
-  } else {
-    console.log('ℹ️  No bump requested, syncing current version\n');
-  }
-  
-  // Update root package.json
-  if (newVersion !== currentVersion) {
-    rootPackage.version = newVersion;
-    writeJsonFile(ROOT_PACKAGE_JSON, rootPackage);
-    console.log(`✅ Updated ${path.relative(ROOT_DIR, ROOT_PACKAGE_JSON)}: ${newVersion}`);
-  } else {
-    console.log(`✓  ${path.relative(ROOT_DIR, ROOT_PACKAGE_JSON)}: ${newVersion} (unchanged)`);
-  }
-  
-  // Update web/package.json
-  const webPackage = readJsonFile(WEB_PACKAGE_JSON);
-  const oldWebVersion = webPackage.version;
-  webPackage.version = newVersion;
-  writeJsonFile(WEB_PACKAGE_JSON, webPackage);
-  
-  if (oldWebVersion !== newVersion) {
-    console.log(`✅ Updated ${path.relative(ROOT_DIR, WEB_PACKAGE_JSON)}: ${oldWebVersion} → ${newVersion}`);
-  } else {
-    console.log(`✓  ${path.relative(ROOT_DIR, WEB_PACKAGE_JSON)}: ${newVersion} (unchanged)`);
+  if (process.argv.length > 2) {
+    throw new Error(
+      'version-sync.js no longer bumps versions. Add a changeset (`npx changeset`) ' +
+        'and let the Release workflow open the Version PR. See docs/internal/development/RELEASING.md.',
+    );
   }
 
-  // Update web/package-lock.json
-  const oldLockVersion = updateLockVersion(WEB_PACKAGE_LOCK, newVersion);
+  const version = readJsonFile(ROOT_PACKAGE_JSON).version;
+  if (!VERSION_RE.test(version)) {
+    throw new Error(`Invalid version in package.json: ${version}`);
+  }
+  console.log(`🔄 Syncing version ${version}\n`);
 
-  if (oldLockVersion !== newVersion) {
-    console.log(`✅ Updated ${path.relative(ROOT_DIR, WEB_PACKAGE_LOCK)}: ${oldLockVersion} → ${newVersion}`);
-  } else {
-    console.log(`✓  ${path.relative(ROOT_DIR, WEB_PACKAGE_LOCK)}: ${newVersion} (unchanged)`);
-  }
-  
-  // Update src/__init__.py
-  try {
-    const oldPythonVersion = updatePythonVersion(PYTHON_INIT_FILE, newVersion);
-    if (oldPythonVersion !== newVersion) {
-      console.log(`✅ Updated ${path.relative(ROOT_DIR, PYTHON_INIT_FILE)}: ${oldPythonVersion} → ${newVersion}`);
-    } else {
-      console.log(`✓  ${path.relative(ROOT_DIR, PYTHON_INIT_FILE)}: ${newVersion} (unchanged)`);
-    }
-  } catch (error) {
-    console.error(`❌ Error updating Python file: ${error.message}`);
-    process.exit(1);
-  }
-  
-  console.log(`\n✨ Version sync complete: ${newVersion}`);
-  
-  // Output for CI/CD
-  if (process.env.GITHUB_OUTPUT) {
-    fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${newVersion}\n`);
-    console.log(`\n📤 Exported to GITHUB_OUTPUT: version=${newVersion}`);
-  }
+  report(ROOT_PACKAGE_LOCK, updateLockVersion(ROOT_PACKAGE_LOCK, version), version);
+  report(WEB_PACKAGE_JSON, updatePackageVersion(WEB_PACKAGE_JSON, version), version);
+  report(WEB_PACKAGE_LOCK, updateLockVersion(WEB_PACKAGE_LOCK, version), version);
+  report(PYTHON_INIT_FILE, updatePythonVersion(PYTHON_INIT_FILE, version), version);
+
+  console.log(`\n✨ Version sync complete: ${version}`);
 }
 
-// Run if called directly
 if (require.main === module) {
   try {
     main();
   } catch (error) {
-    console.error(`\n❌ Fatal error: ${error.message}`);
+    console.error(`❌ ${error.message}`);
     process.exit(1);
   }
 }
 
+module.exports = { VERSION_RE };

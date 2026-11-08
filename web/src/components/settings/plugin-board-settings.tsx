@@ -21,7 +21,9 @@
  * A scan (`discover`, an action declaring `hint_host`, a device picker's)
  * carries `hint_host`, the private IPv4 address the page was opened at
  * (`@/lib/network-hint`): in Docker bridge mode it is how the output learns
- * which network to search. It is filled in, never asked for.
+ * which network to search. It is filled in, never asked for. Opened at a
+ * hostname, the page sends none and the server uses the browser's own
+ * connecting address instead, when usable (`src/outputs/client_hint.py`).
  *
  * A result shows its status, message and guidance right where the action
  * was run — under its button, or in the device picker that ran it — never

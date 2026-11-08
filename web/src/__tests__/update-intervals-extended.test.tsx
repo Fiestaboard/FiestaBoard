@@ -1,134 +1,154 @@
-// Branch coverage for UpdateIntervals onBlur + mutation onSuccess paths.
-// The existing general-settings tests cover onChange and board-read blur,
-// but not the polling-interval blur or the requires_restart branch.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { act } from "react";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ThemeProvider } from "@/hooks/use-theme";
+import { UpdateIntervals } from "@/components/settings/update-intervals";
+import type { BoardInstance } from "@/lib/api";
 
 import { server } from "./mocks/server";
 
-vi.mock("@/hooks/use-router", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    refresh: vi.fn(),
-    back: vi.fn(),
-    forward: vi.fn(),
-    prefetch: vi.fn(),
-  }),
-  usePathname: () => "/settings",
-}));
+const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("sonner", () => ({ toast: toastMock, Toaster: () => null }));
 
-import { UpdateIntervals } from "@/components/settings/update-intervals";
-
-const API_BASE = "/api";
+const boardA = {
+  id: "a",
+  name: "Kitchen",
+  device_type: "flagship",
+  api_mode: "local",
+  polling_interval_seconds: 45,
+  board_read_interval_local: 60,
+  board_read_interval_cloud: 240,
+} as BoardInstance;
+const boardB = {
+  ...boardA,
+  id: "b",
+  name: "Office",
+  polling_interval_seconds: 90,
+  board_read_interval_local: 120,
+  board_read_interval_cloud: 300,
+};
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="light">
-        {children}
-      </ThemeProvider>
-    </QueryClientProvider>
+  const [client] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      }),
   );
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-describe("UpdateIntervals — mutation branches", () => {
-  beforeEach(() => {
-    server.resetHandlers();
+const input = () => screen.getByLabelText("Board Update Interval") as HTMLInputElement;
+
+describe("UpdateIntervals per board", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("reads the explicitly supplied board instead of global polling defaults", () => {
+    render(<UpdateIntervals board={boardA} />, { wrapper: TestWrapper });
+    expect(input()).toHaveValue(45);
+    expect(screen.getByLabelText("Board State Refresh (Local)")).toHaveValue(60);
+    expect(screen.queryByText("Requires service restart")).not.toBeInTheDocument();
   });
 
-  it("onBlur for polling-interval triggers updatePollingSettings with requires_restart=true branch", async () => {
-    let capturedBody: unknown;
-    server.use(
-      http.put(`${API_BASE}/settings/polling`, async ({ request }) => {
-        capturedBody = await request.json();
-        return HttpResponse.json({
-          status: "success",
-          settings: { interval_seconds: 60 },
-          requires_restart: true,
-        });
-      }),
-    );
-
-    render(<UpdateIntervals />, { wrapper: TestWrapper });
-
-    // Wait for the deferred React Query data to populate state
-    await waitFor(() => {
-      const el = document.getElementById("polling-interval") as HTMLInputElement;
-      expect(el).toBeInTheDocument();
-      expect(parseInt(el.value, 10)).toBe(300);
-    });
-    await act(async () => {});
-
-    const input = document.getElementById("polling-interval") as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "60" } });
-    await waitFor(() => expect(parseInt(input.value, 10)).toBe(60));
-    await act(async () => {});
-    fireEvent.blur(input);
-
-    await waitFor(() => {
-      expect(capturedBody).toMatchObject({ interval_seconds: 60 });
-    });
+  it.each([
+    { label: "FiestaPanel", target: { output: "fiestapanel", api_mode: "virtual" }, local: false, cloud: false },
+    { label: "legacy virtual board", target: { api_mode: "virtual" }, local: false, cloud: false },
+    { label: "local Vestaboard", target: { output: "vestaboard", api_mode: "local" }, local: true, cloud: false },
+    { label: "cloud Vestaboard", target: { output: "vestaboard", api_mode: "cloud" }, local: false, cloud: true },
+    {
+      label: "cloud output config overriding legacy local mode",
+      target: {
+        output: "vestaboard",
+        api_mode: "local",
+        output_config: { api_mode: "cloud" },
+      },
+      local: false,
+      cloud: true,
+    },
+    {
+      label: "unknown plugin output",
+      target: { output: "custom-display", api_mode: "local" },
+      local: true,
+      cloud: true,
+    },
+  ])("shows only applicable read intervals for $label", ({ target, local, cloud }) => {
+    render(<UpdateIntervals board={{ ...boardA, ...target } as BoardInstance} />, { wrapper: TestWrapper });
+    expect(input()).toHaveValue(45);
+    expect(!!screen.queryByLabelText("Board State Refresh (Local)")).toBe(local);
+    expect(!!screen.queryByLabelText("Board State Refresh (Cloud)")).toBe(cloud);
   });
 
-  it("onBlur for polling-interval triggers updatePollingSettings with requires_restart=false branch", async () => {
-    let capturedBody: unknown;
+  it("sends only the changed interval and explicit board target", async () => {
+    let body: unknown;
     server.use(
-      http.put(`${API_BASE}/settings/polling`, async ({ request }) => {
-        capturedBody = await request.json();
+      http.put("/api/settings/polling", async ({ request }) => {
+        body = await request.json();
         return HttpResponse.json({
-          status: "success",
-          settings: { interval_seconds: 45 },
+          interval_seconds: 75,
+          board_read_interval_local: 60,
+          board_read_interval_cloud: 240,
           requires_restart: false,
         });
       }),
     );
-
-    render(<UpdateIntervals />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      const el = document.getElementById("polling-interval") as HTMLInputElement;
-      expect(el).toBeInTheDocument();
-      expect(parseInt(el.value, 10)).toBe(300);
-    });
-    await act(async () => {});
-
-    const input = document.getElementById("polling-interval") as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "45" } });
-    await waitFor(() => expect(parseInt(input.value, 10)).toBe(45));
-    await act(async () => {});
-    fireEvent.blur(input);
-
-    await waitFor(() => {
-      expect(capturedBody).toMatchObject({ interval_seconds: 45 });
-    });
+    render(<UpdateIntervals board={boardA} />, { wrapper: TestWrapper });
+    fireEvent.change(input(), { target: { value: "75" } });
+    fireEvent.blur(input());
+    await waitFor(() => expect(body).toEqual({ board_id: "a", interval_seconds: 75 }));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledTimes(1));
   });
 
-  it("ignores polling-interval onChange when value is below the minimum", async () => {
-    render(<UpdateIntervals />, { wrapper: TestWrapper });
+  it("reseeds drafts and writes the new target when the selected board changes", async () => {
+    const bodies: unknown[] = [];
+    server.use(
+      http.put("/api/settings/polling", async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ interval_seconds: 105, requires_restart: false });
+      }),
+    );
+    const view = render(<UpdateIntervals board={boardA} />, { wrapper: TestWrapper });
+    fireEvent.change(input(), { target: { value: "55" } });
+    view.rerender(<UpdateIntervals board={boardB} />);
+    expect(input()).toHaveValue(90);
+    fireEvent.change(input(), { target: { value: "105" } });
+    fireEvent.blur(input());
+    await waitFor(() => expect(bodies).toEqual([{ board_id: "b", interval_seconds: 105 }]));
+  });
 
-    await waitFor(() => {
-      const el = document.getElementById("polling-interval") as HTMLInputElement;
-      expect(parseInt(el.value, 10)).toBe(300);
-    });
-    await act(async () => {});
+  it.each(["", "5", "3601", "12.5"])("does not persist invalid polling draft %s", (value) => {
+    const requests = vi.fn();
+    server.use(http.put("/api/settings/polling", requests));
+    render(<UpdateIntervals board={boardA} />, { wrapper: TestWrapper });
+    fireEvent.change(input(), { target: { value } });
+    fireEvent.blur(input());
+    expect(requests).not.toHaveBeenCalled();
+    expect(input()).toBeInvalid();
+  });
 
-    const input = document.getElementById("polling-interval") as HTMLInputElement;
-    // value < 10 should be rejected by handlePollingIntervalChange
-    fireEvent.change(input, { target: { value: "5" } });
+  it("restores the saved interval after a rejected mutation", async () => {
+    server.use(http.put("/api/settings/polling", () => HttpResponse.json({ detail: "refused" }, { status: 500 })));
+    render(<UpdateIntervals board={boardA} />, { wrapper: TestWrapper });
+    fireEvent.change(input(), { target: { value: "75" } });
+    fireEvent.blur(input());
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalledTimes(1));
+    expect(input()).toHaveValue(45);
+    expect(toastMock.success).not.toHaveBeenCalled();
+  });
 
-    // State did not update — value remains 300
-    expect(parseInt(input.value, 10)).toBe(300);
+  it("saves a local read interval only for this board", async () => {
+    let body: unknown;
+    server.use(
+      http.put("/api/settings/polling", async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ board_read_interval_local: 80, requires_restart: false });
+      }),
+    );
+    render(<UpdateIntervals board={boardA} />, { wrapper: TestWrapper });
+    const local = screen.getByLabelText("Board State Refresh (Local)");
+    fireEvent.change(local, { target: { value: "80" } });
+    fireEvent.blur(local);
+    await waitFor(() => expect(body).toEqual({ board_id: "a", board_read_interval_local: 80 }));
   });
 });

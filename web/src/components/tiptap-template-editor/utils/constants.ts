@@ -17,7 +17,7 @@ export const DEVICE_DIMENSIONS: Record<DeviceType, DeviceDimensions> = {
   note: { rows: 3, cols: 15 },
 };
 
-// FiestaBoard color codes (63-70)
+// FiestaBoard color codes (63-71)
 export const BOARD_COLORS = {
   red: 63,
   orange: 64,
@@ -28,6 +28,10 @@ export const BOARD_COLORS = {
   purple: 68, // alias
   white: 69,
   black: 70,
+  // code 71 — "Save as page" maps a filled flap to {{filled}} (issue #2359).
+  // Without this entry the editor parsed {{filled}} as a variable chip instead
+  // of a colour tile, matching the backend which already renders it as {71}.
+  filled: 71,
 } as const;
 
 export type BoardColorName = keyof typeof BOARD_COLORS;

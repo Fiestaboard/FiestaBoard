@@ -5,7 +5,8 @@
 
 import type { UpdateSettingArgs } from "@/lib/ai-chat-types";
 
-import { settingAnchors, settingsHref } from "../anchors";
+import { settingAnchors } from "../anchors";
+import { homeFor } from "../home";
 import type { ChoreographyScript, Step } from "../types";
 import { failed, landed } from "./fallback";
 
@@ -21,11 +22,27 @@ const updateSetting: ChoreographyScript = {
   narrate(call, ctx) {
     const a = call.args as unknown as UpdateSettingArgs;
     const values = a.values ?? {};
-    const keys = Object.keys(values);
+    const keys = Object.keys(values).filter((key) => key !== "board_id");
+    const destination = homeFor(call, ctx.currentBoardId?.(), ctx.primaryBoardId?.());
+    if (
+      ["silence_schedule", "polling", "schedule_behavior"].includes(a.category) &&
+      !destination.href.startsWith("/displays/")
+    ) {
+      return [
+        { kind: "navigate", href: destination.href },
+        { kind: "waitFor", anchor: destination.anchor, timeoutMs: 2500 },
+        {
+          kind: "spotlight",
+          anchor: destination.anchor,
+          caption: ctx.t("changingSetting", { tool: ctx.label(call) }),
+          controls: "stop",
+        },
+      ];
+    }
     const first = keys[0] ? settingAnchors(a.category, keys[0]) : undefined;
     const cardAnchor = first?.card ?? `settings.${a.category}`;
     const steps: Step[] = [
-      { kind: "navigate", href: settingsHref(a.category) },
+      { kind: "navigate", href: destination.href },
       { kind: "waitFor", anchor: first?.control ?? cardAnchor, timeoutMs: 2500 },
       {
         kind: "spotlight",
@@ -51,8 +68,14 @@ const updateSetting: ChoreographyScript = {
   },
   settle(call, _result, ctx) {
     const a = call.args as unknown as UpdateSettingArgs;
-    const keys = Object.keys(a.values ?? {});
-    const anchor = keys[0] ? settingAnchors(a.category, keys[0]).card : `settings.${a.category}`;
+    const keys = Object.keys(a.values ?? {}).filter((key) => key !== "board_id");
+    const destination = homeFor(call, ctx.currentBoardId?.(), ctx.primaryBoardId?.());
+    const anchor =
+      destination.anchor === "settings.boards"
+        ? destination.anchor
+        : keys[0]
+          ? settingAnchors(a.category, keys[0]).card
+          : `settings.${a.category}`;
     // Keep the ghosts a beat so the real value's arrival reads as the same
     // thing landing, then let the pulse take over.
     return [{ kind: "pause", ms: 500 }, ...landed(anchor, ctx.t("settingSaved"))];
