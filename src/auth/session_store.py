@@ -74,6 +74,13 @@ class SessionStore:
             db.execute("""CREATE TABLE IF NOT EXISTS panel_views (
                 session_id TEXT NOT NULL, panel_id TEXT NOT NULL, last_shown_ms INTEGER NOT NULL,
                 PRIMARY KEY (session_id, panel_id))""")
+            # H11 QR pairing offers: digest only, single use, owned by the browser
+            # session that created them. Additive, like panel_views.
+            db.execute("""CREATE TABLE IF NOT EXISTS pairings (
+                id TEXT PRIMARY KEY, digest TEXT UNIQUE NOT NULL, username TEXT NOT NULL,
+                account_generation INTEGER NOT NULL, creator_session_id TEXT NOT NULL,
+                state TEXT NOT NULL, created_ms INTEGER NOT NULL, expires_ms INTEGER NOT NULL,
+                claimed_session_id TEXT, device_name TEXT)""")
             db.execute("PRAGMA user_version = 1")
 
     @contextmanager
@@ -99,6 +106,8 @@ class SessionStore:
         # Keep terminal grant outcomes briefly so an expired code is distinguishable.
         db.execute("DELETE FROM challenges WHERE expires_ms < ?", (now - 600_000,))
         db.execute("DELETE FROM limits WHERE started_ms < ?", (now - 600_000,))
+        # Keep finished offers briefly so the web page can still read the outcome.
+        db.execute("DELETE FROM pairings WHERE expires_ms < ?", (now - 600_000,))
         db.execute("DELETE FROM panel_views WHERE session_id NOT IN (SELECT id FROM sessions WHERE revoked_ms IS NULL)")
 
     def create_session(self, record: SessionRecord, *, connection: sqlite3.Connection | None = None) -> None:
@@ -146,6 +155,10 @@ class SessionStore:
                 "UPDATE challenges SET state='cancelled' WHERE approving_session_id=? AND state='approved'",
                 (session_id,),
             )
+            db.execute(
+                "UPDATE pairings SET state='cancelled' WHERE creator_session_id=? AND state='pending'",
+                (session_id,),
+            )
 
     def revoke_sessions(self, username: str, except_id: str | None = None) -> None:
         with self.transaction() as db:
@@ -156,6 +169,12 @@ class SessionStore:
             self._drop_revoked_views(db)
             # Challenges begun anonymously belong to this single-account install.
             db.execute("UPDATE challenges SET state='cancelled' WHERE state IN ('pending','approved')")
+            # Only offers whose creating browser was just signed out; "Sign out other
+            # devices" keeps the QR the current browser is showing.
+            db.execute(
+                "UPDATE pairings SET state='cancelled' WHERE username=? AND state='pending' AND creator_session_id!=?",
+                (username, except_id or ""),
+            )
 
     def list_sessions(self, username: str) -> list[SessionRecord]:
         with self.transaction() as db:
@@ -249,6 +268,7 @@ class SessionStore:
             db.execute("INSERT OR REPLACE INTO settings VALUES ('tv_enabled', ?)", ("true" if enabled else "false",))
             if not enabled:
                 db.execute("UPDATE challenges SET state='cancelled' WHERE state IN ('pending','approved')")
+                db.execute("UPDATE pairings SET state='cancelled' WHERE state='pending'")
 
     def issue_csrf(self, session_id: str) -> str:
         value = secrets.token_urlsafe(32)

@@ -671,3 +671,129 @@ def test_an_ai_sign_in_returns_to_the_ai_settings():
 
     location = _return_location(CallbackOutcome(connected=True, connection_id="ai.or1"))
     assert location == "../../settings?section=ai&oauth=connected&connection=ai.or1"
+
+
+# ── H11: returning to the phone app through its URL scheme ─────────────────
+
+
+APP_RETURN = "fiestaboard://oauth"
+
+
+@pytest.fixture
+def phone_client(service, tmp_path, monkeypatch):
+    """A client signed in as the iOS app (``fb_mob_``, scope ``control``)."""
+    from src.api_server import app
+    from src.auth import routes as auth_routes
+    from src.auth import service as auth_module
+
+    auth = auth_module.AuthService(tmp_path / "auth.json")
+    auth.create_initial_user("admin", "correct-password")
+    auth.sessions.set_enrollment(True)
+    monkeypatch.setattr(auth_module, "_service", auth)
+    monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "true")
+    auth_routes._FAILED_ATTEMPTS.clear()
+    token = TestClient(app).post(
+        "/auth/device/login",
+        json={"client_id": "fiestaboard-ios", "device_name": "Phone", "app_version": "1.0",
+              "username": "admin", "password": "correct-password"},
+    ).json()["access_token"]  # fmt: skip
+    return TestClient(app, follow_redirects=False, headers={"Authorization": "Bearer " + token})
+
+
+def _phone_start(phone_client, **extra):
+    response = phone_client.post(
+        "/oauth/connections/music/authorize", json={**BOARD, "app_return": APP_RETURN, **extra}
+    )
+    assert response.status_code == 200, response.text
+    return _state_from(response)
+
+
+def test_a_phone_started_flow_returns_to_the_app(phone_client, client, provider, service):
+    state = _phone_start(phone_client)
+    provider.replies.append((200, TOKENS))
+
+    # The callback is the in-app browser session, not the phone's API client: no Bearer.
+    response = client.get("/oauth/callback", params={"code": "code-1", "state": state})
+
+    assert response.status_code == 302
+    location = response.headers["location"]
+    assert location == "fiestaboard://oauth?connection=music&oauth=connected"
+    assert response.headers["cache-control"] == "no-store"
+    assert service.get_access_token("music") == "access-1"
+
+
+def test_the_app_return_never_carries_the_code_or_state(phone_client, client, provider):
+    state = _phone_start(phone_client)
+    provider.replies.append((200, TOKENS))
+    location = client.get("/oauth/callback", params={"code": "code-1", "state": state}).headers["location"]
+    assert "code-1" not in location and state not in location and "state=" not in location
+
+
+def test_a_declined_phone_flow_returns_to_the_app_with_a_reason(phone_client, client):
+    state = _phone_start(phone_client)
+    response = client.get("/oauth/callback", params={"error": "access_denied", "state": state})
+    assert response.headers["location"] == "fiestaboard://oauth?connection=music&oauth=error&reason=access_denied"
+
+
+def test_a_replayed_state_falls_back_to_the_web_page(phone_client, client, provider):
+    state = _phone_start(phone_client)
+    provider.replies.append((200, TOKENS))
+    client.get("/oauth/callback", params={"code": "code-1", "state": state})
+    replay = client.get("/oauth/callback", params={"code": "code-1", "state": state})
+    assert replay.headers["location"].startswith("../../integrations?")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "fiestaboard://evil",
+        "fiestaboard://oauth/x",
+        "fiestaboard://oauth?next=x",
+        "fiestaboard://oauth#x",
+        "FIESTABOARD://oauth",
+        "https://evil.example/oauth",
+        "http://192.168.1.50:4420/integrations",
+        "javascript:alert(1)",
+        " fiestaboard://oauth",
+    ],
+)
+def test_an_app_return_outside_the_allow_list_is_refused(phone_client, value):
+    response = phone_client.post("/oauth/connections/music/authorize", json={**BOARD, "app_return": value})
+    assert response.status_code == 400
+
+
+def test_a_browser_cannot_ask_for_the_app_return(client):
+    response = client.post("/oauth/connections/music/authorize", json={**BOARD, "app_return": APP_RETURN})
+    assert response.status_code == 400
+
+
+def test_a_phone_flow_without_app_return_keeps_the_web_return(phone_client, client, provider):
+    response = phone_client.post("/oauth/connections/music/authorize", json=BOARD)
+    state = _state_from(response)
+    provider.replies.append((200, TOKENS))
+    location = client.get("/oauth/callback", params={"code": "code-1", "state": state}).headers["location"]
+    assert location.startswith("../../integrations?")
+
+
+def test_the_app_return_is_not_in_the_signed_state(phone_client):
+    import base64
+    import json
+
+    state = _phone_start(phone_client)
+    encoded = state.split(".")[0]
+    body = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+    assert APP_RETURN not in json.dumps(body)
+
+
+def test_the_redirect_rechecks_the_allow_list():
+    from src.oauth.routes import _return_location
+    from src.oauth.service import CallbackOutcome
+
+    forged = CallbackOutcome(connected=True, connection_id="music", app_return="https://evil.example/x")
+    assert _return_location(forged).startswith("../../integrations?")
+
+
+def test_app_return_on_the_device_flow_is_a_400(phone_client, provider):
+    response = phone_client.post("/oauth/connections/git/authorize", json={"app_return": APP_RETURN})
+    assert response.status_code == 400
+    assert provider.calls == []

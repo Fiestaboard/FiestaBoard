@@ -61,20 +61,33 @@ def cancel(payload: DeviceCode):
 
 
 def _decision_context(request: Request):
-    browser = require_browser_mutation(request)
+    """The approver and the service, for approving or denying a TV's code.
+
+    A browser session (portal origin + CSRF), or a signed-in phone's ``fb_mob_``
+    Bearer. A Bearer is never ambient, so the phone path needs no CSRF token, and
+    on that path a cookie is ignored: neither credential widens the other.
+    """
     service = DeviceService(get_auth_service())
-    service.limit("decision:" + browser.username + ":" + _client_ip(request), 10)
-    return browser, service
+    if request.headers.get("authorization"):
+        approver = service.authenticate_mobile(_bearer_from(request) or "")
+        if not approver:
+            raise AuthFlowError("unauthorized", "Sign in on this phone again to approve a TV.", 401)
+    else:
+        approver = require_browser_mutation(request)
+    service.limit("decision:" + approver.username + ":" + _client_ip(request), 10)
+    return approver, service
 
 
 @router.post("/inspect", response_model=PendingDevice, responses=RESPONSES)
 def inspect(payload: UserCode, request: Request):
+    """Show which TV a code belongs to. From the web portal, or from a signed-in phone."""
     _, service = _decision_context(request)
     return service.inspect(payload.user_code)
 
 
 @router.post("/approve", response_model=Success, responses=RESPONSES)
 def approve(payload: UserCode, request: Request):
+    """Allow a TV to sign in. A phone may approve TV codes only."""
     browser, service = _decision_context(request)
     service.decide(payload.user_code, browser, True)
     return Success()
@@ -82,6 +95,7 @@ def approve(payload: UserCode, request: Request):
 
 @router.post("/deny", response_model=Success, responses=RESPONSES)
 def deny(payload: UserCode, request: Request):
+    """Decline a TV's sign-in. From the web portal, or from a signed-in phone."""
     browser, service = _decision_context(request)
     service.decide(payload.user_code, browser, False)
     return Success()

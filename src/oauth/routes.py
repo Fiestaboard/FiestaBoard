@@ -17,7 +17,7 @@ from dataclasses import asdict
 from typing import Any, TypeVar
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from src.api_errors import errors
@@ -26,6 +26,7 @@ from .errors import (
     ConnectionNotConfigured,
     ConnectionNotFound,
     FlowNotSupported,
+    InvalidAppReturn,
     InvalidBoardUrl,
     OAuthError,
     PastedCodeRejected,
@@ -38,7 +39,7 @@ from .models import (
     OAuthConnection,
     OAuthConnectionList,
 )
-from .service import AI_CONNECTION_PREFIX, CallbackOutcome, get_oauth_service
+from .service import AI_CONNECTION_PREFIX, CallbackOutcome, app_return_location, get_oauth_service
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ _STATUS_BY_ERROR: tuple[tuple[type[OAuthError], int], ...] = (
     (ConnectionNotConfigured, 400),
     (FlowNotSupported, 400),
     (InvalidBoardUrl, 400),
+    (InvalidAppReturn, 400),
     (PastedCodeRejected, 400),
     (ProviderError, 502),
 )
@@ -94,16 +96,25 @@ async def get_oauth_connection(connection_id: str) -> OAuthConnection:
     responses=errors(400, 404, 502),
 )
 @oauth_errors_to_http
-async def authorize_oauth_connection(connection_id: str, request: OAuthAuthorizeRequest) -> OAuthAuthorizationStart:
+async def authorize_oauth_connection(
+    connection_id: str, request: OAuthAuthorizeRequest, http_request: Request
+) -> OAuthAuthorizationStart:
     """Start connecting a plugin to its provider.
 
     ``relay`` answers with the URL to send the browser to. ``device`` answers
     with the code to show the user; poll ``GET /oauth/connections/{id}`` to
-    see it complete.
+    see it complete. ``app_return`` is accepted from the phone app's sign-in only.
     """
+    if request.app_return is not None and http_request.scope.get("auth_kind") != "mobile":
+        raise InvalidAppReturn("Only the FiestaBoard phone app can ask to return to the app.")
     # The device flow calls the provider, so this cannot run on the event loop.
     start = await asyncio.to_thread(
-        get_oauth_service().start, connection_id, request.flow, request.board_url, request.headless
+        get_oauth_service().start,
+        connection_id,
+        request.flow,
+        request.board_url,
+        request.headless,
+        request.app_return,
     )
     return OAuthAuthorizationStart.model_validate(asdict(start))
 
@@ -139,6 +150,10 @@ def _return_location(outcome: CallbackOutcome) -> str:
     ``<base>`` is empty for a direct install and a path prefix under Home
     Assistant ingress; two levels up is the app root in both.
     """
+    app_location = app_return_location(outcome)
+    if app_location:
+        # A flow the phone app started: close its in-app browser.
+        return app_location
     outcome_value = "connected" if outcome.connected else "error"
     if outcome.connection_id and outcome.connection_id.startswith(AI_CONNECTION_PREFIX):
         # FiestaBot's AI providers sign in from Settings → AI, not the
@@ -160,7 +175,14 @@ def _return_location(outcome: CallbackOutcome) -> str:
     "/oauth/callback",
     response_class=RedirectResponse,
     status_code=302,
-    responses={302: {"description": "Back to the Integrations page, with the outcome in the query string."}},
+    responses={
+        302: {
+            "description": (
+                "Back to the Integrations page, with the outcome in the query string; or, for a flow the "
+                "phone app started with app_return, to that app address with the outcome only."
+            )
+        }
+    },
 )
 async def oauth_callback(
     state: str | None = None, code: str | None = None, error: str | None = None
