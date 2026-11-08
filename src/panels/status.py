@@ -109,4 +109,16 @@ def panel_status(board_id: str) -> PanelStatus:
         silenced_until=silenced_until,
         silence_mode=silence_mode,
         paused=settings_service.is_paused(board_id=board_id) is True,
+        **_next_change(board_id),
     )
+
+
+def _next_change(board_id: str) -> dict:
+    """H2's next change for the board, in panel status's instant shape (H2b).
+
+    No page id: a TV holds the tv_panels scope and cannot name a page.
+    """
+    from src.schedules.next_change import next_change
+
+    change = next_change(board_id)
+    return {"next_change_at": _instant(change.at), "next_change_reason": change.reason}

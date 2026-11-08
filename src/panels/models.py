@@ -273,6 +273,18 @@ class PanelStatus(BaseModel):
     silence_mode: SilenceMode | None = None
     #: The board takes no updates and keeps showing its last frame.
     paused: bool
+    #: When the board is next expected to change (same shape as the other
+    #: instants), from the hub's own rules (H2): its override ends, its
+    #: schedule hands over to a different page, its quiet hours start or end,
+    #: or the collection showing rotates. Null while paused or when nothing
+    #: changes within 8 days; plugin triggers are never predicted. For the TV
+    #: chip "Schedule · next change 9:00 PM" (H2b).
+    next_change_at: str | None = None
+    #: Why: ``override_ends``, ``schedule``, ``silence_starts``,
+    #: ``silence_ends`` or ``collection``. Null exactly when next_change_at is.
+    next_change_reason: Literal["override_ends", "schedule", "silence_starts", "silence_ends", "collection"] | None = (
+        None
+    )
 
 
 class PanelPublicResponse(PanelResponse):
