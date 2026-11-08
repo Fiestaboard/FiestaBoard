@@ -92,10 +92,14 @@ def test_read_pre_json(tmp_path):
     assert read_pre_json(path) == PRE
 
 
-def test_main_is_not_in_pre_mode():
-    """The guard's own precondition on this branch."""
+def test_committed_pre_json_is_one_a_release_branch_accepts():
+    """This suite runs on main and on alpha, so it can't know which branch it
+    is on: whether pre.json belongs here is release-guards' job (per base
+    branch). What holds on both: if pre.json exists it is beta pre mode, or
+    exit mode during a promotion.
+    """
     pre = read_pre_json(ROOT / ".changeset" / "pre.json")
-    assert pre is None or pre.mode == "exit"
+    assert pre is None or (pre.tag == "beta" and pre.mode in ("pre", "exit"))
 
 
 # ---------------------------------------------------------------------------
