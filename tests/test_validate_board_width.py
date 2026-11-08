@@ -170,6 +170,21 @@ def test_a_panel_without_a_grid_is_rejected(client):
     assert response.status_code == 422
 
 
+def test_the_panel_rejection_speaks_of_validating_not_rendering(client):
+    response = client.post("/templates/validate", json={"template": "HI", "device_type": "panel"})
+
+    message = " ".join(str(item.get("msg", "")) for item in response.json()["detail"])
+    assert "Validating for a panel needs grid_rows and grid_cols" in message
+    assert "render" not in message
+
+
+def test_a_render_without_a_panel_grid_still_says_render(client):
+    response = client.post("/templates/render", json={"template": "HI", "device_type": "panel"})
+
+    assert response.status_code == 422
+    assert "A panel render needs grid_rows and grid_cols" in str(response.json()["detail"])
+
+
 # ── per-line wrap ───────────────────────────────────────────────────────────
 
 
@@ -181,6 +196,19 @@ def test_a_line_whose_metadata_wraps_is_not_too_long(client):
     )
 
     assert [e["line"] for e in _too_long(body)] == [2]
+
+
+def test_a_list_line_holding_a_newline_keeps_its_own_metadata(client):
+    """``line_metadata`` is one entry per list element. An element that holds a
+    newline is two lines to measure, and both take that element's entry, so
+    the elements after it keep theirs (the line numbers count the split lines)."""
+    body = _validate(
+        client,
+        template=["A" * 5 + "\n" + "B" * 30, "C" * 30],
+        line_metadata=[{"alignment": "left", "wrap": True}, {"alignment": "left", "wrap": False}],
+    )
+
+    assert [e["line"] for e in _too_long(body)] == [3]
 
 
 # ── the shape the editor reads ──────────────────────────────────────────────
