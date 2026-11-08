@@ -90,13 +90,13 @@ class DrawingFeatures(BaseModel):
     """
 
     lowercase: bool = Field(description="Lowercase draws as lowercase; otherwise text is shown in capitals.")
-    color_text: bool = Field(description="Coloured text: {{red:HOT}} draws the word in that colour.")
-    background: bool = Field(description="Highlighted text: {{black/yellow:AQI}} draws words on a coloured band.")
-    tiles: bool = Field(description="Solid colour tiles: {{red}} or {{63}} draws one coloured block.")
+    color_text: bool = Field(description="Colored text: {{red:HOT}} draws the word in that color.")
+    background: bool = Field(description="Highlighted text: {{black/yellow:AQI}} draws words on a colored band.")
+    tiles: bool = Field(description="Solid color tiles: {{red}} or {{63}} draws one colored block.")
     icons: bool = Field(description="Icons: {{icon:sun}} draws a small picture (names in drawing.icons).")
-    rgb: bool = Field(description="Any colour, including #rrggbb hex, not only the fixed palette.")
+    rgb: bool = Field(description="Any color, including #rrggbb hex, not only the fixed palette.")
     solid_shapes: bool = Field(
-        description="Neighbouring tiles of one colour join into one solid shape (seamless LED style)."
+        description="Neighboring tiles of one color join into one solid shape (seamless LED style)."
     )
     pixels: bool = Field(description="A pixel matrix: the board draws a page's pixel canvases.")
 
@@ -107,7 +107,7 @@ class BoardDrawing(BaseModel):
     Derived from what the board's output declares (its device model and
     character set), never configured. A board whose device is unknown (its
     output plugin is not installed) reads the split-flap baseline, capitals
-    and colour tiles, with ``source: "baseline"``.
+    and color tiles, with ``source: "baseline"``.
     """
 
     source: Literal["device", "baseline"] = Field(
@@ -120,9 +120,9 @@ class BoardDrawing(BaseModel):
         description='"split_flap", "led_matrix", "screen" or "unknown": the FiestaUI device model\'s technology.'
     )
     color: Literal["tiles", "rgb", "mono"] = Field(
-        description='"tiles" (a split-flap\'s fixed colours), "rgb" (any colour) or "mono" (one lit colour).'
+        description='"tiles" (a split-flap\'s fixed colors), "rgb" (any color) or "mono" (one lit color).'
     )
-    monochrome: str | None = Field(default=None, description="The lit colour of a single-colour panel; null otherwise.")
+    monochrome: str | None = Field(default=None, description="The lit color of a single-color panel; null otherwise.")
     font: str | None = Field(
         default=None,
         description=(
@@ -237,8 +237,8 @@ class BoardDetail(BoardSummary):
     )
     drawing: BoardDrawing = Field(
         description=(
-            "What this board's display can draw (lowercase, coloured text, highlights, tiles, icons, any colour, "
-            "solid shapes, pixel canvases), with the colour model, LED text face, icon names and pixel size an "
+            "What this board's display can draw (lowercase, colored text, highlights, tiles, icons, any color, "
+            "solid shapes, pixel canvases), with the color model, LED text face, icon names and pixel size an "
             "editor's tools need."
         ),
     )
