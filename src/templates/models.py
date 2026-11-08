@@ -12,7 +12,7 @@ row count, a bare string is not.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -56,25 +56,62 @@ class FormulaFunctionsResponse(BaseModel):
     functions: dict[str, FormulaFunctionEntry]
 
 
-class TemplateValidateRequest(BaseModel):
-    """``POST /templates/validate`` request body.
+class TemplateTarget(BaseModel):
+    """The template and the display it is for, shared by render and validate.
 
-    ``board_id`` validates for that board: line length is measured in the
-    tiles it draws, so extended markup (spans, blocks, icons) counts by its
-    cells when the board's character set is rich (plan D19). An unknown board
-    validates as split-flap, exactly as with no ``board_id``.
+    ``device_type`` is the ``DeviceType`` Literal, not a bare string: the
+    renderer falls back to flagship geometry for anything it does not know.
+    ``notes_wide``/``notes_tall`` size a ``note_array`` (``15·notes_wide`` by
+    ``3·notes_tall``, issue #2032); ``grid_rows``/``grid_cols`` size a
+    ``panel`` and are required for one. With no ``device_type`` the
+    ``board_id`` board's own geometry is used, else the Flagship's.
+    ``line_metadata`` is the page's per-line ``{alignment, wrap}``.
     """
 
     template: str | list[str]
     board_id: str | None = None
+    device_type: DeviceType | None = None
+    notes_wide: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
+    notes_tall: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
+    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
+    line_metadata: list[dict[str, Any]] | None = None
+
+    @model_validator(mode="after")
+    def _panel_needs_a_grid(self) -> TemplateTarget:
+        if self.device_type == "panel" and (self.grid_rows is None or self.grid_cols is None):
+            raise ValueError("A panel render needs grid_rows and grid_cols")
+        return self
+
+
+class TemplateValidateRequest(TemplateTarget):
+    """``POST /templates/validate`` request body.
+
+    Validates at the width the template renders at (#1176), resolved exactly
+    as ``POST /templates/render`` resolves it: the request's own geometry when
+    it names a ``device_type``, else the ``board_id`` board's grid, else the
+    Flagship's 22 columns. ``board_id`` also measures line length in the tiles
+    that board draws, so extended markup (spans, blocks, icons) counts by its
+    cells when its character set is rich (plan D19). An unknown board
+    validates as split-flap at the request's geometry, as with no
+    ``board_id``. A line whose ``line_metadata`` turns ``wrap`` on is never
+    too long: render wraps it.
+    """
 
 
 class TemplateValidationError(BaseModel):
-    """One syntax problem, positioned for the editor's gutter marker."""
+    """One problem, positioned for the editor's gutter marker."""
 
-    line: int
-    column: int
+    line: int = Field(description="1-based line number.")
+    column: int = Field(description="0-based column. For line_too_long it is the board width: where the cut starts.")
     message: str
+    code: Literal[
+        "mismatched_braces", "line_too_long", "unknown_filter", "unknown_source", "unknown_field", "formula"
+    ] = Field(description="The kind of problem, for the editor's marker and wording.")
+    max_length: int | None = Field(
+        default=None,
+        description="line_too_long only: the most tiles the line can render (variables at their longest). Null otherwise.",
+    )
 
 
 class TemplateValidationResponse(BaseModel):
@@ -89,9 +126,11 @@ class TemplateValidationResponse(BaseModel):
 
     valid: bool
     errors: list[TemplateValidationError]
+    rows: int = Field(description="The board height the template was validated for.")
+    cols: int = Field(description="The board width, in tiles, every line was measured against.")
 
 
-class TemplateRenderRequest(BaseModel):
+class TemplateRenderRequest(TemplateTarget):
     """``POST /templates/render`` request body.
 
     ``device_type`` is the ``DeviceType`` Literal, not a bare string: the
@@ -117,14 +156,6 @@ class TemplateRenderRequest(BaseModel):
     read's safe default: rendered as split-flap, nothing checked.
     """
 
-    template: str | list[str]
-    board_id: str | None = None
-    device_type: DeviceType | None = None
-    notes_wide: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
-    notes_tall: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
-    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
-    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
-    line_metadata: list[dict[str, Any]] | None = None
     #: The page's pixel canvases for preview and live rendering. Their cells are blanked (or text flows around a
     #: ``flow`` canvas) on every board; for a pixel-matrix ``board_id`` the
     #: response also carries their ``layers`` and ``canvas_issues``.
@@ -134,12 +165,6 @@ class TemplateRenderRequest(BaseModel):
     @classmethod
     def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
         return None if value is None else validate_page_canvases(value)
-
-    @model_validator(mode="after")
-    def _panel_needs_a_grid(self) -> TemplateRenderRequest:
-        if self.device_type == "panel" and (self.grid_rows is None or self.grid_cols is None):
-            raise ValueError("A panel render needs grid_rows and grid_cols")
-        return self
 
 
 class TemplateRenderResponse(BaseModel):

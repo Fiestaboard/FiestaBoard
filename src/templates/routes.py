@@ -139,21 +139,40 @@ async def validate_template(request: TemplateValidateRequest):
     - template: Template string or list of lines to validate
     - board_id: Optional board to validate for; a board whose character set
       is rich measures line length in the tiles it draws (extended markup)
+    - device_type / notes_wide / notes_tall / grid_rows / grid_cols: the
+      geometry to validate at, as for ``POST /templates/render``
+    - line_metadata: per-line ``{alignment, wrap}``; a wrapped line is never
+      too long
 
-    Returns validation errors if any.
+    Every line is measured at the width the template renders at (#1176): the
+    request's geometry, else the board's, else the Flagship's 22 columns.
+    Returns the problems found and the ``rows`` / ``cols`` validated at.
     """
+    from src.devices import DEFAULT_DEVICE_TYPE, board_context_for
+
     template = request.template
 
     # Handle both string and list input
     if isinstance(template, list):
         template = "\n".join(template)
 
+    check = _CharsetCheck(request.board_id)
+    device_type, notes_wide, notes_tall, grid_rows, grid_cols = _render_geometry(request, check.board)
+    dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
+
     template_engine = get_template_engine()
-    problems = template_engine.validate_template(template, **_CharsetCheck(request.board_id).render_kw)
+    problems = template_engine.validate_template(
+        template, cols=dims.cols, line_metadata=request.line_metadata, **check.render_kw
+    )
 
     return TemplateValidationResponse(
         valid=len(problems) == 0,
-        errors=[{"line": e.line, "column": e.column, "message": e.message} for e in problems],
+        errors=[
+            {"line": e.line, "column": e.column, "message": e.message, "code": e.code, "max_length": e.max_length}
+            for e in problems
+        ],
+        rows=dims.rows,
+        cols=dims.cols,
     )
 
 

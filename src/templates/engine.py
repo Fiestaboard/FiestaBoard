@@ -191,13 +191,29 @@ def extract_template_plugin_ids(template_lines: "list[str] | str | None") -> set
     return refs
 
 
+def _metadata_wraps(line_metadata: list[Any] | None, index: int) -> bool:
+    """Whether ``line_metadata[index]`` turns wrap on, read as render reads it."""
+    if not line_metadata or index >= len(line_metadata):
+        return False
+    meta = line_metadata[index]
+    return bool(meta.get("wrap", False) if isinstance(meta, dict) else getattr(meta, "wrap", False))
+
+
 @dataclass
 class TemplateError:
-    """Template validation error."""
+    """Template validation error.
+
+    ``code`` names the kind of problem for an editor (``mismatched_braces``,
+    ``line_too_long``, ``unknown_filter``, ``unknown_source``,
+    ``unknown_field``, ``formula``); ``max_length`` is the most tiles a
+    ``line_too_long`` line can render, ``None`` for any other code.
+    """
 
     line: int
     column: int
     message: str
+    code: str = ""
+    max_length: int | None = None
 
 
 class TemplateEngine:
@@ -1973,19 +1989,27 @@ class TemplateEngine:
         return list(self._plugin_registry.enabled_plugins.keys())
 
     def validate_template(
-        self, template: str, cols: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+        self,
+        template: str,
+        cols: int = 22,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        line_metadata: list[Any] | None = None,
     ) -> list[TemplateError]:
         """Validate template syntax.
 
         Args:
             template: Template string to validate
             cols: Board column width to check against. Defaults to 22 (flagship).
-                  Pass the actual board width for note/note_array devices.
-                  TODO(#1176): callers in the web template editor should pass the
-                  actual board width once web preview rendering is updated.
+                  Callers pass the width the template renders at: ``POST
+                  /templates/validate`` resolves it as ``POST /templates/render``
+                  does (#1176).
             extended_markup: The target board speaks extended markup: line
                 length is measured in the tiles it draws (spans and blocks by
                 their cells, icons and shortcut aliases as one tile).
+            line_metadata: Per-line ``{alignment, wrap}`` as render takes it. A
+                line whose ``wrap`` is set wraps instead of being cut, so it is
+                never too long (the ``|wrap`` filter's rule).
 
         Returns:
             List of validation errors (empty if valid)
@@ -2002,15 +2026,21 @@ class TemplateEngine:
             open_count = line.count("{{")
             close_count = line.count("}}")
             if open_count != close_count:
-                errors.append(TemplateError(line=line_num, column=0, message="Mismatched variable braces {{}}"))
+                errors.append(
+                    TemplateError(
+                        line=line_num, column=0, message="Mismatched variable braces {{}}", code="mismatched_braces"
+                    )
+                )
 
             max_length = self._calculate_max_line_length(line, cols=cols, extended_markup=extended_markup)
-            if max_length > cols:
+            if max_length > cols and not _metadata_wraps(line_metadata, line_num - 1):
                 errors.append(
                     TemplateError(
                         line=line_num,
                         column=cols,
                         message=f"Line may be too long (up to {max_length} chars, max {cols})",
+                        code="line_too_long",
+                        max_length=max_length,
                     )
                 )
 
@@ -2030,6 +2060,7 @@ class TemplateEngine:
                                 line=line_num,
                                 column=match.start(),
                                 message=f"Unknown filter: {filter_name} (value renders unchanged)",
+                                code="unknown_filter",
                             )
                         )
 
@@ -2038,7 +2069,12 @@ class TemplateEngine:
                     source = parts[0].lower()
                     if source not in available_sources:
                         errors.append(
-                            TemplateError(line=line_num, column=match.start(), message=f"Unknown source: {source}")
+                            TemplateError(
+                                line=line_num,
+                                column=match.start(),
+                                message=f"Unknown source: {source}",
+                                code="unknown_source",
+                            )
                         )
                     else:
                         unknown_field = self._unknown_field(source, parts[1:], known_fields)
@@ -2048,6 +2084,7 @@ class TemplateEngine:
                                     line=line_num,
                                     column=match.start(),
                                     message=f"Unknown field: {source}.{unknown_field} (renders as ???)",
+                                    code="unknown_field",
                                 )
                             )
 
@@ -2064,6 +2101,7 @@ class TemplateEngine:
                             line=line_num,
                             column=start,
                             message=f"Formula {issue.code}: {issue.message}",
+                            code="formula",
                         )
                     )
 

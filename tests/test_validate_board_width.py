@@ -115,10 +115,13 @@ def test_a_pixoo_is_validated_at_the_grid_its_text_face_gives(client, output_plu
 def test_a_pixoo_counts_extended_markup_in_tiles_at_its_width(client, output_plugin):
     boards = _set_boards([layout.HALL, layout.PIXOO])
 
-    # 3 + 1 + 4 + 1 + 1 + 6 = 16 drawn tiles: fits 16, though it is 37 characters.
-    body = _validate(client, template="{{red:hot}} {{black/white:OPEN}} {{icon:sun}} XXXXXX", board_id=boards[1]["id"])
+    # hot, space, OPEN, space, sun icon, space, XXXXX = 3+1+4+1+1+1+5 = 16 drawn tiles, though 47 characters.
+    line = "{{red:hot}} {{black/white:OPEN}} {{icon:sun}} XXXXX"
+    fits = _validate(client, template=line, board_id=boards[1]["id"])
+    cut = _validate(client, template=line + "X", board_id=boards[1]["id"])
 
-    assert _too_long(body) == []
+    assert _too_long(fits) == []
+    assert [e["max_length"] for e in _too_long(cut)] == [17]
 
 
 def test_a_tc001_is_validated_at_eight_columns(client, small_led_output):
