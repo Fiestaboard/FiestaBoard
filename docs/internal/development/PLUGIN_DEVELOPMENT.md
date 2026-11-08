@@ -954,6 +954,22 @@ Three rules follow:
   beyond the standard library plus the platform's own dependencies will be
   missing at runtime. Vendor it or do without.
 
+### Reloading plugin source
+
+Core reads ordinary Python source directly when importing a plugin and its
+local packages. An explicit reload therefore cannot reuse old compiled code
+just because source length and modification times match. Existing cache files
+are left alone; code and output seed trees can remain read-only.
+
+This applies inside the verified plugin tree. Imports elsewhere, custom import
+finders, native extensions and modules shipped only as compiled files keep
+their normal behavior, including custom hooks installed by the entry module.
+A lazy path hook delegates normal finder selection only within registered
+plugin roots; it does not delete caches or change interpreter flags. This
+also covers first-party output packages. Importing source costs compilation
+and scoped path checks; this is not isolation for imports already running in
+another thread or process.
+
 ### What a plugin may import from the platform
 
 Self-containment applies to imports as well as to files. The supported
@@ -1497,6 +1513,11 @@ Your plugin must inherit from `PluginBase`:
 | `check_triggers()` | No | Return a list of `TriggerResult` if `supports_triggers` is set |
 | `receive_payload(payload, headers, raw_body)` | No | Handle inbound webhooks (raise `PermissionError` → 403, `ValueError` → 400) |
 
+During reload, the loader cleans up the object it owns; the registry does not
+retire that same object a second time. Distinct registry objects and named
+instances still receive their own cleanup. This does not suppress cleanup
+across separate disable and enable operations.
+
 ### Properties and helpers
 
 Access settings and metadata through these properties on `PluginBase`:
@@ -1514,6 +1535,12 @@ Access settings and metadata through these properties on `PluginBase`:
 | `self.get_settings_schema()` | method | The `settings_schema` block from the manifest |
 | `self.get_env_vars()` | method | The `env_vars` array from the manifest |
 | `self.clear_cache()` | method | Force a fresh `fetch_data()` on the next `get_data()` |
+
+Clearing the cache also invalidates results from fetches already in flight:
+they are not returned as available or republished into the cache. Calling
+`clear_cache()` inside `fetch_data()` therefore discards that fetch too. Use
+it from a change callback when older work must be discarded; do not call it
+inside every fetch expecting that fetch's value to remain available.
 
 > **Heads up:** The base class does **not** expose a `self.get_config(...)` method — call `self.config.get(...)` instead.
 

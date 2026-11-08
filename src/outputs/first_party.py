@@ -240,7 +240,13 @@ def import_first_party_package(source: FirstPartySource) -> ModuleType:
     ):
         return existing
     _evict(name)
-    spec = importlib.util.spec_from_file_location(name, init, submodule_search_locations=[str(source.path)])
+    # Lazy import avoids the outputs/plugins package initialization cycle.
+    from src.plugins.source_imports import plugin_source_loader, prepare_source_imports
+
+    prepare_source_imports(source.path)
+    spec = importlib.util.spec_from_file_location(
+        name, init, loader=plugin_source_loader(name, str(init)), submodule_search_locations=[str(source.path)]
+    )
     if spec is None or spec.loader is None:
         raise FirstPartyOutputError(f"{source.output_id}: {init} is not an importable package")
     module = importlib.util.module_from_spec(spec)

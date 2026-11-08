@@ -10,11 +10,10 @@ from unittest.mock import Mock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from src.backup.service import BACKUP_FILE_MARKER, BACKUP_SCHEMA_VERSION, BackupService
+from src.backup.service import BACKUP_FILE_MARKER, BACKUP_SCHEMA_VERSION, BackupRestoreAborted, BackupService
 from src.pages.models import Page, PageUpdate
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
-from src.storage.json_store import SchemaTooNewError
 
 
 @pytest.fixture
@@ -138,13 +137,16 @@ def test_unreadable_restored_schema_does_not_leave_old_live_pages(storage, page,
         "schema_version": BACKUP_SCHEMA_VERSION,
         "data": {"pages": {"schema_version": 999, "pages": []}},
     }
-    with pytest.raises(SchemaTooNewError):
+    before = storage.storage_file.read_bytes()
+    with pytest.raises(BackupRestoreAborted, match="Original files recovered"):
         BackupService(data_dir=storage.storage_file.parent).import_from_dict(backup, reinstall_plugins=False)
-    # Restore is not transactional, but cached requests cannot keep reading
-    # or conditionally saving pages from the pre-restore document.
-    assert service.get_page(page.id) is None
-    assert service.update_page(page.id, PageUpdate(name="stale", expected_revision=page.revision)) is None
-    assert json.loads(storage.storage_file.read_text())["schema_version"] == 999
+    # Recovery restores the exact document and refreshes the same live owner.
+    assert storage.storage_file.read_bytes() == before
+    restored = service.get_page(page.id)
+    assert restored.name == page.name
+    assert restored.revision != page.revision
+    with pytest.raises(ValueError, match="Page changed"):
+        service.update_page(page.id, PageUpdate(name="stale", expected_revision=page.revision))
 
 
 def test_valid_restore_recovers_same_owner_after_future_schema_refusal(storage, page, monkeypatch):
@@ -157,13 +159,11 @@ def test_valid_restore_recovers_same_owner_after_future_schema_refusal(storage, 
         "data": {"pages": json.loads(storage.storage_file.read_text())},
     }
     future = {**valid, "data": {"pages": {"schema_version": 999, "pages": []}}}
-    with pytest.raises(SchemaTooNewError):
+    before = storage.storage_file.read_bytes()
+    with pytest.raises(BackupRestoreAborted, match="Original files recovered"):
         backup.import_from_dict(future, reinstall_plugins=False)
-    # A refused future document remains protected until explicitly replaced
-    # and successfully loaded, even through unconditional legacy writes.
-    with pytest.raises(SchemaTooNewError):
-        storage.create(Page(name="Cannot overwrite future data", type="template", template=["guard"]))
-    assert json.loads(storage.storage_file.read_text())["schema_version"] == 999
+    assert storage.storage_file.read_bytes() == before
+    assert service.get_page(page.id).revision != page.revision
     with patch("src.backup.service._reload_services", return_value=[]):
         result = backup.import_from_dict(valid, reinstall_plugins=False)
     assert result["status"] == "success"

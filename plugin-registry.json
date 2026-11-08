@@ -930,6 +930,32 @@
       "added": "2026-10-24"
     },
     {
+      "id": "ulanzi_tc001",
+      "name": "Ulanzi TC001 (AWTRIX NG)",
+      "description": "Show FiestaBoard pages on the TC001's 32 by 8 LED matrix over your local network. Supports optional native collection rotation and button navigation with FiestaBoard 10.3.0 or later.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-output--ulanzi-tc001",
+      "author": "FiestaBoard contributors",
+      "fiestaboard_version": ">=10.2.0",
+      "icon": "grid-3x3",
+      "category": "output",
+      "plugin_type": "output",
+      "display": {
+        "category": "LED matrices",
+        "manufacturer": "Ulanzi",
+        "models": [
+          "TC001"
+        ],
+        "keywords": [
+          "AWTRIX",
+          "AWTRIX NG",
+          "TC001",
+          "pixel clock",
+          "LED matrix"
+        ]
+      },
+      "added": "2026-10-30"
+    },
+    {
       "id": "ulanzi_tc002",
       "name": "Ulanzi TC002 (AWTRIX NG)",
       "description": "Show your FiestaBoard pages on a Ulanzi TC002 running AWTRIX NG, as an app in its rotation, over your local network. 3 rows of 13 in the 3x5 font, colours and LED transitions.",

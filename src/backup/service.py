@@ -24,14 +24,18 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import os
 import re
 import shutil
+import stat
 import threading
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-from src.atomic_io import write_json_atomic
+from src.atomic_io import staging_path, write_json_atomic
 from src.paths import get_data_dir
 
 #: Strict allowlist for repository URLs read from a backup file.  We only
@@ -77,6 +81,14 @@ class BackupRestoreAborted(BackupError):
     unwritable ``data/`` is reported as the server-side failure it is
     instead of blaming the uploaded file.
     """
+
+
+@dataclass
+class _RestoreWrite:
+    path: Path
+    before: tuple[bytes, int] | None
+    after: tuple[bytes, int] | None = None
+    after_known: bool = False
 
 
 class BackupService:
@@ -138,13 +150,20 @@ class BackupService:
         written is not overwritten at all; the restore aborts with
         :class:`BackupError` instead.
 
+        Caught file-phase failures compensate earlier writes in reverse,
+        restoring original bytes/modes and removing newly created files.
+        Recovery failures and intervening changes are reported, with verified
+        rollback copies retained for manual repair. Services are not reloaded
+        and plugins are not reinstalled after an aborted file phase.
+
         .. warning::
-           The restore is **not transactional across files**. A hard failure
-           while restoring file N leaves files 1..N-1 restored and N..end at
-           their original contents, with a ``.pre-restore-<timestamp>`` copy
-           beside each of 1..N-1. The suffix is reported so the operator can
-           finish the rollback by hand. Making the whole set atomic (stage
-           every file, then rename them all) is a separate change.
+           This is **not transactional across files**: readers may observe
+           intermediate states. Compensation is in-memory, not a durable
+           crash journal; process death or power loss can still leave a
+           partial restore. Per-store locks protect cooperative in-process
+           writers only, and identical-content/mode intervening writes cannot
+           be distinguished. Plugin reinstall/reload side effects after a
+           successful file phase are outside this recovery boundary.
 
         Args:
             backup: Parsed backup document.
@@ -164,7 +183,10 @@ class BackupService:
 
         with self._lock:
             self.data_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+            # The returned suffix remains usable after a later restore, even
+            # within the same clock tick. A failed later copy must never
+            # overwrite/delete an earlier operation's rollback files either.
+            timestamp = f"{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}-{uuid4().hex}"
             restored: list[str] = []
             skipped: list[str] = []
             # Only files whose pre-restore copy actually landed. The suffix
@@ -173,76 +195,71 @@ class BackupService:
             backed_up: list[str] = []
 
             data_section = backup.get("data") or {}
+            writes: list[_RestoreWrite] = []
+            filename = "data directory"
+            try:
+                for filename in DATA_FILES:
+                    key = filename[:-5]
+                    payload = data_section.get(key)
+                    if payload is None and key == "collections":
+                        # Convert legacy data into the live owner's file even if
+                        # collections.json already exists. A first-run importer
+                        # would otherwise skip this restore on an existing install.
+                        legacy = data_section.get("carousels")
+                        if legacy is not None:
+                            from src.collections.storage import CURRENT_SCHEMA_VERSION, import_legacy_carousels
 
-            for filename in DATA_FILES:
-                key = filename[:-5]
-                payload = data_section.get(key)
-                if payload is None and key == "collections":
-                    # Convert legacy data into the live owner's file even if
-                    # collections.json already exists. A first-run importer
-                    # would otherwise skip this restore on an existing install.
-                    legacy = data_section.get("carousels")
-                    if legacy is not None:
-                        from src.collections.storage import CURRENT_SCHEMA_VERSION, import_legacy_carousels
-
-                        payload = {
-                            "schema_version": CURRENT_SCHEMA_VERSION,
-                            "collections": import_legacy_carousels(legacy.get("carousels", [])),
-                        }
-                if payload is None:
-                    skipped.append(filename)
-                    continue
-                if (
-                    key in {"pages", "collections", "schedules"}
-                    and isinstance(payload, dict)
-                    and isinstance(payload.get(key), list)
-                ):
-                    # Runtime protocol metadata is never persisted, including
-                    # API-shaped backups. Only reserved record-level names are
-                    # stripped; opaque extension JSON stays untouched.
-                    payload = {
-                        **payload,
-                        key: [
-                            {
-                                name: value
-                                for name, value in record.items()
-                                if name not in {"revision", "edit_protocol", "document_protocol", "expected_revision"}
+                            payload = {
+                                "schema_version": CURRENT_SCHEMA_VERSION,
+                                "collections": import_legacy_carousels(legacy.get("carousels", [])),
                             }
-                            if isinstance(record, dict)
-                            else record
-                            for record in payload.get(key, [])
-                        ],
-                    }
-                with self._owning_lock(filename):
-                    if self._write_json_with_backup(self.data_dir / filename, payload, timestamp):
-                        backed_up.append(filename)
-                    if filename == "pages.json":
-                        # Keep the SAME live owner: requests already holding
-                        # this service must not save its pre-restore cache back
-                        # over the restored file. Reload also rotates every
-                        # runtime page revision before releasing the lock.
-                        from src.pages.service import get_page_service
-
-                        pages = get_page_service()
-                        if pages.storage.storage_file.resolve() == (self.data_dir / filename).resolve():
-                            pages.storage._load()
-                            pages.invalidate_preview_cache()
-                    elif filename == "settings.json":
-                        from src.settings.service import get_settings_service
-
-                        owner = get_settings_service()
-                        if owner.settings_file.resolve() == (self.data_dir / filename).resolve():
-                            owner.reload()
-                    elif filename in {"collections.json", "schedules.json"}:
-                        from src.collections.service import get_collection_service
-                        from src.schedules.service import get_schedule_service
-
-                        owner = (
-                            get_collection_service() if filename == "collections.json" else get_schedule_service()
-                        ).storage
-                        if owner.storage_file.resolve() == (self.data_dir / filename).resolve():
-                            owner._load()
-                restored.append(filename)
+                    if payload is None:
+                        skipped.append(filename)
+                        continue
+                    if (
+                        key in {"pages", "collections", "schedules"}
+                        and isinstance(payload, dict)
+                        and isinstance(payload.get(key), list)
+                    ):
+                        # Runtime protocol metadata is never persisted, including
+                        # API-shaped backups. Only reserved record-level names are
+                        # stripped; opaque extension JSON stays untouched.
+                        payload = {
+                            **payload,
+                            key: [
+                                {
+                                    name: value
+                                    for name, value in record.items()
+                                    if name
+                                    not in {"revision", "edit_protocol", "document_protocol", "expected_revision"}
+                                }
+                                if isinstance(record, dict)
+                                else record
+                                for record in payload.get(key, [])
+                            ],
+                        }
+                    with self._owning_lock(filename):
+                        path = self.data_dir / filename
+                        write = _RestoreWrite(path, self._file_state(path))
+                        # Register before attempting the write: a replace can
+                        # land and then raise. Capture its actual outcome too.
+                        writes.append(write)
+                        try:
+                            if self._write_json_with_backup(path, payload, timestamp):
+                                backed_up.append(filename)
+                            # Reload can migrate and resave the restored file.
+                            # Capture its final outcome under the same owner lock,
+                            # including writes made before a reload raises.
+                            self._reload_owner(filename)
+                        finally:
+                            write.after = self._file_state(path)
+                            write.after_known = True
+                    restored.append(filename)
+            except Exception as exc:
+                logger.exception("Restore file phase failed at %s; attempting recovery", filename)
+                message = self._recover_restore(writes, timestamp)
+                unchanged = f" {filename} was not overwritten." if isinstance(exc, BackupRestoreAborted) else ""
+                raise BackupRestoreAborted(f"Restore aborted at {filename}.{unchanged} {message}") from exc
 
         plugin_results: dict[str, Any] = {
             "attempted": [],
@@ -285,6 +302,94 @@ class BackupService:
         return self.import_from_dict(backup, reinstall_plugins=reinstall_plugins)
 
     # ── helpers ─────────────────────────────────────────────────────────
+
+    def _reload_owner(self, filename: str) -> None:
+        """Refresh an existing live owner after a restore or compensation."""
+        if filename == "pages.json":
+            # Keep the SAME live owner: requests already holding
+            # this service must not save its pre-restore cache back
+            # over the restored file. Reload also rotates every
+            # runtime page revision before releasing the lock.
+            from src.pages.service import get_page_service
+
+            pages = get_page_service()
+            if pages.storage.storage_file.resolve() == (self.data_dir / filename).resolve():
+                pages.storage._load()
+                pages.invalidate_preview_cache()
+        elif filename == "settings.json":
+            from src.settings.service import get_settings_service
+
+            owner = get_settings_service()
+            if owner.settings_file.resolve() == (self.data_dir / filename).resolve():
+                owner.reload()
+        elif filename in {"collections.json", "schedules.json"}:
+            from src.collections.service import get_collection_service
+            from src.schedules.service import get_schedule_service
+
+            owner = (get_collection_service() if filename == "collections.json" else get_schedule_service()).storage
+            if owner.storage_file.resolve() == (self.data_dir / filename).resolve():
+                owner._load()
+
+    @staticmethod
+    def _file_state(path: Path) -> tuple[bytes, int] | None:
+        try:
+            return path.read_bytes(), stat.S_IMODE(path.stat().st_mode)
+        except FileNotFoundError:
+            return None
+
+    @staticmethod
+    def _restore_file(write: _RestoreWrite) -> None:
+        """Compensate exactly, including CRLF/formatting and original mode."""
+        if write.before is None:
+            write.path.unlink(missing_ok=True)
+            return
+        contents, mode = write.before
+        temporary = staging_path(write.path)
+        try:
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(contents)
+                stream.flush()
+                os.fchmod(stream.fileno(), mode)
+                os.fsync(stream.fileno())
+            temporary.replace(write.path)
+        finally:
+            with contextlib.suppress(OSError):
+                temporary.unlink(missing_ok=True)
+
+    def _recover_restore(self, writes: list[_RestoreWrite], timestamp: str) -> str:
+        """Best-effort compensation; never overwrite a detected later writer.
+
+        Keep one store lock at a time, matching the forward write ordering.
+        Recovery failures cannot stop compensation of the remaining files.
+        Only copies verified against the captured original are advertised.
+        """
+        failures: list[str] = []
+        copies: list[str] = []
+        for write in reversed(writes):
+            try:
+                with self._owning_lock(write.path.name):
+                    snapshot = write.path.with_suffix(write.path.suffix + f".pre-restore-{timestamp}")
+                    try:
+                        if write.before is not None and self._file_state(snapshot) == write.before:
+                            copies.append(write.path.name)
+                    except OSError:
+                        logger.warning("Could not verify rollback copy for %s", write.path.name, exc_info=True)
+                    current = self._file_state(write.path)
+                    if current == write.before:
+                        continue
+                    if not write.after_known or current != write.after:
+                        failures.append(f"{write.path.name} changed or could not be verified")
+                        continue
+                    self._restore_file(write)
+                    self._reload_owner(write.path.name)
+            except Exception:
+                failures.append(f"{write.path.name} could not be recovered")
+                logger.exception("Restore recovery failed for %s", write.path.name)
+        message = "Recovery incomplete: " + "; ".join(failures) + "." if failures else "Original files recovered."
+        if copies:
+            message += f" Verified rollback copies: {', '.join(reversed(copies))}; suffix .pre-restore-{timestamp}."
+        return message
 
     @staticmethod
     def _read_json(path: Path) -> Any | None:
@@ -408,6 +513,18 @@ class BackupService:
             )
         if "data" not in backup or not isinstance(backup["data"], dict):
             raise BackupError("Backup file is missing the 'data' section.")
+        # Validate every payload the import will consume before writing even
+        # the first file. Known stores require JSON objects; a late malformed
+        # store must not partially restore earlier files or break their readers.
+        data = backup["data"]
+        for filename in DATA_FILES:
+            key = filename[:-5]
+            payload = data.get(key)
+            if key == "collections" and payload is None:
+                key = "carousels"
+                payload = data.get(key)
+            if payload is not None and not isinstance(payload, dict):
+                raise BackupError(f"Backup store '{key}' must be a JSON object or null.")
 
     @staticmethod
     def _collect_installed_plugins() -> list[dict[str, str]]:

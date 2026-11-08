@@ -761,6 +761,18 @@ class TestPluginInstanceEndpoints:
         )
         registry.make_instance_key.side_effect = lambda base, label: f"{base}:{label.lower()}"
         registry.is_instance_key.side_effect = lambda k: ":" in k
+
+        def change_instance(errors, before_change):
+            if not errors and before_change is not None:
+                before_change()
+            return errors
+
+        registry.create_instance.side_effect = lambda base_id, label, *, before_change=None: change_instance(
+            registry.create_instance.return_value, before_change
+        )
+        registry.delete_instance.side_effect = lambda base_id, label, *, before_change=None: change_instance(
+            registry.delete_instance.return_value, before_change
+        )
         return registry
 
     @pytest.fixture
@@ -768,6 +780,15 @@ class TestPluginInstanceEndpoints:
         """Config manager with no stored config for the instance being created."""
         cm = Mock()
         cm.get_plugin_config.return_value = None
+
+        def prepare_instance(plugin_id):
+            stored = cm.get_plugin_config(plugin_id)
+            if not stored:
+                cm.set_plugin_config(plugin_id, {"enabled": False})
+            cm.clear_plugin_removed(plugin_id)
+            return stored
+
+        cm.prepare_plugin_instance_config.side_effect = prepare_instance
         return cm
 
     # ── list instances ──────────────────────────────────────────────────────
@@ -933,8 +954,8 @@ class TestPluginInstanceEndpoints:
         assert resp.status_code == 200
         data = resp.json()
         assert data["instance_key"] == "weather:sf"
-        # Uses public delete_plugin_config() (not private internals)
-        mock_cm.delete_plugin_config.assert_called_once_with("weather:sf")
+        # Uses the public combined config-removal/tombstone operation.
+        mock_cm.delete_plugin_instance_config.assert_called_once_with("weather:sf")
 
     def test_delete_instance_tombstones_compound_key(self, client, mock_registry):
         """Deleting an instance is a deliberate removal — tombstone the compound
@@ -950,7 +971,7 @@ class TestPluginInstanceEndpoints:
         ):
             resp = client.delete("/plugins/weather/instances/sf")
         assert resp.status_code == 200
-        mock_cm.mark_plugin_removed.assert_called_once_with("weather:sf")
+        mock_cm.delete_plugin_instance_config.assert_called_once_with("weather:sf")
 
     def test_create_instance_clears_tombstone(self, client, mock_registry, mock_cm):
         """Re-creating an instance clears any deliberate-removal tombstone for

@@ -839,24 +839,39 @@ class _GoldenRegistry:
     def list_instances(self, base_id: str) -> list[dict[str, Any]]:
         return [{"label": "work", "enabled": False}] if base_id == "alpha" else []
 
-    def create_instance(self, base_id: str, label: str) -> list[str]:
-        return [] if label != "bad label" else ["Invalid instance label"]
+    def create_instance(self, base_id: str, label: str, *, before_change=None) -> list[str]:
+        if label == "bad label":
+            return ["Invalid instance label"]
+        if before_change is not None:
+            before_change()
+        return []
 
-    def delete_instance(self, base_id: str, label: str) -> list[str]:
+    def delete_instance(self, base_id: str, label: str, *, before_change=None) -> list[str]:
         key = self.make_instance_key(base_id, label)
-        return [] if key in self.plugins else [f"Instance not found: {key}"]
+        if key not in self.plugins:
+            return [f"Instance not found: {key}"]
+        if before_change is not None:
+            before_change()
+        return []
 
     def apply_stored_config(self, compound_key: str, stored: dict[str, Any]) -> list[str]:
         return []
 
     # -- mutation surface ---------------------------------------------------
-    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
+    def validate_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
         return list(self.config_errors)
 
-    def enable_plugin(self, plugin_id: str) -> bool:
+    def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
+        return self.validate_plugin_config(plugin_id, config)
+
+    def enable_plugin(self, plugin_id: str, *, before_change=None) -> bool:
+        if self.enable_ok and before_change is not None:
+            before_change()
         return self.enable_ok
 
-    def disable_plugin(self, plugin_id: str) -> bool:
+    def disable_plugin(self, plugin_id: str, *, before_change=None) -> bool:
+        if before_change is not None:
+            before_change()
         return True
 
     # -- install / update surface -------------------------------------------
@@ -906,6 +921,17 @@ class _GoldenConfigManager:
 
     def delete_plugin_config(self, plugin_id: str) -> None:
         self.configs.pop(plugin_id, None)
+
+    def delete_plugin_instance_config(self, plugin_id: str) -> None:
+        self.delete_plugin_config(plugin_id)
+        self.mark_plugin_removed(plugin_id)
+
+    def prepare_plugin_instance_config(self, plugin_id: str) -> dict | None:
+        stored = self.get_plugin_config(plugin_id)
+        if not stored:
+            self.set_plugin_config(plugin_id, {"enabled": False})
+        self.clear_plugin_removed(plugin_id)
+        return stored
 
     def mark_plugin_removed(self, plugin_id: str) -> None:
         pass

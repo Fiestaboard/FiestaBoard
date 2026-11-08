@@ -368,14 +368,14 @@ def test_concurrent_set_active_page_serializes_mutate_and_save(settings_file, mo
     done_second = threading.Event()
     real_save = svc._save_to_file
 
-    def _paused_save():
+    def _paused_save(**sections):
         # Pause only the FIRST save so the probe below can tell whether the
         # second setter waited for it (locked) or barged past it (racy).
         if not first_save.is_set():
             first_save.set()
             entered.set()
             assert release.wait(timeout=10)
-        real_save()
+        real_save(**sections)
 
     with patch.object(svc, "_save_to_file", side_effect=_paused_save):
         t1 = threading.Thread(target=lambda: svc.set_active_page_id("page-a", board_id="board-1"), daemon=True)
