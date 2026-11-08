@@ -28,24 +28,17 @@ test.describe("Settings Page", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Tab strip exposes the five sections; boards moved to Displays (plan D21)
-    for (const section of ["General", "Scheduling", "AI", "System", "Advanced"]) {
+    // Tab strip exposes the install-wide sections; boards moved to Displays (plan D21)
+    for (const section of ["General", "AI", "System", "Advanced"]) {
       await expect(page.getByRole("tab", { name: section, exact: true })).toBeVisible({ timeout: 5_000 });
     }
-    // Renamed in 10.0: Behavior is Scheduling, Integrations is AI.
-    for (const gone of ["Hardware", "Behavior", "Integrations"]) {
+    // Scheduling now belongs to display Playback; Integrations was renamed AI.
+    for (const gone of ["Hardware", "Behavior", "Scheduling", "Integrations"]) {
       await expect(page.getByRole("tab", { name: gone, exact: true })).toHaveCount(0);
     }
 
     // General tab carries MQTT (moved from Integrations)
     await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible({ timeout: 10_000 });
-
-    // Scheduling tab contains the Update Intervals and Silence Schedule cards
-    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
-    await expect(page.getByText("Update Intervals").first()).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByText("Silence Schedule").first()).toBeVisible();
 
     // Advanced tab contains Debug Tools
     await page.getByRole("tab", { name: "Advanced", exact: true }).click();
@@ -62,12 +55,14 @@ test.describe("Settings Page", () => {
     await expect(page.getByText("About This FiestaBoard")).toHaveCount(0);
   });
 
-  test("an old ?section=behavior link opens Scheduling", async ({ page }) => {
+  test("an old ?section=behavior link opens display Playback", async ({ page }) => {
     await page.goto("/settings?section=behavior");
-    await expect(page.getByRole("tab", { name: "Scheduling", exact: true })).toHaveAttribute("aria-selected", "true", {
+    await expect(page.getByRole("tab", { name: "Playback", exact: true })).toHaveAttribute("aria-selected", "true", {
       timeout: 15_000,
     });
+    await expect(page).toHaveURL(/\/displays\/[^/?]+\?section=playback$/);
     await expect(page.getByText("Silence Schedule").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Update Intervals").first()).toBeVisible();
   });
 
   test("an old ?section=integrations link opens AI", async ({ page }) => {

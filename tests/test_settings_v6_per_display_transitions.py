@@ -223,7 +223,7 @@ def test_a_v5_file_loads_at_v6_with_a_backup(tmp_path, caplog):
     assert "Settings schema migration v5->v6: 3 change(s) applied" in caplog.text
     assert (tmp_path / "settings.json.v5_backup").read_bytes() == v5
     on_disk = json.loads(path.read_text())
-    assert on_disk["schema_version"] == 7  # v6, then v7 (no output-plugin opt-in)
+    assert on_disk["schema_version"] == 8  # v6, v7, then per-board scheduling in v8
     assert "transitions" not in on_disk and "beta" not in on_disk
     assert on_disk["board"]["boards"][0]["transition"] == "diagonal"
     assert service.get_plugin_settings().transition_plugins_enabled is True

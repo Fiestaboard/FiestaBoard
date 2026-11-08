@@ -44,7 +44,7 @@ class TestStorageFailedMutations(unittest.TestCase):
                 original_bytes = path.read_bytes()
                 observed = []
 
-                def reject_commit(*args, **kwargs):
+                def reject_commit(*args, observed=observed, field=field, store=store, **kwargs):
                     observed.append({item.id: getattr(item, field) for item in store.list_all()})
                     raise OSError(errno.ENOSPC, "synthetic disk full")
 

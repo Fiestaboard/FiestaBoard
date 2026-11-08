@@ -155,4 +155,39 @@ describe("Collection rule drafts", () => {
     fireEvent.submit(form);
     expect(onSubmit).not.toHaveBeenCalled();
   });
+  it("moves variable rules using keyboard-operable controls", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QueryClientProvider client={client}>
+        <CollectionForm
+          collection={{
+            ...collection,
+            variable: {
+              ...collection.variable!,
+              rules: [
+                { expression: "1 == 1", page_id: "page-1" },
+                { expression: "2 == 2", page_id: "page-1" },
+              ],
+            },
+          }}
+          pages={[{ id: "page-1", name: "Page One" } as Page]}
+          onSubmit={onSubmit}
+          onCancel={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Move rule 2 up" }));
+    await userEvent.click(screen.getByRole("button", { name: "Update Collection" }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variable: expect.objectContaining({
+          rules: [
+            { expression: "2 == 2", page_id: "page-1" },
+            { expression: "1 == 1", page_id: "page-1" },
+          ],
+        }),
+      }),
+    );
+  });
 });

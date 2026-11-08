@@ -69,7 +69,7 @@ export function GlobalAiChatDrawer() {
   const router = useRouter();
   const { getEditorSnapshot, staging: pageStaging } = usePageEditorBridge();
   // The chat teaches this board's display (LED colours, icons, canvases).
-  const { currentBoardId, currentBoard } = useCurrentBoard();
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
   const { staging: scheduleStaging } = useScheduleEditorBridge();
   const spotlight = useSpotlight();
   const tPanel = useTranslations("aiChatPanel");
@@ -84,6 +84,8 @@ export function GlobalAiChatDrawer() {
     () => ({
       navigate: (href) => router.push(href),
       pathname: () => (typeof window === "undefined" ? "/" : window.location.pathname),
+      currentBoardId: () => currentBoardId || undefined,
+      primaryBoardId: () => boards[0]?.id,
       spotlight,
       pageEditor: pageStaging,
       schedule: scheduleStaging,
@@ -91,7 +93,7 @@ export function GlobalAiChatDrawer() {
       label: (call) => labelForTool(call, tPanel),
       reducedMotion,
     }),
-    [router, spotlight, pageStaging, scheduleStaging, tChoreography, tPanel, reducedMotion],
+    [router, currentBoardId, boards, spotlight, pageStaging, scheduleStaging, tChoreography, tPanel, reducedMotion],
   );
   const choreographer = useChoreographer(choreographyCtx);
   const driving = choreographer.driving;
@@ -269,7 +271,13 @@ export function GlobalAiChatDrawer() {
   }, [isOpen, isMinimized, aiSettings, close]);
 
   const getTurnContext = useCallback((): ChatTurnContext => {
-    const pages = pagesData?.pages?.map((p) => ({ id: p.id, name: p.name }));
+    const pages = pagesData?.pages?.map((p) => ({
+      id: p.id,
+      name: p.name,
+      revision: p.revision,
+      edit_protocol: p.edit_protocol,
+      document_protocol: p.document_protocol,
+    }));
     const plugins = pluginsData?.plugins?.map((p) => ({
       id: p.id,
       name: p.name,
@@ -278,6 +286,8 @@ export function GlobalAiChatDrawer() {
     }));
     const schedules = schedulesData?.schedules?.map((s) => ({
       id: s.id,
+      revision: s.revision,
+      edit_protocol: s.edit_protocol,
       page_id: s.page_id,
       start_time: s.start_time,
       end_time: s.end_time ?? null,
@@ -286,6 +296,8 @@ export function GlobalAiChatDrawer() {
     }));
     const collections = collectionsData?.collections?.map((c) => ({
       id: c.id,
+      revision: c.revision,
+      edit_protocol: c.edit_protocol,
       name: c.name,
       page_ids: c.page_ids,
       selection_mode: c.selection_mode,
@@ -342,6 +354,12 @@ export function GlobalAiChatDrawer() {
         return;
       }
       const payload = (result.result ?? {}) as Record<string, unknown>;
+      // Undo is a delayed editor too: retain the generation produced by this
+      // action. Reading a fresh token at click time would overwrite later edits.
+      const resultingRevision =
+        payload.edit_protocol === "schedule-revision-v1" && typeof payload.revision === "string"
+          ? payload.revision
+          : undefined;
       switch (call.name) {
         case "create_schedule": {
           const createdId = payload.schedule_id;
@@ -352,9 +370,10 @@ export function GlobalAiChatDrawer() {
                     label: t("toast.undo"),
                     onClick: () => {
                       void (async () => {
-                        await api.deleteSchedule(createdId);
+                        if (resultingRevision) await api.deleteSchedule(createdId, resultingRevision);
+                        else await api.deleteSchedule(createdId);
                         await refreshSchedules();
-                      })();
+                      })().catch((error: Error) => toast.error(error.message));
                     },
                   }
                 : undefined,
@@ -370,15 +389,17 @@ export function GlobalAiChatDrawer() {
                   onClick: () => {
                     void (async () => {
                       await api.updateSchedule(previousSchedule.id, {
+                        ...previousSchedule,
                         page_id: previousSchedule.page_id,
                         start_time: previousSchedule.start_time,
                         end_time: previousSchedule.end_time ?? null,
                         day_pattern: previousSchedule.day_pattern,
                         custom_days: previousSchedule.custom_days,
                         enabled: previousSchedule.enabled,
+                        ...(resultingRevision ? { expected_revision: resultingRevision } : {}),
                       });
                       await refreshSchedules();
-                    })();
+                    })().catch((error: Error) => toast.error(error.message));
                   },
                 }
               : undefined,

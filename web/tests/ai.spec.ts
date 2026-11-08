@@ -653,14 +653,22 @@ test.describe("AI", () => {
           duration_seconds: 300,
         },
       });
-      const pageId = (await pageRes.json()).id as string;
+      expect(pageRes.ok()).toBe(true);
+      const createdPage = await pageRes.json();
+      const pageId = createdPage.id as string;
+      const originalRevision = createdPage.revision as string;
+      expect(originalRevision).toEqual(expect.any(String));
 
-      await setMockScript({ prose: "Deleting it.", ops: [{ op: "delete_page", args: { page_id: pageId } }] });
+      await setMockScript({
+        prose: "Deleting it.",
+        ops: [{ op: "delete_page", args: { page_id: pageId, expected_revision: originalRevision } }],
+      });
       const ask = [{ role: "user", content: "delete the doomed page" }];
       const frames = await callChat(request, { messages: ask, device_type: "flagship" });
 
       const call = frames.find((f) => f.event === "tool_call")!;
       expect(call.data.requires_approval).toBe(true);
+      expect((call.data.args as Record<string, unknown>).expected_revision).toBe(originalRevision);
       const done = frames.find((f) => f.event === "done")!;
       expect(done.data.reason).toBe("awaiting_approval");
       expect(frames.find((f) => f.event === "tool_result")).toBeFalsy();
@@ -814,11 +822,18 @@ test.describe("AI", () => {
           duration_seconds: 300,
         },
       });
-      const pageId = (await pageRes.json()).id as string;
+      expect(pageRes.ok()).toBe(true);
+      const createdPage = await pageRes.json();
+      const pageId = createdPage.id as string;
+      const originalRevision = createdPage.revision as string;
+      expect(originalRevision).toEqual(expect.any(String));
 
       await setMockScript({
         steps: [
-          { prose: "Deleting it.", ops: [{ op: "delete_page", args: { page_id: pageId } }] },
+          {
+            prose: "Deleting it.",
+            ops: [{ op: "delete_page", args: { page_id: pageId, expected_revision: originalRevision } }],
+          },
           { prose: "Okay, leaving it." },
         ],
       });

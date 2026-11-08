@@ -5,8 +5,11 @@ import {
   FLAP_SPEED_PRESETS,
   type FlapSpeedPreset,
   Flex,
+  Grid,
   Label,
   PageSection,
+  SegmentedControl,
+  SegmentedControlItem,
   Skeleton,
   Stack,
   Text,
@@ -156,153 +159,114 @@ export function AnimationSettings() {
         <Skeleton className="h-20 w-full" />
       ) : (
         <>
-          <Stack gap="2">
-            <Box>
-              <Label className="text-sm font-medium">{t("boardAnimationsLabel")}</Label>
-              <Text size="xs" tone="muted" className="mt-0.5">
-                {t("boardAnimationsHint")}
-              </Text>
-            </Box>
-            <Flex
-              wrap
-              gap="2"
-              role="radiogroup"
-              aria-label={t("boardAnimationsLabel")}
-              {...anchorProps("settings.display.board_animations")}
-            >
-              {BOARD_OPTIONS.map((option) => {
-                const selected = boardMode === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => handleBoardChange(option)}
-                    disabled={updateMutation.isPending}
-                    className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                      selected
-                        ? "border-brand bg-brand/10 text-brand"
-                        : "border-muted hover:border-brand/50 text-foreground"
-                    }`}
-                  >
-                    {t(BOARD_LABEL_KEY[option])}
-                  </button>
-                );
-              })}
-            </Flex>
-            <Text size="xs" tone="muted">
-              {t(BOARD_HINT_KEY[boardMode])}
-            </Text>
-          </Stack>
-
-          <Stack gap="2" className="pt-2 border-t">
-            <Box>
-              <Label className="text-sm font-medium">{t("flapSpeedLabel")}</Label>
-              <Text size="xs" tone="muted" className="mt-0.5">
-                {t("flapSpeedHint")}
-              </Text>
-            </Box>
-            <Flex
-              wrap
-              gap="2"
-              role="radiogroup"
-              aria-label={t("flapSpeedLabel")}
-              {...anchorProps("settings.display.board_flap_speed")}
-            >
-              {FLAP_SPEED_OPTIONS.map((option) => {
-                const selected = flapSpeed === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => handleFlapSpeedChange(option)}
-                    disabled={updateMutation.isPending}
-                    className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                      selected
-                        ? "border-brand bg-brand/10 text-brand"
-                        : "border-muted hover:border-brand/50 text-foreground"
-                    }`}
-                  >
+          <Grid cols="1" lg="2" gap="6">
+            <Stack gap="6">
+              <Stack gap="2">
+                <Box>
+                  <Label className="text-sm font-medium">{t("boardAnimationsLabel")}</Label>
+                  <Text size="xs" tone="muted" className="mt-0.5">
+                    {t("boardAnimationsHint")}
+                  </Text>
+                </Box>
+                <SegmentedControl
+                  size="md"
+                  className="w-fit max-w-full flex-wrap"
+                  aria-label={t("boardAnimationsLabel")}
+                  value={boardMode}
+                  onValueChange={(value) => handleBoardChange(value as BoardAnimationsMode)}
+                  disabled={updateMutation.isPending}
+                  {...anchorProps("settings.display.board_animations")}
+                >
+                  {BOARD_OPTIONS.map((option) => (
+                    <SegmentedControlItem key={option} value={option}>
+                      {t(BOARD_LABEL_KEY[option])}
+                    </SegmentedControlItem>
+                  ))}
+                </SegmentedControl>
+                <Text size="xs" tone="muted">
+                  {t(BOARD_HINT_KEY[boardMode])}
+                </Text>
+              </Stack>
+              <Stack gap="2" className="pt-2 border-t">
+                <Box>
+                  <Label className="text-sm font-medium">{t("siteAnimationsLabel")}</Label>
+                  <Text size="xs" tone="muted" className="mt-0.5">
+                    {t("siteAnimationsHint")}
+                  </Text>
+                </Box>
+                <SegmentedControl
+                  size="md"
+                  className="w-fit max-w-full flex-wrap"
+                  aria-label={t("siteAnimationsLabel")}
+                  value={siteMode}
+                  onValueChange={(value) => handleSiteChange(value as SiteAnimationsMode)}
+                  disabled={updateMutation.isPending}
+                  {...anchorProps("settings.display.site_animations")}
+                >
+                  {SITE_OPTIONS.map((option) => (
+                    <SegmentedControlItem key={option} value={option}>
+                      {t(SITE_LABEL_KEY[option])}
+                    </SegmentedControlItem>
+                  ))}
+                </SegmentedControl>
+              </Stack>
+            </Stack>
+            <Stack gap="2">
+              <Box>
+                <Label className="text-sm font-medium">{t("flapSpeedLabel")}</Label>
+                <Text size="xs" tone="muted" className="mt-0.5">
+                  {t("flapSpeedHint")}
+                </Text>
+              </Box>
+              <SegmentedControl
+                size="md"
+                className="w-fit max-w-full flex-wrap"
+                aria-label={t("flapSpeedLabel")}
+                value={flapSpeed}
+                onValueChange={(value) => handleFlapSpeedChange(value as FlapSpeedPreset)}
+                disabled={updateMutation.isPending}
+                {...anchorProps("settings.display.board_flap_speed")}
+              >
+                {FLAP_SPEED_OPTIONS.map((option) => (
+                  <SegmentedControlItem key={option} value={option}>
                     {/* The per-preset hint below the group names the default,
                         but only for whatever is selected — so a user on
                         "Relaxed" cannot tell what they moved away from. One
                         combined string rather than an appended "(default)"
                         so translators own the whole label. */}
                     {t(option === "standard" ? "flapSpeed_standardWithDefault" : `flapSpeed_${option}`)}
-                  </button>
-                );
-              })}
-            </Flex>
-            <Text size="xs" tone="muted">
-              {t(`flapSpeed_${flapSpeed}Hint`, { ms: FLAP_SPEED_PRESETS[flapSpeed] })}
-            </Text>
-
-            {/* Users have a second, unrelated speed control under
-                Scheduling → Board Transitions (step_interval_ms, sent to the
-                physical unit over the Local API). Without this the two read
-                as the same setting configured twice. */}
-            <Flex align="start" gap="2" className="p-2.5 rounded-md bg-muted/50">
-              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-              <Text as="span" size="xs" tone="muted">
-                {t("flapSpeedScreenOnlyNote")}
+                  </SegmentedControlItem>
+                ))}
+              </SegmentedControl>
+              <Text size="xs" tone="muted">
+                {t(`flapSpeed_${flapSpeed}Hint`, { ms: FLAP_SPEED_PRESETS[flapSpeed] })}
               </Text>
-            </Flex>
 
-            {boardAnimating ? (
-              <Stack gap="1.5" className="pt-1">
-                <Text size="xs" tone="muted">
-                  {t("flapSpeedPreviewLabel")}
+              {/* Hardware transitions live in each display's Playback tab;
+                this cadence controls app previews across all displays. */}
+              <Flex align="start" gap="2" className="p-2.5 rounded-md bg-muted/50">
+                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                <Text as="span" size="xs" tone="muted">
+                  {t("flapSpeedScreenOnlyNote")}
                 </Text>
-                <Box className="flex justify-center">
-                  <FlapSpeedPreview speed={flapSpeed} enabled={boardAnimating} />
-                </Box>
-              </Stack>
-            ) : (
-              <Text size="xs" tone="muted" className="italic">
-                {t("flapSpeedInactive")}
-              </Text>
-            )}
-          </Stack>
+              </Flex>
 
-          <Stack gap="2" className="pt-2 border-t">
-            <Box>
-              <Label className="text-sm font-medium">{t("siteAnimationsLabel")}</Label>
-              <Text size="xs" tone="muted" className="mt-0.5">
-                {t("siteAnimationsHint")}
-              </Text>
-            </Box>
-            <Flex
-              wrap
-              gap="2"
-              role="radiogroup"
-              aria-label={t("siteAnimationsLabel")}
-              {...anchorProps("settings.display.site_animations")}
-            >
-              {SITE_OPTIONS.map((option) => {
-                const selected = siteMode === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => handleSiteChange(option)}
-                    disabled={updateMutation.isPending}
-                    className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                      selected
-                        ? "border-brand bg-brand/10 text-brand"
-                        : "border-muted hover:border-brand/50 text-foreground"
-                    }`}
-                  >
-                    {t(SITE_LABEL_KEY[option])}
-                  </button>
-                );
-              })}
-            </Flex>
-          </Stack>
+              {boardAnimating ? (
+                <Stack gap="1.5" className="pt-1">
+                  <Text size="xs" tone="muted">
+                    {t("flapSpeedPreviewLabel")}
+                  </Text>
+                  <Box className="flex justify-center">
+                    <FlapSpeedPreview speed={flapSpeed} enabled={boardAnimating} />
+                  </Box>
+                </Stack>
+              ) : (
+                <Text size="xs" tone="muted" className="italic">
+                  {t("flapSpeedInactive")}
+                </Text>
+              )}
+            </Stack>
+          </Grid>
 
           {reduceMotion && (
             <Text size="xs" tone="muted" className="italic">
