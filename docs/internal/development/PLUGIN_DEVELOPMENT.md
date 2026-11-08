@@ -1510,6 +1510,12 @@ Access settings and metadata through these properties on `PluginBase`:
 | `self.get_env_vars()` | method | The `env_vars` array from the manifest |
 | `self.clear_cache()` | method | Force a fresh `fetch_data()` on the next `get_data()` |
 
+Clearing the cache also invalidates results from fetches already in flight:
+they are not returned as available or republished into the cache. Calling
+`clear_cache()` inside `fetch_data()` therefore discards that fetch too. Use
+it from a change callback when older work must be discarded; do not call it
+inside every fetch expecting that fetch's value to remain available.
+
 > **Heads up:** The base class does **not** expose a `self.get_config(...)` method — call `self.config.get(...)` instead.
 
 ### PluginResult

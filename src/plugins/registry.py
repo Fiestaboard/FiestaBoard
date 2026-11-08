@@ -1160,6 +1160,7 @@ class PluginRegistry:
         with self._lock:
             plugin = self._plugins.get(plugin_id)
             enabled = self._enabled.get(plugin_id, False)
+            generation = plugin.cache_generation if isinstance(plugin, PluginBase) else None
 
         if plugin is None:
             return PluginResult(available=False, error=f"Plugin not found: {plugin_id}")
@@ -1175,7 +1176,17 @@ class PluginRegistry:
             return PluginResult(available=False, error=f"Plugin {plugin_id} is a transition plugin (no data)")
 
         try:
-            return plugin.get_data(board)
+            result = plugin.get_data(board)
+            # A reload/removal can retire the instance while provider work
+            # runs unlocked. Never return its late result as the live plugin.
+            with self._lock:
+                if (
+                    self._plugins.get(plugin_id) is not plugin
+                    or not self._enabled.get(plugin_id, False)
+                    or plugin.cache_generation != generation
+                ):
+                    return PluginResult(available=False, error=f"Plugin changed during fetch: {plugin_id}")
+            return result
         except Exception as e:
             logger.exception(f"Error fetching data from {plugin_id}")
             return PluginResult(available=False, error=str(e))
@@ -2145,6 +2156,31 @@ class PluginRegistry:
         if not to_fetch:
             return context
 
+        # A completed/cached answer can wait beside another slow provider.
+        # Recheck its generation when assembling the context, not only when
+        # the individual fetch returns. No provider code runs under this lock.
+        with self._lock:
+            states = {
+                pid: (plugin, plugin.cache_generation)
+                for pid in to_fetch
+                if isinstance(plugin := self._plugins.get(pid), PluginBase) and self._enabled.get(pid, False)
+            }
+
+        def current_context() -> dict[str, Any]:
+            with self._lock:
+                for pid in list(context):
+                    state = states.get(pid)
+                    if (
+                        state is None
+                        or self._plugins.get(pid) is not state[0]
+                        or not self._enabled.get(pid, False)
+                        or state[0].cache_generation != state[1]
+                    ):
+                        context.pop(pid)
+                        if fingerprints is not None:
+                            fingerprints.pop(pid, None)
+            return context
+
         # The identity of a fetch: one plugin ON one board geometry. The
         # in-flight registry, the circuit breaker and the timeout streaks all
         # key off it, so they agree on what "this fetch" means.
@@ -2198,7 +2234,7 @@ class PluginRegistry:
                     self._fetch_breaker_until.pop((plugin_id, board_key), None)
         to_fetch = still_to_fetch
         if not to_fetch:
-            return context
+            return current_context()
 
         # Circuit-breaker gate (issue #1884): a quarantined plugin with nothing
         # cached is dropped from this build entirely — not submitted, and
@@ -2301,7 +2337,7 @@ class PluginRegistry:
             except Exception:
                 logger.exception(f"Plugin {plugin_id} raised an error during context build")
 
-        return context
+        return current_context()
 
     def _serve_stale(self, plugin_id: str, board, context: dict, fingerprints: dict | None) -> None:
         """Put *plugin_id*'s last result for *board* into *context*, if recent.
