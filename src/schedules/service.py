@@ -396,9 +396,7 @@ class ScheduleService:
                 raise DefaultPageRevisionConflict()
             primary_id = settings.get_primary_board_id()
             bid = board_id or primary_id or DEFAULT_BOARD_ID
-            self.storage.set_default_page_id(page_id, board_id=bid)
-            if primary_id and bid == primary_id:
-                self.storage.set_default_page_id(None, board_id=DEFAULT_BOARD_ID)
+            self.storage.set_default_page_id(page_id, board_id=bid, clear_legacy=bool(primary_id and bid == primary_id))
             return self._default_page_state_locked(settings, board_id)
 
     # Validation
