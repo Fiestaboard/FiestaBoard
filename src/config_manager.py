@@ -1728,6 +1728,13 @@ class ConfigManager:
             entry.update({k: v for k, v in values.items() if k in SILENCE_SCHEDULE_KEYS})
             by_board[board_id] = entry
             silence["by_board"] = by_board
+            # The file is per-board from this save on. Keep the on-disk
+            # snapshot in step (as prune does), or the deferred
+            # migrate_silence_schedule_to_per_board guard still sees a
+            # pre-#1788 file and, at the first enabled silence check, replaces
+            # every board's window with the install-wide one. On a fresh
+            # install that wiped the first quiet hours anyone set.
+            self._raw_features.setdefault("silence_schedule", {})["by_board"] = self._deep_copy(by_board)
             self._save_internal()
         logger.info("Silence schedule for board %s updated", board_id)
         return True
