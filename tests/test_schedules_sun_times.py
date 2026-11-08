@@ -44,9 +44,9 @@ class TestGetSunTimes:
 
     def test_returns_none_on_failure(self):
         """Invalid parameters should return None gracefully."""
-        # Use an extreme latitude where polar day might fail
-        with patch("src.schedules.sun_times.sun", side_effect=Exception("polar")):
-            result = get_sun_times(89.0, 0.0, date(2026, 6, 21), "UTC")
+        # Inject an event failure at a location where the event would occur.
+        with patch("src.schedules.sun_times.sunrise", side_effect=ValueError("unavailable")):
+            result = get_sun_times(40.7128, -74.0060, date(2026, 6, 21), "America/New_York")
             assert result is None
 
     def test_different_timezones(self):
