@@ -216,6 +216,10 @@ class TestRenderClockIsPinnedPerRender:
         assert isinstance(pinned["__now__"], datetime)
 
     def test_an_already_pinned_context_is_returned_unchanged(self):
-        context = {"__now__": NOW}
+        # RE-PINNED (S2): the render's evaluation budget travels beside its
+        # clock, so a context pinned with only a clock gains the budget once
+        # (its clock kept); one pinned by ensure_render_clock is returned as is.
+        pinned = ensure_render_clock({"__now__": NOW})
 
-        assert ensure_render_clock(context) is context
+        assert pinned["__now__"] is NOW
+        assert ensure_render_clock(pinned) is pinned
