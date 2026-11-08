@@ -234,3 +234,89 @@ def test_iferror_cannot_trap_too_much_work():
     attack = f"COUNT(FILTER({A}, COUNT(FILTER({A}, TRUE)) > 0))"
 
     assert evaluate(f'IFERROR({attack}, "fine")') == "#VALUE"
+
+
+# ── W1: one step must not hide 64 KB of work (#2461 security review) ────────
+
+B64K = 'REPT(REPT("abcdefgh,",1024),7)'  # 57 344 characters, 7 169 pieces
+
+
+@pytest.mark.parametrize(
+    "formula",
+    [
+        f'COUNT(FILTER({A}, COUNT(SPLIT({B64K}, ",")) > 0))',
+        f'COUNT(FILTER({A}, COUNT(SORT(SPLIT({B64K}, ","))) > 0))',
+        f'COUNT(FILTER({A}, LEN(UPPER({B64K})) > 0))',
+        f'COUNT(FILTER({A}, NOT CONTAINS({B64K}, "z")))',
+        f'COUNT(FILTER({A}, LEN(JOIN(SPLIT({B64K}, ","), ";")) > 0))',
+    ],
+    ids=["split", "sort-split", "upper", "contains", "join"],
+)
+def test_per_item_work_on_a_large_string_is_charged_by_its_size(formula):
+    value, elapsed = _timed(formula)
+
+    assert value == "#VALUE"
+    assert _within_budget_time(elapsed, expressions.MAX_FORMULA_STEPS)
+
+
+def test_a_large_plugin_string_is_charged_the_same():
+    big = ("abcdefgh," * 7000)[:-1]
+    engine = TemplateEngine.__new__(TemplateEngine)
+    engine._plugin_registry = None
+    line = f'{{{{= COUNT(FILTER({A}, COUNT(SORT(SPLIT(p.s, ","))) > 0)) }}}}'
+
+    started = time.perf_counter()
+    rows = engine.render_lines([line], {"p": {"s": big}}).split("\n")
+
+    assert rows[0].strip() == "#VALUE"
+    assert _within_budget_time(time.perf_counter() - started, expressions.MAX_FORMULA_STEPS)
+
+
+def test_work_is_charged_by_size_not_only_by_node():
+    """One SPLIT of 57 KB costs more than one step; one of 9 bytes costs one."""
+    assert expressions.count_steps(f'SPLIT({B64K}, ",")') > expressions.count_steps('SPLIT("a,b,c,d,e", ",")') + 100
+
+
+# ── W2: a wall-clock deadline, for slow hardware ────────────────────────────
+
+
+class _FakeClock:
+    def __init__(self, step: float):
+        self.now = 0.0
+        self.step = step
+
+    def __call__(self) -> float:
+        self.now += self.step
+        return self.now
+
+
+def test_a_formula_past_one_second_took_too_long(monkeypatch):
+    monkeypatch.setattr(expressions, "_eval_clock", _FakeClock(0.3))
+
+    failure = _failure(f"COUNT(FILTER({A}, TRUE))")
+
+    assert failure.code == "#VALUE"
+    assert "took too long" in failure.message
+
+
+def test_iferror_cannot_trap_the_deadline(monkeypatch):
+    monkeypatch.setattr(expressions, "_eval_clock", _FakeClock(0.3))
+
+    assert evaluate(f'IFERROR(COUNT(FILTER({A}, TRUE)), "fine")') == "#VALUE"
+
+
+def test_a_render_past_three_seconds_stops_its_remaining_formulas(monkeypatch):
+    """Each formula alone stays under a second; together they pass three."""
+    monkeypatch.setattr(expressions, "_eval_clock", _FakeClock(0.1))
+    engine = TemplateEngine.__new__(TemplateEngine)
+    engine._plugin_registry = None
+    line = '{{= COUNT(FILTER(SPLIT(REPT("a,",2000), ","), TRUE)) }}'
+
+    rows = engine.render_lines([line] * 12, {}, device_type="panel", grid_rows=12, grid_cols=40).split("\n")
+
+    assert rows[0].strip() == "2001"
+    assert rows[-1].strip() == "#VALUE"
+
+
+def test_ordinary_formulas_never_see_the_deadline():
+    assert evaluate(f"COUNT(FILTER({A}, TRUE))") == "32769"
