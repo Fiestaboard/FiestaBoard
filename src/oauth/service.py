@@ -43,6 +43,7 @@ from .errors import (
     ConnectionNotConfigured,
     ConnectionNotFound,
     FlowNotSupported,
+    InvalidAppReturn,
     InvalidBoardUrl,
     InvalidState,
     PastedCodeRejected,
@@ -114,6 +115,34 @@ def configured_redirect_uri() -> str:
 
 
 MAX_BOARD_URL_LENGTH = 512
+
+#: Where a sign-in the phone app started returns to (H11). Exact match only: the
+#: app opens the provider in ASWebAuthenticationSession or a Custom Tab, which
+#: completes on this custom scheme and never on the hub's plain-http callback.
+APP_RETURN_URIS = frozenset({"fiestaboard://oauth"})
+
+
+def validate_app_return(app_return: str | None) -> str:
+    """*app_return* if it is exactly an allow-listed app address, ``""`` for none, else raise."""
+    if app_return is None:
+        return ""
+    if app_return not in APP_RETURN_URIS:
+        raise InvalidAppReturn("That app return address is not allowed.")
+    return app_return
+
+
+def app_return_location(outcome: CallbackOutcome) -> str | None:
+    """Where to send a phone app's in-app browser after a callback, or ``None`` for the web.
+
+    The address is re-checked against the allow-list here, at redirect time. It
+    carries the outcome only: the provider's code and the state never leave the hub.
+    """
+    if not outcome.app_return or outcome.app_return not in APP_RETURN_URIS:
+        return None
+    query = {"connection": outcome.connection_id or "", "oauth": "connected" if outcome.connected else "error"}
+    if outcome.reason:
+        query["reason"] = outcome.reason
+    return f"{outcome.app_return}?{urlencode(query)}"
 
 
 def normalize_board_url(board_url: str | None) -> str:
@@ -333,6 +362,9 @@ class CallbackOutcome:
     connected: bool
     connection_id: str | None = None
     reason: str = ""
+    #: The allow-listed app address the flow was started with, if any. Read from
+    #: the pending flow held on this board, never from the callback's query.
+    app_return: str = ""
 
 
 # ── In-memory flow state ────────────────────────────────────────────────────
@@ -365,6 +397,9 @@ class _PendingAuthorization:
     #: Extra fields for the code exchange (a ``resource`` indicator, say).
     extra_token_params: dict[str, str] = field(default_factory=dict)
     token_auth_method: str = AUTH_METHOD_POST
+    #: The phone app's return address (``APP_RETURN_URIS``), kept here and not in
+    #: the signed state, so nothing a provider or the relay carries can choose it.
+    app_return: str = ""
 
 
 @dataclass
@@ -500,6 +535,7 @@ class OAuthService:
         flow: str | None = None,
         board_url: str | None = None,
         headless: bool = False,
+        app_return: str | None = None,
     ) -> AuthorizationStart:
         """Start connecting *connection_id*, with its preferred flow unless told otherwise.
 
@@ -507,7 +543,11 @@ class OAuthService:
         relay flow needs it (it is where the browser must come back to); the
         device flow ignores it. ``key_exchange`` without one, or with
         *headless*, asks the provider to show a code for the user to paste.
+
+        *app_return* (the phone app only) must be in ``APP_RETURN_URIS``; a
+        flow that comes back through ``/oauth/callback`` then ends there.
         """
+        returns_to = validate_app_return(app_return)
         target = self._target(connection_id)
         chosen = flow or target.provider.flows[0]
         if chosen not in target.provider.flows:
@@ -522,15 +562,19 @@ class OAuthService:
             return self._start_device(target, endpoints)
         if chosen == FLOW_KEY_EXCHANGE:
             headless = headless or board_url is None
-            return self._start_key_exchange(target, None if headless else normalize_board_url(board_url), endpoints)
+            return self._start_key_exchange(
+                target, None if headless else normalize_board_url(board_url), endpoints, returns_to
+            )
         if chosen == FLOW_PLEX_PIN:
             return self._start_plex(target, normalize_board_url(board_url) if board_url else "")
         if target.provider.redirect_uri_override and not board_url:
             # The browser never comes back here, so the board's address is not needed.
-            return self._start_relay(target, "", endpoints)
-        return self._start_relay(target, normalize_board_url(board_url), endpoints)
+            return self._start_relay(target, "", endpoints, returns_to)
+        return self._start_relay(target, normalize_board_url(board_url), endpoints, returns_to)
 
-    def _start_relay(self, target: ConnectionTarget, board_url: str, endpoints: Endpoints) -> AuthorizationStart:
+    def _start_relay(
+        self, target: ConnectionTarget, board_url: str, endpoints: Endpoints, app_return: str = ""
+    ) -> AuthorizationStart:
         now = self._clock()
         verifier = pkce.generate_verifier()
         nonce = secrets.token_urlsafe(16)
@@ -559,6 +603,7 @@ class OAuthService:
             reused_client_id=issued,
             extra_token_params=dict(provider.token_params),
             token_auth_method=provider.token_auth_method,
+            app_return=app_return,
         )
         with self._lock:
             self._prune_pending(now)
@@ -590,7 +635,7 @@ class OAuthService:
         return AuthorizationStart(flow=FLOW_RELAY, authorization_url=url)
 
     def _start_key_exchange(
-        self, target: ConnectionTarget, board_url: str | None, endpoints: Endpoints
+        self, target: ConnectionTarget, board_url: str | None, endpoints: Endpoints, app_return: str = ""
     ) -> AuthorizationStart:
         """PKCE for an API key (OpenRouter). No client ID; *board_url* ``None`` means headless."""
         now = self._clock()
@@ -609,6 +654,7 @@ class OAuthService:
             expires_at=expires_at,
             flow=FLOW_KEY_EXCHANGE,
             allow_bare_code=True,
+            app_return=app_return,
         )
         with self._lock:
             self._prune_pending(now)
@@ -735,20 +781,20 @@ class OAuthService:
             logger.warning("Rejected OAuth callback for %s: state already used or unknown", payload.connection_id)
             return CallbackOutcome(connected=False, connection_id=payload.connection_id, reason="invalid_state")
 
-        connection_id = pending.connection_id
+        connection_id, app_return = pending.connection_id, pending.app_return
         if error:
             reason = "access_denied" if error == "access_denied" else "provider_error"
             logger.info("OAuth sign-in for %s was not completed: %s", connection_id, reason)
-            return CallbackOutcome(connected=False, connection_id=connection_id, reason=reason)
+            return CallbackOutcome(False, connection_id, reason, app_return)
         if not code:
-            return CallbackOutcome(connected=False, connection_id=connection_id, reason="provider_error")
+            return CallbackOutcome(False, connection_id, "provider_error", app_return)
 
         try:
             self._finish_pending(pending, code)
         except (TokenEndpointError, ProviderError) as exc:
             logger.error("OAuth code exchange for %s failed: %s", connection_id, exc)
-            return CallbackOutcome(connected=False, connection_id=connection_id, reason="exchange_failed")
-        return CallbackOutcome(connected=True, connection_id=connection_id)
+            return CallbackOutcome(False, connection_id, "exchange_failed", app_return)
+        return CallbackOutcome(True, connection_id, app_return=app_return)
 
     def _finish_pending(self, pending: _PendingAuthorization, code: str, issued_client_id: str = "") -> None:
         """Trade *code* for tokens and store them. Raises the provider's error."""

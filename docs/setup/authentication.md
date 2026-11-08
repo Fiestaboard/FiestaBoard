@@ -225,8 +225,9 @@ The FiestaBoard iOS and Android apps sign in with your username and password
 (`POST /auth/device/login`, `client_id` `fiestaboard-ios` or `fiestaboard-android`).
 The hub returns a long-lived credential with the `control` scope and does not keep
 the password on the phone. The **Device sign-in** switch in **Settings → Account**
-controls new phone sign-ins, as it does for TVs. Approving a phone with a code on `/activate` isn't
-available yet.
+controls new phone sign-ins, as it does for TVs. A phone can also pair with a QR code
+instead of a password (see below). The TV-style code on `/activate` is not offered to
+phones.
 
 A phone credential can do what the app needs: show and change what each display
 shows, start and end overrides, edit pages, collections and schedules, configure
@@ -235,7 +236,8 @@ installed integrations and their sign-ins, manage TVs, run device actions such a
 
 A phone credential **cannot**:
 
-- manage accounts, passwords, signed-in devices, the API token or TV approval;
+- manage accounts, passwords, signed-in devices or the API token;
+- create pairing codes for other phones;
 - export or import backups;
 - change the hub's network, update channel or software, or restart it;
 - install, update or remove plugins or outputs;
@@ -249,6 +251,39 @@ Like a TV, a phone credential expires after one year. You can revoke it from
 **Signed-in devices**, with **Sign out everywhere**, or by changing the password or
 username. Its next request is then rejected. A phone can also sign itself out
 (`DELETE /auth/device/session`).
+
+### Pair a phone with a QR code
+
+In the web app, signed in, **Settings → Account → Connect a phone** shows a QR code.
+Scan it with the FiestaBoard app and tap **Connect**. The phone gets the same `control`
+credential as a password sign-in, listed in **Signed-in devices** as a QR / code approval.
+
+- The code works **once**, for **five minutes**, and only the newest code is live:
+  showing a new one, closing the dialog, signing that browser out, **Sign out everywhere**,
+  a password change or turning off **Device sign-in** cancels it.
+- The code is inside the QR's `#` fragment and the app's request body. It never appears
+  in a web address the hub receives, so it is not in any log.
+- Each address may try 10 codes a minute, and wrong codes count toward the same
+  lockout as wrong passwords.
+
+The endpoints are `POST /auth/pairing` (browser session), `GET /auth/pairing/{id}`,
+`DELETE /auth/pairing` and `POST /auth/pairing/claim` (the app).
+
+### Approve a TV from the phone
+
+A signed-in phone can approve or decline a TV's sign-in code, as the `/activate` page
+does in a browser (`POST /auth/device/inspect`, `approve`, `deny` with the phone's
+credential). A phone can approve TV codes only. If the phone is signed out before the
+TV picks up its approval, the TV must ask for a new code.
+
+### Plugin sign-in from the phone
+
+When the app connects an integration to its provider, it passes
+`app_return: "fiestaboard://oauth"` to `POST /oauth/connections/{id}/authorize`. After
+the provider sign-in, the hub sends the app's in-app browser to
+`fiestaboard://oauth?connection=…&oauth=connected` (or `oauth=error&reason=…`). That
+address carries the outcome only, never the provider's code. The hub accepts that one
+exact address, and only from a phone's sign-in.
 
 ### Upgrade and rollback
 

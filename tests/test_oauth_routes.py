@@ -701,7 +701,9 @@ def phone_client(service, tmp_path, monkeypatch):
 
 
 def _phone_start(phone_client, **extra):
-    response = phone_client.post("/oauth/connections/music/authorize", json={**BOARD, "app_return": APP_RETURN, **extra})
+    response = phone_client.post(
+        "/oauth/connections/music/authorize", json={**BOARD, "app_return": APP_RETURN, **extra}
+    )
     assert response.status_code == 200, response.text
     return _state_from(response)
 

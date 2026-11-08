@@ -66,6 +66,30 @@ class PendingDevice(BaseModel):
     scope: NativeScope = "tv_panels"
 
 
+class PairingOffer(BaseModel):
+    """A QR pairing offer for a phone. The secret is only inside ``qr_payload``."""
+
+    pairing_id: str = Field(description="Handle for polling the offer's state. Not a secret.")
+    qr_payload: str = Field(
+        description=(
+            "Render as a QR code. A fiestaboard://pair URL whose fragment holds v, hub, id, name and the "
+            "one-time code; the code is never sent in a request URL."
+        )
+    )
+    expires_in: int = Field(default=300, description="Seconds until the code stops working. Single use.")
+    scope: NativeScope = "control"
+
+
+class PairingState(BaseModel):
+    state: Literal["pending", "claimed", "expired", "cancelled"]
+    device_name: str | None = None
+    session_id: str | None = None
+
+
+class PairingClaim(DeviceMetadata):
+    pairing_code: str = Field(min_length=1, max_length=128)
+
+
 class EnrollmentSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: StrictBool
@@ -96,7 +120,7 @@ class SessionSummary(BaseModel):
     device_name: str
     client_id: str
     app_version: str
-    method: Literal["password", "device_code"]
+    method: Literal["password", "device_code", "pairing"]
     created_at: str
     last_active_at: str
     expires_at: str

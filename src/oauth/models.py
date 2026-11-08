@@ -110,6 +110,14 @@ class OAuthAuthorizeRequest(BaseModel):
         default=False,
         description="key_exchange: sign in without a redirect back; the user pastes the code the provider shows.",
     )
+    app_return: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Phone app only: 'fiestaboard://oauth'. The callback then sends the in-app browser there with "
+            "connection, oauth (connected or error) and reason, never the code. Any other value is refused."
+        ),
+    )
 
 
 class OAuthAuthorizationStart(BaseModel):

@@ -39,6 +39,7 @@ def auth(tmp_path, monkeypatch):
     monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "true")
     monkeypatch.delenv("FIESTABOARD_MCP_TOKEN", raising=False)
     monkeypatch.delenv("FIESTABOARD_CORS_ORIGINS", raising=False)
+    monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path / "data"))
     routes_module._FAILED_ATTEMPTS.clear()
     return svc
 
@@ -74,7 +75,7 @@ def offer(browser):
 
 def fragment(payload):
     parts = urlsplit(payload["qr_payload"])
-    return parts, {key: values[0] for key, values in parse_qs(parts.fragment).items()}
+    return parts, {key: values[0] for key, values in parse_qs(parts.fragment, keep_blank_values=True).items()}
 
 
 def code_of(payload):
@@ -340,7 +341,9 @@ def test_phone_inspects_and_approves_a_tv(auth, phone):
     assert pending.json()["scope"] == "tv_panels" and pending.json()["device_name"] == TV["device_name"]
     assert client.post("/auth/device/approve", json={"user_code": grant["user_code"]}).status_code == 200
     auth.sessions.clock_ms = (lambda now: lambda: now + 6_000)(auth.sessions.clock_ms())
-    issued = TestClient(app).post("/auth/device/token", json={"device_code": grant["device_code"], **{"client_id": TV["client_id"]}})
+    issued = TestClient(app).post(
+        "/auth/device/token", json={"device_code": grant["device_code"], "client_id": TV["client_id"]}
+    )
     assert issued.status_code == 200, issued.text
     assert issued.json()["access_token"].startswith("fb_tv_") and issued.json()["scope"] == "tv_panels"
     with auth.sessions.transaction() as db:
@@ -353,7 +356,9 @@ def test_phone_denies_a_tv(auth, phone):
     grant = tv_code()
     assert client.post("/auth/device/deny", json={"user_code": grant["user_code"]}).status_code == 200
     auth.sessions.clock_ms = (lambda now: lambda: now + 6_000)(auth.sessions.clock_ms())
-    response = TestClient(app).post("/auth/device/token", json={"device_code": grant["device_code"], "client_id": TV["client_id"]})
+    response = TestClient(app).post(
+        "/auth/device/token", json={"device_code": grant["device_code"], "client_id": TV["client_id"]}
+    )
     assert response.json()["error"] == "access_denied"
 
 
@@ -363,7 +368,9 @@ def test_revoking_the_approving_phone_cancels_the_grant(auth, phone):
     assert client.post("/auth/device/approve", json={"user_code": grant["user_code"]}).status_code == 200
     auth.sessions.revoke_session("admin", token["session_id"])
     auth.sessions.clock_ms = (lambda now: lambda: now + 6_000)(auth.sessions.clock_ms())
-    response = TestClient(app).post("/auth/device/token", json={"device_code": grant["device_code"], "client_id": TV["client_id"]})
+    response = TestClient(app).post(
+        "/auth/device/token", json={"device_code": grant["device_code"], "client_id": TV["client_id"]}
+    )
     assert response.status_code == 400 and response.json()["error"] == "invalid_grant"
 
 
@@ -409,3 +416,44 @@ def test_a_phone_never_approves_a_control_challenge(auth, phone):
     with pytest.raises(AuthFlowError) as raised:
         service.decide(grant.user_code, approver, True)
     assert raised.value.error == "invalid_grant"
+
+
+# --- Each defence layer, on its own ------------------------------------------
+
+
+def test_logout_marks_the_offer_cancelled(auth, browser):
+    payload = offer(browser)
+    other = _browser()
+    assert browser.post("/auth/logout").status_code == 200
+    assert other.get("/auth/pairing/" + payload["pairing_id"]).json()["state"] == "cancelled"
+
+
+def test_claim_rechecks_the_creating_browser(auth, browser):
+    # Even if an offer were left pending, a creator that is no longer signed in
+    # cannot vouch for a new phone.
+    code = code_of(offer(browser))
+    with auth.sessions.transaction() as db:
+        db.execute("UPDATE sessions SET revoked_ms=1 WHERE kind='browser'")
+    response = claim(code)
+    assert response.status_code == 400 and response.json()["error"] == "invalid_grant"
+
+
+def test_the_phone_decision_path_refuses_a_tv_token(auth):
+    # The middleware already stops a TV token here; the handler does not rely on it.
+    from starlette.requests import Request
+
+    from src.auth.device_routes import _decision_context
+
+    token = sign_in(TV)["access_token"]
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/auth/device/approve",
+            "headers": [(b"authorization", ("Bearer " + token).encode())],
+            "client": ("127.0.0.1", 1),
+        }
+    )
+    with pytest.raises(AuthFlowError) as raised:
+        _decision_context(request)
+    assert raised.value.status == 401
