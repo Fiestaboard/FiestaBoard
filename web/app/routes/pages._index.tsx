@@ -8,6 +8,7 @@ import {
   DialogTitle,
   Flex,
   Grid,
+  Input,
   PageSection,
   PageToolbar,
   Select,
@@ -21,7 +22,7 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, LayoutGrid, List, Plus } from "lucide-react";
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { ViewMode } from "@/components/page-grid-selector";
@@ -33,6 +34,7 @@ import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { PAGE_LIBRARY_SORTS, type PageLibraryQuery, type PageLibrarySort } from "@/lib/page-library-query";
 
 // Lazy load PageGridSelector so the header renders immediately
 const PageGridSelectorLazy = lazy(() =>
@@ -55,6 +57,19 @@ function PageGridSelector(props: React.ComponentProps<typeof PageGridSelectorLaz
 }
 
 const VIEW_MODE_STORAGE_KEY = "fiestaboard_pages_view_mode";
+const LIBRARY_STORAGE_KEY = "fiestaboard_pages_library_query";
+
+function getStoredLibraryState(): PageLibraryQuery {
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(LIBRARY_STORAGE_KEY) ?? "null");
+    return {
+      text: typeof stored?.text === "string" ? stored.text : "",
+      sort: PAGE_LIBRARY_SORTS.includes(stored?.sort) ? stored.sort : "name-asc",
+    };
+  } catch {
+    return { text: "", sort: "name-asc" };
+  }
+}
 
 function getStoredViewMode(): ViewMode {
   if (typeof window === "undefined") return "grid";
@@ -152,6 +167,14 @@ export default function PagesPage() {
     } catch {}
   };
 
+  const [libraryQuery, setLibraryQuery] = useState<PageLibraryQuery>(getStoredLibraryState);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(libraryQuery));
+    } catch {}
+  }, [libraryQuery]);
+
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
     try {
@@ -239,12 +262,63 @@ export default function PagesPage() {
         }
       />
 
+      <PageToolbar
+        left={
+          <Flex gap="2" align="center" wrap className="min-w-0 w-full">
+            <Input
+              ref={searchInputRef}
+              type="search"
+              aria-label={t("searchLabel")}
+              aria-describedby="page-library-search-hint"
+              placeholder={t("searchPlaceholder")}
+              value={libraryQuery.text}
+              onChange={(event) => setLibraryQuery((previous) => ({ ...previous, text: event.target.value }))}
+              className="w-full sm:w-72"
+            />
+            {libraryQuery.text && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setLibraryQuery((previous) => ({ ...previous, text: "" }));
+                  searchInputRef.current?.focus();
+                }}
+              >
+                {t("clearSearch")}
+              </Button>
+            )}
+          </Flex>
+        }
+        right={
+          <Select
+            value={libraryQuery.sort}
+            onValueChange={(sort) => setLibraryQuery((previous) => ({ ...previous, sort: sort as PageLibrarySort }))}
+          >
+            <SelectTrigger aria-label={t("sortLabel")} className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name-asc">{t("sortNameAsc")}</SelectItem>
+              <SelectItem value="name-desc">{t("sortNameDesc")}</SelectItem>
+              <SelectItem value="created-desc">{t("sortCreatedDesc")}</SelectItem>
+              <SelectItem value="created-asc">{t("sortCreatedAsc")}</SelectItem>
+              <SelectItem value="updated-desc">{t("sortUpdatedDesc")}</SelectItem>
+              <SelectItem value="updated-asc">{t("sortUpdatedAsc")}</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+      />
+
       <PageSection className="px-4 pt-0 pb-4 sm:px-6 [&:not(:first-child)]:border-t-0" {...anchorProps("pages.root")}>
+        <Text id="page-library-search-hint" size="xs" tone="muted" className="mb-3">
+          {t("searchHint")}
+        </Text>
         <PageGridSelector
           onSelectPage={handleSelectPage}
           label={null}
           showActiveIndicator={false}
           showCollections={false}
+          libraryQuery={libraryQuery}
           compatibleBoard={selectedBoard}
           viewMode={viewMode}
         />
