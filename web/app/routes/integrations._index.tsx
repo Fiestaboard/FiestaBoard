@@ -19,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
   Code as CodeChip,
+  CopyableCode,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -126,7 +127,6 @@ import {
   Cog,
   Compass,
   Cookie,
-  Copy,
   CopyPlus,
   Cpu,
   Crown,
@@ -275,6 +275,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { GitInstallFields, useGitPluginInstall } from "@/components/plugin-git-install";
+import { PluginProvenance } from "@/components/plugin-provenance";
 import {
   asJSONSchema,
   findOAuthConnection,
@@ -616,14 +617,12 @@ function ColorRulesEditor({
   pluginId,
   colorRules,
   onChange,
-  onCopyVar,
-  copiedVar,
+  onVarCopied,
 }: {
   pluginId: string;
   colorRules: ColorRulesConfig;
   onChange: (rules: ColorRulesConfig) => void;
-  onCopyVar: (varName: string) => void;
-  copiedVar: string | null;
+  onVarCopied: (templateVar: string) => void;
 }) {
   const t = useTranslations("integrations");
   const tCommon = useTranslations("common");
@@ -701,12 +700,12 @@ function ColorRulesEditor({
         {/* Add new field input */}
         {showAddField && (
           <Flex gap="2" className="p-2 rounded-md border bg-muted/30">
-            <input
+            <Input
               type="text"
               value={newFieldName}
               onChange={(e) => setNewFieldName(e.target.value)}
               placeholder={t("colorRules.fieldPlaceholder")}
-              className="flex-1 h-8 px-2 text-xs rounded border bg-background"
+              className="flex-1 h-8 px-2 text-xs rounded bg-background shadow-none"
             />
             <Button size="sm" className="h-8 text-xs" onClick={handleAddField}>
               {tCommon("add")}
@@ -738,25 +737,23 @@ function ColorRulesEditor({
                       </Text>
                     </Flex>
                     <Flex align="center" gap="1">
-                      <button
-                        onClick={() => onCopyVar(`${fieldName}_color`)}
-                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-muted"
+                      <CopyableCode
+                        value={`{{${pluginId}.${fieldName}_color}}`}
+                        onCopied={onVarCopied}
+                        className="bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted"
                       >
-                        {copiedVar === `${fieldName}_color` ? (
-                          <Check className="h-3 w-3 text-success" />
-                        ) : (
-                          <Copy className="h-3 w-3" />
-                        )}
-                        <CodeChip className="bg-transparent px-0 py-0 rounded-none">{fieldName}_color</CodeChip>
-                      </button>
+                        {`${fieldName}_color`}
+                      </CopyableCode>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => handleDeleteField(fieldName)}
-                            className="p-1 text-destructive hover:bg-destructive/10 rounded"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="h-3 w-3" />
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent>
                           <Text>{t("colorRules.deleteFieldTooltip")}</Text>
@@ -838,7 +835,7 @@ function ColorRulesEditor({
                           </Select>
 
                           {/* Value input */}
-                          <input
+                          <Input
                             type="text"
                             value={rule.value}
                             onChange={(e) => {
@@ -849,17 +846,19 @@ function ColorRulesEditor({
                                 value: isNaN(numVal) ? val : numVal,
                               });
                             }}
-                            className="w-20 h-7 px-2 rounded border bg-background text-xs font-mono"
+                            className="w-20 h-7 px-2 rounded bg-background text-xs font-mono shadow-none"
                             placeholder={t("colorRules.valuePlaceholder")}
                           />
 
                           {/* Delete button */}
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => handleDeleteRule(fieldName, idx)}
-                            className="p-1 text-destructive hover:bg-destructive/10 rounded ml-auto"
+                            className="ml-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="h-3 w-3" />
-                          </button>
+                          </Button>
                         </Flex>
                       );
                     })}
@@ -1100,7 +1099,6 @@ function InstalledPluginRow({
   const [isConfigOpen, setIsConfigOpen] = useState(initiallyOpen);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [copiedVar, setCopiedVar] = useState<string | null>(null);
   const [isCreatingDemo, setIsCreatingDemo] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
   const [showAddInstance, setShowAddInstance] = useState(false);
@@ -1247,12 +1245,8 @@ function InstalledPluginRow({
     }
   };
 
-  // Copy template variable
-  const handleCopyVar = (varName: string) => {
-    const templateVar = `{{${plugin.id}.${varName}}}`;
-    navigator.clipboard.writeText(templateVar);
-    setCopiedVar(varName);
-    setTimeout(() => setCopiedVar(null), 2000);
+  // Confirm a copied template variable
+  const handleVarCopied = (templateVar: string) => {
     toast.success(`Copied ${templateVar}`);
   };
 
@@ -1283,25 +1277,18 @@ function InstalledPluginRow({
       pluginData?.available ? (pluginData.data as Record<string, unknown>) : undefined,
     );
     return (
-      <TableRow
-        key={variable.name}
-        className="hover:bg-muted/30 cursor-pointer transition-colors"
-        onClick={() => handleCopyVar(variable.name)}
-      >
+      <TableRow key={variable.name} className="hover:bg-muted/30 transition-colors">
         <TableCell className="px-3 py-2 align-top">
-          <Flex align="center" gap="1.5">
-            <CodeChip className="text-primary bg-primary/10">
-              {plugin.id}.{variable.name}
-            </CodeChip>
-            {copiedVar === variable.name ? (
-              <Check className="h-3 w-3 text-success" />
-            ) : (
-              <Copy className="h-3 w-3 text-muted-foreground" />
-            )}
-          </Flex>
+          <CopyableCode
+            value={`{{${plugin.id}.${variable.name}}}`}
+            onCopied={handleVarCopied}
+            className="text-primary bg-primary/10 hover:bg-primary/20"
+          >
+            {plugin.id}.{variable.name}
+          </CopyableCode>
         </TableCell>
         <TableCell className="px-3 py-2 text-muted-foreground capitalize align-top">{variable.description}</TableCell>
-        <TableCell className="px-3 py-2 align-top max-w-[200px]" onClick={(e) => e.stopPropagation()}>
+        <TableCell className="px-3 py-2 align-top max-w-[200px]">
           {!plugin.enabled ? (
             <Text as="span" tone="muted">
               —
@@ -1623,8 +1610,7 @@ function InstalledPluginRow({
                 onChange={(newRules) => {
                   setConfigValues((prev) => ({ ...prev, color_rules: newRules }));
                 }}
-                onCopyVar={handleCopyVar}
-                copiedVar={copiedVar}
+                onVarCopied={handleVarCopied}
               />
 
               {/* No config message */}
@@ -1717,6 +1703,7 @@ function InstalledPluginRow({
                   {t("sourceExternalBadge")}
                 </Badge>
               )}
+              <PluginProvenance repository={plugin.source?.repository_url} />
               {hasUpdate && (
                 <Badge
                   variant="outline"
@@ -1983,7 +1970,12 @@ function RegistryPluginCard({
         style={{ animationDelay: `${index * 60}ms` }}
         name={entry.name}
         description={entry.description}
-        authorLabel={t("byAuthor", { author: entry.author })}
+        authorLabel={
+          <Text as="span" className="inline-flex flex-wrap items-center gap-2">
+            {t("byAuthor", { author: entry.author })}
+            <PluginProvenance repository={entry.repository} />
+          </Text>
+        }
         teaser={entry.teaser}
         boardType={boardColor}
         code62Glyph={code62Glyph}
@@ -2062,6 +2054,7 @@ function RegistryPluginRow({
               <Text as="span" weight="medium" className="group-hover:underline underline-offset-2">
                 {entry.name}
               </Text>
+              <PluginProvenance repository={entry.repository} />
               {isInstalled && (
                 <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
                   <CheckCircle className="h-2.5 w-2.5" />
@@ -2171,6 +2164,8 @@ export default function IntegrationsPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [isUpdatingAll, setIsUpdatingAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [marketplacePage, setMarketplacePage] = useState(0);
   const [gitDialogOpen, setGitDialogOpen] = useState(false);
   const gitInstall = useGitPluginInstall();
 
@@ -2340,25 +2335,11 @@ export default function IntegrationsPage() {
 
   const filteredRegistry = allRegistryEntries.filter(
     (e) =>
-      !query ||
-      e.name.toLowerCase().includes(query) ||
-      e.description?.toLowerCase().includes(query) ||
-      e.id.toLowerCase().includes(query),
-  );
-
-  // Group all registry entries by category (for Marketplace tab card view)
-  const groupedRegistry = filteredRegistry.reduce(
-    (acc, entry) => {
-      const category = entry.category || "utility";
-      if (!acc[category]) acc[category] = [];
-      acc[category].push(entry);
-      return acc;
-    },
-    {} as Record<string, RegistryEntry[]>,
-  );
-
-  const marketplaceCategories = Object.keys(groupedRegistry).sort((a, b) =>
-    (categoryLabels[a] || a).localeCompare(categoryLabels[b] || b),
+      (categoryFilter === "all" || (e.category || "utility") === categoryFilter) &&
+      (!query ||
+        e.name.toLowerCase().includes(query) ||
+        e.description?.toLowerCase().includes(query) ||
+        e.id.toLowerCase().includes(query)),
   );
 
   const availableCount = allRegistryEntries.length;
@@ -2394,7 +2375,26 @@ export default function IntegrationsPage() {
     return marketplaceSort.dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
   });
 
+  const resultPages = Math.max(1, Math.ceil(sortedRegistry.length / 12));
+  const currentMarketplacePage = Math.min(marketplacePage, resultPages - 1);
+  const visibleRegistry = sortedRegistry.slice(currentMarketplacePage * 12, currentMarketplacePage * 12 + 12);
+  // Group all registry entries by category (for Marketplace tab card view)
+  const groupedRegistry = visibleRegistry.reduce(
+    (acc, entry) => {
+      const category = entry.category || "utility";
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(entry);
+      return acc;
+    },
+    {} as Record<string, RegistryEntry[]>,
+  );
+
+  const marketplaceCategories = Object.keys(groupedRegistry).sort((a, b) =>
+    (categoryLabels[a] || a).localeCompare(categoryLabels[b] || b),
+  );
+
   const handleMarketplaceSort = (key: "name" | "category" | "author" | "added") => {
+    setMarketplacePage(0);
     setMarketplaceSort((prev) => {
       if (prev.key === key) return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
       // Newest-first is what someone clicking a date column is asking for;
@@ -2473,7 +2473,7 @@ export default function IntegrationsPage() {
             contributes only the inset, which is what puts this row on the
             content column with the page title above it. `mb-4` moves off the
             grid because PageToolbar already carries it. */}
-        <PageToolbar className="mb-0 py-6">
+        <PageToolbar className="mb-0 py-3">
           <Box
             className={
               activeTab === "marketplace"
@@ -2506,7 +2506,13 @@ export default function IntegrationsPage() {
                   activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
                 }
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setMarketplacePage(0);
+                }}
+                aria-label={
+                  activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
+                }
                 className="pl-9 w-full"
               />
             </Box>
@@ -2523,6 +2529,7 @@ export default function IntegrationsPage() {
                     className="h-9 w-9 rounded-none border-0"
                     onClick={() => setMarketplaceView("card")}
                     aria-label={t("cardViewAriaLabel")}
+                    aria-pressed={marketplaceView === "card"}
                   >
                     <LayoutGrid className="h-4 w-4" />
                   </Button>
@@ -2532,6 +2539,7 @@ export default function IntegrationsPage() {
                     className="h-9 w-9 rounded-none border-0"
                     onClick={() => setMarketplaceView("list")}
                     aria-label={t("listViewAriaLabel")}
+                    aria-pressed={marketplaceView === "list"}
                   >
                     <LayoutList className="h-4 w-4" />
                   </Button>
@@ -2701,7 +2709,33 @@ export default function IntegrationsPage() {
           </TabsContent>
 
           {/* ── Marketplace Tab ── */}
-          <TabsContent value="marketplace" className="mt-0">
+          <TabsContent value="marketplace" className="mt-0 space-y-4">
+            <Flex align="center" justify="between" gap="3" wrap>
+              <Text size="sm" tone="muted" role="status" aria-live="polite">
+                {t("catalogCount", { count: filteredRegistry.length })}
+              </Text>
+              <Select
+                value={categoryFilter}
+                onValueChange={(value) => {
+                  setCategoryFilter(value || "all");
+                  setMarketplacePage(0);
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-48" aria-label={t("categoryFilter")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allCategories")}</SelectItem>
+                  {[...new Set(allRegistryEntries.map((entry) => entry.category || "utility"))]
+                    .sort()
+                    .map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {categoryLabels[category] || category}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </Flex>
             {filteredRegistry.length === 0 ? (
               query ? (
                 <EmptyState icon={Search} title={t("noPluginsMatch", { query: searchQuery })} className="py-16" />
@@ -2785,7 +2819,7 @@ export default function IntegrationsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedRegistry.map((entry) => (
+                    {visibleRegistry.map((entry) => (
                       <RegistryPluginRow
                         key={entry.id}
                         entry={entry}
@@ -2797,6 +2831,27 @@ export default function IntegrationsPage() {
                   </TableBody>
                 </Table>
               </Card>
+            )}
+            {resultPages > 1 && (
+              <Flex align="center" justify="between" gap="2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={currentMarketplacePage === 0}
+                  onClick={() => setMarketplacePage(currentMarketplacePage - 1)}
+                >
+                  {t("previousResults")}
+                </Button>
+                <Text size="sm">{t("resultsPage", { current: currentMarketplacePage + 1, total: resultPages })}</Text>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={currentMarketplacePage >= resultPages - 1}
+                  onClick={() => setMarketplacePage(currentMarketplacePage + 1)}
+                >
+                  {t("nextResults")}
+                </Button>
+              </Flex>
             )}
           </TabsContent>
         </PageSection>

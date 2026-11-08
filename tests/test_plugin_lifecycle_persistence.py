@@ -80,7 +80,10 @@ class TestPluginLifecyclePersistence(unittest.TestCase):
 
     def test_failed_enable_or_disable_preserves_live_state_and_callbacks(self):
         for method, initial in (("enable_plugin", False), ("disable_plugin", True)):
-            with self.subTest(method=method), self.setup_plugins(initial) as (path, manager, registry, service, resets):
+            with (
+                self.subTest(method=method),
+                self.setup_plugins(initial) as (path, _manager, registry, service, resets),
+            ):
                 before = path.read_bytes()
                 with self.failed_save():
                     getattr(service, method)("probe")
@@ -105,7 +108,7 @@ class TestPluginLifecyclePersistence(unittest.TestCase):
 
     def test_unrelated_success_and_reload_do_not_persist_rejected_flag(self):
         for method, initial in (("enable_plugin", False), ("disable_plugin", True)):
-            with self.subTest(method=method), self.setup_plugins(initial) as (path, manager, registry, service, _):
+            with self.subTest(method=method), self.setup_plugins(initial) as (path, _manager, registry, service, _):
                 with self.failed_save():
                     getattr(service, method)("probe")
                 service.enable_plugin("other")
@@ -141,7 +144,7 @@ class TestPluginLifecyclePersistence(unittest.TestCase):
                 def removed_target(_plugin_id):
                     with registry._lock:
                         registry._plugins.pop("probe")
-                    return None
+                    return
 
                 with (
                     patch.object(registry, "get_manifest", side_effect=removed_target),
@@ -163,9 +166,9 @@ class TestPluginLifecyclePersistence(unittest.TestCase):
                 generation = manager.config_generation
                 writes = []
 
-                def record_write(*args, **kwargs):
-                    writes.append(write_json_atomic(*args, **kwargs))
-                    return writes[-1]
+                def record_write(*args, _writes=writes, **kwargs):
+                    _writes.append(write_json_atomic(*args, **kwargs))
+                    return _writes[-1]
 
                 with patch("src.config_manager.write_json_atomic", side_effect=record_write):
                     getattr(manager, method)("probe")

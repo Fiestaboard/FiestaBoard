@@ -1,7 +1,7 @@
 /**
  * Auto-generated regression stubs from .claude/ux-coverage.json.
  * Subarea: settings.tab-behavior + settings.tab-integrations (the tabs were
- * renamed Scheduling and AI in 10.0; the UX node ids keep their old names).
+ * moved to display Playback and renamed AI; UX node ids keep their old names).
  *
  * Priority cluster #2 from the auditor: AI / MCP cards (AI tab) and MQTT
  * (General tab since 10.0)
@@ -21,7 +21,7 @@ test.beforeEach(async ({ context, page }) => {
 test.describe("regression: settings.behavior", () => {
   /**
    * UX node: settings.tab-behavior
-   * Route: /settings (Scheduling tab)
+   * Route: /displays/:boardId?section=playback
    * Expected:
    *   - UpdateIntervals per-plugin polling edited
    *   - SilenceSchedule mode select / indicator text edited via UI
@@ -33,10 +33,10 @@ test.describe("regression: settings.behavior", () => {
   test("settings.tab-behavior — update intervals, silence schedule, and no install-wide transition", async ({
     page,
   }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
+    await page.goto("/settings?section=scheduling");
+    await expect(page.getByRole("tab", { name: "Playback", exact: true })).toHaveAttribute("aria-selected", "true", {
+      timeout: 15_000,
+    });
 
     await expect(page.getByText("Update intervals", { exact: false })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByLabel("Silence Schedule")).toBeVisible();
@@ -51,7 +51,7 @@ test.describe("regression: settings.behavior", () => {
 
   /**
    * UX node: settings.behavior.silence-saved
-   * Route: /settings (Scheduling tab)
+   * Route: /displays/:boardId?section=playback
    * Expected (missing from current coverage):
    *   - 'toastSettingsSaved' toast text asserted
    *   - hasChanges flag flipping back to false verified
@@ -66,9 +66,10 @@ test.describe("regression: settings.behavior", () => {
     const original = await originalRes.json();
     const originalEnabled: boolean = original.enabled;
 
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
+    await page.goto("/settings?section=scheduling");
+    await expect(page.getByRole("tab", { name: "Playback", exact: true })).toHaveAttribute("aria-selected", "true", {
+      timeout: 15_000,
+    });
 
     const silenceToggle = page.locator("#silence-enabled");
     await expect(silenceToggle).toBeVisible({ timeout: 10_000 });
@@ -99,6 +100,7 @@ test.describe("regression: settings.behavior", () => {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({
         enabled: originalEnabled,
+        board_id: original.board_id,
         start_time: original.start_time_utc,
         end_time: original.end_time_utc,
       }),
@@ -107,7 +109,7 @@ test.describe("regression: settings.behavior", () => {
 
   /**
    * UX node: settings.behavior.silence-per-board
-   * Route: /settings (Scheduling tab)
+   * Route: /displays/:boardId?section=playback
    * Issue #1788: silence settings used to be global, so a Note and a Flagship
    * were forced to share one quiet period and one (single-sized) silence page.
    * A per-board write must land on the targeted board only and leave the other
@@ -182,10 +184,12 @@ test.describe("regression: settings.behavior", () => {
     });
     expect(ghostRes.status).toBe(404);
 
-    // The Scheduling tab still renders the silence card for the current board.
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "Scheduling", exact: true }).click();
+    // The display Playback tab renders the silence card for the current board.
+    await page.goto("/settings?section=scheduling");
+    await expect(page.getByRole("tab", { name: "Playback", exact: true })).toHaveAttribute("aria-selected", "true", {
+      timeout: 15_000,
+    });
+
     await expect(page.getByLabel("Silence Schedule")).toBeVisible({ timeout: 10_000 });
 
     // Restore: write the original window back to that board.

@@ -1,3 +1,6 @@
+# Categories for GitHub's generated release notes. The release workflow builds
+# its notes from CHANGELOG.md (written by Changesets), so this only shapes the
+# "Generate release notes" button in the GitHub UI.
 changelog:
   exclude:
     labels:
@@ -5,12 +8,6 @@ changelog:
     authors:
       - github-actions[bot]
   categories:
-    - title: Breaking Changes 🛠
-      labels:
-        - major
-    - title: New Features 🎉
-      labels:
-        - minor
     - title: Plugin Updates 🔌
       labels:
         - plugin
@@ -20,9 +17,6 @@ changelog:
     - title: Backend Improvements ⚙️
       labels:
         - backend
-    - title: Bug Fixes 🐛
-      labels:
-        - patch
     - title: Documentation 📖
       labels:
         - docs
