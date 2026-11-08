@@ -1260,6 +1260,14 @@ retires live objects only after that commit. See [uninstall and recovery
 boundaries](./PLUGIN_UNINSTALL.md) for failure handling, retained code caches
 and the limits of crash recovery.
 
+The updater holds the plugin's directory fence from reading its previous
+commit through verification, reload and any rollback. Install verification
+uses the same fence, including an install over an existing copy. Nested clone
+operations can acquire it again on the owning thread; another plugin's update
+remains independent. This coordinates source mutations in one process. It
+does not make running plugin file reads, other processes, or the registry's
+later load after a separate install call part of the same transaction.
+
 Core does not trust a write to return. Each `write`/`write_sequence` gets 30 s
 (lower it with `output.write_timeout_ms`; it cannot be raised): past that,
 core stops waiting, fails the write and fires `cancel` — so honour `cancel` in

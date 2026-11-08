@@ -69,18 +69,20 @@ _PLUGIN_SUBDIR = ""
 
 # One lock per plugin directory (#1828): two concurrent clone_or_update_repo
 # calls for the same plugin would run ``git fetch``/``git reset --hard`` in the
-# same working tree at once and trip over each other's index.lock.  Keyed by
-# plugin id so operations on *different* plugins still run in parallel.
-_repo_dir_locks: dict[str, threading.Lock] = {}
+# same working tree at once and trip over each other's index.lock. Updates
+# and verified installs retain it through acceptance/rollback; it is reentrant
+# because those owners call clone_or_update_repo, which takes it too.
+# Keyed by plugin id so different plugins still run in parallel.
+_repo_dir_locks: dict[str, threading.RLock] = {}
 _repo_dir_locks_guard = threading.Lock()
 
 
-def _dir_lock(plugin_id: str) -> threading.Lock:
-    """Return the lock serializing git operations in *plugin_id*'s directory."""
+def _dir_lock(plugin_id: str) -> threading.RLock:
+    """Return the fence for mutation/verification of one plugin directory."""
     with _repo_dir_locks_guard:
         lock = _repo_dir_locks.get(plugin_id)
         if lock is None:
-            lock = threading.Lock()
+            lock = threading.RLock()
             _repo_dir_locks[plugin_id] = lock
         return lock
 
@@ -902,41 +904,42 @@ def update_external_plugin(
         return UpdateOutcome(False, "Plugin path is outside the external plugins directory", "fetch")
     plugin_dir = Path(_candidate)
 
-    previous = get_local_head_sha(plugin_dir)
-    was_output = _local_plugin_type(plugin_dir) == "output"
+    with _dir_lock(plugin_id):
+        previous = get_local_head_sha(plugin_dir)
+        was_output = _local_plugin_type(plugin_dir) == "output"
 
-    ok, err = clone_or_update_repo("", _safe_id, external_dir=_ext_dir)
-    if not ok:
-        return UpdateOutcome(False, err, "fetch")
+        ok, err = clone_or_update_repo("", _safe_id, external_dir=_ext_dir)
+        if not ok:
+            return UpdateOutcome(False, err, "fetch")
 
-    is_output = was_output or _local_plugin_type(plugin_dir) == "output"
-    verified, reason = verify_installed_plugin(_safe_id, plugin_dir)
-    if not verified and not is_output:
-        logger.error("Plugin %s failed validation after update but was left installed: %s", _safe_id, reason)
-        verified = True
-    if verified and reload is not None:
-        load_error = reload()
-        if load_error:
-            if not is_output:
-                return UpdateOutcome(False, load_error, "load")
-            verified, reason = False, load_error
-    if verified:
-        return UpdateOutcome(True)
+        is_output = was_output or _local_plugin_type(plugin_dir) == "output"
+        verified, reason = verify_installed_plugin(_safe_id, plugin_dir)
+        if not verified and not is_output:
+            logger.error("Plugin %s failed validation after update but was left installed: %s", _safe_id, reason)
+            verified = True
+        if verified and reload is not None:
+            load_error = reload()
+            if load_error:
+                if not is_output:
+                    return UpdateOutcome(False, load_error, "load")
+                verified, reason = False, load_error
+        if verified:
+            return UpdateOutcome(True)
 
-    _remember_refused(_safe_id, plugin_dir, reason)
-    if previous is None or not _rollback_checkout(plugin_dir, previous):
-        logger.error("Output plugin %s failed its update and could not be rolled back: %s", _safe_id, reason)
-        return UpdateOutcome(False, f"The update cannot run and could not be rolled back: {reason}", "load")
-    if reload is not None:
-        after = reload()
-        if after:
-            logger.error("Output plugin %s rolled back to %s but still does not load: %s", _safe_id, previous, after)
-    logger.error("Output plugin %s update refused; rolled back to %s: %s", _safe_id, previous, reason)
-    return UpdateOutcome(
-        False,
-        f"The update was refused and the plugin rolled back to the version it had ({previous[:12]}): {reason}",
-        "rolled_back",
-    )
+        _remember_refused(_safe_id, plugin_dir, reason)
+        if previous is None or not _rollback_checkout(plugin_dir, previous):
+            logger.error("Output plugin %s failed its update and could not be rolled back: %s", _safe_id, reason)
+            return UpdateOutcome(False, f"The update cannot run and could not be rolled back: {reason}", "load")
+        if reload is not None:
+            after = reload()
+            if after:
+                logger.error("Output plugin %s rolled back to %s but still does not load: %s", _safe_id, previous, after)
+        logger.error("Output plugin %s update refused; rolled back to %s: %s", _safe_id, previous, reason)
+        return UpdateOutcome(
+            False,
+            f"The update was refused and the plugin rolled back to the version it had ({previous[:12]}): {reason}",
+            "rolled_back",
+        )
 
 
 def remove_external_plugin(dest_dir: Path) -> bool:
@@ -1110,39 +1113,40 @@ def _install_and_verify(
     if _candidate == _ext_root:
         return False, "Refusing to install plugin at root directory"
 
-    was_installed = os.path.isdir(_candidate)
-    previous = get_local_head_sha(Path(_candidate)) if was_installed else None
-    was_output = was_installed and _local_plugin_type(Path(_candidate)) == "output"
+    with _dir_lock(plugin_id):
+        was_installed = os.path.isdir(_candidate)
+        previous = get_local_head_sha(Path(_candidate)) if was_installed else None
+        was_output = was_installed and _local_plugin_type(Path(_candidate)) == "output"
 
-    ok, err = clone_or_update_repo(repo_url, plugin_id, branch, external_dir=external_dir)
-    if not ok:
-        return ok, err
+        ok, err = clone_or_update_repo(repo_url, plugin_id, branch, external_dir=external_dir)
+        if not ok:
+            return ok, err
 
-    verified, reason = verify_installed_plugin(_safe_id, Path(_candidate))
-    if verified:
-        return True, ""
+        verified, reason = verify_installed_plugin(_safe_id, Path(_candidate))
+        if verified:
+            return True, ""
 
-    if was_installed and (was_output or _local_plugin_type(Path(_candidate)) == "output"):
-        _remember_refused(_safe_id, Path(_candidate), reason)
-        if previous is not None and _rollback_checkout(Path(_candidate), previous):
-            logger.error("Output plugin %s update refused; rolled back to %s: %s", _safe_id, previous, reason)
-            return False, (
-                f"The update was refused and the plugin rolled back to the version it had ({previous[:12]}): {reason}"
+        if was_installed and (was_output or _local_plugin_type(Path(_candidate)) == "output"):
+            _remember_refused(_safe_id, Path(_candidate), reason)
+            if previous is not None and _rollback_checkout(Path(_candidate), previous):
+                logger.error("Output plugin %s update refused; rolled back to %s: %s", _safe_id, previous, reason)
+                return False, (
+                    f"The update was refused and the plugin rolled back to the version it had ({previous[:12]}): {reason}"
+                )
+            logger.error("Output plugin %s failed its update and could not be rolled back: %s", _safe_id, reason)
+            return False, f"The update cannot run and could not be rolled back: {reason}"
+
+        if was_installed:
+            logger.error(
+                "Plugin %s failed validation after update but was left installed: %s",
+                _safe_id,
+                reason,
             )
-        logger.error("Output plugin %s failed its update and could not be rolled back: %s", _safe_id, reason)
-        return False, f"The update cannot run and could not be rolled back: {reason}"
+            return True, ""
 
-    if was_installed:
-        logger.error(
-            "Plugin %s failed validation after update but was left installed: %s",
-            _safe_id,
-            reason,
-        )
-        return True, ""
-
-    logger.error("Rejecting install of %s: %s", _safe_id, reason)
-    shutil.rmtree(_candidate, ignore_errors=True)
-    return False, (f"This plugin cannot run on FiestaBoard as published and was not installed. {reason}")
+        logger.error("Rejecting install of %s: %s", _safe_id, reason)
+        shutil.rmtree(_candidate, ignore_errors=True)
+        return False, (f"This plugin cannot run on FiestaBoard as published and was not installed. {reason}")
 
 
 def install_registry_plugin(
