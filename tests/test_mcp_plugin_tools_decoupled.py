@@ -34,7 +34,7 @@ SCRIPT = r"""
 import asyncio
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import src.mcp_server as mcp_server
 
@@ -108,7 +108,7 @@ registry.install_from_registry.assert_called_once_with("stocks")
 registry.enable_plugin.assert_called()
 registry.disable_plugin.assert_called_once_with("stocks")
 registry.set_plugin_config.assert_called_once()
-registry.uninstall_external_plugin.assert_called_once_with("stocks")
+registry.uninstall_external_plugin.assert_called_once_with("stocks", on_committed=ANY)
 config_manager.enable_plugin.assert_called()
 config_manager.set_plugin_config.assert_called_once()
 

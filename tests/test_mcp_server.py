@@ -20,7 +20,7 @@ from __future__ import annotations
 import tempfile
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import ANY, MagicMock, create_autospec, patch
 
 import pytest
 
@@ -702,8 +702,10 @@ class TestUninstallPlugin:
         registry, config_manager = plugin_services
         result = _call_tool(mcp, "uninstall_plugin", plugin_id="openweather")
         assert "uninstalled successfully" in result["message"]
-        registry.uninstall_external_plugin.assert_called_once_with("openweather")
-        config_manager.delete_plugin_config.assert_any_call("openweather")
+        registry.uninstall_external_plugin.assert_called_once_with("openweather", on_committed=ANY)
+        # The registry purges stored configs inside its uninstall commit; a
+        # second purge here would race a reinstall (test_plugin_service).
+        config_manager.delete_plugin_config.assert_not_called()
 
     def test_uninstall_builtin_is_an_error(self, mcp, plugin_services):
         registry, _ = plugin_services

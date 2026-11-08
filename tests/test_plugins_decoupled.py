@@ -35,7 +35,7 @@ SCRIPT = r"""
 import asyncio
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import src.plugins.routes as routes
 from src.plugins.base import Option, OptionsResult
@@ -271,7 +271,7 @@ registry.create_instance.assert_called_once_with("alpha", "office")
 registry.delete_instance.assert_called_once_with("alpha", "office")
 registry.install_from_registry.assert_called_once_with("beta")
 registry.install_from_git.assert_called_once()
-registry.uninstall_external_plugin.assert_called_once_with("ext")
+registry.uninstall_external_plugin.assert_called_once_with("ext", on_committed=ANY)
 registry.check_for_updates.assert_called_once()
 config_manager.set_plugin_config.assert_called()
 config_manager.get_plugin_env_overrides.assert_called()
