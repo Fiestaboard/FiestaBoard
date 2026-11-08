@@ -31,6 +31,16 @@ class SessionLimit(ValueError):
     pass
 
 
+def printable(text: str, limit: int = 100) -> str:
+    """*text* with every non-printable character removed (C0, DEL, C1 such as
+    ESC and the 8-bit CSI 0x9B, separators), capped at *limit* characters.
+
+    Device names come from request headers and bodies and end up in logs and
+    in Signed-in devices, so terminal control bytes must never survive.
+    """
+    return "".join(ch for ch in text if ch.isprintable())[:limit]
+
+
 def digest_secret(secret: str) -> str:
     return hashlib.sha256(secret.encode()).hexdigest()
 

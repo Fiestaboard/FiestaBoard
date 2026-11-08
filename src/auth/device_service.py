@@ -17,7 +17,7 @@ from .device_models import (
 from .scopes import CONTROL, MOBILE_CLIENTS, TV_PANELS, scope_for_client
 from .service import AuthService, auth_mode
 from .session_models import SessionRecord
-from .session_store import digest_secret
+from .session_store import digest_secret, printable
 
 ALPHABET = "BCDFGHJKLMNPQRSTVWXYZ23456789"
 TV_TOKEN_SECONDS = 365 * 24 * 3600
@@ -40,15 +40,19 @@ audit = logging.getLogger("src.auth.audit")
 
 
 def log_sign_out(actor: SessionRecord, target: SessionRecord) -> None:
-    """Audit *actor* signing out *target*: kinds, session ids and device names, never tokens."""
+    """Audit *actor* signing out *target*: kinds, session ids and device names, never tokens.
+
+    Names are re-sanitised here because rows stored before names were cleaned
+    at sign-in can still hold a raw User-Agent with terminal control bytes.
+    """
     audit.info(
         "Sign-out: %s %s (%s) signed out %s %s (%s)",
         actor.kind,
         actor.id,
-        actor.device_name,
+        printable(actor.device_name),
         target.kind,
         target.id,
-        target.device_name,
+        printable(target.device_name),
     )
 
 
