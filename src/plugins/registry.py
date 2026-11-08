@@ -16,6 +16,7 @@ from collections.abc import Collection
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -2075,6 +2076,62 @@ class PluginRegistry:
         # (or a test double) that returns something else must fall through to
         # the real fetch rather than have its stand-in land in the context.
         return result if isinstance(result, PluginResult) else None
+
+    def _enabled_data_plugin(self, plugin_id: str) -> PluginBase | None:
+        with self._lock:
+            plugin = self._plugins.get(plugin_id)
+            enabled = self._enabled.get(plugin_id, False)
+        return plugin if enabled and isinstance(plugin, PluginBase) else None
+
+    def build_cached_context(
+        self, board: BoardContext | None = None, plugin_ids: Collection[str] | None = None
+    ) -> dict[str, Any]:
+        """A template context from each plugin's last result, however old (H6).
+
+        For an editor preview that must not wait on a refetch: a plugin with
+        any earlier result for *board* is served from it, without running
+        plugin code. Only a plugin with no result yet (a first render, or a
+        ``live_data`` plugin that computes instead of caching) is fetched,
+        through :meth:`build_template_context`. Trigger plugins are not added:
+        a preview drives no trigger.
+        """
+        enabled = list(self.enabled_plugins)
+        if plugin_ids is not None:
+            requested = {str(pid).lower() for pid in plugin_ids}
+            enabled = [pid for pid in enabled if pid.lower() in requested]
+        context: dict[str, Any] = {}
+        to_fetch: list[str] = []
+        for plugin_id in enabled:
+            plugin = self._enabled_data_plugin(plugin_id)
+            last = plugin.last_result(board) if plugin is not None else None
+            if last is None:
+                to_fetch.append(plugin_id)
+            elif last[0].available and last[0].data:
+                context[plugin_id] = last[0].data
+        if to_fetch:
+            context.update(self.build_template_context(board, plugin_ids=to_fetch, include_trigger_plugins=False))
+        return context
+
+    def data_status(self, plugin_id: str, board: BoardContext | None = None) -> dict[str, Any]:
+        """What the hub's own data for *plugin_id* is, for a preview's ``sources``.
+
+        ``state`` is ``fresh`` (the last result is within the refresh
+        interval), ``stale`` (older), ``live`` (a ``live_data`` plugin: it
+        computes on every render and keeps no cache) or ``none`` (no data);
+        ``updated_at`` is when that result was fetched (UTC, whole seconds).
+        """
+        plugin = self._enabled_data_plugin(plugin_id)
+        if plugin is None:
+            return {"state": "none", "updated_at": None}
+        if plugin.live_data or plugin.refresh_seconds is None:
+            return {"state": "live", "updated_at": None}
+        last = plugin.last_result(board)
+        if last is None or not last[0].available or not last[0].data:
+            return {"state": "none", "updated_at": None}
+        fetched = last[1]
+        age = (datetime.now() - fetched).total_seconds()
+        updated_at = fetched.astimezone().astimezone(UTC).replace(microsecond=0).isoformat()
+        return {"state": "fresh" if age < plugin.refresh_seconds else "stale", "updated_at": updated_at}
 
     def build_template_context(
         self,
