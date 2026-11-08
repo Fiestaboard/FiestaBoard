@@ -1063,6 +1063,17 @@ describe("AiSettings", () => {
       expect(await screen.findByRole("button", { name: "Remove model test-other" })).toBeInTheDocument();
     });
 
+    it("removes a model from the provider when its remove control is pressed", async () => {
+      serveSettings();
+      render(<AiSettings />, { wrapper: Wrapper });
+      const user = userEvent.setup();
+      await user.click(await screen.findByText("Test"));
+
+      await user.click(await screen.findByRole("button", { name: "Remove model test-model" }));
+
+      expect(screen.queryByRole("button", { name: "Remove model test-model" })).not.toBeInTheDocument();
+    });
+
     it("says why when the provider cannot list its models", async () => {
       serveSettings();
       server.use(
