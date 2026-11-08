@@ -59,6 +59,24 @@ class FormulaError(Exception):
         self.pos = pos
 
 
+#: The longest text any formula may produce (characters). Far beyond any
+#: board (the largest grid is 128 x 128 tiles), and small enough that no
+#: request can make the hub build a huge string: ``REPT`` once capped only
+#: its count, so nesting it built a gigabyte from a 60-byte template.
+MAX_STRING_LENGTH = 65_536
+
+
+def _check_length(length: int) -> None:
+    """Raise ``#VALUE`` when a result would be longer than :data:`MAX_STRING_LENGTH`.
+
+    Called with the length a string *would* have, before it is built, by
+    every function that can grow text by a large factor in one step; the
+    evaluator also checks every result it returns (:func:`_eval_node`).
+    """
+    if length > MAX_STRING_LENGTH:
+        raise FormulaError("#VALUE", f"text longer than {MAX_STRING_LENGTH} characters")
+
+
 @dataclass(frozen=True)
 class ErrorValue:
     """Sentinel error value produced by formula evaluation.
@@ -859,7 +877,9 @@ def _fn_concat(args: list[Any]) -> Any:
     err = _propagate(*args)
     if err is not None:
         return err
-    return "".join(_to_string(a) for a in args)
+    parts = [_to_string(a) for a in args]
+    _check_length(sum(len(part) for part in parts))
+    return "".join(parts)
 
 
 def _fn_len(args: list[Any]) -> Any:
@@ -914,7 +934,11 @@ def _fn_replace(args: list[Any]) -> Any:
     err = _propagate(*args)
     if err is not None:
         return err
-    return _to_string(args[0]).replace(_to_string(args[1]), _to_string(args[2]))
+    text, old, new = _to_string(args[0]), _to_string(args[1]), _to_string(args[2])
+    # "" matches between every character (and at both ends), as str.replace does.
+    count = len(text) + 1 if old == "" else text.count(old)
+    _check_length(len(text) + count * (len(new) - len(old)))
+    return text.replace(old, new)
 
 
 def _fn_proper(args: list[Any]) -> Any:
@@ -994,7 +1018,9 @@ def _fn_rept(args: list[Any]) -> Any:
     # is at most 22 cols wide so 1024 is far more than enough.
     if n > 1024:
         return ErrorValue("#NUM")
-    return _to_string(args[0]) * n
+    text = _to_string(args[0])
+    _check_length(len(text) * n)
+    return text * n
 
 
 def _fn_contains(args: list[Any]) -> Any:
@@ -1029,6 +1055,7 @@ def _fn_pad(args: list[Any]) -> Any:
     width = int(_to_number(args[1]))
     if width < 0:
         return ErrorValue("#VALUE")
+    _check_length(width)
     return _to_string(args[0]).ljust(width)[:width]
 
 
@@ -1040,6 +1067,7 @@ def _fn_padleft(args: list[Any]) -> Any:
     width = int(_to_number(args[1]))
     if width < 0:
         return ErrorValue("#VALUE")
+    _check_length(width)
     s = _to_string(args[0])
     return s.rjust(width) if len(s) <= width else s[-width:]
 
@@ -1052,6 +1080,7 @@ def _fn_zeropad(args: list[Any]) -> Any:
     width = int(_to_number(args[1]))
     if width <= 0:
         return _to_string(args[0])
+    _check_length(width)
     s = _to_string(args[0])
     if s.startswith("-"):
         return "-" + s[1:].rjust(width - 1, "0")
@@ -1066,6 +1095,7 @@ def _fn_center(args: list[Any]) -> Any:
     width = int(_to_number(args[1]))
     if width < 0:
         return ErrorValue("#VALUE")
+    _check_length(width)
     return _to_string(args[0]).center(width)[:width]
 
 
@@ -1093,6 +1123,7 @@ def _fn_fixed(args: list[Any]) -> Any:
     n = int(_to_number(args[1])) if len(args) == 2 else 2
     if n < 0:
         n = 0
+    _check_length(n)
     return f"{_to_number(args[0]):.{n}f}"
 
 
@@ -1195,6 +1226,14 @@ def _search_bounded(pattern: _regex.Pattern[str], text: str) -> Any:
         raise FormulaError("#VALUE", f"pattern took longer than {_MATCH_TIMEOUT_SECONDS}s to match") from exc
 
 
+def _count_bounded(pattern: _regex.Pattern[str], text: str) -> int:
+    """How many times *pattern* matches in *text*, abandoned past the budget."""
+    try:
+        return sum(1 for _ in pattern.finditer(text, timeout=_MATCH_TIMEOUT_SECONDS))
+    except TimeoutError as exc:
+        raise FormulaError("#VALUE", f"pattern took longer than {_MATCH_TIMEOUT_SECONDS}s to match") from exc
+
+
 def _sub_bounded(pattern: _regex.Pattern[str], replacement: str, text: str) -> str:
     """``pattern.sub(...)``, abandoned if it backtracks past the budget."""
     try:
@@ -1252,7 +1291,12 @@ def _fn_regexreplace(args: list[Any]) -> Any:
     if err is not None:
         return err
     pattern = _compile_user_pattern(_to_string(args[1]))
-    return _sub_bounded(pattern, _to_string(args[2]).replace("\\", "\\\\"), _to_string(args[0]))
+    text, replacement = _to_string(args[0]), _to_string(args[2])
+    if replacement:
+        # The replacement is literal (backslashes escaped below), so each match
+        # adds at most its length: bound the result before building it.
+        _check_length(len(text) + _count_bounded(pattern, text) * len(replacement))
+    return _sub_bounded(pattern, replacement.replace("\\", "\\\\"), text)
 
 
 # --------------------------------------------------------------------------- #
@@ -1627,7 +1671,14 @@ def _fn_join(args: list[Any]) -> Any:
     items = _require_array("JOIN", args[0])
     sep = _to_string(args[1]) if len(args) >= 2 else ""
     field = _to_string(args[2]) if len(args) == 3 else None
-    return sep.join(_to_string(_item_field(it, field)) for it in items)
+    parts: list[str] = []
+    total = 0
+    for it in items:
+        part = _to_string(_item_field(it, field))
+        total += len(part) + (len(sep) if parts else 0)
+        _check_length(total)
+        parts.append(part)
+    return sep.join(parts)
 
 
 def _aggregate(name: str, reducer: Callable[[list[float]], float]) -> Callable[[list[Any]], Any]:
@@ -1673,13 +1724,17 @@ def _lazy_foreach(nodes: list[_Node], context: dict[str, Any]) -> Any:
             return ""
 
     rows: list[str] = []
+    total = 0
     for i, item in enumerate(items):
         if limit is not None and i >= limit:
             break
         row = _eval_node(nodes[1], _child_context(context, item, i + 1))
         if _is_error(row):
             return row
-        rows.append(_to_string(row))
+        text = _to_string(row)
+        total += len(text) + (1 if rows else 0)
+        _check_length(total)
+        rows.append(text)
     return "\n".join(rows)
 
 
@@ -2032,6 +2087,16 @@ def _traverse(value: Any, parts: list[str]) -> Any:
 
 
 def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
+    """Evaluate *node*. The one choke point every result passes: text longer
+    than :data:`MAX_STRING_LENGTH` is ``#VALUE`` (``&`` and any function
+    without its own check above stop here, one step past the bound)."""
+    result = _eval_node_unbounded(node, context)
+    if isinstance(result, str):
+        _check_length(len(result))
+    return result
+
+
+def _eval_node_unbounded(node: _Node, context: dict[str, Any]) -> Any:
     if isinstance(node, _Literal):
         return node.value
 

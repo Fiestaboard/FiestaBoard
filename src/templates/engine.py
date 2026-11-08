@@ -50,6 +50,7 @@ from .colors import COLOR_CODES
 from .colors import is_color_code as _is_color_code
 from .diagnostics import FormulaReport, LineReport, RenderReport
 from .expressions import (
+    MAX_STRING_LENGTH,
     ensure_render_clock,
     evaluate_detailed,
     evaluate_value,
@@ -1921,7 +1922,9 @@ class TemplateEngine:
 
             if filter_name == "pad":
                 try:
-                    width = int(arg)
+                    # Bounded like a formula's text: no board is wider, and an
+                    # unbounded width would let one template allocate gigabytes.
+                    width = min(int(arg), MAX_STRING_LENGTH)
                     return value.ljust(width)[:width]
                 except ValueError:
                     return value
@@ -1935,7 +1938,7 @@ class TemplateEngine:
 
             elif filter_name == "zeropad":
                 try:
-                    width = int(arg)
+                    width = min(int(arg), MAX_STRING_LENGTH)
                 except ValueError:
                     return value
                 if width <= 0:
