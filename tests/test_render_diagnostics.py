@@ -335,8 +335,8 @@ def test_a_short_formula_value_is_whole(engine):
 
 
 def test_a_big_boards_value_limit_is_its_area(engine):
-    many = '{{= FOREACH(transit.many, REPT(item.route, 200)) }}'
-    _, report = _report(engine, [many], device_type="panel", grid_rows=24, grid_cols=128)
+    many = "{{= FOREACH(transit.many, REPT(item.route, 200)) }}"
+    _, report = _report(engine, [many], device_type="panel", grid_rows=96, grid_cols=128)
 
     formula = report.formulas[0].to_json()
     assert formula["value_truncated"] is False

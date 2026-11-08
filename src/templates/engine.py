@@ -211,6 +211,10 @@ def _metadata_wraps(line_metadata: list[Any] | None, index: int) -> bool:
 #: :meth:`TemplateEngine._process_fill_space` expands them.
 _FILL_MARKERS = re.compile(r"\x00FILL_SPACE(?:_REPEAT:(.+?))?\x00")
 
+#: The fewest characters of a formula's value a report keeps (a board's area
+#: when larger); the rest is cut and flagged ``value_truncated``.
+REPORT_VALUE_LIMIT = 4096
+
 #: A wrap line's full length, for the report: far past any board's rows.
 _UNBOUNDED_WRAP_ROWS = 10_000
 
@@ -323,15 +327,19 @@ class TemplateEngine:
         context = ensure_render_clock(context)
 
         if report is not None:
-            self._report_formulas(template.split("\n"), context, report)
+            self._report_formulas(template.split("\n"), context, report, limit=REPORT_VALUE_LIMIT)
             report.lines = None
         return _unprotect(self._render(template, context, extended_markup, 0))
 
     @staticmethod
-    def _report_formulas(template_lines: list[str], context: dict[str, Any], report: RenderReport) -> None:
+    def _report_formulas(
+        template_lines: list[str], context: dict[str, Any], report: RenderReport, *, limit: int
+    ) -> None:
         """Every ``{{= … }}`` in *template_lines*, evaluated against the render's
         own *context* (its data and pinned clock), so a reported value is
-        exactly what the board shows for it."""
+        exactly what the board shows for it. A value longer than *limit*
+        characters is cut there and flagged ``value_truncated``: the report
+        never carries more than a board could show."""
         for number, line in enumerate(template_lines, 1):
             for start, end, body in find_formulas(line):
                 outcome = evaluate_detailed(body, context) if body else None
@@ -341,7 +349,8 @@ class TemplateEngine:
                         start=start,
                         end=end,
                         source=body,
-                        value=outcome.value if outcome else "",
+                        value=(outcome.value if outcome else "")[:limit],
+                        value_truncated=bool(outcome) and len(outcome.value) > limit,
                         error=outcome.error if outcome else None,
                         error_at=outcome.error_at if outcome else None,
                         message=outcome.message if outcome else None,
@@ -653,7 +662,9 @@ class TemplateEngine:
             for r in range(num_rows)
         )
         if report is not None:
-            self._report_formulas(list(template_lines), context, report)
+            # A value as long as the board could ever show, or 4 KB on a small one.
+            limit = max(REPORT_VALUE_LIMIT, num_rows * (board_width + 1))
+            self._report_formulas(list(template_lines), context, report, limit=limit)
         if flow:
             if report is not None:
                 report.lines = None
@@ -696,7 +707,12 @@ class TemplateEngine:
                 clip_line=clip_line,
                 widest=widest,
                 cut=widest > board_width,
-                hidden=[_FILL_MARKERS.sub("", row) for row in all_rows[shown:]][:num_rows],
+                # What each hidden row would show on the board: its first
+                # board-width tiles, so a wide row never bloats the report.
+                hidden=[
+                    self._truncate_to_tiles(_FILL_MARKERS.sub("", row), board_width, extended_markup=extended_markup)
+                    for row in all_rows[shown:][:num_rows]
+                ],
             )
 
         for i in range(num_rows):
