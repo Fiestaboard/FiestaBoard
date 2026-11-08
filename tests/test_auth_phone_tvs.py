@@ -463,3 +463,29 @@ def test_the_audit_line_is_printable_even_for_an_old_raw_name(auth, browser, cap
     lines = _audit_lines(caplog)
     assert len(lines) == 1 and _printable(lines[0])
     assert "\x1b" not in lines[0] and "\x9b" not in lines[0]
+
+
+# --- Device names from native clients (security F7) -------------------------------
+
+_HOSTILE_NAME = "Living\u009b31m room‮"  # an 8-bit CSI and a right-to-left override
+
+
+def test_a_native_device_name_is_stored_printable(auth, phone):
+    client, token = phone
+    tv = sign_in({**TV, "device_name": _HOSTILE_NAME})
+    row = next(r for r in auth.sessions.list_sessions("admin") if r.id == tv["session_id"])
+    assert row.device_name == "Living31m room"
+    assert [r["device_name"] for r in tvs(client)] == ["Living31m room"]
+
+
+def test_a_paired_phone_name_is_stored_printable(auth, browser):
+    offer = browser.post("/auth/pairing", json={}).json()
+    code = dict(part.split("=", 1) for part in offer["qr_payload"].split("#", 1)[1].split("&"))["code"]
+    claim = TestClient(app).post(
+        "/auth/pairing/claim", json={**IOS, "device_name": _HOSTILE_NAME, "pairing_code": code}
+    )
+    assert claim.status_code == 200, claim.text
+    row = next(r for r in auth.sessions.list_sessions("admin") if r.id == claim.json()["session_id"])
+    assert row.device_name == "Living31m room"
+    state = browser.get("/auth/pairing/" + offer["pairing_id"]).json()
+    assert state["device_name"] == "Living31m room"
