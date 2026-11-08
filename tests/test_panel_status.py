@@ -74,6 +74,8 @@ def test_an_idle_panel_reports_manual_mode_and_nothing_holding_it(client, panel)
         "silenced_until": None,
         "silence_mode": None,
         "paused": False,
+        "next_change_at": None,
+        "next_change_reason": None,
     }
 
 
@@ -279,3 +281,79 @@ def test_the_silence_end_is_reported_as_the_exact_minute_boundary(computed):
     from src.panels.status import _instant
 
     assert _instant(computed, to_minute=True) == "2026-11-08T07:00:00+00:00"
+
+
+# ---------------------------------------------------------------------------
+# H2b: the next change, for the TV schedule chip ("Schedule · next change 9:00 PM")
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def frozen_clock(monkeypatch):
+    from src.time_service import TimeService
+
+    def freeze(instant: datetime):
+        class Frozen(TimeService):
+            def get_current_utc(self):
+                return instant
+
+            def get_current_time(self, timezone=None):
+                return instant.astimezone(self._default_tz)
+
+        frozen = Frozen("America/Los_Angeles")
+        monkeypatch.setattr("src.time_service.get_time_service", lambda: frozen)
+        return frozen
+
+    return freeze
+
+
+def _panel_page(client, panel) -> str:
+    response = client.post(
+        "/v1/pages",
+        json={"name": "Evening", "type": "template", "device_type": "panel", "grid_rows": panel["rows"],
+              "grid_cols": panel["cols"], "template": ["HELLO"]},
+    )  # fmt: skip
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
+
+
+def test_the_schedules_next_change_is_reported(client, panel, frozen_clock):
+    from src.schedules.models import ScheduleCreate
+    from src.schedules.service import get_schedule_service
+
+    _settings().set_schedule_enabled(True, board_id=panel["board_id"])
+    page_id = _panel_page(client, panel)
+    get_schedule_service().create_schedule(
+        ScheduleCreate(board_id=panel["board_id"], page_id=page_id, start_time="09:00", end_time="21:00")
+    )
+    frozen_clock(datetime(2026, 11, 9, 20, 0, tzinfo=UTC))  # 12:00 PST
+    status = _status(client, panel)
+    assert (status["next_change_at"], status["next_change_reason"]) == ("2026-11-10T05:00:00+00:00", "schedule")
+    # A TV (tv_panels) cannot read /pages, so a page id would be an opaque string.
+    assert "next_page_id" not in status
+
+
+def test_an_override_changes_when_it_ends(client, panel):
+    from src.settings.service import TemporaryOverride
+
+    expires_at = (datetime.now(UTC) + timedelta(hours=2, minutes=42)).isoformat()
+    _settings().set_temporary_override(
+        TemporaryOverride(page_id="evening-commute", expires_at=expires_at), board_id=panel["board_id"]
+    )
+    status = _status(client, panel)
+    assert status["next_change_reason"] == "override_ends"
+    assert status["next_change_at"] == status["override_expires_at"]
+    assert _INSTANT.match(status["next_change_at"])
+
+
+def test_a_silenced_board_changes_when_its_quiet_hours_end(client, panel):
+    with _really_silenced(panel["board_id"]):
+        status = _status(client, panel)
+    assert status["next_change_reason"] == "silence_ends"
+    assert status["next_change_at"] == status["silenced_until"]
+
+
+def test_a_paused_board_has_no_next_change(client, panel):
+    _settings().set_paused(True, board_id=panel["board_id"])
+    status = _status(client, panel)
+    assert (status["next_change_at"], status["next_change_reason"]) == (None, None)
