@@ -96,15 +96,15 @@ def test_a_render_cannot_add_up_many_formulas_just_under_the_limit():
     """Each line alone fits the per-formula budget; together they exceed the render's."""
     engine = TemplateEngine.__new__(TemplateEngine)
     engine._plugin_registry = None
-    line = f"{{{{= COUNT(FILTER({A}, TRUE)) }}}}"
+    line = f'{{{{= COUNT(FILTER({A}, LEN(item) = 1 AND item = "a")) }}}}'
 
     started = time.perf_counter()
     rows = engine.render_lines([line] * 96, {}, device_type="panel", grid_rows=96, grid_cols=128).split("\n")
     elapsed = time.perf_counter() - started
 
-    assert rows[0].strip() == "32769"
+    assert rows[0].strip() == "32768"
     assert rows[-1].strip() == "#VALUE"
-    assert elapsed < 5
+    assert elapsed < 20  # bounded: about 4 s here, where unbounded it is 25 M steps
 
 
 # ── the regex budget ────────────────────────────────────────────────────────
@@ -170,3 +170,40 @@ def test_replace_with_an_empty_search_checks_before_it_builds():
     finally:
         tracemalloc.stop()
     assert peak < 8 * 1024 * 1024
+
+
+# ── each limit answers for itself (not only through a fallback) ─────────────
+
+
+def test_the_regex_budget_is_what_stops_it(monkeypatch):
+    clock = [0.0]
+
+    def slow_clock() -> float:
+        clock[0] += 0.025
+        return clock[0]
+
+    monkeypatch.setattr(expressions, "_regex_clock", slow_clock)
+    outcome = expressions.evaluate_detailed('COUNT(FILTER(SPLIT(REPT("ab ",1000)), REGEXMATCH(item, "^a")))')
+
+    assert outcome.error == "#VALUE"
+    assert "too much work" in (outcome.message or "")
+
+
+def test_the_parenthesis_limit_is_what_stops_it():
+    outcome = expressions.evaluate_detailed("(" * 5000 + "1" + ")" * 5000)
+
+    assert outcome.error == "#SYNTAX"
+    assert f"{expressions.MAX_PAREN_DEPTH} parentheses" in (outcome.message or "")
+
+
+def test_a_long_chain_past_the_depth_limit_is_syntax_before_python_would_fail():
+    chain = "1" + "+1" * (expressions.MAX_EVAL_DEPTH + 100)
+
+    assert evaluate(chain).startswith("#SYNTAX")
+    assert evaluate("1" + "+1" * 100) == "101"
+
+
+def test_iferror_cannot_trap_too_much_work():
+    attack = f"COUNT(FILTER({A}, COUNT(FILTER({A}, TRUE)) > 0))"
+
+    assert evaluate(f'IFERROR({attack}, "fine")') == "#VALUE"

@@ -26,8 +26,10 @@ from __future__ import annotations
 
 import math
 import re
+import time
 from calendar import monthrange
 from collections.abc import Callable
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from functools import lru_cache
@@ -75,6 +77,90 @@ def _check_length(length: int) -> None:
     """
     if length > MAX_STRING_LENGTH:
         raise FormulaError("#VALUE", f"text longer than {MAX_STRING_LENGTH} characters")
+
+
+#: The most nodes one formula may evaluate, and one render (every formula on
+#: every line, and H5's diagnostics re-evaluation) in total. ``FILTER`` and
+#: ``FOREACH`` evaluate per item and ``SPLIT`` makes up to 32 K items, so
+#: nesting them multiplies work without any large string (S2). The heaviest
+#: real board measured (``tests/test_formula_eval_budget.py``: a 96 x 128
+#: panel, every one of its 96 lines a FILTER + SORT + FOREACH over 1 000
+#: items) takes 5 571 steps a formula and 535 K a render: the formula budget
+#: leaves 90x headroom, the render budget 11x (5.6x when H5's diagnostics
+#: evaluate every formula a second time). At about 0.4-0.7 us a step, a formula
+#: stops within 0.2 s and a render within about 4 s on a desktop CPU.
+MAX_FORMULA_STEPS = 500_000
+MAX_RENDER_STEPS = 6_000_000
+
+#: Total regex time one formula, and one render, may spend. The 0.1 s
+#: per-call timeout bounds one call, not one per item of a 32 K-item list.
+MAX_FORMULA_REGEX_SECONDS = 1.0
+MAX_RENDER_REGEX_SECONDS = 3.0
+
+#: Deeper nesting is ``#SYNTAX`` for that formula instead of a
+#: ``RecursionError`` that fails the whole render. Real formulas nest a few
+#: levels; these are far below Python's recursion limit.
+MAX_PAREN_DEPTH = 64
+MAX_EVAL_DEPTH = 200
+
+#: The render-wide budget, carried in the render's context beside its pinned
+#: clock (:func:`ensure_render_clock`), so child contexts share it.
+_RENDER_BUDGET_KEY = "__budget__"
+
+#: Measures regex time; a test may slow it down.
+_regex_clock = time.monotonic
+
+
+class _Budget:
+    """Work spent so far: evaluation steps, regex seconds, current depth."""
+
+    __slots__ = ("depth", "regex_seconds", "steps")
+
+    def __init__(self) -> None:
+        self.steps = 0
+        self.regex_seconds = 0.0
+        self.depth = 0
+
+
+#: The formula being evaluated on this thread (or task): its own budget and
+#: its render's, set by the outermost :func:`_eval_node`.
+_ACTIVE_BUDGET: ContextVar[tuple[_Budget, _Budget | None] | None] = ContextVar("formula_budget", default=None)
+
+
+class _Exhausted(FormulaError):
+    """A budget or depth limit. Unlike other errors it is not a value a
+    function can turn into an error tag and carry on (``IFERROR`` cannot
+    trap it): it ends the whole formula, with its message."""
+
+
+def _too_much_work(what: str) -> FormulaError:
+    return _Exhausted("#VALUE", f"too much work: {what}")
+
+
+def _regex_bounded(call: Callable[[float], Any]) -> Any:
+    """Run one regex *call* (given its timeout) within the per-call timeout and
+    what is left of the formula's and the render's regex budgets."""
+    active = _ACTIVE_BUDGET.get()
+    formula, render = active if active is not None else (None, None)
+    timeout = _MATCH_TIMEOUT_SECONDS
+    if formula is not None:
+        timeout = min(timeout, MAX_FORMULA_REGEX_SECONDS - formula.regex_seconds)
+    if render is not None:
+        timeout = min(timeout, MAX_RENDER_REGEX_SECONDS - render.regex_seconds)
+    if timeout <= 0:
+        raise _too_much_work("more pattern matching than one formula or render may do")
+    started = _regex_clock()
+    try:
+        return call(timeout)
+    except TimeoutError as exc:
+        if timeout < _MATCH_TIMEOUT_SECONDS:  # cut short by the budget, not by this pattern
+            raise _too_much_work("more pattern matching than one formula or render may do") from exc
+        raise FormulaError("#VALUE", f"pattern took longer than {_MATCH_TIMEOUT_SECONDS}s to match") from exc
+    finally:
+        spent = _regex_clock() - started
+        for budget in (formula, render):
+            if budget is not None:
+                budget.regex_seconds += spent
 
 
 @dataclass(frozen=True)
@@ -342,6 +428,18 @@ class _Parser:
         return None
 
     def parse(self) -> _Node:
+        depth = deepest = 0
+        for token in self.tokens:
+            depth += 1 if token.kind == _T_LPAREN else -1 if token.kind == _T_RPAREN else 0
+            deepest = max(deepest, depth)
+        if deepest > MAX_PAREN_DEPTH:
+            raise FormulaError("#SYNTAX", f"formula nests more than {MAX_PAREN_DEPTH} parentheses deep")
+        try:
+            return self._parse_all()
+        except RecursionError as exc:  # long runs of NOT or unary minus
+            raise FormulaError("#SYNTAX", "formula nests too deeply") from exc
+
+    def _parse_all(self) -> _Node:
         node = self._parse_or()
         if self._peek().kind != _T_EOF:
             raise FormulaError(
@@ -1220,26 +1318,17 @@ def _compile_user_pattern(pattern: str) -> _regex.Pattern[str]:
 
 def _search_bounded(pattern: _regex.Pattern[str], text: str) -> Any:
     """``pattern.search(text)``, abandoned if it backtracks past the budget."""
-    try:
-        return pattern.search(text, timeout=_MATCH_TIMEOUT_SECONDS)
-    except TimeoutError as exc:
-        raise FormulaError("#VALUE", f"pattern took longer than {_MATCH_TIMEOUT_SECONDS}s to match") from exc
+    return _regex_bounded(lambda timeout: pattern.search(text, timeout=timeout))
 
 
 def _count_bounded(pattern: _regex.Pattern[str], text: str) -> int:
     """How many times *pattern* matches in *text*, abandoned past the budget."""
-    try:
-        return sum(1 for _ in pattern.finditer(text, timeout=_MATCH_TIMEOUT_SECONDS))
-    except TimeoutError as exc:
-        raise FormulaError("#VALUE", f"pattern took longer than {_MATCH_TIMEOUT_SECONDS}s to match") from exc
+    return _regex_bounded(lambda timeout: sum(1 for _ in pattern.finditer(text, timeout=timeout)))
 
 
 def _sub_bounded(pattern: _regex.Pattern[str], replacement: str, text: str) -> str:
     """``pattern.sub(...)``, abandoned if it backtracks past the budget."""
-    try:
-        return pattern.sub(replacement, text, timeout=_MATCH_TIMEOUT_SECONDS)
-    except TimeoutError as exc:
-        raise FormulaError("#VALUE", f"pattern took longer than {_MATCH_TIMEOUT_SECONDS}s to match") from exc
+    return _regex_bounded(lambda timeout: pattern.sub(replacement, text, timeout=timeout))
 
 
 def _fn_split(args: list[Any]) -> Any:
@@ -1362,12 +1451,18 @@ def ensure_render_clock(context: dict[str, Any]) -> dict[str, Any]:
     midnight — boundary.
 
     Never mutates the argument: callers hand in the shared plugin context.
-    A context that already carries the key is returned unchanged, so an
+    A context that already carries both keys (the clock and the render budget)
+    is returned unchanged, so an
     outer render that pinned the clock wins and nested renders inherit it.
     """
-    if RENDER_CLOCK_KEY in context:
+    if RENDER_CLOCK_KEY in context and _RENDER_BUDGET_KEY in context:
         return context
-    return {**context, RENDER_CLOCK_KEY: _current_datetime({})}
+    return {
+        **context,
+        RENDER_CLOCK_KEY: context[RENDER_CLOCK_KEY] if RENDER_CLOCK_KEY in context else _current_datetime({}),
+        # The render's evaluation budget travels with its clock (S2).
+        _RENDER_BUDGET_KEY: context.get(_RENDER_BUDGET_KEY) or _Budget(),
+    }
 
 
 def _coerce_date(name: str, value: Any) -> datetime:
@@ -2090,10 +2185,48 @@ def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
     """Evaluate *node*. The one choke point every result passes: text longer
     than :data:`MAX_STRING_LENGTH` is ``#VALUE`` (``&`` and any function
     without its own check above stop here, one step past the bound)."""
-    result = _eval_node_unbounded(node, context)
+    active = _ACTIVE_BUDGET.get()
+    if active is None:
+        # The outermost call of one formula: it gets its own budget, and
+        # shares its render's (carried in the context) with every formula
+        # of that render.
+        render = context.get(_RENDER_BUDGET_KEY)
+        token = _ACTIVE_BUDGET.set((_Budget(), render if isinstance(render, _Budget) else None))
+        try:
+            return _eval_node(node, context)
+        except RecursionError as exc:
+            raise FormulaError("#SYNTAX", "formula nests too deeply") from exc
+        finally:
+            _ACTIVE_BUDGET.reset(token)
+    formula, render = active
+    formula.steps += 1
+    if formula.steps > MAX_FORMULA_STEPS:
+        raise _too_much_work(f"more than {MAX_FORMULA_STEPS} steps in one formula")
+    if render is not None:
+        render.steps += 1
+        if render.steps > MAX_RENDER_STEPS:
+            raise _too_much_work(f"more than {MAX_RENDER_STEPS} steps in one render")
+    if formula.depth >= MAX_EVAL_DEPTH:
+        raise _Exhausted("#SYNTAX", f"formula nests more than {MAX_EVAL_DEPTH} levels deep")
+    formula.depth += 1
+    try:
+        result = _eval_node_unbounded(node, context)
+    finally:
+        formula.depth -= 1
     if isinstance(result, str):
         _check_length(len(result))
     return result
+
+
+def count_steps(expression: str, context: dict[str, Any] | None = None) -> int:
+    """How many evaluation steps *expression* takes (for sizing the budgets)."""
+    budget = _Budget()
+    token = _ACTIVE_BUDGET.set((budget, None))
+    try:
+        _eval_node(_Parser(_tokenize(expression)).parse(), context or {})
+    finally:
+        _ACTIVE_BUDGET.reset(token)
+    return budget.steps
 
 
 def _eval_node_unbounded(node: _Node, context: dict[str, Any]) -> Any:
@@ -2184,6 +2317,8 @@ def _eval_node_unbounded(node: _Node, context: dict[str, Any]) -> Any:
             # their own arguments, so the caller's context is not enough.
             try:
                 return lazy(node.args, context)
+            except _Exhausted:
+                raise
             except FormulaError as exc:
                 return ErrorValue(exc.code)
 
@@ -2196,6 +2331,8 @@ def _eval_node_unbounded(node: _Node, context: dict[str, Any]) -> Any:
         try:
             args = [_eval_node(a, context) for a in node.args]
             return fn(args)
+        except _Exhausted:
+            raise
         except FormulaError as exc:
             return ErrorValue(exc.code)
 
