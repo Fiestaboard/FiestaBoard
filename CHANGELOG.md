@@ -1,5 +1,11 @@
 # fiestaboard
 
+## 10.3.4-beta.0
+
+### Patch Changes
+
+- [#2441](https://github.com/Fiestaboard/FiestaBoard/pull/2441) [`8913d58`](https://github.com/Fiestaboard/FiestaBoard/commit/8913d583903e3f1bea8766e292c0fea2271f0cf4) Thanks [@jeffredodd](https://github.com/jeffredodd)! - MQTT's `current_page` sensor now reports the page the board is actually showing (including scheduled, collection, override and silence pages) and publishes as soon as the page changes, instead of reporting the manually selected page.
+
 ## 10.3.3
 
 ### Patch Changes
