@@ -343,10 +343,13 @@ class DeviceService:
             except AuthFlowError:
                 raise AuthFlowError("invalid_grant", _INVALID_PAIRING) from None
             result = self._issue(db, row["username"], row["account_generation"], metadata, "pairing")
-            db.execute(
-                "UPDATE pairings SET state='claimed', claimed_session_id=?, device_name=? WHERE id=?",
+            claimed = db.execute(
+                "UPDATE pairings SET state='claimed', claimed_session_id=?, device_name=? WHERE id=? AND state='pending'",
                 (result.session_id, metadata.device_name, row["id"]),
             )
+            if claimed.rowcount != 1:
+                # Single use must not depend on the lock alone: roll back the new session too.
+                raise AuthFlowError("invalid_grant", _INVALID_PAIRING)
         return result
 
     def cancel(self, code: str) -> None:

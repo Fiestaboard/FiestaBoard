@@ -544,8 +544,12 @@ class OAuthService:
         device flow ignores it. ``key_exchange`` without one, or with
         *headless*, asks the provider to show a code for the user to paste.
 
-        *app_return* (the phone app only) must be in ``APP_RETURN_URIS``; a
-        flow that comes back through ``/oauth/callback`` then ends there.
+        *app_return* (the phone app only) must be in ``APP_RETURN_URIS``, and
+        only a flow that comes back through ``/oauth/callback`` can honour it:
+        a relay to this board, or a key_exchange with a callback. The device
+        and plex_pin flows, a headless key_exchange and a provider that
+        redirects elsewhere finish by polling or pasting, so asking them for an
+        app return is refused rather than silently ignored.
         """
         returns_to = validate_app_return(app_return)
         target = self._target(connection_id)
@@ -556,6 +560,11 @@ class OAuthService:
             raise ConnectionNotConfigured(
                 f"{target.plugin_name} needs a client ID before it can connect. "
                 f"Enter one in the plugin's settings and save."
+            )
+        if returns_to and not self._calls_back(target, chosen, board_url, headless):
+            raise FlowNotSupported(
+                f"{target.plugin_name}'s {chosen} sign-in does not come back to the app on its own. "
+                "Start it without app_return and watch the connection's status."
             )
         endpoints = target.endpoints()
         if chosen == FLOW_DEVICE:
@@ -571,6 +580,13 @@ class OAuthService:
             # The browser never comes back here, so the board's address is not needed.
             return self._start_relay(target, "", endpoints, returns_to)
         return self._start_relay(target, normalize_board_url(board_url), endpoints, returns_to)
+
+    @staticmethod
+    def _calls_back(target: ConnectionTarget, flow: str, board_url: str | None, headless: bool) -> bool:
+        """Whether *flow* ends with the browser at ``/oauth/callback``."""
+        if flow == FLOW_KEY_EXCHANGE:
+            return not headless and board_url is not None
+        return flow == FLOW_RELAY and not target.provider.redirect_uri_override
 
     def _start_relay(
         self, target: ConnectionTarget, board_url: str, endpoints: Endpoints, app_return: str = ""

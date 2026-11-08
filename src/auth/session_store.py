@@ -169,7 +169,12 @@ class SessionStore:
             self._drop_revoked_views(db)
             # Challenges begun anonymously belong to this single-account install.
             db.execute("UPDATE challenges SET state='cancelled' WHERE state IN ('pending','approved')")
-            db.execute("UPDATE pairings SET state='cancelled' WHERE username=? AND state='pending'", (username,))
+            # Only offers whose creating browser was just signed out; "Sign out other
+            # devices" keeps the QR the current browser is showing.
+            db.execute(
+                "UPDATE pairings SET state='cancelled' WHERE username=? AND state='pending' AND creator_session_id!=?",
+                (username, except_id or ""),
+            )
 
     def list_sessions(self, username: str) -> list[SessionRecord]:
         with self.transaction() as db:

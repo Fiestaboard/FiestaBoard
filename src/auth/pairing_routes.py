@@ -14,7 +14,7 @@ same lockout as a wrong password.
 
 from __future__ import annotations
 
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Request
 
@@ -66,8 +66,10 @@ def create_offer(request: Request):
     hub = _hub_url(normalized_origin(request.headers.get("origin", "")))
     pairing_id, code = DeviceService(get_auth_service()).create_pairing(browser)
     install_id, name = hub_identity()
-    fragment = urlencode({"v": "1", "hub": hub, "id": install_id, "name": name, "code": code})
-    return PairingOffer(pairing_id=pairing_id, qr_payload=QR_PREFIX + fragment, expires_in=PAIRING_SECONDS)
+    # quote, not quote_plus: a space is %20, which every URL parser decodes (iOS's
+    # URLComponents leaves "+" as "+").
+    fragment = urlencode({"v": "1", "hub": hub, "id": install_id, "name": name, "code": code}, quote_via=quote)
+    return PairingOffer(pairing_id=pairing_id, qr_payload=QR_PREFIX + fragment, hub=hub, expires_in=PAIRING_SECONDS)
 
 
 @router.delete("", response_model=Success, responses=RESPONSES)

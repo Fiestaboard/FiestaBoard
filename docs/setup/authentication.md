@@ -260,7 +260,8 @@ credential as a password sign-in, listed in **Signed-in devices** as a QR / code
 
 - The code works **once**, for **five minutes**, and only the newest code is live:
   showing a new one, closing the dialog, signing that browser out, **Sign out everywhere**,
-  a password change or turning off **Device sign-in** cancels it.
+  a password change or turning off **Device sign-in** cancels it. **Sign out other
+  devices** keeps the code the current browser is showing.
 - The code is inside the QR's `#` fragment and the app's request body. It never appears
   in a web address the hub receives, so it is not in any log.
 - Each address may try 10 codes a minute, and wrong codes count toward the same
@@ -283,7 +284,9 @@ When the app connects an integration to its provider, it passes
 the provider sign-in, the hub sends the app's in-app browser to
 `fiestaboard://oauth?connection=…&oauth=connected` (or `oauth=error&reason=…`). That
 address carries the outcome only, never the provider's code. The hub accepts that one
-exact address, and only from a phone's sign-in.
+exact address, and only from a phone's sign-in. Sign-ins that finish without coming back
+to the hub (a device code, Plex, a pasted code) refuse `app_return`; the app watches the
+connection's status instead.
 
 ### Upgrade and rollback
 

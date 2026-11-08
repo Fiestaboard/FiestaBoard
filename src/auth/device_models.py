@@ -76,6 +76,9 @@ class PairingOffer(BaseModel):
             "one-time code; the code is never sent in a request URL."
         )
     )
+    hub: str = Field(
+        description="The address the QR tells the phone to use (this browser's origin). Also inside qr_payload."
+    )
     expires_in: int = Field(default=300, description="Seconds until the code stops working. Single use.")
     scope: NativeScope = "control"
 

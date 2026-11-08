@@ -115,7 +115,9 @@ class OAuthAuthorizeRequest(BaseModel):
         max_length=64,
         description=(
             "Phone app only: 'fiestaboard://oauth'. The callback then sends the in-app browser there with "
-            "connection, oauth (connected or error) and reason, never the code. Any other value is refused."
+            "connection, oauth (connected or error) and reason, never the code. Any other value is refused, "
+            "and so is any flow that does not come back through the callback (device, plex_pin, a headless "
+            "key_exchange, a provider that redirects elsewhere): those finish by polling or pasting."
         ),
     )
 
