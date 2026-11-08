@@ -11,7 +11,8 @@ the browser ``/activate`` page does; it may never approve a code that would
 mint ``control``.
 """
 
-from urllib.parse import parse_qs, urlsplit
+import threading
+from urllib.parse import parse_qs, unquote, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
@@ -101,6 +102,19 @@ def test_offer_is_a_fragment_only_qr_payload(auth, browser):
     assert fields["id"] and "name" in fields
     assert payload["expires_in"] == 300 and payload["scope"] == "control"
     assert payload["pairing_id"] and payload["pairing_id"] not in fields["code"]
+    # The hub address is also a plain field, so the web page can show it without parsing.
+    assert payload["hub"] == "http://testserver"
+
+
+def test_fragment_uses_percent_encoding_not_plus(auth, browser, monkeypatch):
+    # iOS URLComponents does not turn "+" back into a space; encode spaces as %20.
+    monkeypatch.setattr("src.auth.pairing_routes.hub_identity", lambda: ("install-1", "Maya's FiestaPi"))
+    payload = offer(browser)
+    raw = payload["qr_payload"].split("#", 1)[1]
+    assert "+" not in raw
+    fields = dict(part.split("=", 1) for part in raw.split("&"))
+    assert unquote(fields["name"]) == "Maya's FiestaPi"
+    assert unquote(fields["hub"]) == "http://testserver"
 
 
 def test_offer_response_is_not_cached(auth, browser):
@@ -235,10 +249,25 @@ def test_revoking_the_creating_browser_cancels_its_offer(auth, browser):
     assert claim(code).status_code == 400
 
 
-def test_sign_out_everywhere_cancels_offers(auth, browser):
+def test_sign_out_other_devices_cancels_another_browsers_offer(auth, browser):
     code = code_of(offer(browser))
     other = _browser()
     assert other.post("/auth/sessions/revoke", json={"include_current": False}).status_code == 200
+    assert claim(code).status_code == 400
+
+
+def test_sign_out_other_devices_keeps_this_browsers_offer(auth, browser):
+    # The browser showing the QR survives "Sign out other devices", so its QR does too:
+    # only offers whose creator was signed out are cancelled.
+    code = code_of(offer(browser))
+    _browser()
+    assert browser.post("/auth/sessions/revoke", json={"include_current": False}).status_code == 200
+    assert claim(code).status_code == 200
+
+
+def test_sign_out_everywhere_cancels_offers(auth, browser):
+    code = code_of(offer(browser))
+    assert browser.post("/auth/sessions/revoke", json={"include_current": True}).status_code == 200
     assert claim(code).status_code == 400
 
 
@@ -457,3 +486,66 @@ def test_the_phone_decision_path_refuses_a_tv_token(auth):
     with pytest.raises(AuthFlowError) as raised:
         _decision_context(request)
     assert raised.value.status == 401
+
+
+# --- Races and odd credentials ------------------------------------------------
+
+
+def test_concurrent_claims_issue_exactly_one_credential(auth, browser):
+    code = code_of(offer(browser))
+    start = threading.Barrier(12)
+    statuses = []
+
+    def race():
+        client = TestClient(app)
+        start.wait()
+        statuses.append(claim(code, client=client).status_code)
+
+    threads = [threading.Thread(target=race) for _ in range(12)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert statuses.count(200) == 1
+    assert set(statuses) <= {200, 400, 429}
+    with auth.sessions.transaction() as db:
+        claimed = db.execute("SELECT COUNT(*) FROM pairings WHERE state='claimed'").fetchone()[0]
+        phones = db.execute("SELECT COUNT(*) FROM sessions WHERE method='pairing'").fetchone()[0]
+    assert claimed == 1 and phones == 1
+
+
+def test_a_phone_and_a_browser_racing_to_approve_one_tv_code(auth, browser):
+    phone = bearer_client(sign_in(IOS)["access_token"])
+    grant = tv_code()
+    start = threading.Barrier(2)
+    statuses = []
+
+    def approve(client):
+        start.wait()
+        statuses.append(client.post("/auth/device/approve", json={"user_code": grant["user_code"]}).status_code)
+
+    threads = [threading.Thread(target=approve, args=(client,)) for client in (phone, browser)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert sorted(statuses) == [200, 400]
+    with auth.sessions.transaction() as db:
+        rows = db.execute("SELECT state, approving_session_id FROM challenges").fetchall()
+    assert [row["state"] for row in rows] == ["approved"] and rows[0]["approving_session_id"]
+
+
+def test_claim_refused_when_the_creating_browser_expired(auth, browser):
+    code = code_of(offer(browser))
+    now = auth.sessions.clock_ms()
+    with auth.sessions.transaction() as db:
+        db.execute("UPDATE sessions SET expires_ms=? WHERE kind='browser'", (now - 1,))
+    response = claim(code)
+    assert response.status_code == 400 and response.json()["error"] == "invalid_grant"
+
+
+def test_a_cookie_with_basic_auth_cannot_approve(auth, browser):
+    # Any Authorization header takes the phone path; a cookie never rescues it.
+    grant = tv_code()
+    browser.headers["Authorization"] = "Basic YWRtaW46Y29ycmVjdC1wYXNzd29yZA=="
+    assert browser.post("/auth/device/approve", json={"user_code": grant["user_code"]}).status_code == 401

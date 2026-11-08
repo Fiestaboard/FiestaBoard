@@ -791,3 +791,9 @@ def test_the_redirect_rechecks_the_allow_list():
 
     forged = CallbackOutcome(connected=True, connection_id="music", app_return="https://evil.example/x")
     assert _return_location(forged).startswith("../../integrations?")
+
+
+def test_app_return_on_the_device_flow_is_a_400(phone_client, provider):
+    response = phone_client.post("/oauth/connections/git/authorize", json={"app_return": APP_RETURN})
+    assert response.status_code == 400
+    assert provider.calls == []
