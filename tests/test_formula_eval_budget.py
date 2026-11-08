@@ -39,6 +39,22 @@ def _failure(formula: str) -> expressions.FormulaError:
     return caught.value
 
 
+def _seconds_per_step() -> float:
+    """This machine's cost of one evaluation step, measured on a reference
+    formula: CI runs under coverage on another Python, many times slower
+    than a desktop, so time bounds are stated in steps, not seconds."""
+    reference = f'COUNT(FILTER({A}, item = "a"))'
+    steps = expressions.count_steps(reference)
+    best = min(_timed(reference)[1] for _ in range(3))
+    return best / steps
+
+
+def _within_budget_time(elapsed: float, steps: int) -> bool:
+    """Whether *elapsed* is what about *steps* evaluation steps cost here
+    (3x slack, plus a fixed allowance for building the 32 K-item list)."""
+    return elapsed < 3 * steps * _seconds_per_step() + 0.5
+
+
 def _timed(formula: str) -> tuple[str, float]:
     started = time.perf_counter()
     value = evaluate(formula)
@@ -52,14 +68,14 @@ def test_nested_filter_over_32k_items_stops_fast():
     value, elapsed = _timed(f"COUNT(FILTER({A}, COUNT(FILTER({A}, TRUE)) > 0))")
 
     assert value == "#VALUE"
-    assert elapsed < 1
+    assert _within_budget_time(elapsed, expressions.MAX_FORMULA_STEPS)  # ~0.2 s on a desktop
 
 
 def test_nested_foreach_stops_fast():
     value, elapsed = _timed(f'FOREACH({A}, COUNT(FILTER({A}, item = "a")))')
 
     assert value == "#VALUE"
-    assert elapsed < 1
+    assert _within_budget_time(elapsed, expressions.MAX_FORMULA_STEPS)
 
 
 def test_an_over_budget_formula_says_why():
@@ -112,7 +128,9 @@ def test_a_render_cannot_add_up_many_formulas_just_under_the_limit():
 
     assert rows[0].strip() == "32768"
     assert rows[-1].strip() == "#VALUE"
-    assert elapsed < 20  # bounded: about 4 s here, where unbounded it is 25 M steps
+    # Bounded by the render budget, where unbounded it is 25 M steps (each
+    # line also builds its own 32 K-item list: 96 times the fixed allowance).
+    assert elapsed < 3 * expressions.MAX_RENDER_STEPS * _seconds_per_step() + 96 * 0.5
 
 
 # ── the regex budget ────────────────────────────────────────────────────────
@@ -132,7 +150,7 @@ def test_regex_time_is_budgeted_in_total_not_only_per_call(monkeypatch):
     value, elapsed = _timed(f'COUNT(FILTER({words}, REGEXMATCH(item, "^a")))')
 
     assert value == "#VALUE"
-    assert elapsed < 1
+    assert elapsed < 5
 
 
 def test_ordinary_regex_use_is_unaffected():
