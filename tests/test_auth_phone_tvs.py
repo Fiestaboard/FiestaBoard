@@ -251,3 +251,20 @@ def test_a_revoked_phone_cannot_list(auth, browser, phone):
     client, token = phone
     assert browser.delete("/auth/sessions/" + token["session_id"]).status_code == 200
     assert client.get("/auth/device/tvs").status_code == 401
+
+
+def test_the_handler_itself_refuses_a_tv_token(auth):
+    # The middleware already stops a TV token here; the route does not rely on it.
+    from starlette.requests import Request
+
+    from src.auth.device_models import AuthFlowError
+    from src.auth.device_routes import _phone
+
+    token = sign_in(TV)["access_token"]
+    request = Request(
+        {"type": "http", "method": "GET", "path": "/auth/device/tvs",
+         "headers": [(b"authorization", ("Bearer " + token).encode())], "client": ("127.0.0.1", 1)}
+    )  # fmt: skip
+    with pytest.raises(AuthFlowError) as raised:
+        _phone(request)
+    assert raised.value.status == 401

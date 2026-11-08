@@ -15,7 +15,8 @@ someone adds them on purpose.
   management, backups, the host (network, update, restart), installing or
   removing code, or settings that hold third-party secrets (AI keys, MQTT,
   ``/config/board``). It may approve or deny a TV's sign-in code (H11), but
-  never create pairing codes for other phones (``/auth/pairing``).
+  never create pairing codes for other phones (``/auth/pairing``). It may
+  list and sign out the account's TVs (H10b), never browsers or phones.
 """
 
 from __future__ import annotations
@@ -90,6 +91,10 @@ CONTROL_RULES = (
         ("POST", "/auth/device/inspect"),
         ("POST", "/auth/device/approve"),
         ("POST", "/auth/device/deny"),
+        # Listing and signing out the account's TVs (H10b, Jev D14). TV sessions only;
+        # /auth/sessions (browsers and phones) stays with the browser.
+        ("GET", "/auth/device/tvs"),
+        ("DELETE", "/auth/device/tvs/{}"),
         # Home: what each display shows, and its state.
         ("GET", "/status"),
         ("GET", "/version"),

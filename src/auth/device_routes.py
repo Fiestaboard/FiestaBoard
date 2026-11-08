@@ -1,5 +1,7 @@
 """Native sign-in enrollment and explicit browser approval endpoints."""
 
+import logging
+
 from fastapi import APIRouter, Request
 
 from src.api_errors import errors
@@ -15,6 +17,7 @@ from .device_models import (
     DeviceTokenResult,
     EnrollmentSettings,
     PendingDevice,
+    PhoneTVList,
     Success,
     UserCode,
 )
@@ -22,6 +25,8 @@ from .device_service import DeviceService
 from .middleware import _bearer_from
 from .routes import _check_lockout, _clear_failures, _client_ip, _record_failure
 from .service import InvalidCredentials, get_auth_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth/device", tags=["auth"])
 RESPONSES = errors(400, 401, 403, 409, 422, 429, 503)
@@ -127,4 +132,46 @@ def revoke_self(request: Request):
     if not session:
         raise AuthFlowError("unauthorized", "This sign-in is no longer valid.", 401)
     auth.sessions.revoke_session(session.username, session.id)
+    return Success()
+
+
+def _phone(request: Request):
+    """The calling phone's session. Browsers manage devices at /auth/sessions instead."""
+    service = DeviceService(get_auth_service())
+    phone = service.authenticate_mobile(_bearer_from(request) or "")
+    if not phone:
+        raise AuthFlowError("unauthorized", "Only a signed-in FiestaBoard phone app can manage TVs here.", 401)
+    return phone, service
+
+
+@router.get("/tvs", response_model=PhoneTVList, responses=RESPONSES)
+def phone_tvs(request: Request):
+    """The account's signed-in TVs, newest first, for the phone app. Phone sign-in only.
+
+    Lists TV sign-ins only, never browsers or phones (those are managed from
+    the web app). ``approved_by_you`` marks the TVs whose code this phone approved.
+    """
+    from src.panels.service import get_panel_service
+
+    from .session_routes import _shown
+
+    phone, service = _phone(request)
+    rows = service.phone_tvs(phone)
+    mine = service.store.approved_by(phone.id)
+    views = service.store.panel_views(phone.username)
+    panels = {p.id for p in get_panel_service().list_panels()} if views else set()
+    return PhoneTVList(
+        tvs=[
+            {**row.summary(), **_shown(views.get(row.id, []), panels), "approved_by_you": row.id in mine}
+            for row in rows
+        ]
+    )
+
+
+@router.delete("/tvs/{session_id}", response_model=Success, responses=errors(401, 403, 404, 429, 503))
+def revoke_phone_tv(session_id: str, request: Request):
+    """Sign out one of the account's TVs from the phone app. TVs only: anything else is 404."""
+    phone, service = _phone(request)
+    tv = service.revoke_tv(phone, session_id)
+    logger.info("Phone %s (%s) signed out TV %s (%s)", phone.id, phone.device_name, tv.id, tv.device_name)
     return Success()

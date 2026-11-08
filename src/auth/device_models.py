@@ -133,6 +133,26 @@ class SessionSummary(BaseModel):
     shown_panels: list[PanelShown] = []
 
 
+class PhoneTV(BaseModel):
+    """A signed-in TV, as the phone app sees it. No digests, usernames or approver ids."""
+
+    id: str = Field(description="The TV's sign-in id: the handle for DELETE /auth/device/tvs/{id}.")
+    device_name: str
+    client_id: str
+    app_version: str
+    method: Literal["password", "device_code"]
+    created_at: str
+    last_active_at: str
+    expires_at: str
+    last_shown_at: str | None = None
+    shown_panels: list[PanelShown] = []
+    approved_by_you: bool = Field(description="Whether the calling phone approved this TV's sign-in code.")
+
+
+class PhoneTVList(BaseModel):
+    tvs: list[PhoneTV]
+
+
 class SessionList(BaseModel):
     sessions: list[SessionSummary]
     current_session_id: str

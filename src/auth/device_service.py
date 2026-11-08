@@ -259,6 +259,10 @@ class DeviceService:
                         client_id=row["client_id"], device_name=row["device_name"], app_version=row["app_version"]
                     )
                     result = self._issue(db, row["username"], row["account_generation"], metadata, "device_code")
+                    db.execute(
+                        "INSERT OR REPLACE INTO session_approvals VALUES (?, ?)",
+                        (result.session_id, row["approving_session_id"]),
+                    )
                     db.execute("UPDATE challenges SET state='consumed' WHERE device_digest=?", (row["device_digest"],))
         # Poll timing is persisted even when the protocol response is an error.
         if error:
@@ -351,6 +355,25 @@ class DeviceService:
                 # Single use must not depend on the lock alone: roll back the new session too.
                 raise AuthFlowError("invalid_grant", _INVALID_PAIRING)
         return result
+
+    # -- H10b: a phone manages the account's TVs (Jev D14) ------------------
+
+    def phone_tvs(self, phone: SessionRecord) -> list[SessionRecord]:
+        """The account's live TV sign-ins in *phone*'s generation, newest first. Never browsers or phones."""
+        return [
+            row
+            for row in self.store.list_sessions(phone.username)
+            if row.kind == "tv" and row.account_generation == phone.account_generation
+        ]
+
+    def revoke_tv(self, phone: SessionRecord, session_id: str) -> SessionRecord:
+        """Sign out one of the account's TVs. Anything else is the same ``not_found``."""
+        self.limit("tv-revoke:" + phone.id, 20)
+        target = next((row for row in self.phone_tvs(phone) if row.id == session_id), None)
+        if target is None:
+            raise AuthFlowError("not_found", "No signed-in TV with that id.", 404)
+        self.store.revoke_session(phone.username, session_id)
+        return target
 
     def cancel(self, code: str) -> None:
         with self.store.transaction() as db:
