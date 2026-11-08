@@ -2083,6 +2083,36 @@ class ConfigManager:
         configs = self.get_all_plugin_configs()
         return self._mask_sensitive(configs)
 
+    def prepare_plugin_instance_config(self, plugin_id: str) -> dict[str, Any] | None:
+        """Commit an instance's presence and clear its removal marker together.
+
+        Return its previous config for live adoption (None when absent).
+        Absent or empty configs receive the fresh disabled default.
+        Existing saved settings are preserved, including when the plugin is
+        temporarily missing from the live registry.
+        """
+        with self._file_lock:
+            candidate = self._deep_copy(self._config)
+            plugins = candidate.setdefault("plugins", {})
+            stored = self._deep_copy(plugins.get(plugin_id))
+            if not stored:
+                plugins[plugin_id] = {"enabled": False}
+            removed = candidate.get("removed_plugins")
+            if isinstance(removed, list):
+                prefix = f"{plugin_id}:"
+                kept = [
+                    pid
+                    for pid in removed
+                    if isinstance(pid, str) and pid and pid != plugin_id and not pid.startswith(prefix)
+                ]
+                if kept:
+                    candidate["removed_plugins"] = kept
+                else:
+                    candidate.pop("removed_plugins", None)
+            if candidate != self._config:
+                self._save_internal(candidate)
+            return stored
+
     def delete_plugin_config(self, plugin_id: str) -> bool:
         """Delete configuration for a specific plugin.
 

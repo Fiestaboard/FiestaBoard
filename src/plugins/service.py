@@ -556,13 +556,18 @@ class PluginService:
         if not registry.get_plugin(base_id):
             raise PluginNotFound(f"Plugin not found: {base_id}")
 
-        errors = registry.create_instance(base_id, label)
+        compound_key = registry.make_instance_key(base_id, label)
+        config_manager = self.config_manager
+        stored = None
+
+        def prepare_config():
+            nonlocal stored
+            stored = config_manager.prepare_plugin_instance_config(compound_key)
+
+        errors = registry.create_instance(base_id, label, before_change=prepare_config)
         if errors:
             raise PluginOperationRejected("; ".join(errors))
 
-        compound_key = registry.make_instance_key(base_id, label)
-
-        config_manager = self.config_manager
         # The registry can come up without its named instances — an unreadable
         # config.json, or a base plugin that failed to load, both leave the
         # stored entries untouched but drop the live instances. The UI then
@@ -570,7 +575,6 @@ class PluginService:
         # persisting an empty config here used to overwrite their saved
         # settings with `{"enabled": false}`, so the plugin fell back to
         # manifest defaults. Adopt whatever is still on disk instead.
-        stored = config_manager.get_plugin_config(compound_key)
         if stored:
             errors = registry.apply_stored_config(compound_key, stored)
             if errors:
@@ -582,12 +586,6 @@ class PluginService:
             if stored.get("enabled"):
                 registry.enable_plugin(compound_key)
             logger.info("Re-created instance '%s' adopted its existing stored config", compound_key)
-        else:
-            # Persist empty config so the instance survives restarts
-            config_manager.set_plugin_config(compound_key, {"enabled": False})
-        # Re-creating an instance is an explicit user action — drop any
-        # deliberate-removal tombstone left by a prior delete (#1394).
-        config_manager.clear_plugin_removed(compound_key)
 
         # Reset services so the new instance is available to templates immediately
         self.reset_runtime()

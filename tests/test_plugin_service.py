@@ -52,6 +52,14 @@ def _service(recorder: _Recorder, *, config_errors: list[str] | None = None) -> 
     registry.parse_instance_key.side_effect = lambda pid: (pid.partition(":")[0], pid.partition(":")[2] or None)
     registry.make_instance_key.side_effect = lambda base, label: f"{base}:{label}"
     registry.create_instance.return_value = []
+
+    def create_instance(base_id, label, *, before_change=None):
+        errors = registry.create_instance.return_value
+        if not errors and before_change is not None:
+            before_change()
+        return errors
+
+    registry.create_instance.side_effect = create_instance
     registry.delete_instance.return_value = []
 
     def delete_instance(base_id, label, *, before_change=None):
@@ -81,6 +89,15 @@ def _service(recorder: _Recorder, *, config_errors: list[str] | None = None) -> 
         dict(stored_configs[pid]) if pid in stored_configs else None
     )
     config_manager.set_plugin_config.side_effect = _persist_config
+
+    def prepare_instance(plugin_id):
+        stored = config_manager.get_plugin_config(plugin_id)
+        if not stored:
+            config_manager.set_plugin_config(plugin_id, {"enabled": False})
+        config_manager.clear_plugin_removed(plugin_id)
+        return stored
+
+    config_manager.prepare_plugin_instance_config.side_effect = prepare_instance
     config_manager.enable_plugin.side_effect = lambda pid: recorder.steps.append("persist")
     config_manager.disable_plugin.side_effect = lambda pid: recorder.steps.append("persist")
     config_manager.delete_plugin_config.side_effect = lambda pid: recorder.steps.append("persist")
