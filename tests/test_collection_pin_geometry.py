@@ -69,9 +69,7 @@ def mixed_pin_client(*, now=0, variable=False, silenced=False):
             ]
         )
         pages = pages_module.get_page_service()
-        large = pages.create_page(
-            PageCreate(name="Large member", type="template", template=["ABCDEFGHIJKLMNOPQRSTUV"])
-        )
+        large = pages.create_page(PageCreate(name="Large member", type="template", template=["ABCDEFGHIJKLMNOPQRSTUV"]))
         small = pages.create_page(
             PageCreate(name="Small member", type="template", device_type="note", template=["FITS"])
         )

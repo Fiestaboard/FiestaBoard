@@ -86,6 +86,7 @@ test.describe("FiestaPanel settings flow", () => {
     // The new display's page opens, its panel's controls (viewer URL, QR,
     // TV size) on it.
     await expect(page).toHaveURL(/\/displays\/[^/]+$/, { timeout: 15_000 });
+    await page.getByRole("tab", { name: "Settings", exact: true }).click();
     const panel = page.getByTestId("display-panel-settings");
     await expect(panel.getByText("E2E Wall TV", { exact: true })).toBeVisible({ timeout: 10_000 });
 

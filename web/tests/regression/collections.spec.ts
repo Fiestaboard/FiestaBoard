@@ -68,7 +68,7 @@ async function createCollectionApi(name: string, pageIds: string[], intervalSeco
 
 /**
  * Return the unique [data-slot="card"] element whose visible text contains
- * the given collection name. Used to scope clicks on the inline edit pencil
+ * the given collection name. Used to scope clicks on the inline detail action
  * (the only button rendered inside the card body).
  */
 function collectionCard(page: Page, name: string): Locator {
@@ -76,13 +76,13 @@ function collectionCard(page: Page, name: string): Locator {
 }
 
 /**
- * Open the edit sheet for the named collection by clicking the pencil button
+ * Open the edit route for the named collection by clicking the collection button
  * inside its card.
  */
-async function clickEditPencil(page: Page, name: string): Promise<void> {
+async function openCollection(page: Page, name: string): Promise<void> {
   const card = collectionCard(page, name);
   await expect(card).toBeVisible({ timeout: 15_000 });
-  // Inside the card header, the only <button> is the edit pencil (it has no
+  // Inside the card header, the only <button> is the detail action (it has no
   // text node, only an svg icon child).
   await card.getByRole("button").first().click();
 }
@@ -177,7 +177,7 @@ test.describe("regression: collections.list", () => {
    * Expected: collection rows render with name, page-count, edit affordance
    * Source refs: web/src/app/collections/page.tsx
    */
-  test("collections.list.with-entries — rows render with name, page-count and edit pencil", async ({ page }) => {
+  test("collections.list.with-entries — tiles render with name, page-count and detail action", async ({ page }) => {
     const pageNameA = `E2E Page A ${Date.now()}`;
     const pageNameB = `E2E Page B ${Date.now()}`;
     const pageIdA = await createPage(pageNameA);
@@ -193,7 +193,7 @@ test.describe("regression: collections.list", () => {
 
     // Row shows name as the CardTitle heading and the page-count + interval
     // summary in the description.
-    await expect(card.getByRole("heading", { name })).toBeVisible();
+    await expect(card.getByRole("button", { name: new RegExp(name) })).toBeVisible();
     await expect(card.getByText(/2 pages\s*·\s*15s per page/)).toBeVisible();
 
     // Edit pencil is the only button rendered inside the card.
@@ -205,27 +205,27 @@ test.describe("regression: collections.list", () => {
 // collections.form
 // ---------------------------------------------------------------------------
 
-async function openCreateSheet(page: Page): Promise<Locator> {
+async function openCreateRoute(page: Page): Promise<Locator> {
   const firstCta = page.getByRole("button", { name: "Create Your First Collection" });
   if (await firstCta.isVisible().catch(() => false)) {
     await firstCta.click();
   } else {
     await page.getByRole("button", { name: "New Collection" }).first().click();
   }
-  const dialog = page.getByRole("dialog");
+  const dialog = page.locator('[data-slot="page-card"]');
   await expect(dialog).toBeVisible({ timeout: 10_000 });
   return dialog;
 }
 
 test.describe("regression: collections.form", () => {
   /**
-   * UX node: collections.form.sheet-create
+   * UX node: collections.form.route-create
    * Route: /collections
-   * Interactions: click:new-collection → sheet opens
-   * Expected: sheet has name input, page-picker, interval control; Submit disabled until valid
+   * Interactions: click:new-collection → route opens
+   * Expected: route has name input, page-picker, interval control; Submit disabled until valid
    * Source refs: web/src/app/collections/page.tsx (CollectionForm)
    */
-  test("collections.form.sheet-create — sheet opens with controls and submit-disabled-until-valid", async ({
+  test("collections.form.route-create — route opens with controls and submit-disabled-until-valid", async ({
     page,
   }) => {
     await createPage(`E2E Page ${Date.now()}`);
@@ -233,7 +233,7 @@ test.describe("regression: collections.form", () => {
     await page.goto("/collections");
     await expect(page.getByRole("heading", { name: "Collections", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    const dialog = await openCreateSheet(page);
+    const dialog = await openCreateRoute(page);
     await expect(dialog.getByRole("heading", { name: "New Collection" })).toBeVisible();
 
     // Form controls are present.
@@ -246,28 +246,28 @@ test.describe("regression: collections.form", () => {
     await expect(submit).toBeDisabled();
 
     // Type a name — still disabled (no pages added).
-    await dialog.getByLabel("Name").fill("Sheet Test Collection");
+    await dialog.getByLabel("Name").fill("Route Test Collection");
     await expect(submit).toBeDisabled();
   });
 
   /**
-   * UX node: collections.form.sheet-edit
+   * UX node: collections.form.route-edit
    * Route: /collections
-   * Interactions: click:edit on a row → sheet opens prefilled
+   * Interactions: click:edit on a row → route opens prefilled
    * Expected: form pre-populates from entity; Delete button visible in edit mode
    * Source refs: web/src/app/collections/page.tsx
    */
-  test("collections.form.sheet-edit — edit sheet pre-populates name and exposes Delete", async ({ page }) => {
+  test("collections.form.route-edit — edit route pre-populates name and exposes Delete", async ({ page }) => {
     const pageId = await createPage(`E2E Page ${Date.now()}`);
     const name = `E2E Edit Collection ${Date.now()}`;
     await createCollectionApi(name, [pageId], 10);
 
     await page.goto("/collections");
-    await clickEditPencil(page, name);
+    await openCollection(page, name);
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.locator('[data-slot="page-card"]');
     await expect(dialog).toBeVisible({ timeout: 10_000 });
-    await expect(dialog.getByRole("heading", { name: "Edit Collection" })).toBeVisible();
+    await expect(dialog.getByLabel("Name")).toHaveValue(name);
 
     await expect(dialog.getByLabel("Name")).toHaveValue(name);
 
@@ -277,7 +277,7 @@ test.describe("regression: collections.form", () => {
 
   /**
    * UX node: collections.form.empty-pages-warning
-   * Route: /collections (sheet)
+   * Route: /collections (detail)
    * Preconditions: page-picker:no-selection
    * Expected: inline placeholder copy ('No pages added yet'); Submit disabled
    * Source refs: web/src/app/collections/page.tsx (selectedPageIds.length === 0)
@@ -288,7 +288,7 @@ test.describe("regression: collections.form", () => {
     await createPage(`E2E Page ${Date.now()}`);
 
     await page.goto("/collections");
-    const dialog = await openCreateSheet(page);
+    const dialog = await openCreateRoute(page);
 
     await dialog.getByLabel("Name").fill("Collection With No Pages");
 
@@ -298,7 +298,7 @@ test.describe("regression: collections.form", () => {
 
   /**
    * UX node: collections.form.creating
-   * Route: /collections (sheet)
+   * Route: /collections (detail)
    * Preconditions: create-mutation:pending
    * Expected: Submit button shows pending state (disabled, announced busy, spinner) while mutation in flight
    * Source refs: web/src/app/collections/page.tsx (isSubmitting branch)
@@ -318,7 +318,7 @@ test.describe("regression: collections.form", () => {
     });
 
     await page.goto("/collections");
-    const dialog = await openCreateSheet(page);
+    const dialog = await openCreateRoute(page);
     await dialog.getByLabel("Name").fill("Creating State Collection");
 
     await addPageCombobox(dialog).click();
@@ -338,17 +338,18 @@ test.describe("regression: collections.form", () => {
     await expect(submit).toHaveAccessibleName("Create Collection");
 
     release!();
-    await expect(dialog).toBeHidden({ timeout: 10_000 });
+    await expect(page).toHaveURL(/\/collections$/);
+    await expect(dialog.getByLabel("Name")).toBeHidden({ timeout: 10_000 });
   });
 
   /**
    * UX node: collections.form.create-error
-   * Route: /collections (sheet)
+   * Route: /collections (detail)
    * Preconditions: create-mutation:error
-   * Expected: error toast; sheet remains open; input preserved
+   * Expected: error toast; detail remains open; input preserved
    * Source refs: web/src/app/collections/page.tsx (createMutation onError)
    */
-  test("collections.form.create-error — failed POST shows error toast, leaves sheet open with input preserved", async ({
+  test("collections.form.create-error — failed POST shows error toast, leaves detail open with input preserved", async ({
     page,
   }) => {
     const pageName = `E2E Page ${Date.now()}`;
@@ -364,7 +365,7 @@ test.describe("regression: collections.form", () => {
     });
 
     await page.goto("/collections");
-    const dialog = await openCreateSheet(page);
+    const dialog = await openCreateRoute(page);
     const distinctName = `Preserved Name ${Date.now()}`;
     await dialog.getByLabel("Name").fill(distinctName);
 
@@ -373,22 +374,19 @@ test.describe("regression: collections.form", () => {
 
     await dialog.getByRole("button", { name: "Create Collection" }).click();
 
-    // Error toast appears (scope to the Notifications region so we don't
-    // pick up the Next.js dev runtime-error overlay which mirrors the
-    // thrown message).
-    const toasts = page.getByLabel("Notifications alt+T");
-    await expect(toasts.getByText(/Failed to create collection|boom/i)).toBeVisible({
+    // A failed save remains inline beside the preserved form.
+    await expect(dialog.getByRole("alert")).toContainText(/boom/i, {
       timeout: 10_000,
     });
 
-    // Sheet stays open with the typed name preserved.
+    // Detail stays open with the typed name preserved.
     await expect(dialog).toBeVisible();
     await expect(dialog.getByLabel("Name")).toHaveValue(distinctName);
   });
 
   /**
    * UX node: collections.form.updating
-   * Route: /collections (sheet)
+   * Route: /collections (detail)
    * Preconditions: update-mutation:pending
    * Expected: Update Collection button disabled, announced busy, spinner while PUT in flight
    * Source refs: web/src/app/collections/page.tsx (isSubmitting branch)
@@ -411,10 +409,10 @@ test.describe("regression: collections.form", () => {
     });
 
     await page.goto("/collections");
-    await clickEditPencil(page, name);
+    await openCollection(page, name);
 
-    const dialog = page.getByRole("dialog");
-    await expect(dialog.getByRole("heading", { name: "Edit Collection" })).toBeVisible();
+    const dialog = page.locator('[data-slot="page-card"]');
+    await expect(dialog.getByLabel("Name")).toHaveValue(name);
     await dialog.getByLabel("Name").fill(`${name} edited`);
 
     const submit = dialog.getByRole("button", { name: "Update Collection" });
@@ -428,14 +426,15 @@ test.describe("regression: collections.form", () => {
     await expect(submit).toHaveAccessibleName("Update Collection");
 
     release!();
-    await expect(dialog).toBeHidden({ timeout: 10_000 });
+    await expect(page).toHaveURL(/\/collections$/);
+    await expect(dialog.getByLabel("Name")).toBeHidden({ timeout: 10_000 });
   });
 
   /**
    * UX node: collections.form.update-error
-   * Route: /collections (sheet)
+   * Route: /collections (detail)
    * Preconditions: update-mutation:error
-   * Expected: error toast; sheet remains open; edits preserved
+   * Expected: error toast; detail remains open; edits preserved
    * Source refs: web/src/app/collections/page.tsx (updateMutation onError)
    */
   test("collections.form.update-error — failed PUT shows error toast and preserves edits", async ({ page }) => {
@@ -453,20 +452,17 @@ test.describe("regression: collections.form", () => {
     });
 
     await page.goto("/collections");
-    await clickEditPencil(page, name);
+    await openCollection(page, name);
 
-    const dialog = page.getByRole("dialog");
-    await expect(dialog.getByRole("heading", { name: "Edit Collection" })).toBeVisible();
+    const dialog = page.locator('[data-slot="page-card"]');
+    await expect(dialog.getByLabel("Name")).toHaveValue(name);
     const editedName = `${name} dirty`;
     await dialog.getByLabel("Name").fill(editedName);
 
     await dialog.getByRole("button", { name: "Update Collection" }).click();
 
-    // Scope to the Notifications region so the Next.js dev runtime-error
-    // overlay (which echoes the thrown server message) doesn't collide
-    // with the Sonner toast in strict mode.
-    const toasts = page.getByLabel("Notifications alt+T");
-    await expect(toasts.getByText(/Failed to update collection|kaboom/i)).toBeVisible({
+    // A failed save remains inline beside the preserved form.
+    await expect(dialog.getByRole("alert")).toContainText(/boom/i, {
       timeout: 10_000,
     });
 
@@ -483,7 +479,7 @@ test.describe("regression: collections.delete-confirm", () => {
   /**
    * UX node: collections.delete-confirm
    * Route: /collections
-   * Interactions: open edit sheet → click Delete → AlertDialog → Cancel / Confirm
+   * Interactions: open edit route → click Delete → AlertDialog → Cancel / Confirm
    * Expected: AlertDialog title 'Delete Collection'; Cancel keeps row; Confirm removes it and toasts
    * Source refs: web/src/app/collections/page.tsx (deleteMutation + AlertDialog)
    *
@@ -496,14 +492,14 @@ test.describe("regression: collections.delete-confirm", () => {
     await createCollectionApi(name, [pageId], 30);
 
     await page.goto("/collections");
-    await clickEditPencil(page, name);
+    await openCollection(page, name);
 
-    const sheet = page.getByRole("dialog");
+    const sheet = page.locator('[data-slot="page-card"]');
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole("heading", { name: "Edit Collection" })).toBeVisible();
+    await expect(sheet.getByLabel("Name")).toHaveValue(name);
     await sheet.getByRole("button", { name: "Delete" }).click();
 
-    // The sheet closes and the AlertDialog opens.
+    // The detail stays mounted while the AlertDialog opens.
     const alert = page.getByRole("alertdialog");
     await expect(alert).toBeVisible({ timeout: 10_000 });
     await expect(alert.getByRole("heading", { name: "Delete Collection" })).toBeVisible();
@@ -511,10 +507,9 @@ test.describe("regression: collections.delete-confirm", () => {
     // ---- Cancel path: dialog closes, row remains ----
     await alert.getByRole("button", { name: "Cancel" }).click();
     await expect(alert).toBeHidden();
-    await expect(collectionCard(page, name)).toBeVisible();
+    await expect(sheet.getByLabel("Name")).toHaveValue(name);
 
-    // ---- Confirm path: re-open via edit sheet → Delete, then confirm ----
-    await clickEditPencil(page, name);
+    // ---- Confirm path: the detail form is retained after cancellation ----
     await expect(sheet).toBeVisible();
     await sheet.getByRole("button", { name: "Delete" }).click();
     await expect(alert).toBeVisible();

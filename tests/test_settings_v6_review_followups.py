@@ -246,7 +246,7 @@ class TestNoBoardsToCopyOnto:
         svc = SettingsService(settings_file=str(path))
 
         on_disk = json.loads(path.read_text())
-        assert on_disk["schema_version"] == 7  # v6, then v7 (no output-plugin opt-in)
+        assert on_disk["schema_version"] == 8  # v6, v7, then per-board scheduling in v8
         assert svc.get_plugin_settings().transition_plugins_enabled is True
         first = svc.get_board_settings().boards[0]
         assert (first["transition"], first["transition_step_interval_ms"], first["transition_step_size"]) == (
