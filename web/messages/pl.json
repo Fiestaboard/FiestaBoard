@@ -95,7 +95,9 @@
     "updateAvailable": "Dostępna aktualizacja",
     "updateTo": "Zaktualizuj do {version}",
     "about": "O FiestaBoard",
-    "signOut": "Wyloguj się"
+    "signOut": "Wyloguj się",
+    "popoverLabel": "Menu konta",
+    "account": "Konto"
   },
   "aboutDialog": {
     "description": "Informacje o wersji i systemie tego FiestaBoard.",
@@ -203,7 +205,11 @@
     "importDialogCancel": "Anuluj",
     "importDialogImport": "Importuj",
     "importDialogImporting": "Importowanie...",
-    "toastImported": "„{name}\" dodano do twoich stron"
+    "toastImported": "„{name}\" dodano do twoich stron",
+    "displayFilter": "Filtr wyświetlacza",
+    "allPages": "Wszystkie strony",
+    "libraryCount": "{count, plural, one {Strony: #} other {Strony: #}}",
+    "clearFilter": "Pokaż wszystkie strony"
   },
   "collections": {
     "title": "Karuzele",
@@ -300,7 +306,24 @@
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
-    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change."
+    "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
+    "viewModeLabel": "Tryb widoku",
+    "gridView": "Widok kafelków",
+    "listView": "Widok listy",
+    "libraryCount": "{count, plural, one {Karuzele: #} other {Karuzele: #}}",
+    "movePageUp": "Przenieś {name} w górę",
+    "movePageDown": "Przenieś {name} w dół",
+    "removePage": "Usuń {name}",
+    "moveRuleUp": "Przenieś regułę {number} w górę",
+    "moveRuleDown": "Przenieś regułę {number} w dół",
+    "notFound": "Nie znaleziono tej karuzeli.",
+    "loadFailed": "Nie udało się wczytać karuzel. Spróbuj ponownie.",
+    "backToCollections": "Wróć do karuzel",
+    "discardChangesTitle": "Odrzucić niezapisane zmiany?",
+    "discardChangesDescription": "Karuzela zawiera niezapisane zmiany.",
+    "keepEditing": "Kontynuuj edycję",
+    "discardAndLeave": "Odrzuć i wyjdź",
+    "retryButton": "Spróbuj ponownie"
   },
   "schedule": {
     "title": "Harmonogram",
@@ -638,7 +661,13 @@
       "createAction": "Utwórz stronę demo",
       "recreateAction": "Utwórz stronę demo ponownie",
       "requirementsWarning": "Przed utworzeniem strony demo skonfiguruj wymagane ustawienia poniżej."
-    }
+    },
+    "catalogCount": "{count} integracji",
+    "previousResults": "Poprzednie wyniki",
+    "nextResults": "Następne wyniki",
+    "resultsPage": "Strona {current} z {total}",
+    "allCategories": "Wszystkie kategorie",
+    "categoryFilter": "Kategoria integracji"
   },
   "settings": {
     "title": "Ustawienia",
@@ -739,7 +768,15 @@
       "confirmDescription": "Zaraz przywrócisz plik <file></file>. Twoje istniejące strony, karuzele, harmonogramy i konfiguracja zostaną nadpisane. Obok każdego nowego pliku zachowywana jest kopia istniejącego z sygnaturą czasową, więc w razie potrzeby możesz ręcznie cofnąć zmiany.",
       "restoringButton": "Przywracanie…",
       "restoreButton": "Przywróć kopię zapasową"
-    }
+    },
+    "groupIdentity": "Instancja",
+    "groupAppearance": "Wygląd i dostępność",
+    "groupRegional": "Język, czas i lokalizacja",
+    "groupConnections": "Połączenia",
+    "displaySilenceTitle": "Harmonogramy ciszy wyświetlaczy",
+    "displaySilenceDescription": "Każdy wyświetlacz ma własne godziny ciszy. Otwórz kartę Odtwarzanie wyświetlacza, aby zmienić jego harmonogram.",
+    "openDisplayPlayback": "Otwórz ustawienia odtwarzania dla {name}",
+    "openDisplays": "Zarządzaj wyświetlaczami"
   },
   "offline": {
     "youreOffline": "Jesteś offline",
@@ -1166,7 +1203,12 @@
     "liveSilencePreviewOnly": "Wyjście na żywo pokazuje tylko podgląd. Tablica pozostaje cicha.",
     "liveSendAnyway": "Mimo to wyślij na tablicę",
     "liveSilenceOverriding": "Wyjście na żywo budzi tablicę w czasie ciszy.",
-    "liveStopOverriding": "Przestań wysyłać"
+    "liveStopOverriding": "Przestań wysyłać",
+    "editingSurfaceLabel": "Treść strony",
+    "textMode": "Tekst",
+    "canvasesMode": "Płótna",
+    "showPreview": "Pokaż podgląd i wyjście na żywo",
+    "hidePreview": "Ukryj podgląd i wyjście na żywo"
   },
   "displaySettings": {
     "unnamedBoard": "Tablica bez nazwy",
@@ -1271,7 +1313,15 @@
       "speedTitle": "Szybkość",
       "pluginsDescription": "Animacje klatka po klatce, takie jak maszyna do pisania i rozpuszczanie (przestarzałe). Dotyczy wszystkich wyświetlaczy.",
       "pluginsSavedToast": "Zapisano ustawienie wtyczek przejść.",
-      "pluginsSaveFailedToast": "Nie udało się zapisać ustawienia wtyczek przejść: {error}"
+      "pluginsSaveFailedToast": "Nie udało się zapisać ustawienia wtyczek przejść: {error}",
+      "replay": "Odtwórz podgląd ponownie",
+      "nativePreviewNote": "Przedstawia kolejność i tempo zmiany kafelków. Wygląd na urządzeniu może się różnić.",
+      "pluginPreviewUnavailable": "Podgląd jest niedostępny dla tej wtyczki przejścia.",
+      "savedUnavailable": "Zapisany wybór: {name} (niedostępny)",
+      "reducedMotionNote": "Ograniczenie ruchu jest włączone. Podgląd pokazuje końcowy komunikat.",
+      "cloudPreviewNote": "Ten wyświetlacz zmienia całą zawartość naraz.",
+      "previewMessage": "FIESTA BOARD",
+      "previewAlternate": "WITAJ SWIECIE"
     },
     "add": {
       "title": "Dodaj wyświetlacz",
@@ -1339,7 +1389,11 @@
       "unavailableTitle": "Marketplace unavailable",
       "unavailableBody": "We could not load the marketplace catalog. Installed and bundled displays are still available. Your display may appear when you retry.",
       "retry": "Retry marketplace"
-    }
+    },
+    "tabOverview": "Przegląd",
+    "tabSettings": "Ustawienia",
+    "tabPlayback": "Odtwarzanie",
+    "tabsLabel": "Sekcje wyświetlacza"
   },
   "systemUpdate": {
     "updateAvailable": "Dostępna aktualizacja",
@@ -1751,9 +1805,9 @@
     "welcomeSendError": "Wysłanie nie powiodło się",
     "welcomeDefault": "Pozostaw puste, aby użyć domyślnego powitania",
     "timezoneLabel": "Strefa czasowa",
-    "animationsTitle": "Animacje",
-    "animationsDescription": "Dostosuj ruch oddzielnie dla podglądu boarda i reszty aplikacji",
-    "boardAnimationsLabel": "Animacje boarda",
+    "animationsTitle": "Grafika i podglądy",
+    "animationsDescription": "Steruj ruchem w całej aplikacji. Te preferencje dotyczą wszystkich podglądów na ekranie.",
+    "boardAnimationsLabel": "Podglądy tablicy",
     "boardAnimationsHint": "Obrót split-flap przy zmianie kafelków",
     "boardAnimationsOn": "Włączone",
     "boardAnimationsDesktop": "Tylko desktop",
@@ -1767,7 +1821,7 @@
     "siteAnimationsOff": "Wyłączone",
     "animationsReduceMotionOverride": "„Ogranicz ruch\" jest włączone, co zastępuje te ustawienia.",
     "flapSpeedLabel": "Szybkość obrotu",
-    "flapSpeedHint": "Jak długo każdy kafelek pokazuje jeden znak, zanim board się ustabilizuje",
+    "flapSpeedHint": "Wybierz tempo podglądów tablic klapkowych w całej aplikacji.",
     "flapSpeed_hardware": "Najszybsza",
     "flapSpeed_quick": "Szybka",
     "flapSpeed_standard": "Standardowa",
@@ -1779,7 +1833,7 @@
     "flapSpeed_relaxedHint": "{ms} ms — powolny, wyważony obrót dla wyświetlaczy w tle.",
     "flapSpeedPreviewLabel": "Podgląd",
     "flapSpeedInactive": "Animacje boarda są wyłączone, więc szybkość obrotu nie ma znaczenia.",
-    "flapSpeedScreenOnlyNote": "To zmienia wyłącznie podgląd boarda na ekranie. Tempo przejść fizycznego Vestaboard ustawia się osobno, w Harmonogram → Przejścia boarda."
+    "flapSpeedScreenOnlyNote": "To ustawienie steruje tylko podglądem tablicy na ekranie. Zmień tempo urządzenia w sekcji Wyświetlacze → Odtwarzanie → Przejścia tablicy."
   },
   "monitor": {
     "title": "Monitor",
@@ -2921,7 +2975,9 @@
     "issue": "{canvas} · {path}: {message}",
     "serverError": "Kanwy nie zostały zaakceptowane: {message}",
     "notPixelNotice": "Ta strona zawiera kanwy pikselowe. Ta tablica nie może ich rysować, więc ich obszary pozostają puste. Aby je edytować, wyświetl podgląd strony na tablicy LED z pikselami.",
-    "markerTitle": "W tym wierszu zaczyna się kanwa (nie jest częścią tekstu)"
+    "markerTitle": "W tym wierszu zaczyna się kanwa (nie jest częścią tekstu)",
+    "drawLayerHint": "Rysowanie edytuje tylko piksele. Podgląd strony pokazuje tło i kształty płótna.",
+    "drawSourceHint": "To płótno korzysta ze źródła. Rysowanie edytuje piksele zastępcze; podgląd pokazuje źródło, gdy jest dostępne."
   },
   "silenceNotice": {
     "untilTitle": "Wyciszona do {time}",
@@ -2984,5 +3040,9 @@
     "confirm": "Potwierdź",
     "revokeDevice": "Odwołaj dostęp: {name}",
     "retry": "Spróbuj ponownie"
+  },
+  "plugins": {
+    "communityBadge": "Społeczność",
+    "communityDescription": "Opublikowano poza organizacją FiestaBoard w serwisie GitHub."
   }
 }

@@ -144,7 +144,14 @@ def test_delete_schedule_removes_the_same_entry(tmp_path):
         _ok(_client().delete(f"/schedules/{ctx['doomed_id']}"))
 
     def endpoint(env):
-        op(_client(), "delete_schedule", {"schedule_id": ctx["doomed_id"]})
+        op(
+            _client(),
+            "delete_schedule",
+            {
+                "expected_revision": env.schedules.get_schedule(ctx["doomed_id"]).revision,
+                "schedule_id": ctx["doomed_id"],
+            },
+        )
 
     assert_parity(tmp_path, browser, endpoint, setup=setup)
 
@@ -170,7 +177,16 @@ def test_update_schedule_applies_the_same_supplied_fields(tmp_path):
         _ok(_client().put(f"/schedules/{ctx['schedule_id']}", json={"start_time": "08:00", "enabled": False}))
 
     def endpoint(env):
-        op(_client(), "update_schedule", {"schedule_id": ctx["schedule_id"], "start_time": "08:00", "enabled": False})
+        op(
+            _client(),
+            "update_schedule",
+            {
+                "expected_revision": env.schedules.get_schedule(ctx["schedule_id"]).revision,
+                "schedule_id": ctx["schedule_id"],
+                "start_time": "08:00",
+                "enabled": False,
+            },
+        )
 
     assert_parity(tmp_path, browser, endpoint, setup=setup)
 
@@ -231,7 +247,15 @@ def test_update_collection_page_list_persists_identically(tmp_path):
         _ok(_client().put(f"/collections/{ctx['collection_id']}", json={"page_ids": [ctx["p2"], ctx["p1"]]}))
 
     def endpoint(env):
-        op(_client(), "update_collection", {"collection_id": ctx["collection_id"], "page_ids": [ctx["p2"], ctx["p1"]]})
+        op(
+            _client(),
+            "update_collection",
+            {
+                "expected_revision": env.collections.get_collection(ctx["collection_id"]).revision,
+                "collection_id": ctx["collection_id"],
+                "page_ids": [ctx["p2"], ctx["p1"]],
+            },
+        )
 
     assert_parity(tmp_path, browser, endpoint, setup=setup)
 
@@ -343,7 +367,12 @@ def test_update_schedule_null_end_time_divergence(tmp_path):
         op(
             _client(),
             "update_schedule",
-            {"schedule_id": entry.id, "start_time": "08:00", "end_time": None},
+            {
+                "expected_revision": env.schedules.get_schedule(entry.id).revision,
+                "schedule_id": entry.id,
+                "start_time": "08:00",
+                "end_time": None,
+            },
         )
         stored = _stored_schedule(env, entry.id)
         assert stored["start_time"] == "08:00"
@@ -420,7 +449,15 @@ def test_update_collection_interval_only_divergence(tmp_path):
                     "fixture no longer reproduces the browser's mode-forcing behavior"
                 )
             else:
-                op(_client(), "update_collection", {"collection_id": collection.id, "interval_seconds": 45})
+                op(
+                    _client(),
+                    "update_collection",
+                    {
+                        "expected_revision": env.collections.get_collection(collection.id).revision,
+                        "collection_id": collection.id,
+                        "interval_seconds": 45,
+                    },
+                )
                 after = env.collections.get_collection(collection.id)
                 assert after is not None
                 assert after.selection_mode == "variable", "an interval-only change must not flip the selection mode"
@@ -467,7 +504,10 @@ def test_a_failing_executor_is_a_4xx_not_a_200_carrying_an_error(tmp_path):
     with isolated_env(tmp_path / "missing"):
         response = _client().post(
             "/ai/operations",
-            json={"op": "delete_schedule", "args": {"schedule_id": "does-not-exist"}},
+            json={
+                "op": "delete_schedule",
+                "args": {"schedule_id": "does-not-exist", "expected_revision": "original-generation"},
+            },
         )
     assert response.status_code == 400
     assert "does-not-exist" in response.json()["detail"]

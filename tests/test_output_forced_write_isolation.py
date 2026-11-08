@@ -27,7 +27,9 @@ class BarrierOutput(OutputPluginBase):
 
     def capabilities(self):
         return OutputCapabilities(
-            technology="led_matrix", delivery="push", animation="none",
+            technology="led_matrix",
+            delivery="push",
+            animation="none",
             native_transitions=frozenset(),
             write_timeout_ms=self.budget_ms,
         )
@@ -139,6 +141,7 @@ class ForcedWriteIsolation(unittest.TestCase):
     def test_serial_modes_and_other_instance_remain_independent(self):
         for initialize_base in (False, True):
             with self.subTest(initialize_base=initialize_base):
+
                 class RecordingOutput(OutputPluginBase):
                     plugin_id = "qa_recording_output"
 
@@ -150,7 +153,9 @@ class ForcedWriteIsolation(unittest.TestCase):
 
                     def capabilities(self):
                         return OutputCapabilities(
-                            technology="led_matrix", delivery="push", animation="none",
+                            technology="led_matrix",
+                            delivery="push",
+                            animation="none",
                             native_transitions=frozenset(),
                         )
 

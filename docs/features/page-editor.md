@@ -23,7 +23,7 @@ FiestaBoard supports multiple Vestaboard devices with different display sizes:
 | **Flagship** | 6 rows × 22 columns | 132 |
 | **Note** | 3 rows × 15 columns | 45 |
 
-Pages are device-specific. The **Pages** section has **Flagship** and **Note** tabs to organize pages by device type. The editor and live preview automatically adapt to the selected device's dimensions.
+Pages have a display size. The **Pages** display filter lists your configured displays, including TVs and LED matrices supplied by output plugins, and shows pages compatible with the selected display. **All pages** includes pages for displays you no longer have. Tile and list views keep the same filtering. The editor and live preview adapt to the selected display's dimensions.
 
 :::tip
 The Vestaboard Note supports a heart character (❤) at code 62, which displays as a degree symbol (°) on the Flagship.
@@ -33,11 +33,17 @@ The Vestaboard Note supports a heart character (❤) at code 62, which displays 
 
 1. Open the FiestaBoard Web UI at `http://localhost:4420`
 2. Navigate to the **Pages** section
-3. Select the **Flagship** or **Note** tab for your target device
+3. Choose your target display in the display filter, or leave **All pages** selected to use the current display
 4. Click **New**
 5. Give your page a name
 6. Use the editor to compose your content (dimensions match your target device)
 7. Click **Save**
+
+For a pixel display, switch between **Text** and **Canvases** to focus on one editing surface. Both edit the same page and save together. The preview sits below the editor in a vertical layout on desktop and mobile. On a narrow screen, **Show preview and live output** opens the preview controls without placing another full editor below your content.
+
+## Collections
+
+Open **Collections** to browse groups of pages in tile or list view. Tiles show a stack of page previews. Select a collection to open its dedicated editor, where you can choose members, change their order, and configure timed, random, or expression-based selection. Move controls support keyboard and touch use. Leaving with unsaved changes asks whether to discard them.
 
 ## Using Template Variables
 
@@ -181,7 +187,7 @@ See the [Color Guide](/docs/reference/color-guide) for detailed usage examples.
 
 The editor's header toolbar has a **Transition** dropdown that controls how the board animates when it changes to this page.
 
-- **Use the display's transition** - inherit the transition set for the display the page is sent to, in **Displays → (a display) → Transition**
+- **Use the display's transition** - inherit the transition set for the display the page is sent to, in **Displays → (a display) → Playback → Board transitions**
 - A **built-in strategy** (Wave, Drift, Curtain, Row, Diagonal, Random) - performed by the board itself, Local API only
 - A **transition plugin** (Typewriter, Simple Dissolve, and others) - animated by FiestaBoard, shown only when the Transition Plugins beta is enabled; a Cloud API board shows the new message at once
 

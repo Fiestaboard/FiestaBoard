@@ -264,15 +264,25 @@ def test_a_destructive_call_waits_for_approval_and_only_runs_on_approve(client, 
     mock_llm.script(
         [{"prose": "", "ops": [_block("create_page", {"name": "Doomed", "template_lines": ["X"]})]}, {"prose": "ok"}]
     )
-    created = _only(_chat(client, USER), "tool_result")[0]["result"]["page_id"]
+    created_result = _only(_chat(client, USER), "tool_result")[0]["result"]
+    created = created_result["page_id"]
+    original_revision = created_result["revision"]
     assert created in _page_names(client)
 
     # Turn 2: the model asks to delete it — the loop pauses, nothing runs.
-    mock_llm.script([{"prose": "Deleting it. ", "ops": [_block("delete_page", {"page_id": created})]}])
+    mock_llm.script(
+        [
+            {
+                "prose": "Deleting it. ",
+                "ops": [_block("delete_page", {"page_id": created, "expected_revision": original_revision})],
+            }
+        ]
+    )
     ask = [{"role": "user", "content": "delete the doomed page"}]
     frames = _chat(client, ask)
     call = _only(frames, "tool_call")[0]
     assert call["name"] == "delete_page" and call["requires_approval"] is True
+    assert call["args"]["expected_revision"] == original_revision
     done = _only(frames, "done")[0]
     assert done["reason"] == "awaiting_approval" and done["pending_tool_call_id"] == call["id"]
     assert "tool_result" not in [event for event, _ in frames]
@@ -304,12 +314,12 @@ def test_a_destructive_call_waits_for_approval_and_only_runs_on_approve(client, 
     assert created not in _page_names(client)
 
 
-def _create_doomed_page(client, mock_llm) -> str:
+def _create_doomed_page(client, mock_llm) -> dict[str, Any]:
     mock_llm.script(
         [{"prose": "", "ops": [_block("create_page", {"name": "Doomed", "template_lines": ["X"]})]}, {"prose": "ok"}]
     )
-    created = _only(_chat(client, USER), "tool_result")[0]["result"]["page_id"]
-    assert created in _page_names(client)
+    created = _only(_chat(client, USER), "tool_result")[0]["result"]
+    assert created["page_id"] in _page_names(client)
     return created
 
 
@@ -317,11 +327,19 @@ def test_auto_mode_deletes_without_a_pause_and_the_frame_says_so(client, cm, moc
     """#2021: with the install set to Auto the same delete runs in one
     request — no ``awaiting_approval``, no second POST — through the same
     MCP tool, and the ``tool_call`` frame is badged ``auto_approved``."""
-    created = _create_doomed_page(client, mock_llm)
+    created_result = _create_doomed_page(client, mock_llm)
+    created = created_result["page_id"]
+    original_revision = created_result["revision"]
     cm.set_ai_providers({"approval_mode": "auto"})
 
     mock_llm.script(
-        [{"prose": "Deleting it. ", "ops": [_block("delete_page", {"page_id": created})]}, {"prose": "Gone."}]
+        [
+            {
+                "prose": "Deleting it. ",
+                "ops": [_block("delete_page", {"page_id": created, "expected_revision": original_revision})],
+            },
+            {"prose": "Gone."},
+        ]
     )
     frames = _chat(client, [{"role": "user", "content": "delete the doomed page"}])
     call = _only(frames, "tool_call")[0]
@@ -333,11 +351,19 @@ def test_auto_mode_deletes_without_a_pause_and_the_frame_says_so(client, cm, moc
 
 
 def test_the_conversation_flag_deletes_without_a_pause_while_the_install_still_asks(client, cm, mock_llm):
-    created = _create_doomed_page(client, mock_llm)
+    created_result = _create_doomed_page(client, mock_llm)
+    created = created_result["page_id"]
+    original_revision = created_result["revision"]
     assert cm.get_ai_providers()["approval_mode"] == "ask"
 
     mock_llm.script(
-        [{"prose": "Deleting it. ", "ops": [_block("delete_page", {"page_id": created})]}, {"prose": "Gone."}]
+        [
+            {
+                "prose": "Deleting it. ",
+                "ops": [_block("delete_page", {"page_id": created, "expected_revision": original_revision})],
+            },
+            {"prose": "Gone."},
+        ]
     )
     frames = _chat(
         client,
