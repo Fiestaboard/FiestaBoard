@@ -513,6 +513,18 @@ class BackupService:
             )
         if "data" not in backup or not isinstance(backup["data"], dict):
             raise BackupError("Backup file is missing the 'data' section.")
+        # Validate every payload the import will consume before writing even
+        # the first file. Known stores require JSON objects; a late malformed
+        # store must not partially restore earlier files or break their readers.
+        data = backup["data"]
+        for filename in DATA_FILES:
+            key = filename[:-5]
+            payload = data.get(key)
+            if key == "collections" and payload is None:
+                key = "carousels"
+                payload = data.get(key)
+            if payload is not None and not isinstance(payload, dict):
+                raise BackupError(f"Backup store '{key}' must be a JSON object or null.")
 
     @staticmethod
     def _collect_installed_plugins() -> list[dict[str, str]]:
