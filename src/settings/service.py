@@ -494,6 +494,11 @@ class TemporaryOverride:
     notes_tall: int | None = None
     grid_rows: int | None = None
     grid_cols: int | None = None
+    #: When this override run began (ISO 8601 UTC). Set by the store on
+    #: ``set_temporary_override``; a replaced override gets a new one, so it
+    #: is the identity of one run (Live Activity, H1). None in files written
+    #: before H1.
+    started_at: str | None = None
 
     def __post_init__(self) -> None:
         has_page = bool(self.page_id)
@@ -547,6 +552,7 @@ class TemporaryOverride:
             "notes_tall": self.notes_tall,
             "grid_rows": self.grid_rows,
             "grid_cols": self.grid_cols,
+            "started_at": self.started_at,
         }
 
     @classmethod
@@ -563,6 +569,7 @@ class TemporaryOverride:
             notes_tall=data.get("notes_tall"),
             grid_rows=data.get("grid_rows"),
             grid_cols=data.get("grid_cols"),
+            started_at=data.get("started_at"),
         )
 
 
@@ -592,10 +599,17 @@ class TemporaryOverrideStatus(BaseModel):
     notes_tall: int | None = None
     grid_rows: int | None = None
     grid_cols: int | None = None
+    #: The display this answer is about (H1: one override per display).
+    board_id: str | None = None
+    #: When this override run began; a replaced override has a new one.
+    started_at: str | None = None
 
 
-def temporary_override_payload(override: "TemporaryOverride | None") -> dict:
+def temporary_override_payload(override: "TemporaryOverride | None", board_id: str | None = None) -> dict:
     """Serialize a TemporaryOverride (or None) for the API.
+
+    *board_id* is the board the answer is about (H1: overrides are per
+    display); callers pass the resolved real id.
 
     Lived in ``src/api_server.py`` until Phase 2 §2.3. It reads nothing but the
     override, so it belongs next to the model it serializes — and the schedules
@@ -617,6 +631,8 @@ def temporary_override_payload(override: "TemporaryOverride | None") -> dict:
             "notes_tall": None,
             "grid_rows": None,
             "grid_cols": None,
+            "board_id": board_id,
+            "started_at": None,
         }
     remaining = override.remaining_seconds()
     return {
@@ -633,6 +649,8 @@ def temporary_override_payload(override: "TemporaryOverride | None") -> dict:
         "notes_tall": override.notes_tall,
         "grid_rows": override.grid_rows,
         "grid_cols": override.grid_cols,
+        "board_id": board_id,
+        "started_at": override.started_at,
     }
 
 
@@ -1656,7 +1674,9 @@ class SettingsService:
         self._location = self._load_section(file_data, "location", LocationSettings)
         self._plugins = self._load_section(file_data, "plugins", PluginSettings)
         self._wizard = self._load_section(file_data, "wizard", WizardSettings)
-        self._temporary_override: TemporaryOverride | None = self._load_temporary_override(file_data)
+        # H1: one override per board, keyed by the real board id (or the
+        # primary runtime key when no board exists yet).
+        self._temporary_overrides: dict[str, TemporaryOverride] = self._load_temporary_overrides(file_data)
 
         if getattr(self, "_needs_seed_save", False):
             try:
@@ -1863,8 +1883,20 @@ class SettingsService:
                 "display": self._display.to_dict(),
                 "location": self._location.to_dict(),
                 "plugins": self._plugins.to_dict(),
+                # The primary's override keeps the legacy key, so an older build
+                # rolled back to still finds it; every other board's goes to the
+                # map, which older builds ignore (H1).
                 "temporary_override": self._temporary_override.to_dict() if self._temporary_override else None,
             }
+            others = {
+                board_id: override.to_dict()
+                for board_id, override in self._temporary_overrides.items()
+                if board_id != self._override_key(None)
+            }
+            if others:
+                # Written only when a non-primary board has one, so an install
+                # that never uses it keeps a byte-identical settings.json.
+                data["temporary_overrides"] = others
             if self._wizard.state is not None:
                 data["wizard"] = self._wizard.to_dict()
             self._atomic_write_json(data)
@@ -1979,18 +2011,36 @@ class SettingsService:
             external_url=os.environ.get("FIESTABOARD_EXTERNAL_URL", "") or "",
         )
 
-    def _load_temporary_override(self, file_data: dict) -> Optional["TemporaryOverride"]:
-        """Load temporary override from the parsed file; None if absent or expired."""
-        raw = file_data.get("temporary_override")
-        if not raw:
+    @staticmethod
+    def _parse_override(raw) -> Optional["TemporaryOverride"]:
+        """One stored override, or None if absent, malformed or expired."""
+        if not isinstance(raw, dict) or not raw:
             return None
         try:
             override = TemporaryOverride.from_dict(raw)
-            if override.is_expired():
-                return None
-            return override
-        except (KeyError, ValueError):
+        except (KeyError, ValueError, TypeError):
             return None
+        return None if override.is_expired() else override
+
+    def _load_temporary_overrides(self, file_data: dict) -> dict[str, "TemporaryOverride"]:
+        """Every board's stored override (H1).
+
+        The legacy ``temporary_override`` key is the primary board's; the
+        ``temporary_overrides`` map holds the rest. Entries for boards that no
+        longer exist, and expired ones, are dropped.
+        """
+        overrides: dict[str, TemporaryOverride] = {}
+        known = {b.get("id") for b in (self._board.boards or []) if isinstance(b, dict)}
+        by_board = file_data.get("temporary_overrides")
+        if isinstance(by_board, dict):
+            for board_id, raw in by_board.items():
+                override = self._parse_override(raw)
+                if override is not None and board_id in known:
+                    overrides[board_id] = override
+        primary = self._parse_override(file_data.get("temporary_override"))
+        if primary is not None:
+            overrides[self._override_key(None)] = primary
+        return overrides
 
     # Transition settings
     def _board_entry(self, board_id: str | None) -> dict | None:
@@ -2463,6 +2513,7 @@ class SettingsService:
         first_color = validated[0].get("board_color") if validated else None
         if first_color in ("black", "white"):
             self._board.board_type = first_color
+        self._adopt_boardless_override()
         self._save_to_file()
         logger.info(f"Configured boards set to: {[b.get('name') for b in validated]}")
         return self._board
@@ -2488,6 +2539,7 @@ class SettingsService:
         _check_grid_floor(instance.to_dict(), None)
         self._seed_board_silence_defaults(instance.id)
         self._board.boards.append(instance.to_dict())
+        self._adopt_boardless_override()
         self._save_to_file()
         logger.info(f"Added board: {instance.name} ({instance.device_type})")
         return self._board
@@ -2589,6 +2641,8 @@ class SettingsService:
             raise ValueError(f"Board with ID '{board_id}' not found")
 
         self._board.boards = new_boards
+        # Its timed override goes with it (H1); it must not jump to another board.
+        self._temporary_overrides.pop(board_id, None)
         self._save_to_file()
         # Drop the board's silence-schedule override too (issue #1788 review):
         # nothing else ever removes it, so orphans accumulate in
@@ -2870,67 +2924,120 @@ class SettingsService:
         logger.info(f"Setup wizard state set to: {state}")
         return self._wizard
 
-    # Temporary override
-    def peek_temporary_override(self) -> TemporaryOverride | None:
-        """Read saved override references without expiring or mutating them.
+    # Temporary override (one per board since H1)
+    def _override_key(self, board_id: str | None) -> str:
+        """The dict key for *board_id*'s override.
+
+        ``None``, ``""`` and :data:`PRIMARY_RUNTIME_KEY` mean the primary
+        board, the same rule as :meth:`_board_entry`. With no boards yet, the
+        primary runtime key itself is the key.
+        """
+        if board_id in (None, "", PRIMARY_RUNTIME_KEY):
+            return self.get_primary_board_id() or PRIMARY_RUNTIME_KEY
+        return board_id
+
+    @property
+    def _temporary_override(self) -> TemporaryOverride | None:
+        """The primary board's override (the single override of before H1)."""
+        return self._temporary_overrides.get(self._override_key(None))
+
+    @_temporary_override.setter
+    def _temporary_override(self, value: TemporaryOverride | None) -> None:
+        key = self._override_key(None)
+        if value is None:
+            self._temporary_overrides.pop(key, None)
+        else:
+            self._temporary_overrides[key] = value
+
+    def peek_temporary_override(self, board_id: str | None = None) -> TemporaryOverride | None:
+        """Read *board_id*'s override (default: primary) without expiring or mutating it.
 
         Deletion checks must also protect a pending revert page after expiry.
         """
-        return self._temporary_override
+        return self._temporary_overrides.get(self._override_key(board_id))
+
+    def peek_all_temporary_overrides(self) -> dict[str, TemporaryOverride]:
+        """Every stored override by board id, expired ones included (no GC)."""
+        return dict(self._temporary_overrides)
 
     @_locked
-    def get_temporary_override(self) -> TemporaryOverride | None:
-        """Return the active temporary override, or None if absent or expired.
+    def list_temporary_overrides(self) -> dict[str, TemporaryOverride]:
+        """Every live (unexpired) override by board id. Expires nothing.
 
-        Auto-clears the stored override when it has expired so subsequent
-        reads don't need to check expiry themselves.
+        Locked: the display loop expires entries from the same dict under the
+        lock, and iterating it unlocked could fail mid-way.
         """
-        if self._temporary_override is None:
-            return None
-        if self._temporary_override.is_expired():
-            self._temporary_override = None
-            try:
-                self._save_to_file()
-            except OSError as e:
-                # Background GC on a read path (the display loop calls this
-                # every tick). The override is already expired in memory, so
-                # the caller's answer is correct either way; failing the read
-                # would stall the loop over a write that will be retried on
-                # the next expiry.
-                logger.error(f"Could not persist temporary-override expiry: {e}")
-            return None
-        return self._temporary_override
+        return {key: o for key, o in self._temporary_overrides.items() if not o.is_expired()}
+
+    def _adopt_boardless_override(self) -> None:
+        """Move an override set before any board existed onto the (new) primary board.
+
+        Called with the lock held, when boards are added or replaced. If the
+        primary already has its own override, that one wins.
+        """
+        orphan = self._temporary_overrides.pop(PRIMARY_RUNTIME_KEY, None)
+        primary = self.get_primary_board_id()
+        if orphan is not None and primary:
+            self._temporary_overrides.setdefault(primary, orphan)
+        elif orphan is not None:
+            self._temporary_overrides[PRIMARY_RUNTIME_KEY] = orphan
+
+    def _persist_override_gc(self) -> None:
+        try:
+            self._save_to_file()
+        except OSError as e:
+            # Background GC on a read path (the display loop calls this
+            # every tick). The override is already expired in memory, so
+            # the caller's answer is correct either way; failing the read
+            # would stall the loop over a write that will be retried on
+            # the next expiry.
+            logger.error(f"Could not persist temporary-override expiry: {e}")
 
     @_locked
-    def consume_temporary_override(self) -> TemporaryOverride | None:
-        """Return the current temporary override (live or expired) and clear it if expired.
+    def get_temporary_override(self, board_id: str | None = None) -> TemporaryOverride | None:
+        """Return *board_id*'s active override (default: primary), or None if absent or expired.
 
-        Used by the display loop so it can detect a just-expired override and
-        apply revert-mode side-effects (blank board, set active page, etc.).
-        Unlike get_temporary_override(), this returns the expired object instead
-        of None so the caller can inspect revert_mode before it's gone.
+        Auto-clears that board's stored override when it has expired so
+        subsequent reads don't need to check expiry themselves.
         """
-        raw = self._temporary_override
+        key = self._override_key(board_id)
+        override = self._temporary_overrides.get(key)
+        if override is None:
+            return None
+        if override.is_expired():
+            del self._temporary_overrides[key]
+            self._persist_override_gc()
+            return None
+        return override
+
+    @_locked
+    def consume_temporary_override(self, board_id: str | None = None) -> TemporaryOverride | None:
+        """Return *board_id*'s override (live or expired) and clear it if expired.
+
+        Used by each board's display pass so it can detect a just-expired
+        override and apply revert-mode side-effects (blank board, set active
+        page, etc.) to that board. Unlike get_temporary_override(), this
+        returns the expired object instead of None so the caller can inspect
+        revert_mode before it's gone.
+        """
+        key = self._override_key(board_id)
+        raw = self._temporary_overrides.get(key)
         if raw is None:
             return None
         if raw.is_expired():
-            self._temporary_override = None
-            try:
-                self._save_to_file()
-            except OSError as e:
-                # Same background-GC reasoning as get_temporary_override:
-                # the display loop must still receive the expired override
-                # so it can apply revert_mode.
-                logger.error(f"Could not persist temporary-override expiry: {e}")
+            del self._temporary_overrides[key]
+            self._persist_override_gc()
         return raw
 
     @_locked
-    def set_temporary_override(self, override: TemporaryOverride) -> TemporaryOverride:
-        """Persist a new temporary override, replacing any existing one."""
-        self._temporary_override = override
+    def set_temporary_override(self, override: TemporaryOverride, board_id: str | None = None) -> TemporaryOverride:
+        """Persist a new override for *board_id* (default: primary), replacing that board's only."""
+        override.started_at = datetime.now(UTC).isoformat()
+        self._temporary_overrides[self._override_key(board_id)] = override
         self._save_to_file()
         logger.info(
-            "Temporary override set: %s expires=%s revert=%s",
+            "Temporary override set on %s: %s expires=%s revert=%s",
+            self._override_key(board_id),
             "inline one-off" if override.is_inline else f"page={override.page_id}",
             override.expires_at or "never",
             override.revert_mode,
@@ -2938,11 +3045,10 @@ class SettingsService:
         return override
 
     @_locked
-    def clear_temporary_override(self) -> None:
-        """Remove the temporary override without applying any revert logic."""
-        if self._temporary_override is not None:
-            logger.info("Temporary override cleared")
-        self._temporary_override = None
+    def clear_temporary_override(self, board_id: str | None = None) -> None:
+        """Remove *board_id*'s override (default: primary) without applying any revert logic."""
+        if self._temporary_overrides.pop(self._override_key(board_id), None) is not None:
+            logger.info("Temporary override cleared on %s", self._override_key(board_id))
         self._save_to_file()
 
 

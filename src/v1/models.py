@@ -139,7 +139,14 @@ class BoardDetail(BoardSummary):
     )
     override_expires_at: str | None = Field(
         default=None,
-        description="When the active timed message expires (ISO 8601), or null if none is running.",
+        description="When this board's active timed message expires (ISO 8601), or null if none is running.",
+    )
+    override_started_at: str | None = Field(
+        default=None,
+        description=(
+            "When this board's active override began (ISO 8601), or null if none is running. A replaced "
+            "override has a new value, so it identifies one run (for a Live Activity or Live Update)."
+        ),
     )
     layers: list[CanvasLayerModel] | None = Field(
         default=None,

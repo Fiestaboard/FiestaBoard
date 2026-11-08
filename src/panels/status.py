@@ -43,9 +43,7 @@ def _override_for(board_id: str):
     10 s, so it would almost always get there first.
     """
     settings_service = get_settings_service()
-    if settings_service.get_primary_board_id() != board_id:
-        return None
-    override = settings_service.peek_temporary_override()
+    override = settings_service.peek_temporary_override(board_id)
     if override is None or override.is_expired():
         return None
     return override
@@ -106,6 +104,7 @@ def panel_status(board_id: str) -> PanelStatus:
         schedule_enabled=schedule_enabled,
         override_active=override is not None,
         override_expires_at=_instant(override.expires_at) if override is not None else None,
+        override_started_at=_instant(override.started_at) if override is not None else None,
         silenced=silenced,
         silenced_until=silenced_until,
         silence_mode=silence_mode,

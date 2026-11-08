@@ -2289,39 +2289,39 @@ class DisplayService:
                 if trigger_content is not None:
                     return self._send_trigger_content(trigger_content, rt, wait=wait)
 
-            # --- Temporary override (PRIMARY only; global consume-once store) ---
+            # --- Temporary override (per board since H1; consume-once per board) ---
             # Issue #949: an explicit user override wins over the silence
             # schedule. Plugin-driven trigger overrides above still defer to
-            # silence; only this user-initiated path bypasses it.
+            # silence; only this user-initiated path bypasses it. Each board
+            # consumes, applies and reverts only its own override.
             active_page_id = None
             override_active = False
             inline_page = None
-            if is_primary:
-                override = settings_service.consume_temporary_override()
-                if override is not None:
-                    if not override.is_expired():
-                        if override.is_inline:
-                            # One-off content (issue #1787): build an in-memory
-                            # Page so the normal template render path applies.
-                            # Nothing is persisted and nothing is looked up.
-                            inline_page = self._page_from_inline_override(override)
-                            active_page_id = ADHOC_PAGE_ID
-                            logger.debug("Temporary override active: inline one-off content")
-                        else:
-                            active_page_id = override.page_id
-                            logger.debug(f"Temporary override active: using page {active_page_id}")
-                        override_active = True
-                    elif not silence_mode_active:
-                        # Override just expired — apply revert before resuming.
-                        # Skip during silence: the silence dispatch owns the
-                        # board until the window ends.
-                        logger.info(f"Temporary override expired, applying revert: {override.revert_mode}")
-                        if override.revert_mode == "blank":
-                            return self._send_blank_board(rt, wait=wait)
-                        if override.revert_mode == "page" and override.revert_page_id:
-                            settings_service.set_active_page_id(override.revert_page_id, board_id=board_id)
-                        # "schedule" (and fallback): clear cache so next tick rerenders.
-                        rt.last_active_page_content = None
+            override = settings_service.consume_temporary_override(board_id=board_id)
+            if override is not None:
+                if not override.is_expired():
+                    if override.is_inline:
+                        # One-off content (issue #1787): build an in-memory
+                        # Page so the normal template render path applies.
+                        # Nothing is persisted and nothing is looked up.
+                        inline_page = self._page_from_inline_override(override)
+                        active_page_id = ADHOC_PAGE_ID
+                        logger.debug("Temporary override active: inline one-off content")
+                    else:
+                        active_page_id = override.page_id
+                        logger.debug(f"Temporary override active: using page {active_page_id}")
+                    override_active = True
+                elif not silence_mode_active:
+                    # Override just expired — apply revert before resuming.
+                    # Skip during silence: the silence dispatch owns the
+                    # board until the window ends.
+                    logger.info(f"Temporary override expired, applying revert: {override.revert_mode}")
+                    if override.revert_mode == "blank":
+                        return self._send_blank_board(rt, wait=wait)
+                    if override.revert_mode == "page" and override.revert_page_id:
+                        settings_service.set_active_page_id(override.revert_page_id, board_id=board_id)
+                    # "schedule" (and fallback): clear cache so next tick rerenders.
+                    rt.last_active_page_content = None
 
             # --- Determine this board's active page (schedule vs manual) ---
             # ``resolving_from_source``: no override/trigger already claimed
@@ -2497,8 +2497,8 @@ class DisplayService:
                     return False
 
             # --- Silence dispatch (per-board delivery, sized to this board) ---
-            # A user-initiated temporary override (primary only) wins over
-            # silence (issue #949); everything else is silenced.
+            # A user-initiated temporary override (this board's own, since H1)
+            # wins over silence (issue #949); everything else is silenced.
             if silence_mode_active and not override_active:
                 silence_mode = silence_config["mode"]
                 silence_geometry = self._silence_geometry(board, is_primary=is_primary)

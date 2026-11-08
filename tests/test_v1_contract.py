@@ -333,6 +333,7 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
         "source",
         "default_page_id",
         "override_expires_at",
+        "override_started_at",
         "layers",
     }
 
@@ -860,19 +861,15 @@ def test_duration_arms_a_timed_message_and_reports_when_it_expires(client, board
     assert stored["revert_mode"] == "schedule"
 
 
-def test_duration_on_a_secondary_board_is_refused_rather_than_faked(client, boards, board_client):
-    """The override store is global and the loop applies it primary-only."""
+def test_duration_on_a_secondary_board_arms_that_boards_override(client, boards, board_client):
+    """H1: timed messages are per display; the primary-only refusal is gone."""
     _, secondary_id = boards
 
     response = client.post(f"/v1/boards/{secondary_id}/message", json={"text": "x", "duration_minutes": 5})
 
-    assert response.status_code == 400
-    assert response.json() == {
-        "detail": (
-            "duration_minutes is only supported on the primary board — "
-            "timed messages are applied by the display loop for the primary board only."
-        )
-    }
+    assert response.status_code == 200, response.text
+    stored = client.get(f"/settings/temporary-override?board_id={secondary_id}").json()
+    assert stored["active"] is True and stored["board_id"] == secondary_id
 
 
 def test_duration_with_a_raw_grid_is_refused(client, boards, board_client):

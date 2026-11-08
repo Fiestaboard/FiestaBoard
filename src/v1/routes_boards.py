@@ -176,7 +176,7 @@ async def get_board(board: str) -> BoardDetail:
         source = "none"
         chosen = None
 
-    override = settings_service.get_temporary_override()
+    override = settings_service.get_temporary_override(board_id)
     return BoardDetail(
         **base.model_dump(),
         characters=characters,
@@ -189,7 +189,8 @@ async def get_board(board: str) -> BoardDetail:
         resolved_next_check_seconds=resolve_next_check_seconds(chosen, get_collection_service, board_id=board_id),
         source=source,
         default_page_id=schedule_service.get_default_page(board_id=board_id),
-        override_expires_at=(override.expires_at if override is not None and board_id == primary_id else None),
+        override_expires_at=override.expires_at if override is not None else None,
+        override_started_at=override.started_at if override is not None else None,
         layers=board_layers_json(entry, state.cells if state.characters is not None else None),
     )
 
@@ -563,20 +564,10 @@ def _held_intent(
 def _check_timed_request(board_id: str, template_lines: list[str] | None) -> None:
     """The 400s a ``duration_minutes`` request can earn, before anything is sent.
 
-    Two limits come from the override mechanism and are reported rather than
-    papered over: it is stored globally and applied by the display loop for
-    the **primary** board only, and it can only hold text, so the raw-grid
-    forms cannot be timed.
+    One limit comes from the override mechanism and is reported rather than
+    papered over: it can only hold text, so the raw-grid forms cannot be
+    timed. Since H1 every board has its own override, so any board may.
     """
-    settings_service = _settings_service()
-    if board_id != settings_service.get_primary_board_id():
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "duration_minutes is only supported on the primary board — "
-                "timed messages are applied by the display loop for the primary board only."
-            ),
-        )
     if template_lines is None:
         raise HTTPException(
             status_code=400,
@@ -616,6 +607,7 @@ async def _arm_temporary_override(board_id: str, request: MessageRequest, templa
         body["grid_rows"] = geometry.grid_rows
         body["grid_cols"] = geometry.grid_cols
 
+    body["board_id"] = board_id
     await set_temporary_override(TemporaryOverrideRequest(**body))
     return (datetime.now(UTC) + timedelta(minutes=int(request.duration_minutes))).isoformat()
 
@@ -638,8 +630,7 @@ async def clear_board_message(board: str) -> MessageResponse:
     settings_service = _settings_service()
 
     # A timed message is the one piece of state a POST leaves behind.
-    if board_id == settings_service.get_primary_board_id():
-        settings_service.clear_temporary_override()
+    settings_service.clear_temporary_override(board_id)
 
     service = runtime.get_service()
     if not service:

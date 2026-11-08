@@ -259,6 +259,9 @@ class PanelStatus(BaseModel):
     #: is active, and also for an override with no end (it holds until
     #: someone cancels it).
     override_expires_at: str | None = None
+    #: When the override began (same shape); null while none is active. A
+    #: replaced override has a new value, so it identifies one run (H1).
+    override_started_at: str | None = None
     silenced: bool
     #: When the board's current silence window ends
     #: (``YYYY-MM-DDTHH:MM:SS+00:00``, on the configured minute); null unless

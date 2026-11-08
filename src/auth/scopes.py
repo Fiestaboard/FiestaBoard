@@ -104,6 +104,7 @@ CONTROL_RULES = (
         ("GET", "/displays"),
         ("GET", "/displays/{}"),
         ("GET,POST,DELETE", "/settings/temporary-override"),
+        ("GET", "/settings/temporary-overrides"),
         ("GET,PUT", "/settings/active-page"),
         ("PUT", "/settings/silence-schedule"),
         ("POST", "/settings/board/{}/pause"),
