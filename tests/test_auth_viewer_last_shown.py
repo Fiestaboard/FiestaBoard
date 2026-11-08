@@ -7,6 +7,7 @@ public viewer routes return exactly what they returned before, and anonymous
 """
 
 import sqlite3
+import threading
 import time
 from datetime import UTC, datetime
 
@@ -181,6 +182,36 @@ def test_throttled_record_opens_no_transaction(hub, monkeypatch):
     assert opened == [1]
 
 
+def test_concurrent_polls_from_one_tv_write_exactly_once(hub, monkeypatch):
+    auth, _, _ = hub
+    store = auth.sessions
+    _, session_id = sign_in_tv(auth)
+    writes = []
+    original = store._write_panel_view
+
+    def slow_write(*args):
+        writes.append(args)
+        time.sleep(0.05)  # Hold the write open while the other polls arrive.
+        original(*args)
+
+    monkeypatch.setattr(store, "_write_panel_view", slow_write)
+    barrier = threading.Barrier(8)
+    results = []
+
+    def poll():
+        barrier.wait()
+        results.append(store.record_panel_view(session_id, "p1"))
+
+    threads = [threading.Thread(target=poll) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+    assert sorted(results) == [False] * 7 + [True]
+    assert len(writes) == 1
+    assert len(stored_rows(auth)) == 1
+
+
 def test_throttle_is_per_viewer_and_per_panel(hub):
     auth, _, _ = hub
     store = auth.sessions
@@ -217,6 +248,28 @@ def test_storage_failure_never_breaks_the_frame(hub, monkeypatch):
 
     monkeypatch.setattr(auth.sessions, "record_panel_view", broken)
     assert tv.get(f"/panel/{panel['id']}/frame").status_code == 200
+
+
+def test_storage_failure_warns_once_then_stays_quiet(hub, monkeypatch, caplog):
+    import logging
+
+    from src.panels import routes
+
+    auth, clock, browser = hub
+    panel = make_panel(browser)
+    tv, _ = sign_in_tv(auth)
+
+    def broken(*_args):
+        raise sqlite3.OperationalError("disk I/O error")
+
+    monkeypatch.setattr(auth.sessions, "_write_panel_view", broken)
+    monkeypatch.setattr(routes, "_view_failure_warned", False)
+    with caplog.at_level(logging.DEBUG, logger="src.panels.routes"):
+        for _ in range(3):
+            assert tv.get(f"/panel/{panel['id']}/frame").status_code == 200
+            clock.now += 2_000
+    records = [r for r in caplog.records if "panel view" in r.getMessage()]
+    assert [r.levelno for r in records] == [logging.WARNING, logging.DEBUG, logging.DEBUG]
 
 
 def test_last_shown_survives_restart(hub):
