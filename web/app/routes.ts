@@ -11,7 +11,11 @@ export default [
   route("offline", "routes/offline.tsx"),
   route("profile", "routes/profile.tsx"),
   route("settings", "routes/settings.tsx"),
-  route("collections", "routes/collections.tsx"),
+  route("collections", "routes/collections.tsx", [
+    index("routes/collections._index.tsx"),
+    route("new", "routes/collections.new.tsx"),
+    route(":collectionId", "routes/collections.$collectionId.tsx"),
+  ]),
   route("debug", "routes/debug.tsx"),
   // A section layout: the card and header stay mounted between the list and
   // a display (section-shell.tsx).

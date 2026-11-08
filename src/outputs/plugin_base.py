@@ -156,6 +156,7 @@ if TYPE_CHECKING:
     from src.led import LedLayoutOptions
     from src.led.transition_registry import ResolvedLedTransition
 
+    from .native_playlist import NativePlaylist
     from .output_manifest import OutputManifest
     from .registry import OutputCapabilities
 
@@ -485,6 +486,18 @@ class OutputPluginBase(ABC):
 
     # --- reads and probes ----------------------------------------------------------
 
+    def sync_native_playlist(self, playlist: NativePlaylist, *, cancel: CancelToken) -> WriteResult:
+        """Optionally reconcile device-owned rotation without resetting its focus.
+
+        Core calls only a real override with ``config['native_rotation'] is
+        True``. Validate capacity before mutation, preserve foreign slots,
+        reconcile missing slots after restarts, and honor cancellation.
+        Ordinary ``write``/``write_cells`` MUST retire owned playlist slots,
+        including on a fresh instance with the option disabled. Failures are
+        retried as playlists; core never starts competing frame rotation.
+        """
+        raise NotImplementedError(f"{type(self).__name__} declares no native playlist support")
+
     def read_current(self) -> CellFrame | None:
         """What the device shows, when ``read_back.supported``; else ``None``."""
         return None
@@ -534,10 +547,12 @@ class OutputPluginBase(ABC):
         ``port``. Default: none.
 
         Declare it ``discover(cls, timeout, hint=None)`` to be handed the
-        network hint: the private IPv4 address the user opened FiestaBoard
-        at (:data:`~src.outputs.hooks.HINT_HOST`), ``None`` when the browser
-        gave none. Search its network first — in Docker bridge mode this
-        host's own address is a container network, not the LAN."""
+        network hint (:data:`~src.outputs.hooks.HINT_HOST`): the private IPv4
+        address the user opened FiestaBoard at, else the address the browser
+        connected from when that names a LAN (not a Docker gateway, Home
+        Assistant ingress, IPv6 …), else ``None``. Search its network first —
+        in Docker bridge mode this host's own address is a container network,
+        not the LAN."""
         return []
 
     def identify(self) -> None:  # noqa: B027 - optional hook

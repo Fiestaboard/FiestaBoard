@@ -25,7 +25,7 @@ future change is most likely to unpick:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -446,6 +446,7 @@ def test_patch_rejects_a_coerced_boolean(client, boards):
 def test_get_install_answers_the_board_less_reads(client, boards):
     """GET /v1/install answers exactly what the board-less internal routes answer."""
     page_id = _seed_page(client)
+    original_revision = client.get("/schedules/default-page").json()["revision"]
     client.put("/schedules/default-page", json={"page_id": page_id})
     client.put("/schedules/enabled", json={"enabled": True})
 
@@ -454,7 +455,14 @@ def test_get_install_answers_the_board_less_reads(client, boards):
     assert response.status_code == 200
     assert response.json() == {"schedule_enabled": True, "default_page_id": page_id}
     assert client.get("/schedules/enabled").json() == {"enabled": True}
-    assert client.get("/schedules/default-page").json() == {"default_page_id": page_id}
+    default = client.get("/schedules/default-page").json()
+    assert default == {
+        "default_page_id": page_id,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
+    assert isinstance(default["revision"], str) and default["revision"]
+    assert default["revision"] != original_revision
 
 
 def test_get_install_works_on_an_install_with_no_boards(client):
@@ -466,13 +474,21 @@ def test_get_install_works_on_an_install_with_no_boards(client):
 
 def test_patch_install_writes_what_the_board_less_routes_read(client, boards):
     page_id = _seed_page(client)
+    original_revision = client.get("/schedules/default-page").json()["revision"]
 
     response = client.patch("/v1/install", json={"schedule_enabled": True, "default_page_id": page_id})
 
     assert response.status_code == 200
     assert response.json() == {"schedule_enabled": True, "default_page_id": page_id}
     assert client.get("/schedules/enabled").json() == {"enabled": True}
-    assert client.get("/schedules/default-page").json() == {"default_page_id": page_id}
+    default = client.get("/schedules/default-page").json()
+    assert default == {
+        "default_page_id": page_id,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
+    assert isinstance(default["revision"], str) and default["revision"]
+    assert default["revision"] != original_revision
 
 
 def test_patch_install_applies_only_the_fields_sent(client, boards):
@@ -488,12 +504,20 @@ def test_patch_install_applies_only_the_fields_sent(client, boards):
 def test_patch_install_with_null_clears_the_default_page(client, boards):
     page_id = _seed_page(client)
     client.patch("/v1/install", json={"default_page_id": page_id})
+    original_revision = client.get("/schedules/default-page").json()["revision"]
 
     response = client.patch("/v1/install", json={"default_page_id": None})
 
     assert response.status_code == 200
     assert response.json()["default_page_id"] is None
-    assert client.get("/schedules/default-page").json() == {"default_page_id": None}
+    default = client.get("/schedules/default-page").json()
+    assert default == {
+        "default_page_id": None,
+        "revision": ANY,
+        "edit_protocol": "schedule-default-revision-v1",
+    }
+    assert isinstance(default["revision"], str) and default["revision"]
+    assert default["revision"] != original_revision
 
 
 def test_patch_install_with_an_unknown_default_page_is_a_404(client, boards):

@@ -427,7 +427,7 @@ class TestPolling:
             "board_read_interval_cloud": 180,
         }
 
-    def test_put_returns_the_saved_intervals_and_the_restart_hint(self, client):
+    def test_put_returns_the_saved_intervals_applied_without_restart(self, client):
         response = client.put("/settings/polling", json={"interval_seconds": 60})
         assert response.status_code == 200
         # CHANGED (conventions, bare bodies): the settings are inlined and
@@ -437,7 +437,7 @@ class TestPolling:
             "interval_seconds": 60,
             "board_read_interval_local": 30,
             "board_read_interval_cloud": 180,
-            "requires_restart": True,
+            "requires_restart": False,
         }
 
     def test_put_without_interval_seconds_does_not_require_a_restart(self, client):

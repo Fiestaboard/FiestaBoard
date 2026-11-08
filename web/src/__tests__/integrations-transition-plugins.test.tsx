@@ -34,6 +34,7 @@ interface MockRegistryEntry {
   name: string;
   category: string;
   plugin_type?: "data" | "transition";
+  repository?: string;
 }
 
 function mockPlugins(plugins: MockPlugin[]) {
@@ -242,5 +243,39 @@ describe("Integrations page — transition plugins in the Marketplace", () => {
     const heading = await screen.findByRole("heading", { name: /transitions/i });
     expect(within(heading).getByText("Transitions")).toBeInTheDocument();
     expect(within(heading).queryByText("transition")).not.toBeInTheDocument();
+  });
+});
+
+describe("integration marketplace browsing", () => {
+  it("bounds marketplace results and reaches later entries without changing filters", async () => {
+    mockRegistry(
+      Array.from({ length: 25 }, (_, i) => ({
+        id: `demo_${i}`,
+        name: `Demo ${String(i).padStart(2, "0")}`,
+        category: "utility",
+      })),
+    );
+    renderPage();
+    await userEvent.click(await screen.findByRole("tab", { name: /marketplace/i }));
+    expect(await screen.findAllByRole("heading", { level: 3, name: /^Demo / })).toHaveLength(12);
+    await userEvent.click(screen.getByRole("button", { name: "Next results" }));
+    expect(await screen.findByRole("heading", { name: "Demo 12" })).toBeInTheDocument();
+  });
+
+  it("marks external repository ownership as Community regardless of author text", async () => {
+    mockRegistry([
+      { id: "external", name: "External", category: "utility", repository: "https://github.com/Example/plugin" },
+      { id: "official", name: "Official", category: "utility", repository: "https://github.com/Fiestaboard/plugin" },
+    ]);
+    renderPage();
+    await userEvent.click(await screen.findByRole("tab", { name: /marketplace/i }));
+    const heading = await screen.findByRole("heading", { name: "External" });
+    expect(
+      within(heading.closest("[data-slot='plugin-card']") as HTMLElement).getByText("Community"),
+    ).toBeInTheDocument();
+    const official = screen.getByRole("heading", { name: "Official" });
+    expect(
+      within(official.closest("[data-slot='plugin-card']") as HTMLElement).queryByText("Community"),
+    ).not.toBeInTheDocument();
   });
 });

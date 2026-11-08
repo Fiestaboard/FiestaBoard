@@ -91,6 +91,6 @@ class TestBackupStorePreflight(unittest.TestCase):
                 result = BackupService(root).import_from_dict(
                     document({"collections": None, "carousels": legacy}), reinstall_plugins=False
                 )
-            self.assertEqual(result["restored_files"], ["carousels.json (legacy)"])
-            self.assertTrue((root / "carousels.json").exists())
-            self.assertFalse((root / "collections.json").exists())
+            self.assertEqual(result["restored_files"], ["collections.json"])
+            self.assertFalse((root / "carousels.json").exists())
+            self.assertTrue((root / "collections.json").exists())
