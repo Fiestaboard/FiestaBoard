@@ -2497,8 +2497,8 @@ class DisplayService:
                     return False
 
             # --- Silence dispatch (per-board delivery, sized to this board) ---
-            # A user-initiated temporary override (primary only) wins over
-            # silence (issue #949); everything else is silenced.
+            # A user-initiated temporary override (this board's own, since H1)
+            # wins over silence (issue #949); everything else is silenced.
             if silence_mode_active and not override_active:
                 silence_mode = silence_config["mode"]
                 silence_geometry = self._silence_geometry(board, is_primary=is_primary)

@@ -95,7 +95,7 @@ viewer can say why the board looks the way it does:
 | `schedule_enabled` | Whether the board follows its schedule |
 | `override_active` | An override is showing on the board |
 | `override_expires_at` | When the override ends. `null` when there is none, or when it holds until it is cancelled |
-| `override_started_at` | When the override began. `null` when there is none |
+| `override_started_at` | When the override began, in whole seconds. `null` when there is none. `/settings/temporary-override` and `/v1/boards/{board}` report the same instant with microseconds, so compare instants, not strings |
 | `silenced` | The board is inside its silence window |
 | `silenced_until` | When the silence window ends, or `null` |
 | `silence_mode` | `freeze`, `indicator` or `page` while silenced, else `null` |

@@ -2513,6 +2513,7 @@ class SettingsService:
         first_color = validated[0].get("board_color") if validated else None
         if first_color in ("black", "white"):
             self._board.board_type = first_color
+        self._adopt_boardless_override()
         self._save_to_file()
         logger.info(f"Configured boards set to: {[b.get('name') for b in validated]}")
         return self._board
@@ -2538,6 +2539,7 @@ class SettingsService:
         _check_grid_floor(instance.to_dict(), None)
         self._seed_board_silence_defaults(instance.id)
         self._board.boards.append(instance.to_dict())
+        self._adopt_boardless_override()
         self._save_to_file()
         logger.info(f"Added board: {instance.name} ({instance.device_type})")
         return self._board
@@ -2958,9 +2960,27 @@ class SettingsService:
         """Every stored override by board id, expired ones included (no GC)."""
         return dict(self._temporary_overrides)
 
+    @_locked
     def list_temporary_overrides(self) -> dict[str, TemporaryOverride]:
-        """Every live (unexpired) override by board id. Expires nothing."""
+        """Every live (unexpired) override by board id. Expires nothing.
+
+        Locked: the display loop expires entries from the same dict under the
+        lock, and iterating it unlocked could fail mid-way.
+        """
         return {key: o for key, o in self._temporary_overrides.items() if not o.is_expired()}
+
+    def _adopt_boardless_override(self) -> None:
+        """Move an override set before any board existed onto the (new) primary board.
+
+        Called with the lock held, when boards are added or replaced. If the
+        primary already has its own override, that one wins.
+        """
+        orphan = self._temporary_overrides.pop(PRIMARY_RUNTIME_KEY, None)
+        primary = self.get_primary_board_id()
+        if orphan is not None and primary:
+            self._temporary_overrides.setdefault(primary, orphan)
+        elif orphan is not None:
+            self._temporary_overrides[PRIMARY_RUNTIME_KEY] = orphan
 
     def _persist_override_gc(self) -> None:
         try:

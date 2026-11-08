@@ -289,7 +289,11 @@ class TemporaryOverrideResponse(BaseModel):
     grid_cols: int | None = None
     board_id: str | None = Field(default=None, description="The display this override belongs to (H1).")
     started_at: str | None = Field(
-        default=None, description="When this override run began (ISO 8601 UTC); a replaced override has a new one."
+        default=None,
+        description=(
+            "When this override run began (ISO 8601 UTC, microseconds, like expires_at); a replaced override has a "
+            "new one. Panel status reports the same instant in whole seconds: compare parsed instants, not strings."
+        ),
     )
 
 

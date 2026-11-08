@@ -30,6 +30,7 @@ them.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import UTC
 
@@ -808,13 +809,32 @@ async def set_active_page(request: SetActivePageRequest):
     }
 
 
-def _override_board(settings_service, board_id: str | None) -> str | None:
-    """The real id of the display *board_id* names; ``None`` means the primary. 404 for an unknown id."""
+#: Longest accepted template line and line_metadata document for an override
+#: (security F1 on #2451): far beyond any board row, small enough that one
+#: request cannot park a megabyte per display in settings.json.
+MAX_OVERRIDE_LINE_CHARS = 2048
+MAX_OVERRIDE_METADATA_BYTES = 8192
+
+
+def _known_board(settings_service, board_id: str | None) -> str | None:
+    """The real id of the display *board_id* names (``None`` means the primary), or None if no board has it.
+
+    Only real board ids count: the store's internal ``__primary__`` key is an
+    unknown board here, never another name for the primary.
+    """
     if not board_id:
         return settings_service.get_primary_board_id()
-    if not any(b.get("id") == board_id for b in settings_service.get_board_settings().boards or []):
+    if any(b.get("id") == board_id for b in settings_service.get_board_settings().boards or []):
+        return board_id
+    return None
+
+
+def _override_board(settings_service, board_id: str | None) -> str | None:
+    """For a write: the real id of the display *board_id* names; 404 for an unknown id."""
+    board = _known_board(settings_service, board_id)
+    if board_id and board is None:
         raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
-    return board_id
+    return board
 
 
 def _drop_board_cache(board_id: str | None) -> None:
@@ -831,9 +851,16 @@ def _drop_board_cache(board_id: str | None) -> None:
 
 @router.get("/settings/temporary-override", response_model=TemporaryOverrideResponse, responses={**ERROR_404})
 async def get_temporary_override(board_id: str | None = None):
-    """Get one display's temporary override status (``board_id``; omit for the primary display)."""
+    """Get one display's temporary override status (``board_id``; omit for the primary display).
+
+    A read, so an unknown ``board_id`` falls back to "no override" rather than
+    404 (API_CONVENTIONS: writes 404, reads fall back): a poll racing a
+    display's deletion gets the correct answer for a display that is gone.
+    """
     settings_service = get_settings_service()
-    board = _override_board(settings_service, board_id)
+    board = _known_board(settings_service, board_id)
+    if board_id and board is None:
+        return _temporary_override_payload(None, board_id)
     return _temporary_override_payload(settings_service.get_temporary_override(board), board)
 
 
@@ -924,6 +951,10 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
             raise HTTPException(status_code=422, detail="template must be a non-empty list of strings")
         if not all(isinstance(line, str) for line in template):
             raise HTTPException(status_code=422, detail="template must contain only strings")
+        if any(len(line) > MAX_OVERRIDE_LINE_CHARS for line in template):
+            raise HTTPException(
+                status_code=422, detail=f"each template line must be at most {MAX_OVERRIDE_LINE_CHARS} characters"
+            )
 
         device_type = request.device_type or DEFAULT_DEVICE_TYPE
         if device_type not in DEVICE_TYPES:
@@ -934,6 +965,10 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
             not isinstance(line_metadata, list) or not all(isinstance(m, dict) for m in line_metadata)
         ):
             raise HTTPException(status_code=422, detail="line_metadata must be a list of objects")
+        if line_metadata is not None and len(json.dumps(line_metadata)) > MAX_OVERRIDE_METADATA_BYTES:
+            raise HTTPException(
+                status_code=422, detail=f"line_metadata must be at most {MAX_OVERRIDE_METADATA_BYTES} bytes"
+            )
 
         for key, raw in (("notes_wide", request.notes_wide), ("notes_tall", request.notes_tall)):
             if raw is None:

@@ -202,13 +202,20 @@ async def create_schedule(schedule_data: ScheduleCreate):
 
 @router.get("/schedules/active/page", response_model=ActiveScheduleResponse)
 async def get_active_schedule(board_id: str | None = None):
-    """Get the currently active page based on schedule (optional query: board_id=)."""
+    """Get the currently active page based on schedule (optional query: board_id=).
+
+    A read: an unknown ``board_id`` falls back rather than 404, like every
+    board-scoped read (API_CONVENTIONS, "writes 404, reads fall back").
+    """
     schedule_service = get_schedule_service()
     settings_service = get_settings_service()
 
     # Include temporary override status so the frontend can show the countdown badge
     # without a separate API call.
-    override = settings_service.get_temporary_override(board_id)
+    # Only a real board's override: an unknown id (including the store's
+    # internal "__primary__" key) has none, rather than reaching the primary's.
+    known = not board_id or any(b.get("id") == board_id for b in settings_service.get_board_settings().boards or [])
+    override = settings_service.get_temporary_override(board_id) if known else None
     override_payload = temporary_override_payload(override, board_id or settings_service.get_primary_board_id())
 
     if not settings_service.is_schedule_enabled(board_id=board_id):

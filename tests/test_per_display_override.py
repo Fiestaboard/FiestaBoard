@@ -222,6 +222,8 @@ def test_the_internal_primary_key_is_never_reachable_from_the_api(client, boards
     assert write.status_code == 404
     assert client.delete(f"/settings/temporary-override?board_id={PRIMARY_RUNTIME_KEY}").status_code == 404
     assert client.get("/settings/temporary-override").json()["template"] == ["MINE"]
+    schedule_view = client.get(f"/schedules/active/page?board_id={PRIMARY_RUNTIME_KEY}").json()
+    assert schedule_view["temporary_override"]["active"] is False
 
 
 def test_rest_without_a_board_is_the_primary(client, boards):  # noqa: F811
