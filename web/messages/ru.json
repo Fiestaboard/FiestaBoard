@@ -209,7 +209,22 @@
     "displayFilter": "Фильтр по дисплею",
     "allPages": "Все страницы",
     "libraryCount": "{count, plural, one {Страницы: #} other {Страницы: #}}",
-    "clearFilter": "Показать все страницы"
+    "clearFilter": "Показать все страницы",
+    "searchLabel": "Поиск страниц",
+    "searchPlaceholder": "Поиск по названиям и сохранённому содержимому",
+    "searchHint": "Поиск по названиям и сохранённому содержимому в выбранном фильтре дисплея.",
+    "clearSearch": "Очистить поиск",
+    "sortLabel": "Сортировка страниц",
+    "sortNameAsc": "Название А–Я",
+    "sortNameDesc": "Название Я–А",
+    "sortCreatedDesc": "Сначала новые",
+    "sortCreatedAsc": "Сначала старые",
+    "sortUpdatedDesc": "Недавно обновлённые",
+    "sortUpdatedAsc": "Давно обновлённые",
+    "noMatches": "Нет подходящих страниц",
+    "searchCount": "{count} из {total} страниц",
+    "loadError": "Не удалось загрузить страницы. Условия поиска сохранены.",
+    "retryLoading": "Повторить загрузку страниц"
   },
   "collections": {
     "title": "Карусели",

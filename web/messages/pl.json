@@ -209,7 +209,22 @@
     "displayFilter": "Filtr wyświetlacza",
     "allPages": "Wszystkie strony",
     "libraryCount": "{count, plural, one {Strony: #} other {Strony: #}}",
-    "clearFilter": "Pokaż wszystkie strony"
+    "clearFilter": "Pokaż wszystkie strony",
+    "searchLabel": "Szukaj stron",
+    "searchPlaceholder": "Szukaj nazw lub zapisanej treści",
+    "searchHint": "Wyszukuje nazwy i zapisaną treść w wybranym filtrze wyświetlacza.",
+    "clearSearch": "Wyczyść wyszukiwanie",
+    "sortLabel": "Sortuj strony",
+    "sortNameAsc": "Nazwa A–Z",
+    "sortNameDesc": "Nazwa Z–A",
+    "sortCreatedDesc": "Najnowsze utworzone",
+    "sortCreatedAsc": "Najstarsze utworzone",
+    "sortUpdatedDesc": "Ostatnio zaktualizowane",
+    "sortUpdatedAsc": "Najdawniej zaktualizowane",
+    "noMatches": "Brak pasujących stron",
+    "searchCount": "{count} z {total} stron",
+    "loadError": "Nie udało się wczytać stron. Wyszukiwanie zostało zachowane.",
+    "retryLoading": "Ponów wczytywanie stron"
   },
   "collections": {
     "title": "Karuzele",
