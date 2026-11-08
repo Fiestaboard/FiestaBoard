@@ -284,36 +284,47 @@ def test_blocking_instance_cleanup_does_not_stall_readers(registry):
 
 
 def test_uninstall_directory_removal_holds_the_plugin_dir_lock(registry, mock_loader, tmp_path):
-    """uninstall must take the same per-directory lock as clone_or_update_repo
-    so an overlapping update + uninstall of one plugin serialize instead of
-    racing rmtree against git."""
+    """Actual directory staging waits for a competing update's directory lock."""
+    from src.plugins.uninstall import StagedPluginRemoval
+
+    directory = tmp_path / "victim"
+    directory.mkdir()
     source = MagicMock()
     source.source_type = "external"
-    source.local_path = str(tmp_path / "victim")
+    source.local_path = str(directory)
     mock_loader.get_source.return_value = source
-
+    mock_loader._resolve_plugin_dir.return_value = directory
+    manager = MagicMock()
+    manager.uninstall_plugin_config.return_value = []
     remove_called = threading.Event()
+    real_enter = StagedPluginRemoval.__enter__
+
+    def stage(removal):
+        result = real_enter(removal)
+        remove_called.set()
+        return result
 
     with (
-        patch("src.plugins.registry.remove_external_plugin") as remove_mock,
-        patch("src.config_manager.get_config_manager", return_value=MagicMock()),
+        patch.object(StagedPluginRemoval, "__enter__", stage),
+        patch("src.config_manager.get_config_manager", return_value=manager),
     ):
-        remove_mock.side_effect = lambda path: (remove_called.set(), True)[1]
-
-        # Simulate an in-flight update of the same plugin holding its lock.
         dir_lock = sources._dir_lock("victim")
         dir_lock.acquire()
         try:
             _t, done, result = _call_on_thread(lambda: registry.uninstall_external_plugin("victim"))
             assert not remove_called.wait(timeout=0.3), (
-                "remove_external_plugin ran while another thread held the plugin's directory lock"
+                "directory staging ran while another thread held the plugin's directory lock"
             )
+            assert directory.exists()
+            manager.uninstall_plugin_config.assert_not_called()
         finally:
             dir_lock.release()
 
         assert done.wait(timeout=5)
         assert remove_called.is_set()
         assert result[0] == []
+        assert not directory.exists()
+        manager.uninstall_plugin_config.assert_called_once_with("victim")
 
 
 def test_registry_lock_blocks_readers_while_a_mutator_holds_it(registry):

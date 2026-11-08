@@ -304,10 +304,21 @@ class UninstallTransaction(unittest.TestCase):
             observations = []
 
             def forget(identity):
-                lock = _dir_lock("qa_uninstall")
-                got = lock.acquire(blocking=False)
-                if got:
-                    lock.release()
+                acquired = []
+
+                def contender():
+                    lock = _dir_lock("qa_uninstall")
+                    got = lock.acquire(blocking=False)
+                    acquired.append(got)
+                    if got:
+                        lock.release()
+
+                worker = threading.Thread(target=contender)
+                worker.start()
+                worker.join(3)
+                self.assertFalse(worker.is_alive())
+                self.assertEqual(len(acquired), 1)
+                got = acquired[0]
                 disk = json.loads(path.read_text())
                 observations.append(
                     (identity, got, bool(disk["plugins"]), "qa_uninstall" in disk.get("removed_plugins", []))
@@ -317,11 +328,14 @@ class UninstallTransaction(unittest.TestCase):
             oauth.forget.side_effect = forget
             with patch("src.oauth.service.get_oauth_service", return_value=oauth), fixtures.join_cleanup_threads():
                 self.service(manager, registry).uninstall("qa_uninstall")
-            self.assertCountEqual(observations, [
-                ("qa_uninstall:one", False, False, True),
-                ("qa_uninstall:two", False, False, True),
-                ("qa_uninstall", False, False, True),
-            ])
+            self.assertCountEqual(
+                observations,
+                [
+                    ("qa_uninstall:one", False, False, True),
+                    ("qa_uninstall:two", False, False, True),
+                    ("qa_uninstall", False, False, True),
+                ],
+            )
             self.assertFalse(code.exists())
 
     def test_postcommit_oauth_failure_does_not_restore_uninstalled_code(self):
@@ -479,6 +493,10 @@ class UninstallTransaction(unittest.TestCase):
                                 }
                             ]
                         )
+                        # Board updates legitimately persist output defaults.
+                        # The refused uninstall must preserve that accepted state.
+                        before = path.read_bytes()
+                        generation = manager.config_generation
                     worker.join(4)
             self.assertFalse(worker.is_alive())
             self.assertEqual(len(outcome), 1)

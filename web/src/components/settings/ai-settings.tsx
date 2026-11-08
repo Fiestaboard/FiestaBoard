@@ -631,16 +631,14 @@ function ProviderRow({
         {provider.models.length > 0 && (
           <Flex wrap gap="1" className="pt-1">
             {provider.models.map((m) => (
-              <Badge key={m} variant="secondary" className="font-mono text-[11px] gap-1">
+              <Badge
+                key={m}
+                variant="secondary"
+                className="font-mono text-[11px]"
+                onDismiss={() => removeModel(m)}
+                dismissLabel={`Remove model ${m}`}
+              >
                 {m}
-                <button
-                  type="button"
-                  onClick={() => removeModel(m)}
-                  className="hover:text-destructive"
-                  aria-label={`Remove model ${m}`}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
               </Badge>
             ))}
           </Flex>

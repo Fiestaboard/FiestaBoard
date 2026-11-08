@@ -253,6 +253,7 @@ def test_uninstall_forgets_committed_connections_without_a_second_config_purge()
             {"id": "other", "base_plugin_id": None, "instance_label": None},
         ]
     )
+
     def accepted_uninstall(plugin_id, *, on_committed):
         on_committed(["ext:home", plugin_id])
         return []

@@ -33,11 +33,7 @@ class StagedPluginRemoval:
         return value.st_dev, value.st_ino
 
     def _owned_root(self) -> bool:
-        return (
-            self.root is not None
-            and not self.root.is_symlink()
-            and self._identity(self.root) == self._root_identity
-        )
+        return self.root is not None and not self.root.is_symlink() and self._identity(self.root) == self._root_identity
 
     def __enter__(self) -> StagedPluginRemoval:
         pending = list(self.path.parent.glob(f".{self.path.name}.uninstall-*"))
@@ -77,11 +73,7 @@ class StagedPluginRemoval:
                 self.retain_after_failure()
             return False
         try:
-            if (
-                not self._owned_root()
-                or self.backup is None
-                or self._identity(self.backup) != self._code_identity
-            ):
+            if not self._owned_root() or self.backup is None or self._identity(self.backup) != self._code_identity:
                 raise OSError("Uninstall rollback copy is no longer the owned code tree")
             if self.path.exists() or self.path.is_symlink():
                 raise FileExistsError("An unexpected replacement occupies the plugin path")

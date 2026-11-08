@@ -12,12 +12,14 @@ import {
   Flex,
   Input,
   Label,
+  SegmentedControl,
+  SegmentedControlItem,
   Stack,
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Timer } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import { toast } from "sonner";
 
 import { SilenceNotice } from "@/components/silence-notice";
@@ -62,6 +64,7 @@ export function ForceSetDialog({
   const [durationMinutes, setDurationMinutes] = useState<number>(5);
   const [customMinutes, setCustomMinutes] = useState<string>("");
   const [isCustom, setIsCustom] = useState(false);
+  const showForId = useId();
 
   // Reset the duration picker each time the dialog opens. Done during render
   // so the dialog's first painted frame already shows the defaults instead of
@@ -127,37 +130,28 @@ export function ForceSetDialog({
 
         <Box className="py-2">
           <Stack gap="2">
-            <Label className="text-sm font-medium">{t("showFor")}</Label>
-            <Flex wrap gap="2">
+            <Label id={showForId} className="text-sm font-medium">
+              {t("showFor")}
+            </Label>
+            <SegmentedControl
+              aria-labelledby={showForId}
+              value={isCustom ? "custom" : String(durationMinutes)}
+              onValueChange={(value) => {
+                if (value === "custom") {
+                  setIsCustom(true);
+                  return;
+                }
+                setDurationMinutes(Number(value));
+                setIsCustom(false);
+              }}
+            >
               {DURATION_PRESETS.map((preset) => (
-                <button
-                  key={preset.minutes}
-                  type="button"
-                  onClick={() => {
-                    setDurationMinutes(preset.minutes);
-                    setIsCustom(false);
-                  }}
-                  className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    !isCustom && durationMinutes === preset.minutes
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
+                <SegmentedControlItem key={preset.minutes} value={String(preset.minutes)}>
                   {preset.label}
-                </button>
+                </SegmentedControlItem>
               ))}
-              <button
-                type="button"
-                onClick={() => setIsCustom(true)}
-                className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                  isCustom
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                }`}
-              >
-                {t("custom")}
-              </button>
-            </Flex>
+              <SegmentedControlItem value="custom">{t("custom")}</SegmentedControlItem>
+            </SegmentedControl>
             {isCustom && (
               <Flex align="center" gap="2">
                 <Input

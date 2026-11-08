@@ -162,6 +162,34 @@ describe("SilenceSchedule - board scoping", () => {
     expect(puts[0].board_id).toBe("flag-1");
   });
 
+  it("uses the explicit route board instead of the sidebar selection for reads and saves", async () => {
+    const puts: Array<Record<string, unknown>> = [];
+    stub({
+      boards: [FLAGSHIP, NOTE],
+      silence: { by_board: { "flag-1": { indicator_text: "KITCHEN" }, "note-1": { indicator_text: "DESK" } } },
+      onPut: (b) => puts.push(b as Record<string, unknown>),
+    });
+    const user = userEvent.setup();
+    const { Wrapper } = makeWrapper();
+    render(<SilenceSchedule boardId="note-1" />, { wrapper: Wrapper });
+    const text = await screen.findByLabelText(/message text/i);
+    await waitFor(() => expect(text).toHaveValue("DESK"));
+    await user.clear(text);
+    await user.type(text, "QUIET");
+    await waitFor(() => expect(puts.length).toBeGreaterThan(0), { timeout: 5000 });
+    expect(puts[0].board_id).toBe("note-1");
+  });
+
+  it("filters silence pages by the explicit route board geometry", async () => {
+    stub({ boards: [FLAGSHIP, NOTE], silence: { mode: "page", page_id: "small" } });
+    const user = userEvent.setup();
+    const { Wrapper } = makeWrapper();
+    render(<SilenceSchedule boardId="note-1" />, { wrapper: Wrapper });
+    await user.click(await screen.findByRole("combobox", { name: /silence page/i }));
+    expect(await screen.findByRole("option", { name: "Small Page" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Big Page" })).not.toBeInTheDocument();
+  });
+
   it("sends the selected board_id on a multi-board install", async () => {
     const puts: Array<Record<string, unknown>> = [];
     stub({ boards: [FLAGSHIP, NOTE], onPut: (b) => puts.push(b as Record<string, unknown>) });
