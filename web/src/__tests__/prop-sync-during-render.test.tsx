@@ -55,17 +55,17 @@ describe("prop-driven state syncs", () => {
         wrapper: QueryWrapper,
       });
 
-      await user.click(await screen.findByRole("button", { name: "30 min" }));
+      await user.click(await screen.findByRole("radio", { name: "30 min" }));
       // Selected presets get the primary background.
-      expect(screen.getByRole("button", { name: "30 min" }).className).toContain("bg-primary");
+      expect(screen.getByRole("radio", { name: "30 min" })).toBeChecked();
 
       rerender(<ForceSetDialog open={false} onOpenChange={vi.fn()} pageId="p1" pageName="Weather" />);
       rerender(<ForceSetDialog open onOpenChange={vi.fn()} pageId="p1" pageName="Weather" />);
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "5 min" }).className).toContain("bg-primary");
+        expect(screen.getByRole("radio", { name: "5 min" })).toBeChecked();
       });
-      expect(screen.getByRole("button", { name: "30 min" }).className).not.toContain("bg-primary");
+      expect(screen.getByRole("radio", { name: "30 min" })).not.toBeChecked();
     });
   });
 

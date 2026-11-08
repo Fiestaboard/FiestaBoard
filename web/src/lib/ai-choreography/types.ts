@@ -82,6 +82,8 @@ export interface PageEditorStaging {
   pageId(): string | undefined;
   /** True while the editor holds edits the user has not saved. */
   hasUnsavedChanges(): boolean;
+  /** Reveal Text before its anchors are targeted; leaves the draft untouched. */
+  revealText(): void;
   /** Start a staged reveal: one undo snapshot, no draft autosave, save locked. */
   begin(): void;
   setName(value: string): void;
@@ -122,6 +124,10 @@ export type TranslateFn = (key: string, params?: Record<string, unknown>) => str
 export interface ChoreographyContext {
   navigate(href: string): void;
   pathname(): string;
+  /** Legacy settings calls omit board_id; explicit tool arguments take priority. */
+  currentBoardId?(): string | undefined;
+  /** Legacy polling/schedule APIs resolve an omitted board_id to the primary board. */
+  primaryBoardId?(): string | undefined;
   spotlight: SpotlightApi;
   pageEditor: PageEditorStaging;
   schedule: ScheduleStaging;

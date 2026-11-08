@@ -101,6 +101,7 @@ const createQueryClient = (overrides?: Partial<AllSettingsResponse>) => {
 const meta = {
   title: "Settings/GeneralSettings",
   component: GeneralSettings,
+  args: { board: mockAllSettings.board.boards[0] },
   parameters: {
     layout: "padded",
     nextjs: {
