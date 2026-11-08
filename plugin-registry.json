@@ -953,6 +953,17 @@
         ]
       },
       "added": "2026-10-26"
+    },
+    {
+      "id": "lucasfilm_quotes",
+      "name": "Lucasfilm Quotes",
+      "description": "A quote from Star Wars, Indiana Jones and other Lucasfilm movies on every refresh, signed with the character who said it. Only quotes that fit: short ones on a Note, long ones too on a Flagship. Filter by franchise, movie or character.",
+      "repository": "https://github.com/rummeyer/fiestaboard-plugin--lucasfilm-quotes",
+      "author": "Oliver Rummeyer",
+      "fiestaboard_version": ">=8.25.0",
+      "icon": "film",
+      "category": "entertainment",
+      "added": "2026-11-01"
     }
   ]
 }
