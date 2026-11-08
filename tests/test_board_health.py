@@ -167,6 +167,8 @@ def test_a_throttle_the_device_reports_is_contact():
         (403, "auth"),
         (requests.ConnectionError("no route to host"), "unreachable"),
         (requests.Timeout("read timed out"), "timeout"),
+        # A connect timeout never reached the board: unreachable, not slow.
+        (requests.ConnectTimeout("connect timed out"), "unreachable"),
         (500, "server_error"),
         (404, "unexpected_status"),
     ],
@@ -361,7 +363,7 @@ def test_shutdown_flushes_what_is_pending(tmp_path):
 def test_a_restart_restores_the_times_but_not_reachability(tmp_path):
     from src.outputs import health as module
 
-    driver, runtime = _driver(HttpSign())
+    driver, _runtime = _driver(HttpSign())
     driver.send_characters(frame(2))
     module.flush_board_health()
     module.reset_health_store()  # a new process

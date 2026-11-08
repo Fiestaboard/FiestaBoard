@@ -15,6 +15,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, Field, StrictBool, StrictInt, model_validator
 
 from src.canvas.schemas import CanvasLayerModel
+from src.outputs.health import HealthSummary
 
 #: Highest valid flap code. 0-71 covers blank, the alphabet, digits,
 #: punctuation and the eight colour tiles.
@@ -165,6 +166,14 @@ class BoardDetail(BoardSummary):
         description=(
             "When this board's active override began (ISO 8601), or null if none is running. A replaced "
             "override has a new value, so it identifies one run (for a Live Activity or Live Update)."
+        ),
+    )
+    health: HealthSummary = Field(
+        default_factory=HealthSummary,
+        description=(
+            "When the hub last reached this board (last_connected_at, latency_ms), when a frame last landed "
+            "(last_update_at), and the last failed contact (last_error_at, last_error), since the hub started. "
+            "reachable says whether the last contact is newer than the last error."
         ),
     )
     layers: list[CanvasLayerModel] | None = Field(

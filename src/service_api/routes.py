@@ -45,6 +45,7 @@ from src.board_guards import _require_board, silence_timing
 from src.board_send_executor import run_board_send
 from src.config import Config
 from src.config_manager import get_config_manager
+from src.outputs.health import board_health
 from src.paths import get_data_dir
 
 from .install_id import load_install_id
@@ -201,6 +202,7 @@ async def get_status():
                 active_page_id=active_page_id,
                 error=init_error,
                 output_status=_output_status(board),
+                health=board_health(service, bid),
             )
     except Exception as e:
         logger.debug(f"Per-board status unavailable: {e}")
