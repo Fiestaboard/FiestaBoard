@@ -2542,6 +2542,7 @@ class TestStatusPerBoard:
                 "last_error_at": None,
                 "last_error": None,
                 "reachable": None,
+                "breaker_open": False,
             },
         }
         assert boards["b2"]["configured"] is False

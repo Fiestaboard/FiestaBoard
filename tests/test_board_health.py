@@ -9,8 +9,11 @@ Each board's ``OutputRuntime`` keeps ``health``:
 - failures are classified at the HTTP layer with the ``FailureClass`` taxonomy
   (auth, unreachable, timeout, server_error, unexpected_status, blocked), so a
   plugin that swallows its exception still reports the real cause; the driver
-  adds what HTTP cannot see (write_failed, raised, timeout, breaker_open,
-  bad_response, read_failed);
+  adds what HTTP cannot see (write_failed, raised, timeout, bad_response,
+  read_failed);
+- an open circuit breaker is ``breaker_open: true``, beside the failure that
+  opened it: a refused write is not a contact attempt, so it never replaces
+  the cause in ``last_error``;
 - ``last_update_at`` is a frame that landed;
 - ``last_connected_at``, ``last_update_at`` and ``last_error`` persist lightly
   (at most every 180 s, and on shutdown); ``reachable`` and ``latency_ms`` are
@@ -171,6 +174,11 @@ def test_a_throttle_the_device_reports_is_contact():
         (requests.ConnectTimeout("connect timed out"), "unreachable"),
         (500, "server_error"),
         (404, "unexpected_status"),
+        # A bad address in the board's settings: the board was never tried.
+        (requests.exceptions.InvalidURL("bad host"), "misconfigured"),
+        (requests.exceptions.MissingSchema("no scheme"), "misconfigured"),
+        (requests.exceptions.InvalidSchema("gopher://"), "misconfigured"),
+        (requests.exceptions.InvalidHeader("bad token header"), "misconfigured"),
     ],
 )
 def test_each_failure_is_classified(answer, code):
@@ -235,15 +243,51 @@ def test_a_write_past_its_budget_is_a_timeout():
     assert _health(runtime)["last_error"] == "timeout"
 
 
-def test_an_open_breaker_is_reported():
+def test_an_open_breaker_keeps_the_cause_and_is_reported_beside_it():
+    # A wrong token (401): the Fix it screen needs "auth", not "the hub gave up".
+    plugin = HttpSign(answer=401)
+    driver, runtime = _driver(plugin)
+    for code in range(OUTPUT_BREAKER_THRESHOLD):
+        driver.send_characters(frame(10 + code))
+    assert _health(runtime)["breaker_open"] is True
+    calls = plugin.calls
+    for code in range(3):
+        driver.send_characters(frame(30 + code))  # refused by the breaker
+    assert plugin.calls == calls
+    health = _health(runtime)
+    assert (health["last_error"], health["breaker_open"], health["reachable"]) == ("auth", True, False)
+
+
+def test_a_breaker_probe_that_fails_again_still_names_the_cause():
     plugin = HttpSign(answer=500)
     driver, runtime = _driver(plugin)
     for code in range(OUTPUT_BREAKER_THRESHOLD):
         driver.send_characters(frame(10 + code))
-    calls = plugin.calls
-    driver.send_characters(frame(30))
-    assert plugin.calls == calls
-    assert _health(runtime)["last_error"] == "breaker_open"
+    driver._clock.now += output_breakers().cooldown_seconds + 1  # the probe goes through
+    driver.send_characters(frame(40))
+    driver.send_characters(frame(41))  # refused again
+    health = _health(runtime)
+    assert (health["last_error"], health["breaker_open"]) == ("server_error", True)
+
+
+def test_a_breaker_closes_when_the_device_answers_again():
+    plugin = HttpSign(answer=500)
+    driver, runtime = _driver(plugin)
+    for code in range(OUTPUT_BREAKER_THRESHOLD):
+        driver.send_characters(frame(10 + code))
+    driver._clock.now += output_breakers().cooldown_seconds + 1
+    plugin.answer = 200
+    runtime.health.clock = lambda: WALL + 400
+    driver.send_characters(frame(40))
+    health = _health(runtime)
+    assert (health["breaker_open"], health["reachable"], health["last_error"]) == (False, True, "server_error")
+
+
+def test_a_first_party_output_has_no_breaker_to_report():
+    driver, runtime = _driver(HttpSign(answer=500), first_party=True)
+    for code in range(OUTPUT_BREAKER_THRESHOLD + 1):
+        driver.send_characters(frame(10 + code))
+    assert _health(runtime)["breaker_open"] is False
 
 
 def test_a_success_after_a_failure_is_reachable_again():
@@ -314,6 +358,7 @@ def test_nothing_known_yet_is_all_null():
         "last_error_at": None,
         "last_error": None,
         "reachable": None,
+        "breaker_open": False,
     }
 
 
@@ -401,6 +446,7 @@ def test_status_and_v1_carry_each_boards_health(client, boards, board_client):  
         "last_error_at": None,
         "last_error": None,
         "reachable": True,
+        "breaker_open": False,
     }
     assert client.get(f"/v1/boards/{primary}").json()["health"] == expected
     assert client.get("/status").json()["boards"][primary]["health"] == expected
@@ -412,3 +458,174 @@ def test_a_board_without_a_runtime_reports_nothing_known(client, boards, board_c
     primary, _ = boards
     get_service().runtime_for.return_value = None
     assert client.get(f"/v1/boards/{primary}").json()["health"]["reachable"] is None
+
+
+# --- Review follow-ups: what is on disk, how it is written --------------------------------------
+
+
+def _seed_file(tmp_path, content: str):
+    path = _store_file(tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+    return path
+
+
+def test_a_corrupt_file_starts_empty_and_is_rewritten(tmp_path):
+    from src.outputs import health as module
+
+    _seed_file(tmp_path, "{not json")
+    runtime = OutputRuntime("b1")
+    assert runtime.health.as_dict()["last_update_at"] is None
+    runtime.health.clock = lambda: WALL
+    runtime.health.record_update()
+    module.flush_board_health()
+    assert json.loads(_store_file(tmp_path).read_text())["b1"]["last_update_at"] == WALL
+
+
+def test_a_file_that_is_not_an_object_starts_empty(tmp_path):
+    _seed_file(tmp_path, json.dumps(["b1", WALL]))
+    assert OutputRuntime("b1").health.as_dict()["last_update_at"] is None
+
+
+def test_what_this_build_cannot_read_is_dropped_on_load(tmp_path):
+    # After a rollback the file can hold a newer build's codes; a hand edit or
+    # bug can leave anything. Keep what is valid, drop the rest.
+    _seed_file(
+        tmp_path,
+        json.dumps(
+            {
+                "b1": {
+                    "last_connected_at": "2026-11-08T02:18:00Z",  # a string, not an instant
+                    "last_update_at": WALL,
+                    "last_error_at": WALL,
+                    "last_error": "cloud_down",  # a code from a newer build
+                },
+                "b2": {"last_connected_at": True, "last_update_at": 1e300, "last_error_at": -5, "last_error": 7},
+                "b3": "not an entry",
+                "b4": {"last_error_at": WALL, "last_error": "auth", "surplus": "ignored"},
+            }
+        ).replace("1e+300", "Infinity"),
+    )
+    b1 = OutputRuntime("b1").health.as_dict()
+    assert (b1["last_connected_at"], b1["last_update_at"]) == (None, AT)
+    assert (b1["last_error_at"], b1["last_error"]) == (AT, None)
+    b2 = OutputRuntime("b2").health.as_dict()
+    assert all(b2[key] is None for key in ("last_connected_at", "last_update_at", "last_error_at", "last_error"))
+    assert OutputRuntime("b3").health.as_dict()["last_update_at"] is None
+    b4 = OutputRuntime("b4").health.as_dict()
+    assert (b4["last_error_at"], b4["last_error"]) == (AT, "auth")
+
+
+def test_the_routes_survive_health_they_cannot_read(client, boards, board_client):  # noqa: F811
+    from src.display_runtime import get_service
+
+    primary, secondary = boards
+    health = get_service().runtime_for(primary).output.health
+    health._error, health._error_at = "cloud_down", "not an instant"  # state no summary can serialise
+    detail = client.get(f"/v1/boards/{primary}")
+    assert detail.status_code == 200
+    assert detail.json()["health"]["reachable"] is None
+    status = client.get("/status").json()
+    assert set(status["boards"]) == {primary, secondary}
+
+
+def test_one_failing_board_does_not_hide_the_others_from_status(client, boards, board_client, monkeypatch):  # noqa: F811
+    from src.service_api import routes
+
+    primary, secondary = boards
+    real = routes._output_status
+
+    def flaky(board):
+        if board.get("id") == primary:
+            raise RuntimeError("one bad row")
+        return real(board)
+
+    monkeypatch.setattr(routes, "_output_status", flaky)
+    status = client.get("/status").json()
+    assert secondary in status["boards"]
+
+
+def test_a_failed_rename_leaves_the_previous_file_whole(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from src.outputs import health as module
+
+    path = _seed_file(tmp_path, json.dumps({"b1": {"last_update_at": WALL}}))
+    before = path.read_text()
+    runtime = OutputRuntime("b1")
+    runtime.health.clock = lambda: WALL + 600
+
+    def refuse(self, target):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "replace", refuse)
+    runtime.health.record_update()  # first change: written now, and the rename fails
+    module.flush_board_health()
+    assert path.read_text() == before
+
+
+def test_the_apps_shutdown_flushes_board_health(monkeypatch):
+    from src.api_server import app
+    from src.outputs import health as module
+    from fastapi.testclient import TestClient
+
+    flushed = []
+    monkeypatch.setattr("src.system.mdns.start_mdns", lambda *a, **k: True)
+    monkeypatch.setattr(module, "flush_board_health", lambda: flushed.append(1))
+    with TestClient(app):
+        assert flushed == []
+    assert flushed == [1]
+
+
+def test_a_deferred_change_is_written_by_a_timer_without_another_change(tmp_path):
+    from src.outputs import health as module
+
+    timers = []
+
+    class FakeTimer:
+        def __init__(self, interval, function):
+            self.interval, self.function, self.daemon, self.cancelled = interval, function, False, False
+            timers.append(self)
+
+        def start(self):
+            pass
+
+        def cancel(self):
+            self.cancelled = True
+
+    now = [WALL]
+    store = module.HealthStore(_store_file(tmp_path), clock=lambda: now[0], timer=FakeTimer)
+    store.update("b1", {"last_update_at": WALL})  # written at once
+    now[0] += 60
+    store.update("b1", {"last_update_at": WALL + 60})  # deferred: a timer is armed
+    store.update("b1", {"last_update_at": WALL + 61})  # still the same timer
+    assert len(timers) == 1 and timers[0].interval == module.HEALTH_FLUSH_INTERVAL_SECONDS - 60
+    assert timers[0].daemon is True
+    timers[0].function()  # the idle board's change lands without a later write
+    assert json.loads(_store_file(tmp_path).read_text())["b1"]["last_update_at"] == WALL + 61
+
+
+def test_a_removed_board_leaves_the_health_file(tmp_path, client, boards):  # noqa: F811
+    from src.outputs import health as module
+    from src.settings.service import get_settings_service
+
+    primary, secondary = boards
+    for board_id in (primary, secondary):
+        runtime = OutputRuntime(board_id)
+        runtime.health.clock = lambda: WALL
+        runtime.health.record_update()
+    module.flush_board_health()
+    get_settings_service().remove_board(secondary)
+    module.flush_board_health()
+    stored = json.loads(_store_file(tmp_path).read_text())
+    assert primary in stored and secondary not in stored
+
+
+def test_reachable_follows_this_process_events_not_a_stepped_clock(tmp_path):
+    # A FiestaPi has no RTC: until NTP syncs, its clock can read earlier than
+    # an error persisted before the reboot. Its first contact must still read reachable.
+    _seed_file(tmp_path, json.dumps({"b1": {"last_error_at": WALL + 3600, "last_error": "unreachable"}}))
+    runtime = OutputRuntime("b1")
+    runtime.health.clock = lambda: WALL
+    runtime.health.record_contact(0.05)
+    assert runtime.health.as_dict()["reachable"] is True

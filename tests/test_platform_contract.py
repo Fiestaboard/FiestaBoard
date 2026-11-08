@@ -194,6 +194,7 @@ def test_status_reports_the_flag_the_instance_and_the_active_page(client):
             "last_error_at": None,
             "last_error": None,
             "reachable": None,
+            "breaker_open": False,
         },
     }
 
