@@ -28,10 +28,12 @@ from .device_models import (
     DeviceTokenResult,
     PairingClaim,
     PairingOffer,
+    PairingRequest,
     PairingState,
     Success,
 )
 from .device_service import PAIRING_SECONDS, DeviceService, hub_identity
+from .hub_addresses import hub_addresses, pick
 from .origins import normalized_origin
 from .service import get_auth_service
 
@@ -43,33 +45,46 @@ QR_PREFIX = "fiestaboard://pair#"
 _CLAIM_FAILURES = frozenset({"invalid_grant", "expired_token"})
 
 
-def _hub_url(origin: tuple[str, str, int] | None) -> str:
-    """``scheme://host[:port]`` from a validated origin, without a default port."""
-    if origin is None:
-        return ""
-    scheme, host, port = origin
-    if ":" in host:
-        host = f"[{host}]"
-    default = 443 if scheme == "https" else 80
-    return f"{scheme}://{host}" + ("" if port == default else f":{port}")
+def _hub_for(request: Request, payload: PairingRequest) -> tuple[str, list[dict[str, str]]]:
+    """The QR's hub address and the list it came from (H18); never loopback."""
+    # require_browser_mutation has checked this origin against the portal's own address.
+    addresses = hub_addresses(normalized_origin(request.headers.get("origin", "")))
+    if not addresses:
+        raise AuthFlowError(
+            "no_reachable_address",
+            "A phone can't reach this hub at localhost. Open FiestaBoard at its network address "
+            "(or set FIESTABOARD_EXTERNAL_URL) and try again.",
+            409,
+        )
+    hub = pick(addresses, payload.hub)
+    if hub is None:
+        raise AuthFlowError("invalid_request", "hub must be one of this hub's hub_addresses.", 422)
+    return hub, addresses
 
 
 @router.post("", response_model=PairingOffer, responses=RESPONSES)
-def create_offer(request: Request):
+def create_offer(request: Request, payload: PairingRequest | None = None):
     """Create a five-minute, single-use pairing code for a phone and return it as a QR payload.
 
     Browser session only (portal origin and CSRF token required). Cancels this
-    account's earlier pending offers. Needs device sign-in to be on.
+    account's earlier pending offers. Needs device sign-in to be on. The QR's
+    hub is never loopback: the first of ``hub_addresses``, or the listed one
+    the body names. A 409 when no address a phone could reach is known.
     """
     browser = require_browser_mutation(request)
-    # require_browser_mutation has checked this origin against the portal's own address.
-    hub = _hub_url(normalized_origin(request.headers.get("origin", "")))
+    hub, addresses = _hub_for(request, payload or PairingRequest())
     pairing_id, code = DeviceService(get_auth_service()).create_pairing(browser)
     install_id, name = hub_identity()
     # quote, not quote_plus: a space is %20, which every URL parser decodes (iOS's
     # URLComponents leaves "+" as "+").
     fragment = urlencode({"v": "1", "hub": hub, "id": install_id, "name": name, "code": code}, quote_via=quote)
-    return PairingOffer(pairing_id=pairing_id, qr_payload=QR_PREFIX + fragment, hub=hub, expires_in=PAIRING_SECONDS)
+    return PairingOffer(
+        pairing_id=pairing_id,
+        qr_payload=QR_PREFIX + fragment,
+        hub=hub,
+        expires_in=PAIRING_SECONDS,
+        hub_addresses=addresses,
+    )
 
 
 @router.delete("", response_model=Success, responses=RESPONSES)

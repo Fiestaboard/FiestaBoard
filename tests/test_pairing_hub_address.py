@@ -79,7 +79,14 @@ def _urls(payload):
 
 
 @pytest.mark.parametrize(
-    "base_url", ["http://localhost:4420", "http://127.0.0.1:4420", "http://[::1]:4420", "http://app.localhost:4420"]
+    "base_url",
+    [
+        "http://localhost:4420",
+        "http://127.0.0.1:4420",
+        "http://[::1]:4420",
+        "http://app.localhost:4420",
+        "http://0.0.0.0:4420",
+    ],
 )
 def test_a_browser_on_the_hub_gets_the_mdns_name_not_loopback(auth, network, base_url):
     payload = _ok(_signed_in(base_url))
@@ -188,3 +195,27 @@ def test_an_address_not_on_the_list_is_refused(auth, network, on_the_hub, hub):
     assert response.status_code == 422
     with auth.sessions.transaction() as db:
         assert db.execute("SELECT COUNT(*) FROM pairings").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize(
+    ("host", "loopback"),
+    [
+        ("localhost", True),
+        ("LOCALHOST", True),
+        ("app.localhost", True),
+        ("127.0.0.1", True),
+        ("127.8.9.10", True),
+        ("::1", True),
+        ("[::1]", True),
+        ("0.0.0.0", True),
+        ("::", True),
+        ("fiestaboard.local", False),
+        ("192.168.1.50", False),
+        ("[fd00::1]", False),
+        ("localhost.example.com", False),
+    ],
+)
+def test_what_counts_as_loopback(host, loopback):
+    from src.auth.hub_addresses import is_loopback
+
+    assert is_loopback(host) is loopback
