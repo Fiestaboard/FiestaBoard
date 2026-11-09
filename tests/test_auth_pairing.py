@@ -42,7 +42,20 @@ def auth(tmp_path, monkeypatch):
     monkeypatch.delenv("FIESTABOARD_CORS_ORIGINS", raising=False)
     monkeypatch.setenv("FIESTABOARD_DATA_DIR", str(tmp_path / "data"))
     routes_module._FAILED_ATTEMPTS.clear()
+    _hermetic_network(monkeypatch)
     return svc
+
+
+def _hermetic_network(monkeypatch):
+    """H18 looks up the hub's LAN address and mDNS state for every offer: pin
+    both, so these tests never open a socket or depend on the runner's network."""
+    from types import SimpleNamespace
+
+    from src.auth import hub_addresses
+
+    monkeypatch.setattr(hub_addresses, "lan_ipv4", lambda: "192.0.2.10")
+    monkeypatch.setattr(hub_addresses, "mdns_service", lambda: SimpleNamespace(is_running=False, local_url=""))
+    monkeypatch.delenv("FIESTABOARD_EXTERNAL_URL", raising=False)
 
 
 def _browser():

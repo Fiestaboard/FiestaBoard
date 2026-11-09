@@ -197,3 +197,48 @@ def test_it_needs_a_signed_in_session_when_auth_is_on(boards, tmp_path, monkeypa
     monkeypatch.delenv("FIESTABOARD_MCP_TOKEN", raising=False)
 
     assert TestClient(app).post("/config/board/existing", json={"host": "192.168.1.20"}).status_code == 401
+
+
+# ── review fixes ────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("host", "found"),
+    [
+        ("192.168.1.31:7001", [("Array", "host")]),
+        ("192.168.1.31:7000", []),
+        ("http://192.168.1.31:7001/", [("Array", "host")]),
+    ],
+)
+def test_a_port_written_into_the_host_is_compared(client, boards, host, found):
+    """S1: "host:port" with no port field names that port, not any port."""
+    assert names(client, host=host) == found
+
+
+def test_the_port_field_wins_over_one_written_into_the_host(client, boards):
+    assert names(client, host="192.168.1.31:7000", port=7001) == [("Array", "host")]
+
+
+@patch("requests.get")
+def test_a_broken_duplicate_check_never_fails_a_good_connection_test(mock_get, client, boards, monkeypatch, caplog):
+    """S2: the board answered; the existing-board lookup failing is logged and reads as none found."""
+    from src.config_api import service
+
+    mock_get.return_value = Mock(status_code=200, json=Mock(return_value={"message": [[0] * 22] * 6}))
+
+    def broken(**_):
+        raise RuntimeError("corrupt board list")
+
+    monkeypatch.setattr(service, "hub_existing_boards", broken)
+
+    response = client.post(
+        "/config/board/test", json={"api_mode": "local", "local_api_key": "test_key_new", "host": "192.168.1.77"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True and response.json()["existing_boards"] == []
+    assert any("existing" in r.getMessage().lower() for r in caplog.records if r.levelname == "ERROR")
+
+
+def test_an_overlong_board_id_is_refused(client, boards):
+    assert client.post("/config/board/existing", json={"exclude_board_id": "x" * 129}).status_code == 422
