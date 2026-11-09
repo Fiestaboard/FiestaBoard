@@ -78,11 +78,48 @@ def test_a_tag_only_change_records_no_saved_version(client):
 
 
 def test_a_draft_never_changes_tags(client):
+    # Review #2466 P11: tags aren't drafted, so sending them to the draft route
+    # is a 422 rather than a 200 that silently drops them.
     page = _ok(client, tags=["Keep"])
-    draft = client.put(f"/pages/{page['id']}/draft", json={"tags": ["Drafted"], "name": "Drafted"}).json()
-    assert "tags" not in draft["content"]
+    response = client.put(f"/pages/{page['id']}/draft", json={"tags": ["Drafted"], "name": "Drafted"})
+    assert response.status_code == 422, response.text
+    assert "PUT /pages/" in response.json()["detail"]
+    assert client.get(f"/pages/{page['id']}/draft").status_code == 404
+    assert client.get(f"/pages/{page['id']}").json()["tags"] == ["Keep"]
+
+
+def test_a_draft_without_tags_still_publishes_and_keeps_the_page_tags(client):
+    page = _ok(client, tags=["Keep"])
+    assert client.put(f"/pages/{page['id']}/draft", json={"name": "Drafted"}).status_code == 200
     published = client.post(f"/pages/{page['id']}/draft/publish").json()["page"]
     assert (published["name"], published["tags"]) == ("Drafted", ["Keep"])
+
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        "\U0001f468\u200d\U0001f469\u200d\U0001f467 family",  # family: man, woman, girl
+        "\U0001f3f3\ufe0f\u200d\U0001f308",  # rainbow flag: white flag, VS16, ZWJ, rainbow
+        "\U0001f469\U0001f3fd\u200d\U0001f4bb",  # woman technologist, medium skin tone
+        "\U0001f3c3\u200d\u2640\ufe0f run",  # woman running
+    ],
+)
+def test_emoji_joined_with_zwj_are_allowed(client, tag):
+    assert _ok(client, tags=[tag])["tags"] == [tag]
+
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        "ab\u200dcd",  # between letters
+        "\u200d\U0001f308",  # leading
+        "\U0001f308\u200d",  # trailing
+        "\U0001f468\u200d\u200d\U0001f469",  # doubled
+        "\U0001f468\u200b\U0001f469",  # zero-width space is still a format character
+    ],
+)
+def test_a_zwj_outside_an_emoji_sequence_is_422(client, tag):
+    assert _create(client, tags=[tag]).status_code == 422
 
 
 def test_the_list_filters_by_tag_case_insensitively(client):
