@@ -441,6 +441,118 @@ class PageDeleteResponse(BaseModel):
     new_active_page_id: str | None = None
 
 
+# ---------------------------------------------------------------------------
+# Drafts and saved versions (H9a). See src/pages/history.py.
+# ---------------------------------------------------------------------------
+
+RevisionOrigin = Literal[
+    "created", "edited", "published", "restored", "resized", "assistant", "duplicated", "imported", "baseline"
+]
+SaveVia = Literal["web", "phone", "api", "mcp", "hub"]
+
+
+class PageContent(PageCreate):
+    """A page's content without its identity: what a draft holds and a saved version records.
+
+    The ``PageCreate`` fields (and any opaque extensions). No ``id``,
+    timestamps, edit generation or tags.
+    """
+
+
+class PageDraft(BaseModel):
+    """``GET``/``PUT /pages/{page_id}/draft`` — the page's unpublished draft.
+
+    No board shows it. ``stale`` is true when the published page has changed
+    since the draft was first saved (published from another device).
+    """
+
+    page_id: str
+    revision: str = Field(description="The draft's own generation; send it back as expected_revision.")
+    saved_at: str = Field(description="When the draft was last saved (UTC, whole seconds).")
+    based_on: str | None = Field(
+        default=None, description="The published page's updated_at when the draft was first saved."
+    )
+    stale: bool = Field(description="The published page has changed since based_on.")
+    restored_from: str | None = Field(default=None, description="The saved version this draft was restored from.")
+    via: SaveVia | None = None
+    content: PageContent
+
+
+class PageDraftSummary(BaseModel):
+    """One entry of ``GET /pages/drafts``: a page that has a draft."""
+
+    page_id: str
+    saved_at: str
+    stale: bool
+    restored_from: str | None = None
+
+
+class PageDraftListResponse(BaseModel):
+    """``GET /pages/drafts`` — every page with a draft (the library's Draft badges)."""
+
+    drafts: list[PageDraftSummary]
+
+
+class PageDraftDiscardResponse(BaseModel):
+    """``DELETE /pages/{page_id}/draft`` — the draft is gone; the published page is untouched."""
+
+    page_id: str
+    discarded: Literal[True] = True
+
+
+class PageDraftPublishRequest(BaseModel):
+    """Body of ``POST /pages/{page_id}/draft/publish`` (optional)."""
+
+    expected_revision: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        description="The published page's revision the editor last read; 412 when it has changed since.",
+    )
+
+
+class PageRevisionSummary(BaseModel):
+    """One saved version of a page, without its content."""
+
+    id: str
+    saved_at: str = Field(description="When it was saved (UTC, whole seconds).")
+    origin: RevisionOrigin = Field(
+        description=(
+            "created, edited, published (from a draft), restored (a published restore), resized (the hub "
+            "followed a board's new size), assistant (FiestaBot or an MCP client), duplicated, imported, or "
+            "baseline (the page as it was before its first save on a build with history)."
+        )
+    )
+    via: SaveVia | None = Field(default=None, description="Who saved it: web, phone, api, mcp or hub.")
+    restored_from: str | None = None
+    name: str
+    rows: int
+    cols: int
+    current: bool = Field(description="This version is what the published page holds now.")
+
+
+class PageRevisionListResponse(BaseModel):
+    """``GET /pages/{page_id}/revisions`` — saved versions, newest first."""
+
+    page_id: str
+    revisions: list[PageRevisionSummary]
+    total: int
+
+
+class PageRevisionDetail(PageRevisionSummary):
+    """``GET /pages/{page_id}/revisions/{revision_id}`` — one version with its content."""
+
+    content: PageContent
+
+
+class PageRestoreRequest(BaseModel):
+    """Body of ``POST /pages/{page_id}/revisions/{revision_id}/restore`` (optional)."""
+
+    replace_draft: bool = Field(
+        default=False, description="Replace an existing draft (otherwise an existing draft is a 409)."
+    )
+
+
 # Staff picks moved to src/staff_picks/models.py with their router (Phase 2
 # slice 8); re-exported here so older imports keep resolving.
 from src.staff_picks.models import StaffPick, StaffPickPlugin  # noqa: E402, F401  (re-export)

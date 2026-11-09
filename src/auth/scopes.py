@@ -122,6 +122,14 @@ CONTROL_RULES = (
         ("GET", "/pages/{}/share"),
         ("POST", "/pages/preview/batch"),
         ("GET", "/pages/current-display"),
+        # H9a: drafts, saved versions and restore. Page-content writes the phone
+        # already has through PUT /pages/{}; restore writes the draft, never the page.
+        ("GET", "/pages/drafts"),
+        ("GET,PUT,DELETE", "/pages/{}/draft"),
+        ("POST", "/pages/{}/draft/publish"),
+        ("GET", "/pages/{}/revisions"),
+        ("GET", "/pages/{}/revisions/{}"),
+        ("POST", "/pages/{}/revisions/{}/restore"),
         # Shape collision with POST /pages/{}/preview, listed on purpose: it decodes a
         # share string and saves nothing. POST /pages/import (which saves) stays denied.
         ("POST", "/pages/import/preview"),

@@ -996,6 +996,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/pages/drafts",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_page_drafts",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/pages/import",
       "methods": [
         "POST"
@@ -1044,11 +1052,67 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/pages/{page_id}/draft",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "discard_page_draft",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}/draft",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_page_draft",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}/draft",
+      "methods": [
+        "PUT"
+      ],
+      "name": "save_page_draft",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}/draft/publish",
+      "methods": [
+        "POST"
+      ],
+      "name": "publish_page_draft",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/pages/{page_id}/preview",
       "methods": [
         "POST"
       ],
       "name": "preview_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}/revisions",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_page_revisions",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}/revisions/{revision_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_page_revision",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}/revisions/{revision_id}/restore",
+      "methods": [
+        "POST"
+      ],
+      "name": "restore_page_revision",
       "kind": "APIRoute"
     },
     {
