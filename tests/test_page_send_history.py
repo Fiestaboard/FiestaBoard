@@ -80,6 +80,24 @@ def _iso_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
+def _health_stamped_by_render(board, *, code: str, result: tuple[bool, bool]):
+    """A fake H12 that records *code* while the board renders, as the real one does.
+
+    Stamping it in the test before the send would race the send's start time:
+    across a second boundary the error is honestly older than the send.
+    """
+    from src.outputs.health import HealthSummary
+
+    stamped: list[str] = []
+
+    def render(*args, **kwargs):
+        stamped.append(_iso_now())
+        return result
+
+    board.render.side_effect = render
+    return lambda *a: HealthSummary(last_error=code, last_error_at=stamped[-1] if stamped else None)
+
+
 def _show_now(client, page_id, board_id):
     return client.post(f"/pages/{page_id}/send", json={"target": "board", "board_id": board_id})
 
@@ -129,15 +147,32 @@ def test_show_now_held_for_the_end_of_quiet_hours_records_held(client, boards, p
 
 
 def test_a_failed_show_now_records_the_boards_failure_code(client, boards, page, board):
-    from src.outputs.health import HealthSummary
-
     primary, _ = boards
-    board.render.return_value = (False, False)
-    fresh = HealthSummary(last_error="auth", last_error_at=_iso_now())
-    with patch("src.pages.sends.board_health", return_value=fresh):
+    health = _health_stamped_by_render(board, code="auth", result=(False, False))
+    with patch("src.pages.sends.board_health", side_effect=health):
         assert _show_now(client, page, primary).status_code == 500
     (entry,) = _sends(client, page)
     assert (entry["outcome"], entry["error"]) == ("failed", "auth")
+
+
+@pytest.mark.parametrize(
+    ("started", "error_at", "copied"),
+    [
+        (1_800_000_000.9, "2027-01-15T08:00:00+00:00", True),  # same whole second as the start: this send
+        (1_800_000_000.0, "2027-01-15T08:00:00+00:00", True),  # exactly the start
+        (1_800_000_000.9, "2027-01-15T08:00:01+00:00", True),  # later
+        (1_800_000_000.0, "2027-01-15T07:59:59+00:00", False),  # a second before: an older failure
+    ],
+)
+def test_the_freshness_check_compares_whole_seconds(started, error_at, copied):
+    # last_error_at has whole seconds (floored), so the start is floored too:
+    # an error H12 stamps during this send can never read as older than it.
+    from src.outputs.health import HealthSummary
+    from src.pages.sends import board_error_code
+
+    health = HealthSummary(last_error="auth", last_error_at=error_at)
+    with patch("src.pages.sends.board_health", return_value=health):
+        assert board_error_code(None, "b", started) == ("auth" if copied else None)
 
 
 def test_a_failed_show_now_does_not_copy_a_stale_failure_code(client, boards, page, board):
@@ -161,11 +196,9 @@ def test_a_failed_show_now_does_not_copy_a_stale_failure_code(client, boards, pa
 
 def test_a_sent_entry_never_carries_a_failure_code(client, boards, page, board):
     # Mutant B11: even with a fresh last_error on the board, a landed send has no error.
-    from src.outputs.health import HealthSummary
-
     primary, _ = boards
-    fresh = HealthSummary(last_error="timeout", last_error_at=_iso_now())
-    with patch("src.pages.sends.board_health", return_value=fresh):
+    health = _health_stamped_by_render(board, code="timeout", result=(True, True))
+    with patch("src.pages.sends.board_health", side_effect=health):
         assert _show_now(client, page, primary).status_code == 200
     (entry,) = _sends(client, page)
     assert (entry["outcome"], entry["error"]) == ("sent", None)
