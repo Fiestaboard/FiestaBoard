@@ -79,8 +79,57 @@ def test_the_cli_prints_a_one_time_code_with_where_to_use_it(auth, capsys):
     assert status == 0
     code = next(word for word in out.split() if word.startswith("fb_reset_"))
     assert len(code) >= len("fb_reset_") + 43  # 256 bits, url-safe
-    assert "/reset-password#code=" + code in out
     assert "15 minutes" in out
+    # This build serves no /reset-password page (web 2.12): the CLI gives the
+    # API call instead, and where the docs are (review S2).
+    assert "/reset-password" not in out
+    assert "/api/auth/password-reset" in out
+    assert "Recovering from a lost password" in out
+
+
+def test_the_cli_says_the_api_token_is_not_changed(auth, capsys):
+    """Review S1: a reset is recovery from a lost password, not from a compromise."""
+    _, out = mint(auth, capsys)
+
+    assert "MCP/API token is not changed" in out
+
+
+def test_the_cli_never_creates_the_sessions_database(tmp_path, capsys):
+    """Review S3: run as the wrong user or against the wrong data folder, it
+    must fail clearly rather than leave an empty (root-owned) database."""
+    import json
+
+    account = tmp_path / "auth.json"
+    account.write_text(json.dumps({"version": 1, "users": [{"username": "admin", "password_hash": "x"}]}))
+
+    status = _module().main([], auth_file=account)
+
+    assert status == 1
+    assert not (tmp_path / "auth_sessions.sqlite3").exists()
+    assert "auth_sessions.sqlite3" in capsys.readouterr().out
+
+
+def test_one_code_raced_from_separate_stores_is_used_once(auth, capsys):
+    """Review N5 (T5): separate processes each open their own store; exactly one consume wins."""
+    import threading
+
+    from src.auth.session_store import SessionStore
+
+    code = minted_code(auth, capsys)
+    stores = [SessionStore(auth.sessions.path) for _ in range(16)]
+    results, start = [], threading.Barrier(16)
+
+    def race(store):
+        start.wait()
+        results.append(store.consume_password_reset(code))
+
+    threads = [threading.Thread(target=race, args=(store,)) for store in stores]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert len(results) == 16 and results.count("admin") == 1 and results.count(None) == 15
 
 
 def test_only_the_codes_digest_is_stored(auth, capsys):
