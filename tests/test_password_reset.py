@@ -116,9 +116,9 @@ def test_without_an_account_the_cli_stores_nothing(tmp_path, capsys):
 
     empty = auth_module.AuthService(tmp_path / "auth.json")
 
-    status, out = _module().main([], auth_file=empty._path)
+    status = _module().main([], auth_file=empty._path)
 
-    assert status == 1 and "fb_reset_" not in out
+    assert status == 1 and "fb_reset_" not in capsys.readouterr().out
     with empty.sessions.transaction() as db:
         assert db.execute("SELECT COUNT(*) FROM password_resets").fetchone()[0] == 0
 
@@ -221,8 +221,8 @@ def test_a_code_minted_before_a_username_change_no_longer_works(auth, capsys):
 
     auth.change_username("admin", PASSWORD, "owner")
 
-    assert reset(code).status_code == 400
     assert rows(auth) == []
+    assert reset(code).status_code == 400
 
 
 def test_a_password_change_cancels_pending_codes(auth, capsys):
@@ -261,11 +261,9 @@ def test_a_malformed_request_is_refused(auth, body):
 
 
 def test_the_only_reset_route_consumes_a_code():
-    routes = [
-        (sorted(getattr(route, "methods", []) or []), route.path)
-        for route in app.routes
-        if "reset" in getattr(route, "path", "")
-    ]
+    from tests.test_route_inventory import build_route_inventory
+
+    routes = [(route["methods"], route["path"]) for route in build_route_inventory() if "reset" in route["path"]]
 
     assert routes == [(["POST"], "/auth/password-reset")]
 
