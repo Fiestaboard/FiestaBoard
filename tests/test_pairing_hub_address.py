@@ -11,6 +11,7 @@ its LAN address. The QR uses the first, or the one the web picks from that
 list. No loopback address is ever offered; with none left the offer is a 409.
 """
 
+import logging
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -37,7 +38,8 @@ def network(monkeypatch):
     if hub_addresses is not None:
         monkeypatch.setattr(hub_addresses, "mdns_service", lambda: state["mdns"])
         monkeypatch.setattr(hub_addresses, "lan_ipv4", lambda: state["ip"])
-        monkeypatch.setattr(hub_addresses, "in_docker", lambda: state["docker"])
+        # The bridge test, not "in Docker": host networking keeps a real 172.16/12 LAN (review S3).
+        monkeypatch.setattr(hub_addresses, "in_bridge_network", lambda: state["docker"], raising=False)
     monkeypatch.delenv("FIESTABOARD_EXTERNAL_URL", raising=False)
     return state
 
@@ -192,7 +194,10 @@ def test_an_address_not_on_the_list_is_refused(auth, network, on_the_hub, hub):
     """The QR can only point at this hub: a picked address must be one it offered."""
     response = _offer(on_the_hub, hub=hub)
 
-    assert response.status_code == 422
+    # A body that passed validation and is refused on meaning: 400, never a
+    # hand-raised 422 (API_CONVENTIONS, #1923; review M1).
+    assert response.status_code == 400
+    assert response.json()["error"] == "invalid_request"
     with auth.sessions.transaction() as db:
         assert db.execute("SELECT COUNT(*) FROM pairings").fetchone()[0] == 0
 
@@ -213,9 +218,69 @@ def test_an_address_not_on_the_list_is_refused(auth, network, on_the_hub, hub):
         ("192.168.1.50", False),
         ("[fd00::1]", False),
         ("localhost.example.com", False),
+        ("localhost.", True),
+        ("LocalHost.", True),
+        ("app.localhost.", True),
     ],
 )
 def test_what_counts_as_loopback(host, loopback):
     from src.auth.hub_addresses import is_loopback
 
     assert is_loopback(host) is loopback
+
+
+def test_a_trailing_dot_localhost_origin_never_reaches_the_qr(auth, network):
+    payload = _ok(_signed_in("http://localhost.:4420"))
+
+    assert payload["hub"] == "http://fiestaboard.local:4420"
+    assert "localhost" not in payload["qr_payload"]
+
+
+# ── a misconfigured external URL is said, once (review S2) ──────────────────
+
+
+def test_a_malformed_external_url_is_logged_once(auth, network, on_the_hub, monkeypatch, caplog):
+    monkeypatch.setenv("FIESTABOARD_EXTERNAL_URL", "https://hub.example.com/fiesta")
+    caplog.set_level(logging.WARNING, logger="src.auth.hub_addresses")
+
+    _ok(on_the_hub)
+    _ok(on_the_hub)
+
+    warnings = [r.getMessage() for r in caplog.records if r.name == "src.auth.hub_addresses"]
+    assert len(warnings) == 1
+    assert "FIESTABOARD_EXTERNAL_URL" in warnings[0] and "scheme://host[:port]" in warnings[0]
+
+
+@pytest.mark.parametrize("configured", [None, "https://hub.example.com:8443"])
+def test_an_unset_or_good_external_url_is_not_logged(auth, network, on_the_hub, monkeypatch, caplog, configured):
+    if configured:
+        monkeypatch.setenv("FIESTABOARD_EXTERNAL_URL", configured)
+    caplog.set_level(logging.WARNING, logger="src.auth.hub_addresses")
+
+    _ok(on_the_hub)
+
+    assert [r for r in caplog.records if r.name == "src.auth.hub_addresses"] == []
+
+
+# ── a bridge network, not merely Docker (review S3) ─────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("dockerenv", "docker0", "bridge"),
+    [(True, False, True), (True, True, False), (False, False, False), (False, True, False)],
+    ids=["bridge-container", "host-network-container", "no-docker", "docker-host-itself"],
+)
+def test_a_bridge_network_is_docker_without_the_hosts_docker0(tmp_path, monkeypatch, dockerenv, docker0, bridge):
+    """In a bridge container the host's ``docker0`` is not visible; with
+    ``network_mode: host`` it is, and the container's LAN address is real."""
+    from src.auth import hub_addresses
+
+    marker, iface = tmp_path / ".dockerenv", tmp_path / "docker0"
+    if dockerenv:
+        marker.touch()
+    if docker0:
+        iface.mkdir()
+    monkeypatch.setattr(hub_addresses, "DOCKERENV", marker)
+    monkeypatch.setattr(hub_addresses, "HOST_DOCKER_BRIDGE", iface)
+
+    assert hub_addresses.in_bridge_network() is bridge
