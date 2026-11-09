@@ -40,6 +40,7 @@ def network(monkeypatch):
         monkeypatch.setattr(hub_addresses, "lan_ipv4", lambda: state["ip"])
         # The bridge test, not "in Docker": host networking keeps a real 172.16/12 LAN (review S3).
         monkeypatch.setattr(hub_addresses, "in_bridge_network", lambda: state["docker"], raising=False)
+        monkeypatch.setattr(hub_addresses, "_warned", set(), raising=False)
     monkeypatch.delenv("FIESTABOARD_EXTERNAL_URL", raising=False)
     return state
 
