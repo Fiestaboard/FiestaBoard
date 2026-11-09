@@ -329,7 +329,7 @@ async def test_board_connection(request: BoardTestRequest):
 
 
 @router.post("/config/board/existing", response_model=ExistingBoardsResponse, responses=errors(422))
-async def existing_boards(request: ExistingBoardRequest):
+def existing_boards(request: ExistingBoardRequest):
     """Which boards already use this display (H19): read-only, for the setup wizard.
 
     Matches the host (any output, note-array tiles included; compared as

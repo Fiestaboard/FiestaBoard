@@ -15,7 +15,9 @@ deliberately literal:
   address is one device, whichever output drives it.
 - **Secrets** (a cloud key, a note-array token) match by constant-time
   comparison and are never returned. An empty or masked (``***``) one
-  matches nothing.
+  matches nothing. A local API key is deliberately *not* compared: the host
+  already identifies a local board, and comparing keys would only add a
+  key-confirmation oracle.
 """
 
 from __future__ import annotations
@@ -30,19 +32,30 @@ from src.settings.board_shape import VESTABOARD, board_view
 _MASKED = "***"
 
 
-def normalize_host(value: Any) -> str:
-    """*value* as a comparable host: ``"HTTP://Pixoo.Local./"`` is ``"pixoo.local"``."""
+def split_host_port(value: Any) -> tuple[str, int | None]:
+    """*value* as ``(comparable host, port written into it or None)``:
+    ``"HTTP://Pixoo.Local.:7001/"`` is ``("pixoo.local", 7001)``."""
     text = str(value or "").strip().lower()
     if not text:
-        return ""
+        return "", None
     if "://" in text:
         text = urlsplit(text).netloc
     text = text.split("/", 1)[0]
+    port = None
     if text.startswith("["):  # [v6]:port
-        text = text[1 : text.index("]")] if "]" in text else text[1:]
+        end = text.find("]")
+        host, rest = (text[1:end], text[end + 1 :]) if end >= 0 else (text[1:], "")
+        port = _port(rest[1:]) if rest.startswith(":") else None
+        text = host
     elif text.count(":") == 1:  # host:port
-        text = text.split(":", 1)[0]
-    return text.rstrip(".")
+        text, written = text.split(":", 1)
+        port = _port(written)
+    return text.rstrip("."), port
+
+
+def normalize_host(value: Any) -> str:
+    """*value* as a comparable host: ``"HTTP://Pixoo.Local./"`` is ``"pixoo.local"``."""
+    return split_host_port(value)[0]
 
 
 def _port(value: Any) -> int | None:
@@ -94,7 +107,9 @@ def existing_boards(
     exclude_board_id: str | None = None,
 ) -> list[dict[str, str]]:
     """``[{board_id, name, output, matched}]``: the boards already using this display, each once."""
-    wanted = normalize_host(host)
+    wanted, written_port = split_host_port(host)
+    if port is None:
+        port = written_port  # "host:port" with no port field names that port
     found = []
     for board in boards:
         if not isinstance(board, Mapping) or board.get("id") == exclude_board_id:

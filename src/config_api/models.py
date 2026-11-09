@@ -186,7 +186,9 @@ class ExistingBoardRequest(BaseModel):
     port: int | None = Field(default=None, ge=1, le=65535)
     cloud_key: str | None = Field(default=None, max_length=512)
     note_array_token: str | None = Field(default=None, max_length=512)
-    exclude_board_id: str | None = Field(default=None, description="The board being edited, never its own duplicate.")
+    exclude_board_id: str | None = Field(
+        default=None, max_length=128, description="The board being edited, never its own duplicate."
+    )
 
 
 class ExistingBoardsResponse(BaseModel):

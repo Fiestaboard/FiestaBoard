@@ -238,7 +238,14 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
         logger.error(f"Board connection test error: {e}", exc_info=True)
         raise BoardProbeError(500, "Board connection test failed unexpectedly.") from e
     # H19: the boards already using this display, so the wizard can say so.
-    verdict["existing_boards"] = hub_existing_boards(host=request.host, port=request.port, cloud_key=request.cloud_key)
+    try:
+        verdict["existing_boards"] = hub_existing_boards(
+            host=request.host, port=request.port, cloud_key=request.cloud_key
+        )
+    except Exception:
+        # The board answered; a failing lookup must not turn that into a 500.
+        logger.error("Existing-board check failed during a connection test; reporting none", exc_info=True)
+        verdict["existing_boards"] = []
     return verdict
 
 
