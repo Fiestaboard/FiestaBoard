@@ -137,6 +137,22 @@ def test_a_tv_approved_in_a_browser_names_the_browser(auth):
     assert (approver["kind"], approver["label"], approver["signed_in"]) == ("browser", "Chrome on macOS", True)
 
 
+EDGE_WINDOWS = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0"
+)
+
+
+def test_a_long_user_agent_keeps_its_browser_token(auth):
+    """Edge and Opera name themselves at the end of a 125-character agent:
+    the stored name must keep it, or Edge would read as Chrome."""
+    assert len(EDGE_WINDOWS) > 100
+    edge = browser_with(EDGE_WINDOWS)
+    tv = approved_tv(auth, edge)
+
+    assert rows(edge)[tv["session_id"]]["approved_by"]["label"] == "Edge on Windows"
+
+
 def test_an_unrecognised_browser_is_a_web_browser(auth, browser):
     tv = approved_tv(auth, browser)
 
