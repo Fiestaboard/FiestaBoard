@@ -288,12 +288,13 @@ def test_the_cascade_needs_a_browser_mutation(auth, browser, two_phones):
 def test_a_cascade_that_failed_partway_finishes_on_retry(auth, browser, two_phones, monkeypatch):
     """A storage error on the first TV leaves the phone signed out; the retry
     must still find and sign out the TVs that phone approved."""
-    first, second = two_phones["maya_tvs"]
+    tv_ids = {tv["session_id"] for tv in two_phones["maya_tvs"]}
     real = auth.sessions.revoke_session
     failed = []
 
     def flaky(username, session_id):
-        if session_id == first["session_id"] and not failed:
+        # The first TV the cascade reaches fails (TVs go in id order, and ids are random).
+        if session_id in tv_ids and not failed:
             failed.append(session_id)
             raise OSError("disk hiccup")
         return real(username, session_id)
@@ -302,10 +303,12 @@ def test_a_cascade_that_failed_partway_finishes_on_retry(auth, browser, two_phon
     path = "/auth/sessions/" + two_phones["maya"]["session_id"]
 
     assert browser.delete(path, params={"include_approved": True}).status_code == 503
+    assert not works(two_phones["maya"]["access_token"])  # the phone went first
     retry = browser.delete(path, params={"include_approved": True})
 
     assert retry.status_code == 200
-    assert sorted(retry.json()["also_signed_out"]) == sorted([first["session_id"], second["session_id"]])
+    # The first TV reached failed, so neither was signed out: the retry takes both.
+    assert failed and sorted(retry.json()["also_signed_out"]) == sorted(tv_ids)
     assert not any(works(tv["access_token"]) for tv in two_phones["maya_tvs"])
 
 
