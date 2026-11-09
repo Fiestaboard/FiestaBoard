@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from tests.test_schedule_at import _at, _collection, _schedule, board, la_hub, quiet  # noqa: F401
+from tests.test_schedule_at import _at, _collection, _schedule, board, date_time_on, la_hub, quiet  # noqa: F401
 from tests.test_v1_contract import _seed_page, board_client, boards, client  # noqa: F401 - fixtures
 
 RAIN = "weather.precip_chance > 60"
@@ -91,6 +91,52 @@ def test_missing_data_is_an_error_that_does_not_match(client, menu):
     assert "weather" in body["sources"]
 
 
+def _evening_after(pages, expression="date_time.hour >= 17"):
+    return _collection(
+        [pages["Breakfast"], pages["Evening"]],
+        selection_mode="variable",
+        variable={
+            "rules": [{"expression": expression, "page_id": pages["Evening"]}],
+            "default_page_id": pages["Breakfast"],
+        },
+    )
+
+
+def test_a_date_time_rule_reads_the_plugin_at_the_instant(client, board, date_time_on):
+    """``date_time`` is computed at ``at`` (the hub editor's own seeded rule),
+    not at the real current time: 16:00 and 18:00 differ whatever the hour
+    is now."""
+    _, pages = board
+    collection = _evening_after(pages)
+
+    at_four = _ok(client, collection.id, at=_at(16, 0).isoformat())
+    at_six = _ok(client, collection.id, at=_at(18, 0).isoformat())
+
+    assert (at_four["page_id"], at_four["rules"][0]["matched"]) == (pages["Breakfast"], False)
+    assert (at_six["page_id"], at_six["rules"][0]["matched"]) == (pages["Evening"], True)
+
+
+def test_a_date_time_timeline_follows_the_plugin_across_the_window(client, board, date_time_on):
+    _, pages = board
+    collection = _evening_after(pages)
+
+    body = _ok(client, collection.id, at=_at(16, 0).isoformat(), window_seconds=7200, step_seconds=1800)
+
+    assert body["timeline"] == [
+        {"from": _iso(_at(16, 0)), "until": _iso(_at(17, 0)), "page_id": pages["Breakfast"]},
+        {"from": _iso(_at(17, 0)), "until": _iso(_at(18, 0)), "page_id": pages["Evening"]},
+    ]
+
+
+def test_a_sampled_date_time_value_still_wins_over_the_instant(client, board, date_time_on):
+    _, pages = board
+    collection = _evening_after(pages)
+
+    body = _ok(client, collection.id, at=_at(9, 0).isoformat(), values={"date_time.hour": 20})
+
+    assert body["page_id"] == pages["Evening"]
+
+
 # ── the timeline ────────────────────────────────────────────────────────────
 
 
@@ -150,6 +196,67 @@ def test_a_fast_rotation_over_a_long_window_is_truncated(client, board):
     body = _ok(client, collection.id, at=_at(9, 0).isoformat(), window_seconds=3600)
 
     assert len(body["timeline"]) == 96 and body["truncated"] is True
+    assert body["truncated_reason"] == "segments"
+
+
+# ── the shared render budget (S2) ───────────────────────────────────────────
+
+LIGHT = 'COUNT(SPLIT(REPT("a,",200), ",")) > 0'
+
+
+def _light_rules(pages, count):
+    return _collection(
+        [pages["Breakfast"], pages["Evening"]],
+        selection_mode="variable",
+        variable={
+            "rules": [{"expression": LIGHT, "page_id": pages["Evening"]} for _ in range(count)],
+            "default_page_id": pages["Breakfast"],
+        },
+    )
+
+
+def test_every_evaluation_of_a_dry_run_draws_on_one_render_budget(client, board, monkeypatch):
+    """Each rule alone is far under its own budget; three of them pass a
+    render budget of two and a half."""
+    from src.templates import expressions
+
+    _, pages = board
+    collection = _light_rules(pages, 3)
+    monkeypatch.setattr(expressions, "MAX_RENDER_STEPS", int(2.5 * expressions.count_steps(LIGHT)))
+
+    rules = _ok(client, collection.id, at=_at(9, 0).isoformat())["rules"]
+
+    assert [r["matched"] for r in rules[:2]] == [True, True]
+    assert rules[2]["error"] == "#VALUE" and "one render" in rules[2]["message"]
+
+
+def test_a_timeline_stops_where_the_budget_ran_out_and_says_so(client, board, monkeypatch):
+    """Not the default page from there on: the rules did not stop matching,
+    the hub stopped evaluating them."""
+    from src.templates import expressions
+
+    _, pages = board
+    collection = _light_rules(pages, 4)
+    per_point = 4 * expressions.count_steps(LIGHT)
+    monkeypatch.setattr(expressions, "MAX_RENDER_STEPS", int(3.5 * per_point))
+    start = _at(9, 0)
+
+    body = _ok(client, collection.id, at=start.isoformat(), window_seconds=6 * 3600, step_seconds=1800)
+
+    assert body["timeline"] == [
+        {"from": _iso(start), "until": _iso(start + timedelta(seconds=3 * 1800)), "page_id": pages["Evening"]}
+    ]
+    assert body["truncated"] is True and body["truncated_reason"] == "budget"
+
+
+def test_an_untruncated_timeline_gives_no_reason(client, menu):
+    _, _, collection = menu
+
+    body = _ok(
+        client, collection.id, at=_at(9, 0).isoformat(), window_seconds=3600, values={"weather.precip_chance": 1}
+    )
+
+    assert body["truncated"] is False and body["truncated_reason"] is None
 
 
 # ── where it shows ──────────────────────────────────────────────────────────
