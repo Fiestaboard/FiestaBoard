@@ -5,13 +5,14 @@ from __future__ import annotations
 import logging
 import secrets
 import time
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
 from src.api_errors import errors
 
-from .device_models import TVSignInCapability
+from .device_models import AuthFlowError, TVSignInCapability
 from .device_service import DeviceService
 from .middleware import _bearer_from
 from .service import (
@@ -402,6 +403,38 @@ def auth_change_password(payload: ChangePasswordRequest, request: Request, respo
     new_token = svc.authenticate(username, payload.new_password)
     _set_session_cookie(response, request, new_token)
     return SimpleResponse(status="ok", username=username)
+
+
+class PasswordResetRequest(BaseModel):
+    """``POST /auth/password-reset``: a code from ``python -m src.auth.password_reset``."""
+
+    model_config = {"extra": "forbid"}
+
+    code: str = Field(..., min_length=1, max_length=256)
+    new_password: str = Field(..., min_length=8, max_length=1024)
+
+
+class PasswordResetResponse(BaseModel):
+    status: Literal["ok"] = "ok"
+
+
+@router.post("/password-reset", response_model=PasswordResetResponse, responses=errors(400, 422, 429))
+def auth_password_reset(payload: PasswordResetRequest, request: Request) -> PasswordResetResponse:
+    """Set a new password with a one-time reset code (H17). Public: the owner has no session.
+
+    Only the CLI inside the container mints codes (no route does). A code
+    works once, for 15 minutes. Every miss is the same 400 and counts toward
+    the sign-in lockout. Success signs out every browser, TV and phone, and
+    signs nobody in.
+    """
+    from .password_reset import redeem
+
+    ip = _client_ip(request)
+    _check_lockout(ip)
+    if redeem(payload.code, payload.new_password) is None:
+        _record_failure(ip)
+        raise AuthFlowError("invalid_grant", "That reset code is invalid or has expired. Run the reset command again.")
+    return PasswordResetResponse()
 
 
 @router.post("/change-username", response_model=SimpleResponse, responses=errors(400, 401))
