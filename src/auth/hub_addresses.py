@@ -10,14 +10,19 @@ first, and never a loopback one:
 2. ``configured``: the operator's ``FIESTABOARD_EXTERNAL_URL``;
 3. ``mdns``: the ``<hostname>.local`` name this hub advertises (the same name
    as H13's TXT ``host=``), while the advertisement is up;
-4. ``lan``: this host's LAN IPv4, on the browser's port. Inside Docker's
-   default bridge network that address (172.16.0.0/12) is the container's
-   own, which no phone can reach, so it is left out there.
+4. ``lan``: this host's LAN IPv4, on the browser's port. Inside a Docker
+   bridge network that address (172.16.0.0/12) is the container's own,
+   which no phone can reach, so it is left out there. A bridge network is
+   told from ``network_mode: host`` by the host's ``docker0`` interface:
+   visible in a host-network container, absent in a bridged one. (A host
+   with Docker's default bridge removed reads as bridged; set
+   ``FIESTABOARD_EXTERNAL_URL`` there.)
 """
 
 from __future__ import annotations
 
 import ipaddress
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -26,6 +31,13 @@ from .origins import normalized_origin
 
 Origin = tuple[str, str, int]
 _DOCKER_BRIDGE = ipaddress.ip_network("172.16.0.0/12")
+#: Docker's marker file, and the host's default-bridge interface (seen only with host networking).
+DOCKERENV = Path("/.dockerenv")
+HOST_DOCKER_BRIDGE = Path("/sys/class/net/docker0")
+
+logger = logging.getLogger(__name__)
+#: The malformed FIESTABOARD_EXTERNAL_URL values already logged (say it once, not per offer).
+_warned: set[str] = set()
 
 
 def mdns_service() -> Any:
@@ -40,13 +52,14 @@ def lan_ipv4() -> str:
     return local_ipv4()
 
 
-def in_docker() -> bool:
-    return Path("/.dockerenv").exists()
+def in_bridge_network() -> bool:
+    """Whether this runs in a Docker bridge network, where the LAN address seen is the container's."""
+    return DOCKERENV.exists() and not HOST_DOCKER_BRIDGE.exists()
 
 
 def is_loopback(host: str) -> bool:
     """Whether *host* means "this machine" to whoever reads it (a scanning phone included)."""
-    host = host.strip("[]").lower()
+    host = host.strip("[]").rstrip(".").lower()
     if host == "localhost" or host.endswith(".localhost"):
         return True
     try:
@@ -71,10 +84,26 @@ def _lan(origin: Origin | None) -> Origin | None:
         address = ipaddress.ip_address(ip)
     except ValueError:
         return None
-    if address.is_loopback or address.is_unspecified or (in_docker() and address in _DOCKER_BRIDGE):
+    if address.is_loopback or address.is_unspecified or (in_bridge_network() and address in _DOCKER_BRIDGE):
         return None
     scheme, port = (origin[0], origin[2]) if origin else ("http", int(os.environ.get("MDNS_PORT", "4420")))
     return scheme, ip, port
+
+
+def _configured() -> Origin | None:
+    """``FIESTABOARD_EXTERNAL_URL`` as an origin; a malformed one is logged (once) and skipped."""
+    raw = os.environ.get("FIESTABOARD_EXTERNAL_URL", "").strip()
+    if not raw:
+        return None
+    origin = normalized_origin(raw)
+    if origin is None and raw not in _warned:
+        _warned.add(raw)
+        logger.warning(
+            "FIESTABOARD_EXTERNAL_URL=%r is not used for the phone pairing QR: it must be "
+            "scheme://host[:port] with no path (a sub-path reverse proxy is not supported here)",
+            raw,
+        )
+    return origin
 
 
 def hub_addresses(origin: Origin | None) -> list[dict[str, str]]:
@@ -82,7 +111,7 @@ def hub_addresses(origin: Origin | None) -> list[dict[str, str]]:
     service = mdns_service()
     candidates: list[tuple[Origin | None, str]] = [
         (origin, "browser"),
-        (normalized_origin(os.environ.get("FIESTABOARD_EXTERNAL_URL", "").strip()), "configured"),
+        (_configured(), "configured"),
         (normalized_origin(service.local_url) if service.is_running else None, "mdns"),
         (_lan(origin), "lan"),
     ]

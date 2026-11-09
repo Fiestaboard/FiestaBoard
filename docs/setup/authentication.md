@@ -185,7 +185,7 @@ CORS never applies to them.
   A TV that signed in with a code also says who approved it: the phone's name,
   or the browser as `<Browser> on <OS>` (from its user agent; "a web browser"
   when that says neither). Signing out a phone can also sign out the TVs that
-  phone approved.
+  phone approved, even a phone that has already signed itself out.
 
 The corresponding API endpoints are also available:
 
@@ -282,6 +282,11 @@ credential as a password sign-in, listed in **Signed-in devices** as a QR / code
   `hub_addresses`, and the web app may ask for another one from that list. If the hub
   knows no such address, it says so instead of showing a QR: open the web app at the
   hub's network address, or set `FIESTABOARD_EXTERNAL_URL`.
+  `FIESTABOARD_EXTERNAL_URL` must be `scheme://host[:port]` with no path (a reverse
+  proxy on a sub-path isn't supported here); a value that isn't is logged once and
+  skipped. In Docker's default bridge network the hub's own LAN address is the
+  container's, so it's left out; with `network_mode: host` it's kept. If you removed
+  Docker's default bridge, set `FIESTABOARD_EXTERNAL_URL` instead.
 
 The endpoints are `POST /auth/pairing` (browser session), `GET /auth/pairing/{id}`,
 `DELETE /auth/pairing` and `POST /auth/pairing/claim` (the app).
