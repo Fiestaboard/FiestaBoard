@@ -332,3 +332,64 @@ def test_ordinary_formulas_never_see_the_deadline(monkeypatch):
     monkeypatch.setattr(expressions, "_eval_clock", time.monotonic)
 
     assert evaluate(f"COUNT(FILTER({A}, TRUE))") == "32769"
+
+
+# ── W2b: the render deadline also holds for many small formulas ─────────────
+
+SMALL = 'COUNT(FILTER(SPLIT(REPT("a,",100), ","), TRUE))'  # a few hundred steps
+
+
+def _bare_engine() -> TemplateEngine:
+    engine = TemplateEngine.__new__(TemplateEngine)
+    engine._plugin_registry = None
+    return engine
+
+
+def test_many_small_formulas_cannot_outlast_the_render_deadline(monkeypatch):
+    """Each formula stays far under the 1 024 steps between its own deadline
+    checks, so only a check at each formula's start (or one driven by the
+    render's cumulative steps) sees the render's three seconds pass."""
+    assert expressions.count_steps(SMALL) < expressions.DEADLINE_CHECK_STEPS
+    monkeypatch.setattr(expressions, "_eval_clock", _FakeClock(0.1))
+
+    rows = (
+        _bare_engine()
+        .render_lines([f"{{{{= {SMALL} }}}}"] * 60, {}, device_type="panel", grid_rows=60, grid_cols=40)
+        .split("\n")
+    )
+
+    assert rows[0].strip() == "101"
+    assert rows[-1].strip() == "#VALUE"
+
+
+def test_the_render_deadline_is_checked_by_the_render_s_steps(monkeypatch):
+    """A formula that starts in time but runs the render's step count across
+    a check interval sees the deadline, even though its own steps stay under
+    one interval."""
+    # The render's budget starts at 0 and the formula's at 2.5 s (in time);
+    # every later read is 3.4 s: past the render's three seconds, not past
+    # the formula's one.
+    reads = iter([0.0, 2.5])
+    monkeypatch.setattr(expressions, "_eval_clock", lambda: next(reads, 3.4))
+    context = expressions.ensure_render_clock({})
+    context[expressions._RENDER_BUDGET_KEY].steps = expressions.DEADLINE_CHECK_STEPS - 10
+
+    with pytest.raises(expressions.FormulaError) as caught:
+        expressions._eval_node(expressions._Parser(expressions._tokenize(SMALL)).parse(), context)
+
+    assert "took too long" in caught.value.message
+    assert "one render" in caught.value.message
+
+
+def test_a_formula_that_starts_past_the_render_deadline_does_not_run(monkeypatch):
+    """Checked at the formula's start: a one-step formula never reaches a
+    step interval, so nothing else would read the clock for it."""
+    reads = iter([0.0])  # the render's budget; the formula starts at 3.4 s
+    monkeypatch.setattr(expressions, "_eval_clock", lambda: next(reads, 3.4))
+    context = expressions.ensure_render_clock({})
+
+    with pytest.raises(expressions.FormulaError) as caught:
+        expressions._eval_node(expressions._Parser(expressions._tokenize('"hello"')).parse(), context)
+
+    assert "took too long" in caught.value.message
+    assert "one render" in caught.value.message
