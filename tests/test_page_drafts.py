@@ -260,3 +260,157 @@ def test_a_draft_file_is_versioned_and_names_its_page(client, page, _isolated_da
     assert stored["schema_version"] == 1
     assert stored["page_id"] == page
     assert page not in path.name  # the file name is a digest, never the raw id
+
+
+# ── files this build can't fully read (review #2463 must-fix 1) ─────────────
+# A draft is a sidecar a newer build (or a hand edit) can write. Reads fall
+# back: a value this build doesn't know is normalised or the draft is
+# skipped, and logged. A read never 500s, and one bad file never takes down
+# every page's Draft badge.
+
+
+def _draft_file(data_dir, page_id):
+    from src.pages.history import _digest
+
+    return data_dir / "page_drafts" / f"{_digest(page_id)}.json"
+
+
+def _rewrite_draft(data_dir, page_id, **changes):
+    path = _draft_file(data_dir, page_id)
+    stored = json.loads(path.read_text())
+    for key, value in changes.items():
+        if value is _DROP:
+            stored.pop(key, None)
+        else:
+            stored[key] = value
+    path.write_text(json.dumps(stored))  # json.dumps writes NaN as a bare NaN, as json.loads reads it
+    _restart()
+
+
+_DROP = object()
+
+
+def test_a_draft_from_an_unknown_client_reads_with_no_via(client, page, _isolated_data_dir):
+    _ok_draft(client, page, name="From a TV")
+    _rewrite_draft(_isolated_data_dir, page, via="tv")
+    response = client.get(f"/pages/{page}/draft")
+    assert response.status_code == 200, response.text
+    assert response.json()["via"] is None
+    assert response.json()["content"]["name"] == "From a TV"
+    assert client.get("/pages/drafts").status_code == 200
+
+
+def test_a_draft_with_no_revision_is_skipped_and_the_other_badges_stay(client, page, _isolated_data_dir):
+    other = _seed_page(client, "Other")
+    _ok_draft(client, page, name="Broken")
+    _ok_draft(client, other, name="Fine")
+    _rewrite_draft(_isolated_data_dir, page, revision=_DROP)
+    response = client.get("/pages/drafts")
+    assert response.status_code == 200, response.text
+    assert [d["page_id"] for d in response.json()["drafts"]] == [other]
+    assert client.get(f"/pages/{page}/draft").status_code == 404
+
+
+@pytest.mark.parametrize("saved_at", [float("nan"), float("inf"), -5.0, 1e20, "yesterday"])
+def test_a_draft_with_a_bad_instant_is_skipped(client, page, _isolated_data_dir, saved_at):
+    other = _seed_page(client, "Other")
+    _ok_draft(client, page, name="Broken")
+    _ok_draft(client, other, name="Fine")
+    _rewrite_draft(_isolated_data_dir, page, saved_at=saved_at)
+    response = client.get("/pages/drafts")
+    assert response.status_code == 200, response.text
+    assert [d["page_id"] for d in response.json()["drafts"]] == [other]
+    assert client.get(f"/pages/{page}/draft").status_code == 404
+
+
+def test_a_skipped_draft_can_be_replaced_by_a_new_save(client, page, _isolated_data_dir):
+    _ok_draft(client, page, name="Broken")
+    _rewrite_draft(_isolated_data_dir, page, revision=_DROP)
+    body = _ok_draft(client, page, name="Fresh")
+    assert body["content"]["name"] == "Fresh"
+    assert client.get(f"/pages/{page}/draft").json()["revision"] == body["revision"]
+
+
+def test_a_draft_from_a_newer_build_is_409_on_write_not_500(client, page, _isolated_data_dir):
+    _ok_draft(client, page, name="Newer")
+    _rewrite_draft(_isolated_data_dir, page, schema_version=99)
+    before = _draft_file(_isolated_data_dir, page).read_text()
+    # Reads fall back: there is no draft this build can show.
+    assert client.get(f"/pages/{page}/draft").status_code == 404
+    assert client.get("/pages/drafts").json() == {"drafts": []}
+    # Writes refuse, and say why without naming a path.
+    response = _draft(client, page, name="Older")
+    assert response.status_code == 409, response.text
+    assert "newer version" in response.json()["detail"]
+    assert "page_drafts" not in response.json()["detail"]
+    assert _draft_file(_isolated_data_dir, page).read_text() == before
+
+
+def test_restoring_over_a_draft_from_a_newer_build_is_409(client, page, _isolated_data_dir):
+    rev = client.get(f"/pages/{page}/revisions").json()["revisions"][0]["id"]
+    _ok_draft(client, page, name="Newer")
+    _rewrite_draft(_isolated_data_dir, page, schema_version=99)
+    response = client.post(f"/pages/{page}/revisions/{rev}/restore", json={"replace_draft": True})
+    assert response.status_code == 409, response.text
+
+
+# ── publish guards (review #2463 should-fixes) ──────────────────────────────
+
+
+def test_publishing_another_devices_draft_is_412_when_the_draft_revision_is_sent(client, page):
+    mine = _ok_draft(client, page, name="From A")
+    _ok_draft(client, page, name="From B")  # another device saved over it
+    response = client.post(f"/pages/{page}/draft/publish", json={"expected_draft_revision": mine["revision"]})
+    assert response.status_code == 412, response.text
+    assert client.get(f"/pages/{page}").json()["name"] == "Commute"
+    assert client.get(f"/pages/{page}/draft").json()["content"]["name"] == "From B"
+
+
+def test_publishing_with_the_current_draft_revision_succeeds(client, page):
+    mine = _ok_draft(client, page, name="From A")
+    response = client.post(f"/pages/{page}/draft/publish", json={"expected_draft_revision": mine["revision"]})
+    assert response.status_code == 200, response.text
+    assert response.json()["page"]["name"] == "From A"
+
+
+@pytest.fixture
+def beta(monkeypatch):
+    """Flip the transition-plugin beta on the live settings object; monkeypatch restores it."""
+    from src.settings.service import get_settings_service
+
+    plugins = get_settings_service().get_plugin_settings()
+
+    def set_beta(on: bool) -> None:
+        monkeypatch.setattr(plugins, "transition_plugins_enabled", on)
+
+    return set_beta
+
+
+def test_publishing_a_plugin_transition_needs_the_beta(client, page, beta):
+    beta(True)
+    _ok_draft(client, page, transition_strategy="plugin:typewriter")
+    beta(False)
+    response = client.post(f"/pages/{page}/draft/publish")
+    assert response.status_code == 400, response.text
+    assert "beta" in response.json()["detail"]
+    assert client.get(f"/pages/{page}").json()["transition_strategy"] != "plugin:typewriter"
+    assert client.get(f"/pages/{page}/draft").status_code == 200
+
+
+def test_restoring_a_plugin_transition_needs_the_beta(client, page, beta):
+    beta(True)
+    assert client.put(f"/pages/{page}", json={"transition_strategy": "plugin:typewriter"}).status_code == 200
+    revs = client.get(f"/pages/{page}/revisions").json()["revisions"]
+    with_plugin = revs[0]["id"]
+    beta(False)
+    response = client.post(f"/pages/{page}/revisions/{with_plugin}/restore")
+    assert response.status_code == 400, response.text
+    assert client.get(f"/pages/{page}/draft").status_code == 404
+
+
+def test_a_draft_that_is_not_a_complete_page_is_400(client, page):
+    # Pydantic accepts an empty template; validate_config does not (mutant A15).
+    response = _draft(client, page, template=[])
+    assert response.status_code == 400, response.text
+    assert "template" in response.json()["detail"].lower()
+    assert client.get(f"/pages/{page}/draft").status_code == 404

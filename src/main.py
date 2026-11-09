@@ -2629,10 +2629,20 @@ class DisplayService:
 
             board_name = (board_dims_source or {}).get("name")
 
+            # When this send's render began: a failure copies the board's H12
+            # code only if H12 recorded it since (never a stale cause).
+            send_started: list[float] = []
+
             def _record(outcome: str) -> None:
                 # Per-page send history (H9b): what this page's sends did.
                 record_send(
-                    active_page_id, outcome=outcome, via="auto", board_id=board_id, board_name=board_name, service=self
+                    active_page_id,
+                    outcome=outcome,
+                    via="auto",
+                    board_id=board_id,
+                    board_name=board_name,
+                    service=self,
+                    started_at=send_started[-1] if send_started else None,
                 )
 
             def _after_page_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
@@ -2701,14 +2711,17 @@ class DisplayService:
                 rt,
                 board_id,
                 key=send_key,
-                send=lambda: client.render(
-                    board_array,
-                    strategy=strategy,
-                    step_interval_ms=interval_ms,
-                    step_size=step_size,
-                    device_type=device_type,
-                    **rich,
-                ),
+                send=lambda: (
+                    send_started.append(time.time()),
+                    client.render(
+                        board_array,
+                        strategy=strategy,
+                        step_interval_ms=interval_ms,
+                        step_size=step_size,
+                        device_type=device_type,
+                        **rich,
+                    ),
+                )[1],
                 on_complete=_after_page_send,
                 wait=wait,
                 sink=sink,
