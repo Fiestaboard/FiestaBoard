@@ -341,19 +341,21 @@ or signing key into public diagnostics.
 FiestaBoard has no email, so a reset starts where only the owner can act:
 inside the container.
 
-1. Mint a one-time reset code:
+1. Mint a one-time reset code, as the user the hub runs as:
 
    ```bash
-   docker compose exec fiestaboard python -m src.auth.password_reset
+   docker compose exec -u appuser fiestaboard python -m src.auth.password_reset
    ```
 
    It prints a code starting with `fb_reset_`. The code works **once**, for
    **15 minutes**, and only the newest code works. On a Raspberry Pi image, run
-   the same command over SSH from the folder you start FiestaBoard in.
-2. Open FiestaBoard at `/reset-password#code=<the code>`, or enter the code on
-   its **Reset password** page, and choose a new password. Until that page ships
-   in your version, send the code with the API, typing the password at a hidden
-   prompt so it stays out of your shell history:
+   the same command over SSH from the folder you start FiestaBoard in. In the
+   Home Assistant add-on, run it from the **Terminal & SSH** add-on (with
+   protection mode off so it can reach the FiestaBoard container), or use the
+   last resort below.
+2. Choose a new password with the code. Until the web app's **Reset password**
+   page ships, send it with the API, typing the password at a hidden prompt so
+   it stays out of your shell history:
 
    ```bash
    python3 -c 'import getpass, json; print(json.dumps({"code": input("Code: "), "new_password": getpass.getpass("New password: ")}))' |
@@ -365,6 +367,15 @@ inside the container.
    phone, the same as a password change. No web request can start a reset,
    and the code is never written to the logs. Wrong codes count toward the
    same lockout as wrong passwords.
+
+A reset does **not** change the MCP/API token. It's recovery from a lost
+password, not from a compromise: if you think the token leaked, rotate it in
+**Settings**.
+
+Wrong codes and wrong passwords share one lockout per client address (10 a
+minute). Behind a reverse proxy or Home Assistant ingress every visitor shares
+one address, so other people's failed attempts can make you wait a minute
+before trying again.
 
 As a last resort, stop the container, delete `data/auth.json` and restart.
 That also forgets the stored MCP token and your sign-in choice, and the next

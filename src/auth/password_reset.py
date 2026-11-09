@@ -1,18 +1,22 @@
 """Mint a one-time password-reset code, from inside the container (H17).
 
-Run where only the owner can::
+Run where only the owner can, as the user the hub runs as::
 
-    docker compose exec fiestaboard python -m src.auth.password_reset
+    docker compose exec -u appuser fiestaboard python -m src.auth.password_reset
 
 Whoever can run that already controls the hub (its data volume, signing key
 and account file), so the reset adds no remote attack surface: no network
 request can start one. The code works once, for 15 minutes, and only the
 newest one is live. Only its digest is stored, in ``auth_sessions.sqlite3``
 (the running server reads it per request). It is printed here, never logged.
-Use it at ``/reset-password`` (``POST /auth/password-reset``).
+Use it with ``POST /api/auth/password-reset`` (the web app's Reset password
+page comes with web 2.12).
 
 This never writes ``auth.json``: the running server caches that file and
-rewrites it whole.
+rewrites it whole. For the same reason it can't rotate the stored MCP/API
+token, which a reset leaves as it is (rotate it in Settings). It never
+creates ``auth_sessions.sqlite3`` either: run as the wrong user or against
+the wrong data folder, it stops instead of leaving an empty database behind.
 """
 
 from __future__ import annotations
@@ -80,16 +84,26 @@ def main(argv: list[str] | None = None, *, auth_file: Path | None = None) -> int
         print(f"There is no account named {username!r} on this hub.")
         return 1
 
-    store = SessionStore(auth_file.parent / "auth_sessions.sqlite3")
+    database = auth_file.parent / "auth_sessions.sqlite3"
+    if not database.exists():
+        print(
+            f"There is no {database}. Run this inside the FiestaBoard container, where the hub keeps "
+            "its data:\n    docker compose exec -u appuser fiestaboard python -m src.auth.password_reset"
+        )
+        return 1
+    store = SessionStore(database)
     code, expires_ms = store.create_password_reset(username, RESET_TTL_MS)
     expires = datetime.fromtimestamp(expires_ms / 1000, UTC).replace(microsecond=0).isoformat()
     print(f"One-time password reset code for {username} (works once, for 15 minutes, until {expires}):")
     print()
     print(f"    {code}")
     print()
-    print("Open FiestaBoard at /reset-password#code=" + code)
-    print("or enter the code on its Reset password page, then choose a new password.")
+    print("Choose a new password with it: POST /api/auth/password-reset")
+    print('with the JSON body {"code": "<the code>", "new_password": "<your new password>"}.')
+    print('The docs, "Recovering from a lost password", give a command that keeps the password')
+    print("out of your shell history.")
     print("Every signed-in browser, TV and phone will be signed out.")
+    print("The MCP/API token is not changed: rotate it in Settings if you think it leaked.")
     return 0
 
 
