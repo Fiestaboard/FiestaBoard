@@ -17,6 +17,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.board_guards import SilenceVerdict
+from src.pages.history import iso
 from tests.test_render_short_circuit import PAGE_ID, Rig
 from tests.test_v1_contract import _seed_page, board_client, boards, client  # noqa: F401 - fixtures
 
@@ -205,9 +206,8 @@ def test_a_ui_only_target_records_nothing(client, boards, page, board):
 def test_at_most_twenty_entries_newest_first(client, boards, page, board):
     from src.pages.sends import send_history
 
-    primary, _ = boards
-    for n in range(25):
-        send_history().record(page, outcome="sent", via="auto", board_id=primary, board_name=f"B{n}")
+    for n in range(25):  # a different board each time, so nothing merges
+        send_history().record(page, outcome="sent", via="auto", board_id=f"b{n}", board_name=f"B{n}")
     sends = _sends(client, page)
     assert len(sends) == 20
     assert sends[0]["board_name"] == "B24"
@@ -269,13 +269,17 @@ def test_a_board_that_keeps_failing_does_not_wipe_the_history(rig):
     # every pass; 25 of them must not push the earlier sends out of the window.
     from src.pages.sends import send_history
 
-    for n in range(3):
-        send_history().record(PAGE_ID, outcome="sent", via="auto", board_id="board-1", board_name=f"Earlier {n}")
+    send_history().record(PAGE_ID, outcome="sent", via="show_now", board_id="board-1", board_name="Board")
+    for _ in range(3):
+        send_history().record(PAGE_ID, outcome="sent", via="auto", board_id="board-1", board_name="Board")
     rig.client.fail = True
     rig.tick(25)
     sends = send_history().sends(PAGE_ID)
-    assert [(e["outcome"], e["count"]) for e in sends] == [("failed", 25), ("sent", 1), ("sent", 1), ("sent", 1)]
-    assert [e["board_name"] for e in sends[1:]] == ["Earlier 2", "Earlier 1", "Earlier 0"]
+    assert [(e["outcome"], e["via"], e["count"]) for e in sends] == [
+        ("failed", "auto", 25),
+        ("sent", "auto", 3),
+        ("sent", "show_now", 1),
+    ]
 
 
 def test_the_engine_records_a_send_that_raised(rig):
@@ -350,7 +354,7 @@ def test_entries_within_the_interval_wait_for_the_timer(store):
     history, clock, path = store
     history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
     clock.now += 60
-    history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    history.record("p", outcome="sent", via="auto", board_id="c", board_name="C")
     assert len(_on_disk(path)["p"]) == 1
     (timer,) = [t for t in FakeTimer.armed if not t.cancelled]
     assert timer.delay == pytest.approx(120)
@@ -429,12 +433,57 @@ def test_a_different_cause_or_board_starts_a_new_entry(store):
     assert [e["count"] for e in history.sends("p")] == [1, 1, 1, 1]
 
 
-def test_sent_entries_are_never_merged(store):
+def test_consecutive_landings_on_one_board_merge(store):
+    # Coordinator ruling on #2464: a live page's landings are one entry with a count.
     history, clock, _ = store
+    start = clock.now
     for _ in range(3):
         clock.now += 60
         history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    (entry,) = history.sends("p")
+    assert entry["count"] == 3
+    assert entry["at"] == iso(start + 60)
+    assert entry["last_at"] == iso(start + 180)
+
+
+def test_a_landing_on_another_board_or_via_starts_a_new_entry(store):
+    history, _, _ = store
+    history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    history.record("p", outcome="sent", via="auto", board_id="c", board_name="C")
+    history.record("p", outcome="sent", via="show_now", board_id="c", board_name="C")
     assert [e["count"] for e in history.sends("p")] == [1, 1, 1]
+
+
+def test_one_failure_then_twenty_landings_keeps_the_failure(store):
+    # The re-review probe: twenty landings used to push the failure out of the
+    # window, so a live page kept about twenty minutes of history.
+    history, clock, _ = store
+    history.record("p", outcome="failed", via="auto", board_id="b", board_name="B", error="timeout")
+    for _ in range(20):
+        clock.now += 60
+        history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    assert [(e["outcome"], e["count"]) for e in history.sends("p")] == [("sent", 20), ("failed", 1)]
+
+
+def test_merged_landings_are_written_at_the_normal_cadence(store):
+    # A live page's merged landings must reach disk within an interval (a
+    # crash loses at most that), unlike a retrying failure, which waits.
+    history, clock, path = store
+    history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    clock.now += 60
+    history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    (timer,) = [t for t in FakeTimer.armed if not t.cancelled]
+    timer.fire()
+    (entry,) = _on_disk(path)["p"]
+    assert entry["count"] == 2
+
+
+def test_show_now_twice_is_one_entry_with_a_count(client, boards, page, board):
+    primary, _ = boards
+    for _ in range(2):
+        assert _show_now(client, page, primary).status_code == 200
+    (entry,) = _sends(client, page)
+    assert (entry["outcome"], entry["count"]) == ("sent", 2)
 
 
 def test_a_merged_entry_survives_a_reload(store):
