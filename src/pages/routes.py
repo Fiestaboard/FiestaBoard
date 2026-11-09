@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -641,7 +642,9 @@ async def clear_page_cache(request: PageCacheClearRequest | None = None):
     return PageCacheClearResponse(message="All preview caches cleared")
 
 
-def _record_show_now(page_id: str, board_id: str | None, outcome: str, service) -> None:
+def _record_show_now(
+    page_id: str, board_id: str | None, outcome: str, service, started_at: float | None = None
+) -> None:
     """One Show now outcome into the page's send history (H9b)."""
     resolved = resolve_board_id(board_id)
     board = _find_board(resolved) if resolved else None
@@ -652,6 +655,7 @@ def _record_show_now(page_id: str, board_id: str | None, outcome: str, service) 
         board_id=resolved,
         board_name=(board or {}).get("name"),
         service=service,
+        started_at=started_at,
     )
 
 
@@ -789,17 +793,23 @@ async def send_page(
                 )
                 # render() serializes concurrent senders via the client's
                 # per-board send lock, so worker threads can't interleave.
-                success, was_sent = board_client.render(
-                    board_array,
-                    strategy=strategy,
-                    step_interval_ms=interval_ms,
-                    step_size=step_size,
-                    device_type=(board.get("device_type") if board is not None else page.device_type),
-                    **rich,
-                )
+                started_at = time.time()
+                try:
+                    success, was_sent = board_client.render(
+                        board_array,
+                        strategy=strategy,
+                        step_interval_ms=interval_ms,
+                        step_size=step_size,
+                        device_type=(board.get("device_type") if board is not None else page.device_type),
+                        **rich,
+                    )
+                except Exception:
+                    # Recorded like the engine's raised send, then raised as before.
+                    _record_show_now(page_id, board_id, "failed", service, started_at)
+                    raise
                 sent_to_board = was_sent
                 if success and was_sent:
-                    _record_show_now(page_id, board_id, "sent", service)
+                    _record_show_now(page_id, board_id, "sent", service, started_at)
                 if not success:
                     # Board offline / unreachable. Deliberately NOT 502/503/504:
                     # nginx intercepts those on /api/ and replaces the body with
@@ -813,7 +823,7 @@ async def send_page(
                     # closure, which `no_200_on_failure` explicitly ignores — so
                     # no rule saw a routine 500 that no route declared.
                     logger.error(f"Failed to send page {page_id} to board (offline or unreachable)")
-                    _record_show_now(page_id, board_id, "failed", service)
+                    _record_show_now(page_id, board_id, "failed", service, started_at)
                     raise HTTPException(status_code=500, detail="Failed to send to board")
                 if was_sent and override_silence:
                     # A newer explicit write beats a message held during silence.
