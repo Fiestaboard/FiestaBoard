@@ -407,6 +407,17 @@ class PluginBase(ABC):
             or available=False and error message if failed.
         """
 
+    def data_at(self, at: datetime) -> dict[str, Any] | None:
+        """This plugin's data as it would be at the instant *at*, or ``None``.
+
+        For a plugin whose data is a pure function of the clock (a clock or
+        calendar plugin), so the schedule tester and the collection dry run
+        (H8) can answer "which page at 3:00 PM tomorrow?" with that time's
+        data. The default, ``None``, means the data cannot be time-shifted:
+        callers keep the hub's current data. Never fetches anything.
+        """
+        return None
+
     def _get_refresh_schema(self) -> dict[str, Any] | None:
         """Get refresh_seconds property schema from the manifest, if defined."""
         schema = self._manifest.get("settings_schema", {})

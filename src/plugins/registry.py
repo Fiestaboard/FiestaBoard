@@ -2112,6 +2112,25 @@ class PluginRegistry:
             context.update(self.build_template_context(board, plugin_ids=to_fetch, include_trigger_plugins=False))
         return context
 
+    def data_at(self, context: dict[str, Any], at: datetime) -> dict[str, dict[str, Any]]:
+        """``{plugin_id: data}`` at the instant *at*, for each enabled plugin
+        in *context* that can compute it (:meth:`PluginBase.data_at`: a pure
+        function of the clock; H8). Runs no fetch. A plugin that cannot, or
+        fails to, is left out: the caller keeps its current data."""
+        shifted: dict[str, dict[str, Any]] = {}
+        for plugin_id in context:
+            plugin = self._enabled_data_plugin(plugin_id) if not plugin_id.startswith("_") else None
+            if plugin is None:
+                continue
+            try:
+                data = plugin.data_at(at)
+            except Exception:
+                logger.warning("Plugin %s could not compute its data at %s", plugin_id, at, exc_info=True)
+                continue
+            if isinstance(data, dict):
+                shifted[plugin_id] = data
+        return shifted
+
     def data_status(self, plugin_id: str, board: BoardContext | None = None) -> dict[str, Any]:
         """What the hub's own data for *plugin_id* is, for a preview's ``sources``.
 

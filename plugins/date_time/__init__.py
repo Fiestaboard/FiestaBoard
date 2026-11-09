@@ -121,71 +121,81 @@ class DateTimePlugin(PluginBase):
 
         return errors
 
+    def _timezone(self) -> str:
+        timezone_str = self.config.get("timezone")
+        if not timezone_str:
+            from src.config import Config
+
+            timezone_str = Config.GENERAL_TIMEZONE or "America/Los_Angeles"
+        return timezone_str
+
     def fetch_data(self) -> PluginResult:
         """Fetch current date and time data."""
         try:
-            timezone_str = self.config.get("timezone")
-            if not timezone_str:
-                from src.config import Config
-
-                timezone_str = Config.GENERAL_TIMEZONE or "America/Los_Angeles"
-            tz = ZoneInfo(timezone_str)
-            now = datetime.now(tz)
-
-            data = {
-                # Existing variables (backward compatible)
-                "date": now.strftime("%Y-%m-%d"),
-                "time": now.strftime("%H:%M"),
-                "datetime": now.strftime("%Y-%m-%d %H:%M"),
-                "day_of_week": now.strftime("%A"),
-                "day_of_week_abbr": now.strftime("%a"),  # e.g. Mon, Tue, Wed
-                "day_of_week_num": now.strftime("%u"),  # 1-7 (Monday=1)
-                "day_of_year": str(int(now.strftime("%j"))),  # 1-366
-                "week_of_year": str(int(now.strftime("%V"))),  # 1-53
-                "timezone_abbr": now.strftime("%Z"),
-                "day": str(now.day),
-                "month": now.strftime("%B"),
-                "quarter": str((now.month - 1) // 3 + 1),
-                "year": str(now.year),
-                "hour": str(now.hour),
-                "minute": str(now.minute).zfill(2),
-                # New time formats
-                "time_12h": now.strftime("%I:%M %p").lstrip(
-                    "0"
-                ),  # 12-hour format without leading zero from hour, e.g., "2:30 PM"
-                "time_24h": now.strftime("%H:%M"),  # Same as "time" but explicit
-                # New date formats (US format)
-                "date_us": now.strftime("%m/%d/%Y"),  # MM/DD/YYYY
-                "date_us_short": now.strftime("%m/%d/%y"),  # MM/DD/YY
-                # New month formats
-                "month_number": str(now.month),  # 1-12 (unpadded)
-                "month_number_padded": now.strftime("%m"),  # 01-12 (zero-padded)
-                "month_abbr": now.strftime("%b"),  # 3-letter abbreviation (Jan, Feb, etc.)
-                # Additional timezone info
-                "timezone": timezone_str,  # Full timezone name from config
-                # Spoken English time expression
-                "time_english": _time_to_english(now.hour, now.minute),
-            }
-
-            # Board-adaptive variables: pick long vs abbreviated forms based on
-            # the board this is rendering on. On a wide board (Flagship, 22)
-            # these spell out fully; on a narrow board (Note, 15) they shorten
-            # so the same template fits both. self.board is None outside a
-            # board-scoped render — fall back to the wide/long form.
-            board = self.board
-            narrow = board is not None and board.width < 22
-            day_adaptive = data["day_of_week_abbr"] if narrow else data["day_of_week"]
-            month_adaptive = data["month_abbr"] if narrow else data["month"]
-            data["day_of_week_adaptive"] = day_adaptive
-            data["month_adaptive"] = month_adaptive
-            # e.g. "Friday, August 27" (Flagship) / "Fri, Aug 27" (Note)
-            data["date_pretty"] = f"{day_adaptive}, {month_adaptive} {now.day}"
-
+            data = self._data_for(datetime.now(ZoneInfo(self._timezone())))
             return PluginResult(available=True, data=data)
 
         except Exception as e:
             logger.exception("Error fetching datetime data")
             return PluginResult(available=False, error=str(e))
+
+    def data_at(self, at: datetime) -> dict[str, Any] | None:
+        """The fields at the instant *at* (in this plugin's timezone): the
+        data is a pure function of the clock (H8)."""
+        return self._data_for(at.astimezone(ZoneInfo(self._timezone())))
+
+    def _data_for(self, now: datetime) -> dict[str, Any]:
+        """Every field for the local time *now*."""
+        timezone_str = self._timezone()
+        data = {
+            # Existing variables (backward compatible)
+            "date": now.strftime("%Y-%m-%d"),
+            "time": now.strftime("%H:%M"),
+            "datetime": now.strftime("%Y-%m-%d %H:%M"),
+            "day_of_week": now.strftime("%A"),
+            "day_of_week_abbr": now.strftime("%a"),  # e.g. Mon, Tue, Wed
+            "day_of_week_num": now.strftime("%u"),  # 1-7 (Monday=1)
+            "day_of_year": str(int(now.strftime("%j"))),  # 1-366
+            "week_of_year": str(int(now.strftime("%V"))),  # 1-53
+            "timezone_abbr": now.strftime("%Z"),
+            "day": str(now.day),
+            "month": now.strftime("%B"),
+            "quarter": str((now.month - 1) // 3 + 1),
+            "year": str(now.year),
+            "hour": str(now.hour),
+            "minute": str(now.minute).zfill(2),
+            # New time formats
+            "time_12h": now.strftime("%I:%M %p").lstrip(
+                "0"
+            ),  # 12-hour format without leading zero from hour, e.g., "2:30 PM"
+            "time_24h": now.strftime("%H:%M"),  # Same as "time" but explicit
+            # New date formats (US format)
+            "date_us": now.strftime("%m/%d/%Y"),  # MM/DD/YYYY
+            "date_us_short": now.strftime("%m/%d/%y"),  # MM/DD/YY
+            # New month formats
+            "month_number": str(now.month),  # 1-12 (unpadded)
+            "month_number_padded": now.strftime("%m"),  # 01-12 (zero-padded)
+            "month_abbr": now.strftime("%b"),  # 3-letter abbreviation (Jan, Feb, etc.)
+            # Additional timezone info
+            "timezone": timezone_str,  # Full timezone name from config
+            # Spoken English time expression
+            "time_english": _time_to_english(now.hour, now.minute),
+        }
+
+        # Board-adaptive variables: pick long vs abbreviated forms based on
+        # the board this is rendering on. On a wide board (Flagship, 22)
+        # these spell out fully; on a narrow board (Note, 15) they shorten
+        # so the same template fits both. self.board is None outside a
+        # board-scoped render — fall back to the wide/long form.
+        board = self.board
+        narrow = board is not None and board.width < 22
+        day_adaptive = data["day_of_week_abbr"] if narrow else data["day_of_week"]
+        month_adaptive = data["month_abbr"] if narrow else data["month"]
+        data["day_of_week_adaptive"] = day_adaptive
+        data["month_adaptive"] = month_adaptive
+        # e.g. "Friday, August 27" (Flagship) / "Fri, Aug 27" (Note)
+        data["date_pretty"] = f"{day_adaptive}, {month_adaptive} {now.day}"
+        return data
 
     def get_formatted_display(self) -> list[str] | None:
         """Return default formatted datetime display, adapted to the board.

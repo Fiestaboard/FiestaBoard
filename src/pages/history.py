@@ -26,6 +26,14 @@ draft is at most :data:`MAX_DRAFT_BYTES`.
 
 Write cost: one atomic, unchanged-bytes-skipping write of one page's file per
 explicit save — never per keystroke, render or read.
+
+Reads validate (as ``sends._clean`` does), because these files are written by
+whatever build ran last: a version with an origin this build does not know, a
+non-finite or out-of-range instant, no id or no content is skipped; an unknown
+``via`` or a malformed ``restored_from`` reads as null; a draft with no
+revision, a bad instant or no content reads as no draft. Each is logged. A
+skipped version is not written back on the next save. A read never fails on
+one bad entry, and one bad draft never hides another page's.
 """
 
 from __future__ import annotations
@@ -33,13 +41,14 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import threading
 import time
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from src.storage.json_store import JsonStore
 
@@ -60,6 +69,11 @@ Origin = Literal[
 ]
 #: Who asked: a browser session, a phone (``control``), the API token, the MCP client, or the hub itself.
 Via = Literal["web", "phone", "api", "mcp", "hub"]
+
+_ORIGINS: frozenset[str] = frozenset(get_args(Origin))
+_VIAS: frozenset[str] = frozenset(get_args(Via))
+#: 9999-12-31T23:59:59Z, the last instant ``datetime`` can show.
+_LATEST_EPOCH = 253_402_300_799.0
 
 #: Saves from these origins within COALESCE_SECONDS of the newest version replace it.
 _COALESCING: frozenset[str] = frozenset({"edited", "assistant"})
@@ -130,10 +144,11 @@ class PageHistory:
         return self.drafts_dir / f"{_digest(page_id)}.json"
 
     def get_draft(self, page_id: str) -> dict | None:
-        data = self._read(self._draft_path(page_id))
-        if not data or data.get("page_id") != page_id or not isinstance(data.get("content"), dict):
+        path = self._draft_path(page_id)
+        data = self._read(path)
+        if not data or data.get("page_id") != page_id:
             return None
-        return data
+        return _clean_draft(data, path)
 
     def put_draft(self, page_id: str, record: dict) -> None:
         self._store(self._draft_path(page_id)).save({**record, "page_id": page_id})
@@ -147,8 +162,10 @@ class PageHistory:
         drafts = []
         for path in sorted(self.drafts_dir.glob("*.json")):
             data = self._read(path)
-            if data and isinstance(data.get("page_id"), str) and isinstance(data.get("content"), dict):
-                drafts.append(data)
+            if data and isinstance(data.get("page_id"), str):
+                draft = _clean_draft(data, path)
+                if draft is not None:
+                    drafts.append(draft)
         return drafts
 
     # ── revisions ──────────────────────────────────────────────────────
@@ -158,10 +175,15 @@ class PageHistory:
 
     def revisions(self, page_id: str) -> list[dict]:
         """The page's versions, oldest first (as stored)."""
-        data = self._read(self._revisions_path(page_id))
+        path = self._revisions_path(page_id)
+        data = self._read(path)
         if not data or data.get("page_id") != page_id or not isinstance(data.get("revisions"), list):
             return []
-        return [r for r in data["revisions"] if _valid_revision(r)]
+        cleaned = [_clean_revision(r) for r in data["revisions"]]
+        skipped = cleaned.count(None)
+        if skipped:
+            logger.warning("Skipped %d saved version(s) this build cannot read in %s", skipped, path.name)
+        return [r for r in cleaned if r is not None]
 
     def revision(self, page_id: str, revision_id: str) -> dict | None:
         return next((r for r in self.revisions(page_id) if r["id"] == revision_id), None)
@@ -189,7 +211,11 @@ class PageHistory:
             now = self.clock()
             revisions = self.revisions(page_id)
             if not revisions and baseline is not None and baseline[0] != content:
-                revisions.append(_new_revision(baseline[0], "baseline", None, None, baseline[1]))
+                # Saved at the page's old updated_at, but aged from now: a page
+                # untouched for 90+ days must keep its pre-upgrade content.
+                revisions.append(
+                    {**_new_revision(baseline[0], "baseline", None, None, baseline[1]), "recorded_at": now}
+                )
             newest = revisions[-1] if revisions else None
             if newest is not None and newest["content"] == content:
                 return None
@@ -224,21 +250,71 @@ def _new_revision(content: dict, origin: str, via: str | None, restored_from: st
     }
 
 
-def _valid_revision(entry: Any) -> bool:
-    return (
-        isinstance(entry, dict)
-        and isinstance(entry.get("id"), str)
-        and isinstance(entry.get("saved_at"), (int, float))
-        and not isinstance(entry.get("saved_at"), bool)
-        and isinstance(entry.get("origin"), str)
-        and isinstance(entry.get("content"), dict)
-    )
+def _instant(value: Any) -> float | None:
+    """*value* as an epoch ``datetime`` can show, or None."""
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    if not math.isfinite(value) or not 0 <= value <= _LATEST_EPOCH:
+        return None
+    return float(value)
+
+
+def _str_or_none(value: Any) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _clean_revision(entry: Any) -> dict | None:
+    """A stored version as this build reads it, or None when it cannot read it."""
+    if not isinstance(entry, dict):
+        return None
+    saved_at = _instant(entry.get("saved_at"))
+    if (
+        saved_at is None
+        or not isinstance(entry.get("id"), str)
+        or entry.get("origin") not in _ORIGINS
+        or not isinstance(entry.get("content"), dict)
+    ):
+        return None
+    via = entry.get("via")
+    cleaned = {
+        "id": entry["id"],
+        "saved_at": saved_at,
+        "origin": entry["origin"],
+        "via": via if via in _VIAS else None,  # a newer build's client reads as unknown
+        "restored_from": _str_or_none(entry.get("restored_from")),
+        "content": entry["content"],
+    }
+    recorded_at = _instant(entry.get("recorded_at"))
+    if recorded_at is not None:
+        cleaned["recorded_at"] = recorded_at
+    return cleaned
+
+
+def _clean_draft(data: dict, path: Path) -> dict | None:
+    """A stored draft as this build reads it, or None (logged) when it cannot read it."""
+    saved_at = _instant(data.get("saved_at"))
+    revision = data.get("revision")
+    if saved_at is None or not isinstance(revision, str) or not revision or not isinstance(data.get("content"), dict):
+        logger.warning("Skipped a draft this build cannot read: %s", path.name)
+        return None
+    via = data.get("via")
+    return {
+        **data,
+        "saved_at": saved_at,
+        "based_on": _str_or_none(data.get("based_on")),
+        "restored_from": _str_or_none(data.get("restored_from")),
+        "via": via if via in _VIAS else None,
+    }
 
 
 def _bounded(revisions: list[dict], now: float) -> list[dict]:
-    """Count, age and size caps, oldest dropped first; the newest always stays."""
+    """Count, age and size caps, oldest dropped first; the newest always stays.
+
+    A version ages from when it was recorded: ``saved_at`` for every version
+    but a baseline, whose ``saved_at`` is the page's old ``updated_at``.
+    """
     newest = revisions[-1]
-    kept = [r for r in revisions[:-1] if now - r["saved_at"] <= MAX_REVISION_AGE_SECONDS]
+    kept = [r for r in revisions[:-1] if now - r.get("recorded_at", r["saved_at"]) <= MAX_REVISION_AGE_SECONDS]
     kept = [*kept, newest][-MAX_REVISIONS:]
     while len(kept) > 1 and len(json.dumps(kept)) > MAX_REVISION_FILE_BYTES:
         kept.pop(0)

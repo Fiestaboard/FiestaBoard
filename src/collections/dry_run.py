@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from src.templates.preview import Preview
+from src.templates.preview import Preview, context_at
 
 from .models import Collection
 from .service import _is_truthy
@@ -33,6 +33,9 @@ class DryRun:
     matched_rule: int | None
     timeline: list[dict[str, Any]]
     truncated: bool
+    #: ``segments`` (cut at :data:`MAX_SEGMENTS`), ``budget`` (the shared
+    #: render budget ran out: the timeline stops where it did) or ``None``.
+    truncated_reason: str | None = None
 
 
 def _segment(start: datetime, until: datetime, page_id: str | None) -> dict[str, Any]:
@@ -51,11 +54,14 @@ def _merge(segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return merged
 
 
-def _rule_rows(collection: Collection, context: dict[str, Any], at: datetime) -> tuple[list[dict], int | None]:
-    from src.templates.expressions import RENDER_CLOCK_KEY, evaluate_detailed
+def _rule_rows(
+    collection: Collection, context: dict[str, Any], at: datetime, preview: Preview
+) -> tuple[list[dict], int | None]:
+    from src.templates.expressions import evaluate_detailed
 
     variable = collection.variable
-    clocked = {**context, RENDER_CLOCK_KEY: at}
+    # The clock, and clock-only plugins such as date_time, at this instant.
+    clocked = context_at(context, at, preview)
     rows: list[dict[str, Any]] = []
     first: int | None = None
     for index, rule in enumerate(variable.rules if variable is not None else []):
@@ -98,16 +104,24 @@ def run(collection: Collection, preview: Preview, at: datetime, window_seconds: 
     """The dry run of *collection* at *at* (hub-local) and over the window after it."""
     end = at + timedelta(seconds=window_seconds)
     if collection.selection_mode == "variable":
+        from src.templates.expressions import render_budget_spent
+
         context = _variable_context(collection, preview)
-        rows, first = _rule_rows(collection, context, at)
+        rows, first = _rule_rows(collection, context, at, preview)
         segments = []
+        reason = None
         steps = window_seconds // step_seconds
         for k in range(steps + 1):
             start = at + timedelta(seconds=k * step_seconds)
-            point_rows, point_first = (rows, first) if k == 0 else _rule_rows(collection, context, start)
+            point_rows, point_first = (rows, first) if k == 0 else _rule_rows(collection, context, start, preview)
+            if render_budget_spent(context):
+                # This point's later rules read as errors only because the
+                # budget ran out: stop here rather than show the default.
+                reason = "budget"
+                break
             until = min(start + timedelta(seconds=step_seconds), end) if k < steps else end
             segments.append(_segment(start, until, _winner(collection, point_rows, point_first)))
-        return DryRun(_winner(collection, rows, first), rows, first, _merge(segments), False)
+        return DryRun(_winner(collection, rows, first), rows, first, _merge(segments), reason is not None, reason)
 
     if collection.selection_mode == "random" and collection.random is not None:
         interval, pick = collection.random.interval_seconds, collection.current_page_id_random
@@ -131,7 +145,7 @@ def run(collection: Collection, preview: Preview, at: datetime, window_seconds: 
             truncated = True
             break
         stamp_unix = boundary
-    return DryRun(pick(at.timestamp()), None, None, _merge(segments), truncated)
+    return DryRun(pick(at.timestamp()), None, None, _merge(segments), truncated, "segments" if truncated else None)
 
 
 def shown_on(collection_id: str, at_utc: datetime, zone: Any) -> list[str]:
