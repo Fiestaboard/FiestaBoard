@@ -10,13 +10,13 @@ only `latest` = 8.16.0.
 CI and the Docker build therefore need no git fetch and no registry auth. The Dockerfile copies `web/vendor/`
 before `npm ci`.
 
-| | |
-|---|---|
-| Source | `Fiestaboard/FiestaUI` at `900fabf640d6f848f93fedf9885108147149c2d9`, the #383 merge commit on `alpha` ("chore: release (alpha)") |
-| Built with | `node:24` image (Node 24.22.2, npm 11.19.1), the same Node major as FiestaUI's `release.yml` |
-| Steps | `npm ci --no-audit && npm run build && npm pack` |
-| sha512 | `sha512-sTRSE4G44g4buS/979pHJ1ZiCWNlMQqktSoQnt1400l8ZuI/5ibzUMz5Cw8Cv93bUJxo4VeNPtpLWD3HSt5iFg==` |
-| sha1 (npm shasum) | `c974b3043a238a7203ff11ce0eb41aca92e02659` |
+|                   |                                                                                                                                   |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Source            | `Fiestaboard/FiestaUI` at `900fabf640d6f848f93fedf9885108147149c2d9`, the #383 merge commit on `alpha` ("chore: release (alpha)") |
+| Built with        | `node:24` image (Node 24.22.2, npm 11.19.1), the same Node major as FiestaUI's `release.yml`                                      |
+| Steps             | `npm ci --no-audit && npm run build && npm pack`                                                                                  |
+| sha512            | `sha512-sTRSE4G44g4buS/979pHJ1ZiCWNlMQqktSoQnt1400l8ZuI/5ibzUMz5Cw8Cv93bUJxo4VeNPtpLWD3HSt5iFg==`                                 |
+| sha1 (npm shasum) | `c974b3043a238a7203ff11ce0eb41aca92e02659`                                                                                        |
 
 The sha512 is also the `integrity` value in `web/package-lock.json`. Two builds from fresh clones produced
 byte-identical tarballs.
