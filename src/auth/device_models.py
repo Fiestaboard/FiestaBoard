@@ -132,6 +132,26 @@ class PanelShown(BaseModel):
     last_shown_at: str
 
 
+class ApprovedBy(BaseModel):
+    """Who approved a TV's sign-in code (browser Signed-in devices only)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str = Field(description="The approving session's id (it may have signed out since).")
+    kind: Literal["browser", "tv", "mobile", "legacy"]
+    label: str = Field(
+        description='A phone\'s device name, or "<Browser> on <OS>" for a browser ("a web browser" if unknown).'
+    )
+    signed_in: bool = Field(description="Whether the approver is still signed in.")
+
+
+class RevokeResult(Success):
+    also_signed_out: list[str] = Field(
+        default_factory=list,
+        description="With include_approved=true on a phone: the TVs it approved, signed out with it.",
+    )
+
+
 class SessionSummary(BaseModel):
     id: str
     kind: Literal["browser", "tv", "mobile", "legacy"]
@@ -146,6 +166,8 @@ class SessionSummary(BaseModel):
     # per panel, newest first. Persisted at most once a minute per viewer.
     last_shown_at: str | None = None
     shown_panels: list[PanelShown] = []
+    # A TV that signed in with a code: the browser or phone that approved it.
+    approved_by: ApprovedBy | None = None
 
 
 class PhoneTV(BaseModel):

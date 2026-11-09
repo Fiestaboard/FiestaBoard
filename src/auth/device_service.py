@@ -17,7 +17,7 @@ from .device_models import (
 from .scopes import CONTROL, MOBILE_CLIENTS, TV_PANELS, scope_for_client
 from .service import AuthService, auth_mode
 from .session_models import SessionRecord
-from .session_store import digest_secret, printable
+from .session_store import browser_label, digest_secret, printable
 
 ALPHABET = "BCDFGHJKLMNPQRSTVWXYZ23456789"
 TV_TOKEN_SECONDS = 365 * 24 * 3600
@@ -66,6 +66,56 @@ def shown_on(views: list[tuple[str, int]], panels: set[str]) -> dict:
     """``shown_panels`` and ``last_shown_at`` for one viewer. A deleted panel is no longer "shown on" anything."""
     shown = [{"panel_id": p, "last_shown_at": _instant(ms)} for p, ms in views if p in panels]
     return {"shown_panels": shown, "last_shown_at": shown[0]["last_shown_at"] if shown else None}
+
+
+def approved_by(approver: SessionRecord | None, account_generation: int, now_ms: int) -> dict | None:
+    """``approved_by`` for one row of Signed-in devices (browser only).
+
+    A phone is its device name; a browser is "<Browser> on <OS>" from its
+    stored user agent (never the raw string). ``signed_in`` says whether the
+    approver is still signed in, in the current generation.
+    """
+    if approver is None:
+        return None
+    label = printable(approver.device_name) if approver.kind == "mobile" else browser_label(approver.device_name)
+    return {
+        "session_id": approver.id,
+        "kind": approver.kind,
+        "label": label,
+        "signed_in": approver.revoked_ms is None
+        and approver.expires_ms > now_ms
+        and approver.account_generation == account_generation,
+    }
+
+
+def revoke_with_approved(current: SessionRecord, session_id: str, include_approved: bool) -> list[str]:
+    """Sign out *session_id* for the browser *current*; with *include_approved*
+    and a phone as the target, the TVs that phone approved too.
+
+    Every sign-out goes through ``SessionStore.revoke_session`` and is audited
+    the same way. Returns the ids of the TVs signed out with the phone.
+    """
+    from .service import get_auth_service
+
+    store = get_auth_service().sessions
+    live = {row.id: row for row in store.list_sessions(current.username)}
+    target = live.get(session_id)
+    approved: list[SessionRecord] = []
+    if include_approved and target is not None and target.kind == "mobile":
+        approved = [
+            live[tv_id]
+            for tv_id in sorted(store.approved_by(target.id))
+            if tv_id in live
+            and live[tv_id].kind == "tv"
+            and live[tv_id].account_generation == current.account_generation
+        ]
+    store.revoke_session(current.username, session_id)
+    if target is not None and target.id != current.id:
+        log_sign_out(current, target)
+    for tv in approved:
+        store.revoke_session(current.username, tv.id)
+        log_sign_out(current, tv)
+    return [tv.id for tv in approved]
 
 
 def live_panel_ids() -> set[str]:
