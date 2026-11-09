@@ -21,10 +21,13 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
 from pydantic import ValidationError
+
+from src.storage.json_store import SchemaTooNewError
 
 from .history import MAX_DRAFT_BYTES, PageHistory, iso, page_content
 from .models import Page, PageUpdate
@@ -78,6 +81,16 @@ class DraftExists(Exception):
 class DraftConflict(Exception):
     def __init__(self):
         super().__init__("The draft changed since it was loaded. Reload the draft before saving or discarding it.")
+
+
+class DraftFromNewerBuild(Exception):
+    """The page's draft file was written by a newer FiestaBoard; this build must not overwrite it."""
+
+    def __init__(self, page_id: str):
+        super().__init__(
+            f"Page {page_id} has a draft saved by a newer version of FiestaBoard. "
+            "Open it there, or update this hub, before changing it."
+        )
 
 
 class InvalidDraft(ValueError):
@@ -147,7 +160,12 @@ class PageDraftsMixin:
             "via": meta.get("via"),
             "content": content,
         }
-        self.history.put_draft(page.id, record)
+        try:
+            self.history.put_draft(page.id, record)
+        except SchemaTooNewError as exc:
+            # Reads treat that file as no draft; a write must not stamp our
+            # older schema_version over it (and must not 500).
+            raise DraftFromNewerBuild(page.id) from exc
         return record
 
     # ── drafts ─────────────────────────────────────────────────────────
@@ -193,15 +211,31 @@ class PageDraftsMixin:
             self.history.delete_draft(page_id)
 
     def publish_draft(
-        self, page_id: str, *, expected_revision: str | None = None, via: str | None = None
+        self,
+        page_id: str,
+        *,
+        expected_revision: str | None = None,
+        expected_draft_revision: str | None = None,
+        via: str | None = None,
+        check_content: Callable[[dict], None] | None = None,
     ) -> tuple[Page, Page]:
-        """Apply the draft to the published page; answers ``(before, after)``."""
+        """Apply the draft to the published page; answers ``(before, after)``.
+
+        *expected_revision* is the published page's (412 when it moved);
+        *expected_draft_revision* is the draft's (412 when another device
+        saved the draft since). *check_content* runs on the draft's content
+        under the lock before anything is written (the routes' beta guard).
+        """
         with self.storage.lock:
             before = self._live(page_id)
             record = self.history.get_draft(page_id)
             if record is None:
                 raise NoDraftToPublish(page_id)
+            if expected_draft_revision is not None and record["revision"] != expected_draft_revision:
+                raise DraftConflict()
             content = record["content"]
+            if check_content is not None:
+                check_content(content)
             fields = {k: content.get(k) for k in _UPDATABLE if k in content}
             restored_from = record.get("restored_from")
             try:
@@ -235,7 +269,13 @@ class PageDraftsMixin:
         return {**self._revision_view(entry, page_content(page)), "content": entry["content"]}
 
     def restore_revision(
-        self, page_id: str, revision_id: str, *, replace_draft: bool = False, via: str | None = None
+        self,
+        page_id: str,
+        revision_id: str,
+        *,
+        replace_draft: bool = False,
+        via: str | None = None,
+        check_content: Callable[[dict], None] | None = None,
     ) -> dict:
         with self.storage.lock:
             page = self._live(page_id)
@@ -245,6 +285,8 @@ class PageDraftsMixin:
             previous = self.history.get_draft(page_id)
             if previous is not None and not replace_draft:
                 raise DraftExists(page_id)
+            if check_content is not None:
+                check_content(entry["content"])
             content = self._prospective(page, entry["content"])
             record = self._store_draft(page, content, None, via=via, restored_from=revision_id)
             return self.draft_view(record, page)
@@ -301,6 +343,7 @@ class PageDraftsMixin:
 __all__ = [
     "DraftConflict",
     "DraftExists",
+    "DraftFromNewerBuild",
     "DraftNotFound",
     "InvalidDraft",
     "NoDraftToPublish",

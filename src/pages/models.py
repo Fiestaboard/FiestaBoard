@@ -509,6 +509,12 @@ class PageDraftPublishRequest(BaseModel):
         max_length=128,
         description="The published page's revision the editor last read; 412 when it has changed since.",
     )
+    expected_draft_revision: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        description="The draft's revision the editor last read; 412 when another device saved the draft since.",
+    )
 
 
 class PageRevisionSummary(BaseModel):
