@@ -444,6 +444,14 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.debug("Failed to flush board health during shutdown", exc_info=True)
 
+    # The same for per-page send history (H9b).
+    try:
+        from .pages import sends as page_sends
+
+        page_sends.flush_send_history()
+    except Exception:
+        logger.debug("Failed to flush page send history during shutdown", exc_info=True)
+
 
 # Create FastAPI app
 # The front page of /api/docs. Swagger renders this as markdown, so it is the

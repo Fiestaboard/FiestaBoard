@@ -35,6 +35,7 @@ from .outputs.native_playlist import NativePageSelection, NativePlaylist, Native
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
 from .pages.models import LineMetadata, Page
+from .pages.sends import record_send
 from .pages.service import (
     CONTEXT_FINGERPRINT_PREFIX,
     CONTEXT_RENDER_MEMO_PREFIX,
@@ -2626,8 +2627,27 @@ class DisplayService:
             device_type = page.device_type
             sink = self._error_sink()
 
+            board_name = (board_dims_source or {}).get("name")
+
+            # When this send's render began: a failure copies the board's H12
+            # code only if H12 recorded it since (never a stale cause).
+            send_started: list[float] = []
+
+            def _record(outcome: str) -> None:
+                # Per-page send history (H9b): what this page's sends did.
+                record_send(
+                    active_page_id,
+                    outcome=outcome,
+                    via="auto",
+                    board_id=board_id,
+                    board_name=board_name,
+                    service=self,
+                    started_at=send_started[-1] if send_started else None,
+                )
+
             def _after_page_send(success: bool, was_sent: bool, exc: Exception | None) -> bool:
                 if exc is not None:
+                    _record("failed")
                     return self._send_exception_fallout(rt, board_id, exc, sink)
                 if success:
                     # A note-array send dropped by NOTE_ARRAY_MIN_SEND_INTERVAL
@@ -2664,6 +2684,7 @@ class DisplayService:
                     # board, so any out-of-band content is gone (issue #1831).
                     rt.content_delivered()
                     if was_sent:
+                        _record("sent")
                         logger.info(f"Board {board_id}: active page sent: {active_page_id}")
                         # Every hardware board is polled now (issue #1945), so
                         # each one's read cache must catch up with its own
@@ -2682,6 +2703,7 @@ class DisplayService:
                 if reason:
                     message = f"{message} ({reason})"
                 self._record_send_error_to(rt, board_id, message, sink)
+                _record("failed")
                 logger.error(f"Board {board_id}: failed to send active page: {active_page_id}")
                 return False
 
@@ -2689,14 +2711,17 @@ class DisplayService:
                 rt,
                 board_id,
                 key=send_key,
-                send=lambda: client.render(
-                    board_array,
-                    strategy=strategy,
-                    step_interval_ms=interval_ms,
-                    step_size=step_size,
-                    device_type=device_type,
-                    **rich,
-                ),
+                send=lambda: (
+                    send_started.append(time.time()),
+                    client.render(
+                        board_array,
+                        strategy=strategy,
+                        step_interval_ms=interval_ms,
+                        step_size=step_size,
+                        device_type=device_type,
+                        **rich,
+                    ),
+                )[1],
                 on_complete=_after_page_send,
                 wait=wait,
                 sink=sink,

@@ -389,8 +389,11 @@ class PageService(PageDraftsMixin):
         # Persist deletion first: a failed delete must not create an orphan Welcome.
         self.storage.delete(page_id)
         self._invalidate_cache(page_id)
-        try:  # its draft and saved versions go with it (H9a); advisory
+        try:  # its draft, saved versions (H9a) and send history (H9b) go with it; advisory
             self.history.forget(page_id)
+            from .sends import send_history
+
+            send_history().forget(page_id)
         except OSError:
             logger.warning("Could not delete the history of page %s", page_id, exc_info=True)
         default_page = self._create_replacement_page(existing_page) if was_last else None
