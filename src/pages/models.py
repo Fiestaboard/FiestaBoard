@@ -585,8 +585,8 @@ class PageSendEntry(BaseModel):
         default=1,
         ge=1,
         description=(
-            "How many times in a row this happened (same outcome, via, board and error): a board that keeps "
-            "failing is one entry, not twenty. Never more than 1 for sent."
+            "How many times in a row this happened (same outcome, via, board and error), from at until "
+            "last_at: a board that keeps failing, or a live page landing every minute, is one entry, not twenty."
         ),
     )
     last_at: str | None = Field(
