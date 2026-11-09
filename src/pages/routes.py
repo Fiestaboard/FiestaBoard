@@ -882,7 +882,7 @@ async def get_page_draft(page_id: str):
     return _history_call(get_page_service().get_draft, page_id)
 
 
-@router.put("/pages/{page_id}/draft", response_model=PageDraft, responses=errors(400, 404, 409, 412))
+@router.put("/pages/{page_id}/draft", response_model=PageDraft, responses=errors(400, 404, 409, 412, 422))
 async def save_page_draft(page_id: str, page_data: PageUpdate, via: Via = None):
     """Save a draft ("Save draft"): the fields sent, over the existing draft or the published page.
 
@@ -890,7 +890,15 @@ async def save_page_draft(page_id: str, page_data: PageUpdate, via: Via = None):
     is **the draft's** revision (412 when another device saved the draft
     since). An invalid page, or a draft over 256 KiB, is a 400. A 409 when the
     stored draft was saved by a newer FiestaBoard (this build won't overwrite it).
+    ``tags`` is a 422: tags aren't drafted; set them with ``PUT /pages/{page_id}``.
     """
+    if "tags" in page_data.model_fields_set:
+        # Tags are organisation, not content: a draft never holds them, and a
+        # silent 200 that dropped them would lose the caller's change.
+        raise HTTPException(
+            status_code=422,
+            detail="Tags aren't part of a draft. Set them on the page itself with PUT /pages/{page_id}.",
+        )
     _reject_plugin_strategy_when_beta_off(page_data.transition_strategy)
     return _history_call(get_page_service().save_draft, page_id, page_data, via=via)
 
