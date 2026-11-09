@@ -109,7 +109,8 @@ MAX_EVAL_DEPTH = 200
 _RENDER_BUDGET_KEY = "__budget__"
 
 #: Wall-clock deadlines (seconds), checked every :data:`DEADLINE_CHECK_STEPS`
-#: steps: steps bound the work in operations, but a slow CPU (a Pi) turns the
+#: steps of a formula or of its render, and the render's at each formula's
+#: start (so many small formulas cannot outlast it): steps bound the work in operations, but a slow CPU (a Pi) turns the
 #: same steps into many more seconds, and a deadline holds on any hardware.
 #: Past either a formula is ``#VALUE`` "took too long". Owner item: confirm
 #: on real Pi 4/5 hardware.
@@ -164,13 +165,24 @@ def _charge(steps: int) -> None:
         render.steps += steps
         if render.steps > MAX_RENDER_STEPS:
             raise _too_much_work(f"more than {MAX_RENDER_STEPS} steps in one render")
-    if formula.steps >= formula.next_deadline_check:
+    # Driven by the render's steps too (W2b): a formula under one interval
+    # never crosses its own, but thousands of them cross the render's.
+    if formula.steps >= formula.next_deadline_check or (
+        render is not None and render.steps >= render.next_deadline_check
+    ):
         formula.next_deadline_check = formula.steps + DEADLINE_CHECK_STEPS
+        if render is not None:
+            render.next_deadline_check = render.steps + DEADLINE_CHECK_STEPS
         now = _eval_clock()
         if now - formula.started > MAX_FORMULA_SECONDS:
             raise _too_much_work(f"took too long (more than {MAX_FORMULA_SECONDS:g} s for one formula)")
-        if render is not None and now - render.started > MAX_RENDER_SECONDS:
-            raise _too_much_work(f"took too long (more than {MAX_RENDER_SECONDS:g} s for one render)")
+        if render is not None:
+            _check_render_deadline(render, now)
+
+
+def _check_render_deadline(render: _Budget, now: float) -> None:
+    if now - render.started > MAX_RENDER_SECONDS:
+        raise _too_much_work(f"took too long (more than {MAX_RENDER_SECONDS:g} s for one render)")
 
 
 #: The formula being evaluated on this thread (or task): its own budget and
@@ -186,6 +198,21 @@ class _Exhausted(FormulaError):
 
 def _too_much_work(what: str) -> FormulaError:
     return _Exhausted("#VALUE", f"too much work: {what}")
+
+
+def render_budget_spent(context: dict[str, Any]) -> bool:
+    """Whether the render budget *context* carries (:func:`ensure_render_clock`)
+    is used up: its steps, its regex time or its deadline. A further formula
+    of that render would be ``#VALUE`` "too much work", so a caller that
+    evaluates many (H8's dry run) knows its later answers are not real."""
+    budget = context.get(_RENDER_BUDGET_KEY)
+    if not isinstance(budget, _Budget):
+        return False
+    return (
+        budget.steps > MAX_RENDER_STEPS
+        or budget.regex_seconds >= MAX_RENDER_REGEX_SECONDS
+        or _eval_clock() - budget.started > MAX_RENDER_SECONDS
+    )
 
 
 def _regex_bounded(call: Callable[[float], Any]) -> Any:
@@ -2244,8 +2271,14 @@ def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
         # The outermost call of one formula: it gets its own budget, and
         # shares its render's (carried in the context) with every formula
         # of that render.
-        render = context.get(_RENDER_BUDGET_KEY)
-        token = _ACTIVE_BUDGET.set((_Budget(), render if isinstance(render, _Budget) else None))
+        carried = context.get(_RENDER_BUDGET_KEY)
+        render = carried if isinstance(carried, _Budget) else None
+        formula = _Budget()
+        if render is not None:
+            # Each formula's start reads the render's deadline (W2b), with
+            # the clock reading its own budget just took.
+            _check_render_deadline(render, formula.started)
+        token = _ACTIVE_BUDGET.set((formula, render))
         try:
             return _eval_node(node, context)
         except RecursionError as exc:

@@ -548,6 +548,12 @@ class PageDraftPublishRequest(BaseModel):
         max_length=128,
         description="The published page's revision the editor last read; 412 when it has changed since.",
     )
+    expected_draft_revision: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        description="The draft's revision the editor last read; 412 when another device saved the draft since.",
+    )
 
 
 class PageRevisionSummary(BaseModel):
@@ -660,7 +666,7 @@ class PageSendEntry(BaseModel):
     outcome: Literal["sent", "failed", "paused", "silenced", "held"] = Field(
         description=(
             "sent: a frame landed. failed: the write failed (see error). paused / silenced: Show now refused by "
-            "pause or quiet hours; held: queued to show when quiet hours end."
+            "pause or Silence; held: queued to show when Silence ends."
         )
     )
     via: Literal["auto", "show_now"] = Field(
@@ -669,7 +675,22 @@ class PageSendEntry(BaseModel):
     board_id: str | None = None
     board_name: str | None = Field(default=None, description="The board's name at the time.")
     error: str | None = Field(
-        default=None, description="For failed: the board's health last_error code then (auth, unreachable, …)."
+        default=None,
+        description=(
+            "For failed: the board's health last_error code when it was recorded during this send (auth, "
+            "unreachable, …); null when the board gave no fresh reason."
+        ),
+    )
+    count: int = Field(
+        default=1,
+        ge=1,
+        description=(
+            "How many times in a row this happened (same outcome, via, board and error): a board that keeps "
+            "failing is one entry, not twenty. Never more than 1 for sent."
+        ),
+    )
+    last_at: str | None = Field(
+        default=None, description="When it last happened, when count is more than 1 (UTC, whole seconds)."
     )
 
 

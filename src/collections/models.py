@@ -317,6 +317,13 @@ class CollectionDryRunResponse(BaseModel):
     rules: list[DryRunRule] | None = Field(description="Formula collections: every rule, all evaluated; else null.")
     matched_rule: int | None = Field(description="The first true rule's index; null when the default (or no rule) won.")
     timeline: list[DryRunSegment]
-    truncated: bool = Field(description="True when a fast rotation's timeline was cut at 96 segments.")
+    truncated: bool = Field(description="True when the timeline stops before the window's end: see `truncated_reason`.")
+    truncated_reason: Literal["segments", "budget"] | None = Field(
+        default=None,
+        description=(
+            "`segments`: a fast rotation's timeline was cut at 96 segments. `budget`: evaluating a formula"
+            " collection's rules used up the render budget, so the timeline stops where it ran out."
+        ),
+    )
     shown_on: list[str] = Field(description="Boards whose schedule (or pin) names this collection at `at`.")
     sources: dict[str, Any] = Field(default_factory=dict, description="H6: the hub's own data per plugin used.")

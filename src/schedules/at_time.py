@@ -90,13 +90,13 @@ def resolve_at(
 
     A plain page is itself. A collection runs its own logic at that instant:
     time and random modes are functions of the clock; variable mode evaluates
-    its rules with the formula clock pinned to *local* against the hub's
-    current data. A device-driven (native) collection is ``(None, None)``:
+    its rules with the formula clock, and clock-only plugin data such as
+    ``date_time``, at *local*, against the hub's other current data. A device-driven (native) collection is ``(None, None)``:
     the device's buttons decide, not the hub's clock.
     """
     from src.collections.models import is_collection_id
     from src.display_runtime import native_page_selection
-    from src.templates.expressions import RENDER_CLOCK_KEY
+    from src.templates.preview import context_at
 
     if not is_collection_id(ref):
         return ref, None
@@ -109,7 +109,8 @@ def resolve_at(
     resolved = service.resolve_page_id(
         ref,
         now_unix=stamp_unix,
-        context_factory=lambda: {**service._build_variable_context(), RENDER_CLOCK_KEY: local},
+        # The clock, and clock-only plugins such as date_time, at *local*.
+        context_factory=lambda: context_at(service._build_variable_context(), local),
     )
     return resolved, service.seconds_until_next_check(ref, now_unix=stamp_unix)
 
