@@ -182,6 +182,7 @@ async def dry_run_collection(collection_id: str, request: CollectionDryRunReques
         matched_rule=result.matched_rule,
         timeline=result.timeline,
         truncated=result.truncated,
+        truncated_reason=result.truncated_reason,
         shown_on=dry_run.shown_on(collection.id, at_utc, local.tzinfo),
         sources=preview.sources,
     )

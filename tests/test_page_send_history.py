@@ -73,6 +73,12 @@ def _sends(client, page_id) -> list[dict]:
     return body["sends"]
 
 
+def _iso_now() -> str:
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).replace(microsecond=0).isoformat()
+
+
 def _show_now(client, page_id, board_id):
     return client.post(f"/pages/{page_id}/send", json={"target": "board", "board_id": board_id})
 
@@ -126,10 +132,60 @@ def test_a_failed_show_now_records_the_boards_failure_code(client, boards, page,
 
     primary, _ = boards
     board.render.return_value = (False, False)
-    with patch("src.pages.sends.board_health", return_value=HealthSummary(last_error="auth")):
+    fresh = HealthSummary(last_error="auth", last_error_at=_iso_now())
+    with patch("src.pages.sends.board_health", return_value=fresh):
         assert _show_now(client, page, primary).status_code == 500
     (entry,) = _sends(client, page)
     assert (entry["outcome"], entry["error"]) == ("failed", "auth")
+
+
+def test_a_failed_show_now_does_not_copy_a_stale_failure_code(client, boards, page, board):
+    # Review #2464 must-fix 2 (probe P7): an "auth" from January, with a
+    # contact since, must not name a new failure that has nothing to do with the token.
+    from src.outputs.health import HealthSummary
+
+    primary, _ = boards
+    board.render.return_value = (False, False)
+    stale = HealthSummary(
+        last_error="auth",
+        last_error_at="2026-01-12T08:00:00+00:00",
+        last_connected_at=_iso_now(),
+        reachable=True,
+    )
+    with patch("src.pages.sends.board_health", return_value=stale):
+        assert _show_now(client, page, primary).status_code == 500
+    (entry,) = _sends(client, page)
+    assert (entry["outcome"], entry["error"]) == ("failed", None)
+
+
+def test_a_sent_entry_never_carries_a_failure_code(client, boards, page, board):
+    # Mutant B11: even with a fresh last_error on the board, a landed send has no error.
+    from src.outputs.health import HealthSummary
+
+    primary, _ = boards
+    fresh = HealthSummary(last_error="timeout", last_error_at=_iso_now())
+    with patch("src.pages.sends.board_health", return_value=fresh):
+        assert _show_now(client, page, primary).status_code == 200
+    (entry,) = _sends(client, page)
+    assert (entry["outcome"], entry["error"]) == ("sent", None)
+
+
+def test_a_show_now_whose_render_raises_records_failed(client, boards, page, board):
+    primary, _ = boards
+    board.render.side_effect = RuntimeError("driver blew up")
+    with pytest.raises(RuntimeError):
+        _show_now(client, page, primary)
+    assert [e["outcome"] for e in _sends(client, page)] == ["failed"]
+
+
+def test_repeated_show_now_refusals_merge_into_one_entry(client, boards, page, board):
+    primary, _ = boards
+    with patch("src.pages.routes._board_is_paused", return_value=True):
+        for _ in range(3):
+            assert _show_now(client, page, primary).status_code == 200
+    (entry,) = _sends(client, page)
+    assert (entry["outcome"], entry["count"]) == ("paused", 3)
+    assert entry["last_at"] is not None
 
 
 def test_an_unchanged_show_now_records_nothing(client, boards, page, board):
@@ -206,6 +262,56 @@ def test_the_engine_records_a_failed_write(rig):
     rig.client.fail = True
     rig.tick()
     assert [e["outcome"] for e in send_history().sends(PAGE_ID)] == ["failed"]
+
+
+def test_a_board_that_keeps_failing_does_not_wipe_the_history(rig):
+    # Review #2464 must-fix 1 (probe P8): the engine retries a failed send on
+    # every pass; 25 of them must not push the earlier sends out of the window.
+    from src.pages.sends import send_history
+
+    for n in range(3):
+        send_history().record(PAGE_ID, outcome="sent", via="auto", board_id="board-1", board_name=f"Earlier {n}")
+    rig.client.fail = True
+    rig.tick(25)
+    sends = send_history().sends(PAGE_ID)
+    assert [(e["outcome"], e["count"]) for e in sends] == [("failed", 25), ("sent", 1), ("sent", 1), ("sent", 1)]
+    assert [e["board_name"] for e in sends[1:]] == ["Earlier 2", "Earlier 1", "Earlier 0"]
+
+
+def test_the_engine_records_a_send_that_raised(rig):
+    # Mutant B1: the engine's exception branch records failed too.
+    from src.pages.sends import send_history
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("driver blew up")
+
+    rig.client.render = boom
+    rig.tick()
+    assert [e["outcome"] for e in send_history().sends(PAGE_ID)] == ["failed"]
+
+
+def test_the_engine_does_not_copy_a_stale_failure_code(rig):
+    from src.outputs.health import HealthSummary
+    from src.pages.sends import send_history
+
+    rig.client.fail = True
+    stale = HealthSummary(last_error="auth", last_error_at="2026-01-12T08:00:00+00:00", reachable=True)
+    with patch("src.pages.sends.board_health", return_value=stale):
+        rig.tick()
+    assert [(e["outcome"], e["error"]) for e in send_history().sends(PAGE_ID)] == [("failed", None)]
+
+
+def test_the_engine_copies_a_failure_code_from_this_send(rig):
+    from src.outputs.health import HealthSummary
+    from src.pages.sends import send_history
+
+    rig.client.fail = True
+    with patch(
+        "src.pages.sends.board_health",
+        side_effect=lambda *a: HealthSummary(last_error="timeout", last_error_at=_iso_now()),
+    ):
+        rig.tick()
+    assert [(e["outcome"], e["error"]) for e in send_history().sends(PAGE_ID)] == [("failed", "timeout")]
 
 
 def test_the_engine_records_nothing_for_a_throttled_write(rig):
@@ -288,6 +394,135 @@ def test_a_reload_reads_the_file_and_drops_bad_entries(tmp_path):
     assert [(e["outcome"], e["error"]) for e in sends] == [("sent", None), ("sent", None)]
     assert history.sends("q") == []
     history.close()
+
+
+def test_repeats_merge_and_cost_no_write_until_flush(store, monkeypatch):
+    from src.pages import sends
+
+    history, clock, path = store
+    writes = []
+    real = sends.write_json_atomic
+    monkeypatch.setattr(sends, "write_json_atomic", lambda *a, **k: (writes.append(1), real(*a, **k)))
+    history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    clock.now += 200
+    history.record("p", outcome="failed", via="auto", board_id="b", board_name="B", error="unreachable")
+    assert len(writes) == 2
+    for _ in range(25):
+        clock.now += 200  # a whole interval each time: the old code wrote on every one
+        history.record("p", outcome="failed", via="auto", board_id="b", board_name="B", error="unreachable")
+    assert len(writes) == 2
+    assert not [t for t in FakeTimer.armed if not t.cancelled]
+    history.flush()  # shutdown
+    assert len(writes) == 3
+    (_sent, failed) = _on_disk(path)["p"]
+    assert (failed["outcome"], failed["count"]) == ("failed", 26)
+    assert failed["last_at"] == clock.now
+    assert failed["at"] < failed["last_at"]
+
+
+def test_a_different_cause_or_board_starts_a_new_entry(store):
+    history, _, _ = store
+    history.record("p", outcome="failed", via="auto", board_id="b", board_name="B", error="unreachable")
+    history.record("p", outcome="failed", via="auto", board_id="b", board_name="B", error="timeout")
+    history.record("p", outcome="failed", via="auto", board_id="c", board_name="C", error="timeout")
+    history.record("p", outcome="failed", via="show_now", board_id="c", board_name="C", error="timeout")
+    assert [e["count"] for e in history.sends("p")] == [1, 1, 1, 1]
+
+
+def test_sent_entries_are_never_merged(store):
+    history, clock, _ = store
+    for _ in range(3):
+        clock.now += 60
+        history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    assert [e["count"] for e in history.sends("p")] == [1, 1, 1]
+
+
+def test_a_merged_entry_survives_a_reload(store):
+    from src.pages.sends import SendHistory
+
+    history, clock, path = store
+    for _ in range(4):
+        clock.now += 10
+        history.record("p", outcome="held", via="show_now", board_id="b", board_name="B")
+    history.flush()
+    (entry,) = SendHistory(path).sends("p")
+    assert entry["count"] == 4
+    assert entry["last_at"] is not None
+
+
+@pytest.mark.parametrize("at", ["NaN", "Infinity", "-Infinity", "-5", "1e20"])
+def test_a_reload_drops_entries_with_an_impossible_instant(tmp_path, at):
+    # Mutant B2: json.loads reads NaN and Infinity, so the finite check matters.
+    from src.pages.sends import SendHistory
+
+    path = tmp_path / "page_sends.json"
+    good = '{"at": 1800000000.0, "outcome": "sent", "via": "auto", "board_id": "b", "board_name": "B", "error": null}'
+    bad = good.replace("1800000000.0", at)
+    path.write_text(f'{{"schema_version": 1, "pages": {{"p": [{good}, {bad}]}}}}')
+    history = SendHistory(path)
+    assert len(history.sends("p")) == 1
+    history.close()
+
+
+def test_a_reload_reads_a_bad_count_or_last_at_as_a_single_entry(tmp_path):
+    from src.pages.sends import SendHistory
+
+    path = tmp_path / "page_sends.json"
+    base = {"at": 1_800_000_000.0, "outcome": "failed", "via": "auto", "board_id": "b", "board_name": "B"}
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "pages": {
+                    "p": [
+                        {**base, "count": 0, "last_at": 1_700_000_000.0},
+                        {**base, "count": True, "last_at": "later"},
+                    ]
+                },
+            }
+        )
+    )
+    history = SendHistory(path)
+    assert [(e["count"], e["last_at"]) for e in history.sends("p")] == [(1, None), (1, None)]
+    history.close()
+
+
+def test_a_failed_write_is_retried_by_the_next_flush(store, monkeypatch):
+    # Mutant B6: a failed write stays pending.
+    from src.pages import sends
+
+    history, _, path = store
+    real = sends.write_json_atomic
+
+    def full_disk(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(sends, "write_json_atomic", full_disk)
+    history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    assert not path.exists()
+    monkeypatch.setattr(sends, "write_json_atomic", real)
+    history.flush()
+    assert len(_on_disk(path)["p"]) == 1
+
+
+def test_a_clock_step_back_never_arms_a_timer_past_the_interval(store):
+    history, clock, _ = store
+    history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    clock.now -= 3600  # NTP stepped the clock back an hour
+    history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    (timer,) = [t for t in FakeTimer.armed if not t.cancelled]
+    assert 0 <= timer.delay <= 180
+
+
+def test_a_send_landing_after_the_page_was_deleted_is_not_recorded(store):
+    # Probe P10: an in-flight engine send finishing after delete_page.
+    history, _, path = store
+    history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    history.forget("p")
+    history.record("p", outcome="sent", via="auto", board_id="b", board_name="B")
+    history.flush()
+    assert history.sends("p") == []
+    assert "p" not in _on_disk(path)
 
 
 def test_a_corrupt_file_starts_empty(tmp_path):

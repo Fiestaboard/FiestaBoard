@@ -45,6 +45,29 @@ def board(client, boards, la_hub, quiet):
     return primary, pages
 
 
+@pytest.fixture
+def date_time_on(monkeypatch):
+    """The real ``date_time`` plugin, enabled, in the hub's timezone: the
+    plugin the hub's own rule editor seeds (``date_time.hour >= 17``)."""
+    import json
+    from pathlib import Path
+
+    from src.plugins.registry import get_plugin_registry
+
+    registry = get_plugin_registry()
+    loaded = registry._plugins.get("date_time")
+    if loaded is None:
+        from plugins.date_time import DateTimePlugin as plugin_class
+    else:
+        plugin_class = type(loaded)
+    manifest = json.loads((Path(__file__).parents[1] / "plugins/date_time/manifest.json").read_text())
+    plugin = plugin_class(manifest)
+    plugin.config = {"enabled": True, "timezone": "America/Los_Angeles"}
+    monkeypatch.setitem(registry._plugins, "date_time", plugin)
+    monkeypatch.setitem(registry._enabled, "date_time", True)
+    return plugin
+
+
 def _schedule(board_id, page_id, start, end=None, **extra):
     from src.schedules.models import ScheduleCreate
     from src.schedules.service import get_schedule_service
@@ -171,6 +194,22 @@ def test_a_formula_collection_sees_the_instant_as_now(client, board):
     assert _ok(client, board_id, _at(9, 0))["resolved_page_id"] == pages["Breakfast"]
 
 
+def test_a_date_time_rule_reads_the_plugin_at_the_instant(client, board, date_time_on):
+    """``date_time`` is computed at ``at``, not at the real current time: the
+    16:00 and 18:00 answers differ whatever the hour is now."""
+    board_id, pages = board
+    rules = [{"expression": "date_time.hour >= 17", "page_id": pages["Evening"]}]
+    collection = _collection(
+        [pages["Breakfast"], pages["Evening"]],
+        selection_mode="variable",
+        variable={"rules": rules, "default_page_id": pages["Breakfast"]},
+    )
+    _schedule(board_id, collection.id, "00:00", "23:59")
+
+    assert _ok(client, board_id, _at(16, 0))["resolved_page_id"] == pages["Breakfast"]
+    assert _ok(client, board_id, _at(18, 0))["resolved_page_id"] == pages["Evening"]
+
+
 # ── the per-display override in force at `at` (H1) ──────────────────────────
 
 
@@ -257,3 +296,23 @@ def test_a_quiet_window_that_crosses_midnight_utc_still_covers_both_sides(client
     assert _ok(client, board_id, _at(15, 30))["silenced"] is True
     assert _ok(client, board_id, _at(16, 30))["silenced"] is True
     assert _ok(client, board_id, _at(18, 0))["silenced"] is False
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "last", "after"),
+    [
+        # 22:00-07:00 in Los Angeles: the window crosses local midnight.
+        ("22:00-08:00", "07:00-08:00", (7, 0), (7, 1)),
+        # 01:00-03:00 in Los Angeles is 09:00-11:00 UTC: a same-day window.
+        ("01:00-08:00", "03:00-08:00", (3, 0), (3, 1)),
+    ],
+    ids=["crossing-midnight", "same-day"],
+)
+def test_the_end_minute_of_quiet_hours_is_still_quiet(client, board, monkeypatch, start, end, last, after):
+    """Inclusive at the end, as the engine's ``is_time_in_window`` is."""
+    board_id, _ = board
+    window = {"enabled": True, "mode": "indicator", "start_time": start, "end_time": end}
+    monkeypatch.setattr(Config, "silence_config_for", staticmethod(lambda board_id=None: window))
+
+    assert _ok(client, board_id, _at(*last))["silenced"] is True
+    assert _ok(client, board_id, _at(*after))["silenced"] is False
