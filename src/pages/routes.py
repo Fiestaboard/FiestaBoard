@@ -29,7 +29,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.board_guards import _board_dims, _board_is_paused, _find_board, _require_board, silence_verdict
+from src.board_guards import (
+    _board_dims,
+    _board_is_paused,
+    _find_board,
+    _require_board,
+    resolve_board_id,
+    silence_verdict,
+)
 from src.canvas.schemas import issues_json, layers_json
 from src.collections.service import get_collection_service, resolve_active_page_id
 from src.devices import board_context_for, geometry_of, resolve_dimensions, size_key
@@ -73,6 +80,7 @@ from .models import (
     PageRestoreRequest,
     PageRevisionDetail,
     PageRevisionListResponse,
+    PageSendHistoryResponse,
     PageSendRequest,
     PageSendResponse,
     PageUpdate,
@@ -80,6 +88,7 @@ from .models import (
     ShareStringResponse,
 )
 from .models import Page as PageModel
+from .sends import record_send, send_history
 from .service import draws_pixels, find_incompatible_references, get_page_service
 from .share import decode_page, encode_page
 from .storage import PageRevisionConflict
@@ -624,6 +633,20 @@ async def clear_page_cache(request: PageCacheClearRequest | None = None):
     return PageCacheClearResponse(message="All preview caches cleared")
 
 
+def _record_show_now(page_id: str, board_id: str | None, outcome: str, service) -> None:
+    """One Show now outcome into the page's send history (H9b)."""
+    resolved = resolve_board_id(board_id)
+    board = _find_board(resolved) if resolved else None
+    record_send(
+        page_id,
+        outcome=outcome,
+        via="show_now",
+        board_id=resolved,
+        board_name=(board or {}).get("name"),
+        service=service,
+    )
+
+
 @router.post(
     "/pages/{page_id}/send",
     response_model=PageSendResponse,
@@ -736,6 +759,8 @@ async def send_page(
             if _board_is_paused(board_id):
                 logger.info("Board is paused - blocking manual page send")
                 paused = True
+            if silenced or paused:
+                _record_show_now(page_id, board_id, "held" if held else "silenced" if silenced else "paused", service)
             if not silenced and not paused:
                 # The page's own transition where it sets one, else the target display's.
                 resolved = page_transition(
@@ -765,6 +790,8 @@ async def send_page(
                     **rich,
                 )
                 sent_to_board = was_sent
+                if success and was_sent:
+                    _record_show_now(page_id, board_id, "sent", service)
                 if not success:
                     # Board offline / unreachable. Deliberately NOT 502/503/504:
                     # nginx intercepts those on /api/ and replaces the body with
@@ -778,6 +805,7 @@ async def send_page(
                     # closure, which `no_200_on_failure` explicitly ignores — so
                     # no rule saw a routine 500 that no route declared.
                     logger.error(f"Failed to send page {page_id} to board (offline or unreachable)")
+                    _record_show_now(page_id, board_id, "failed", service)
                     raise HTTPException(status_code=500, detail="Failed to send to board")
                 if was_sent and override_silence:
                     # A newer explicit write beats a message held during silence.
@@ -880,3 +908,16 @@ async def restore_page_revision(
     """
     replace = body.replace_draft if body else False
     return _history_call(get_page_service().restore_revision, page_id, revision_id, replace_draft=replace, via=via)
+
+
+@router.get("/pages/{page_id}/sends", response_model=PageSendHistoryResponse, responses=errors(404))
+async def list_page_sends(page_id: str):
+    """What happened the last times this page was sent (H9b), newest first, at most 20.
+
+    ``sent``, ``failed`` (with the board's H12 failure code), and Show now's
+    ``paused`` / ``silenced`` / ``held``. ``[]`` for a page never sent.
+    """
+    if get_page_service().get_page(page_id) is None:
+        raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+    sends = send_history().sends(page_id)
+    return PageSendHistoryResponse(page_id=page_id, sends=sends, total=len(sends))

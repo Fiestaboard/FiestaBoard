@@ -1124,6 +1124,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/pages/{page_id}/sends",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_page_sends",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/pages/{page_id}/share",
       "methods": [
         "GET"
