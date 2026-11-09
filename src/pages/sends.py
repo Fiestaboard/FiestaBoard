@@ -11,12 +11,13 @@ One entry per outcome, newest first, at most :data:`MAX_SENDS_PER_PAGE` per page
 * ``paused`` / ``silenced`` / ``held`` — Show now refused by pause or
   Silence (``held``: queued to show when Silence ends).
 
-**Repeats merge.** A failure the engine retries every pass, or Show now
-pressed again during Silence, repeats the newest entry: same outcome, via,
-board and code. It is merged into that entry (``count`` + ``last_at``)
-instead of pushing older entries out of the window, so an unplugged board
-cannot wipe a page's history. ``sent`` entries are never merged: each is a
-frame that landed at its own time.
+**Repeats merge.** An event that repeats the newest entry (same outcome,
+via, board and code) is merged into it: ``at`` stays the first time, and
+``count`` + ``last_at`` say how often and until when. Examples are a failure
+the engine retries every pass, Show now pressed again during Silence, and a
+live page landing on the same board every minute. So neither an unplugged
+board nor a clock page can push the rest of a page's history out of the
+window: one failure followed by twenty landings is two entries, not twenty.
 
 Not recorded: unchanged-content skips, throttled and superseded writes (the
 next tick retries; nothing happened), UI-only targets, previews, trigger and
@@ -33,9 +34,10 @@ the display's ``last_error`` code rather than inventing a second taxonomy.
 the interval, always on shutdown (:func:`flush_send_history`), and at once
 when a page is forgotten. A clock page that changes every minute costs one
 write per three minutes, never one per frame; a crash loses at most the last
-interval. A merged repeat only updates memory: it is written with the next
-new entry, a page delete or shutdown, so a board that stays down costs no
-SD-card writes. Writes are atomic and serialised. The file is validated on load:
+interval. A merged landing (``sent``) is written at that same cadence, so a
+crash loses at most one interval of a live page's count. A merged failure or
+refusal only updates memory: it is written with the next write, a page
+delete or shutdown, so a board that stays down costs no SD-card writes. Writes are atomic and serialised. The file is validated on load:
 entries with an outcome, client or instant this build does not know are
 dropped, and an unknown failure code reads as null (as H12 does), so a
 rollback never fails a read.
@@ -109,12 +111,8 @@ def _clean(entry) -> dict | None:
 
 
 def _repeats(newest: dict | None, entry: dict) -> bool:
-    """*entry* is the same event as *newest* again (never a ``sent``: each landing is its own)."""
-    return (
-        newest is not None
-        and entry["outcome"] != "sent"
-        and all(newest[k] == entry[k] for k in ("outcome", "via", "board_id", "error"))
-    )
+    """*entry* is the same event as *newest* again."""
+    return newest is not None and all(newest[k] == entry[k] for k in ("outcome", "via", "board_id", "error"))
 
 
 class SendHistory:
@@ -205,10 +203,14 @@ class SendHistory:
                 newest["count"] = newest.get("count", 1) + 1
                 newest["last_at"] = entry["at"]
                 newest["board_name"] = entry["board_name"]
-                self._repeats_pending = True
-                return
-            entries.append(entry)
-            del entries[:-MAX_SENDS_PER_PAGE]
+                if entry["outcome"] != "sent":
+                    # A retrying failure or refusal: memory only until the next write.
+                    self._repeats_pending = True
+                    return
+            else:
+                entries.append(entry)
+                del entries[:-MAX_SENDS_PER_PAGE]
+            # A new entry, or a landing: written at the normal cadence.
             self._dirty = True
             elapsed = None if self._written_at is None else self.clock() - self._written_at
             due = elapsed is None or elapsed >= SENDS_FLUSH_INTERVAL_SECONDS

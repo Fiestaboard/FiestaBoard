@@ -432,6 +432,54 @@ def test_converted_domains_declare_error_responses():
 
 
 # --------------------------------------------------------------------------
+# Hand-raised 422s (API_CONVENTIONS "422 belongs to FastAPI", #1923)
+# --------------------------------------------------------------------------
+
+#: Literal ``HTTPException(status_code=422, ...)`` raises per file, as of the
+#: H9c review (#2466). 422 is FastAPI's list-shaped validation error; a
+#: hand-raised rejection of a body that passed validation is a 400. These
+#: predate the rule. A count may only go down: lower it when you convert one.
+HAND_RAISED_422_BASELINE = {
+    "src/ai/routes.py": 1,
+    "src/collections/routes.py": 2,
+    "src/pages/routes.py": 4,
+    "src/panels/routes.py": 5,
+    "src/schedules/routes.py": 1,
+    "src/settings/routes.py": 20,
+    "src/templates/routes.py": 3,
+}
+
+
+def _hand_raised_422s(root: Path) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for path in sorted((root / "src").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
+            if name != "HTTPException":
+                continue
+            codes = [k.value for k in node.keywords if k.arg == "status_code"] + node.args[:1]
+            if any(isinstance(c, ast.Constant) and c.value == 422 for c in codes):
+                key = str(path.relative_to(root))
+                counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def test_no_new_hand_raised_422s():
+    """A semantic rejection is a 400; only FastAPI raises 422 (no new hand-raised ones)."""
+    found = _hand_raised_422s(Path(__file__).resolve().parent.parent)
+    grown = {f: n for f, n in found.items() if n > HAND_RAISED_422_BASELINE.get(f, 0)}
+    assert grown == {}, (
+        "A hand-raised HTTPException(status_code=422) answers {'detail': str} where the schema "
+        "promises FastAPI's list of errors (API_CONVENTIONS.md, '422 belongs to FastAPI'). Raise "
+        f"400 instead. Over the baseline: {grown}"
+    )
+
+
+# --------------------------------------------------------------------------
 # Guarding the guard
 # --------------------------------------------------------------------------
 
