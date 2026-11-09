@@ -28,21 +28,20 @@ Tests that need to stub a collaborator patch it where this module binds it —
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
 from src.board_guards import _require_board
 from src.collections.models import is_collection_id
-from src.collections.service import (
-    get_collection_service,
-    resolve_active_page_id,
-    resolve_next_check_seconds,
-)
+from src.collections.service import get_collection_service
 from src.pages.service import check_ref_board_compatibility, get_page_service
-from src.settings.service import get_settings_service, temporary_override_payload
+from src.settings.service import get_settings_service
 from src.time_service import get_time_service
 
+from . import at_time
 from .models import (
     ActiveScheduleResponse,
     DefaultPageResponse,
@@ -200,53 +199,30 @@ async def create_schedule(schedule_data: ScheduleCreate):
 # to avoid /schedules/{schedule_id} matching everything
 
 
-@router.get("/schedules/active/page", response_model=ActiveScheduleResponse)
-async def get_active_schedule(board_id: str | None = None):
-    """Get the currently active page based on schedule (optional query: board_id=).
+@router.get("/schedules/active/page", response_model=ActiveScheduleResponse, responses=errors(422))
+async def get_active_schedule(board_id: str | None = None, at: datetime | None = None):
+    """The page the schedule shows now, or at ``at`` (optional queries: board_id=, at=).
+
+    ``at`` (ISO 8601; naive means the hub's timezone; within a year of now,
+    else 422) answers for that instant (H8): the schedule entry or manual pin
+    in force then, its collection resolved then, the override still running
+    then and whether quiet hours cover it, all from today's configuration.
 
     A read: an unknown ``board_id`` falls back rather than 404, like every
     board-scoped read (API_CONVENTIONS, "writes 404, reads fall back").
     """
-    schedule_service = get_schedule_service()
-    settings_service = get_settings_service()
-
-    # Include temporary override status so the frontend can show the countdown badge
-    # without a separate API call.
-    # Only a real board's override: an unknown id (including the store's
-    # internal "__primary__" key) has none, rather than reaching the primary's.
-    known = not board_id or any(b.get("id") == board_id for b in settings_service.get_board_settings().boards or [])
-    override = settings_service.get_temporary_override(board_id) if known else None
-    override_payload = temporary_override_payload(override, board_id or settings_service.get_primary_board_id())
-
-    if not settings_service.is_schedule_enabled(board_id=board_id):
-        manual_page_id = settings_service.get_active_page_id(board_id=board_id)
-        return ActiveScheduleResponse(
-            page_id=manual_page_id,
-            resolved_page_id=resolve_active_page_id(manual_page_id, get_collection_service, board_id=board_id),
-            resolved_next_check_seconds=resolve_next_check_seconds(
-                manual_page_id, get_collection_service, board_id=board_id
-            ),
-            source="manual",
-            schedule_enabled=False,
-            temporary_override=override_payload,
+    try:
+        answer = at_time.active_page(
+            board_id,
+            at,
+            settings=get_settings_service(),
+            schedules=get_schedule_service(),
+            clock=get_time_service(),
+            collections=get_collection_service,
         )
-
-    time_service = get_time_service()
-    now = time_service.get_current_time()
-    current_time = now.time()
-    current_day = now.strftime("%A").lower()
-    page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
-    return ActiveScheduleResponse(
-        page_id=page_id,
-        resolved_page_id=resolve_active_page_id(page_id, get_collection_service, board_id=board_id),
-        resolved_next_check_seconds=resolve_next_check_seconds(page_id, get_collection_service, board_id=board_id),
-        source="schedule" if page_id else "none",
-        schedule_enabled=True,
-        current_time=now.strftime("%H:%M"),
-        current_day=current_day,
-        default_page_id=schedule_service.get_default_page(board_id=board_id),
-        temporary_override=override_payload,
-    )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return ActiveScheduleResponse(**answer)
 
 
 @router.post("/schedules/validate", response_model=ScheduleValidationResult)

@@ -153,11 +153,6 @@
       "reason": "No failure path. The only argument is board_id, and a board-scoped read deliberately falls back to the empty list instead of 404ing (API_CONVENTIONS.md, 'board_id validation: writes 404, reads fall back'); board_id=* is a documented wildcard, not an id."
     },
     {
-      "route": "GET /schedules/active/page",
-      "rule": "declared_errors",
-      "reason": "No failure path. It reports whatever is on the board right now — manual page, scheduled page, or nothing — and every collection resolution failure is caught and reported as null rather than raised, because a dashboard poll must not error out over a collection that cannot resolve."
-    },
-    {
       "route": "GET /schedules/default-page",
       "rule": "declared_errors",
       "reason": "No failure path. An unknown board_id deliberately answers the global default rather than 404 — the same read/write asymmetry, decided in #1888 and documented in API_CONVENTIONS.md."

@@ -27,6 +27,8 @@ from src.templates.expressions import validate_expression
 from .models import (
     CollectionCreate,
     CollectionDeleteResponse,
+    CollectionDryRunRequest,
+    CollectionDryRunResponse,
     CollectionListResponse,
     CollectionResponse,
     CollectionUpdate,
@@ -130,6 +132,60 @@ async def get_collection(collection_id: str):
     if not collection:
         raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
     return collection
+
+
+@router.post(
+    "/collections/{collection_id}/dry-run",
+    response_model=CollectionDryRunResponse,
+    responses=errors(404, 422),
+)
+async def dry_run_collection(collection_id: str, request: CollectionDryRunRequest | None = None):
+    """Which page this collection would pick at ``at`` (default now), and across a window (H8).
+
+    A formula collection evaluates every rule (the first true one wins, else
+    the default page) with H6's sample and missing data; ``window_seconds``
+    adds a timeline (``step_seconds`` apart for formula collections, exact
+    boundaries for time and random ones). Read-only: nothing is stored and no
+    board is touched. An unknown collection is a 404.
+    """
+    from datetime import datetime
+
+    from src.schedules.at_time import instant, stamp
+    from src.templates.routes import _preview
+
+    from . import dry_run
+
+    collection = get_collection_service().get_collection(collection_id)
+    if not collection:
+        raise HTTPException(status_code=404, detail=f"Collection not found: {collection_id}")
+    request = request or CollectionDryRunRequest()
+    if (
+        collection.selection_mode == "variable"
+        and request.window_seconds // request.step_seconds + 1 > dry_run.MAX_POINTS
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail=f"A formula collection's timeline is at most {dry_run.MAX_POINTS} points: widen step_seconds",
+        )
+    try:
+        local, at_utc = instant(request.at if request.at is not None else datetime.now().astimezone())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    preview = _preview(request.model_copy(update={"at": None}))
+    result = dry_run.run(collection, preview, local, request.window_seconds, request.step_seconds)
+    return CollectionDryRunResponse(
+        collection_id=collection.id,
+        selection_mode=collection.selection_mode,
+        at=stamp(at_utc),
+        page_id=result.page_id,
+        rules=result.rules,
+        matched_rule=result.matched_rule,
+        timeline=result.timeline,
+        truncated=result.truncated,
+        truncated_reason=result.truncated_reason,
+        shown_on=dry_run.shown_on(collection.id, at_utc, local.tzinfo),
+        sources=preview.sources,
+    )
 
 
 @router.put(

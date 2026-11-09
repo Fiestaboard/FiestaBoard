@@ -127,6 +127,8 @@ CONTROL_RULES = (
         ("POST", "/pages/import/preview"),
         ("GET,POST", "/collections"),
         ("GET,PUT,DELETE", "/collections/{}"),
+        # H8: the rule tester's dry run. Read-only; stores nothing.
+        ("POST", "/collections/{}/dry-run"),
         ("POST", "/templates/render"),
         ("POST", "/templates/render/live"),
         ("POST", "/templates/validate"),
