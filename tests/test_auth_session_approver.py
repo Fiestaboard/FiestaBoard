@@ -280,3 +280,93 @@ def test_the_cascade_needs_a_browser_mutation(auth, browser, two_phones):
     assert phone.delete(path, params={"include_approved": True}).status_code in (401, 403)
     assert works(two_phones["maya"]["access_token"])
     assert all(works(tv["access_token"]) for tv in two_phones["maya_tvs"])
+
+
+# ── the cascade is idempotent (review S1, S2) ───────────────────────────────
+
+
+def test_a_cascade_that_failed_partway_finishes_on_retry(auth, browser, two_phones, monkeypatch):
+    """A storage error on the first TV leaves the phone signed out; the retry
+    must still find and sign out the TVs that phone approved."""
+    tv_ids = {tv["session_id"] for tv in two_phones["maya_tvs"]}
+    real = auth.sessions.revoke_session
+    failed = []
+
+    def flaky(username, session_id):
+        # The first TV the cascade reaches fails (TVs go in id order, and ids are random).
+        if session_id in tv_ids and not failed:
+            failed.append(session_id)
+            raise OSError("disk hiccup")
+        return real(username, session_id)
+
+    monkeypatch.setattr(auth.sessions, "revoke_session", flaky)
+    path = "/auth/sessions/" + two_phones["maya"]["session_id"]
+
+    assert browser.delete(path, params={"include_approved": True}).status_code == 503
+    assert not works(two_phones["maya"]["access_token"])  # the phone went first
+    retry = browser.delete(path, params={"include_approved": True})
+
+    assert retry.status_code == 200
+    # The first TV reached failed, so neither was signed out: the retry takes both.
+    assert failed and sorted(retry.json()["also_signed_out"]) == sorted(tv_ids)
+    assert not any(works(tv["access_token"]) for tv in two_phones["maya_tvs"])
+
+
+def test_a_phone_that_signed_itself_out_can_still_take_its_tvs_with_it(auth, browser, two_phones):
+    assert bearer_client(two_phones["maya"]["access_token"]).delete("/auth/device/session").status_code == 200
+
+    response = browser.delete("/auth/sessions/" + two_phones["maya"]["session_id"], params={"include_approved": True})
+
+    assert sorted(response.json()["also_signed_out"]) == sorted(tv["session_id"] for tv in two_phones["maya_tvs"])
+    assert not any(works(tv["access_token"]) for tv in two_phones["maya_tvs"])
+
+
+def test_a_retry_does_not_audit_the_phone_twice(auth, browser, two_phones, caplog):
+    path = "/auth/sessions/" + two_phones["maya"]["session_id"]
+    browser.delete(path, params={"include_approved": True})
+    caplog.set_level(logging.INFO, logger="src.auth.audit")
+
+    again = browser.delete(path, params={"include_approved": True})
+
+    assert again.json()["also_signed_out"] == []
+    assert [r for r in caplog.records if r.name == "src.auth.audit"] == []
+
+
+# ── the cascade's defensive filters (review S3) ─────────────────────────────
+
+
+def _sql(auth, statement, *args):
+    with auth.sessions.transaction() as db:
+        db.execute(statement, args)
+
+
+def test_the_cascade_never_reaches_a_phone_even_through_an_approval_row(auth, browser, two_phones):
+    """Only TV codes are approved today; a forged row naming a phone must not widen it."""
+    _sql(
+        auth,
+        "INSERT INTO session_approvals VALUES (?, ?)",
+        two_phones["pixel"]["session_id"],
+        two_phones["maya"]["session_id"],
+    )
+
+    response = browser.delete("/auth/sessions/" + two_phones["maya"]["session_id"], params={"include_approved": True})
+
+    assert two_phones["pixel"]["session_id"] not in response.json()["also_signed_out"]
+    assert works(two_phones["pixel"]["access_token"])
+
+
+def test_the_cascade_skips_a_tv_of_another_generation(auth, browser, two_phones):
+    first, second = two_phones["maya_tvs"]
+    _sql(auth, "UPDATE sessions SET account_generation = account_generation - 1 WHERE id=?", second["session_id"])
+
+    response = browser.delete("/auth/sessions/" + two_phones["maya"]["session_id"], params={"include_approved": True})
+
+    assert response.json()["also_signed_out"] == [first["session_id"]]
+
+
+def test_an_approver_of_another_generation_is_not_signed_in(auth, browser, phone):
+    phone_client, phone_token = phone
+    tv = approved_tv(auth, phone_client)
+    _sql(auth, "UPDATE sessions SET account_generation = account_generation - 1 WHERE id=?", phone_token["session_id"])
+
+    assert rows(browser)[tv["session_id"]]["approved_by"]["signed_in"] is False

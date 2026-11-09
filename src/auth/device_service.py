@@ -94,17 +94,22 @@ def revoke_with_approved(current: SessionRecord, session_id: str, include_approv
 
     Every sign-out goes through ``SessionStore.revoke_session`` and is audited
     the same way. Returns the ids of the TVs signed out with the phone.
+
+    Idempotent: the phone is found even when it is already signed out (it
+    signed itself out, or an earlier attempt failed after revoking it), so
+    a retry finishes the TVs it approved. Only live sessions are audited.
     """
     from .service import get_auth_service
 
     store = get_auth_service().sessions
     live = {row.id: row for row in store.list_sessions(current.username)}
     target = live.get(session_id)
+    kind = target.kind if target is not None else store.session_kind(current.username, session_id)
     approved: list[SessionRecord] = []
-    if include_approved and target is not None and target.kind == "mobile":
+    if include_approved and kind == "mobile":
         approved = [
             live[tv_id]
-            for tv_id in sorted(store.approved_by(target.id))
+            for tv_id in sorted(store.approved_by(session_id))
             if tv_id in live
             and live[tv_id].kind == "tv"
             and live[tv_id].account_generation == current.account_generation

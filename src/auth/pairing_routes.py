@@ -58,7 +58,7 @@ def _hub_for(request: Request, payload: PairingRequest) -> tuple[str, list[dict[
         )
     hub = pick(addresses, payload.hub)
     if hub is None:
-        raise AuthFlowError("invalid_request", "hub must be one of this hub's hub_addresses.", 422)
+        raise AuthFlowError("invalid_request", "hub must be one of this hub's hub_addresses.", 400)
     return hub, addresses
 
 
