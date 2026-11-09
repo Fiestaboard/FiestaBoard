@@ -41,15 +41,9 @@ RUN apk add --no-cache python3 make g++
 # not it has been committed yet.
 COPY web/package.json ./
 COPY web/package-lock.json* ./
-# Vendored tarballs that package.json installs with `file:vendor/…`
-# (see web/vendor/README.md). The `[r]` glob lets this line match nothing,
-# so the build still works once web/vendor/ is deleted and every
-# dependency comes from the registry again.
-COPY web/vendo[r] ./vendor/
 
 # @fiestaboard/ui is published to registry.npmjs.org and installs
-# anonymously — no token, no .npmrc, no BuildKit secret. While v11 is on
-# the FiestaUI alpha it comes from web/vendor/ instead (O11).
+# anonymously — no token, no .npmrc, no BuildKit secret.
 RUN --mount=type=cache,target=/root/.npm \
     if [ -f package-lock.json ]; then \
         npm ci --legacy-peer-deps --no-audit; \
