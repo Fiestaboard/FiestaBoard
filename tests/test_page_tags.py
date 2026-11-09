@@ -79,10 +79,13 @@ def test_a_tag_only_change_records_no_saved_version(client):
 
 def test_a_draft_never_changes_tags(client):
     # Review #2466 P11: tags aren't drafted, so sending them to the draft route
-    # is a 422 rather than a 200 that silently drops them.
+    # is rejected rather than a 200 that silently drops them. A 400, not a 422:
+    # the body passed validation, and 422 is FastAPI's list-shaped error
+    # (API_CONVENTIONS #1923).
     page = _ok(client, tags=["Keep"])
     response = client.put(f"/pages/{page['id']}/draft", json={"tags": ["Drafted"], "name": "Drafted"})
-    assert response.status_code == 422, response.text
+    assert response.status_code == 400, response.text
+    assert isinstance(response.json()["detail"], str)
     assert "PUT /pages/" in response.json()["detail"]
     assert client.get(f"/pages/{page['id']}/draft").status_code == 404
     assert client.get(f"/pages/{page['id']}").json()["tags"] == ["Keep"]
