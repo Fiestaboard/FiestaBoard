@@ -34,8 +34,10 @@ from src.devices import (
     DeviceType,
     resolve_dimensions,
 )
+from src.outputs.drawing import BoardDrawing
 from src.pages.document import PAGE_SHARE_EXCLUDED, ExtensibleDocument
 from src.pages.document import DocumentCanvas as Canvas
+from src.pages.tags import clean_tags
 from src.settings.service import VALID_OUTPUT_TARGETS
 
 PageType = Literal["single", "composite", "template"]
@@ -198,6 +200,12 @@ class Page(ExtensibleDocument):
     # cells under them (or flows text around a ``text: "flow"`` canvas).
     canvases: list[Canvas] | None = None
 
+    # Tags (H9c): organization, not content. Stored with no schema bump: an
+    # absent key is [], and an older build keeps the key as an extension.
+    # Cleaned leniently here (a stored value never stops a page loading);
+    # PageCreate/PageUpdate are strict.
+    tags: list[str] = Field(default_factory=list, description="Labels for organizing pages.")
+
     # Metadata
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime | None = None
@@ -231,6 +239,11 @@ class Page(ExtensibleDocument):
     @classmethod
     def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
         return _check_canvas_list(value)
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _tags_lenient(cls, value: Any) -> list[str]:
+        return clean_tags(value, strict=False)
 
     @field_serializer("canvases")
     def _canvases_dump(
@@ -277,8 +290,12 @@ class Page(ExtensibleDocument):
         return len(self.validate_config()) == 0
 
 
-class PageCreate(ExtensibleDocument):
-    """Create author content; server-assigned identity and timestamps are ignored."""
+class PageContent(ExtensibleDocument):
+    """A page's content without its identity: what a draft holds and a saved version records (H9a).
+
+    The authorable fields (and any opaque extensions). No ``id``, timestamps,
+    edit generation or tags. ``PageCreate`` is this plus ``tags``.
+    """
 
     @model_validator(mode="before")
     @classmethod
@@ -314,7 +331,7 @@ class PageCreate(ExtensibleDocument):
     canvases: list[Canvas] | None = None
 
     @model_validator(mode="after")
-    def _check_panel_grid(self) -> "PageCreate":
+    def _check_panel_grid(self) -> "PageContent":
         _require_panel_grid(self.device_type, self.grid_rows, self.grid_cols)
         _check_canvases_fit(
             self.canvases, self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols
@@ -331,6 +348,27 @@ class PageCreate(ExtensibleDocument):
         self, value: list[Canvas] | None, info: FieldSerializationInfo
     ):  # no return annotation: the schema stays the field's
         return _dump_canvases(value, info)
+
+
+def _strict_tags(value: Any) -> list[str]:
+    return clean_tags(value, strict=True)
+
+
+class PageCreate(PageContent):
+    """Create author content; server-assigned identity and timestamps are ignored."""
+
+    tags: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Labels for organizing pages: at most 16, each 1-32 characters, trimmed, with no control characters. "
+            "Duplicates differing only in case are dropped."
+        ),
+    )
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _tags_valid(cls, value: Any) -> list[str]:
+        return _strict_tags(value)
 
 
 class PageUpdate(BaseModel):
@@ -370,11 +408,20 @@ class PageUpdate(BaseModel):
     # retarget that does not send canvases scales the existing areas to the
     # new grid.
     canvases: list[Canvas] | None = None
+    # Tags (H9c): the list replaces the page's; ``[]`` clears; omitted keeps them.
+    tags: list[str] | None = Field(
+        default=None, description="Replaces the page's tags; [] removes them all; omit to keep them."
+    )
 
     @field_validator("canvases", mode="before")
     @classmethod
     def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
         return _check_canvas_list(value)
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _tags_valid(cls, value: Any) -> list[str] | None:
+        return None if value is None else _strict_tags(value)
 
     @field_serializer("canvases")
     def _canvases_dump(
@@ -449,14 +496,6 @@ RevisionOrigin = Literal[
     "created", "edited", "published", "restored", "resized", "assistant", "duplicated", "imported", "baseline"
 ]
 SaveVia = Literal["web", "phone", "api", "mcp", "hub"]
-
-
-class PageContent(PageCreate):
-    """A page's content without its identity: what a draft holds and a saved version records.
-
-    The ``PageCreate`` fields (and any opaque extensions). No ``id``,
-    timestamps, edit generation or tags.
-    """
 
 
 class PageDraft(BaseModel):
@@ -551,6 +590,67 @@ class PageRestoreRequest(BaseModel):
     replace_draft: bool = Field(
         default=False, description="Replace an existing draft (otherwise an existing draft is a 409)."
     )
+
+
+class PageTagCount(BaseModel):
+    tag: str
+    count: int
+
+
+class PageTagListResponse(BaseModel):
+    """``GET /pages/tags`` — every tag in use and how many pages carry it (H9c)."""
+
+    tags: list[PageTagCount]
+
+
+class PageDuplicateRequest(BaseModel):
+    """Body of ``POST /pages/{page_id}/duplicate`` (H9c).
+
+    The target size, resolved as ``POST /templates/validate`` does (H4):
+    explicit geometry (``device_type`` and its fields) wins, then
+    ``board_id``'s, else the page's own size.
+    """
+
+    board_id: str | None = Field(default=None, description="The display picked; 404 when unknown.")
+    device_type: DeviceType | None = None
+    notes_wide: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
+    notes_tall: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
+    grid_rows: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_ROWS, le=MAX_GRID_ROWS)
+    grid_cols: int | None = Field(default=None, ge=ABSOLUTE_MIN_GRID_COLS, le=MAX_GRID_COLS)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def _check_panel_grid(self) -> "PageDuplicateRequest":
+        _require_panel_grid(self.device_type, self.grid_rows, self.grid_cols)
+        return self
+
+
+class LineTooLong(BaseModel):
+    line: int = Field(description="1-based line of the copy (H4's numbering).")
+    max_length: int | None = Field(default=None, description="The most tiles the line can render (H4).")
+
+
+class PageDuplicateReport(BaseModel):
+    """What the copy lost or changed against its source ("the copy opens with a crop report")."""
+
+    rows: int
+    cols: int
+    from_rows: int
+    from_cols: int
+    lines_too_long: list[LineTooLong] = Field(description="H4 line_too_long at the target width and charset.")
+    rows_dropped: list[int] = Field(description="0-based source lines with content past the target's last row.")
+    composite_rows_dropped: list[int] = Field(description="0-based indices of composite row configs dropped.")
+    canvases_scaled: int = Field(description="Canvases moved proportionally to the new grid.")
+    drawing: BoardDrawing | None = Field(
+        default=None, description="The target board's H3 drawing (what it can draw); null with no board_id."
+    )
+
+
+class PageDuplicateResponse(BaseModel):
+    """``POST /pages/{page_id}/duplicate`` — the new page and its crop report."""
+
+    page: Page
+    report: PageDuplicateReport
 
 
 class PageSendEntry(BaseModel):

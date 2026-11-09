@@ -1028,6 +1028,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/pages/tags",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_page_tags",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/pages/{page_id}",
       "methods": [
         "DELETE"
@@ -1081,6 +1089,14 @@
         "POST"
       ],
       "name": "publish_page_draft",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}/duplicate",
+      "methods": [
+        "POST"
+      ],
+      "name": "duplicate_page",
       "kind": "APIRoute"
     },
     {

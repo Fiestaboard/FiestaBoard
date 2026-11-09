@@ -154,7 +154,9 @@ def test_canvases_are_scaled_to_the_target(client):
             "grid_rows": 12,
             "grid_cols": 30,
             "template": ["HI"],
-            "canvases": [{"id": "pic", "area": {"row": 7, "col": 16, "rows": 6, "cols": 15}, "source": "x"}],
+            "canvases": [
+                {"id": "pic", "area": {"row": 7, "col": 16, "rows": 6, "cols": 15}, "source": "{{weather.icon}}"}
+            ],
         },
     )
     assert page.status_code == 201, page.text

@@ -132,6 +132,9 @@ CONTROL_RULES = (
         ("POST", "/pages/{}/revisions/{}/restore"),
         # H9b: what happened when the page was sent. Read-only.
         ("GET", "/pages/{}/sends"),
+        # H9c: copy a page for another display (a page create, as POST /pages), and the tag facet.
+        ("POST", "/pages/{}/duplicate"),
+        ("GET", "/pages/tags"),
         # Shape collision with POST /pages/{}/preview, listed on purpose: it decodes a
         # share string and saves nothing. POST /pages/import (which saves) stays denied.
         ("POST", "/pages/import/preview"),

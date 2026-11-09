@@ -50,6 +50,7 @@ from src.schedules.service import get_schedule_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service, page_transition
 from src.text_to_board import text_to_board_array
 
+from . import duplicate as page_duplicate
 from .drafts import (
     DraftConflict,
     DraftExists,
@@ -71,6 +72,8 @@ from .models import (
     PageDraftDiscardResponse,
     PageDraftListResponse,
     PageDraftPublishRequest,
+    PageDuplicateRequest,
+    PageDuplicateResponse,
     PageImportPreview,
     PageImportRequest,
     PageListResponse,
@@ -83,6 +86,7 @@ from .models import (
     PageSendHistoryResponse,
     PageSendRequest,
     PageSendResponse,
+    PageTagListResponse,
     PageUpdate,
     PageUpdateResponse,
     ShareStringResponse,
@@ -92,6 +96,7 @@ from .sends import record_send, send_history
 from .service import draws_pixels, find_incompatible_references, get_page_service
 from .share import decode_page, encode_page
 from .storage import PageRevisionConflict
+from .tags import has_tag, tag_counts
 
 logger = logging.getLogger(__name__)
 
@@ -175,12 +180,23 @@ def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
     response_model=PageListResponse,
     dependencies=[superseded_by_v1("GET /pages")],
 )
-async def list_pages():
-    """List all saved pages."""
+async def list_pages(tag: str | None = None):
+    """List all saved pages; ``?tag=`` keeps those carrying that tag (case-insensitive, H9c)."""
     page_service = get_page_service()
     pages = page_service.list_pages()
+    if tag is not None:
+        pages = [p for p in pages if has_tag(p.tags, tag)]
 
     return PageListResponse(pages=pages, total=len(pages))
+
+
+@router.get(
+    "/pages/tags",
+    response_model=PageTagListResponse,
+)
+async def list_page_tags():
+    """Every tag in use and how many pages carry it (H9c): the library's tag facet."""
+    return PageTagListResponse(tags=tag_counts(get_page_service().list_pages()))
 
 
 @router.get(
@@ -921,3 +937,30 @@ async def list_page_sends(page_id: str):
         raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
     sends = send_history().sends(page_id)
     return PageSendHistoryResponse(page_id=page_id, sends=sends, total=len(sends))
+
+
+@router.post(
+    "/pages/{page_id}/duplicate",
+    response_model=PageDuplicateResponse,
+    status_code=201,
+    responses=errors(400, 404, 422),
+)
+async def duplicate_page(page_id: str, body: PageDuplicateRequest | None = None, via: Via = None):
+    """Copy a page to another display's size ("Make a copy for another display…", H9c).
+
+    The size is the request's geometry, else ``board_id``'s (404 when unknown),
+    else the page's own. Answers the new page and a crop report: lines H4
+    says are too long at the new width, lines and composite rows dropped past
+    the last row, canvases rescaled, and the board's H3 ``drawing``. The
+    source page is unchanged.
+    """
+    request = body or PageDuplicateRequest()
+    board = _require_board(request.board_id) if request.board_id is not None else None
+    page, report = _history_call(
+        page_duplicate.duplicate_page, get_page_service(), page_id, request, board=board, via=via
+    )
+    if board is not None:
+        from src.v1.routes_boards import _drawing
+
+        report["drawing"] = _drawing(board)
+    return PageDuplicateResponse(page=page, report=report)
