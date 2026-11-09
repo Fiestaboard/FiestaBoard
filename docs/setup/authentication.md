@@ -183,7 +183,7 @@ CORS never applies to them.
   and expiry times. Revoke one, sign out other devices, or sign out everywhere.
   Device names are descriptive labels, not verified hardware identities.
   A TV that signed in with a code also says who approved it: the phone's name,
-  or the browser as "<Browser> on <OS>" (from its user agent; "a web browser"
+  or the browser as `<Browser> on <OS>` (from its user agent; "a web browser"
   when that says neither). Signing out a phone can also sign out the TVs that
   phone approved.
 
