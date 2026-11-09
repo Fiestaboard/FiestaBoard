@@ -183,7 +183,7 @@ CORS never applies to them.
   and expiry times. Revoke one, sign out other devices, or sign out everywhere.
   Device names are descriptive labels, not verified hardware identities.
   A TV that signed in with a code also says who approved it: the phone's name,
-  or the browser as "<Browser> on <OS>" (from its user agent; "a web browser"
+  or the browser as `<Browser> on <OS>` (from its user agent; "a web browser"
   when that says neither). Signing out a phone can also sign out the TVs that
   phone approved.
 
@@ -333,5 +333,34 @@ or signing key into public diagnostics.
 
 ## Recovering from a lost password
 
-Stop the container, delete `data/auth.json`, and restart. The next visit
-to the UI will walk you through the first-run picker again.
+FiestaBoard has no email, so a reset starts where only the owner can act:
+inside the container.
+
+1. Mint a one-time reset code:
+
+   ```bash
+   docker compose exec fiestaboard python -m src.auth.password_reset
+   ```
+
+   It prints a code starting with `fb_reset_`. The code works **once**, for
+   **15 minutes**, and only the newest code works. On a Raspberry Pi image, run
+   the same command over SSH from the folder you start FiestaBoard in.
+2. Open FiestaBoard at `/reset-password#code=<the code>`, or enter the code on
+   its **Reset password** page, and choose a new password. Until that page ships
+   in your version, send the code with the API, typing the password at a hidden
+   prompt so it stays out of your shell history:
+
+   ```bash
+   python3 -c 'import getpass, json; print(json.dumps({"code": input("Code: "), "new_password": getpass.getpass("New password: ")}))' |
+     curl -sS -X POST -H 'Content-Type: application/json' --data-binary @- \
+     http://fiestaboard.local:4420/api/auth/password-reset
+   ```
+
+3. Sign in with the new password. A reset signs out every browser, TV and
+   phone, the same as a password change. No web request can start a reset,
+   and the code is never written to the logs. Wrong codes count toward the
+   same lockout as wrong passwords.
+
+As a last resort, stop the container, delete `data/auth.json` and restart.
+That also forgets the stored MCP token and your sign-in choice, and the next
+visit walks you through the first-run picker again.
