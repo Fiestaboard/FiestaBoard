@@ -21,6 +21,14 @@ logger = logging.getLogger(__name__)
 
 CURRENT_SCHEMA_VERSION = 6
 
+# H9c added ``tags`` to the page WITHOUT a bump, deliberately (Jev, program
+# status/hub-H9.md). An absent key reads as [] (no rewrite, no key-presence
+# heuristic: nothing needs migrating), and an older build keeps the key as an
+# opaque extension. A bump would make an older build refuse this file outright
+# (SchemaTooNewError; pages have no downgrade bridge), so a one-release
+# rollback would show no pages. Bump only for a change that rewrites stored
+# data. Drafts, saved versions and send history are sidecar files (H9a/H9b).
+
 
 # Mapping from obsolete plugin id (used in template variable references,
 # `display_type` for single pages, and `rows[].source` for composite
@@ -386,6 +394,10 @@ class PageStorage:
                     page_data["created_at"] = page_data["created_at"].isoformat()
                 if isinstance(page_data.get("updated_at"), datetime):
                     page_data["updated_at"] = page_data["updated_at"].isoformat()
+                # No tags (H9c) is no key: an untagged page's stored form, and
+                # every pages.json written before H9c, stay byte-identical.
+                if not page_data.get("tags"):
+                    page_data.pop("tags", None)
                 pages_out.append(page_data)
 
             # Round-trip any entries that failed to parse on load so a
