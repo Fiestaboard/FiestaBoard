@@ -490,6 +490,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/config/board/existing",
+      "methods": [
+        "POST"
+      ],
+      "name": "existing_boards",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/config/board/scan",
       "methods": [
         "POST"
