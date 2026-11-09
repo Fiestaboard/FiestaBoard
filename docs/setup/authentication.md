@@ -185,7 +185,7 @@ CORS never applies to them.
   A TV that signed in with a code also says who approved it: the phone's name,
   or the browser as `<Browser> on <OS>` (from its user agent; "a web browser"
   when that says neither). Signing out a phone can also sign out the TVs that
-  phone approved.
+  phone approved, even a phone that has already signed itself out.
 
 The corresponding API endpoints are also available:
 
