@@ -152,6 +152,27 @@ def test_a_reset_signs_out_every_browser_tv_and_phone(auth, capsys, browser):
     assert bearer_client(tv["access_token"]).get("/panels").status_code == 401
 
 
+def test_a_reset_revokes_every_session_row_and_moves_the_watermark(auth, capsys, browser):
+    """Both halves of "sign everyone out": the registry rows and the account
+    watermark (either alone would already refuse today's credentials)."""
+    sign_in(IOS)
+    before = auth.get_user("admin")["sessions_valid_after_ms"]
+
+    assert reset(minted_code(auth, capsys)).status_code == 200
+
+    assert auth.sessions.list_sessions("admin") == []
+    assert auth.get_user("admin")["sessions_valid_after_ms"] > before
+
+
+def test_a_code_is_consumed_by_the_store_itself(auth, capsys):
+    """Single use does not rest on the password change clearing codes: the
+    store's own consume is atomic and one-shot (two racing requests)."""
+    code = minted_code(auth, capsys)
+
+    assert auth.sessions.consume_password_reset(code) == "admin"
+    assert auth.sessions.consume_password_reset(code) is None
+
+
 def test_a_reset_does_not_sign_anyone_in(auth, capsys):
     response = reset(minted_code(auth, capsys))
 
