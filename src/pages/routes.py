@@ -46,6 +46,7 @@ from src.text_to_board import text_to_board_array
 from .drafts import (
     DraftConflict,
     DraftExists,
+    DraftFromNewerBuild,
     DraftNotFound,
     InvalidDraft,
     NoDraftToPublish,
@@ -111,6 +112,7 @@ _STATUS_BY_ERROR: tuple[tuple[type[Exception], int], ...] = (
     (RevisionNotFound, 404),
     (NoDraftToPublish, 409),
     (DraftExists, 409),
+    (DraftFromNewerBuild, 409),
     (DraftConflict, 412),
     (PageRevisionConflict, 412),
     (InvalidDraft, 400),
@@ -157,6 +159,12 @@ def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
                 "'plugin:<id>' strategy to a page."
             ),
         )
+
+
+def _reject_plugin_content_when_beta_off(content: dict) -> None:
+    """The beta guard for content that arrives from storage (a draft being
+    published, a saved version being restored), not from the request body."""
+    _reject_plugin_strategy_when_beta_off(content.get("transition_strategy"))
 
 
 # No 4xx of its own: an empty instance is an empty list, not an error. See the
@@ -820,13 +828,14 @@ async def get_page_draft(page_id: str):
     return _history_call(get_page_service().get_draft, page_id)
 
 
-@router.put("/pages/{page_id}/draft", response_model=PageDraft, responses=errors(400, 404, 412))
+@router.put("/pages/{page_id}/draft", response_model=PageDraft, responses=errors(400, 404, 409, 412))
 async def save_page_draft(page_id: str, page_data: PageUpdate, via: Via = None):
     """Save a draft ("Save draft"): the fields sent, over the existing draft or the published page.
 
     No board, schedule or collection sees a draft. ``expected_revision`` here
     is **the draft's** revision (412 when another device saved the draft
-    since). An invalid page, or a draft over 256 KiB, is a 400.
+    since). An invalid page, or a draft over 256 KiB, is a 400. A 409 when the
+    stored draft was saved by a newer FiestaBoard (this build won't overwrite it).
     """
     _reject_plugin_strategy_when_beta_off(page_data.transition_strategy)
     return _history_call(get_page_service().save_draft, page_id, page_data, via=via)
@@ -845,10 +854,19 @@ async def publish_page_draft(page_id: str, body: PageDraftPublishRequest | None 
 
     Answers like ``PUT /pages/{page_id}``, including ``incompatible_references``
     when the draft changed the page's size. 409 when there is no draft; 412
-    when ``expected_revision`` (the published page's) is stale.
+    when ``expected_revision`` (the published page's) is stale, or when
+    ``expected_draft_revision`` (the draft's) is: another device saved the
+    draft since this editor read it. A draft carrying a ``plugin:`` transition
+    is a 400 while the transition-plugin beta is off, as on ``PUT``.
     """
-    expected = body.expected_revision if body else None
-    before, after = _history_call(get_page_service().publish_draft, page_id, expected_revision=expected, via=via)
+    before, after = _history_call(
+        get_page_service().publish_draft,
+        page_id,
+        expected_revision=body.expected_revision if body else None,
+        expected_draft_revision=body.expected_draft_revision if body else None,
+        via=via,
+        check_content=_reject_plugin_content_when_beta_off,
+    )
     incompatible: list[IncompatibleReference] = []
     if size_key(*geometry_of(before)) != size_key(*geometry_of(after)):
         incompatible = [IncompatibleReference(**ref) for ref in find_incompatible_references(after)]
@@ -876,7 +894,16 @@ async def restore_page_revision(
 ):
     """Restore a saved version **into the draft**; the published page is untouched until publish.
 
-    409 when the page already has a draft, unless ``replace_draft`` is true.
+    409 when the page already has a draft, unless ``replace_draft`` is true. A
+    version carrying a ``plugin:`` transition is a 400 while the
+    transition-plugin beta is off.
     """
     replace = body.replace_draft if body else False
-    return _history_call(get_page_service().restore_revision, page_id, revision_id, replace_draft=replace, via=via)
+    return _history_call(
+        get_page_service().restore_revision,
+        page_id,
+        revision_id,
+        replace_draft=replace,
+        via=via,
+        check_content=_reject_plugin_content_when_beta_off,
+    )
