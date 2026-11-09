@@ -76,8 +76,8 @@ async def list_pages() -> PageListResponse:
         "drawn from several sources. `device_type` must match the boards you intend to show it on."
     ),
 )
-async def create_page(request: PageCreate) -> Page:
-    return await pages_routes.create_page(request)
+async def create_page(request: PageCreate, via: pages_routes.Via = None) -> Page:
+    return await pages_routes.create_page(request, via=via)
 
 
 @router.get(
@@ -105,8 +105,8 @@ async def get_page(page_id: str) -> Page:
         "where your change has made the size no longer fit."
     ),
 )
-async def update_page(page_id: str, request: PageUpdate) -> PageUpdateResponse:
-    return await pages_routes.update_page(page_id, request)
+async def update_page(page_id: str, request: PageUpdate, via: pages_routes.Via = None) -> PageUpdateResponse:
+    return await pages_routes.update_page(page_id, request, via=via)
 
 
 @router.delete(

@@ -87,6 +87,8 @@ def retarget_pages(resizes: Resizes, remaining_keys: set[str], *, allow_shrink: 
                     grid_rows=grid_rows,
                     grid_cols=grid_cols,
                 ),
+                origin="resized",
+                via="hub",
             )
         except ValueError:
             logger.warning("Could not retarget page %r to its board's new grid", page.name, exc_info=True)
