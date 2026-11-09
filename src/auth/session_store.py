@@ -302,11 +302,18 @@ class SessionStore:
             ).fetchall()
         return {row["session_id"] for row in rows}
 
+    def session_kind(self, username: str, session_id: str) -> str | None:
+        """The kind of *username*'s session *session_id*, signed out or not
+        (``None`` if there is no such row, e.g. it expired and was cleaned)."""
+        with self.transaction() as db:
+            row = db.execute("SELECT kind FROM sessions WHERE username=? AND id=?", (username, session_id)).fetchone()
+        return row["kind"] if row else None
+
     def approvers(self, username: str) -> dict[str, SessionRecord]:
         """``{tv_session_id: the session that approved its code}`` for *username*.
 
-        The approver is returned even when it has since signed out or
-        expired, so "Approved by" still names it.
+        The approver is returned even when it has since signed out, so
+        "Approved by" still names it (an expired one is forgotten).
         """
         with self.transaction() as db:
             rows = db.execute(
