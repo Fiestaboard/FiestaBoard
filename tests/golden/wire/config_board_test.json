@@ -21,7 +21,8 @@
         "body": {
           "success": true,
           "message": "Successfully connected to your board!",
-          "api_mode": "local"
+          "api_mode": "local",
+          "existing_boards": []
         }
       }
     },
@@ -43,7 +44,8 @@
         "body": {
           "success": true,
           "message": "Successfully connected to your board!",
-          "api_mode": "cloud"
+          "api_mode": "cloud",
+          "existing_boards": []
         }
       }
     }

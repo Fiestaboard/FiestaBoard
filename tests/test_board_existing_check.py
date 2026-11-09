@@ -122,6 +122,15 @@ def test_an_empty_masked_or_other_key_matches_nothing(client, boards, key):
     assert existing(client, cloud_key=key, note_array_token=key) == []
 
 
+def test_a_board_stored_with_a_masked_key_matches_no_masked_request():
+    """A client echoing ``***`` back must not match a board some client once saved masked."""
+    from src.config_api.existing import existing_boards
+
+    stored = [{"id": "b1", "name": "Odd", "api_mode": "cloud", "cloud_key": "***", "note_array_token": "***"}]
+
+    assert existing_boards(stored, cloud_key="***", note_array_token="***") == []
+
+
 def test_a_board_matching_twice_is_listed_once(client, boards):
     assert names(client, host="192.168.1.30", note_array_token=ARRAY_TOKEN) == [("Array", "host")]
 

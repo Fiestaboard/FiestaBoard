@@ -64,6 +64,8 @@ from .models import (
     ConfigValidationResponse,
     EnableLocalApiResponse,
     EnablementTokenRequest,
+    ExistingBoardRequest,
+    ExistingBoardsResponse,
     FullConfigResponse,
     GeneralConfig,
     GeneralConfigUpdate,
@@ -324,6 +326,20 @@ async def test_board_connection(request: BoardTestRequest):
         return await service.probe_board_connection(request)
     except service.BoardProbeError as exc:
         raise _as_http(exc) from exc
+
+
+@router.post("/config/board/existing", response_model=ExistingBoardsResponse, responses=errors(422))
+async def existing_boards(request: ExistingBoardRequest):
+    """Which boards already use this display (H19): read-only, for the setup wizard.
+
+    Matches the host (any output, note-array tiles included; compared as
+    written, no DNS; a port only distinguishes when both sides name one), the
+    cloud key or the note-array token. Secrets are compared, never returned.
+    ``exclude_board_id`` is the board being edited.
+    """
+    from .existing import hub_existing_boards
+
+    return ExistingBoardsResponse(existing=hub_existing_boards(**request.model_dump(exclude={"output"})))
 
 
 @router.post(

@@ -167,6 +167,32 @@ class BoardTestRequest(BaseModel):
     port: int | None = None
 
 
+class ExistingBoard(BaseModel):
+    """A board that already uses the display being set up (H19)."""
+
+    board_id: str
+    name: str
+    output: str
+    matched: Literal["host", "cloud_key", "note_array_token"]
+
+
+class ExistingBoardRequest(BaseModel):
+    """``POST /config/board/existing`` body: what the wizard is about to save."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    output: str | None = Field(default=None, description="The output being set up (informational).")
+    host: str | None = Field(default=None, max_length=512)
+    port: int | None = Field(default=None, ge=1, le=65535)
+    cloud_key: str | None = Field(default=None, max_length=512)
+    note_array_token: str | None = Field(default=None, max_length=512)
+    exclude_board_id: str | None = Field(default=None, description="The board being edited, never its own duplicate.")
+
+
+class ExistingBoardsResponse(BaseModel):
+    existing: list[ExistingBoard] = Field(description="Boards already using this display; empty when it is new.")
+
+
 class BoardTestResponse(BaseModel):
     """Declared verdict of a board connection probe.
 
@@ -184,6 +210,8 @@ class BoardTestResponse(BaseModel):
     api_mode: str | None = None
     error: str | None = None
     troubleshooting: list[str] | None = None
+    #: H19: the boards already using this display (its host, cloud key or token).
+    existing_boards: list[ExistingBoard] | None = None
 
 
 class EnablementTokenRequest(BaseModel):
