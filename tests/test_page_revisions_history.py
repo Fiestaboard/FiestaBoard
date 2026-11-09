@@ -15,6 +15,7 @@ Not to be confused with ``Page.revision``, the in-memory edit generation that
 from __future__ import annotations
 
 import json
+from datetime import UTC
 
 import pytest
 
@@ -155,6 +156,41 @@ def test_a_pre_h9_page_records_its_old_content_as_a_baseline_on_first_save(clien
     revs = _revisions(client, page)
     assert [r["origin"] for r in revs] == ["edited", "baseline"]
     assert _content(client, page, revs[1]["id"])["template"][0] == "HI"
+
+
+def test_a_page_untouched_for_100_days_keeps_its_baseline(client, page, clock, _isolated_data_dir):
+    # Review #2463 must-fix 2 (probe P1): the baseline carries the page's old
+    # updated_at, and the 90-day cap must not prune it in the call that writes it.
+    from datetime import datetime
+
+    for path in (_isolated_data_dir / "page_revisions").glob("*.json"):
+        path.unlink()
+    live = client.get(f"/pages/{page}").json()
+    updated_at = datetime.fromisoformat(live["updated_at"] or live["created_at"]).timestamp()
+    clock.now = updated_at + 100 * DAY
+    _save(client, page, template=_lines("FIRST EDIT"))
+    revs = _revisions(client, page)
+    assert [r["origin"] for r in revs] == ["edited", "baseline"]
+    assert _content(client, page, revs[1]["id"])["template"][0] == "HI"
+    assert revs[1]["saved_at"].startswith(datetime.fromtimestamp(updated_at, UTC).date().isoformat())
+    # ...and it survives the next save too: it ages from when it was recorded.
+    clock.now += 120
+    _save(client, page, template=_lines("SECOND EDIT"))
+    assert [r["origin"] for r in _revisions(client, page)] == ["edited", "edited", "baseline"]
+
+
+def test_a_baseline_ages_out_ninety_days_after_it_was_recorded(client, page, clock, _isolated_data_dir):
+    from datetime import datetime
+
+    for path in (_isolated_data_dir / "page_revisions").glob("*.json"):
+        path.unlink()
+    live = client.get(f"/pages/{page}").json()
+    updated_at = datetime.fromisoformat(live["updated_at"] or live["created_at"]).timestamp()
+    clock.now = updated_at + 100 * DAY
+    _save(client, page, template=_lines("FIRST EDIT"))
+    clock.now += 91 * DAY
+    _save(client, page, template=_lines("MUCH LATER"))
+    assert [r["origin"] for r in _revisions(client, page)] == ["edited"]
 
 
 def test_a_tag_or_extension_only_change_is_not_a_content_change(client, page, clock):
@@ -309,6 +345,108 @@ def test_deleting_the_page_deletes_its_history(client, page, _isolated_data_dir)
     assert client.get(f"/pages/{page}/revisions").status_code == 404
     remaining = [json.loads(p.read_text())["page_id"] for p in (_isolated_data_dir / "page_revisions").glob("*.json")]
     assert page not in remaining
+
+
+# ── files this build can't fully read (review #2463 must-fix 1) ─────────────
+
+
+def _revisions_file(data_dir, page_id):
+    from src.pages.history import _digest
+
+    return data_dir / "page_revisions" / f"{_digest(page_id)}.json"
+
+
+def _rewrite_newest(data_dir, page_id, **changes):
+    from tests.conftest import _drop_all_singletons
+
+    path = _revisions_file(data_dir, page_id)
+    stored = json.loads(path.read_text())
+    stored["revisions"][-1].update(changes)
+    path.write_text(json.dumps(stored))
+    _drop_all_singletons()
+
+
+def test_a_version_with_an_origin_this_build_doesnt_know_is_skipped(client, page, clock, _isolated_data_dir):
+    clock.now += 120
+    _save(client, page, template=_lines("MERGED"))
+    _rewrite_newest(_isolated_data_dir, page, origin="merged")
+    response = client.get(f"/pages/{page}/revisions")
+    assert response.status_code == 200, response.text
+    assert [r["origin"] for r in response.json()["revisions"]] == ["created"]
+
+
+def test_a_version_from_a_client_this_build_doesnt_know_reads_with_no_via(client, page, clock, _isolated_data_dir):
+    _rewrite_newest(_isolated_data_dir, page, via="tv")
+    (rev,) = _revisions(client, page)
+    assert (rev["origin"], rev["via"]) == ("created", None)
+    assert client.get(f"/pages/{page}/revisions/{rev['id']}").status_code == 200
+
+
+@pytest.mark.parametrize("saved_at", [float("nan"), float("inf"), -1.0, 1e20, True])
+def test_a_version_with_a_bad_instant_is_skipped_not_400(client, page, clock, _isolated_data_dir, saved_at):
+    clock.now += 120
+    _save(client, page, template=_lines("BAD CLOCK"))
+    bad = _revisions(client, page)[0]["id"]
+    _rewrite_newest(_isolated_data_dir, page, saved_at=saved_at)
+    response = client.get(f"/pages/{page}/revisions")
+    assert response.status_code == 200, response.text
+    assert [r["origin"] for r in response.json()["revisions"]] == ["created"]
+    assert client.get(f"/pages/{page}/revisions/{bad}").status_code == 404
+
+
+def test_a_version_with_bad_restored_from_reads_as_none(client, page, clock, _isolated_data_dir):
+    _rewrite_newest(_isolated_data_dir, page, restored_from=42)
+    assert _revisions(client, page)[0]["restored_from"] is None
+
+
+def test_a_save_still_records_after_a_bad_version_is_read(client, page, clock, _isolated_data_dir):
+    _rewrite_newest(_isolated_data_dir, page, origin="merged")
+    clock.now += 120
+    _save(client, page, template=_lines("AFTER"))
+    assert [r["origin"] for r in _revisions(client, page)] == ["edited", "baseline"]
+
+
+# ── caps the suite did not pin (mutants A2, A3) ─────────────────────────────
+
+
+def test_edits_from_different_clients_within_a_minute_are_separate_versions(phone, browser, clock):
+    page_id = _seed_page(browser, "Shared")
+    phone_client, _ = phone
+    clock.now += 120
+    assert browser.put(f"/pages/{page_id}", json={"name": "Web edit"}).status_code == 200
+    clock.now += 10
+    assert phone_client.put(f"/pages/{page_id}", json={"name": "Phone edit"}).status_code == 200
+    revs = _revisions(browser, page_id)
+    assert [(r["origin"], r["via"], r["name"]) for r in revs] == [
+        ("edited", "phone", "Phone edit"),
+        ("edited", "web", "Web edit"),
+        ("created", "web", "Shared"),
+    ]
+
+
+def test_the_file_size_cap_drops_the_oldest_versions_and_keeps_the_newest(client, page, clock, monkeypatch):
+    from src.pages import history
+
+    monkeypatch.setattr(history, "MAX_REVISION_FILE_BYTES", 2_000)
+    for n in range(8):
+        clock.now += 120
+        _save(client, page, template=_lines(f"V{n} " + "X" * 15))
+    revs = _revisions(client, page)
+    names = [_content(client, page, r["id"])["template"][0][:2] for r in revs]
+    assert names[0] == "V7"
+    assert 1 <= len(revs) < 9
+    assert names == [f"V{n}" for n in range(7, 7 - len(revs), -1)]  # the oldest went first
+
+
+def test_a_single_version_over_the_size_cap_is_still_kept(client, page, clock, monkeypatch):
+    from src.pages import history
+
+    monkeypatch.setattr(history, "MAX_REVISION_FILE_BYTES", 10)
+    clock.now += 120
+    _save(client, page, template=_lines("ONLY ME"))
+    revs = _revisions(client, page)
+    assert len(revs) == 1
+    assert _content(client, page, revs[0]["id"])["template"][0] == "ONLY ME"
 
 
 # ── the phone scope ─────────────────────────────────────────────────────────

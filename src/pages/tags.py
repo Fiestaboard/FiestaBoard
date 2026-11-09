@@ -3,7 +3,9 @@
 A tag is Unicode NFC text with its whitespace trimmed and every inner run of
 whitespace collapsed to one space, 1-:data:`MAX_TAG_LENGTH` characters, with
 no control or format characters (Unicode category ``C*``: no NUL, no
-right-to-left override). A page has at most :data:`MAX_TAGS`. Duplicates
+right-to-left override), except a zero-width joiner *inside an emoji
+sequence* (an emoji, or its VS16 or skin tone, before it; an emoji after
+it), so "👨‍👩‍👧 family" and "🏳️‍🌈" are tags. A page has at most :data:`MAX_TAGS`. Duplicates
 compare case-insensitively (``casefold``); the first spelling, in the order
 given, is kept.
 
@@ -26,13 +28,32 @@ def _normalise(raw: str) -> str:
     return unicodedata.normalize("NFC", " ".join(raw.split()))
 
 
+_ZWJ = "\u200d"
+_VS16 = "\ufe0f"
+
+
+def _is_emoji(ch: str) -> bool:
+    """An emoji-like symbol (``So``): pictographs, dingbats, ♀/♂, ⚕, 🌈…"""
+    return unicodedata.category(ch) == "So"
+
+
+def _joins_emoji(tag: str, i: int) -> bool:
+    """The ZWJ at *i* sits inside an emoji ZWJ sequence."""
+    if i == 0 or i == len(tag) - 1:
+        return False
+    before, after = tag[i - 1], tag[i + 1]
+    is_modifier = "\U0001f3fb" <= before <= "\U0001f3ff"  # skin tones (category Sk)
+    return (_is_emoji(before) or before == _VS16 or is_modifier) and _is_emoji(after)
+
+
 def _problem(tag: str) -> str | None:
     if not tag:
         return "a tag cannot be empty"
     if len(tag) > MAX_TAG_LENGTH:
         return f"a tag may be at most {MAX_TAG_LENGTH} characters"
-    if any(unicodedata.category(ch).startswith("C") for ch in tag):
-        return "a tag cannot contain control or format characters"
+    for i, ch in enumerate(tag):
+        if unicodedata.category(ch).startswith("C") and not (ch == _ZWJ and _joins_emoji(tag, i)):
+            return "a tag cannot contain control or format characters"
     return None
 
 

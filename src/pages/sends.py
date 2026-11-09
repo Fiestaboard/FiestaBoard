@@ -4,10 +4,20 @@ One entry per outcome, newest first, at most :data:`MAX_SENDS_PER_PAGE` per page
 
 * ``sent`` — a frame of the page landed on a board;
 * ``failed`` — the write failed or raised. ``error`` is the board's H12
-  failure code at that moment (``auth``, ``unreachable``, ``timeout``, …), so
-  the Sent row can say why without free text (which can carry hosts);
-* ``paused`` / ``silenced`` / ``held`` — Show now refused by pause or quiet
-  hours (``held``: queued to show when the window ends).
+  failure code (``auth``, ``unreachable``, ``timeout``, …) when H12 recorded
+  it during this send (``last_error_at`` at or after the send started), so
+  the Sent row can say why without free text (which can carry hosts). An
+  older code is never copied: it would name a cause from another day;
+* ``paused`` / ``silenced`` / ``held`` — Show now refused by pause or
+  Silence (``held``: queued to show when Silence ends).
+
+**Repeats merge.** An event that repeats the newest entry (same outcome,
+via, board and code) is merged into it: ``at`` stays the first time, and
+``count`` + ``last_at`` say how often and until when. Examples are a failure
+the engine retries every pass, Show now pressed again during Silence, and a
+live page landing on the same board every minute. So neither an unplugged
+board nor a clock page can push the rest of a page's history out of the
+window: one failure followed by twenty landings is two entries, not twenty.
 
 Not recorded: unchanged-content skips, throttled and superseded writes (the
 next tick retries; nothing happened), UI-only targets, previews, trigger and
@@ -24,7 +34,10 @@ the display's ``last_error`` code rather than inventing a second taxonomy.
 the interval, always on shutdown (:func:`flush_send_history`), and at once
 when a page is forgotten. A clock page that changes every minute costs one
 write per three minutes, never one per frame; a crash loses at most the last
-interval. Writes are atomic and serialised. The file is validated on load:
+interval. A merged landing (``sent``) is written at that same cadence, so a
+crash loses at most one interval of a live page's count. A merged failure or
+refusal only updates memory: it is written with the next write, a page
+delete or shutdown, so a board that stays down costs no SD-card writes. Writes are atomic and serialised. The file is validated on load:
 entries with an outcome, client or instant this build does not know are
 dropped, and an unknown failure code reads as null (as H12 does), so a
 rollback never fails a read.
@@ -38,6 +51,7 @@ import math
 import threading
 import time
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, get_args
 
@@ -62,25 +76,43 @@ _VIAS = frozenset(get_args(SendVia))
 _CODES = frozenset(get_args(ErrorCode))
 
 
+def _instant(value) -> float | None:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    if not math.isfinite(value) or not 0 < value <= _LATEST_EPOCH:
+        return None
+    return float(value)
+
+
 def _clean(entry) -> dict | None:
     """*entry* as this build reads it, or None when it is not one."""
     if not isinstance(entry, dict):
         return None
-    at = entry.get("at")
-    if not isinstance(at, (int, float)) or isinstance(at, bool) or not math.isfinite(at) or not 0 < at <= _LATEST_EPOCH:
+    at = _instant(entry.get("at"))
+    if at is None:
         return None
     if entry.get("outcome") not in _OUTCOMES or entry.get("via") not in _VIAS:
         return None
     error = entry.get("error")
     board_id, board_name = entry.get("board_id"), entry.get("board_name")
-    return {
-        "at": float(at),
+    cleaned = {
+        "at": at,
         "outcome": entry["outcome"],
         "via": entry["via"],
         "board_id": board_id if isinstance(board_id, str) else None,
         "board_name": board_name if isinstance(board_name, str) else None,
         "error": error if error in _CODES else None,  # a newer build's code reads as unknown
     }
+    count, last_at = entry.get("count"), _instant(entry.get("last_at"))
+    if isinstance(count, int) and not isinstance(count, bool) and count > 1 and last_at is not None and last_at >= at:
+        cleaned["count"] = count
+        cleaned["last_at"] = last_at
+    return cleaned
+
+
+def _repeats(newest: dict | None, entry: dict) -> bool:
+    """*entry* is the same event as *newest* again."""
+    return newest is not None and all(newest[k] == entry[k] for k in ("outcome", "via", "board_id", "error"))
 
 
 class SendHistory:
@@ -100,6 +132,10 @@ class SendHistory:
         self._write_lock = threading.Lock()
         self._pages: dict[str, list[dict]] = {}  # oldest first
         self._dirty = False
+        #: Merged repeats not yet on disk: written with the next write, never on their own.
+        self._repeats_pending = False
+        #: Pages deleted in this process: a send in flight when its page went is not recorded.
+        self._forgotten: set[str] = set()
         self._written_at: float | None = None
         self._timer: threading.Timer | None = None
         self._closed = False
@@ -130,7 +166,10 @@ class SendHistory:
         """The page's outcomes, newest first, as the wire shape."""
         with self._lock:
             entries = list(self._pages.get(page_id, ()))
-        return [{**e, "at": iso(e["at"])} for e in reversed(entries)]
+        return [
+            {**e, "at": iso(e["at"]), "count": e.get("count", 1), "last_at": iso(e.get("last_at"))}
+            for e in reversed(entries)
+        ]
 
     def record(
         self,
@@ -156,20 +195,40 @@ class SendHistory:
             logger.debug("Not recording an unknown send outcome %r for page %s", outcome, page_id)
             return
         with self._lock:
+            if page_id in self._forgotten:
+                return
             entries = self._pages.setdefault(page_id, [])
-            entries.append(entry)
-            del entries[:-MAX_SENDS_PER_PAGE]
+            newest = entries[-1] if entries else None
+            if _repeats(newest, entry):
+                newest["count"] = newest.get("count", 1) + 1
+                newest["last_at"] = entry["at"]
+                newest["board_name"] = entry["board_name"]
+                if entry["outcome"] != "sent":
+                    # A retrying failure or refusal: memory only until the next write.
+                    self._repeats_pending = True
+                    return
+            else:
+                entries.append(entry)
+                del entries[:-MAX_SENDS_PER_PAGE]
+            # A new entry, or a landing: written at the normal cadence.
             self._dirty = True
             elapsed = None if self._written_at is None else self.clock() - self._written_at
             due = elapsed is None or elapsed >= SENDS_FLUSH_INTERVAL_SECONDS
             if not due:
-                self._arm_timer(SENDS_FLUSH_INTERVAL_SECONDS - elapsed)
+                # Clamped: a clock stepped back makes elapsed negative, which
+                # must not arm a timer for longer than one interval.
+                self._arm_timer(min(SENDS_FLUSH_INTERVAL_SECONDS, SENDS_FLUSH_INTERVAL_SECONDS - elapsed))
         if due:
             self.flush()
 
     def forget(self, page_id: str) -> None:
-        """A deleted page's history goes at once (deletes are rare)."""
+        """A deleted page's history goes at once (deletes are rare).
+
+        A send still in flight for it is not recorded afterwards, so a deleted
+        page's history never comes back (and is never written with no page to prune it).
+        """
         with self._lock:
+            self._forgotten.add(page_id)
             if self._pages.pop(page_id, None) is None:
                 return
             self._dirty = True
@@ -178,7 +237,7 @@ class SendHistory:
     def flush(self) -> None:
         with self._lock:
             self._disarm_timer()
-            if not self._dirty:
+            if not self._dirty and not self._repeats_pending:
                 return
             self._written_at = self.clock()
         self._write()
@@ -213,8 +272,12 @@ class SendHistory:
     def _write(self) -> None:
         with self._write_lock:
             with self._lock:
-                snapshot = {"schema_version": SCHEMA_VERSION, "pages": {k: list(v) for k, v in self._pages.items()}}
+                snapshot = {
+                    "schema_version": SCHEMA_VERSION,
+                    "pages": {k: [dict(e) for e in v] for k, v in self._pages.items()},
+                }
                 self._dirty = False
+                self._repeats_pending = False
             try:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
                 write_json_atomic(self.path, snapshot, indent=None)
@@ -255,14 +318,24 @@ def flush_send_history() -> None:
         store.flush()
 
 
-def board_error_code(service, board_id: str | None) -> str | None:
-    """The board's H12 ``last_error`` code now, or None."""
-    if not board_id:
+def board_error_code(service, board_id: str | None, since: float | None) -> str | None:
+    """The board's H12 ``last_error`` code when H12 recorded it at or after *since*, else None.
+
+    H12 keeps ``last_error`` across contacts and restarts, so without the
+    instant a failure H12 did not classify (a render that raised before any
+    HTTP, a projection error) would take a cause from days ago. ``last_error_at``
+    has whole seconds, so *since* is compared rounded down.
+    """
+    if not board_id or since is None:
         return None
     try:
-        return board_health(service, board_id).last_error
+        health = board_health(service, board_id)
+        if health.last_error is None or health.last_error_at is None:
+            return None
+        at = datetime.fromisoformat(health.last_error_at).timestamp()
     except Exception:
         return None
+    return health.last_error if at >= math.floor(since) else None
 
 
 def record_send(
@@ -273,10 +346,15 @@ def record_send(
     board_id: str | None,
     board_name: str | None,
     service=None,
+    started_at: float | None = None,
 ) -> None:
-    """Record one outcome; never raises (history is advisory)."""
+    """Record one outcome; never raises (history is advisory).
+
+    *started_at* is when this send began (``time.time()``, before render): a
+    ``failed`` copies the board's H12 code only when it is that fresh.
+    """
     try:
-        error = board_error_code(service, board_id) if outcome == "failed" else None
+        error = board_error_code(service, board_id, started_at) if outcome == "failed" else None
         send_history().record(page_id, outcome=outcome, via=via, board_id=board_id, board_name=board_name, error=error)
     except Exception:
         logger.warning("Could not record a send of page %s", page_id, exc_info=True)
