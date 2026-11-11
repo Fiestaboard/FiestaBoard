@@ -3,7 +3,9 @@ services:
     image: fiestaboard/fiestaboard:latest
     container_name: fiestaboard
     env_file:
-      - .env
+      # Optional: a fresh install with no .env still starts (Compose 2.24+).
+      - path: .env
+        required: false
     environment:
       - PRODUCTION=true
       - FIESTABOARD_PROFILE=pi
@@ -42,7 +44,7 @@ services:
     restart: unless-stopped
     pull_policy: always
     environment:
-      - FIESTAUPDATER_TOKEN=${FIESTAUPDATER_TOKEN}
+      - FIESTAUPDATER_TOKEN=${FIESTAUPDATER_TOKEN:-}
       - FIESTAUPDATER_SERVICE=fiestaboard
       - FIESTAUPDATER_COMPOSE_FILE=/compose/docker-compose.yml
       - COMPOSE_PROJECT_NAME=fiestaboard
