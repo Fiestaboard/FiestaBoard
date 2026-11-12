@@ -740,7 +740,9 @@ def _chat_caller(http_request: Request) -> str:
     """
     scope = http_request.scope
     kind = scope.get("auth_kind") or "web"
-    credential_scope = scope.get("auth_scope") or "admin"
+    # A browser session is the admin; any other kind names its own scope or
+    # none, never borrowing the admin's label.
+    credential_scope = scope.get("auth_scope") or ("admin" if kind == "web" else "none")
     return f"{kind}:{credential_scope}:{scope.get('auth_user') or 'anonymous'}"
 
 

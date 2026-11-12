@@ -71,8 +71,8 @@ CODE_GATED: frozenset[str] = frozenset({"install_plugin", "update_plugin", "upda
 ALWAYS_PAUSE: frozenset[str] = SYSTEM_GATED | CODE_GATED
 
 #: ``update_setting`` categories that pause like :data:`ALWAYS_PAUSE`: they
-#: change how the host updates itself or what it runs, or where a stored
-#: credential is sent. ``None`` means any change to the category; a set
+#: change how the host updates itself or what it runs, or where a stored key
+#: is sent. ``None`` means any change to the category; a set
 #: means only a change that passes one of those keys.
 ALWAYS_PAUSE_SETTINGS: dict[str, frozenset[str] | None] = {
     "release_channel": None,  # pulls another image and restarts
@@ -80,6 +80,15 @@ ALWAYS_PAUSE_SETTINGS: dict[str, frozenset[str] | None] = {
     "hdmi_kiosk": None,  # what the FiestaPi runs on its HDMI output
     "plugins": frozenset({"auto_update"}),  # background plugin code updates
     "ai": frozenset({"providers"}),  # re-points providers that hold a key
+    # Re-points the broker the stored password is sent to. The raw aliases
+    # are listed too: this gate sees the keys before the executor maps them.
+    "mqtt": frozenset({"broker_host", "broker_port", "host", "port"}),
+}
+
+#: Tool arguments that re-point where a stored key is sent: passing any of
+#: them pauses the call like :data:`ALWAYS_PAUSE`.
+ALWAYS_PAUSE_ARGS: dict[str, frozenset[str]] = {
+    "update_board": frozenset({"host", "api_mode"}),  # the board's stored local / cloud key goes along
 }
 
 
@@ -87,7 +96,11 @@ def always_pauses(name: str, args: dict[str, Any] | None) -> bool:
     """Whether the in-app chat must pause on ``name(args)`` in every approval mode."""
     if name in ALWAYS_PAUSE:
         return True
-    if name != "update_setting" or not isinstance(args, dict):
+    if not isinstance(args, dict):
+        return name in ALWAYS_PAUSE_ARGS or name == "update_setting"
+    if name in ALWAYS_PAUSE_ARGS:
+        return bool(ALWAYS_PAUSE_ARGS[name] & set(args))
+    if name != "update_setting":
         return False
     category = args.get("category")
     if not isinstance(category, str) or category not in ALWAYS_PAUSE_SETTINGS:

@@ -640,3 +640,61 @@ def test_the_debug_prompt_context_shows_the_policed_catalog(client):
     assert res.status_code == 200, res.text
     section = res.json()["tool_catalog"].split("### install_plugin", 1)[1].split("###", 1)[0]
     assert "repository" not in section and "branch" not in section
+
+
+# ---------------------------------------------------------------------------
+# Calls that re-point where a stored key is sent always pause
+# ---------------------------------------------------------------------------
+
+_REPOINTING_CALLS = [
+    ("update_board", {"board_id": "b1", "host": "192.168.0.99"}),
+    ("update_board", {"board_id": "b1", "api_mode": "cloud"}),
+    ("update_setting", {"category": "mqtt", "values": {"broker_host": "broker.example.invalid"}}),
+    ("update_setting", {"category": "mqtt", "values": {"broker_port": 1884}}),
+    ("update_setting", {"category": "mqtt", "values": {"host": "broker.example.invalid"}}),
+    ("update_setting", {"category": "mqtt", "values": {"port": 1884}}),
+]
+
+
+@pytest.mark.parametrize(
+    "tool,args",
+    _REPOINTING_CALLS,
+    ids=["board-host", "board-api_mode", "mqtt-broker_host", "mqtt-broker_port", "mqtt-host", "mqtt-port"],
+)
+def test_calls_that_repoint_a_stored_key_pause_in_every_approval_mode(
+    client,
+    mock_llm,  # noqa: F811
+    tmp_path,
+    monkeypatch,
+    tool,
+    args,
+):
+    _use_provider(tmp_path, monkeypatch, mock_llm.base_url, "auto")
+    mock_llm.script([{"prose": "", "ops": [_block(tool, args)]}])
+    frames = _chat(client, [{"role": "user", "content": "go"}], approval={"auto_approve_destructive": True})
+    call = _only(frames, "tool_call")[0]
+    assert call["requires_approval"] is True and call["system_gated"] is True
+    assert _only(frames, "done")[0]["reason"] == "awaiting_approval"
+    assert _only(frames, "tool_result") == []
+
+
+def test_the_api_token_caller_has_its_own_kind(dead_provider, mock_llm, tmp_path, monkeypatch):  # noqa: F811
+    """A real account named ``api-token`` must not share the bearer's pauses."""
+    from src.ai import approvals
+    from src.ai.page_routes import _chat_caller
+
+    assert _chat_caller(_scope_request(auth_user="api-token")) != _chat_caller(
+        _scope_request(auth_user="api-token", auth_kind="token")
+    )
+    assert _chat_caller(_scope_request(auth_user="admin", auth_kind="tv")).split(":")[1] == "none"
+
+    monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "false")
+    monkeypatch.setenv("FIESTABOARD_MCP_TOKEN", "a-configured-api-token")
+    _use_provider(tmp_path, monkeypatch, mock_llm.base_url)
+    approvals.PENDING_CALLS.clear()
+    mock_llm.script([{"prose": "", "ops": [_block("restart_system", {})]}])
+    bearer = TestClient(app, headers={"Authorization": "Bearer a-configured-api-token"})
+    res = bearer.post("/pages/ai/chat", json={"messages": [{"role": "user", "content": "restart"}]})
+    assert _only(_frames(res.text), "done")[0]["reason"] == "awaiting_approval"
+    owners = {owner for owner, _ in approvals.PENDING_CALLS._entries}
+    assert owners == {"token:none:api-token"}

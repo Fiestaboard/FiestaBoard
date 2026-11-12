@@ -29,7 +29,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from src.ops.registry import ALWAYS_PAUSE, ALWAYS_PAUSE_SETTINGS
+from src.ops.registry import ALWAYS_PAUSE, ALWAYS_PAUSE_ARGS, ALWAYS_PAUSE_SETTINGS
 
 from .mcp_bridge import ToolDescriptor
 
@@ -371,6 +371,8 @@ def _render_tool(d: ToolDescriptor, skip_destructive_pause: bool = False) -> str
         marker = "[DESTRUCTIVE, SYSTEM: user must approve]"
     elif d.name == "update_setting":
         marker = f"[writes; SYSTEM for {_SYSTEM_SETTINGS}: user must approve]"
+    elif d.name in ALWAYS_PAUSE_ARGS:
+        marker = f"[writes; SYSTEM with {', '.join(sorted(ALWAYS_PAUSE_ARGS[d.name]))}: user must approve]"
     elif d.requires_approval and skip_destructive_pause:
         marker = "[DESTRUCTIVE: runs immediately]"
     elif d.requires_approval:

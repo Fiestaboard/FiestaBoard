@@ -149,3 +149,14 @@ def test_always_pauses_covers_the_system_and_credential_setting_categories():
     ]:
         assert not always_pauses("update_setting", {"category": category, "values": values}), category
     assert not always_pauses("update_page", {"category": "release_channel"})
+
+
+def test_always_pauses_covers_calls_that_repoint_a_stored_key():
+    from src.ops.registry import always_pauses
+
+    assert always_pauses("update_board", {"board_id": "b", "host": "h"})
+    assert always_pauses("update_board", {"board_id": "b", "api_mode": "cloud"})
+    assert not always_pauses("update_board", {"board_id": "b", "name": "Kitchen"})
+    for key in ("broker_host", "broker_port", "host", "port"):
+        assert always_pauses("update_setting", {"category": "mqtt", "values": {key: "x"}}), key
+    assert not always_pauses("update_setting", {"category": "mqtt", "values": {"enabled": True}})

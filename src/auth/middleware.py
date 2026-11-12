@@ -304,6 +304,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if supplied is not None:
                 if not await run_in_threadpool(verify_mcp_bearer, supplied):
                     return _mcp_unauthorized()
+                # Its own kind: an account may be called "api-token" too.
+                request.scope["auth_kind"] = "token"
                 request.scope["auth_user"] = "api-token"
                 return await call_next(request)
             cookie = request.cookies.get(SESSION_COOKIE_NAME)
