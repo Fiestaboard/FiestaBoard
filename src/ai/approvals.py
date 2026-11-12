@@ -17,6 +17,7 @@ safe failure: the user is asked to send the request again.
 
 from __future__ import annotations
 
+import copy
 import threading
 import time
 from collections import OrderedDict
@@ -29,6 +30,9 @@ DEFAULT_TTL_SECONDS = 30 * 60
 
 #: Pauses kept at once; the oldest goes first when a new one would exceed it.
 DEFAULT_MAX_ENTRIES = 256
+
+#: Pauses kept per caller, so one caller cannot push out another's.
+DEFAULT_MAX_PER_OWNER = 16
 
 
 @dataclass(frozen=True)
@@ -43,17 +47,24 @@ class PendingCall:
 
 
 class PendingCallStore:
-    """Single-use, expiring pauses keyed by (caller, call id)."""
+    """Single-use, expiring pauses keyed by (caller, call id).
+
+    Bounded per caller and in total. Per caller, a new pause pushes out that
+    caller's own oldest; the global bound (with distinct callers capped, so
+    it is reached only by many callers at once) pushes out the oldest of all.
+    """
 
     def __init__(
         self,
         *,
         ttl_seconds: float = DEFAULT_TTL_SECONDS,
         max_entries: int = DEFAULT_MAX_ENTRIES,
+        max_per_owner: int = DEFAULT_MAX_PER_OWNER,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._ttl = ttl_seconds
         self._max = max_entries
+        self._max_per_owner = max_per_owner
         self._clock = clock
         self._lock = threading.Lock()
         self._entries: OrderedDict[tuple[str, str], PendingCall] = OrderedDict()
@@ -61,11 +72,16 @@ class PendingCallStore:
     def record(self, owner: str, call_id: str, name: str, args: dict[str, Any]) -> None:
         """Remember that the loop paused on this call for ``owner``."""
         entry = PendingCall(
-            owner=owner, call_id=call_id, name=name, args=dict(args), expires_at=self._clock() + self._ttl
+            owner=owner, call_id=call_id, name=name, args=copy.deepcopy(args), expires_at=self._clock() + self._ttl
         )
         with self._lock:
             self._prune()
             self._entries.pop((owner, call_id), None)
+            mine = [key for key in self._entries if key[0] == owner]
+            # This caller's oldest pauses go first, then (only if the global
+            # bound is still exceeded) anyone's oldest.
+            for key in mine[: max(0, len(mine) + 1 - self._max_per_owner)]:
+                del self._entries[key]
             self._entries[(owner, call_id)] = entry
             while len(self._entries) > self._max:
                 self._entries.popitem(last=False)

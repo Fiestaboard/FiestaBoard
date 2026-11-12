@@ -36,7 +36,8 @@ Bearer-token paths (``/mcp/*`` and ``/v1/*``):
 The AI chat route (``/pages/ai/chat``):
     It runs the same tools as ``/mcp`` on the caller's behalf, so with
     sign-in off and a token configured it is covered by that token too: it
-    takes the bearer, or a valid session cookie, and refuses anyone else.
+    takes the bearer, or a valid session cookie, and refuses anyone else
+    (401 for a wrong bearer, 403 ``chat_requires_api_token`` for none).
     With sign-in on it keeps the ordinary session check; with sign-in off
     and no token the whole API is open by the operator's choice, and so is
     the chat.
@@ -309,9 +310,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
             svc = await run_in_threadpool(get_auth_service)
             username = await run_in_threadpool(svc.verify_session, cookie) if cookie else None
             if not username:
+                # 403, not 401: with sign-in off the web UI's 401 handler would
+                # send the browser to /login, which bounces straight back.
                 return JSONResponse(
-                    {"detail": "AI chat needs the API token or a signed-in session while an API token is configured."},
-                    status_code=401,
+                    {
+                        "error": "chat_requires_api_token",
+                        "detail": "AI chat needs sign-in or the API token while an API token is configured. "
+                        "Turn on sign-in, or clear the API token in Settings → AI.",
+                    },
+                    status_code=403,
                 )
             request.scope["auth_user"] = username
             return await call_next(request)

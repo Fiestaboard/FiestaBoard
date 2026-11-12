@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import secrets
 import time
 
@@ -241,6 +242,35 @@ def _guard_stored_mcp_token(request: Request, svc) -> None:
         )
 
 
+def _guard_env_mcp_token_when_pinned_off(request: Request) -> None:
+    """Refuse an anonymous first-user setup while ops pin sign-in off and a token.
+
+    With ``FIESTABOARD_AUTH_ENABLED`` pinned off, creating the first user can
+    never turn sign-in on; what it does hand back is a session, and a session
+    is one of the two credentials the AI chat accepts while an API token is
+    configured. So when ``FIESTABOARD_MCP_TOKEN`` is also set, provisioning
+    needs that token as a Bearer, as a stored token already does.
+
+    Not applied when sign-in is off only by preference: there the web UI's
+    "add a login" flow runs ``/auth/setup`` from a browser that cannot hold
+    an env-pinned token, and gating it would leave no way to enable login
+    short of changing the environment.
+    """
+    if _auth_env_override() != "disabled":
+        return
+    pinned = os.environ.get("FIESTABOARD_MCP_TOKEN", "").strip()
+    if not pinned:
+        return
+    supplied = _bearer_token(request)
+    if not supplied or not secrets.compare_digest(pinned, supplied):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Sign-in is pinned off and an API token is set. Present the token as a Bearer token to create a user."
+            ),
+        )
+
+
 def _request_identity(request: Request, svc) -> tuple[str | None, str | None]:
     cookie = request.cookies.get(SESSION_COOKIE_NAME)
     username = svc.verify_session(cookie) if cookie else None
@@ -328,6 +358,7 @@ def auth_setup(payload: SetupRequest, request: Request, response: Response) -> S
     # is an independent path to it, so gate it on the same stored-MCP-token
     # possession check rather than leaving a bypass open.
     _guard_stored_mcp_token(request, svc)
+    _guard_env_mcp_token_when_pinned_off(request)
     try:
         svc.create_initial_user(payload.username, payload.password)
     except AlreadySetup:

@@ -29,7 +29,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from src.ops.registry import ALWAYS_PAUSE
+from src.ops.registry import ALWAYS_PAUSE, ALWAYS_PAUSE_SETTINGS
 
 from .mcp_bridge import ToolDescriptor
 
@@ -357,11 +357,20 @@ _RULES_TAIL = (
 )
 
 
+#: How the addendum names the setting categories that always pause.
+_SYSTEM_SETTINGS = ", ".join(
+    category if keys is None else ", ".join(f"{category}.{key}" for key in sorted(keys))
+    for category, keys in ALWAYS_PAUSE_SETTINGS.items()
+)
+
+
 def _render_tool(d: ToolDescriptor, skip_destructive_pause: bool = False) -> str:
     if d.read_only:
         marker = "[read-only]"
     elif d.name in ALWAYS_PAUSE:
         marker = "[DESTRUCTIVE, SYSTEM: user must approve]"
+    elif d.name == "update_setting":
+        marker = f"[writes; SYSTEM for {_SYSTEM_SETTINGS}: user must approve]"
     elif d.requires_approval and skip_destructive_pause:
         marker = "[DESTRUCTIVE: runs immediately]"
     elif d.requires_approval:

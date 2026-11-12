@@ -34,9 +34,10 @@ Design points worth knowing before editing:
   request's ``auto_approve_destructive`` flag (the conversation's "don't
   ask again"). Either lets a destructive call run without a pause — the
   ``tool_call`` frame then carries ``auto_approved: true`` — except for
-  the tiers in :data:`src.ops.registry.ALWAYS_PAUSE` (restarting or
-  updating the host, installing or updating plugin code), which pause
-  whatever the switches say and whatever the tool's annotations say.
+  the calls :func:`src.ops.registry.always_pauses` names (restarting or
+  updating the host, installing or updating plugin code, and the system
+  and credential categories of ``update_setting``), which pause whatever
+  the switches say and whatever the tool's annotations say.
 - **A resume runs only what the hub paused on.** The transcript is the
   client's copy and proves nothing. Each pause is recorded server-side
   (:mod:`src.ai.approvals`) for the caller it was made for; ``approve``
@@ -69,7 +70,7 @@ from typing import Any
 import httpx
 
 from src.devices import DeviceType
-from src.ops.registry import ALWAYS_PAUSE
+from src.ops.registry import always_pauses
 from src.settings.models import AiApprovalMode
 
 from .approvals import PENDING_CALLS, PendingCallStore
@@ -220,8 +221,8 @@ async def _run_chat_turn(
 
     ``approval_mode`` is the install's setting; ``auto_approve_destructive``
     is this conversation's "don't ask again" flag. Either one lets a
-    destructive tool run without pausing, unless it is in
-    :data:`~src.ops.registry.ALWAYS_PAUSE`.
+    destructive tool run without pausing, unless
+    :func:`~src.ops.registry.always_pauses` names the call.
 
     ``approvals`` is where pauses are recorded and ``caller`` who they are
     recorded for (the authenticated principal). A ``resume`` that approves a
@@ -274,7 +275,9 @@ async def _run_chat_turn(
         # Approve and deny both settle the pause, so take it either way: a
         # denied call can never be approved later, and an approval is
         # single-use. Only an answer to ask_user (which runs nothing) does
-        # not need a recorded pause.
+        # not need a recorded pause. A mismatched approve also uses up the
+        # record: failing closed means the user asks again, never that a
+        # changed call runs.
         recorded = approvals.take(caller, wanted) if decision in ("approve", "deny") else None
         if decision == "approve":
             if recorded is None or recorded.name != pending["name"] or recorded.args != (pending.get("args") or {}):
@@ -643,11 +646,11 @@ def _tool_call_data(call: dict[str, Any], descriptor: ToolDescriptor) -> dict[st
         "destructive": descriptor.destructive,
         # The always-pause tiers wait for the user whatever the annotations
         # say, so a tool mis-annotated as non-destructive still pauses.
-        "requires_approval": descriptor.requires_approval or call["name"] in ALWAYS_PAUSE,
+        "requires_approval": descriptor.requires_approval or always_pauses(call["name"], call["args"]),
         "source": descriptor.source,
         # These never run without a pause; the client hides its "don't ask
         # again" action for them rather than keeping its own list.
-        "system_gated": call["name"] in ALWAYS_PAUSE,
+        "system_gated": always_pauses(call["name"], call["args"]),
         # Set to True by the loop when a destructive call ran without asking.
         "auto_approved": False,
     }

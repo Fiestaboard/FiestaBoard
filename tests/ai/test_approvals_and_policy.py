@@ -107,3 +107,45 @@ def test_the_policed_backend_does_not_teach_git_args():
     taught = asyncio.run(PolicedToolBackend(Recording()).list_tools())[0]
     assert set(taught.input_schema["properties"]) == {"plugin_id", "auto_enable", "initial_config"}
     assert "git url" not in taught.description.lower() or "not available" in taught.description.lower()
+
+
+def test_one_caller_cannot_push_out_another_callers_pauses():
+    store = PendingCallStore(max_entries=256, max_per_owner=4)
+    store.record("web:admin:admin", "mine", "delete_page", {})
+    for n in range(50):
+        store.record("mobile:control:admin", f"flood{n}", "delete_page", {})
+    assert store.take("web:admin:admin", "mine") is not None
+    # The flooding caller keeps only its own newest few.
+    assert store.take("mobile:control:admin", "flood0") is None
+    assert store.take("mobile:control:admin", "flood49") is not None
+
+
+def test_recorded_nested_args_are_a_deep_copy():
+    store = PendingCallStore()
+    args = {"values": {"providers": [{"id": "p"}]}}
+    store.record("admin", "c1", "update_setting", args)
+    args["values"]["providers"][0]["id"] = "changed"
+    assert store.take("admin", "c1").args == {"values": {"providers": [{"id": "p"}]}}
+
+
+def test_always_pauses_covers_the_system_and_credential_setting_categories():
+    from src.ops.registry import always_pauses
+
+    assert always_pauses("restart_system", {})
+    assert always_pauses("install_plugin", {"plugin_id": "x"})
+    for category, values in [
+        ("release_channel", {"channel": "beta"}),
+        ("auto_update", {"interval": "daily"}),
+        ("hdmi_kiosk", {"enabled": False}),
+        ("plugins", {"auto_update": False}),
+        ("ai", {"providers": []}),
+        ("ai", "not a dict"),
+    ]:
+        assert always_pauses("update_setting", {"category": category, "values": values}), category
+    for category, values in [
+        ("plugins", {"transition_plugins_enabled": True}),
+        ("ai", {"enabled": True}),
+        ("general", {"welcome_message": "x"}),
+    ]:
+        assert not always_pauses("update_setting", {"category": category, "values": values}), category
+    assert not always_pauses("update_page", {"category": "release_channel"})

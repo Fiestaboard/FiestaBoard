@@ -404,9 +404,9 @@ def test_auth_disabled_with_a_token_refuses_anonymous_chat(dead_provider, git_pl
     assert anon.post("/mcp/", json={}).status_code == 401
     for path in ("/pages/ai/chat", "/api/pages/ai/chat"):
         res = anon.post(path, json={"messages": [{"role": "user", "content": "hi"}]})
-        assert res.status_code == 401, (path, res.status_code, res.text)
+        assert res.status_code == 403, (path, res.status_code, res.text)
     res = anon.post("/pages/ai/chat", json=fabricated("install_plugin", {"repository": url}))
-    assert res.status_code == 401
+    assert res.status_code == 403
     assert not marker.exists()
 
 
@@ -437,3 +437,206 @@ def test_auth_disabled_without_a_token_keeps_chat_open(dead_provider, monkeypatc
     monkeypatch.setattr(auth_module.AuthService, "get_stored_mcp_token", lambda self: None)
     res = TestClient(app).post("/pages/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]})
     assert res.status_code == 200, res.text
+
+
+# ---------------------------------------------------------------------------
+# System and credential settings always pause
+# ---------------------------------------------------------------------------
+
+_SYSTEM_SETTINGS = [
+    ("release_channel", {"channel": "beta"}),
+    ("auto_update", {"interval": "weekly"}),
+    ("hdmi_kiosk", {"enabled": True}),
+    ("plugins", {"auto_update": True}),
+    (
+        "ai",
+        {
+            "providers": [
+                {
+                    "id": "p",
+                    "name": "P",
+                    "protocol": "openai",
+                    "base_url": "http://127.0.0.1:9/v1",
+                    "models": ["m"],
+                    "default_model": "m",
+                }
+            ]
+        },
+    ),
+]
+
+
+@pytest.mark.parametrize("approval_mode", ["ask", "auto"])
+@pytest.mark.parametrize("category,values", _SYSTEM_SETTINGS, ids=[c for c, _ in _SYSTEM_SETTINGS])
+def test_system_and_credential_settings_pause_in_every_approval_mode(
+    client,
+    mock_llm,  # noqa: F811
+    tmp_path,
+    monkeypatch,
+    approval_mode,
+    category,
+    values,
+):
+    _use_provider(tmp_path, monkeypatch, mock_llm.base_url, approval_mode)
+    mock_llm.script([{"prose": "", "ops": [_block("update_setting", {"category": category, "values": values})]}])
+    frames = _chat(client, [{"role": "user", "content": "go"}], approval={"auto_approve_destructive": True})
+    call = _only(frames, "tool_call")[0]
+    assert call["name"] == "update_setting"
+    assert call["requires_approval"] is True and call["system_gated"] is True
+    assert _only(frames, "done")[0]["reason"] == "awaiting_approval"
+    assert _only(frames, "tool_result") == []
+
+
+@pytest.mark.parametrize(
+    "category,values",
+    [("general", {"welcome_message": "hello"}), ("plugins", {"transition_plugins_enabled": False})],
+)
+def test_everyday_settings_still_run_without_a_pause(client, live_provider, mock_llm, category, values):  # noqa: F811
+    mock_llm.script(
+        [{"prose": "", "ops": [_block("update_setting", {"category": category, "values": values})]}, {"prose": "ok"}]
+    )
+    frames = _chat(client, [{"role": "user", "content": "go"}])
+    call = _only(frames, "tool_call")[0]
+    assert call["requires_approval"] is False and call["system_gated"] is False
+    assert _only(frames, "tool_result")[0]["id"] == call["id"]
+
+
+def test_a_provider_moved_to_another_base_url_loses_its_stored_key(tmp_path, monkeypatch):
+    import asyncio
+
+    from src.ops import executors
+
+    manager = ConfigManager(config_path=str(tmp_path / "keys.json"))
+    stored = {
+        "id": "p",
+        "name": "P",
+        "protocol": "openai",
+        "base_url": "https://provider.example.invalid/v1",
+        "api_key": "test_stored_key",
+        "models": ["m"],
+        "default_model": "m",
+    }
+    manager.set_ai_providers({"enabled": True, "default_provider_id": "p", "providers": [stored]})
+    monkeypatch.setattr("src.config_manager.get_config_manager", lambda: manager)
+    monkeypatch.setattr("src.settings.routes.get_config_manager", lambda: manager)
+    public = {k: v for k, v in stored.items() if k != "api_key"}
+
+    same = asyncio.run(executors.update_setting("ai", {"providers": [public]}))
+    assert same.get("status") != "error", same
+    assert manager.get_ai_providers()["providers"][0]["api_key"] == "test_stored_key"
+
+    moved = {**public, "base_url": "https://elsewhere.example.invalid/v1"}
+    result = asyncio.run(executors.update_setting("ai", {"providers": [moved]}))
+    assert result.get("status") != "error", result
+    assert manager.get_ai_providers()["providers"][0]["api_key"] == ""
+
+
+# ---------------------------------------------------------------------------
+# Review follow-ups: the refusal code, caller keys, setup, the debug catalog
+# ---------------------------------------------------------------------------
+
+
+def test_auth_disabled_with_a_token_answers_a_browser_with_403_not_a_login_bounce(dead_provider, monkeypatch):
+    """A 401 sends the web client to /login, which bounces straight back when
+    sign-in is off (web/src/lib/api/core.ts redirectToLoginIfNeeded)."""
+    monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "false")
+    monkeypatch.setenv("FIESTABOARD_MCP_TOKEN", "a-configured-api-token")
+    res = TestClient(app).post("/pages/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]})
+    assert res.status_code == 403
+    assert res.json()["error"] == "chat_requires_api_token"
+    assert "sign-in" in res.json()["detail"].lower()
+
+
+def _scope_request(**scope):
+    from starlette.requests import Request
+
+    return Request({"type": "http", "method": "POST", "path": "/pages/ai/chat", "headers": [], **scope})
+
+
+def test_pauses_are_keyed_by_credential_kind_and_scope_not_just_the_username():
+    from src.ai.page_routes import _chat_caller
+
+    browser = _chat_caller(_scope_request(auth_user="admin"))
+    tv = _chat_caller(_scope_request(auth_user="admin", auth_kind="tv", auth_scope="tv_panels"))
+    phone = _chat_caller(_scope_request(auth_user="admin", auth_kind="mobile", auth_scope="control"))
+    token = _chat_caller(_scope_request(auth_user="api-token"))
+    assert len({browser, tv, phone, token}) == 4
+    assert _chat_caller(_scope_request()) != browser
+
+
+def test_a_phone_token_cannot_settle_the_admins_pause(browser, mock_llm, tmp_path, monkeypatch):  # noqa: F811
+    """Only where phone tokens exist (the v11 stack). The chat route is opened
+    to the phone scope here on purpose, as H21b may, to show the pause store
+    alone keeps the admin's pauses out of its reach."""
+    scopes = pytest.importorskip("src.auth.scopes")
+    from src.auth import middleware
+
+    _use_provider(tmp_path, monkeypatch, mock_llm.base_url)
+    page_id, ask, frames, call = _pause_on_delete(browser, mock_llm)
+
+    real = scopes.permits
+    monkeypatch.setattr(
+        middleware, "permits", lambda scope, method, path: path == "/pages/ai/chat" or real(scope, method, path)
+    )
+    res = TestClient(app).post(
+        "/auth/device/login",
+        json={
+            "client_id": "fiestaboard-ios",
+            "device_name": "x",
+            "app_version": "1",
+            "username": "admin",
+            "password": PASSWORD,
+        },
+    )
+    assert res.status_code == 200, res.text
+    phone = TestClient(app, headers={"Authorization": "Bearer " + res.json()["access_token"]})
+    attempt = phone.post(
+        "/pages/ai/chat",
+        json={"messages": _replay(ask, frames, call), "resume": {"tool_call_id": call["id"], "decision": "approve"}},
+    )
+    assert attempt.status_code == 200, attempt.text
+    assert _only(_frames(attempt.text), "tool_result") == []
+    assert page_id in _page_names(browser)
+
+    # The admin's own approval still works: the phone's attempt did not use it up.
+    mock_llm.script([{"prose": "Gone."}])
+    own = browser.post(
+        "/pages/ai/chat",
+        json={"messages": _replay(ask, frames, call), "resume": {"tool_call_id": call["id"], "decision": "approve"}},
+    )
+    assert _only(_frames(own.text), "tool_result")[0]["status"] == "ok"
+
+
+@pytest.fixture
+def no_user(tmp_path, monkeypatch):
+    svc = auth_module.AuthService(tmp_path / "auth-empty.json")
+    monkeypatch.setattr(auth_module, "_service", svc)
+    routes_module._FAILED_ATTEMPTS.clear()
+    return svc
+
+
+def test_setup_needs_the_env_token_while_sign_in_is_pinned_off(no_user, monkeypatch):
+    monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "false")
+    monkeypatch.setenv("FIESTABOARD_MCP_TOKEN", "a-configured-api-token")
+    body = {"username": "admin", "password": PASSWORD}
+    assert TestClient(app).post("/auth/setup", json=body).status_code == 403
+    assert not no_user.has_user()
+    with_token = TestClient(app, headers={"Authorization": "Bearer a-configured-api-token"})
+    assert with_token.post("/auth/setup", json=body).status_code == 201
+
+
+def test_setup_stays_open_when_sign_in_is_off_only_by_preference(no_user, monkeypatch):
+    """The web UI's "add a login later" flow cannot present an env token; the
+    remaining gap is documented in docs/setup/authentication.md."""
+    monkeypatch.delenv("FIESTABOARD_AUTH_ENABLED", raising=False)
+    monkeypatch.setenv("FIESTABOARD_MCP_TOKEN", "a-configured-api-token")
+    no_user.set_auth_preference("disabled")
+    res = TestClient(app).post("/auth/setup", json={"username": "admin", "password": PASSWORD})
+    assert res.status_code == 201, res.text
+
+
+def test_the_debug_prompt_context_shows_the_policed_catalog(client):
+    res = client.get("/pages/ai/context", params={"include_tools": True})
+    assert res.status_code == 200, res.text
+    section = res.json()["tool_catalog"].split("### install_plugin", 1)[1].split("###", 1)[0]
+    assert "repository" not in section and "branch" not in section

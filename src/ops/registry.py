@@ -70,6 +70,32 @@ CODE_GATED: frozenset[str] = frozenset({"install_plugin", "update_plugin", "upda
 #: Every tool the in-app chat pauses on in every approval mode.
 ALWAYS_PAUSE: frozenset[str] = SYSTEM_GATED | CODE_GATED
 
+#: ``update_setting`` categories that pause like :data:`ALWAYS_PAUSE`: they
+#: change how the host updates itself or what it runs, or where a stored
+#: credential is sent. ``None`` means any change to the category; a set
+#: means only a change that passes one of those keys.
+ALWAYS_PAUSE_SETTINGS: dict[str, frozenset[str] | None] = {
+    "release_channel": None,  # pulls another image and restarts
+    "auto_update": None,  # how often the host updates itself
+    "hdmi_kiosk": None,  # what the FiestaPi runs on its HDMI output
+    "plugins": frozenset({"auto_update"}),  # background plugin code updates
+    "ai": frozenset({"providers"}),  # re-points providers that hold a key
+}
+
+
+def always_pauses(name: str, args: dict[str, Any] | None) -> bool:
+    """Whether the in-app chat must pause on ``name(args)`` in every approval mode."""
+    if name in ALWAYS_PAUSE:
+        return True
+    if name != "update_setting" or not isinstance(args, dict):
+        return False
+    category = args.get("category")
+    if not isinstance(category, str) or category not in ALWAYS_PAUSE_SETTINGS:
+        return False
+    keys = ALWAYS_PAUSE_SETTINGS[category]
+    values = args.get("values")
+    return keys is None or not isinstance(values, dict) or bool(keys & set(values))
+
 
 @dataclass(frozen=True)
 class Operation:

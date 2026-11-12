@@ -2505,8 +2505,9 @@ def _build_mcp_server() -> Any:
                   provider list; each entry: id, name, protocol
                   ("openai" | "anthropic"), base_url, models (list),
                   default_model). Existing providers keep their stored
-                  api_key; a new provider is saved without one until the
-                  user adds it in the web UI. Never pass api_key or headers.
+                  api_key unless their base_url changes; a new or moved
+                  provider is saved without one until the user adds it in
+                  the web UI. Never pass api_key or headers.
                 - release_channel: channel ("stable" | "beta") — switches the
                   install's update channel via the updater sidecar; the
                   container restarts on the new image.

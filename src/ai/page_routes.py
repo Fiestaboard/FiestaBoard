@@ -468,8 +468,11 @@ async def get_ai_context(
     payload = context.to_dict()
     if include_tools:
         from .tool_catalog import ToolCatalog
+        from .tool_policy import PolicedToolBackend
 
-        payload["tool_catalog"] = ToolCatalog(await _tool_backend().list_tools()).render_addendum("global")
+        # What the chat route teaches: the tools through the chat's policy.
+        tools = await PolicedToolBackend(_tool_backend()).list_tools()
+        payload["tool_catalog"] = ToolCatalog(tools).render_addendum("global")
     return AIPromptContextResponse(**payload)
 
 
@@ -727,10 +730,18 @@ async def chat_ai_page(request: AIChatRequest, http_request: Request) -> Streami
 
 
 def _chat_caller(http_request: Request) -> str:
-    """Who a chat pause is recorded for: the principal the auth middleware
-    put on the request (a signed-in user, ``api-token``), or ``anonymous``
-    on an install with sign-in off and no token."""
-    return str(http_request.scope.get("auth_user") or "anonymous")
+    """Who a chat pause is recorded for.
+
+    The kind of credential, its scope and the principal the auth middleware
+    put on the request (a signed-in user, ``api-token``; ``anonymous`` on an
+    install with sign-in off and no token). The kind and scope are part of
+    the key because a native device token carries its owner's username: a
+    lower-scope device must never be able to settle the admin's pauses.
+    """
+    scope = http_request.scope
+    kind = scope.get("auth_kind") or "web"
+    credential_scope = scope.get("auth_scope") or "admin"
+    return f"{kind}:{credential_scope}:{scope.get('auth_user') or 'anonymous'}"
 
 
 def _chat_board_context(board_id: str | None, *, strict: bool = True) -> dict[str, Any] | None:
