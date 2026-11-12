@@ -61,6 +61,15 @@ Grammar = Literal["canonical", "chat"]
 #: sets; the loop reads it from here so the chat keeps no roster of its own.
 SYSTEM_GATED: frozenset[str] = frozenset({"restart_system", "shutdown_system", "trigger_system_update"})
 
+#: Tools that fetch and load plugin code into the hub process. Like the
+#: system tier they always pause the in-app chat: neither ``approval_mode``
+#: "auto" nor a conversation's "don't ask again" may skip the ask, because
+#: running new code is not something another tool call can undo.
+CODE_GATED: frozenset[str] = frozenset({"install_plugin", "update_plugin", "update_all_plugins"})
+
+#: Every tool the in-app chat pauses on in every approval mode.
+ALWAYS_PAUSE: frozenset[str] = SYSTEM_GATED | CODE_GATED
+
 
 @dataclass(frozen=True)
 class Operation:

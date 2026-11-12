@@ -315,8 +315,12 @@ def test_addendum_for_the_real_server_stays_under_the_size_budget(surface, skip_
 
     from src.ai.chat_tools import ChatExtensionBackend
     from src.ai.mcp_bridge import CompositeToolBackend, McpToolBackend
+    from src.ai.tool_policy import PolicedToolBackend
 
-    descriptors = asyncio.run(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()).list_tools())
+    # What the chat route actually teaches: the MCP tools through the chat's
+    # tool policy (src/ai/page_routes.py).
+    backend = PolicedToolBackend(CompositeToolBackend(McpToolBackend(), ChatExtensionBackend()))
+    descriptors = asyncio.run(backend.list_tools())
     text = ToolCatalog(descriptors).render_addendum(surface, skip_destructive_pause=skip_destructive_pause)
     size = len(text.encode())
     assert size + ADDENDUM_HEADROOM_MARGIN <= ADDENDUM_BYTE_BUDGET, (

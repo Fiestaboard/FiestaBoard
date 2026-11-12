@@ -29,7 +29,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from src.ops.registry import SYSTEM_GATED
+from src.ops.registry import ALWAYS_PAUSE
 
 from .mcp_bridge import ToolDescriptor
 
@@ -338,8 +338,8 @@ _RULE_DESTRUCTIVE_ASK = (
 _RULE_DESTRUCTIVE_AUTO = (
     "- Tools marked DESTRUCTIVE run immediately in this conversation: the\n"
     "  user chose not to be asked. Tools marked SYSTEM (restart, shutdown,\n"
-    '  update) still pause until the user approves. A result of "denied"\n'
-    "  means do not retry; ask how to proceed.\n"
+    "  update, plugin installs and updates) still pause until the user\n"
+    '  approves. A result of "denied" means do not retry; ask how to proceed.\n'
 )
 
 _RULES_TAIL = (
@@ -360,7 +360,7 @@ _RULES_TAIL = (
 def _render_tool(d: ToolDescriptor, skip_destructive_pause: bool = False) -> str:
     if d.read_only:
         marker = "[read-only]"
-    elif d.requires_approval and d.name in SYSTEM_GATED:
+    elif d.name in ALWAYS_PAUSE:
         marker = "[DESTRUCTIVE, SYSTEM: user must approve]"
     elif d.requires_approval and skip_destructive_pause:
         marker = "[DESTRUCTIVE: runs immediately]"

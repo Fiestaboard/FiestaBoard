@@ -34,8 +34,14 @@ Design points worth knowing before editing:
   request's ``auto_approve_destructive`` flag (the conversation's "don't
   ask again"). Either lets a destructive call run without a pause — the
   ``tool_call`` frame then carries ``auto_approved: true`` — except for
-  the system tier (:data:`src.ops.registry.SYSTEM_GATED`), which pauses
-  whatever the switches say.
+  the tiers in :data:`src.ops.registry.ALWAYS_PAUSE` (restarting or
+  updating the host, installing or updating plugin code), which pause
+  whatever the switches say and whatever the tool's annotations say.
+- **A resume runs only what the hub paused on.** The transcript is the
+  client's copy and proves nothing. Each pause is recorded server-side
+  (:mod:`src.ai.approvals`) for the caller it was made for; ``approve``
+  runs the recorded name and args, once, and only if the transcript's
+  pending call matches them exactly.
 - **The provider gate is held only around the model call.** The semaphore
   ``page_routes`` shares with ``/generate`` used to be held for a whole
   stream; a slow plugin install inside the loop would have starved the
@@ -63,9 +69,10 @@ from typing import Any
 import httpx
 
 from src.devices import DeviceType
-from src.ops.registry import SYSTEM_GATED
+from src.ops.registry import ALWAYS_PAUSE
 from src.settings.models import AiApprovalMode
 
+from .approvals import PENDING_CALLS, PendingCallStore
 from .chat import _DEFAULT_TIMEOUT_SECONDS, _FenceParser, stream_model
 from .chat_tools import ASK_USER
 from .generator import AIGenerationError, _resolve_model, _resolve_provider, _user_safe_error_message
@@ -202,6 +209,8 @@ async def _run_chat_turn(
     display: Any = None,
     target_board: dict[str, Any] | None = None,
     interaction_mode: str | None = None,
+    approvals: PendingCallStore = PENDING_CALLS,
+    caller: str = "anonymous",
 ) -> AsyncIterator[dict[str, Any]]:
     """Run one user turn to completion or to a pause. Yields stream events.
 
@@ -211,7 +220,12 @@ async def _run_chat_turn(
 
     ``approval_mode`` is the install's setting; ``auto_approve_destructive``
     is this conversation's "don't ask again" flag. Either one lets a
-    destructive tool run without pausing, unless it is system-gated.
+    destructive tool run without pausing, unless it is in
+    :data:`~src.ops.registry.ALWAYS_PAUSE`.
+
+    ``approvals`` is where pauses are recorded and ``caller`` who they are
+    recorded for (the authenticated principal). A ``resume`` that approves a
+    call must find it there; the transcript alone never runs a tool.
     """
     skip_destructive_pause = approval_mode == "auto" or auto_approve_destructive
     try:
@@ -257,6 +271,20 @@ async def _run_chat_turn(
             yield {"event": "error", "data": {"message": f"No tool call {wanted!r} is awaiting a decision."}}
             return
         decision = resume.get("decision")
+        # Approve and deny both settle the pause, so take it either way: a
+        # denied call can never be approved later, and an approval is
+        # single-use. Only an answer to ask_user (which runs nothing) does
+        # not need a recorded pause.
+        recorded = approvals.take(caller, wanted) if decision in ("approve", "deny") else None
+        if decision == "approve":
+            if recorded is None or recorded.name != pending["name"] or recorded.args != (pending.get("args") or {}):
+                yield {
+                    "event": "error",
+                    "data": {"message": "That approval is no longer valid. Send the request again to get a fresh one."},
+                }
+                return
+            # Run what the hub recorded, never the client's copy of it.
+            pending = {**pending, "name": recorded.name, "args": dict(recorded.args)}
         if interaction_mode == "tv" and decision == "approve":
             # A client transcript is not authority to bypass the TV catalog.
             # Apply the same validation and board binding as fresh calls.
@@ -456,12 +484,13 @@ async def _run_chat_turn(
                 }
                 return
 
-            if descriptor.requires_approval:
+            if wire["requires_approval"]:
                 if skip_destructive_pause and not wire["system_gated"]:
                     # Auto mode / "don't ask again": the call runs like a
                     # write tool below, but the frame says nobody was asked.
                     wire["auto_approved"] = True
                 else:
+                    approvals.record(caller, call["id"], call["name"], call["args"])
                     yield {"event": "tool_call", "data": wire}
                     if remaining:
                         yield {
@@ -612,11 +641,13 @@ def _tool_call_data(call: dict[str, Any], descriptor: ToolDescriptor) -> dict[st
         "title": descriptor.title,
         "read_only": descriptor.read_only,
         "destructive": descriptor.destructive,
-        "requires_approval": descriptor.requires_approval,
+        # The always-pause tiers wait for the user whatever the annotations
+        # say, so a tool mis-annotated as non-destructive still pauses.
+        "requires_approval": descriptor.requires_approval or call["name"] in ALWAYS_PAUSE,
         "source": descriptor.source,
-        # The system tier never runs without a pause; the client hides its
-        # "don't ask again" action for these rather than keeping its own list.
-        "system_gated": call["name"] in SYSTEM_GATED,
+        # These never run without a pause; the client hides its "don't ask
+        # again" action for them rather than keeping its own list.
+        "system_gated": call["name"] in ALWAYS_PAUSE,
         # Set to True by the loop when a destructive call ran without asking.
         "auto_approved": False,
     }

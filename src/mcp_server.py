@@ -801,7 +801,9 @@ def _build_mcp_server() -> Any:
             "total_pages": max(1, -(-total // page_size)),
         }
 
-    @_tool(destructive=False, open_world=True)
+    # Destructive: it loads new code into the hub, which no other tool call
+    # undoes (uninstalling does not unrun an import).
+    @_tool(destructive=True, open_world=True)
     async def install_plugin(
         plugin_id: str | None = None,
         auto_enable: bool = True,
@@ -916,7 +918,7 @@ def _build_mcp_server() -> Any:
         """
         return ops_executors.configure_plugin(plugin_id, config)
 
-    @_tool(destructive=False, idempotent=True, open_world=True)
+    @_tool(destructive=True, idempotent=True, open_world=True)
     async def update_plugin(plugin_id: str) -> dict[str, Any]:
         """Update an installed plugin to its latest version from its git remote.
 
@@ -962,7 +964,7 @@ def _build_mcp_server() -> Any:
         """
         return await ops_executors.check_plugin_updates()
 
-    @_tool(destructive=False, idempotent=True, open_world=True)
+    @_tool(destructive=True, idempotent=True, open_world=True)
     async def update_all_plugins() -> dict[str, Any]:
         """Fetch and reload every external plugin with a pending update.
 

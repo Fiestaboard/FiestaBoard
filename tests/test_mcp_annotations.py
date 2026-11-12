@@ -90,6 +90,11 @@ APPROVAL_GATED = {
     "delete_collection",
     "uninstall_plugin",
     "delete_plugin_instance",
+    # Fetching and importing plugin code: nothing undoes running it. These
+    # are also the chat's code tier (src.ops.registry.CODE_GATED).
+    "install_plugin",
+    "update_plugin",
+    "update_all_plugins",
     # Settings-page coverage. Removing a board or panel drops credentials /
     # a virtual board; the network and system actions cut the user's own
     # connection or restart/power off the host.
@@ -213,7 +218,6 @@ def test_update_tools_are_not_approval_gated(annotations):
         "update_page",
         "update_schedule",
         "update_collection",
-        "update_plugin",
         "update_setting",
         "update_board",
         "update_panel",
