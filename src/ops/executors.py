@@ -459,7 +459,7 @@ def create_page(
             "canvases": canvases,
         }
         fields.update({key: value for key, value in supplied.items() if value is not None})
-        page = svc.create_page(PageCreate(**fields))
+        page = svc.create_page(PageCreate(**fields), origin="assistant")
         return ok(
             f"Page '{name}' created with id '{page.id}'.",
             page_id=page.id,
@@ -552,7 +552,7 @@ def update_page(
             )
 
         existing = svc.get_page(page_id)
-        page = svc.update_page(page_id, PageUpdate(**fields, expected_revision=expected_revision))
+        page = svc.update_page(page_id, PageUpdate(**fields, expected_revision=expected_revision), origin="assistant")
         if page is None:
             return err(f"Page '{page_id}' not found.")
 
@@ -610,7 +610,7 @@ def import_page(share_string: str) -> dict[str, Any]:
         if refusal is not None:
             return refusal
 
-        page = get_page_service().create_page(page_create)
+        page = get_page_service().create_page(page_create, origin="imported")
         return ok(
             f"Page '{page.name}' imported with id '{page.id}'.",
             page_id=page.id,

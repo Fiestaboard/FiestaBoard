@@ -9,6 +9,7 @@ from collections.abc import Collection
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
@@ -33,6 +34,8 @@ from src.settings.service import get_settings_service
 from src.templates.engine import extract_template_plugin_ids, get_template_engine
 from src.text_to_board import SPLIT_FLAP_EXTENDED_MARKUP
 
+from .drafts import PageDraftsMixin
+from .history import PageHistory
 from .models import LineMetadata, Page, PageCreate, PageUpdate
 from .storage import PageStorage
 
@@ -150,7 +153,17 @@ class CachedPreview:
         return age < ttl_seconds
 
 
-class PageService:
+def _history_dir(storage: Any) -> Path:
+    """The directory beside the storage's ``pages.json`` (the data dir for a stub storage)."""
+    try:
+        return Path(storage.storage_file).parent
+    except (AttributeError, TypeError):
+        from src.paths import get_data_dir
+
+        return get_data_dir()
+
+
+class PageService(PageDraftsMixin):
     """Service for page operations.
 
     Handles:
@@ -166,6 +179,8 @@ class PageService:
             storage: Page storage instance. Created if not provided.
         """
         self.storage = storage or PageStorage()
+        # Drafts and saved versions (H9a) live beside pages.json.
+        self.history = PageHistory(_history_dir(self.storage))
         self._preview_cache: dict[str, CachedPreview] = {}
         logger.info("PageService initialized")
 
@@ -179,11 +194,12 @@ class PageService:
         """Get a page by ID."""
         return self.storage.get(page_id)
 
-    def create_page(self, data: PageCreate) -> Page:
+    def create_page(self, data: PageCreate, *, origin: str = "created", via: str | None = None) -> Page:
         """Create a new page.
 
         Args:
             data: Page creation data
+            origin, via: How its first saved version is labelled (H9a).
 
         Returns:
             Created page
@@ -214,14 +230,33 @@ class PageService:
             **(data.model_extra or {}),
         )
 
-        return self.storage.create(page)
+        created = self.storage.create(page)
+        self._record_revision(created, origin=origin, via=via)
+        return created
 
-    def update_page(self, page_id: str, data: PageUpdate) -> Page | None:
+    def update_page(
+        self,
+        page_id: str,
+        data: PageUpdate,
+        *,
+        origin: str = "edited",
+        via: str | None = None,
+        restored_from: str | None = None,
+    ) -> Page | None:
+        """Save *data* over the page and record the result as a saved version (H9a).
+
+        *origin*/*via*/*restored_from* only label that version; a save that
+        changes no content records none.
+        """
         # Retarget preparation reads existing geometry/canvases; keep it in
         # the same critical section as the revision check and persisted save.
         with self.storage.lock:
             self.storage.check_revision(page_id, data.expected_revision)
-            return self._update_page_locked(page_id, data)
+            previous = self.storage.get(page_id)
+            updated = self._update_page_locked(page_id, data)
+            if updated is not None:
+                self._record_revision(updated, origin=origin, via=via, restored_from=restored_from, previous=previous)
+            return updated
 
     def _update_page_locked(self, page_id: str, data: PageUpdate) -> Page | None:
         """Update an existing page.
@@ -354,6 +389,10 @@ class PageService:
         # Persist deletion first: a failed delete must not create an orphan Welcome.
         self.storage.delete(page_id)
         self._invalidate_cache(page_id)
+        try:  # its draft and saved versions go with it (H9a); advisory
+            self.history.forget(page_id)
+        except OSError:
+            logger.warning("Could not delete the history of page %s", page_id, exc_info=True)
         default_page = self._create_replacement_page(existing_page) if was_last else None
         new_active_id = None
         for board in active_boards:

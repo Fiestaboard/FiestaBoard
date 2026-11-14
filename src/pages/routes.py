@@ -25,7 +25,7 @@ import asyncio
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
@@ -43,6 +43,16 @@ from src.schedules.service import get_schedule_service
 from src.settings.service import VALID_OUTPUT_TARGETS, get_settings_service, page_transition
 from src.text_to_board import text_to_board_array
 
+from .drafts import (
+    DraftConflict,
+    DraftExists,
+    DraftFromNewerBuild,
+    DraftNotFound,
+    InvalidDraft,
+    NoDraftToPublish,
+    PageNotFound,
+    RevisionNotFound,
+)
 from .models import (
     CurrentDisplayResponse,
     IncompatibleReference,
@@ -51,12 +61,19 @@ from .models import (
     PageCacheStatsResponse,
     PageCreate,
     PageDeleteResponse,
+    PageDraft,
+    PageDraftDiscardResponse,
+    PageDraftListResponse,
+    PageDraftPublishRequest,
     PageImportPreview,
     PageImportRequest,
     PageListResponse,
     PagePreviewBatchRequest,
     PagePreviewBatchResponse,
     PagePreviewResponse,
+    PageRestoreRequest,
+    PageRevisionDetail,
+    PageRevisionListResponse,
     PageSendRequest,
     PageSendResponse,
     PageUpdate,
@@ -71,6 +88,47 @@ from .storage import PageRevisionConflict
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["pages"])
+
+
+def request_via(request: Request) -> str | None:
+    """Who is saving, for a saved version's ``via`` (H9a): set by the auth middleware."""
+    scope = request.scope
+    if scope.get("auth_kind") == "mobile":
+        return "phone"
+    user = scope.get("auth_user")
+    if user == "api-token":
+        return "api"
+    if user == "mcp-client":
+        return "mcp"
+    return "web" if user else None
+
+
+Via = Annotated[str | None, Depends(request_via)]
+
+#: Draft/history domain errors -> status (API_CONVENTIONS "services raise, routers map").
+_STATUS_BY_ERROR: tuple[tuple[type[Exception], int], ...] = (
+    (PageNotFound, 404),
+    (DraftNotFound, 404),
+    (RevisionNotFound, 404),
+    (NoDraftToPublish, 409),
+    (DraftExists, 409),
+    (DraftFromNewerBuild, 409),
+    (DraftConflict, 412),
+    (PageRevisionConflict, 412),
+    (InvalidDraft, 400),
+    (ValueError, 400),
+)
+
+
+def _history_call(fn, *args, **kwargs):
+    """Run a draft/history operation, mapping its domain errors to their status."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception as exc:
+        status = next((code for kind, code in _STATUS_BY_ERROR if isinstance(exc, kind)), None)
+        if status is None:
+            raise
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
 
 
 def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
@@ -103,6 +161,12 @@ def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
         )
 
 
+def _reject_plugin_content_when_beta_off(content: dict) -> None:
+    """The beta guard for content that arrives from storage (a draft being
+    published, a saved version being restored), not from the request body."""
+    _reject_plugin_strategy_when_beta_off(content.get("transition_strategy"))
+
+
 # No 4xx of its own: an empty instance is an empty list, not an error. See the
 # declared_errors exception in tests/conventions_manifest.json.
 @router.get(
@@ -116,6 +180,15 @@ async def list_pages():
     pages = page_service.list_pages()
 
     return PageListResponse(pages=pages, total=len(pages))
+
+
+@router.get(
+    "/pages/drafts",
+    response_model=PageDraftListResponse,
+)
+async def list_page_drafts():
+    """Every page that has an unpublished draft (H9a): the library's Draft badges in one read."""
+    return PageDraftListResponse(drafts=get_page_service().list_drafts())
 
 
 @router.get(
@@ -195,7 +268,7 @@ async def get_current_display():
     responses=errors(400),
     dependencies=[superseded_by_v1("POST /pages")],
 )
-async def create_page(page_data: PageCreate):
+async def create_page(page_data: PageCreate, via: Via = None):
     """
     Create a new page.
 
@@ -208,7 +281,7 @@ async def create_page(page_data: PageCreate):
     page_service = get_page_service()
 
     try:
-        return page_service.create_page(page_data)
+        return page_service.create_page(page_data, via=via)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -236,7 +309,7 @@ async def get_page(page_id: str):
     responses=errors(400, 404, 412),
     dependencies=[superseded_by_v1("PUT /pages/{page_id}")],
 )
-async def update_page(page_id: str, page_data: PageUpdate):
+async def update_page(page_id: str, page_data: PageUpdate, via: Via = None):
     """Update an existing page.
 
     When the update changes the page's size (device/size retarget, issue
@@ -250,7 +323,7 @@ async def update_page(page_id: str, page_data: PageUpdate):
     existing = page_service.get_page(page_id)
 
     try:
-        page = page_service.update_page(page_id, page_data)
+        page = page_service.update_page(page_id, page_data, via=via)
     except PageRevisionConflict as e:
         raise HTTPException(status_code=412, detail=str(e)) from e
     except ValueError as e:
@@ -354,7 +427,7 @@ async def preview_page_import(body: PageImportRequest):
     status_code=201,
     responses=errors(400, 422),
 )
-async def import_page(body: PageImportRequest):
+async def import_page(body: PageImportRequest, via: Via = None):
     """Create a new page from a share string.
 
     A share string the decoder rejects, or one whose contents do not satisfy
@@ -378,7 +451,7 @@ async def import_page(body: PageImportRequest):
 
     page_service = get_page_service()
     try:
-        return page_service.create_page(page_create)
+        return page_service.create_page(page_create, origin="imported", via=via)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -742,3 +815,95 @@ async def send_page(
     from src.board_send_executor import run_board_send
 
     return await run_board_send(_work)
+
+
+# ---------------------------------------------------------------------------
+# Drafts, saved versions and restore (H9a). Logic: src/pages/drafts.py.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/pages/{page_id}/draft", response_model=PageDraft, responses=errors(404))
+async def get_page_draft(page_id: str):
+    """The page's unpublished draft. 404 when the page is unknown or has no draft."""
+    return _history_call(get_page_service().get_draft, page_id)
+
+
+@router.put("/pages/{page_id}/draft", response_model=PageDraft, responses=errors(400, 404, 409, 412))
+async def save_page_draft(page_id: str, page_data: PageUpdate, via: Via = None):
+    """Save a draft ("Save draft"): the fields sent, over the existing draft or the published page.
+
+    No board, schedule or collection sees a draft. ``expected_revision`` here
+    is **the draft's** revision (412 when another device saved the draft
+    since). An invalid page, or a draft over 256 KiB, is a 400. A 409 when the
+    stored draft was saved by a newer FiestaBoard (this build won't overwrite it).
+    """
+    _reject_plugin_strategy_when_beta_off(page_data.transition_strategy)
+    return _history_call(get_page_service().save_draft, page_id, page_data, via=via)
+
+
+@router.delete("/pages/{page_id}/draft", response_model=PageDraftDiscardResponse, responses=errors(404, 412))
+async def discard_page_draft(page_id: str, expected_revision: str | None = None):
+    """Discard the draft ("Discard changes"). The published page is untouched."""
+    _history_call(get_page_service().discard_draft, page_id, expected_revision=expected_revision)
+    return PageDraftDiscardResponse(page_id=page_id)
+
+
+@router.post("/pages/{page_id}/draft/publish", response_model=PageUpdateResponse, responses=errors(400, 404, 409, 412))
+async def publish_page_draft(page_id: str, body: PageDraftPublishRequest | None = None, via: Via = None):
+    """Publish the draft ("Save & update board") and delete it.
+
+    Answers like ``PUT /pages/{page_id}``, including ``incompatible_references``
+    when the draft changed the page's size. 409 when there is no draft; 412
+    when ``expected_revision`` (the published page's) is stale, or when
+    ``expected_draft_revision`` (the draft's) is: another device saved the
+    draft since this editor read it. A draft carrying a ``plugin:`` transition
+    is a 400 while the transition-plugin beta is off, as on ``PUT``.
+    """
+    before, after = _history_call(
+        get_page_service().publish_draft,
+        page_id,
+        expected_revision=body.expected_revision if body else None,
+        expected_draft_revision=body.expected_draft_revision if body else None,
+        via=via,
+        check_content=_reject_plugin_content_when_beta_off,
+    )
+    incompatible: list[IncompatibleReference] = []
+    if size_key(*geometry_of(before)) != size_key(*geometry_of(after)):
+        incompatible = [IncompatibleReference(**ref) for ref in find_incompatible_references(after)]
+    return PageUpdateResponse(page=after, incompatible_references=incompatible)
+
+
+@router.get("/pages/{page_id}/revisions", response_model=PageRevisionListResponse, responses=errors(404))
+async def list_page_revisions(page_id: str):
+    """The page's saved versions, newest first, without their content (at most 20, none over 90 days)."""
+    revisions = _history_call(get_page_service().list_revisions, page_id)
+    return PageRevisionListResponse(page_id=page_id, revisions=revisions, total=len(revisions))
+
+
+@router.get("/pages/{page_id}/revisions/{revision_id}", response_model=PageRevisionDetail, responses=errors(404))
+async def get_page_revision(page_id: str, revision_id: str):
+    """One saved version with its content (for Compare and its thumbnail)."""
+    return _history_call(get_page_service().get_revision, page_id, revision_id)
+
+
+@router.post(
+    "/pages/{page_id}/revisions/{revision_id}/restore", response_model=PageDraft, responses=errors(400, 404, 409)
+)
+async def restore_page_revision(
+    page_id: str, revision_id: str, body: PageRestoreRequest | None = None, via: Via = None
+):
+    """Restore a saved version **into the draft**; the published page is untouched until publish.
+
+    409 when the page already has a draft, unless ``replace_draft`` is true. A
+    version carrying a ``plugin:`` transition is a 400 while the
+    transition-plugin beta is off.
+    """
+    replace = body.replace_draft if body else False
+    return _history_call(
+        get_page_service().restore_revision,
+        page_id,
+        revision_id,
+        replace_draft=replace,
+        via=via,
+        check_content=_reject_plugin_content_when_beta_off,
+    )
