@@ -13,7 +13,6 @@ import {
   Flex,
   Input,
   ListRow,
-  ListRowGroup,
   SegmentedControl,
   SegmentedControlItem,
   Sheet,
@@ -160,7 +159,7 @@ export function ChangePageDialog({
     mutationFn: async (picked: { id: string; name: string }) => {
       if (pins) {
         const result = await api.setActivePage(picked.id, board?.id, { overrideSilence: true });
-        return { picked, paused: result.paused === true, notSent: !!result.error };
+        return { picked, pinned: true, paused: result.paused === true, notSent: !!result.error };
       }
       const minutes = durationMinutes(choice, nextChange, now());
       const request: SetTemporaryOverrideRequest = {
@@ -170,11 +169,14 @@ export function ChangePageDialog({
         revert_mode: "schedule",
       };
       await api.setTemporaryOverride(request);
-      return { picked, paused: board?.paused === true, notSent: false };
+      return { picked, pinned: false, paused: board?.paused === true, notSent: false };
     },
-    onSuccess: ({ picked, paused, notSent }) => {
+    onSuccess: ({ picked, pinned, paused, notSent }) => {
       refresh();
-      api.forceRefresh().catch(() => {});
+      // A pin is sent by its own PUT; an override waits for the display
+      // loop's next pass, so nudge it (a forced pass after a pin would spend
+      // a note array's 15 s send window on a repaint).
+      if (!pinned) api.forceRefresh().catch(() => {});
       if (notSent) toast.error(t("toastNotSent", { board: displayName }));
       else if (paused) toast.info(t("toastPaused", { page: picked.name, board: displayName }));
       else toast.success(t("toastShown", { page: picked.name, board: displayName }));
@@ -221,7 +223,10 @@ export function ChangePageDialog({
         {query.trim() ? t("empty", { query: query.trim() }) : t("emptyNone", { board: displayName })}
       </Text>
     ) : (
-      <ListRowGroup variant="plain" size={isPhone ? "touch" : "default"}>
+      // Button rows, not a ListRowGroup: the group is a role="list" of <li>
+      // rows, and a row rendered as a <button> would leave the list with no
+      // list items (axe aria-required-children). FiestaUI gap, see DD-W16.
+      <Stack gap="0" className="divide-y divide-border">
         {choices.map((c) => {
           const isCurrent = c.id === currentPageId;
           const isSelected = !isPhone && c.id === selectedId;
@@ -231,6 +236,7 @@ export function ChangePageDialog({
             <ListRow
               key={c.id}
               render={<button type="button" aria-pressed={isPhone ? undefined : isSelected} />}
+              size={isPhone ? "touch" : "default"}
               onClick={() => pick(c.id)}
               leading={<Icon className="size-4 text-muted-foreground" aria-hidden="true" />}
               title={c.name}
@@ -246,7 +252,7 @@ export function ChangePageDialog({
             />
           );
         })}
-      </ListRowGroup>
+      </Stack>
     );
 
   const durationAndPreview = selected ? (
