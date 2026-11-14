@@ -51,7 +51,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
-from src.config_manager import get_config_manager, unmask_sensitive_values
+from src.config_manager import get_config_manager, has_masked_placeholder, unmask_sensitive_values
 from src.displays.service import reset_display_service
 from src.pages.service import get_page_service
 from src.settings.service import get_settings_service
@@ -218,7 +218,7 @@ async def list_plugins() -> PluginListResponse:
     for plugin in plugins:
         plugin_config = config_manager.get_plugin_config(plugin["id"])
         plugin["configured"] = bool(plugin_config)
-        plugin["config"] = service.mask_config(plugin_config)
+        plugin["config"] = service.mask_config(plugin_config, plugin["id"])
 
     return PluginListResponse(
         plugins=[PluginSummary.model_validate(p) for p in plugins],
@@ -363,7 +363,7 @@ async def get_plugin(plugin_id: str) -> PluginDetail:
         category=manifest.category,
         plugin_type=manifest.plugin_type,
         enabled=registry.is_enabled(plugin_id),
-        config=_plugin_service().mask_config(plugin_config),
+        config=_plugin_service().mask_config(plugin_config, plugin_id),
         env_overridden_keys=env_overridden_keys,
         settings_schema=manifest.settings_schema,
         variables=manifest.raw.get("variables", {}),
@@ -569,7 +569,13 @@ async def get_plugin_options_endpoint(
     # The form posts back "***" wherever a sensitive field used to be, so the
     # draft has to be un-masked against what is stored or the plugin gets three
     # asterisks as its API key and every lookup fails mid-setup.
-    draft_config = unmask_sensitive_values(body.draft_config, stored_config) if body.draft_config else None
+    draft_config = (
+        unmask_sensitive_values(body.draft_config, stored_config, manifest.settings_schema)
+        if body.draft_config
+        else None
+    )
+    if has_masked_placeholder(draft_config, manifest.settings_schema):
+        raise HTTPException(status_code=400, detail="Re-enter unresolved masked settings.")
     if draft_config:
         # Key names only, never values: a settings dialog is exactly where
         # credentials leak into logs.

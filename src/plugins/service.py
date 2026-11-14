@@ -41,7 +41,8 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from src.config_manager import unmask_sensitive_values
+from src.config_manager import has_masked_placeholder, unmask_sensitive_values
+from src.plugins.registry import get_plugin_settings_schema
 
 from .errors import (
     PluginConfigInvalid,
@@ -189,15 +190,13 @@ class PluginService:
 
     # -- private-member wrappers --------------------------------------------
 
-    def mask_config(self, config: dict[str, Any] | None) -> dict[str, Any]:
-        """Return *config* with sensitive fields masked, ``{}`` for empty.
-
-        ``ConfigManager._mask_sensitive`` is the one masking implementation;
-        the private reach lives here (once) so no route touches it.
-        """
-        if not config:
+    def mask_config(self, config: dict[str, Any] | None, plugin_id: str) -> dict[str, Any]:
+        """Return a schema-aware public projection, withholding unavailable schemas."""
+        schema = get_plugin_settings_schema(plugin_id, self.registry)
+        if not config or schema is None:
             return {}
-        return self.config_manager._mask_sensitive(config)
+        masked = self.config_manager._mask_sensitive(config, schema=schema)
+        return masked if isinstance(masked, dict) else {}
 
     def clear_update_status(self, plugin_id: str) -> None:
         """Forget the cached "update available" flag after applying an update.
@@ -464,7 +463,12 @@ class PluginService:
         # config.json (issue #1761 / #1865 review).
         config_manager = self.config_manager
         stored_config = config_manager.get_plugin_config(plugin_id, include_env_overrides=False) or {}
-        config = unmask_sensitive_values(config, stored_config)
+        schema = get_plugin_settings_schema(plugin_id, registry)
+        config = unmask_sensitive_values(config, stored_config, schema)
+        if has_masked_placeholder(config, schema):
+            raise PluginConfigInvalid(
+                "Re-enter unresolved masked settings.", ["Masked settings could not be restored."]
+            )
 
         # Validate configuration against manifest schema
         errors = registry.validate_plugin_config(plugin_id, config)
@@ -504,7 +508,7 @@ class PluginService:
 
         logger.info(f"Plugin '{plugin_id}' configuration updated")
 
-        return self.mask_config(config_manager.get_plugin_config(plugin_id))
+        return self.mask_config(config_manager.get_plugin_config(plugin_id), plugin_id)
 
     def enable_plugin(self, plugin_id: str) -> None:
         """Persist an accepted enable request before changing the live plugin."""

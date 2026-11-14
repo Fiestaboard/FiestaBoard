@@ -722,3 +722,22 @@ def test_the_caches_are_bounded(registry, client, monkeypatch):
 
     assert len(options_runtime._PLUGIN_OPTIONS_CACHE) <= 3
     assert len(options_runtime._plugin_options_last_refresh) <= 4
+
+
+def test_schema_secret_draft_is_restored_before_options_dispatch(registry, client):
+    registry.manifests["stocks"] = _FakeManifest(
+        {
+            **OPTIONS_SCHEMA,
+            "properties": {**OPTIONS_SCHEMA["properties"], "credential": {"secret": True}},
+        }
+    )
+    registry.configs["stocks"]["credential"] = "cx-FAKE-options"
+    response = _post(client, draft_config={"credential": "***"})
+    assert response.status_code == 200
+    assert registry.calls[0][3]["credential"] == "cx-FAKE-options"
+
+
+def test_unresolved_draft_mask_is_rejected_before_options_dispatch(registry, client):
+    response = _post(client, draft_config={"sources": [{"id": "new", "api_key": "***"}]})
+    assert response.status_code == 400
+    assert not registry.calls
