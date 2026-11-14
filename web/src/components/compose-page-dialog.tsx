@@ -386,7 +386,7 @@ export function ComposePageDialog({
           )}
         </Stack>
 
-        <DialogFooter className="flex-wrap">
+        <DialogFooter className="sticky bottom-0 -mx-6 -mb-6 flex-wrap bg-background px-6 pb-6 pt-2">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}

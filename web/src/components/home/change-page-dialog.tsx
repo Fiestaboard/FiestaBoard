@@ -225,7 +225,7 @@ export function ChangePageDialog({
     ) : (
       // Button rows, not a ListRowGroup: the group is a role="list" of <li>
       // rows, and a row rendered as a <button> would leave the list with no
-      // list items (axe aria-required-children). FiestaUI gap, see DD-W16.
+      // list items (axe aria-required-children). FiestaUI gap, see DD-W47.
       <Stack gap="0" className="divide-y divide-border">
         {choices.map((c) => {
           const isCurrent = c.id === currentPageId;
@@ -302,10 +302,10 @@ export function ChangePageDialog({
   if (isPhone) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" grabber detents={["full"]}>
+        <SheetContent side="bottom" grabber className="max-h-[92dvh]">
           {step === "pick" || !selected ? (
             <>
-              <SheetHeader>
+              <SheetHeader className="pe-12 text-start">
                 <SheetTitle>{t("title")}</SheetTitle>
                 <SheetDescription>{t("stepOne", { board: displayName })}</SheetDescription>
               </SheetHeader>
@@ -319,7 +319,7 @@ export function ChangePageDialog({
             </>
           ) : (
             <>
-              <SheetHeader>
+              <SheetHeader className="pe-12 text-start">
                 <Flex align="start" gap="2">
                   <Button
                     variant="ghost"
@@ -330,7 +330,7 @@ export function ChangePageDialog({
                   >
                     <ChevronLeft className="size-5" aria-hidden="true" />
                   </Button>
-                  <Stack gap="1">
+                  <Stack gap="1" className="min-w-0 text-start">
                     <SheetTitle>{selected.name}</SheetTitle>
                     <SheetDescription>{t("stepTwo", { board: displayName })}</SheetDescription>
                   </Stack>
@@ -361,7 +361,7 @@ export function ChangePageDialog({
           {durationAndPreview}
           {silenceNotice}
         </Stack>
-        <DialogFooter>
+        <DialogFooter className="sticky bottom-0 -mx-6 -mb-6 bg-background px-6 pb-6 pt-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submit.isPending}>
             {t("cancel")}
           </Button>
