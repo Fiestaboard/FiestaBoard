@@ -7,12 +7,13 @@ image, a docs snapshot on fiestaboard.app, and a Docker Hub description update.
 Nothing is published to npm. The root `package.json` is private and only carries
 the version.
 
-There are two channels:
+There are two update channels and a manually installed v11 preview lane:
 
 | Branch  | Versions        | Docker tags                   | GitHub Release | Who gets it                    |
 | ------- | --------------- | ----------------------------- | -------------- | ------------------------------ |
 | `main`  | `10.4.0`        | `:10.4.0`, `:latest`          | latest         | every install on stable        |
 | `alpha` | `10.4.0-beta.2` | `:10.4.0-beta.2`, `:beta`     | prerelease     | installs on the beta channel   |
+| `v11` | `11.0.0-alpha.N` | `:v11-alpha-11.0.0-alpha.N`, `:v11-alpha` | git tag only | isolated manual preview installs |
 
 The update checker (`src/system/update_service.py`) reads both Docker Hub tags
 and GitHub Releases. Stable installs never see a prerelease, because it carries a
@@ -68,9 +69,41 @@ When the GitHub Release exists but a later step failed (the docs dispatch or
 the FiestaPi dispatch), a fresh run sees the release and does nothing. Use
 **Re-run failed jobs** instead.
 
-The Version PR sits in the merge queue like any other PR. When another PR with
-a changeset merges first, the action force-pushes `changeset-release/main`,
-and the Version PR drops out of the queue. Queue it again.
+Every `changeset-release/*` Version PR runs the full four-backend integration
+suite. Its CI is the release gate; normal PRs retain the smaller smoke suite.
+Merge the Version PR only after its current head is green and reviewed.
+
+## The v11 preview lane
+
+`v11` requires `.changeset/pre.json` with `mode: pre`, `tag: alpha`, and the
+pending major redesign changeset from the v11 bootstrap. Its Version PR targets
+`11.0.0-alpha.N`. A missing pre.json or wrong tag fails closed before versioning;
+exit mode skips both versioning and publication. No npm package is published.
+
+The image has two tags in `fiestaboard/fiestaboard`:
+
+- `v11-alpha` follows the newest v11 preview.
+- `v11-alpha-11.0.0-alpha.N` pins a specific preview.
+
+There is deliberately no numeric Docker tag and no public GitHub Release for
+v11. Already-deployed beta clients discover *all* numeric prerelease Docker tags
+and *all* GitHub prereleases. Publishing either would offer v11 to those clients,
+even without moving `:beta`. A `v11.0.0-alpha.N` **git tag only** records successful
+publication after both image architectures are verified. Retry planning checks
+that tag; main and alpha continue checking GitHub Releases as before.
+
+Install v11 into an isolated test instance with its own data volume and the
+explicit `fiestaboard/fiestaboard:v11-alpha` image. Update it by pulling that image
+and recreating the container, or pin a prefixed immutable tag. Do not use the
+existing beta/stable channel controls: this preview lane is not an in-app update
+channel. In-app update checks, Update Now and channel switching are disabled for
+these builds; old stored channel preferences cannot change the image on restart. Back up data before testing; do not reuse a preview data volume with an
+older release. The lane produces no FiestaPi image, docs snapshot, Docker Hub
+description update, `:beta`, or `:latest` tag.
+
+To promote, exit Changesets pre mode before merging to main. The v11 workflow
+stops while promotion is in progress; main's Version PR produces the stable
+version and the normal stable release artifacts.
 
 ## The alpha channel
 

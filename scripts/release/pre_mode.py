@@ -66,6 +66,14 @@ def check_pre_mode_for_base(base_ref: str, pre: PreJson | None) -> Result:
             )
         return Result(True, f"main: {_describe(pre)} — ok.")
 
+    if base_ref == "v11":
+        if pre is None or pre.tag != "alpha" or pre.mode not in ("pre", "exit"):
+            return Result(
+                False,
+                f'v11 must stay in "alpha" prerelease mode, but {_describe(pre)}. Run "npx changeset pre enter alpha".',
+            )
+        return Result(True, f"v11: {_describe(pre)} — ok.")
+
     if base_ref == ALPHA_BRANCH:
         if pre is None or pre.tag != PRE_TAG:
             return Result(
@@ -110,6 +118,14 @@ def main(argv: list[str]) -> int:
                 return 1
             print(result.reason, file=sys.stderr)
             return 0
+        if command == "v11-action" and len(argv) == 1:
+            pre = read_pre_json()
+            result = check_pre_mode_for_base("v11", pre)
+            if not result.ok:
+                raise ValueError(result.reason)
+            print(f"action={'skip' if pre.mode == 'exit' else 'release'}")
+            print(result.reason, file=sys.stderr)
+            return 0
         if command == "alpha-action" and len(argv) == 1:
             action = alpha_release_action(read_pre_json())
             print(f"action={action}")
@@ -123,7 +139,9 @@ def main(argv: list[str]) -> int:
     except ValueError as error:
         print(f"::error::{error}", file=sys.stderr)
         return 1
-    print("usage: pre_mode.py check-base <base-ref> | pre_mode.py alpha-action", file=sys.stderr)
+    print(
+        "usage: pre_mode.py check-base <base-ref> | pre_mode.py alpha-action | pre_mode.py v11-action", file=sys.stderr
+    )
     return 2
 
 
