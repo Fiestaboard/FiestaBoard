@@ -126,7 +126,9 @@ def test_validate_without_a_template_is_rejected(client):
 def test_validate_accepts_a_plain_template_with_no_errors(client):
     response = client.post("/templates/validate", json={"template": "HELLO"})
     assert response.status_code == 200
-    assert response.json() == {"valid": True, "errors": []}
+    # RE-PINNED (H4): gained rows/cols, the geometry it validated at (the
+    # Flagship default when the body names no board or geometry).
+    assert response.json() == {"valid": True, "errors": [], "rows": 6, "cols": 22}
 
 
 def test_validate_reports_an_unknown_source_at_its_position(client):
@@ -134,7 +136,12 @@ def test_validate_reports_an_unknown_source_at_its_position(client):
     assert response.status_code == 200
     assert response.json() == {
         "valid": False,
-        "errors": [{"line": 1, "column": 0, "message": "Unknown source: weather"}],
+        # RE-PINNED (H4): each error gained code and max_length; the body rows/cols.
+        "errors": [
+            {"line": 1, "column": 0, "message": "Unknown source: weather", "code": "unknown_source", "max_length": None}
+        ],
+        "rows": 6,
+        "cols": 22,
     }
 
 
@@ -143,7 +150,18 @@ def test_validate_reports_mismatched_braces(client):
     assert response.status_code == 200
     assert response.json() == {
         "valid": False,
-        "errors": [{"line": 1, "column": 0, "message": "Mismatched variable braces {{}}"}],
+        # RE-PINNED (H4): each error gained code and max_length; the body rows/cols.
+        "errors": [
+            {
+                "line": 1,
+                "column": 0,
+                "message": "Mismatched variable braces {{}}",
+                "code": "mismatched_braces",
+                "max_length": None,
+            }
+        ],
+        "rows": 6,
+        "cols": 22,
     }
 
 
