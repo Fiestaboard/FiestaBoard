@@ -208,7 +208,7 @@ test.describe("HA Ingress", () => {
   test("the service worker and the manifest stay under the prefix (2.8)", async ({ page, context }) => {
     const { escapes, notFound } = trackIngressViolations(page);
     await page.goto(`${PREFIX}/`);
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // The worker registers at <prefix>/sw.js with scope <prefix>/, never the host root.
     const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
