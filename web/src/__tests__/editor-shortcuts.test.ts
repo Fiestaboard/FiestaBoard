@@ -148,9 +148,10 @@ describe("hasOpenOverlay", () => {
 });
 
 describe("previewBindsBoardViewportKeys", () => {
-  it("is false today: the split-flap preview is not a BoardViewport until slice 2.4", () => {
-    expect(SPLIT_FLAP_PREVIEW_IS_BOARD_VIEWPORT).toBe(false);
-    expect(previewBindsBoardViewportKeys({ ledPreview: false })).toBe(false);
+  it("binds for the converted split-flap wrapper and excludes LED previews", () => {
+    expect(SPLIT_FLAP_PREVIEW_IS_BOARD_VIEWPORT).toBe(true);
+    expect(previewBindsBoardViewportKeys({ ledPreview: false })).toBe(true);
+    expect(previewBindsBoardViewportKeys({ ledPreview: true })).toBe(false);
   });
 
   it("binds only for a split-flap preview once it is a BoardViewport, never for an LED one", () => {

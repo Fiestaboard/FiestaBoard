@@ -90,3 +90,18 @@ Ruling: keep the current registry pin while 1.5d remains unpublished; remain
 in draft, with publication plus a new registry pin and rerun required before
 ready. Jev selected this handoff at p = 0.75 (alpha.1-only pin 0.17).
 An alpha.1 bump alone cannot supply `showModeToggle`; no tarball is committed.
+
+## Alpha.2 propagation (2026-11-14)
+
+The historical publication gate above is superseded by the released registry
+`@fiestaboard/ui@8.17.0-alpha.2`, including `showModeToggle`. Merge the verified
+2.7 predecessor normally, preserve both slices, and validate from a clean registry
+install. The shared coarse-pointer hook and its test already match 2.6 exactly.
+
+With both the viewport wrapper and shortcuts now present, enable
+`SPLIT_FLAP_PREVIEW_IS_BOARD_VIEWPORT`. The shortcut list must describe the
+split-flap preview's arrow, Home/End, and F bindings, and continue excluding LED
+previews. Add an editor integration check for actual scrolling and Fit changes.
+Run full static/build/coverage, serial slice browser and accessibility checks, and
+refresh Home/editor/fixture evidence at 390/768/1280 in both themes. Remain draft
+pending a fresh independent READY review of the integrated head.
