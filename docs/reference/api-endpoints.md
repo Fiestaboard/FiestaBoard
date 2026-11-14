@@ -1280,7 +1280,29 @@ one document, because "what is this board doing" is one question.
 | `next_page_id` | `string` \| `null` | no | The page or collection in force after next_change_at, when the hub can know it; null when it cannot (a collection rotation, a blank revert, a quiet-hours indicator). |
 | `override_started_at` | `string` \| `null` | no | When this board's active override began (ISO 8601), or null if none is running. A replaced override has a new value, so it identifies one run (for a Live Activity or Live Update). |
 | `health` | [`HealthSummary`](#schema-healthsummary) | no | When the hub last reached this board (last_connected_at, latency_ms), when a frame last landed (last_update_at), and the last failed contact (last_error_at, last_error); these survive a hub restart. reachable says whether this hub process last reached the board or failed to, and breaker_open whether writes are held back after repeated failures. |
+| `drawing` | [`BoardDrawing`](#schema-boarddrawing) | yes | What this board's display can draw (lowercase, colored text, highlights, tiles, icons, any color, solid shapes, pixel canvases), with the color model, LED text face, icon names and pixel size an editor's tools need. |
 | `layers` | array of [`CanvasLayerModel`](#schema-canvaslayermodel) \| `null` | no | A pixel-matrix board only: the page's pixel canvases on the frame it shows, drawn over `characters` (`{x, y, width, height, rgba}`, rgba base64 RGBA; `[]` for none). Null on any other board. |
+
+### `BoardDrawing` {#schema-boarddrawing}
+
+What a board's display can draw, for an editor choosing its tools.
+
+Derived from what the board's output declares (its device model and
+character set), never configured. A board whose device is unknown (its
+output plugin is not installed) reads the split-flap baseline, capitals
+and color tiles, with `source: "baseline"`.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `source` | `"device"` \| `"baseline"` | yes | "device" when the board's output describes its device; "baseline" when it cannot be told (its output plugin is not installed), and the split-flap baseline is assumed. |
+| `technology` | `string` | yes | "split_flap", "led_matrix", "screen" or "unknown": the FiestaUI device model's technology. |
+| `color` | `"tiles"` \| `"rgb"` \| `"mono"` | yes | "tiles" (a split-flap's fixed colors), "rgb" (any color) or "mono" (one lit color). |
+| `monochrome` | `string` \| `null` | no | The lit color of a single-color panel; null otherwise. |
+| `font` | `string` \| `null` | no | The LED text face the board draws with: "5x7" (Large) or "3x5" (Small); null off LED. Changing it is a display setting (it changes the board's grid). |
+| `icons` | array of `string` | no | The icon names `{{icon:<name>}}` draws on this board. |
+| `pixel_width` | `integer` \| `null` | no | A pixel matrix's width in pixels; null on any other board. |
+| `pixel_height` | `integer` \| `null` | no | A pixel matrix's height in pixels; null on any other board. |
+| `features` | [`DrawingFeatures`](#schema-drawingfeatures) | yes | — |
 
 ### `BoardListResponse` {#schema-boardlistresponse}
 
@@ -1548,6 +1570,24 @@ Request model for updating an existing collection.
 | `text` | `string` | yes | max length 256 |
 | `color` | `string` | yes | — |
 | `font` | `"3x5"` \| `"5x7"` | no | default `"5x7"` |
+
+### `DrawingFeatures` {#schema-drawingfeatures}
+
+What the display can draw, one flag per :data:`src.outputs.display_profile.FEATURES`.
+
+Each is :meth:`DisplayProfile.supports` for that feature, so the editor's
+tools and the hub never disagree.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `lowercase` | `boolean` | yes | Lowercase draws as lowercase; otherwise text is shown in capitals. |
+| `color_text` | `boolean` | yes | Colored text: `{{red:HOT}}` draws the word in that color. |
+| `background` | `boolean` | yes | Highlighted text: `{{black/yellow:AQI}}` draws words on a colored band. |
+| `tiles` | `boolean` | yes | Solid color tiles: `{{red}}` or `{{63}}` draws one colored block. |
+| `icons` | `boolean` | yes | Icons: `{{icon:sun}}` draws a small picture (names in drawing.icons). |
+| `rgb` | `boolean` | yes | Any color, including #rrggbb hex, not only the fixed palette. |
+| `solid_shapes` | `boolean` | yes | Neighboring tiles of one color join into one solid shape (seamless LED style). |
+| `pixels` | `boolean` | yes | A pixel matrix: the board draws a page's pixel canvases. |
 
 ### `ErrorResponse` {#schema-errorresponse}
 

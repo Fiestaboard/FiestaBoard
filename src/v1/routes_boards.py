@@ -30,7 +30,13 @@ from src.devices import geometry_of
 from src.ops import executors
 from src.outputs.board_profile import board_profile
 from src.outputs.cells import project_for_output
-from src.outputs.display_profile import board_layers_json, render_kw
+from src.outputs.display_profile import (
+    FEATURES,
+    DisplayProfile,
+    board_layers_json,
+    display_profile_for_board,
+    render_kw,
+)
 from src.outputs.health import board_health
 from src.outputs.registry import resolve_output_id
 from src.request_trace import trace_phase
@@ -41,6 +47,7 @@ from .models import (
     ActivePageRequest,
     ActivePageResponse,
     BoardDetail,
+    BoardDrawing,
     BoardListResponse,
     BoardSummary,
     BoardUpdate,
@@ -194,7 +201,32 @@ async def get_board(board: str) -> BoardDetail:
         override_started_at=override.started_at if override is not None else None,
         **_next_change_fields(board_id),
         health=board_health(runtime.get_service(), board_id),
+        drawing=_drawing(entry),
         layers=board_layers_json(entry, state.cells if state.characters is not None else None),
+    )
+
+
+def _drawing(entry: dict[str, Any]) -> BoardDrawing:
+    """What *entry*'s display can draw (H3). A read falls back: a board whose
+    device is unknown, or whose profile cannot be built, reads the split-flap
+    baseline (:class:`DisplayProfile`'s defaults) as ``source: "baseline"``."""
+    try:
+        profile = display_profile_for_board(entry)
+    except Exception as exc:  # a board read never fails on its drawing facts
+        logger.warning("Could not describe what board %s draws: %s", entry.get("id"), exc)
+        profile = None
+    source = "device" if profile is not None else "baseline"
+    profile = profile if profile is not None else DisplayProfile()
+    return BoardDrawing(
+        source=source,
+        technology=profile.technology,
+        color=profile.color,
+        monochrome=profile.monochrome,
+        font=profile.font,
+        icons=list(profile.icons),
+        pixel_width=profile.width,
+        pixel_height=profile.height,
+        features={feature: profile.supports(feature) for feature in sorted(FEATURES)},
     )
 
 

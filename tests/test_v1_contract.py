@@ -338,6 +338,7 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
         "next_change_reason",
         "next_page_id",
         "health",
+        "drawing",
         "layers",
     }
 
