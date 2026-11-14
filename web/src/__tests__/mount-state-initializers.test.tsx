@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -64,20 +65,31 @@ describe("browser state read on the first render", () => {
   describe("OfflinePage", () => {
     afterEach(() => vi.restoreAllMocks());
 
-    it("shows the reconnecting state on the first render when the browser is online", () => {
+    // 2.8 rewrote /offline as the WEB-16 split: online, it checks the hub
+    // first (a spinner), so the first render must not claim "offline".
+    it("does not say offline on the first render when the browser is online", () => {
       vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
 
-      render(<OfflinePage />);
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <OfflinePage />
+        </QueryClientProvider>,
+      );
 
-      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Reconnecting...");
+      expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toBeInTheDocument();
     });
 
     it("shows the offline state on the first render when the browser is offline", () => {
       vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
 
-      render(<OfflinePage />);
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <OfflinePage />
+        </QueryClientProvider>,
+      );
 
-      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("You're Offline");
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("You’re offline");
     });
   });
 

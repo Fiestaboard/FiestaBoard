@@ -906,14 +906,21 @@
   },
   "offline": {
     "youreOffline": "오프라인 상태입니다",
-    "reconnecting": "재연결 중...",
-    "offlineDescription": "인터넷 연결이 끊어진 것 같습니다. 일부 기능을 사용할 수 없을 수 있습니다.",
-    "connectionRestored": "연결이 복원되었습니다! 앱을 새로고침합니다...",
+    "offlineBody": "이 {device}은(는) 네트워크에 연결되어 있지 않아 {host}에 연결할 수 없습니다. 허브와 디스플레이는 정상이며 이 {device}이(가) 필요하지 않습니다.",
+    "cantReachHub": "허브에 연결할 수 없습니다",
+    "cantReachBody": "이 {device}은(는) 온라인이지만 {host}의 FiestaBoard가 응답하지 않았습니다. 디스플레이는 허브에서 일정대로 계속 작동합니다.",
+    "checkPower": "허브의 전원이 연결되어 있고 표시등이 켜져 있나요?",
+    "checkWifi": "허브와 같은 Wi‑Fi에 연결되어 있나요?",
     "tryAgain": "다시 시도",
-    "whileOffline": "오프라인 상태에서도 다음을 할 수 있습니다:",
-    "viewPreviouslyLoaded": "이전에 로드된 페이지 보기",
-    "accessCached": "캐시된 콘텐츠 접근",
-    "browseSaved": "저장된 데이터 탐색"
+    "connectionHelp": "연결 도움말",
+    "reconnecting": "다시 연결하는 중…",
+    "lastKnown": "마지막 상태",
+    "lastKnownTitle": "마지막 상태 · {board}",
+    "lastKnownAt": "마지막 연결 {time} · 오래된 정보일 수 있음",
+    "device": {
+      "phone": "휴대폰",
+      "computer": "컴퓨터"
+    }
   },
   "wizard": {
     "welcomeTitle": "FiestaBoard에 오신 것을 환영합니다",
@@ -1225,11 +1232,27 @@
     "stoppedTooltip": "디스플레이 서비스가 일시 중지되었습니다. 보드로 콘텐츠가 전송되지 않습니다."
   },
   "installPrompt": {
-    "title": "FiestaBoard 컨트롤 설치",
-    "description": "홈 화면에 추가하여 빠르게 접근하고 더 나은 경험을 즐기세요.",
-    "installButton": "설치",
+    "title": "이 {device}에 FiestaBoard Control을 추가할까요?",
+    "reasonSends": "여기에서 메시지를 {count}개 보냈습니다.",
+    "reasonSave": "여기에서 페이지를 저장했습니다.",
+    "body": "설치하면 별도 창에서 홈이 바로 열립니다. 여전히 {host}의 허브와만 통신하며, FiestaBoard 계정이나 클라우드는 없습니다.",
+    "install": "설치",
     "notNow": "나중에",
-    "dismissAriaLabel": "닫기"
+    "httpsTitle": "설치하려면 보안 주소가 필요합니다",
+    "httpsBody": "http://{host}에서는 브라우저가 앱을 설치하거나 오프라인에서 작동하게 하지 않으므로 여기에는 설치 버튼이 없습니다. https 주소로 FiestaBoard를 열거나 허브에 HTTPS를 설정하세요.",
+    "httpsHelp": "HTTPS 설정 방법",
+    "sheetTitle": "홈 화면에 추가",
+    "sheetIntro": "Safari에서는 웹사이트가 스스로 설치될 수 없어서 이렇게 추가합니다. 약 10초면 되고 다른 앱처럼 삭제할 수 있습니다.",
+    "stepShare": "Safari 주소 표시줄에서 ⋯을 누른 다음 공유를 누릅니다.",
+    "stepAdd": "아래로 스크롤해 홈 화면에 추가를 누릅니다.",
+    "stepOpen": "웹 앱으로 열기를 켠 채로 추가를 누릅니다.",
+    "gotIt": "확인",
+    "dontShowAgain": "다시 표시 안 함",
+    "close": "닫기",
+    "device": {
+      "phone": "휴대폰",
+      "computer": "컴퓨터"
+    }
   },
   "silenceMode": {
     "loading": "로딩 중...",
@@ -3228,5 +3251,12 @@
     "previewStep": "미리보기를 노트 또는 열 하나만큼 이동",
     "previewEnds": "미리보기의 처음 또는 끝으로 이동",
     "previewFit": "맞춤 / 실제 크기(미리보기 포커스 시)"
+  },
+  "pwa": {
+    "https": {
+      "title": "HTTPS 필요",
+      "body": "설치와 오프라인 사용에는 보안 주소가 필요합니다. 현재 http://{host}에 있습니다. https 주소로 FiestaBoard를 열거나 허브에 HTTPS를 설정하세요.",
+      "help": "HTTPS 설정 방법"
+    }
   }
 }
