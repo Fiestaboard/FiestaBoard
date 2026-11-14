@@ -275,6 +275,18 @@ credential as a password sign-in, listed in **Signed-in devices** as a QR / code
   in a web address the hub receives, so it is not in any log.
 - Each address may try 10 codes a minute, and wrong codes count toward the same
   lockout as wrong passwords.
+- The QR never tells the phone to use `localhost`. When you open the web app on the
+  hub itself, the QR carries an address a phone can reach instead: in order,
+  `FIESTABOARD_EXTERNAL_URL` if you set one, the hub's `<hostname>.local` name
+  (while mDNS is advertising), then its LAN address. The response lists them all as
+  `hub_addresses`, and the web app may ask for another one from that list. If the hub
+  knows no such address, it says so instead of showing a QR: open the web app at the
+  hub's network address, or set `FIESTABOARD_EXTERNAL_URL`.
+  `FIESTABOARD_EXTERNAL_URL` must be `scheme://host[:port]` with no path (a reverse
+  proxy on a sub-path isn't supported here); a value that isn't is logged once and
+  skipped. In Docker's default bridge network the hub's own LAN address is the
+  container's, so it's left out; with `network_mode: host` it's kept. If you removed
+  Docker's default bridge, set `FIESTABOARD_EXTERNAL_URL` instead.
 
 The endpoints are `POST /auth/pairing` (browser session), `GET /auth/pairing/{id}`,
 `DELETE /auth/pairing` and `POST /auth/pairing/claim` (the app).

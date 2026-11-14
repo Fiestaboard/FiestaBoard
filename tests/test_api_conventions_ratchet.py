@@ -435,7 +435,7 @@ def test_converted_domains_declare_error_responses():
 # Hand-raised 422s (API_CONVENTIONS "422 belongs to FastAPI", #1923)
 # --------------------------------------------------------------------------
 
-#: Literal ``HTTPException(status_code=422, ...)`` raises per file, as of the
+#: Literal ``HTTPException(status_code=422, ...)`` (and ``AuthFlowError(…, 422)``) raises per file, as of the
 #: H9c review (#2466). 422 is FastAPI's list-shaped validation error; a
 #: hand-raised rejection of a body that passed validation is a 400. These
 #: predate the rule. A count may only go down: lower it when you convert one.
@@ -459,9 +459,13 @@ def _hand_raised_422s(root: Path) -> dict[str, int]:
                 continue
             func = node.func
             name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
-            if name != "HTTPException":
+            if name == "HTTPException":
+                codes = [k.value for k in node.keywords if k.arg == "status_code"] + node.args[:1]
+            elif name == "AuthFlowError":
+                # AuthFlowError(error, detail, status): the auth routes' own 4xx.
+                codes = [k.value for k in node.keywords if k.arg == "status"] + node.args[2:3]
+            else:
                 continue
-            codes = [k.value for k in node.keywords if k.arg == "status_code"] + node.args[:1]
             if any(isinstance(c, ast.Constant) and c.value == 422 for c in codes):
                 key = str(path.relative_to(root))
                 counts[key] = counts.get(key, 0) + 1

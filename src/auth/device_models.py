@@ -81,6 +81,28 @@ class PendingDevice(BaseModel):
     scope: NativeScope = "tv_panels"
 
 
+class HubAddress(BaseModel):
+    """One address a phone might reach this hub at (H18)."""
+
+    url: str = Field(description="scheme://host[:port], never a loopback address.")
+    kind: Literal["browser", "configured", "mdns", "lan"] = Field(
+        description="browser: this browser's origin; configured: FIESTABOARD_EXTERNAL_URL; "
+        "mdns: the advertised <hostname>.local; lan: this host's LAN address."
+    )
+
+
+class PairingRequest(BaseModel):
+    """``POST /auth/pairing``'s optional body."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    hub: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="The address the QR should carry: one of a previous offer's hub_addresses. Default: the first.",
+    )
+
+
 class PairingOffer(BaseModel):
     """A QR pairing offer for a phone. The secret is only inside ``qr_payload``."""
 
@@ -92,10 +114,14 @@ class PairingOffer(BaseModel):
         )
     )
     hub: str = Field(
-        description="The address the QR tells the phone to use (this browser's origin). Also inside qr_payload."
+        description=("The address the QR tells the phone to use: never loopback (H18). Also inside qr_payload.")
     )
     expires_in: int = Field(default=300, description="Seconds until the code stops working. Single use.")
     scope: NativeScope = "control"
+    hub_addresses: list[HubAddress] = Field(
+        default_factory=list,
+        description="Every address a phone might reach this hub at, best first; `hub` is one of them (H18).",
+    )
 
 
 class PairingState(BaseModel):
