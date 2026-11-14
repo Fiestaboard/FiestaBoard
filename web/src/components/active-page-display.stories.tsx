@@ -369,20 +369,23 @@ export const SilencedCollection: Story = {
   decorators: [silenced(createQueryClient("collection:abc-123", false, true, mockCollections, SILENCED))],
 };
 
-/** The Change Page sheet during silence: the note under its description. */
+/** Change Page during silence: the warning remains visible before Show now. */
 export const SilencedSheetOpen: Story = {
   decorators: [silenced(createQueryClient("page-1", false, true, undefined, SILENCED))],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const [changePage] = await canvas.findAllByRole("button", { name: /change page/i });
     await userEvent.click(changePage);
-    await expect(await within(document.body).findByTestId("select-page-silence")).toBeVisible();
+    const dialog = within(document.body);
+    await userEvent.click(await dialog.findByRole("button", { name: /Transit Times/ }));
+    await expect(await dialog.findByTestId("change-page-silence")).toBeVisible();
   },
 };
 
 export const SilencedSheetOpenPhone: Story = {
   ...SilencedSheetOpen,
   globals: PHONE,
+  parameters: { testViewport: { width: 375, height: 812 } },
 };
 
 /** Shows a toast exactly as the Home page raises it, over the silenced Home. */

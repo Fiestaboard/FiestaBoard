@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Stack, Text, Textarea } from "@fiestaboard/ui";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,12 @@ interface PlainTextEditorProps {
   lineMarkers?: Record<number, string[]>;
   /** Tooltip / accessible description for a marker. */
   lineMarkerTitle?: string;
+  /**
+   * Replaces the line counter and the template-syntax tips with the caller's
+   * own one-line helper (Compose a message, 07a `310:20283`). Omit for the
+   * template editor's full help.
+   */
+  help?: ReactNode;
 }
 
 /**
@@ -40,6 +46,7 @@ export function PlainTextEditor({
   boardWidth = 22,
   lineMarkers,
   lineMarkerTitle,
+  help,
 }: PlainTextEditorProps) {
   const t = useTranslations("plainTextEditor");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -225,27 +232,33 @@ export function PlainTextEditor({
         )}
       </Box>
 
-      {/* Line counter */}
-      <Text size="xs" className={cn("mt-1", isOverLimit ? "text-warning font-medium" : "text-muted-foreground")}>
-        {t("lineCount", { current: lineCount, total: boardLines })}
-        {isOverLimit && ` ${t("exceedsLimit", { limit: boardLines })}`}
-      </Text>
+      {help !== undefined ? (
+        help
+      ) : (
+        <>
+          {/* Line counter */}
+          <Text size="xs" className={cn("mt-1", isOverLimit ? "text-warning font-medium" : "text-muted-foreground")}>
+            {t("lineCount", { current: lineCount, total: boardLines })}
+            {isOverLimit && ` ${t("exceedsLimit", { limit: boardLines })}`}
+          </Text>
 
-      {/* Helper text */}
-      <Stack gap="1" className="mt-2">
-        <Text size="xs" tone="muted">
-          • {t("charsPerLine", { width: boardWidth })}
-        </Text>
-        <Text size="xs" tone="muted">
-          • {t("templateSyntaxIntro")} {"{{variable}}"}, {"{{red}}"}, {"{{fill_space}}"}
-        </Text>
-        <Text size="xs" tone="muted">
-          • {t("alignmentPrefixesIntro")} {"{left}"}, {"{center}"}, {"{right}"}
-        </Text>
-        <Text size="xs" tone="muted">
-          • {t("wrapPrefixIntro")} {"{wrap}"}
-        </Text>
-      </Stack>
+          {/* Helper text */}
+          <Stack gap="1" className="mt-2">
+            <Text size="xs" tone="muted">
+              • {t("charsPerLine", { width: boardWidth })}
+            </Text>
+            <Text size="xs" tone="muted">
+              • {t("templateSyntaxIntro")} {"{{variable}}"}, {"{{red}}"}, {"{{fill_space}}"}
+            </Text>
+            <Text size="xs" tone="muted">
+              • {t("alignmentPrefixesIntro")} {"{left}"}, {"{center}"}, {"{right}"}
+            </Text>
+            <Text size="xs" tone="muted">
+              • {t("wrapPrefixIntro")} {"{wrap}"}
+            </Text>
+          </Stack>
+        </>
+      )}
     </Box>
   );
 }

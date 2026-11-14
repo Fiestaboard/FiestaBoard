@@ -13,6 +13,7 @@ import { homeFor } from "@/lib/ai-choreography/home";
 import { getScript, scriptedTools } from "@/lib/ai-choreography/registry";
 import { formatSettingValue } from "@/lib/ai-choreography/scripts/settings";
 import type { ChoreographyContext, Step } from "@/lib/ai-choreography/types";
+import { SETTINGS_SECTIONS } from "@/lib/settings-sections";
 
 const BASE: ToolCall = {
   id: "tc1",
@@ -105,10 +106,10 @@ describe("homeFor", () => {
    */
   const WRITER_HOMES: Record<string, string> = {
     add_board: "/displays",
-    blank_board: "/settings?section=advanced",
+    blank_board: "/settings/system",
     cancel_temporary_override: "/",
     check_plugin_updates: "/integrations",
-    clear_board_cache: "/settings?section=advanced",
+    clear_board_cache: "/settings/system",
     configure_plugin: "/integrations",
     create_collection: "/collections",
     create_page: "/pages",
@@ -122,27 +123,27 @@ describe("homeFor", () => {
     delete_plugin_instance: "/integrations",
     delete_schedule: "/schedule",
     disable_plugin: "/integrations",
-    disconnect_wifi: "/settings?section=network",
+    disconnect_wifi: "/settings/network",
     enable_plugin: "/integrations",
-    fill_board: "/settings?section=advanced",
+    fill_board: "/settings/system",
     force_refresh: "/",
-    forget_wifi_network: "/settings?section=network",
+    forget_wifi_network: "/settings/network",
     identify_tile: "/displays",
     import_page: "/pages",
     import_staff_pick: "/picks",
     install_plugin: "/integrations",
     pause_board: "/",
     remove_board: "/displays",
-    restart_system: "/settings?section=system",
+    restart_system: "/settings/system",
     resume_board: "/",
     send_message: "/",
     set_active_page: "/",
     set_default_page: "/schedule",
     set_schedule_mode: "/schedule",
     set_temporary_override: "/",
-    show_board_debug_info: "/settings?section=advanced",
-    shutdown_system: "/settings?section=system",
-    trigger_system_update: "/settings?section=system",
+    show_board_debug_info: "/settings/system",
+    shutdown_system: "/settings/system",
+    trigger_system_update: "/settings/system",
     uninstall_plugin: "/integrations",
     update_all_plugins: "/integrations",
     update_board: "/displays",
@@ -151,7 +152,7 @@ describe("homeFor", () => {
     update_panel: "/displays",
     update_plugin: "/integrations",
     update_schedule: "/schedule",
-    update_setting: "/settings?section=general",
+    update_setting: "/settings/system",
   };
 
   it("gives every writing tool the server exposes a screen of its own", () => {
@@ -165,27 +166,27 @@ describe("homeFor", () => {
     // being a board *device* the hardware tab configures.
     expect(homeFor({ name: "pause_board", args: {} })).toEqual({ href: "/", anchor: "home.active-display" });
     expect(homeFor({ name: "resume_board", args: {} }).href).toBe("/");
-    expect(homeFor({ name: "blank_board", args: {} }).href).toBe("/settings?section=advanced");
-    expect(homeFor({ name: "fill_board", args: {} }).href).toBe("/settings?section=advanced");
+    expect(homeFor({ name: "blank_board", args: {} }).href).toBe("/settings/system");
+    expect(homeFor({ name: "fill_board", args: {} }).href).toBe("/settings/system");
   });
 
-  it("sends a settings write to the tab that owns its category", () => {
+  it("sends a settings write to the section that owns its category", () => {
     expect(homeFor({ name: "update_setting", args: { category: "mqtt" } })).toEqual({
-      href: "/settings?section=general",
+      href: "/settings/network",
       anchor: "settings.mqtt",
     });
-    expect(homeFor({ name: "update_setting", args: { category: "ai" } }).href).toBe("/settings?section=ai");
+    expect(homeFor({ name: "update_setting", args: { category: "ai" } }).href).toBe("/settings/ai-provider");
     expect(homeFor({ name: "update_setting", args: { category: "polling" } }).href).toBe("/displays");
     // Plugin updates moved out of Settings onto the Integrations page.
     expect(homeFor({ name: "update_setting", args: { category: "plugins" } }).href).toBe("/integrations");
-    expect(homeFor({ name: "update_setting", args: {} }).href).toBe("/settings?section=general");
+    expect(homeFor({ name: "update_setting", args: {} }).href).toBe("/settings/system");
   });
 
   it("sends board state to the dashboard and a board device to Displays", () => {
     expect(homeFor({ name: "set_active_page", args: {} }).href).toBe("/");
     expect(homeFor({ name: "send_message", args: {} }).anchor).toBe("home.active-display");
     expect(homeFor({ name: "update_board", args: {} }).href).toBe("/displays");
-    expect(homeFor({ name: "restart_system", args: {} }).href).toBe("/settings?section=system");
+    expect(homeFor({ name: "restart_system", args: {} }).href).toBe("/settings/system");
   });
 
   it("sends a change to one board to that display's page", () => {
@@ -232,7 +233,7 @@ describe("anchors", () => {
     }
   });
 
-  it("maps every setting category to a tab, or a board's to Displays", () => {
+  it("maps every setting category to a settings section, or a board's to Displays", () => {
     const boards = new Set([
       "boards",
       "output",
@@ -242,13 +243,13 @@ describe("anchors", () => {
       "schedule_behavior",
       "silence_schedule",
     ]);
-    const tabs = new Set(["general", "account", "network", "ai", "system", "advanced"]);
+    const sections = new Set(SETTINGS_SECTIONS.map((section) => section.id as string));
     for (const category of Object.keys(SETTING_SECTIONS)) {
       if (boards.has(category)) expect(settingsHref(category), category).toBe("/displays");
       else if (category === "plugins") expect(settingsHref(category), category).toBe("/integrations");
       else {
-        const section = new URL(settingsHref(category), "https://example.test").searchParams.get("section");
-        expect(tabs.has(section ?? ""), `${category} → ${section}`).toBe(true);
+        const section = settingsHref(category).replace(/^\/settings\//, "");
+        expect(sections.has(section), `${category} → ${section}`).toBe(true);
       }
     }
     expect(settingAnchors("general", "instance_name")).toEqual({
@@ -370,7 +371,7 @@ describe("scripts", () => {
       args: { category: "general", values: { instance_name: "Kitchen", time_format: "24h" } },
     };
     const steps = getScript("update_setting").narrate(call, ctx);
-    expect(navigations(steps)).toEqual(["/settings?section=general"]);
+    expect(navigations(steps)).toEqual(["/settings/system"]);
     const ghosts = steps.filter((s) => s.kind === "ghost") as Extract<Step, { kind: "ghost" }>[];
     expect(ghosts.map((g) => g.value)).toEqual(["Kitchen", "24h"]);
     const settle = getScript("update_setting").settle(call, OK, ctx);

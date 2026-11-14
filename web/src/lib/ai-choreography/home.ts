@@ -60,12 +60,12 @@ export function homeFor(
       ? { href: `/displays/${encodeURIComponent(board)}?section=settings`, anchor: `settings.board.${board}` }
       : { href: settingsHref("boards"), anchor: "settings.boards" };
   }
-  if (/wifi|network/.test(name)) return { href: "/settings?section=network", anchor: "settings.network" };
+  if (/wifi|network/.test(name)) return { href: "/settings/network", anchor: "settings.network" };
   if (/system|restart|shutdown|backup|release|update_check|check_for_update/.test(name)) {
-    return { href: "/settings?section=system", anchor: "settings.system" };
+    return { href: "/settings/system", anchor: "settings.system" };
   }
   if (/debug|blank_board|fill_board|clear_board_cache|diagnostics/.test(name)) {
-    return { href: "/settings?section=advanced", anchor: "settings.debug" };
+    return { href: "/settings/system", anchor: "settings.debug" };
   }
   if (/active_page|override|send_message|force_refresh|pause_board|resume_board|silence|board_content/.test(name)) {
     return { href: "/", anchor: "home.active-display" };

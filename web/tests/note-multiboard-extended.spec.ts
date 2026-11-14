@@ -278,7 +278,7 @@ test.describe("Multi-Board — One Board Offline", () => {
     });
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Should not show a full crash — just graceful degradation
     await expect(page.getByText(/unhandled error|uncaught exception/i)).not.toBeVisible({
@@ -382,7 +382,7 @@ test.describe("Multi-Board UI — Board Switching", () => {
       .first();
 
     // Not all UI versions have an explicit selector — so just check the page renders
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
   test("schedule page allows selecting schedule for each board", async ({ page }) => {

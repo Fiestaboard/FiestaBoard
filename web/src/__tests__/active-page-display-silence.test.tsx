@@ -139,12 +139,12 @@ describe("ActivePageDisplay - silence overlay visibility", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    // The silence page is named and linked to its editor.
-    const silenceLink = await screen.findByRole("link", { name: 'Edit page "Custom Template"' });
-    expect(silenceLink).toHaveAttribute("href", "/pages/edit/page-2");
+    // The silence page is the card's title, and Edit page opens it.
+    expect(await screen.findByRole("heading", { level: 2, name: "Custom Template" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Edit page" })).toHaveAttribute("href", "/pages/edit/page-2");
 
     // The manual/scheduled page it replaced is NOT shown.
-    expect(screen.queryByRole("link", { name: 'Edit page "Weather Page"' })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: "Weather Page" })).not.toBeInTheDocument();
   });
 
   it("keeps the normal active page when silence is active but mode !== 'page'", async () => {
@@ -155,8 +155,8 @@ describe("ActivePageDisplay - silence overlay visibility", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    const activeLink = await screen.findByRole("link", { name: 'Edit page "Weather Page"' });
-    expect(activeLink).toHaveAttribute("href", "/pages/edit/page-1");
+    expect(await screen.findByRole("heading", { level: 2, name: "Weather Page" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Edit page" })).toHaveAttribute("href", "/pages/edit/page-1");
   });
 
   it("shows silence badge even when indicator_text/position are missing", async () => {
@@ -334,7 +334,7 @@ describe("ActivePageDisplay - silence alert (#1943, #1944)", () => {
   it("shows nothing when the board is not silenced", async () => {
     serveSilence(silenceStatus({ active: false }));
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-    await screen.findByRole("link", { name: 'Edit page "Weather Page"' });
+    await screen.findByRole("heading", { level: 2, name: "Weather Page" });
     expect(screen.queryByTestId("silence-alert")).not.toBeInTheDocument();
   });
 
@@ -384,56 +384,49 @@ describe("ActivePageDisplay - silence alert (#1943, #1944)", () => {
   });
 });
 
-describe("ActivePageDisplay - picking a page during silence (#1943)", () => {
+describe("ActivePageDisplay - Change Page during silence (#1943, 2.2)", () => {
   afterEach(() => {
     server.resetHandlers();
     vi.restoreAllMocks();
   });
 
+  // CANON's Change Page ends in Show now, which shows the page right away:
+  // during silence it wakes the board, and the dialog says so before the tap.
   async function pickCustomTemplate(user: ReturnType<typeof userEvent.setup>) {
-    await user.click((await screen.findAllByRole("button", { name: /change page/i }))[0]);
-    const option = await screen.findByRole("button", { name: /custom template/i }, { timeout: 4000 });
-    await user.click(option);
+    await user.click(await screen.findByRole("button", { name: /^Change Page$/ }));
+    await user.click(await screen.findByRole("button", { name: /Custom Template/ }));
+    await user.click(screen.getByRole("button", { name: "Show now" }));
   }
 
-  it("the Change Page sheet says the pick is saved, not shown", async () => {
+  it("the Change Page dialog says Show now wakes the silenced display", async () => {
     serveSilence(silenced());
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-    await user.click((await screen.findAllByRole("button", { name: /change page/i }))[0]);
-    expect(await screen.findByTestId("select-page-silence")).toHaveTextContent(
-      "the page you pick is saved and shows then. The board stays quiet.",
+    await user.click(await screen.findByRole("button", { name: /^Change Page$/ }));
+    expect(await screen.findByTestId("change-page-silence")).toHaveTextContent(
+      "Show now wakes Flagship from its Silence Schedule.",
     );
   });
 
-  it("the sheet carries no silence note when the board is not silenced", async () => {
+  it("the dialog carries no silence note when the board is not silenced", async () => {
     serveSilence(silenceStatus({ active: false }));
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-    await user.click((await screen.findAllByRole("button", { name: /change page/i }))[0]);
-    await screen.findByText("Select Page");
-    expect(screen.queryByTestId("select-page-silence")).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: /^Change Page$/ }));
+    await screen.findByRole("dialog", { name: "Change Page" });
+    expect(screen.queryByTestId("change-page-silence")).not.toBeInTheDocument();
   });
 
-  it("a held pick is sent WITHOUT override and the toast offers Show now, which overrides", async () => {
+  it("a Manual Mode pick during silence is shown now, with override_silence", async () => {
     serveSilence(silenced());
     const bodies = capturePicks();
-    const info = vi.spyOn((await import("sonner")).toast, "info");
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await pickCustomTemplate(user);
 
     await waitFor(() => expect(bodies).toHaveLength(1));
-    expect(bodies[0]).toEqual({ page_id: "page-2" });
-    await waitFor(() => expect(info).toHaveBeenCalled());
-    const [message, options] = info.mock.calls[0] as [string, { action: { label: string; onClick: () => void } }];
-    expect(message).toBe(`“Custom Template” will show at ${localTime(ENDS_AT)}`);
-    expect(options.action.label).toBe("Show now");
-
-    options.action.onClick();
-    await waitFor(() => expect(bodies).toHaveLength(2));
-    expect(bodies[1]).toEqual({ page_id: "page-2", override_silence: true });
+    expect(bodies[0]).toEqual({ page_id: "page-2", board_id: "default", override_silence: true });
   });
 
   it("a paused board's pick says it shows when you resume", async () => {
@@ -445,8 +438,6 @@ describe("ActivePageDisplay - picking a page during silence (#1943)", () => {
 
     await pickCustomTemplate(user);
 
-    await waitFor(() =>
-      expect(info).toHaveBeenCalledWith("Saved — “Custom Template” will show when you resume the board"),
-    );
+    await waitFor(() => expect(info).toHaveBeenCalledWith("Saved. Custom Template shows when you resume Flagship."));
   });
 });
