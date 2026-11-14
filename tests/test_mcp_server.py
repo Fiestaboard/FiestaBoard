@@ -93,6 +93,7 @@ def mock_registry():
     from src.plugins.registry import PluginRegistry
 
     registry = create_autospec(PluginRegistry, instance=True)
+    registry.get_manifest.return_value.settings_schema = {}
     registry.list_plugins.return_value = [
         {
             "id": "openweather",
@@ -503,6 +504,7 @@ def fat_registry():
     from src.plugins.registry import PluginRegistry
 
     registry = create_autospec(PluginRegistry, instance=True)
+    registry.get_manifest.return_value.settings_schema = {}
     registry.get_registry_entries.return_value = [
         {
             "id": f"plugin_{i:02d}",
