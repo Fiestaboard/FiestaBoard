@@ -819,8 +819,8 @@
     },
     "boardSetup": {
       "boardType": "ボードタイプ",
-      "flagshipDimensions": "6×22 文字",
-      "noteDimensions": "3×15 文字",
+      "flagshipDimensions": "22×6 文字",
+      "noteDimensions": "15×3 文字",
       "boardColor": "ボードカラー",
       "code62Label": "コード 62 のフラップ",
       "code62Help": "文字コード 62 は、2026 年より前の Flagship では度記号、それ以降ではハートを表示します。プレビューを実機に合わせるため、お使いのボードに合う方を選んでください。",
@@ -2488,7 +2488,9 @@
       "denied": "操作が拒否されました",
       "details": "アクティビティの詳細",
       "completedActions": "{count, plural, other {# 件の操作が完了}}"
-    }
+    },
+    "previewRegion": "ボードプレビュー、返信 {reply}",
+    "previewRegionStep": "ボードプレビュー、返信 {reply}、ステップ {step}"
   },
   "boardSizeIndicator": {
     "custom": "カスタム",
@@ -2730,7 +2732,7 @@
     "resultError": "うまくいきませんでした",
     "guidanceLabel": "試せること",
     "fieldsFilled": "入力済み: {fields}",
-    "geometryDetected": "{rows} × {cols} を検出",
+    "geometryDetected": "{cols} × {rows} を検出",
     "applyGeometry": "サイズを適用",
     "actionInputDescription": "この操作には先にいくつかの情報が必要です。",
     "boardNameLabel": "ボード名",
@@ -2757,7 +2759,7 @@
     "moveSwap": "スロット {position} — {summary} と入れ替え",
     "tilesDuplicate": "複数のタイルが同じボードを指しています: {values}",
     "tileActionsLabel": "タイルの操作",
-    "geometryApplied": "{rows} × {cols} に設定しました",
+    "geometryApplied": "{cols} × {rows} に設定しました",
     "searchingNetwork": "{network} を検索中…",
     "searchingYourNetwork": "ネットワークを検索中…",
     "foundOneSelected": "{device} が見つかり、選択しました。",

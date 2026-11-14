@@ -133,6 +133,26 @@ describe("PageGridSelector", () => {
     });
   });
 
+  // Slice 2.4: a page card's board is a thumbnail inside the card's <button>,
+  // never a BoardViewport: a scroll region or a Fit / Actual toggle there would
+  // be a control nested in a control (axe nested-interactive).
+  it("draws each card's board as a thumbnail with no control inside the card button", async () => {
+    const arrayPages: Page[] = mockPages.map((p) => ({
+      ...p,
+      device_type: "note_array" as const,
+      notes_wide: 3,
+      notes_tall: 1,
+    }));
+    vi.mocked(api.getPages).mockResolvedValue({ pages: arrayPages, total: arrayPages.length });
+    const { container } = render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, {
+      wrapper: TestWrapper,
+    });
+
+    await waitFor(() => expect(container.querySelectorAll("button [data-slot=board-display]").length).toBe(3));
+    expect(container.querySelector("[data-slot=board-viewport]")).toBeNull();
+    expect(container.querySelectorAll("button button, button [role=region], button [tabindex]")).toHaveLength(0);
+  });
+
   it("calls previewPagesBatch with all page IDs", async () => {
     render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
 

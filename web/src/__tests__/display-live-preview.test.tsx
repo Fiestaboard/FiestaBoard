@@ -165,4 +165,20 @@ describe("DisplayLivePreview", () => {
 
     await waitFor(() => expect(animatedTileCount(container)).toBeGreaterThan(0));
   });
+
+  // Slice 2.4: a list of viewports names each region after its display, so a
+  // screen reader can tell a wall of "Board preview"s apart.
+  it("names the board's region after its display", async () => {
+    serveBoardState(() => HttpResponse.json(FRAME));
+    renderPreview(BOARD);
+
+    expect(await screen.findByRole("group", { name: "Kitchen preview" })).toBeInTheDocument();
+  });
+
+  it("falls back to the generic name for an unnamed display", async () => {
+    serveBoardState(() => HttpResponse.json(FRAME));
+    renderPreview({ ...BOARD, name: "" } as BoardInstance);
+
+    expect(await screen.findByRole("group", { name: "Board preview" })).toBeInTheDocument();
+  });
 });

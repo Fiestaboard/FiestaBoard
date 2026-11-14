@@ -37,19 +37,19 @@ and `compose-page-dialog.tsx`, 2.7 `page-builder.tsx`), with no edits to them.
 
 ## Call-site inventory
 
-| Call site | Result |
-|---|---|
-| Home hero `active-page-display.tsx` | BoardViewport (through the wrapper) |
-| Editor preview `page-builder.tsx` | BoardViewport (through the wrapper); draw mode hit-tests tiles inside the scroller |
-| Compose dialog `compose-page-dialog.tsx` | BoardViewport (through the wrapper) |
-| Display detail and Displays list `display-live-preview.tsx` | BoardViewport, with a per-display region name |
-| Setup wizard `wizard/step-board-setup.tsx` | BoardViewport (through the wrapper) |
-| FiestaBot inline preview `inline-board-preview.tsx` | BoardViewport (through the wrapper) |
-| Page grid card `page-grid-selector.tsx` `PageButtonPreview` | `thumbnail` (inside a button) |
-| Page grid cascade `page-grid-selector.tsx` `StaticBoardDisplay` | unchanged: a bleeding decorative cascade |
-| Collections stack `collection-page-stack.tsx` | `thumbnail` (inert, decorative) |
-| Settings flap-speed demo `settings/animation-settings.tsx` | unchanged: a 15-column Note at Tile sm (~244 px) always fits |
-| FiestaPanel TV surface `panel/panel-board.tsx` | unchanged: it is the display itself, scaled to fill the TV, not a preview |
+| Call site                                                                                          | Result                                                                                                           |
+| -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Home hero `active-page-display.tsx`                                                                | BoardViewport (through the wrapper)                                                                              |
+| Editor preview `page-builder.tsx`                                                                  | BoardViewport (through the wrapper); draw mode hit-tests tiles inside the scroller                               |
+| Compose dialog `compose-page-dialog.tsx`                                                           | BoardViewport (through the wrapper)                                                                              |
+| Display detail and Displays list `display-live-preview.tsx`                                        | BoardViewport, with a per-display region name                                                                    |
+| Setup wizard `wizard/step-board-setup.tsx`                                                         | BoardViewport (through the wrapper)                                                                              |
+| FiestaBot inline preview `inline-board-preview.tsx`                                                | BoardViewport (through the wrapper)                                                                              |
+| Page grid card `page-grid-selector.tsx` `PageButtonPreview`                                        | `thumbnail` (inside a button)                                                                                    |
+| Page grid cascade `page-grid-selector.tsx` `StaticBoardDisplay`                                    | unchanged: a bleeding decorative cascade                                                                         |
+| Collections stack `collection-page-stack.tsx`                                                      | `thumbnail` (inert, decorative)                                                                                  |
+| Settings flap-speed demo `settings/animation-settings.tsx`                                         | unchanged: a 15-column Note at Tile sm (~244 px) always fits                                                     |
+| FiestaPanel TV surface `panel/panel-board.tsx`                                                     | unchanged: it is the display itself, scaled to fill the TV, not a preview                                        |
 | LED boards (`DevicePreview` → `DisplayPreview`, `panel-tv-preview`, `panel-matrix-editor-preview`) | unchanged: LED matrices are drawn by `DisplayPreview`; BoardViewport only draws split-flap boards (FiestaUI gap) |
 
 ## Tests (written first)
@@ -65,3 +65,28 @@ and `compose-page-dialog.tsx`, 2.7 `page-builder.tsx`), with no edits to them.
 - E2E `tests/board-viewport.spec.ts`: Home at 390 scrolls the board, F gives the
   overview, the mode lasts a reload in the session; axe on the state.
 - New files join the coverage threshold list.
+
+## Review completion ledger (Codex handoff)
+
+- Preserve and verify the incoming uncommitted M1/M2/S1–S5 fixes.
+- M1: build FiestaUI origin/alpha plus 1.5d in an isolated scratch clone;
+  install with `--no-save`, keep thumbnails fitted with no controls, prove
+  note-array thumbnails are clean inside a card button with axe.
+- M2: use columns × rows for the four remaining dimension strings in every
+  locale and update wizard / geometry assertions.
+- S1/S2: test chrome translation and animation settings, per-display names,
+  page-card thumbnails and decorative collection-stack thumbnails.
+- S3: name FiestaBot previews by reply and tool step; exercise real preview
+  accessible names in the transcript tests.
+- S4/S5: reconcile DD-W26 and status to 1–16 at 390 / 1–21 at 768;
+  preserve 1.5e's phone-hero gate and hand Home's stale comment to 2.2.
+- Verify the shared coarse-pointer hook against 2.6 without editing it.
+- Run static checks, full coverage, layout, relevant e2e (one spec at a time,
+  one worker), and refresh screenshots with a touch context at 390.
+- Commit with the repository trailer, push normally, update only this PR's
+  body, observe CI, and record the exact results in the program status.
+
+Ruling: keep the current registry pin while 1.5d remains unpublished; remain
+in draft, with publication plus a new registry pin and rerun required before
+ready. Jev selected this handoff at p = 0.75 (alpha.1-only pin 0.17).
+An alpha.1 bump alone cannot supply `showModeToggle`; no tarball is committed.

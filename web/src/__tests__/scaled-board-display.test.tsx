@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import axe from "axe-core";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -96,14 +97,29 @@ describe("ScaledBoardDisplay thumbnail", () => {
       { wrapper: TestWrapper },
     );
     expect(container.querySelector("[data-testid='actual-size-scroll']")).toBeNull();
-    expect(screen.getByRole("button", { name: "Fit" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("region")).toBeNull();
+    // And it leaves the session's choice alone.
+    expect(window.sessionStorage.getItem(MODE_STORAGE_KEY)).toBe("actual");
   });
 
-  it("never writes the session mode", () => {
-    render(<ScaledBoardDisplay thumbnail message="" deviceType="note_array" notesWide={4} notesTall={1} isStatic />, {
+  it("draws no Fit / Actual pills on a note array (07c page cards have none)", () => {
+    render(<ScaledBoardDisplay thumbnail message="" deviceType="note_array" notesWide={3} notesTall={1} isStatic />, {
       wrapper: TestWrapper,
     });
-    fireEvent.click(screen.getByRole("button", { name: "Actual size" }));
-    expect(window.sessionStorage.getItem(MODE_STORAGE_KEY)).toBeNull();
+    expect(screen.queryByRole("group", { name: "Preview size" })).toBeNull();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("puts no control inside a page card's button (axe nested-interactive)", async () => {
+    const { container } = render(
+      <button type="button" aria-label="Open mic page">
+        <ScaledBoardDisplay thumbnail message="" deviceType="note_array" notesWide={3} notesTall={1} isStatic />
+      </button>,
+      { wrapper: TestWrapper },
+    );
+    const card = container.querySelector("button")!;
+    expect(card.querySelectorAll("button, [tabindex], [role=region]")).toHaveLength(0);
+    const results = await axe.run(card, { runOnly: { type: "rule", values: ["nested-interactive"] } });
+    expect(results.violations).toEqual([]);
   });
 });

@@ -819,8 +819,8 @@
     },
     "boardSetup": {
       "boardType": "Tavlans typ",
-      "flagshipDimensions": "6 × 22 tecken",
-      "noteDimensions": "3 × 15 tecken",
+      "flagshipDimensions": "22 × 6 tecken",
+      "noteDimensions": "15 × 3 tecken",
       "boardColor": "Tavlans färg",
       "code62Label": "Fliken för kod 62",
       "code62Help": "Teckenkod 62 visar ett gradtecken på Flagship-tavlor tillverkade före 2026 och ett hjärta på nyare. Välj det din tavla har så att förhandsvisningarna stämmer.",
@@ -2488,7 +2488,9 @@
       "denied": "Åtgärden avböjdes",
       "details": "Aktivitetsdetaljer",
       "completedActions": "{count, plural, one {# åtgärd slutförd} other {# åtgärder slutförda}}"
-    }
+    },
+    "previewRegion": "Förhandsvisning av tavlan, svar {reply}",
+    "previewRegionStep": "Förhandsvisning av tavlan, svar {reply}, steg {step}"
   },
   "boardSizeIndicator": {
     "custom": "Anpassad",
@@ -2730,7 +2732,7 @@
     "resultError": "Fungerade inte",
     "guidanceLabel": "Det här kan du prova",
     "fieldsFilled": "Ifyllt: {fields}",
-    "geometryDetected": "Identifierade {rows} × {cols}",
+    "geometryDetected": "Identifierade {cols} × {rows}",
     "applyGeometry": "Använd storlek",
     "actionInputDescription": "Den här åtgärden behöver några uppgifter först.",
     "boardNameLabel": "Tavlans namn",
@@ -2757,7 +2759,7 @@
     "moveSwap": "Plats {position} — byt med {summary}",
     "tilesDuplicate": "Flera rutor pekar på samma tavla: {values}",
     "tileActionsLabel": "Panelåtgärder",
-    "geometryApplied": "Satt till {rows} × {cols}",
+    "geometryApplied": "Satt till {cols} × {rows}",
     "searchingNetwork": "Söker i {network}…",
     "searchingYourNetwork": "Söker i ditt nätverk…",
     "foundOneSelected": "Hittade {device} och valde den.",

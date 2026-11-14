@@ -96,11 +96,16 @@ test.describe("at phone width (390)", () => {
   });
 
   test("the Fit / Actual size toggle is two 44 px targets", async ({ page }) => {
+    // FiestaUI 1.5d: the pill is Figma's 22 px; the 44 px target is its
+    // invisible hit area (a ::before at size="touch" in BoardViewport).
     const group = page.getByTestId("note-array").getByRole("group", { name: "Preview size" });
     for (const name of ["Fit", "Actual size"]) {
-      const box = await group.getByRole("button", { name }).boundingBox();
-      expect(box!.height).toBeGreaterThanOrEqual(44);
-      expect(box!.width).toBeGreaterThanOrEqual(44);
+      const hit = await group.getByRole("button", { name }).evaluate((el) => {
+        const before = getComputedStyle(el, "::before");
+        return { height: parseFloat(before.height), width: parseFloat(before.width) };
+      });
+      expect(hit.height).toBeGreaterThanOrEqual(44);
+      expect(hit.width).toBeGreaterThanOrEqual(44);
     }
     await expect(group.getByRole("button", { name: "Actual size" })).toHaveAttribute("aria-pressed", "true");
   });
@@ -127,9 +132,23 @@ test.describe("at phone width (390)", () => {
     expect(board!.width).toBeLessThanOrEqual(slot!.width + 1);
   });
 
+  test("a note-array thumbnail inside a card button holds no control (no pills)", async ({ page }) => {
+    const card = page.getByTestId("thumbnail").getByRole("button", { name: "Open mic" });
+    await expect(card.locator("[data-slot=board-display]")).toBeVisible();
+    await expect(card.locator("button, [role=region], [tabindex]")).toHaveCount(0);
+    await injectAxe(page);
+    const violations = await getViolations(page, "[data-testid=thumbnail]", {
+      runOnly: { type: "rule", values: ["nested-interactive"] },
+    });
+    expect(violations).toEqual([]);
+  });
+
   test("no serious or critical axe violations", async ({ page }) => {
     await injectAxe(page);
-    const violations = await getViolations(page, "[data-testid=flagship], [data-testid=note-array]");
+    const violations = await getViolations(
+      page,
+      "[data-testid=flagship], [data-testid=note-array], [data-testid=thumbnail]",
+    );
     expect(violations.filter((v) => v.impact === "serious" || v.impact === "critical")).toEqual([]);
   });
 });

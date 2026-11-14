@@ -775,8 +775,8 @@
     },
     "boardSetup": {
       "boardType": "Board Type",
-      "flagshipDimensions": "6 × 22 characters",
-      "noteDimensions": "3 × 15 characters",
+      "flagshipDimensions": "22 × 6 characters",
+      "noteDimensions": "15 × 3 characters",
       "boardColor": "Board Color",
       "code62Label": "Code 62 flap",
       "code62Help": "Character code 62 shows a degree sign on Flagships made before 2026 and a heart on newer ones. Pick the one your board has so previews match.",
@@ -2488,7 +2488,9 @@
       "denied": "Action declined",
       "details": "Activity details",
       "completedActions": "{count, plural, one {# action completed} other {# actions completed}}"
-    }
+    },
+    "previewRegion": "Board preview, reply {reply}",
+    "previewRegionStep": "Board preview, reply {reply}, step {step}"
   },
   "boardSizeIndicator": {
     "custom": "Custom",
@@ -2730,7 +2732,7 @@
     "resultError": "Didn't work",
     "guidanceLabel": "What to try",
     "fieldsFilled": "Filled in: {fields}",
-    "geometryDetected": "Detected {rows} × {cols}",
+    "geometryDetected": "Detected {cols} × {rows}",
     "applyGeometry": "Apply size",
     "actionInputDescription": "This action needs a few details first.",
     "boardNameLabel": "Board name",
@@ -2757,7 +2759,7 @@
     "moveSwap": "Slot {position} — swap with {summary}",
     "tilesDuplicate": "Multiple tiles point at the same board: {values}",
     "tileActionsLabel": "Tile actions",
-    "geometryApplied": "Set to {rows} × {cols}",
+    "geometryApplied": "Set to {cols} × {rows}",
     "searchingNetwork": "Searching {network}…",
     "searchingYourNetwork": "Searching your network…",
     "foundOneSelected": "Found {device} and selected it.",

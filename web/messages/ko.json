@@ -819,8 +819,8 @@
     },
     "boardSetup": {
       "boardType": "보드 유형",
-      "flagshipDimensions": "6 × 22 문자",
-      "noteDimensions": "3 × 15 문자",
+      "flagshipDimensions": "22 × 6 문자",
+      "noteDimensions": "15 × 3 문자",
       "boardColor": "보드 색상",
       "code62Label": "코드 62 플랩",
       "code62Help": "문자 코드 62는 2026년 이전 Flagship에서는 도 기호로, 그 이후 제품에서는 하트로 표시됩니다. 미리보기가 실제 보드와 맞도록 사용 중인 보드에 맞춰 선택하세요.",
@@ -2488,7 +2488,9 @@
       "denied": "작업 거부됨",
       "details": "활동 세부 정보",
       "completedActions": "{count, plural, other {작업 #개 완료}}"
-    }
+    },
+    "previewRegion": "보드 미리보기, 답변 {reply}",
+    "previewRegionStep": "보드 미리보기, 답변 {reply}, 단계 {step}"
   },
   "boardSizeIndicator": {
     "custom": "사용자 지정",
@@ -2730,7 +2732,7 @@
     "resultError": "실패",
     "guidanceLabel": "시도해 볼 방법",
     "fieldsFilled": "입력됨: {fields}",
-    "geometryDetected": "{rows} × {cols} 감지됨",
+    "geometryDetected": "{cols} × {rows} 감지됨",
     "applyGeometry": "크기 적용",
     "actionInputDescription": "이 작업에는 먼저 몇 가지 정보가 필요합니다.",
     "boardNameLabel": "보드 이름",
@@ -2757,7 +2759,7 @@
     "moveSwap": "슬롯 {position} — {summary}와(과) 교체",
     "tilesDuplicate": "여러 타일이 같은 보드를 가리키고 있습니다: {values}",
     "tileActionsLabel": "타일 작업",
-    "geometryApplied": "{rows} × {cols}(으)로 설정됨",
+    "geometryApplied": "{cols} × {rows}(으)로 설정됨",
     "searchingNetwork": "{network} 검색 중…",
     "searchingYourNetwork": "네트워크 검색 중…",
     "foundOneSelected": "{device}을(를) 찾아 선택했습니다.",

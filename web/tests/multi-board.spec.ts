@@ -377,8 +377,8 @@ test.describe("Setup Wizard – Board Configuration", () => {
     // failed strict mode (issue #1657). The accessible name is the tile's label
     // plus its dimension caption, so this asserts both in one locator. The pair
     // is a radiogroup, so the role is `radio` rather than `button`.
-    await expect(page.getByRole("radio", { name: "Flagship 6 × 22 characters" })).toBeVisible();
-    await expect(page.getByRole("radio", { name: "Note 3 × 15 characters" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Flagship 22 × 6 characters" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Note 15 × 3 characters" })).toBeVisible();
   });
 
   test("wizard shows Board Color swatches with Black and White options", async ({ page }) => {
@@ -414,7 +414,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     // Select Note type and White color LAST (right before Test Connection)
     // so these are the most recent React state changes in the closure
     const noteTypeBtn = page.locator("button", {
-      hasText: "3 × 15 characters",
+      hasText: "15 × 3 characters",
     });
     await noteTypeBtn.scrollIntoViewIfNeeded();
     await expect(noteTypeBtn).toBeVisible({ timeout: 5_000 });
@@ -490,7 +490,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
 
     // Select Note type first — scroll to Board Type section
     const noteTypeBtn = page.locator("button", {
-      hasText: "3 × 15 characters",
+      hasText: "15 × 3 characters",
     });
     await noteTypeBtn.scrollIntoViewIfNeeded();
     await expect(noteTypeBtn).toBeVisible({ timeout: 5_000 });

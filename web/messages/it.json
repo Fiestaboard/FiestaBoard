@@ -819,8 +819,8 @@
     },
     "boardSetup": {
       "boardType": "Tipo di bacheca",
-      "flagshipDimensions": "6 × 22 caratteri",
-      "noteDimensions": "3 × 15 caratteri",
+      "flagshipDimensions": "22 × 6 caratteri",
+      "noteDimensions": "15 × 3 caratteri",
       "boardColor": "Colore della bacheca",
       "code62Label": "Aletta del codice 62",
       "code62Help": "Il codice carattere 62 mostra un simbolo di grado sui Flagship precedenti al 2026 e un cuore su quelli più recenti. Scegli quello della tua board perché le anteprime corrispondano.",
@@ -2488,7 +2488,9 @@
       "denied": "Azione rifiutata",
       "details": "Dettagli attività",
       "completedActions": "{count, plural, one {# azione completata} other {# azioni completate}}"
-    }
+    },
+    "previewRegion": "Anteprima della bacheca, risposta {reply}",
+    "previewRegionStep": "Anteprima della bacheca, risposta {reply}, passaggio {step}"
   },
   "boardSizeIndicator": {
     "custom": "Personalizzato",
@@ -2730,7 +2732,7 @@
     "resultError": "Non ha funzionato",
     "guidanceLabel": "Cosa provare",
     "fieldsFilled": "Compilato: {fields}",
-    "geometryDetected": "Rilevato {rows} × {cols}",
+    "geometryDetected": "Rilevato {cols} × {rows}",
     "applyGeometry": "Applica dimensioni",
     "actionInputDescription": "Questa azione richiede prima alcuni dati.",
     "boardNameLabel": "Nome del tabellone",
@@ -2757,7 +2759,7 @@
     "moveSwap": "Posizione {position} — scambia con {summary}",
     "tilesDuplicate": "Più tessere puntano alla stessa bacheca: {values}",
     "tileActionsLabel": "Azioni del riquadro",
-    "geometryApplied": "Impostato su {rows} × {cols}",
+    "geometryApplied": "Impostato su {cols} × {rows}",
     "searchingNetwork": "Ricerca su {network}…",
     "searchingYourNetwork": "Ricerca sulla tua rete…",
     "foundOneSelected": "Trovato {device} e selezionato.",

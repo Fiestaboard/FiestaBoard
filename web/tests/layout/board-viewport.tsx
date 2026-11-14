@@ -50,7 +50,8 @@ function Fixture() {
           <ScaledBoardDisplay message="" deviceType="note_array" notesWide={2} notesTall={2} size="md" isStatic />
         </Slot>
         <Slot id="thumbnail" label="Thumbnail (page card)">
-          <div className="w-[300px] overflow-hidden">
+          {/* Inside a <button>, as the page card draws it. */}
+          <button type="button" aria-label="Open mic" className="block w-[300px] overflow-hidden text-left">
             <ScaledBoardDisplay
               thumbnail
               message={NOTE_ARRAY}
@@ -59,7 +60,7 @@ function Fixture() {
               size="sm"
               isStatic
             />
-          </div>
+          </button>
         </Slot>
       </main>
     </QueryClientProvider>

@@ -819,8 +819,8 @@
     },
     "boardSetup": {
       "boardType": "Тип доски",
-      "flagshipDimensions": "6 × 22 символов",
-      "noteDimensions": "3 × 15 символов",
+      "flagshipDimensions": "22 × 6 символов",
+      "noteDimensions": "15 × 3 символа",
       "boardColor": "Цвет доски",
       "code62Label": "Створка кода 62",
       "code62Help": "Код символа 62 показывает знак градуса на Flagship, выпущенных до 2026 года, и сердце на более новых. Выберите то, что стоит на вашей доске, чтобы предпросмотр совпадал.",
@@ -2488,7 +2488,9 @@
       "denied": "Действие отклонено",
       "details": "Сведения о действиях",
       "completedActions": "Выполнено действий: {count}"
-    }
+    },
+    "previewRegion": "Предпросмотр табло, ответ {reply}",
+    "previewRegionStep": "Предпросмотр табло, ответ {reply}, шаг {step}"
   },
   "boardSizeIndicator": {
     "custom": "Пользовательский",
@@ -2730,7 +2732,7 @@
     "resultError": "Не получилось",
     "guidanceLabel": "Что попробовать",
     "fieldsFilled": "Заполнено: {fields}",
-    "geometryDetected": "Обнаружено {rows} × {cols}",
+    "geometryDetected": "Обнаружено {cols} × {rows}",
     "applyGeometry": "Применить размер",
     "actionInputDescription": "Для этого действия сначала нужны некоторые данные.",
     "boardNameLabel": "Название табло",
@@ -2757,7 +2759,7 @@
     "moveSwap": "Ячейка {position} — поменять местами с {summary}",
     "tilesDuplicate": "Несколько плиток указывают на одну и ту же доску: {values}",
     "tileActionsLabel": "Действия с плиткой",
-    "geometryApplied": "Установлено {rows} × {cols}",
+    "geometryApplied": "Установлено {cols} × {rows}",
     "searchingNetwork": "Поиск в {network}…",
     "searchingYourNetwork": "Поиск в вашей сети…",
     "foundOneSelected": "Найдено и выбрано: {device}.",

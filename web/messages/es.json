@@ -819,8 +819,8 @@
     },
     "boardSetup": {
       "boardType": "Tipo de tablero",
-      "flagshipDimensions": "6 × 22 caracteres",
-      "noteDimensions": "3 × 15 caracteres",
+      "flagshipDimensions": "22 × 6 caracteres",
+      "noteDimensions": "15 × 3 caracteres",
       "boardColor": "Color del tablero",
       "code62Label": "Aleta del código 62",
       "code62Help": "El código de carácter 62 muestra un signo de grado en los Flagship anteriores a 2026 y un corazón en los más nuevos. Elige el que tenga tu tablero para que las vistas previas coincidan.",
@@ -2488,7 +2488,9 @@
       "denied": "Acción rechazada",
       "details": "Detalles de actividad",
       "completedActions": "{count, plural, one {# acción completada} other {# acciones completadas}}"
-    }
+    },
+    "previewRegion": "Vista previa del tablero, respuesta {reply}",
+    "previewRegionStep": "Vista previa del tablero, respuesta {reply}, paso {step}"
   },
   "boardSizeIndicator": {
     "custom": "Personalizado",
@@ -2730,7 +2732,7 @@
     "resultError": "No funcionó",
     "guidanceLabel": "Qué probar",
     "fieldsFilled": "Completado: {fields}",
-    "geometryDetected": "Detectado {rows} × {cols}",
+    "geometryDetected": "Detectado {cols} × {rows}",
     "applyGeometry": "Aplicar tamaño",
     "actionInputDescription": "Esta acción necesita algunos datos primero.",
     "boardNameLabel": "Nombre del tablero",
@@ -2757,7 +2759,7 @@
     "moveSwap": "Posición {position} — intercambiar con {summary}",
     "tilesDuplicate": "Varios mosaicos apuntan al mismo tablero: {values}",
     "tileActionsLabel": "Acciones del módulo",
-    "geometryApplied": "Ajustado a {rows} × {cols}",
+    "geometryApplied": "Ajustado a {cols} × {rows}",
     "searchingNetwork": "Buscando en {network}…",
     "searchingYourNetwork": "Buscando en tu red…",
     "foundOneSelected": "Se encontró {device} y se seleccionó.",

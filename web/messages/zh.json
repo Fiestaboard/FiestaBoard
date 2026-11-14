@@ -819,8 +819,8 @@
     },
     "boardSetup": {
       "boardType": "看板类型",
-      "flagshipDimensions": "6 × 22 个字符",
-      "noteDimensions": "3 × 15 个字符",
+      "flagshipDimensions": "22 × 6 个字符",
+      "noteDimensions": "15 × 3 个字符",
       "boardColor": "看板颜色",
       "code62Label": "字符码 62 的翻页片",
       "code62Help": "字符码 62 在 2026 年之前生产的 Flagship 上显示度数符号，在更新的机型上显示爱心。请选择你的板子实际配备的那一种，预览才会一致。",
@@ -2488,7 +2488,9 @@
       "denied": "操作已拒绝",
       "details": "活动详情",
       "completedActions": "{count, plural, other {已完成 # 项操作}}"
-    }
+    },
+    "previewRegion": "面板预览，回复 {reply}",
+    "previewRegionStep": "面板预览，回复 {reply}，第 {step} 步"
   },
   "boardSizeIndicator": {
     "custom": "自定义",
@@ -2730,7 +2732,7 @@
     "resultError": "未成功",
     "guidanceLabel": "可以尝试",
     "fieldsFilled": "已填写：{fields}",
-    "geometryDetected": "检测到 {rows} × {cols}",
+    "geometryDetected": "检测到 {cols} × {rows}",
     "applyGeometry": "应用尺寸",
     "actionInputDescription": "此操作需要先提供一些信息。",
     "boardNameLabel": "看板名称",
@@ -2757,7 +2759,7 @@
     "moveSwap": "位置 {position}——与 {summary} 交换",
     "tilesDuplicate": "多个拼接位指向同一块看板：{values}",
     "tileActionsLabel": "模块操作",
-    "geometryApplied": "已设为 {rows} × {cols}",
+    "geometryApplied": "已设为 {cols} × {rows}",
     "searchingNetwork": "正在搜索 {network}…",
     "searchingYourNetwork": "正在搜索你的网络…",
     "foundOneSelected": "已找到并选中 {device}。",

@@ -12,6 +12,8 @@ import type { Page } from "@playwright/test";
 import { getViolations, injectAxe } from "axe-playwright";
 
 import {
+  API_URL,
+  authHeaders,
   configureBoard,
   createPage,
   deleteAllPages,
@@ -92,4 +94,62 @@ test("a desktop Home board that fits draws no toggle or indicator (1280)", async
   await expect(page.getByTestId("char-tile-0-0")).toBeVisible({ timeout: 15_000 });
   await expect(homeViewport(page)).toHaveAttribute("data-overflow", "false");
   await expect(homeViewport(page).getByRole("group", { name: "Preview size" })).toHaveCount(0);
+});
+
+// M1 (review of #2482): a note-array page card used to carry the kit's Fit /
+// Actual pills inside its <button>, a dead control that axe flags as
+// nested-interactive. The card's board is a picture with no controls.
+test.describe("note-array page card", () => {
+  test.afterEach(async () => {
+    await resetToSingleBoard();
+  });
+
+  test("has no control inside the card button, and axe finds no nested-interactive", async ({ page }) => {
+    const res = await fetch(`${API_URL}/settings/board`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        boards: [
+          {
+            name: "Lobby wall",
+            device_type: "note_array",
+            board_color: "black",
+            enabled: true,
+            api_mode: "cloud",
+            notes_wide: 3,
+            notes_tall: 1,
+            note_array_token: `test-array-token-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          },
+        ],
+      }),
+    });
+    expect(res.ok).toBe(true);
+    const created = await fetch(`${API_URL}/pages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        name: "Open mic",
+        type: "template",
+        template: ["OPEN MIC TONIGHT", "", ""],
+        device_type: "note_array",
+        notes_wide: 3,
+        notes_tall: 1,
+      }),
+    });
+    expect(created.ok).toBe(true);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/pages");
+    const card = page.getByRole("button", { name: /Open mic/ }).first();
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    await expect(card.locator("[data-slot=board-display]")).toBeVisible({ timeout: 15_000 });
+    await expect(card.locator("button, [role=region], [tabindex]")).toHaveCount(0);
+    await expect(card.getByRole("group", { name: "Preview size" })).toHaveCount(0);
+
+    await injectAxe(page);
+    const violations = await getViolations(page, "[data-section-item]", {
+      runOnly: { type: "rule", values: ["nested-interactive"] },
+    });
+    expect(violations).toEqual([]);
+  });
 });

@@ -20,8 +20,9 @@ import { useTranslations } from "@/i18n/translations";
  * `thumbnail` keeps the old fit-to-slot picture for the two places a scroll
  * region cannot live: the board inside a page card's `<button>` (a focusable
  * region or a toggle there is a nested interactive control), and the inert,
- * decorative collection stack. A thumbnail is always `fit`, never reads or
- * writes the session's mode, and so never turns into a scroller.
+ * decorative collection stack. A thumbnail is always `fit`, draws no Fit /
+ * Actual pills, never reads or writes the session's mode, and so never turns
+ * into a scroller or a control.
  */
 export type ScaledBoardDisplayProps = BoardViewportProps & {
   /** A fit-scaled picture for a card or decorative stack, not a viewport. */
@@ -40,6 +41,7 @@ const ThumbnailBoard = memo(function ThumbnailBoard({
   onModeChange: _onModeChange,
   defaultMode: _defaultMode,
   persist: _persist,
+  showModeToggle: _showModeToggle,
   ...props
 }: BoardViewportProps) {
   const t = useTranslations("boardDisplay");
@@ -50,6 +52,9 @@ const ThumbnailBoard = memo(function ThumbnailBoard({
       {...chrome}
       mode="fit"
       persist={false}
+      // A picture has no controls: no Fit / Actual pills inside a page card's
+      // button (axe nested-interactive), FiestaUI 1.5d.
+      showModeToggle={false}
       previewSizeLabel={t("previewSizeLabel")}
       fitModeLabel={t("fitMode")}
       actualModeLabel={t("actualMode")}
