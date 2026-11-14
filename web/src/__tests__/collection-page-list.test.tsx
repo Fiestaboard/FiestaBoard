@@ -19,7 +19,7 @@ import type { Page } from "@/lib/api";
 const pages = [
   { id: "p1", name: "Morning commute", device_type: "flagship" },
   { id: "p2", name: "Market open", device_type: "note" },
-  { id: "p3", name: "Weather + surf", device_type: "note_array", notes_wide: 2, notes_tall: 2 },
+  { id: "p3", name: "Weather + surf", device_type: "note_array", notes_wide: 3, notes_tall: 2 },
   { id: "p4", name: "Good morning, Maya", device_type: "panel", grid_rows: 12, grid_cols: 29 },
 ] as Page[];
 
@@ -98,7 +98,7 @@ describe("CollectionPageList, time mode", () => {
     expect(within(first).getByText("1")).toBeInTheDocument();
     expect(within(first).getByText("Flagship")).toBeInTheDocument();
     expect(within(rowOf("Market open")).getByText("Note")).toBeInTheDocument();
-    expect(within(rowOf("Weather + surf")).getByText("Note Array 2×2")).toBeInTheDocument();
+    expect(within(rowOf("Weather + surf")).getByText("Note Array 3×2")).toBeInTheDocument();
     expect(within(rowOf("Good morning, Maya")).getByText("Panel 12×29")).toBeInTheDocument();
   });
 
@@ -181,6 +181,50 @@ describe("CollectionPageList, time mode", () => {
     expect(onRemove).toHaveBeenCalledWith(2);
   });
 
+  it("disables the menu's Move down on the last row", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole("button", { name: "More actions for Good morning, Maya" }));
+    expect(await screen.findByRole("menuitem", { name: "Move down" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitem", { name: "Move up" })).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("names a panel without a grid size plainly", () => {
+    const panel = [{ id: "px", name: "Lobby panel", device_type: "panel" }] as Page[];
+    render(<CollectionPageList pageIds={["px"]} pages={panel} mode="time" onMove={vi.fn()} onRemove={vi.fn()} />);
+    expect(within(rowOf("Lobby panel")).getByText("Panel")).toBeInTheDocument();
+  });
+
+  it("shows the keyboard legend for a fine pointer", () => {
+    stubCoarsePointer(false);
+    render(<Harness />);
+    expect(screen.getByTestId("collection-reorder-keys")).toBeInTheDocument();
+  });
+
+  it("drops the keyboard legend for a coarse pointer, whatever the width", () => {
+    stubCoarsePointer(true);
+    render(<Harness />);
+    expect(screen.queryByTestId("collection-reorder-keys")).not.toBeInTheDocument();
+  });
+
+  it("gives a coarse pointer the larger ••• button", () => {
+    stubCoarsePointer(true);
+    render(<Harness />);
+    expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute(
+      "data-size",
+      "icon-lg",
+    );
+  });
+
+  it("keeps the compact ••• button for a fine pointer", () => {
+    stubCoarsePointer(false);
+    render(<Harness />);
+    expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute(
+      "data-size",
+      "icon-sm",
+    );
+  });
+
   it("gives a coarse pointer the 44px handle", () => {
     stubCoarsePointer(true);
     render(<Harness />);
@@ -209,6 +253,26 @@ describe("CollectionPageList, random and variable modes", () => {
     expect(within(group).getAllByRole("listitem")).toHaveLength(4);
     act(() => screen.getByRole("button", { name: "Remove Weather + surf" }).click());
     expect(onRemove).toHaveBeenCalledWith(2);
+  });
+});
+
+describe("CollectionPageList, random list on touch", () => {
+  it("touch-sizes the rows and the × for a coarse pointer", () => {
+    stubCoarsePointer(true);
+    render(<Harness mode="random" />);
+    for (const row of within(screen.getByRole("list")).getAllByRole("listitem")) {
+      expect(row).toHaveAttribute("data-size", "touch");
+    }
+    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "icon-lg");
+  });
+
+  it("keeps compact rows and × for a fine pointer", () => {
+    stubCoarsePointer(false);
+    render(<Harness mode="random" />);
+    for (const row of within(screen.getByRole("list")).getAllByRole("listitem")) {
+      expect(row).toHaveAttribute("data-size", "default");
+    }
+    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "icon-sm");
   });
 });
 

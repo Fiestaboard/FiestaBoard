@@ -138,26 +138,29 @@ export function CollectionPageList({ pageIds, pages, mode, onMove, onRemove }: C
           <SortableRow member={member} index={index} size={size} onRemove={onRemove} t={t} />
         )}
       />
-      <Flex
-        align="center"
-        gap="2"
-        wrap
-        className="max-md:hidden text-xs text-muted-foreground"
-        data-testid="collection-reorder-keys"
-      >
-        <Kbd keys={["space"]} />
-        <Text as="span" size="xs" tone="muted">
-          {t("reorderKeysLift")}
-        </Text>
-        <Kbd keys={["up", "down"]} />
-        <Text as="span" size="xs" tone="muted">
-          {t("reorderKeysMove")}
-        </Text>
-        <Kbd keys={["esc"]} />
-        <Text as="span" size="xs" tone="muted">
-          {t("reorderKeysCancel")}
-        </Text>
-      </Flex>
+      {/* The keyboard legend follows the pointer, like the rows and the hint (DD-W27). */}
+      {coarse ? null : (
+        <Flex
+          align="center"
+          gap="2"
+          wrap
+          className="text-xs text-muted-foreground"
+          data-testid="collection-reorder-keys"
+        >
+          <Kbd keys={["space"]} />
+          <Text as="span" size="xs" tone="muted">
+            {t("reorderKeysLift")}
+          </Text>
+          <Kbd keys={["up", "down"]} />
+          <Text as="span" size="xs" tone="muted">
+            {t("reorderKeysMove")}
+          </Text>
+          <Kbd keys={["esc"]} />
+          <Text as="span" size="xs" tone="muted">
+            {t("reorderKeysCancel")}
+          </Text>
+        </Flex>
+      )}
     </Flex>
   );
 }

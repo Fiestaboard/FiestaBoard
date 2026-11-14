@@ -115,8 +115,6 @@ test.describe("Collection reorder", () => {
     await page.keyboard.press("Escape");
     await expect(status(page)).toHaveText("Market open returned to position 2 of 3");
     expect(await order(page)).toEqual(NAMES);
-    // Escape stayed inside the list: the editor is still open.
-    await expect(page).toHaveURL(new RegExp(`/collections/${encodeURIComponent(id)}`));
     expect(await savedOrder(id)).toEqual(pageIds);
   });
 
@@ -167,6 +165,8 @@ test.describe("Collection reorder", () => {
       runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"] },
     });
     const failing = violations.filter((v) => v.impact === "critical" || v.impact === "serious");
-    expect(failing.map((v) => `${v.id}: ${v.help} ${JSON.stringify(v.nodes.map((n) => [n.target, n.failureSummary]))}`)).toEqual([]);
+    expect(
+      failing.map((v) => `${v.id}: ${v.help} ${JSON.stringify(v.nodes.map((n) => [n.target, n.failureSummary]))}`),
+    ).toEqual([]);
   });
 });

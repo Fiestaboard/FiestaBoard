@@ -37,10 +37,17 @@ The saved order goes through the existing `PUT /v1/collections/{id}` `page_ids` 
 - `web/tests/collections-reorder.spec.ts` (new Playwright): reorder by keyboard, save, reload, assert order; reorder by pointer drag, save, reload, assert order; axe on the editor.
 - Coverage list in `vitest.config.ts` gains the two new source files.
 
-## Out of scope (recorded as deltas / follow-ups)
+## Out of scope (MASTER-PLAN row 2.6b and deltas DD-W22/23/24/52)
 
 - Per-page duration selects (07c rows) — the hub has one interval per collection.
 - Board name in row meta ("Kitchen board · Flagship") — pages are not bound to a board.
 - The page header, Now in this Collection pane, Show now, selection-mode chips and "+ Add page" button of 07c.
 - Variable-rule reorder (still HTML5 drag in `variable-rule-row.tsx`).
 - `DropdownMenu trigger="context"` on sortable rows (Jev `jev_decide`: menu_only, p = 0.99).
+
+## Review round 1 (Opus, CHANGES REQUESTED)
+
+- M1: `use-coarse-pointer.ts` is the app's one coarse-pointer hook, on `useSyncExternalStore` (no first-paint jump); 2.4 copies it byte-for-byte.
+- M2: the hint copy and Kbd legend follow the pointer, not the width.
+- M3: the rest of the 07c editor is MASTER-PLAN row 2.6b.
+- S1–S5: survivor tests (menu Move down at the end, 3×2 note array, plain panel, touch sizes, non-adjacent drop through the form); "for the Page Duration"; stale comment removed; deltas updated.

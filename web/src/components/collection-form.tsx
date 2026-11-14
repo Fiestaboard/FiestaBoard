@@ -28,6 +28,7 @@ import { toast } from "sonner";
 
 import { CollectionPageList } from "@/components/collection-page-list";
 import { VariableRuleRow } from "@/components/variable-rule-row";
+import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useTranslations } from "@/i18n/translations";
 import type {
   Collection,
@@ -174,6 +175,7 @@ export function CollectionForm({
   const [pollSeconds, setPollSeconds] = useState(collection?.variable?.poll_seconds || 10);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const coarsePointer = useCoarsePointer();
 
   // Rule-editor state: only one rule is editable at a time.
   const [editingRuleIndex, setEditingRuleIndex] = useState<number | null>(null);
@@ -182,7 +184,7 @@ export function CollectionForm({
   // Track a freshly-added rule so we can drop it from the list if the user cancels
   // without ever saving.
   const [newRuleIndex, setNewRuleIndex] = useState<number | null>(null);
-  // Separate drag index for the rules list so it doesn't collide with page dragging.
+  // HTML5 drag index for the variable-rules list (rule reorder moves to SortableList in 2.6b).
   const [ruleDragIndex, setRuleDragIndex] = useState<number | null>(null);
 
   const snapshot = JSON.stringify({
@@ -587,20 +589,13 @@ export function CollectionForm({
       <Stack gap="2">
         <Label>{t("pagesInCollection")}</Label>
         <Text size="xs" tone="muted">
-          {selectionMode === "time" ? (
-            <>
-              <Text as="span" size="xs" tone="muted" className="max-md:hidden">
-                {t("dragToReorder")}
-              </Text>
-              <Text as="span" size="xs" tone="muted" className="md:hidden">
-                {t("dragToReorderTouch")}
-              </Text>
-            </>
-          ) : selectionMode === "random" ? (
-            t("randomMembershipHint")
-          ) : (
-            t("variableMembershipHint")
-          )}
+          {/* The hint follows the pointer, like the rows (DD-W27): touch copy for a
+              finger at any width, the keyboard copy for a mouse or trackpad. */}
+          {selectionMode === "time"
+            ? t(coarsePointer ? "dragToReorderTouch" : "dragToReorder")
+            : selectionMode === "random"
+              ? t("randomMembershipHint")
+              : t("variableMembershipHint")}
         </Text>
 
         {selectedPageIds.length === 0 ? (

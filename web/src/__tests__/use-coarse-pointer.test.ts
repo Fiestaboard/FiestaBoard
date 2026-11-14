@@ -40,10 +40,16 @@ describe("useCoarsePointer", () => {
     expect(result.current).toBe(true);
   });
 
-  it("is true from the first effect on a touch device", () => {
+  it("is already true on the first render on a touch device, so a phone never paints desktop rows", () => {
     stubPointerQuery(true);
-    const { result } = renderHook(() => useCoarsePointer());
-    expect(result.current).toBe(true);
+    const seen: boolean[] = [];
+    renderHook(() => {
+      const coarse = useCoarsePointer();
+      seen.push(coarse);
+      return coarse;
+    });
+    expect(seen[0]).toBe(true);
+    expect(seen.every(Boolean)).toBe(true);
   });
 
   it("stops listening on unmount", () => {
