@@ -20,9 +20,11 @@ Selection modes:
 import random as _random
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, computed_field, model_validator
+
+from src.templates.models import RenderPreview
 
 COLLECTION_ID_PREFIX = "collection:"
 
@@ -265,3 +267,63 @@ class CollectionDeleteResponse(BaseModel):
     """
 
     id: str
+
+
+class CollectionDryRunRequest(RenderPreview):
+    """``POST /collections/{id}/dry-run`` (H8): H6's preview (sample and
+    missing data, the instant, the data mode) plus a window to look across.
+
+    ``data`` defaults to ``cached`` here: a rule tester never waits on a
+    refetch. ``step_seconds`` spaces a formula collection's timeline (its rules
+    can read ``NOW()``); a time or random collection's boundaries are exact.
+    """
+
+    data: Literal["live", "cached"] = "cached"
+    window_seconds: int = Field(default=0, ge=0, le=7 * 86400, description="How far after `at` to look (0 to 7 days).")
+    step_seconds: int = Field(
+        default=900, ge=60, le=86400, description="Formula collections: how often across the window to evaluate."
+    )
+
+
+class DryRunRule(BaseModel):
+    """One rule of a formula collection, evaluated."""
+
+    index: int
+    expression: str
+    page_id: str
+    value: str = Field(description="What the rule evaluated to; an error as its tag.")
+    error: str | None = None
+    message: str | None = None
+    matched: bool = Field(description="Whether the rule counts as true (an error never does).")
+
+
+class DryRunSegment(BaseModel):
+    """A stretch of the window during which the collection picks one page."""
+
+    model_config = {"populate_by_name": True}
+
+    from_: str = Field(alias="from", description="UTC, whole seconds.")
+    until: str
+    page_id: str | None
+
+
+class CollectionDryRunResponse(BaseModel):
+    """What the collection would pick: at ``at``, and across the window."""
+
+    collection_id: str
+    selection_mode: str
+    at: str = Field(description="The instant evaluated (UTC, whole seconds).")
+    page_id: str | None = Field(description="The page picked at `at`.")
+    rules: list[DryRunRule] | None = Field(description="Formula collections: every rule, all evaluated; else null.")
+    matched_rule: int | None = Field(description="The first true rule's index; null when the default (or no rule) won.")
+    timeline: list[DryRunSegment]
+    truncated: bool = Field(description="True when the timeline stops before the window's end: see `truncated_reason`.")
+    truncated_reason: Literal["segments", "budget"] | None = Field(
+        default=None,
+        description=(
+            "`segments`: a fast rotation's timeline was cut at 96 segments. `budget`: evaluating a formula"
+            " collection's rules used up the render budget, so the timeline stops where it ran out."
+        ),
+    )
+    shown_on: list[str] = Field(description="Boards whose schedule (or pin) names this collection at `at`.")
+    sources: dict[str, Any] = Field(default_factory=dict, description="H6: the hub's own data per plugin used.")

@@ -427,6 +427,10 @@ class ActiveScheduleResponse(BaseModel):
     current_day: str | None = None
     default_page_id: str | None = None
     temporary_override: TemporaryOverrideStatus
+    #: H8: the instant asked about (``?at=``), UTC with whole seconds; null for "now".
+    at: str | None = None
+    #: Whether the board's quiet hours cover that instant (or now).
+    silenced: bool = False
 
 
 class Overlap(BaseModel):

@@ -200,6 +200,21 @@ def _too_much_work(what: str) -> FormulaError:
     return _Exhausted("#VALUE", f"too much work: {what}")
 
 
+def render_budget_spent(context: dict[str, Any]) -> bool:
+    """Whether the render budget *context* carries (:func:`ensure_render_clock`)
+    is used up: its steps, its regex time or its deadline. A further formula
+    of that render would be ``#VALUE`` "too much work", so a caller that
+    evaluates many (H8's dry run) knows its later answers are not real."""
+    budget = context.get(_RENDER_BUDGET_KEY)
+    if not isinstance(budget, _Budget):
+        return False
+    return (
+        budget.steps > MAX_RENDER_STEPS
+        or budget.regex_seconds >= MAX_RENDER_REGEX_SECONDS
+        or _eval_clock() - budget.started > MAX_RENDER_SECONDS
+    )
+
+
 def _regex_bounded(call: Callable[[float], Any]) -> Any:
     """Run one regex *call* (given its timeout) within the per-call timeout and
     what is left of the formula's and the render's regex budgets."""
