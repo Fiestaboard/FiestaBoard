@@ -1,4 +1,3 @@
-import { seedLastKnownBoard } from "./helpers/last-known-board";
 import "fake-indexeddb/auto";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -10,6 +9,7 @@ import { BootGate } from "@/components/boot-gate";
 import { PwaLifecycle } from "@/components/pwa/pwa-lifecycle";
 import { readLastKnownBoard } from "@/lib/pwa/last-known-board";
 
+import { seedLastKnownBoard } from "./helpers/last-known-board";
 import { server } from "./mocks/server";
 
 const route = vi.hoisted(() => ({ pathname: "/" }));

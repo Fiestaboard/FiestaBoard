@@ -88,12 +88,12 @@ export function OfflineScreen({ kind, onRetry }: { kind: OfflineScreenKind; onRe
           </List>
         )}
         <Flex gap="2" wrap justify="center">
-          <Button onClick={onRetry}>
+          <Button size="touch" onClick={onRetry}>
             <RefreshCw aria-hidden="true" />
             {t("tryAgain")}
           </Button>
           {!offline && (
-            <Button variant="outline" asChild>
+            <Button variant="outline" size="touch" asChild>
               {/* eslint-disable-next-line react/forbid-elements -- single Slot child of Button asChild; the Button merges its chrome onto this anchor and TextLink would layer conflicting link styling */}
               <a href={CONNECTION_HELP_URL} target="_blank" rel="noreferrer">
                 <CircleHelp aria-hidden="true" />

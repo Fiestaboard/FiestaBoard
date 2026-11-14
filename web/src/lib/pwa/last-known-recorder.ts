@@ -12,9 +12,9 @@ import type { BoardCurrentMessageResponse, BoardSettings } from "@/lib/api/board
 
 import {
   clearLastKnownBoards,
+  establishBoardOwner,
   type LastKnownBoard,
   type LastKnownBoardInfo,
-  establishBoardOwner,
   readBoardSessionGeneration,
   saveLastKnownBoard,
 } from "./last-known-board";

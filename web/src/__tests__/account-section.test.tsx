@@ -1,4 +1,3 @@
-import { seedLastKnownBoard } from "./helpers/last-known-board";
 import "fake-indexeddb/auto";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -9,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readLastKnownBoard } from "@/lib/pwa/last-known-board";
 
+import { seedLastKnownBoard } from "./helpers/last-known-board";
 import { server } from "./mocks/server";
 
 const replaceMock = vi.fn();

@@ -1,8 +1,8 @@
 import {
   establishBoardOwner,
+  type LastKnownBoard,
   readBoardSessionGeneration,
   saveLastKnownBoard,
-  type LastKnownBoard,
 } from "@/lib/pwa/last-known-board";
 
 /** Seed through the same owner verification and generation guard as production. */

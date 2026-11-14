@@ -1,4 +1,3 @@
-import { seedLastKnownBoard } from "./helpers/last-known-board";
 import "fake-indexeddb/auto";
 
 import { QueryClient } from "@tanstack/react-query";
@@ -9,14 +8,16 @@ import type { BoardCurrentMessageResponse, BoardSettings } from "@/lib/api/board
 import {
   clearLastKnownBoards,
   establishBoardOwner,
-  readBoardSessionGeneration,
-  saveLastKnownBoard,
   type LastKnownBoard,
   lastKnownOwner,
+  readBoardSessionGeneration,
   readLastKnownBoard,
+  saveLastKnownBoard,
 } from "@/lib/pwa/last-known-board";
 import { ownerFrom, startLastKnownRecorder, UNCHANGED_REWRITE_MS } from "@/lib/pwa/last-known-recorder";
 import { clearAccountDataOnDevice } from "@/lib/pwa/sign-out";
+
+import { seedLastKnownBoard } from "./helpers/last-known-board";
 
 const record = (over: Partial<LastKnownBoard> = {}): LastKnownBoard => ({
   boardId: "b1",

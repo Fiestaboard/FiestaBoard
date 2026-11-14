@@ -1,4 +1,3 @@
-import { seedLastKnownBoard } from "./helpers/last-known-board";
 import "fake-indexeddb/auto";
 
 import { TooltipProvider } from "@fiestaboard/ui";
@@ -12,6 +11,7 @@ import { CurrentBoardProvider } from "@/components/current-board-context";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { readLastKnownBoard } from "@/lib/pwa/last-known-board";
 
+import { seedLastKnownBoard } from "./helpers/last-known-board";
 import { server } from "./mocks/server";
 
 const pushMock = vi.fn();

@@ -42,7 +42,7 @@ link at the hub's own TLS setting instead of the reverse-proxy docs.
 | API success events | `src/lib/api/success-events.ts`, one emit in `fetchApi` | no edits to Home/editor files |
 | Install offer | `src/components/install-prompt.tsx` (rewrite) | InstallCard in the page flow after the Outlet; Safari sheet (Sheet + InstallSteps); `needs-https` card on http |
 | SW registration | `src/lib/pwa/register-service-worker.ts`, `PwaLifecycle` in root | secure only, `appUrl("/sw.js")`, scope `appUrl("/")`, `updateViaCache: "none"` |
-| Service worker | `public/sw.js` + `public/sw-shell-policy.js` | navigations network-first (cached shell only on network failure); `assets/` + `icons/` cache-first; **`api/` never touched**; non-GET, cross-origin, `Authorization`, `no-store`/`private` never cached; legacy caches deleted on activate; `skipWaiting` + `clients.claim` |
+| Service worker | `public/sw.js` + `public/sw-shell-policy.js` | page loads network-first (cached shell only on network failure); `assets/` + `icons/` cache-first; **`api/` never touched**; non-GET, cross-origin, `Authorization`, `no-store`/`private` never cached; legacy caches deleted on activate; `skipWaiting` + `clients.claim` |
 | Last-known board | `src/lib/pwa/last-known-board.ts` (IndexedDB) + recorder in `PwaLifecycle` | records `board-current-message` results from the query cache with the owner's username; wiped on sign-out, on `/login`, and when a different user is signed in |
 | `/offline` and the offline boot | `src/components/pwa/offline-screen.tsx`, `app/routes/offline.tsx`, BootGate offline branch | StatusScreen pattern; last-known board card |
 | HTTPS banner | `src/components/pwa/https-required-banner.tsx` on Settings › Network | `StatusBanner kind="https"` |
@@ -51,7 +51,7 @@ link at the hub's own TLS setting instead of the reverse-proxy docs.
 ## Tests
 
 - vitest: environment, install trigger, success events, SW policy + worker (vm), last-known board
-  (fake-indexeddb), recorder, install offer (timing, snooze, needs-https, iOS sheet), offline
+  (an IndexedDB test adapter), recorder, install offer (timing, snooze, needs-https, iOS sheet), offline
   screen, BootGate offline branch, sign-out clears.
 - Playwright `tests/pwa-offline.spec.ts` (SW registers; offline reload shows the shell and
   "You're offline"; no `api/` entry in any cache; network-first shell refresh) and

@@ -1,4 +1,3 @@
-import { seedLastKnownBoard } from "./helpers/last-known-board";
 import "fake-indexeddb/auto";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,6 +11,7 @@ import { OfflineScreen } from "@/components/pwa/offline-screen";
 import { clearLastKnownBoards } from "@/lib/pwa/last-known-board";
 
 import OfflinePage from "../../app/routes/offline";
+import { seedLastKnownBoard } from "./helpers/last-known-board";
 import { server } from "./mocks/server";
 
 const replace = vi.hoisted(() => vi.fn());
