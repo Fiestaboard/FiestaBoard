@@ -32,6 +32,8 @@ export default defineConfig({
         "src/components/home/**",
         "src/components/compose-page-dialog.tsx",
         "src/components/navigation-sidebar.tsx",
+        "src/components/more-sheet.tsx",
+        "src/components/hub-line.tsx",
         "src/components/service-controls.tsx",
         "src/components/general-settings.tsx",
         "src/components/settings/update-intervals.tsx",

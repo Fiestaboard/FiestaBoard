@@ -82,7 +82,16 @@
     "skipToMainContent": "본문으로 건너뛰기",
     "boardSelector": "관리할 보드 선택",
     "selectBoard": "보드 선택",
-    "unnamedBoard": "이름 없는 보드"
+    "unnamedBoard": "이름 없는 보드",
+    "more": "더보기",
+    "needsAttention": "{count, plural, other {#개 확인 필요}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "서랍을 엽니다",
+    "hub": {
+      "online": "온라인",
+      "unreachable": "연결할 수 없음",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "더 보기",
@@ -740,7 +749,7 @@
   },
   "settings": {
     "title": "설정",
-    "description": "FiestaBoard 서비스를 구성하세요",
+    "description": "내 계정, 이 브라우저, 이 허브.",
     "advancedSection": "고급",
     "setupWizardTitle": "설정 마법사",
     "setupWizardDescription": "보드 연결 및 기본 설정을 다시 구성하려면 설정 마법사를 다시 실행하세요.",
@@ -845,7 +854,42 @@
     "displaySilenceTitle": "디스플레이 무음 일정",
     "displaySilenceDescription": "무음 시간은 디스플레이별로 설정됩니다. 디스플레이의 재생 탭을 열어 일정을 변경하세요.",
     "openDisplayPlayback": "{name} 재생 설정 열기",
-    "openDisplays": "디스플레이 관리"
+    "openDisplays": "디스플레이 관리",
+    "hub": {
+      "you": "나",
+      "hubGroup": "허브 · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "계정",
+          "description": "로그인한 사용자와 로그인 방법."
+        },
+        "appearance": {
+          "title": "모양",
+          "description": "이 브라우저에서 FiestaBoard가 보이는 방식."
+        },
+        "accessibility": {
+          "title": "접근성",
+          "description": "이 브라우저의 움직임과 읽기 편의."
+        },
+        "network": {
+          "title": "네트워크",
+          "description": "휴대폰, TV, 브라우저가 {name}에 연결하는 방법. 변경 사항은 모든 기기에 적용됩니다."
+        },
+        "ai-provider": {
+          "title": "AI 제공업체",
+          "description": "FiestaBot은 선택한 제공업체를 사용합니다. 설정하기 전까지 꺼져 있습니다."
+        },
+        "system": {
+          "title": "시스템 및 백업",
+          "description": "업데이트, 백업, {name} 자체."
+        },
+        "language-time": {
+          "title": "언어 및 시간",
+          "description": "허브가 일정, 시간 변수, 모든 타임스탬프에 사용합니다."
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "오프라인 상태입니다",

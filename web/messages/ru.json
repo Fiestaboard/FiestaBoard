@@ -82,7 +82,16 @@
     "skipToMainContent": "Перейти к основному содержимому",
     "boardSelector": "Выберите доску для управления",
     "selectBoard": "Выберите доску",
-    "unnamedBoard": "Доска без названия"
+    "unnamedBoard": "Доска без названия",
+    "more": "Ещё",
+    "needsAttention": "{count, plural, one {# требует внимания} few {# требуют внимания} many {# требуют внимания} other {# требуют внимания}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "Открывает панель",
+    "hub": {
+      "online": "В сети",
+      "unreachable": "Недоступен",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "Ещё",
@@ -740,7 +749,7 @@
   },
   "settings": {
     "title": "Настройки",
-    "description": "Настройте сервис FiestaBoard",
+    "description": "Ваш аккаунт, этот браузер и этот хаб.",
     "advancedSection": "Дополнительно",
     "setupWizardTitle": "Мастер настройки",
     "setupWizardDescription": "Перезапустите мастер настройки для повторной настройки подключения доски и основных параметров.",
@@ -845,7 +854,42 @@
     "displaySilenceTitle": "Расписания тишины дисплеев",
     "displaySilenceDescription": "У каждого дисплея свои часы тишины. Чтобы изменить расписание, откройте вкладку «Воспроизведение» нужного дисплея.",
     "openDisplayPlayback": "Открыть настройки воспроизведения для {name}",
-    "openDisplays": "Управление дисплеями"
+    "openDisplays": "Управление дисплеями",
+    "hub": {
+      "you": "Вы",
+      "hubGroup": "Хаб · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "Аккаунт",
+          "description": "Под кем вы вошли и как вы входите."
+        },
+        "appearance": {
+          "title": "Оформление",
+          "description": "Как FiestaBoard выглядит в этом браузере."
+        },
+        "accessibility": {
+          "title": "Доступность",
+          "description": "Анимация и удобство чтения в этом браузере."
+        },
+        "network": {
+          "title": "Сеть",
+          "description": "Как телефоны, телевизоры и браузеры подключаются к {name}. Изменения затрагивают все устройства."
+        },
+        "ai-provider": {
+          "title": "Поставщик ИИ",
+          "description": "FiestaBot использует выбранного поставщика. Он выключен, пока вы его не настроите."
+        },
+        "system": {
+          "title": "Система и резервные копии",
+          "description": "Обновления, резервные копии и сам {name}."
+        },
+        "language-time": {
+          "title": "Язык и время",
+          "description": "Используются хабом для Расписания, переменных времени и всех отметок времени."
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "Вы не в сети",

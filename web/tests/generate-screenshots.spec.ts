@@ -1507,7 +1507,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await configureAiProvider();
     await initPage(page);
 
-    await page.goto("/settings?section=ai");
+    await page.goto("/settings/ai-provider");
     await page.waitForTimeout(3000);
 
     const card = page.getByText(/ai providers/i).first();
@@ -1649,7 +1649,8 @@ test.describe("Homepage Feature Icon Screenshots", () => {
   test("customizable", async ({ page }) => {
     await initPage(page);
 
-    await page.goto("/settings");
+    // The old General tab's look-and-feel cards live in Appearance now.
+    await page.goto("/settings/appearance");
     await page.waitForTimeout(3000);
 
     // Capture the general settings area (first animated card)

@@ -32,44 +32,24 @@ test.afterEach(async () => {
 });
 
 test.describe("Mobile — Navigation", () => {
-  test("hamburger menu opens and shows navigation links", async ({ page }) => {
+  test("bottom tab bar and More menu show navigation links", async ({ page }) => {
     await page.goto("/");
 
-    // Wait for the page to render
-    await page.waitForLoadState("networkidle");
+    // Below 768px the hamburger gave way to a bottom tab bar (slice 2.1):
+    // Home · Pages · Schedule · Displays · More.
+    const tabBar = page.locator('[data-slot="sidebar-bottom-nav"]');
+    await expect(tabBar).toBeVisible({ timeout: 15_000 });
+    for (const name of ["Home", "Pages", "Schedule", "Displays"]) {
+      await expect(tabBar.getByRole("link", { name, exact: true })).toBeVisible();
+    }
+    await expect(page.getByRole("button", { name: "Open menu" })).toHaveCount(0);
 
-    // Hamburger / menu button should be visible at mobile width
-    const menuButton = page
-      .getByRole("button", { name: /menu|open/i })
-      .or(page.locator("[aria-label='Open menu'], [aria-label='Menu'], button.hamburger"))
-      .first();
-
-    if (await menuButton.isVisible({ timeout: 8_000 }).catch(() => false)) {
-      await menuButton.click();
-
-      // Navigation links should appear
-      const navLinks = [
-        page.getByRole("link", { name: /dashboard/i }),
-        page.getByRole("link", { name: /pages/i }),
-        page.getByRole("link", { name: /schedule/i }),
-      ];
-
-      let visibleCount = 0;
-      for (const link of navLinks) {
-        if (
-          await link
-            .first()
-            .isVisible({ timeout: 3_000 })
-            .catch(() => false)
-        ) {
-          visibleCount++;
-        }
-      }
-      expect(visibleCount).toBeGreaterThan(0);
-    } else {
-      // If there's no hamburger, navigation may be always-visible — that's ok
-      const navLinks = page.getByRole("navigation").first();
-      await expect(navLinks).toBeVisible({ timeout: 10_000 });
+    // More opens the rest of the navigation.
+    await tabBar.getByRole("button", { name: /^More/ }).click();
+    const more = page.getByRole("dialog", { name: "Navigation menu" });
+    await expect(more).toBeVisible();
+    for (const name of ["Integrations", "Staff Picks", "Settings", "Help & Docs"]) {
+      await expect(more.getByRole("link", { name, exact: true })).toBeVisible();
     }
   });
 
@@ -86,6 +66,12 @@ test.describe("Mobile — Navigation", () => {
   test("can navigate to Settings on mobile", async ({ page }) => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    // On a phone /settings is the section list alone; a section opens as its
+    // own screen.
+    await expect(page.getByRole("list", { name: "You" })).toBeVisible();
+    await page.getByRole("link", { name: "Appearance", exact: true }).click();
+    await expect(page).toHaveURL(/\/settings\/appearance$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Appearance", exact: true })).toBeVisible();
   });
 });
 

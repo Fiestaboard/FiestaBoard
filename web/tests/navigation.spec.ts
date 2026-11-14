@@ -12,47 +12,27 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Navigation", () => {
-  test("mobile hamburger menu works", async ({ page }) => {
-    // Set viewport to mobile
+  test("the phone tab bar navigates (WEB-01)", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
 
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Find and click hamburger menu button
-    const menuBtn = page
-      .getByRole("button", { name: /menu|navigation/i })
-      .first()
-      .or(
-        page
-          .locator("button")
-          .filter({ has: page.locator("svg") })
-          .first(),
-      );
-
-    if (await menuBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await menuBtn.click();
-
-      // Menu should show navigation links
-      const pagesLink = page.getByRole("link", { name: "Pages" }).first();
-      await expect(pagesLink).toBeVisible({ timeout: 5_000 });
-
-      // Click a link to navigate
-      await pagesLink.click();
-      await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 10_000 });
-    }
+    // Below 768px the destinations are a bottom tab bar, not a hamburger.
+    const bar = page.locator('[data-slot="sidebar-bottom-nav"]');
+    await bar.getByRole("link", { name: "Pages" }).click();
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
   test("all sidebar links navigate correctly", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Settings is not in this list any more — it left the rail for the
-    // footer menu, and "reach it from the menu" is its own test below.
     const sections = [
       { link: "Pages", heading: "Pages" },
       { link: "Schedule", heading: "Schedule" },
       { link: "Integrations", heading: /integrations/i },
+      { link: "Settings", heading: "Settings" },
     ];
 
     for (const { link, heading } of sections) {
@@ -91,9 +71,12 @@ test.describe("Navigation", () => {
     await gear.click();
 
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 10_000 });
-    // Settings has no row in the nav list, so the gear is what says "you
-    // are here" once you arrive.
-    await expect(gear).toHaveAttribute("aria-current", "page");
+    // The Settings row in the list says "you are here" (07e draws the gear
+    // unlit), so the gear stays unlit.
+    await expect(
+      page.locator("aside").getByLabel("Primary navigation").getByRole("link", { name: "Settings" }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(gear).not.toHaveAttribute("aria-current", "page");
   });
 
   test("theme switches between light and dark from the footer menu", async ({ page }) => {
@@ -176,10 +159,9 @@ test.describe("Navigation", () => {
     // no "Secondary navigation" landmark left to find.
     await expect(sidebar.getByLabel("Secondary navigation")).toHaveCount(0);
 
-    // The list is destinations only: Settings and the assistant both left it
-    // in @fiestaboard/ui 7.0.0, which is what stopped the rail highlighting
-    // two rows at once whenever the AI drawer was open.
-    await expect(nav.getByRole("link", { name: "Settings" })).toHaveCount(0);
+    // The list is destinations only: the assistant left it in
+    // @fiestaboard/ui 7.0.0. Settings came back as a destination (WEB-01).
+    await expect(nav.getByRole("link", { name: "Settings" })).toHaveCount(1);
     await expect(nav.getByRole("button", { name: "AI Assistant" })).toHaveCount(0);
     await expect(sidebar.locator('[data-slot="sidebar-account-trigger"]')).toBeVisible();
   });

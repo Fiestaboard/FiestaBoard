@@ -7,6 +7,7 @@ import { BoardInitErrorBanner } from "@/components/board-init-error-banner";
 import { HomeCompose } from "@/components/home/home-compose";
 import { SilenceImminentBanner } from "@/components/silence-imminent-banner";
 import { useWizard } from "@/components/wizard-provider";
+import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
 import { useTranslations } from "@/i18n/translations";
 import { getSetupStatus } from "@/lib/setup-detection";
 
@@ -35,7 +36,7 @@ export default function Home() {
   }, []);
 
   return (
-    <PageLayout outerClassName="relative" className="relative z-10">
+    <PageLayout outerClassName="relative" className="relative z-10" railBreakpoint={RAIL_BREAKPOINT}>
       <PageHeader icon={HomeIcon} title={t("title")} description={t("description")} hue="orange">
         <Button variant="brand" onClick={() => setComposeOpen(true)} className="gap-2 max-sm:h-11">
           <PencilLine className="size-4" aria-hidden="true" />

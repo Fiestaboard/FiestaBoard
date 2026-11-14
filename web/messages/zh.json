@@ -82,7 +82,16 @@
     "skipToMainContent": "跳到主要内容",
     "boardSelector": "选择要管理的板",
     "selectBoard": "选择板",
-    "unnamedBoard": "未命名的板"
+    "unnamedBoard": "未命名的板",
+    "more": "更多",
+    "needsAttention": "{count, plural, other {# 项需要处理}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "打开抽屉",
+    "hub": {
+      "online": "在线",
+      "unreachable": "无法连接",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "更多",
@@ -740,7 +749,7 @@
   },
   "settings": {
     "title": "设置",
-    "description": "配置您的 FiestaBoard 服务",
+    "description": "你的账户、此浏览器和此中枢。",
     "advancedSection": "高级",
     "setupWizardTitle": "设置向导",
     "setupWizardDescription": "重新运行设置向导以重新配置看板连接和基本设置。",
@@ -845,7 +854,42 @@
     "displaySilenceTitle": "显示设备静音计划",
     "displaySilenceDescription": "每台显示设备都有独立的静音时段。打开显示设备的“播放”选项卡以更改其计划。",
     "openDisplayPlayback": "打开 {name} 的播放设置",
-    "openDisplays": "管理显示设备"
+    "openDisplays": "管理显示设备",
+    "hub": {
+      "you": "你",
+      "hubGroup": "中枢 · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "账户",
+          "description": "当前登录的身份以及登录方式。"
+        },
+        "appearance": {
+          "title": "外观",
+          "description": "FiestaBoard 在此浏览器中的外观。"
+        },
+        "accessibility": {
+          "title": "无障碍",
+          "description": "此浏览器中的动画和阅读舒适度。"
+        },
+        "network": {
+          "title": "网络",
+          "description": "手机、电视和浏览器如何连接 {name}。更改会影响所有设备。"
+        },
+        "ai-provider": {
+          "title": "AI 提供商",
+          "description": "FiestaBot 使用你选择的提供商。设置之前保持关闭。"
+        },
+        "system": {
+          "title": "系统与备份",
+          "description": "更新、备份以及 {name} 本身。"
+        },
+        "language-time": {
+          "title": "语言与时间",
+          "description": "中枢用于日程、时间变量和所有时间戳。"
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "您已离线",

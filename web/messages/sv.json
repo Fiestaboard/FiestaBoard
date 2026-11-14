@@ -82,7 +82,16 @@
     "skipToMainContent": "Hoppa till huvudinnehållet",
     "boardSelector": "Välj tavla att hantera",
     "selectBoard": "Välj tavla",
-    "unnamedBoard": "Namnlös tavla"
+    "unnamedBoard": "Namnlös tavla",
+    "more": "Mer",
+    "needsAttention": "{count, plural, one {# behöver åtgärdas} other {# behöver åtgärdas}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "Öppnar panelen",
+    "hub": {
+      "online": "Online",
+      "unreachable": "Går inte att nå",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "Mer",
@@ -740,7 +749,7 @@
   },
   "settings": {
     "title": "Inställningar",
-    "description": "Konfigurera din FiestaBoard-tjänst",
+    "description": "Ditt konto, den här webbläsaren och den här hubben.",
     "advancedSection": "Avancerat",
     "setupWizardTitle": "Installationsguide",
     "setupWizardDescription": "Kör installationsguiden igen för att konfigurera om din tavlas anslutning och grundinställningar.",
@@ -845,7 +854,42 @@
     "displaySilenceTitle": "Skärmarnas tysta scheman",
     "displaySilenceDescription": "Varje skärm har egna tysta tider. Öppna fliken Uppspelning för en skärm för att ändra dess schema.",
     "openDisplayPlayback": "Öppna uppspelningsinställningar för {name}",
-    "openDisplays": "Hantera skärmar"
+    "openDisplays": "Hantera skärmar",
+    "hub": {
+      "you": "Du",
+      "hubGroup": "Hubb · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "Konto",
+          "description": "Vem du är inloggad som och hur du loggar in."
+        },
+        "appearance": {
+          "title": "Utseende",
+          "description": "Hur FiestaBoard ser ut i den här webbläsaren."
+        },
+        "accessibility": {
+          "title": "Tillgänglighet",
+          "description": "Rörelse och läskomfort i den här webbläsaren."
+        },
+        "network": {
+          "title": "Nätverk",
+          "description": "Hur telefoner, tv-apparater och webbläsare når {name}. Ändringar påverkar alla enheter."
+        },
+        "ai-provider": {
+          "title": "AI-leverantör",
+          "description": "FiestaBot använder leverantören du väljer. Den är av tills du ställer in en."
+        },
+        "system": {
+          "title": "System och säkerhetskopior",
+          "description": "Uppdateringar, säkerhetskopior och {name} självt."
+        },
+        "language-time": {
+          "title": "Språk och tid",
+          "description": "Används av hubben för Schemat, tidsvariabler och varje tidsstämpel."
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "Du är offline",

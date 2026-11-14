@@ -82,7 +82,16 @@
     "skipToMainContent": "Zum Hauptinhalt springen",
     "boardSelector": "Zu verwaltendes Board auswählen",
     "selectBoard": "Board auswählen",
-    "unnamedBoard": "Unbenanntes Board"
+    "unnamedBoard": "Unbenanntes Board",
+    "more": "Mehr",
+    "needsAttention": "{count, plural, one {# braucht Aufmerksamkeit} other {# brauchen Aufmerksamkeit}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "Öffnet die Seitenleiste",
+    "hub": {
+      "online": "Online",
+      "unreachable": "Nicht erreichbar",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "Mehr",
@@ -740,7 +749,7 @@
   },
   "settings": {
     "title": "Einstellungen",
-    "description": "Konfigurieren Sie Ihren FiestaBoard-Dienst",
+    "description": "Ihr Konto, dieser Browser und dieser Hub.",
     "advancedSection": "Erweitert",
     "setupWizardTitle": "Einrichtungsassistent",
     "setupWizardDescription": "Führen Sie den Einrichtungsassistenten erneut aus, um Ihre Boardverbindung und Grundeinstellungen neu zu konfigurieren.",
@@ -845,7 +854,42 @@
     "displaySilenceTitle": "Ruhezeiten der Anzeigen",
     "displaySilenceDescription": "Jede Anzeige hat eigene Ruhezeiten. Öffne den Tab Wiedergabe einer Anzeige, um ihren Zeitplan zu ändern.",
     "openDisplayPlayback": "Wiedergabeeinstellungen für {name} öffnen",
-    "openDisplays": "Anzeigen verwalten"
+    "openDisplays": "Anzeigen verwalten",
+    "hub": {
+      "you": "Sie",
+      "hubGroup": "Hub · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "Konto",
+          "description": "Mit wem Sie angemeldet sind und wie Sie sich anmelden."
+        },
+        "appearance": {
+          "title": "Darstellung",
+          "description": "Wie FiestaBoard in diesem Browser aussieht."
+        },
+        "accessibility": {
+          "title": "Barrierefreiheit",
+          "description": "Bewegung und Lesekomfort in diesem Browser."
+        },
+        "network": {
+          "title": "Netzwerk",
+          "description": "Wie Telefone, Fernseher und Browser {name} erreichen. Änderungen betreffen jedes Gerät."
+        },
+        "ai-provider": {
+          "title": "KI-Anbieter",
+          "description": "FiestaBot nutzt den Anbieter, den Sie wählen. Er ist aus, bis Sie einen einrichten."
+        },
+        "system": {
+          "title": "System & Sicherungen",
+          "description": "Updates, Sicherungen und {name} selbst."
+        },
+        "language-time": {
+          "title": "Sprache & Zeit",
+          "description": "Vom Hub für den Zeitplan, Zeitvariablen und jeden Zeitstempel genutzt."
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "Sie sind offline",
