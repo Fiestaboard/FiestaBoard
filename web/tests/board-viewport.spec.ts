@@ -153,3 +153,30 @@ test.describe("note-array page card", () => {
     expect(violations).toEqual([]);
   });
 });
+
+test.describe("touch Home actions and viewport controls", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  for (const width of [390, 768, 1280]) {
+    test(`at ${width}px the actions stay above the preview and its mode controls`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      await expect(homeViewport(page)).toHaveAttribute("data-mode", "actual", { timeout: 15_000 });
+      const actions = page.getByRole("button", { name: /^Actions for / });
+      await expect(actions).toBeVisible();
+      const [actionBox, previewBox] = await Promise.all([actions.boundingBox(), homeViewport(page).boundingBox()]);
+      expect(actionBox && previewBox).toBeTruthy();
+      expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(previewBox!.y);
+      if (width !== 1280) {
+        const modes = homeViewport(page).getByRole("group", { name: "Preview size" });
+        await modes.getByRole("button", { name: "Fit", exact: true }).click();
+        await expect(homeViewport(page)).toHaveAttribute("data-mode", "fit");
+        await modes.getByRole("button", { name: "Actual size", exact: true }).click();
+        await expect(homeViewport(page)).toHaveAttribute("data-mode", "actual");
+      }
+      await actions.click();
+      await expect(page.getByRole("menuitem", { name: /Refresh board/ })).toBeVisible();
+      await page.keyboard.press("Escape");
+    });
+  }
+});

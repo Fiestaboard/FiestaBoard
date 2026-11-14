@@ -16,14 +16,14 @@ and `compose-page-dialog.tsx`, 2.7 `page-builder.tsx`), with no edits to them.
 
 1. New `src/components/board-viewport.tsx`: the app's `BoardViewport`. It wires
    the same chrome as `BoardDisplay` (`useBoardChrome`: animation gate, flap speed,
-   translated names) and localises every `labels.*` string and the hint.
-   - Hint: the 07 keyboard hint on a fine pointer ("Shift + scroll, trackpad swipe,
+   translated names) and translates every `labels.*` string and the hint.
+   - Hint: the 07 keyboard hint on a fine pointer ("Shift + scroll, touchpad swipe,
      or ← → when focused. Snaps to each Note." / "… each column."); 02's "swipe"
      on a coarse pointer.
 2. `src/components/scaled-board-display.tsx` renders the app `BoardViewport` by
    default. A new `thumbnail` prop keeps the FiestaUI `ScaledBoardDisplay` fit path,
    with `mode="fit"` and `persist={false}`, so a session's "Actual" choice never
-   turns a thumbnail into a scroller.
+   turns a thumbnail into a scroll region.
 3. Thumbnail call sites pass `thumbnail`:
    - `page-grid-selector.tsx` `PageButtonPreview`: the board sits inside the page
      `<button>`. A scroll region or toggle there would be a nested-interactive
@@ -40,7 +40,7 @@ and `compose-page-dialog.tsx`, 2.7 `page-builder.tsx`), with no edits to them.
 | Call site                                                                                          | Result                                                                                                           |
 | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Home hero `active-page-display.tsx`                                                                | BoardViewport (through the wrapper)                                                                              |
-| Editor preview `page-builder.tsx`                                                                  | BoardViewport (through the wrapper); draw mode hit-tests tiles inside the scroller                               |
+| Editor preview `page-builder.tsx`                                                                  | BoardViewport (through the wrapper); draw mode hit-tests tiles inside the scroll region                               |
 | Compose dialog `compose-page-dialog.tsx`                                                           | BoardViewport (through the wrapper)                                                                              |
 | Display detail and Displays list `display-live-preview.tsx`                                        | BoardViewport, with a per-display region name                                                                    |
 | Setup wizard `wizard/step-board-setup.tsx`                                                         | BoardViewport (through the wrapper)                                                                              |
@@ -54,7 +54,7 @@ and `compose-page-dialog.tsx`, 2.7 `page-builder.tsx`), with no edits to them.
 
 ## Tests (written first)
 
-- vitest `src/__tests__/board-viewport.test.tsx`: localised labels, the hint per
+- vitest `src/__tests__/board-viewport.test.tsx`: translated labels, the hint per
   paging kind and pointer, region name override, the chrome passthrough.
 - vitest `src/__tests__/scaled-board-display.test.tsx` (rewritten): the wrapper
   renders BoardViewport by default with Actual size as the default for every board
@@ -105,3 +105,12 @@ previews. Add an editor integration check for actual scrolling and Fit changes.
 Run full static/build/coverage, serial slice browser and accessibility checks, and
 refresh Home/editor/fixture evidence at 390/768/1280 in both themes. Remain draft
 pending a fresh independent READY review of the integrated head.
+
+### Home action trigger integration
+
+Fresh combined-runtime screenshots found the existing absolute Home actions
+trigger overlapping the viewport's Actual size control. Move only that click
+trigger into the released `NowShowingCard.meta` header slot. Keep board gesture
+handling and share the exact same action callbacks, permissions and disabled
+states across both menus. A real touch-browser regression pins non-overlap and
+clickable preview modes at 390/768/1280. Jev selected the header slot at p=.96.
