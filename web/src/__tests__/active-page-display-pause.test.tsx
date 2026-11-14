@@ -1,12 +1,14 @@
 /**
- * Pause / resume from Home (issue #2051).
+ * The board context menu on Home (slice 2.2, WEB-18, 07a §6) and pause /
+ * resume from it (issue #2051).
  *
- * Pausing used to live five clicks deep in Settings → Hardware. Home already
- * shows the "Paused" badge, so it offers the toggle too, next to Change Page,
- * for the board the Active Display is showing.
+ * 07a moves Pause off the card's action row into the board menu (and the
+ * Displays page): right-click, Shift+F10 or a long-press on the board, or the
+ * ⋯ button that shows on hover, focus and touch. Items: Change Page… ·
+ * Compose a message… · Edit page · Copy as text · Refresh board │ Pause <display>.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -74,37 +76,103 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-describe("ActivePageDisplay pause toggle (issue #2051)", () => {
+async function openMenu(user: ReturnType<typeof userEvent.setup>, name: string | RegExp = /^Actions for /) {
+  await user.click(await screen.findByRole("button", { name }));
+  return screen.findByRole("menu");
+}
+
+describe("ActivePageDisplay board menu (WEB-18) and pause (issue #2051)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
   });
 
-  it("pauses a running board from Home and then offers to resume it", async () => {
+  it("lists 07a's items, with Pause apart and named for the display", async () => {
+    serveBoards([{ id: "default", name: "Flagship", paused: false }]);
+    const user = userEvent.setup();
+    render(<ActivePageDisplay />, { wrapper: Wrapper });
+    const menu = await openMenu(user, "Actions for Flagship");
+    const items = within(menu)
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent?.replace(/[PCE]$/, ""));
+    expect(items).toEqual(["Change Page…", "Compose a message…", "Edit page", "Refresh board", "Pause Flagship"]);
+  });
+
+  it("opens the same menu on a right-click on the board", async () => {
+    serveBoards([{ id: "default", name: "Flagship", paused: false }]);
+    render(<ActivePageDisplay />, { wrapper: Wrapper });
+    fireEvent.contextMenu(await screen.findByTestId("home-board"));
+    expect(await screen.findByRole("menuitem", { name: /Change Page…/ })).toBeInTheDocument();
+  });
+
+  it("opens Change Page and asks for Compose from the menu", async () => {
+    serveBoards([{ id: "default", name: "Flagship", paused: false }]);
+    const onCompose = vi.fn();
+    const user = userEvent.setup();
+    render(<ActivePageDisplay onCompose={onCompose} />, { wrapper: Wrapper });
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: /Compose a message…/ }));
+    expect(onCompose).toHaveBeenCalledTimes(1);
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: /Change Page…/ }));
+    expect(await screen.findByRole("dialog", { name: "Change Page" })).toBeInTheDocument();
+  });
+
+  it("refreshes the display through its own restore route", async () => {
+    serveBoards([{ id: "default", name: "Flagship", paused: false }]);
+    let restored = 0;
+    server.use(
+      http.post(`${API_BASE}/v1/boards/:board/restore`, () => {
+        restored += 1;
+        return HttpResponse.json({
+          board_id: "default",
+          page_id: "page-1",
+          sent: true,
+          reason: null,
+          device_observed: false,
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    render(<ActivePageDisplay />, { wrapper: Wrapper });
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Refresh board" }));
+    await waitFor(() => expect(restored).toBe(1));
+  });
+
+  it("copies the board's text when the hub reports it", async () => {
+    serveBoards([{ id: "default", name: "Flagship", paused: false }]);
+    let detailRead = false;
+    server.use(
+      http.get(`${API_BASE}/v1/boards/:board`, () => {
+        detailRead = true;
+        return HttpResponse.json({ id: "default", name: "Flagship", text: "GOOD EVENING\nMAYA" });
+      }),
+    );
+    // userEvent installs its own clipboard stub on setup.
+    const user = userEvent.setup();
+    render(<ActivePageDisplay />, { wrapper: Wrapper });
+    await waitFor(() => expect(detailRead).toBe(true));
+    await openMenu(user);
+    await user.click(await screen.findByRole("menuitem", { name: "Copy as text" }));
+    await waitFor(async () => expect(await navigator.clipboard.readText()).toBe("GOOD EVENING\nMAYA"));
+  });
+
+  it("pauses a running display from the menu and then offers to resume it", async () => {
     const patches = serveBoards([{ id: "default", name: "Flagship", paused: false }]);
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: Wrapper });
 
-    await user.click(await screen.findByRole("button", { name: "Pause sends" }));
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Pause Flagship" }));
 
-    expect(patches).toEqual([{ board: "default", body: { paused: true } }]);
-    expect(await screen.findByRole("button", { name: "Resume sends" })).toBeInTheDocument();
-    expect(screen.getByTestId("board-paused-badge")).toBeInTheDocument();
+    await waitFor(() => expect(patches).toEqual([{ board: "default", body: { paused: true } }]));
+    expect(await screen.findByTestId("board-paused-badge")).toBeInTheDocument();
+    await openMenu(user);
+    expect(screen.getByRole("menuitem", { name: "Resume Flagship" })).toBeInTheDocument();
   });
 
-  it("resumes a paused board from Home", async () => {
-    const patches = serveBoards([{ id: "default", name: "Flagship", paused: true }]);
-    const user = userEvent.setup();
-    render(<ActivePageDisplay />, { wrapper: Wrapper });
-
-    await user.click(await screen.findByRole("button", { name: "Resume sends" }));
-
-    expect(patches).toEqual([{ board: "default", body: { paused: false } }]);
-    expect(await screen.findByRole("button", { name: "Pause sends" })).toBeInTheDocument();
-    expect(screen.queryByTestId("board-paused-badge")).not.toBeInTheDocument();
-  });
-
-  it("acts on the board selected in the sidebar, not the primary one", async () => {
+  it("acts on the display selected in the sidebar, not the primary one", async () => {
     const patches = serveBoards([
       { id: "board-1", name: "Living Room", paused: false },
       { id: "board-2", name: "Kitchen", paused: true },
@@ -113,11 +181,10 @@ describe("ActivePageDisplay pause toggle (issue #2051)", () => {
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: Wrapper });
 
-    // Kitchen is paused, so the toggle offers to resume it even though the
-    // primary board (Living Room) is running.
-    await user.click(await screen.findByRole("button", { name: "Resume sends" }));
+    await openMenu(user, "Actions for Kitchen");
+    await user.click(screen.getByRole("menuitem", { name: "Resume Kitchen" }));
 
-    expect(patches).toEqual([{ board: "board-2", body: { paused: false } }]);
+    await waitFor(() => expect(patches).toEqual([{ board: "board-2", body: { paused: false } }]));
   });
 
   it("does not show the Paused badge while viewing a running board when another board is paused", async () => {
@@ -128,9 +195,7 @@ describe("ActivePageDisplay pause toggle (issue #2051)", () => {
     localStorage.setItem("fiestaboard_current_board", "board-1");
     render(<ActivePageDisplay />, { wrapper: Wrapper });
 
-    // The toggle only renders once board settings have loaded, so the badge
-    // would be on screen by now if Kitchen's pause leaked onto Living Room.
-    await screen.findByRole("button", { name: "Pause sends" });
+    await screen.findByRole("region", { name: /Now showing.*Living Room/ });
 
     expect(screen.queryByTestId("board-paused-badge")).not.toBeInTheDocument();
   });
@@ -146,54 +211,6 @@ describe("ActivePageDisplay pause toggle (issue #2051)", () => {
     expect(await screen.findByTestId("board-paused-badge")).toHaveTextContent(/^Paused$/);
   });
 
-  it("explains what pausing does on the button itself", async () => {
-    serveBoards([{ id: "default", name: "Flagship", paused: false }]);
-    render(<ActivePageDisplay />, { wrapper: Wrapper });
-
-    const button = await screen.findByRole("button", { name: "Pause sends" });
-    expect(button).toHaveAttribute("title", expect.stringContaining("does not push anything to this board"));
-  });
-
-  // On phones the header actions collapse into a kebab menu (the inline
-  // buttons are hidden below the sm breakpoint; jsdom renders both).
-  it("pauses the board from the phone-width actions menu", async () => {
-    const patches = serveBoards([{ id: "default", name: "Flagship", paused: false }]);
-    const user = userEvent.setup();
-    render(<ActivePageDisplay />, { wrapper: Wrapper });
-
-    await user.click(await screen.findByRole("button", { name: "More options" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Pause sends" }));
-
-    await waitFor(() => expect(patches).toEqual([{ board: "default", body: { paused: true } }]));
-  });
-
-  it("opens the page picker from the phone-width actions menu", async () => {
-    serveBoards([{ id: "default", name: "Flagship", paused: false }]);
-    const user = userEvent.setup();
-    render(<ActivePageDisplay />, { wrapper: Wrapper });
-
-    await user.click(await screen.findByRole("button", { name: "More options" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Change Page" }));
-
-    expect(await screen.findByText("Select Page")).toBeInTheDocument();
-  });
-
-  it("links to the schedule from the phone-width actions menu when a schedule is running", async () => {
-    serveBoards([{ id: "default", name: "Flagship", paused: false }]);
-    server.use(
-      http.get(`${API_BASE}/schedules/active/page`, () =>
-        HttpResponse.json({ page_id: "page-1", source: "schedule", schedule_enabled: true }),
-      ),
-    );
-    const user = userEvent.setup();
-    render(<ActivePageDisplay />, { wrapper: Wrapper });
-
-    await screen.findByRole("link", { name: /View Schedule/i });
-    await user.click(screen.getByRole("button", { name: "More options" }));
-
-    expect(await screen.findByRole("menuitem", { name: "View Schedule" })).toHaveAttribute("href", "/schedule");
-  });
-
   it("shows the error and leaves the board state alone when the request fails", async () => {
     const errorToast = vi.spyOn((await import("sonner")).toast, "error");
     serveBoards([{ id: "default", name: "Flagship", paused: false }]);
@@ -205,10 +222,10 @@ describe("ActivePageDisplay pause toggle (issue #2051)", () => {
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: Wrapper });
 
-    await user.click(await screen.findByRole("button", { name: "Pause sends" }));
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Pause Flagship" }));
 
     await waitFor(() => expect(errorToast).toHaveBeenCalled());
-    expect(screen.getByRole("button", { name: "Pause sends" })).toBeEnabled();
     expect(screen.queryByTestId("board-paused-badge")).not.toBeInTheDocument();
     errorToast.mockRestore();
   });

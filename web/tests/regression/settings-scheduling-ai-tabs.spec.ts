@@ -207,19 +207,18 @@ test.describe("regression: settings.behavior", () => {
   });
 });
 
-test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)", () => {
+test.describe("regression: settings.integrations (AI / MCP, and MQTT on Network)", () => {
   /**
    * UX node: settings.tab-integrations
-   * Route: /settings (AI tab)
-   * Expected: AI / MCP cards render on the AI tab; MQTT renders on General
+   * Route: /settings/ai-provider (AI provider)
+   * Expected: AI / MCP cards render on AI provider; MQTT renders on Network
    * Source refs: web/src/components/settings/integrations/*
    * Coverage status: uncovered
    */
-  test("settings.tab-integrations — AI / MCP cards on AI, MQTT on General", async ({ page }) => {
-    await page.goto("/settings");
+  test("settings.tab-integrations — AI / MCP cards on AI provider, MQTT on Network", async ({ page }) => {
+    await page.goto("/settings/ai-provider");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await page.getByRole("tab", { name: "AI", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "AI provider", exact: true })).toBeVisible();
 
     // AI card
     await expect(page.getByText("AI Providers", { exact: true })).toBeVisible({
@@ -233,15 +232,20 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
     await expect(page.getByText("MCP / external clients")).toBeVisible();
     await expect(page.getByText("Status:", { exact: false }).first()).toBeVisible();
 
-    // MQTT moved to General in 10.0: not on the AI tab any more.
+    // MQTT moved to General in 10.0, then to Network (slice 2.1): not on
+    // AI provider.
     await expect(page.getByText("Home Assistant (MQTT)")).toHaveCount(0);
-    await page.getByRole("tab", { name: "General", exact: true }).click();
+    await page
+      .getByRole("list", { name: /^Hub · / })
+      .getByRole("link", { name: "Network" })
+      .click();
+    await expect(page).toHaveURL(/\/settings\/network$/);
     await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible({ timeout: 10_000 });
   });
 
   /**
    * UX node: settings.integrations.ai-test
-   * Route: /settings (AI tab → AI card)
+   * Route: /settings/ai-provider (AI provider → AI card)
    * Interactions: configure provider → click:test
    * Expected: pending state on Test button; success or error toast on completion
    * Source refs: web/src/components/settings/integrations/*
@@ -293,10 +297,9 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
       });
     });
 
-    await page.goto("/settings");
+    await page.goto("/settings/ai-provider");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await page.getByRole("tab", { name: "AI", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "AI provider", exact: true })).toBeVisible();
     await expect(page.getByText("AI Providers", { exact: true })).toBeVisible({
       timeout: 10_000,
     });
@@ -323,7 +326,7 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
 
   /**
    * UX node: settings.integrations.mcp-rotate-confirm
-   * Route: /settings (AI tab → MCP card)
+   * Route: /settings/ai-provider (AI provider → MCP card)
    * Interactions: click:rotate-token → AlertDialog
    * Expected: confirm dialog warns; Confirm rotates token; new token surfaced
    * Source refs: web/src/components/settings/integrations/*
@@ -351,9 +354,9 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
       });
     });
 
-    await page.goto("/settings");
+    await page.goto("/settings/ai-provider");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "AI", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "AI provider", exact: true })).toBeVisible();
 
     await expect(page.getByText("MCP / external clients")).toBeVisible({
       timeout: 10_000,
@@ -377,7 +380,7 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
 
   /**
    * UX node: settings.integrations.mcp-revoke-confirm
-   * Route: /settings (AI tab → MCP card)
+   * Route: /settings/ai-provider (AI provider → MCP card)
    * Interactions: click:revoke → AlertDialog
    * Expected: confirm dialog warns; Confirm revokes token; row disabled
    * Source refs: web/src/components/settings/mcp-settings.tsx
@@ -411,10 +414,9 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
       });
     });
 
-    await page.goto("/settings");
+    await page.goto("/settings/ai-provider");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await page.getByRole("tab", { name: "AI", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "AI provider", exact: true })).toBeVisible();
 
     // MCP card and its action buttons should render.
     await expect(page.getByText("MCP / external clients")).toBeVisible({
@@ -438,7 +440,7 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
 
   /**
    * UX node: settings.integrations.mcp-token-dialog
-   * Route: /settings (AI tab → MCP card)
+   * Route: /settings/ai-provider (AI provider → MCP card)
    * Interactions: open:show-token dialog
    * Expected: dialog shows MCP token with Copy affordance; Copy → clipboard
    * Source refs: web/src/components/settings/integrations/*
@@ -473,9 +475,9 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
       await route.fallback();
     });
 
-    await page.goto("/settings");
+    await page.goto("/settings/ai-provider");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "AI", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "AI provider", exact: true })).toBeVisible();
 
     await expect(page.getByText("MCP / external clients")).toBeVisible({
       timeout: 10_000,
@@ -509,7 +511,7 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
 
   /**
    * UX node: settings.integrations.mqtt-saved
-   * Route: /settings (General tab → MQTT card)
+   * Route: /settings/network (MQTT card)
    * Expected: edit MQTT config + Save → success toast and connection-status indicator updates
    * Source refs: web/src/components/settings/integrations/*
    * Coverage status: uncovered
@@ -521,9 +523,9 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
     });
     const before = beforeRes.ok ? await beforeRes.json() : null;
 
-    await page.goto("/settings");
+    await page.goto("/settings/network");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "General", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "Network", exact: true })).toBeVisible();
 
     await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible({
       timeout: 10_000,
@@ -545,8 +547,8 @@ test.describe("regression: settings.integrations (AI / MCP, and MQTT on General)
       { timeout: 10_000 },
     );
 
-    // General carries other cards with their own Save button (instance name,
-    // location), so scope to the MQTT card.
+    // Scope to the MQTT card: other cards on the page may carry their own
+    // Save button.
     const mqttCard = page.locator('[data-ai-anchor="settings.mqtt"]');
     await mqttCard.getByRole("button", { name: "Save", exact: true }).click();
     const saveResponse = await savePromise;

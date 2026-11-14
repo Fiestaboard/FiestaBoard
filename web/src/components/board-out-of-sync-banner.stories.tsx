@@ -209,8 +209,9 @@ const banner = (canvasElement: HTMLElement) => within(canvasElement).findByTestI
 /** Both action buttons sit inside the viewport and below the title (the phone layout). */
 async function expectActionsBelowTitleInViewport(canvasElement: HTMLElement) {
   const alert = await banner(canvasElement);
-  const title = alert.querySelector("h5") as HTMLElement;
-  const titleBox = title.getBoundingClientRect();
+  const title = alert.querySelector<HTMLElement>('[data-slot="status-banner-title"], [data-slot="alert-title"]');
+  await expect(title).not.toBeNull();
+  const titleBox = title!.getBoundingClientRect();
   for (const button of within(alert).getAllByRole("button")) {
     const box = button.getBoundingClientRect();
     await expect(box.left).toBeGreaterThanOrEqual(0);

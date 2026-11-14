@@ -245,8 +245,9 @@ test.describe("Authentication", () => {
       // is_first_run flips to false and the page actually loads.
       await ensureBoardConfigured(page);
       await page.goto("/profile");
-      // Profile is a thin redirect to /settings?section=general.
-      await page.waitForURL(/\/settings/, { timeout: 5_000 });
+      // Profile is a thin redirect to /settings?section=general, which now
+      // lands on /settings/appearance (the General tab was split, slice 2.1).
+      await page.waitForURL(/\/settings\/appearance$/, { timeout: 5_000 });
     });
 
     test("validation: /auth/login with empty username is rejected (422)", async ({ request }) => {

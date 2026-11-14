@@ -24,31 +24,38 @@ test.beforeEach(async ({ page }) => {
 // ---------------------------------------------------------------------------
 
 test.describe("Settings Page", () => {
-  test("loads settings page with all tab sections visible", async ({ page }) => {
+  test("loads settings page with all sections listed", async ({ page }) => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Tab strip exposes the install-wide sections; boards moved to Displays (plan D21)
-    for (const section of ["General", "AI", "System", "Advanced"]) {
-      await expect(page.getByRole("tab", { name: section, exact: true })).toBeVisible({ timeout: 5_000 });
-    }
-    // Scheduling now belongs to display Playback; Integrations was renamed AI.
+    // The list-detail (slice 2.1) lists the reader's own sections ("You")
+    // and the hub's ("Hub · <name>"); boards moved to Displays (plan D21).
+    const you = page.getByRole("list", { name: "You" });
+    const hub = page.getByRole("list", { name: /^Hub · / });
+    await expect(you.getByRole("link")).toHaveText(["Account", "Appearance", "Accessibility"], { timeout: 15_000 });
+    await expect(hub.getByRole("link")).toHaveText(["Network", "AI provider", "System & backups", "Language & time"]);
+    // Scheduling now belongs to display Playback; there is no Hardware,
+    // Behavior or Integrations section, and no tab strip at all.
     for (const gone of ["Hardware", "Behavior", "Scheduling", "Integrations"]) {
-      await expect(page.getByRole("tab", { name: gone, exact: true })).toHaveCount(0);
+      await expect(
+        page.locator('[data-slot="settings-index"]').getByRole("link", { name: gone, exact: true }),
+      ).toHaveCount(0);
     }
+    await expect(page.getByRole("tab")).toHaveCount(0);
 
-    // General tab carries MQTT (moved from Integrations)
+    // Network carries MQTT (moved from Integrations, then General)
+    await hub.getByRole("link", { name: "Network" }).click();
+    await expect(page).toHaveURL(/\/settings\/network$/);
     await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible({ timeout: 10_000 });
 
-    // Advanced tab contains Debug Tools
-    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
+    // System & backups contains Debug Tools (the old Advanced tab) and the
+    // Setup Wizard card, and no About card (the About box in the account
+    // menu replaced it)
+    await hub.getByRole("link", { name: "System & backups" }).click();
+    await expect(page).toHaveURL(/\/settings\/system$/);
     await expect(page.getByText("Debug Tools").first()).toBeVisible({
       timeout: 5_000,
     });
-
-    // System tab contains the Setup Wizard card, and no About card (the
-    // About box in the account menu replaced it)
-    await page.getByRole("tab", { name: "System", exact: true }).click();
     await expect(page.getByText("Setup Wizard").first()).toBeVisible({
       timeout: 5_000,
     });
@@ -65,11 +72,13 @@ test.describe("Settings Page", () => {
     await expect(page.getByText("Update Intervals").first()).toBeVisible();
   });
 
-  test("an old ?section=integrations link opens AI", async ({ page }) => {
+  test("an old ?section=integrations link opens AI provider", async ({ page }) => {
     await page.goto("/settings?section=integrations");
-    await expect(page.getByRole("tab", { name: "AI", exact: true })).toHaveAttribute("aria-selected", "true", {
-      timeout: 15_000,
-    });
+    await expect(page).toHaveURL(/\/settings\/ai-provider$/, { timeout: 15_000 });
+    await expect(
+      page.getByRole("list", { name: /^Hub · / }).getByRole("link", { name: "AI provider" }),
+    ).toHaveAttribute("aria-current", "page", { timeout: 15_000 });
+    await expect(page.getByRole("heading", { level: 2, name: "AI provider", exact: true })).toBeVisible();
     await expect(page.getByText("AI Providers", { exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
