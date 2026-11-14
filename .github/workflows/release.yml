@@ -2,7 +2,7 @@ name: Release
 
 # Releases are batched through Changesets. Every PR that changes what ships adds
 # a `.changeset/*.md` file (ci.yml's release-guards job enforces it). On each
-# push to `main` or `alpha`:
+# push to `main`, `alpha` or `v11`:
 #
 # 1. changesets/action opens or updates ONE "chore: release" Version PR that
 #    consumes the pending changesets, bumps the version (package.json,
@@ -21,7 +21,8 @@ name: Release
 # triggers the docs snapshot, the FiestaPi image and the Docker Hub
 # description. `alpha` runs in Changesets pre mode (`.changeset/pre.json`, tag
 # `beta`) and releases X.Y.Z-beta.N to `:beta` as a GitHub prerelease, which
-# only installs on the beta channel see. See docs/internal/development/RELEASING.md.
+# only installs on the beta channel see. `v11` publishes isolated Docker tags
+# (`:v11-alpha` and `:v11-alpha-11.0.0-alpha.N`) and a git tag only. See docs/internal/development/RELEASING.md.
 #
 # Trigger is `push`, not `workflow_run`: under workflow_run GITHUB_REF is the
 # default branch, and changesets/action takes its branch from GITHUB_REF, so an
@@ -29,7 +30,7 @@ name: Release
 # only adds a changeset must still update the Version PR.
 on:
   push:
-    branches: [main, alpha]
+    branches: [main, alpha, v11]
   # Re-run lever after an infrastructure failure. Pick the branch in the UI.
   workflow_dispatch:
 
@@ -50,13 +51,15 @@ jobs:
     # manual run from any other branch would open a Version PR against it.
     if: >-
       github.repository == 'Fiestaboard/FiestaBoard'
-      && (github.ref_name == 'main' || github.ref_name == 'alpha')
+      && (github.ref_name == 'main' || github.ref_name == 'alpha' || github.ref_name == 'v11')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
       release: ${{ steps.plan.outputs.release }}
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
+      image_tag: ${{ steps.plan.outputs.image_tag }}
+      moving_tag: ${{ steps.plan.outputs.moving_tag }}
       prerelease: ${{ steps.plan.outputs.prerelease }}
       release_sha: ${{ steps.plan.outputs.release_sha }}
     steps:
@@ -93,12 +96,17 @@ jobs:
         if: github.ref_name == 'alpha'
         run: python3 scripts/release/pre_mode.py alpha-action >> "$GITHUB_OUTPUT"
 
+      - name: Check v11 prerelease mode
+        id: v11
+        if: github.ref_name == 'v11'
+        run: python3 scripts/release/pre_mode.py v11-action >> "$GITHUB_OUTPUT"
+
       # v2, not v1: v1 supports the Changesets v2 CLI only. No publish-script:
       # this step only maintains the Version PR; releasing is decided below.
       # The token goes in `github-token` only. v2 throws if a GITHUB_TOKEN env
       # differs from it, and hands it to changelog-github itself.
       - name: Open or update the Version PR
-        if: github.ref_name != 'alpha' || steps.alpha.outputs.action == 'release'
+        if: (github.ref_name != 'alpha' || steps.alpha.outputs.action == 'release') && (github.ref_name != 'v11' || steps.v11.outputs.action == 'release')
         uses: changesets/action@v2
         with:
           github-token: ${{ steps.app-token.outputs.token }}
@@ -108,7 +116,7 @@ jobs:
 
       - name: Decide whether to release
         id: plan
-        if: github.ref_name != 'alpha' || steps.alpha.outputs.action == 'release'
+        if: (github.ref_name != 'alpha' || steps.alpha.outputs.action == 'release') && (github.ref_name != 'v11' || steps.v11.outputs.action == 'release')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -162,7 +170,7 @@ jobs:
       - name: Check if already pushed
         id: check-existing
         env:
-          VERSION: ${{ needs.version.outputs.version }}
+          VERSION: ${{ needs.version.outputs.image_tag }}
           ARCH: ${{ matrix.arch }}
         run: |
           EXISTING=$(docker buildx imagetools inspect "fiestaboard/fiestaboard:${VERSION}" --raw 2>/dev/null | \
@@ -241,11 +249,10 @@ jobs:
       - name: Create manifest list and push
         working-directory: /tmp/digests
         env:
-          VERSION: ${{ needs.version.outputs.version }}
-          PRERELEASE: ${{ needs.version.outputs.prerelease }}
+          VERSION: ${{ needs.version.outputs.image_tag }}
+          MOVING: ${{ needs.version.outputs.moving_tag }}
         run: |
           set -euo pipefail
-          if [ "$PRERELEASE" = "true" ]; then MOVING=beta; else MOVING=latest; fi
           # shellcheck disable=SC2046 # one argument per digest file
           docker buildx imagetools create \
             -t "fiestaboard/fiestaboard:${VERSION}" \
@@ -254,7 +261,7 @@ jobs:
 
       - name: Verify the published manifest carries both architectures
         env:
-          VERSION: ${{ needs.version.outputs.version }}
+          VERSION: ${{ needs.version.outputs.image_tag }}
         run: |
           set -euo pipefail
           RAW=$(docker buildx imagetools inspect "fiestaboard/fiestaboard:${VERSION}" --raw)
@@ -265,7 +272,35 @@ jobs:
           done
           echo "fiestaboard/fiestaboard:${VERSION} carries linux/amd64 and linux/arm64"
 
+  v11-tag:
+    name: Mark v11 image published
+    needs: [version, merge]
+    if: github.ref_name == 'v11'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
+      RELEASE_SHA: ${{ needs.version.outputs.release_sha }}
+    steps:
+      # A public GitHub Release would be offered to already-deployed beta
+      # clients. The tag alone records success without entering their feed.
+      - name: Tag the published image
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { TAG: tag, RELEASE_SHA: sha } = process.env;
+            try {
+              await github.rest.git.createRef({ ...context.repo, ref: `refs/tags/${tag}`, sha });
+            } catch (error) {
+              if (error.status !== 422) throw error;
+              const { data: ref } = await github.rest.git.getRef({ ...context.repo, ref: `tags/${tag}` });
+              if (ref.object.sha !== sha) throw new Error(`Tag ${tag} points at ${ref.object.sha}, not ${sha}`);
+            }
+
   release:
+    if: github.ref_name != 'v11'
     name: Create Release
     needs: [version, merge]
     runs-on: ubuntu-latest
