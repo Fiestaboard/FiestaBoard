@@ -32,6 +32,7 @@ from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
 
+from .diagnostics import RenderReport
 from .engine import get_template_engine
 from .expressions import function_signatures
 from .filters import TEMPLATE_FILTERS
@@ -156,7 +157,10 @@ async def validate_template(request: TemplateValidateRequest):
     # Handle both string and list input. ``line_metadata`` has one entry per
     # list element; an element holding a newline is several lines to measure,
     # and each takes its element's entry so the elements after it keep theirs.
+    rows_kw: dict = {}
     if isinstance(template, list):
+        # Render keeps a list's first ``rows`` lines; validate flags the rest (H5).
+        rows_kw = {"rows": None}
         if line_metadata is not None:
             line_metadata = [
                 meta
@@ -170,8 +174,10 @@ async def validate_template(request: TemplateValidateRequest):
     dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
 
     template_engine = get_template_engine()
+    if rows_kw:
+        rows_kw["rows"] = dims.rows
     problems = template_engine.validate_template(
-        template, cols=dims.cols, line_metadata=line_metadata, **check.render_kw
+        template, cols=dims.cols, line_metadata=line_metadata, **rows_kw, **check.render_kw
     )
 
     return TemplateValidationResponse(
@@ -259,6 +265,7 @@ async def render_template(request: TemplateRenderRequest):
 
     template_engine = get_template_engine()
     line_metadata = request.line_metadata
+    report = RenderReport() if request.diagnostics else None
 
     try:
         # Rendering fetches plugin data, so it belongs on a worker thread, not
@@ -275,15 +282,16 @@ async def render_template(request: TemplateRenderRequest):
                 notes_tall=notes_tall,
                 grid_rows=grid_rows,
                 grid_cols=grid_cols,
+                report=report,
                 **check.lines_kw,
             )
         else:
             logger.info(f"Rendering template string: {template}")
-            rendered = await asyncio.to_thread(template_engine.render, template, **check.render_kw)
+            rendered = await asyncio.to_thread(template_engine.render, template, report=report, **check.render_kw)
 
         lines = rendered.split("\n")
         return TemplateRenderCheckedResponse(
-            rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered)
+            rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered), **_diagnostics(report)
         )
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
@@ -311,7 +319,13 @@ async def render_template_with_canvases(request: TemplateRenderRequest, check: _
             "canvas_issues": [issue.to_json() for issue in result.canvas_issues or ()],
         }
     return TemplateRenderCheckedResponse(
-        rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered), **extra
+        rendered=rendered,
+        lines=lines,
+        line_count=len(lines),
+        **check.result(rendered),
+        **extra,
+        # Not reported for a page with pixel canvases yet (H5): asked for, it is null.
+        **({"diagnostics": None} if request.diagnostics else {}),
     )
 
 
@@ -343,6 +357,12 @@ async def _render_canvas_page(request, geometry, display, render_kw):
     if not result.available:
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {result.error}")
     return result
+
+
+def _diagnostics(report: RenderReport | None) -> dict:
+    """The response's ``diagnostics`` when the request asked for it (H5);
+    nothing otherwise, so a response without it is unchanged."""
+    return {"diagnostics": report.to_json()} if report is not None else {}
 
 
 def _render_geometry(request, board: dict | None) -> tuple:
@@ -473,6 +493,8 @@ async def render_template_live(request: TemplateRenderLiveRequest):
     # Explicit [] also renders/sends an empty page to clear removed canvases.
     layers = ()
     canvas_extra = {}
+    # A page with pixel canvases is not reported yet: diagnostics stay null.
+    report = None
     if request.canvases is not None:
         from src.pages.service import draws_pixels
 
@@ -489,6 +511,7 @@ async def render_template_live(request: TemplateRenderLiveRequest):
 
     else:
         # Preserve the text-only render path for callers without canvases.
+        report = RenderReport() if request.diagnostics else None
         try:
             if isinstance(template, list):
                 rendered = await asyncio.to_thread(
@@ -500,11 +523,12 @@ async def render_template_live(request: TemplateRenderLiveRequest):
                     notes_tall=notes_tall,
                     grid_rows=grid_rows,
                     grid_cols=grid_cols,
+                    report=report,
                     **render_kw,
                     **({"display": display} if display is not None else {}),
                 )
             else:
-                rendered = await asyncio.to_thread(template_engine.render, template, **render_kw)
+                rendered = await asyncio.to_thread(template_engine.render, template, report=report, **render_kw)
         except Exception as e:
             logger.error(f"Template rendering error: {e}", exc_info=True)
             raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
@@ -575,4 +599,5 @@ async def render_template_live(request: TemplateRenderLiveRequest):
         silenced=silenced,
         board_id=target_board.get("id") if target_board else None,
         **canvas_extra,
+        **_diagnostics(report),
     )

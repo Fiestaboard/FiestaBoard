@@ -111,7 +111,13 @@ class TemplateValidationError(BaseModel):
     column: int = Field(description="0-based column. For line_too_long it is the board width: where the cut starts.")
     message: str
     code: Literal[
-        "mismatched_braces", "line_too_long", "unknown_filter", "unknown_source", "unknown_field", "formula"
+        "mismatched_braces",
+        "line_too_long",
+        "unknown_filter",
+        "unknown_source",
+        "unknown_field",
+        "formula",
+        "beyond_board",
     ] = Field(description="The kind of problem, for the editor's marker and wording.")
     max_length: int | None = Field(
         default=None,
@@ -165,11 +171,79 @@ class TemplateRenderRequest(TemplateTarget):
     #: ``flow`` canvas) on every board; for a pixel-matrix ``board_id`` the
     #: response also carries their ``layers`` and ``canvas_issues``.
     canvases: list[Canvas] | None = None
+    #: Also report what each formula evaluated to and what each template line
+    #: produced (``diagnostics`` in the response). Off by default.
+    diagnostics: bool = False
 
     @field_validator("canvases")
     @classmethod
     def _canvases_valid(cls, value: list[Canvas] | None) -> list[Canvas] | None:
         return None if value is None else validate_page_canvases(value)
+
+
+class FormulaDiagnostic(BaseModel):
+    """One ``{{= … }}`` formula: where it sits in the template and what it evaluated to."""
+
+    line: int = Field(description="1-based template line.")
+    start: int = Field(description="0-based character offset of the {{= … }} in that line.")
+    end: int = Field(description="Offset just past the formula's closing braces.")
+    source: str = Field(description="The formula body, without the braces.")
+    value: str = Field(
+        description=(
+            "What the formula renders on the board, an error as its tag (#SYNTAX:<pos> included); rows of a "
+            "FOREACH joined with newlines."
+        )
+    )
+    error: str | None = Field(
+        default=None, description="#REF, #VALUE, #DIV/0, #NAME?, #NUM or #SYNTAX when it failed; null otherwise."
+    )
+    error_at: int | None = Field(default=None, description="For #SYNTAX: the character offset in source.")
+    message: str | None = Field(default=None, description="Why it failed, in the evaluator's words, when known.")
+    value_truncated: bool = Field(
+        default=False,
+        description="True when value was cut: it keeps the larger of 4096 characters and the board's area.",
+    )
+
+
+class LineDiagnostic(BaseModel):
+    """What one template line produced on the board."""
+
+    line: int = Field(description="1-based template line.")
+    first_row: int | None = Field(description="1-based board row it starts on; null when it shows nowhere.")
+    rows_wanted: int = Field(description="Rows it needs: 1, a FOREACH's rows, or a wrapped line's rows.")
+    rows_shown: int = Field(description="Rows that landed on the board.")
+    clip: Literal["stopped_by_line", "board_end", "covered", "beyond_board"] | None = Field(
+        default=None,
+        description=(
+            "Why rows are missing: stopped_by_line (a line below stops it), board_end (the board ran out of "
+            "rows), covered (an earlier line's overflow took its row), beyond_board (past the last row). "
+            "Null when every row it wanted landed."
+        ),
+    )
+    clip_line: int | None = Field(
+        default=None, description="The template line that stopped it (stopped_by_line) or covered it (covered)."
+    )
+    widest: int = Field(default=0, description="The widest row it showed, in drawn tiles.")
+    cut: bool = Field(default=False, description="Whether a row it showed was wider than the board, and so cut.")
+    hidden: list[str] = Field(
+        default_factory=list,
+        description=(
+            "The rows that did not land, each cut to the board's width as it would show (at most the board's row "
+            "count)."
+        ),
+    )
+
+
+class RenderDiagnostics(BaseModel):
+    """``diagnostics: true``: the editor inspector's values and clip report."""
+
+    formulas: list[FormulaDiagnostic] = Field(description="Every {{= … }} formula, in template order.")
+    lines: list[LineDiagnostic] | None = Field(
+        description=(
+            "One entry per template line (lines[i] is line i+1). Null for a string template (no board rows) "
+            "or text flowing around pixel canvases."
+        )
+    )
 
 
 class TemplateRenderResponse(BaseModel):
@@ -213,6 +287,9 @@ class TemplateRenderCheckedResponse(TemplateRenderResponse):
     layers: list[CanvasLayerModel] | None = None
     #: Problems drawing those canvases. Present exactly when ``layers`` is.
     canvas_issues: list[CanvasIssueModel] | None = None
+    #: Present only when the request asked (``diagnostics: true``); null for
+    #: a page with pixel canvases (not reported yet).
+    diagnostics: RenderDiagnostics | None = None
 
 
 class TemplateRenderLiveRequest(TemplateRenderRequest):
@@ -240,3 +317,6 @@ class TemplateRenderLiveResponse(TemplateRenderResponse):
     #: (issue #1943). Reported independently of ``paused``.
     silenced: bool = False
     board_id: str | None = None
+    #: The request's ``diagnostics: true``; null otherwise, and for a page
+    #: with pixel canvases.
+    diagnostics: RenderDiagnostics | None = None

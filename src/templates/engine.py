@@ -48,7 +48,15 @@ from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
 from .colors import is_color_code as _is_color_code
-from .expressions import ensure_render_clock, evaluate_value, find_formulas, render_expressions, validate_expression
+from .diagnostics import FormulaReport, LineReport, RenderReport
+from .expressions import (
+    ensure_render_clock,
+    evaluate_detailed,
+    evaluate_value,
+    find_formulas,
+    render_expressions,
+    validate_expression,
+)
 from .filters import FILTER_NAMES
 
 logger = logging.getLogger(__name__)
@@ -199,13 +207,25 @@ def _metadata_wraps(line_metadata: list[Any] | None, index: int) -> bool:
     return bool(meta.get("wrap", False) if isinstance(meta, dict) else getattr(meta, "wrap", False))
 
 
+#: ``fill_space`` markers as the render leaves them, before
+#: :meth:`TemplateEngine._process_fill_space` expands them.
+_FILL_MARKERS = re.compile(r"\x00FILL_SPACE(?:_REPEAT:(.+?))?\x00")
+
+#: The fewest characters of a formula's value a report keeps (a board's area
+#: when larger); the rest is cut and flagged ``value_truncated``.
+REPORT_VALUE_LIMIT = 4096
+
+#: A wrap line's full length, for the report: far past any board's rows.
+_UNBOUNDED_WRAP_ROWS = 10_000
+
+
 @dataclass
 class TemplateError:
     """Template validation error.
 
     ``code`` names the kind of problem for an editor (``mismatched_braces``,
     ``line_too_long``, ``unknown_filter``, ``unknown_source``,
-    ``unknown_field``, ``formula``); ``max_length`` is the most tiles a
+    ``unknown_field``, ``formula``, ``beyond_board``); ``max_length`` is the most tiles a
     ``line_too_long`` line can render, ``None`` for any other code.
     """
 
@@ -276,6 +296,7 @@ class TemplateEngine:
         context: dict[str, Any] | None = None,
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        report: RenderReport | None = None,
     ) -> str:
         """Render template with data context.
 
@@ -286,6 +307,9 @@ class TemplateEngine:
             extended_markup: Resolve symbol shortcuts (``{sun}``) through the
                 icon registry instead of their ASCII stand-ins (plan D16). Off
                 by default; nothing turns it on until the v10 markup switch.
+            report: When given, filled with every formula's value
+                (:meth:`_report_formulas`); ``report.lines`` is ``None``, as a
+                bare string has no board rows.
 
         Returns:
             Rendered string with all substitutions applied
@@ -302,7 +326,36 @@ class TemplateEngine:
         # when render_lines (or any outer caller) already pinned it.
         context = ensure_render_clock(context)
 
+        if report is not None:
+            self._report_formulas(template.split("\n"), context, report, limit=REPORT_VALUE_LIMIT)
+            report.lines = None
         return _unprotect(self._render(template, context, extended_markup, 0))
+
+    @staticmethod
+    def _report_formulas(
+        template_lines: list[str], context: dict[str, Any], report: RenderReport, *, limit: int
+    ) -> None:
+        """Every ``{{= … }}`` in *template_lines*, evaluated against the render's
+        own *context* (its data and pinned clock), so a reported value is
+        exactly what the board shows for it. A value longer than *limit*
+        characters is cut there and flagged ``value_truncated``: the report
+        never carries more than a board could show."""
+        for number, line in enumerate(template_lines, 1):
+            for start, end, body in find_formulas(line):
+                outcome = evaluate_detailed(body, context) if body else None
+                report.formulas.append(
+                    FormulaReport(
+                        line=number,
+                        start=start,
+                        end=end,
+                        source=body,
+                        value=(outcome.value if outcome else "")[:limit],
+                        value_truncated=bool(outcome) and len(outcome.value) > limit,
+                        error=outcome.error if outcome else None,
+                        error_at=outcome.error_at if outcome else None,
+                        message=outcome.message if outcome else None,
+                    )
+                )
 
     def evaluate_expression(
         self, expression: str, context: dict[str, Any], *, bindings: dict[str, Any] | None = None
@@ -467,6 +520,7 @@ class TemplateEngine:
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         display: Any = None,
         free_spans: Sequence[Sequence[tuple[int, int]]] | None = None,
+        report: RenderReport | None = None,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -502,6 +556,10 @@ class TemplateEngine:
                 rest; :func:`src.canvas.free_spans`). ``None``, or every row
                 one full-width span, renders exactly as without it. Otherwise
                 see :meth:`_render_flow`.
+            report: When given, filled as the render goes (H5): every
+                formula's value and, per template line, the rows it wanted,
+                the rows that landed and why the rest did not. ``lines`` is
+                ``None`` for a flow layout. Rendering is unchanged by it.
 
         Returns:
             Rendered string with newlines
@@ -603,7 +661,13 @@ class TemplateEngine:
             list(free_spans[r] if r < len(free_spans) else [(0, board_width)]) != [(0, board_width)]
             for r in range(num_rows)
         )
+        if report is not None:
+            # A value as long as the board could ever show, or 4 KB on a small one.
+            limit = max(REPORT_VALUE_LIMIT, num_rows * (board_width + 1))
+            self._report_formulas(list(template_lines), context, report, limit=limit)
         if flow:
+            if report is not None:
+                report.lines = None
             return self._render_flow(
                 contents,
                 alignments,
@@ -615,8 +679,53 @@ class TemplateEngine:
                 extended_markup=extended_markup,
             )
 
+        # H5 report: one entry per template line; rows the loop below fills.
+        line_reports: list[LineReport | None] = [None] * len(template_lines)
+        spill_owner = -1
+
+        def _note(i: int, all_rows: list[str], shown: int, budget: int) -> None:
+            """Record what template line *i* wanted (*all_rows*) and showed."""
+            if report is None or i >= len(template_lines):
+                return
+            clip = clip_line = None
+            if shown < len(all_rows):
+                if i + budget < num_rows:
+                    clip, clip_line = "stopped_by_line", i + budget + 1
+                else:
+                    clip = "board_end"
+            measured = [
+                self._count_tiles(_FILL_MARKERS.sub("", row), extended_markup=extended_markup)
+                for row in all_rows[:shown]
+            ]
+            widest = max(measured, default=0)
+            line_reports[i] = LineReport(
+                line=i + 1,
+                first_row=i + 1,
+                rows_wanted=len(all_rows),
+                rows_shown=shown,
+                clip=clip,
+                clip_line=clip_line,
+                widest=widest,
+                cut=widest > board_width,
+                # What each hidden row would show on the board: its first
+                # board-width tiles, so a wide row never bloats the report.
+                hidden=[
+                    self._truncate_to_tiles(_FILL_MARKERS.sub("", row), board_width, extended_markup=extended_markup)
+                    for row in all_rows[shown:][:num_rows]
+                ],
+            )
+
         for i in range(num_rows):
             if i <= skip_until:
+                if report is not None and i < len(template_lines):
+                    line_reports[i] = LineReport(
+                        line=i + 1,
+                        first_row=None,
+                        rows_wanted=1,
+                        rows_shown=0,
+                        clip="covered",
+                        clip_line=spill_owner + 1,
+                    )
                 continue
 
             alignment = alignments[i]
@@ -626,13 +735,25 @@ class TemplateEngine:
             has_wrap = wrap_enabled or "|wrap}}" in content or "|wrap|" in content
 
             if has_wrap:
+                budget = _overflow_budget(i)
                 wrapped_lines = self._render_with_wrap(
                     content,
                     context,
-                    max_lines=_overflow_budget(i),
+                    max_lines=budget,
                     board_width=board_width,
                     extended_markup=extended_markup,
                 )
+                if report is not None:
+                    # The rows the line needs at full length: a second, unbounded measure.
+                    wanted = self._render_with_wrap(
+                        content,
+                        context,
+                        max_lines=_UNBOUNDED_WRAP_ROWS,
+                        board_width=board_width,
+                        extended_markup=extended_markup,
+                    )
+                    shown = min(len(wrapped_lines), num_rows - i)
+                    _note(i, wanted if len(wanted) > shown else wrapped_lines[:shown], shown, budget)
 
                 for k, wrapped_line in enumerate(wrapped_lines):
                     if i + k < num_rows:
@@ -644,6 +765,7 @@ class TemplateEngine:
                         )
 
                 skip_until = i + len(wrapped_lines) - 1
+                spill_owner = i
             else:
                 rendered_line = _render_cached(i)
 
@@ -660,7 +782,8 @@ class TemplateEngine:
                         if needs_extended_markup(rendered_line, extended_markup)
                         else rendered_line.split("\n")
                     )
-                    split_lines = all_rows[: _overflow_budget(i)]
+                    budget = _overflow_budget(i)
+                    split_lines = all_rows[:budget]
                     for line_idx, split_line in enumerate(split_lines):
                         if i + line_idx >= num_rows:
                             break
@@ -672,7 +795,10 @@ class TemplateEngine:
                         )
                     if len(split_lines) > 1:
                         skip_until = min(i + len(split_lines) - 1, num_rows - 1)
+                        spill_owner = i
+                    _note(i, all_rows, min(len(split_lines), num_rows - i), budget)
                 else:
+                    _note(i, [rendered_line], 1, 1)
                     rendered_line = self._process_fill_space(
                         rendered_line, width=board_width, extended_markup=extended_markup
                     )
@@ -680,6 +806,19 @@ class TemplateEngine:
                         rendered_line, alignment, width=board_width, extended_markup=extended_markup
                     )
 
+        if report is not None:
+            report.lines = [
+                entry
+                if entry is not None
+                else LineReport(
+                    line=index + 1,
+                    first_row=None,
+                    rows_wanted=1,
+                    rows_shown=0,
+                    clip="beyond_board" if index >= num_rows else None,
+                )
+                for index, entry in enumerate(line_reports)
+            ]
         return "\n".join(rendered)
 
     def _render_flow(
@@ -1997,6 +2136,7 @@ class TemplateEngine:
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         line_metadata: list[Any] | None = None,
+        rows: int | None = None,
     ) -> list[TemplateError]:
         """Validate template syntax.
 
@@ -2012,6 +2152,9 @@ class TemplateEngine:
             line_metadata: Per-line ``{alignment, wrap}`` as render takes it. A
                 line whose ``wrap`` is set wraps instead of being cut, so it is
                 never too long (the ``|wrap`` filter's rule).
+            rows: The board's height, for a page's lines (render keeps the
+                first ``rows``): a non-blank line past it is ``beyond_board``.
+                ``None`` checks no height.
 
         Returns:
             List of validation errors (empty if valid)
@@ -2024,6 +2167,16 @@ class TemplateEngine:
         known_fields = self._known_fields()
 
         for line_num, line in enumerate(lines, 1):
+            if rows is not None and line_num > rows and line.strip():
+                errors.append(
+                    TemplateError(
+                        line=line_num,
+                        column=0,
+                        message=f"Line {line_num} is past the board's {rows} rows and will not show",
+                        code="beyond_board",
+                    )
+                )
+
             # Check for unclosed variable braces
             open_count = line.count("{{")
             close_count = line.count("}}")
