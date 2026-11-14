@@ -305,6 +305,27 @@ def test_a_destructive_call_waits_for_approval_and_only_runs_on_approve(client, 
     assert created in _page_names(client)
     assert "denied by the user" in mock_llm.history()[-1]["messages"][-1]["content"]
 
+    # A "no" settles that pause for good (tests/test_ai_chat_approval_integrity.py),
+    # so ask again and approve the fresh pause.
+    mock_llm.script(
+        [
+            {
+                "prose": "Deleting it. ",
+                "ops": [_block("delete_page", {"page_id": created, "expected_revision": original_revision})],
+            }
+        ]
+    )
+    frames = _chat(client, ask)
+    call = _only(frames, "tool_call")[0]
+    transcript = [
+        *ask,
+        {
+            "role": "assistant",
+            "content": "".join(d["delta"] for d in _only(frames, "text")),
+            "tool_calls": [{"id": call["id"], "name": call["name"], "args": call["args"]}],
+        },
+    ]
+
     # Approve: gone, through the same MCP tool an external client would use.
     mock_llm.script([{"prose": "Gone."}])
     approved = _chat(client, transcript, resume={"tool_call_id": call["id"], "decision": "approve"})

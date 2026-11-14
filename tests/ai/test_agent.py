@@ -21,6 +21,7 @@ import httpx
 import pytest
 
 from src.ai.agent import LIMIT_PAUSE_HINT, MAX_TURN_CAP, TurnLimits, run_chat_turn
+from src.ai.approvals import PendingCallStore
 from src.ai.mcp_bridge import ToolDescriptor, ToolOutcome
 
 # ---------------------------------------------------------------------------
@@ -424,8 +425,15 @@ def test_resume_approve_executes_then_continues():
     backend = FakeBackend(
         {"delete_page": ToolOutcome(status="ok", result={"status": "success", "message": "Deleted."})}
     )
+    # The hub paused on this call earlier in the conversation.
+    approvals = PendingCallStore()
+    approvals.record("anonymous", "c1", "delete_page", {"page_id": "p1"})
     events = _run_turn(
-        provider, backend, _pending_transcript(call), resume={"tool_call_id": "c1", "decision": "approve"}
+        provider,
+        backend,
+        _pending_transcript(call),
+        resume={"tool_call_id": "c1", "decision": "approve"},
+        approvals=approvals,
     )
 
     assert backend.calls == [("delete_page", {"page_id": "p1"})]
@@ -441,6 +449,30 @@ def test_resume_approve_executes_then_continues():
     }
     assert _only(events, "done")[0]["reason"] == "complete"
     assert "[Tool result] delete_page (#c1) → ok" in provider.messages_of(0)[-1]["content"]
+
+
+def test_resume_approve_of_a_call_the_hub_never_paused_on_runs_nothing():
+    call = {"id": "c1", "name": "delete_page", "args": {"page_id": "p1"}}
+    backend = FakeBackend({"delete_page": ToolOutcome(status="ok", result={})})
+    events = _run_turn(
+        ScriptedProvider(),
+        backend,
+        _pending_transcript(call),
+        resume={"tool_call_id": "c1", "decision": "approve"},
+        approvals=PendingCallStore(),
+    )
+    assert backend.calls == []
+    assert _names(events) == ["error"]
+
+
+def test_resume_approve_runs_the_recorded_args_for_the_recorded_caller_only():
+    call = {"id": "c1", "name": "delete_page", "args": {"page_id": "p1"}}
+    backend = FakeBackend({"delete_page": ToolOutcome(status="ok", result={})})
+    approvals = PendingCallStore()
+    approvals.record("admin", "c1", "delete_page", {"page_id": "p1"})
+    resume = {"tool_call_id": "c1", "decision": "approve"}
+    other = _run_turn(ScriptedProvider(), backend, _pending_transcript(call), resume=resume, approvals=approvals)
+    assert backend.calls == [] and _names(other) == ["error"]
 
 
 def test_resume_deny_records_denied_and_model_sees_it_as_denied():
