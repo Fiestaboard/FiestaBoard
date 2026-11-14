@@ -72,6 +72,7 @@ test.describe("plain http: honest about install and offline (2.8)", () => {
     for (const name of ["Http Beta", "Http Alpha", "Http Beta"]) {
       await page.getByRole("button", { name: /Change Page/i }).click();
       await page.getByRole("dialog").getByText(name, { exact: true }).first().click();
+      await page.getByRole("dialog").getByRole("button", { name: "Show now", exact: true }).click();
       await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 10_000 });
     }
     const offer = page.getByTestId("install-offer");

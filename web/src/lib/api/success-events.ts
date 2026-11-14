@@ -44,6 +44,7 @@ export function emitApiSuccess(method: string | undefined, path: string): void {
 export function classifyInstallSuccess({ method, path }: ApiSuccess): "send" | "save" | null {
   if (method === "POST" && /^\/v1\/boards\/[^/]+\/message$/.test(path)) return "send";
   if (method === "PUT" && path === "/settings/active-page") return "send";
+  if (method === "POST" && path === "/settings/temporary-override") return "send";
   if (method === "POST" && path === "/send-welcome-message") return "send";
   if (method === "POST" && path === "/v1/pages") return "save";
   if (method === "PUT" && /^\/v1\/pages\/[^/]+$/.test(path)) return "save";

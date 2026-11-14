@@ -42,9 +42,11 @@ async function offerBrowserInstall(page: Page) {
   });
 }
 
-async function changePageTo(page: Page, name: string) {
+async function changePageTo(page: Page, name: string, timed = false) {
   await page.getByRole("button", { name: /Change Page/i }).click();
   await page.getByRole("dialog").getByText(name, { exact: true }).first().click();
+  if (timed) await page.getByRole("dialog").getByRole("radio", { name: "15 min", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Show now", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 10_000 });
 }
 
@@ -80,7 +82,7 @@ test.describe("install offer timing (2.8, WEB-12)", () => {
     await page.waitForTimeout(500);
     await expect(offer(page)).toHaveCount(0);
 
-    await changePageTo(page, "Install Alpha");
+    await changePageTo(page, "Install Alpha", true);
     await expect(offer(page)).toBeVisible();
     await expect(offer(page).getByText(/You’ve sent 3 messages from here/)).toBeVisible();
 

@@ -52,6 +52,9 @@ describe("classifyInstallSuccess", () => {
   it.each([
     ["POST", "/v1/boards/b1/message", "send"],
     ["PUT", "/settings/active-page", "send"],
+    ["POST", "/settings/temporary-override", "send"],
+    ["DELETE", "/settings/temporary-override", null],
+    ["GET", "/settings/temporary-override", null],
     ["POST", "/send-welcome-message", "send"],
     ["POST", "/v1/pages", "save"],
     ["PUT", "/v1/pages/abc", "save"],
