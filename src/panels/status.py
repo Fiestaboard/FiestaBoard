@@ -109,4 +109,24 @@ def panel_status(board_id: str) -> PanelStatus:
         silenced_until=silenced_until,
         silence_mode=silence_mode,
         paused=settings_service.is_paused(board_id=board_id) is True,
+        **_next_change(board_id),
     )
+
+
+def _next_change(board_id: str) -> dict:
+    """H2's next change for the board, in panel status's instant shape (H2b).
+
+    No page id: a TV holds the tv_panels scope and cannot name a page.
+
+    Advisory: if the prediction fails (it walks schedules, sun times,
+    collections and DST across days on every 10 s poll), the fields are null
+    rather than failing the TV's whole viewer config.
+    """
+    from src.schedules import next_change as next_change_module
+
+    try:
+        change = next_change_module.next_change(board_id)
+    except Exception:
+        logger.warning("Could not predict the next change for %s", board_id, exc_info=True)
+        return {"next_change_at": None, "next_change_reason": None}
+    return {"next_change_at": _instant(change.at), "next_change_reason": change.reason}
