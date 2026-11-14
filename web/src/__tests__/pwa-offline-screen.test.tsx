@@ -71,7 +71,7 @@ describe("OfflineScreen (WEB-16 split)", () => {
     });
     render(withClient(<OfflineScreen kind="device-offline" onRetry={() => {}} />));
     const card = await screen.findByTestId("last-known-board");
-    expect(card).toHaveTextContent("Last known · Lobby wall");
+    expect(screen.getByRole("heading", { level: 2, name: "Last known · Lobby wall" })).toBeInTheDocument();
     expect(card).toHaveTextContent(/Last connected .* may be out of date/);
   });
 

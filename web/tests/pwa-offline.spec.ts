@@ -169,12 +169,12 @@ test.describe("PWA shell and offline (2.8, WEB-16)", () => {
     await expect.poll(() => readLastKnown(page), { timeout: 10_000 }).toBe(0);
   });
 
-  test("the offline screen has no serious or critical axe violations", async ({ page, context }) => {
+  test("the offline screen has no axe violations", async ({ page, context }) => {
     await controlledHome(page);
     await goOffline(context, page);
     await expect(page.getByRole("heading", { level: 1, name: "You’re offline" })).toBeVisible({ timeout: 15_000 });
     await injectAxe(page);
-    const violations = (await getViolations(page)).filter((v) => v.impact === "serious" || v.impact === "critical");
+    const violations = await getViolations(page);
     await context.setOffline(false);
     expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });

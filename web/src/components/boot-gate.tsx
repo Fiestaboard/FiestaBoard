@@ -108,7 +108,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
   // the last-known board. Updates keep their longer, update-specific flow.
   if (!online || (timedOut && !awaitingPostUpdateBoot)) {
     return (
-      <Flex direction="col" className="fixed inset-0 z-[200] overflow-y-auto bg-background">
+      <Flex role="main" direction="col" className="fixed inset-0 z-[200] overflow-y-auto bg-background">
         <OfflineScreen
           kind={online ? "hub-unreachable" : "device-offline"}
           onRetry={() => {

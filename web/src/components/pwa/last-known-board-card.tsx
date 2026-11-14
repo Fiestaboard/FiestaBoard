@@ -37,7 +37,9 @@ export function LastKnownBoardCard({ record }: { record: LastKnownBoard }) {
     <Card data-testid="last-known-board" className="w-full text-left">
       <CardHeader>
         <Flex align="center" gap="2" wrap>
-          <CardTitle className="text-sm">{name ? t("lastKnownTitle", { board: name }) : t("lastKnown")}</CardTitle>
+          <CardTitle as="h2" className="text-sm">
+            {name ? t("lastKnownTitle", { board: name }) : t("lastKnown")}
+          </CardTitle>
           <Badge variant="outline">{t("lastKnownAt", { time: formatLastConnected(record.savedAt) })}</Badge>
         </Flex>
       </CardHeader>
