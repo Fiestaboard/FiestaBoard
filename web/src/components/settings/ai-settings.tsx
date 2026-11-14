@@ -842,7 +842,7 @@ export function AiSettings() {
       toast.error(tOAuth(oauthReturnErrorKey(aiReturn.reason)));
     }
     setExpandedIds((prev) => new Set(prev).add(aiReturn.providerId));
-    router.replace("/settings?section=ai", { scroll: false });
+    router.replace("/settings/ai-provider", { scroll: false });
   }, [aiReturn, router, tOAuth]);
 
   const current: AISettings = draft ??

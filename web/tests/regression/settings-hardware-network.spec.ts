@@ -14,7 +14,6 @@ import {
   loginIfNeeded,
   openDisplay,
   openDisplays,
-  openSettingsTab,
   resetToSingleBoard,
   test,
 } from "../helpers";
@@ -159,18 +158,19 @@ test.describe("regression: settings.hardware", () => {
 test.describe("regression: settings.network", () => {
   /**
    * UX node: settings.tab-network.unavailable
-   * Route: /settings (Network tab)
+   * Route: /settings/network (Network)
    * Preconditions: network-api:unavailable
    * Expected: 'Network controls unavailable on this host' info card
    * Source refs: web/src/components/settings/network/*
    * Coverage status: uncovered
    *
-   * On dev/non-FiestaPi hosts the Network tab is hidden entirely when
+   * Since slice 2.1 the Network section always exists (it holds MQTT), but
+   * on dev/non-FiestaPi hosts its Wi-Fi card is left out entirely when
    * /api/network/wifi/capability returns { available: false } (see
-   * web/src/app/settings/page.tsx:121,133). There is no separate
-   * "unavailable info card" rendered. Assert tab absence instead.
+   * web/app/routes/settings.tsx). There is no separate "unavailable info
+   * card" rendered. Assert the Wi-Fi card's absence instead.
    */
-  test("settings.tab-network.unavailable — Network tab is hidden when wifi capability is unavailable", async ({
+  test("settings.tab-network.unavailable — Wi-Fi card is hidden when wifi capability is unavailable", async ({
     page,
   }) => {
     // Force capability to unavailable (matches the default dev container behavior)
@@ -182,17 +182,23 @@ test.describe("regression: settings.network", () => {
       }),
     );
 
-    await page.goto("/settings");
+    await page.goto("/settings/network");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // General tab is always present; Network tab must NOT be present.
-    await expect(page.getByRole("tab", { name: "General", exact: true })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Network", exact: true })).toHaveCount(0);
+    // The Network section is always listed (MQTT lives there) …
+    await expect(
+      page.getByRole("list", { name: /^Hub · / }).getByRole("link", { name: "Network", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible({ timeout: 10_000 });
+    // … but without the capability there is no Wi-Fi card.
+    await expect(page.getByText("Current connection")).toHaveCount(0);
+    await expect(page.getByText("Available networks")).toHaveCount(0);
+    await expect(page.getByText("Saved networks")).toHaveCount(0);
   });
 
   /**
    * UX node: settings.tab-network.list
-   * Route: /settings (Network tab)
+   * Route: /settings/network (Network)
    * Preconditions: network-api:available
    * Expected: known + scanned networks render; signal strength visible
    * Source refs: web/src/components/settings/network/*
@@ -201,10 +207,11 @@ test.describe("regression: settings.network", () => {
   test("settings.tab-network.list — known + scanned networks list rendering", async ({ page }) => {
     await mockWifiAvailable(page);
 
-    await page.goto("/settings");
+    await page.goto("/settings/network");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Network");
+    await expect(page.getByRole("heading", { level: 2, name: "Network", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Scanned network row shows SSID + signal strength
     await expect(page.getByText("CoffeeShopWiFi").first()).toBeVisible({
@@ -218,7 +225,7 @@ test.describe("regression: settings.network", () => {
 
   /**
    * UX node: settings.network.connect-dialog
-   * Route: /settings (Network tab)
+   * Route: /settings/network (Network)
    * Interactions: click:connect on a network row → dialog opens
    * Expected: dialog requests password (or none for open); Connect/Cancel buttons
    * Source refs: web/src/components/settings/network/*
@@ -227,8 +234,10 @@ test.describe("regression: settings.network", () => {
   test("settings.network.connect-dialog — connect dialog opens and validates input", async ({ page }) => {
     await mockWifiAvailable(page);
 
-    await page.goto("/settings");
-    await openSettingsTab(page, "Network");
+    await page.goto("/settings/network");
+    await expect(page.getByRole("heading", { level: 2, name: "Network", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Click Connect on the secured network row
     const ssidRow = page.getByText("CoffeeShopWiFi").first().locator("xpath=ancestor::li");
@@ -252,7 +261,7 @@ test.describe("regression: settings.network", () => {
 
   /**
    * UX node: settings.network.connect-pending
-   * Route: /settings (Network tab)
+   * Route: /settings/network (Network)
    * Preconditions: connect-mutation:pending
    * Expected: 'Connecting...' label on button; form disabled
    * Source refs: web/src/components/settings/network/*
@@ -274,8 +283,10 @@ test.describe("regression: settings.network", () => {
       });
     });
 
-    await page.goto("/settings");
-    await openSettingsTab(page, "Network");
+    await page.goto("/settings/network");
+    await expect(page.getByRole("heading", { level: 2, name: "Network", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
 
     const ssidRow = page.getByText("CoffeeShopWiFi").first().locator("xpath=ancestor::li");
     await ssidRow.getByRole("button", { name: /^Connect$/i }).click();
@@ -296,7 +307,7 @@ test.describe("regression: settings.network", () => {
 
   /**
    * UX node: settings.network.disconnect-dialog
-   * Route: /settings (Network tab)
+   * Route: /settings/network (Network)
    * Interactions: open:current-network-actions → click:disconnect → confirm
    * Expected: AlertDialog confirms disconnect; Cancel preserves connection
    * Source refs: web/src/components/settings/network/*
@@ -305,8 +316,10 @@ test.describe("regression: settings.network", () => {
   test("settings.network.disconnect-dialog — disconnect confirm dialog", async ({ page }) => {
     await mockWifiAvailable(page, { connected: true });
 
-    await page.goto("/settings");
-    await openSettingsTab(page, "Network");
+    await page.goto("/settings/network");
+    await expect(page.getByRole("heading", { level: 2, name: "Network", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // The Disconnect button only appears when currently connected.
     const disconnectBtn = page.getByRole("button", { name: /^Disconnect$/i }).first();
@@ -327,7 +340,7 @@ test.describe("regression: settings.network", () => {
 
   /**
    * UX node: settings.network.forget-dialog
-   * Route: /settings (Network tab)
+   * Route: /settings/network (Network)
    * Interactions: forget known network → confirm
    * Expected: AlertDialog confirms forget; entry removed from known list
    * Source refs: web/src/components/settings/network/*
@@ -336,8 +349,10 @@ test.describe("regression: settings.network", () => {
   test("settings.network.forget-dialog — forget network confirm dialog", async ({ page }) => {
     await mockWifiAvailable(page);
 
-    await page.goto("/settings");
-    await openSettingsTab(page, "Network");
+    await page.goto("/settings/network");
+    await expect(page.getByRole("heading", { level: 2, name: "Network", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Click Forget on the saved network row
     const forgetBtn = page.getByRole("button", { name: /^Forget$/i }).first();
@@ -361,7 +376,7 @@ test.describe("regression: settings.network", () => {
 
   /**
    * UX node: settings.network.scan-error
-   * Route: /settings (Network tab)
+   * Route: /settings/network (Network)
    * Preconditions: scan-mutation:error
    * Expected: error toast on scan failure; existing list retained
    * Source refs: web/src/components/settings/network/*
@@ -392,8 +407,10 @@ test.describe("regression: settings.network", () => {
       });
     });
 
-    await page.goto("/settings");
-    await openSettingsTab(page, "Network");
+    await page.goto("/settings/network");
+    await expect(page.getByRole("heading", { level: 2, name: "Network", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
 
     await expect(page.getByText("CoffeeShopWiFi").first()).toBeVisible({
       timeout: 10_000,

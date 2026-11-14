@@ -82,7 +82,16 @@
     "skipToMainContent": "Pular para o conteúdo principal",
     "boardSelector": "Selecionar quadro a gerir",
     "selectBoard": "Selecionar quadro",
-    "unnamedBoard": "Quadro sem nome"
+    "unnamedBoard": "Quadro sem nome",
+    "more": "Mais",
+    "needsAttention": "{count, plural, one {# precisa de atenção} other {# precisam de atenção}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "Abre o painel",
+    "hub": {
+      "online": "Online",
+      "unreachable": "Inacessível",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "Mais",
@@ -671,7 +680,7 @@
   },
   "settings": {
     "title": "Configurações",
-    "description": "Configure o seu serviço FiestaBoard",
+    "description": "Sua conta, este navegador e este hub.",
     "advancedSection": "Avançado",
     "setupWizardTitle": "Assistente de Configuração",
     "setupWizardDescription": "Execute novamente o assistente de configuração para reconfigurar a conexão do painel e as configurações básicas.",
@@ -776,7 +785,42 @@
     "displaySilenceTitle": "Horários de silêncio dos ecrãs",
     "displaySilenceDescription": "Cada ecrã tem o seu próprio horário de silêncio. Abra o separador Reprodução de um ecrã para alterar o horário.",
     "openDisplayPlayback": "Abrir as definições de reprodução de {name}",
-    "openDisplays": "Gerir ecrãs"
+    "openDisplays": "Gerir ecrãs",
+    "hub": {
+      "you": "Você",
+      "hubGroup": "Hub · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "Conta",
+          "description": "Com quem você está conectado e como entra."
+        },
+        "appearance": {
+          "title": "Aparência",
+          "description": "Como o FiestaBoard aparece neste navegador."
+        },
+        "accessibility": {
+          "title": "Acessibilidade",
+          "description": "Movimento e conforto de leitura neste navegador."
+        },
+        "network": {
+          "title": "Rede",
+          "description": "Como celulares, TVs e navegadores alcançam {name}. As mudanças afetam todos os dispositivos."
+        },
+        "ai-provider": {
+          "title": "Provedor de IA",
+          "description": "O FiestaBot usa o provedor que você escolher. Fica desligado até você configurar um."
+        },
+        "system": {
+          "title": "Sistema e backups",
+          "description": "Atualizações, backups e o próprio {name}."
+        },
+        "language-time": {
+          "title": "Idioma e hora",
+          "description": "Usados pelo hub na Programação, nas variáveis de hora e em cada horário exibido."
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "Você Está Offline",
