@@ -82,7 +82,7 @@ export function MqttSettingsCard() {
 
   if (isLoading) {
     return (
-      <PageSection>
+      <PageSection id="mqtt">
         <Skeleton className="h-5 w-40" />
         <Skeleton className="mt-2 h-4 w-56" />
       </PageSection>
@@ -94,6 +94,7 @@ export function MqttSettingsCard() {
 
   return (
     <PageSection
+      id="mqtt"
       icon={<Radio />}
       title={t("title")}
       description={t("description")}

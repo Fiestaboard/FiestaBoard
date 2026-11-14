@@ -6,7 +6,9 @@ export default function ProfilePage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/settings?section=general");
+    // A profile is your account (Settings › Account). With Account hidden
+    // (auth on, signed out) the settings route sends this on to its index.
+    router.replace("/settings/account");
   }, [router]);
 
   return null;

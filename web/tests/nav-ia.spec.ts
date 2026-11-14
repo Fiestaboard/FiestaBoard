@@ -11,7 +11,7 @@
 import type { Page } from "@playwright/test";
 import { getViolations, injectAxe } from "axe-playwright";
 
-import { configureBoard, expect, suppressWizard, test } from "./helpers";
+import { API_URL, configureBoard, expect, suppressWizard, test } from "./helpers";
 
 const PHONE = { width: 390, height: 844 };
 const TABLET = { width: 900, height: 984 };
@@ -112,6 +112,18 @@ test.describe("Phone (390): bottom nav and More", () => {
   });
 });
 
+test.describe("Wide phone (700): one full-width Settings pane", () => {
+  for (const section of ["", "/network"]) {
+    test(`uses the available width at /settings${section}`, async ({ page }) => {
+      await page.setViewportSize({ width: 700, height: 900 });
+      await page.goto(`/settings${section}`);
+      const pane = page.locator(section ? '[data-slot="settings-detail"]' : '[data-slot="settings-index"]');
+      await expect(pane).toBeVisible();
+      await expect.poll(async () => (await pane.boundingBox())?.width ?? 0).toBeGreaterThan(600);
+    });
+  }
+});
+
 test.describe("Tablet (900): the rail from 768px", () => {
   test("shows the rail and no tab bar", async ({ page }) => {
     await page.setViewportSize(TABLET);
@@ -119,6 +131,18 @@ test.describe("Tablet (900): the rail from 768px", () => {
     await expect(rail(page)).toBeVisible({ timeout: 15_000 });
     await expect(tabBar(page)).toBeHidden();
     // 07 `61:17544`: the rail starts collapsed in the tablet band.
+    await expect(page.getByLabel("Expand sidebar")).toBeVisible();
+    await expect.poll(async () => (await rail(page).boundingBox())?.width ?? 0).toBeLessThan(80);
+  });
+
+  test("tablet toggles keep and restore the desktop preference", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("fiestaboard_sidebar_collapsed", "true"));
+    await page.setViewportSize(TABLET);
+    await page.goto("/settings/network");
+    await page.getByLabel("Expand sidebar").click();
+    await expect(page.getByLabel("Collapse sidebar")).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem("fiestaboard_sidebar_collapsed"))).toBe("true");
+    await page.setViewportSize(DESKTOP);
     await expect(page.getByLabel("Expand sidebar")).toBeVisible();
     await expect.poll(async () => (await rail(page).boundingBox())?.width ?? 0).toBeLessThan(80);
   });
@@ -165,5 +189,52 @@ test.describe("Desktop (1280): the rail", () => {
     ).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("heading", { level: 2, name: "AI provider" })).toBeVisible();
     expect(await seriousA11y(page)).toEqual([]);
+  });
+});
+
+test.describe("1100 with FiestaBot open: Settings fits the room that is left", () => {
+  // A provider is all the rail needs to offer FiestaBot; nothing here talks to it.
+  test.beforeEach(async ({ request }) => {
+    const res = await request.put(`${API_URL}/settings/ai`, {
+      data: {
+        enabled: true,
+        providers: [
+          {
+            id: "nav-ia",
+            name: "Nav IA",
+            protocol: "openai",
+            base_url: "http://127.0.0.1:9/v1",
+            api_key: "test-key",
+            models: ["test-model"],
+            default_model: "test-model",
+            headers: {},
+          },
+        ],
+        default_provider_id: "nav-ia",
+      },
+    });
+    expect(res.ok()).toBe(true);
+  });
+
+  test.afterEach(async ({ request }) => {
+    await request.put(`${API_URL}/settings/ai`, {
+      data: { enabled: false, providers: [], default_provider_id: null },
+    });
+  });
+
+  test("the list and the open section stack instead of squeezing the section to nothing", async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.goto("/settings/network");
+    await expect(page.getByRole("heading", { level: 2, name: "Network" })).toBeVisible({ timeout: 15_000 });
+    await rail(page).getByRole("button", { name: "AI Assistant" }).click();
+    await expect(page.locator("html.ai-drawer-open")).toHaveCount(1);
+
+    const detail = page.locator('[data-slot="settings-detail"]');
+    await expect.poll(async () => (await detail.boundingBox())?.width ?? 0).toBeGreaterThan(300);
+    const list = (await page.locator('[data-slot="settings-index"]').boundingBox())!;
+    const box = (await detail.boundingBox())!;
+    // Stacked: the section sits under the list, not beside it.
+    expect(box.y).toBeGreaterThanOrEqual(list.y + list.height);
+    await page.screenshot({ path: "playwright-test-results/settings-1100-fiestabot.png" });
   });
 });
