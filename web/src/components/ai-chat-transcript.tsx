@@ -53,6 +53,11 @@ import type { ApproveOptions, ChatStatus } from "@/lib/use-ai-chat";
 export type Turn =
   { role: "user"; index: number; message: ChatMessage } | { role: "assistant"; index: number; entries: ChatMessage[] };
 
+/** The tool cards an entry renders (ask_user has none), for preview numbering. */
+function countToolCards(message: ChatMessage): number {
+  return (message.toolCalls ?? []).filter((call) => call.name !== "ask_user").length;
+}
+
 /** Pure: consecutive assistant entries become one turn; `index` is the first entry's. */
 export function groupTurns(messages: ChatMessage[]): Turn[] {
   const turns: Turn[] = [];
@@ -118,6 +123,7 @@ export function TranscriptTurns({
         ) : (
           <AssistantTurn
             key={turn.index}
+            replyNumber={turns.slice(0, i + 1).filter((t) => t.role === "assistant").length}
             entries={turn.entries}
             isLast={i === turns.length - 1}
             pendingApproval={pendingApproval}
@@ -152,6 +158,7 @@ export function ReadOnlyTranscript({ messages }: { messages: ChatMessage[] }) {
 }
 
 function AssistantTurn({
+  replyNumber,
   entries,
   isLast,
   pendingApproval,
@@ -164,6 +171,8 @@ function AssistantTurn({
   onApprove,
   onAnswer,
 }: {
+  /** 1-based count of FiestaBot replies so far; names this turn's board previews. */
+  replyNumber: number;
   entries: ChatMessage[];
   isLast: boolean;
   pendingApproval: ToolCall | null;
@@ -209,6 +218,14 @@ function AssistantTurn({
       ),
   );
   const artwork = [...calls].reverse().find((call) => call.phase === "ok" && call.appliedSnapshot);
+  const t = useTranslations("aiChatPanel");
+  // Each entry's tool cards are numbered on from the previous entry's, so every
+  // preview in the turn has its own region name ("reply 2, step 3").
+  const stepOffsets = detailEntries.reduce<number[]>((offsets, _entry, i) => {
+    const prior = i === 0 ? 0 : offsets[i - 1] + countToolCards(detailEntries[i - 1]);
+    offsets.push(prior);
+    return offsets;
+  }, []);
 
   return (
     <Message from="assistant">
@@ -225,7 +242,13 @@ function AssistantTurn({
             {detailEntries.length
               ? detailEntries.map((message, i) => (
                   <ListItem key={i}>
-                    <AssistantEntry message={message} hideContent={message === reply} artworkId={artwork?.id} />
+                    <AssistantEntry
+                      message={message}
+                      hideContent={message === reply}
+                      artworkId={artwork?.id}
+                      replyNumber={replyNumber}
+                      stepOffset={stepOffsets[i]}
+                    />
                   </ListItem>
                 ))
               : undefined}
@@ -273,6 +296,7 @@ function AssistantTurn({
                 snapshot={artwork.appliedSnapshot}
                 deviceType={artwork.deviceType ?? "flagship"}
                 grid={artwork.previewGrid}
+                regionLabel={t("previewRegion", { reply: replyNumber })}
               />
             </Box>
           ) : null}
@@ -317,11 +341,17 @@ const AssistantEntry = memo(function AssistantEntry({
   message,
   hideContent,
   artworkId,
+  replyNumber,
+  stepOffset,
 }: {
   message: ChatMessage;
   hideContent: boolean;
   artworkId?: string;
+  /** Names this entry's board previews; primitives, so the memo still holds. */
+  replyNumber: number;
+  stepOffset: number;
 }) {
+  const t = useTranslations("aiChatPanel");
   return (
     <Stack gap="2">
       {message.content && !hideContent && (
@@ -331,8 +361,13 @@ const AssistantEntry = memo(function AssistantEntry({
       )}
       {(message.toolCalls ?? [])
         .filter((call) => call.name !== "ask_user")
-        .map((call) => (
-          <ToolCallCard key={call.id} call={call} hidePreview={call.id === artworkId} />
+        .map((call, i) => (
+          <ToolCallCard
+            key={call.id}
+            call={call}
+            hidePreview={call.id === artworkId}
+            regionLabel={t("previewRegionStep", { reply: replyNumber, step: stepOffset + i + 1 })}
+          />
         ))}
       {message.draft ? <DraftToolCard draft={message.draft} /> : null}
       {message.elicitation ? (
@@ -411,7 +446,15 @@ function ToolNotice({ call }: { call: ToolCallDisplay }) {
   );
 }
 
-function ToolCallCard({ call, hidePreview = false }: { call: ToolCallDisplay; hidePreview?: boolean }) {
+function ToolCallCard({
+  call,
+  hidePreview = false,
+  regionLabel,
+}: {
+  call: ToolCallDisplay;
+  hidePreview?: boolean;
+  regionLabel?: string;
+}) {
   const t = useTranslations("aiChatPanel");
   const detail = useToolDetail(call);
   const deviceType = call.deviceType ?? "flagship";
@@ -425,7 +468,12 @@ function ToolCallCard({ call, hidePreview = false }: { call: ToolCallDisplay; hi
     result && (result.status === "error" || result.status === "blocked") ? (result.error ?? undefined) : undefined;
   const preview =
     call.appliedSnapshot && !hidePreview ? (
-      <InlineBoardPreview snapshot={call.appliedSnapshot} deviceType={deviceType} grid={call.previewGrid} />
+      <InlineBoardPreview
+        snapshot={call.appliedSnapshot}
+        deviceType={deviceType}
+        grid={call.previewGrid}
+        regionLabel={regionLabel}
+      />
     ) : null;
   const hasResult = result?.status === "ok" && result.result !== null && result.result !== undefined;
   const output =

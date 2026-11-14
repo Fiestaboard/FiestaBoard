@@ -945,8 +945,8 @@
     },
     "boardSetup": {
       "boardType": "Typ tablicy",
-      "flagshipDimensions": "6 × 22 znaków",
-      "noteDimensions": "3 × 15 znaki",
+      "flagshipDimensions": "22 × 6 znaków",
+      "noteDimensions": "15 × 3 znaki",
       "boardColor": "Kolor tablicy",
       "code62Label": "Klapka kodu 62",
       "code62Help": "Kod znaku 62 pokazuje symbol stopnia na tablicach Flagship sprzed 2026 roku, a serce na nowszych. Wybierz to, co ma Twoja tablica, aby podglądy się zgadzały.",
@@ -2138,7 +2138,16 @@
     "withMessage": "Wyświetlacz boarda: {message}",
     "previewSizeLabel": "Rozmiar podglądu",
     "fitMode": "Dopasuj",
-    "actualMode": "Rzeczywisty rozmiar"
+    "actualMode": "Rzeczywisty rozmiar",
+    "viewportNote": "Note {current} z {total}",
+    "viewportArrayColumn": "Kolumna {current} z {total} · {notes} Notes",
+    "viewportColumns": "Kolumny {first}–{last} z {total}",
+    "viewportOverviewNotes": "Podgląd całości · {notes} Notes · dotknij Rzeczywisty rozmiar, aby czytać",
+    "viewportOverviewColumns": "Podgląd całości · {columns} kolumn · dotknij Rzeczywisty rozmiar, aby czytać",
+    "viewportHintNotes": "Shift + przewijanie, przesunięcie na gładziku lub ← → po zaznaczeniu. Przyciąga do każdej Note.",
+    "viewportHintColumns": "Shift + przewijanie, przesunięcie na gładziku lub ← → po zaznaczeniu. Przyciąga do każdej kolumny.",
+    "viewportHintTouch": "przesuń",
+    "displayPreview": "Podgląd: {name}"
   },
   "updateOverlay": {
     "takingLonger": "Aktualizacja trwa dłużej niż oczekiwano",
@@ -2596,13 +2605,15 @@
       "denied": "Działanie odrzucone",
       "details": "Szczegóły aktywności",
       "completedActions": "Liczba ukończonych działań: {count}"
-    }
+    },
+    "previewRegion": "Podgląd tablicy, odpowiedź {reply}",
+    "previewRegionStep": "Podgląd tablicy, odpowiedź {reply}, krok {step}"
   },
   "boardSizeIndicator": {
     "custom": "Niestandardowy",
     "panel": "Panel",
-    "ariaLabel": "{rows} wierszy na {cols} kolumn",
-    "ariaLabelWithLayout": "{rows} wierszy na {cols} kolumn, {layout}"
+    "ariaLabelColsRows": "{cols} kolumn na {rows} wierszy",
+    "ariaLabelColsRowsWithLayout": "{cols} kolumn na {rows} wierszy, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / klienci zewnętrzni",
@@ -2838,7 +2849,7 @@
     "resultError": "Nie zadziałało",
     "guidanceLabel": "Co spróbować",
     "fieldsFilled": "Uzupełniono: {fields}",
-    "geometryDetected": "Wykryto {rows} × {cols}",
+    "geometryDetected": "Wykryto {cols} × {rows}",
     "applyGeometry": "Zastosuj rozmiar",
     "actionInputDescription": "Ta akcja wymaga najpierw kilku informacji.",
     "boardNameLabel": "Nazwa tablicy",
@@ -2865,7 +2876,7 @@
     "moveSwap": "Miejsce {position} — zamień z {summary}",
     "tilesDuplicate": "Kilka kafelków wskazuje na tę samą tablicę: {values}",
     "tileActionsLabel": "Akcje kafelka",
-    "geometryApplied": "Ustawiono {rows} × {cols}",
+    "geometryApplied": "Ustawiono {cols} × {rows}",
     "searchingNetwork": "Wyszukiwanie w {network}…",
     "searchingYourNetwork": "Wyszukiwanie w Twojej sieci…",
     "foundOneSelected": "Znaleziono i wybrano {device}.",

@@ -945,8 +945,8 @@
     },
     "boardSetup": {
       "boardType": "Bordtype",
-      "flagshipDimensions": "6 × 22 tekens",
-      "noteDimensions": "3 × 15 tekens",
+      "flagshipDimensions": "22 × 6 tekens",
+      "noteDimensions": "15 × 3 tekens",
       "boardColor": "Bordkleur",
       "code62Label": "Klepje voor code 62",
       "code62Help": "Tekencode 62 toont een gradenteken op Flagships van vóór 2026 en een hartje op nieuwere. Kies wat jouw bord heeft, zodat voorbeelden kloppen.",
@@ -2138,7 +2138,16 @@
     "withMessage": "Board-weergave: {message}",
     "previewSizeLabel": "Voorbeeldgrootte",
     "fitMode": "Passend",
-    "actualMode": "Werkelijke grootte"
+    "actualMode": "Werkelijke grootte",
+    "viewportNote": "Note {current} van {total}",
+    "viewportArrayColumn": "Kolom {current} van {total} · {notes} Notes",
+    "viewportColumns": "Kolommen {first}–{last} van {total}",
+    "viewportOverviewNotes": "Overzicht · {notes} Notes · tik op Werkelijke grootte om te lezen",
+    "viewportOverviewColumns": "Overzicht · {columns} kolommen · tik op Werkelijke grootte om te lezen",
+    "viewportHintNotes": "Shift + scrollen, vegen op het trackpad of ← → met focus. Klikt vast op elke Note.",
+    "viewportHintColumns": "Shift + scrollen, vegen op het trackpad of ← → met focus. Klikt vast op elke kolom.",
+    "viewportHintTouch": "veeg",
+    "displayPreview": "Voorbeeld van {name}"
   },
   "updateOverlay": {
     "takingLonger": "Update duurt langer dan verwacht",
@@ -2596,13 +2605,15 @@
       "denied": "Actie geweigerd",
       "details": "Activiteitsdetails",
       "completedActions": "{count, plural, one {# actie voltooid} other {# acties voltooid}}"
-    }
+    },
+    "previewRegion": "Bordvoorbeeld, antwoord {reply}",
+    "previewRegionStep": "Bordvoorbeeld, antwoord {reply}, stap {step}"
   },
   "boardSizeIndicator": {
     "custom": "Aangepast",
     "panel": "Paneel",
-    "ariaLabel": "{rows} rijen bij {cols} kolommen",
-    "ariaLabelWithLayout": "{rows} rijen bij {cols} kolommen, {layout}"
+    "ariaLabelColsRows": "{cols} kolommen bij {rows} rijen",
+    "ariaLabelColsRowsWithLayout": "{cols} kolommen bij {rows} rijen, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / externe clients",
@@ -2838,7 +2849,7 @@
     "resultError": "Werkte niet",
     "guidanceLabel": "Wat je kunt proberen",
     "fieldsFilled": "Ingevuld: {fields}",
-    "geometryDetected": "{rows} × {cols} gedetecteerd",
+    "geometryDetected": "{cols} × {rows} gedetecteerd",
     "applyGeometry": "Formaat toepassen",
     "actionInputDescription": "Deze actie heeft eerst een paar gegevens nodig.",
     "boardNameLabel": "Bordnaam",
@@ -2865,7 +2876,7 @@
     "moveSwap": "Positie {position} — wisselen met {summary}",
     "tilesDuplicate": "Meerdere tegels verwijzen naar hetzelfde bord: {values}",
     "tileActionsLabel": "Tegelacties",
-    "geometryApplied": "Ingesteld op {rows} × {cols}",
+    "geometryApplied": "Ingesteld op {cols} × {rows}",
     "searchingNetwork": "Zoeken op {network}…",
     "searchingYourNetwork": "Zoeken op je netwerk…",
     "foundOneSelected": "{device} gevonden en geselecteerd.",

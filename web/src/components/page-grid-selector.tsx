@@ -179,12 +179,13 @@ const PageButtonPreview = memo(
     }
 
     return (
-      // `overflow-hidden` stays: it is what ScaledBoardDisplay walks up to find
-      // when it measures the slot the board has to fit into. The right-fade
-      // mask and the `-mr-3` bleed that used to sit here are gone — they
-      // existed only to disguise a board that never fitted this card, and with
-      // the board now scaled to fit they would fade a board that is fully
-      // visible.
+      // `overflow-hidden` stays: it is what the thumbnail (the kit's
+      // ScaledBoardDisplay, pinned to Fit) walks up to find when it measures
+      // the slot the board has to fit into. The card's board is a picture, not
+      // a BoardViewport: everywhere else boards scroll instead of shrinking
+      // (slice 2.4), but a scroll region cannot live inside this <button>.
+      // The right-fade mask and the `-mr-3` bleed that used to sit here are
+      // gone — they disguised a board that never fitted this card.
       <Box ref={ref} className="w-full hover-stable overflow-hidden">
         {isVisible ? (
           // ScaledBoardDisplay, not StaticBoardDisplay: a 22-column flagship
@@ -203,6 +204,10 @@ const PageButtonPreview = memo(
             size="sm"
           >
             <ScaledBoardDisplay
+              // A thumbnail, not a viewport: this board sits inside the page
+              // card's <button>, where a scroll region or a Fit / Actual toggle
+              // would be a nested interactive control (WEB-07, slice 2.4).
+              thumbnail
               isStatic
               message={preview?.message || null}
               size="sm"

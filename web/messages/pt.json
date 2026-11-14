@@ -945,8 +945,8 @@
     },
     "boardSetup": {
       "boardType": "Tipo de Painel",
-      "flagshipDimensions": "6 × 22 caracteres",
-      "noteDimensions": "3 × 15 caracteres",
+      "flagshipDimensions": "22 × 6 caracteres",
+      "noteDimensions": "15 × 3 caracteres",
       "boardColor": "Cor do Painel",
       "code62Label": "Aba do código 62",
       "code62Help": "O código de caractere 62 mostra um símbolo de grau nos Flagship anteriores a 2026 e um coração nos mais recentes. Escolha o que o seu quadro tem para que as prévias correspondam.",
@@ -2138,7 +2138,16 @@
     "withMessage": "Visualização do board: {message}",
     "previewSizeLabel": "Tamanho da pré-visualização",
     "fitMode": "Ajustar",
-    "actualMode": "Tamanho real"
+    "actualMode": "Tamanho real",
+    "viewportNote": "Note {current} de {total}",
+    "viewportArrayColumn": "Coluna {current} de {total} · {notes} Notes",
+    "viewportColumns": "Colunas {first}–{last} de {total}",
+    "viewportOverviewNotes": "Visão geral · {notes} Notes · toque em Tamanho real para ler",
+    "viewportOverviewColumns": "Visão geral · {columns} colunas · toque em Tamanho real para ler",
+    "viewportHintNotes": "Shift + rolar, deslizar no trackpad ou ← → com o foco. Encaixa em cada Note.",
+    "viewportHintColumns": "Shift + rolar, deslizar no trackpad ou ← → com o foco. Encaixa em cada coluna.",
+    "viewportHintTouch": "deslize",
+    "displayPreview": "Pré-visualização de {name}"
   },
   "updateOverlay": {
     "takingLonger": "A atualização está a demorar mais do que o esperado",
@@ -2596,13 +2605,15 @@
       "denied": "Ação recusada",
       "details": "Detalhes da atividade",
       "completedActions": "{count, plural, one {# ação concluída} other {# ações concluídas}}"
-    }
+    },
+    "previewRegion": "Pré-visualização do quadro, resposta {reply}",
+    "previewRegionStep": "Pré-visualização do quadro, resposta {reply}, passo {step}"
   },
   "boardSizeIndicator": {
     "custom": "Personalizado",
     "panel": "Painel",
-    "ariaLabel": "{rows} linhas por {cols} colunas",
-    "ariaLabelWithLayout": "{rows} linhas por {cols} colunas, {layout}"
+    "ariaLabelColsRows": "{cols} colunas por {rows} linhas",
+    "ariaLabelColsRowsWithLayout": "{cols} colunas por {rows} linhas, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / clientes externos",
@@ -2838,7 +2849,7 @@
     "resultError": "Não funcionou",
     "guidanceLabel": "O que tentar",
     "fieldsFilled": "Preenchido: {fields}",
-    "geometryDetected": "Detectado {rows} × {cols}",
+    "geometryDetected": "Detectado {cols} × {rows}",
     "applyGeometry": "Aplicar tamanho",
     "actionInputDescription": "Esta ação precisa de algumas informações primeiro.",
     "boardNameLabel": "Nome do painel",
@@ -2865,7 +2876,7 @@
     "moveSwap": "Posição {position} — trocar com {summary}",
     "tilesDuplicate": "Vários blocos apontam para o mesmo painel: {values}",
     "tileActionsLabel": "Ações do bloco",
-    "geometryApplied": "Definido como {rows} × {cols}",
+    "geometryApplied": "Definido como {cols} × {rows}",
     "searchingNetwork": "Procurando em {network}…",
     "searchingYourNetwork": "Procurando na sua rede…",
     "foundOneSelected": "{device} encontrado e selecionado.",

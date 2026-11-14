@@ -163,36 +163,38 @@ test.describe("Mobile — Integrations", () => {
 });
 
 test.describe("Mobile — Board preview fits viewport", () => {
-  test("dashboard board preview stays inside its frame at phone width", async ({ page }) => {
+  // Since slice 2.4 (WEB-07) a board never shrinks: at phone width the
+  // Flagship keeps its real tiles and scrolls inside its bezel. What must hold
+  // is that the bezel stays inside the viewport (no page-level horizontal
+  // scroll), and that every column is reachable inside it.
+  test("dashboard board frame stays inside the viewport and the board scrolls inside it", async ({ page }) => {
     await page.goto("/");
     const firstTile = page.getByTestId("char-tile-0-0");
     await expect(firstTile).toBeVisible({ timeout: 15_000 });
 
-    // ScaledBoardDisplay measures, then applies its scale on a rAF. A fixed
-    // sleep followed by a single measurement samples whatever the layout
-    // happened to be at that instant, which is what made this flaky on a
-    // loaded CI runner. Poll the measurement instead so a late scale pass is
-    // waited out rather than caught mid-flight.
-    const readGeometry = () =>
-      page.evaluate(() => {
-        const t0 = document.querySelector('[data-testid="char-tile-0-0"]');
-        const t21 = document.querySelector('[data-testid="char-tile-0-21"]');
-        if (!t0 || !t21) return null;
-        const frame = t0.closest('[class*="border-["]');
-        if (!frame) return null;
-        const fr = frame.getBoundingClientRect();
-        const r0 = t0.getBoundingClientRect();
-        const r21 = t21.getBoundingClientRect();
-        // A frame with no width means the scale pass has not run yet; report
-        // it as not-ready so the poll retries instead of asserting on zeroes.
-        if (fr.width === 0) return null;
+    const bezel = page.locator("[data-slot=board-viewport-bezel]").first();
+    const readFrame = () =>
+      bezel.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) return null;
         return {
-          frameInViewport: fr.left >= 0 && fr.right <= window.innerWidth,
-          tilesInsideFrame: r0.left >= fr.left - 0.5 && r21.right <= fr.right + 0.5,
+          frameInViewport: r.left >= 0 && r.right <= window.innerWidth,
+          pageScrollsSideways: document.documentElement.scrollWidth > window.innerWidth,
         };
       });
+    await expect.poll(readFrame, { timeout: 10_000 }).toEqual({ frameInViewport: true, pageScrollsSideways: false });
 
-    await expect.poll(readGeometry, { timeout: 10_000 }).toEqual({ frameInViewport: true, tilesInsideFrame: true });
+    // The last column is reachable by scrolling the board, not the page.
+    const scroller = page.locator("[data-slot=board-viewport-scroller]").first();
+    await scroller.focus();
+    await page.keyboard.press("End");
+    const lastTile = page.getByTestId("char-tile-0-21");
+    await expect
+      .poll(async () => {
+        const [t, f] = await Promise.all([lastTile.boundingBox(), bezel.boundingBox()]);
+        return !!t && !!f && t.x + t.width <= f.x + f.width + 0.5 && t.x >= f.x - 0.5;
+      })
+      .toBe(true);
   });
 });
 

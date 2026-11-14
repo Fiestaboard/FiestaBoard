@@ -1,12 +1,18 @@
 import "../../app/globals.css";
 
-import { Flex, ScaledBoardDisplay } from "@fiestaboard/ui";
+import { Flex } from "@fiestaboard/ui";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { DevicePreview } from "@/components/device-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
+import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { resolveBoardModel } from "@/lib/device-preview";
+
+// The app's board wrapper, as the editor renders it: since slice 2.4 a
+// BoardViewport, so the flap board scrolls in its bezel instead of shrinking.
+const client = new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } });
 
 function PreviewFixture() {
   const [drawing, setDrawing] = useState(false);
@@ -36,4 +42,8 @@ function PreviewFixture() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<PreviewFixture />);
+createRoot(document.getElementById("root")!).render(
+  <QueryClientProvider client={client}>
+    <PreviewFixture />
+  </QueryClientProvider>,
+);

@@ -22,6 +22,12 @@ export interface InlineBoardPreviewProps {
    *  scaling) so it sits comfortably inside a chat tool-call card. */
   size?: "sm" | "md";
   className?: string;
+  /**
+   * The preview's scroll-region name. A transcript holds many previews, so
+   * each gets its own ("Board preview, reply 2, step 1") instead of a row of
+   * identical "Board preview" landmarks (WEB-07, slice 2.4).
+   */
+  regionLabel?: string;
 }
 
 /**
@@ -48,7 +54,14 @@ export interface InlineBoardPreviewProps {
  * TanStack Query caches the complete draft and effective board context,
  * including artwork and geometry, so only equivalent previews dedupe.
  */
-export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", className }: InlineBoardPreviewProps) {
+export function InlineBoardPreview({
+  snapshot,
+  deviceType,
+  grid,
+  size = "sm",
+  className,
+  regionLabel,
+}: InlineBoardPreviewProps) {
   const t = useTranslations("aiChatPanel");
   const effectiveDeviceType = snapshot.device_type ?? deviceType;
   const panelGrid =
@@ -142,6 +155,7 @@ export function InlineBoardPreview({ snapshot, deviceType, grid, size = "sm", cl
           size={size}
           boardType="black"
           isStatic
+          regionLabel={regionLabel}
         />
       </DevicePreview>
     </Box>

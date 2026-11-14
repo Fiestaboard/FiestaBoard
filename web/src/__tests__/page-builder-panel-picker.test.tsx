@@ -194,7 +194,7 @@ describe("PageBuilder size picker — FiestaPanels", () => {
     await openSizePicker(user);
     await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
 
-    await waitFor(() => expect(screen.getByRole("img", { name: /12 rows by 29 columns, Panel/ })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("img", { name: /29 columns by 12 rows, Panel/ })).toBeInTheDocument());
     // A panel is not a note array: the Notes selects do not apply to it.
     expect(screen.queryByLabelText("Notes wide")).not.toBeInTheDocument();
   });
@@ -232,7 +232,7 @@ describe("PageBuilder size picker — FiestaPanels", () => {
     render(<PageBuilder pageId="existing-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
       wrapper: TestWrapper,
     });
-    await screen.findByText("6 × 22");
+    await screen.findByText("22 × 6");
 
     await openSizePicker(user);
     await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
@@ -263,11 +263,11 @@ describe("PageBuilder size picker — FiestaPanels", () => {
     render(<PageBuilder pageId="existing-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
       wrapper: TestWrapper,
     });
-    await screen.findByText("6 × 22");
+    await screen.findByText("22 × 6");
 
     await openSizePicker(user);
     await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
-    expect(await screen.findByRole("img", { name: "12 rows by 29 columns, Panel" })).toHaveTextContent("12 × 29");
+    expect(await screen.findByRole("img", { name: "29 columns by 12 rows, Panel" })).toHaveTextContent("29 × 12");
 
     // 6 × 22 → 12 × 29 grows on both axes, so no confirmation gate.
     await user.click(screen.getByRole("button", { name: "Save Page" }));

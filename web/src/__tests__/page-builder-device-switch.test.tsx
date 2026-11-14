@@ -271,22 +271,22 @@ describe("Page editor board-size switching", () => {
     expect(snapshot).not.toHaveProperty("document_protocol");
   });
 
-  it("lets a new page switch from Flagship to Note and resizes the grid to 3 × 15", async () => {
+  it("lets a new page switch from Flagship to Note and resizes the grid to 15 × 3", async () => {
     const user = userEvent.setup();
     render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
 
     // Starts at flagship dimensions.
     await waitFor(() => {
-      expect(screen.getByText("6 × 22")).toBeInTheDocument();
+      expect(screen.getByText("22 × 6")).toBeInTheDocument();
     });
 
     await switchDeviceTo(user, "Note");
 
     // The editor now previews at note dimensions.
     await waitFor(() => {
-      expect(screen.getByText("3 × 15")).toBeInTheDocument();
+      expect(screen.getByText("15 × 3")).toBeInTheDocument();
     });
-    expect(screen.queryByText("6 × 22")).not.toBeInTheDocument();
+    expect(screen.queryByText("22 × 6")).not.toBeInTheDocument();
   });
 
   it("offers the switcher on an existing page and confirms a shrinking retarget before saving", async () => {
@@ -302,13 +302,13 @@ describe("Page editor board-size switching", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("6 × 22")).toBeInTheDocument();
+      expect(screen.getByText("22 × 6")).toBeInTheDocument();
     });
 
     // The switcher is no longer hidden for saved pages.
     await switchDeviceTo(user, "Note");
     await waitFor(() => {
-      expect(screen.getByText("3 × 15")).toBeInTheDocument();
+      expect(screen.getByText("15 × 3")).toBeInTheDocument();
     });
 
     // Saving a 6×22 -> 3×15 retarget is lossy: a confirmation gate appears
@@ -336,12 +336,12 @@ describe("Page editor board-size switching", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("3 × 15")).toBeInTheDocument();
+      expect(screen.getByText("15 × 3")).toBeInTheDocument();
     });
 
     await switchDeviceTo(user, "Flagship");
     await waitFor(() => {
-      expect(screen.getByText("6 × 22")).toBeInTheDocument();
+      expect(screen.getByText("22 × 6")).toBeInTheDocument();
     });
 
     await user.click(screen.getByRole("button", { name: "Save Page" }));
@@ -368,7 +368,7 @@ describe("Page editor board-size switching", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("6 × 22")).toBeInTheDocument();
+      expect(screen.getByText("22 × 6")).toBeInTheDocument();
     });
 
     await switchDeviceTo(user, "Note");

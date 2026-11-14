@@ -17,6 +17,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { BoardDisplay } from "@/components/board-display";
+import { BoardViewport } from "@/components/board-viewport";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
@@ -84,6 +85,30 @@ describe("board accessible names are translated by the app", () => {
 
     const label = screen.getByRole("img").getAttribute("aria-label");
     expect(label).toContain("boardDisplay.withMessage");
+  });
+
+  it("names a loading BoardViewport with the app's loading translation (shared chrome)", () => {
+    render(<BoardViewport message="HELLO" isLoading size="sm" />, { wrapper: TestWrapper });
+
+    expect(screen.getByRole("img")).toHaveAttribute("aria-label", "[[boardDisplay.loading]]");
+  });
+
+  it("names an empty BoardViewport with the app's empty translation", () => {
+    render(<BoardViewport message={null} size="sm" />, { wrapper: TestWrapper });
+
+    expect(screen.getByRole("img")).toHaveAttribute("aria-label", "[[boardDisplay.empty]]");
+  });
+
+  it("translates the viewport's own region name", () => {
+    render(<BoardViewport message="HELLO" size="sm" />, { wrapper: TestWrapper });
+
+    expect(screen.getByRole("group", { name: "[[boardDisplay.preview]]" })).toBeInTheDocument();
+  });
+
+  it("names a thumbnail with the app's translations too", () => {
+    render(<ScaledBoardDisplay thumbnail message="HELLO" size="sm" />, { wrapper: TestWrapper });
+
+    expect(screen.getByRole("img").getAttribute("aria-label")).toContain("boardDisplay.withMessage");
   });
 
   it("names a static preview with the app's preview translation", () => {
