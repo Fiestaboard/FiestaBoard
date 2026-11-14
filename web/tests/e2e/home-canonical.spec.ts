@@ -187,6 +187,23 @@ test.describe("Home (2.2)", () => {
   test.describe("on a phone", () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
+    test("Compose duration stays above the footer when scrolled into view", async ({ page }) => {
+      await page.goto("/");
+      await page.getByRole("button", { name: "Compose a message" }).click();
+      const dialog = page.getByRole("dialog", { name: "Compose a message" });
+      await dialog.getByRole("textbox", { name: /^Message$/ }).fill("Dinner at 7\nTaco night\nSee you soon");
+      const duration = dialog.getByRole("radiogroup");
+      await duration.scrollIntoViewIfNeeded();
+      const chips = await duration.boundingBox();
+      const send = await dialog.getByRole("button", { name: "Show now" }).boundingBox();
+      expect(chips).not.toBeNull();
+      expect(send).not.toBeNull();
+      expect(chips!.y + chips!.height).toBeLessThanOrEqual(send!.y);
+      await dialog.getByRole("radio", { name: "15 min" }).click();
+      await expect(dialog.getByRole("radio", { name: "15 min" })).toHaveAttribute("aria-checked", "true");
+      await expectNoSeriousAxe(page, "Compose phone duration");
+    });
+
     test("Change Page is a two-step sheet: pick, then how long", async ({ page }) => {
       const base = await createPage("Evening commute", ["GOOD EVENING", "", "", "", "", ""]);
       await createPage("Taco Tuesday", ["TACO TUESDAY", "", "", "", "", ""]);

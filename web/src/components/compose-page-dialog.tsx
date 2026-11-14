@@ -284,15 +284,15 @@ export function ComposePageDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
             {boardLabel ? t("description", { board: boardLabel }) : t("descriptionNoBoard")}
           </DialogDescription>
         </DialogHeader>
 
-        <Stack gap="4" className="py-2">
+        <Stack gap="4" className="min-h-0 overflow-y-auto py-2">
           {showOn && (
             <Stack gap="2">
               <Label htmlFor={showOnId}>{t("showOn")}</Label>
@@ -422,7 +422,7 @@ export function ComposePageDialog({
           )}
         </Stack>
 
-        <DialogFooter className="sticky bottom-0 -mx-6 -mb-6 flex-wrap bg-background px-6 pb-6 pt-2">
+        <DialogFooter className="shrink-0 flex-wrap pt-2">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}

@@ -405,18 +405,18 @@ export function ChangePageDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>{t("description", { board: displayName })}</DialogDescription>
         </DialogHeader>
-        <Stack gap="4">
+        <Stack gap="4" className="min-h-0 overflow-y-auto">
           {search}
           <Box className="max-h-64 overflow-y-auto">{rows}</Box>
           {durationAndPreview}
           {silenceNotice}
         </Stack>
-        <DialogFooter className="sticky bottom-0 -mx-6 -mb-6 bg-background px-6 pb-6 pt-2">
+        <DialogFooter className="shrink-0 pt-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submit.isPending}>
             {t("cancel")}
           </Button>
