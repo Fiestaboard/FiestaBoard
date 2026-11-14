@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FormulaNodeView } from "@/components/tiptap-template-editor/node-views/FormulaNodeView";
@@ -20,6 +20,11 @@ describe("Formula modal shortcuts", () => {
       deleteNode,
     } as unknown as Parameters<typeof FormulaNodeView>[0];
     render(<FormulaNodeView {...props} />);
+    // Auto-open runs in a frame. Flush that update and its key listener before
+    // sending Escape; the dialog DOM can appear before passive effects run.
+    await act(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    });
     const dialog = await screen.findByRole("dialog", { name: "Formula editor" });
     expect(dialog).toHaveAttribute("aria-modal", "true");
     fireEvent.keyDown(document.body, { key: "Escape" });
