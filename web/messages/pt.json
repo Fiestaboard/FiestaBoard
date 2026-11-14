@@ -2262,7 +2262,8 @@
     "categoryDate": "Data",
     "clickToEditFormula": "Clique para editar fórmula",
     "newFormula": "nova fórmula",
-    "loading": "A carregar…"
+    "loading": "A carregar…",
+    "dialogLabel": "Editor de fórmulas"
   },
   "templateEditor": {
     "variables": "Variáveis",
@@ -2289,8 +2290,8 @@
     "toggleWrap": "Alternar quebra para a linha atual",
     "disableWrap": "Desativar quebra para esta linha",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Anular (Ctrl+Z)",
-    "redo": "Refazer (Ctrl+Shift+Z)",
+    "undo": "Anular",
+    "redo": "Refazer",
     "cut": "Cortar (Ctrl+X)",
     "copy": "Copiar (Ctrl+C)",
     "paste": "Colar (Ctrl+V)",
@@ -3198,5 +3199,23 @@
     "offlineBadge": "Offline",
     "offlineMeta": "Última ligação {time} · O horário continua no hub",
     "offlineMetaNever": "Sem contacto desde que o hub arrancou · O horário continua no hub"
+  },
+  "editorShortcuts": {
+    "title": "Atalhos de teclado",
+    "platformNote": "⌘ no Mac · Ctrl no Windows e Linux",
+    "or": "ou",
+    "close": "Fechar",
+    "button": "Atalhos",
+    "hint": "Todos os atalhos",
+    "footnote": "Sem atalhos de uma tecla enquanto escreve no modelo.",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "applyFormula": "Aplicar uma fórmula (editor de fórmulas)",
+    "closePicker": "Fechar um seletor",
+    "exitDrawMode": "Sair do modo de desenho",
+    "showShortcuts": "Mostrar atalhos de teclado",
+    "previewStep": "Mover a pré-visualização uma nota ou coluna",
+    "previewEnds": "Ir para o início ou o fim da pré-visualização",
+    "previewFit": "Ajustar / Tamanho real (pré-visualização em foco)"
   }
 }

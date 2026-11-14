@@ -2262,7 +2262,8 @@
     "categoryDate": "Fecha",
     "clickToEditFormula": "Haz clic para editar la fórmula",
     "newFormula": "nueva fórmula",
-    "loading": "Cargando…"
+    "loading": "Cargando…",
+    "dialogLabel": "Editor de fórmulas"
   },
   "templateEditor": {
     "variables": "Variables",
@@ -2289,8 +2290,8 @@
     "toggleWrap": "Alternar ajuste en la línea actual",
     "disableWrap": "Desactivar ajuste en esta línea",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Deshacer (Ctrl+Z)",
-    "redo": "Rehacer (Ctrl+Shift+Z)",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
     "cut": "Cortar (Ctrl+X)",
     "copy": "Copiar (Ctrl+C)",
     "paste": "Pegar (Ctrl+V)",
@@ -3198,5 +3199,23 @@
     "offlineBadge": "Sin conexión",
     "offlineMeta": "Última conexión {time} · El horario sigue en el hub",
     "offlineMetaNever": "Sin contacto desde que arrancó el hub · El horario sigue en el hub"
+  },
+  "editorShortcuts": {
+    "title": "Atajos de teclado",
+    "platformNote": "⌘ en Mac · Ctrl en Windows y Linux",
+    "or": "o",
+    "close": "Cerrar",
+    "button": "Atajos",
+    "hint": "Todos los atajos",
+    "footnote": "No hay atajos de una sola tecla mientras escribes en la plantilla.",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
+    "applyFormula": "Aplicar una fórmula (editor de fórmulas)",
+    "closePicker": "Cerrar un selector",
+    "exitDrawMode": "Salir del modo dibujo",
+    "showShortcuts": "Mostrar atajos de teclado",
+    "previewStep": "Mover la vista previa una nota o columna",
+    "previewEnds": "Saltar al inicio o al final de la vista previa",
+    "previewFit": "Ajustar / Tamaño real (vista previa enfocada)"
   }
 }

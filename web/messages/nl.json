@@ -2262,7 +2262,8 @@
     "categoryDate": "Datum",
     "clickToEditFormula": "Klik om formule te bewerken",
     "newFormula": "nieuwe formule",
-    "loading": "Laden…"
+    "loading": "Laden…",
+    "dialogLabel": "Formule-editor"
   },
   "templateEditor": {
     "variables": "Variabelen",
@@ -2289,8 +2290,8 @@
     "toggleWrap": "Tekstomloop voor huidige regel wisselen",
     "disableWrap": "Tekstomloop voor deze regel uitschakelen",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Ongedaan maken (Ctrl+Z)",
-    "redo": "Opnieuw (Ctrl+Shift+Z)",
+    "undo": "Ongedaan maken",
+    "redo": "Opnieuw",
     "cut": "Knippen (Ctrl+X)",
     "copy": "Kopiëren (Ctrl+C)",
     "paste": "Plakken (Ctrl+V)",
@@ -3198,5 +3199,23 @@
     "offlineBadge": "Offline",
     "offlineMeta": "Laatst verbonden {time} · Het schema loopt door op de hub",
     "offlineMetaNever": "Niet bereikt sinds de hub startte · Het schema loopt door op de hub"
+  },
+  "editorShortcuts": {
+    "title": "Sneltoetsen",
+    "platformNote": "⌘ op Mac · Ctrl op Windows en Linux",
+    "or": "of",
+    "close": "Sluiten",
+    "button": "Sneltoetsen",
+    "hint": "Alle sneltoetsen",
+    "footnote": "Geen sneltoetsen met één toets tijdens het typen in de sjabloon.",
+    "undo": "Ongedaan maken",
+    "redo": "Opnieuw",
+    "applyFormula": "Formule toepassen (formule-editor)",
+    "closePicker": "Een kiezer sluiten",
+    "exitDrawMode": "Tekenmodus verlaten",
+    "showShortcuts": "Sneltoetsen tonen",
+    "previewStep": "Voorbeeld één Note of kolom verschuiven",
+    "previewEnds": "Naar het begin of einde van het voorbeeld springen",
+    "previewFit": "Passend / Ware grootte (voorbeeld met focus)"
   }
 }

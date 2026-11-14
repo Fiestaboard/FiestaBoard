@@ -2262,7 +2262,8 @@
     "categoryDate": "Datum",
     "clickToEditFormula": "Klicka för att redigera formel",
     "newFormula": "ny formel",
-    "loading": "Laddar…"
+    "loading": "Laddar…",
+    "dialogLabel": "Formelredigerare"
   },
   "templateEditor": {
     "variables": "Variabler",
@@ -2289,8 +2290,8 @@
     "toggleWrap": "Växla radbrytning för aktuell rad",
     "disableWrap": "Inaktivera radbrytning för denna rad",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Ångra (Ctrl+Z)",
-    "redo": "Gör om (Ctrl+Shift+Z)",
+    "undo": "Ångra",
+    "redo": "Gör om",
     "cut": "Klipp ut (Ctrl+X)",
     "copy": "Kopiera (Ctrl+C)",
     "paste": "Klistra in (Ctrl+V)",
@@ -3198,5 +3199,23 @@
     "offlineBadge": "Offline",
     "offlineMeta": "Senast ansluten {time} · Schemat fortsätter på hubben",
     "offlineMetaNever": "Inte nådd sedan hubben startade · Schemat fortsätter på hubben"
+  },
+  "editorShortcuts": {
+    "title": "Kortkommandon",
+    "platformNote": "⌘ på Mac · Ctrl på Windows och Linux",
+    "or": "eller",
+    "close": "Stäng",
+    "button": "Kortkommandon",
+    "hint": "Alla kortkommandon",
+    "footnote": "Inga kortkommandon med en tangent medan du skriver i mallen.",
+    "undo": "Ångra",
+    "redo": "Gör om",
+    "applyFormula": "Använd en formel (formelredigeraren)",
+    "closePicker": "Stäng en väljare",
+    "exitDrawMode": "Lämna ritläget",
+    "showShortcuts": "Visa kortkommandon",
+    "previewStep": "Flytta förhandsvisningen en Note eller kolumn",
+    "previewEnds": "Hoppa till början eller slutet av förhandsvisningen",
+    "previewFit": "Anpassa / Verklig storlek (förhandsvisning i fokus)"
   }
 }

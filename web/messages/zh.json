@@ -2262,7 +2262,8 @@
     "categoryDate": "日期",
     "clickToEditFormula": "点击以编辑公式",
     "newFormula": "新公式",
-    "loading": "加载中…"
+    "loading": "加载中…",
+    "dialogLabel": "公式编辑器"
   },
   "templateEditor": {
     "variables": "变量",
@@ -2289,8 +2290,8 @@
     "toggleWrap": "切换当前行的换行",
     "disableWrap": "禁用此行的换行",
     "enableWrap": "Enable wrap for this line",
-    "undo": "撤销 (Ctrl+Z)",
-    "redo": "重做 (Ctrl+Shift+Z)",
+    "undo": "撤销",
+    "redo": "重做",
     "cut": "剪切 (Ctrl+X)",
     "copy": "复制 (Ctrl+C)",
     "paste": "粘贴 (Ctrl+V)",
@@ -3198,5 +3199,23 @@
     "offlineBadge": "离线",
     "offlineMeta": "上次连接 {time} · 日程仍在中枢上运行",
     "offlineMetaNever": "中枢启动后未连接 · 日程仍在中枢上运行"
+  },
+  "editorShortcuts": {
+    "title": "键盘快捷键",
+    "platformNote": "Mac 上为 ⌘ · Windows 和 Linux 上为 Ctrl",
+    "or": "或",
+    "close": "关闭",
+    "button": "快捷键",
+    "hint": "所有快捷键",
+    "footnote": "在模板中输入时没有单键快捷键。",
+    "undo": "撤销",
+    "redo": "重做",
+    "applyFormula": "应用公式（公式编辑器）",
+    "closePicker": "关闭选择器",
+    "exitDrawMode": "退出绘制模式",
+    "showShortcuts": "显示键盘快捷键",
+    "previewStep": "将预览移动一个 Note 或一列",
+    "previewEnds": "跳到预览的开头或结尾",
+    "previewFit": "适应 / 实际大小（预览获得焦点时）"
   }
 }

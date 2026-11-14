@@ -2262,7 +2262,8 @@
     "categoryDate": "日付",
     "clickToEditFormula": "クリックして数式を編集",
     "newFormula": "新しい数式",
-    "loading": "読み込み中…"
+    "loading": "読み込み中…",
+    "dialogLabel": "数式エディター"
   },
   "templateEditor": {
     "variables": "変数",
@@ -2289,8 +2290,8 @@
     "toggleWrap": "現在の行の折り返しを切り替え",
     "disableWrap": "この行の折り返しを無効化",
     "enableWrap": "Enable wrap for this line",
-    "undo": "元に戻す (Ctrl+Z)",
-    "redo": "やり直し (Ctrl+Shift+Z)",
+    "undo": "元に戻す",
+    "redo": "やり直し",
     "cut": "切り取り (Ctrl+X)",
     "copy": "コピー (Ctrl+C)",
     "paste": "貼り付け (Ctrl+V)",
@@ -3198,5 +3199,23 @@
     "offlineBadge": "オフライン",
     "offlineMeta": "最終接続 {time}・スケジュールはハブで動作中",
     "offlineMetaNever": "ハブの起動以来未接続・スケジュールはハブで動作中"
+  },
+  "editorShortcuts": {
+    "title": "キーボードショートカット",
+    "platformNote": "Mac は ⌘ · Windows と Linux は Ctrl",
+    "or": "または",
+    "close": "閉じる",
+    "button": "ショートカット",
+    "hint": "すべてのショートカット",
+    "footnote": "テンプレートの入力中は単一キーのショートカットは使えません。",
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "applyFormula": "数式を適用（数式エディター）",
+    "closePicker": "ピッカーを閉じる",
+    "exitDrawMode": "描画モードを終了",
+    "showShortcuts": "キーボードショートカットを表示",
+    "previewStep": "プレビューを1ノートまたは1列移動",
+    "previewEnds": "プレビューの先頭または末尾へ移動",
+    "previewFit": "全体表示 / 実寸（プレビューにフォーカス時）"
   }
 }

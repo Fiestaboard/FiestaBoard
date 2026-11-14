@@ -2262,7 +2262,8 @@
     "categoryDate": "Data",
     "clickToEditFormula": "Kliknij, aby edytować formułę",
     "newFormula": "nowa formuła",
-    "loading": "Ładowanie…"
+    "loading": "Ładowanie…",
+    "dialogLabel": "Edytor formuł"
   },
   "templateEditor": {
     "variables": "Zmienne",
@@ -2289,8 +2290,8 @@
     "toggleWrap": "Przełącz zawijanie dla bieżącego wiersza",
     "disableWrap": "Wyłącz zawijanie dla tego wiersza",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Cofnij (Ctrl+Z)",
-    "redo": "Ponów (Ctrl+Shift+Z)",
+    "undo": "Cofnij",
+    "redo": "Ponów",
     "cut": "Wytnij (Ctrl+X)",
     "copy": "Kopiuj (Ctrl+C)",
     "paste": "Wklej (Ctrl+V)",
@@ -3198,5 +3199,23 @@
     "offlineBadge": "Offline",
     "offlineMeta": "Ostatnie połączenie {time} · Harmonogram działa dalej na hubie",
     "offlineMetaNever": "Brak połączenia od uruchomienia huba · Harmonogram działa dalej na hubie"
+  },
+  "editorShortcuts": {
+    "title": "Skróty klawiszowe",
+    "platformNote": "⌘ na Macu · Ctrl w Windows i Linux",
+    "or": "lub",
+    "close": "Zamknij",
+    "button": "Skróty",
+    "hint": "Wszystkie skróty",
+    "footnote": "Podczas pisania w szablonie nie ma skrótów jednoklawiszowych.",
+    "undo": "Cofnij",
+    "redo": "Ponów",
+    "applyFormula": "Zastosuj formułę (edytor formuł)",
+    "closePicker": "Zamknij selektor",
+    "exitDrawMode": "Wyjdź z trybu rysowania",
+    "showShortcuts": "Pokaż skróty klawiszowe",
+    "previewStep": "Przesuń podgląd o jedną notatkę lub kolumnę",
+    "previewEnds": "Przejdź na początek lub koniec podglądu",
+    "previewFit": "Dopasuj / Rzeczywisty rozmiar (podgląd aktywny)"
   }
 }
