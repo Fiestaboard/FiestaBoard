@@ -106,6 +106,28 @@ test.describe("install offer timing (2.8, WEB-12)", () => {
     await expect(offer(page)).toHaveCount(0);
   });
 
+  test("phone install actions stay reachable above the bottom navigation", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const name of ["Install Beta", "Install Gamma", "Install Alpha"]) await changePageTo(page, name);
+    await expect(offer(page)).toBeVisible();
+    // Leaving the former dialog action position avoids pausing a toast on hover.
+    await page.mouse.move(0, 0);
+    await expect(page.locator("[data-sonner-toast]")).toHaveCount(0, { timeout: 10_000 });
+    const dismiss = offer(page).getByRole("button", { name: "Not now" });
+    await dismiss.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        dismiss.evaluate((button) => {
+          const rect = button.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+          return hit !== null && button.contains(hit);
+        }),
+      )
+      .toBe(true);
+    await dismiss.click();
+    await expect(offer(page)).toHaveCount(0);
+  });
+
   test("the card has no serious or critical axe violations", async ({ page }) => {
     for (const name of ["Install Beta", "Install Gamma", "Install Alpha"]) await changePageTo(page, name);
     await expect(offer(page)).toBeVisible();
