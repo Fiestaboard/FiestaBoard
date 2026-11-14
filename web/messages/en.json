@@ -82,7 +82,16 @@
     "skipToMainContent": "Skip to main content",
     "boardSelector": "Select board to manage",
     "selectBoard": "Select board",
-    "unnamedBoard": "Unnamed board"
+    "unnamedBoard": "Unnamed board",
+    "more": "More",
+    "needsAttention": "{count, plural, one {# needs attention} other {# need attention}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "Opens the drawer",
+    "hub": {
+      "online": "Online",
+      "unreachable": "Can’t reach",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "More",
@@ -627,7 +636,7 @@
   },
   "settings": {
     "title": "Settings",
-    "description": "Hardware, connections, and system configuration",
+    "description": "Your account, this browser and this hub.",
     "advancedSection": "Advanced",
     "setupWizardTitle": "Setup Wizard",
     "setupWizardDescription": "Re-run the setup wizard to reconfigure your board connection and basic settings.",
@@ -732,7 +741,42 @@
     "displaySilenceTitle": "Display silence schedules",
     "displaySilenceDescription": "Quiet hours belong to each display. Open a display’s Playback tab to change its schedule.",
     "openDisplayPlayback": "Open {name} playback settings",
-    "openDisplays": "Manage displays"
+    "openDisplays": "Manage displays",
+    "hub": {
+      "you": "You",
+      "hubGroup": "Hub · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "Account",
+          "description": "Who you are signed in as, and how you sign in."
+        },
+        "appearance": {
+          "title": "Appearance",
+          "description": "How FiestaBoard looks in this browser."
+        },
+        "accessibility": {
+          "title": "Accessibility",
+          "description": "Motion and reading comfort in this browser."
+        },
+        "network": {
+          "title": "Network",
+          "description": "How phones, TVs and browsers reach {name}. Changes here affect every device."
+        },
+        "ai-provider": {
+          "title": "AI provider",
+          "description": "FiestaBot uses the provider you choose. It’s off until you set one up."
+        },
+        "system": {
+          "title": "System & backups",
+          "description": "Updates, backups and {name} itself."
+        },
+        "language-time": {
+          "title": "Language & time",
+          "description": "Used by the hub for the Schedule, time variables and every timestamp you see."
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "You're Offline",

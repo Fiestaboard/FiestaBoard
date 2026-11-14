@@ -72,7 +72,7 @@ describe("useChoreographer", () => {
     await act(async () => {
       await vi.runAllTimersAsync();
     });
-    expect(ctx.navigated).toEqual(["/settings?section=general"]);
+    expect(ctx.navigated).toEqual(["/settings/system"]);
     expect(ctx.spotlight.show).toHaveBeenCalled();
     expect(result.current.driving).toBe(true);
     expect(ctx.spotlight.pulse).not.toHaveBeenCalled();
@@ -97,12 +97,12 @@ describe("useChoreographer", () => {
     await act(async () => {
       await vi.runAllTimersAsync();
     });
-    expect(ctx.navigated).toEqual(["/settings?section=general"]);
+    expect(ctx.navigated).toEqual(["/settings/system"]);
     act(() => result.current.onToolResult(OK));
     await act(async () => {
       await vi.runAllTimersAsync();
     });
-    expect(ctx.navigated).toEqual(["/settings?section=general", "/"]);
+    expect(ctx.navigated).toEqual(["/settings/system", "/"]);
   });
 
   it("ignores read-only calls entirely", async () => {

@@ -45,7 +45,8 @@ without a job that sets it fails `tests/test_e2e_spec_reachability.py`.
 | `integration.spec.ts`           | Core flows     | Infrastructure health, setup wizard, navigation, page and schedule management   |
 | `api.spec.ts`                   | Backend API    | Version/config, settings, pages, schedules, plugins, templates, displays, debug |
 | `api-extended.spec.ts`          | Backend API    | Deeper config/pages/schedules/plugins/settings/templates coverage               |
-| `navigation.spec.ts`            | Navigation     | Mobile hamburger menu, sidebar links, theme toggle, version display             |
+| `navigation.spec.ts`            | Navigation     | Phone tab bar, sidebar links, theme toggle, version display                     |
+| `nav-ia.spec.ts`                | Navigation     | IA at 390/900/1280: tab bar, More and its Hub group, rail, Settings list-detail |
 | `dashboard.spec.ts`             | Dashboard      | Board display, active page name, manual-mode badge                              |
 | `a11y.spec.ts`                  | Accessibility  | axe-core scans of the main routes                                               |
 | `localization.spec.ts`          | i18n           | Locale switching, persistence across navigation and reload, mobile menu         |

@@ -2,48 +2,22 @@
 
 import { BoardSelector, Sidebar, type SidebarLinkProps, type SidebarNavItem } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Award, Calendar, FileText, GalleryHorizontalEnd, HelpCircle, Home, Monitor, Puzzle } from "lucide-react";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
-import { useSidebar } from "@/components/sidebar-context";
+import { MoreSheetExtras } from "@/components/more-sheet";
+import { readStoredCollapsed, useSidebar } from "@/components/sidebar-context";
 import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
+import { RAIL_BREAKPOINT, useBelowRail, useTabletRailCollapse } from "@/hooks/use-below-rail";
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
 import { isChromelessPath } from "@/lib/chromeless";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
-
-interface NavItemDef {
-  key: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  external?: boolean;
-}
-
-// Displays sits right under Home: the hardware is what everything else is
-// for, so it leads the places you set up, ahead of what goes on it.
-const primaryItems: NavItemDef[] = [
-  { key: "home", href: "/", icon: Home },
-  // Every board and screen FiestaBoard shows on (plan D21).
-  { key: "displays", href: "/displays", icon: Monitor },
-  { key: "pages", href: "/pages", icon: FileText },
-  { key: "collections", href: "/collections", icon: GalleryHorizontalEnd },
-  { key: "schedule", href: "/schedule", icon: Calendar },
-  { key: "integrations", href: "/integrations", icon: Puzzle },
-];
-
-// Settings is NOT here. It lives in the footer twice over — a gear beside the
-// assistant (`settings` below) and an item of the account menu, which is also
-// where sign-out, the theme and the version live. The list is for the places
-// the app is about; a row for Settings competed with them for height.
-const secondaryItems: NavItemDef[] = [
-  { key: "picks", href: "/picks", icon: Award },
-  { key: "helpDocs", href: "https://fiestaboard.app/docs/intro", icon: HelpCircle, external: true },
-];
+import { integrationsNeedingAttention, isNavItemActive, type NavItemDef, navItemsFor } from "@/lib/nav-items";
 
 /**
  * App wiring around the design system's presentational <Sidebar> — routes,
@@ -53,7 +27,8 @@ const secondaryItems: NavItemDef[] = [
 export function NavigationSidebar() {
   const pathname = usePathname();
   const prefetchPages = usePrefetchPagesData();
-  const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
+  const { collapsed, transitioning, toggle, setCollapsed, onTransitionEnd } = useSidebar();
+  useTabletRailCollapse(setCollapsed, readStoredCollapsed);
   const t = useTranslations("navigation");
   const tMenu = useTranslations("settingsMenu");
   const { isOpen: aiPanelOpen, open: openAiPanel } = useGlobalAiPanel();
@@ -77,15 +52,27 @@ export function NavigationSidebar() {
   // always in the menu; nothing on the closed button said to open it.
   const updateAvailable = useAvailableUpdate({ enabled: !chromeless });
 
+  // The Integrations badge (07a "ONE BADGE, ONE STORY"). Same cache key as
+  // the Integrations page, so visiting it refreshes the badge for free.
+  const { data: pluginList } = useQuery({
+    queryKey: ["plugins"],
+    queryFn: api.listPlugins,
+    staleTime: 60_000,
+    enabled: !chromeless,
+  });
+  const needsAttention = integrationsNeedingAttention(pluginList?.plugins);
+
+  // Below 768px the tab bar is the nav (WEB-01/02). It and the rail are one
+  // Sidebar, but they list different things: the bar has no row for nested
+  // Collections, and its More drawer holds the Hub group instead of the
+  // account menu (07a `308:36070`).
+  const belowRail = useBelowRail();
+  const chrome = belowRail ? "bottom-nav" : "rail";
+
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer
   // (a wall display must never grow app chrome).
   if (chromeless) return null;
-
-  const isActive = (item: NavItemDef) => {
-    if (item.external) return false;
-    return item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
-  };
 
   const toNavItem = (item: NavItemDef): SidebarNavItem => ({
     key: item.key,
@@ -93,8 +80,12 @@ export function NavigationSidebar() {
     icon: item.icon,
     label: t(item.key),
     external: item.external,
-    active: isActive(item),
+    active: isNavItemActive(item, pathname, chrome),
     onPrefetch: !item.external && item.href === "/pages" ? prefetchPages : undefined,
+    badge:
+      item.key === "integrations" && needsAttention > 0
+        ? { count: needsAttention, label: t("needsAttention", { count: needsAttention }) }
+        : undefined,
   });
 
   const renderLink = ({ children, ...props }: SidebarLinkProps) => (
@@ -112,32 +103,30 @@ export function NavigationSidebar() {
       labels={{
         mainNavigation: t("mainNavigation"),
         primaryNavigation: t("primaryNavigation"),
-        secondaryNavigation: t("secondaryNavigation"),
         navigationMenu: t("navigationMenu"),
         openMenu: t("openMenu"),
         closeMenu: t("closeMenu"),
         expandSidebar: t("expandSidebar"),
         collapseSidebar: t("collapseSidebar"),
         aiAssistant: t("aiAssistant"),
+        more: t("more"),
       }}
-      // One flat list, in reading order. `primaryItems`/`secondaryItems` are
-      // deprecated in @fiestaboard/ui and expressed a split the rail stopped
-      // rendering several releases ago.
-      items={[...primaryItems, ...secondaryItems].map(toNavItem)}
+      // Below 768px a tab bar (Home · Pages · Schedule · Displays · More);
+      // from 768px the rail. MainContent takes the same breakpoint.
+      variant="bottom-nav"
+      railBreakpoint={RAIL_BREAKPOINT}
+      items={navItemsFor(chrome).map(toNavItem)}
       renderLink={renderLink}
       collapsed={collapsed}
       transitioning={transitioning}
       onToggleCollapsed={toggle}
       onTransitionEnd={onTransitionEnd}
       ai={hasAiProviders ? { active: aiPanelOpen, onOpen: openAiPanel } : undefined}
-      // The gear left of the assistant. `active` matters more here than on a
-      // nav row: Settings has no row, so on /settings this is the only thing
-      // on the rail that says where you are.
-      settings={{
-        href: "/settings",
-        label: t("settings"),
-        active: pathname === "/settings" || pathname.startsWith("/settings/"),
-      }}
+      // The gear left of the assistant: a one-click shortcut. Settings has a
+      // row in the list now (WEB-01), and the row is what says "you are
+      // here" (07e `318:46000` draws the gear unlit on /settings), so the
+      // gear never lights.
+      settings={{ href: "/settings", label: t("settings") }}
       boardSelector={
         boards.length > 1 ? (
           <BoardSelector
@@ -160,16 +149,18 @@ export function NavigationSidebar() {
           />
         ) : undefined
       }
-      // `variant` matters as much as `collapsed`: the drawer wants inline rows,
-      // not the rail's dropdown. Dropping it here is what shipped the desktop
-      // shape to mobile.
+      // The rail's footer is the account menu. On a phone the same slot is
+      // the foot of the More drawer, which 07a fills with FiestaBot and the
+      // Hub group; the account rows (sign out, theme, About) live in
+      // Settings › Account and Appearance there.
       // `notice` is `menuNotice` coming back; forwarded, not recomputed.
-      // `closeMenu` closes the mobile drawer. Its own nav rows do that
-      // themselves; the rows this menu renders into its footer cannot, and
-      // without it Settings navigated underneath a drawer that stayed open.
-      renderSettingsMenu={({ variant, collapsed: isCollapsed, notice, closeMenu }) => (
-        <SidebarSettingsMenu variant={variant} collapsed={isCollapsed} notice={notice} onSelect={closeMenu} />
-      )}
+      renderSettingsMenu={({ variant, collapsed: isCollapsed, notice, closeMenu }) =>
+        variant === "mobile" ? (
+          <MoreSheetExtras ai={hasAiProviders ? { onOpen: openAiPanel } : undefined} closeMenu={closeMenu} />
+        ) : (
+          <SidebarSettingsMenu variant={variant} collapsed={isCollapsed} notice={notice} onSelect={closeMenu} />
+        )
+      }
       menuNotice={updateAvailable ? tMenu("updateAvailable") : undefined}
       maxWidth={MAX_APP_WIDTH}
       sidebarInset={SIDEBAR_INSET}

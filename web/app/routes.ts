@@ -10,7 +10,8 @@ export default [
   route("login", "routes/login.tsx"),
   route("offline", "routes/offline.tsx"),
   route("profile", "routes/profile.tsx"),
-  route("settings", "routes/settings.tsx"),
+  // Settings is a list-detail (slice 2.1): /settings and /settings/:section.
+  route("settings/:section?", "routes/settings.tsx"),
   route("collections", "routes/collections.tsx", [
     index("routes/collections._index.tsx"),
     route("new", "routes/collections.new.tsx"),

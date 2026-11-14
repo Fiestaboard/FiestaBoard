@@ -82,7 +82,16 @@
     "skipToMainContent": "Ana içeriğe geç",
     "boardSelector": "Yönetilecek panoyu seçin",
     "selectBoard": "Pano seçin",
-    "unnamedBoard": "Adsız pano"
+    "unnamedBoard": "Adsız pano",
+    "more": "Daha fazla",
+    "needsAttention": "{count, plural, one {# dikkat gerektiriyor} other {# dikkat gerektiriyor}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "Paneli açar",
+    "hub": {
+      "online": "Çevrimiçi",
+      "unreachable": "Ulaşılamıyor",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "Daha fazla",
@@ -671,7 +680,7 @@
   },
   "settings": {
     "title": "Ayarlar",
-    "description": "FiestaBoard hizmetinizi yapılandırın",
+    "description": "Hesabınız, bu tarayıcı ve bu hub.",
     "advancedSection": "Gelişmiş",
     "setupWizardTitle": "Kurulum Sihirbazı",
     "setupWizardDescription": "Pano bağlantınızı ve temel ayarlarınızı yeniden yapılandırmak için kurulum sihirbazını tekrar çalıştırın.",
@@ -776,7 +785,42 @@
     "displaySilenceTitle": "Ekran sessizlik programları",
     "displaySilenceDescription": "Her ekranın kendi sessiz saatleri vardır. Programını değiştirmek için ekranın Oynatma sekmesini açın.",
     "openDisplayPlayback": "{name} oynatma ayarlarını aç",
-    "openDisplays": "Ekranları yönet"
+    "openDisplays": "Ekranları yönet",
+    "hub": {
+      "you": "Siz",
+      "hubGroup": "Hub · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "Hesap",
+          "description": "Kimin oturum açtığı ve nasıl oturum açtığınız."
+        },
+        "appearance": {
+          "title": "Görünüm",
+          "description": "FiestaBoard’un bu tarayıcıdaki görünümü."
+        },
+        "accessibility": {
+          "title": "Erişilebilirlik",
+          "description": "Bu tarayıcıda hareket ve okuma rahatlığı."
+        },
+        "network": {
+          "title": "Ağ",
+          "description": "Telefonların, TV’lerin ve tarayıcıların {name} cihazına nasıl ulaştığı. Değişiklikler tüm cihazları etkiler."
+        },
+        "ai-provider": {
+          "title": "Yapay zekâ sağlayıcısı",
+          "description": "FiestaBot seçtiğiniz sağlayıcıyı kullanır. Siz kurana kadar kapalıdır."
+        },
+        "system": {
+          "title": "Sistem ve yedekler",
+          "description": "Güncellemeler, yedekler ve {name}."
+        },
+        "language-time": {
+          "title": "Dil ve saat",
+          "description": "Hub tarafından Program, saat değişkenleri ve her zaman damgası için kullanılır."
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "Çevrimdışısınız",

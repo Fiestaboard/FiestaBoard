@@ -82,7 +82,16 @@
     "skipToMainContent": "メインコンテンツへスキップ",
     "boardSelector": "管理するボードを選択",
     "selectBoard": "ボードを選択",
-    "unnamedBoard": "名前のないボード"
+    "unnamedBoard": "名前のないボード",
+    "more": "その他",
+    "needsAttention": "{count, plural, other {# 件の対応が必要}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "ドロワーを開きます",
+    "hub": {
+      "online": "オンライン",
+      "unreachable": "接続できません",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "その他",
@@ -671,7 +680,7 @@
   },
   "settings": {
     "title": "設定",
-    "description": "FiestaBoard サービスの設定を行います",
+    "description": "あなたのアカウント、このブラウザー、このハブ。",
     "advancedSection": "詳細設定",
     "setupWizardTitle": "セットアップウィザード",
     "setupWizardDescription": "セットアップウィザードを再実行して、ボード接続と基本設定を再構成します。",
@@ -776,7 +785,42 @@
     "displaySilenceTitle": "ディスプレイの静音スケジュール",
     "displaySilenceDescription": "静音時間帯はディスプレイごとに設定します。ディスプレイの「再生」タブを開いてスケジュールを変更してください。",
     "openDisplayPlayback": "{name}の再生設定を開く",
-    "openDisplays": "ディスプレイを管理"
+    "openDisplays": "ディスプレイを管理",
+    "hub": {
+      "you": "あなた",
+      "hubGroup": "ハブ · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "アカウント",
+          "description": "サインイン中のユーザーとサインイン方法。"
+        },
+        "appearance": {
+          "title": "外観",
+          "description": "このブラウザーでの FiestaBoard の見た目。"
+        },
+        "accessibility": {
+          "title": "アクセシビリティ",
+          "description": "このブラウザーでの動きと読みやすさ。"
+        },
+        "network": {
+          "title": "ネットワーク",
+          "description": "スマートフォン、テレビ、ブラウザーが {name} に接続する方法。変更はすべてのデバイスに影響します。"
+        },
+        "ai-provider": {
+          "title": "AI プロバイダー",
+          "description": "FiestaBot は選んだプロバイダーを使います。設定するまでオフです。"
+        },
+        "system": {
+          "title": "システムとバックアップ",
+          "description": "アップデート、バックアップ、{name} 本体。"
+        },
+        "language-time": {
+          "title": "言語と時刻",
+          "description": "スケジュール、時刻変数、すべてのタイムスタンプにハブが使用します。"
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "オフラインです",
