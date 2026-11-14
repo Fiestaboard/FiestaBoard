@@ -93,6 +93,39 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
     expect(hintBox!.x).toBeGreaterThan(toolBox!.x);
   });
 
+  for (const width of [768, 1024]) {
+    test(`at ${width}px the hint stays above the toolbar without adding a toolbar line`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1024 });
+      await openEditor(page);
+      const hint = page.getByRole("button", { name: /All shortcuts/ });
+      await expect(hint).toHaveCount(1);
+      const formula = page.getByRole("button", { name: "Insert formula" });
+      const [hintBox, toolBox] = await Promise.all([hint.boundingBox(), formula.boundingBox()]);
+      expect(hintBox && toolBox).toBeTruthy();
+      expect(hintBox!.y + hintBox!.height).toBeLessThanOrEqual(toolBox!.y);
+      if (width === 768) {
+        const previewBox = await page.getByRole("button", { name: "Show preview and live output" }).boundingBox();
+        expect(previewBox).toBeTruthy();
+        expect(
+          Math.abs(hintBox!.y + hintBox!.height / 2 - (previewBox!.y + previewBox!.height / 2)),
+        ).toBeLessThanOrEqual(4);
+      }
+      await hint.click();
+      await expect(page.getByRole("dialog", LIST)).toBeVisible();
+      await page.keyboard.press("Escape");
+
+      // Crossing the desktop boundary moves the single hint into the toolbar.
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await expect(hint).toHaveCount(1);
+      await expect
+        .poll(async () => {
+          const [h, t] = await Promise.all([hint.boundingBox(), formula.boundingBox()]);
+          return Math.abs(h!.y + h!.height / 2 - (t!.y + t!.height / 2));
+        })
+        .toBeLessThanOrEqual(4);
+    });
+  }
+
   test("the header Shortcuts button and the ? All shortcuts hint both open the list", async ({ page }) => {
     await openEditor(page);
     await page.getByRole("button", { name: "Shortcuts", exact: true }).click();

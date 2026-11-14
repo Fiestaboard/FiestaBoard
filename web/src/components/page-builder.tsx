@@ -94,6 +94,7 @@ import {
   useBoardSettings,
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useDisplayTargets } from "@/hooks/use-panel-targets";
 import { usePluginSettings } from "@/hooks/use-plugin-settings";
 import { useSilence } from "@/hooks/use-silence";
@@ -2187,10 +2188,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // previews through DevicePreview (draw mode always paints flaps).
     boardViewport: previewBindsBoardViewportKeys({ ledPreview: !drawMode && isLedModel(previewModel) }),
   };
-  // 07 `57:28704` puts the hint on the toolbar row; only the rich flap editor
-  // has a web toolbar, so plain text and the LED editor keep it on the row
-  // above the template (DD-W59).
-  const hintOnToolbar = editorMode === "rich" && !editorCharset;
+  // 07 `57:28704` puts the hint on the toolbar row. The rich flap toolbar
+  // has room from xl up; at tablet widths keep the hint above the template,
+  // sharing the existing preview-toggle row below lg (DD-W59).
+  const isXlUp = useMediaQuery("(min-width: 1280px)");
+  const hintOnToolbar = isXlUp && editorMode === "rich" && !editorCharset;
 
   // Keyboard shortcuts while drawing: Esc exits; undo/redo work even though
   // the editor itself is visually hidden (and thus not focused) in draw mode.
@@ -2529,8 +2531,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 >
                   {t(mobilePreviewOpen ? "hidePreview" : "showPreview")}
                 </Button>
-                {/* Without a web toolbar (plain text, LED editor), "? All shortcuts"
-                    sits at the right end of the row above the template (DD-W59). */}
+                {/* At tablet widths or without a web toolbar, the hint sits above
+                    the template instead of wrapping onto its own toolbar line (DD-W59). */}
                 {!hintOnToolbar && (
                   <Box className="ml-auto">
                     <EditorShortcutList variant="hint" {...shortcutListProps} />
@@ -2648,7 +2650,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               drawBrush={drawBrush}
                               onDrawBrushChange={setDrawBrush}
                               onDrawHistoryEvent={handleDrawHistoryEvent}
-                              toolbarTrailing={<EditorShortcutList variant="hint" {...shortcutListProps} />}
+                              toolbarTrailing={
+                                hintOnToolbar ? <EditorShortcutList variant="hint" {...shortcutListProps} /> : undefined
+                              }
                             />
                           )}
                         </Suspense>

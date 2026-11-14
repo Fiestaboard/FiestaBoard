@@ -14,7 +14,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { FormulaEditorPanel } from "@/components/tiptap-template-editor/components/FormulaEditorPanel";
 import { ToolbarDropdown } from "@/components/tiptap-template-editor/components/ToolbarDropdown";
-import { FormulaNodeView } from "@/components/tiptap-template-editor/node-views/FormulaNodeView";
 import { api } from "@/lib/api";
 import { editorShortcutGroups } from "@/lib/editor-shortcuts";
 
@@ -93,25 +92,6 @@ describe("Close a picker (Esc)", () => {
     expect(document.querySelector("[data-editor-overlay]")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Colors" }));
     expect(screen.getByRole("dialog", { name: "Colors" })).toHaveAttribute("data-editor-overlay");
-  });
-
-  it("closes the formula modal, deleting a formula that was never given an expression", async () => {
-    const deleteNode = vi.fn();
-    const updateAttributes = vi.fn();
-    const props = {
-      node: { attrs: { expression: "", autoOpen: true } },
-      updateAttributes,
-      deleteNode,
-    } as unknown as Parameters<typeof FormulaNodeView>[0];
-    render(<FormulaNodeView {...props} />, { wrapper: Wrapper });
-    // The panel inside is lazy-loaded; under load the first render can be slow.
-    const dialog = await screen.findByRole("dialog", { name: "Formula editor" }, { timeout: 5000 });
-    expect(dialog).toHaveAttribute("aria-modal", "true");
-    fireEvent.keyDown(document.body, { key: "Escape" });
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Formula editor" })).toBeNull(), {
-      timeout: 5000,
-    });
-    expect(deleteNode).toHaveBeenCalled();
   });
 });
 

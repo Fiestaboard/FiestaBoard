@@ -40,3 +40,13 @@ Not listed, because no binding exists in web today: 07's `/` insert menu, Mod+Sh
 - S1: `editor-shortcut-bindings.test.tsx` requires a binding test for every listed row.
 - S2: no anchor while the template column is hidden; `boardViewport` comes from `previewBindsBoardViewportKeys`.
 - S4: the undo and redo tooltips render their chords from the registry.
+
+## Re-review follow-up (RR-M1)
+
+1. Add Playwright regressions at 768 and 1024: one hint above the toolbar; at 768 it shares the preview-toggle row. Resizing to 1280 moves it into the toolbar.
+2. Finish the inherited media-query hook and gate both placements at xl (1280), because the review measures a wrap at 1024 too. Preserve one hint per layout.
+3. Isolate FormulaNodeView's Esc/deletion test from its lazy CodeMirror panel; keep real panel keymap and Done coverage in the existing suite.
+4. Pin registry alpha.1 and verify the lockfile, full coverage suite, typecheck, lint, format, build and sequential one-worker editor/a11y e2e. Capture 390/768/1024/1280 light/dark screenshots.
+5. Record the kit trailing-slot gap, DD-W59's responsive fallback, and the shared 2.4 flag handoff; push normally and observe CI.
+
+Jev `jev_decide` selected `responsive` (p 0.50, confidence 0.37) over accepting the tablet wrap (p 0.36). The measured 1024 wrap requires a wider boundary than the inherited lg-only change; browser regressions verify this choice.
