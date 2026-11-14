@@ -13,9 +13,10 @@ jobs:
     # Clearing the repository variable sends new jobs back to GitHub-hosted runners.
     runs-on: >-
       ${{ vars.FIESTABOARD_MAC_PR_RUNNER == 'true'
+          && github.repository == 'Fiestaboard/FiestaBoard'
           && github.event_name == 'pull_request'
           && github.event.pull_request.head.repo.full_name == github.repository
-          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+          && contains(fromJSON('["OWNER","MEMBER"]'), github.event.pull_request.author_association)
           && fromJSON('["self-hosted","linux","ARM64","mac-ubuntu"]')
           || 'ubuntu-latest' }}
     timeout-minutes: 5
