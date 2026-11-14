@@ -311,6 +311,16 @@ def _pick_latest_version(*candidates: str | None) -> str | None:
     return best_str
 
 
+def _v11_manual_update_reason() -> str | None:
+    """The isolated preview lane must never fall back to beta or stable."""
+    if running_version().startswith("11.0.0-alpha."):
+        return (
+            "Update v11 previews manually by pulling fiestaboard/fiestaboard:v11-alpha "
+            "and recreating the container. In-app updates and channel switching are disabled."
+        )
+    return None
+
+
 async def _perform_update_check() -> UpdateCheckResponse:
     """Run the actual update check against Docker Hub / GitHub Releases.
 
@@ -320,6 +330,16 @@ async def _perform_update_check() -> UpdateCheckResponse:
     Both source checks run in parallel to halve worst-case latency.
     """
     is_production = os.getenv("PRODUCTION", "false").lower() == "true"
+    manual_reason = _v11_manual_update_reason()
+    if manual_reason:
+        return UpdateCheckResponse(
+            current_version=running_version(),
+            latest_version=None,
+            update_available=False,
+            package_url=GITHUB_PACKAGE_URL,
+            error=manual_reason,
+            is_production=is_production,
+        )
 
     try:
         # Run both source checks in parallel and take the newest version either
@@ -1221,6 +1241,10 @@ async def apply_update() -> UpdateApplyResponse:
     snapshot failure is non-fatal — the user can still roll the image back by
     hand.
     """
+    manual_reason = _v11_manual_update_reason()
+    if manual_reason:
+        raise SidecarError(503, manual_reason)
+
     if not _updater_token():
         raise SidecarError(
             503,
@@ -1509,6 +1533,9 @@ def current_channel() -> str:
 
 def channel_switch_blocker() -> str | None:
     """Why this install cannot change channel, or None if it can."""
+    manual_reason = _v11_manual_update_reason()
+    if manual_reason:
+        return manual_reason
     if _managed_externally():
         return (
             "This install is managed by Home Assistant, which controls updates "
@@ -1616,6 +1643,9 @@ def switch_channel(channel: str) -> dict[str, Any]:
 
     Raises :class:`SidecarError` for every failure the caller should surface.
     """
+    manual_reason = _v11_manual_update_reason()
+    if manual_reason:
+        raise SidecarError(503, manual_reason)
     tag = CHANNEL_TAGS[channel]
     running = _updater_version() or {}
     image_ref = running.get("image") or ""
