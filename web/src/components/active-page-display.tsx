@@ -26,7 +26,7 @@ import { BoardContextMenu } from "@/components/home/board-context-menu";
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { boardMeta, HomeBoard } from "@/components/home/home-board";
 import { formatClock, formatSpan, overrideOnScreen, scheduleNextChange } from "@/components/home/home-status";
-import { useActiveTrigger, useBoardDetail, useRefreshHomeStatus } from "@/components/home/use-home-data";
+import { nudgeDisplay, useActiveTrigger, useBoardDetail, useRefreshHomeStatus } from "@/components/home/use-home-data";
 import { useHomeKeys } from "@/components/home/use-home-keys";
 import { SilenceNotice } from "@/components/silence-notice";
 import Link from "@/components/smart-link";
@@ -44,7 +44,7 @@ import {
   useSetActivePage,
 } from "@/hooks/use-board";
 import { useSilence } from "@/hooks/use-silence";
-import { useTranslations } from "@/i18n/translations";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { Collection, DeviceType, SetActivePageResponse, SetTemporaryOverrideRequest } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
@@ -70,6 +70,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   const tm = useTranslations("home.contextMenu");
   const tPause = useTranslations("displaySettings.pause");
   const navigate = useNavigate();
+  const locale = useLocale();
   const refresh = useRefreshHomeStatus();
 
   // Current board selection (issue #1247). Queries are board-scoped only in
@@ -98,6 +99,16 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   const overrideActive = temporaryOverride?.active === true;
   const { data: boardDetail } = useBoardDetail(scopedBoardId);
   const { data: trigger } = useActiveTrigger(isPrimaryBoard && overrideActive);
+  // S4: name the alert by its plugin's display name, not its id.
+  const { data: pluginsData } = useQuery({
+    queryKey: ["plugins"],
+    queryFn: () => api.listPlugins(),
+    enabled: !!trigger,
+    staleTime: 5 * 60 * 1000,
+  });
+  const triggerPluginName = trigger
+    ? (pluginsData?.plugins?.find((p) => p.id === trigger.plugin_id)?.name ?? trigger.plugin_id)
+    : "";
   const overrideShowing = overrideOnScreen({ overrideActive, isPrimary: isPrimaryBoard, triggerActive: !!trigger });
 
   const { data: activePageData } = useActivePage(scopedBoardId);
@@ -223,12 +234,15 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
 
   // Cancel override (outline, never the filled primary), with the 07a
   // "Override canceled · Undo" toast for 10 s.
+  // H1: every override call names its display, always (one rule, review S7).
+  const overrideBoardId = scopedBoardId ?? targetBoard?.id;
+
   const cancelOverrideMutation = useMutation({
-    mutationFn: () => api.clearTemporaryOverride(scopedBoardId),
+    mutationFn: () => api.clearTemporaryOverride(overrideBoardId),
     onSuccess: () => {
       const previous = temporaryOverride;
       refresh();
-      api.forceRefresh().catch(() => {});
+      nudgeDisplay(overrideBoardId);
       toast.info(tn("toastOverrideCanceled"), {
         duration: 10_000,
         action: previous?.active ? { label: tn("undo"), onClick: () => restoreOverride(previous) } : undefined,
@@ -237,38 +251,50 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     onError: () => toast.error(tn("toastCancelFailed")),
   });
 
-  // Undo puts the same hold back for the time it had left.
+  // Undo puts the same hold back for the time it had left, on the same
+  // display, with the same revert. It never overwrites a newer override (a
+  // verb or another client may have set one inside the 10 s), and a hold
+  // that would already have ended is not re-created (review S2). The bar
+  // restarts: the hub stamps a new started_at.
   const restoreOverride = useCallback(
-    (previous: NonNullable<typeof temporaryOverride>) => {
-      const minutes = previous.expires_at
-        ? Math.max(1, Math.ceil((new Date(previous.expires_at).getTime() - Date.now()) / 60_000))
-        : undefined;
-      const content: SetTemporaryOverrideRequest = previous.page_id
-        ? { page_id: previous.page_id }
-        : {
-            template: previous.template ?? [],
-            ...(previous.line_metadata ? { line_metadata: previous.line_metadata } : {}),
-            ...(previous.device_type ? { device_type: previous.device_type } : {}),
-            ...(previous.notes_wide ? { notes_wide: previous.notes_wide } : {}),
-            ...(previous.notes_tall ? { notes_tall: previous.notes_tall } : {}),
-            ...(previous.grid_rows ? { grid_rows: previous.grid_rows } : {}),
-            ...(previous.grid_cols ? { grid_cols: previous.grid_cols } : {}),
-          };
-      api
-        .setTemporaryOverride({
+    async (previous: NonNullable<typeof temporaryOverride>) => {
+      const remainingMs = previous.expires_at ? new Date(previous.expires_at).getTime() - Date.now() : null;
+      if (remainingMs !== null && remainingMs <= 0) {
+        toast.info(tn("toastUndoEnded"));
+        return;
+      }
+      try {
+        const current = await api.getTemporaryOverride(overrideBoardId);
+        if (current.active) {
+          toast.info(tn("toastUndoNewer"));
+          return;
+        }
+        const minutes = remainingMs !== null ? Math.max(1, Math.ceil(remainingMs / 60_000)) : undefined;
+        const content: SetTemporaryOverrideRequest = previous.page_id
+          ? { page_id: previous.page_id }
+          : {
+              template: previous.template ?? [],
+              ...(previous.line_metadata ? { line_metadata: previous.line_metadata } : {}),
+              ...(previous.device_type ? { device_type: previous.device_type } : {}),
+              ...(previous.notes_wide ? { notes_wide: previous.notes_wide } : {}),
+              ...(previous.notes_tall ? { notes_tall: previous.notes_tall } : {}),
+              ...(previous.grid_rows ? { grid_rows: previous.grid_rows } : {}),
+              ...(previous.grid_cols ? { grid_cols: previous.grid_cols } : {}),
+            };
+        await api.setTemporaryOverride({
           ...content,
-          ...(scopedBoardId ? { board_id: scopedBoardId } : {}),
+          ...(overrideBoardId ? { board_id: overrideBoardId } : {}),
           ...(minutes !== undefined ? { duration_minutes: minutes } : {}),
           revert_mode: (previous.revert_mode ?? "schedule") as "schedule" | "blank" | "page",
           ...(previous.revert_page_id ? { revert_page_id: previous.revert_page_id } : {}),
-        } as SetTemporaryOverrideRequest)
-        .then(() => {
-          refresh();
-          api.forceRefresh().catch(() => {});
-        })
-        .catch(() => toast.error(tn("toastCancelFailed")));
+        } as SetTemporaryOverrideRequest);
+        refresh();
+        nudgeDisplay(overrideBoardId);
+      } catch {
+        toast.error(tn("toastCancelFailed"));
+      }
     },
-    [scopedBoardId, refresh, tn],
+    [overrideBoardId, refresh, tn],
   );
 
   // What the board shows (live state; Live Output on the primary).
@@ -340,7 +366,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     // A plugin alert covers the override (H1 review carry): say so, and
     // claim neither the Override nor its page on screen.
     mode = undefined;
-    title = tn("triggerTitle", { plugin: trigger?.plugin_id ?? "" });
+    title = tn("triggerTitle", { plugin: triggerPluginName });
     note = tn("triggerDescription", { page: overrideTitle ?? "" });
   } else if (overrideShowing) {
     mode = "override";
@@ -348,10 +374,10 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     const expires = temporaryOverride?.expires_at ? new Date(temporaryOverride.expires_at) : null;
     if (!expires) outcome = tn("overrideOutcomeUntilCancel");
     else if (!scheduleEnabled && nameOf(manualPageId))
-      outcome = tn("overrideOutcomeManual", { time: formatClock(expires), page: nameOf(manualPageId) ?? "" });
+      outcome = tn("overrideOutcomeManual", { time: formatClock(expires, locale), page: nameOf(manualPageId) ?? "" });
     else if (nextPageName && boardDetail?.next_change_reason === "override_ends")
-      outcome = tn("overrideOutcomeNext", { time: formatClock(expires), page: nextPageName });
-    else outcome = tn("overrideOutcome", { time: formatClock(expires) });
+      outcome = tn("overrideOutcomeNext", { time: formatClock(expires, locale), page: nextPageName });
+    else outcome = tn("overrideOutcome", { time: formatClock(expires, locale) });
   } else {
     // Live Mode (the editor's mirror) drives the board, not the Schedule or
     // the pin, so no mode is claimed while it is on.
@@ -365,8 +391,8 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       const scheduleChange = boardDetail?.next_change_reason === "schedule" && nextChangeAt && nextChangeAt > now;
       outcome = scheduleChange
         ? nextPageName
-          ? tn("scheduleNext", { time: formatClock(nextChangeAt), page: nextPageName })
-          : tn("scheduleUntil", { time: formatClock(nextChangeAt) })
+          ? tn("scheduleNext", { time: formatClock(nextChangeAt, locale), page: nextPageName })
+          : tn("scheduleUntil", { time: formatClock(nextChangeAt, locale) })
         : tn("scheduleRunning");
     } else {
       const page = activeCollection?.name ?? activePage?.name;
@@ -664,6 +690,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
                 ended: tn("ended"),
                 endedAnnouncement: tn("endedAnnouncement"),
               }}
+              locale={locale}
               onEnd={refresh}
               data-testid="override-countdown"
             />

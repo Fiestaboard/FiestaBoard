@@ -78,8 +78,8 @@ export function formatSpan(ms: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-/** "9:00 PM" in the reader's locale. */
-export function formatClock(date: Date, locale?: string): string {
+/** "9:00 PM" in the app's selected locale (pass `useLocale()`), not the browser's. */
+export function formatClock(date: Date, locale: string | undefined): string {
   return new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }).format(date);
 }
 

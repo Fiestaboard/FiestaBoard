@@ -217,12 +217,14 @@ describe("ActivePageDisplay - Now showing", () => {
     await waitFor(() => expect(toast.info).toHaveBeenCalled());
     const [message, options] = vi.mocked(toast.info).mock.calls[0] as [
       string,
-      { duration: number; action: { label: string; onClick: () => void } },
+      { duration: number; action: { label: string; onClick: () => Promise<void> | void } },
     ];
     expect(message).toBe("Override canceled");
     expect(options.duration).toBe(10_000);
     expect(options.action.label).toBe("Undo");
-    act(() => options.action.onClick());
+    await act(async () => {
+      await options.action.onClick();
+    });
     await waitFor(() => expect(posts).toHaveLength(1));
     expect(posts[0]).toMatchObject({ page_id: "page-2", duration_minutes: 30, revert_mode: "schedule" });
   });

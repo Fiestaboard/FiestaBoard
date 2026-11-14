@@ -260,7 +260,13 @@ export interface ScheduleBehaviorSettings {
 
 export const schedulesApi = {
   // Temporary override endpoints
-  getTemporaryOverride: () => fetchApi<TemporaryOverrideStatus>("/settings/temporary-override"),
+  /** H1: one display's override; omitted board → the primary. */
+  getTemporaryOverride: (boardId?: string | null) =>
+    fetchApi<TemporaryOverrideStatus>(
+      typeof boardId === "string" && boardId
+        ? `/settings/temporary-override?board_id=${encodeURIComponent(boardId)}`
+        : "/settings/temporary-override",
+    ),
   setTemporaryOverride: (request: SetTemporaryOverrideRequest) =>
     fetchApi<TemporaryOverrideStatus>("/settings/temporary-override", {
       method: "POST",
