@@ -76,3 +76,16 @@ repopulate IndexedDB after sign-out.
   Local validation builds origin/alpha plus #396 without committing the tarball.
 - Saved references and inherited screenshots remain in program/shots/web-2.8;
   DD-W62–69 record the integration gaps. A fresh Fable gate remains unavailable.
+
+## PR #2484 review corrections (fix2484)
+
+- M1: deliver original authenticated asset requests; populate caches with independent
+  anonymous URL requests in `waitUntil`. Jev selected this over precache-only storage
+  with probability 0.96 (confidence 0.95).
+- M2: cache open/read/write failures must preserve online delivery.
+- S1: namespace shell/assets by registration scope; trim only that scope, clean up
+  only proven-owned versions, and leave unscoped legacy caches unread/untouched.
+- Verify cookie-gated page reload and lazy modules using a real HTTP server and
+  Chromium, plus worker VM regressions and the full existing local checks.
+- S2/S3/S4 remain release/integration gates. Shared StatusScreen follow-up includes
+  the phone retry action's full-width reference. No UI parity claim from worker edits.

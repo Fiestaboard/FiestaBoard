@@ -105,7 +105,10 @@ test.describe("PWA shell and offline (2.8, WEB-16)", () => {
     await controlledHome(page);
     const shellDate = () =>
       page.evaluate(async () => {
-        const hit = await caches.match(new Request(new URL("./", location.href).href), { cacheName: "fb-shell-v2" });
+        const registration = await navigator.serviceWorker.ready;
+        const hit = await caches.match(new Request(registration.scope), {
+          cacheName: `fb-scope-${encodeURIComponent(registration.scope)}-shell-v3`,
+        });
         return hit?.headers.get("date") ?? null;
       });
     const before = await shellDate();

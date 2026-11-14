@@ -8,8 +8,9 @@
  * assets are the same for everyone.
  */
 (function (root) {
-  var SHELL_CACHE = 'fb-shell-v2';
-  var ASSET_CACHE = 'fb-assets-v2';
+  var CACHE_PREFIX = 'fb-scope-' + encodeURIComponent(self.registration.scope) + '-';
+  var SHELL_CACHE = CACHE_PREFIX + 'shell-v3';
+  var ASSET_CACHE = CACHE_PREFIX + 'assets-v3';
   var MAX_ASSETS = 300;
 
   /** Path relative to the worker's scope ("" for the scope root), or null when outside it. */
@@ -70,8 +71,8 @@
   /** Caches this worker owns, or older FiestaBoard workers left behind. */
   function isObsoleteCache(name, scope) {
     if (name === SHELL_CACHE || name === ASSET_CACHE) return false;
-    if (name === 'offlineCache' || name.indexOf('fiestaboard-') === 0) return true;
-    if (name.indexOf('fb-') === 0) return true;
+    if (name.indexOf(CACHE_PREFIX) === 0) return true;
+    // Unscoped legacy caches have no provable owner; never read or delete them.
     return name.indexOf('workbox-precache-') === 0 && name.slice(-scope.length) === scope;
   }
 

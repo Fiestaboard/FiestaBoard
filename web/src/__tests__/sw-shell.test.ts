@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const SCOPE = "https://hub.example/ingress/abc/";
 
@@ -26,8 +26,8 @@ type Policy = {
   isObsoleteCache: (name: string, scope: string) => boolean;
 };
 
-function loadPolicy(): Policy {
-  const self: Record<string, unknown> = {};
+function loadPolicy(scope = SCOPE): Policy {
+  const self: Record<string, unknown> = { registration: { scope } };
   vm.runInNewContext(readFileSync("public/sw-shell-policy.js", "utf8"), { self, URL });
   return self.fbShellPolicy as Policy;
 }
@@ -110,9 +110,9 @@ describe("sw-shell-policy: what may be stored", () => {
   it("marks older FiestaBoard caches obsolete and leaves its own and other apps' alone", () => {
     expect(P.isObsoleteCache(P.SHELL_CACHE, SCOPE)).toBe(false);
     expect(P.isObsoleteCache(P.ASSET_CACHE, SCOPE)).toBe(false);
-    expect(P.isObsoleteCache("fb-shell-v0", SCOPE)).toBe(true);
-    expect(P.isObsoleteCache("offlineCache", SCOPE)).toBe(true);
-    expect(P.isObsoleteCache("fiestaboard-static-v2", SCOPE)).toBe(true);
+    expect(P.isObsoleteCache("fb-shell-v0", SCOPE)).toBe(false);
+    expect(P.isObsoleteCache("offlineCache", SCOPE)).toBe(false);
+    expect(P.isObsoleteCache("fiestaboard-static-v2", SCOPE)).toBe(false);
     expect(P.isObsoleteCache(`workbox-precache-v2-${SCOPE}`, SCOPE)).toBe(true);
     expect(P.isObsoleteCache("workbox-precache-v2-https://other/", SCOPE)).toBe(false);
     expect(P.isObsoleteCache("other-app", SCOPE)).toBe(false);
@@ -138,8 +138,7 @@ class MemoryCache {
   }
 }
 
-function harness() {
-  const stores = new Map<string, MemoryCache>();
+function harness(scope = SCOPE, stores = new Map<string, MemoryCache>()) {
   const handlers: Record<string, (e: unknown) => void> = {};
   const network: Array<(r: Request) => Response | undefined> = [];
   let online = true;
@@ -172,8 +171,8 @@ function harness() {
     return new Response("not found", { status: 404 });
   };
   const self = {
-    location: new URL(SCOPE),
-    registration: { scope: SCOPE },
+    location: new URL(scope),
+    registration: { scope },
     clients: { claim: async () => {} },
     skipWaiting: async () => {},
     addEventListener: (name: string, cb: (e: unknown) => void) => {
@@ -220,6 +219,7 @@ function harness() {
 
   return {
     stores,
+    caches,
     fetched,
     network,
     setOnline: (v: boolean) => (online = v),
@@ -295,7 +295,7 @@ describe("sw.js", () => {
     const res = await h.dispatch(`${SCOPE}pages`, { mode: "navigate" });
     expect(res).not.toBe("network");
     expect(await (res as Response).text()).toContain("build-2");
-    const shell = await h.stores.get("fb-shell-v2")!.match(SCOPE);
+    const shell = await h.stores.get(loadPolicy().SHELL_CACHE)!.match(SCOPE);
     expect(await shell!.text()).toContain("build-2");
   });
 
@@ -327,20 +327,74 @@ describe("sw.js", () => {
     expect(h.allCachedUrls()).not.toContain(`${SCOPE}assets/secret.js`);
   });
 
-  it("deletes older FiestaBoard caches on activate and keeps its own", async () => {
-    await h.lifecycle("install");
-    for (const name of ["offlineCache", "fiestaboard-static-v2", "fb-shell-v0", "other-app"]) {
-      const c = new MemoryCache();
-      h.stores.set(name, c);
-    }
+  it("preserves credentials online without caching the private response", async () => {
+    h.network.unshift((r) =>
+      r.url.endsWith("protected.js")
+        ? new Response(r.credentials === "omit" ? "denied" : "private chunk", {
+            status: r.credentials === "omit" ? 401 : 200,
+          })
+        : undefined,
+    );
+    const response = await h.dispatch(`${SCOPE}assets/protected.js`, { credentials: "include" });
+    expect((response as Response).status).toBe(200);
+    expect(await (response as Response).text()).toBe("private chunk");
+    expect(h.allCachedUrls()).not.toContain(`${SCOPE}assets/protected.js`);
+  });
+
+  it.each(["open", "match", "put"] as const)("serves online assets when cache %s fails", async (operation) => {
+    const cache = await h.caches.open(loadPolicy().ASSET_CACHE);
+    if (operation === "open") vi.spyOn(h.caches, "open").mockRejectedValue(new Error("storage unavailable"));
+    else vi.spyOn(cache, operation).mockRejectedValue(new Error("storage unavailable"));
+    const response = await h.dispatch(`${SCOPE}assets/new.js`);
+    expect(await (response as Response).text()).toBe("js");
+    expect(h.fetched).toContain(`${SCOPE}assets/new.js`);
+  });
+
+  it("isolates activation and eviction across two ingress scopes", async () => {
+    const otherScope = "https://hub.example/ingress/other/";
+    const other = harness(otherScope, h.stores);
+    other.network.push(() => new Response("other boot"));
+    await other.dispatch(`${otherScope}assets/boot.js`);
+    const legacy = new MemoryCache();
+    h.stores.set("fb-assets-v2", legacy);
+    const obsolete = loadPolicy().ASSET_CACHE.replace("v3", "v0");
+    h.stores.set(obsolete, new MemoryCache());
     await h.lifecycle("activate");
-    expect([...h.stores.keys()].sort()).toEqual(["fb-assets-v2", "fb-shell-v2", "other-app"]);
+    expect(h.stores.has(obsolete)).toBe(false);
+    expect(h.stores.get("fb-assets-v2")).toBe(legacy);
+    for (let i = 0; i <= loadPolicy().MAX_ASSETS; i++) await h.dispatch(`${SCOPE}assets/chunk-${i}.js`);
+    other.setOnline(false);
+    const response = await other.dispatch(`${otherScope}assets/boot.js`);
+    expect(await (response as Response).text()).toBe("other boot");
+    expect(h.stores.has(loadPolicy(otherScope).ASSET_CACHE)).toBe(true);
+  });
+
+  it("stores only the independent anonymous asset, without caller headers", async () => {
+    h.network.unshift((r) =>
+      r.url.endsWith("variant.js")
+        ? new Response(r.credentials === "omit" && !r.headers.has("x-account") ? "public" : "private")
+        : undefined,
+    );
+    const url = `${SCOPE}assets/variant.js`;
+    expect(await ((await h.dispatch(url, { headers: { "x-account": "account" } })) as Response).text()).toBe("private");
+    h.setOnline(false);
+    expect(await ((await h.dispatch(url)) as Response).text()).toBe("public");
+  });
+
+  it("does not cache redirected anonymous assets", async () => {
+    h.network.unshift((r) =>
+      r.url.endsWith("redirect.js")
+        ? Object.defineProperty(new Response("login"), "redirected", { value: true })
+        : undefined,
+    );
+    await h.dispatch(`${SCOPE}assets/redirect.js`);
+    expect(h.allCachedUrls()).not.toContain(`${SCOPE}assets/redirect.js`);
   });
 
   it("keeps at most MAX_ASSETS build files, dropping the oldest", async () => {
     const P = loadPolicy();
     for (let i = 0; i <= P.MAX_ASSETS; i++) await h.dispatch(`${SCOPE}assets/chunk-${i}.js`);
-    const cached = [...h.stores.get("fb-assets-v2")!.entries.keys()];
+    const cached = [...h.stores.get(loadPolicy().ASSET_CACHE)!.entries.keys()];
     expect(cached).toHaveLength(P.MAX_ASSETS);
     expect(cached).not.toContain(`${SCOPE}assets/chunk-0.js`);
   });

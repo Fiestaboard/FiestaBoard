@@ -88,17 +88,27 @@ async function navigate(event) {
   }
 }
 
-async function asset(request) {
-  var cache = await caches.open(P.ASSET_CACHE);
-  var hit = await cache.match(request);
-  if (hit) return hit;
-  var res = await fetch(request, { credentials: 'omit' });
-  if (P.isStorable(describe(res))) {
-    try {
-      await cache.put(request, res.clone());
-      await trimAssets(cache);
-    } catch (e) { /* Storage failure must not break an online asset response. */ }
-  }
+async function cacheAnonymousAsset(url) {
+  try {
+    // A fresh URL request carries none of the caller's cookies or custom headers.
+    var res = await fetch(url, { credentials: 'omit', cache: 'no-store' });
+    if (!P.isStorable(describe(res))) return;
+    var cache = await caches.open(P.ASSET_CACHE);
+    await cache.put(url, res);
+    await trimAssets(cache);
+  } catch (e) { /* Cache population is best-effort, never required for online delivery. */ }
+}
+
+async function asset(event) {
+  var request = event.request;
+  try {
+    var cache = await caches.open(P.ASSET_CACHE);
+    var hit = await cache.match(request);
+    if (hit) return hit;
+  } catch (e) { /* Unavailable storage must fall through to the original network request. */ }
+  var res = await fetch(request);
+  // Keep online authentication intact; only a separate anonymous response may be stored.
+  event.waitUntil(cacheAnonymousAsset(request.url));
   return res;
 }
 
@@ -136,6 +146,6 @@ self.addEventListener('fetch', function (event) {
     scopePath: new URL(scopeUrl()).pathname,
   });
   if (kind === 'navigate') event.respondWith(navigate(event));
-  else if (kind === 'asset') event.respondWith(asset(request));
+  else if (kind === 'asset') event.respondWith(asset(event));
   // 'bypass': no respondWith, so the browser handles it as if there were no worker.
 });
