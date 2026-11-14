@@ -101,7 +101,7 @@ def test_latest_moves_only_for_stable_releases():
     step = next(s for s in _steps(JOBS["merge"]) if s.get("name") == "Create manifest list and push")
     assert step["env"]["MOVING"] == "${{ needs.version.outputs.moving_tag }}"
     assert step["env"]["VERSION"] == "${{ needs.version.outputs.image_tag }}"
-    assert '${MOVING}' in run
+    assert "${MOVING}" in run
 
 
 def test_the_release_comes_after_the_image():
