@@ -1,0 +1,61 @@
+name: PR release guards
+on: workflow_call
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  release-guards:
+    name: Release guards
+    if: github.event_name == 'pull_request'
+    # Only same-repository PRs from trusted contributors can use the Mac.
+    # Clearing the repository variable sends new jobs back to GitHub-hosted runners.
+    runs-on: >-
+      ${{ vars.FIESTABOARD_MAC_PR_RUNNER == 'true'
+          && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+          && fromJSON('["self-hosted","linux","ARM64","mac-ubuntu"]')
+          || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Standard-library scripts: the runner's python3, no installs.
+      #
+      # pre.json is a committed file, so a merge carries it anywhere: main in
+      # pre mode would cut prereleases, and alpha out of it would cut stable
+      # releases.
+      - name: Keep prerelease mode on its branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -o pipefail
+          python3 scripts/release/pre_mode.py check-base "${BASE_REF#refs/heads/}" \
+            | sed -n 's/^reason=//p' >> "$GITHUB_STEP_SUMMARY"
+
+      # A shipped change without a changeset merges cleanly and then waits,
+      # unannounced, for some other change to release it. This makes that a
+      # red PR instead. PR-only: a queue entry has no head ref or labels, and
+      # its PR already passed.
+      #
+      # Labels are read live rather than from the event payload: CI does not
+      # run on `labeled` (pr-label.yml relabels every push), and a re-run
+      # replays the original payload. So adding `no-changeset` and re-running
+      # this job is enough.
+      - name: Require a changeset for shipped changes
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -o pipefail
+          python3 scripts/release/changeset_check.py "$BASE_SHA" "$HEAD_SHA" \
+            | sed -n 's/^reason=//p' >> "$GITHUB_STEP_SUMMARY"
