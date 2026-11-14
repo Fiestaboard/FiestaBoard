@@ -5,7 +5,7 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CurrentBoardProvider } from "@/components/current-board-context";
-import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
+import { GlobalAiPanelProvider, useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { SidebarProvider } from "@/components/sidebar-context";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
@@ -44,6 +44,12 @@ function setPhone(phone: boolean) {
 
 beforeEach(() => setPhone(false));
 
+/** Says whether the global FiestaBot panel is open, so a test can see a row open it. */
+function AiPanelProbe() {
+  const { isOpen } = useGlobalAiPanel();
+  return <span data-testid="ai-panel-probe">{isOpen ? "open" : "closed"}</span>;
+}
+
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -56,6 +62,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <GlobalAiPanelProvider>
         <SidebarProvider>
+          <AiPanelProbe />
           <CurrentBoardProvider>
             <ConfigOverridesProvider>
               <ThemeProvider attribute="class" defaultTheme="light">
@@ -228,6 +235,32 @@ describe("NavigationSidebar bottom nav (below 768px)", () => {
     await waitFor(() => expect(within(drawer).getByText(/Online · FiestaBoard 2\.0\.1/)).toBeInTheDocument());
   });
 
+  it("divides the nav group from the Hub group even with no FiestaBot row (07a)", async () => {
+    const user = userEvent.setup();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await user.click(within(tabBar()).getByRole("button", { name: "More" }));
+    const drawer = screen.getByRole("dialog", { name: "Navigation menu" });
+    expect(within(drawer).queryByRole("button", { name: /FiestaBot/ })).not.toBeInTheDocument();
+    const divider = drawer.querySelector('[data-slot="more-divider"]');
+    const hub = await within(drawer).findByRole("list", { name: /^Hub · / });
+    expect(divider).not.toBeNull();
+    // The hairline comes before the Hub heading in reading order.
+    expect(divider!.compareDocumentPosition(hub) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("lights the Hub group row for the section you are on", async () => {
+    mockPathname.mockReturnValue("/settings/network");
+    const user = userEvent.setup();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await user.click(within(tabBar()).getByRole("button", { name: "More" }));
+    const drawer = screen.getByRole("dialog", { name: "Navigation menu" });
+    const hub = await within(drawer).findByRole("list", { name: /^Hub · / });
+    expect(within(hub).getByRole("link", { name: "Network" })).toHaveAttribute("aria-current", "page");
+    expect(within(hub).getByRole("link", { name: "AI provider" })).not.toHaveAttribute("aria-current");
+  });
+
   it("keeps the account rows out of More: they live in Settings", async () => {
     const user = userEvent.setup();
     render(<NavigationSidebar />, { wrapper: TestWrapper });
@@ -281,6 +314,8 @@ describe("NavigationSidebar bottom nav (below 768px)", () => {
     await user.click(await within(drawer).findByRole("button", { name: /FiestaBot/ }));
 
     expect(screen.queryByRole("dialog", { name: "Navigation menu" })).not.toBeInTheDocument();
+    // And it opened the global FiestaBot drawer.
+    expect(screen.getByTestId("ai-panel-probe")).toHaveTextContent("open");
   });
 });
 
@@ -308,6 +343,47 @@ describe("NavigationSidebar rail", () => {
 
     const expandButton = screen.getByLabelText("Expand sidebar");
     expect(expandButton).toBeInTheDocument();
+  });
+});
+
+describe("NavigationSidebar tablet band (768–1023px)", () => {
+  function setTablet() {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("min-width: 768px") && query.includes("max-width: 1023.98px"),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+  }
+
+  beforeEach(() => {
+    mockPathname.mockReturnValue("/");
+    localStorage.removeItem("fiestaboard_sidebar_collapsed");
+  });
+
+  it("starts the rail collapsed (07 61:17544)", () => {
+    setTablet();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+    expect(screen.getByLabelText("Expand sidebar")).toBeInTheDocument();
+  });
+
+  it("lets the reader expand it there without overwriting the wide-screen preference", () => {
+    localStorage.setItem("fiestaboard_sidebar_collapsed", "true");
+    setTablet();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+    fireEvent.click(screen.getByLabelText("Expand sidebar"));
+    expect(screen.getByLabelText("Collapse sidebar")).toBeInTheDocument();
+    expect(localStorage.getItem("fiestaboard_sidebar_collapsed")).toBe("true");
+  });
+
+  it("persists the toggle on a wide screen, as before", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+    fireEvent.click(screen.getByLabelText("Collapse sidebar"));
+    expect(localStorage.getItem("fiestaboard_sidebar_collapsed")).toBe("true");
   });
 });
 

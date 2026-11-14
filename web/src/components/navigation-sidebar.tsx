@@ -29,7 +29,10 @@ export function NavigationSidebar() {
   const pathname = usePathname();
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, setCollapsed, onTransitionEnd } = useSidebar();
-  useTabletRailCollapse(setCollapsed, readStoredCollapsed);
+  const inTabletBand = useTabletRailCollapse(setCollapsed, readStoredCollapsed);
+  // In the tablet band the collapse toggle is a session choice: it must not
+  // overwrite the reader's wide-screen preference (DD-W46).
+  const onToggleCollapsed = inTabletBand ? () => setCollapsed(!collapsed, { persist: false }) : toggle;
   const t = useTranslations("navigation");
   const tMenu = useTranslations("settingsMenu");
   const { isOpen: aiPanelOpen, open: openAiPanel } = useGlobalAiPanel();
@@ -128,7 +131,7 @@ export function NavigationSidebar() {
       renderLink={renderLink}
       collapsed={collapsed}
       transitioning={transitioning}
-      onToggleCollapsed={toggle}
+      onToggleCollapsed={onToggleCollapsed}
       onTransitionEnd={onTransitionEnd}
       ai={hasAiProviders ? { active: aiPanelOpen, onOpen: openAiPanel } : undefined}
       // The gear left of the assistant: a one-click shortcut. Settings has a

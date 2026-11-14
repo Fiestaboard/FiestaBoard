@@ -16,15 +16,17 @@ import {
   PageCard,
   PageHeader,
   PageLayout,
+  PageSection,
   Skeleton,
   Stack,
   Text,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Settings, Wand2 } from "lucide-react";
-import { useEffect, useId, useMemo } from "react";
+import { ChevronLeft, ChevronRight, Info, Settings, Wand2 } from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Navigate } from "react-router";
 
+import { AboutDialog } from "@/components/about-dialog";
 import { AccountSection } from "@/components/account-section";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { HubLine } from "@/components/hub-line";
@@ -96,7 +98,10 @@ export default function SettingsPage() {
     staleTime: 30_000,
     retry: false,
   });
-  const showAccount = (!!authStatus?.enabled && !!authStatus.authenticated) || authStatus?.mode === "disabled";
+  // Until auth status answers, Account counts as visible: a deep link to it
+  // must not flash Appearance first (or bounce to the index) while it loads.
+  const showAccount =
+    authStatus === undefined || (!!authStatus.enabled && !!authStatus.authenticated) || authStatus.mode === "disabled";
   const username = authStatus?.enabled && authStatus.authenticated ? (authStatus.username ?? null) : null;
 
   const visible = useMemo<SettingsSectionId[]>(
@@ -112,7 +117,8 @@ export default function SettingsPage() {
     const hash = window.location.hash.replace(/^#/, "");
     if (!hash) return;
     const timer = setTimeout(() => {
-      const el = document.getElementById(hash);
+      const targetId = hash === "time-and-date" || hash === "timezone" ? "time" : hash;
+      const el = document.getElementById(targetId);
       if (!el) return;
       el.scrollIntoView({ behavior: "smooth", block: "start" });
       el.classList.add("settings-anchor-highlight");
@@ -145,12 +151,18 @@ export default function SettingsPage() {
 
   // The old tabs (`?section=general`, `?section=ai`, …) become paths. Every
   // other query parameter rides along: the AI provider's OAuth return is one.
-  const legacy = legacySettingsTarget(requested);
+  const legacy = legacySettingsTarget(requested, hash);
   if (legacy) {
     const rest = new URLSearchParams(searchParams.toString());
     rest.delete("section");
     const query = rest.toString();
     return <Navigate to={`${settingsSectionHref(legacy)}${query ? `?${query}` : ""}${hash}`} replace />;
+  }
+
+  // A path that names no section the reader can see goes to the index
+  // rather than showing some other section under a URL that names nothing.
+  if (active === null) {
+    return <Navigate to="/settings" replace />;
   }
 
   // Below the rail one pane at a time: the list at /settings, a section at
@@ -227,14 +239,21 @@ export default function SettingsPage() {
           has something to announce and renders nothing when it does not. */}
       <SystemUpdate />
 
-      <Grid
-        cols="1"
-        gap="6"
-        className="mt-6 md:grid-cols-[minmax(0,17.5rem)_minmax(0,1fr)] lg:grid-cols-[minmax(0,22.5rem)_minmax(0,1fr)] md:items-start"
-      >
-        {showList && list}
-        {showDetail && detail}
-      </Grid>
+      {/* The columns follow the room the page actually has, not the
+          viewport: FiestaBot's drawer takes 396px from 1024px up, which at
+          1100px leaves no room for a detail column beside the list. Side by
+          side from a 36rem content box (280px list), 360px list from 56rem;
+          below that the list and the open section stack. */}
+      <Box className="@container mt-6" data-slot="settings-columns">
+        <Grid
+          cols="1"
+          gap="6"
+          className="md:@xl:grid-cols-[minmax(0,17.5rem)_minmax(0,1fr)] md:@4xl:grid-cols-[minmax(0,22.5rem)_minmax(0,1fr)] md:@xl:items-start"
+        >
+          {showList && list}
+          {showDetail && detail}
+        </Grid>
+      </Box>
     </PageLayout>
   );
 }
@@ -262,12 +281,10 @@ function SettingsGroupList({ label, sections, active, title, meta }: SettingsGro
           return (
             <ListItem key={id}>
               <ListRow
-                // TODO(FiestaUI ListRow `selected`): ListRow (#389) has no
-                // current/selected state yet; 07e fills the open section's
-                // row with `accent`, so this borrows ListRow's own hover fill
-                // for it until the prop lands.
-                className={current ? "bg-accent" : undefined}
-                render={<Link href={settingsSectionHref(id)} aria-current={current ? "page" : undefined} />}
+                // The kit's selected state (FiestaUI 1.8e): 07e's inset pill
+                // and aria-current="page".
+                selected={current}
+                render={<Link href={settingsSectionHref(id)} />}
                 leading={<Icon className="size-4 text-foreground" aria-hidden="true" />}
                 title={title(id)}
                 description={meta[id]?.description}
@@ -287,7 +304,9 @@ function SettingsGroupList({ label, sections, active, title, meta }: SettingsGro
  */
 function SettingsSectionBody({ section }: { section: SettingsSectionId }) {
   const t = useTranslations("settings");
+  const tMenu = useTranslations("settingsMenu");
   const { triggerWizard } = useWizard();
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   // The Wi-Fi card needs nmcli and a D-Bus mount on the hub (a FiestaPi);
   // elsewhere the capability probe says no and Network is MQTT alone.
@@ -349,6 +368,15 @@ function SettingsSectionBody({ section }: { section: SettingsSectionId }) {
             </CardContent>
           </Card>
           <DebugSettings />
+          {/* The About box's only home on a phone (the rail keeps it in the
+              account menu too). Same dialog, not a second About card. */}
+          <PageSection>
+            <Button variant="outline" onClick={() => setAboutOpen(true)} className="gap-2">
+              <Info className="h-4 w-4" aria-hidden="true" />
+              {tMenu("about")}
+            </Button>
+            <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+          </PageSection>
         </>
       );
     case "language-time":

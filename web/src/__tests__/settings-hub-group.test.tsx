@@ -5,6 +5,7 @@
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,7 +34,7 @@ const rrActual = await vi.importActual<typeof import("react-router")>("react-rou
 
 function Where() {
   const location = rrActual.useLocation();
-  return <div data-testid="where">{location.pathname + location.search}</div>;
+  return <div data-testid="where">{location.pathname + location.search + location.hash}</div>;
 }
 
 function renderAt(path: string) {
@@ -83,6 +84,21 @@ beforeEach(() => {
   setPhone(false);
   server.use(
     http.get("/api/network/wifi/capability", () => HttpResponse.json({ available: false })),
+    http.get("/api/auth/mcp-token", () => HttpResponse.json({ configured: false, source: "none" })),
+    http.get("/api/debug/system-info", () =>
+      HttpResponse.json({
+        board_ip: "192.168.1.1",
+        server_ip: "192.168.1.2",
+        uptime_seconds: 3600,
+        uptime_formatted: "1h 0m",
+        connection_mode: "local",
+        version: "11.0.0",
+        timestamp: "2026-11-13T12:00:00Z",
+        cache_status: null,
+        board_configured: true,
+        service_running: true,
+      }),
+    ),
     http.get("/api/settings/all", () =>
       HttpResponse.json({ general: { timezone: "America/Los_Angeles", instance_name: "Maya’s FiestaPi" } }),
     ),
@@ -152,13 +168,44 @@ describe("Settings detail, from the rail breakpoint up", () => {
   it("marks the open section's row as current", async () => {
     renderAt("/settings/network");
     expect(await screen.findByRole("heading", { level: 2, name: "Network" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Network" })).toHaveAttribute("aria-current", "page");
+    const network = screen.getByRole("link", { name: "Network" });
+    expect(network).toHaveAttribute("aria-current", "page");
+    // The kit's selected state (07e inset pill), not an app-painted fill.
+    expect(network).toHaveAttribute("data-selected");
+    expect(network.className).not.toMatch(/(^|\s)bg-accent(\s|$)/);
     expect(await screen.findByRole("link", { name: "Account" })).not.toHaveAttribute("aria-current");
   });
 
-  it("falls back to the first section for an unknown one", async () => {
+  it("sends an unknown section to the index", async () => {
     renderAt("/settings/nope");
-    expect(await screen.findByRole("heading", { level: 2, name: "Account" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/settings$/));
+  });
+
+  it("sends a prototype key to the index too (no inherited lookups)", async () => {
+    renderAt("/settings/toString");
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/settings$/));
+  });
+
+  it("opens a deep-linked Account while auth status is still loading, with no Appearance flash", async () => {
+    server.use(
+      http.get("/api/auth/status", async () => {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        return HttpResponse.json({ enabled: false, authenticated: false, mode: "disabled", username: null });
+      }),
+    );
+    renderAt("/settings/account");
+    expect(screen.getByRole("heading", { level: 2, name: "Account" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: "Appearance" })).not.toBeInTheDocument();
+  });
+
+  it("sends a hidden Account to the index once auth status says it is hidden", async () => {
+    server.use(
+      http.get("/api/auth/status", () =>
+        HttpResponse.json({ enabled: true, authenticated: false, mode: "password", username: null }),
+      ),
+    );
+    renderAt("/settings/account");
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/settings$/));
   });
 
   it("puts MQTT under Network", async () => {
@@ -179,6 +226,13 @@ describe("Settings detail, from the rail breakpoint up", () => {
     await waitFor(() => expect(anchor("settings.release_channel")).not.toBeNull());
     await waitFor(() => expect(anchor("settings.debug")).not.toBeNull());
     expect(screen.queryByText("About This FiestaBoard")).not.toBeInTheDocument();
+  });
+
+  it("opens the About box from System & backups, the only About entry a phone has", async () => {
+    const user = userEvent.setup();
+    renderAt("/settings/system");
+    await user.click(await screen.findByRole("button", { name: "About FiestaBoard" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 
   it("puts location and time under Language & time", async () => {
@@ -233,6 +287,61 @@ describe("Old ?section= links", () => {
   ])("?section=%s lands on %s", async (section, target) => {
     renderAt(`/settings?section=${section}`);
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(target));
+  });
+
+  it.each([
+    ["location", "/settings/language-time#location"],
+    ["language", "/settings/language-time#language"],
+    ["time", "/settings/language-time#time"],
+    ["time-and-date", "/settings/language-time#time-and-date"],
+    ["timezone", "/settings/language-time#timezone"],
+    ["mqtt", "/settings/network#mqtt"],
+    ["instance-name", "/settings/system#instance-name"],
+    ["general", "/settings/system#general"],
+    ["appearance", "/settings/appearance#appearance"],
+    ["reduce-motion", "/settings/appearance#reduce-motion"],
+  ])("?section=general#%s lands on %s, keeping the anchor", async (hash, target) => {
+    window.location.hash = `#${hash}`;
+    try {
+      renderAt(`/settings?section=general`);
+      await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(target));
+    } finally {
+      window.location.hash = "";
+    }
+  });
+
+  it.each([
+    ["location", "language-time"],
+    ["language", "language-time"],
+    ["time", "language-time"],
+    ["mqtt", "network"],
+    ["instance-name", "system"],
+    ["general", "system"],
+  ])("scrolls and highlights the actual #%s card after redirect", async (hash, section) => {
+    window.location.hash = `#${hash}`;
+    try {
+      renderAt("/settings?section=general");
+      await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/settings/${section}#${hash}`));
+      await waitFor(() => expect(document.getElementById(hash)).toHaveClass("settings-anchor-highlight"));
+    } finally {
+      window.location.hash = "";
+    }
+  });
+
+  it("ignores a ?section= that is only an inherited object key", async () => {
+    renderAt("/settings?section=toString");
+    expect(await screen.findByRole("list", { name: "You" })).toBeInTheDocument();
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/settings\?section=toString$/);
+  });
+
+  it("keeps the anchor on any old tab link", async () => {
+    window.location.hash = "#ai-enabled";
+    try {
+      renderAt("/settings?section=ai");
+      await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/settings/ai-provider#ai-enabled"));
+    } finally {
+      window.location.hash = "";
+    }
   });
 
   it("keeps the other query parameters (the AI provider's OAuth return)", async () => {
