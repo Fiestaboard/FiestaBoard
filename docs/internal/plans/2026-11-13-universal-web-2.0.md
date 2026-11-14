@@ -1,4 +1,4 @@
-# Slice 2.0: adopt FiestaUI alpha.1
+# Slice 2.0: adopt FiestaUI alpha.2
 
 1. Preserve the handoff's exact npm pin and changeset; delete the installed-package lock entry and re-resolve it in Docker to avoid stale tarball metadata.
 2. Verify a clean registry install, typecheck, lint, formatting, production build, full unit coverage, browser layout regressions, dark/light Storybook accessibility and the Docker ui-builder target. Fix only confirmed compatibility fallout.
