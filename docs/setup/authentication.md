@@ -156,7 +156,7 @@ While `FIESTABOARD_AUTH_ENABLED=false` pins the login off and
 caller can't mint a session the chat would accept. When the login is off
 only by preference, setup stays open, because that's how the web UI adds a
 login later and a browser can't hold a pinned token. On that configuration
-the chat rule is a second line of defence, not a boundary: the rest of the
+the chat rule is a second line of defense, not a boundary: the rest of the
 API is open to anyone who can reach the port anyway.
 
 ## Cross-origin browser access (CORS)
