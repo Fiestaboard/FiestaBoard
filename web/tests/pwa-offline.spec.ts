@@ -52,7 +52,10 @@ async function readLastKnown(page: Page): Promise<number> {
     () =>
       new Promise<number>((resolve) => {
         const open = indexedDB.open("fiestaboard-offline", 2);
-        open.onupgradeneeded = () => open.result.createObjectStore("last-known-boards", { keyPath: "boardId" });
+        open.onupgradeneeded = () => {
+          open.result.createObjectStore("last-known-boards", { keyPath: "boardId" });
+          open.result.createObjectStore("session");
+        };
         open.onsuccess = () => {
           const req = open.result.transaction("last-known-boards").objectStore("last-known-boards").count();
           req.onsuccess = () => {
@@ -113,6 +116,8 @@ test.describe("PWA shell and offline (2.8, WEB-16)", () => {
   });
 
   test("shows the last frame seen on the board while offline", async ({ page, context }) => {
+    // The first request may precede verified auth; record the next 30-second poll.
+    test.setTimeout(60_000);
     const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
     const boardId = (await res.json()).boards[0].id as string;
     const send = await fetch(`${API_URL}/v1/boards/${boardId}/message`, {
@@ -137,7 +142,10 @@ test.describe("PWA shell and offline (2.8, WEB-16)", () => {
       () =>
         new Promise<void>((resolve) => {
           const open = indexedDB.open("fiestaboard-offline", 2);
-          open.onupgradeneeded = () => open.result.createObjectStore("last-known-boards", { keyPath: "boardId" });
+          open.onupgradeneeded = () => {
+            open.result.createObjectStore("last-known-boards", { keyPath: "boardId" });
+            open.result.createObjectStore("session");
+          };
           open.onsuccess = () => {
             const tx = open.result.transaction("last-known-boards", "readwrite");
             tx.objectStore("last-known-boards").put({
