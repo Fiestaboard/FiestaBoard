@@ -602,11 +602,13 @@ export function GlobalAiChatDrawer() {
           // reserves that plus the inset (globals.css) so the page never sits
           // under it. The card chrome itself (bg, border, radius, shadow) lives
           // on AiChatPanel's Card; this Box only sizes, places and slides it.
-          // Below lg it clears the floating mobile header the same way the nav
-          // menu does, and the maxWidth clamp keeps the card inside a phone
-          // viewport (the drawer is full-bleed there, and unresizable).
-          "fixed right-3 bottom-3 top-[calc(var(--mobile-header-height,56px)+16px)] lg:top-3 z-40 flex w-96 flex-col",
-          "lg:w-[var(--ai-drawer-width,384px)] ai-drawer-width-transition",
+          // Below the rail (768px, WEB-02) it clears the floating mobile
+          // header the same way the nav menu does, and stops above the bottom
+          // tab bar (`--bottom-nav-offset`, 0 when there is no bar) so the
+          // composer is never under it; the maxWidth clamp keeps the card
+          // inside a phone viewport (full-bleed there, and unresizable).
+          "fixed right-3 bottom-[calc(0.75rem+var(--bottom-nav-offset,0px))] top-[calc(var(--mobile-header-height,56px)+16px)] md:top-3 z-40 flex w-96 flex-col",
+          "md:w-[var(--ai-drawer-width,384px)] ai-drawer-width-transition",
           "transition-transform duration-300 ease-in-out sidebar-transition",
         )}
         // Inline rather than a Tailwind arbitrary class: translate-x-full alone
@@ -653,7 +655,7 @@ export function GlobalAiChatDrawer() {
       </Box>
       {isMinimized && aiSettings?.enabled ? (
         <Box
-          className="fiestabot-dock fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-center gap-1 rounded-2xl border bg-card p-1.5 shadow-lg"
+          className="fiestabot-dock fixed bottom-[calc(var(--bottom-nav-offset,0px)+max(0.75rem,env(safe-area-inset-bottom)))] right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-center gap-1 rounded-2xl border bg-card p-1.5 shadow-lg"
           data-state={activity.state}
         >
           <Button

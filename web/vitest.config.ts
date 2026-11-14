@@ -30,6 +30,8 @@ export default defineConfig({
         "src/components/board-size-indicator.tsx",
         "src/components/active-page-display.tsx",
         "src/components/navigation-sidebar.tsx",
+        "src/components/more-sheet.tsx",
+        "src/components/hub-line.tsx",
         "src/components/service-controls.tsx",
         "src/components/general-settings.tsx",
         "src/components/settings/update-intervals.tsx",

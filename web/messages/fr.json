@@ -82,7 +82,16 @@
     "skipToMainContent": "Aller au contenu principal",
     "boardSelector": "Sélectionner le tableau à gérer",
     "selectBoard": "Sélectionner un tableau",
-    "unnamedBoard": "Tableau sans nom"
+    "unnamedBoard": "Tableau sans nom",
+    "more": "Plus",
+    "needsAttention": "{count, plural, one {# nécessite votre attention} other {# nécessitent votre attention}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "Ouvre le panneau",
+    "hub": {
+      "online": "En ligne",
+      "unreachable": "Injoignable",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "Plus",
@@ -671,7 +680,7 @@
   },
   "settings": {
     "title": "Paramètres",
-    "description": "Configurez votre service FiestaBoard",
+    "description": "Votre compte, ce navigateur et ce hub.",
     "advancedSection": "Avancé",
     "setupWizardTitle": "Assistant de configuration",
     "setupWizardDescription": "Relancez l'assistant de configuration pour reconfigurer la connexion de votre tableau et les paramètres de base.",
@@ -776,7 +785,42 @@
     "displaySilenceTitle": "Plages de silence des écrans",
     "displaySilenceDescription": "Chaque écran possède ses propres plages de silence. Ouvrez l’onglet Lecture d’un écran pour modifier ses horaires.",
     "openDisplayPlayback": "Ouvrir les paramètres de lecture de {name}",
-    "openDisplays": "Gérer les écrans"
+    "openDisplays": "Gérer les écrans",
+    "hub": {
+      "you": "Vous",
+      "hubGroup": "Hub · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "Compte",
+          "description": "Avec quel compte vous êtes connecté, et comment."
+        },
+        "appearance": {
+          "title": "Apparence",
+          "description": "L’apparence de FiestaBoard dans ce navigateur."
+        },
+        "accessibility": {
+          "title": "Accessibilité",
+          "description": "Animations et confort de lecture dans ce navigateur."
+        },
+        "network": {
+          "title": "Réseau",
+          "description": "Comment téléphones, téléviseurs et navigateurs joignent {name}. Les changements touchent tous les appareils."
+        },
+        "ai-provider": {
+          "title": "Fournisseur d’IA",
+          "description": "FiestaBot utilise le fournisseur de votre choix. Il est désactivé tant que vous n’en configurez pas."
+        },
+        "system": {
+          "title": "Système et sauvegardes",
+          "description": "Mises à jour, sauvegardes et {name} lui-même."
+        },
+        "language-time": {
+          "title": "Langue et heure",
+          "description": "Utilisés par le hub pour le Programme, les variables d’heure et chaque horodatage."
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "Vous êtes hors ligne",

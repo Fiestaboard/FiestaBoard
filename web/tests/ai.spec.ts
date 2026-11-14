@@ -433,11 +433,11 @@ test.describe("AI", () => {
   });
 
   test.describe("Settings → AI UI", () => {
-    test("AI Settings card renders inside the AI tab", async ({ page, request }) => {
+    test("AI Settings card renders inside the AI provider section", async ({ page, request }) => {
       await configureMockProvider(request);
       // The WizardProvider holds every non-/login page on a full-screen
       // loader (then SetupWizard) while `/config/validate` reports
-      // `is_first_run: true`, so the Settings tabs never mount. A fresh
+      // `is_first_run: true`, so the Settings sections never mount. A fresh
       // CI container has no board configured — PUT a stub so the wizard
       // gets out of the way.
       const boardRes = await request.put(`${API_URL}/config/board`, {
@@ -445,10 +445,12 @@ test.describe("AI", () => {
       });
       expect(boardRes.ok()).toBe(true);
 
-      await page.goto("/settings");
-      // Settings page splits into tabs (General / Scheduling / AI / System /
-      // Advanced). AI Settings live in AI.
-      await page.getByRole("tab", { name: "AI", exact: true }).click();
+      // Settings is a list-detail (slice 2.1); AI Settings live in the
+      // AI provider section.
+      await page.goto("/settings/ai-provider");
+      await expect(page.getByRole("heading", { level: 2, name: "AI provider", exact: true })).toBeVisible({
+        timeout: 15_000,
+      });
 
       // The settings component is loaded — assert on a stable string from
       // its header / description copy rather than a specific button label.
@@ -966,7 +968,7 @@ test.describe("AI", () => {
       await request.delete(`${API_URL}/pages/${created!.id}`);
     });
 
-    test("update_setting goes to the tab, ghosts the value over its control, and pulses the card", async ({
+    test("update_setting goes to the section, ghosts the value over its control, and pulses the card", async ({
       page,
       request,
     }) => {
@@ -1006,7 +1008,8 @@ test.describe("AI", () => {
       });
       await sendMessage(page, "rename my board to Kitchen Board");
 
-      await expect(page).toHaveURL(/\/settings\?section=general/, { timeout: 15_000 });
+      // The instance name lives in System & backups (slice 2.1).
+      await expect(page).toHaveURL(/\/settings\/system$/, { timeout: 15_000 });
       await expect
         .poll(() => observed.evaluate((seen) => seen.ghost), {
           timeout: 15_000,

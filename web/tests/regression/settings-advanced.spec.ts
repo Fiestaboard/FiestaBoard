@@ -16,7 +16,7 @@ test.beforeEach(async ({ context, page }) => {
 test.describe("regression: settings.advanced", () => {
   /**
    * UX node: settings.tab-advanced
-   * Route: /settings (Advanced tab)
+   * Route: /settings/system (was the Advanced tab)
    * Expected (missing from current coverage):
    *   - log-level Select exercised
    *   - download-diagnostics action clicked
@@ -39,18 +39,21 @@ test.describe("regression: settings.advanced", () => {
 
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // The Advanced tab should already be selected via the URL param,
-    // but click it defensively in case the default falls back.
-    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
+    // The Advanced tab folded into System & backups (slice 2.1); the old
+    // link redirects there.
+    await expect(page).toHaveURL(/\/settings\/system$/);
+    await expect(
+      page.getByRole("list", { name: /^Hub · / }).getByRole("link", { name: "System & backups" }),
+    ).toHaveAttribute("aria-current", "page", { timeout: 15_000 });
 
-    // Advanced = Debug only (settings v6): no beta switch is left here.
+    // Debug Tools (the old Advanced tab, settings v6): no beta switch is left here.
     await expect(page.getByText("Debug Tools").first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("switch", { name: "Transition Plugins" })).toHaveCount(0);
     await expect(page.getByRole("switch", { name: /output plugins/i })).toHaveCount(0);
     await expect(page.getByRole("switch", { name: /https/i })).toHaveCount(0);
 
     // Debug Tools collapsible — expand it and verify the Fill-Board
-    // Select (the only Select on this tab) is exercisable.
+    // Select is exercisable.
     await page.getByText("Debug Tools").first().click();
 
     const fillCharSelect = page.locator("#fill-character");

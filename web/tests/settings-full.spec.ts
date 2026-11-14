@@ -118,13 +118,13 @@ test.describe("Settings – Full Coverage", () => {
   });
 
   test("can start and stop the service", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // The service status lives in Advanced → Debug Tools → System Information.
-    // System's update banner can say "running" but is not a service status.
-    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
-    const advanced = page.getByRole("tabpanel", { name: "Advanced", exact: true });
+    // The service status lives in System & backups → Debug Tools → System
+    // Information (the old Advanced tab). The update banner can say
+    // "running" but is not a service status.
+    const advanced = page.getByRole("region", { name: "System & backups", exact: true });
     await advanced.getByRole("button", { name: "Debug Tools", exact: true }).click();
     await advanced.getByRole("button", { name: "System Information", exact: true }).click();
     await expect(advanced.getByText(/^(Running|Stopped)$/)).toBeVisible({ timeout: 10_000 });
@@ -246,11 +246,13 @@ test.describe("Settings – Full Coverage", () => {
   });
 
   test("can navigate to run setup wizard from settings", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Setup Wizard lives under the System tab
-    await page.getByRole("tab", { name: "System", exact: true }).click();
+    // Setup Wizard lives under System & backups
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
 
     const wizardBtn = page
       .getByRole("button", { name: /run setup wizard/i })
@@ -261,11 +263,14 @@ test.describe("Settings – Full Coverage", () => {
   });
 
   test("debug section shows system info", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Debug Tools lives under the Advanced tab and is a collapsible
-    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
+    // Debug Tools lives under System & backups (the old Advanced tab) and is
+    // a collapsible
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
     await page.getByText("Debug Tools").first().click();
 
     // Verify Debug Tools content is now visible
@@ -281,11 +286,14 @@ test.describe("Settings – Full Coverage", () => {
   });
 
   test("can clear board cache from debug tools", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Debug Tools lives under the Advanced tab and is a collapsible
-    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
+    // Debug Tools lives under System & backups (the old Advanced tab) and is
+    // a collapsible
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
     await page.getByText("Debug Tools").first().click();
 
     // Find "Clear Message Cache" button
