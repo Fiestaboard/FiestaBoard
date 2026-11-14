@@ -137,14 +137,13 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
     );
   });
 
-  it("shows which board the Active Display is reflecting", async () => {
+  it("names the display the Now showing card reflects", async () => {
     useTwoBoards();
     localStorage.setItem("fiestaboard_current_board", "board-2");
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    const indicator = await screen.findByTestId("active-display-board-name");
-    expect(indicator).toHaveTextContent("Showing Kitchen");
+    expect(await screen.findByRole("region", { name: /Now showing.*Kitchen/ })).toBeInTheDocument();
   });
 
   it("switching the current board refetches with the new board id", async () => {
@@ -207,19 +206,18 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
         { wrapper: TestWrapper },
       );
 
-      await screen.findByTestId("active-display-board-name");
-      await user.click(screen.getByRole("button", { name: /Change Page/i }));
-      await screen.findByText("Custom Template");
+      await screen.findByRole("region", { name: /Now showing/ });
+      await user.click(screen.getByRole("button", { name: /^Change Page$/ }));
+      await screen.findByRole("button", { name: /Custom Template/ });
       expect(puts).toEqual([]);
       await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       await user.click(screen.getByRole("button", { name: `switch-board-${otherBoard}` }));
-      await waitFor(() =>
-        expect(screen.getByTestId("active-display-board-name")).toHaveTextContent(
-          otherBoard === "board-1" ? "Showing Living Room" : "Showing Kitchen",
-        ),
-      );
-      await user.click(screen.getByRole("button", { name: /Change Page/i }));
-      await screen.findByText("Custom Template");
+      await screen.findByRole("region", {
+        name: otherBoard === "board-1" ? /Now showing.*Living Room/ : /Now showing.*Kitchen/,
+      });
+      await user.click(screen.getByRole("button", { name: /^Change Page$/ }));
+      await screen.findByRole("button", { name: /Custom Template/ });
       expect(puts).toEqual([]);
     },
   );
@@ -238,19 +236,11 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Change Page/i })).toBeInTheDocument();
-    });
-    await user.click(screen.getByRole("button", { name: /Change Page/i }));
-
-    // Wait for sheet content and page grid to load (420ms animation + data fetch)
-    await waitFor(
-      () => {
-        expect(screen.queryByText("Custom Template")).toBeInTheDocument();
-      },
-      { timeout: 3000 },
-    );
-    await user.click(screen.getByText("Custom Template"));
+    await user.click(await screen.findByRole("button", { name: /^Change Page$/ }));
+    // Manual Mode with no next change: "Until I cancel" is preselected and
+    // pins the page on the selected display (no Override).
+    await user.click(await screen.findByRole("button", { name: /Custom Template/ }));
+    await user.click(screen.getByRole("button", { name: "Show now" }));
 
     await waitFor(
       () => {
@@ -317,7 +307,7 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
     });
     expect(seenActivePage.length).toBeGreaterThan(0);
     expect(seenActivePage.every((id) => id === null)).toBe(true);
-    expect(screen.queryByTestId("active-display-board-name")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Showing /)).not.toBeInTheDocument();
   });
 
   it.each([

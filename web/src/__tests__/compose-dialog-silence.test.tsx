@@ -1,5 +1,5 @@
-// ComposePageDialog during silence (#1943, #1944): Send is named for what it
-// does ("Send now anyway" wakes the board), and when the board holds messages
+// ComposePageDialog during silence (#1943, #1944): Show now wakes the board
+// (CANON retired "Send now anyway"), and when the board holds messages
 // "Hold until 7:00 AM" is the primary action — it never wakes the board.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -61,7 +61,7 @@ describe("ComposePageDialog during silence", () => {
   it("is today's footer when the board is not silenced", () => {
     renderDialog();
     expect(screen.queryByTestId("compose-silence")).not.toBeInTheDocument();
-    expect(footerButtons()).toEqual(["Cancel", "Save as Page", "Send to board"]);
+    expect(footerButtons()).toEqual(["Cancel", "Save as Page", "Show now"]);
   });
 
   it("with holds on: says when it would show, and Hold is the last (primary) action", () => {
@@ -69,7 +69,7 @@ describe("ComposePageDialog during silence", () => {
     expect(screen.getByTestId("compose-silence")).toHaveTextContent(
       "Hold it and it shows at 7:00 AM, or send it now and the board wakes.",
     );
-    expect(footerButtons()).toEqual(["Cancel", "Save as Page", "Send now anyway", "Hold until 7:00 AM"]);
+    expect(footerButtons()).toEqual(["Cancel", "Save as Page", "Show now", "Hold until 7:00 AM"]);
   });
 
   it("with holds off: warns that sending wakes the board and links to the setting", () => {
@@ -81,7 +81,7 @@ describe("ComposePageDialog during silence", () => {
       "href",
       "/settings?section=scheduling#silence-schedule",
     );
-    expect(footerButtons()).toEqual(["Cancel", "Save as Page", "Send now anyway"]);
+    expect(footerButtons()).toEqual(["Cancel", "Save as Page", "Show now"]);
     expect(screen.queryByTestId("compose-hold")).not.toBeInTheDocument();
   });
 
@@ -143,7 +143,7 @@ describe("ComposePageDialog during silence", () => {
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 
-  it("Send now anyway still posts the temporary override, unchanged", async () => {
+  it("Show now during silence still posts the temporary override, unchanged", async () => {
     let body: Record<string, unknown> | null = null;
     server.use(
       http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
