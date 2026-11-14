@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Community",
     "communityDescription": "Pubblicato al di fuori dell’organizzazione FiestaBoard su GitHub."
+  },
+  "editorShortcuts": {
+    "title": "Scorciatoie da tastiera",
+    "platformNote": "⌘ su Mac · Ctrl su Windows e Linux",
+    "or": "o",
+    "close": "Chiudi",
+    "button": "Scorciatoie",
+    "hint": "Tutte le scorciatoie",
+    "footnote": "Nessuna scorciatoia a tasto singolo mentre scrivi nel modello.",
+    "undo": "Annulla",
+    "redo": "Ripeti",
+    "applyFormula": "Applica una formula (editor formule)",
+    "closePicker": "Chiudi un selettore",
+    "exitDrawMode": "Esci dalla modalità disegno",
+    "showShortcuts": "Mostra le scorciatoie da tastiera",
+    "previewStep": "Scorri l’anteprima di una nota",
+    "previewEnds": "Vai alla prima o all’ultima nota",
+    "previewFit": "Adatta / Dimensione reale (anteprima attiva)"
   }
 }

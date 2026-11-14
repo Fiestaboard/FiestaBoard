@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "社区",
     "communityDescription": "由 FiestaBoard GitHub 组织以外的发布者发布。"
+  },
+  "editorShortcuts": {
+    "title": "键盘快捷键",
+    "platformNote": "Mac 上为 ⌘ · Windows 和 Linux 上为 Ctrl",
+    "or": "或",
+    "close": "关闭",
+    "button": "快捷键",
+    "hint": "所有快捷键",
+    "footnote": "在模板中输入时没有单键快捷键。",
+    "undo": "撤销",
+    "redo": "重做",
+    "applyFormula": "应用公式（公式编辑器）",
+    "closePicker": "关闭选择器",
+    "exitDrawMode": "退出绘制模式",
+    "showShortcuts": "显示键盘快捷键",
+    "previewStep": "将预览滚动一个 Note",
+    "previewEnds": "跳到第一个或最后一个 Note",
+    "previewFit": "适应 / 实际大小（预览获得焦点时）"
   }
 }

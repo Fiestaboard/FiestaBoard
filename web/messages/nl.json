@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Community",
     "communityDescription": "Gepubliceerd buiten de FiestaBoard-organisatie op GitHub."
+  },
+  "editorShortcuts": {
+    "title": "Sneltoetsen",
+    "platformNote": "⌘ op Mac · Ctrl op Windows en Linux",
+    "or": "of",
+    "close": "Sluiten",
+    "button": "Sneltoetsen",
+    "hint": "Alle sneltoetsen",
+    "footnote": "Geen sneltoetsen met één toets tijdens het typen in de sjabloon.",
+    "undo": "Ongedaan maken",
+    "redo": "Opnieuw",
+    "applyFormula": "Formule toepassen (formule-editor)",
+    "closePicker": "Een kiezer sluiten",
+    "exitDrawMode": "Tekenmodus verlaten",
+    "showShortcuts": "Sneltoetsen tonen",
+    "previewStep": "Voorbeeld één Note verschuiven",
+    "previewEnds": "Naar de eerste of laatste Note springen",
+    "previewFit": "Passend / Ware grootte (voorbeeld met focus)"
   }
 }

@@ -53,6 +53,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { codeMirrorKey, EDITOR_SHORTCUTS } from "@/lib/editor-shortcuts";
 import { cn } from "@/lib/utils";
 
 import { categoriesToRender } from "./formula-categories";
@@ -375,7 +376,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
             ...historyKeymap,
             indentWithTab,
             {
-              key: "Mod-Enter",
+              key: codeMirrorKey(EDITOR_SHORTCUTS.applyFormula),
               run: () => {
                 const { expr: e, validationState: vs } = latestStateRef.current;
                 const trimmed = e.trim();

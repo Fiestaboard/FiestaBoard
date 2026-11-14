@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "커뮤니티",
     "communityDescription": "FiestaBoard GitHub 조직 외부에서 게시되었습니다."
+  },
+  "editorShortcuts": {
+    "title": "키보드 단축키",
+    "platformNote": "Mac은 ⌘ · Windows와 Linux는 Ctrl",
+    "or": "또는",
+    "close": "닫기",
+    "button": "단축키",
+    "hint": "모든 단축키",
+    "footnote": "템플릿에 입력하는 동안에는 단일 키 단축키가 없습니다.",
+    "undo": "실행 취소",
+    "redo": "다시 실행",
+    "applyFormula": "수식 적용(수식 편집기)",
+    "closePicker": "선택기 닫기",
+    "exitDrawMode": "그리기 모드 종료",
+    "showShortcuts": "키보드 단축키 보기",
+    "previewStep": "미리보기를 노트 하나만큼 스크롤",
+    "previewEnds": "첫 번째 또는 마지막 노트로 이동",
+    "previewFit": "맞춤 / 실제 크기(미리보기 포커스 시)"
   }
 }

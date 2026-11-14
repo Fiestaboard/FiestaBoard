@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "コミュニティ",
     "communityDescription": "FiestaBoardのGitHub組織外で公開されています。"
+  },
+  "editorShortcuts": {
+    "title": "キーボードショートカット",
+    "platformNote": "Mac は ⌘ · Windows と Linux は Ctrl",
+    "or": "または",
+    "close": "閉じる",
+    "button": "ショートカット",
+    "hint": "すべてのショートカット",
+    "footnote": "テンプレートの入力中は単一キーのショートカットは使えません。",
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "applyFormula": "数式を適用（数式エディター）",
+    "closePicker": "ピッカーを閉じる",
+    "exitDrawMode": "描画モードを終了",
+    "showShortcuts": "キーボードショートカットを表示",
+    "previewStep": "プレビューを1ノート分スクロール",
+    "previewEnds": "最初または最後のノートへ移動",
+    "previewFit": "全体表示 / 実寸（プレビューにフォーカス時）"
   }
 }

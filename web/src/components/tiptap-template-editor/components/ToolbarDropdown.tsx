@@ -6,6 +6,7 @@
 import { Box, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
 import { cn } from "@/lib/utils";
 
 interface ToolbarDropdownProps {
@@ -103,7 +104,7 @@ export function ToolbarDropdown({
   useEffect(() => {
     if (!isOpen) return;
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+      if (matchesShortcut(event, EDITOR_SHORTCUTS.closePicker)) {
         event.stopPropagation();
         setIsOpen(false);
         onClose?.();

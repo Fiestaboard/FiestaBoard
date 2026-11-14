@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Topluluk",
     "communityDescription": "FiestaBoard GitHub kuruluşu dışında yayımlanmıştır."
+  },
+  "editorShortcuts": {
+    "title": "Klavye kısayolları",
+    "platformNote": "Mac'te ⌘ · Windows ve Linux'ta Ctrl",
+    "or": "veya",
+    "close": "Kapat",
+    "button": "Kısayollar",
+    "hint": "Tüm kısayollar",
+    "footnote": "Şablona yazarken tek tuşlu kısayol yoktur.",
+    "undo": "Geri al",
+    "redo": "Yinele",
+    "applyFormula": "Formülü uygula (formül düzenleyici)",
+    "closePicker": "Seçiciyi kapat",
+    "exitDrawMode": "Çizim modundan çık",
+    "showShortcuts": "Klavye kısayollarını göster",
+    "previewStep": "Önizlemeyi bir not kaydır",
+    "previewEnds": "İlk veya son nota atla",
+    "previewFit": "Sığdır / Gerçek boyut (önizleme odakta)"
   }
 }

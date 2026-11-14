@@ -15,6 +15,7 @@ import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 import type { Code62Glyph, DeviceType } from "@/lib/api";
+import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
 import { cn } from "@/lib/utils";
 
 import { ColorTileNode } from "./extensions/color-tile-node";
@@ -400,10 +401,8 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             }
           }
 
-          const key = event.key.toLowerCase();
-          const isMod = event.ctrlKey || event.metaKey;
-
-          if (isMod && key === "z" && !event.shiftKey) {
+          // Keys come from the shortcut registry the `?` list reads (slice 2.7).
+          if (matchesShortcut(event, EDITOR_SHORTCUTS.undo)) {
             // Undo
             const editorInstance = editorRef.current;
             if (editorInstance?.can().undo()) {
@@ -413,8 +412,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             }
             // If editor not ready yet, don't prevent default - let browser/TipTap handle it
             return false;
-          } else if (isMod && (key === "y" || (key === "z" && event.shiftKey))) {
-            // Redo (Ctrl+Y or Ctrl+Shift+Z)
+          } else if (matchesShortcut(event, EDITOR_SHORTCUTS.redo)) {
             const editorInstance = editorRef.current;
             if (editorInstance?.can().redo()) {
               event.preventDefault();

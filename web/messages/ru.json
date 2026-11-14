@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Сообщество",
     "communityDescription": "Опубликовано вне организации FiestaBoard на GitHub."
+  },
+  "editorShortcuts": {
+    "title": "Сочетания клавиш",
+    "platformNote": "⌘ на Mac · Ctrl в Windows и Linux",
+    "or": "или",
+    "close": "Закрыть",
+    "button": "Сочетания",
+    "hint": "Все сочетания",
+    "footnote": "Во время ввода в шаблоне одноклавишные сочетания не работают.",
+    "undo": "Отменить",
+    "redo": "Повторить",
+    "applyFormula": "Применить формулу (редактор формул)",
+    "closePicker": "Закрыть выбор",
+    "exitDrawMode": "Выйти из режима рисования",
+    "showShortcuts": "Показать сочетания клавиш",
+    "previewStep": "Прокрутить превью на одну заметку",
+    "previewEnds": "Перейти к первой или последней заметке",
+    "previewFit": "Вписать / Реальный размер (превью в фокусе)"
   }
 }

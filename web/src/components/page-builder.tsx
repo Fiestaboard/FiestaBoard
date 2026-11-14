@@ -70,6 +70,7 @@ import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
 import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
+import { EditorShortcutList, useEditorShortcutList } from "@/components/editor-shortcut-list";
 import { LiveOutputSilenceStrip } from "@/components/live-output-silence-strip";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { PlainTextEditor } from "@/components/plain-text-editor";
@@ -122,6 +123,7 @@ import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
 import { charsetTokenText } from "@/lib/charset-issues";
 import { boardForShape, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
+import { EDITOR_SHORTCUTS, isTypingTarget, matchesShortcut } from "@/lib/editor-shortcuts";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -2166,25 +2168,27 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     dims.cols,
   ]);
 
+  // The `?` shortcut list (slice 2.7): one open state for the header button,
+  // the toolbar-row hint and the `?` key. It hangs from the Template heading,
+  // in the template column (07 `57:27771`; DD-W30).
+  const shortcutList = useEditorShortcutList();
+  const templateHeadingRef = useRef<HTMLDivElement>(null);
+
   // Keyboard shortcuts while drawing: Esc exits; undo/redo work even though
   // the editor itself is visually hidden (and thus not focused) in draw mode.
   useEffect(() => {
     if (!drawMode) return;
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
-        return;
-      }
-      if (e.key === "Escape") {
+      if (isTypingTarget(e.target)) return;
+      // Keys come from the shortcut registry the `?` list reads (slice 2.7).
+      if (matchesShortcut(e, EDITOR_SHORTCUTS.exitDrawMode)) {
         setDrawMode(false);
         return;
       }
-      if (!(e.metaKey || e.ctrlKey)) return;
-      const k = e.key.toLowerCase();
-      if (k === "z" && !e.shiftKey) {
+      if (matchesShortcut(e, EDITOR_SHORTCUTS.undo)) {
         e.preventDefault();
         tipTapRef.current?.undo();
-      } else if (k === "y" || (k === "z" && e.shiftKey)) {
+      } else if (matchesShortcut(e, EDITOR_SHORTCUTS.redo)) {
         e.preventDefault();
         tipTapRef.current?.redo();
       }
@@ -2389,6 +2393,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       </AlertDialogContent>
                     </AlertDialog>
                   )}
+                  {/* 07 `57:28576`: the secondary "Shortcuts" button, left of Save. */}
+                  <EditorShortcutList variant="header" state={shortcutList} anchorRef={templateHeadingRef} />
                   {/* Save button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -2505,13 +2511,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 >
                   {t(mobilePreviewOpen ? "hidePreview" : "showPreview")}
                 </Button>
+                {/* 07 `57:28704`: "? All shortcuts" at the right end of the row above the template. */}
+                <Box className="ml-auto">
+                  <EditorShortcutList variant="hint" state={shortcutList} anchorRef={templateHeadingRef} />
+                </Box>
               </Flex>
 
               <Box className="grid min-w-0 grid-cols-1 items-start gap-5">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
                 <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0">
                   <Stack gap="3" className="min-w-0">
-                    <Flex align="center" justify="between">
+                    <Flex ref={templateHeadingRef} align="center" justify="between">
                       <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
                       <Flex
                         align="center"

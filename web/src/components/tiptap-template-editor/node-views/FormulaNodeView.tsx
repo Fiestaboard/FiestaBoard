@@ -27,6 +27,7 @@ import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 
 import { createPortal } from "react-dom";
 
 import { useTranslations } from "@/i18n/translations";
+import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
 
 // Lazy-loaded — CodeMirror (+ the lucide-react icon barrel pulled in via
 // VariablePickerContent's "Variables" tab) is only needed once the formula
@@ -71,7 +72,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (matchesShortcut(e, EDITOR_SHORTCUTS.closePicker)) {
         e.stopPropagation();
         setOpen(false);
         if (node.attrs.expression === "") deleteNode();

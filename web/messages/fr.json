@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Communauté",
     "communityDescription": "Publié en dehors de l’organisation FiestaBoard sur GitHub."
+  },
+  "editorShortcuts": {
+    "title": "Raccourcis clavier",
+    "platformNote": "⌘ sur Mac · Ctrl sous Windows et Linux",
+    "or": "ou",
+    "close": "Fermer",
+    "button": "Raccourcis",
+    "hint": "Tous les raccourcis",
+    "footnote": "Aucun raccourci à une touche pendant la saisie dans le modèle.",
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "applyFormula": "Appliquer une formule (éditeur de formules)",
+    "closePicker": "Fermer un sélecteur",
+    "exitDrawMode": "Quitter le mode dessin",
+    "showShortcuts": "Afficher les raccourcis clavier",
+    "previewStep": "Faire défiler l’aperçu d’une Note",
+    "previewEnds": "Aller à la première ou à la dernière Note",
+    "previewFit": "Ajuster / Taille réelle (aperçu actif)"
   }
 }

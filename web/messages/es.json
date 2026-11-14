@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Comunidad",
     "communityDescription": "Publicado fuera de la organización de FiestaBoard en GitHub."
+  },
+  "editorShortcuts": {
+    "title": "Atajos de teclado",
+    "platformNote": "⌘ en Mac · Ctrl en Windows y Linux",
+    "or": "o",
+    "close": "Cerrar",
+    "button": "Atajos",
+    "hint": "Todos los atajos",
+    "footnote": "No hay atajos de una sola tecla mientras escribes en la plantilla.",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
+    "applyFormula": "Aplicar una fórmula (editor de fórmulas)",
+    "closePicker": "Cerrar un selector",
+    "exitDrawMode": "Salir del modo dibujo",
+    "showShortcuts": "Mostrar atajos de teclado",
+    "previewStep": "Desplazar la vista previa una nota",
+    "previewEnds": "Saltar a la primera o la última nota",
+    "previewFit": "Ajustar / Tamaño real (vista previa enfocada)"
   }
 }

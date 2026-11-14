@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Comunidade",
     "communityDescription": "Publicado fora da organização FiestaBoard no GitHub."
+  },
+  "editorShortcuts": {
+    "title": "Atalhos de teclado",
+    "platformNote": "⌘ no Mac · Ctrl no Windows e Linux",
+    "or": "ou",
+    "close": "Fechar",
+    "button": "Atalhos",
+    "hint": "Todos os atalhos",
+    "footnote": "Sem atalhos de uma tecla enquanto escreve no modelo.",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "applyFormula": "Aplicar uma fórmula (editor de fórmulas)",
+    "closePicker": "Fechar um seletor",
+    "exitDrawMode": "Sair do modo de desenho",
+    "showShortcuts": "Mostrar atalhos de teclado",
+    "previewStep": "Rolar a pré-visualização uma nota",
+    "previewEnds": "Ir para a primeira ou a última nota",
+    "previewFit": "Ajustar / Tamanho real (pré-visualização em foco)"
   }
 }

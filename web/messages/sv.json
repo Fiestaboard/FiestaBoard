@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Gemenskap",
     "communityDescription": "Publicerat utanför FiestaBoards organisation på GitHub."
+  },
+  "editorShortcuts": {
+    "title": "Kortkommandon",
+    "platformNote": "⌘ på Mac · Ctrl på Windows och Linux",
+    "or": "eller",
+    "close": "Stäng",
+    "button": "Kortkommandon",
+    "hint": "Alla kortkommandon",
+    "footnote": "Inga kortkommandon med en tangent medan du skriver i mallen.",
+    "undo": "Ångra",
+    "redo": "Gör om",
+    "applyFormula": "Använd en formel (formelredigeraren)",
+    "closePicker": "Stäng en väljare",
+    "exitDrawMode": "Lämna ritläget",
+    "showShortcuts": "Visa kortkommandon",
+    "previewStep": "Bläddra förhandsvisningen en Note",
+    "previewEnds": "Hoppa till första eller sista Note",
+    "previewFit": "Anpassa / Verklig storlek (förhandsvisning i fokus)"
   }
 }

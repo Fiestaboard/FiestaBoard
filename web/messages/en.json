@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Community",
     "communityDescription": "Published outside the FiestaBoard GitHub organization."
+  },
+  "editorShortcuts": {
+    "title": "Keyboard shortcuts",
+    "platformNote": "⌘ on Mac · Ctrl on Windows and Linux",
+    "or": "or",
+    "close": "Close",
+    "button": "Shortcuts",
+    "hint": "All shortcuts",
+    "footnote": "No single-key shortcuts while typing in the template.",
+    "undo": "Undo",
+    "redo": "Redo",
+    "applyFormula": "Apply a formula (formula editor)",
+    "closePicker": "Close a picker",
+    "exitDrawMode": "Leave draw mode",
+    "showShortcuts": "Show keyboard shortcuts",
+    "previewStep": "Scroll the preview by one note",
+    "previewEnds": "Jump to the first or last note",
+    "previewFit": "Fit / Actual size (preview focused)"
   }
 }

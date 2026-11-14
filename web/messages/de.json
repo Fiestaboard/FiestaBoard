@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Community",
     "communityDescription": "Außerhalb der FiestaBoard-Organisation auf GitHub veröffentlicht."
+  },
+  "editorShortcuts": {
+    "title": "Tastenkürzel",
+    "platformNote": "⌘ auf dem Mac · Strg unter Windows und Linux",
+    "or": "oder",
+    "close": "Schließen",
+    "button": "Tastenkürzel",
+    "hint": "Alle Tastenkürzel",
+    "footnote": "Beim Tippen in der Vorlage gibt es keine Ein-Tasten-Kürzel.",
+    "undo": "Rückgängig",
+    "redo": "Wiederholen",
+    "applyFormula": "Formel übernehmen (Formeleditor)",
+    "closePicker": "Auswahl schließen",
+    "exitDrawMode": "Zeichenmodus verlassen",
+    "showShortcuts": "Tastenkürzel anzeigen",
+    "previewStep": "Vorschau um eine Note verschieben",
+    "previewEnds": "Zur ersten oder letzten Note springen",
+    "previewFit": "Einpassen / Originalgröße (Vorschau fokussiert)"
   }
 }

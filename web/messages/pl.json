@@ -3044,5 +3044,23 @@
   "plugins": {
     "communityBadge": "Społeczność",
     "communityDescription": "Opublikowano poza organizacją FiestaBoard w serwisie GitHub."
+  },
+  "editorShortcuts": {
+    "title": "Skróty klawiszowe",
+    "platformNote": "⌘ na Macu · Ctrl w Windows i Linux",
+    "or": "lub",
+    "close": "Zamknij",
+    "button": "Skróty",
+    "hint": "Wszystkie skróty",
+    "footnote": "Podczas pisania w szablonie nie ma skrótów jednoklawiszowych.",
+    "undo": "Cofnij",
+    "redo": "Ponów",
+    "applyFormula": "Zastosuj formułę (edytor formuł)",
+    "closePicker": "Zamknij selektor",
+    "exitDrawMode": "Wyjdź z trybu rysowania",
+    "showShortcuts": "Pokaż skróty klawiszowe",
+    "previewStep": "Przewiń podgląd o jedną notatkę",
+    "previewEnds": "Przejdź do pierwszej lub ostatniej notatki",
+    "previewFit": "Dopasuj / Rzeczywisty rozmiar (podgląd aktywny)"
   }
 }
