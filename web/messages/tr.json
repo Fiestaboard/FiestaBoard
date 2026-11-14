@@ -780,14 +780,21 @@
   },
   "offline": {
     "youreOffline": "Çevrimdışısınız",
-    "reconnecting": "Yeniden bağlanılıyor...",
-    "offlineDescription": "İnternet bağlantınız kesilmiş görünüyor. Bazı özellikler kullanılamayabilir.",
-    "connectionRestored": "Bağlantı yeniden kuruldu! Uygulama yeniden yükleniyor...",
-    "tryAgain": "Tekrar Dene",
-    "whileOffline": "Çevrimdışıyken şunları yapabilirsiniz:",
-    "viewPreviouslyLoaded": "Daha önce yüklenmiş sayfaları görüntüleme",
-    "accessCached": "Önbelleğe alınmış içeriğe erişme",
-    "browseSaved": "Kayıtlı verilerinize göz atma"
+    "offlineBody": "Bu {device} hiçbir ağa bağlı değil, bu yüzden {host} adresine ulaşamıyor. Hub’ınız ve ekranlarınız sorunsuz; bu {device} cihazına ihtiyaçları yok.",
+    "cantReachHub": "Hub’ınıza ulaşılamıyor",
+    "cantReachBody": "Bu {device} çevrimiçi, ancak {host} adresindeki FiestaBoard yanıt vermedi. Ekranlarınız hub üzerindeki programlarını çalıştırmaya devam ediyor.",
+    "checkPower": "Hub prize takılı ve ışığı sabit mi?",
+    "checkWifi": "Hub ile aynı Wi‑Fi ağında mısınız?",
+    "tryAgain": "Tekrar dene",
+    "connectionHelp": "Bağlantı yardımı",
+    "reconnecting": "Yeniden bağlanılıyor…",
+    "lastKnown": "Son bilinen",
+    "lastKnownTitle": "Son bilinen · {board}",
+    "lastKnownAt": "Son bağlantı {time} · güncel olmayabilir",
+    "device": {
+      "phone": "telefon",
+      "computer": "bilgisayar"
+    }
   },
   "wizard": {
     "welcomeTitle": "FiestaBoard'a Hoş Geldiniz",
@@ -1109,11 +1116,27 @@
     "stoppedTooltip": "Görüntüleme hizmeti duraklatıldı. Panoya içerik gönderilmiyor."
   },
   "installPrompt": {
-    "title": "FiestaBoard Kontrolü Yükle",
-    "description": "Hızlı erişim ve daha iyi bir deneyim için ana ekranınıza ekleyin.",
-    "installButton": "Yükle",
+    "title": "FiestaBoard Control bu {device} cihazına eklensin mi?",
+    "reasonSends": "Buradan {count} mesaj gönderdiniz.",
+    "reasonSave": "Buradan bir sayfa kaydettiniz.",
+    "body": "Yüklendiğinde kendi penceresinde doğrudan Ana Sayfa açılır. Yine yalnızca {host} adresindeki hub’ınızla konuşur; FiestaBoard hesabı ya da bulut yoktur.",
+    "install": "Yükle",
     "notNow": "Şimdi değil",
-    "dismissAriaLabel": "Kapat"
+    "httpsTitle": "Yükleme için güvenli bir adres gerekir",
+    "httpsBody": "http://{host} adresinde tarayıcınız uygulama yüklemez ve çevrimdışı çalışır tutmaz; bu yüzden burada Yükle düğmesi yok. FiestaBoard’u https adresinden açın veya hub’ınız için HTTPS kurun.",
+    "httpsHelp": "HTTPS nasıl kurulur",
+    "sheetTitle": "Ana Ekrana Ekle",
+    "sheetIntro": "Safari web sitelerinin kendini yüklemesine izin vermez, bu yüzden şöyle yapın. Yaklaşık 10 saniye sürer ve her uygulama gibi kaldırabilirsiniz.",
+    "stepShare": "Safari adres çubuğunda ⋯ simgesine, ardından Paylaş’a dokunun.",
+    "stepAdd": "Aşağı kaydırıp Ana Ekrana Ekle’ye dokunun.",
+    "stepOpen": "Web Uygulaması Olarak Aç açık kalsın, ardından Ekle’ye dokunun.",
+    "gotIt": "Anladım",
+    "dontShowAgain": "Bir daha gösterme",
+    "close": "Kapat",
+    "device": {
+      "phone": "telefon",
+      "computer": "bilgisayar"
+    }
   },
   "silenceMode": {
     "loading": "Yükleniyor...",
@@ -3044,5 +3067,12 @@
   "plugins": {
     "communityBadge": "Topluluk",
     "communityDescription": "FiestaBoard GitHub kuruluşu dışında yayımlanmıştır."
+  },
+  "pwa": {
+    "https": {
+      "title": "HTTPS gerekli",
+      "body": "Yükleme ve çevrimdışı kullanım güvenli bir adres gerektirir. Şu anda http://{host} adresindesiniz. FiestaBoard’u https adresinden açın veya hub’ınız için HTTPS kurun.",
+      "help": "HTTPS nasıl kurulur"
+    }
   }
 }

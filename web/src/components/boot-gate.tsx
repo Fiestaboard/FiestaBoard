@@ -6,8 +6,10 @@ import { useQuery } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { OfflineScreen } from "@/components/pwa/offline-screen";
 import { useUpdate } from "@/components/update-context";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useOnline } from "@/hooks/use-online";
 import { useTranslations } from "@/i18n/translations";
 import { apiUrl } from "@/lib/base-path";
 
@@ -44,6 +46,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
   const [hasConnected, setHasConnected] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const online = useOnline();
 
   const { data } = useQuery({
     queryKey: ["boot-health"],
@@ -97,6 +100,24 @@ export function BootGate({ children }: { children: React.ReactNode }) {
 
   // API is up — show the real app.
   if (hasConnected) return <>{children}</>;
+
+  // This device has no network (the app opened from the service worker's
+  // shell, or the network dropped before the first answer). Say so at once
+  // instead of "Waiting to start…": it is this device, not the hub (WEB-16).
+  // After an ordinary cold-boot timeout, name the unreachable hub and retain
+  // the last-known board. Updates keep their longer, update-specific flow.
+  if (!online || (timedOut && !awaitingPostUpdateBoot)) {
+    return (
+      <Flex direction="col" className="fixed inset-0 z-[200] overflow-y-auto bg-background">
+        <OfflineScreen
+          kind={online ? "hub-unreachable" : "device-offline"}
+          onRetry={() => {
+            if (navigator.onLine) window.location.reload();
+          }}
+        />
+      </Flex>
+    );
+  }
 
   // Still within the no-flash delay window — render nothing.
   if (!showSplash) return null;

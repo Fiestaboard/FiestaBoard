@@ -26,6 +26,7 @@ import { useRouter } from "@/hooks/use-router";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { clearAccountDataOnDevice } from "@/lib/pwa/sign-out";
 
 interface SidebarSettingsMenuProps {
   /** Avatar-only trigger, matching the 64px rail. Desktop only. */
@@ -102,6 +103,8 @@ export function SidebarSettingsMenu({
       // Best-effort — the server cookie clear may fail but we still want to
       // drop the client cache and bounce to /login.
     }
+    // The last-known board frames belong to this account: wipe them (2.8).
+    await clearAccountDataOnDevice();
     queryClient.removeQueries({ queryKey: ["auth-status"] });
     router.replace("/login");
   };

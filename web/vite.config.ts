@@ -78,21 +78,17 @@ export default defineConfig({
     // does by setting `window.__vite_plugin_react_preamble_installed__`
     // inline in Layout's `<head>` before the route module imports.
     reactRouter(),
-    // The service worker is retired. Since the React Router migration (#919)
-    // the plugin wrote sw.js to `dist/`, which nothing serves, so /sw.js
-    // 404'd on every load and the app never had a working one. A real one
-    // buys no speed here (hashed /assets/ are already `immutable` for a year)
-    // and would re-download the whole bundle after every nightly update.
-    // Our retirement worker unregisters itself after awaiting deletion of its
-    // owned caches, which also evicts any Next.js-era worker controlling a
-    // long-lived tab with a stale precache. Once those are gone (a few
-    // releases), this plugin and public/registerSW references can go too.
+    // The app-shell service worker (web 2.8, WEB-16) is public/sw.js; this
+    // plugin only builds it into the client output. Registration is the
+    // app's own (src/lib/pwa/register-service-worker.ts): only in a secure
+    // context, with a base-path-aware URL and scope, so `injectRegister` is
+    // off and no registerSW.js is emitted.
     VitePWA({
       strategies: "injectManifest",
       srcDir: "public",
       filename: "sw.js",
       injectManifest: { injectionPoint: undefined },
-      injectRegister: "auto",
+      injectRegister: false,
       // React Router's client build dir; the plugin's default (`dist/`) is
       // never served.
       outDir: "build/client",

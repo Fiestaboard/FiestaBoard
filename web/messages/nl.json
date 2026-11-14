@@ -780,14 +780,21 @@
   },
   "offline": {
     "youreOffline": "Je bent offline",
-    "reconnecting": "Opnieuw verbinden...",
-    "offlineDescription": "Het lijkt erop dat je internetverbinding is verbroken. Sommige functies zijn mogelijk niet beschikbaar.",
-    "connectionRestored": "Verbinding hersteld! App wordt herladen...",
+    "offlineBody": "Deze {device} is met geen enkel netwerk verbonden en kan {host} dus niet bereiken. Je hub en schermen zijn in orde; ze hebben deze {device} niet nodig.",
+    "cantReachHub": "Je hub is niet bereikbaar",
+    "cantReachBody": "Deze {device} is online, maar FiestaBoard op {host} gaf geen antwoord. Je schermen blijven hun schema’s op de hub volgen.",
+    "checkPower": "Zit de stekker van de hub erin en brandt het lampje continu?",
+    "checkWifi": "Zit je op dezelfde wifi als de hub?",
     "tryAgain": "Opnieuw proberen",
-    "whileOffline": "Terwijl je offline bent, kun je nog steeds:",
-    "viewPreviouslyLoaded": "Eerder geladen pagina's bekijken",
-    "accessCached": "Gecachte inhoud openen",
-    "browseSaved": "Door opgeslagen gegevens bladeren"
+    "connectionHelp": "Hulp bij verbinden",
+    "reconnecting": "Opnieuw verbinden…",
+    "lastKnown": "Laatst bekend",
+    "lastKnownTitle": "Laatst bekend · {board}",
+    "lastKnownAt": "Laatst verbonden {time} · mogelijk verouderd",
+    "device": {
+      "phone": "telefoon",
+      "computer": "computer"
+    }
   },
   "wizard": {
     "welcomeTitle": "Welkom bij FiestaBoard",
@@ -1109,11 +1116,27 @@
     "stoppedTooltip": "Weergaveservice is gepauzeerd. Er wordt geen inhoud naar het bord gestuurd."
   },
   "installPrompt": {
-    "title": "FiestaBoard Control installeren",
-    "description": "Voeg toe aan je startscherm voor snelle toegang en een betere ervaring.",
-    "installButton": "Installeren",
+    "title": "FiestaBoard Control aan deze {device} toevoegen?",
+    "reasonSends": "Je hebt {count} berichten vanaf hier verstuurd.",
+    "reasonSave": "Je hebt vanaf hier een pagina opgeslagen.",
+    "body": "Geïnstalleerd opent het direct op Home in een eigen venster. Het praat nog steeds alleen met je hub op {host}; er is geen FiestaBoard-account of cloud.",
+    "install": "Installeren",
     "notNow": "Niet nu",
-    "dismissAriaLabel": "Sluiten"
+    "httpsTitle": "Installeren vraagt een beveiligd adres",
+    "httpsBody": "Op http://{host} installeert je browser geen apps en houdt hij ze niet offline beschikbaar, dus er staat hier geen knop Installeren. Open FiestaBoard via het https-adres of stel HTTPS in voor je hub.",
+    "httpsHelp": "HTTPS instellen",
+    "sheetTitle": "Zet op beginscherm",
+    "sheetIntro": "Safari laat websites zichzelf niet installeren, dus zo doe je het. Het duurt ongeveer 10 seconden en je kunt het verwijderen zoals elke app.",
+    "stepShare": "Tik op ⋯ in de adresbalk van Safari en dan op Deel.",
+    "stepAdd": "Scrol omlaag en tik op Zet op beginscherm.",
+    "stepOpen": "Laat Open als webapp aan staan en tik op Voeg toe.",
+    "gotIt": "Begrepen",
+    "dontShowAgain": "Niet meer tonen",
+    "close": "Sluiten",
+    "device": {
+      "phone": "telefoon",
+      "computer": "computer"
+    }
   },
   "silenceMode": {
     "loading": "Laden...",
@@ -3044,5 +3067,12 @@
   "plugins": {
     "communityBadge": "Community",
     "communityDescription": "Gepubliceerd buiten de FiestaBoard-organisatie op GitHub."
+  },
+  "pwa": {
+    "https": {
+      "title": "HTTPS vereist",
+      "body": "Installeren en offline gebruik vragen een beveiligd adres. Je zit op http://{host}. Open FiestaBoard via het https-adres of stel HTTPS in voor je hub.",
+      "help": "HTTPS instellen"
+    }
   }
 }

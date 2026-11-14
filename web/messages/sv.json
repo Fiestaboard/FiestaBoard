@@ -780,14 +780,21 @@
   },
   "offline": {
     "youreOffline": "Du är offline",
-    "reconnecting": "Återansluter...",
-    "offlineDescription": "Det verkar som att du har tappat internetanslutningen. Vissa funktioner kanske inte är tillgängliga.",
-    "connectionRestored": "Anslutningen återställd! Laddar om appen...",
+    "offlineBody": "Den här enheten ({device}) är inte ansluten till något nätverk och når därför inte {host}. Din hubb och dina skärmar mår bra; de behöver inte den här enheten.",
+    "cantReachHub": "Det går inte att nå din hubb",
+    "cantReachBody": "Den här enheten ({device}) är online, men FiestaBoard på {host} svarade inte. Dina skärmar fortsätter köra sina scheman på hubben.",
+    "checkPower": "Är hubben inkopplad och lyser lampan stadigt?",
+    "checkWifi": "Är du på samma wifi som hubben?",
     "tryAgain": "Försök igen",
-    "whileOffline": "Medan du är offline kan du fortfarande:",
-    "viewPreviouslyLoaded": "Visa tidigare inlästa sidor",
-    "accessCached": "Komma åt cachad data",
-    "browseSaved": "Bläddra bland sparad data"
+    "connectionHelp": "Hjälp med anslutningen",
+    "reconnecting": "Ansluter igen…",
+    "lastKnown": "Senast kända",
+    "lastKnownTitle": "Senast kända · {board}",
+    "lastKnownAt": "Senast ansluten {time} · kan vara inaktuell",
+    "device": {
+      "phone": "telefon",
+      "computer": "dator"
+    }
   },
   "wizard": {
     "welcomeTitle": "Välkommen till FiestaBoard",
@@ -1109,11 +1116,27 @@
     "stoppedTooltip": "Visningstjänsten är pausad. Inget innehåll skickas till tavlan."
   },
   "installPrompt": {
-    "title": "Installera FiestaBoard Control",
-    "description": "Lägg till på din hemskärm för snabb åtkomst och en bättre upplevelse.",
-    "installButton": "Installera",
+    "title": "Lägga till FiestaBoard Control på den här {device}?",
+    "reasonSends": "Du har skickat {count} meddelanden härifrån.",
+    "reasonSave": "Du har sparat en sida härifrån.",
+    "body": "Installerad öppnas den direkt på Hem i ett eget fönster. Den pratar fortfarande bara med din hubb på {host}; det finns inget FiestaBoard-konto och inget moln.",
+    "install": "Installera",
     "notNow": "Inte nu",
-    "dismissAriaLabel": "Stäng"
+    "httpsTitle": "Installation kräver en säker adress",
+    "httpsBody": "På http://{host} installerar webbläsaren inga appar och håller dem inte tillgängliga offline, så här finns ingen Installera-knapp. Öppna FiestaBoard på dess https-adress eller konfigurera HTTPS för din hubb.",
+    "httpsHelp": "Så konfigurerar du HTTPS",
+    "sheetTitle": "Lägg till på hemskärmen",
+    "sheetIntro": "Safari låter inte webbplatser installera sig själva, så gör så här. Det tar ungefär 10 sekunder och du kan ta bort den som vilken app som helst.",
+    "stepShare": "Tryck på ⋯ i Safaris adressfält och sedan på Dela.",
+    "stepAdd": "Rulla ned och tryck på Lägg till på hemskärmen.",
+    "stepOpen": "Låt Öppna som webbapp vara på och tryck på Lägg till.",
+    "gotIt": "Uppfattat",
+    "dontShowAgain": "Visa inte igen",
+    "close": "Stäng",
+    "device": {
+      "phone": "telefon",
+      "computer": "dator"
+    }
   },
   "silenceMode": {
     "loading": "Laddar...",
@@ -3044,5 +3067,12 @@
   "plugins": {
     "communityBadge": "Gemenskap",
     "communityDescription": "Publicerat utanför FiestaBoards organisation på GitHub."
+  },
+  "pwa": {
+    "https": {
+      "title": "Kräver HTTPS",
+      "body": "Installation och offlineläge kräver en säker adress. Du är på http://{host}. Öppna FiestaBoard på dess https-adress eller konfigurera HTTPS för din hubb.",
+      "help": "Så konfigurerar du HTTPS"
+    }
   }
 }

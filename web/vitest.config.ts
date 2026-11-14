@@ -44,6 +44,8 @@ export default defineConfig({
         "src/components/live-output.tsx",
         "src/components/notification-display.tsx",
         "src/components/language-selector.tsx",
+        "src/components/install-prompt.tsx",
+        "src/components/pwa/**",
         "src/i18n/config.ts",
       ],
       exclude: ["src/__tests__/**", "**/*.stories.tsx", "src/lib/ai-chat-types.ts"],

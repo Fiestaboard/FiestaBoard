@@ -26,6 +26,7 @@ import { Navigate } from "react-router";
 
 import { AccountSection } from "@/components/account-section";
 import { useCurrentBoard } from "@/components/current-board-context";
+import { HttpsRequiredBanner } from "@/components/pwa/https-required-banner";
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings";
 import { AiSettings } from "@/components/settings/ai-settings";
 import { AnimationSettings } from "@/components/settings/animation-settings";
@@ -47,6 +48,7 @@ import { useWizard } from "@/components/wizard-provider";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { isSecureOrigin } from "@/lib/pwa/environment";
 
 type SectionId = "general" | "account" | "network" | "ai" | "system" | "advanced";
 
@@ -222,6 +224,12 @@ export default function SettingsPage() {
           </PageSection>
 
           <TabsContent value="general" className="mt-0">
+            {/* 2.8: install and offline need https; 2.13 moves this to Settings › Notifications (07e 329:49323). */}
+            {!isSecureOrigin() && (
+              <PageSection>
+                <HttpsRequiredBanner />
+              </PageSection>
+            )}
             <InstanceNameCard />
             <PageSection title={t("groupAppearance")}>
               <Grid

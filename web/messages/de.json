@@ -779,15 +779,22 @@
     "openDisplays": "Anzeigen verwalten"
   },
   "offline": {
-    "youreOffline": "Sie sind offline",
-    "reconnecting": "Verbindung wird wiederhergestellt...",
-    "offlineDescription": "Es scheint, als hätten Sie Ihre Internetverbindung verloren. Einige Funktionen sind möglicherweise nicht verfügbar.",
-    "connectionRestored": "Verbindung wiederhergestellt! App wird neu geladen...",
+    "youreOffline": "Du bist offline",
+    "offlineBody": "Dieses Gerät ({device}) ist mit keinem Netzwerk verbunden und erreicht {host} daher nicht. Dein Hub und deine Displays laufen weiter; sie brauchen dieses Gerät nicht.",
+    "cantReachHub": "Dein Hub ist nicht erreichbar",
+    "cantReachBody": "Dieses Gerät ({device}) ist online, aber FiestaBoard unter {host} hat nicht geantwortet. Deine Displays führen ihre Zeitpläne auf dem Hub weiter aus.",
+    "checkPower": "Ist der Hub eingesteckt und leuchtet er gleichmäßig?",
+    "checkWifi": "Bist du im selben WLAN wie der Hub?",
     "tryAgain": "Erneut versuchen",
-    "whileOffline": "Im Offlinemodus können Sie weiterhin:",
-    "viewPreviouslyLoaded": "Zuvor geladene Seiten anzeigen",
-    "accessCached": "Auf zwischengespeicherte Inhalte zugreifen",
-    "browseSaved": "Gespeicherte Daten durchsuchen"
+    "connectionHelp": "Hilfe zur Verbindung",
+    "reconnecting": "Verbindung wird wiederhergestellt…",
+    "lastKnown": "Zuletzt bekannt",
+    "lastKnownTitle": "Zuletzt bekannt · {board}",
+    "lastKnownAt": "Zuletzt verbunden {time} · evtl. veraltet",
+    "device": {
+      "phone": "Telefon",
+      "computer": "Computer"
+    }
   },
   "wizard": {
     "welcomeTitle": "Willkommen bei FiestaBoard",
@@ -1109,11 +1116,27 @@
     "stoppedTooltip": "Anzeigedienst pausiert. Es werden keine Inhalte an die Anzeigetafel gesendet."
   },
   "installPrompt": {
-    "title": "FiestaBoard Control installieren",
-    "description": "Zum Startbildschirm hinzufügen für schnellen Zugriff und ein besseres Erlebnis.",
-    "installButton": "Installieren",
+    "title": "FiestaBoard Control auf diesem {device} hinzufügen?",
+    "reasonSends": "Du hast von hier {count} Nachrichten gesendet.",
+    "reasonSave": "Du hast von hier eine Seite gespeichert.",
+    "body": "Installiert öffnet es direkt die Startseite in einem eigenen Fenster. Es spricht weiterhin nur mit deinem Hub unter {host}; es gibt kein FiestaBoard-Konto und keine Cloud.",
+    "install": "Installieren",
     "notNow": "Nicht jetzt",
-    "dismissAriaLabel": "Schließen"
+    "httpsTitle": "Installieren braucht eine sichere Adresse",
+    "httpsBody": "Unter http://{host} installiert dein Browser keine Apps und hält sie nicht offline bereit, daher gibt es hier keine Schaltfläche zum Installieren. Öffne FiestaBoard unter seiner https-Adresse oder richte HTTPS für deinen Hub ein.",
+    "httpsHelp": "So richtest du HTTPS ein",
+    "sheetTitle": "Zum Home-Bildschirm hinzufügen",
+    "sheetIntro": "Safari lässt Websites sich nicht selbst installieren, deshalb so: Es dauert etwa 10 Sekunden, und du kannst es wie jede App wieder entfernen.",
+    "stepShare": "Tippe in Safaris Adressleiste auf ⋯ und dann auf Teilen.",
+    "stepAdd": "Scrolle nach unten und tippe auf Zum Home-Bildschirm.",
+    "stepOpen": "Lass Als Web-App öffnen eingeschaltet und tippe auf Hinzufügen.",
+    "gotIt": "Verstanden",
+    "dontShowAgain": "Nicht mehr anzeigen",
+    "close": "Schließen",
+    "device": {
+      "phone": "Telefon",
+      "computer": "Computer"
+    }
   },
   "silenceMode": {
     "loading": "Wird geladen...",
@@ -3044,5 +3067,12 @@
   "plugins": {
     "communityBadge": "Community",
     "communityDescription": "Außerhalb der FiestaBoard-Organisation auf GitHub veröffentlicht."
+  },
+  "pwa": {
+    "https": {
+      "title": "HTTPS erforderlich",
+      "body": "Installieren und Offline-Nutzung brauchen eine sichere Adresse. Du bist auf http://{host}. Öffne FiestaBoard unter seiner https-Adresse oder richte HTTPS für deinen Hub ein.",
+      "help": "So richtest du HTTPS ein"
+    }
   }
 }

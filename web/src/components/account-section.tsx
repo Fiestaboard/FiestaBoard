@@ -44,6 +44,7 @@ import { SignedInDevices } from "@/components/settings/signed-in-devices";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { clearAccountDataOnDevice } from "@/lib/pwa/sign-out";
 
 export function AccountSection() {
   const t = useTranslations("accountSection");
@@ -98,6 +99,8 @@ export function AccountSection() {
       setSignOutError(true);
       return;
     }
+    // The last-known board frames belong to this account: wipe them (2.8).
+    await clearAccountDataOnDevice();
     queryClient.removeQueries({ queryKey: ["auth-status"] });
     router.replace("/login");
   };

@@ -1,3 +1,6 @@
+import { seedLastKnownBoard } from "./helpers/last-known-board";
+import "fake-indexeddb/auto";
+
 import { TooltipProvider } from "@fiestaboard/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -7,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CurrentBoardProvider } from "@/components/current-board-context";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { readLastKnownBoard } from "@/lib/pwa/last-known-board";
 
 import { server } from "./mocks/server";
 
@@ -267,6 +271,29 @@ describe("SidebarSettingsMenu contents", () => {
 
     await waitFor(() => expect(loggedOut).toBe(true));
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
+  });
+
+  it("wipes this account's last-known board from the device before leaving for the login page", async () => {
+    const user = userEvent.setup();
+    mockAuth(SIGNED_IN);
+    server.use(http.post("/api/auth/logout", () => HttpResponse.json({ status: "ok" })));
+    await seedLastKnownBoard({
+      boardId: "b1",
+      owner: "casa",
+      message: "HELLO",
+      rows: 6,
+      cols: 22,
+      board: null,
+      savedAt: 1,
+    });
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("button", { name: "Sign out" }));
+
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
+    expect(await readLastKnownBoard()).toBeNull();
   });
 
   it("hides Sign out on an install with no accounts", async () => {
