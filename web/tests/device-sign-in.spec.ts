@@ -82,8 +82,8 @@ for (const prefix of ["", "/test-prefix"]) {
         expect((await page.request.get(`${api}/auth/sessions`)).ok()).toBe(true);
         expect(leaked).toEqual([]);
         // Disabling enrollment keeps device management and this session available.
-        await page.getByRole("switch", { name: "TV sign-in" }).click();
-        await expect(page.getByRole("switch", { name: "TV sign-in" })).not.toBeChecked();
+        await page.getByRole("switch", { name: "Device sign-in" }).click();
+        await expect(page.getByRole("switch", { name: "Device sign-in" })).not.toBeChecked();
         await expect(page.getByText("This browser", { exact: true })).toBeVisible();
       } finally {
         await administrator.dispose();

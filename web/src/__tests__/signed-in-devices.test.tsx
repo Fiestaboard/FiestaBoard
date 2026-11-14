@@ -43,7 +43,7 @@ beforeEach(() => {
 it("identifies this browser and keeps device management visible when enrollment is off", async () => {
   render(<SignedInDevices />);
   await screen.findByText("This browser");
-  expect(screen.getByRole("switch", { name: "TV sign-in" })).not.toBeChecked();
+  expect(screen.getByRole("switch", { name: "Device sign-in" })).not.toBeChecked();
   expect(screen.getByText("Living room")).toBeInTheDocument();
   expect(screen.getByText(/existing devices keep access/i)).toBeInTheDocument();
 });

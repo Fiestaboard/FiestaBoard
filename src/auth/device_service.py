@@ -6,12 +6,18 @@ import secrets
 import sqlite3
 
 from .device_models import AuthFlowError, DeviceChallenge, DeviceMetadata, DeviceTokenResult, PendingDevice
+from .scopes import CONTROL, MOBILE_CLIENTS, scope_for_client
 from .service import AuthService, auth_mode
 from .session_models import SessionRecord
 from .session_store import digest_secret
 
 ALPHABET = "BCDFGHJKLMNPQRSTVWXYZ23456789"
 TV_TOKEN_SECONDS = 365 * 24 * 3600
+# Phones and TVs share the session registry, lifetime and revocation. The token
+# prefix tells the middleware which scope to check before it touches the store.
+TV_TOKEN_PREFIX = "fb_tv_"
+MOBILE_TOKEN_PREFIX = "fb_mob_"
+_KIND_FOR_SCOPE = {"tv_panels": ("tv", TV_TOKEN_PREFIX), CONTROL: ("mobile", MOBILE_TOKEN_PREFIX)}
 
 
 def normalize_code(code: str) -> str:
@@ -29,7 +35,7 @@ class DeviceService:
         if auth_mode() != "enabled" or not self.auth.has_user():
             raise AuthFlowError("setup_required", "Finish account setup and enable sign-in in the web portal.", 409)
         if not self.store.enrollment_enabled:
-            raise AuthFlowError("feature_disabled", "TV sign-in is disabled. Enable it in Settings → Account.", 403)
+            raise AuthFlowError("feature_disabled", "Device sign-in is disabled. Enable it in Settings → Account.", 403)
 
     def limit(self, key: str, maximum: int) -> None:
         now = self.store.clock_ms()
@@ -45,6 +51,10 @@ class DeviceService:
                 db.execute("INSERT OR REPLACE INTO limits VALUES (?, ?, 1)", (key, now))
 
     def authorize(self, metadata: DeviceMetadata, source: str) -> DeviceChallenge:
+        if metadata.client_id in MOBILE_CLIENTS:
+            # The /activate approval page describes a TV. Approving a code there must
+            # not mint a control credential until the page can say what it grants.
+            raise AuthFlowError("unsupported_client", "Sign in on this phone with your username and password.")
         self.require_enrollment()
         self.limit("start:" + source, 5)
         now = self.store.clock_ms()
@@ -89,7 +99,7 @@ class DeviceService:
     def _enrollment_in_transaction(db: sqlite3.Connection) -> None:
         row = db.execute("SELECT value FROM settings WHERE key='tv_enabled'").fetchone()
         if row is not None and row["value"] != "true":
-            raise AuthFlowError("feature_disabled", "TV sign-in is disabled.", 403)
+            raise AuthFlowError("feature_disabled", "Device sign-in is disabled.", 403)
 
     def _challenge_for_user(self, db: sqlite3.Connection, code: str) -> sqlite3.Row:
         row = db.execute(
@@ -112,6 +122,7 @@ class DeviceService:
                 device_name=row["device_name"],
                 app_version=row["app_version"],
                 expires_in=max(0, (row["expires_ms"] - self.store.clock_ms()) // 1000),
+                scope=scope_for_client(row["client_id"]),
             )
 
     def decide(self, code: str, browser: SessionRecord, approve: bool) -> None:
@@ -149,14 +160,16 @@ class DeviceService:
 
     def _issue(self, db, username: str, generation: int, metadata: DeviceMetadata, method: str) -> DeviceTokenResult:
         now = self.store.clock_ms()
-        token, session_id = "fb_tv_" + secrets.token_urlsafe(32), secrets.token_urlsafe(16)
+        scope = scope_for_client(metadata.client_id)
+        kind, prefix = _KIND_FOR_SCOPE[scope]
+        token, session_id = prefix + secrets.token_urlsafe(32), secrets.token_urlsafe(16)
         self.store.create_session(
             SessionRecord(
                 id=session_id,
                 digest=digest_secret(token),
                 username=username,
                 account_generation=generation,
-                kind="tv",
+                kind=kind,
                 device_name=metadata.device_name,
                 client_id=metadata.client_id,
                 app_version=metadata.app_version,
@@ -167,7 +180,7 @@ class DeviceService:
             ),
             connection=db,
         )
-        return DeviceTokenResult(access_token=token, session_id=session_id)
+        return DeviceTokenResult(access_token=token, session_id=session_id, scope=scope)
 
     def exchange(self, code: str, client_id: str) -> DeviceTokenResult:
         self.require_enrollment()
@@ -227,11 +240,23 @@ class DeviceService:
             )
 
     def authenticate_tv(self, token: str) -> SessionRecord | None:
-        if not token.startswith("fb_tv_") or len(token) > 128:
+        return self._authenticate(token, TV_TOKEN_PREFIX, "tv")
+
+    def authenticate_mobile(self, token: str) -> SessionRecord | None:
+        return self._authenticate(token, MOBILE_TOKEN_PREFIX, "mobile")
+
+    def authenticate_native(self, token: str) -> SessionRecord | None:
+        """A TV or phone session for ``token``, or None. The kind says which scope applies."""
+        if token.startswith(MOBILE_TOKEN_PREFIX):
+            return self.authenticate_mobile(token)
+        return self.authenticate_tv(token)
+
+    def _authenticate(self, token: str, prefix: str, kind: str) -> SessionRecord | None:
+        if not token.startswith(prefix) or len(token) > 128:
             return None
         with self.auth._lock:
             row = self.store.find_active(digest_secret(token))
-            if not row or row.kind != "tv":
+            if not row or row.kind != kind:
                 return None
             user = self.auth.get_user(row.username)
             if not user or user.get("sessions_valid_after_ms", 0) != row.account_generation:
