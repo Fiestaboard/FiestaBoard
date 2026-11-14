@@ -7,7 +7,9 @@
 
 One IA for every width:
 
-    Home · Pages (▸ Collections) · Schedule · Displays │ Integrations · Staff Picks · Settings · Help & Docs
+```text
+Home · Pages (▸ Collections) · Schedule · Displays │ Integrations · Staff Picks · Settings · Help & Docs
+```
 
 - Below 768px a bottom tab bar (Home · Pages · Schedule · Displays · More). More holds the rest, FiestaBot, the Settings › Hub group and the hub line.
 - From 768px the rail (`railBreakpoint="md"`).
