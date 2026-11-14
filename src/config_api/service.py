@@ -38,6 +38,7 @@ from src.config_manager import get_config_manager
 from src.outputs.hooks import OutputActionError
 from src.settings.service import VALID_WIZARD_STATES, get_settings_service
 
+from .existing import hub_existing_boards
 from .models import BoardTestRequest, ConfigValidationResponse, EnablementTokenRequest
 
 logger = logging.getLogger(__name__)
@@ -225,7 +226,7 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
     }
     try:
         outcome = await _vestaboard_draft_action("test_connection", settings)
-        return dict(outcome.detail)
+        verdict = dict(outcome.detail)
     except BoardProbeError:
         # The twin of the router's `except HTTPException: raise`: without it
         # the broad arm below would swallow this function's own refusal and
@@ -236,6 +237,16 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
         # the exception is in the log, not in the response (#1887).
         logger.error(f"Board connection test error: {e}", exc_info=True)
         raise BoardProbeError(500, "Board connection test failed unexpectedly.") from e
+    # H19: the boards already using this display, so the wizard can say so.
+    try:
+        verdict["existing_boards"] = hub_existing_boards(
+            host=request.host, port=request.port, cloud_key=request.cloud_key
+        )
+    except Exception:
+        # The board answered; a failing lookup must not turn that into a 500.
+        logger.error("Existing-board check failed during a connection test; reporting none", exc_info=True)
+        verdict["existing_boards"] = []
+    return verdict
 
 
 # ---------------------------------------------------------------------------
