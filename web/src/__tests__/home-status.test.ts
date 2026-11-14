@@ -23,19 +23,27 @@ describe("scheduleNextChange", () => {
   it("ignores a change that is not a Schedule hand-over", () => {
     for (const reason of ["override_ends", "silence_starts", "silence_ends", "collection"] as const) {
       expect(
-        scheduleNextChange({ next_change_at: "2026-11-13T21:00:00Z", next_change_reason: reason, next_page_id: null }, NOW),
+        scheduleNextChange(
+          { next_change_at: "2026-11-13T21:00:00Z", next_change_reason: reason, next_page_id: null },
+          NOW,
+        ),
       ).toBeNull();
     }
   });
 
   it("drops a change further away than an override can hold", () => {
     const at = new Date(NOW.getTime() + (MAX_OVERRIDE_MINUTES + 1) * 60_000).toISOString();
-    expect(scheduleNextChange({ next_change_at: at, next_change_reason: "schedule", next_page_id: null }, NOW)).toBeNull();
+    expect(
+      scheduleNextChange({ next_change_at: at, next_change_reason: "schedule", next_page_id: null }, NOW),
+    ).toBeNull();
   });
 
   it("drops a change already in the past, and a missing one", () => {
     expect(
-      scheduleNextChange({ next_change_at: "2026-11-13T18:00:00Z", next_change_reason: "schedule", next_page_id: null }, NOW),
+      scheduleNextChange(
+        { next_change_at: "2026-11-13T18:00:00Z", next_change_reason: "schedule", next_page_id: null },
+        NOW,
+      ),
     ).toBeNull();
     expect(scheduleNextChange(undefined, NOW)).toBeNull();
     expect(scheduleNextChange({ next_change_at: null, next_change_reason: null, next_page_id: null }, NOW)).toBeNull();
@@ -57,9 +65,9 @@ describe("durationMinutes", () => {
 
   it("never asks for less than one minute or more than the cap", () => {
     expect(durationMinutes("next-change", { at: new Date(NOW.getTime() + 5_000), pageId: null }, NOW)).toBe(1);
-    expect(
-      durationMinutes("next-change", { at: new Date(NOW.getTime() + 10 * 60 * 60_000), pageId: null }, NOW),
-    ).toBe(MAX_OVERRIDE_MINUTES);
+    expect(durationMinutes("next-change", { at: new Date(NOW.getTime() + 10 * 60 * 60_000), pageId: null }, NOW)).toBe(
+      MAX_OVERRIDE_MINUTES,
+    );
   });
 
   it("sends no duration for Until I cancel, or for Until next change with no next change", () => {
