@@ -349,6 +349,52 @@ describe("the next-change chip while an Override runs", () => {
   });
 });
 
+describe("Compose completion stays on its submitted display", () => {
+  it("nudges and names the submitted display after Show on changes while POST is pending", async () => {
+    let finishSend!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finishSend = resolve;
+    });
+    const posts: Record<string, unknown>[] = [];
+    const restores: string[] = [];
+    server.use(
+      http.get(`${API}/settings/board`, () => HttpResponse.json(TWO_BOARDS)),
+      http.post(`${API}/settings/temporary-override`, async ({ request }) => {
+        posts.push((await request.json()) as Record<string, unknown>);
+        await pending;
+        return HttpResponse.json({ active: true });
+      }),
+      http.post(`${API}/v1/boards/:board/restore`, ({ params }) => {
+        restores.push(String(params.board));
+        return HttpResponse.json({ success: true });
+      }),
+    );
+    try {
+      localStorage.setItem("fiestaboard_current_board", "board-1");
+      render(<HomeCompose open onOpenChange={vi.fn()} />, { wrapper: Wrapper });
+      await screen.findByText(
+        "Shows on Kitchen board when you choose Show now. Nothing reaches the board before that.",
+      );
+      fireEvent.change(screen.getByRole("textbox", { name: /^Message$/ }), { target: { value: "HELLO" } });
+      fireEvent.click(screen.getByRole("button", { name: "Show now" }));
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toMatchObject({ board_id: "board-1", template: ["HELLO"] });
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("combobox", { name: "Show on" }));
+      await user.click(await screen.findByRole("option", { name: /Office board/ }));
+      await screen.findByText("Shows on Office board when you choose Show now. Nothing reaches the board before that.");
+      await act(async () => {
+        finishSend();
+      });
+      await waitFor(() => expect(restores).toEqual(["board-1"]));
+      expect(toast.success).toHaveBeenCalledWith("On Kitchen board now");
+      expect(toast.success).not.toHaveBeenCalledWith("On Office board now");
+    } finally {
+      finishSend();
+    }
+  });
+});
+
 describe("Home keys and the alert name", () => {
   it("ignores Shift+C and keys pressed while a dialog is open (m21, m22)", async () => {
     const onCompose = vi.fn();
