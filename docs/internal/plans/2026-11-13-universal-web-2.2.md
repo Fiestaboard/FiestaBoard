@@ -30,3 +30,14 @@
 5. **Now showing + Override** (`components/home/now-showing.tsx`): NowShowingCard hero with mode badge, Countdown, outcome, actions (Change Page secondary · Cancel override outline · Edit page ghost / View Schedule), key hints. RED: `now-showing.test.tsx` and the existing Home tests updated.
 6. **Board context menu** (`components/home/board-context-menu.tsx`): Change Page… · Compose a message… · Edit page · Copy as text · Refresh board · Pause <display>, on right-click, Shift+F10, long-press and a ⋯ button. RED: `board-context-menu.test.tsx`.
 7. Messages in all 14 locales, Playwright `tests/e2e/home-canonical.spec.ts` (+ axe), screenshots at 390 / 768 / 1280 light and dark, changeset.
+
+
+## Codex handoff completion — 2026-11-13
+
+Retain the committed review fixes and verify against `program/reviews/pr-2481-review.md`. Finish in this order:
+1. Pin published FiestaUI 8.17.0-alpha.1 and clean-install in an isolated container. Existing merge `10aa98959` includes origin/feat/universal-web-2.1-ia-nav; retarget #2481 to that branch.
+2. Regression tests first for the remaining S2 gaps: per-display Undo toast dismissal after either verb, capture original display/content during a pending Cancel, and recheck expiry after Undo's GET.
+3. Verify M1/M2 regression sensitivity, then full unit coverage, typecheck, lint, format, build; one-worker, one-spec-at-a-time Playwright including canonical Home and axe.
+4. Re-capture 390/768/1280 light/dark with reduced motion and seeded started_at; compare saved Figma references.
+5. Program records: 2.2b owns DD-W50; existing 2.3b owns banner hand-offs; H22 owns expired-override read/consume race. DD-W70 records phone PageHeader action alignment (FiestaUI owner, adoption by 2.2b; Jev kit_delta p=0.99). DD-W72 records the missing Page provenance field for the saved-from-Compose annotation. S8 shortcut registry remains assigned to 2.7 integration.
+6. Push normally; update only this PR body, status and worktree row with observed local/CI results. No merge, VRT approval, or GitHub comments.

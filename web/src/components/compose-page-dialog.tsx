@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { DevicePreview } from "@/components/device-preview";
 import { defaultDurationChoice, DurationStep } from "@/components/home/duration-step";
 import { type DurationChoice, durationMinutes, type ScheduleNextChange } from "@/components/home/home-status";
-import { nudgeDisplay, useRefreshHomeStatus } from "@/components/home/use-home-data";
+import { dismissOverrideUndo, nudgeDisplay, useRefreshHomeStatus } from "@/components/home/use-home-data";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { SilenceNotice } from "@/components/silence-notice";
@@ -203,7 +203,10 @@ export function ComposePageDialog({
   });
 
   const sendMutation = useMutation({
-    mutationFn: (request: SetTemporaryOverrideRequest) => api.setTemporaryOverride(request),
+    mutationFn: (request: SetTemporaryOverrideRequest) => {
+      dismissOverrideUndo(request.board_id);
+      return api.setTemporaryOverride(request);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
       queryClient.invalidateQueries({ queryKey: ["temporaryOverride"] });

@@ -26,7 +26,13 @@ import { BoardContextMenu } from "@/components/home/board-context-menu";
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { boardMeta, HomeBoard } from "@/components/home/home-board";
 import { formatClock, formatSpan, overrideOnScreen, scheduleNextChange } from "@/components/home/home-status";
-import { nudgeDisplay, useActiveTrigger, useBoardDetail, useRefreshHomeStatus } from "@/components/home/use-home-data";
+import {
+  nudgeDisplay,
+  overrideUndoToastId,
+  useActiveTrigger,
+  useBoardDetail,
+  useRefreshHomeStatus,
+} from "@/components/home/use-home-data";
 import { useHomeKeys } from "@/components/home/use-home-keys";
 import { SilenceNotice } from "@/components/silence-notice";
 import Link from "@/components/smart-link";
@@ -238,14 +244,15 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   const overrideBoardId = scopedBoardId ?? targetBoard?.id;
 
   const cancelOverrideMutation = useMutation({
-    mutationFn: () => api.clearTemporaryOverride(overrideBoardId),
-    onSuccess: () => {
-      const previous = temporaryOverride;
+    mutationFn: ({ boardId }: { boardId: string | undefined; previous: typeof temporaryOverride }) =>
+      api.clearTemporaryOverride(boardId),
+    onSuccess: (_result, { boardId, previous }) => {
       refresh();
-      nudgeDisplay(overrideBoardId);
+      nudgeDisplay(boardId);
       toast.info(tn("toastOverrideCanceled"), {
+        id: overrideUndoToastId(boardId),
         duration: 10_000,
-        action: previous?.active ? { label: tn("undo"), onClick: () => restoreOverride(previous) } : undefined,
+        action: previous?.active ? { label: tn("undo"), onClick: () => restoreOverride(previous, boardId) } : undefined,
       });
     },
     onError: () => toast.error(tn("toastCancelFailed")),
@@ -257,16 +264,22 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   // that would already have ended is not re-created (review S2). The bar
   // restarts: the hub stamps a new started_at.
   const restoreOverride = useCallback(
-    async (previous: NonNullable<typeof temporaryOverride>) => {
-      const remainingMs = previous.expires_at ? new Date(previous.expires_at).getTime() - Date.now() : null;
+    async (previous: NonNullable<typeof temporaryOverride>, boardId: string | undefined) => {
+      let remainingMs = previous.expires_at ? new Date(previous.expires_at).getTime() - Date.now() : null;
       if (remainingMs !== null && remainingMs <= 0) {
         toast.info(tn("toastUndoEnded"));
         return;
       }
       try {
-        const current = await api.getTemporaryOverride(overrideBoardId);
+        const current = await api.getTemporaryOverride(boardId);
         if (current.active) {
           toast.info(tn("toastUndoNewer"));
+          return;
+        }
+        // The status read may outlast the remaining hold. Check again at send.
+        remainingMs = previous.expires_at ? new Date(previous.expires_at).getTime() - Date.now() : null;
+        if (remainingMs !== null && remainingMs <= 0) {
+          toast.info(tn("toastUndoEnded"));
           return;
         }
         const minutes = remainingMs !== null ? Math.max(1, Math.ceil(remainingMs / 60_000)) : undefined;
@@ -283,18 +296,18 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
             };
         await api.setTemporaryOverride({
           ...content,
-          ...(overrideBoardId ? { board_id: overrideBoardId } : {}),
+          ...(boardId ? { board_id: boardId } : {}),
           ...(minutes !== undefined ? { duration_minutes: minutes } : {}),
           revert_mode: (previous.revert_mode ?? "schedule") as "schedule" | "blank" | "page",
           ...(previous.revert_page_id ? { revert_page_id: previous.revert_page_id } : {}),
         } as SetTemporaryOverrideRequest);
         refresh();
-        nudgeDisplay(overrideBoardId);
+        nudgeDisplay(boardId);
       } catch {
         toast.error(tn("toastCancelFailed"));
       }
     },
-    [overrideBoardId, refresh, tn],
+    [refresh, tn],
   );
 
   // What the board shows (live state; Live Output on the primary).
@@ -449,7 +462,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   const countdownStartedAt = temporaryOverride?.started_at ?? boardDetail?.override_started_at ?? null;
 
   const description = (
-    <Flex align="center" gap="2" wrap className="text-sm text-muted-foreground">
+    <Text as="span" size="sm" tone="muted" className="flex flex-wrap items-center gap-2">
       {note && <Text as="span">{note}</Text>}
       {!note && activeCollection && !overrideActive && (
         // A Collection decides which member page shows (issue #1513): link
@@ -488,12 +501,12 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
         </Badge>
       )}
       {silenceStatus?.active && (
-        <Flex align="center" gap="1.5">
+        <Text as="span" className="inline-flex items-center gap-1.5">
           <Moon className="h-3 w-3 text-info" aria-hidden="true" />
           <Text as="span" size="xs" tone="info">
             {t("silenceModeActive")}
           </Text>
-        </Flex>
+        </Text>
       )}
       {isTargetPaused && (
         <Badge
@@ -506,7 +519,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           {tPause("badge")}
         </Badge>
       )}
-    </Flex>
+    </Text>
   );
   const hasDescription =
     !!note ||
@@ -524,7 +537,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       {overrideActive && (
         <Button
           variant="outline"
-          onClick={() => cancelOverrideMutation.mutate()}
+          onClick={() => cancelOverrideMutation.mutate({ boardId: overrideBoardId, previous: temporaryOverride })}
           disabled={cancelOverrideMutation.isPending}
           className="max-sm:flex-1 max-sm:h-11"
         >

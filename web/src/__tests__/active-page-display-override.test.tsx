@@ -26,7 +26,13 @@ vi.mock("sonner", async () => {
   const actual = await vi.importActual<typeof import("sonner")>("sonner");
   return {
     ...actual,
-    toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }),
+    toast: Object.assign(vi.fn(), {
+      success: vi.fn(),
+      error: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+      dismiss: vi.fn(),
+    }),
   };
 });
 

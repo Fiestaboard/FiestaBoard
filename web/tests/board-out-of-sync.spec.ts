@@ -358,6 +358,18 @@ test.describe("Board changed by another app", () => {
       // ...and still remembers what the other app wrote.
       const state = await (await fetch(`${API_URL}/board/current-message`, { headers: authHeaders() })).json();
       expect(state.external_characters).toEqual(hiRed());
+      // The physical repaint precedes the next cached local read (20 s).
+      // Wait for that read before asserting the notice has its kept face.
+      await expect
+        .poll(
+          async () => {
+            const response = await fetch(`${API_URL}/board/current-message`, { headers: authHeaders() });
+            const current = await response.json();
+            return JSON.stringify(current.characters) === JSON.stringify(current.expected_characters);
+          },
+          { timeout: 30_000 },
+        )
+        .toBe(true);
 
       await page.goto("/");
       const kept = page.locator('[data-testid="board-out-of-sync"][data-face="kept"]');

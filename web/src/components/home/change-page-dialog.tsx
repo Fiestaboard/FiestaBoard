@@ -40,7 +40,7 @@ import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { defaultDurationChoice, DurationStep } from "./duration-step";
 import { boardGeometry, deviceFamilyLabel, HomeBoard } from "./home-board";
 import { type DurationChoice, durationMinutes, formatClock, type ScheduleNextChange } from "./home-status";
-import { nudgeDisplay, useRefreshHomeStatus } from "./use-home-data";
+import { dismissOverrideUndo, nudgeDisplay, useRefreshHomeStatus } from "./use-home-data";
 import { PHONE_QUERY, useMediaQuery } from "./use-media-query";
 
 export interface ChangePageDialogProps {
@@ -207,6 +207,7 @@ export function ChangePageDialog({
 
   const submit = useMutation({
     mutationFn: async (picked: { id: string; name: string }) => {
+      dismissOverrideUndo(board?.id);
       if (pins) {
         // The engine applies an override before the pinned page, and the PUT
         // does not clear one: drop this display's override FIRST (a "page"

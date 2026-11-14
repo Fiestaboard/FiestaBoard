@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ChangePageDialog, type ChangePageDialogProps } from "@/components/home/change-page-dialog";
@@ -293,6 +294,7 @@ describe("ChangePageDialog review fixes (M1, M2, S1)", () => {
   });
 
   it("a pin is followed by no extra repaint of any display (m16)", async () => {
+    const dismiss = vi.spyOn(toast, "dismiss");
     const calls = trackHub();
     const { onOpenChange } = setup({ scheduleEnabled: false, nextChange: null });
     const dialog = await screen.findByRole("dialog");
@@ -301,6 +303,7 @@ describe("ChangePageDialog review fixes (M1, M2, S1)", () => {
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     await new Promise((r) => setTimeout(r, 50));
     expect(calls).toEqual(["PUT pin taco kitchen"]);
+    expect(dismiss).toHaveBeenCalledWith("home-override-undo:kitchen");
   });
 
   it("an override nudges only its own display, not the whole install (S1)", async () => {

@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { toast } from "sonner";
 
 import { queryKeys } from "@/hooks/use-board";
 import { api } from "@/lib/api";
@@ -60,4 +61,13 @@ export function useRefreshHomeStatus() {
  */
 export function nudgeDisplay(boardId: string | null | undefined): void {
   api.restoreBoard(boardId).catch(() => {});
+}
+
+/** Stable per-display identity: a new verb must retire that display's old Undo. */
+export function overrideUndoToastId(boardId: string | null | undefined): string {
+  return `home-override-undo:${boardId ?? "primary"}`;
+}
+
+export function dismissOverrideUndo(boardId: string | null | undefined): void {
+  toast.dismiss(overrideUndoToastId(boardId));
 }

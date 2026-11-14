@@ -6,10 +6,10 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ActivePageDisplay } from "@/components/active-page-display";
-import { CurrentBoardProvider } from "@/components/current-board-context";
+import { CurrentBoardProvider, useCurrentBoard } from "@/components/current-board-context";
 import { HomeCompose } from "@/components/home/home-compose";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
@@ -17,6 +17,8 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import { server } from "./mocks/server";
 
 const API = "/api";
+
+afterEach(() => vi.restoreAllMocks());
 
 vi.mock("@/components/smart-link", () => ({
   default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
@@ -30,7 +32,13 @@ vi.mock("sonner", async () => {
   const actual = await vi.importActual<typeof import("sonner")>("sonner");
   return {
     ...actual,
-    toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }),
+    toast: Object.assign(vi.fn(), {
+      success: vi.fn(),
+      error: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+      dismiss: vi.fn(),
+    }),
   };
 });
 
@@ -138,6 +146,93 @@ describe("Cancel override and Undo on a multi-display install", () => {
       revert_page_id: "page-1",
     });
     current = { active: true };
+  });
+
+  it("keeps Cancel and Undo on the original display when switching while DELETE is pending", async () => {
+    serveOfficeOverride();
+    let finishDelete!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finishDelete = resolve;
+    });
+    const deletes: (string | null)[] = [];
+    const restores: string[] = [];
+    const posts: Record<string, unknown>[] = [];
+    server.use(
+      http.delete(`${API}/settings/temporary-override`, async ({ request }) => {
+        deletes.push(new URL(request.url).searchParams.get("board_id"));
+        await pending;
+        return HttpResponse.json({ revert_mode: "page" });
+      }),
+      http.get(`${API}/settings/temporary-override`, () => HttpResponse.json({ active: false })),
+      http.post(`${API}/v1/boards/:board/restore`, ({ params }) => {
+        restores.push(String(params.board));
+        return HttpResponse.json({ success: true });
+      }),
+      http.post(`${API}/settings/temporary-override`, async ({ request }) => {
+        posts.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json({ active: true });
+      }),
+    );
+    function SwitchDisplay() {
+      const { setCurrentBoardId } = useCurrentBoard();
+      return <button onClick={() => setCurrentBoardId("board-1")}>Switch display</button>;
+    }
+    try {
+      localStorage.setItem("fiestaboard_current_board", "board-2");
+      render(
+        <>
+          <ActivePageDisplay />
+          <SwitchDisplay />
+        </>,
+        { wrapper: Wrapper },
+      );
+      await screen.findByRole("region", { name: /Now showing.*Office board/ });
+      fireEvent.click(await screen.findByRole("button", { name: "Cancel override" }));
+      await waitFor(() => expect(deletes).toEqual(["board-2"]));
+      fireEvent.click(screen.getByRole("button", { name: "Switch display" }));
+      await screen.findByRole("region", { name: /Now showing.*Kitchen board/ });
+      await act(async () => {
+        finishDelete();
+      });
+      await waitFor(() => expect(toast.info).toHaveBeenCalled());
+      const options = vi.mocked(toast.info).mock.calls[0][1] as unknown as { action: { onClick: () => Promise<void> } };
+      await act(async () => {
+        await options.action.onClick();
+      });
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toMatchObject({ board_id: "board-2", page_id: "page-2", revert_page_id: "page-1" });
+      expect(restores).not.toContain("board-1");
+    } finally {
+      finishDelete();
+    }
+  });
+
+  it("does not revive a hold that expires while Undo reads current status", async () => {
+    serveOfficeOverride();
+    const posts: unknown[] = [];
+    const clock = vi.spyOn(Date, "now");
+    const later = Date.now() + 60 * 60_000;
+    server.use(
+      http.delete(`${API}/settings/temporary-override`, () => HttpResponse.json({ revert_mode: "page" })),
+      http.get(`${API}/settings/temporary-override`, () => {
+        clock.mockReturnValue(later);
+        return HttpResponse.json({ active: false });
+      }),
+      http.post(`${API}/settings/temporary-override`, async ({ request }) => {
+        posts.push(await request.json());
+        return HttpResponse.json({ active: true });
+      }),
+    );
+    localStorage.setItem("fiestaboard_current_board", "board-2");
+    render(<ActivePageDisplay />, { wrapper: Wrapper });
+    await screen.findByRole("region", { name: /Now showing.*Office board/ });
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel override" }));
+    await waitFor(() => expect(toast.info).toHaveBeenCalled());
+    const options = vi.mocked(toast.info).mock.calls[0][1] as unknown as { action: { onClick: () => Promise<void> } };
+    await act(async () => {
+      await options.action.onClick();
+    });
+    expect(posts).toEqual([]);
   });
 
   it("Undo does not overwrite a newer override on that display (S2)", async () => {
@@ -250,6 +345,7 @@ describe("the next-change chip while an Override runs", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show now" }));
     await waitFor(() => expect(posts).toHaveLength(1));
     expect(posts[0]).toMatchObject({ board_id: "board-2", duration_minutes: 60 });
+    expect(toast.dismiss).toHaveBeenCalledWith("home-override-undo:board-2");
   });
 });
 
@@ -300,5 +396,6 @@ describe("Home keys and the alert name", () => {
     );
     render(<ActivePageDisplay />, { wrapper: Wrapper });
     expect(await screen.findByRole("heading", { level: 2, name: "Alert from Ring Doorbell" })).toBeInTheDocument();
+    expect(screen.getByTestId("now-showing").querySelector("p div")).toBeNull();
   });
 });
