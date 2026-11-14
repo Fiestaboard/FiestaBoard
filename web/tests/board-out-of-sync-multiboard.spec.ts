@@ -139,7 +139,7 @@ test("another app writes board 2 → its banner, its geometry, and a Restore of 
 
   // Home, board 2 selected.
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
   await selectBoard(page, "Kitchen");
   await expect(banner(page)).toBeVisible({ timeout: 15_000 });
   await expect(banner(page)).toHaveAttribute("data-face", "out-of-sync");

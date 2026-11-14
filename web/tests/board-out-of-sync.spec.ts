@@ -223,7 +223,7 @@ test.describe("Board changed by another app", () => {
     await page.waitForTimeout(5_000);
     await expect(banner(page)).toHaveCount(0);
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(2_000);
     await expect(banner(page)).toHaveCount(0);
     expect(restoreRequests).toEqual(["/api/v1/boards/primary/restore"]);
@@ -329,7 +329,7 @@ test.describe("Board changed by another app", () => {
       await kept.getByRole("button", { name: "Dismiss" }).click();
       await expect(banner(page)).toHaveCount(0);
       await page.reload();
-      await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
       await page.waitForTimeout(2_000);
       await expect(banner(page)).toHaveCount(0);
     });
@@ -436,7 +436,7 @@ test.describe("Board changed by another app", () => {
   test.describe("on a phone", () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
-    test("the actions sit under the sentence, inside the screen, and the ⋮ menu is unchanged", async ({ page }) => {
+    test("the actions sit under the sentence, inside the screen, and the board menu still opens", async ({ page }) => {
       await showHelloPage();
       await writeFromAnotherApp();
       await primeBoardRead();
@@ -454,11 +454,12 @@ test.describe("Board changed by another app", () => {
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-      await page.getByRole("button", { name: "More options" }).click();
+      // 2.2: the card's ⋮ menu became the board menu (07a §6), with the
+      // same actions plus Compose, Edit page, Copy as text and Refresh.
+      await page.getByRole("button", { name: /^Actions for / }).click();
       const items = page.getByRole("menuitem");
-      await expect(items).toHaveCount(2);
-      await expect(items.nth(0)).toHaveText(/Pause sends/);
-      await expect(items.nth(1)).toHaveText(/Change Page/);
+      await expect(items.first()).toHaveText(/Change Page…/);
+      await expect(items.last()).toHaveText(/^Pause /);
     });
   });
 

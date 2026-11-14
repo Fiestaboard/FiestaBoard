@@ -95,7 +95,7 @@ test.describe("Mobile — Dashboard", () => {
     await page.waitForLoadState("networkidle");
 
     // Dashboard heading should be visible
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // No horizontal overflow (basic check: viewport width matches page width)
     const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -108,7 +108,7 @@ test.describe("Mobile — Dashboard", () => {
 
     // Dashboard should render without errors — board display may be a grid, canvas,
     // or an empty-state message depending on app state
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // No error state visible
     await expect(page.getByText(/crash|unhandled exception/i)).not.toBeVisible();

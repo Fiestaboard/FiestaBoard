@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
 test.describe("Localization", () => {
   test("default language is English", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const html = page.locator("html");
     await expect(html).toHaveAttribute("lang", "en");
@@ -26,7 +26,7 @@ test.describe("Localization", () => {
 
   test("language selector is visible and shows English by default", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
     const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
@@ -38,7 +38,7 @@ test.describe("Localization", () => {
 
   test("switching to Spanish updates navigation and page text", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
     const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
@@ -61,7 +61,7 @@ test.describe("Localization", () => {
 
   test("switching to French updates navigation", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
     const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
@@ -81,7 +81,7 @@ test.describe("Localization", () => {
 
   test("switching to German updates navigation", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
     const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
@@ -96,14 +96,14 @@ test.describe("Localization", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("link", { name: "Seiten" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Einstellungen" }).first()).toBeVisible();
   });
 
   test("switching to Japanese updates navigation", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
     const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
@@ -122,7 +122,7 @@ test.describe("Localization", () => {
 
   test("locale persists across page navigation", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
     const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
@@ -145,7 +145,7 @@ test.describe("Localization", () => {
 
   test("locale persists after full page reload via cookie", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
     const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
@@ -169,7 +169,7 @@ test.describe("Localization", () => {
 
   test("switching back to English restores original text", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
     const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
@@ -192,14 +192,14 @@ test.describe("Localization", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("link", { name: "Pages" }).first()).toBeVisible();
   });
 
   test("mobile menu language text updates with locale change", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Set cookie directly and reload for mobile
     await page.evaluate(() => {
