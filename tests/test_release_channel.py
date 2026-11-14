@@ -28,6 +28,12 @@ from fastapi.testclient import TestClient
 from src.api_server import app
 
 
+@pytest.fixture(autouse=True)
+def _historical_package_version(monkeypatch):
+    """Stable VERSION falls back to the package; these scenarios predate v11."""
+    monkeypatch.setattr("src.system.update_service.__version__", "8.37.5")
+
+
 @pytest.fixture
 def client():
     return TestClient(app)

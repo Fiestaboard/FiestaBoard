@@ -44,6 +44,8 @@ def _isolate_state_file(tmp_path, monkeypatch):
     (``tests/test_data_dir_isolation.py`` is what caught it).
     """
     monkeypatch.setattr("src.system.update_service.SYSTEM_UPDATE_STATE_FILE", tmp_path / "update_state.json")
+    # These endpoint contracts exercise the stable updater, not the v11 lane.
+    monkeypatch.setattr("src.system.update_service.__version__", "10.3.3")
 
 
 class TestUpdateCheck:
@@ -68,7 +70,7 @@ class TestUpdateCheck:
 
     def test_up_to_date(self, client):
         """Test when current version matches latest."""
-        from src import __version__
+        from src.system.update_service import __version__
 
         mock_response = Mock()
         mock_response.status_code = 200

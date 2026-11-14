@@ -37,6 +37,12 @@ import src.system.update_service as api_server
 from src.system.update_service import SidecarError
 
 
+@pytest.fixture(autouse=True)
+def _historical_package_version(monkeypatch):
+    """Stable VERSION falls back to the package; these scenarios predate v11."""
+    monkeypatch.setattr("src.system.update_service.__version__", "8.37.5")
+
+
 @pytest.fixture
 def sidecar_ready(monkeypatch):
     monkeypatch.setenv("FIESTAUPDATER_TOKEN", "test-token")
