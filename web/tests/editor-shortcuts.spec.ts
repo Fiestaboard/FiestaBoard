@@ -104,7 +104,7 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
       expect(hintBox && toolBox).toBeTruthy();
       expect(hintBox!.y + hintBox!.height).toBeLessThanOrEqual(toolBox!.y);
       if (width === 768) {
-        const previewBox = await page.getByRole("button", { name: "Show preview and live output" }).boundingBox();
+        const previewBox = await page.getByRole("button", { name: "Hide preview and live output" }).boundingBox();
         expect(previewBox).toBeTruthy();
         expect(
           Math.abs(hintBox!.y + hintBox!.height / 2 - (previewBox!.y + previewBox!.height / 2)),
