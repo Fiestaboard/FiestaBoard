@@ -7,6 +7,7 @@
 **FiestaUI (local tarball until alpha.1):** DurationChipGroup / OutcomeLine / Countdown / NowShowingCard (1.7b #393), ListRow + `DropdownMenu trigger="context"` (1.8a #389), PagePreviewCard (1.8c #392), DisplayTypeChip (1.5c #394).
 
 **Hub (in the v11 stack under #2471):**
+
 - H1: `POST|GET|DELETE /settings/temporary-override` take `board_id` (one override per display). The active-schedule read already returns the selected board's override.
 - H2: `GET /v1/boards/{board}` returns `next_change_at`, `next_change_reason` (`override_ends|schedule|silence_starts|silence_ends|collection`), `next_page_id`, `override_expires_at`, `override_started_at`.
 - Triggers are primary-only and beat an override (`GET /triggers/active`). STATUS LOG carry: while a trigger shows, status reads `override_active: true`; the UI must not claim the override is on screen.
@@ -31,10 +32,10 @@
 6. **Board context menu** (`components/home/board-context-menu.tsx`): Change Page… · Compose a message… · Edit page · Copy as text · Refresh board · Pause <display>, on right-click, Shift+F10, long-press and a ⋯ button. RED: `board-context-menu.test.tsx`.
 7. Messages in all 14 locales, Playwright `tests/e2e/home-canonical.spec.ts` (+ axe), screenshots at 390 / 768 / 1280 light and dark, changeset.
 
-
 ## Codex handoff completion — 2026-11-13
 
 Retain the committed review fixes and verify against `program/reviews/pr-2481-review.md`. Finish in this order:
+
 1. Pin published FiestaUI 8.17.0-alpha.1 and clean-install in an isolated container. Existing merge `10aa98959` includes origin/feat/universal-web-2.1-ia-nav; retarget #2481 to that branch.
 2. Regression tests first for the remaining S2 gaps: per-display Undo toast dismissal after either verb, capture original display/content during a pending Cancel, and recheck expiry after Undo's GET.
 3. Verify M1/M2 regression sensitivity, then full unit coverage, typecheck, lint, format, build; one-worker, one-spec-at-a-time Playwright including canonical Home and axe.
