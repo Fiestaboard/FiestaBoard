@@ -180,8 +180,8 @@ export function ChangePageDialog({
       else toast.success(t("toastShown", { page: picked.name, board: displayName }));
       onOpenChange(false);
     },
-    onError: (error: Error) => {
-      toast.error(error.message || t("toastError"));
+    onError: () => {
+      toast.error(t("toastError"));
     },
   });
 
