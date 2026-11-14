@@ -1,9 +1,19 @@
 "use client";
 
-import { Alert, AlertDescription, AlertTitle, Box, Button, Flex, Text } from "@fiestaboard/ui";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Box,
+  Button,
+  Flex,
+  StatusBanner,
+  StatusBannerAction,
+  Text,
+} from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Check, History, Save, UploadCloud } from "lucide-react";
+import { Check, History, Save, UploadCloud } from "lucide-react";
 import { useState } from "react";
 
 import Link from "@/components/smart-link";
@@ -129,75 +139,95 @@ export function BoardOutOfSyncBanner({ boardId, geometry, paused, suppressed = f
   // The one hold line: a paused display holds Restore (live faces only).
   const hold: string | null = live && paused ? t("holdPaused") : null;
 
-  const Icon = live ? AlertTriangle : History;
+  const title = live ? t("title") : t("keptTitle", { time: formatDetectedAt(boardState.external_detected_at, locale) });
+  const description = (
+    <>
+      {face === "out-of-sync"
+        ? t("detail")
+        : face === "overwritten"
+          ? t("overwrittenDetail", { time: formatDetectedAt(boardState.overwritten_at, locale) })
+          : t("keptDetail")}
+      {hold && (
+        <Text size="xs" className="text-muted-foreground mt-1" data-testid="board-out-of-sync-hold">
+          {hold}
+        </Text>
+      )}
+    </>
+  );
 
+  const actions = (
+    <>
+      {live && (
+        <StatusBannerAction onClick={restore} disabled={isRestoring}>
+          {isRestoring ? (
+            <Spinner label={null} className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <UploadCloud aria-hidden="true" />
+          )}
+          {t("restore")}
+        </StatusBannerAction>
+      )}
+      {!canSave ? null : saved ? (
+        <Flex align="center" gap="1.5" wrap>
+          <Text as="span" size="sm" className="inline-flex min-w-0 items-center gap-1.5">
+            <Check className="h-3.5 w-3.5 text-success shrink-0" aria-hidden="true" />
+            <Text as="span" size="sm" className="truncate max-w-[32ch]">
+              {t("savedAs", { pageName: saved.name })}
+            </Text>
+          </Text>
+          <Button asChild size="sm" variant="link" className="h-auto px-0 whitespace-nowrap">
+            <Link href={`/pages/edit/${saved.id}`}>{t("openPage")}</Link>
+          </Button>
+        </Flex>
+      ) : (
+        <StatusBannerAction onClick={handleSave} disabled={isSaving}>
+          {isSaving ? <Spinner label={null} className="h-3.5 w-3.5" aria-hidden="true" /> : <Save aria-hidden="true" />}
+          {t("saveAsPage")}
+        </StatusBannerAction>
+      )}
+      {!live && (
+        <StatusBannerAction variant="ghost" onClick={handleDismiss} disabled={isDismissing}>
+          {t("dismiss")}
+        </StatusBannerAction>
+      )}
+    </>
+  );
+
+  // The live faces are the out-of-sync StatusBanner (07a `298:2280`). The
+  // "kept" face is history, not a fault, so it keeps the info Alert it had:
+  // StatusBanner has no info kind that takes actions yet.
+  // TODO(FiestaUI 1.7c follow-up "banner-with-action for generic kinds"):
+  // move the kept face to that kind.
+  if (!live) {
+    return (
+      <Alert
+        variant="info"
+        politeness="polite"
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 [&>svg]:static [&>svg]:shrink-0 [&>svg+div]:translate-y-0 [&>svg~*]:pl-3"
+        data-testid="board-out-of-sync"
+        data-face={face}
+        data-saved={saved ? "true" : undefined}
+      >
+        <History className="h-4 w-4" aria-hidden="true" />
+        <Box className="flex-1 min-w-0">
+          <AlertTitle>{title}</AlertTitle>
+          <AlertDescription>{description}</AlertDescription>
+        </Box>
+        <Flex align="center" gap="2" wrap className="sm:self-center shrink-0">
+          {actions}
+        </Flex>
+      </Alert>
+    );
+  }
   return (
-    <Alert
-      variant={live ? "warning" : "info"}
-      // A state the board is in, not a failure that just happened.
-      politeness="polite"
-      className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 [&>svg]:static [&>svg]:shrink-0 [&>svg+div]:translate-y-0 [&>svg~*]:pl-3"
+    <StatusBanner
+      kind="out-of-sync"
       data-testid="board-out-of-sync"
       data-face={face}
       data-saved={saved ? "true" : undefined}
-    >
-      <Icon className="h-4 w-4" aria-hidden="true" />
-      <Box className="flex-1 min-w-0">
-        <AlertTitle>
-          {live ? t("title") : t("keptTitle", { time: formatDetectedAt(boardState.external_detected_at, locale) })}
-        </AlertTitle>
-        <AlertDescription>
-          {face === "out-of-sync"
-            ? t("detail")
-            : face === "overwritten"
-              ? t("overwrittenDetail", { time: formatDetectedAt(boardState.overwritten_at, locale) })
-              : t("keptDetail")}
-        </AlertDescription>
-        {hold && (
-          <Text size="xs" className="text-muted-foreground mt-1" data-testid="board-out-of-sync-hold">
-            {hold}
-          </Text>
-        )}
-      </Box>
-      <Flex align="center" gap="2" wrap className="sm:self-center shrink-0">
-        {live && (
-          <Button size="sm" variant="outline" onClick={restore} disabled={isRestoring} className="gap-1.5">
-            {isRestoring ? (
-              <Spinner label={null} className="h-3.5 w-3.5" aria-hidden="true" />
-            ) : (
-              <UploadCloud className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-            {t("restore")}
-          </Button>
-        )}
-        {!canSave ? null : saved ? (
-          <Flex align="center" gap="1.5" wrap>
-            <Text as="span" size="sm" className="inline-flex min-w-0 items-center gap-1.5">
-              <Check className="h-3.5 w-3.5 text-success shrink-0" aria-hidden="true" />
-              <Text as="span" size="sm" className="truncate max-w-[32ch]">
-                {t("savedAs", { pageName: saved.name })}
-              </Text>
-            </Text>
-            <Button asChild size="sm" variant="link" className="h-auto px-0 whitespace-nowrap">
-              <Link href={`/pages/edit/${saved.id}`}>{t("openPage")}</Link>
-            </Button>
-          </Flex>
-        ) : (
-          <Button size="sm" variant="outline" onClick={handleSave} disabled={isSaving} className="gap-1.5">
-            {isSaving ? (
-              <Spinner label={null} className="h-3.5 w-3.5" aria-hidden="true" />
-            ) : (
-              <Save className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-            {t("saveAsPage")}
-          </Button>
-        )}
-        {!live && (
-          <Button size="sm" variant="ghost" onClick={handleDismiss} disabled={isDismissing}>
-            {t("dismiss")}
-          </Button>
-        )}
-      </Flex>
-    </Alert>
+      title={title}
+      description={description}
+      action={actions}
+    />
   );
 }

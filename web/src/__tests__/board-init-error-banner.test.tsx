@@ -5,11 +5,14 @@
  * backend skipped at startup. The home dashboard renders one alert per
  * failed board — with the board's name, the verbatim reason, and a jump to
  * hardware settings — and renders nothing at all for a healthy fleet.
+ *
+ * Slice 2.3: each is a `StatusBanner kind="init-error"` with 07a's copy
+ * ("Couldn't start …", Display settings).
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BoardInitErrorBanner } from "@/components/board-init-error-banner";
@@ -20,16 +23,6 @@ import { server } from "./mocks/server";
 const API_BASE = "/api";
 
 const INIT_ERROR = "Cloud API key rejected (HTTP 401)";
-
-const mockPush = vi.fn();
-vi.mock("@/hooks/use-router", () => ({
-  useRouter: () => ({
-    push: mockPush,
-    replace: vi.fn(),
-    back: vi.fn(),
-    forward: vi.fn(),
-  }),
-}));
 
 function setupHandlers({ boardsStatus }: { boardsStatus?: Record<string, unknown> } = {}) {
   server.use(
@@ -59,9 +52,11 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return (
-    <QueryClientProvider client={queryClient}>
-      <CurrentBoardProvider>{children}</CurrentBoardProvider>
-    </QueryClientProvider>
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <CurrentBoardProvider>{children}</CurrentBoardProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
 }
 
@@ -80,8 +75,11 @@ describe("BoardInitErrorBanner", () => {
     render(<BoardInitErrorBanner />, { wrapper: TestWrapper });
 
     const banner = await screen.findByTestId("board-init-error-banner");
-    expect(banner).toHaveTextContent("Office is unavailable");
+    expect(banner).toHaveTextContent("Couldn't start Office");
     expect(banner).toHaveTextContent(INIT_ERROR);
+    const statusBanner = banner.querySelector('[data-slot="status-banner"]');
+    expect(statusBanner).toHaveAttribute("data-kind", "init-error");
+    expect(screen.getByRole("group", { name: "Couldn't start Office" })).toBeInTheDocument();
   });
 
   it("renders nothing when no board reports an init error", async () => {
@@ -100,8 +98,7 @@ describe("BoardInitErrorBanner", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("opens the failing display's page from the alert's action", async () => {
-    const user = userEvent.setup();
+  it("links the failing display's settings from the banner's action", async () => {
     setupHandlers({
       boardsStatus: {
         "board-1": { configured: false, paused: false, active_page_id: null, error: INIT_ERROR },
@@ -110,8 +107,9 @@ describe("BoardInitErrorBanner", () => {
     render(<BoardInitErrorBanner />, { wrapper: TestWrapper });
 
     await screen.findByTestId("board-init-error-banner");
-    await user.click(screen.getByRole("button", { name: "Open board settings" }));
-
-    expect(mockPush).toHaveBeenCalledWith("/displays/board-1");
+    expect(screen.getByRole("link", { name: "Display settings" })).toHaveAttribute(
+      "href",
+      "/displays/board-1?section=settings",
+    );
   });
 });

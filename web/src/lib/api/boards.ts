@@ -25,6 +25,38 @@ export interface BoardStatus {
    * `null` when the output has nothing to say.
    */
   output_status?: OutputStatusSummary | null;
+  /**
+   * Per-display health (H12): when the hub last reached the board, how fast,
+   * and the last failure. Absent from a hub that predates it.
+   */
+  health?: HealthSummary | null;
+}
+
+/** H12 per-display health, mirroring `src/outputs/health.py` `HealthSummary`. */
+export interface HealthSummary {
+  /** When the device last answered the hub (UTC ISO). For a Cloud API board, the cloud API answering. */
+  last_connected_at: string | null;
+  /** When a frame last landed (UTC ISO). */
+  last_update_at: string | null;
+  latency_ms: number | null;
+  last_error_at: string | null;
+  last_error:
+    | "auth"
+    | "unreachable"
+    | "timeout"
+    | "server_error"
+    | "unexpected_status"
+    | "blocked"
+    | "invalid_request"
+    | "write_failed"
+    | "raised"
+    | "bad_response"
+    | "read_failed"
+    | null;
+  /** This hub process's last event for the board: true a contact, false a failure, null neither (always null for a FiestaPanel). */
+  reachable: boolean | null;
+  /** The hub is holding writes back after repeated failures. */
+  breaker_open: boolean;
 }
 
 export interface OutputStatusSummary {
@@ -433,6 +465,42 @@ export interface BoardDetail {
   source: "manual" | "schedule" | "none";
   default_page_id: string | null;
   override_expires_at: string | null;
+  /**
+   * H1: when this board's active override began (ISO 8601), or null. A
+   * replaced override has a new value, so it identifies one run.
+   */
+  override_started_at?: string | null;
+  /**
+   * H2: when this board is next expected to change (ISO 8601 UTC, whole
+   * seconds), or null when paused or nothing changes within 8 days. Plugin
+   * triggers are never predicted. The web reads this; it never computes the
+   * Schedule client-side.
+   */
+  next_change_at?: string | null;
+  /** Why `next_change_at` is when it is. Null exactly when it is. */
+  next_change_reason?: NextChangeReason | null;
+  /** The page or collection in force after `next_change_at`, when the hub can know it. */
+  next_page_id?: string | null;
+  /** H3: what the display can draw; `features.lowercase` false means capitals only. */
+  drawing?: { source?: string; features?: Record<string, boolean> } | null;
+}
+
+/** H2's `next_change_reason`. Mirrors the Literal in src/v1/models.py. */
+export type NextChangeReason = "override_ends" | "schedule" | "silence_starts" | "silence_ends" | "collection";
+
+/**
+ * `GET /triggers/active` — the highest-priority plugin trigger on the board,
+ * or null. Triggers drive the PRIMARY board only and beat an override, so
+ * while one shows an override is not on screen (H1 review carry).
+ */
+export interface ActiveTrigger {
+  trigger_id: string;
+  plugin_id: string;
+  message?: string | null;
+  priority: number;
+  duration_seconds: number;
+  activated_at: string;
+  remaining_seconds: number;
 }
 
 /**
@@ -583,6 +651,10 @@ export interface BoardRestoreResponse {
 }
 
 export const boardsApi = {
+  /** `GET /v1/boards/{board}` (H2's next change rides on it). Omitted board → the primary. */
+  getBoardDetail: (boardId?: string | null) => fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`),
+  /** `GET /triggers/active`: the plugin alert on the primary board, if any. */
+  getActiveTrigger: () => fetchApi<{ trigger: ActiveTrigger | null }>("/triggers/active"),
   /** Omitted board → the primary. */
   restoreBoard: (boardId?: string | null) =>
     fetchApi<BoardRestoreResponse>(`/v1/boards/${boardPathSegment(boardId)}/restore`, { method: "POST" }),

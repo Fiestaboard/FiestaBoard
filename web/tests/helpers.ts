@@ -861,21 +861,6 @@ export async function chooseVestaboardInWizard(page: Page) {
 }
 
 /**
- * Open a tab on the redesigned Settings page. The page splits its content
- * across tabs (General, Scheduling, AI, System, Advanced), so tests
- * that look for tab-scoped content must click the right tab first. Boards
- * and FiestaPanels are no longer a tab: see {@link openDisplays}.
- */
-export async function openSettingsTab(
-  page: Page,
-  tab: "General" | "Account" | "Network" | "Scheduling" | "AI" | "System" | "Advanced",
-) {
-  const trigger = page.getByRole("tab", { name: tab, exact: true });
-  await trigger.waitFor({ state: "visible", timeout: 15_000 });
-  await trigger.click();
-}
-
-/**
  * Open Displays (plan D21; was Settings → Hardware): one card per display
  * (`display-card`) with its live preview, output, state and a link to its
  * page, and "Add a display".

@@ -19,7 +19,7 @@ test.beforeEach(async ({ context, page }) => {
 test.describe("regression: settings.system", () => {
   /**
    * UX node: settings.tab-system
-   * Route: /settings (System tab)
+   * Route: /settings/system (System & backups)
    * Expected (missing from current coverage):
    *   - Restart/Shutdown/FactoryReset cards exposed and Click/dialog asserted
    *   - BackupSettings export/import flow tested
@@ -55,9 +55,9 @@ test.describe("regression: settings.system", () => {
       });
     });
 
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "System", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible();
 
     // System Controls card (Restart + Shutdown buttons).
     await expect(page.getByRole("button", { name: /^Restart$/ })).toBeVisible({ timeout: 10_000 });
@@ -71,7 +71,7 @@ test.describe("regression: settings.system", () => {
 
   /**
    * UX node: settings.system.restart-dialog
-   * Route: /settings (System tab)
+   * Route: /settings/system (System & backups)
    * Interactions: click:restart → AlertDialog
    * Expected: confirm dialog with title 'Restart FiestaBoard'; Confirm posts to restart endpoint
    * Source refs: web/src/components/settings/system/*
@@ -112,10 +112,9 @@ test.describe("regression: settings.system", () => {
       });
     });
 
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await page.getByRole("tab", { name: "System", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible();
 
     // System Controls card should now render with the Restart button.
     const restartButton = page.getByRole("button", { name: /^Restart$/ });
@@ -138,7 +137,7 @@ test.describe("regression: settings.system", () => {
 
   /**
    * UX node: settings.system.shutdown-dialog
-   * Route: /settings (System tab)
+   * Route: /settings/system (System & backups)
    * Interactions: click:shutdown → AlertDialog
    * Expected: confirm dialog title 'Shut down'; Confirm posts to shutdown endpoint
    * Source refs: web/src/components/settings/system/*
@@ -172,9 +171,9 @@ test.describe("regression: settings.system", () => {
       });
     });
 
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "System", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible();
 
     const shutdownButton = page.getByRole("button", { name: /^Shutdown$/ });
     await expect(shutdownButton).toBeVisible({ timeout: 10_000 });
@@ -195,7 +194,7 @@ test.describe("regression: settings.system", () => {
 
   /**
    * UX node: settings.system.factory-reset-dialog
-   * Route: /settings (System tab)
+   * Route: /settings/system (System & backups)
    * Interactions: click:factory-reset → AlertDialog with confirm phrase
    * Expected: AlertDialog requires typing 'RESET' (or similar) to enable Confirm
    * Source refs: web/src/components/settings/system/*
@@ -209,21 +208,18 @@ test.describe("regression: settings.system", () => {
   test("settings.system.factory-reset-dialog — System tab renders without crashing when factory-reset is absent", async ({
     page,
   }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    const sysTab = page.getByRole("tab", { name: /System/i });
-    if (await sysTab.isVisible().catch(() => false)) {
-      await sysTab.click();
-    }
-    // Factory Reset card is not yet implemented in the System tab; we verify
-    // the tab itself renders without exception so a future addition lands
-    // on a known-good baseline.
-    await expect(page.locator("body")).toBeVisible();
+    // Factory Reset card is not yet implemented in System & backups; we
+    // verify the section itself renders without exception so a future
+    // addition lands on a known-good baseline.
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Backup & Restore/i })).toBeVisible({ timeout: 10_000 });
   });
 
   /**
    * UX node: settings.system.restart-overlay
-   * Route: /settings (System tab)
+   * Route: /settings/system (System & backups)
    * Preconditions: restart-mutation:in-flight
    * Expected: full-screen 'Restarting...' overlay with progress messaging
    * Source refs: web/src/components/settings/system/*
@@ -272,9 +268,9 @@ test.describe("regression: settings.system", () => {
       });
     });
 
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "System", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: /^Restart$/ }).click();
 
@@ -292,16 +288,16 @@ test.describe("regression: settings.system", () => {
 
   /**
    * UX node: settings.system.import-confirm
-   * Route: /settings (System tab → Backup card)
+   * Route: /settings/system (System & backups → Backup card)
    * Interactions: choose backup file → confirm overwrite dialog
    * Expected: AlertDialog warns about overwriting current state; Confirm imports
    * Source refs: web/src/components/settings/system/*
    * Coverage status: uncovered
    */
   test("settings.system.import-confirm — backup import overwrite confirm dialog", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "System", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible();
 
     await expect(page.getByRole("heading", { name: /Backup & Restore/i })).toBeVisible({ timeout: 10_000 });
 
@@ -336,16 +332,16 @@ test.describe("regression: settings.system", () => {
 
   /**
    * UX node: settings.system.import-error
-   * Route: /settings (System tab → Backup card)
+   * Route: /settings/system (System & backups → Backup card)
    * Preconditions: backup-import:invalid-file
    * Expected: error toast or inline error; previous state untouched
    * Source refs: web/src/components/settings/system/*
    * Coverage status: uncovered
    */
   test("settings.system.import-error — invalid backup file surfaces error toast", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "System", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible();
 
     await expect(page.getByRole("heading", { name: /Backup & Restore/i })).toBeVisible({ timeout: 10_000 });
 
@@ -372,7 +368,7 @@ test.describe("regression: settings.system", () => {
 
   /**
    * UX node: settings.system.update-available
-   * Route: /settings (System tab → Update card)
+   * Route: /settings/system (System & backups → Update card)
    * Preconditions: update-check:available
    * Expected: card shows 'Update available' with version diff and changelog link
    * Source refs: web/src/components/settings/system/*
@@ -412,13 +408,13 @@ test.describe("regression: settings.system", () => {
       });
     });
 
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "System", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible();
 
     // Banner copy: "Update Available", version badge, "View Release" link.
     // Exact, because the rail chrome now also says "Update available" (the
-    // account trigger's and hamburger's notice); a loose match finds those too.
+    // account trigger's notice); a loose match finds those too.
     await expect(page.getByText("Update Available", { exact: true })).toBeVisible({
       timeout: 10_000,
     });
@@ -435,7 +431,7 @@ test.describe("regression: settings.system", () => {
 
   /**
    * UX node: settings.system.update-confirm
-   * Route: /settings (System tab → Update card)
+   * Route: /settings/system (System & backups → Update card)
    * Interactions: click:install-update → AlertDialog
    * Expected: confirm dialog warns about restart; Confirm triggers update flow
    * Source refs: web/src/components/settings/system/*
@@ -477,9 +473,9 @@ test.describe("regression: settings.system", () => {
       });
     });
 
-    await page.goto("/settings");
+    await page.goto("/settings/system");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("tab", { name: "System", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible();
 
     // Use the banner's Update Now button (SystemUpdate) — System Controls also
     // has one but we target the banner explicitly via its alert container.
