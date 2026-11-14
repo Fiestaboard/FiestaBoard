@@ -6,7 +6,7 @@ and validation (overlap and gap detection).
 
 import logging
 from dataclasses import dataclass
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 # Public service error contract: adapters need no persistence-layer import.
 from src.pages.storage import PageRevisionConflict as PageRevisionConflict
@@ -194,13 +194,16 @@ class ScheduleService:
         current_time: time,
         current_day: str,
         board_id: str | None = None,
+        on_date: date | None = None,
     ) -> str | None:
         """Determine which page should be displayed based on schedules for the given board.
 
         Resolution is delegated to :meth:`get_active_schedule_entry`; when no
         entry matches, the board's default page (if any) is returned.
+        ``on_date`` evaluates another calendar date (H2's look-ahead); omitted,
+        it is today in the configured timezone.
         """
-        entry = self.get_active_schedule_entry(current_time, current_day, board_id=board_id)
+        entry = self.get_active_schedule_entry(current_time, current_day, board_id=board_id, on_date=on_date)
         if entry is not None:
             return entry.page_id
 
@@ -217,6 +220,7 @@ class ScheduleService:
         current_time: time,
         current_day: str,
         board_id: str | None = None,
+        on_date: date | None = None,
     ) -> ScheduleEntry | None:
         """Return the schedule entry that wins at the given moment, if any.
 
@@ -247,7 +251,7 @@ class ScheduleService:
         # in the configured timezone so that schedules anchored to sunset don't
         # skew when the server clock runs in a different zone than the user.
         location = self._get_location()
-        today = get_today_in_timezone(location[2])
+        today = on_date or get_today_in_timezone(location[2])
 
         tiers: dict[str, list[tuple[int, ScheduleEntry]]] = {
             "one_off_date": [],
@@ -287,6 +291,32 @@ class ScheduleService:
                 return winner
 
         return None
+
+    def window_edges(self, board_id: str | None, start_date: date, days: int) -> list[datetime]:
+        """Local wall-clock instants where any enabled entry of the board starts or ends.
+
+        Covers windows that start on ``start_date`` and the ``days - 1`` dates
+        after it, with sun-based times resolved per date. An open-ended window
+        ends at the next midnight. Naive datetimes in the configured zone,
+        sorted; H2 evaluates the schedule at each to find the next change.
+        """
+        bid = board_id or DEFAULT_BOARD_ID
+        location = self._get_location()
+        edges: set[datetime] = set()
+        for schedule in self.list_schedules(board_id=bid):
+            if not schedule.enabled:
+                continue
+            for offset in range(days):
+                day = start_date + timedelta(days=offset)
+                window = self._resolve_effective_times(schedule, day, location)
+                start = window.schedule.start_time
+                end = window.schedule.end_time
+                edges.add(datetime.combine(day, time.fromisoformat(start)))
+                if end is None:
+                    edges.add(datetime.combine(day + timedelta(days=1), time(0, 0)))
+                else:
+                    edges.add(datetime.combine(day + timedelta(days=window.end_day_offset), time.fromisoformat(end)))
+        return sorted(edges)
 
     def _get_location(self) -> tuple[float | None, float | None, str]:
         """Get the configured location and timezone for sun time resolution.

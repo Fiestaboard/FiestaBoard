@@ -191,8 +191,16 @@ async def get_board(board: str) -> BoardDetail:
         default_page_id=schedule_service.get_default_page(board_id=board_id),
         override_expires_at=override.expires_at if override is not None else None,
         override_started_at=override.started_at if override is not None else None,
+        **_next_change_fields(board_id),
         layers=board_layers_json(entry, state.cells if state.characters is not None else None),
     )
+
+
+def _next_change_fields(board_id: str) -> dict[str, Any]:
+    from src.schedules.next_change import next_change
+
+    change = next_change(board_id)
+    return {"next_change_at": change.at, "next_change_reason": change.reason, "next_page_id": change.page_id}
 
 
 @router.patch(

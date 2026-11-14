@@ -1275,6 +1275,9 @@ one document, because "what is this board doing" is one question.
 | `source` | `"manual"` \| `"schedule"` \| `"none"` | yes | Where `resolved_page_id` came from. |
 | `default_page_id` | `string` \| `null` | no | The page shown when the schedule has a gap. |
 | `override_expires_at` | `string` \| `null` | no | When this board's active timed message expires (ISO 8601), or null if none is running. |
+| `next_change_at` | `string` \| `null` | no | When this board is next expected to change (ISO 8601 UTC, whole seconds): its override ends, its schedule hands over to a different page, its quiet hours start or end, or the collection showing rotates. Null when paused or when nothing changes within 8 days. Plugin triggers are never predicted. |
+| `next_change_reason` | `"override_ends"` \| `"schedule"` \| `"silence_starts"` \| `"silence_ends"` \| `"collection"` \| `null` | no | Why next_change_at is when it is. Null exactly when next_change_at is. |
+| `next_page_id` | `string` \| `null` | no | The page or collection in force after next_change_at, when the hub can know it; null when it cannot (a collection rotation, a blank revert, a quiet-hours indicator). |
 | `override_started_at` | `string` \| `null` | no | When this board's active override began (ISO 8601), or null if none is running. A replaced override has a new value, so it identifies one run (for a Live Activity or Live Update). |
 | `layers` | array of [`CanvasLayerModel`](#schema-canvaslayermodel) \| `null` | no | A pixel-matrix board only: the page's pixel canvases on the frame it shows, drawn over `characters` (`{x, y, width, height, rgba}`, rgba base64 RGBA; `[]` for none). Null on any other board. |
 
