@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 
 /**
  * Where the phone chrome hands over to the rail (slice 2.1, WEB-02): the
@@ -32,28 +32,41 @@ export function useBelowRail(): boolean {
 /** The tablet band: the rail is on screen but a 256px rail would crowd the page. */
 export const TABLET_RAIL_QUERY = "(min-width: 768px) and (max-width: 1023.98px)";
 
+function subscribeTablet(onChange: () => void) {
+  const query = window.matchMedia?.(TABLET_RAIL_QUERY);
+  query?.addEventListener?.("change", onChange);
+  return () => query?.removeEventListener?.("change", onChange);
+}
+
+function getTabletSnapshot() {
+  return window.matchMedia?.(TABLET_RAIL_QUERY)?.matches ?? false;
+}
+
 /**
  * From 768 to 1023px the rail starts collapsed (07 `61:17544`, 07a
  * `307:61752`: the 900 frames draw the 64px rail). It is a default, not a
- * lock: the reader can still expand it there, and on leaving the band the rail
- * goes back to the state they chose for wide screens. Neither change is
- * persisted, so the wide-screen preference is never overwritten by a tablet.
+ * lock: the reader can still expand it there. Nothing done in the band is
+ * persisted (the caller's toggle must pass `persist: false` while this
+ * returns true), and on leaving the band the rail goes back to the state the
+ * reader chose for wide screens.
+ *
+ * Runs in a layout effect, so a page opened in the band never paints the
+ * 256px rail before collapsing it.
+ *
+ * @returns whether the viewport is in the tablet band.
  */
 export function useTabletRailCollapse(
   setCollapsed: (value: boolean, opts?: { persist?: boolean }) => void,
   readStored: () => boolean,
-): void {
-  useEffect(() => {
-    const query = window.matchMedia?.(TABLET_RAIL_QUERY);
-    if (!query) return;
-    let inBand = query.matches;
+): boolean {
+  const inBand = useSyncExternalStore(subscribeTablet, getTabletSnapshot, () => false);
+  const previous = useRef<boolean | null>(null);
+  useLayoutEffect(() => {
+    if (previous.current === inBand) return;
+    const first = previous.current === null;
+    previous.current = inBand;
     if (inBand) setCollapsed(true, { persist: false });
-    const onChange = (event: MediaQueryListEvent) => {
-      if (event.matches === inBand) return;
-      inBand = event.matches;
-      setCollapsed(inBand ? true : readStored(), { persist: false });
-    };
-    query.addEventListener?.("change", onChange);
-    return () => query.removeEventListener?.("change", onChange);
-  }, [setCollapsed, readStored]);
+    else if (!first) setCollapsed(readStored(), { persist: false });
+  }, [inBand, setCollapsed, readStored]);
+  return inBand;
 }

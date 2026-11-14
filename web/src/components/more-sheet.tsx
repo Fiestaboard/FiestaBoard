@@ -11,6 +11,7 @@ import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { HUB_SETTINGS_LINKS } from "@/lib/nav-items";
 import { settingsSectionHref } from "@/lib/settings-sections";
+import { cn } from "@/lib/utils";
 
 /**
  * The 48px rows of the More drawer, in NavList's own words: its documented
@@ -55,55 +56,72 @@ export function MoreSheetExtras({ ai, closeMenu }: MoreSheetExtrasProps) {
   const hubHeadingId = useId();
 
   return (
-    // The drawer's footer does not scroll with its list (FiestaUI pins it),
-    // so this block carries its own ceiling for short viewports.
-    <Box className="-mx-3 -my-3 max-h-[55dvh] overflow-y-auto py-2" data-slot="more-extras">
-      {ai && (
-        <>
-          <NavList className="px-3">
-            <NavListItem>
-              <NavListLink asChild className={MORE_ROW}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeMenu();
-                    ai.onOpen();
-                  }}
-                >
-                  <Sparkles aria-hidden="true" />
-                  <Text as="span" size="base" className="flex-1">
-                    {t("fiestaBot")}
-                  </Text>
-                  <Text as="span" size="xs" tone="muted">
-                    {t("opensDrawer")}
-                  </Text>
-                </button>
-              </NavListLink>
-            </NavListItem>
-          </NavList>
-          <Box className="mx-3 my-2 border-t border-sidebar-border" role="presentation" />
-        </>
-      )}
+    // -mx-3 -my-3 cancel the drawer footer's own px-3 py-3, so this block
+    // starts flush under the drawer's nav/footer hairline.
+    <Box className="-mx-3 -my-3" data-slot="more-extras">
+      {/* 07a draws one hairline between the nav group and the Hub group, and
+          it is not FiestaBot's: it is always there. With no FiestaBot row,
+          the nav group ends right above this block, so the divider lies over
+          the drawer's own hairline (-1px) and the two read as one. That one
+          uses `--sidebar-border`, which the drawer surface leaves at
+          white/10%, invisible in light (FiestaUI 1.4g); this one uses
+          `--border`, which the surface defines for both themes. */}
+      {!ai && <MoreDivider className="relative -mt-px" />}
+      {/* The drawer pins its footer; it does not scroll with the list. This
+          block carries its own ceiling for short viewports. */}
+      <Box className="max-h-[55dvh] overflow-y-auto py-2">
+        {ai && (
+          <>
+            <NavList className="px-3">
+              <NavListItem>
+                <NavListLink asChild className={MORE_ROW}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeMenu();
+                      ai.onOpen();
+                    }}
+                  >
+                    <Sparkles aria-hidden="true" />
+                    <Text as="span" size="base" className="flex-1">
+                      {t("fiestaBot")}
+                    </Text>
+                    <Text as="span" size="xs" tone="muted">
+                      {t("opensDrawer")}
+                    </Text>
+                  </button>
+                </NavListLink>
+              </NavListItem>
+            </NavList>
+            <MoreDivider className="my-2" />
+          </>
+        )}
 
-      <Text id={hubHeadingId} size="xs" tone="muted" weight="medium" className="px-7 pt-1 pb-1 font-mono uppercase">
-        {tSettings("hubGroup", { name: hub.name ?? tSettings("hubFallbackName") })}
-      </Text>
-      <NavList className="px-3" aria-labelledby={hubHeadingId}>
-        {HUB_SETTINGS_LINKS.map(({ section, icon: Icon }) => {
-          const href = settingsSectionHref(section);
-          return (
-            <NavListItem key={section}>
-              <NavListLink asChild active={pathname === href} className={MORE_ROW}>
-                <ViewTransitionLink href={href} onClick={closeMenu}>
-                  <Icon aria-hidden="true" />
-                  {tSettings(`sections.${section}.title`)}
-                </ViewTransitionLink>
-              </NavListLink>
-            </NavListItem>
-          );
-        })}
-      </NavList>
-      <HubLine hub={hub} className="px-7 pt-2 pb-1" />
+        <Text id={hubHeadingId} size="xs" tone="muted" weight="medium" className="px-7 pt-1 pb-1 font-mono uppercase">
+          {tSettings("hubGroup", { name: hub.name ?? tSettings("hubFallbackName") })}
+        </Text>
+        <NavList className="px-3" aria-labelledby={hubHeadingId}>
+          {HUB_SETTINGS_LINKS.map(({ section, icon: Icon }) => {
+            const href = settingsSectionHref(section);
+            return (
+              <NavListItem key={section}>
+                <NavListLink asChild active={pathname === href} className={MORE_ROW}>
+                  <ViewTransitionLink href={href} onClick={closeMenu}>
+                    <Icon aria-hidden="true" />
+                    {tSettings(`sections.${section}.title`)}
+                  </ViewTransitionLink>
+                </NavListLink>
+              </NavListItem>
+            );
+          })}
+        </NavList>
+        <HubLine hub={hub} className="px-7 pt-2 pb-1" />
+      </Box>
     </Box>
   );
+}
+
+/** The hairline between More's nav group and its Hub group. */
+function MoreDivider({ className }: { className: string }) {
+  return <Box className={cn("mx-3 border-t border-border", className)} role="presentation" data-slot="more-divider" />;
 }

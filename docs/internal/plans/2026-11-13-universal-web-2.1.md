@@ -33,3 +33,12 @@ The 07a More sheet is a floating bottom sheet (grabber, "More" title, chevron ro
 - vitest: `nav-items.test.ts` (new), `navigation-sidebar.test.tsx` (bottom nav, More contents, Hub group, badge, rail breakpoint), `settings-hub-group.test.tsx` (replaces `settings-tabs.test.tsx`: index, detail, phone list/detail, legacy links), `settings-hardware-redirect.test.tsx`, choreography tests (new paths). New files join the coverage list.
 - Playwright: `tests/nav-ia.spec.ts` at 390 / 900 / 1280, with axe on More and Settings. Existing specs that drove the settings tabs or the hamburger are updated.
 - Typecheck, lint, format, build in `node:24`.
+
+## Review completion (Codex handoff, 2026-11-13)
+
+- Preserve the inherited review work, use FiestaUI #404 `ListRow selected`, and merge the updated 2.0 base when pushed.
+- Keep the container-query Settings layout (Jev `container` 0.64), gated to rail widths so a 700px phone still uses the full width.
+- Initialize tablet collapse in SidebarProvider, retain the session-only toggle and restore the stored desktop preference when leaving the band.
+- Preserve hash-to-section redirects and provide stable DOM targets for scroll/pulse, including cards that load asynchronously.
+- Keep About in System & backups and document the load-bearing OAuth shim. Hub-line changes remain owned by 2.3.
+- Verify unit coverage, browser flows one spec/worker at a time, axe, screenshots, typecheck, lint, format and build. Keep #2480 draft until an npm alpha includes #404.

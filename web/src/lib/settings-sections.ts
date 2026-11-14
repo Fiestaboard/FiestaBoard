@@ -42,8 +42,11 @@ export function settingsSectionHref(id: SettingsSectionId): string {
 /**
  * The six tabs `/settings?section=` used to name, mapped to the section that
  * now holds their cards, so bookmarks, docs links and the OAuth return keep
- * landing in the right place. General was split across You and Hub; a bare
- * link to it lands on Appearance, the first of its cards.
+ * landing in the right place.
+ *
+ * Load-bearing: the hub's OAuth return (`src/oauth/routes.py`) still sends
+ * the browser to `settings?section=ai&oauth=…`. Keep `ai` here (with its query
+ * parameters carried through) until the server emits `/settings/ai-provider`.
  */
 export const LEGACY_SECTIONS: Readonly<Record<string, SettingsSectionId>> = {
   general: "appearance",
@@ -56,23 +59,46 @@ export const LEGACY_SECTIONS: Readonly<Record<string, SettingsSectionId>> = {
 };
 
 /**
+ * General was split across You and Hub, so an anchored General link goes
+ * where its card went. Unlisted anchors (and a bare link) land on Appearance,
+ * the first of its cards.
+ */
+export const LEGACY_GENERAL_ANCHORS: Readonly<Record<string, SettingsSectionId>> = {
+  location: "language-time",
+  language: "language-time",
+  time: "language-time",
+  "time-and-date": "language-time",
+  timezone: "language-time",
+  mqtt: "network",
+  "instance-name": "system",
+  general: "system",
+};
+
+/**
  * Where an old `?section=` link goes now, or `null` when it names no
  * settings section (the Displays redirects handle `hardware`, `scheduling`
- * and `behavior` themselves).
+ * and `behavior` themselves). `hash` is the link's `#card` anchor, with or
+ * without the `#`.
  */
-export function legacySettingsTarget(section: string | null): SettingsSectionId | null {
-  if (section === null) return null;
-  return Object.hasOwn(LEGACY_SECTIONS, section) ? LEGACY_SECTIONS[section] : null;
+export function legacySettingsTarget(section: string | null, hash = ""): SettingsSectionId | null {
+  if (section === null || !Object.hasOwn(LEGACY_SECTIONS, section)) return null;
+  const anchor = hash.replace(/^#/, "");
+  if (section === "general" && Object.hasOwn(LEGACY_GENERAL_ANCHORS, anchor)) {
+    return LEGACY_GENERAL_ANCHORS[anchor];
+  }
+  return LEGACY_SECTIONS[section];
 }
 
 /**
- * The section a request shows. An unknown or hidden section falls back to the
- * first visible one: a list-detail always has something in its detail pane.
+ * The section a request shows, or `null` when `requested` names no section
+ * the reader can see (the route sends that to the index). No section named
+ * means the first visible one: a list-detail always has something open.
  */
 export function resolveSettingsSection(
   requested: string | undefined,
   visible: readonly SettingsSectionId[],
-): SettingsSectionId {
+): SettingsSectionId | null {
+  if (requested === undefined) return visible[0] ?? "appearance";
   if (isSettingsSectionId(requested) && visible.includes(requested)) return requested;
-  return visible[0] ?? "appearance";
+  return null;
 }

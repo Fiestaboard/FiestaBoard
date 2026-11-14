@@ -115,6 +115,7 @@ export function LocationSettingsCard() {
 
   return (
     <PageSection
+      id="location"
       icon={<MapPin />}
       title={t("title")}
       description={t("description")}

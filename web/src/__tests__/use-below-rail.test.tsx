@@ -43,7 +43,30 @@ describe("useBelowRail", () => {
   });
 });
 
+describe("breakpoint queries", () => {
+  it("the tab bar is below 768px and the tablet band is 768–1023px (WEB-02)", () => {
+    expect(BELOW_RAIL_QUERY).toBe("(max-width: 767.98px)");
+    expect(TABLET_RAIL_QUERY).toBe("(min-width: 768px) and (max-width: 1023.98px)");
+  });
+});
+
 describe("useTabletRailCollapse", () => {
+  it("reports whether the viewport is in the band", () => {
+    const media = fakeMedia(new Set([TABLET_RAIL_QUERY]));
+    const { result } = renderHook(() => useTabletRailCollapse(vi.fn(), () => false));
+    expect(result.current).toBe(true);
+    act(() => media.change(TABLET_RAIL_QUERY, false));
+    expect(result.current).toBe(false);
+  });
+
+  it("brings back a stored collapsed rail on leaving the band", () => {
+    const media = fakeMedia(new Set([TABLET_RAIL_QUERY]));
+    const setCollapsed = vi.fn();
+    renderHook(() => useTabletRailCollapse(setCollapsed, () => true));
+    act(() => media.change(TABLET_RAIL_QUERY, false));
+    expect(setCollapsed).toHaveBeenLastCalledWith(true, { persist: false });
+  });
+
   it("collapses the rail, without persisting it, when the page opens between 768 and 1023px", () => {
     fakeMedia(new Set([TABLET_RAIL_QUERY]));
     const setCollapsed = vi.fn();
