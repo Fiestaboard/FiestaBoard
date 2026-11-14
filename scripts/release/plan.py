@@ -37,6 +37,16 @@ class Plan:
     version: str
     prerelease: bool
     reason: str
+    branch: str = "main"
+
+    @property
+    def image_tag(self) -> str:
+        # Older beta clients discover every numeric prerelease Docker tag.
+        return f"v11-alpha-{self.version}" if self.branch == "v11" else self.version
+
+    @property
+    def moving_tag(self) -> str:
+        return "v11-alpha" if self.branch == "v11" else ("beta" if self.prerelease else "latest")
 
     @property
     def tag(self) -> str:
@@ -65,7 +75,7 @@ def plan_release(*, branch: str, version: str, release_exists: bool, newest_stab
     prerelease = "-" in version
 
     if release_exists:
-        return Plan(False, version, prerelease, f"v{version} is already released — nothing to do.")
+        return Plan(False, version, prerelease, f"v{version} is already released — nothing to do.", branch)
 
     if branch == STABLE_BRANCH and prerelease:
         raise ValueError(
@@ -76,7 +86,9 @@ def plan_release(*, branch: str, version: str, release_exists: bool, newest_stab
             f"alpha would release {version}, which is not a -{PRE_TAG}.N prerelease. "
             f'alpha releases only in "{PRE_TAG}" pre mode.'
         )
-    if branch not in (STABLE_BRANCH, PRERELEASE_BRANCH):
+    if branch == "v11" and not re.fullmatch(r"11\.0\.0-alpha\.\d+", version):
+        raise ValueError(f"v11 would release {version}; only 11.0.0-alpha.N is allowed.")
+    if branch not in (STABLE_BRANCH, PRERELEASE_BRANCH, "v11"):
         raise ValueError(f"{branch} is not a release branch.")
 
     if newest_stable is not None and _core(version) <= _core(newest_stable):
@@ -90,7 +102,8 @@ def plan_release(*, branch: str, version: str, release_exists: bool, newest_stab
         )
 
     kind = "prerelease" if prerelease else "stable release"
-    return Plan(True, version, prerelease, f"v{version} has no GitHub Release — cutting the {kind}.")
+    marker = "publication tag" if branch == "v11" else "GitHub Release"
+    return Plan(True, version, prerelease, f"v{version} has no {marker} — cutting the {kind}.", branch)
 
 
 def _run(*args: str) -> subprocess.CompletedProcess:
@@ -104,6 +117,20 @@ def release_exists(tag: str) -> bool:
     if "release not found" in result.stderr.lower():
         return False
     raise RuntimeError(f"gh release view {tag} failed: {result.stderr.strip()}")
+
+
+def v11_tag_exists(tag: str) -> bool:
+    """A v11 git tag is the completion marker, written after the image push.
+
+    Never create a public GitHub Release: old beta clients discover all of them.
+    API errors fail closed; only a missing ref permits a release.
+    """
+    result = _run("gh", "api", f"repos/{{owner}}/{{repo}}/git/ref/tags/{tag}")
+    if result.returncode == 0:
+        return True
+    if "HTTP 404" in result.stderr:
+        return False
+    raise RuntimeError(f"gh tag lookup {tag} failed: {result.stderr.strip()}")
 
 
 def newest_stable_release() -> str | None:
@@ -141,7 +168,11 @@ def main(argv: list[str]) -> int:
         return 2
     try:
         version = version_at("HEAD")
-        exists = release_exists(f"v{version}")
+        exists = (
+            v11_tag_exists(f"v{version}")
+            if argv[0] == "v11" and re.fullmatch(r"11\.0\.0-alpha\.\d+", version)
+            else release_exists(f"v{version}")
+        )
         plan = plan_release(
             branch=argv[0],
             version=version,
@@ -160,6 +191,8 @@ def main(argv: list[str]) -> int:
     print(f"release={str(plan.release).lower()}")
     print(f"version={plan.version}")
     print(f"tag={plan.tag}")
+    print(f"image_tag={plan.image_tag}")
+    print(f"moving_tag={plan.moving_tag}")
     print(f"prerelease={str(plan.prerelease).lower()}")
     print(f"release_sha={sha}")
     print(f"reason={plan.reason}")
