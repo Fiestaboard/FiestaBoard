@@ -6,7 +6,7 @@
 import { Box, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
+import { EDITOR_OVERLAY_ATTR, EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
 import { cn } from "@/lib/utils";
 
 interface ToolbarDropdownProps {
@@ -136,7 +136,7 @@ export function ToolbarDropdown({
                 className,
               )}
               aria-expanded={isOpen}
-              aria-haspopup="true"
+              aria-haspopup="dialog"
               aria-label={label || "Menu"}
             >
               {icon && (
@@ -162,6 +162,9 @@ export function ToolbarDropdown({
           <Box
             ref={panelRef}
             data-testid="toolbar-dropdown-panel"
+            role="dialog"
+            aria-label={label || "Menu"}
+            {...{ [EDITOR_OVERLAY_ATTR]: "" }}
             className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg max-w-[calc(100vw-16px)] overflow-x-auto"
             style={{ transform: panelShift ? `translateX(${panelShift}px)` : undefined }}
           >

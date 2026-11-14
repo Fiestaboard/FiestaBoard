@@ -2146,7 +2146,8 @@
     "categoryDate": "Data",
     "clickToEditFormula": "Clique para editar fórmula",
     "newFormula": "nova fórmula",
-    "loading": "A carregar…"
+    "loading": "A carregar…",
+    "dialogLabel": "Editor de fórmulas"
   },
   "templateEditor": {
     "variables": "Variáveis",
@@ -2173,8 +2174,8 @@
     "toggleWrap": "Alternar quebra para a linha atual",
     "disableWrap": "Desativar quebra para esta linha",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Anular (Ctrl+Z)",
-    "redo": "Refazer (Ctrl+Shift+Z)",
+    "undo": "Anular",
+    "redo": "Refazer",
     "cut": "Cortar (Ctrl+X)",
     "copy": "Copiar (Ctrl+C)",
     "paste": "Colar (Ctrl+V)",
@@ -3059,8 +3060,8 @@
     "closePicker": "Fechar um seletor",
     "exitDrawMode": "Sair do modo de desenho",
     "showShortcuts": "Mostrar atalhos de teclado",
-    "previewStep": "Rolar a pré-visualização uma nota",
-    "previewEnds": "Ir para a primeira ou a última nota",
+    "previewStep": "Mover a pré-visualização uma nota ou coluna",
+    "previewEnds": "Ir para o início ou o fim da pré-visualização",
     "previewFit": "Ajustar / Tamanho real (pré-visualização em foco)"
   }
 }

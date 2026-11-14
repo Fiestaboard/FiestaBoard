@@ -2146,7 +2146,8 @@
     "categoryDate": "Date",
     "clickToEditFormula": "Cliquez pour modifier la formule",
     "newFormula": "nouvelle formule",
-    "loading": "Chargement…"
+    "loading": "Chargement…",
+    "dialogLabel": "Éditeur de formules"
   },
   "templateEditor": {
     "variables": "Variables",
@@ -2173,8 +2174,8 @@
     "toggleWrap": "Activer/désactiver le retour à la ligne sur la ligne actuelle",
     "disableWrap": "Désactiver le retour à la ligne sur cette ligne",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Annuler (Ctrl+Z)",
-    "redo": "Rétablir (Ctrl+Shift+Z)",
+    "undo": "Annuler",
+    "redo": "Rétablir",
     "cut": "Couper (Ctrl+X)",
     "copy": "Copier (Ctrl+C)",
     "paste": "Coller (Ctrl+V)",
@@ -3059,8 +3060,8 @@
     "closePicker": "Fermer un sélecteur",
     "exitDrawMode": "Quitter le mode dessin",
     "showShortcuts": "Afficher les raccourcis clavier",
-    "previewStep": "Faire défiler l’aperçu d’une Note",
-    "previewEnds": "Aller à la première ou à la dernière Note",
+    "previewStep": "Déplacer l’aperçu d’une Note ou d’une colonne",
+    "previewEnds": "Aller au début ou à la fin de l’aperçu",
     "previewFit": "Ajuster / Taille réelle (aperçu actif)"
   }
 }

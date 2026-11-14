@@ -54,11 +54,12 @@ const LISTED: readonly EditorShortcut[] = [
 ];
 
 /**
- * BoardViewport's own keys (FiestaUI 1.5a, #387): ← → move one note, Home /
- * End jump to the ends, F toggles Fit / Actual size, while the preview is
- * focused. The kit binds them; this app only documents them, and only once
- * the editor preview renders a BoardViewport (slice 2.4 passes
- * `boardViewport: true`). Jev 2026-11-13 `gate_on_viewport`, p 0.91.
+ * BoardViewport's own keys (FiestaUI 1.5a, #387): ← → page the preview by
+ * one Note, array column or tile column, Home / End jump to the ends, F
+ * toggles Fit / Actual size, while the preview is focused. The kit binds
+ * them; this app only documents them, and only while the editor preview IS
+ * a BoardViewport — see `previewBindsBoardViewportKeys`. Jev 2026-11-13
+ * `gate_on_viewport`, p 0.91.
  */
 export const BOARD_VIEWPORT_SHORTCUTS: readonly EditorShortcut[] = [
   {
@@ -73,6 +74,40 @@ export const BOARD_VIEWPORT_SHORTCUTS: readonly EditorShortcut[] = [
   },
   { id: "previewFit", labelKey: "previewFit", keys: ["F"] },
 ];
+
+/**
+ * Whether the editor's split-flap preview renders FiestaUI's BoardViewport.
+ * False until slice 2.4 converts the app's `ScaledBoardDisplay` wrapper (the
+ * editor preview's only split-flap renderer) to BoardViewport; 2.4 flips this
+ * in the same change, so the rows and the kit's bindings land together.
+ */
+export const SPLIT_FLAP_PREVIEW_IS_BOARD_VIEWPORT = false;
+
+/**
+ * Whether the preview binds BoardViewport's keys: only a split-flap preview
+ * can (BoardViewport draws flaps only; an LED board previews through
+ * `DevicePreview`, which never binds them — 2.4 gap G3).
+ */
+export function previewBindsBoardViewportKeys({
+  ledPreview,
+  splitFlapIsViewport = SPLIT_FLAP_PREVIEW_IS_BOARD_VIEWPORT,
+}: {
+  ledPreview: boolean;
+  splitFlapIsViewport?: boolean;
+}): boolean {
+  return splitFlapIsViewport && !ledPreview;
+}
+
+/**
+ * Marks an open app overlay that has no ARIA modal semantics of its own (a
+ * toolbar picker panel). While one is open, `?` belongs to it.
+ */
+export const EDITOR_OVERLAY_ATTR = "data-editor-overlay";
+
+/** An open modal (`aria-modal`) or app overlay owns the keyboard. */
+export function hasOpenOverlay(doc: Document = document): boolean {
+  return doc.querySelector(`[aria-modal="true"], [${EDITOR_OVERLAY_ATTR}]`) !== null;
+}
 
 function toChords(keys: EditorShortcut["keys"]): readonly ShortcutChord[] {
   return typeof keys[0] === "string" ? [keys as ShortcutChord] : (keys as readonly ShortcutChord[]);
@@ -103,6 +138,37 @@ function matchesChord(event: KeyboardEvent, chord: ShortcutChord): boolean {
   // A symbol such as "?" already implies whatever Shift its layout needs.
   const isSymbol = main.length === 1 && !/[a-z0-9]/.test(main);
   return isSymbol || event.shiftKey === names.includes("shift");
+}
+
+const ARIA_KEY_NAMES: Record<string, string> = { esc: "Escape", left: "ArrowLeft", right: "ArrowRight" };
+
+/**
+ * The shortcut as an `aria-keyshortcuts` value: every alternative, with
+ * "Mod" spelled both ways ("Control+Z Meta+Z"), as the handlers accept both.
+ */
+export function ariaKeyShortcuts(shortcut: EditorShortcut): string {
+  const spell = (chord: ShortcutChord, mod: string) =>
+    chord
+      .map((k) => {
+        const lower = k.toLowerCase();
+        if (lower === "mod") return mod;
+        if (lower === "shift") return "Shift";
+        if (lower === "alt") return "Alt";
+        return ARIA_KEY_NAMES[lower] ?? (k.length === 1 ? k.toUpperCase() : k);
+      })
+      .join("+");
+  return toChords(shortcut.keys)
+    .flatMap((chord) =>
+      chord.some((k) => k.toLowerCase() === "mod")
+        ? [spell(chord, "Control"), spell(chord, "Meta")]
+        : [spell(chord, "")],
+    )
+    .join(" ");
+}
+
+/** The first chord, for a single inline hint (a tooltip or a button). */
+export function primaryChord(shortcut: EditorShortcut): ShortcutChord {
+  return toChords(shortcut.keys)[0];
 }
 
 /** Whether a keydown is this shortcut (any of its alternatives). */

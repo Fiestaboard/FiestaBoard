@@ -5,12 +5,17 @@ import { describe, expect, it } from "vitest";
 
 import { EditorShortcutList, useEditorShortcutList } from "@/components/editor-shortcut-list";
 
-function Harness({ boardViewport = false }: { boardViewport?: boolean }) {
+function Harness({ boardViewport = false, anchored = true }: { boardViewport?: boolean; anchored?: boolean }) {
   const shortcuts = useEditorShortcutList();
   const templateRef = useRef<HTMLDivElement>(null);
   return (
     <div>
-      <EditorShortcutList variant="header" state={shortcuts} anchorRef={templateRef} boardViewport={boardViewport} />
+      <EditorShortcutList
+        variant="header"
+        state={shortcuts}
+        anchorRef={anchored ? templateRef : undefined}
+        boardViewport={boardViewport}
+      />
       <EditorShortcutList variant="hint" state={shortcuts} anchorRef={templateRef} boardViewport={boardViewport} />
       <input aria-label="Page name" />
       <textarea aria-label="Plain text" />
@@ -57,6 +62,51 @@ describe("EditorShortcutList", () => {
     expect(dialog()).toBeNull();
   });
 
+  it("prevents the browser's default for ? and ignores auto-repeat", async () => {
+    render(<Harness />);
+    const repeat = fireEvent.keyDown(document.body, { key: "?", repeat: true });
+    expect(repeat).toBe(true);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(dialog()).toBeNull();
+    const first = fireEvent.keyDown(document.body, { key: "?" });
+    expect(first).toBe(false); // preventDefault was called
+    expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
+  });
+
+  it("leaves ? to a modal portal that has focus on a plain button (the formula editor)", async () => {
+    render(<Harness />);
+    const portal = document.createElement("div");
+    portal.innerHTML =
+      '<div role="dialog" aria-modal="true" aria-label="Formula editor"><button>Functions</button></div>';
+    document.body.append(portal);
+    const tab = portal.querySelector("button")!;
+    tab.focus();
+    fireEvent.keyDown(tab, { key: "?", shiftKey: true });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(dialog()).toBeNull();
+    portal.remove();
+  });
+
+  it("leaves ? alone while an app overlay is open, even with focus outside it", async () => {
+    render(<Harness />);
+    const panel = document.createElement("div");
+    panel.setAttribute("data-editor-overlay", "");
+    document.body.append(panel);
+    fireEvent.keyDown(document.body, { key: "?" });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(dialog()).toBeNull();
+    panel.remove();
+    fireEvent.keyDown(document.body, { key: "?" });
+    expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
+  });
+
+  it("still opens without an anchor (the template column hidden)", async () => {
+    const user = userEvent.setup();
+    render(<Harness anchored={false} />);
+    await user.click(screen.getByRole("button", { name: "Shortcuts" }));
+    expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
+  });
+
   it("lists exactly the registry's bound editor shortcuts", async () => {
     render(<Harness />);
     fireEvent.keyDown(document.body, { key: "?" });
@@ -72,7 +122,7 @@ describe("EditorShortcutList", () => {
     render(<Harness boardViewport />);
     fireEvent.keyDown(document.body, { key: "?" });
     const list = await screen.findByRole("dialog", { name: "Keyboard shortcuts" });
-    expect(within(list).getByText("Scroll the preview by one note")).toBeInTheDocument();
+    expect(within(list).getByText("Move the preview by one Note or column")).toBeInTheDocument();
     expect(within(list).getByText("Fit / Actual size (preview focused)")).toBeInTheDocument();
   });
 

@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ariaKeyShortcuts,
   BOARD_VIEWPORT_SHORTCUTS,
   codeMirrorKey,
   EDITOR_SHORTCUTS,
   editorShortcutGroups,
+  hasOpenOverlay,
   isTypingTarget,
   matchesShortcut,
+  previewBindsBoardViewportKeys,
+  primaryChord,
+  SPLIT_FLAP_PREVIEW_IS_BOARD_VIEWPORT,
 } from "@/lib/editor-shortcuts";
 
 function key(k: string, mods: Partial<Pick<KeyboardEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey">> = {}) {
@@ -107,5 +112,49 @@ describe("editorShortcutGroups", () => {
 
   it("documents BoardViewport's keys exactly as FiestaUI 1.5a binds them", () => {
     expect(BOARD_VIEWPORT_SHORTCUTS.map((s) => s.keys)).toEqual([[["Left"], ["Right"]], [["Home"], ["End"]], ["F"]]);
+  });
+});
+
+describe("ariaKeyShortcuts and primaryChord", () => {
+  it("spells Mod both ways and lists every alternative", () => {
+    expect(ariaKeyShortcuts(EDITOR_SHORTCUTS.undo)).toBe("Control+Z Meta+Z");
+    expect(ariaKeyShortcuts(EDITOR_SHORTCUTS.redo)).toBe("Control+Shift+Z Meta+Shift+Z Control+Y Meta+Y");
+    expect(ariaKeyShortcuts(EDITOR_SHORTCUTS.applyFormula)).toBe("Control+Enter Meta+Enter");
+    expect(ariaKeyShortcuts(EDITOR_SHORTCUTS.closePicker)).toBe("Escape");
+    expect(ariaKeyShortcuts(EDITOR_SHORTCUTS.showShortcuts)).toBe("?");
+  });
+
+  it("returns the first chord of a shortcut", () => {
+    expect(primaryChord(EDITOR_SHORTCUTS.redo)).toEqual(["Mod", "Shift", "Z"]);
+    expect(primaryChord(EDITOR_SHORTCUTS.undo)).toEqual(["Mod", "Z"]);
+  });
+});
+
+describe("hasOpenOverlay", () => {
+  it("is true while an aria-modal element or a marked app overlay is in the document", () => {
+    expect(hasOpenOverlay()).toBe(false);
+    const modal = document.createElement("div");
+    modal.setAttribute("aria-modal", "true");
+    document.body.append(modal);
+    expect(hasOpenOverlay()).toBe(true);
+    modal.remove();
+    const panel = document.createElement("div");
+    panel.setAttribute("data-editor-overlay", "");
+    document.body.append(panel);
+    expect(hasOpenOverlay()).toBe(true);
+    panel.remove();
+    expect(hasOpenOverlay()).toBe(false);
+  });
+});
+
+describe("previewBindsBoardViewportKeys", () => {
+  it("is false today: the split-flap preview is not a BoardViewport until slice 2.4", () => {
+    expect(SPLIT_FLAP_PREVIEW_IS_BOARD_VIEWPORT).toBe(false);
+    expect(previewBindsBoardViewportKeys({ ledPreview: false })).toBe(false);
+  });
+
+  it("binds only for a split-flap preview once it is a BoardViewport, never for an LED one", () => {
+    expect(previewBindsBoardViewportKeys({ ledPreview: false, splitFlapIsViewport: true })).toBe(true);
+    expect(previewBindsBoardViewportKeys({ ledPreview: true, splitFlapIsViewport: true })).toBe(false);
   });
 });

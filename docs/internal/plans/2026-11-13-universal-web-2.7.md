@@ -31,3 +31,12 @@ Not listed, because no binding exists in web today: 07's `/` insert menu, Mod+Sh
 4. Mount in `page-builder.tsx`; messages in all 14 locales.
 5. Playwright `tests/editor-shortcuts.spec.ts`: desktop open by `?`, by both triggers, guard in the name input, axe on the open list; touch context (`hasTouch`, no fine pointer) asserting the triggers are hidden and `?` still opens the list on screen.
 6. Typecheck, lint, format, build, `test:coverage`; screenshots at 390 / 768 / 1280, light and dark.
+
+## Review round 1 (Opus, `reviews/pr-2478-review.md`)
+
+- M1: the formula modal is a real modal dialog (`role="dialog"`, `aria-modal`, a name). The `?` hook skips while any `aria-modal` element or `data-editor-overlay` panel is open. ToolbarDropdown panels are named dialogs carrying that marker.
+- M2: the formula Done button renders `ShortcutKeys` (kit `Kbd`) from `EDITOR_SHORTCUTS.applyFormula`, with `aria-keyshortcuts`.
+- M3: "? All shortcuts" moves into the template toolbar's new `trailing` slot. Plain text and the LED editor keep it above the Template heading (DD-W59).
+- S1: `editor-shortcut-bindings.test.tsx` requires a binding test for every listed row.
+- S2: no anchor while the template column is hidden; `boardViewport` comes from `previewBindsBoardViewportKeys`.
+- S4: the undo and redo tooltips render their chords from the registry.

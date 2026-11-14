@@ -2146,7 +2146,8 @@
     "categoryDate": "Tarih",
     "clickToEditFormula": "Formülü düzenlemek için tıklayın",
     "newFormula": "yeni formül",
-    "loading": "Yükleniyor…"
+    "loading": "Yükleniyor…",
+    "dialogLabel": "Formül düzenleyici"
   },
   "templateEditor": {
     "variables": "Değişkenler",
@@ -2173,8 +2174,8 @@
     "toggleWrap": "Mevcut satır için kaydırmayı değiştir",
     "disableWrap": "Bu satır için kaydırmayı devre dışı bırak",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Geri al (Ctrl+Z)",
-    "redo": "Yinele (Ctrl+Shift+Z)",
+    "undo": "Geri al",
+    "redo": "Yinele",
     "cut": "Kes (Ctrl+X)",
     "copy": "Kopyala (Ctrl+C)",
     "paste": "Yapıştır (Ctrl+V)",
@@ -3059,8 +3060,8 @@
     "closePicker": "Seçiciyi kapat",
     "exitDrawMode": "Çizim modundan çık",
     "showShortcuts": "Klavye kısayollarını göster",
-    "previewStep": "Önizlemeyi bir not kaydır",
-    "previewEnds": "İlk veya son nota atla",
+    "previewStep": "Önizlemeyi bir not veya sütun kaydır",
+    "previewEnds": "Önizlemenin başına veya sonuna atla",
     "previewFit": "Sığdır / Gerçek boyut (önizleme odakta)"
   }
 }

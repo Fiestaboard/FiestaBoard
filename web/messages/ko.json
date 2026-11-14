@@ -2146,7 +2146,8 @@
     "categoryDate": "날짜",
     "clickToEditFormula": "클릭하여 수식 편집",
     "newFormula": "새 수식",
-    "loading": "로드 중…"
+    "loading": "로드 중…",
+    "dialogLabel": "수식 편집기"
   },
   "templateEditor": {
     "variables": "변수",
@@ -2173,8 +2174,8 @@
     "toggleWrap": "현재 줄의 줄바꿈 전환",
     "disableWrap": "이 줄의 줄바꿈 비활성화",
     "enableWrap": "Enable wrap for this line",
-    "undo": "실행 취소 (Ctrl+Z)",
-    "redo": "다시 실행 (Ctrl+Shift+Z)",
+    "undo": "실행 취소",
+    "redo": "다시 실행",
     "cut": "잘라내기 (Ctrl+X)",
     "copy": "복사 (Ctrl+C)",
     "paste": "붙여넣기 (Ctrl+V)",
@@ -3059,8 +3060,8 @@
     "closePicker": "선택기 닫기",
     "exitDrawMode": "그리기 모드 종료",
     "showShortcuts": "키보드 단축키 보기",
-    "previewStep": "미리보기를 노트 하나만큼 스크롤",
-    "previewEnds": "첫 번째 또는 마지막 노트로 이동",
+    "previewStep": "미리보기를 노트 또는 열 하나만큼 이동",
+    "previewEnds": "미리보기의 처음 또는 끝으로 이동",
     "previewFit": "맞춤 / 실제 크기(미리보기 포커스 시)"
   }
 }

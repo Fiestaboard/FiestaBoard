@@ -2102,7 +2102,8 @@
     "categoryDate": "Date",
     "clickToEditFormula": "Click to edit formula",
     "newFormula": "new formula",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "dialogLabel": "Formula editor"
   },
   "templateEditor": {
     "variables": "Variables",
@@ -2129,8 +2130,8 @@
     "toggleWrap": "Toggle wrap for current line",
     "disableWrap": "Disable wrap for this line",
     "enableWrap": "Enable wrap. Long text flows into empty or wrap-enabled lines below.",
-    "undo": "Undo (Ctrl+Z)",
-    "redo": "Redo (Ctrl+Shift+Z)",
+    "undo": "Undo",
+    "redo": "Redo",
     "cut": "Cut (Ctrl+X)",
     "copy": "Copy (Ctrl+C)",
     "paste": "Paste (Ctrl+V)",
@@ -3059,8 +3060,8 @@
     "closePicker": "Close a picker",
     "exitDrawMode": "Leave draw mode",
     "showShortcuts": "Show keyboard shortcuts",
-    "previewStep": "Scroll the preview by one note",
-    "previewEnds": "Jump to the first or last note",
+    "previewStep": "Move the preview by one Note or column",
+    "previewEnds": "Jump to the start or end of the preview",
     "previewFit": "Fit / Actual size (preview focused)"
   }
 }

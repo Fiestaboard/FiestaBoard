@@ -122,8 +122,13 @@ import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
 import { charsetTokenText } from "@/lib/charset-issues";
-import { boardForShape, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
-import { EDITOR_SHORTCUTS, isTypingTarget, matchesShortcut } from "@/lib/editor-shortcuts";
+import { boardForShape, isLedModel, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
+import {
+  EDITOR_SHORTCUTS,
+  isTypingTarget,
+  matchesShortcut,
+  previewBindsBoardViewportKeys,
+} from "@/lib/editor-shortcuts";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -2173,6 +2178,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // in the template column (07 `57:27771`; DD-W30).
   const shortcutList = useEditorShortcutList();
   const templateHeadingRef = useRef<HTMLDivElement>(null);
+  const shortcutListProps = {
+    state: shortcutList,
+    // Hidden on a pixel board's Canvases surface: the kit then hangs the list
+    // from the trigger that opened it (or its gutter on touch).
+    anchorRef: pixelBoard && editingSurface !== "text" ? undefined : templateHeadingRef,
+    // Only a split-flap preview can bind BoardViewport's keys; an LED board
+    // previews through DevicePreview (draw mode always paints flaps).
+    boardViewport: previewBindsBoardViewportKeys({ ledPreview: !drawMode && isLedModel(previewModel) }),
+  };
+  // 07 `57:28704` puts the hint on the toolbar row; only the rich flap editor
+  // has a web toolbar, so plain text and the LED editor keep it on the row
+  // above the template (DD-W59).
+  const hintOnToolbar = editorMode === "rich" && !editorCharset;
 
   // Keyboard shortcuts while drawing: Esc exits; undo/redo work even though
   // the editor itself is visually hidden (and thus not focused) in draw mode.
@@ -2394,7 +2412,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </AlertDialog>
                   )}
                   {/* 07 `57:28576`: the secondary "Shortcuts" button, left of Save. */}
-                  <EditorShortcutList variant="header" state={shortcutList} anchorRef={templateHeadingRef} />
+                  <EditorShortcutList variant="header" {...shortcutListProps} />
                   {/* Save button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -2511,10 +2529,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 >
                   {t(mobilePreviewOpen ? "hidePreview" : "showPreview")}
                 </Button>
-                {/* 07 `57:28704`: "? All shortcuts" at the right end of the row above the template. */}
-                <Box className="ml-auto">
-                  <EditorShortcutList variant="hint" state={shortcutList} anchorRef={templateHeadingRef} />
-                </Box>
+                {/* Without a web toolbar (plain text, LED editor), "? All shortcuts"
+                    sits at the right end of the row above the template (DD-W59). */}
+                {!hintOnToolbar && (
+                  <Box className="ml-auto">
+                    <EditorShortcutList variant="hint" {...shortcutListProps} />
+                  </Box>
+                )}
               </Flex>
 
               <Box className="grid min-w-0 grid-cols-1 items-start gap-5">
@@ -2627,6 +2648,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               drawBrush={drawBrush}
                               onDrawBrushChange={setDrawBrush}
                               onDrawHistoryEvent={handleDrawHistoryEvent}
+                              toolbarTrailing={<EditorShortcutList variant="hint" {...shortcutListProps} />}
                             />
                           )}
                         </Suspense>

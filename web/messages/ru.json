@@ -2146,7 +2146,8 @@
     "categoryDate": "Дата",
     "clickToEditFormula": "Нажмите для редактирования формулы",
     "newFormula": "новая формула",
-    "loading": "Загрузка…"
+    "loading": "Загрузка…",
+    "dialogLabel": "Редактор формул"
   },
   "templateEditor": {
     "variables": "Переменные",
@@ -2173,8 +2174,8 @@
     "toggleWrap": "Переключить перенос для текущей строки",
     "disableWrap": "Отключить перенос для этой строки",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Отменить (Ctrl+Z)",
-    "redo": "Повторить (Ctrl+Shift+Z)",
+    "undo": "Отменить",
+    "redo": "Повторить",
     "cut": "Вырезать (Ctrl+X)",
     "copy": "Копировать (Ctrl+C)",
     "paste": "Вставить (Ctrl+V)",
@@ -3059,8 +3060,8 @@
     "closePicker": "Закрыть выбор",
     "exitDrawMode": "Выйти из режима рисования",
     "showShortcuts": "Показать сочетания клавиш",
-    "previewStep": "Прокрутить превью на одну заметку",
-    "previewEnds": "Перейти к первой или последней заметке",
+    "previewStep": "Сдвинуть превью на одну заметку или столбец",
+    "previewEnds": "Перейти к началу или концу превью",
     "previewFit": "Вписать / Реальный размер (превью в фокусе)"
   }
 }

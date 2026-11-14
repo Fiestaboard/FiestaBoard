@@ -150,8 +150,14 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
             {/* Backdrop — intentionally has no click handler to prevent accidental close */}
             <Box className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
-            {/* Modal panel */}
-            <Box className="relative rounded-lg border border-border bg-popover shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-[min(660px,90vw)]">
+            {/* Modal panel. A real modal dialog, so assistive tech gets dialog
+                semantics and the editor's `?` shortcut list stays out of it. */}
+            <Box
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("dialogLabel")}
+              className="relative rounded-lg border border-border bg-popover shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-[min(660px,90vw)]"
+            >
               <Suspense fallback={<Skeleton className="h-64 w-full" />}>
                 <FormulaEditorPanel
                   mode="edit"

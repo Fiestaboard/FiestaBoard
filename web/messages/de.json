@@ -2146,7 +2146,8 @@
     "categoryDate": "Datum",
     "clickToEditFormula": "Klicken, um Formel zu bearbeiten",
     "newFormula": "neue Formel",
-    "loading": "Lädt…"
+    "loading": "Lädt…",
+    "dialogLabel": "Formeleditor"
   },
   "templateEditor": {
     "variables": "Variablen",
@@ -2173,8 +2174,8 @@
     "toggleWrap": "Umbruch für aktuelle Zeile umschalten",
     "disableWrap": "Umbruch für diese Zeile deaktivieren",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Rückgängig (Ctrl+Z)",
-    "redo": "Wiederholen (Ctrl+Shift+Z)",
+    "undo": "Rückgängig",
+    "redo": "Wiederholen",
     "cut": "Ausschneiden (Ctrl+X)",
     "copy": "Kopieren (Ctrl+C)",
     "paste": "Einfügen (Ctrl+V)",
@@ -3059,8 +3060,8 @@
     "closePicker": "Auswahl schließen",
     "exitDrawMode": "Zeichenmodus verlassen",
     "showShortcuts": "Tastenkürzel anzeigen",
-    "previewStep": "Vorschau um eine Note verschieben",
-    "previewEnds": "Zur ersten oder letzten Note springen",
+    "previewStep": "Vorschau um eine Note oder Spalte verschieben",
+    "previewEnds": "Zum Anfang oder Ende der Vorschau springen",
     "previewFit": "Einpassen / Originalgröße (Vorschau fokussiert)"
   }
 }

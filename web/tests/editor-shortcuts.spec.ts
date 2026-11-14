@@ -67,6 +67,32 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
     await expect(page.getByRole("dialog", LIST)).toHaveCount(0);
   });
 
+  test("? inside the formula modal belongs to the modal, and Esc then closes only the modal", async ({ page }) => {
+    await openEditor(page);
+    await page.locator('[contenteditable="true"]').first().click();
+    await page.getByRole("button", { name: "Insert formula" }).click();
+    const modal = page.getByRole("dialog", { name: "Formula editor" });
+    await expect(modal).toBeVisible();
+    const tab = modal.getByRole("tab", { name: "Functions" });
+    await tab.focus();
+    await page.keyboard.press("?");
+    await expect(page.getByRole("dialog", LIST)).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(modal).toBeHidden();
+    await expect(page.getByRole("dialog", LIST)).toHaveCount(0);
+  });
+
+  test("the ? All shortcuts hint sits at the right end of the template toolbar", async ({ page }) => {
+    await openEditor(page);
+    const hint = page.getByRole("button", { name: /All shortcuts/ });
+    const toolbarButton = page.getByRole("button", { name: "Insert formula" });
+    const [hintBox, toolBox] = await Promise.all([hint.boundingBox(), toolbarButton.boundingBox()]);
+    expect(hintBox && toolBox).toBeTruthy();
+    // Same row as the toolbar's buttons, right of them.
+    expect(Math.abs(hintBox!.y + hintBox!.height / 2 - (toolBox!.y + toolBox!.height / 2))).toBeLessThanOrEqual(4);
+    expect(hintBox!.x).toBeGreaterThan(toolBox!.x);
+  });
+
   test("the header Shortcuts button and the ? All shortcuts hint both open the list", async ({ page }) => {
     await openEditor(page);
     await page.getByRole("button", { name: "Shortcuts", exact: true }).click();

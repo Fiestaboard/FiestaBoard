@@ -15,12 +15,20 @@
  * Touch: the kit hides both triggers where no fine pointer exists (phones);
  * `?` from a hardware keyboard still opens the list.
  */
-import { Button, Kbd, ShortcutListPopover } from "@fiestaboard/ui";
+import { Button, Kbd, ShortcutListPopover, useKbdPlatform } from "@fiestaboard/ui";
 import { Zap } from "lucide-react";
 import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
-import { EDITOR_SHORTCUTS, editorShortcutGroups, isTypingTarget, matchesShortcut } from "@/lib/editor-shortcuts";
+import {
+  EDITOR_SHORTCUTS,
+  type EditorShortcut,
+  editorShortcutGroups,
+  hasOpenOverlay,
+  isTypingTarget,
+  matchesShortcut,
+  primaryChord,
+} from "@/lib/editor-shortcuts";
 
 export type EditorShortcutListVariant = "header" | "hint";
 
@@ -43,6 +51,9 @@ export function useEditorShortcutList(): EditorShortcutListState {
       if (!matchesShortcut(event, EDITOR_SHORTCUTS.showShortcuts)) return;
       if (isTypingTarget(event.target)) return;
       if (event.target instanceof Element && event.target.closest(OTHER_SURFACE)) return;
+      // A modal (the formula editor) or an open picker panel owns the keyboard
+      // even when focus is on a control the closest() check cannot see.
+      if (hasOpenOverlay()) return;
       event.preventDefault();
       setOpenFrom((current) => current ?? "header");
     };
@@ -53,25 +64,23 @@ export function useEditorShortcutList(): EditorShortcutListState {
   return { openFrom, setOpenFrom };
 }
 
-/** While the template column is hidden (a pixel board's canvas surface), hang from the top-left gutter. */
-const GUTTER_ANCHOR = { getBoundingClientRect: () => new DOMRect(8, 8, 0, 0) };
-
 export interface EditorShortcutListProps {
   variant: EditorShortcutListVariant;
   state: EditorShortcutListState;
-  /** The Template heading: the list hangs from it, in the template column. */
-  anchorRef: RefObject<HTMLElement | null>;
-  /** The preview is a FiestaUI BoardViewport, so its own keys apply (slice 2.4 turns this on). */
+  /**
+   * The Template heading: the list hangs from it, in the template column.
+   * Omit it while that column is hidden (a pixel board's Canvases surface);
+   * the kit then hangs the list from the trigger, or its gutter on touch.
+   */
+  anchorRef?: RefObject<HTMLElement | null>;
+  /** The preview binds BoardViewport's keys (`previewBindsBoardViewportKeys`). */
   boardViewport?: boolean;
 }
 
 export function EditorShortcutList({ variant, state, anchorRef, boardViewport = false }: EditorShortcutListProps) {
   const t = useTranslations("editorShortcuts");
   const groups = useMemo(() => editorShortcutGroups((key) => t(key), { boardViewport }), [t, boardViewport]);
-  const anchor = useCallback(() => {
-    const el = anchorRef.current;
-    return el && el.getClientRects().length > 0 ? el : GUTTER_ANCHOR;
-  }, [anchorRef]);
+  const anchor = useCallback(() => anchorRef?.current ?? null, [anchorRef]);
   const { openFrom, setOpenFrom } = state;
 
   const trigger =
@@ -81,12 +90,7 @@ export function EditorShortcutList({ variant, state, anchorRef, boardViewport = 
         {t("button")}
       </Button>
     ) : (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground"
-        aria-keyshortcuts="?"
-      >
+      <Button variant="ghost" size="sm" className="text-xs font-normal text-muted-foreground" aria-keyshortcuts="?">
         <Kbd aria-hidden>?</Kbd>
         {t("hint")}
       </Button>
@@ -97,10 +101,20 @@ export function EditorShortcutList({ variant, state, anchorRef, boardViewport = 
       trigger={trigger}
       open={openFrom === variant}
       onOpenChange={(open) => setOpenFrom(open ? variant : null)}
-      anchor={anchor}
+      anchor={anchorRef ? anchor : undefined}
       groups={groups}
       footnote={t("footnote")}
       labels={{ title: t("title"), platformNote: t("platformNote"), or: t("or"), close: t("close") }}
     />
   );
+}
+
+/**
+ * A registry shortcut's first chord as kit `Kbd` caps, spelled for the
+ * reader's machine (⌘ ⏎ on Apple, Ctrl Enter elsewhere). Decorative: put
+ * `aria-keyshortcuts={ariaKeyShortcuts(shortcut)}` on the control it labels.
+ */
+export function ShortcutKeys({ shortcut, className }: { shortcut: EditorShortcut; className?: string }) {
+  const platform = useKbdPlatform();
+  return <Kbd keys={primaryChord(shortcut)} platform={platform} className={className} aria-hidden />;
 }

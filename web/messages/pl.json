@@ -2146,7 +2146,8 @@
     "categoryDate": "Data",
     "clickToEditFormula": "Kliknij, aby edytować formułę",
     "newFormula": "nowa formuła",
-    "loading": "Ładowanie…"
+    "loading": "Ładowanie…",
+    "dialogLabel": "Edytor formuł"
   },
   "templateEditor": {
     "variables": "Zmienne",
@@ -2173,8 +2174,8 @@
     "toggleWrap": "Przełącz zawijanie dla bieżącego wiersza",
     "disableWrap": "Wyłącz zawijanie dla tego wiersza",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Cofnij (Ctrl+Z)",
-    "redo": "Ponów (Ctrl+Shift+Z)",
+    "undo": "Cofnij",
+    "redo": "Ponów",
     "cut": "Wytnij (Ctrl+X)",
     "copy": "Kopiuj (Ctrl+C)",
     "paste": "Wklej (Ctrl+V)",
@@ -3059,8 +3060,8 @@
     "closePicker": "Zamknij selektor",
     "exitDrawMode": "Wyjdź z trybu rysowania",
     "showShortcuts": "Pokaż skróty klawiszowe",
-    "previewStep": "Przewiń podgląd o jedną notatkę",
-    "previewEnds": "Przejdź do pierwszej lub ostatniej notatki",
+    "previewStep": "Przesuń podgląd o jedną notatkę lub kolumnę",
+    "previewEnds": "Przejdź na początek lub koniec podglądu",
     "previewFit": "Dopasuj / Rzeczywisty rozmiar (podgląd aktywny)"
   }
 }
