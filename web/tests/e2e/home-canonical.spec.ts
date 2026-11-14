@@ -104,6 +104,46 @@ test.describe("Home (2.2)", () => {
     await expect(card.getByText("Override", { exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
+  test("in Manual Mode during an Override, Until I cancel replaces the Override and pins the page", async ({
+    page,
+  }) => {
+    const base = await createPage("Evening commute", ["GOOD EVENING", "", "", "", "", ""]);
+    const dinner = await createPage("Dinner note", ["DINNER AT 7", "", "", "", "", ""]);
+    await createPage("Taco Tuesday", ["TACO TUESDAY", "", "", "", "", ""]);
+    await setActivePage(base);
+    const set = await fetch(`${API_URL}/settings/temporary-override`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ page_id: dinner, duration_minutes: 60, revert_mode: "schedule" }),
+    });
+    expect(set.ok).toBe(true);
+    await page.goto("/");
+    const card = page.getByTestId("now-showing");
+    await expect(card.getByRole("heading", { level: 2, name: "Dinner note" })).toBeVisible({ timeout: 15_000 });
+
+    await card.getByRole("button", { name: "Change Page", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Change Page" });
+    await dialog.getByRole("button", { name: /Taco Tuesday/ }).click();
+    await expect(dialog.getByRole("radio", { name: "Until I cancel" })).toHaveAttribute("aria-checked", "true");
+    await expect(dialog.getByText(/Replaces the Dinner note Override\.$/)).toBeVisible();
+    await dialog.getByRole("button", { name: "Show now" }).click();
+    await expect(dialog).toHaveCount(0, { timeout: 10_000 });
+
+    await expect
+      .poll(
+        async () =>
+          (await (await fetch(`${API_URL}/settings/temporary-override`, { headers: authHeaders() })).json()).active,
+        {
+          timeout: 10_000,
+        },
+      )
+      .toBe(false);
+    await page.reload();
+    await expect(card.getByRole("heading", { level: 2, name: "Taco Tuesday" })).toBeVisible({ timeout: 15_000 });
+    await expect(card.getByText("Manual Mode")).toBeVisible();
+    await expect(card.getByText("Override", { exact: true })).toHaveCount(0);
+  });
+
   test("Compose a message ends in the same duration step and shows an Override", async ({ page }) => {
     const base = await createPage("Evening commute", ["GOOD EVENING", "", "", "", "", ""]);
     await setActivePage(base);
