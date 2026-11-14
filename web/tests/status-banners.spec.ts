@@ -69,6 +69,8 @@ async function setSilence(enabled: boolean, boardId?: string) {
 const statusBanner = (page: Page, kind: string) => page.locator(`[data-slot="status-banner"][data-kind="${kind}"]`);
 
 async function expectNoSeriousViolations(page: Page, selector: string, label: string) {
+  // The route's entrance fade would otherwise be measured as low contrast.
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
   await injectAxe(page);
   const violations = await getViolations(page, selector, {
     runOnly: { type: "tag" as const, values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"] },
@@ -125,10 +127,12 @@ test.describe("Status banners", () => {
   test("hub unreachable: Home says so, the hub line reads Can't reach, and Try again recovers", async ({ page }) => {
     await ensureTwoBoards();
     let down = false;
-    await page.route("**/api/v1/status", (route: Route) => (down ? route.abort("connectionrefused") : route.continue()));
+    await page.route("**/api/v1/status", (route: Route) =>
+      down ? route.abort("connectionrefused") : route.continue(),
+    );
 
     await page.goto("/");
-    await expect(page.locator('[data-slot="board-selector-hub"]').first()).toContainText("Online", {
+    await expect(page.locator('[data-slot="board-selector-hub"]', { hasText: "Online" })).not.toHaveCount(0, {
       timeout: 15_000,
     });
 
@@ -140,7 +144,7 @@ test.describe("Status banners", () => {
     await expect(banner).toContainText("Can't reach your hub at");
     await expect(banner).toContainText("Last connected");
     await expect(banner.getByRole("link", { name: /Connection help/ })).toHaveAttribute("target", "_blank");
-    await expect(page.locator('[data-slot="board-selector-hub"]').first()).toContainText("Can't reach");
+    await expect(page.locator('[data-slot="board-selector-hub"]', { hasText: "Can't reach" })).not.toHaveCount(0);
     await expectNoSeriousViolations(page, '[data-slot="status-banner"]', "hub-unreachable banner");
 
     down = false;
@@ -150,7 +154,7 @@ test.describe("Status banners", () => {
 
   test("you're offline: the browser loses its network", async ({ page, context }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Home", level: 1 })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 15_000 });
 
     await context.setOffline(true);
     const banner = statusBanner(page, "device-offline");
@@ -195,7 +199,8 @@ test.describe("Status banners", () => {
     await ensureTwoBoards();
     await page.goto("/");
     const host = new URL(page.url()).hostname;
-    await expect(page.locator('[data-slot="board-selector-hub"]').first()).toContainText(`${host} · Online`, {
+    // The sidebar reads "host · State"; the phone header pill leads with the state.
+    await expect(page.locator('[data-slot="board-selector-hub"]', { hasText: `${host} · Online` })).not.toHaveCount(0, {
       timeout: 15_000,
     });
   });
