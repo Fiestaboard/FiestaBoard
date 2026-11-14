@@ -31,6 +31,16 @@ class SessionLimit(ValueError):
     pass
 
 
+def printable(text: str, limit: int = 100) -> str:
+    """*text* with every non-printable character removed (C0, DEL, C1 such as
+    ESC and the 8-bit CSI 0x9B, separators), capped at *limit* characters.
+
+    Device names come from request headers and bodies and end up in logs and
+    in Signed-in devices, so terminal control bytes must never survive.
+    """
+    return "".join(ch for ch in text if ch.isprintable())[:limit]
+
+
 def digest_secret(secret: str) -> str:
     return hashlib.sha256(secret.encode()).hexdigest()
 
@@ -81,6 +91,11 @@ class SessionStore:
                 account_generation INTEGER NOT NULL, creator_session_id TEXT NOT NULL,
                 state TEXT NOT NULL, created_ms INTEGER NOT NULL, expires_ms INTEGER NOT NULL,
                 claimed_session_id TEXT, device_name TEXT)""")
+            # H10b: which session approved a code-signed-in TV, for the phone's
+            # "approved by you". A table, not a column: older builds build
+            # SessionRecord(**row), so sessions must keep its columns on rollback.
+            db.execute("""CREATE TABLE IF NOT EXISTS session_approvals (
+                session_id TEXT PRIMARY KEY, approver_session_id TEXT NOT NULL)""")
             db.execute("PRAGMA user_version = 1")
 
     @contextmanager
@@ -108,6 +123,10 @@ class SessionStore:
         db.execute("DELETE FROM limits WHERE started_ms < ?", (now - 600_000,))
         # Keep finished offers briefly so the web page can still read the outcome.
         db.execute("DELETE FROM pairings WHERE expires_ms < ?", (now - 600_000,))
+        # An approval goes with its TV: when it expires or is signed out.
+        db.execute(
+            "DELETE FROM session_approvals WHERE session_id NOT IN (SELECT id FROM sessions WHERE revoked_ms IS NULL)"
+        )
         db.execute("DELETE FROM panel_views WHERE session_id NOT IN (SELECT id FROM sessions WHERE revoked_ms IS NULL)")
 
     def create_session(self, record: SessionRecord, *, connection: sqlite3.Connection | None = None) -> None:
@@ -231,6 +250,14 @@ class SessionStore:
                 (panel_id, now, session_id, now),
             )
 
+    def approved_by(self, approver_session_id: str) -> set[str]:
+        """Ids of the sessions whose sign-in code *approver_session_id* approved."""
+        with self.transaction() as db:
+            rows = db.execute(
+                "SELECT session_id FROM session_approvals WHERE approver_session_id=?", (approver_session_id,)
+            ).fetchall()
+        return {row["session_id"] for row in rows}
+
     def panel_views(self, username: str) -> dict[str, list[tuple[str, int]]]:
         """Live sessions' last-shown panels, newest first, keyed by session id."""
         with self.transaction() as db:
@@ -250,7 +277,7 @@ class SessionStore:
         with self.transaction() as db:
             db.execute(
                 "UPDATE sessions SET device_name=?, kind=? WHERE digest=?",
-                (device_name[:100], kind, digest_secret(token)),
+                (printable(device_name), kind, digest_secret(token)),
             )
 
     @property

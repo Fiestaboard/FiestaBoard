@@ -196,6 +196,9 @@ CONTROL_ALLOWED = [
     ("POST", "/auth/device/inspect", {"user_code": "BCDF-GHJK"}),
     ("POST", "/auth/device/approve", {"user_code": "BCDF-GHJK"}),
     ("POST", "/auth/device/deny", {"user_code": "BCDF-GHJK"}),
+    # H10b: the phone lists and signs out TVs (an unknown id is 404, not 401/403).
+    ("GET", "/auth/device/tvs", None),
+    ("DELETE", "/auth/device/tvs/unknown", None),
 ]
 
 

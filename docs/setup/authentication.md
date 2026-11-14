@@ -236,7 +236,7 @@ installed integrations and their sign-ins, manage TVs, run device actions such a
 
 A phone credential **cannot**:
 
-- manage accounts, passwords, signed-in devices or the API token;
+- manage accounts, passwords, signed-in browsers or phones, or the API token;
 - create pairing codes for other phones;
 - export or import backups;
 - change the hub's network, update channel or software, or restart it;
@@ -276,6 +276,20 @@ A signed-in phone can approve or decline a TV's sign-in code, as the `/activate`
 does in a browser (`POST /auth/device/inspect`, `approve`, `deny` with the phone's
 credential). A phone can approve TV codes only. If the phone is signed out before the
 TV picks up its approval, the TV must ask for a new code.
+
+### Manage TVs from the phone
+
+A signed-in phone can list the account's signed-in TVs (`GET /auth/device/tvs`) and
+sign one out (`DELETE /auth/device/tvs/{id}`). Each TV shows whether this phone
+approved it. A phone sees and signs out **TVs only**: browsers and other phones are
+managed from **Signed-in devices** in the web app, and a phone signs itself out with
+`DELETE /auth/device/session`.
+
+A phone can make 20 sign-out attempts a minute, including attempts on ids that don't
+match a TV. That limit slows a stolen phone down; it does not stop it from signing out
+every TV over a few minutes. If a phone is lost, revoke it in **Signed-in devices**. Every
+sign-out of another device, from a browser or a phone, is logged with the session ids
+and device names involved (never the credentials).
 
 ### Plugin sign-in from the phone
 
