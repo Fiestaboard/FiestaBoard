@@ -565,6 +565,24 @@ class PluginBase(ABC):
             return None
         return cached
 
+    def last_result(self, board: BoardContext | None = None) -> tuple[PluginResult, datetime] | None:
+        """This plugin's last cached result for *board* and when it was fetched,
+        **however old** (a template preview's cached data, H6).
+
+        A pure dict read, like :meth:`cached_result`. ``None`` when there is no
+        result yet, and always for a ``live_data`` plugin or one without a
+        refresh interval: those compute on every render and keep no cache.
+        """
+        if self.live_data or self.refresh_seconds is None:
+            return None
+        key = self._cache_key(board)
+        with self._cache_lock:
+            cached = self._cached_results.get(key)
+            last_fetch = self._last_fetch_times.get(key)
+        if cached is None or last_fetch is None:
+            return None
+        return cached, last_fetch
+
     @staticmethod
     def _cache_key(board: BoardContext | None) -> str:
         """Cache key for a board: :attr:`BoardContext.key`, or the default sentinel.

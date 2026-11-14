@@ -59,6 +59,7 @@ from .expressions import (
     validate_expression,
 )
 from .filters import FILTER_NAMES
+from .preview import Preview
 
 logger = logging.getLogger(__name__)
 
@@ -298,6 +299,7 @@ class TemplateEngine:
         *,
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         report: RenderReport | None = None,
+        preview: Preview | None = None,
     ) -> str:
         """Render template with data context.
 
@@ -311,6 +313,8 @@ class TemplateEngine:
             report: When given, filled with every formula's value
                 (:meth:`_report_formulas`); ``report.lines`` is ``None``, as a
                 bare string has no board rows.
+            preview: Sample data, missing data, a clock or cached data for this
+                render only (:meth:`_preview_context`; H6).
 
         Returns:
             Rendered string with all substitutions applied
@@ -320,7 +324,13 @@ class TemplateEngine:
             # (#1751): fetch only the plugins this template's variables name.
             # ``extract_template_plugin_ids`` returns None for a formula page,
             # which keeps the safe fetch-everything fallback.
-            context = self._build_context(plugin_ids=extract_template_plugin_ids(template))
+            plugin_ids = extract_template_plugin_ids(template)
+            if preview is None:
+                context = self._build_context(plugin_ids=plugin_ids)
+            else:
+                context = self._preview_context(None, plugin_ids, preview)
+        elif preview is not None:
+            context = preview.apply(context)
 
         # Pin one instant for this render so NOW()/TODAY() in different
         # formulas cannot straddle a minute or midnight boundary. A no-op
@@ -522,6 +532,7 @@ class TemplateEngine:
         display: Any = None,
         free_spans: Sequence[Sequence[tuple[int, int]]] | None = None,
         report: RenderReport | None = None,
+        preview: Preview | None = None,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -561,6 +572,8 @@ class TemplateEngine:
                 formula's value and, per template line, the rows it wanted,
                 the rows that landed and why the rest did not. ``lines`` is
                 ``None`` for a flow layout. Rendering is unchanged by it.
+            preview: Sample data, missing data, a clock or cached data for this
+                render only (:meth:`_preview_context`; H6).
 
         Returns:
             Rendered string with newlines
@@ -580,10 +593,14 @@ class TemplateEngine:
         # Build the BoardContext from the resolved dims so plugins receive the true
         # board size — including note arrays (no fixed DEVICE_DIMENSIONS entry).
         if context is None:
-            context = self._build_context(
-                BoardContext(render_device_type, rows=dims.rows, cols=dims.cols, display=display),
-                plugin_ids=extract_template_plugin_ids(template_lines),
-            )
+            board = BoardContext(render_device_type, rows=dims.rows, cols=dims.cols, display=display)
+            plugin_ids = extract_template_plugin_ids(template_lines)
+            if preview is None:
+                context = self._build_context(board, plugin_ids=plugin_ids)
+            else:
+                context = self._preview_context(board, plugin_ids, preview)
+        elif preview is not None:
+            context = preview.apply(context)
         # Pin the clock once for the whole board: every line's render()
         # inherits this instant instead of re-reading the clock, so row 1 and
         # row 6 can never disagree about what time it is.
@@ -1420,6 +1437,34 @@ class TemplateEngine:
         if plugin_ids is None:
             return self._plugin_registry.build_template_context(board)
         return self._plugin_registry.build_template_context(board, plugin_ids=plugin_ids)
+
+    def _preview_context(
+        self, board: BoardContext | None, plugin_ids: set[str] | None, preview: Preview
+    ) -> dict[str, Any]:
+        """The context a previewed render sees (H6).
+
+        Built from live data, or with ``data: "cached"`` from each plugin's
+        last result however old; ``preview.sources`` is filled with what that
+        data is; then the preview is applied to a copy (never to the plugin
+        cache's own objects).
+        """
+        registry = self._plugin_registry
+        if registry is None:
+            context: dict[str, Any] = {}
+        elif preview.data == "cached":
+            context = registry.build_cached_context(board, plugin_ids)
+        else:
+            context = self._build_context(board, plugin_ids=plugin_ids)
+        named = set(plugin_ids or ()) | {key for key in context if not key.startswith("_")} | preview.roots()
+        preview.sources = {
+            plugin_id: (
+                registry.data_status(plugin_id, board)
+                if registry is not None
+                else {"state": "none", "updated_at": None}
+            )
+            for plugin_id in sorted(named)
+        }
+        return preview.apply(context)
 
     def _render_variables(self, template: str, context: dict[str, Any]) -> str:
         """Replace {{source.field}} variables with values from context.

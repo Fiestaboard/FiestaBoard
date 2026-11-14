@@ -46,6 +46,7 @@ from .models import (
     TemplateValidationResponse,
     TemplateVariablesResponse,
 )
+from .preview import Preview, PreviewError, hub_instant
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +249,10 @@ async def render_template(request: TemplateRenderRequest):
     dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
     num_rows = dims.rows
 
+    if request.canvases and request.preview is not None:
+        raise HTTPException(
+            status_code=422, detail="A preview is not available for a page with pixel canvases yet (H6)."
+        )
     if request.canvases:
         return await render_template_with_canvases(
             request, check, (device_type, notes_wide, notes_tall, grid_rows, grid_cols)
@@ -266,6 +271,7 @@ async def render_template(request: TemplateRenderRequest):
     template_engine = get_template_engine()
     line_metadata = request.line_metadata
     report = RenderReport() if request.diagnostics else None
+    preview = _preview(request.preview)
 
     try:
         # Rendering fetches plugin data, so it belongs on a worker thread, not
@@ -283,16 +289,26 @@ async def render_template(request: TemplateRenderRequest):
                 grid_rows=grid_rows,
                 grid_cols=grid_cols,
                 report=report,
+                preview=preview,
                 **check.lines_kw,
             )
         else:
             logger.info(f"Rendering template string: {template}")
-            rendered = await asyncio.to_thread(template_engine.render, template, report=report, **check.render_kw)
+            rendered = await asyncio.to_thread(
+                template_engine.render, template, report=report, preview=preview, **check.render_kw
+            )
 
         lines = rendered.split("\n")
         return TemplateRenderCheckedResponse(
-            rendered=rendered, lines=lines, line_count=len(lines), **check.result(rendered), **_diagnostics(report)
+            rendered=rendered,
+            lines=lines,
+            line_count=len(lines),
+            **check.result(rendered),
+            **_diagnostics(report),
+            **({"sources": preview.sources} if preview is not None else {}),
         )
+    except PreviewError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
@@ -357,6 +373,18 @@ async def _render_canvas_page(request, geometry, display, render_kw):
     if not result.available:
         raise HTTPException(status_code=400, detail=f"Template rendering failed: {result.error}")
     return result
+
+
+def _preview(model) -> Preview | None:
+    """The request's ``preview`` for the engine, its ``at`` in the hub's timezone."""
+    if model is None:
+        return None
+    return Preview(
+        values=dict(model.values),
+        missing=list(model.missing),
+        at=hub_instant(model.at) if model.at is not None else None,
+        data=model.data,
+    )
 
 
 def _diagnostics(report: RenderReport | None) -> dict:
