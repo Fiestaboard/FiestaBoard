@@ -2022,7 +2022,16 @@
     "withMessage": "Affichage du tableau : {message}",
     "previewSizeLabel": "Taille de l'aperçu",
     "fitMode": "Ajuster",
-    "actualMode": "Taille réelle"
+    "actualMode": "Taille réelle",
+    "viewportNote": "Note {current} sur {total}",
+    "viewportArrayColumn": "Colonne {current} sur {total} · {notes} Notes",
+    "viewportColumns": "Colonnes {first}–{last} sur {total}",
+    "viewportOverviewNotes": "Aperçu · {notes} Notes · touchez Taille réelle pour lire",
+    "viewportOverviewColumns": "Aperçu · {columns} colonnes · touchez Taille réelle pour lire",
+    "viewportHintNotes": "Maj + défilement, balayage du pavé tactile ou ← → avec le focus. S’aligne sur chaque Note.",
+    "viewportHintColumns": "Maj + défilement, balayage du pavé tactile ou ← → avec le focus. S’aligne sur chaque colonne.",
+    "viewportHintTouch": "balayez",
+    "displayPreview": "Aperçu de {name}"
   },
   "updateOverlay": {
     "takingLonger": "La mise à jour prend plus de temps que prévu",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "Personnalisé",
     "panel": "Panneau",
-    "ariaLabel": "{rows} lignes par {cols} colonnes",
-    "ariaLabelWithLayout": "{rows} lignes par {cols} colonnes, {layout}"
+    "ariaLabelColsRows": "{cols} colonnes par {rows} lignes",
+    "ariaLabelColsRowsWithLayout": "{cols} colonnes par {rows} lignes, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / clients externes",

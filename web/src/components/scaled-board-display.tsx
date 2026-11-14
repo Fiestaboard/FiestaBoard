@@ -3,35 +3,60 @@
 import { ScaledBoardDisplay as UIScaledBoardDisplay } from "@fiestaboard/ui";
 import { memo } from "react";
 
-import { type BoardDisplayProps, useBoardChrome } from "@/components/board-display";
+import { useBoardChrome } from "@/components/board-display";
+import { BoardViewport, type BoardViewportProps } from "@/components/board-viewport";
 import { useTranslations } from "@/i18n/translations";
 
 /**
- * {@link BoardDisplay} wrapped so it shrinks to fit a narrow parent, from
- * `@fiestaboard/ui`.
+ * The board almost every surface renders. Since web 2.4 (WEB-07) it is a
+ * {@link BoardViewport}: a board that does not fit keeps its real tiles and
+ * scrolls inside its bezel, and Actual size is the default for every board type
+ * (owner rule 9: boards never shrink, they scroll). Fit is the opt-in overview.
  *
- * This is the wrapper almost every surface should render: the board sizes its
- * tiles from viewport breakpoints, so an unscaled 6x22 flagship overflows a
- * phone's content box and any pane narrowed by a sibling (issue #1397,
- * FiestaUI #192). Note arrays additionally get a Fit / Actual size toggle.
+ * The name stays so every caller converts at once, including surfaces other
+ * slices are rebuilding (Home, the editor, Compose). New code should import
+ * `BoardViewport` directly.
  *
- * The measuring, the toggle and its `sessionStorage` persistence all live in
- * the package now — including the same `fiestaboard:boardPreviewMode` key and
- * `data-testid="actual-size-scroll"` hook the app's fork used.
+ * `thumbnail` keeps the old fit-to-slot picture for the two places a scroll
+ * region cannot live: the board inside a page card's `<button>` (a focusable
+ * region or a toggle there is a nested interactive control), and the inert,
+ * decorative collection stack. A thumbnail is always `fit`, never reads or
+ * writes the session's mode, and so never turns into a scroller.
  */
-export type ScaledBoardDisplayProps = BoardDisplayProps;
+export type ScaledBoardDisplayProps = BoardViewportProps & {
+  /** A fit-scaled picture for a card or decorative stack, not a viewport. */
+  thumbnail?: boolean;
+};
 
-export const ScaledBoardDisplay = memo(function ScaledBoardDisplay({ flapSpeed, ...props }: ScaledBoardDisplayProps) {
+const ThumbnailBoard = memo(function ThumbnailBoard({
+  flapSpeed,
+  // Viewport-only props have no meaning on a thumbnail.
+  regionLabel: _regionLabel,
+  title: _title,
+  minTile: _minTile,
+  indicator: _indicator,
+  rootClassName: _rootClassName,
+  mode: _mode,
+  onModeChange: _onModeChange,
+  defaultMode: _defaultMode,
+  persist: _persist,
+  ...props
+}: BoardViewportProps) {
   const t = useTranslations("boardDisplay");
   const chrome = useBoardChrome(flapSpeed);
-
   return (
     <UIScaledBoardDisplay
       {...props}
       {...chrome}
+      mode="fit"
+      persist={false}
       previewSizeLabel={t("previewSizeLabel")}
       fitModeLabel={t("fitMode")}
       actualModeLabel={t("actualMode")}
     />
   );
+});
+
+export const ScaledBoardDisplay = memo(function ScaledBoardDisplay({ thumbnail, ...props }: ScaledBoardDisplayProps) {
+  return thumbnail ? <ThumbnailBoard {...props} /> : <BoardViewport {...props} />;
 });

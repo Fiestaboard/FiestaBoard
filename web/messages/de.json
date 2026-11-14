@@ -2022,7 +2022,16 @@
     "withMessage": "Board-Anzeige: {message}",
     "previewSizeLabel": "Vorschaugröße",
     "fitMode": "Anpassen",
-    "actualMode": "Tatsächliche Größe"
+    "actualMode": "Tatsächliche Größe",
+    "viewportNote": "Note {current} von {total}",
+    "viewportArrayColumn": "Spalte {current} von {total} · {notes} Notes",
+    "viewportColumns": "Spalten {first}–{last} von {total}",
+    "viewportOverviewNotes": "Übersicht · {notes} Notes · zum Lesen „Tatsächliche Größe“ tippen",
+    "viewportOverviewColumns": "Übersicht · {columns} Spalten · zum Lesen „Tatsächliche Größe“ tippen",
+    "viewportHintNotes": "Umschalt + Scrollen, Trackpad-Wischen oder ← → im Fokus. Rastet an jeder Note ein.",
+    "viewportHintColumns": "Umschalt + Scrollen, Trackpad-Wischen oder ← → im Fokus. Rastet an jeder Spalte ein.",
+    "viewportHintTouch": "wischen",
+    "displayPreview": "Vorschau von {name}"
   },
   "updateOverlay": {
     "takingLonger": "Aktualisierung dauert länger als erwartet",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "Benutzerdefiniert",
     "panel": "Panel",
-    "ariaLabel": "{rows} Zeilen mal {cols} Spalten",
-    "ariaLabelWithLayout": "{rows} Zeilen mal {cols} Spalten, {layout}"
+    "ariaLabelColsRows": "{cols} Spalten mal {rows} Zeilen",
+    "ariaLabelColsRowsWithLayout": "{cols} Spalten mal {rows} Zeilen, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / externe Clients",

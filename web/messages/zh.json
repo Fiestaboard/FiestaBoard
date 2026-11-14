@@ -2022,7 +2022,16 @@
     "withMessage": "Board 显示:{message}",
     "previewSizeLabel": "预览尺寸",
     "fitMode": "适应",
-    "actualMode": "实际大小"
+    "actualMode": "实际大小",
+    "viewportNote": "第 {current} / {total} 个 Note",
+    "viewportArrayColumn": "第 {current} / {total} 列 · {notes} 个 Note",
+    "viewportColumns": "第 {first}–{last} 列，共 {total} 列",
+    "viewportOverviewNotes": "概览 · {notes} 个 Note · 点按“实际大小”以阅读",
+    "viewportOverviewColumns": "概览 · {columns} 列 · 点按“实际大小”以阅读",
+    "viewportHintNotes": "Shift + 滚动、触控板轻扫，或聚焦时按 ← →。按每个 Note 对齐。",
+    "viewportHintColumns": "Shift + 滚动、触控板轻扫，或聚焦时按 ← →。按每列对齐。",
+    "viewportHintTouch": "轻扫",
+    "displayPreview": "{name} 预览"
   },
   "updateOverlay": {
     "takingLonger": "更新比预期时间更长",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "自定义",
     "panel": "面板",
-    "ariaLabel": "{rows}行×{cols}列",
-    "ariaLabelWithLayout": "{rows}行×{cols}列，{layout}"
+    "ariaLabelColsRows": "{cols}列×{rows}行",
+    "ariaLabelColsRowsWithLayout": "{cols}列×{rows}行，{layout}"
   },
   "mcpSettings": {
     "title": "MCP / 外部客户端",

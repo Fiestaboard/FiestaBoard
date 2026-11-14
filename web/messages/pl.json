@@ -2022,7 +2022,16 @@
     "withMessage": "Wyświetlacz boarda: {message}",
     "previewSizeLabel": "Rozmiar podglądu",
     "fitMode": "Dopasuj",
-    "actualMode": "Rzeczywisty rozmiar"
+    "actualMode": "Rzeczywisty rozmiar",
+    "viewportNote": "Note {current} z {total}",
+    "viewportArrayColumn": "Kolumna {current} z {total} · {notes} Notes",
+    "viewportColumns": "Kolumny {first}–{last} z {total}",
+    "viewportOverviewNotes": "Podgląd całości · {notes} Notes · dotknij Rzeczywisty rozmiar, aby czytać",
+    "viewportOverviewColumns": "Podgląd całości · {columns} kolumn · dotknij Rzeczywisty rozmiar, aby czytać",
+    "viewportHintNotes": "Shift + przewijanie, przesunięcie na gładziku lub ← → po zaznaczeniu. Przyciąga do każdej Note.",
+    "viewportHintColumns": "Shift + przewijanie, przesunięcie na gładziku lub ← → po zaznaczeniu. Przyciąga do każdej kolumny.",
+    "viewportHintTouch": "przesuń",
+    "displayPreview": "Podgląd: {name}"
   },
   "updateOverlay": {
     "takingLonger": "Aktualizacja trwa dłużej niż oczekiwano",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "Niestandardowy",
     "panel": "Panel",
-    "ariaLabel": "{rows} wierszy na {cols} kolumn",
-    "ariaLabelWithLayout": "{rows} wierszy na {cols} kolumn, {layout}"
+    "ariaLabelColsRows": "{cols} kolumn na {rows} wierszy",
+    "ariaLabelColsRowsWithLayout": "{cols} kolumn na {rows} wierszy, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / klienci zewnętrzni",

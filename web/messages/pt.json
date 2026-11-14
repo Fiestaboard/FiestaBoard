@@ -2022,7 +2022,16 @@
     "withMessage": "Visualização do board: {message}",
     "previewSizeLabel": "Tamanho da pré-visualização",
     "fitMode": "Ajustar",
-    "actualMode": "Tamanho real"
+    "actualMode": "Tamanho real",
+    "viewportNote": "Note {current} de {total}",
+    "viewportArrayColumn": "Coluna {current} de {total} · {notes} Notes",
+    "viewportColumns": "Colunas {first}–{last} de {total}",
+    "viewportOverviewNotes": "Visão geral · {notes} Notes · toque em Tamanho real para ler",
+    "viewportOverviewColumns": "Visão geral · {columns} colunas · toque em Tamanho real para ler",
+    "viewportHintNotes": "Shift + rolar, deslizar no trackpad ou ← → com o foco. Encaixa em cada Note.",
+    "viewportHintColumns": "Shift + rolar, deslizar no trackpad ou ← → com o foco. Encaixa em cada coluna.",
+    "viewportHintTouch": "deslize",
+    "displayPreview": "Pré-visualização de {name}"
   },
   "updateOverlay": {
     "takingLonger": "A atualização está a demorar mais do que o esperado",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "Personalizado",
     "panel": "Painel",
-    "ariaLabel": "{rows} linhas por {cols} colunas",
-    "ariaLabelWithLayout": "{rows} linhas por {cols} colunas, {layout}"
+    "ariaLabelColsRows": "{cols} colunas por {rows} linhas",
+    "ariaLabelColsRowsWithLayout": "{cols} colunas por {rows} linhas, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / clientes externos",

@@ -1978,7 +1978,16 @@
     "withMessage": "Board display: {message}",
     "previewSizeLabel": "Preview size",
     "fitMode": "Fit",
-    "actualMode": "Actual size"
+    "actualMode": "Actual size",
+    "viewportNote": "Note {current} of {total}",
+    "viewportArrayColumn": "Column {current} of {total} · {notes} notes",
+    "viewportColumns": "Columns {first}–{last} of {total}",
+    "viewportOverviewNotes": "Overview · {notes} notes · tap Actual to read",
+    "viewportOverviewColumns": "Overview · {columns} columns · tap Actual to read",
+    "viewportHintNotes": "Shift + scroll, trackpad swipe, or ← → when focused. Snaps to each Note.",
+    "viewportHintColumns": "Shift + scroll, trackpad swipe, or ← → when focused. Snaps to each column.",
+    "viewportHintTouch": "swipe",
+    "displayPreview": "{name} preview"
   },
   "updateOverlay": {
     "takingLonger": "Update taking longer than expected",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "Custom",
     "panel": "Panel",
-    "ariaLabel": "{rows, plural, one {# row} other {# rows}} by {cols, plural, one {# column} other {# columns}}",
-    "ariaLabelWithLayout": "{rows, plural, one {# row} other {# rows}} by {cols, plural, one {# column} other {# columns}}, {layout}"
+    "ariaLabelColsRows": "{cols, plural, one {# column} other {# columns}} by {rows, plural, one {# row} other {# rows}}",
+    "ariaLabelColsRowsWithLayout": "{cols, plural, one {# column} other {# columns}} by {rows, plural, one {# row} other {# rows}}, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / external clients",

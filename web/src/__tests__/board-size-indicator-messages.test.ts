@@ -11,13 +11,22 @@ function t() {
 }
 
 describe("boardSizeIndicator aria messages (en)", () => {
-  it("singular row: 1 row by 8 columns", () => {
-    expect(t()("ariaLabel", { rows: 1, cols: 8 })).toBe("1 row by 8 columns");
-    expect(t()("ariaLabelWithLayout", { rows: 1, cols: 8, layout: "Panel" })).toBe("1 row by 8 columns, Panel");
+  // Cols first since slice 2.4: the indicator reads "45 × 3" (07 `57:27771`).
+  it("singular row: 8 columns by 1 row", () => {
+    expect(t()("ariaLabelColsRows", { rows: 1, cols: 8 })).toBe("8 columns by 1 row");
+    expect(t()("ariaLabelColsRowsWithLayout", { rows: 1, cols: 8, layout: "Panel" })).toBe(
+      "8 columns by 1 row, Panel",
+    );
   });
 
-  it("plural rows: 3 rows by 13 columns", () => {
-    expect(t()("ariaLabel", { rows: 3, cols: 13 })).toBe("3 rows by 13 columns");
-    expect(t()("ariaLabelWithLayout", { rows: 3, cols: 13, layout: "Panel" })).toBe("3 rows by 13 columns, Panel");
+  it("singular column: 1 column by 3 rows", () => {
+    expect(t()("ariaLabelColsRows", { rows: 3, cols: 1 })).toBe("1 column by 3 rows");
+  });
+
+  it("plural rows: 13 columns by 3 rows", () => {
+    expect(t()("ariaLabelColsRows", { rows: 3, cols: 13 })).toBe("13 columns by 3 rows");
+    expect(t()("ariaLabelColsRowsWithLayout", { rows: 3, cols: 13, layout: "Panel" })).toBe(
+      "13 columns by 3 rows, Panel",
+    );
   });
 });

@@ -2022,7 +2022,16 @@
     "withMessage": "ボード表示: {message}",
     "previewSizeLabel": "プレビューサイズ",
     "fitMode": "全体表示",
-    "actualMode": "実寸表示"
+    "actualMode": "実寸表示",
+    "viewportNote": "Note {current} / {total}",
+    "viewportArrayColumn": "列 {current} / {total} · Note {notes} 枚",
+    "viewportColumns": "列 {first}–{last} / {total}",
+    "viewportOverviewNotes": "概要 · Note {notes} 枚 · 読むには実寸表示をタップ",
+    "viewportOverviewColumns": "概要 · {columns} 列 · 読むには実寸表示をタップ",
+    "viewportHintNotes": "Shift + スクロール、トラックパッドのスワイプ、またはフォーカス中に ← →。Note ごとにスナップします。",
+    "viewportHintColumns": "Shift + スクロール、トラックパッドのスワイプ、またはフォーカス中に ← →。列ごとにスナップします。",
+    "viewportHintTouch": "スワイプ",
+    "displayPreview": "{name} のプレビュー"
   },
   "updateOverlay": {
     "takingLonger": "更新に予想より時間がかかっています",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "カスタム",
     "panel": "パネル",
-    "ariaLabel": "{rows}行×{cols}列",
-    "ariaLabelWithLayout": "{rows}行×{cols}列、{layout}"
+    "ariaLabelColsRows": "{cols}列×{rows}行",
+    "ariaLabelColsRowsWithLayout": "{cols}列×{rows}行、{layout}"
   },
   "mcpSettings": {
     "title": "MCP / 外部クライアント",

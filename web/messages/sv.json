@@ -2022,7 +2022,16 @@
     "withMessage": "Board-display: {message}",
     "previewSizeLabel": "Förhandsvisningsstorlek",
     "fitMode": "Anpassa",
-    "actualMode": "Verklig storlek"
+    "actualMode": "Verklig storlek",
+    "viewportNote": "Note {current} av {total}",
+    "viewportArrayColumn": "Kolumn {current} av {total} · {notes} Notes",
+    "viewportColumns": "Kolumner {first}–{last} av {total}",
+    "viewportOverviewNotes": "Översikt · {notes} Notes · tryck på Verklig storlek för att läsa",
+    "viewportOverviewColumns": "Översikt · {columns} kolumner · tryck på Verklig storlek för att läsa",
+    "viewportHintNotes": "Skift + scrolla, svep på styrplattan eller ← → med fokus. Fäster vid varje Note.",
+    "viewportHintColumns": "Skift + scrolla, svep på styrplattan eller ← → med fokus. Fäster vid varje kolumn.",
+    "viewportHintTouch": "svep",
+    "displayPreview": "Förhandsvisning av {name}"
   },
   "updateOverlay": {
     "takingLonger": "Uppdateringen tar längre tid än väntat",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "Anpassad",
     "panel": "Panel",
-    "ariaLabel": "{rows} rader gånger {cols} kolumner",
-    "ariaLabelWithLayout": "{rows} rader gånger {cols} kolumner, {layout}"
+    "ariaLabelColsRows": "{cols} kolumner gånger {rows} rader",
+    "ariaLabelColsRowsWithLayout": "{cols} kolumner gånger {rows} rader, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / externa klienter",

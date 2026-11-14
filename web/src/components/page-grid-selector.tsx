@@ -203,6 +203,10 @@ const PageButtonPreview = memo(
             size="sm"
           >
             <ScaledBoardDisplay
+              // A thumbnail, not a viewport: this board sits inside the page
+              // card's <button>, where a scroll region or a Fit / Actual toggle
+              // would be a nested interactive control (WEB-07, slice 2.4).
+              thumbnail
               isStatic
               message={preview?.message || null}
               size="sm"

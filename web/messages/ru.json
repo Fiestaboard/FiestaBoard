@@ -2022,7 +2022,16 @@
     "withMessage": "Дисплей board: {message}",
     "previewSizeLabel": "Размер предпросмотра",
     "fitMode": "По ширине",
-    "actualMode": "Реальный размер"
+    "actualMode": "Реальный размер",
+    "viewportNote": "Note {current} из {total}",
+    "viewportArrayColumn": "Столбец {current} из {total} · {notes} Notes",
+    "viewportColumns": "Столбцы {first}–{last} из {total}",
+    "viewportOverviewNotes": "Обзор · {notes} Notes · нажмите «Реальный размер», чтобы прочитать",
+    "viewportOverviewColumns": "Обзор · {columns} столбцов · нажмите «Реальный размер», чтобы прочитать",
+    "viewportHintNotes": "Shift + прокрутка, жест на трекпаде или ← → в фокусе. Прилипает к каждой Note.",
+    "viewportHintColumns": "Shift + прокрутка, жест на трекпаде или ← → в фокусе. Прилипает к каждому столбцу.",
+    "viewportHintTouch": "проведите",
+    "displayPreview": "Предпросмотр: {name}"
   },
   "updateOverlay": {
     "takingLonger": "Обновление занимает больше времени, чем ожидалось",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "Пользовательский",
     "panel": "Панель",
-    "ariaLabel": "{rows} строк на {cols} столбцов",
-    "ariaLabelWithLayout": "{rows} строк на {cols} столбцов, {layout}"
+    "ariaLabelColsRows": "{cols} столбцов на {rows} строк",
+    "ariaLabelColsRowsWithLayout": "{cols} столбцов на {rows} строк, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / внешние клиенты",

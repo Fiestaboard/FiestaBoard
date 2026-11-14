@@ -2022,7 +2022,16 @@
     "withMessage": "보드 디스플레이: {message}",
     "previewSizeLabel": "미리보기 크기",
     "fitMode": "맞춤",
-    "actualMode": "실제 크기"
+    "actualMode": "실제 크기",
+    "viewportNote": "Note {current}/{total}",
+    "viewportArrayColumn": "열 {current}/{total} · Note {notes}개",
+    "viewportColumns": "열 {first}–{last}/{total}",
+    "viewportOverviewNotes": "개요 · Note {notes}개 · 읽으려면 실제 크기를 탭하세요",
+    "viewportOverviewColumns": "개요 · {columns}열 · 읽으려면 실제 크기를 탭하세요",
+    "viewportHintNotes": "Shift + 스크롤, 트랙패드 스와이프 또는 포커스 상태에서 ← →. Note마다 맞춰집니다.",
+    "viewportHintColumns": "Shift + 스크롤, 트랙패드 스와이프 또는 포커스 상태에서 ← →. 열마다 맞춰집니다.",
+    "viewportHintTouch": "스와이프",
+    "displayPreview": "{name} 미리보기"
   },
   "updateOverlay": {
     "takingLonger": "업데이트가 예상보다 오래 걸립니다",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "사용자 지정",
     "panel": "패널",
-    "ariaLabel": "{rows}행 {cols}열",
-    "ariaLabelWithLayout": "{rows}행 {cols}열, {layout}"
+    "ariaLabelColsRows": "{cols}열 {rows}행",
+    "ariaLabelColsRowsWithLayout": "{cols}열 {rows}행, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / 외부 클라이언트",

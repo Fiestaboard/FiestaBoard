@@ -28,6 +28,8 @@ export default defineConfig({
         "src/hooks/**",
         "src/components/board-display.tsx",
         "src/components/board-size-indicator.tsx",
+        "src/components/board-viewport.tsx",
+        "src/components/scaled-board-display.tsx",
         "src/components/active-page-display.tsx",
         "src/components/navigation-sidebar.tsx",
         "src/components/service-controls.tsx",

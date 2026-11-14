@@ -2022,7 +2022,16 @@
     "withMessage": "Board ekranı: {message}",
     "previewSizeLabel": "Önizleme boyutu",
     "fitMode": "Sığdır",
-    "actualMode": "Gerçek boyut"
+    "actualMode": "Gerçek boyut",
+    "viewportNote": "Note {current} / {total}",
+    "viewportArrayColumn": "Sütun {current} / {total} · {notes} Note",
+    "viewportColumns": "Sütunlar {first}–{last} / {total}",
+    "viewportOverviewNotes": "Genel bakış · {notes} Note · okumak için Gerçek boyut'a dokunun",
+    "viewportOverviewColumns": "Genel bakış · {columns} sütun · okumak için Gerçek boyut'a dokunun",
+    "viewportHintNotes": "Shift + kaydırma, izleme dörtgeninde kaydırma veya odaktayken ← →. Her Note'a hizalanır.",
+    "viewportHintColumns": "Shift + kaydırma, izleme dörtgeninde kaydırma veya odaktayken ← →. Her sütuna hizalanır.",
+    "viewportHintTouch": "kaydırın",
+    "displayPreview": "{name} önizlemesi"
   },
   "updateOverlay": {
     "takingLonger": "Güncelleme beklenenden uzun sürüyor",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "Özel",
     "panel": "Panel",
-    "ariaLabel": "{rows} satır {cols} sütun",
-    "ariaLabelWithLayout": "{rows} satır {cols} sütun, {layout}"
+    "ariaLabelColsRows": "{cols} sütun {rows} satır",
+    "ariaLabelColsRowsWithLayout": "{cols} sütun {rows} satır, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / harici istemciler",

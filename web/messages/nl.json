@@ -2022,7 +2022,16 @@
     "withMessage": "Board-weergave: {message}",
     "previewSizeLabel": "Voorbeeldgrootte",
     "fitMode": "Passend",
-    "actualMode": "Werkelijke grootte"
+    "actualMode": "Werkelijke grootte",
+    "viewportNote": "Note {current} van {total}",
+    "viewportArrayColumn": "Kolom {current} van {total} · {notes} Notes",
+    "viewportColumns": "Kolommen {first}–{last} van {total}",
+    "viewportOverviewNotes": "Overzicht · {notes} Notes · tik op Werkelijke grootte om te lezen",
+    "viewportOverviewColumns": "Overzicht · {columns} kolommen · tik op Werkelijke grootte om te lezen",
+    "viewportHintNotes": "Shift + scrollen, vegen op het trackpad of ← → met focus. Klikt vast op elke Note.",
+    "viewportHintColumns": "Shift + scrollen, vegen op het trackpad of ← → met focus. Klikt vast op elke kolom.",
+    "viewportHintTouch": "veeg",
+    "displayPreview": "Voorbeeld van {name}"
   },
   "updateOverlay": {
     "takingLonger": "Update duurt langer dan verwacht",
@@ -2484,8 +2493,8 @@
   "boardSizeIndicator": {
     "custom": "Aangepast",
     "panel": "Paneel",
-    "ariaLabel": "{rows} rijen bij {cols} kolommen",
-    "ariaLabelWithLayout": "{rows} rijen bij {cols} kolommen, {layout}"
+    "ariaLabelColsRows": "{cols} kolommen bij {rows} rijen",
+    "ariaLabelColsRowsWithLayout": "{cols} kolommen bij {rows} rijen, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / externe clients",
