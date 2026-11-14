@@ -58,7 +58,14 @@
         "method": "device_code",
         "created_at": "2026-10-18T12:00:00+00:00",
         "last_active_at": "2026-10-18T12:00:00+00:00",
-        "expires_at": "2027-10-18T12:00:00+00:00"
+        "expires_at": "2027-10-18T12:00:00+00:00",
+        "last_shown_at": "2026-10-18T12:00:00+00:00",
+        "shown_panels": [
+          {
+            "panel_id": "abc123def456",
+            "last_shown_at": "2026-10-18T12:00:00+00:00"
+          }
+        ]
       }
     ],
     "current_session_id": "test-browser-id"

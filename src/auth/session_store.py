@@ -12,6 +12,7 @@ import hashlib
 import os
 import secrets
 import sqlite3
+import threading
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -19,6 +20,11 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .session_models import SessionRecord
+
+# TVs poll a panel frame every 2 s. "Last shown" is persisted at most once per
+# viewer and panel in this window; between writes the poll touches no storage.
+PANEL_VIEW_PERSIST_MS = 60_000
+_PANEL_VIEW_MEMORY = 4096
 
 
 class SessionLimit(ValueError):
@@ -33,6 +39,9 @@ class SessionStore:
     def __init__(self, path: Path, clock_ms: Callable[[], int] | None = None):
         self.path = path
         self.clock_ms = clock_ms or (lambda: time.time_ns() // 1_000_000)
+        # (session_id, panel_id) -> when this process last persisted that view.
+        self._view_writes: dict[tuple[str, str], int] = {}
+        self._view_lock = threading.Lock()
         path.parent.mkdir(parents=True, exist_ok=True)
         descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
         os.close(descriptor)
@@ -61,6 +70,10 @@ class SessionStore:
                 digest TEXT PRIMARY KEY, session_id TEXT NOT NULL, expires_ms INTEGER NOT NULL)""")
             db.execute("""CREATE TABLE IF NOT EXISTS limits (
                 key TEXT PRIMARY KEY, started_ms INTEGER NOT NULL, count INTEGER NOT NULL)""")
+            # Additive: older builds ignore the table, so user_version stays 1.
+            db.execute("""CREATE TABLE IF NOT EXISTS panel_views (
+                session_id TEXT NOT NULL, panel_id TEXT NOT NULL, last_shown_ms INTEGER NOT NULL,
+                PRIMARY KEY (session_id, panel_id))""")
             db.execute("PRAGMA user_version = 1")
 
     @contextmanager
@@ -86,6 +99,7 @@ class SessionStore:
         # Keep terminal grant outcomes briefly so an expired code is distinguishable.
         db.execute("DELETE FROM challenges WHERE expires_ms < ?", (now - 600_000,))
         db.execute("DELETE FROM limits WHERE started_ms < ?", (now - 600_000,))
+        db.execute("DELETE FROM panel_views WHERE session_id NOT IN (SELECT id FROM sessions WHERE revoked_ms IS NULL)")
 
     def create_session(self, record: SessionRecord, *, connection: sqlite3.Connection | None = None) -> None:
         if connection is None:
@@ -125,6 +139,10 @@ class SessionStore:
                 (self.clock_ms(), username, session_id),
             )
             db.execute(
+                "DELETE FROM panel_views WHERE session_id IN (SELECT id FROM sessions WHERE username=? AND id=?)",
+                (username, session_id),
+            )
+            db.execute(
                 "UPDATE challenges SET state='cancelled' WHERE approving_session_id=? AND state='approved'",
                 (session_id,),
             )
@@ -135,6 +153,7 @@ class SessionStore:
                 "UPDATE sessions SET revoked_ms=? WHERE username=? AND id!=? AND revoked_ms IS NULL",
                 (self.clock_ms(), username, except_id or ""),
             )
+            self._drop_revoked_views(db)
             # Challenges begun anonymously belong to this single-account install.
             db.execute("UPDATE challenges SET state='cancelled' WHERE state IN ('pending','approved')")
 
@@ -146,6 +165,67 @@ class SessionStore:
                 (username, self.clock_ms()),
             ).fetchall()
             return [SessionRecord(**dict(row)) for row in rows]
+
+    @staticmethod
+    def _drop_revoked_views(db: sqlite3.Connection) -> None:
+        db.execute("DELETE FROM panel_views WHERE session_id IN (SELECT id FROM sessions WHERE revoked_ms IS NOT NULL)")
+
+    def panel_view_due(self, session_id: str, panel_id: str) -> bool:
+        """Whether a view would be persisted now. Memory only; no storage."""
+        with self._view_lock:
+            last = self._view_writes.get((session_id, panel_id))
+        return last is None or self.clock_ms() - last >= PANEL_VIEW_PERSIST_MS
+
+    def record_panel_view(self, session_id: str, panel_id: str) -> bool:
+        """Note that a signed-in viewer fetched *panel_id*'s frame just now.
+
+        Throttled in memory to one write per viewer and panel every
+        ``PANEL_VIEW_PERSIST_MS``; a throttled call opens no transaction.
+        Returns whether this call persisted. A failed write releases its slot
+        so the next poll retries.
+        """
+        key, now = (session_id, panel_id), self.clock_ms()
+        with self._view_lock:
+            last = self._view_writes.get(key)
+            if last is not None and now - last < PANEL_VIEW_PERSIST_MS:
+                return False
+            if len(self._view_writes) >= _PANEL_VIEW_MEMORY:
+                self._view_writes.clear()
+            self._view_writes[key] = now
+        try:
+            self._write_panel_view(session_id, panel_id, now)
+        except BaseException:
+            with self._view_lock:
+                if self._view_writes.get(key) == now:
+                    del self._view_writes[key]
+            raise
+        return True
+
+    def _write_panel_view(self, session_id: str, panel_id: str, now: int) -> None:
+        with self.transaction() as db:
+            # Only a live session may own a row, so a view racing its own
+            # revocation cannot resurrect the viewer.
+            db.execute(
+                """INSERT INTO panel_views (session_id, panel_id, last_shown_ms)
+                SELECT id, ?, ? FROM sessions WHERE id=? AND revoked_ms IS NULL AND expires_ms>?
+                ON CONFLICT(session_id, panel_id) DO UPDATE SET last_shown_ms=excluded.last_shown_ms""",
+                (panel_id, now, session_id, now),
+            )
+
+    def panel_views(self, username: str) -> dict[str, list[tuple[str, int]]]:
+        """Live sessions' last-shown panels, newest first, keyed by session id."""
+        with self.transaction() as db:
+            rows = db.execute(
+                """SELECT v.session_id, v.panel_id, v.last_shown_ms FROM panel_views v
+                JOIN sessions s ON s.id = v.session_id
+                WHERE s.username=? AND s.revoked_ms IS NULL AND s.expires_ms>?
+                ORDER BY v.last_shown_ms DESC, v.panel_id""",
+                (username, self.clock_ms()),
+            ).fetchall()
+        views: dict[str, list[tuple[str, int]]] = {}
+        for row in rows:
+            views.setdefault(row["session_id"], []).append((row["panel_id"], row["last_shown_ms"]))
+        return views
 
     def update_metadata(self, token: str, *, device_name: str, kind: str) -> None:
         with self.transaction() as db:

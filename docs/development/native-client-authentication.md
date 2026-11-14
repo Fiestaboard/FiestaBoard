@@ -35,6 +35,29 @@ missing/stale-session CSRF values must remain errors, not grounds for adding an
 exemption for native clients. An API/TV bearer token is not an administrative
 browser session.
 
+### Where each TV last showed a panel
+
+`GET /api/auth/sessions` reports, for each signed-in TV, when it last fetched a
+panel frame. Use it for a "Shown on" list or a "Last shown on Apple TV · 2h
+ago" note. Every session carries two additional keys:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `last_shown_at` | ISO-8601 UTC or null | The newest `shown_panels` entry. Null if this session never fetched a frame of a panel that still exists |
+| `shown_panels` | array | `{ "panel_id", "last_shown_at" }` per panel, newest first |
+
+- Only a TV signed in with its own credential counts, on
+  `GET /api/panel/{id}/frame`. The 10-second config poll doesn't count.
+  Anonymous browser viewers at `/p/…` and the web app's preview have no viewer
+  identity, so they're never listed.
+- The hub saves this at most once a minute per TV and panel, so treat the
+  value as accurate to about a minute.
+- Revoking a session removes its entries. A deleted panel disappears from
+  `shown_panels`.
+- The public `/api/panel/*` routes don't return any of this. Join on
+  `panel_id` with `GET /api/panels` to name the panel, and revoke a viewer
+  with `DELETE /api/auth/sessions/{id}`.
+
 ## Provider sign-in
 
 Discover connections through `GET /api/oauth/connections` and individual
