@@ -203,16 +203,18 @@ export function ComposePageDialog({
   });
 
   const sendMutation = useMutation({
-    mutationFn: (request: SetTemporaryOverrideRequest) => {
+    mutationFn: ({ request }: { request: SetTemporaryOverrideRequest; boardLabel: string }) => {
       dismissOverrideUndo(request.board_id);
       return api.setTemporaryOverride(request);
     },
-    onSuccess: () => {
+    onSuccess: (_result, { request, boardLabel: submittedLabel }) => {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
       queryClient.invalidateQueries({ queryKey: ["temporaryOverride"] });
       refresh();
-      nudgeDisplay(sendBoardId);
-      toast.success(boardLabel ? t("toastSent", { board: boardLabel }) : t("toastSentNoBoard"));
+      // Completion belongs to the submitted display even if Show on changes
+      // while the request is in flight (review R1).
+      nudgeDisplay(request.board_id);
+      toast.success(submittedLabel ? t("toastSent", { board: submittedLabel }) : t("toastSentNoBoard"));
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -258,13 +260,16 @@ export function ComposePageDialog({
     // cancel" sends no duration_minutes, so it stays until it is cancelled.
     const minutes = durationMinutes(effectiveChoice, nextChange, new Date());
     sendMutation.mutate({
-      ...(sendBoardId ? { board_id: sendBoardId } : {}),
-      template: lines,
-      device_type: deviceType,
-      ...(minutes !== undefined ? { duration_minutes: minutes } : {}),
-      ...geometryFields,
+      boardLabel,
+      request: {
+        ...(sendBoardId ? { board_id: sendBoardId } : {}),
+        template: lines,
+        device_type: deviceType,
+        ...(minutes !== undefined ? { duration_minutes: minutes } : {}),
+        ...geometryFields,
+      },
     });
-  }, [canSend, lines, deviceType, geometryFields, sendMutation, effectiveChoice, nextChange, sendBoardId]);
+  }, [canSend, lines, deviceType, geometryFields, sendMutation, effectiveChoice, nextChange, sendBoardId, boardLabel]);
 
   const handleHold = useCallback(() => {
     if (!canSend) return;
