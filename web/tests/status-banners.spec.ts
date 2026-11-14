@@ -122,6 +122,10 @@ test.describe("Status banners", () => {
     await expect(banner).toBeVisible({ timeout: 15_000 });
     await expect(banner).toContainText("Silence Schedule until");
     await expect(banner.getByRole("button")).toHaveCount(0);
+    // Directly under the header and tabs, above the "Now showing" section (07a).
+    const bannerTop = (await banner.boundingBox())!.y;
+    const headingTop = (await page.getByText("Now showing", { exact: true }).first().boundingBox())!.y;
+    expect(bannerTop).toBeLessThan(headingTop);
   });
 
   test("hub unreachable: Home says so, the hub line reads Can't reach, and Try again recovers", async ({ page }) => {
@@ -193,6 +197,15 @@ test.describe("Status banners", () => {
     await expect(banner).toContainText("Last connected");
     await banner.getByRole("link", { name: "Diagnostics" }).click();
     await expect(page).toHaveURL(new RegExp(`/displays/${board.id}\\?section=settings`));
+
+    // The display's own page: the banner under the tabs, and its last-known
+    // board badged Offline and dimmed (07a `310:38645`).
+    await page.getByRole("tab", { name: "Overview" }).click();
+    await expect(statusBanner(page, "display-offline")).toBeVisible();
+    const lastKnown = page.locator('[data-slot="last-known-board"]');
+    await expect(lastKnown).toBeVisible({ timeout: 15_000 });
+    await expect(lastKnown.getByText("Offline", { exact: true })).toBeVisible();
+    await expect(lastKnown.locator('[data-slot="last-known-board-preview"]')).toHaveCSS("opacity", "0.6");
   });
 
   test("the hub line reads 'host · Online' on a LAN address", async ({ page }) => {

@@ -86,12 +86,7 @@
     "more": "更多",
     "needsAttention": "{count, plural, other {# 项需要处理}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "打开抽屉",
-    "hub": {
-      "online": "在线",
-      "unreachable": "无法连接",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "打开抽屉"
   },
   "settingsMenu": {
     "trigger": "更多",
@@ -3096,8 +3091,8 @@
     "deviceOfflineComputer": "这台电脑没有网络。你的显示屏会继续在中枢上运行；网络恢复后 FiestaBoard 会重新连接。",
     "deviceOfflinePhone": "这部手机没有网络。你的显示屏会继续在中枢上运行；网络恢复后 FiestaBoard 会重新连接。",
     "hubUnreachableTitle": "无法连接到位于 {host} 的中枢",
-    "hubUnreachableDetail": "你的显示屏仍在中枢上按日程运行，不会丢失任何内容。上次连接 {time} · 每 {seconds} 秒重试一次。",
-    "hubUnreachableDetailNever": "你的显示屏仍在中枢上按日程运行，不会丢失任何内容。每 {seconds} 秒重试一次。",
+    "hubUnreachableDetail": "你的显示屏仍在中枢上按日程运行，不会丢失任何内容。上次连接 {time} · 每 {seconds} 秒重试一次。",
+    "hubUnreachableDetailNever": "你的显示屏仍在中枢上按日程运行，不会丢失任何内容。每 {seconds} 秒重试一次。",
     "connectionHelp": "连接帮助",
     "displayOfflineTitle": "{boardName} 已离线",
     "displayOfflineDetail": "上次连接 {time}。请检查电源和 Wi-Fi；FiestaBoard 会自行再次检查。",
@@ -3121,6 +3116,10 @@
     "checkAgain": "再次检查",
     "hubOnline": "在线",
     "hubRemote": "远程",
-    "hubUnreachable": "无法连接"
+    "hubUnreachable": "无法连接",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "离线",
+    "offlineMeta": "上次连接 {time} · 日程仍在中枢上运行",
+    "offlineMetaNever": "中枢启动后未连接 · 日程仍在中枢上运行"
   }
 }

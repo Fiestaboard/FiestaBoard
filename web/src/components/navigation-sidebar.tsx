@@ -12,15 +12,13 @@ import { ViewTransitionLink } from "@/components/view-transition-link";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
 import { RAIL_BREAKPOINT, useBelowRail, useTabletRailCollapse } from "@/hooks/use-below-rail";
 import { usePrefetchPagesData } from "@/hooks/use-board";
-import { useHubConnection } from "@/hooks/use-hub-connection";
+import { useHubLine } from "@/hooks/use-hub-connection";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
 import { isChromelessPath } from "@/lib/chromeless";
-import { hubLineStatus } from "@/lib/hub-identity";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { integrationsNeedingAttention, isNavItemActive, type NavItemDef, navItemsFor } from "@/lib/nav-items";
-import { browserHostname } from "@/lib/network-hint";
 
 /**
  * App wiring around the design system's presentational <Sidebar> — routes,
@@ -73,15 +71,11 @@ export function NavigationSidebar() {
   const chrome = belowRail ? "bottom-nav" : "rail";
 
   // The hub line under the switcher (WEB-09, slice 2.3): "host · Online /
-  // Remote / Can't reach", from the shared status poll.
+  // Remote / Can't reach". The same source as the More drawer's foot line
+  // (useHubLine). The switcher only renders with two or more boards, so a
+  // single-board install adds no status poll for it.
   const tHub = useTranslations("statusBanners");
-  const hubConnection = useHubConnection({ enabled: !chromeless });
-  const hubHost = browserHostname();
-  const hubStatus = hubLineStatus({
-    host: hubHost,
-    hubReachable: hubConnection.hubReachable,
-    deviceOnline: hubConnection.deviceOnline,
-  });
+  const { host: hubHost, status: hubStatus } = useHubLine({ enabled: !chromeless && boards.length > 1 });
 
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer

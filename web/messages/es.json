@@ -86,12 +86,7 @@
     "more": "Más",
     "needsAttention": "{count, plural, one {# requiere atención} other {# requieren atención}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Abre el panel",
-    "hub": {
-      "online": "En línea",
-      "unreachable": "Sin conexión",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Abre el panel"
   },
   "settingsMenu": {
     "trigger": "Más",
@@ -3096,8 +3091,8 @@
     "deviceOfflineComputer": "Este ordenador no tiene red. Tus pantallas siguen funcionando en el hub; FiestaBoard se reconecta cuando vuelva la red.",
     "deviceOfflinePhone": "Este teléfono no tiene red. Tus pantallas siguen funcionando en el hub; FiestaBoard se reconecta cuando vuelva la red.",
     "hubUnreachableTitle": "No se puede conectar con tu hub en {host}",
-    "hubUnreachableDetail": "Tus pantallas siguen con sus horarios en el hub, así que no se pierde nada. Última conexión {time} · reintentando cada {seconds} s.",
-    "hubUnreachableDetailNever": "Tus pantallas siguen con sus horarios en el hub, así que no se pierde nada. Reintentando cada {seconds} s.",
+    "hubUnreachableDetail": "Tus pantallas siguen con sus horarios en el hub, así que no se pierde nada. Última conexión {time} · reintentando cada {seconds} s.",
+    "hubUnreachableDetailNever": "Tus pantallas siguen con sus horarios en el hub, así que no se pierde nada. Reintentando cada {seconds} s.",
     "connectionHelp": "Ayuda de conexión",
     "displayOfflineTitle": "{boardName} está sin conexión",
     "displayOfflineDetail": "Última conexión {time}. Revisa la alimentación y el Wi-Fi; FiestaBoard vuelve a comprobarlo por sí solo.",
@@ -3121,6 +3116,10 @@
     "checkAgain": "Comprobar de nuevo",
     "hubOnline": "En línea",
     "hubRemote": "Remoto",
-    "hubUnreachable": "Sin conexión"
+    "hubUnreachable": "Sin conexión",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Sin conexión",
+    "offlineMeta": "Última conexión {time} · El horario sigue en el hub",
+    "offlineMetaNever": "Sin contacto desde que arrancó el hub · El horario sigue en el hub"
   }
 }

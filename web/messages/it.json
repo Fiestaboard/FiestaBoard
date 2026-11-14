@@ -86,12 +86,7 @@
     "more": "Altro",
     "needsAttention": "{count, plural, one {# richiede attenzione} other {# richiedono attenzione}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Apre il pannello",
-    "hub": {
-      "online": "Online",
-      "unreachable": "Non raggiungibile",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Apre il pannello"
   },
   "settingsMenu": {
     "trigger": "Altro",
@@ -3096,8 +3091,8 @@
     "deviceOfflineComputer": "Questo computer non ha rete. I tuoi display continuano a funzionare sull'hub; FiestaBoard si riconnette quando torna la rete.",
     "deviceOfflinePhone": "Questo telefono non ha rete. I tuoi display continuano a funzionare sull'hub; FiestaBoard si riconnette quando torna la rete.",
     "hubUnreachableTitle": "Impossibile raggiungere il tuo hub su {host}",
-    "hubUnreachableDetail": "I tuoi display seguono ancora i loro programmi sull'hub, quindi non si perde nulla. Ultima connessione {time} · nuovo tentativo ogni {seconds} s.",
-    "hubUnreachableDetailNever": "I tuoi display seguono ancora i loro programmi sull'hub, quindi non si perde nulla. Nuovo tentativo ogni {seconds} s.",
+    "hubUnreachableDetail": "I tuoi display seguono ancora i loro programmi sull'hub, quindi non si perde nulla. Ultima connessione {time} · nuovo tentativo ogni {seconds} s.",
+    "hubUnreachableDetailNever": "I tuoi display seguono ancora i loro programmi sull'hub, quindi non si perde nulla. Nuovo tentativo ogni {seconds} s.",
     "connectionHelp": "Aiuto connessione",
     "displayOfflineTitle": "{boardName} è offline",
     "displayOfflineDetail": "Ultima connessione {time}. Controlla alimentazione e Wi-Fi; FiestaBoard ricontrolla da solo.",
@@ -3121,6 +3116,10 @@
     "checkAgain": "Ricontrolla",
     "hubOnline": "Online",
     "hubRemote": "Remoto",
-    "hubUnreachable": "Non raggiungibile"
+    "hubUnreachable": "Non raggiungibile",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Offline",
+    "offlineMeta": "Ultima connessione {time} · Il programma continua sull'hub",
+    "offlineMetaNever": "Non raggiunto dall'avvio dell'hub · Il programma continua sull'hub"
   }
 }

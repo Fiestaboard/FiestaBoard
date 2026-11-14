@@ -20,9 +20,30 @@ describe("hubHostKind", () => {
     },
   );
 
-  it("reads an IPv6 loopback as local", () => {
-    expect(hubHostKind("[::1]")).toBe("local");
+  it.each([
+    "fiestapi.lan",
+    "fiestapi.home.arpa",
+    "fiestapi.internal",
+    "fiestapi.localdomain",
+    "fiestapi.home",
+    "127.0.1.1",
+    "127.10.20.30",
+    "hub.localhost",
+    "[::1]",
+    "[fd12:3456:789a::1]",
+    "[fc00::5]",
+    "[fe80::1c2b:3cff:fe4d:5e6f]",
+    "169.254.10.20",
+  ])("reads %s (home-network suffix, loopback or private/link-local IP) as local", (host) => {
+    expect(hubHostKind(host)).toBe("local");
   });
+
+  it.each(["100.101.102.103", "[2001:db8::1]", "fiestapi.example.lan.com", "homeassistant.ui.nabu.casa"])(
+    "keeps %s (Tailscale CGNAT, a public IPv6, a public name) remote",
+    (host) => {
+      expect(hubHostKind(host)).toBe("remote");
+    },
+  );
 });
 
 describe("hubLineStatus", () => {
@@ -40,6 +61,18 @@ describe("hubLineStatus", () => {
 
   it("is Can't reach when this device has no network", () => {
     expect(hubLineStatus({ host: "fiestapi.example.net", hubReachable: true, deviceOnline: false })).toBe(
+      "unreachable",
+    );
+  });
+
+  it("claims no state before the hub has answered or failed once", () => {
+    expect(hubLineStatus({ host: "fiestapi.local", hubReachable: true, hubKnown: false, deviceOnline: true })).toBe(
+      undefined,
+    );
+  });
+
+  it("is Can't reach with no network even before the hub has answered", () => {
+    expect(hubLineStatus({ host: "fiestapi.local", hubReachable: true, hubKnown: false, deviceOnline: false })).toBe(
       "unreachable",
     );
   });

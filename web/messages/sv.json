@@ -86,12 +86,7 @@
     "more": "Mer",
     "needsAttention": "{count, plural, one {# behöver åtgärdas} other {# behöver åtgärdas}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Öppnar panelen",
-    "hub": {
-      "online": "Online",
-      "unreachable": "Går inte att nå",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Öppnar panelen"
   },
   "settingsMenu": {
     "trigger": "Mer",
@@ -3121,6 +3116,10 @@
     "checkAgain": "Kontrollera igen",
     "hubOnline": "Online",
     "hubRemote": "Fjärr",
-    "hubUnreachable": "Går inte att nå"
+    "hubUnreachable": "Går inte att nå",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Offline",
+    "offlineMeta": "Senast ansluten {time} · Schemat fortsätter på hubben",
+    "offlineMetaNever": "Inte nådd sedan hubben startade · Schemat fortsätter på hubben"
   }
 }

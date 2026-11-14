@@ -86,12 +86,7 @@
     "more": "More",
     "needsAttention": "{count, plural, one {# needs attention} other {# need attention}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Opens the drawer",
-    "hub": {
-      "online": "Online",
-      "unreachable": "Can’t reach",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Opens the drawer"
   },
   "settingsMenu": {
     "trigger": "More",
@@ -3096,8 +3091,8 @@
     "deviceOfflineComputer": "This computer has no network. Your displays keep running on the hub; FiestaBoard reconnects when the network is back.",
     "deviceOfflinePhone": "This phone has no network. Your displays keep running on the hub; FiestaBoard reconnects when the network is back.",
     "hubUnreachableTitle": "Can't reach your hub at {host}",
-    "hubUnreachableDetail": "Your displays keep running their schedules on the hub, so nothing is lost. Last connected {time} · trying again every {seconds} s.",
-    "hubUnreachableDetailNever": "Your displays keep running their schedules on the hub, so nothing is lost. Trying again every {seconds} s.",
+    "hubUnreachableDetail": "Your displays keep running their schedules on the hub, so nothing is lost. Last connected {time} · trying again every {seconds} s.",
+    "hubUnreachableDetailNever": "Your displays keep running their schedules on the hub, so nothing is lost. Trying again every {seconds} s.",
     "connectionHelp": "Connection help",
     "displayOfflineTitle": "{boardName} is offline",
     "displayOfflineDetail": "Last connected {time}. Check its power and Wi-Fi; FiestaBoard checks again on its own.",
@@ -3121,6 +3116,10 @@
     "checkAgain": "Check again",
     "hubOnline": "Online",
     "hubRemote": "Remote",
-    "hubUnreachable": "Can't reach"
+    "hubUnreachable": "Can't reach",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Offline",
+    "offlineMeta": "Last connected {time} · Schedule keeps running on the hub",
+    "offlineMetaNever": "Not reached since the hub started · Schedule keeps running on the hub"
   }
 }

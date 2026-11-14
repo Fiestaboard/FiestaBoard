@@ -86,12 +86,7 @@
     "more": "더보기",
     "needsAttention": "{count, plural, other {#개 확인 필요}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "서랍을 엽니다",
-    "hub": {
-      "online": "온라인",
-      "unreachable": "연결할 수 없음",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "서랍을 엽니다"
   },
   "settingsMenu": {
     "trigger": "더 보기",
@@ -3121,6 +3116,10 @@
     "checkAgain": "다시 확인",
     "hubOnline": "온라인",
     "hubRemote": "원격",
-    "hubUnreachable": "연결 불가"
+    "hubUnreachable": "연결 불가",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "오프라인",
+    "offlineMeta": "마지막 연결 {time} · 일정은 허브에서 계속 실행됨",
+    "offlineMetaNever": "허브 시작 후 연결되지 않음 · 일정은 허브에서 계속 실행됨"
   }
 }

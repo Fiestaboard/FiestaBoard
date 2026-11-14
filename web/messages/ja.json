@@ -86,12 +86,7 @@
     "more": "その他",
     "needsAttention": "{count, plural, other {# 件の対応が必要}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "ドロワーを開きます",
-    "hub": {
-      "online": "オンライン",
-      "unreachable": "接続できません",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "ドロワーを開きます"
   },
   "settingsMenu": {
     "trigger": "その他",
@@ -3096,8 +3091,8 @@
     "deviceOfflineComputer": "このコンピューターはネットワークに接続されていません。ディスプレイはハブ上で動作し続け、ネットワークが戻ると FiestaBoard が再接続します。",
     "deviceOfflinePhone": "このスマートフォンはネットワークに接続されていません。ディスプレイはハブ上で動作し続け、ネットワークが戻ると FiestaBoard が再接続します。",
     "hubUnreachableTitle": "{host} のハブに接続できません",
-    "hubUnreachableDetail": "ディスプレイはハブ上でスケジュールどおりに動作しているため、失われるものはありません。最終接続 {time}・{seconds} 秒ごとに再試行中。",
-    "hubUnreachableDetailNever": "ディスプレイはハブ上でスケジュールどおりに動作しているため、失われるものはありません。{seconds} 秒ごとに再試行中。",
+    "hubUnreachableDetail": "ディスプレイはハブ上でスケジュールどおりに動作しているため、失われるものはありません。最終接続 {time}・{seconds} 秒ごとに再試行中。",
+    "hubUnreachableDetailNever": "ディスプレイはハブ上でスケジュールどおりに動作しているため、失われるものはありません。{seconds} 秒ごとに再試行中。",
     "connectionHelp": "接続のヘルプ",
     "displayOfflineTitle": "{boardName} はオフラインです",
     "displayOfflineDetail": "最終接続 {time}。電源と Wi-Fi を確認してください。FiestaBoard が自動で再確認します。",
@@ -3121,6 +3116,10 @@
     "checkAgain": "再確認",
     "hubOnline": "オンライン",
     "hubRemote": "リモート",
-    "hubUnreachable": "接続できません"
+    "hubUnreachable": "接続できません",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "オフライン",
+    "offlineMeta": "最終接続 {time}・スケジュールはハブで動作中",
+    "offlineMetaNever": "ハブの起動以来未接続・スケジュールはハブで動作中"
   }
 }

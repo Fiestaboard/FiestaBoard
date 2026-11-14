@@ -99,6 +99,20 @@ describe("pickStatusBanner", () => {
     expect(pickStatusBanner(input({ board: board({ viewer: { showing: true } }) }))).toBeNull();
   });
 
+  it("on a display's own page, says the board failed to start, and nothing else about it", () => {
+    const failed = board({ error: "Cloud key rejected", paused: true, health: OFFLINE });
+    expect(pickStatusBanner(input({ board: failed, initError: true }))).toEqual({
+      kind: "init-error",
+      board: failed,
+      error: "Cloud key rejected",
+    });
+    expect(pickStatusBanner(input({ board: failed, initError: true }), ["init-error"])).toBeNull();
+    // The hub's silence still outranks nothing: a failed board has no other banner.
+    expect(pickStatusBanner(input({ board: failed, initError: true, hubReachable: false }))?.kind).toBe(
+      "hub-unreachable",
+    );
+  });
+
   it("leaves a board that failed to start to the init-error banner", () => {
     expect(pickStatusBanner(input({ board: board({ error: "Cloud key rejected", paused: true }) }))).toBeNull();
   });
@@ -124,6 +138,19 @@ describe("isDisplayOffline", () => {
 
 describe("panelViewer", () => {
   const now = Date.parse("2026-11-13T22:00:00Z");
+
+  it("counts a TV as showing for 5 minutes after its last show, inclusive", () => {
+    expect(VIEWER_RECENT_MS).toBe(5 * 60 * 1000);
+    const session = (ms: number) => [
+      {
+        kind: "tv",
+        device_name: "Apple TV",
+        shown_panels: [{ panel_id: "p1", last_shown_at: new Date(ms).toISOString() }],
+      },
+    ];
+    expect(panelViewer("p1", session(now - 5 * 60 * 1000), now)).toEqual({ showing: true });
+    expect(panelViewer("p1", session(now - 5 * 60 * 1000 - 1000), now).showing).toBe(false);
+  });
   const tv = (name: string, shown: { panel_id: string; last_shown_at: string }[], kind = "tv") => ({
     kind,
     device_name: name,

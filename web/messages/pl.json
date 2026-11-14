@@ -86,12 +86,7 @@
     "more": "Więcej",
     "needsAttention": "{count, plural, one {# wymaga uwagi} few {# wymagają uwagi} many {# wymaga uwagi} other {# wymaga uwagi}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Otwiera panel",
-    "hub": {
-      "online": "Online",
-      "unreachable": "Brak połączenia",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Otwiera panel"
   },
   "settingsMenu": {
     "trigger": "Więcej",
@@ -3096,8 +3091,8 @@
     "deviceOfflineComputer": "Ten komputer nie ma sieci. Wyświetlacze nadal działają na hubie; FiestaBoard połączy się ponownie, gdy sieć wróci.",
     "deviceOfflinePhone": "Ten telefon nie ma sieci. Wyświetlacze nadal działają na hubie; FiestaBoard połączy się ponownie, gdy sieć wróci.",
     "hubUnreachableTitle": "Nie można połączyć się z hubem pod adresem {host}",
-    "hubUnreachableDetail": "Wyświetlacze nadal realizują swoje harmonogramy na hubie, więc nic nie przepada. Ostatnie połączenie {time} · ponowna próba co {seconds} s.",
-    "hubUnreachableDetailNever": "Wyświetlacze nadal realizują swoje harmonogramy na hubie, więc nic nie przepada. Ponowna próba co {seconds} s.",
+    "hubUnreachableDetail": "Wyświetlacze nadal realizują swoje harmonogramy na hubie, więc nic nie przepada. Ostatnie połączenie {time} · ponowna próba co {seconds} s.",
+    "hubUnreachableDetailNever": "Wyświetlacze nadal realizują swoje harmonogramy na hubie, więc nic nie przepada. Ponowna próba co {seconds} s.",
     "connectionHelp": "Pomoc z połączeniem",
     "displayOfflineTitle": "{boardName} jest offline",
     "displayOfflineDetail": "Ostatnie połączenie {time}. Sprawdź zasilanie i Wi-Fi; FiestaBoard sprawdzi ponownie samodzielnie.",
@@ -3121,6 +3116,10 @@
     "checkAgain": "Sprawdź ponownie",
     "hubOnline": "Online",
     "hubRemote": "Zdalnie",
-    "hubUnreachable": "Brak połączenia"
+    "hubUnreachable": "Brak połączenia",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Offline",
+    "offlineMeta": "Ostatnie połączenie {time} · Harmonogram działa dalej na hubie",
+    "offlineMetaNever": "Brak połączenia od uruchomienia huba · Harmonogram działa dalej na hubie"
   }
 }

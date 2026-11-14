@@ -86,12 +86,7 @@
     "more": "Daha fazla",
     "needsAttention": "{count, plural, one {# dikkat gerektiriyor} other {# dikkat gerektiriyor}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Paneli açar",
-    "hub": {
-      "online": "Çevrimiçi",
-      "unreachable": "Ulaşılamıyor",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Paneli açar"
   },
   "settingsMenu": {
     "trigger": "Daha fazla",
@@ -3096,8 +3091,8 @@
     "deviceOfflineComputer": "Bu bilgisayarın ağ bağlantısı yok. Ekranlarınız hub üzerinde çalışmaya devam ediyor; ağ geri geldiğinde FiestaBoard yeniden bağlanır.",
     "deviceOfflinePhone": "Bu telefonun ağ bağlantısı yok. Ekranlarınız hub üzerinde çalışmaya devam ediyor; ağ geri geldiğinde FiestaBoard yeniden bağlanır.",
     "hubUnreachableTitle": "{host} adresindeki hub'ınıza ulaşılamıyor",
-    "hubUnreachableDetail": "Ekranlarınız hub üzerinde programlarına göre çalışmaya devam ediyor, yani hiçbir şey kaybolmaz. Son bağlantı {time} · her {seconds} sn'de yeniden deneniyor.",
-    "hubUnreachableDetailNever": "Ekranlarınız hub üzerinde programlarına göre çalışmaya devam ediyor, yani hiçbir şey kaybolmaz. Her {seconds} sn'de yeniden deneniyor.",
+    "hubUnreachableDetail": "Ekranlarınız hub üzerinde programlarına göre çalışmaya devam ediyor, yani hiçbir şey kaybolmaz. Son bağlantı {time} · her {seconds} sn'de yeniden deneniyor.",
+    "hubUnreachableDetailNever": "Ekranlarınız hub üzerinde programlarına göre çalışmaya devam ediyor, yani hiçbir şey kaybolmaz. Her {seconds} sn'de yeniden deneniyor.",
     "connectionHelp": "Bağlantı yardımı",
     "displayOfflineTitle": "{boardName} çevrimdışı",
     "displayOfflineDetail": "Son bağlantı {time}. Gücünü ve Wi-Fi'ını kontrol edin; FiestaBoard kendisi yeniden dener.",
@@ -3121,6 +3116,10 @@
     "checkAgain": "Tekrar kontrol et",
     "hubOnline": "Çevrimiçi",
     "hubRemote": "Uzak",
-    "hubUnreachable": "Ulaşılamıyor"
+    "hubUnreachable": "Ulaşılamıyor",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Çevrimdışı",
+    "offlineMeta": "Son bağlantı {time} · Program hub üzerinde çalışmaya devam ediyor",
+    "offlineMetaNever": "Hub başladığından beri ulaşılamadı · Program hub üzerinde çalışmaya devam ediyor"
   }
 }

@@ -8,10 +8,11 @@
  * (pause, a Silence Schedule); a TV viewer comes last. Pure, so the order is
  * tested on its own; the host component reads the hub state and renders.
  *
- * A board that failed to start (`init-error`) is not picked here: the
- * fleet-wide BoardInitErrorBanner names every such board, including ones
- * other than the current one (#1829), so a failed current board gets no
- * second banner.
+ * A board that failed to start (`init-error`) is picked only with
+ * `initError: true` (a display's own page). On Home the fleet-wide
+ * BoardInitErrorBanner names every such board, including ones other than the
+ * current one (#1829), so there a failed current board gets no second banner.
+ * Either way, nothing else is said about a board that never started.
  */
 import type { HealthSummary } from "@/lib/api";
 
@@ -56,11 +57,14 @@ export interface StatusBannerInput {
   lastHubContactAt: number | null;
   board?: StatusBannerBoard | null;
   silence?: StatusBannerSilence | null;
+  /** Pick `init-error` for a board that failed to start (a display's own page). */
+  initError?: boolean;
 }
 
 export type PickedStatusBanner =
   | { kind: "device-offline" }
   | { kind: "hub-unreachable"; lastContactAt: number | null }
+  | { kind: "init-error"; board: StatusBannerBoard; error: string }
   | { kind: "display-offline"; board: StatusBannerBoard; lastConnectedAt: string | null }
   | { kind: "paused"; board: StatusBannerBoard }
   | { kind: "silenced"; board: StatusBannerBoard; silence: StatusBannerSilence }
@@ -93,7 +97,10 @@ export function pickStatusBanner(
   }
 
   const board = input.board;
-  if (!board || board.error) return null;
+  if (!board) return null;
+  if (board.error) {
+    return input.initError && allowed("init-error") ? { kind: "init-error", board, error: board.error } : null;
+  }
 
   if (allowed("display-offline") && isDisplayOffline(board.health)) {
     return { kind: "display-offline", board, lastConnectedAt: board.health?.last_connected_at ?? null };

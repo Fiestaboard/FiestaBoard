@@ -140,6 +140,8 @@ export function StatusBannerHost({ boardId, exclude = [], fleet = false, classNa
             pageName: pageName(silenceStatus.page_id),
           }
         : null,
+      // On Home the fleet banner names every failed board; elsewhere this one.
+      initError: !fleet,
     },
     exclude,
   );
@@ -239,6 +241,24 @@ function Banner({
                 </a>
               </StatusBannerAction>
             </>
+          }
+        />
+      );
+    }
+    case "init-error": {
+      const name = picked.board.name || t("unnamedBoard");
+      return (
+        <StatusBanner
+          key={picked.kind}
+          kind="init-error"
+          title={t("initErrorTitle", { boardName: name })}
+          description={picked.error}
+          action={
+            <StatusBannerAction asChild>
+              <Link href={`/displays/${encodeURIComponent(picked.board.id)}?section=settings`}>
+                {t("displaySettings")}
+              </Link>
+            </StatusBannerAction>
           }
         />
       );

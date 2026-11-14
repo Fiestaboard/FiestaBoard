@@ -86,12 +86,7 @@
     "more": "Mais",
     "needsAttention": "{count, plural, one {# precisa de atenção} other {# precisam de atenção}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Abre o painel",
-    "hub": {
-      "online": "Online",
-      "unreachable": "Inacessível",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Abre o painel"
   },
   "settingsMenu": {
     "trigger": "Mais",
@@ -3096,8 +3091,8 @@
     "deviceOfflineComputer": "Este computador não tem rede. Os seus ecrãs continuam a funcionar no hub; o FiestaBoard volta a ligar-se quando a rede regressar.",
     "deviceOfflinePhone": "Este telemóvel não tem rede. Os seus ecrãs continuam a funcionar no hub; o FiestaBoard volta a ligar-se quando a rede regressar.",
     "hubUnreachableTitle": "Não é possível contactar o seu hub em {host}",
-    "hubUnreachableDetail": "Os seus ecrãs continuam a seguir os horários no hub, por isso nada se perde. Última ligação {time} · a tentar novamente a cada {seconds} s.",
-    "hubUnreachableDetailNever": "Os seus ecrãs continuam a seguir os horários no hub, por isso nada se perde. A tentar novamente a cada {seconds} s.",
+    "hubUnreachableDetail": "Os seus ecrãs continuam a seguir os horários no hub, por isso nada se perde. Última ligação {time} · a tentar novamente a cada {seconds} s.",
+    "hubUnreachableDetailNever": "Os seus ecrãs continuam a seguir os horários no hub, por isso nada se perde. A tentar novamente a cada {seconds} s.",
     "connectionHelp": "Ajuda de ligação",
     "displayOfflineTitle": "{boardName} está offline",
     "displayOfflineDetail": "Última ligação {time}. Verifique a alimentação e o Wi-Fi; o FiestaBoard volta a verificar sozinho.",
@@ -3121,6 +3116,10 @@
     "checkAgain": "Verificar novamente",
     "hubOnline": "Online",
     "hubRemote": "Remoto",
-    "hubUnreachable": "Sem ligação"
+    "hubUnreachable": "Sem ligação",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Offline",
+    "offlineMeta": "Última ligação {time} · O horário continua no hub",
+    "offlineMetaNever": "Sem contacto desde que o hub arrancou · O horário continua no hub"
   }
 }

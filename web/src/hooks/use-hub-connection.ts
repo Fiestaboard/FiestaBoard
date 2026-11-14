@@ -1,9 +1,12 @@
 "use client";
 
+import type { BoardSelectorHubStatus } from "@fiestaboard/ui";
 import { useCallback, useSyncExternalStore } from "react";
 
 import { useStatus } from "@/hooks/use-board";
 import { ApiError } from "@/lib/api";
+import { hubLineStatus } from "@/lib/hub-identity";
+import { browserHostname } from "@/lib/network-hint";
 
 function subscribeOnline(onChange: () => void): () => void {
   window.addEventListener("online", onChange);
@@ -39,6 +42,8 @@ export interface HubConnection {
   deviceOnline: boolean;
   /** The hub answered the last status poll (true until the first poll fails). */
   hubReachable: boolean;
+  /** The hub has answered or failed at least once, so its state is known. */
+  hubKnown: boolean;
   /** When the hub last answered this browser (epoch ms), or null if it never has. */
   lastContactAt: number | null;
   /** Ask the hub again now. */
@@ -58,5 +63,39 @@ export function useHubConnection({ enabled = true }: { enabled?: boolean } = {})
   const retry = useCallback(() => {
     void refetch();
   }, [refetch]);
-  return { deviceOnline, hubReachable, lastContactAt: dataUpdatedAt > 0 ? dataUpdatedAt : null, retry };
+  return {
+    deviceOnline,
+    hubReachable,
+    hubKnown: dataUpdatedAt > 0 || isError,
+    lastContactAt: dataUpdatedAt > 0 ? dataUpdatedAt : null,
+    retry,
+  };
+}
+
+export interface HubLine {
+  /** The address this page was opened at. */
+  host: string;
+  /** Online / Remote / Can't reach, or undefined until known. */
+  status: BoardSelectorHubStatus | undefined;
+}
+
+/**
+ * The hub line's host and state: the ONE source for every surface that names
+ * the hub's connection (the BoardSelector line and phone pill, the More
+ * drawer's foot, the Settings hub card), so they can never disagree. Every
+ * caller shares the `["status"]` poll; a surface that is not shown passes
+ * `enabled: false` and adds no request.
+ */
+export function useHubLine({ enabled = true }: { enabled?: boolean } = {}): HubLine {
+  const connection = useHubConnection({ enabled });
+  const host = browserHostname();
+  return {
+    host,
+    status: hubLineStatus({
+      host,
+      hubReachable: connection.hubReachable,
+      hubKnown: connection.hubKnown,
+      deviceOnline: connection.deviceOnline,
+    }),
+  };
 }

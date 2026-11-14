@@ -325,3 +325,195 @@ describe("StatusBannerHost", () => {
     expect(banner).toHaveTextContent("The hub hasn't reached it since it started.");
   });
 });
+
+describe("StatusBannerHost guarantees", () => {
+  const PANEL_BOARD = [{ id: "living", name: "Living room TV", device_type: "panel", output: "fiestapanel" }];
+
+  function panels(isDisplay: boolean) {
+    server.use(
+      http.get(`${API}/panels`, () =>
+        HttpResponse.json({
+          panels: [{ id: "p1", board_id: "living", name: "Living room TV", is_display: isDisplay }],
+        }),
+      ),
+    );
+  }
+
+  function countSessions(shownAt?: string) {
+    const calls = { n: 0 };
+    server.use(
+      http.get(`${API}/auth/sessions`, () => {
+        calls.n += 1;
+        return HttpResponse.json({
+          current_session_id: "me",
+          sessions: shownAt
+            ? [
+                {
+                  id: "tv1",
+                  kind: "tv",
+                  device_name: "Apple TV",
+                  shown_panels: [{ panel_id: "p1", last_shown_at: shownAt }],
+                },
+              ]
+            : [],
+        });
+      }),
+    );
+    return calls;
+  }
+
+  it("never says no viewer for the HDMI display panel, and never asks for the TV list", async () => {
+    setup({ boards: PANEL_BOARD, status: { living: boardStatus({ health: { ...HEALTHY, reachable: null } }) } });
+    panels(true);
+    const calls = countSessions();
+    render(<StatusBannerHost />, { wrapper: Wrapper });
+    await settle();
+    await settle();
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
+    expect(calls.n).toBe(0);
+  });
+
+  it("asks for the TV list only for a FiestaPanel", async () => {
+    setup();
+    const calls = countSessions();
+    let panelCalls = 0;
+    server.use(
+      http.get(`${API}/panels`, () => {
+        panelCalls += 1;
+        return HttpResponse.json({ panels: [] });
+      }),
+    );
+    render(<StatusBannerHost />, { wrapper: Wrapper });
+    await settle();
+    await settle();
+    expect(calls.n).toBe(0);
+    expect(panelCalls).toBe(0);
+  });
+
+  it("says nothing while a signed-in TV showed the panel a minute ago", async () => {
+    setup({ boards: PANEL_BOARD, status: { living: boardStatus({ health: { ...HEALTHY, reachable: null } }) } });
+    panels(false);
+    const calls = countSessions(new Date(Date.now() - 60_000).toISOString());
+    render(<StatusBannerHost />, { wrapper: Wrapper });
+    await waitFor(() => expect(calls.n).toBeGreaterThan(0));
+    await settle();
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
+  });
+
+  it("names no failed display on Home while the hub can't be reached", async () => {
+    let fail = false;
+    setup({
+      boards: [
+        { id: "kitchen", name: "Kitchen board", device_type: "flagship" },
+        { id: "pixoo", name: "Desk Pixoo", device_type: "flagship" },
+      ],
+      statusResponse: () =>
+        fail
+          ? HttpResponse.error()
+          : HttpResponse.json({
+              running: true,
+              initialized: true,
+              config_summary: {},
+              boards: { kitchen: boardStatus(), pixoo: boardStatus({ configured: false, error: "Couldn't connect" }) },
+            }),
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <CurrentBoardProvider>
+            <StatusBannerHost fleet />
+          </CurrentBoardProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByRole("group", { name: "Couldn't start Desk Pixoo" });
+
+    fail = true;
+    await queryClient.refetchQueries({ queryKey: ["status"] }).catch(() => {});
+    await screen.findByRole("group", { name: /^Can't reach your hub at / }, { timeout: 3000 });
+    expect(screen.queryByRole("group", { name: "Couldn't start Desk Pixoo" })).not.toBeInTheDocument();
+  });
+
+  function silenceSoon() {
+    // A page-mode Silence Schedule starting in 90 s, whose page is not showing.
+    return {
+      enabled: true,
+      active: false,
+      mode: "page",
+      page_id: "night",
+      seconds_until_next_change: 90,
+      next_change_utc: "2026-11-14T06:00:00Z",
+    };
+  }
+
+  it("shows silence-soon on Home when nothing else is wrong", async () => {
+    setup({ silence: silenceSoon() });
+    render(<StatusBannerHost fleet />, { wrapper: Wrapper });
+    expect(await screen.findByTestId("silence-imminent-banner")).toBeInTheDocument();
+  });
+
+  it("holds silence-soon back while another banner shows: one banner at a time", async () => {
+    setup({ silence: silenceSoon(), status: { kitchen: boardStatus({ paused: true }) } });
+    render(<StatusBannerHost fleet />, { wrapper: Wrapper });
+    await screen.findByRole("group", { name: "Kitchen board is paused" });
+    await settle();
+    expect(screen.queryByTestId("silence-imminent-banner")).not.toBeInTheDocument();
+  });
+
+  it("asks for the current board's silence on a multi-board install (#1788), unscoped on a single board", async () => {
+    const seen: (string | null)[] = [];
+    const watch = () =>
+      server.use(
+        http.get(`${API}/silence-status`, ({ request }) => {
+          seen.push(new URL(request.url).searchParams.get("board_id"));
+          return HttpResponse.json({ enabled: false, active: false });
+        }),
+      );
+
+    setup({
+      boards: [
+        { id: "kitchen", name: "Kitchen board", device_type: "flagship" },
+        { id: "clock", name: "Entry clock", device_type: "flagship" },
+      ],
+      status: { kitchen: boardStatus(), clock: boardStatus() },
+    });
+    watch();
+    const { unmount } = render(<StatusBannerHost />, { wrapper: Wrapper });
+    await waitFor(() => expect(seen).toContain("kitchen"));
+    unmount();
+
+    seen.length = 0;
+    setup();
+    watch();
+    render(<StatusBannerHost />, { wrapper: Wrapper });
+    await waitFor(() => expect(seen.length).toBeGreaterThan(0));
+    expect(seen.every((id) => id === null)).toBe(true);
+  });
+
+  it("takes paused from the board settings, as the card's badge does", async () => {
+    setup({
+      boards: [{ id: "kitchen", name: "Kitchen board", device_type: "flagship", paused: true }],
+      status: { kitchen: boardStatus({ paused: false }) },
+    });
+    render(<StatusBannerHost />, { wrapper: Wrapper });
+    expect(await screen.findByRole("group", { name: "Kitchen board is paused" })).toBeInTheDocument();
+  });
+
+  it("on a display's own page, says the display failed to start", async () => {
+    setup({
+      boards: [
+        { id: "kitchen", name: "Kitchen board", device_type: "flagship" },
+        { id: "pixoo", name: "Desk Pixoo", device_type: "flagship" },
+      ],
+      status: {
+        kitchen: boardStatus(),
+        pixoo: boardStatus({ configured: false, paused: true, error: "Couldn't connect to 192.0.2.1" }),
+      },
+    });
+    render(<StatusBannerHost boardId="pixoo" />, { wrapper: Wrapper });
+    const banner = await screen.findByRole("group", { name: "Couldn't start Desk Pixoo" });
+    expect(banner).toHaveTextContent("Couldn't connect to 192.0.2.1");
+    expect(screen.queryByRole("group", { name: /paused/ })).not.toBeInTheDocument();
+  });
+});

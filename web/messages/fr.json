@@ -86,12 +86,7 @@
     "more": "Plus",
     "needsAttention": "{count, plural, one {# nécessite votre attention} other {# nécessitent votre attention}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Ouvre le panneau",
-    "hub": {
-      "online": "En ligne",
-      "unreachable": "Injoignable",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Ouvre le panneau"
   },
   "settingsMenu": {
     "trigger": "Plus",
@@ -3096,8 +3091,8 @@
     "deviceOfflineComputer": "Cet ordinateur n'a pas de réseau. Vos écrans continuent de tourner sur le hub ; FiestaBoard se reconnecte quand le réseau revient.",
     "deviceOfflinePhone": "Ce téléphone n'a pas de réseau. Vos écrans continuent de tourner sur le hub ; FiestaBoard se reconnecte quand le réseau revient.",
     "hubUnreachableTitle": "Impossible de joindre votre hub à {host}",
-    "hubUnreachableDetail": "Vos écrans suivent toujours leurs programmes sur le hub, rien n'est perdu. Dernière connexion {time} · nouvel essai toutes les {seconds} s.",
-    "hubUnreachableDetailNever": "Vos écrans suivent toujours leurs programmes sur le hub, rien n'est perdu. Nouvel essai toutes les {seconds} s.",
+    "hubUnreachableDetail": "Vos écrans suivent toujours leurs programmes sur le hub, rien n'est perdu. Dernière connexion {time} · nouvel essai toutes les {seconds} s.",
+    "hubUnreachableDetailNever": "Vos écrans suivent toujours leurs programmes sur le hub, rien n'est perdu. Nouvel essai toutes les {seconds} s.",
     "connectionHelp": "Aide à la connexion",
     "displayOfflineTitle": "{boardName} est hors ligne",
     "displayOfflineDetail": "Dernière connexion {time}. Vérifiez son alimentation et son Wi-Fi ; FiestaBoard réessaie tout seul.",
@@ -3121,6 +3116,10 @@
     "checkAgain": "Vérifier à nouveau",
     "hubOnline": "En ligne",
     "hubRemote": "À distance",
-    "hubUnreachable": "Injoignable"
+    "hubUnreachable": "Injoignable",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Hors ligne",
+    "offlineMeta": "Dernière connexion {time} · Le programme continue sur le hub",
+    "offlineMetaNever": "Pas joint depuis le démarrage du hub · Le programme continue sur le hub"
   }
 }

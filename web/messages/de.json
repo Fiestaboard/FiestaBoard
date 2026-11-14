@@ -86,12 +86,7 @@
     "more": "Mehr",
     "needsAttention": "{count, plural, one {# braucht Aufmerksamkeit} other {# brauchen Aufmerksamkeit}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Öffnet die Seitenleiste",
-    "hub": {
-      "online": "Online",
-      "unreachable": "Nicht erreichbar",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Öffnet die Seitenleiste"
   },
   "settingsMenu": {
     "trigger": "Mehr",
@@ -3096,8 +3091,8 @@
     "deviceOfflineComputer": "Dieser Computer hat kein Netzwerk. Deine Displays laufen auf dem Hub weiter; FiestaBoard verbindet sich neu, sobald das Netzwerk zurück ist.",
     "deviceOfflinePhone": "Dieses Telefon hat kein Netzwerk. Deine Displays laufen auf dem Hub weiter; FiestaBoard verbindet sich neu, sobald das Netzwerk zurück ist.",
     "hubUnreachableTitle": "Dein Hub unter {host} ist nicht erreichbar",
-    "hubUnreachableDetail": "Deine Displays laufen auf dem Hub nach ihren Zeitplänen weiter, es geht also nichts verloren. Zuletzt verbunden {time} · neuer Versuch alle {seconds} s.",
-    "hubUnreachableDetailNever": "Deine Displays laufen auf dem Hub nach ihren Zeitplänen weiter, es geht also nichts verloren. Neuer Versuch alle {seconds} s.",
+    "hubUnreachableDetail": "Deine Displays laufen auf dem Hub nach ihren Zeitplänen weiter, es geht also nichts verloren. Zuletzt verbunden {time} · neuer Versuch alle {seconds} s.",
+    "hubUnreachableDetailNever": "Deine Displays laufen auf dem Hub nach ihren Zeitplänen weiter, es geht also nichts verloren. Neuer Versuch alle {seconds} s.",
     "connectionHelp": "Hilfe zur Verbindung",
     "displayOfflineTitle": "{boardName} ist offline",
     "displayOfflineDetail": "Zuletzt verbunden {time}. Prüfe Strom und WLAN; FiestaBoard versucht es selbst erneut.",
@@ -3121,6 +3116,10 @@
     "checkAgain": "Erneut prüfen",
     "hubOnline": "Online",
     "hubRemote": "Remote",
-    "hubUnreachable": "Nicht erreichbar"
+    "hubUnreachable": "Nicht erreichbar",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Offline",
+    "offlineMeta": "Zuletzt verbunden {time} · Der Zeitplan läuft auf dem Hub weiter",
+    "offlineMetaNever": "Seit dem Hub-Start nicht erreicht · Der Zeitplan läuft auf dem Hub weiter"
   }
 }
