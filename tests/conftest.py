@@ -191,6 +191,11 @@ def _drop_all_singletons() -> None:
 
     reset_health_store()
 
+    # Per-page send history (H9b): the same shape of store.
+    from src.pages.sends import reset_send_history
+
+    reset_send_history()
+
     # The DisplayService singleton. The comment that used to sit here named
     # `src.api_server._service`, an attribute that has not existed since the
     # debug slice moved the accessor to src/display_runtime.py — so nothing was
