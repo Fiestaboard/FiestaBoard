@@ -226,7 +226,7 @@ def pixel_rig(monkeypatch):
     settings.get_active_page_id.side_effect = lambda board_id=None: "pixoo-page"
     settings.get_transition_settings.return_value = MagicMock(strategy="instant", step_interval_ms=0, step_size=1)
     settings.should_send_to_board.return_value = True
-    settings.consume_temporary_override.side_effect = lambda: None
+    settings.consume_temporary_override.side_effect = lambda board_id=None: None
 
     service = DisplayService()
     service.runtimes["pixoo"] = BoardRuntime(client=client, board_id="pixoo")

@@ -1953,12 +1953,10 @@ async def update_setting(category: str, values: dict[str, Any]) -> dict[str, Any
 # ---------------------------------------------------------------------------
 # Board state operations — the Home page's controls
 #
-# The temporary override and the forced resend are install-wide: the
-# override lives in one consume-once store the display loop applies to the
-# PRIMARY board only (src/main.py, "Temporary override (PRIMARY only)"), and
-# POST /force-refresh clears every board's caches in one pass. Neither takes
-# a board_id because neither REST route does; offering one would promise a
-# targeting the store cannot honor.
+# Since H1 each board has its own temporary override, so the override
+# operations take an optional board_id (omitted = the primary board), as the
+# REST routes behind them do. POST /force-refresh stays install-wide: it
+# clears every board's caches in one pass.
 # ---------------------------------------------------------------------------
 
 
@@ -1974,8 +1972,9 @@ async def set_temporary_override(
     revert_page_id: str | None = None,
     grid_rows: int | None = None,
     grid_cols: int | None = None,
+    board_id: str | None = None,
 ) -> dict[str, Any]:
-    """Show a saved page or a composed one-off on the primary board for a while.
+    """Show a saved page or a composed one-off on one board (default: primary) for a while.
 
     Delegates to ``POST /settings/temporary-override`` — the handler behind
     both the Home page's "force set" dialog (a saved page) and its compose
@@ -2003,6 +2002,7 @@ async def set_temporary_override(
             duration_minutes=duration_minutes,
             revert_mode=revert_mode,
             revert_page_id=revert_page_id,
+            board_id=board_id,
         )
         payload = await _rest_set_override(request)
     except HTTPException as exc:
@@ -2015,8 +2015,8 @@ async def set_temporary_override(
     return ok(f"Temporary override set: {what} {how_long}.", override=serialize(payload))
 
 
-async def cancel_temporary_override() -> dict[str, Any]:
-    """Cancel the active temporary override and let the board revert.
+async def cancel_temporary_override(board_id: str | None = None) -> dict[str, Any]:
+    """Cancel one board's (default: primary) temporary override and let it revert.
 
     Delegates to ``DELETE /settings/temporary-override``: the ``page``
     revert mode is applied server-side and the display cache is cleared so
@@ -2028,7 +2028,7 @@ async def cancel_temporary_override() -> dict[str, Any]:
     from src.settings.routes import clear_temporary_override as _rest_clear_override
 
     try:
-        response = await _rest_clear_override()
+        response = await _rest_clear_override(board_id=board_id)
     except HTTPException as exc:
         return err(f"Error cancelling temporary override: {rest_detail(exc)}")
     except Exception as exc:

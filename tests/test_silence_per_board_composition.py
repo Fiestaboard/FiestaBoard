@@ -187,6 +187,7 @@ class TestBoardRemovalPrunesOverrides:
         service = SettingsService.__new__(SettingsService)
         service._board = Mock(boards=[dict(BOARD_1), dict(BOARD_2)])
         service._save_to_file = Mock()
+        service._temporary_overrides = {}  # H1: remove_board also drops the board's override
         # #1848: every mutator runs under the storage-kernel lock, so a
         # __new__-constructed service needs the store the lock lives on.
         service._store = JsonStore(tmp_path / "settings.json")

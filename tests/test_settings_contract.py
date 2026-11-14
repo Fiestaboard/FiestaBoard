@@ -341,7 +341,12 @@ class TestActivePage:
 
 class TestTemporaryOverride:
     def test_get_returns_every_key_nulled_when_no_override_is_active(self, client):
-        assert client.get("/settings/temporary-override").json() == {
+        body = client.get("/settings/temporary-override").json()
+        # H1: the answer names the display it is about (the primary here).
+        from src.settings.service import get_settings_service
+
+        assert body.pop("board_id") == get_settings_service().get_primary_board_id()
+        assert body == {
             "active": False,
             "page_id": None,
             "expires_at": None,
@@ -356,6 +361,7 @@ class TestTemporaryOverride:
             # Added with the "panel" device type (an explicit per-character grid).
             "grid_rows": None,
             "grid_cols": None,
+            "started_at": None,
         }
 
     def test_post_422s_when_neither_page_id_nor_template_is_supplied(self, client):

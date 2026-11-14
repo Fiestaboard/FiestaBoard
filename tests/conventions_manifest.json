@@ -43,11 +43,6 @@
       "reason": "Reset is unconditional and idempotent: no board id to miss, no state in which it refuses, and its one internal failure path is swallowed and logged on purpose so a broken settings store cannot block the wizard reset. Nothing to declare at any status."
     },
     {
-      "route": "DELETE /settings/temporary-override",
-      "rule": "declared_errors",
-      "reason": "Idempotent cancel with no path or body parameters. Clearing when nothing is active is a success, not a 404 — the caller's intent (no override) is satisfied either way, and the dashboard's cancel button races the override's own expiry."
-    },
-    {
       "route": "GET /",
       "rule": "declared_errors",
       "reason": "Returns three constant strings naming the API. It takes no parameter, reads no state and calls nothing, so there is no failure to declare at any status — the only 500 it could produce is an unhandled bug, which is true of every route and belongs in a log, not the schema."
@@ -233,9 +228,9 @@
       "reason": "Read-only, no path or body parameters: it returns the stored plugin-system settings and has no failure path to declare. Adding an error status would document a failure this endpoint cannot produce."
     },
     {
-      "route": "GET /settings/temporary-override",
+      "route": "GET /settings/temporary-overrides",
       "rule": "declared_errors",
-      "reason": "Takes no input and always answers: the active override, or every field nulled when there is none. 'No override' is a 200, not a 404 — the absence is the answer the dashboard polls for."
+      "reason": "Takes no input and always answers: every display's live override, or an empty list when none has one. 'No overrides' is a 200, not a 404 — the absence is the answer a multi-display Home polls for (H1)."
     },
     {
       "route": "GET /settings/transitions",

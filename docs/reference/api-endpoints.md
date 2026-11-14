@@ -1274,7 +1274,8 @@ one document, because "what is this board doing" is one question.
 | `resolved_next_check_seconds` | `integer` \| `null` | no | Seconds until `resolved_page_id` may change on its own, when it came from a collection that rotates. Poll again after this long rather than on a guessed timer. Null for a plain page and for a collection that cannot rotate. |
 | `source` | `"manual"` \| `"schedule"` \| `"none"` | yes | Where `resolved_page_id` came from. |
 | `default_page_id` | `string` \| `null` | no | The page shown when the schedule has a gap. |
-| `override_expires_at` | `string` \| `null` | no | When the active timed message expires (ISO 8601), or null if none is running. |
+| `override_expires_at` | `string` \| `null` | no | When this board's active timed message expires (ISO 8601), or null if none is running. |
+| `override_started_at` | `string` \| `null` | no | When this board's active override began (ISO 8601), or null if none is running. A replaced override has a new value, so it identifies one run (for a Live Activity or Live Update). |
 | `layers` | array of [`CanvasLayerModel`](#schema-canvaslayermodel) \| `null` | no | A pixel-matrix board only: the page's pixel canvases on the frame it shows, drawn over `characters` (`{x, y, width, height, rgba}`, rgba base64 RGBA; `[]` for none). Null on any other board. |
 
 ### `BoardListResponse` {#schema-boardlistresponse}

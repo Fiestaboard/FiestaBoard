@@ -273,8 +273,9 @@ def make_settings_service(
 
     ``active_page_ids`` maps board id -> active page/collection id; a call
     with ``board_id=None`` (the run loop's collection gate) resolves to the
-    primary board. ``temporary_overrides`` are consumed one per call, in
-    order, then ``consume_temporary_override`` returns None.
+    primary board. ``temporary_overrides`` are the primary board's: its
+    passes consume them one per call, in order, then None. Since H1 every
+    board's pass consumes its own board's override; other boards get None.
     """
     primary_id = boards[0]["id"]
     pages_by_board = dict(active_page_ids or {})
@@ -289,7 +290,9 @@ def make_settings_service(
     svc.get_transition_settings.return_value = TRANSITIONS
     svc.get_polling_interval.return_value = polling_interval
     svc.should_send_to_board.return_value = True
-    svc.consume_temporary_override.side_effect = lambda: pending_overrides.pop(0) if pending_overrides else None
+    svc.consume_temporary_override.side_effect = lambda board_id=None: (
+        pending_overrides.pop(0) if pending_overrides and (board_id or primary_id) == primary_id else None
+    )
     return svc
 
 

@@ -2535,7 +2535,7 @@ def _build_mcp_server() -> Any:
         active_ref (the stored page/collection id), resolved_page_id (after
         collection resolution), page (summary of the resolved page, or null),
         temporary_override (the same status get_temporary_override() returns;
-        when active it wins over source/active_ref on the primary board)}.
+        for this board; when active it wins over source/active_ref)}.
         """
         from .collections.service import get_collection_service, resolve_active_page_id
         from .settings.service import get_settings_service, temporary_override_payload
@@ -2586,7 +2586,9 @@ def _build_mcp_server() -> Any:
             "active_ref": active_ref,
             "resolved_page_id": resolved_page_id,
             "page": page_summary,
-            "temporary_override": temporary_override_payload(svc.get_temporary_override()),
+            "temporary_override": temporary_override_payload(
+                svc.get_temporary_override(board_id), board_id or svc.get_primary_board_id()
+            ),
         }
 
     @_tool(read_only=True)
@@ -2670,16 +2672,17 @@ def _build_mcp_server() -> Any:
     # -----------------------------------------------------------------------
     # Board state tools — the Home page's controls
     #
-    # The temporary override and the forced resend are install-wide: one
-    # override store, applied by the display loop to the primary board only;
-    # one refresh pass over every board. They take no board_id because the
-    # REST routes behind them take none, and a parameter the store cannot
-    # honor would be a lie in the schema.
+    # Since H1 every board has its own temporary override, so the override
+    # tools take an optional board_id (omitted = the primary board), as the
+    # REST routes do. The forced resend stays one refresh pass over every board.
     # -----------------------------------------------------------------------
 
     @_tool(read_only=True)
-    def get_temporary_override() -> dict[str, Any]:
-        """Whether a temporary override is showing on the primary board, and what it is.
+    def get_temporary_override(board_id: str | None = None) -> dict[str, Any]:
+        """Whether a board has a temporary override, and what it is.
+
+        Args:
+            board_id: Board id; omitted = primary.
 
         Mirrors GET /settings/temporary-override. An override is a saved
         page or a one-off message put up by set_temporary_override(); while
@@ -2689,12 +2692,14 @@ def _build_mcp_server() -> Any:
         line_metadata, device_type, notes_wide, notes_tall, grid_rows,
         grid_cols, expires_at (ISO
         UTC, or null for an indefinite override), remaining_seconds (null when
-        indefinite or inactive), revert_mode, revert_page_id}. Every field but
-        active is null when nothing is active.
+        indefinite or inactive), revert_mode, revert_page_id, board_id,
+        started_at}. Null when inactive, except active and board_id.
         """
         from .settings.service import get_settings_service, temporary_override_payload
 
-        return temporary_override_payload(get_settings_service().get_temporary_override())
+        svc = get_settings_service()
+        board = board_id or svc.get_primary_board_id()
+        return temporary_override_payload(svc.get_temporary_override(board), board)
 
     @_tool(destructive=False, idempotent=False)
     async def set_temporary_override(
@@ -2709,16 +2714,15 @@ def _build_mcp_server() -> Any:
         revert_page_id: str | None = None,
         grid_rows: int | None = None,
         grid_cols: int | None = None,
+        board_id: str | None = None,
     ) -> dict[str, Any]:
-        """Temporarily show a saved page or a composed one-off on the primary board.
+        """Temporarily show a saved page or a composed one-off on a board.
 
         The Home page's "force set" and "compose" actions (POST
         /settings/temporary-override). Supply EITHER page_id OR
         template_lines, never both. Unlike send_message(), the override
         survives display refreshes and reverts on its own when it expires;
-        it also deliberately beats silence mode and pause. Check
-        get_temporary_override() to read it back; cancel_temporary_override()
-        ends it early.
+        it also deliberately beats silence mode and pause.
 
         Args:
             page_id: Saved page or collection to show (from list_pages() or
@@ -2726,21 +2730,21 @@ def _build_mcp_server() -> Any:
             template_lines: One-off board content instead of a saved page —
                             template strings, one per row, never persisted as
                             a page. Use render_page_preview() to iterate first.
-            line_metadata: Optional per-line {"alignment", "wrap"} dicts for
-                           the one-off form (same shape as saved pages).
-            device_type: Geometry the one-off content was composed for:
-                         'flagship' (default), 'note', 'note_array' or 'panel'.
+            line_metadata: Optional per-line {"alignment", "wrap"} dicts, as
+                           on saved pages.
+            device_type: The one-off's geometry: 'flagship' (default),
+                         'note', 'note_array' or 'panel'.
             notes_wide: note_array only — notes across (1–8).
             notes_tall: note_array only — notes down (1–8).
-            grid_rows: panel only (required) — the panel's rows.
-            grid_cols: panel only (required) — the panel's cols.
-            duration_minutes: How long to show it, 1–480. Omit for an
-                              indefinite override that stays until cancelled.
-            revert_mode: What happens when a timed override expires:
-                         'schedule' (default — resume schedule/manual page),
-                         'blank' (clear the board) or 'page' (switch the
-                         active page to revert_page_id).
+            grid_rows: panel only (required) — its rows.
+            grid_cols: panel only (required) — its cols.
+            duration_minutes: Minutes to show it, 1–480. Omit to hold it
+                              until cancelled.
+            revert_mode: On expiry: 'schedule' (default — resume the
+                         schedule/manual page), 'blank' (clear the board) or
+                         'page' (switch the active page to revert_page_id).
             revert_page_id: Required when revert_mode is 'page'.
+            board_id: Board id; omitted = primary.
         """
         return await ops_executors.set_temporary_override(
             page_id=page_id,
@@ -2754,19 +2758,23 @@ def _build_mcp_server() -> Any:
             duration_minutes=duration_minutes,
             revert_mode=revert_mode,
             revert_page_id=revert_page_id,
+            board_id=board_id,
         )
 
     @_tool(destructive=False, idempotent=True)
-    async def cancel_temporary_override() -> dict[str, Any]:
-        """End the active temporary override now and let the primary board revert.
+    async def cancel_temporary_override(board_id: str | None = None) -> dict[str, Any]:
+        """End a board's temporary override now and let it revert.
 
         Mirrors DELETE /settings/temporary-override. A 'page' revert mode is
         applied immediately; the board re-renders on the next tick. Calling
         this when nothing is active is a harmless no-op (was_active: false).
 
+        Args:
+            board_id: Board id; omitted = primary.
+
         Returns: {status, message, was_active, revert_mode}.
         """
-        return await ops_executors.cancel_temporary_override()
+        return await ops_executors.cancel_temporary_override(board_id=board_id)
 
     @_tool(destructive=False, idempotent=True)
     async def force_refresh() -> dict[str, Any]:

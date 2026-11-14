@@ -1757,6 +1757,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/settings/temporary-overrides",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_temporary_overrides",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/settings/transitions",
       "methods": [
         "GET"

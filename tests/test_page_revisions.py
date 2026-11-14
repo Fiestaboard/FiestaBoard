@@ -209,6 +209,7 @@ def test_conditional_delete_and_panel_resize_follow_same_outer_lock_order(storag
     settings.get_active_page_id.return_value = None
     settings.get_active_page_settings.return_value = SimpleNamespace()
     settings.peek_temporary_override.return_value = None
+    settings.peek_all_temporary_overrides.return_value = {}
     config_lock = BoundedLock()
 
     def get_feature(_name):

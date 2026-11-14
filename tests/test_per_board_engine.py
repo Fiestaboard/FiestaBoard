@@ -9,7 +9,7 @@ each other's caches. Covers:
   - primary "never goes dark" fallback vs. secondary go-dark semantics
   - per-board manual active page (schedule mode off -> that board's page)
   - partial-failure isolation (one board raising never blocks others)
-  - temporary_override evaluated for the primary board only
+  - temporary_override evaluated per board (H1)
   - silence as a global decision with per-board delivery + per-board state
   - the note-array send routes through its own client at its own size
 """
@@ -18,7 +18,7 @@ import contextlib
 import threading
 from datetime import datetime
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
 
@@ -72,7 +72,9 @@ def _settings_service(boards, *, paused=(), schedule_off=(), manual=None, overri
     """A settings service mock with per-board resolution.
 
     ``manual`` maps board_id -> manual active page id (used when that
-    board's schedule mode is off). ``override`` is the consume result.
+    board's schedule mode is off). ``override`` is the consume result: one
+    object means the primary board's override (what a single-board caller
+    meant before H1), a dict maps board id -> that board's override.
     ``send_to_board`` is the OutputSettings.target decision
     (``target="ui"`` -> False).
     """
@@ -84,7 +86,15 @@ def _settings_service(boards, *, paused=(), schedule_off=(), manual=None, overri
     svc.is_schedule_enabled.side_effect = lambda board_id=None: board_id not in schedule_off
     svc.get_active_page_id.side_effect = lambda board_id=None: manual.get(board_id)
     svc.get_transition_settings.return_value = TRANSITIONS
-    svc.consume_temporary_override.return_value = override
+    primary = boards[0]["id"] if boards else None
+    per_board = override if isinstance(override, dict) else {primary: override}
+    # A board with no entry falls through to ``return_value`` (None unless a
+    # test sets one later), so ``consume_temporary_override.return_value = x``
+    # still works for single-board tests.
+    svc.consume_temporary_override.return_value = None
+    svc.consume_temporary_override.side_effect = lambda board_id=None: (
+        per_board[board_id or primary] if per_board.get(board_id or primary) is not None else DEFAULT
+    )
     svc.should_send_to_board.return_value = send_to_board
     return svc
 
@@ -359,8 +369,8 @@ class TestPartialFailureIsolation:
         clients["b2"].render.assert_called_once()  # secondary unaffected
 
 
-class TestTemporaryOverridePrimaryOnly:
-    def test_override_consumed_only_for_primary(self):
+class TestTemporaryOverridePerBoard:
+    def test_override_consumed_once_per_board(self):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
         svc, _clients = _service_with_runtimes(boards)
         pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BETA"}})
@@ -369,9 +379,9 @@ class TestTemporaryOverridePrimaryOnly:
 
         _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
 
-        # The override store is a global consume-once resource: it must be
-        # consumed exactly once (for the primary), never per-secondary.
-        settings.consume_temporary_override.assert_called_once()
+        # H1: each board's pass consumes its own board's override, once.
+        boards_seen = [c.kwargs.get("board_id") for c in settings.consume_temporary_override.call_args_list]
+        assert sorted(boards_seen) == ["b1", "b2"]
 
 
 class TestPerBoardSilenceDelivery:

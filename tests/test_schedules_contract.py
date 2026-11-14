@@ -678,6 +678,10 @@ def test_active_page_carries_the_inactive_temporary_override_block(client, page_
 
     override = client.get("/schedules/active/page").json()["temporary_override"]
 
+    # H1: the block names the display it is about (the primary here).
+    from src.settings.service import get_settings_service
+
+    assert override.pop("board_id") == get_settings_service().get_primary_board_id()
     assert override == {
         "active": False,
         "page_id": None,
@@ -693,6 +697,7 @@ def test_active_page_carries_the_inactive_temporary_override_block(client, page_
         # Added with the "panel" device type (an explicit per-character grid).
         "grid_rows": None,
         "grid_cols": None,
+        "started_at": None,
     }
 
 

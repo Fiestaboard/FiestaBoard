@@ -164,6 +164,7 @@
         "source": "str",
         "temporary_override": {
           "active": "bool",
+          "board_id": "str",
           "device_type": "null",
           "expires_at": "null",
           "grid_cols": "null",
@@ -175,6 +176,7 @@
           "remaining_seconds": "null",
           "revert_mode": "null",
           "revert_page_id": "null",
+          "started_at": "null",
           "template": "null"
         }
       }
@@ -204,6 +206,7 @@
         "source": "str",
         "temporary_override": {
           "active": "bool",
+          "board_id": "str",
           "device_type": "null",
           "expires_at": "null",
           "grid_cols": "null",
@@ -215,6 +218,7 @@
           "remaining_seconds": "null",
           "revert_mode": "null",
           "revert_page_id": "null",
+          "started_at": "null",
           "template": "null"
         }
       }

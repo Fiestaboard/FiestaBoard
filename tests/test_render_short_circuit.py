@@ -216,7 +216,7 @@ class Rig:
         settings.get_active_page_id.side_effect = lambda board_id=None: PAGE_ID
         settings.get_transition_settings.return_value = MagicMock(strategy="instant", step_interval_ms=0, step_size=1)
         settings.should_send_to_board.return_value = True
-        settings.consume_temporary_override.side_effect = lambda: None
+        settings.consume_temporary_override.side_effect = lambda board_id=None: None
         self.settings = settings
 
         self.service = DisplayService()
