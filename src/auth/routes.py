@@ -27,7 +27,7 @@ from .service import (
     mcp_token_source,
     verify_mcp_bearer,
 )
-from .session_store import printable
+from .session_store import USER_AGENT_LIMIT, printable
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ def _set_session_cookie(response: Response, request: Request, token: str, *, per
     browser = "Mozilla/" in agent
     get_auth_service().sessions.update_metadata(
         token,
-        device_name=printable(agent) if browser else "Legacy client (may retain your password)",
+        device_name=printable(agent, USER_AGENT_LIMIT) if browser else "Legacy client (may retain your password)",
         kind="browser" if browser else "legacy",
     )
     response.headers["Cache-Control"] = "no-store"

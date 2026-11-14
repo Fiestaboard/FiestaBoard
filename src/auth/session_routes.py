@@ -1,12 +1,12 @@
 """Manage signed-in browsers and TVs from a real browser session."""
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Query, Request, Response
 
 from src.api_errors import errors
 
 from .browser_routes import require_browser_mutation, require_browser_session
-from .device_models import CSRFContext, RevokeSessions, SessionList, Success
-from .device_service import live_panel_ids, log_sign_out, shown_on
+from .device_models import CSRFContext, RevokeResult, RevokeSessions, SessionList, Success
+from .device_service import approved_by, live_panel_ids, revoke_with_approved, shown_on
 from .routes import _clear_session_cookie
 from .service import get_auth_service
 
@@ -26,9 +26,14 @@ def sessions(request: Request):
     rows = auth.sessions.list_sessions(current.username)
     views = auth.sessions.panel_views(current.username)
     panels = live_panel_ids() if views else set()
+    approvers, now = auth.sessions.approvers(current.username), auth.sessions.clock_ms()
     return SessionList(
         sessions=[
-            {**r.summary(), **shown_on(views.get(r.id, []), panels)}
+            {
+                **r.summary(),
+                **shown_on(views.get(r.id, []), panels),
+                "approved_by": approved_by(approvers.get(r.id), current.account_generation, now),
+            }
             for r in rows
             if r.account_generation == current.account_generation
         ],
@@ -36,17 +41,18 @@ def sessions(request: Request):
     )
 
 
-@router.delete("/{session_id}", response_model=Success, responses=RESPONSES)
-def revoke(session_id: str, request: Request, response: Response):
+@router.delete("/{session_id}", response_model=RevokeResult, responses=RESPONSES)
+def revoke(
+    session_id: str,
+    request: Request,
+    response: Response,
+    include_approved: bool = Query(False, description="Signing out a phone: also sign out the TVs it approved."),
+):
     current = require_browser_mutation(request)
-    store = get_auth_service().sessions
-    target = next((row for row in store.list_sessions(current.username) if row.id == session_id), None)
-    store.revoke_session(current.username, session_id)
-    if target is not None and target.id != current.id:
-        log_sign_out(current, target)
+    also = revoke_with_approved(current, session_id, include_approved)
     if session_id == current.id:
         _clear_session_cookie(response)
-    return Success()
+    return RevokeResult(also_signed_out=also)
 
 
 @router.post("/revoke", response_model=Success, responses=RESPONSES)

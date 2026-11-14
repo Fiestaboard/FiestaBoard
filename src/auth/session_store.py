@@ -41,6 +41,50 @@ def printable(text: str, limit: int = 100) -> str:
     return "".join(ch for ch in text if ch.isprintable())[:limit]
 
 
+#: A browser's name is its User-Agent: kept to this many characters, enough
+#: for the browser token Edge and Opera put at the very end of theirs.
+USER_AGENT_LIMIT = 256
+
+# (token in the agent, browser name), most specific first: Edge, Opera and
+# Samsung Internet also say "Chrome", Chrome on iOS ("CriOS") also says "Safari".
+_BROWSERS = (
+    ("Edg/", "Edge"),
+    ("EdgiOS/", "Edge"),
+    ("EdgA/", "Edge"),
+    ("OPR/", "Opera"),
+    ("SamsungBrowser/", "Samsung Internet"),
+    ("Firefox/", "Firefox"),
+    ("FxiOS/", "Firefox"),
+    ("CriOS/", "Chrome"),
+    ("Chrome/", "Chrome"),
+    ("Safari/", "Safari"),
+)
+# iPad and iPhone before "Mac OS X" (which they also say), Android before Linux.
+_SYSTEMS = (
+    ("iPad", "iPadOS"),
+    ("iPhone", "iOS"),
+    ("Android", "Android"),
+    ("CrOS", "ChromeOS"),
+    ("Windows", "Windows"),
+    ("Macintosh", "macOS"),
+    ("Mac OS X", "macOS"),
+    ("Linux", "Linux"),
+)
+
+
+def browser_label(user_agent: str) -> str:
+    """ "<Browser> on <OS>" from a stored User-Agent, else "a web browser".
+
+    For Signed-in devices' "Approved by" (web 07e): a readable name for the
+    browser that approved a TV's code, never the raw agent string.
+    """
+    browser = next((name for token, name in _BROWSERS if token in user_agent), None)
+    system = next((name for token, name in _SYSTEMS if token in user_agent), None)
+    if browser is None or system is None:
+        return "a web browser"
+    return f"{browser} on {system}"
+
+
 def digest_secret(secret: str) -> str:
     return hashlib.sha256(secret.encode()).hexdigest()
 
@@ -258,6 +302,33 @@ class SessionStore:
             ).fetchall()
         return {row["session_id"] for row in rows}
 
+    def session_kind(self, username: str, session_id: str) -> str | None:
+        """The kind of *username*'s session *session_id*, signed out or not
+        (``None`` if there is no such row, e.g. it expired and was cleaned)."""
+        with self.transaction() as db:
+            row = db.execute("SELECT kind FROM sessions WHERE username=? AND id=?", (username, session_id)).fetchone()
+        return row["kind"] if row else None
+
+    def approvers(self, username: str) -> dict[str, SessionRecord]:
+        """``{tv_session_id: the session that approved its code}`` for *username*.
+
+        The approver is returned even when it has since signed out, so
+        "Approved by" still names it (an expired one is forgotten).
+        """
+        with self.transaction() as db:
+            rows = db.execute(
+                """SELECT a.session_id AS approved_id, s.* FROM session_approvals a
+                JOIN sessions s ON s.id = a.approver_session_id
+                WHERE s.username=?""",
+                (username,),
+            ).fetchall()
+        approvers: dict[str, SessionRecord] = {}
+        for row in rows:
+            fields = dict(row)
+            approved = fields.pop("approved_id")
+            approvers[approved] = SessionRecord(**fields)
+        return approvers
+
     def panel_views(self, username: str) -> dict[str, list[tuple[str, int]]]:
         """Live sessions' last-shown panels, newest first, keyed by session id."""
         with self.transaction() as db:
@@ -277,7 +348,11 @@ class SessionStore:
         with self.transaction() as db:
             db.execute(
                 "UPDATE sessions SET device_name=?, kind=? WHERE digest=?",
-                (printable(device_name), kind, digest_secret(token)),
+                (
+                    printable(device_name, USER_AGENT_LIMIT if kind == "browser" else 100),
+                    kind,
+                    digest_secret(token),
+                ),
             )
 
     @property

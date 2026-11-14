@@ -182,6 +182,10 @@ CORS never applies to them.
 - **Signed-in devices** — lists browsers and TVs, including approximate last-active
   and expiry times. Revoke one, sign out other devices, or sign out everywhere.
   Device names are descriptive labels, not verified hardware identities.
+  A TV that signed in with a code also says who approved it: the phone's name,
+  or the browser as `<Browser> on <OS>` (from its user agent; "a web browser"
+  when that says neither). Signing out a phone can also sign out the TVs that
+  phone approved, even a phone that has already signed itself out.
 
 The corresponding API endpoints are also available:
 
@@ -190,6 +194,11 @@ The corresponding API endpoints are also available:
 | `POST` | `/api/auth/change-username` | `{ "current_password", "new_username" }` |
 | `POST` | `/api/auth/change-password` | `{ "current_password", "new_password" }` |
 | `POST` | `/api/auth/logout` | *(none)* |
+| `GET` | `/api/auth/sessions` | *(none)*: each TV row has `approved_by` (`session_id`, `kind`, `label`, `signed_in`) or `null` |
+| `DELETE` | `/api/auth/sessions/{id}?include_approved=true` | *(none)*: signing out a phone also signs out the TVs it approved, listed in `also_signed_out` |
+
+These session routes are for a signed-in browser only (with its CSRF token for
+`DELETE`); phones never see approver ids.
 
 ## TV sign-in
 
