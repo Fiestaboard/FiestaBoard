@@ -231,6 +231,8 @@ def test_generate_returns_the_draft_page_and_the_provider_that_made_it(client, c
         "template",
         "line_metadata",
         "duration_seconds",
+        # CHANGED (H9c): tags, additive; a generated page has none.
+        "tags",
         *PAGE_NULL_FIELDS,
     }
     assert all(page[field] is None for field in PAGE_NULL_FIELDS)

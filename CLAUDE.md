@@ -556,6 +556,18 @@ CURRENT_SCHEMA_VERSION = 2  # was 1
 - NEVER use heuristic detection (key presence, string length, etc.) to
   decide if a page needs migrating — use schema_version
 - NEVER modify the stored format without adding a migration
+- **The one exception: an additive optional field.** A new field whose
+  absence *is* its default (absent reads as `[]`/`None`, nothing is
+  rewritten, and nothing decides anything from whether the key is present),
+  and which an older build keeps as an opaque extension (`Page` is an
+  `ExtensibleDocument`), needs no migration and **must not** bump
+  `CURRENT_SCHEMA_VERSION`. A bump makes an older build refuse `pages.json`
+  (`SchemaTooNewError`; there is no downgrade bridge), so a one-release
+  rollback would show no pages. Precedent: `tags` (H9c), documented next to
+  `CURRENT_SCHEMA_VERSION`. Clean such a field leniently on load (a client
+  may already have stored an extension of that name in another shape) and
+  validate it strictly on requests. Anything that renames, removes,
+  re-encodes or rewrites stored data still needs a migration and a bump.
 - Migrations MUST be idempotent and safe to re-run
 - Migrations operate on raw dicts (before Pydantic validation)
 - Always log how many pages were affected

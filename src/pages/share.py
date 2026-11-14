@@ -20,7 +20,7 @@ SHARE_VERSION = 1
 def encode_page(page: Page) -> str:
     """Encode a Page into a portable share string."""
     data = page.model_dump()
-    page_content = {k: v for k, v in data.items() if k not in PAGE_SHARE_EXCLUDED}
+    page_content = {k: v for k, v in data.items() if k not in PAGE_SHARE_EXCLUDED and k != "tags"}
     envelope = {"v": SHARE_VERSION, "page": page_content}
     json_bytes = json.dumps(envelope, separators=(",", ":")).encode()
     # Strip padding — urlsafe_b64decode accepts unpadded strings when we re-add it.

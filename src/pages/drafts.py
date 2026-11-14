@@ -34,8 +34,9 @@ from .models import Page, PageUpdate
 
 logger = logging.getLogger(__name__)
 
-#: ``Page`` fields a draft may carry to ``update_page`` (PageUpdate's content fields).
-_UPDATABLE = frozenset(PageUpdate.model_fields) - {"expected_revision"}
+#: ``Page`` fields a draft may carry to ``update_page`` (PageUpdate's content
+#: fields). Not ``tags``: organisation, not content (the route rejects them).
+_UPDATABLE = frozenset(PageUpdate.model_fields) - {"expected_revision", "tags"}
 #: Fields an update may set back to None (mirrors ``PageStorage._update_locked``).
 _NULLABLE = frozenset(
     {

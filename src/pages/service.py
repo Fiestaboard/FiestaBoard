@@ -226,6 +226,7 @@ class PageService(PageDraftsMixin):
             grid_rows=data.grid_rows,
             grid_cols=data.grid_cols,
             canvases=data.canvases,
+            tags=data.tags,
             created_at=datetime.now(UTC),
             **(data.model_extra or {}),
         )

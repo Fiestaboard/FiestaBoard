@@ -403,6 +403,7 @@ Saves a new page and answers with it, including the generated `id` you refer to 
 | `grid_rows` | `integer` \| `null` | no | 1–96 |
 | `grid_cols` | `integer` \| `null` | no | 5–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `tags` | array of `string` | no | Labels for organizing pages: at most 16, each 1-32 characters, trimmed, with no control characters. Duplicates differing only in case are dropped. |
 
 **Responses**
 
@@ -474,6 +475,7 @@ Applies the fields you send and leaves the rest alone. The response carries the 
 | `grid_rows` | `integer` \| `null` | no | 1–96 |
 | `grid_cols` | `integer` \| `null` | no | 5–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `tags` | array of `string` \| `null` | no | Replaces the page's tags; [] removes them all; omit to keep them. |
 
 **Responses**
 
@@ -1809,6 +1811,7 @@ Each page targets a specific device type (flagship: 22x6, note: 15x3).
 | `grid_rows` | `integer` \| `null` | no | 1–96 |
 | `grid_cols` | `integer` \| `null` | no | 5–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `tags` | array of `string` | no | Labels for organizing pages. |
 | `created_at` | `date-time` | no | — |
 | `updated_at` | `date-time` \| `null` | no | — |
 | `edit_protocol` | `string` | yes | Runtime support for conditional sparse page saves; never caller input. |
@@ -1837,6 +1840,7 @@ Create author content; server-assigned identity and timestamps are ignored.
 | `grid_rows` | `integer` \| `null` | no | 1–96 |
 | `grid_cols` | `integer` \| `null` | no | 5–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `tags` | array of `string` | no | Labels for organizing pages: at most 16, each 1-32 characters, trimmed, with no control characters. Duplicates differing only in case are dropped. |
 
 ### `PageDeleteResponse` {#schema-pagedeleteresponse}
 
@@ -1890,6 +1894,7 @@ merged by position or guessed identity.
 | `grid_rows` | `integer` \| `null` | no | 1–96 |
 | `grid_cols` | `integer` \| `null` | no | 5–128 |
 | `canvases` | array of [`DocumentCanvas`](#schema-documentcanvas) \| `null` | no | — |
+| `tags` | array of `string` \| `null` | no | Replaces the page's tags; [] removes them all; omit to keep them. |
 
 ### `PageUpdateResponse` {#schema-pageupdateresponse}
 

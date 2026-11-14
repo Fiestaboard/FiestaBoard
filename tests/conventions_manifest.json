@@ -133,6 +133,11 @@
       "reason": "Has no failure path of its own, like GET /pages: an install with no drafts answers {\"drafts\": []}, and a draft whose page is gone is skipped rather than reported. The only 4xx it can produce is the auth middleware's 401, applied app-wide."
     },
     {
+      "route": "GET /pages/tags",
+      "rule": "declared_errors",
+      "reason": "Has no failure path of its own, like GET /pages: an install with no tags answers {\"tags\": []}. The only 4xx it can produce is the auth middleware's 401, applied app-wide."
+    },
+    {
       "route": "GET /pages/cache/stats",
       "rule": "declared_errors",
       "reason": "Reports in-memory preview-cache occupancy, which always exists — an empty cache is a valid answer, not an error. Nothing it reads can be missing or unauthorized at the route level."
