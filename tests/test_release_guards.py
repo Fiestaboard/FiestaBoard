@@ -93,13 +93,14 @@ def test_read_pre_json(tmp_path):
 
 
 def test_committed_pre_json_is_one_a_release_branch_accepts():
-    """This suite runs on main and on alpha, so it can't know which branch it
-    is on: whether pre.json belongs here is release-guards' job (per base
-    branch). What holds on both: if pre.json exists it is beta pre mode, or
-    exit mode during a promotion.
+    """This suite runs on main, on alpha and on v11, so it can't know which
+    branch it is on: whether pre.json belongs here is release-guards' job (per
+    base branch). What holds on all three: if pre.json exists it is beta pre
+    mode (alpha), alpha pre mode (the v11 integration branch, 11.0.0-alpha.N,
+    which is not a release branch), or exit mode during a promotion.
     """
     pre = read_pre_json(ROOT / ".changeset" / "pre.json")
-    assert pre is None or (pre.tag == "beta" and pre.mode in ("pre", "exit"))
+    assert pre is None or (pre.tag in ("beta", "alpha") and pre.mode in ("pre", "exit"))
 
 
 # ---------------------------------------------------------------------------
