@@ -31,6 +31,7 @@ from src.ops import executors
 from src.outputs.board_profile import board_profile
 from src.outputs.cells import project_for_output
 from src.outputs.display_profile import board_layers_json, render_kw
+from src.outputs.health import board_health
 from src.outputs.registry import resolve_output_id
 from src.request_trace import trace_phase
 from src.text_to_board import text_to_board_array, wrap_message_text
@@ -192,6 +193,7 @@ async def get_board(board: str) -> BoardDetail:
         override_expires_at=override.expires_at if override is not None else None,
         override_started_at=override.started_at if override is not None else None,
         **_next_change_fields(board_id),
+        health=board_health(runtime.get_service(), board_id),
         layers=board_layers_json(entry, state.cells if state.characters is not None else None),
     )
 

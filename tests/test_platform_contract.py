@@ -186,6 +186,16 @@ def test_status_reports_the_flag_the_instance_and_the_active_page(client):
         "active_page_id": "page-1",
         "error": None,
         "output_status": {"state": "not_configured", "message": ""},
+        # H12: nothing known about this board's health yet.
+        "health": {
+            "last_connected_at": None,
+            "last_update_at": None,
+            "latency_ms": None,
+            "last_error_at": None,
+            "last_error": None,
+            "reachable": None,
+            "breaker_open": False,
+        },
     }
 
 

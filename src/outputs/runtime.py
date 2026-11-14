@@ -42,6 +42,7 @@ from src.send_outcome import SendOutcome
 
 from .floor import Admission, send_floors
 from .frames import FrameCache, Grid
+from .health import BoardHealth
 from .registry import Delivery, capabilities_of
 from .transitions import TRANSITION_PLUGIN_PREFIX, NativeTransition, transition_plugins_enabled
 
@@ -125,6 +126,9 @@ class OutputRuntime:
         # equal to a reader's own id if that reader set it, so the unlocked
         # read in write() is race-free.
         self._run_owner: int | None = None
+        # H12: when the hub last reached the device, how fast, and the last
+        # failure. Here, not on the driver, so a board re-save keeps it.
+        self.health = BoardHealth(board_id)
 
     # --- frames ------------------------------------------------------------------
 

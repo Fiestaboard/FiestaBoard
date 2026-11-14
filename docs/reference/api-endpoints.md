@@ -1279,6 +1279,7 @@ one document, because "what is this board doing" is one question.
 | `next_change_reason` | `"override_ends"` \| `"schedule"` \| `"silence_starts"` \| `"silence_ends"` \| `"collection"` \| `null` | no | Why next_change_at is when it is. Null exactly when next_change_at is. |
 | `next_page_id` | `string` \| `null` | no | The page or collection in force after next_change_at, when the hub can know it; null when it cannot (a collection rotation, a blank revert, a quiet-hours indicator). |
 | `override_started_at` | `string` \| `null` | no | When this board's active override began (ISO 8601), or null if none is running. A replaced override has a new value, so it identifies one run (for a Live Activity or Live Update). |
+| `health` | [`HealthSummary`](#schema-healthsummary) | no | When the hub last reached this board (last_connected_at, latency_ms), when a frame last landed (last_update_at), and the last failed contact (last_error_at, last_error); these survive a hub restart. reachable says whether this hub process last reached the board or failed to, and breaker_open whether writes are held back after repeated failures. |
 | `layers` | array of [`CanvasLayerModel`](#schema-canvaslayermodel) \| `null` | no | A pixel-matrix board only: the page's pixel canvases on the frame it shows, drawn over `characters` (`{x, y, width, height, rgba}`, rgba base64 RGBA; `[]` for none). Null on any other board. |
 
 ### `BoardListResponse` {#schema-boardlistresponse}
@@ -1301,6 +1302,7 @@ Per-board runtime state (issue #1244).
 | `active_page_id` | `string` \| `null` | no | — |
 | `error` | `string` \| `null` | no | — |
 | `output_status` | [`OutputStatusSummary`](#schema-outputstatussummary) \| `null` | no | — |
+| `health` | [`HealthSummary`](#schema-healthsummary) | no | default `{"breaker_open": false}` |
 
 ### `BoardSummary` {#schema-boardsummary}
 
@@ -1594,6 +1596,20 @@ gate all use.
 | `status` | `string` | yes | — |
 | `service_running` | `boolean` | yes | — |
 | `version` | `string` | yes | — |
+
+### `HealthSummary` {#schema-healthsummary}
+
+A display's health, as `GET /status` and `GET /v1/boards/{board}` report it.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `last_connected_at` | `string` \| `null` | no | When the device last answered the hub (UTC, whole seconds). For a Vestaboard Cloud API board this is the cloud API answering, not the board itself. |
+| `last_update_at` | `string` \| `null` | no | When a frame last landed (UTC, whole seconds). |
+| `latency_ms` | `integer` \| `null` | no | How long the request behind last_connected_at took; null after a restart. |
+| `last_error_at` | `string` \| `null` | no | When the last failed contact happened. |
+| `last_error` | `"auth"` \| `"unreachable"` \| `"timeout"` \| `"server_error"` \| `"unexpected_status"` \| `"blocked"` \| `"invalid_request"` \| `"write_failed"` \| `"raised"` \| `"bad_response"` \| `"read_failed"` \| `null` | no | Why it failed. From the device's answer: auth (credential refused), unreachable, timeout, server_error, unexpected_status, blocked (host not allowed), invalid_request (the request could not be built: a bad address or header in the board's settings). From the hub: write_failed, raised, bad_response, read_failed. Kept while breaker_open holds writes back. |
+| `reachable` | `boolean` \| `null` | no | True when this hub process's last event for the board was a contact, false when it was a failure, null until it has had either (and always for a FiestaPanel, which the hub never contacts). |
+| `breaker_open` | `boolean` | no | True while the hub holds writes back after repeated failures (it retries every few minutes). last_error still says what the failures were. (default `false`) |
 
 ### `HTTPValidationError` {#schema-httpvalidationerror}
 

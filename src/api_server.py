@@ -435,6 +435,15 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.debug("Failed to stop board-send executor during shutdown", exc_info=True)
 
+    # Write any pending per-display health (H12). Changes are written at most
+    # every few minutes; this keeps the last ones across a planned restart.
+    try:
+        from .outputs.health import flush_board_health
+
+        flush_board_health()
+    except Exception:
+        logger.debug("Failed to flush board health during shutdown", exc_info=True)
+
 
 # Create FastAPI app
 # The front page of /api/docs. Swagger renders this as markdown, so it is the

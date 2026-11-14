@@ -122,6 +122,10 @@ class OutputPluginDriver:
         # ``src.outputs.plugin_driver._time_module`` for a fake one.
         self._clock = clock if clock is not None else _time_module.monotonic
         self._output_runtime = OutputRuntime()
+        # H12: the device client reports contact and classified failures to
+        # the board's health (see src/outputs/health.py), which reads this
+        # device's breaker live.
+        self._bind_health(self._output_runtime)
         self._last_send_throttled = False
         self._last_send_retry_after: int | None = None
         self._last_send_preempted = False
@@ -256,6 +260,11 @@ class OutputPluginDriver:
         if self._output_runtime.transition_runner is not None:
             runtime.transition_runner = self._output_runtime.transition_runner
         self._output_runtime = runtime
+        self._bind_health(runtime)
+
+    def _bind_health(self, runtime: OutputRuntime) -> None:
+        self.plugin.http.health = runtime.health
+        runtime.health.breaker = self._breaker_is_open
 
     def set_transition_runner(self, runner: Any | None) -> None:
         self._output_runtime.transition_runner = runner
@@ -292,6 +301,13 @@ class OutputPluginDriver:
     def _breaker_key(self) -> str:
         return f"{self.connection_label}|{self.device_key()}"
 
+    def _breaker_is_open(self) -> bool:
+        """Whether this device's breaker is refusing writes now (health's ``breaker_open``)."""
+        if self.first_party:
+            return False
+        state = output_breakers().state(self._breaker_key(), self._clock())
+        return state is not None and state.open
+
     def _breaker_refusal(self, admission: Admission) -> WriteResult | None:
         """A failed result when the device's breaker is open, else ``None``.
 
@@ -304,6 +320,8 @@ class OutputPluginDriver:
         if streak is None:
             return None
         self._output_runtime.release_send(admission)
+        # Not a contact attempt: health keeps the failure that opened the
+        # breaker as last_error, and reports breaker_open beside it.
         self.last_write_error = (
             f"Output {self.connection_label} stopped after {streak.failures} failed writes in a row; "
             f"retrying in {breakers.cooldown_seconds:.0f}s. Last failure: {streak.last_failure}"
@@ -360,10 +378,15 @@ class OutputPluginDriver:
         """Run the plugin's write under the run's token and its budget; settle
         floor, frame cache and breaker."""
         token = self._output_runtime.cancel_event
+        health = self._output_runtime.health
+        errors_before = health.error_count
         try:
             finished, raw = self._run_bounded(call)
             result = WriteResult.of(raw) if finished else None
         except Exception as exc:
+            if health.error_count == errors_before:
+                # Nothing at the HTTP layer explains it.
+                health.record_error("raised")
             if self.first_party:
                 # Core's own code: an unanticipated error is the caller's, as
                 # it always was (the engine reports it), not a quiet failure.
@@ -376,6 +399,7 @@ class OutputPluginDriver:
             self._write_failed(f"the write raised {type(exc).__name__}: {exc}")
             return WriteResult(False, sent)
         if result is None:
+            health.record_error("timeout")
             # The slot stays taken: the device may still be receiving the write.
             # A timed-out transition may already have changed the device.
             self._frames.forget()
@@ -424,6 +448,11 @@ class OutputPluginDriver:
         elif not result.success and not result.partial and not (prior_send is not None and prior_send()):
             self._output_runtime.release_send(admission)
             self._frames.forget()
+        if (result.success or result.partial) and result.was_sent:
+            health.record_update()
+        elif not result.success and not result.partial and health.error_count == errors_before:
+            # The output said it failed and nothing at the HTTP layer said why.
+            health.record_error("write_failed")
         if result.success:
             self.last_write_error = None
             output_breakers().record_success(self._breaker_key())
@@ -714,9 +743,17 @@ class OutputPluginDriver:
             # sent, while it still has the board's shape.
             grid = self.plugin.board_geometry
             return self._output_runtime.displayed_frame(*grid) if grid is not None else None
+        health = self._output_runtime.health
+        errors_before = health.error_count
         try:
             characters = self.plugin.read_current()
-        except Exception:
+        except Exception as exc:
+            if health.error_count == errors_before:
+                # The device answered but the output could not read what it said,
+                # or something else failed that HTTP did not classify.
+                health.record_error(
+                    "bad_response" if isinstance(exc, (ValueError, KeyError, TypeError)) else "read_failed"
+                )
             if self.first_party:
                 raise
             logger.exception("Output plugin %s: read_current failed", self.connection_label)
