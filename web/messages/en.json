@@ -1106,20 +1106,6 @@
     "toastSaveFailed": "Failed to save board as a page",
     "toastOpen": "Open"
   },
-  "forceSetDialog": {
-    "title": "Force Set Board",
-    "description": "Show \"{pageName}\" temporarily, then revert automatically.",
-    "showFor": "Show for",
-    "custom": "Custom",
-    "minutes": "minutes",
-    "cancel": "Cancel",
-    "confirm": "Force Set",
-    "setting": "Setting…",
-    "toastSuccess": "Showing \"{pageName}\" for {minutes} min",
-    "toastError": "Failed to set override",
-    "silenceWarning": "Force Set shows this page right away and wakes the board.",
-    "confirmSilenced": "Show now anyway"
-  },
   "composeDialog": {
     "title": "Compose a message",
     "description": "Shows on {board} when you choose Show now. Nothing reaches the board before that.",
@@ -3147,24 +3133,6 @@
     "communityBadge": "Community",
     "communityDescription": "Published outside the FiestaBoard GitHub organization."
   },
-  "editorShortcuts": {
-    "title": "Keyboard shortcuts",
-    "platformNote": "⌘ on Mac · Ctrl on Windows and Linux",
-    "or": "or",
-    "close": "Close",
-    "button": "Shortcuts",
-    "hint": "All shortcuts",
-    "footnote": "No single-key shortcuts while typing in the template.",
-    "undo": "Undo",
-    "redo": "Redo",
-    "applyFormula": "Apply a formula (formula editor)",
-    "closePicker": "Close a picker",
-    "exitDrawMode": "Leave draw mode",
-    "showShortcuts": "Show keyboard shortcuts",
-    "previewStep": "Move the preview by one Note or column",
-    "previewEnds": "Jump to the start or end of the preview",
-    "previewFit": "Fit / Actual size (preview focused)"
-  },
   "statusBanners": {
     "unnamedBoard": "This display",
     "tryAgain": "Try again",
@@ -3231,5 +3199,23 @@
     "toastPaused": "Saved. {page} shows when you resume {board}.",
     "toastNotSent": "Saved, but sending to {board} failed.",
     "toastError": "Couldn’t change the page"
+  },
+  "editorShortcuts": {
+    "title": "Keyboard shortcuts",
+    "platformNote": "⌘ on Mac · Ctrl on Windows and Linux",
+    "or": "or",
+    "close": "Close",
+    "button": "Shortcuts",
+    "hint": "All shortcuts",
+    "footnote": "No single-key shortcuts while typing in the template.",
+    "undo": "Undo",
+    "redo": "Redo",
+    "applyFormula": "Apply a formula (formula editor)",
+    "closePicker": "Close a picker",
+    "exitDrawMode": "Leave draw mode",
+    "showShortcuts": "Show keyboard shortcuts",
+    "previewStep": "Move the preview by one Note or column",
+    "previewEnds": "Jump to the start or end of the preview",
+    "previewFit": "Fit / Actual size (preview focused)"
   }
 }

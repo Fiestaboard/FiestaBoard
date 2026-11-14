@@ -120,7 +120,10 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
       await expect
         .poll(async () => {
           const [h, t] = await Promise.all([hint.boundingBox(), formula.boundingBox()]);
-          return Math.abs(h!.y + h!.height / 2 - (t!.y + t!.height / 2));
+          // A media-query update reparents the hint between these measurements.
+          // Keep polling until both current elements have layout boxes.
+          if (!h || !t) return Number.POSITIVE_INFINITY;
+          return Math.abs(h.y + h.height / 2 - (t.y + t.height / 2));
         })
         .toBeLessThanOrEqual(4);
     });
