@@ -10,11 +10,14 @@ permissions:
 
 jobs:
   label:
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ vars.FIESTABOARD_MAC_PR_RUNNER == 'true'
+          && github.ref == 'refs/heads/main'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && contains(fromJSON('["OWNER","MEMBER"]'), github.event.pull_request.author_association)
+          && fromJSON('["self-hosted","linux","ARM64","mac-ubuntu"]')
+          || 'ubuntu-latest' }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
       # Versions come from changesets (docs/internal/development/RELEASING.md),
       # so this applies area labels only. It used to add major/minor/patch from
       # the PR title, which release.yml read to pick the bump.
