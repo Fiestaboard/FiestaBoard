@@ -1433,50 +1433,8 @@ jobs:
 
   # Release hygiene for PRs into main and alpha (docs/internal/development/RELEASING.md).
   release-guards:
-    name: Release guards
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      # Standard-library scripts: the runner's python3, no installs.
-      #
-      # pre.json is a committed file, so a merge carries it anywhere: main in
-      # pre mode would cut prereleases, and alpha out of it would cut stable
-      # releases.
-      - name: Keep prerelease mode on its branch
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -o pipefail
-          python3 scripts/release/pre_mode.py check-base "${BASE_REF#refs/heads/}" \
-            | sed -n 's/^reason=//p' >> "$GITHUB_STEP_SUMMARY"
-
-      # A shipped change without a changeset merges cleanly and then waits,
-      # unannounced, for some other change to release it. This makes that a
-      # red PR instead. PR-only: a queue entry has no head ref or labels, and
-      # its PR already passed.
-      #
-      # Labels are read live rather than from the event payload: CI does not
-      # run on `labeled` (pr-label.yml relabels every push), and a re-run
-      # replays the original payload. So adding `no-changeset` and re-running
-      # this job is enough.
-      - name: Require a changeset for shipped changes
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          HEAD_REF: ${{ github.head_ref }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-        run: |
-          set -o pipefail
-          python3 scripts/release/changeset_check.py "$BASE_SHA" "$HEAD_SHA" \
-            | sed -n 's/^reason=//p' >> "$GITHUB_STEP_SUMMARY"
+    uses: Fiestaboard/FiestaBoard/.github/workflows/pr-release-guards.yml@41aad4d6ede3363f426ca2e7e6574ed31a50cd0a
 
   ci-success:
     name: CI Success
