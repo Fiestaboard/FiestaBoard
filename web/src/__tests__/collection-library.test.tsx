@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter } from "react-router";
@@ -65,16 +65,33 @@ describe("Collections library", () => {
     await user.click(await screen.findByRole("button", { name: /Rotation/ }));
     expect(push).toHaveBeenCalledWith("/collections/collection%3Arotation");
   });
-  it("reorders pages with keyboard-operable controls and preserves custom duration", async () => {
+  it("reorders pages from the keyboard and preserves custom duration", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(<CollectionForm collection={collection} pages={pages} onSubmit={onSubmit} onCancel={vi.fn()} />);
-    await user.click(screen.getByRole("button", { name: "Move Second up" }));
+    const second = screen.getAllByRole("listitem").find((row) => row.textContent?.includes("Second"))!;
+    second.focus();
+    await user.keyboard(" {ArrowUp} ");
+    expect(screen.getByRole("status")).toHaveTextContent("Second dropped · position 1 of 2");
     await user.click(screen.getByRole("button", { name: "Update Collection" }));
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(
         expect.objectContaining({ page_ids: ["p2", "p1"], time: { interval_seconds: 5400 } }),
       ),
     );
+  });
+  it("reorders pages with Move up and saves the new order", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(<CollectionForm collection={collection} pages={pages} onSubmit={onSubmit} onCancel={vi.fn()} />);
+    const second = screen.getAllByRole("listitem").find((row) => row.textContent?.includes("Second"))!;
+    await user.click(within(second).getByRole("button", { name: "Move up" }));
+    await user.click(screen.getByRole("button", { name: "Update Collection" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ page_ids: ["p2", "p1"] })));
+  });
+  it("leaves the HTML5 drag API behind for the page list", () => {
+    render(<CollectionForm collection={collection} pages={pages} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+    expect(document.querySelector('[data-slot="sortable-list"] [draggable]')).toBeNull();
+    expect(document.querySelector('[data-slot="sortable-list"]')).not.toBeNull();
   });
 });
