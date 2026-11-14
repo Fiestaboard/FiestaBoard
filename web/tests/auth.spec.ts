@@ -236,7 +236,7 @@ test.describe("Authentication", () => {
       await page.waitForURL(/\/settings/, { timeout: 10_000 });
     });
 
-    test("/profile redirects to /settings while authenticated", async ({ page }) => {
+    test("/profile redirects to Settings Account while authenticated", async ({ page }) => {
       await signIn(page);
       // The WizardProvider gates every non-/login route behind /config/validate
       // and renders a full-screen loader (then the SetupWizard) when
@@ -245,9 +245,8 @@ test.describe("Authentication", () => {
       // is_first_run flips to false and the page actually loads.
       await ensureBoardConfigured(page);
       await page.goto("/profile");
-      // Profile is a thin redirect to /settings?section=general, which now
-      // lands on /settings/appearance (the General tab was split, slice 2.1).
-      await page.waitForURL(/\/settings\/appearance$/, { timeout: 5_000 });
+      // Profile is the account alias in the Settings list-detail layout.
+      await page.waitForURL(/\/settings\/account$/, { timeout: 5_000 });
     });
 
     test("validation: /auth/login with empty username is rejected (422)", async ({ request }) => {

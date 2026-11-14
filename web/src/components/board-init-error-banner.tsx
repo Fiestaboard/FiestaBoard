@@ -1,11 +1,10 @@
 "use client";
 
-import { Alert, AlertDescription, AlertTitle, Box, Button, Flex, Stack } from "@fiestaboard/ui";
-import { AlertTriangle } from "lucide-react";
+import { Stack, StatusBanner, StatusBannerAction } from "@fiestaboard/ui";
 
 import { useCurrentBoard } from "@/components/current-board-context";
+import Link from "@/components/smart-link";
 import { useStatus } from "@/hooks/use-board";
-import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
 /**
@@ -18,10 +17,12 @@ import { useTranslations } from "@/i18n/translations";
  * currently selected one, so this reads the whole fleet rather than scoping
  * to the current board. Rides the shared 15s status poll (useStatus); no new
  * polling loop.
+ *
+ * A `StatusBanner kind="init-error"` (07a `298:2280` "Couldn't start …"), with
+ * Display settings as its one fix.
  */
 export function BoardInitErrorBanner() {
-  const t = useTranslations("home");
-  const router = useRouter();
+  const t = useTranslations("statusBanners");
   const { data: status } = useStatus();
   const { boards } = useCurrentBoard();
 
@@ -32,30 +33,19 @@ export function BoardInitErrorBanner() {
   if (failedBoards.length === 0) return null;
 
   return (
-    <Stack gap="2" className="mb-6" data-testid="board-init-error-banner">
+    <Stack gap="2" data-testid="board-init-error-banner">
       {failedBoards.map((board) => (
-        <Alert
+        <StatusBanner
           key={board.id}
-          variant="destructive"
-          className="flex flex-col sm:flex-row sm:items-center sm:gap-4 [&>svg]:static [&>svg]:shrink-0 [&>svg+div]:translate-y-0 [&>svg~*]:pl-3"
-        >
-          <AlertTriangle className="h-4 w-4" />
-          <Box className="flex-1 min-w-0">
-            <AlertTitle>
-              {board.name ? t("boardInitErrorTitle", { boardName: board.name }) : t("boardInitErrorTitleUnnamed")}
-            </AlertTitle>
-            <AlertDescription>{board.error}</AlertDescription>
-          </Box>
-          <Flex align="center" className="self-center shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push(`/displays/${encodeURIComponent(board.id)}`)}
-            >
-              {t("boardInitErrorOpenSettings")}
-            </Button>
-          </Flex>
-        </Alert>
+          kind="init-error"
+          title={board.name ? t("initErrorTitle", { boardName: board.name }) : t("initErrorTitleUnnamed")}
+          description={board.error}
+          action={
+            <StatusBannerAction asChild>
+              <Link href={`/displays/${encodeURIComponent(board.id)}?section=settings`}>{t("displaySettings")}</Link>
+            </StatusBannerAction>
+          }
+        />
       ))}
     </Stack>
   );

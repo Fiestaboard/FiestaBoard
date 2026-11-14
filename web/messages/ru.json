@@ -86,12 +86,7 @@
     "more": "Ещё",
     "needsAttention": "{count, plural, one {# требует внимания} few {# требуют внимания} many {# требуют внимания} other {# требуют внимания}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Открывает панель",
-    "hub": {
-      "online": "В сети",
-      "unreachable": "Недоступен",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Открывает панель"
   },
   "settingsMenu": {
     "trigger": "Ещё",
@@ -3149,5 +3144,43 @@
   "plugins": {
     "communityBadge": "Сообщество",
     "communityDescription": "Опубликовано вне организации FiestaBoard на GitHub."
+  },
+  "statusBanners": {
+    "unnamedBoard": "Этот дисплей",
+    "tryAgain": "Повторить",
+    "deviceOfflineTitle": "Нет подключения к сети",
+    "deviceOfflineComputer": "У этого компьютера нет сети. Дисплеи продолжают работать на хабе; FiestaBoard переподключится, когда сеть вернётся.",
+    "deviceOfflinePhone": "У этого телефона нет сети. Дисплеи продолжают работать на хабе; FiestaBoard переподключится, когда сеть вернётся.",
+    "hubUnreachableTitle": "Не удаётся связаться с хабом {host}",
+    "hubUnreachableDetail": "Дисплеи продолжают работать по расписанию на хабе, поэтому ничего не потеряно. Последнее подключение {time} · повтор каждые {seconds} с.",
+    "hubUnreachableDetailNever": "Дисплеи продолжают работать по расписанию на хабе, поэтому ничего не потеряно. Повтор каждые {seconds} с.",
+    "connectionHelp": "Помощь с подключением",
+    "displayOfflineTitle": "{boardName} не в сети",
+    "displayOfflineDetail": "Последнее подключение {time}. Проверьте питание и Wi-Fi; FiestaBoard проверит снова сам.",
+    "displayOfflineDetailNever": "Хаб не связывался с ним с момента запуска. Проверьте питание и Wi-Fi; FiestaBoard проверит снова сам.",
+    "diagnostics": "Диагностика",
+    "initErrorTitle": "Не удалось запустить {boardName}",
+    "initErrorTitleUnnamed": "Не удалось запустить дисплей",
+    "displaySettings": "Настройки дисплея",
+    "pausedTitle": "{boardName} на паузе",
+    "pausedDetail": "Он продолжает показывать {pageName} и пропускает расписание, пока вы не возобновите.",
+    "pausedDetailNoPage": "Он пропускает расписание, пока вы не возобновите.",
+    "resume": "Возобновить",
+    "silencedTitle": "Silence Schedule до {time}",
+    "silencedTitleNoTime": "Silence Schedule включён",
+    "silencedDetailPage": "{boardName} остаётся на {pageName}, и до {time} ничего нового не появится. Сообщения, написанные сейчас, подождут до этого времени.",
+    "silencedDetail": "{boardName} в тишине. Новые сообщения ждут до {time}, если вы не выберете «Показать сейчас».",
+    "silencedDetailNoTime": "{boardName} в тишине. Новые сообщения ждут окончания Silence Schedule, если вы не выберете «Показать сейчас».",
+    "noViewerTitle": "Ни один телевизор не показывает {boardName}",
+    "noViewerDetail": "Последний показ на {deviceName} · {when}",
+    "noViewerDetailNever": "Ни один телевизор с выполненным входом ещё не показывал его. Откройте его на телевизоре, чтобы увидеть там.",
+    "checkAgain": "Проверить снова",
+    "hubOnline": "В сети",
+    "hubRemote": "Удалённо",
+    "hubUnreachable": "Нет связи",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Не в сети",
+    "offlineMeta": "Последнее подключение {time} · Расписание продолжает работать на хабе",
+    "offlineMetaNever": "Нет связи с запуска хаба · Расписание продолжает работать на хабе"
   }
 }

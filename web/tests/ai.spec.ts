@@ -454,7 +454,7 @@ test.describe("AI", () => {
 
       // The settings component is loaded — assert on a stable string from
       // its header / description copy rather than a specific button label.
-      await expect(page.getByText(/AI Providers|AI Settings|Add provider/i).first()).toBeVisible();
+      await expect(page.getByRole("heading", { name: "AI Providers", exact: true })).toBeVisible();
       // The provider we configured via the API should appear in the list.
       await expect(page.getByText(PROVIDER_NAME, { exact: false }).first()).toBeVisible();
     });

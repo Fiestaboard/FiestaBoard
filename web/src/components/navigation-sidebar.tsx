@@ -12,6 +12,7 @@ import { ViewTransitionLink } from "@/components/view-transition-link";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
 import { RAIL_BREAKPOINT, useBelowRail, useTabletRailCollapse } from "@/hooks/use-below-rail";
 import { usePrefetchPagesData } from "@/hooks/use-board";
+import { useHubLine } from "@/hooks/use-hub-connection";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
@@ -72,6 +73,13 @@ export function NavigationSidebar() {
   const belowRail = useBelowRail();
   const chrome = belowRail ? "bottom-nav" : "rail";
 
+  // The hub line under the switcher (WEB-09, slice 2.3): "host · Online /
+  // Remote / Can't reach". The same source as the More drawer's foot line
+  // (useHubLine). The switcher only renders with two or more boards, so a
+  // single-board install adds no status poll for it.
+  const tHub = useTranslations("statusBanners");
+  const { host: hubHost, status: hubStatus } = useHubLine({ enabled: !chromeless && boards.length > 1 });
+
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer
   // (a wall display must never grow app chrome).
@@ -99,6 +107,7 @@ export function NavigationSidebar() {
     boardSelector: t("boardSelector"),
     selectBoard: t("selectBoard"),
     unnamedBoard: t("unnamedBoard"),
+    hubStatus: { online: tHub("hubOnline"), remote: tHub("hubRemote"), unreachable: tHub("hubUnreachable") },
   };
 
   return (
@@ -138,6 +147,8 @@ export function NavigationSidebar() {
             onChange={setCurrentBoardId}
             labels={boardSelectorLabels}
             collapsed={collapsed}
+            host={hubHost}
+            status={hubStatus}
           />
         ) : undefined
       }
@@ -149,6 +160,8 @@ export function NavigationSidebar() {
             onChange={setCurrentBoardId}
             labels={boardSelectorLabels}
             variant="mobileHeader"
+            host={hubHost}
+            status={hubStatus}
           />
         ) : undefined
       }
