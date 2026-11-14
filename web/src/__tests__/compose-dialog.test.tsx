@@ -53,13 +53,13 @@ describe("ComposePageDialog", () => {
 
   it("Send is disabled until something is typed", () => {
     renderDialog();
-    expect(screen.getByRole("button", { name: /send to board/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^show now$/i })).toBeDisabled();
   });
 
   it("Send is enabled once the message has content", async () => {
     renderDialog();
     typeMessage("HELLO");
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
   });
 
   it("sending posts the template inline with no duration, so the override is indefinite", async () => {
@@ -85,8 +85,8 @@ describe("ComposePageDialog", () => {
 
     renderDialog();
     typeMessage("HELLO\nWORLD");
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /send to board/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: /^show now$/i }));
 
     await waitFor(() => expect(capturedBody).not.toBeNull());
     expect(capturedBody).toMatchObject({
@@ -108,8 +108,8 @@ describe("ComposePageDialog", () => {
 
     renderDialog({ deviceType: "note" });
     typeMessage("HI");
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /send to board/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: /^show now$/i }));
 
     await waitFor(() => expect(capturedBody).not.toBeNull());
     expect(capturedBody).toMatchObject({ device_type: "note" });
@@ -127,8 +127,8 @@ describe("ComposePageDialog", () => {
 
     renderDialog({ deviceType: "panel", gridRows: 12, gridCols: 29 });
     typeMessage("HI");
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /send to board/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: /^show now$/i }));
 
     await waitFor(() => expect(capturedBody).not.toBeNull());
     expect(capturedBody).toMatchObject({ device_type: "panel", grid_rows: 12, grid_cols: 29 });
@@ -138,7 +138,7 @@ describe("ComposePageDialog", () => {
   it("lets a panel one-off use every row of the panel's grid", async () => {
     renderDialog({ deviceType: "panel", gridRows: 12, gridCols: 29 });
     typeMessage(Array.from({ length: 12 }, (_, i) => `LINE ${i}`).join("\n"));
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
   });
 
   it("closes the dialog after a successful send", async () => {
@@ -151,8 +151,8 @@ describe("ComposePageDialog", () => {
 
     renderDialog({ onOpenChange });
     typeMessage("HI");
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /send to board/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: /^show now$/i }));
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
@@ -173,14 +173,14 @@ describe("ComposePageDialog", () => {
 
     renderDialog();
     typeMessage("HI");
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /send to board/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: /^show now$/i }));
 
     // Wait for the send itself to land: the button is enabled again before
     // the request even starts, and a request still in flight when this test
     // ends is answered by the NEXT test's handlers.
     await waitFor(() => expect(sent).toBe(true));
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
     expect(pageCreated).toBe(false);
   });
 
@@ -226,21 +226,37 @@ describe("ComposePageDialog", () => {
 
     renderDialog({ onOpenChange });
     typeMessage("HI");
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /send to board/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: /^show now$/i }));
 
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 
-  it("says nothing about a destination board when it is the one already selected", () => {
-    renderDialog();
-    expect(screen.queryByText(/primary board/i)).not.toBeInTheDocument();
+  it("says where the message will show, before Show now", () => {
+    renderDialog({ targetBoardLabel: "Living Room" });
+    expect(
+      screen.getByText("Shows on Living Room when you choose Show now. Nothing reaches the board before that."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Not sent yet · Living Room")).toBeInTheDocument();
   });
 
-  it("names the destination board when the message will land somewhere else", () => {
-    renderDialog({ targetBoardName: "Living Room" });
-    expect(screen.getByText(/Living Room/)).toBeInTheDocument();
+  it("holds the message for the chosen duration on the chosen display (H1, the shared step)", async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ active: true });
+      }),
+    );
+    renderDialog({ targetBoardLabel: "Desk", sendBoardId: "desk", scheduleEnabled: true });
+    fireEvent.change(screen.getByRole("textbox", { name: /^message$/i }), { target: { value: "FOCUS" } });
+    expect(screen.getByRole("radio", { name: "1 hr" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("radio", { name: "15 min" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: /^show now$/i }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ board_id: "desk", template: ["FOCUS"], duration_minutes: 15 });
   });
 
   it("warns when the message has more lines than the board can show", async () => {
@@ -252,7 +268,7 @@ describe("ComposePageDialog", () => {
   it("does not send a message that is longer than the board", async () => {
     renderDialog({ deviceType: "note" });
     typeMessage("A\nB\nC\nD");
-    await waitFor(() => expect(screen.getByRole("button", { name: /send to board/i })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeDisabled());
   });
 
   it("previews the message on an LED destination board as its LED matrix", () => {

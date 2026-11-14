@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Badge,
   Button,
   type DeviceModel,
   Dialog,
@@ -12,15 +13,23 @@ import {
   Flex,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Stack,
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clock, MonitorSmartphone, PencilLine, Save, Send } from "lucide-react";
+import { Clock, Save } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { DevicePreview } from "@/components/device-preview";
+import { defaultDurationChoice, DurationStep } from "@/components/home/duration-step";
+import { type DurationChoice, durationMinutes, type ScheduleNextChange } from "@/components/home/home-status";
+import { useRefreshHomeStatus } from "@/components/home/use-home-data";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { SilenceNotice } from "@/components/silence-notice";
@@ -50,12 +59,21 @@ interface ComposePageDialogProps {
   gridCols?: number | null;
   boardColor?: "black" | "white";
   code62Glyph?: "degree" | "heart";
+  /** The destination display's name, for the description and the toast. */
+  targetBoardLabel?: string;
   /**
-   * Name of the destination board, set only when it differs from the board the
-   * user currently has selected. Renders a short note so a multi-board user is
-   * never surprised by which board lights up.
+   * The display to hold the message on (H1: every display has its own
+   * override); omitted → the primary.
    */
-  targetBoardName?: string;
+  sendBoardId?: string;
+  /** "Show on": pick the destination display (07a `310:20283`). */
+  showOn?: { value: string; onValueChange: (id: string) => void; options: { id: string; label: string }[] };
+  /** The destination is in Schedule Mode (the outcome line says what resumes). */
+  scheduleEnabled?: boolean;
+  /** H2's next Schedule change on the destination, for the "Until <time>" chip. */
+  nextChange?: ScheduleNextChange | null;
+  /** The page the Schedule resumes with after it. */
+  nextPageName?: string | null;
   /** The destination board's device model: an LED board previews as its LED matrix. */
   model?: DeviceModel | null;
   /** The destination board's LED layout choices (`led_layout`), drawn with the model. */
@@ -71,8 +89,11 @@ interface ComposePageDialogProps {
 }
 
 /**
- * Compose a one-off message and send it to the board without saving it
- * (issue #1787).
+ * Compose a message (07a §4): Show on · Message · Preview · the shared
+ * duration step · Show now. One of CANON's two verbs; it ends in the same
+ * DurationChipGroup as Change Page, and the result is the Override state.
+ *
+ * A one-off message, sent without saving it (issue #1787).
  *
  * The send goes through the temporary-override machinery rather than a bare
  * "push these characters" call: that gives the message a defined lifetime, a
@@ -93,7 +114,12 @@ export function ComposePageDialog({
   gridCols = null,
   boardColor = "black",
   code62Glyph,
-  targetBoardName,
+  targetBoardLabel,
+  sendBoardId,
+  showOn,
+  scheduleEnabled = false,
+  nextChange = null,
+  nextPageName = null,
   model = null,
   ledLayout = null,
   targetBoardId,
@@ -103,20 +129,25 @@ export function ComposePageDialog({
   const queryClient = useQueryClient();
   const messageId = useId();
   const pageNameId = useId();
+  const showOnId = useId();
+  const refresh = useRefreshHomeStatus();
+  const boardLabel = targetBoardLabel ?? "";
 
   const [text, setText] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [pageName, setPageName] = useState("");
+  const [choice, setChoice] = useState<DurationChoice>(() => defaultDurationChoice(nextChange, { scheduleEnabled }));
 
   // Reset during render (not in an effect) so the first painted frame of a
   // reopened dialog is already empty — react-hooks/set-state-in-effect,
-  // same pattern as ForceSetDialog (issue #1568).
+  // same pattern as the Change Page dialog (issue #1568).
   if (useDepsChanged([open]) && open) {
     setText("");
     setDebouncedText("");
     setShowSaveForm(false);
     setPageName("");
+    setChoice(defaultDurationChoice(nextChange, { scheduleEnabled }));
   }
 
   const dims = useMemo(
@@ -159,8 +190,9 @@ export function ComposePageDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
       queryClient.invalidateQueries({ queryKey: ["temporaryOverride"] });
+      refresh();
       api.forceRefresh().catch(() => {});
-      toast.success(t("toastSent"));
+      toast.success(boardLabel ? t("toastSent", { board: boardLabel }) : t("toastSentNoBoard"));
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -179,7 +211,7 @@ export function ComposePageDialog({
         toast.success(silence?.until ? t("toastHeld", { time: silence.until }) : t("toastHeldNoTime"));
       } else {
         // Silence ended between opening the dialog and pressing Hold.
-        toast.success(t("toastSent"));
+        toast.success(boardLabel ? t("toastSent", { board: boardLabel }) : t("toastSentNoBoard"));
       }
       onOpenChange(false);
     },
@@ -202,15 +234,17 @@ export function ComposePageDialog({
 
   const handleSend = useCallback(() => {
     if (!canSend) return;
+    // The shared duration step: a timed chip holds it that long, "Until I
+    // cancel" sends no duration_minutes, so it stays until it is cancelled.
+    const minutes = durationMinutes(choice, nextChange, new Date());
     sendMutation.mutate({
+      ...(sendBoardId ? { board_id: sendBoardId } : {}),
       template: lines,
       device_type: deviceType,
-      // Deliberately no duration_minutes: a one-off stays until it is
-      // cancelled. In manual mode a message that silently vanishes after N
-      // minutes is not what was asked for.
+      ...(minutes !== undefined ? { duration_minutes: minutes } : {}),
       ...geometryFields,
     });
-  }, [canSend, lines, deviceType, geometryFields, sendMutation]);
+  }, [canSend, lines, deviceType, geometryFields, sendMutation, choice, nextChange, sendBoardId]);
 
   const handleHold = useCallback(() => {
     if (!canSend) return;
@@ -232,21 +266,29 @@ export function ComposePageDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <PencilLine className="h-5 w-5" />
-            {t("title")}
-          </DialogTitle>
-          <DialogDescription>{t("description")}</DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>
+            {boardLabel ? t("description", { board: boardLabel }) : t("descriptionNoBoard")}
+          </DialogDescription>
         </DialogHeader>
 
         <Stack gap="4" className="py-2">
-          {targetBoardName && (
-            <Flex align="start" gap="2" className="rounded-md border border-border bg-muted/40 p-3">
-              <MonitorSmartphone className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <Text size="xs" tone="muted">
-                {t("primaryBoardNote", { boardName: targetBoardName })}
-              </Text>
-            </Flex>
+          {showOn && (
+            <Stack gap="2">
+              <Label htmlFor={showOnId}>{t("showOn")}</Label>
+              <Select value={showOn.value} onValueChange={(v) => showOn.onValueChange(String(v))}>
+                <SelectTrigger id={showOnId}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {showOn.options.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Stack>
           )}
 
           {silence && (
@@ -290,9 +332,13 @@ export function ComposePageDialog({
           </Stack>
 
           <Stack gap="2">
-            <Text size="xs" tone="muted">
-              {t("previewLabel")}
-            </Text>
+            {/* 07a's bare preview row (DD-W15): what WILL show, not sent yet. */}
+            <Flex align="center" gap="2">
+              <Badge variant="outline">{t("previewLabel")}</Badge>
+              <Text size="xs" tone="muted">
+                {boardLabel ? t("notSentYetOn", { board: boardLabel }) : t("notSentYet")}
+              </Text>
+            </Flex>
             <DevicePreview model={model} ledLayout={ledLayout} message={preview?.rendered ?? ""} size="sm">
               <ScaledBoardDisplay
                 message={preview?.rendered ?? ""}
@@ -307,6 +353,15 @@ export function ComposePageDialog({
               />
             </DevicePreview>
           </Stack>
+
+          <DurationStep
+            value={choice}
+            onValueChange={setChoice}
+            nextChange={nextChange}
+            nextPageName={nextPageName}
+            scheduleEnabled={scheduleEnabled}
+            now={new Date()}
+          />
 
           {showSaveForm && (
             <Stack gap="2">
@@ -353,8 +408,7 @@ export function ComposePageDialog({
             disabled={!canSend || sendMutation.isPending || holdMutation.isPending}
             data-testid={silence ? "compose-send-anyway" : undefined}
           >
-            <Send className="mr-1.5 h-4 w-4" />
-            {sendMutation.isPending ? t("sending") : silence ? t("sendNowAnyway") : t("send")}
+            {sendMutation.isPending ? t("sending") : t("send")}
           </Button>
           {silence?.holds && (
             <Button

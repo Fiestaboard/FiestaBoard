@@ -164,7 +164,7 @@
       "modeOverride": "Override",
       "statusLabel": "Online",
       "composedMessage": "Composed message",
-      "scheduleGap": "Nothing scheduled",
+      "noPage": "No page selected",
       "overrideOutcome": "Holds until {time}, then Schedule resumes.",
       "overrideOutcomeNext": "Holds until {time}, then Schedule resumes. Next: {page}.",
       "overrideOutcomeManual": "Holds until {time}, then {page} comes back.",
@@ -1097,7 +1097,6 @@
   "composeDialog": {
     "title": "Compose a message",
     "description": "Shows on {board} when you choose Show now. Nothing reaches the board before that.",
-    "primaryBoardNote": "One-off messages always go to {boardName}, your primary board — not the board you have selected.",
     "messageLabel": "Message",
     "messagePlaceholder": "Type your message…",
     "previewLabel": "Preview",
@@ -1120,14 +1119,14 @@
     "hold": "Hold until {time}",
     "holdNoTime": "Hold until silence ends",
     "holding": "Holding…",
-    "sendNowAnyway": "Show now",
     "toastHeld": "Held — it shows at {time}",
     "toastHeldNoTime": "Held — it shows when silence ends",
     "toastHoldError": "Could not hold the message",
     "showOn": "Show on",
-    "alsoSave": "Also save it to Pages as “{name}”",
-    "alsoSaveUnnamed": "Also save it to Pages",
-    "toastSavedAndShown": "Saved to Pages"
+    "notSentYet": "Not sent yet",
+    "notSentYetOn": "Not sent yet · {board}",
+    "descriptionNoBoard": "Shows on the board when you choose Show now. Nothing reaches the board before that.",
+    "toastSentNoBoard": "On the board now"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Cannot reach the app. Check your network or that FiestaBoard is running.",
