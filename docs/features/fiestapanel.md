@@ -86,6 +86,40 @@ matrix edges; viewers must clip them when rendering. An empty
 list clears the previous canvases, including when a frame is unavailable or
 its dimensions became stale. Split-flap frames omit this field. Configuration and LED frames also include a `geometry_key`; integrations should discard a frame whose key differs from the current configuration. `POST /panels/geometry` resolves an unsaved layout without changing settings.
 
+The configuration from `GET /panel/{id}` also carries a `status` object, so a
+viewer can say why the board looks the way it does:
+
+| Field | Meaning |
+|---|---|
+| `mode` | `override` while an override is showing, else `schedule` when the board follows its schedule, else `manual` |
+| `schedule_enabled` | Whether the board follows its schedule |
+| `override_active` | An override is showing on the board |
+| `override_expires_at` | When the override ends. `null` when there is none, or when it holds until it is cancelled |
+| `silenced` | The board is inside its silence window |
+| `silenced_until` | When the silence window ends, or `null` |
+| `silence_mode` | `freeze`, `indicator` or `page` while silenced, else `null` |
+| `paused` | The board takes no updates and keeps showing its last frame |
+
+Every time has exactly one shape, `YYYY-MM-DDTHH:MM:SS+00:00`: UTC, whole
+seconds, no fraction. While nothing changes, `status` is identical from one
+poll to the next. To count down an override against the hub's clock rather
+than the TV's, read the response's HTTP `Date` header. The response is sent
+with `Cache-Control: no-store`, so that header is always the hub's own.
+
+Several states can hold at once, and all of them are reported. What the board
+shows follows these rules:
+
+- `paused` beats everything. A paused board keeps its last frame, even while
+  an override is active.
+- An active override beats silence. While `override_active` is true, the
+  override is what is showing, even if `silenced` is also true.
+- Otherwise a silenced board follows `silence_mode`, and an unsilenced board
+  follows `mode`.
+
+Overrides apply to the primary board only for now, so a panel on any other
+board always reports `override_active: false`.
+`status` is `null` when the panel's board is missing.
+
 ## FiestaPi HDMI Output
 
 Running FiestaBoard on a FiestaPi? The Pi can drive a TV or monitor directly over HDMI — no browser setup on the TV at all:
