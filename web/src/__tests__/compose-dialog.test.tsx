@@ -259,6 +259,37 @@ describe("ComposePageDialog", () => {
     expect(body).toMatchObject({ board_id: "desk", template: ["FOCUS"], duration_minutes: 15 });
   });
 
+  it("never sends an indefinite hold when a chosen next-change chip goes away (M2)", async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ active: true });
+      }),
+    );
+    const at = new Date(Date.now() + 2 * 60 * 60_000);
+    const props = {
+      open: true,
+      onOpenChange: vi.fn(),
+      deviceType: "flagship" as const,
+      scheduleEnabled: true,
+      sendBoardId: "kitchen",
+    };
+    const { rerender } = render(<ComposePageDialog {...props} nextChange={{ at, pageId: null }} />, {
+      wrapper: TestWrapper,
+    });
+    const chip = screen.getByRole("radio", { name: /^Until \d/ });
+    fireEvent.click(screen.getByRole("radio", { name: "15 min" }));
+    fireEvent.click(chip);
+    rerender(<ComposePageDialog {...props} nextChange={null} />);
+    expect(screen.getByRole("radio", { name: "1 hr" })).toHaveAttribute("aria-checked", "true");
+    typeMessage("HELLO");
+    await waitFor(() => expect(screen.getByRole("button", { name: /^show now$/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: /^show now$/i }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ board_id: "kitchen", duration_minutes: 60 });
+  });
+
   it("warns when the message has more lines than the board can show", async () => {
     renderDialog({ deviceType: "note" });
     typeMessage("A\nB\nC\nD");

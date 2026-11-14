@@ -50,3 +50,14 @@ export function useRefreshHomeStatus() {
     void queryClient.invalidateQueries({ queryKey: queryKeys.activePage() });
   }, [queryClient]);
 }
+
+/**
+ * Nudge ONE display to repaint now (`POST /v1/boards/{board}/restore`: forget
+ * its dedupe and run its pass, which applies a timed message first). Not
+ * `/force-refresh`, which repaints every display and spends every note
+ * array's 15 s send window. A paused or silenced display answers 409; the
+ * override's own cache drop still lands it on the next tick, so that is fine.
+ */
+export function nudgeDisplay(boardId: string | null | undefined): void {
+  api.restoreBoard(boardId).catch(() => {});
+}

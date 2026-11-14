@@ -234,3 +234,158 @@ describe("ChangePageDialog (phone, two steps)", () => {
     expect(await screen.findByRole("dialog", { name: "Change Page" })).toBeInTheDocument();
   });
 });
+
+describe("ChangePageDialog review fixes (M1, M2, S1)", () => {
+  function trackHub() {
+    const calls: string[] = [];
+    server.use(
+      http.delete(`${API}/settings/temporary-override`, ({ request }) => {
+        calls.push(`DELETE override ${new URL(request.url).searchParams.get("board_id")}`);
+        return HttpResponse.json({ revert_mode: "schedule" });
+      }),
+      http.put(`${API}/settings/active-page`, async ({ request }) => {
+        const body = (await request.json()) as { page_id: string; board_id?: string };
+        calls.push(`PUT pin ${body.page_id} ${body.board_id}`);
+        return HttpResponse.json({
+          page_id: body.page_id,
+          sent_to_board: true,
+          paused: false,
+          error: null,
+          warnings: [],
+        });
+      }),
+      http.post(`${API}/settings/temporary-override`, async ({ request }) => {
+        const body = (await request.json()) as SetTemporaryOverrideRequest;
+        calls.push(`POST override ${body.board_id} ${body.duration_minutes ?? "none"}`);
+        return HttpResponse.json({ active: true });
+      }),
+      http.post(`${API}/v1/boards/:board/restore`, ({ params }) => {
+        calls.push(`restore ${String(params.board)}`);
+        return HttpResponse.json({
+          board_id: params.board,
+          page_id: null,
+          sent: true,
+          reason: null,
+          device_observed: false,
+        });
+      }),
+      http.post(`${API}/force-refresh`, () => {
+        calls.push("force-refresh");
+        return HttpResponse.json({ message: "ok", sent: true });
+      }),
+    );
+    return calls;
+  }
+
+  it("in Manual Mode during an Override, Until I cancel clears that display's override first, then pins", async () => {
+    const calls = trackHub();
+    setup({ scheduleEnabled: false, nextChange: null, manualPageName: "Evening commute", overrideName: "Dinner note" });
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(await within(dialog).findByRole("button", { name: /Taco Tuesday/ }));
+    expect(
+      within(dialog).getByText(
+        "Stays until you change it. Schedule Mode stays off. Replaces the Dinner note Override.",
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Show now" }));
+    await waitFor(() => expect(calls).toContain("PUT pin taco kitchen"));
+    expect(calls).toEqual(["DELETE override kitchen", "PUT pin taco kitchen"]);
+  });
+
+  it("a pin is followed by no extra repaint of any display (m16)", async () => {
+    const calls = trackHub();
+    const { onOpenChange } = setup({ scheduleEnabled: false, nextChange: null });
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(await within(dialog).findByRole("button", { name: /Taco Tuesday/ }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Show now" }));
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(calls).toEqual(["PUT pin taco kitchen"]);
+  });
+
+  it("an override nudges only its own display, not the whole install (S1)", async () => {
+    const calls = trackHub();
+    setup();
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(await within(dialog).findByRole("button", { name: /Taco Tuesday/ }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Show now" }));
+    await waitFor(() => expect(calls).toContain("restore kitchen"));
+    expect(calls).not.toContain("force-refresh");
+  });
+
+  it("never sends an indefinite hold when the chosen next-change chip goes away (M2)", async () => {
+    const calls = trackHub();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    server.use(http.get(`${API}/v1/pages`, () => HttpResponse.json(pagesResponse())));
+    const props = {
+      open: true,
+      onOpenChange: vi.fn(),
+      board: kitchen,
+      isPrimary: true,
+      scheduleEnabled: true,
+      now: () => NOW,
+    };
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <ChangePageDialog {...props} nextChange={{ at: NINE_PM, pageId: null }} />
+      </QueryClientProvider>,
+    );
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(await within(dialog).findByRole("button", { name: /Taco Tuesday/ }));
+    // An explicit tap on the chip, not just the preselection.
+    fireEvent.click(within(dialog).getByRole("radio", { name: "1 hr" }));
+    fireEvent.click(within(dialog).getByRole("radio", { name: "Until 9:00 PM" }));
+    expect(within(dialog).getByRole("radio", { name: "Until 9:00 PM" })).toHaveAttribute("aria-checked", "true");
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ChangePageDialog {...props} nextChange={null} />
+      </QueryClientProvider>,
+    );
+    // The chip is gone; Schedule Mode's explicit default (1 hr) is selected instead.
+    expect(within(dialog).getByRole("radio", { name: "1 hr" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Show now" }));
+    await waitFor(() => expect(calls).toContain("POST override kitchen 60"));
+  });
+
+  it("lists each page's display type and whether the Schedule uses it (07a row meta)", async () => {
+    server.use(
+      http.get(`${API}/v1/schedules`, () =>
+        HttpResponse.json({
+          schedules: [{ id: "s1", page_id: "good-night", start_time: "21:00", day_pattern: "all", enabled: true }],
+          total: 1,
+          default_page_id: null,
+          enabled: true,
+        }),
+      ),
+    );
+    setup();
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      await within(dialog).findByRole("button", { name: /Good night.*Flagship · Schedule, 9:00 PM/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /Taco Tuesday.*Flagship · not in the Schedule/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers only collections with a page that fits the display (S5)", async () => {
+    setup();
+    // After setup: the latest handler wins, and the list is read on demand.
+    server.use(
+      http.get(`${API}/v1/collections`, () =>
+        HttpResponse.json({
+          collections: [
+            { id: "collection:fits", name: "Fits", page_ids: ["taco"] },
+            { id: "collection:notes", name: "Notes only", page_ids: ["note-only"] },
+          ],
+          total: 2,
+        }),
+      ),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByRole("button", { name: /Taco Tuesday/ });
+    fireEvent.click(within(dialog).getByRole("radio", { name: "Collections" }));
+    expect(await within(dialog).findByRole("button", { name: /^Fits/ })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /Notes only/ })).not.toBeInTheDocument();
+  });
+});

@@ -128,7 +128,7 @@ describe("Compose a message on a multi-display install (H1)", () => {
 
   it("names the selected display under Show on", async () => {
     await openComposeOnTheNoteBoard();
-    expect(screen.getByRole("combobox", { name: "Show on" })).toHaveTextContent("Kitchen Note · 15×3");
+    expect(screen.getByRole("combobox", { name: "Show on" })).toHaveTextContent("Kitchen Note · Note 15 × 3");
   });
 
   it("rejects a message that overflows the selected Note", async () => {

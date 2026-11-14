@@ -14,9 +14,9 @@ import {
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useSilence } from "@/hooks/use-silence";
-import { resolveDimensions } from "@/lib/board-dimensions";
 import { resolveBoardModel } from "@/lib/device-preview";
 
+import { boardGeometry, boardMeta } from "./home-board";
 import { scheduleNextChange } from "./home-status";
 import { useBoardDetail } from "./use-home-data";
 
@@ -38,7 +38,6 @@ export function HomeCompose({ open, onOpenChange }: { open: boolean; onOpenChang
   }
 
   const target = allBoards.find((b) => b.id === (targetId ?? currentBoardId)) ?? allBoards[0];
-  const isPrimary = !target || target.id === allBoards[0]?.id;
   // Board-scoped reads only in a multi-display install, as elsewhere on Home.
   const scopedId = allBoards.length > 1 ? target?.id : undefined;
   const silence = useSilence(scopedId);
@@ -68,16 +67,16 @@ export function HomeCompose({ open, onOpenChange }: { open: boolean; onOpenChang
       code62Glyph={resolveCode62Glyph(deviceType, target?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings))}
       targetBoardId={target?.id}
       targetBoardLabel={target?.name}
-      sendBoardId={isPrimary && allBoards.length <= 1 ? undefined : target?.id}
+      // H1: always name the display (review S7).
+      sendBoardId={target?.id}
+      showsCapitals={detail?.drawing?.features?.lowercase === false}
       showOn={
         allBoards.length > 0
           ? {
               value: target?.id ?? "",
               onValueChange: setTargetId,
-              options: allBoards.map((b) => {
-                const dims = resolveDimensions(b.device_type, b.notes_wide, b.notes_tall, b.grid_rows, b.grid_cols);
-                return { id: b.id, label: `${b.name} · ${dims.cols}×${dims.rows}` };
-              }),
+              // 07a: "Kitchen board · Flagship 22 × 6".
+              options: allBoards.map((b) => ({ id: b.id, label: `${b.name} · ${boardMeta(b, boardGeometry(b))}` })),
             }
           : undefined
       }

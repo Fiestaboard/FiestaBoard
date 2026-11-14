@@ -3,7 +3,7 @@
 import { buildDurationOptions, DurationChipGroup, Stack, Text } from "@fiestaboard/ui";
 import { useId, useMemo } from "react";
 
-import { useTranslations } from "@/i18n/translations";
+import { useLocale, useTranslations } from "@/i18n/translations";
 
 import { type DurationChoice, formatClock, formatSpan, holdEndsAt, type ScheduleNextChange } from "./home-status";
 
@@ -52,15 +52,16 @@ export function DurationStep({
   now,
 }: DurationStepProps) {
   const t = useTranslations("home.duration");
+  const locale = useLocale();
   const questionId = useId();
 
   const options = useMemo(
     () =>
       buildDurationOptions({
-        nextChange: nextChange ? t("untilTime", { time: formatClock(nextChange.at) }) : undefined,
+        nextChange: nextChange ? t("untilTime", { time: formatClock(nextChange.at, locale) }) : undefined,
         labels: { fifteenMinutes: t("fifteenMinutes"), oneHour: t("oneHour"), untilCancel: t("untilCancel") },
       }),
-    [nextChange, t],
+    [nextChange, t, locale],
   );
 
   const outcome = useMemo(() => {
@@ -69,7 +70,7 @@ export function DurationStep({
     if (!ends) {
       sentence = untilCancelPins && !scheduleEnabled ? t("outcomePin") : t("outcomeUntilCancel");
     } else {
-      const time = formatClock(ends);
+      const time = formatClock(ends, locale);
       const span = formatSpan(ends.getTime() - now.getTime());
       if (scheduleEnabled) {
         sentence =
@@ -82,9 +83,9 @@ export function DurationStep({
           : t("outcomeManualNoPage", { time, span });
       }
     }
-    const pins = !ends && untilCancelPins && !scheduleEnabled;
-    return replacesName && !pins ? `${sentence} ${t("replaces", { name: replacesName })}` : sentence;
-  }, [value, nextChange, now, untilCancelPins, scheduleEnabled, nextPageName, manualPageName, replacesName, t]);
+    // A pin replaces a running Override too: Change Page clears it first.
+    return replacesName ? `${sentence} ${t("replaces", { name: replacesName })}` : sentence;
+  }, [value, nextChange, now, untilCancelPins, scheduleEnabled, nextPageName, manualPageName, replacesName, t, locale]);
 
   return (
     <Stack gap="3">

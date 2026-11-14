@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { DevicePreview } from "@/components/device-preview";
 import { defaultDurationChoice, DurationStep } from "@/components/home/duration-step";
 import { type DurationChoice, durationMinutes, type ScheduleNextChange } from "@/components/home/home-status";
-import { useRefreshHomeStatus } from "@/components/home/use-home-data";
+import { nudgeDisplay, useRefreshHomeStatus } from "@/components/home/use-home-data";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { SilenceNotice } from "@/components/silence-notice";
@@ -74,6 +74,8 @@ interface ComposePageDialogProps {
   nextChange?: ScheduleNextChange | null;
   /** The page the Schedule resumes with after it. */
   nextPageName?: string | null;
+  /** The destination draws capitals only (a split-flap board): the helper says so. */
+  showsCapitals?: boolean;
   /** The destination board's device model: an LED board previews as its LED matrix. */
   model?: DeviceModel | null;
   /** The destination board's LED layout choices (`led_layout`), drawn with the model. */
@@ -120,6 +122,7 @@ export function ComposePageDialog({
   scheduleEnabled = false,
   nextChange = null,
   nextPageName = null,
+  showsCapitals = false,
   model = null,
   ledLayout = null,
   targetBoardId,
@@ -137,7 +140,9 @@ export function ComposePageDialog({
   const [debouncedText, setDebouncedText] = useState("");
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [pageName, setPageName] = useState("");
-  const [choice, setChoice] = useState<DurationChoice>(() => defaultDurationChoice(nextChange, { scheduleEnabled }));
+  // null follows the default (07a preselects the next change, which may load
+  // after the dialog opens); a tap on a chip pins the choice.
+  const [choice, setChoice] = useState<DurationChoice | null>(null);
 
   // Reset during render (not in an effect) so the first painted frame of a
   // reopened dialog is already empty — react-hooks/set-state-in-effect,
@@ -147,8 +152,20 @@ export function ComposePageDialog({
     setDebouncedText("");
     setShowSaveForm(false);
     setPageName("");
-    setChoice(defaultDurationChoice(nextChange, { scheduleEnabled }));
+    setChoice(null);
   }
+  // Show on picked another display: its chips differ, so start from its
+  // default rather than carry the old display's choice over.
+  if (useDepsChanged([sendBoardId]) && open) {
+    setChoice(null);
+  }
+  // Never carry a chip that is no longer offered (the new display's next
+  // change still loading, or gone): "next-change" with no next change would
+  // send no duration, an indefinite hold nobody chose (review M2).
+  const effectiveChoice: DurationChoice =
+    choice === null || (choice === "next-change" && !nextChange)
+      ? defaultDurationChoice(nextChange, { scheduleEnabled })
+      : choice;
 
   const dims = useMemo(
     () => resolveDimensions(deviceType, notesWide, notesTall, gridRows, gridCols),
@@ -191,7 +208,7 @@ export function ComposePageDialog({
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
       queryClient.invalidateQueries({ queryKey: ["temporaryOverride"] });
       refresh();
-      api.forceRefresh().catch(() => {});
+      nudgeDisplay(sendBoardId);
       toast.success(boardLabel ? t("toastSent", { board: boardLabel }) : t("toastSentNoBoard"));
       onOpenChange(false);
     },
@@ -236,7 +253,7 @@ export function ComposePageDialog({
     if (!canSend) return;
     // The shared duration step: a timed chip holds it that long, "Until I
     // cancel" sends no duration_minutes, so it stays until it is cancelled.
-    const minutes = durationMinutes(choice, nextChange, new Date());
+    const minutes = durationMinutes(effectiveChoice, nextChange, new Date());
     sendMutation.mutate({
       ...(sendBoardId ? { board_id: sendBoardId } : {}),
       template: lines,
@@ -244,7 +261,7 @@ export function ComposePageDialog({
       ...(minutes !== undefined ? { duration_minutes: minutes } : {}),
       ...geometryFields,
     });
-  }, [canSend, lines, deviceType, geometryFields, sendMutation, choice, nextChange, sendBoardId]);
+  }, [canSend, lines, deviceType, geometryFields, sendMutation, effectiveChoice, nextChange, sendBoardId]);
 
   const handleHold = useCallback(() => {
     if (!canSend) return;
@@ -323,6 +340,22 @@ export function ComposePageDialog({
               placeholder={t("messagePlaceholder")}
               boardLines={dims.rows}
               boardWidth={dims.cols}
+              help={
+                // 07a's one line: "3 of 6 lines · longest line 12 of 22
+                // characters · board shows capitals".
+                <Text size="xs" tone="muted" className="mt-1">
+                  {[
+                    t("countLines", { lines: lines.length, max: dims.rows }),
+                    t("countLongest", {
+                      longest: lines.reduce((m, l) => Math.max(m, l.length), 0),
+                      width: dims.cols,
+                    }),
+                    showsCapitals ? t("countCapitals") : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+              }
             />
             {isOverLimit && (
               <Text size="xs" className="text-warning font-medium" role="alert">
@@ -355,7 +388,7 @@ export function ComposePageDialog({
           </Stack>
 
           <DurationStep
-            value={choice}
+            value={effectiveChoice}
             onValueChange={setChoice}
             nextChange={nextChange}
             nextPageName={nextPageName}

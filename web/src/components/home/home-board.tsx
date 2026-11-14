@@ -10,6 +10,14 @@ import type { BoardGeometry } from "@/lib/board-characters-to-template";
 import { resolveDimensions } from "@/lib/board-dimensions";
 import { resolveBoardModel } from "@/lib/device-preview";
 
+/** 02's display-type name for a page or board device type ("Flagship", "Note"), or null. */
+export function deviceFamilyLabel(deviceType: string | null | undefined): string | null {
+  const type = deviceType === "note_array" ? "note-array" : deviceType;
+  return type && type in DISPLAY_TYPE_LABELS
+    ? DISPLAY_TYPE_LABELS[type as keyof typeof DISPLAY_TYPE_LABELS].label
+    : null;
+}
+
 /** A display's geometry from its settings (the preview of something not yet on it). */
 export function boardGeometry(board: BoardInstance | undefined): BoardGeometry {
   if (!board) return { deviceType: "flagship", notesWide: 1, notesTall: 1 };
@@ -38,7 +46,8 @@ export function boardMeta(board: BoardInstance | undefined, geometry: BoardGeome
   const size = `${dims.cols} × ${dims.rows}`;
   const model = resolveBoardModel(board);
   const type = model ? displayTypeForModel(model) : undefined;
-  return type ? `${DISPLAY_TYPE_LABELS[type].label} ${size}` : size;
+  const label = type ? DISPLAY_TYPE_LABELS[type].label : deviceFamilyLabel(geometry.deviceType);
+  return label ? `${label} ${size}` : size;
 }
 
 export interface HomeBoardProps {

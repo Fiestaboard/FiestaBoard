@@ -449,6 +449,8 @@ export interface BoardDetail {
   next_change_reason?: NextChangeReason | null;
   /** The page or collection in force after `next_change_at`, when the hub can know it. */
   next_page_id?: string | null;
+  /** H3: what the display can draw; `features.lowercase` false means capitals only. */
+  drawing?: { source?: string; features?: Record<string, boolean> } | null;
 }
 
 /** H2's `next_change_reason`. Mirrors the Literal in src/v1/models.py. */

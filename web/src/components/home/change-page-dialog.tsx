@@ -24,7 +24,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, ChevronLeft, ChevronRight, FileText, GalleryHorizontalEnd } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -32,15 +32,15 @@ import { toast } from "sonner";
 import { SilenceNotice } from "@/components/silence-notice";
 import { useCollections, usePagePreview, usePages } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
-import { useTranslations } from "@/i18n/translations";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import type { BoardInstance, Collection, Page, SetTemporaryOverrideRequest } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
 import { defaultDurationChoice, DurationStep } from "./duration-step";
-import { boardGeometry, HomeBoard } from "./home-board";
-import { type DurationChoice, durationMinutes, type ScheduleNextChange } from "./home-status";
-import { useRefreshHomeStatus } from "./use-home-data";
+import { boardGeometry, deviceFamilyLabel, HomeBoard } from "./home-board";
+import { type DurationChoice, durationMinutes, formatClock, type ScheduleNextChange } from "./home-status";
+import { nudgeDisplay, useRefreshHomeStatus } from "./use-home-data";
 import { PHONE_QUERY, useMediaQuery } from "./use-media-query";
 
 export interface ChangePageDialogProps {
@@ -109,7 +109,9 @@ export function ChangePageDialog({
   const [kind, setKind] = useState<Kind>("pages");
   const [selectedId, setSelectedId] = useState<string | null>(initialPageId);
   const [step, setStep] = useState<"pick" | "duration">(initialPageId ? "duration" : "pick");
-  const [choice, setChoice] = useState<DurationChoice>(() => defaultDurationChoice(nextChange, { scheduleEnabled }));
+  // null follows the default (07a preselects the next change, which may load
+  // after the dialog opens); a tap on a chip pins the choice.
+  const [choice, setChoice] = useState<DurationChoice | null>(null);
 
   // Reset each time it opens, during render so the first frame is already
   // clean (react-hooks/set-state-in-effect, issue #1568).
@@ -118,7 +120,7 @@ export function ChangePageDialog({
     setKind(initialPageId && isCollectionId(initialPageId) ? "collections" : "pages");
     setSelectedId(initialPageId);
     setStep(initialPageId ? "duration" : "pick");
-    setChoice(defaultDurationChoice(nextChange, { scheduleEnabled }));
+    setChoice(null);
   }
 
   const { data: pagesData } = usePages();
@@ -128,21 +130,60 @@ export function ChangePageDialog({
     const all: Page[] = pagesData?.pages ?? [];
     return board ? all.filter((p) => pagesCompatibleWithBoard(p, board)) : all;
   }, [pagesData, board]);
-  const collections: Collection[] = useMemo(() => collectionsData?.collections ?? [], [collectionsData]);
+  // A collection with no member that fits this display could only show
+  // nothing here, and the override route does no size check (review S5).
+  const collections: Collection[] = useMemo(() => {
+    const all = collectionsData?.collections ?? [];
+    if (!board) return all;
+    const fitting = new Set(pages.map((p) => p.id));
+    return all.filter((c) => c.page_ids.some((id) => fitting.has(id)));
+  }, [collectionsData, board, pages]);
+
+  // 07a's row meta: "Flagship · Schedule, 9:00 PM" / "Flagship · not in the
+  // Schedule". From this display's schedule entries, today's resolved start.
+  const locale = useLocale();
+  const { data: schedulesData } = useQuery({
+    queryKey: ["schedules", "list", board?.id ?? "primary"],
+    queryFn: () => api.getSchedules(board?.id),
+    enabled: open,
+    staleTime: 30_000,
+  });
+  const scheduledAt = useMemo(() => {
+    const at = new Map<string, string>();
+    for (const entry of schedulesData?.schedules ?? []) {
+      if (!entry.enabled || at.has(entry.page_id)) continue;
+      const hhmm = entry.resolved_start_time ?? entry.start_time;
+      const match = /^(\d{1,2}):(\d{2})/.exec(hhmm ?? "");
+      if (!match) continue;
+      const today = new Date();
+      today.setHours(Number(match[1]), Number(match[2]), 0, 0);
+      at.set(entry.page_id, formatClock(today, locale));
+    }
+    return at;
+  }, [schedulesData, locale]);
 
   const choices: Choice[] = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    const scheduleMeta = (id: string) => {
+      const time = scheduledAt.get(id);
+      return time ? t("inSchedule", { time }) : t("notInSchedule");
+    };
     const list: Choice[] =
       kind === "pages"
-        ? pages.map((p) => ({ id: p.id, name: p.name, isCollection: false }))
+        ? pages.map((p) => ({
+            id: p.id,
+            name: p.name,
+            description: [deviceFamilyLabel(p.device_type), scheduleMeta(p.id)].filter(Boolean).join(" · "),
+            isCollection: false,
+          }))
         : collections.map((c) => ({
             id: c.id,
             name: c.name,
-            description: t("collectionPages", { count: c.page_ids.length }),
+            description: [t("collectionPages", { count: c.page_ids.length }), scheduleMeta(c.id)].join(" · "),
             isCollection: true,
           }));
     return needle ? list.filter((c) => c.name.toLowerCase().includes(needle)) : list;
-  }, [kind, pages, collections, query, t]);
+  }, [kind, pages, collections, query, t, scheduledAt]);
 
   const selected = useMemo(() => {
     if (!selectedId) return null;
@@ -152,16 +193,29 @@ export function ChangePageDialog({
     return collection ? { id: collection.id, name: collection.name, isCollection: true } : null;
   }, [selectedId, pagesData, collections]);
 
+  // Never carry a chip that is no longer offered: "next-change" with no next
+  // change would send no duration, an indefinite hold nobody chose (review
+  // M2). Fall back to the explicit default instead.
+  const effectiveChoice: DurationChoice =
+    choice === null || (choice === "next-change" && !nextChange)
+      ? defaultDurationChoice(nextChange, { scheduleEnabled })
+      : choice;
+
   // "Until I cancel" in Manual Mode pins the page (Jev, p = 0.81).
-  const pins = !scheduleEnabled && choice === "until-cancel";
+  const pins = !scheduleEnabled && effectiveChoice === "until-cancel";
+  const overrideRunning = overrideName != null;
 
   const submit = useMutation({
     mutationFn: async (picked: { id: string; name: string }) => {
       if (pins) {
+        // The engine applies an override before the pinned page, and the PUT
+        // does not clear one: drop this display's override FIRST (a "page"
+        // revert writes active_page_id on clear, and the pin must win).
+        if (overrideRunning) await api.clearTemporaryOverride(board?.id);
         const result = await api.setActivePage(picked.id, board?.id, { overrideSilence: true });
         return { picked, pinned: true, paused: result.paused === true, notSent: !!result.error };
       }
-      const minutes = durationMinutes(choice, nextChange, now());
+      const minutes = durationMinutes(effectiveChoice, nextChange, now());
       const request: SetTemporaryOverrideRequest = {
         ...(board?.id ? { board_id: board.id } : {}),
         page_id: picked.id,
@@ -174,9 +228,9 @@ export function ChangePageDialog({
     onSuccess: ({ picked, pinned, paused, notSent }) => {
       refresh();
       // A pin is sent by its own PUT; an override waits for the display
-      // loop's next pass, so nudge it (a forced pass after a pin would spend
-      // a note array's 15 s send window on a repaint).
-      if (!pinned) api.forceRefresh().catch(() => {});
+      // loop's next pass, so nudge that one display (any extra pass after a
+      // pin would spend a note array's 15 s send window on a repaint).
+      if (!pinned) nudgeDisplay(board?.id);
       if (notSent) toast.error(t("toastNotSent", { board: displayName }));
       else if (paused) toast.info(t("toastPaused", { page: picked.name, board: displayName }));
       else toast.success(t("toastShown", { page: picked.name, board: displayName }));
@@ -208,8 +262,8 @@ export function ChangePageDialog({
         onValueChange={(v) => setKind(v as Kind)}
         className={isPhone ? "w-full" : undefined}
         layout={isPhone ? "grid" : undefined}
-        // TODO(FiestaUI #385, slice 1.2): size="touch" for 07a's 44 px phone
-        // segments once the touch size axis is on alpha.
+        // 07a's 44 px phone segments (FiestaUI #385 touch size axis).
+        size={isPhone ? "touch" : undefined}
       >
         <SegmentedControlItem value="pages">{t("pages")}</SegmentedControlItem>
         <SegmentedControlItem value="collections">{t("collections")}</SegmentedControlItem>
@@ -265,7 +319,7 @@ export function ChangePageDialog({
       />
       <DurationStep
         name={selected.name}
-        value={choice}
+        value={effectiveChoice}
         onValueChange={setChoice}
         nextChange={nextChange}
         nextPageName={nextPageNameFor(nextChange, pagesData?.pages, collections)}

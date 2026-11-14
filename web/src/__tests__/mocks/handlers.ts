@@ -1213,6 +1213,19 @@ export const handlers = [
     });
   }),
   http.get(`${API_BASE}/triggers/active`, () => HttpResponse.json({ trigger: null })),
+  http.get(`${API_BASE}/plugins`, () =>
+    HttpResponse.json({ plugins: [], plugin_system_enabled: true, total: 0, enabled_count: 0 }),
+  ),
+  // Home nudges one display after an override (2.2 S1): the per-board pass.
+  http.post(`${API_BASE}/v1/boards/:board/restore`, ({ params }) =>
+    HttpResponse.json({
+      board_id: String(params.board),
+      page_id: null,
+      sent: true,
+      reason: null,
+      device_observed: false,
+    }),
+  ),
 
   // Board settings endpoints
   // `PATCH /v1/boards/{board}` — where pausing, schedule mode and the
