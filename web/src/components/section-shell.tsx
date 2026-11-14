@@ -12,6 +12,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { createPortal } from "react-dom";
 
 import Link from "@/components/smart-link";
+import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -100,7 +101,7 @@ export function SectionShell({ icon, title, description, href, action, detail, f
   }, [detail, pathname]);
 
   return (
-    <PageLayout fillHeight={fill}>
+    <PageLayout railBreakpoint={RAIL_BREAKPOINT} fillHeight={fill}>
       <PageCard fillHeight={fill}>
         <PageHeader icon={icon} title={title} description={description} collapsed={detail != null}>
           {action}

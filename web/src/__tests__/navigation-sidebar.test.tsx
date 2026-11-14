@@ -28,6 +28,22 @@ vi.mock("@/hooks/use-router", () => ({
 // Must import after mocking
 import { NavigationSidebar } from "@/components/navigation-sidebar";
 
+/** Below 768px the tab bar is the nav (WEB-01/02); `matchMedia` decides which list the Sidebar gets. */
+function setPhone(phone: boolean) {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: phone && query.includes("max-width: 767.98px"),
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
+
+beforeEach(() => setPhone(false));
+
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -105,15 +121,26 @@ describe("NavigationSidebar active state", () => {
     links.forEach((link) => expect(link).toHaveAttribute("href", "/displays"));
   });
 
-  it("lists the sections in order: Home, Displays, Pages, Collections, Schedule, Integrations", () => {
+  it("lists the rail in IA order: Home · Pages · Collections · Schedule · Displays │ Integrations · Staff Picks · Settings · Help & Docs", () => {
     mockPathname.mockReturnValue("/");
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    const nav = screen.getAllByRole("navigation", { name: "Primary navigation" })[0];
+    const rail = screen.getByRole("complementary", { name: "Main navigation" });
+    const nav = within(rail).getByRole("navigation", { name: "Primary navigation" });
     const labels = within(nav)
       .getAllByRole("link")
       .map((link) => link.textContent?.trim());
-    expect(labels.slice(0, 6)).toEqual(["Home", "Displays", "Pages", "Collections", "Schedule", "Integrations"]);
+    expect(labels).toEqual([
+      "Home",
+      "Pages",
+      "Collections",
+      "Schedule",
+      "Displays",
+      "Integrations",
+      "Staff Picks",
+      "Settings",
+      "Help & Docs",
+    ]);
   });
 
   it("highlights Displays on a display's own page", () => {
@@ -146,50 +173,129 @@ describe("NavigationSidebar active state", () => {
   });
 });
 
-describe("NavigationSidebar mobile menu", () => {
+describe("NavigationSidebar bottom nav (below 768px)", () => {
+  const tabBar = () => document.querySelector<HTMLElement>('[data-slot="sidebar-bottom-nav"]')!;
+
+  beforeEach(() => {
+    setPhone(true);
+    mockPathname.mockReturnValue("/");
+  });
+
+  it("puts Home, Pages, Schedule and Displays on the tab bar, then More", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const labels = Array.from(tabBar().querySelectorAll("a, button")).map((el) => el.textContent?.trim());
+    expect(labels).toEqual(["Home", "Pages", "Schedule", "Displays", "More"]);
+  });
+
+  it("lights the Pages tab on /collections, which nests inside Pages", () => {
+    mockPathname.mockReturnValue("/collections/c1");
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    expect(within(tabBar()).getByRole("link", { name: "Pages" })).toHaveAttribute("aria-current", "page");
+    expect(within(tabBar()).queryByRole("link", { name: "Collections" })).not.toBeInTheDocument();
+  });
+
+  it("opens More with the rest of the IA: Integrations, Staff Picks, Settings, Help & Docs", async () => {
+    const user = userEvent.setup();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await user.click(within(tabBar()).getByRole("button", { name: "More" }));
+    const drawer = screen.getByRole("dialog", { name: "Navigation menu" });
+    const more = within(drawer).getByRole("navigation", { name: "More" });
+    expect(
+      within(more)
+        .getAllByRole("link")
+        .map((link) => link.textContent?.trim()),
+    ).toEqual(["Integrations", "Staff Picks", "Settings", "Help & Docs"]);
+  });
+
+  it("shows the Settings › Hub group in More, named for the hub, with the hub line at its foot", async () => {
+    server.use(
+      http.get("/api/settings/all", () => HttpResponse.json({ general: { instance_name: "Maya’s FiestaPi" } })),
+    );
+    const user = userEvent.setup();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await user.click(within(tabBar()).getByRole("button", { name: "More" }));
+    const drawer = screen.getByRole("dialog", { name: "Navigation menu" });
+    const hub = await within(drawer).findByRole("list", { name: "Hub · Maya’s FiestaPi" });
+    expect(
+      within(hub)
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("href")),
+    ).toEqual(["/settings/network", "/settings/ai-provider", "/settings/system", "/settings/language-time"]);
+    await waitFor(() => expect(within(drawer).getByText(/Online · FiestaBoard 2\.0\.1/)).toBeInTheDocument());
+  });
+
+  it("keeps the account rows out of More: they live in Settings", async () => {
+    const user = userEvent.setup();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await user.click(within(tabBar()).getByRole("button", { name: "More" }));
+    const drawer = screen.getByRole("dialog", { name: "Navigation menu" });
+    expect(within(drawer).queryByRole("radiogroup", { name: "Appearance" })).not.toBeInTheDocument();
+    expect(within(drawer).queryByRole("button", { name: /Sign out/ })).not.toBeInTheDocument();
+  });
+
+  it("closes More when a Hub group row is chosen", async () => {
+    // The rows are the app's, not the Sidebar's: they reach the drawer's
+    // close through the slot's `closeMenu`, or the route would change under
+    // a drawer that stayed open.
+    const user = userEvent.setup();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await user.click(within(tabBar()).getByRole("button", { name: "More" }));
+    const drawer = screen.getByRole("dialog", { name: "Navigation menu" });
+    await user.click(within(drawer).getByRole("link", { name: "Network" }));
+
+    expect(screen.queryByRole("dialog", { name: "Navigation menu" })).not.toBeInTheDocument();
+  });
+
+  it("closes More when its backdrop is clicked", async () => {
+    const user = userEvent.setup();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await user.click(within(tabBar()).getByRole("button", { name: "More" }));
+    // Off the menu: setup.ts gives every element a 100×20 box at (0, 0).
+    fireEvent.click(screen.getByTestId("mobile-backdrop"), { clientX: 300, clientY: 500 });
+
+    expect(screen.queryByRole("dialog", { name: "Navigation menu" })).not.toBeInTheDocument();
+  });
+
+  it("offers FiestaBot in More when a provider is set up, and opening it closes More", async () => {
+    server.use(
+      http.get("/api/settings/ai", () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [{ id: "p1", name: "OpenRouter", base_url: "", api_key: "", models: [] }],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    await user.click(within(tabBar()).getByRole("button", { name: "More" }));
+    const drawer = screen.getByRole("dialog", { name: "Navigation menu" });
+    await user.click(await within(drawer).findByRole("button", { name: /FiestaBot/ }));
+
+    expect(screen.queryByRole("dialog", { name: "Navigation menu" })).not.toBeInTheDocument();
+  });
+});
+
+describe("NavigationSidebar rail", () => {
   beforeEach(() => {
     mockPathname.mockReturnValue("/");
   });
 
-  it("toggles mobile menu on button click", () => {
+  it("takes over from the tab bar at 768px (railBreakpoint md, WEB-02)", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    const menuButton = screen.getByLabelText("Open menu");
-    fireEvent.click(menuButton);
-
-    const closeButton = screen.getByLabelText("Close menu");
-    expect(closeButton).toBeInTheDocument();
-  });
-
-  it("closes mobile menu when backdrop is clicked", () => {
-    render(<NavigationSidebar />, { wrapper: TestWrapper });
-
-    const menuButton = screen.getByLabelText("Open menu");
-    fireEvent.click(menuButton);
-
-    // Off the menu. A backdrop click inside the menu's box is a tap the
-    // opening reveal let fall through, and FiestaUI hands it to the row under
-    // it; setup.ts gives every element a 100×20 box at (0, 0), so a click
-    // with no coordinates would land "on" the menu, not beside it.
-    const backdrop = screen.getByTestId("mobile-backdrop");
-    fireEvent.click(backdrop, { clientX: 300, clientY: 500 });
-
-    expect(screen.getByLabelText("Open menu")).toBeInTheDocument();
-  });
-
-  it("closes the drawer when Settings is chosen from its footer", async () => {
-    // The footer rows are the app's, not the Sidebar's: they reach the
-    // drawer's close through the slot's `closeMenu`. Without it, Settings
-    // routed underneath a drawer that stayed open over the new page.
-    const user = userEvent.setup();
-    render(<NavigationSidebar />, { wrapper: TestWrapper });
-
-    await user.click(screen.getByRole("button", { name: "Open menu" }));
-    const drawer = screen.getByRole("dialog", { name: "Navigation menu" });
-    await user.click(within(drawer).getByRole("button", { name: "Settings" }));
-
-    expect(screen.queryByRole("dialog", { name: "Navigation menu" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open menu" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Main navigation" })).toHaveAttribute(
+      "data-rail-breakpoint",
+      "md",
+    );
   });
 
   it("shows collapse/expand sidebar toggle", () => {
@@ -202,6 +308,53 @@ describe("NavigationSidebar mobile menu", () => {
 
     const expandButton = screen.getByLabelText("Expand sidebar");
     expect(expandButton).toBeInTheDocument();
+  });
+});
+
+describe("NavigationSidebar Integrations badge (07a: one badge, one story)", () => {
+  function servePlugins(plugins: Array<Record<string, unknown>>) {
+    server.use(
+      http.get("/api/plugins", () =>
+        HttpResponse.json({ plugins, plugin_system_enabled: true, total: plugins.length, enabled_count: 0 }),
+      ),
+    );
+  }
+
+  beforeEach(() => {
+    mockPathname.mockReturnValue("/");
+  });
+
+  it("badges Integrations with the count of integrations that need setting up, in words", async () => {
+    servePlugins([
+      { id: "weather", enabled: true, configured: false, plugin_type: "data" },
+      { id: "stocks", enabled: true, configured: true, plugin_type: "data" },
+    ]);
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const rail = screen.getByRole("complementary", { name: "Main navigation" });
+    await waitFor(() =>
+      expect(within(rail).getByRole("link", { name: "Integrations, 1 needs attention" })).toBeInTheDocument(),
+    );
+  });
+
+  it("rolls the badge up onto More on a phone", async () => {
+    setPhone(true);
+    servePlugins([{ id: "weather", enabled: true, configured: false, plugin_type: "data" }]);
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const tabBar = document.querySelector<HTMLElement>('[data-slot="sidebar-bottom-nav"]')!;
+    await waitFor(() =>
+      expect(within(tabBar).getByRole("button", { name: "More, 1 needs attention" })).toBeInTheDocument(),
+    );
+  });
+
+  it("draws no badge when everything is set up", async () => {
+    servePlugins([{ id: "stocks", enabled: true, configured: true, plugin_type: "data" }]);
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const rail = screen.getByRole("complementary", { name: "Main navigation" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(within(rail).getByRole("link", { name: "Integrations" })).toBeInTheDocument();
   });
 });
 
@@ -234,15 +387,13 @@ describe("NavigationSidebar nav list", () => {
     expect(collectionsLinks.length).toBeGreaterThan(0);
   });
 
-  it("keeps Settings out of the nav list", () => {
-    // Settings lives in the footer — a gear and an account-menu item. A nav
-    // row for it competed for height with the destinations that actually
-    // scroll.
+  it("lists Settings in the nav list (WEB-01), and lights it on its sections", () => {
+    mockPathname.mockReturnValue("/settings/network");
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    for (const nav of screen.getAllByLabelText("Primary navigation")) {
-      expect(within(nav).queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
-    }
+    const rail = screen.getByRole("complementary", { name: "Main navigation" });
+    const nav = within(rail).getByRole("navigation", { name: "Primary navigation" });
+    expect(within(nav).getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
   });
 
   it("reaches Settings from the account menu", async () => {
@@ -276,7 +427,11 @@ describe("NavigationSidebar nav list", () => {
 describe("NavigationSidebar settings shortcut", () => {
   /** The gear in the desktop rail's footer. The mobile drawer has no gear — it lists Settings inline. */
   const gear = () =>
-    within(screen.getByRole("complementary", { name: "Main navigation" })).getByRole("link", { name: "Settings" });
+    within(
+      screen
+        .getByRole("complementary", { name: "Main navigation" })
+        .querySelector<HTMLElement>('[data-slot="sidebar-footer"]')!,
+    ).getByRole("link", { name: "Settings" });
 
   it("links straight to /settings from the rail footer", () => {
     mockPathname.mockReturnValue("/");
@@ -286,14 +441,12 @@ describe("NavigationSidebar settings shortcut", () => {
     expect(gear().closest('[data-slot="sidebar-footer"]')).not.toBeNull();
   });
 
-  it("marks the gear as the current page on /settings", () => {
-    // Settings has no row in the nav list, so on /settings the gear is the
-    // only thing on the rail that can say where you are.
+  it("leaves the gear unlit on /settings: the Settings row says where you are (07e)", () => {
     mockPathname.mockReturnValue("/settings");
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    expect(gear()).toHaveAttribute("aria-current", "page");
-    expect(gear()).toHaveClass("nav-active");
+    expect(gear()).not.toHaveAttribute("aria-current");
+    expect(gear()).not.toHaveClass("nav-active");
   });
 
   it("leaves the gear unlit on every other route", () => {
@@ -311,6 +464,8 @@ describe("NavigationSidebar update notice", () => {
     within(screen.getByRole("complementary", { name: "Main navigation" })).getByRole("button", {
       name: "More",
     });
+
+  const moreTab = () => document.querySelector<HTMLElement>('[data-slot="sidebar-bottom-nav-more"]')!;
 
   /** Serve an update state, and report once the sidebar has asked for both halves of it. */
   function mockUpdate({ available, managedExternally }: { available: boolean; managedExternally: boolean }) {
@@ -345,15 +500,12 @@ describe("NavigationSidebar update notice", () => {
     await waitFor(() => expect(accountTrigger()).toHaveAccessibleDescription("Update available"));
   });
 
-  it("marks the closed hamburger when an update is waiting", async () => {
+  it("marks More on the tab bar when an update is waiting", async () => {
     mockUpdate({ available: true, managedExternally: false });
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    // The drawer has no trigger to wear the dot, so the same notice goes on
-    // the one control that opens it.
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Open menu" })).toHaveAccessibleDescription("Update available"),
-    );
+    // FLOW-DESIGNER-BRIEF #8: More gets a badge for Update available.
+    await waitFor(() => expect(moreTab()).toHaveAccessibleName("More, Update available"));
   });
 
   it("marks nothing when the install is current", async () => {
@@ -362,7 +514,7 @@ describe("NavigationSidebar update notice", () => {
 
     await settled();
     expect(accountTrigger()).toHaveAccessibleDescription("");
-    expect(screen.getByRole("button", { name: "Open menu" })).toHaveAccessibleDescription("");
+    expect(moreTab()).toHaveAccessibleName("More");
   });
 
   it("marks nothing when an external supervisor owns updates", async () => {
@@ -373,7 +525,7 @@ describe("NavigationSidebar update notice", () => {
 
     await settled();
     expect(accountTrigger()).toHaveAccessibleDescription("");
-    expect(screen.getByRole("button", { name: "Open menu" })).toHaveAccessibleDescription("");
+    expect(moreTab()).toHaveAccessibleName("More");
   });
 });
 

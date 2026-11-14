@@ -4,7 +4,8 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 
 const STORAGE_KEY = "fiestaboard_sidebar_collapsed";
 
-function readStoredCollapsed(): boolean {
+/** The rail state the reader chose last (the collapse toggle persists it). */
+export function readStoredCollapsed(): boolean {
   try {
     return localStorage.getItem(STORAGE_KEY) === "true";
   } catch {

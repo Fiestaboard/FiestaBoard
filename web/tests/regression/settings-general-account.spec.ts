@@ -22,7 +22,7 @@ test.beforeEach(async ({ context, page }) => {
 test.describe("regression: settings.general", () => {
   /**
    * UX node: settings.tab-general
-   * Route: /settings (General tab)
+   * Route: /settings/appearance · accessibility · system · language-time (the old General tab)
    * Expected (missing from current coverage):
    *   - InstanceName edit-and-save flow
    *   - AppearanceSettings theme selector exercised via Settings page
@@ -33,39 +33,45 @@ test.describe("regression: settings.general", () => {
    * Coverage status: partial
    */
   test("settings.tab-general — instance name, theme, language, timezone, a11y, animation cards", async ({ page }) => {
+    // The General tab was split across sections (slice 2.1). An old link to
+    // it lands on Appearance, the first of its cards.
     await page.goto("/settings?section=general");
+    await expect(page).toHaveURL(/\/settings\/appearance$/, { timeout: 15_000 });
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Scoped to <main>, not the whole page. These assertions are about the
-    // settings page's cards, but a page-wide getByText().first() also reaches
-    // the chrome — and the chrome keeps its mobile drawer in the DOM at
-    // desktop widths, merely hidden. The rail's settings menu grew an
-    // "Appearance" label there, which sits earlier in the DOM than the card,
-    // so `.first()` started resolving to a hidden element and this test failed
-    // while the page itself was perfectly correct. Naming the region is what
-    // the test meant all along.
+    // Scoped to <main>, not the whole page: these assertions are about the
+    // settings cards, not the chrome (whose menus can carry the same words).
     const main = page.getByRole("main");
+    const hub = page.getByRole("list", { name: /^Hub · / });
+    const you = page.getByRole("list", { name: "You" });
 
-    // Instance Name card — the input is keyed by id="instance-name".
+    // Appearance — the card title "Appearance" must be present, and the
+    // Animation card ("Graphics and previews") sits beside it.
+    await expect(main.getByText("Appearance", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText("Graphics and previews").first()).toBeVisible();
+
+    // Accessibility card — its own section.
+    await you.getByRole("link", { name: "Accessibility" }).click();
+    await expect(page).toHaveURL(/\/settings\/accessibility$/);
+    await expect(main.getByText(/accessibility/i).first()).toBeVisible();
+    await expect(main.getByText("Motion and animation preferences")).toBeVisible();
+
+    // Instance Name card — moved to System & backups; the input is keyed by
+    // id="instance-name".
+    await hub.getByRole("link", { name: "System & backups" }).click();
+    await expect(page).toHaveURL(/\/settings\/system$/);
     await expect(main.locator("#instance-name")).toBeVisible({ timeout: 10_000 });
 
-    // Appearance — Theme group exposes role="radiogroup" or label "Theme".
-    // The card title "Appearance" must be present.
-    await expect(main.getByText(/appearance/i).first()).toBeVisible();
-
+    // Language & time: Language, Location and Time & Date cards.
+    await hub.getByRole("link", { name: "Language & time" }).click();
+    await expect(page).toHaveURL(/\/settings\/language-time$/);
     // Language card — header "Language" surfaces a select.
-    await expect(main.getByText(/^language$/i).first()).toBeVisible();
-
+    await expect(main.getByText(/^language$/i).first()).toBeVisible({ timeout: 10_000 });
     // Time & Date card — must show a "Timezone" label/heading.
     await expect(main.getByText(/time.*date|timezone/i).first()).toBeVisible();
-
     // Location card — latitude/longitude inputs are stable selectors.
     await expect(main.locator("#latitude")).toBeVisible();
     await expect(main.locator("#longitude")).toBeVisible();
-
-    // Accessibility + Animation cards — assert by visible heading text.
-    await expect(main.getByText(/accessibility/i).first()).toBeVisible();
-    await expect(main.getByText(/animation/i).first()).toBeVisible();
   });
 
   /**
@@ -93,7 +99,7 @@ test.describe("regression: settings.general", () => {
     const originalName = (beforeJson?.instance_name ?? "") as string;
     const testName = `qa-test-${Date.now()}`;
 
-    await page.goto("/settings?section=general");
+    await page.goto("/settings/system");
     const input = page.locator("#instance-name");
     await expect(input).toBeVisible({ timeout: 15_000 });
 
@@ -147,7 +153,7 @@ test.describe("regression: settings.general", () => {
       });
     });
 
-    await page.goto("/settings?section=general");
+    await page.goto("/settings/language-time");
     const useLocationBtn = page.getByRole("button", { name: /use my location/i });
     await expect(useLocationBtn).toBeVisible({ timeout: 15_000 });
     await expect(useLocationBtn).toBeEnabled();
@@ -194,7 +200,7 @@ test.describe("regression: settings.general", () => {
       });
     });
 
-    await page.goto("/settings?section=general");
+    await page.goto("/settings/language-time");
     const useLocationBtn = page.getByRole("button", { name: /use my location/i });
     await expect(useLocationBtn).toBeVisible({ timeout: 15_000 });
 
@@ -218,7 +224,7 @@ test.describe("regression: settings.general", () => {
 test.describe("regression: settings.account", () => {
   /**
    * UX node: settings.tab-account.loading
-   * Route: /settings (Account tab)
+   * Route: /settings/account
    * Preconditions: account-fetch:pending
    * Expected: loading skeleton for account info
    * Source refs: web/src/components/settings/account/*
@@ -230,13 +236,13 @@ test.describe("regression: settings.account", () => {
     // decoupled from the section's, the loading state cannot be observed.
     // We assert the Settings page itself renders cleanly — the loading branch
     // of AccountSection is exercised by its unit tests in `__tests__/`.
-    await page.goto("/settings");
+    await page.goto("/settings/account");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
   /**
    * UX node: settings.tab-account.signed-in
-   * Route: /settings (Account tab)
+   * Route: /settings/account
    * Preconditions: auth:enabled, user:signed-in
    * Expected (missing from current coverage):
    *   - Change username form submission via UI
@@ -264,9 +270,15 @@ test.describe("regression: settings.account", () => {
       });
     });
 
+    // An old ?section=account link still lands on the Account section.
     await page.goto("/settings?section=account");
+    await expect(page).toHaveURL(/\/settings\/account$/, { timeout: 15_000 });
 
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("list", { name: "You" }).getByRole("link", { name: /^Account/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
 
     // Account-section content (use the form field ids — most stable contract).
     await expect(page.locator("#account-username")).toHaveValue("admin", { timeout: 10_000 });
@@ -277,13 +289,15 @@ test.describe("regression: settings.account", () => {
     await expect(page.getByText(/change password/i).first()).toBeVisible();
     await expect(page.getByText(/disable login/i).first()).toBeVisible();
 
-    // Sign-out button inside the Account section card (not the sidebar's).
-    await expect(page.getByLabel("Account").getByRole("button", { name: /^sign out$/i })).toBeEnabled();
+    // Sign-out button inside the Account section (not the sidebar's).
+    await expect(
+      page.getByRole("region", { name: "Account", exact: true }).getByRole("button", { name: /^sign out$/i }),
+    ).toBeEnabled();
   });
 
   /**
    * UX node: settings.tab-account.auth-disabled
-   * Route: /settings (Account tab)
+   * Route: /settings/account
    * Preconditions: auth:disabled
    * Expected: 'Login disabled' state with enable-auth CTA visible
    * Source refs: web/src/components/settings/account/*
@@ -302,7 +316,7 @@ test.describe("regression: settings.account", () => {
       });
     });
 
-    await page.goto("/settings?section=account");
+    await page.goto("/settings/account");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // EnableLoginCard surfaces "Turn on login" heading + CTA button.
@@ -312,7 +326,7 @@ test.describe("regression: settings.account", () => {
 
   /**
    * UX node: settings.account.change-username-success
-   * Route: /settings (Account tab)
+   * Route: /settings/account
    * Expected: form submit → success toast; persisted username reflected
    * Source refs: web/src/components/settings/account/*
    * Coverage status: uncovered
@@ -339,7 +353,7 @@ test.describe("regression: settings.account", () => {
       });
     });
 
-    await page.goto("/settings?section=account");
+    await page.goto("/settings/account");
     await expect(page.locator("#account-username")).toBeVisible({
       timeout: 15_000,
     });
@@ -357,7 +371,7 @@ test.describe("regression: settings.account", () => {
 
   /**
    * UX node: settings.account.change-password-success
-   * Route: /settings (Account tab)
+   * Route: /settings/account
    * Expected: form submit → success toast; user can sign in with new password
    * Source refs: web/src/components/settings/account/*
    * Coverage status: uncovered
@@ -383,7 +397,7 @@ test.describe("regression: settings.account", () => {
       });
     });
 
-    await page.goto("/settings?section=account");
+    await page.goto("/settings/account");
     await expect(page.locator("#account-current-password")).toBeVisible({
       timeout: 15_000,
     });
@@ -401,7 +415,7 @@ test.describe("regression: settings.account", () => {
 
   /**
    * UX node: settings.account.change-password-error
-   * Route: /settings (Account tab)
+   * Route: /settings/account
    * Preconditions: change-password:wrong-current-password
    * Expected: inline error 'incorrect current password'; form remains open
    * Source refs: web/src/components/settings/account/*
@@ -428,7 +442,7 @@ test.describe("regression: settings.account", () => {
       });
     });
 
-    await page.goto("/settings?section=account");
+    await page.goto("/settings/account");
     await expect(page.locator("#account-current-password")).toBeVisible({
       timeout: 15_000,
     });
@@ -449,7 +463,7 @@ test.describe("regression: settings.account", () => {
 
   /**
    * UX node: settings.account.disable-login-dialog
-   * Route: /settings (Account tab)
+   * Route: /settings/account
    * Interactions: click:disable-login → confirm dialog
    * Expected: AlertDialog warns about disabling auth; Confirm clears auth state
    * Source refs: web/src/components/settings/account/*
@@ -478,7 +492,7 @@ test.describe("regression: settings.account", () => {
       });
     });
 
-    await page.goto("/settings?section=account");
+    await page.goto("/settings/account");
     // Click the trigger button in the Disable-login card.
     const triggerBtn = page.getByRole("button", { name: /^disable login$/i }).first();
     await expect(triggerBtn).toBeVisible({ timeout: 15_000 });
