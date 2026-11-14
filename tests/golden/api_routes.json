@@ -266,6 +266,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/auth/password-reset",
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_password_reset",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/auth/preference",
       "methods": [
         "POST"

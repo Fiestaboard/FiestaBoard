@@ -41,6 +41,9 @@ def printable(text: str, limit: int = 100) -> str:
     return "".join(ch for ch in text if ch.isprintable())[:limit]
 
 
+#: H17: a password-reset code's prefix (256 random bits follow).
+PASSWORD_RESET_PREFIX = "fb_reset_"
+
 #: A browser's name is its User-Agent: kept to this many characters, enough
 #: for the browser token Edge and Opera put at the very end of theirs.
 USER_AGENT_LIMIT = 256
@@ -138,6 +141,11 @@ class SessionStore:
             # H10b: which session approved a code-signed-in TV, for the phone's
             # "approved by you". A table, not a column: older builds build
             # SessionRecord(**row), so sessions must keep its columns on rollback.
+            # H17: one-time password-reset codes minted by the CLI inside the
+            # container (src/auth/password_reset.py). Digests only; additive.
+            db.execute("""CREATE TABLE IF NOT EXISTS password_resets (
+                digest TEXT PRIMARY KEY, username TEXT NOT NULL,
+                created_ms INTEGER NOT NULL, expires_ms INTEGER NOT NULL)""")
             db.execute("""CREATE TABLE IF NOT EXISTS session_approvals (
                 session_id TEXT PRIMARY KEY, approver_session_id TEXT NOT NULL)""")
             db.execute("PRAGMA user_version = 1")
@@ -293,6 +301,45 @@ class SessionStore:
                 ON CONFLICT(session_id, panel_id) DO UPDATE SET last_shown_ms=excluded.last_shown_ms""",
                 (panel_id, now, session_id, now),
             )
+
+    # -- H17: password-reset codes ------------------------------------------
+
+    def create_password_reset(self, username: str, ttl_ms: int) -> tuple[str, int]:
+        """A new single-use reset code for *username*: ``(code, expires_ms)``.
+
+        Only its digest is stored, and minting deletes every earlier code, so
+        only the newest one is live.
+        """
+        code = PASSWORD_RESET_PREFIX + secrets.token_urlsafe(32)
+        now = self.clock_ms()
+        with self.transaction() as db:
+            db.execute("DELETE FROM password_resets")
+            db.execute(
+                "INSERT INTO password_resets VALUES (?, ?, ?, ?)",
+                (digest_secret(code), username, now, now + ttl_ms),
+            )
+        return code, now + ttl_ms
+
+    def consume_password_reset(self, code: str) -> str | None:
+        """The username a live *code* was minted for, or ``None``.
+
+        Atomic: a hit deletes every code (single use), and two concurrent
+        uses of one code cannot both succeed.
+        """
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT username FROM password_resets WHERE digest=? AND expires_ms>?",
+                (digest_secret(code), self.clock_ms()),
+            ).fetchone()
+            if row is None:
+                return None
+            db.execute("DELETE FROM password_resets")
+            return row["username"]
+
+    def clear_password_resets(self) -> None:
+        """Cancel every pending reset code (the password or username changed)."""
+        with self.transaction() as db:
+            db.execute("DELETE FROM password_resets")
 
     def approved_by(self, approver_session_id: str) -> set[str]:
         """Ids of the sessions whose sign-in code *approver_session_id* approved."""

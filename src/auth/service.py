@@ -552,6 +552,7 @@ class AuthService:
                     u["sessions_valid_after_ms"] = self._monotonic_ms()
                     self._save()
                     self.sessions.revoke_sessions(current_username)
+                    self.sessions.clear_password_resets()
                     return new_username
             raise InvalidCredentials("Unknown user")
 
@@ -572,6 +573,28 @@ class AuthService:
                     u["sessions_valid_after_ms"] = self._monotonic_ms()
                     self._save()
                     self.sessions.revoke_sessions(username)
+                    self.sessions.clear_password_resets()
+                    return
+            raise InvalidCredentials("Unknown user")
+
+    def reset_password(self, username: str, new: str) -> None:
+        """Set *username*'s password without the old one (H17).
+
+        Only after a one-time reset code from the CLI inside the container
+        has been consumed (``POST /auth/password-reset``). Like a password
+        change it bumps the watermark and signs out every browser, TV and
+        phone; it also cancels any other reset code.
+        """
+        _validate_password(new)
+        with self._lock:
+            for u in self._data.get("users", []):
+                if u.get("username") == username:
+                    u["password_hash"] = hash_password(new)
+                    u["updated_at"] = int(time.time())
+                    u["sessions_valid_after_ms"] = self._monotonic_ms()
+                    self._save()
+                    self.sessions.revoke_sessions(username)
+                    self.sessions.clear_password_resets()
                     return
             raise InvalidCredentials("Unknown user")
 
