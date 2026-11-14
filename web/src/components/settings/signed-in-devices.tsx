@@ -129,7 +129,7 @@ export function SignedInDevices() {
                         {session.id === data.current_session_id && <Text size="sm">{t("current")}</Text>}
                       </Flex>
                       <Text size="sm">
-                        {category(session)} · {t(session.method === "device_code" ? "codeMethod" : "passwordMethod")}
+                        {category(session)} · {t(session.method === "password" ? "passwordMethod" : "codeMethod")}
                       </Text>
                       {session.app_version && <Text size="sm">{t("version", { version: session.app_version })}</Text>}
                       <Text size="sm" tone="muted">

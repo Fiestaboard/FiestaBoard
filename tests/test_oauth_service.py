@@ -1940,3 +1940,46 @@ def test_url_overrides_point_endpoints_at_a_local_mock(service, source, provider
     provider.reply(TOKENS)
     service.complete_authorization(state=query["state"], code="code-1", error=None)
     assert provider.calls[0][0] == "http://localhost:9400/api/token"
+
+
+# ── H11: app_return only on flows that come back through /oauth/callback ──────
+
+
+APP_RETURN = "fiestaboard://oauth"
+
+
+def test_app_return_is_refused_for_the_device_flow(service, source):
+    source.add("git", DEVICE_BLOCK, config={"client_id": "c"})
+    with pytest.raises(FlowNotSupported):
+        service.start("git", app_return=APP_RETURN)
+
+
+def test_app_return_is_refused_for_plex(xservice, plexconn, http):
+    with pytest.raises(FlowNotSupported):
+        xservice.start(plexconn, board_url=BOARD, app_return=APP_RETURN)
+    assert http.calls == []
+
+
+def test_app_return_is_refused_for_a_headless_key_exchange(xservice, source):
+    source.add("openrouter", KEY_BLOCK, config={})
+    with pytest.raises(FlowNotSupported):
+        xservice.start("openrouter", headless=True, app_return=APP_RETURN)
+    with pytest.raises(FlowNotSupported):
+        xservice.start("openrouter", app_return=APP_RETURN)  # no board_url is headless too
+
+
+def test_app_return_is_refused_when_the_provider_redirects_elsewhere(service, source):
+    import dataclasses
+
+    source.add("chat", RELAY_BLOCK, config={"client_id": "c"})
+    target = source.targets["chat"]
+    provider = dataclasses.replace(target.provider, redirect_uri_override="http://localhost:1455/auth/callback")
+    source.targets["chat"] = dataclasses.replace(target, provider=provider)
+    with pytest.raises(FlowNotSupported):
+        service.start("chat", board_url=BOARD, app_return=APP_RETURN)
+
+
+def test_app_return_is_kept_for_a_key_exchange_that_calls_back(xservice, source):
+    source.add("openrouter", KEY_BLOCK, config={})
+    start = xservice.start("openrouter", board_url=BOARD, app_return=APP_RETURN)
+    assert start.flow == "key_exchange"

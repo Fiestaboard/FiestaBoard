@@ -125,3 +125,18 @@ it("retries the initial device-list failure without changing any sign-ins", asyn
   expect(revoked).toEqual([]);
   expect(bulk).toEqual([]);
 });
+
+it("shows a phone paired by QR as a code approval, not a password sign-in", async () => {
+  sessions.push({
+    ...sessions[1],
+    id: "phone",
+    device_name: "Pixel",
+    kind: "mobile",
+    client_id: "fiestaboard-android",
+    method: "pairing",
+  });
+  render(<SignedInDevices />);
+  const row = await screen.findByRole("listitem", { name: "Pixel" });
+  expect(within(row).getByText(/QR \/ code approval/)).toBeInTheDocument();
+  expect(within(row).queryByText(/Password/)).not.toBeInTheDocument();
+});

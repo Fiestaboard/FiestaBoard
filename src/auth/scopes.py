@@ -14,7 +14,8 @@ someone adds them on purpose.
   TVs and read diagnostics. It never reaches account and credential
   management, backups, the host (network, update, restart), installing or
   removing code, or settings that hold third-party secrets (AI keys, MQTT,
-  ``/config/board``). Approving a TV from a phone is not in it yet.
+  ``/config/board``). It may approve or deny a TV's sign-in code (H11), but
+  never create pairing codes for other phones (``/auth/pairing``).
 """
 
 from __future__ import annotations
@@ -85,6 +86,10 @@ CONTROL_RULES = (
         # Identity and signing this phone out.
         ("GET", "/auth/status"),
         ("DELETE", "/auth/device/session"),
+        # Approving a TV from the phone (H11). The handler accepts TV codes only.
+        ("POST", "/auth/device/inspect"),
+        ("POST", "/auth/device/approve"),
+        ("POST", "/auth/device/deny"),
         # Home: what each display shows, and its state.
         ("GET", "/status"),
         ("GET", "/version"),

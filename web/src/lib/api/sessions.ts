@@ -6,7 +6,7 @@ export type SessionSummary = {
   device_name: string;
   client_id?: string | null;
   app_version?: string | null;
-  method: "password" | "device_code";
+  method: "password" | "device_code" | "pairing";
   created_at: string;
   last_active_at: string;
   expires_at: string;

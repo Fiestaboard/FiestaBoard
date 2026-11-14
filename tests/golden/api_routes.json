@@ -218,6 +218,38 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/auth/pairing",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "cancel_offers",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/pairing",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_offer",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/pairing/claim",
+      "methods": [
+        "POST"
+      ],
+      "name": "claim",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/pairing/{pairing_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "offer_state",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/auth/preference",
       "methods": [
         "POST"

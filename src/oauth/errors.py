@@ -28,6 +28,10 @@ class InvalidBoardUrl(OAuthError):
     """The address the relay should return to is missing or not a plain web address."""
 
 
+class InvalidAppReturn(OAuthError):
+    """The app return address is not one the FiestaBoard phone apps register."""
+
+
 class InvalidState(OAuthError):
     """The ``state`` on a callback is unsigned, tampered, expired or reused.
 

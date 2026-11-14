@@ -1,12 +1,20 @@
-"""Scoped native credentials and transactional, one-use TV approvals."""
+"""Scoped native credentials, transactional one-use TV approvals and QR phone pairing."""
 
 from __future__ import annotations
 
+import logging
 import secrets
 import sqlite3
 
-from .device_models import AuthFlowError, DeviceChallenge, DeviceMetadata, DeviceTokenResult, PendingDevice
-from .scopes import CONTROL, MOBILE_CLIENTS, scope_for_client
+from .device_models import (
+    AuthFlowError,
+    DeviceChallenge,
+    DeviceMetadata,
+    DeviceTokenResult,
+    PairingState,
+    PendingDevice,
+)
+from .scopes import CONTROL, MOBILE_CLIENTS, TV_PANELS, scope_for_client
 from .service import AuthService, auth_mode
 from .session_models import SessionRecord
 from .session_store import digest_secret
@@ -18,6 +26,34 @@ TV_TOKEN_SECONDS = 365 * 24 * 3600
 TV_TOKEN_PREFIX = "fb_tv_"
 MOBILE_TOKEN_PREFIX = "fb_mob_"
 _KIND_FOR_SCOPE = {"tv_panels": ("tv", TV_TOKEN_PREFIX), CONTROL: ("mobile", MOBILE_TOKEN_PREFIX)}
+# Who may approve a TV's code: a browser, or (H11) a signed-in phone.
+_APPROVER_KINDS = ("browser", "legacy", "mobile")
+_BROWSER_KINDS = ("browser", "legacy")
+# H11 QR pairing: a 256-bit, single-use code that lives five minutes.
+PAIRING_CODE_PREFIX = "fb_pair_"
+PAIRING_SECONDS = 300
+_INVALID_PAIRING = "That pairing code is invalid or was already used. Show a new code in the web app."
+
+logger = logging.getLogger(__name__)
+
+
+def hub_identity() -> tuple[str, str]:
+    """This install's public id (as ``/discover`` gives it) and display name, for a pairing QR."""
+    from src.config_manager import get_config_manager
+    from src.paths import get_data_dir
+    from src.service_api.install_id import load_install_id
+
+    try:
+        install_id = load_install_id(get_data_dir())
+    except OSError:
+        install_id = ""
+    try:
+        name = str(get_config_manager().get_general().get("instance_name") or "").strip()
+    except Exception:
+        # A missing name only changes a label on the phone; never fail the offer for it.
+        logger.debug("Could not read the instance name for a pairing offer", exc_info=True)
+        name = ""
+    return install_id, name[:100]
 
 
 def normalize_code(code: str) -> str:
@@ -129,8 +165,11 @@ class DeviceService:
         self.require_enrollment()
         with self.auth._lock, self.store.transaction() as db:
             self._enrollment_in_transaction(db)
-            self._require_active_browser(db, browser.id, browser.username, browser.account_generation)
+            self._require_active_approver(db, browser.id, browser.username, browser.account_generation)
             row = self._challenge_for_user(db, code)
+            if browser.kind == "mobile" and scope_for_client(row["client_id"]) != TV_PANELS:
+                # A phone approves TVs only; it never mints control for another device.
+                raise AuthFlowError("invalid_grant", "That code is invalid or no longer available.")
             db.execute(
                 """UPDATE challenges SET state=?, username=?, account_generation=?, approving_session_id=?
                           WHERE device_digest=?""",
@@ -143,7 +182,9 @@ class DeviceService:
                 ),
             )
 
-    def _require_active_browser(self, db, session_id: str, username: str, generation: int) -> None:
+    def _require_active_approver(
+        self, db, session_id: str, username: str, generation: int, kinds: tuple[str, ...] = _APPROVER_KINDS
+    ) -> None:
         user = self.auth.get_user(username)
         row = db.execute(
             "SELECT * FROM sessions WHERE id=? AND revoked_ms IS NULL AND expires_ms>?",
@@ -151,7 +192,7 @@ class DeviceService:
         ).fetchone()
         if (
             not row
-            or row["kind"] not in ("browser", "legacy")
+            or row["kind"] not in kinds
             or not user
             or user.get("sessions_valid_after_ms", 0) != generation
             or row["account_generation"] != generation
@@ -211,7 +252,7 @@ class DeviceService:
                 if row["state"] == "pending":
                     error = AuthFlowError("authorization_pending", "Waiting for approval in the web portal.")
                 else:
-                    self._require_active_browser(
+                    self._require_active_approver(
                         db, row["approving_session_id"], row["username"], row["account_generation"]
                     )
                     metadata = DeviceMetadata(
@@ -231,6 +272,85 @@ class DeviceService:
             with self.store.transaction() as db:
                 self._enrollment_in_transaction(db)
                 return self._issue(db, username, user.get("sessions_valid_after_ms", 0), metadata, "password")
+
+    # -- H11: QR pairing ---------------------------------------------------
+
+    def create_pairing(self, browser: SessionRecord) -> tuple[str, str]:
+        """A new pairing offer from *browser*; returns ``(pairing_id, code)``.
+
+        Earlier pending offers of the same account are cancelled, so only one QR
+        is live at a time. Only the code's digest is stored.
+        """
+        self.require_enrollment()
+        self.limit("pairing-start:" + browser.username, 5)
+        now = self.store.clock_ms()
+        with self.auth._lock, self.store.transaction() as db:
+            self._enrollment_in_transaction(db)
+            self._require_active_approver(db, browser.id, browser.username, browser.account_generation, _BROWSER_KINDS)
+            db.execute(
+                "UPDATE pairings SET state='cancelled' WHERE username=? AND state='pending'", (browser.username,)
+            )
+            pairing_id, code = secrets.token_urlsafe(16), PAIRING_CODE_PREFIX + secrets.token_urlsafe(32)
+            db.execute(
+                """INSERT INTO pairings (id,digest,username,account_generation,creator_session_id,state,
+                created_ms,expires_ms) VALUES (?,?,?,?,?,'pending',?,?)""",
+                (
+                    pairing_id,
+                    digest_secret(code),
+                    browser.username,
+                    browser.account_generation,
+                    browser.id,
+                    now,
+                    now + PAIRING_SECONDS * 1000,
+                ),
+            )
+        return pairing_id, code
+
+    def cancel_pairings(self, username: str) -> None:
+        with self.store.transaction() as db:
+            db.execute("UPDATE pairings SET state='cancelled' WHERE username=? AND state='pending'", (username,))
+
+    def pairing_state(self, username: str, pairing_id: str) -> PairingState | None:
+        with self.store.transaction() as db:
+            row = db.execute("SELECT * FROM pairings WHERE id=? AND username=?", (pairing_id, username)).fetchone()
+        if row is None:
+            return None
+        state = row["state"]
+        if state == "pending" and row["expires_ms"] <= self.store.clock_ms():
+            state = "expired"
+        return PairingState(state=state, device_name=row["device_name"], session_id=row["claimed_session_id"])
+
+    def claim_pairing(self, code: str, metadata: DeviceMetadata) -> DeviceTokenResult:
+        """Trade a pairing code for a phone's ``control`` credential. Single use.
+
+        Raises ``invalid_grant`` for an unknown, used or cancelled code and
+        ``expired_token`` for an expired one; the caller counts both as failures.
+        """
+        if metadata.client_id not in MOBILE_CLIENTS:
+            raise AuthFlowError("unsupported_client", "Only the FiestaBoard phone app can pair with a code.")
+        self.require_enrollment()
+        with self.auth._lock, self.store.transaction() as db:
+            self._enrollment_in_transaction(db)
+            row = db.execute("SELECT * FROM pairings WHERE digest=?", (digest_secret(code),)).fetchone()
+            if row is None or row["state"] != "pending":
+                raise AuthFlowError("invalid_grant", _INVALID_PAIRING)
+            if row["expires_ms"] <= self.store.clock_ms():
+                raise AuthFlowError("expired_token", "That pairing code expired. Show a new code in the web app.")
+            try:
+                self._require_active_approver(
+                    db, row["creator_session_id"], row["username"], row["account_generation"], _BROWSER_KINDS
+                )
+            except AuthFlowError:
+                raise AuthFlowError("invalid_grant", _INVALID_PAIRING) from None
+            result = self._issue(db, row["username"], row["account_generation"], metadata, "pairing")
+            claimed = db.execute(
+                "UPDATE pairings SET state='claimed', claimed_session_id=?, device_name=? WHERE id=? AND state='pending'",
+                (result.session_id, metadata.device_name, row["id"]),
+            )
+            if claimed.rowcount != 1:
+                # Single use must not depend on the lock alone: roll back the new session too.
+                raise AuthFlowError("invalid_grant", _INVALID_PAIRING)
+        return result
 
     def cancel(self, code: str) -> None:
         with self.store.transaction() as db:

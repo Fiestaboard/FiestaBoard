@@ -192,6 +192,10 @@ CONTROL_ALLOWED = [
     ("GET", "/triggers", None),
     ("GET", "/system/update-check", None),
     ("GET", "/config/general", None),
+    # H11: the phone approves a TV's code (an unknown code is 400, not 401/403).
+    ("POST", "/auth/device/inspect", {"user_code": "BCDF-GHJK"}),
+    ("POST", "/auth/device/approve", {"user_code": "BCDF-GHJK"}),
+    ("POST", "/auth/device/deny", {"user_code": "BCDF-GHJK"}),
 ]
 
 
@@ -209,8 +213,10 @@ CONTROL_DENIED = [
     ("POST", "/auth/sessions/revoke", {"include_current": True}),
     ("DELETE", "/auth/sessions/other", None),
     ("PUT", "/auth/device/settings", {"enabled": False}),
-    ("POST", "/auth/device/inspect", {"user_code": "BCDF-GHJK"}),
-    ("POST", "/auth/device/approve", {"user_code": "BCDF-GHJK"}),
+    # H11: a phone may approve a TV (/auth/device/inspect|approve|deny), but it never
+    # creates pairing codes for other phones.
+    ("POST", "/auth/pairing", {}),
+    ("DELETE", "/auth/pairing", None),
     ("POST", "/auth/change-password", {}),
     ("POST", "/auth/change-username", {}),
     ("POST", "/auth/disable", {}),
