@@ -11,11 +11,14 @@ import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
 import { usePrefetchPagesData } from "@/hooks/use-board";
+import { useHubConnection } from "@/hooks/use-hub-connection";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
 import { isChromelessPath } from "@/lib/chromeless";
+import { hubLineStatus } from "@/lib/hub-identity";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
+import { browserHostname } from "@/lib/network-hint";
 
 interface NavItemDef {
   key: string;
@@ -77,6 +80,17 @@ export function NavigationSidebar() {
   // always in the menu; nothing on the closed button said to open it.
   const updateAvailable = useAvailableUpdate({ enabled: !chromeless });
 
+  // The hub line under the switcher (WEB-09, slice 2.3): "host · Online /
+  // Remote / Can't reach", from the shared status poll.
+  const tHub = useTranslations("statusBanners");
+  const hubConnection = useHubConnection({ enabled: !chromeless });
+  const hubHost = browserHostname();
+  const hubStatus = hubLineStatus({
+    host: hubHost,
+    hubReachable: hubConnection.hubReachable,
+    deviceOnline: hubConnection.deviceOnline,
+  });
+
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer
   // (a wall display must never grow app chrome).
@@ -105,6 +119,7 @@ export function NavigationSidebar() {
     boardSelector: t("boardSelector"),
     selectBoard: t("selectBoard"),
     unnamedBoard: t("unnamedBoard"),
+    hubStatus: { online: tHub("hubOnline"), remote: tHub("hubRemote"), unreachable: tHub("hubUnreachable") },
   };
 
   return (
@@ -146,6 +161,8 @@ export function NavigationSidebar() {
             onChange={setCurrentBoardId}
             labels={boardSelectorLabels}
             collapsed={collapsed}
+            host={hubHost}
+            status={hubStatus}
           />
         ) : undefined
       }
@@ -157,6 +174,8 @@ export function NavigationSidebar() {
             onChange={setCurrentBoardId}
             labels={boardSelectorLabels}
             variant="mobileHeader"
+            host={hubHost}
+            status={hubStatus}
           />
         ) : undefined
       }

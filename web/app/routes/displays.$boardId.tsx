@@ -12,6 +12,7 @@ import { isVirtualBoard } from "@/components/settings/output-boards";
 import { ScheduleBehavior } from "@/components/settings/schedule-behavior";
 import { SilenceSchedule } from "@/components/settings/silence-schedule";
 import { UpdateIntervals } from "@/components/settings/update-intervals";
+import { StatusBannerHost } from "@/components/status-banners/status-banner-host";
 import { useParams, useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -69,6 +70,7 @@ export default function DisplayPage() {
               shows, for this board. It reads the board-state query the
               preview below already polls, so it costs no extra request; a
               FiestaPanel always shows what was sent, so it never appears there. */}
+            <StatusBannerHost boardId={board.id} className="mb-4" />
             <Box className="mb-4 empty:hidden">
               <BoardOutOfSyncBanner
                 boardId={board.id}

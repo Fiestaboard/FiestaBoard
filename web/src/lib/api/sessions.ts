@@ -10,6 +10,10 @@ export type SessionSummary = {
   created_at: string;
   last_active_at: string;
   expires_at: string;
+  /** H13b: when this signed-in TV last fetched a panel frame (null if never). */
+  last_shown_at?: string | null;
+  /** H13b: per panel, newest first. */
+  shown_panels?: { panel_id: string; last_shown_at: string }[];
 };
 export type SessionList = { sessions: SessionSummary[]; current_session_id: string };
 export type DeviceInspection = {

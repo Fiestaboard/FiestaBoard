@@ -13,8 +13,7 @@ import { Home as HomeIcon, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ActivePageDisplay } from "@/components/active-page-display";
-import { BoardInitErrorBanner } from "@/components/board-init-error-banner";
-import { SilenceImminentBanner } from "@/components/silence-imminent-banner";
+import { StatusBannerHost } from "@/components/status-banners/status-banner-host";
 import { useWizard } from "@/components/wizard-provider";
 import { useTranslations } from "@/i18n/translations";
 import { getSetupStatus } from "@/lib/setup-detection";
@@ -62,8 +61,9 @@ export default function Home() {
         )}
 
         <PageSection>
-          <BoardInitErrorBanner />
-          <SilenceImminentBanner />
+          {/* Slice 2.3: the one status banner under the header (07a). `silenced`
+              stays in the Now-showing card until slice 2.2 moves it here. */}
+          <StatusBannerHost fleet exclude={["silenced"]} className="mb-6" />
           <ActivePageDisplay />
         </PageSection>
       </PageCard>

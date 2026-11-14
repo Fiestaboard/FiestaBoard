@@ -25,6 +25,38 @@ export interface BoardStatus {
    * `null` when the output has nothing to say.
    */
   output_status?: OutputStatusSummary | null;
+  /**
+   * Per-display health (H12): when the hub last reached the board, how fast,
+   * and the last failure. Absent from a hub that predates it.
+   */
+  health?: HealthSummary | null;
+}
+
+/** H12 per-display health, mirroring `src/outputs/health.py` `HealthSummary`. */
+export interface HealthSummary {
+  /** When the device last answered the hub (UTC ISO). For a Cloud API board, the cloud API answering. */
+  last_connected_at: string | null;
+  /** When a frame last landed (UTC ISO). */
+  last_update_at: string | null;
+  latency_ms: number | null;
+  last_error_at: string | null;
+  last_error:
+    | "auth"
+    | "unreachable"
+    | "timeout"
+    | "server_error"
+    | "unexpected_status"
+    | "blocked"
+    | "invalid_request"
+    | "write_failed"
+    | "raised"
+    | "bad_response"
+    | "read_failed"
+    | null;
+  /** This hub process's last event for the board: true a contact, false a failure, null neither (always null for a FiestaPanel). */
+  reachable: boolean | null;
+  /** The hub is holding writes back after repeated failures. */
+  breaker_open: boolean;
 }
 
 export interface OutputStatusSummary {
