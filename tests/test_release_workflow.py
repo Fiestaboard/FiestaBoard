@@ -42,7 +42,7 @@ def test_runs_on_push_to_both_release_branches_without_path_filters():
     paths-ignore, so a changeset-only push still updates the Version PR."""
     on = _triggers(DOC)
     assert set(on) == {"push", "workflow_dispatch"}
-    assert on["push"]["branches"] == ["main", "alpha"]
+    assert on["push"]["branches"] == ["main", "alpha", "v11"]
     assert "paths-ignore" not in on["push"] and "paths" not in on["push"]
 
 
@@ -98,7 +98,10 @@ def test_the_image_is_built_from_the_version_commit():
 
 def test_latest_moves_only_for_stable_releases():
     run = next(s["run"] for s in _steps(JOBS["merge"]) if s.get("name") == "Create manifest list and push")
-    assert 'if [ "$PRERELEASE" = "true" ]; then MOVING=beta; else MOVING=latest; fi' in run
+    step = next(s for s in _steps(JOBS["merge"]) if s.get("name") == "Create manifest list and push")
+    assert step["env"]["MOVING"] == "${{ needs.version.outputs.moving_tag }}"
+    assert step["env"]["VERSION"] == "${{ needs.version.outputs.image_tag }}"
+    assert '${MOVING}' in run
 
 
 def test_the_release_comes_after_the_image():

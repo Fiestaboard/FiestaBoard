@@ -99,7 +99,7 @@ def test_committed_pre_json_is_one_a_release_branch_accepts():
     exit mode during a promotion.
     """
     pre = read_pre_json(ROOT / ".changeset" / "pre.json")
-    assert pre is None or (pre.tag == "beta" and pre.mode in ("pre", "exit"))
+    assert pre is None or (pre.tag in ("beta", "alpha") and pre.mode in ("pre", "exit"))
 
 
 # ---------------------------------------------------------------------------

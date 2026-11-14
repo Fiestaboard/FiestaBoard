@@ -141,7 +141,7 @@ jobs:
             echo "captures reproduced identically"
           fi
 
-      # `main` is protected — PRs and the merge queue only — so this cannot
+      # `main` is protected — PRs only — so this cannot
       # commit directly. It pushes a bot-owned branch and opens (or updates) a
       # PR instead, which also means a person sees screenshot changes before
       # they reach the docs.

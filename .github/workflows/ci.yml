@@ -9,17 +9,9 @@ on:
     # the heavy jobs (gated below on non-draft PRs) run when a draft flips.
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '**' ]
-  # Required so the `CI Success` status check reports on the merge-queue
-  # SHA. Without this, GitHub waits `check_response_timeout_minutes` for a
-  # check that never fires and removes the PR with "no response for
-  # status checks". See `dorny/paths-filter` — it diffs the merge SHA
-  # against main, so the existing path filters keep heavy jobs skipped
-  # when the merge commit touches nothing they care about.
-  merge_group:
 
 concurrency:
-  # On merge_group there is no pull_request.number, so this falls back to
-  # the merge SHA — unique per queue entry, so no cross-queue cancels.
+  # Pushes have no pull_request.number, so this falls back to the SHA.
   group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
@@ -83,7 +75,7 @@ jobs:
             e2e_wiring:
               # The inputs to tests/test_e2e_spec_reachability.py, which
               # proves no Playwright spec is unreachable by every workflow
-              # and that the merge queue gates on all of them (#1737).
+              # and that the Version PR gates on all of them (#1737).
               # A new workflow, a new `RUN_*` gate in the Playwright config,
               # or a new spec can each create a never-run test, so the guard
               # has to re-run whenever one of them changes. Deliberately NOT
@@ -327,13 +319,11 @@ jobs:
     name: UI Tests
     runs-on: ubuntu-latest
     needs: detect-changes
-    # Draft PRs skip the heavy test fleet (see test-platform); the merge
-    # queue always runs UI Tests regardless of paths.
+    # Draft PRs skip the heavy test fleet (see test-platform).
     if: >-
-      github.event_name == 'merge_group'
-      || ((github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-          && (needs.detect-changes.outputs.ui == 'true'
-              || needs.detect-changes.outputs.shared == 'true'))
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+      && (needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     # Coverage takes about nine minutes on hosted runners; allow time for
     # browser installation, layout regressions, and coverage upload as well.
     timeout-minutes: 15
@@ -491,18 +481,19 @@ jobs:
     name: Build Test Image
     runs-on: ubuntu-latest
     needs: detect-changes
-    # Runs on PRs *and* in the merge queue. The queue is the last gate before
-    # code reaches main and it tests the merged result, not the PR head; a
-    # PR-only gate lets two individually-green PRs land a semantic conflict
-    # that then surfaces as an "unrelated" E2E failure on the next branch to
-    # rebase. `plugins` is in the filter because plugin manifests drive the
-    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # Runs on PRs, including the Changesets Version PR. That PR is the last
+    # gate before a release and tests the merged result, not a PR head: it is
+    # rebuilt on its base branch's tip, and it always trips `shared` (it bumps
+    # package.json), so two individually-green PRs that land a semantic
+    # conflict are caught before they ship. `plugins` is in the filter
+    # because plugin manifests drive the Integrations routes that
+    # integrations.spec.ts covers. Keep this gate
     # identical across build-test-image and both E2E jobs — the image
     # build must be a superset of everything that consumes it. Draft PRs
     # skip the fleet (see test-platform).
     if: >-
-      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-      && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+      github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false
       && (needs.detect-changes.outputs.api == 'true'
           || needs.detect-changes.outputs.ui == 'true'
           || needs.detect-changes.outputs.plugins == 'true'
@@ -571,18 +562,19 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     needs: [detect-changes, build-test-image]
-    # Runs on PRs *and* in the merge queue. The queue is the last gate before
-    # code reaches main and it tests the merged result, not the PR head; a
-    # PR-only gate lets two individually-green PRs land a semantic conflict
-    # that then surfaces as an "unrelated" E2E failure on the next branch to
-    # rebase. `plugins` is in the filter because plugin manifests drive the
-    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # Runs on PRs, including the Changesets Version PR. That PR is the last
+    # gate before a release and tests the merged result, not a PR head: it is
+    # rebuilt on its base branch's tip, and it always trips `shared` (it bumps
+    # package.json), so two individually-green PRs that land a semantic
+    # conflict are caught before they ship. `plugins` is in the filter
+    # because plugin manifests drive the Integrations routes that
+    # integrations.spec.ts covers. Keep this gate
     # identical across build-test-image and both E2E jobs — the image
     # build must be a superset of everything that consumes it. Draft PRs
     # skip the fleet (see test-platform).
     if: >-
-      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-      && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+      github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false
       && (needs.detect-changes.outputs.api == 'true'
           || needs.detect-changes.outputs.ui == 'true'
           || needs.detect-changes.outputs.plugins == 'true'
@@ -754,18 +746,19 @@ jobs:
     name: Specialized E2E Tests (AI, Auth, Ingress)
     runs-on: ubuntu-latest
     needs: [detect-changes, build-test-image]
-    # Runs on PRs *and* in the merge queue. The queue is the last gate before
-    # code reaches main and it tests the merged result, not the PR head; a
-    # PR-only gate lets two individually-green PRs land a semantic conflict
-    # that then surfaces as an "unrelated" E2E failure on the next branch to
-    # rebase. `plugins` is in the filter because plugin manifests drive the
-    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # Runs on PRs, including the Changesets Version PR. That PR is the last
+    # gate before a release and tests the merged result, not a PR head: it is
+    # rebuilt on its base branch's tip, and it always trips `shared` (it bumps
+    # package.json), so two individually-green PRs that land a semantic
+    # conflict are caught before they ship. `plugins` is in the filter
+    # because plugin manifests drive the Integrations routes that
+    # integrations.spec.ts covers. Keep this gate
     # identical across build-test-image and both E2E jobs — the image
     # build must be a superset of everything that consumes it. Draft PRs
     # skip the fleet (see test-platform).
     if: >-
-      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-      && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+      github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false
       && (needs.detect-changes.outputs.api == 'true'
           || needs.detect-changes.outputs.ui == 'true'
           || needs.detect-changes.outputs.plugins == 'true'
@@ -1441,7 +1434,7 @@ jobs:
   # Release hygiene for PRs into main and alpha (docs/internal/development/RELEASING.md).
   release-guards:
     name: Release guards
-    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -1453,11 +1446,10 @@ jobs:
       #
       # pre.json is a committed file, so a merge carries it anywhere: main in
       # pre mode would cut prereleases, and alpha out of it would cut stable
-      # releases. Checked in the merge queue too — it needs only the base
-      # branch, and the queued commit is what actually lands.
+      # releases.
       - name: Keep prerelease mode on its branch
         env:
-          BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -o pipefail
           python3 scripts/release/pre_mode.py check-base "${BASE_REF#refs/heads/}" \

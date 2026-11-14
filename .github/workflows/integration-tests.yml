@@ -1,10 +1,11 @@
 name: 'CI: Integration Tests'
 
-# Full integration suite runs on merge queue to gate changes before they land on main.
-# A smoke subset also runs on PRs to catch critical breakage early.
-# If integration tests fail in the merge queue, the PR is automatically removed.
+# A smoke subset runs on every PR to catch critical breakage early.
+# The full suite runs on the Changesets Version PR (head `changeset-release/*`),
+# the last gate before a release. That PR is rebuilt on every push to its base
+# branch, so it tests the merged result of everything about to ship. Every
+# Version PR bumps web/package.json, so the `paths` filter below always fires.
 on:
-  merge_group:
   pull_request:
     branches: [ '**' ]
     paths:
@@ -24,7 +25,7 @@ concurrency:
 
 jobs:
   integration-tests:
-    name: Integration Tests (${{ github.event_name == 'pull_request' && 'smoke' || 'full' }})
+    name: Integration Tests (${{ startsWith(github.head_ref, 'changeset-release/') && 'full' || 'smoke' }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -98,11 +99,11 @@ jobs:
         timeout-minutes: 5
         run: npx playwright install --with-deps chromium
 
-      # ── PR: single container for smoke subset ─────────────────────
+      # ── Other PRs: single container for smoke subset ──────────────
       # On PRs we only run integration.spec.ts — a single file whose tests
       # execute sequentially — so one backend is sufficient.
       - name: Start mock Vestaboard API (smoke)
-        if: github.event_name == 'pull_request'
+        if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
         run: |
           # python3 is pre-installed on ubuntu-latest; the script is stdlib-only.
           python3 integration-tests/mock-board/server.py &
@@ -110,7 +111,7 @@ jobs:
           echo "Mock board started on port 7000"
 
       - name: Start mock Vestaboard Cloud API (smoke)
-        if: github.event_name == 'pull_request'
+        if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
         env:
           PORT: 9200
           ROWS: 6
@@ -122,7 +123,7 @@ jobs:
           echo "Mock Cloud API started on port 9200"
 
       - name: Start FiestaBoard container (smoke)
-        if: github.event_name == 'pull_request'
+        if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
         run: |
           docker run -d --name fiestaboard-integration \
             --add-host=host.docker.internal:host-gateway \
@@ -142,11 +143,11 @@ jobs:
             sleep 1
           done
 
-      # On PRs: run only the core integration smoke suite (integration.spec.ts).
+      # On other PRs: run only the core integration smoke suite (integration.spec.ts).
       # This covers health checks, the setup wizard, navigation, basic page &
       # schedule management — the flows most likely to break on any PR.
-      - name: Run integration tests (smoke subset on PRs)
-        if: github.event_name == 'pull_request'
+      - name: Run integration tests (smoke subset)
+        if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
         working-directory: web
         timeout-minutes: 8
         run: npx playwright test integration.spec.ts --reporter=github
@@ -161,13 +162,13 @@ jobs:
           # localhost; the mock Cloud API listens on the runner, not in Docker.
           MOCK_CLOUD_URL: http://localhost:9200/
 
-      # ── Merge queue: 4 isolated containers for full suite ─────────
+      # ── Version PR: 4 isolated containers for full suite ──────────
       # The full suite uses workers=4 (playwright.config.ts). Without per-worker
       # backend isolation, all workers share a single backend and race conditions
       # cause spurious failures. We start 4 FiestaBoard + 4 mock-board containers
       # and pass WORKER_URLS so each Playwright worker gets its own isolated backend.
       - name: Start 4 mock board + mock cloud + FiestaBoard containers (full suite)
-        if: github.event_name == 'merge_group'
+        if: startsWith(github.head_ref, 'changeset-release/')
         run: |
           WORKER_COUNT=4
           WORKER_URLS=""
@@ -225,7 +226,7 @@ jobs:
           echo "MOCK_CLOUD_URLS=$MOCK_CLOUD_URLS" >> $GITHUB_ENV
 
       - name: Wait for all containers to be ready (full suite)
-        if: github.event_name == 'merge_group'
+        if: startsWith(github.head_ref, 'changeset-release/')
         timeout-minutes: 3
         run: |
           IFS=',' read -ra URLS <<< "$WORKER_URLS"
@@ -245,9 +246,9 @@ jobs:
             done
           done
 
-      # On merge queue: run the full integration suite as the final gate.
-      - name: Run integration tests (full suite on merge queue)
-        if: github.event_name == 'merge_group'
+      # On the Version PR: run the full integration suite as the release gate.
+      - name: Run integration tests (full suite on the Version PR)
+        if: startsWith(github.head_ref, 'changeset-release/')
         working-directory: web
         timeout-minutes: 12
         run: npx playwright test --reporter=github
@@ -270,6 +271,6 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
-          name: integration-results-${{ github.event_name }}
+          name: integration-results-${{ startsWith(github.head_ref, 'changeset-release/') && 'full' || 'smoke' }}
           path: web/playwright-test-results/
           retention-days: 14

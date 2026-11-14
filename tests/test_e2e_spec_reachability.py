@@ -2,8 +2,8 @@
 
 A test job that never runs is worse than no job at all: it reads as green
 coverage on the PR page while asserting nothing. This repo has hit that twice
---- all four E2E jobs were gated on ``pull_request`` so the merge queue skipped
-them 28/28 (#1771), and ``ingress.spec.ts`` sat behind a ``RUN_INGRESS_TESTS``
+--- all four E2E jobs were gated on ``pull_request`` so the old merge queue
+skipped them 28/28 (#1771), and ``ingress.spec.ts`` sat behind a ``RUN_INGRESS_TESTS``
 flag with no job to set it. Both were found by hand, months later.
 
 These tests close the loop mechanically. They read
@@ -12,8 +12,11 @@ These tests close the loop mechanically. They read
 
 1. every spec in ``web/tests/`` is executed by at least one invocation;
 2. every ``RUN_*`` gate the config defines is actually set by some job;
-3. every spec is reachable by an invocation that can run on ``merge_group``,
-   so the queue --- the last gate before ``main`` --- really tests it.
+3. every spec is reachable by an invocation that runs on the Changesets
+   Version PR (head ``changeset-release/*``). That PR is rebuilt on every
+   push to its base branch, so its head is the merged result of everything
+   about to ship; it is the last gate before a release, the job the merge
+   queue used to do.
 
 The parsing is deliberately shallow (regex over the TS config, YAML over the
 workflows). If either file changes shape enough to break the parse, these
@@ -52,7 +55,7 @@ class Invocation(NamedTuple):
     step: str
     specs: tuple[str, ...]  # explicit file args; empty means "the whole suite"
     env: dict[str, str]
-    runs_on_merge_queue: bool
+    runs_on_version_pr: bool
     config: Path = PLAYWRIGHT_CONFIG
 
 
@@ -104,13 +107,24 @@ def _matches(spec_path: str, glob: str) -> bool:
 # --------------------------------------------------------------------------
 
 
-def _admits_merge_group(condition: Any) -> bool:
-    """Whether a job/step ``if:`` can be true for a ``merge_group`` event.
+# Files every Version PR changes: `changeset version` bumps the root
+# package.json, and scripts/version-sync.js copies the version into the rest.
+VERSION_PR_FILES = ("package.json", "web/package.json", "src/__init__.py")
 
-    Conservative on purpose: no condition means it always runs; a condition
-    that mentions ``merge_group`` is assumed to admit it; anything else (say
-    ``github.event_name == 'pull_request'``) is assumed not to. A wrong guess
-    here fails the test rather than passing it silently.
+_VERSION_PR_HEAD = "startsWith(github.head_ref, 'changeset-release/')"
+# The path gate ci.yml's test jobs share. The Version PR always trips it,
+# because `shared` lists package.json (see test_version_pr_trips_the_shared_filter).
+_SHARED_PATH_GATE = "needs.detect-changes.outputs.shared == 'true'"
+
+
+def _admits_version_pr(condition: Any) -> bool:
+    """Whether a job/step ``if:`` can be true on the Version PR.
+
+    Conservative on purpose: no condition means it always runs, and only
+    known forms are recognised --- an explicit ``changeset-release/`` head
+    check, or ci.yml's path gate that includes ``shared``. Anything else
+    (say ``github.event_name == 'push'``) is assumed not to admit it. A wrong
+    guess here fails the test rather than passing it silently.
     """
     if condition is None:
         return True
@@ -119,7 +133,21 @@ def _admits_merge_group(condition: Any) -> bool:
     # Recognize only this known form; unknown expressions stay conservative.
     if re.fullmatch(r"!cancelled\(\)\s*&&\s*steps\.[\w-]+\.outcome\s*==\s*'success'", text):
         return True
-    return "merge_group" in text
+    if "!" + _VERSION_PR_HEAD in text:
+        return False
+    return _VERSION_PR_HEAD in text or _SHARED_PATH_GATE in text
+
+
+def _pull_request_reaches_version_pr(triggers: Any) -> bool:
+    """Whether the workflow's ``pull_request`` trigger fires for a Version PR."""
+    if not isinstance(triggers, dict):
+        triggers = dict.fromkeys(triggers if isinstance(triggers, list) else [triggers])
+    if "pull_request" not in triggers:
+        return False
+    paths = (triggers["pull_request"] or {}).get("paths")
+    if not paths:
+        return True
+    return any(fnmatch.fnmatch(f, glob) for f in VERSION_PR_FILES for glob in paths)
 
 
 def _spec_args(command: str) -> tuple[str, ...]:
@@ -152,12 +180,12 @@ def collect_invocations() -> list[Invocation]:
             continue
         # PyYAML parses the bare key `on:` as the boolean True.
         triggers = data.get("on", data.get(True)) or {}
-        workflow_has_merge_group = "merge_group" in (triggers if isinstance(triggers, dict) else {triggers: None})
+        workflow_reaches_version_pr = _pull_request_reaches_version_pr(triggers)
 
         for job_name, job in (data.get("jobs") or {}).items():
             if not isinstance(job, dict):
                 continue
-            job_admits = workflow_has_merge_group and _admits_merge_group(job.get("if"))
+            job_admits = workflow_reaches_version_pr and _admits_version_pr(job.get("if"))
             job_env = {str(k): str(v) for k, v in (job.get("env") or {}).items()}
 
             for step in job.get("steps") or []:
@@ -178,7 +206,7 @@ def collect_invocations() -> list[Invocation]:
                         step=str(step.get("name") or command),
                         specs=_spec_args(command),
                         env=env,
-                        runs_on_merge_queue=job_admits and _admits_merge_group(step.get("if")),
+                        runs_on_version_pr=job_admits and _admits_version_pr(step.get("if")),
                         config=config,
                     )
                 )
@@ -272,23 +300,44 @@ def test_every_env_gate_is_set_by_some_job():
     )
 
 
-def test_every_spec_is_gated_on_the_merge_queue():
-    """The queue is the last gate before main; it must run every spec.
+def test_every_spec_is_gated_on_the_version_pr():
+    """The Version PR is the last gate before a release; it must run every spec.
 
-    A PR-only E2E job tests the PR head, never the merged result — two
-    individually-green PRs can then land a semantic conflict that surfaces as
-    an "unrelated" failure on whatever branch rebases next. This is the
-    regression guard for #1771 and #1737.
+    A PR-only E2E job tests the PR head, never the merged result --- two
+    individually-green PRs can then land a semantic conflict. The Version PR
+    is rebuilt on its base branch's tip, so it is where the merged result gets
+    tested before it ships. This is the regression guard for #1771 and #1737.
     """
     gaps = sorted(
-        spec for spec, invs in _reachability_map().items() if invs and not any(inv.runs_on_merge_queue for inv in invs)
+        spec for spec, invs in _reachability_map().items() if invs and not any(inv.runs_on_version_pr for inv in invs)
     )
     assert not gaps, (
-        "These specs run on pull_request but not in the merge queue, so the queue "
-        "cannot gate on them:\n  "
+        "These specs run on some pull requests but not on the Version PR, so a "
+        "release cannot gate on them:\n  "
         + "\n  ".join(gaps)
-        + "\n\nAdd `merge_group` to the owning workflow's `on:` and to the job's `if:`."
+        + "\n\nMake the owning job's `if:` admit a `changeset-release/*` head ref."
     )
+
+
+def test_version_pr_trips_the_shared_filter():
+    """ci.yml's test jobs reach the Version PR only through the `shared` filter."""
+    ci = yaml.safe_load((WORKFLOW_DIR / "ci.yml").read_text(encoding="utf-8"))
+    step = next(s for s in ci["jobs"]["detect-changes"]["steps"] if s.get("id") == "filter")
+    shared = yaml.safe_load(step["with"]["filters"])["shared"]
+    assert any(fnmatch.fnmatch(f, glob) for f in VERSION_PR_FILES for glob in shared)
+
+
+def test_full_integration_suite_runs_on_the_version_pr():
+    """The 4-backend integration suite used to run only in the merge queue."""
+    full = [inv for inv in collect_invocations() if inv.workflow == "integration-tests.yml" and not inv.specs]
+    assert len(full) == 1
+    assert full[0].runs_on_version_pr
+
+
+def test_no_workflow_still_waits_for_a_merge_queue():
+    """main has no merge queue; a `merge_group` trigger or gate is dead config."""
+    stale = sorted(p.name for p in WORKFLOW_DIR.glob("*.yml") if "merge_group" in p.read_text(encoding="utf-8"))
+    assert not stale, f"These workflows still reference merge_group: {stale}"
 
 
 def test_config_arguments_are_not_spec_filters():
@@ -305,20 +354,31 @@ def test_layout_spec_is_reached_only_through_its_own_config():
     assert not any(_runs("layout/preview.spec.ts", inv) for inv in regular)
 
 
-def test_readiness_guards_do_not_hide_merge_queue_tests():
-    assert _admits_merge_group("${{ !cancelled() && steps.ai_ready_2.outcome == 'success' }}")
-    assert not _admits_merge_group("github.event_name == 'pull_request'")
-    assert not _admits_merge_group(
+def test_readiness_guards_do_not_hide_version_pr_tests():
+    assert _admits_version_pr("${{ !cancelled() && steps.ai_ready_2.outcome == 'success' }}")
+    assert not _admits_version_pr("github.event_name == 'push'")
+    assert not _admits_version_pr(
         "!cancelled() && steps.ai_ready_2.outcome == 'success' && github.event_name == 'pull_request'"
     )
-    assert not _admits_merge_group("env.UNKNOWN_GATE == '1'")
+    assert not _admits_version_pr("env.UNKNOWN_GATE == '1'")
 
 
-def test_device_sign_in_has_a_dedicated_merge_queue_gate():
+def test_version_pr_head_check_is_recognised_only_unnegated():
+    assert _admits_version_pr("startsWith(github.head_ref, 'changeset-release/')")
+    assert not _admits_version_pr("!startsWith(github.head_ref, 'changeset-release/')")
+
+
+def test_path_filtered_workflows_must_match_a_version_pr_file():
+    assert _pull_request_reaches_version_pr({"pull_request": {"paths": ["web/**"]}})
+    assert not _pull_request_reaches_version_pr({"pull_request": {"paths": ["docs/**"]}})
+    assert not _pull_request_reaches_version_pr({"push": None})
+
+
+def test_device_sign_in_has_a_dedicated_version_pr_gate():
     invocations = collect_invocations()
     device = [inv for inv in invocations if inv.config.name == "playwright.device.config.ts"]
     assert len(device) == 1
-    assert device[0].runs_on_merge_queue
+    assert device[0].runs_on_version_pr
     assert _runs("device-sign-in.spec.ts", device[0])
     assert not any(
         _runs("device-sign-in.spec.ts", inv) for inv in invocations if inv.config.name != "playwright.device.config.ts"
