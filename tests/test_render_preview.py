@@ -357,3 +357,21 @@ def test_at_is_read_in_the_hubs_timezone(client, tokyo_hub, at, shown):
     request = {"template": ['{{= FORMATDATE(NOW(), "HH:mm") }}'], "preview": {"at": at}}
 
     assert client.post("/templates/render", json=request).json()["lines"][0].strip() == shown
+
+
+# ── a preview keeps the render's work budget (S2 review T1) ─────────────────
+
+
+def test_a_preview_at_another_time_keeps_the_render_budget(engine, monkeypatch):
+    from src.templates import expressions
+
+    monkeypatch.setattr(expressions, "_eval_clock", lambda: 0.0)  # the step budget, not the deadline
+
+    heavy = '{{= COUNT(FILTER(SPLIT(REPT(REPT("a,",1024),32), ","), LEN(item) = 1 AND item = "a")) }}'
+    preview = Preview(at=datetime(2026, 11, 9, 7, 0, 0))
+
+    rows = _rows(engine, [heavy] * 96, preview, device_type="panel", grid_rows=96, grid_cols=128)
+
+    assert rows[0] == "32768"
+    assert rows[-1] == "#VALUE"
+    assert expressions.MAX_RENDER_STEPS < 96 * 262_158
