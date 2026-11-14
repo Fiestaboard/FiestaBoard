@@ -1,4 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
@@ -64,5 +66,13 @@ describe("useCoarsePointer", () => {
     vi.stubGlobal("matchMedia", undefined);
     const { result } = renderHook(() => useCoarsePointer());
     expect(result.current).toBe(false);
+  });
+
+  it("renders as a fine pointer on the server, whatever the client has", () => {
+    stubPointerQuery(true);
+    function Probe() {
+      return createElement("output", null, useCoarsePointer() ? "coarse" : "fine");
+    }
+    expect(renderToString(createElement(Probe))).toContain("fine");
   });
 });

@@ -14,9 +14,7 @@ describe("boardSizeIndicator aria messages (en)", () => {
   // Cols first since slice 2.4: the indicator reads "45 × 3" (07 `57:27771`).
   it("singular row: 8 columns by 1 row", () => {
     expect(t()("ariaLabelColsRows", { rows: 1, cols: 8 })).toBe("8 columns by 1 row");
-    expect(t()("ariaLabelColsRowsWithLayout", { rows: 1, cols: 8, layout: "Panel" })).toBe(
-      "8 columns by 1 row, Panel",
-    );
+    expect(t()("ariaLabelColsRowsWithLayout", { rows: 1, cols: 8, layout: "Panel" })).toBe("8 columns by 1 row, Panel");
   });
 
   it("singular column: 1 column by 3 rows", () => {

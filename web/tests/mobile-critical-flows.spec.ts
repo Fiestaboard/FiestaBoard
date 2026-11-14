@@ -212,7 +212,6 @@ test.describe("Mobile — Board preview fits viewport", () => {
   });
 });
 
-
 test.describe("Mobile — Long names stay inside the viewport", () => {
   const LONG_NAME = "An Extremely Long Page Name That Someone Might Actually Type On Their Phone 2026 Edition";
 
