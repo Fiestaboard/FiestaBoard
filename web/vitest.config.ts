@@ -41,6 +41,7 @@ export default defineConfig({
         "src/components/timezone-picker.tsx",
         "src/components/page-grid-selector.tsx",
         "src/components/schedule-entry-form.tsx",
+        "src/components/collection-page-list.tsx",
         "src/components/live-output.tsx",
         "src/components/notification-display.tsx",
         "src/components/language-selector.tsx",
