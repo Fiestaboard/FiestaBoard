@@ -82,3 +82,37 @@ it("limits work to three actual LED members and preserves rich cells and bitmap 
     expect(preview).toHaveAttribute("data-layers", JSON.stringify(layers));
   }
 });
+
+// Slice 2.4: the stack is decorative and inert, so its split-flap boards are
+// fit-scaled thumbnails, never BoardViewports (no scroll region, no toggle).
+it("draws split-flap members as fit thumbnails, not viewports", async () => {
+  server.use(
+    http.get("/api/settings/board", () =>
+      HttpResponse.json({
+        boards: [{ id: "lobby", name: "Lobby", device_type: "note_array", notes_wide: 3, notes_tall: 1 }],
+      }),
+    ),
+    http.post("/api/pages/preview/batch", async ({ request }) => {
+      const body = (await request.json()) as { page_ids: string[] };
+      return HttpResponse.json({
+        previews: Object.fromEntries(
+          body.page_ids.map((id) => [id, { available: true, page_id: id, message: "OPEN MIC" }]),
+        ),
+      });
+    }),
+  );
+  const pages = [
+    { id: "a", name: "A", device_type: "note_array", notes_wide: 3, notes_tall: 1 },
+    { id: "b", name: "B", device_type: "note_array", notes_wide: 3, notes_tall: 1 },
+  ] as Page[];
+  const collection = { id: "collection:lobby", page_ids: ["a", "b"] } as Collection;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const { container } = render(
+    <QueryClientProvider client={client}>
+      <CollectionPageStack collection={collection} pages={pages} />
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(container.querySelectorAll("[data-slot=board-display]").length).toBe(2));
+  expect(container.querySelector("[data-slot=board-viewport]")).toBeNull();
+  expect(container.querySelectorAll("button, [role=region]")).toHaveLength(0);
+});

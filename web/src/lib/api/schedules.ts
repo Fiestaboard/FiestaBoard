@@ -158,6 +158,10 @@ export interface TemporaryOverrideStatus {
   /** Panel only: rows × cols of characters. */
   grid_rows?: number | null;
   grid_cols?: number | null;
+  /** H1: the display this answer is about (one override per display). */
+  board_id?: string | null;
+  /** H1: when this override run began; a replaced override has a new one. */
+  started_at?: string | null;
 }
 
 /**
@@ -166,6 +170,8 @@ export interface TemporaryOverrideStatus {
  * omitting it makes the override indefinite.
  */
 export type SetTemporaryOverrideRequest = {
+  /** H1: the display to override; omit for the primary. */
+  board_id?: string;
   duration_minutes?: number;
   revert_mode?: "schedule" | "blank" | "page";
   revert_page_id?: string;
@@ -254,16 +260,26 @@ export interface ScheduleBehaviorSettings {
 
 export const schedulesApi = {
   // Temporary override endpoints
-  getTemporaryOverride: () => fetchApi<TemporaryOverrideStatus>("/settings/temporary-override"),
+  /** H1: one display's override; omitted board → the primary. */
+  getTemporaryOverride: (boardId?: string | null) =>
+    fetchApi<TemporaryOverrideStatus>(
+      typeof boardId === "string" && boardId
+        ? `/settings/temporary-override?board_id=${encodeURIComponent(boardId)}`
+        : "/settings/temporary-override",
+    ),
   setTemporaryOverride: (request: SetTemporaryOverrideRequest) =>
     fetchApi<TemporaryOverrideStatus>("/settings/temporary-override", {
       method: "POST",
       body: JSON.stringify(request),
     }),
-  clearTemporaryOverride: () =>
-    fetchApi<{ revert_mode: string | null }>("/settings/temporary-override", {
-      method: "DELETE",
-    }),
+  /** H1: cancel one display's override; omitted board → the primary. */
+  clearTemporaryOverride: (boardId?: string | null) =>
+    fetchApi<{ revert_mode: string | null }>(
+      typeof boardId === "string" && boardId
+        ? `/settings/temporary-override?board_id=${encodeURIComponent(boardId)}`
+        : "/settings/temporary-override",
+      { method: "DELETE" },
+    ),
   // Schedule CRUD lives on /v1 (issue #1930): `/v1/schedules*` delegates to the
   // same handlers `/schedules*` does — including the sun-time enrichment and
   // the #1245 size warnings — so only the path moved.

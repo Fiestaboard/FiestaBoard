@@ -72,6 +72,8 @@ export function CollectionPageStack({ collection, pages }: { collection: Collect
                 size="sm"
               >
                 <ScaledBoardDisplay
+                  // Decorative and inert: a fit picture, never a scroll region.
+                  thumbnail
                   isStatic
                   message={preview?.message ?? null}
                   boardType={getEffectiveBoardColor(settings)}

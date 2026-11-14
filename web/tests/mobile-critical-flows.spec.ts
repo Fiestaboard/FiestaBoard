@@ -32,44 +32,24 @@ test.afterEach(async () => {
 });
 
 test.describe("Mobile — Navigation", () => {
-  test("hamburger menu opens and shows navigation links", async ({ page }) => {
+  test("bottom tab bar and More menu show navigation links", async ({ page }) => {
     await page.goto("/");
 
-    // Wait for the page to render
-    await page.waitForLoadState("networkidle");
+    // Below 768px the hamburger gave way to a bottom tab bar (slice 2.1):
+    // Home · Pages · Schedule · Displays · More.
+    const tabBar = page.locator('[data-slot="sidebar-bottom-nav"]');
+    await expect(tabBar).toBeVisible({ timeout: 15_000 });
+    for (const name of ["Home", "Pages", "Schedule", "Displays"]) {
+      await expect(tabBar.getByRole("link", { name, exact: true })).toBeVisible();
+    }
+    await expect(page.getByRole("button", { name: "Open menu" })).toHaveCount(0);
 
-    // Hamburger / menu button should be visible at mobile width
-    const menuButton = page
-      .getByRole("button", { name: /menu|open/i })
-      .or(page.locator("[aria-label='Open menu'], [aria-label='Menu'], button.hamburger"))
-      .first();
-
-    if (await menuButton.isVisible({ timeout: 8_000 }).catch(() => false)) {
-      await menuButton.click();
-
-      // Navigation links should appear
-      const navLinks = [
-        page.getByRole("link", { name: /dashboard/i }),
-        page.getByRole("link", { name: /pages/i }),
-        page.getByRole("link", { name: /schedule/i }),
-      ];
-
-      let visibleCount = 0;
-      for (const link of navLinks) {
-        if (
-          await link
-            .first()
-            .isVisible({ timeout: 3_000 })
-            .catch(() => false)
-        ) {
-          visibleCount++;
-        }
-      }
-      expect(visibleCount).toBeGreaterThan(0);
-    } else {
-      // If there's no hamburger, navigation may be always-visible — that's ok
-      const navLinks = page.getByRole("navigation").first();
-      await expect(navLinks).toBeVisible({ timeout: 10_000 });
+    // More opens the rest of the navigation.
+    await tabBar.getByRole("button", { name: /^More/ }).click();
+    const more = page.getByRole("dialog", { name: "Navigation menu" });
+    await expect(more).toBeVisible();
+    for (const name of ["Integrations", "Staff Picks", "Settings", "Help & Docs"]) {
+      await expect(more.getByRole("link", { name, exact: true })).toBeVisible();
     }
   });
 
@@ -86,6 +66,12 @@ test.describe("Mobile — Navigation", () => {
   test("can navigate to Settings on mobile", async ({ page }) => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    // On a phone /settings is the section list alone; a section opens as its
+    // own screen.
+    await expect(page.getByRole("list", { name: "You" })).toBeVisible();
+    await page.getByRole("link", { name: "Appearance", exact: true }).click();
+    await expect(page).toHaveURL(/\/settings\/appearance$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Appearance", exact: true })).toBeVisible();
   });
 });
 
@@ -95,7 +81,7 @@ test.describe("Mobile — Dashboard", () => {
     await page.waitForLoadState("networkidle");
 
     // Dashboard heading should be visible
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // No horizontal overflow (basic check: viewport width matches page width)
     const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -108,7 +94,7 @@ test.describe("Mobile — Dashboard", () => {
 
     // Dashboard should render without errors — board display may be a grid, canvas,
     // or an empty-state message depending on app state
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // No error state visible
     await expect(page.getByText(/crash|unhandled exception/i)).not.toBeVisible();
@@ -177,36 +163,38 @@ test.describe("Mobile — Integrations", () => {
 });
 
 test.describe("Mobile — Board preview fits viewport", () => {
-  test("dashboard board preview stays inside its frame at phone width", async ({ page }) => {
+  // Since slice 2.4 (WEB-07) a board never shrinks: at phone width the
+  // Flagship keeps its real tiles and scrolls inside its bezel. What must hold
+  // is that the bezel stays inside the viewport (no page-level horizontal
+  // scroll), and that every column is reachable inside it.
+  test("dashboard board frame stays inside the viewport and the board scrolls inside it", async ({ page }) => {
     await page.goto("/");
     const firstTile = page.getByTestId("char-tile-0-0");
     await expect(firstTile).toBeVisible({ timeout: 15_000 });
 
-    // ScaledBoardDisplay measures, then applies its scale on a rAF. A fixed
-    // sleep followed by a single measurement samples whatever the layout
-    // happened to be at that instant, which is what made this flaky on a
-    // loaded CI runner. Poll the measurement instead so a late scale pass is
-    // waited out rather than caught mid-flight.
-    const readGeometry = () =>
-      page.evaluate(() => {
-        const t0 = document.querySelector('[data-testid="char-tile-0-0"]');
-        const t21 = document.querySelector('[data-testid="char-tile-0-21"]');
-        if (!t0 || !t21) return null;
-        const frame = t0.closest('[class*="border-["]');
-        if (!frame) return null;
-        const fr = frame.getBoundingClientRect();
-        const r0 = t0.getBoundingClientRect();
-        const r21 = t21.getBoundingClientRect();
-        // A frame with no width means the scale pass has not run yet; report
-        // it as not-ready so the poll retries instead of asserting on zeroes.
-        if (fr.width === 0) return null;
+    const bezel = page.locator("[data-slot=board-viewport-bezel]").first();
+    const readFrame = () =>
+      bezel.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) return null;
         return {
-          frameInViewport: fr.left >= 0 && fr.right <= window.innerWidth,
-          tilesInsideFrame: r0.left >= fr.left - 0.5 && r21.right <= fr.right + 0.5,
+          frameInViewport: r.left >= 0 && r.right <= window.innerWidth,
+          pageScrollsSideways: document.documentElement.scrollWidth > window.innerWidth,
         };
       });
+    await expect.poll(readFrame, { timeout: 10_000 }).toEqual({ frameInViewport: true, pageScrollsSideways: false });
 
-    await expect.poll(readGeometry, { timeout: 10_000 }).toEqual({ frameInViewport: true, tilesInsideFrame: true });
+    // The last column is reachable by scrolling the board, not the page.
+    const scroller = page.locator("[data-slot=board-viewport-scroller]").first();
+    await scroller.focus();
+    await page.keyboard.press("End");
+    const lastTile = page.getByTestId("char-tile-0-21");
+    await expect
+      .poll(async () => {
+        const [t, f] = await Promise.all([lastTile.boundingBox(), bezel.boundingBox()]);
+        return !!t && !!f && t.x + t.width <= f.x + f.width + 0.5 && t.x >= f.x - 0.5;
+      })
+      .toBe(true);
   });
 });
 

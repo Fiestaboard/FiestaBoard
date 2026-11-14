@@ -175,11 +175,11 @@ test.describe("regression: multi-board — mixed fleet through the real UI", () 
 
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId("active-display-board-name")).toContainText("Kitchen", { timeout: 10_000 });
+    await expect(page.getByRole("region", { name: /Now showing.*Kitchen/ })).toBeVisible({ timeout: 10_000 });
 
     await page.locator("aside").getByLabel("Select board to manage").click();
     await page.getByRole("option", { name: "Office" }).click();
-    await expect(page.getByTestId("active-display-board-name")).toContainText("Office", { timeout: 10_000 });
+    await expect(page.getByRole("region", { name: /Now showing.*Office/ })).toBeVisible({ timeout: 10_000 });
 
     // The current-board selection is shared context: Schedule reflects it too.
     await page.goto("/schedule");
@@ -211,8 +211,12 @@ test.describe("regression: multi-board — mixed fleet through the real UI", () 
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({ timeout: 15_000 });
 
     // Kitchen (default board) -> Change Page -> pick the Kitchen page.
-    await page.getByRole("button", { name: /Change Page/i }).click();
-    await page.getByText("Kitchen Send", { exact: true }).click();
+    await page.getByRole("button", { name: "Change Page", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /Kitchen Send/ })
+      .click();
+    await page.getByRole("dialog").getByRole("button", { name: "Show now" }).click();
 
     await expect.poll(async () => boardText(await getMockBoardState()), { timeout: 10_000 }).toContain(kitchenToken);
     const boardStateAfterKitchen = await getMockBoardState();
@@ -221,13 +225,17 @@ test.describe("regression: multi-board — mixed fleet through the real UI", () 
     // Switch to Office -> Change Page -> pick the Office (array) page.
     await page.locator("aside").getByLabel("Select board to manage").click();
     await page.getByRole("option", { name: "Office" }).click();
-    await expect(page.getByTestId("active-display-board-name")).toContainText("Office", { timeout: 10_000 });
+    await expect(page.getByRole("region", { name: /Now showing.*Office/ })).toBeVisible({ timeout: 10_000 });
 
     // Clear the throttle window opened by the placeholder's send above.
     await page.waitForTimeout(16_000);
 
-    await page.getByRole("button", { name: /Change Page/i }).click();
-    await page.getByText("Office Send", { exact: true }).click();
+    await page.getByRole("button", { name: "Change Page", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /Office Send/ })
+      .click();
+    await page.getByRole("dialog").getByRole("button", { name: "Show now" }).click();
 
     await expect.poll(async () => cloudText(await getMockCloudState()), { timeout: 10_000 }).toContain(officeToken);
     const cloudState = await getMockCloudState();
@@ -251,7 +259,7 @@ test.describe("regression: multi-board — mixed fleet through the real UI", () 
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({ timeout: 15_000 });
 
     // Kitchen (Flagship) selected: only the Flagship-sized page is offered.
-    await page.getByRole("button", { name: /Change Page/i }).click();
+    await page.getByRole("button", { name: "Change Page", exact: true }).click();
     const kitchenDialog = page.getByRole("dialog");
     await expect(kitchenDialog.getByText("Kitchen Only", { exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(kitchenDialog.getByText("Office Only", { exact: true })).toHaveCount(0);
@@ -260,9 +268,9 @@ test.describe("regression: multi-board — mixed fleet through the real UI", () 
     // Switch to Office (Note Array): only the array-sized page is offered.
     await page.locator("aside").getByLabel("Select board to manage").click();
     await page.getByRole("option", { name: "Office" }).click();
-    await expect(page.getByTestId("active-display-board-name")).toContainText("Office", { timeout: 10_000 });
+    await expect(page.getByRole("region", { name: /Now showing.*Office/ })).toBeVisible({ timeout: 10_000 });
 
-    await page.getByRole("button", { name: /Change Page/i }).click();
+    await page.getByRole("button", { name: "Change Page", exact: true }).click();
     const officeDialog = page.getByRole("dialog");
     await expect(officeDialog.getByText("Office Only", { exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(officeDialog.getByText("Kitchen Only", { exact: true })).toHaveCount(0);
@@ -275,12 +283,12 @@ test.describe("regression: multi-board — mixed fleet through the real UI", () 
     await setActivePage(pageId, kitchenId);
 
     await page.goto(`/pages/edit/${pageId}`);
-    await expect(page.getByText("6 × 22").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 15_000 });
 
     // Flagship (6x22) -> Note (3x15): a shrinking retarget confirms first.
     await page.getByLabel("Change board size").click();
     await page.getByRole("option", { name: "Note", exact: true }).click();
-    await expect(page.getByText("3 × 15").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: "Save" }).first().click();
     await expect(page.getByRole("heading", { name: "Change board size?" })).toBeVisible({ timeout: 10_000 });

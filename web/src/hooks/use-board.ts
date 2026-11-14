@@ -37,12 +37,16 @@ function scheduleBoardStateInvalidations(queryClient: ReturnType<typeof useQuery
   setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 3500);
 }
 
+/** How often the shared status poll asks the hub (the hub-unreachable banner quotes it). */
+export const STATUS_POLL_MS = 15000;
+
 // Status query - refetches every 15 seconds
-export function useStatus() {
+export function useStatus({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
+    enabled,
     queryKey: queryKeys.status,
     queryFn: api.getStatus,
-    refetchInterval: 15000,
+    refetchInterval: STATUS_POLL_MS,
     retry: 1,
     staleTime: 15000,
     gcTime: 60000,

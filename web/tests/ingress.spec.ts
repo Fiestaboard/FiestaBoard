@@ -96,7 +96,7 @@ test.describe("HA Ingress", () => {
     const { escapes, notFound } = trackIngressViolations(page);
 
     await page.goto(`${PREFIX}/`);
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     expect(escapes, "requests must stay under the ingress prefix").toEqual([]);
     expect(notFound, "prefixed static assets must resolve").toEqual([]);
@@ -116,7 +116,7 @@ test.describe("HA Ingress", () => {
     const { escapes, notFound } = trackIngressViolations(page);
 
     await page.goto(`${PREFIX}/`);
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Settings is reached from the rail's footer menu rather than a nav
     // link (@fiestaboard/ui 7.0.0 took it out of the list), so each target
@@ -176,7 +176,7 @@ test.describe("HA Ingress", () => {
     // which the package inlines as a `data:image/svg+xml` URI: nothing for
     // the ingress prefix to rewrite, and nothing to 404.
     await page.goto(`${PREFIX}/`);
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // The sidebar renders several logo copies (desktop expanded/collapsed,
     // mobile) — assert on the one that's actually visible.

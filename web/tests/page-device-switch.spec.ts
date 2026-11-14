@@ -42,12 +42,12 @@ test.describe("Page creator board-size switching", () => {
 
     // Enter the editor the flagship way.
     await page.goto("/pages/new?device=flagship");
-    await expect(page.getByText("6 × 22").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 15_000 });
 
     // Switch the size to Note before saving.
     await page.getByLabel("Change board size").click();
     await page.getByRole("option", { name: "Note", exact: true }).click();
-    await expect(page.getByText("3 × 15").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });
 
     // Name it and save.
     await page.getByPlaceholder("My Custom Page").fill(name);
@@ -71,12 +71,12 @@ test.describe("Page creator board-size switching", () => {
     const id = await createPage(`Retarget Page ${Date.now() % 1_000_000}`, ["RETARGET", "", "", "", "", ""]);
 
     await page.goto(`/pages/edit/${id}`);
-    await expect(page.getByText("6 × 22").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 15_000 });
 
     // The switcher is now available for saved pages (#1250).
     await page.getByLabel("Change board size").click();
     await page.getByRole("option", { name: "Note", exact: true }).click();
-    await expect(page.getByText("3 × 15").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });
 
     // Flagship (6×22) -> Note (3×15) shrinks both axes, so saving asks for
     // confirmation before converting the saved page.
