@@ -309,7 +309,7 @@ class _ContractConfigManager:
     def clear_plugin_removed(self, plugin_id: str) -> None:
         self.removed.discard(plugin_id)
 
-    def _mask_sensitive(self, obj: Any, path: str = "") -> Any:
+    def _mask_sensitive(self, obj: Any, path: str = "", schema: Any = None) -> Any:
         if isinstance(obj, dict):
             return {
                 key: (MASK if key in self.SENSITIVE and isinstance(value, str) else self._mask_sensitive(value))

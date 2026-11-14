@@ -117,7 +117,7 @@ registry.get_plugin_source.return_value = SimpleNamespace(source_type="git", loc
 config_manager = MagicMock()
 config_manager.get_plugin_config.return_value = {"api_key": "stored", "location": "NYC"}
 config_manager.get_plugin_env_overrides.return_value = {"api_key": "from-env"}
-config_manager._mask_sensitive.side_effect = lambda cfg, path="": {
+config_manager._mask_sensitive.side_effect = lambda cfg, path="", schema=None: {
     k: ("***" if k == "api_key" else v) for k, v in cfg.items()
 }
 

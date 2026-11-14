@@ -911,7 +911,7 @@ class _GoldenConfigManager:
     def clear_plugin_removed(self, plugin_id: str) -> None:
         pass
 
-    def _mask_sensitive(self, obj: Any, path: str = "") -> Any:
+    def _mask_sensitive(self, obj: Any, path: str = "", schema: Any = None) -> Any:
         if isinstance(obj, dict):
             return {
                 key: ("***" if key in self.SENSITIVE and isinstance(value, str) else self._mask_sensitive(value))
