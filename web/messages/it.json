@@ -2262,7 +2262,8 @@
     "categoryDate": "Data",
     "clickToEditFormula": "Clicca per modificare la formula",
     "newFormula": "nuova formula",
-    "loading": "Caricamento…"
+    "loading": "Caricamento…",
+    "dialogLabel": "Editor formule"
   },
   "templateEditor": {
     "variables": "Variabili",
@@ -2289,8 +2290,8 @@
     "toggleWrap": "Attiva/disattiva a capo per la riga corrente",
     "disableWrap": "Disattiva a capo per questa riga",
     "enableWrap": "Enable wrap for this line",
-    "undo": "Annulla (Ctrl+Z)",
-    "redo": "Ripristina (Ctrl+Shift+Z)",
+    "undo": "Annulla",
+    "redo": "Ripristina",
     "cut": "Taglia (Ctrl+X)",
     "copy": "Copia (Ctrl+C)",
     "paste": "Incolla (Ctrl+V)",
@@ -3198,5 +3199,23 @@
     "offlineBadge": "Offline",
     "offlineMeta": "Ultima connessione {time} · Il programma continua sull'hub",
     "offlineMetaNever": "Non raggiunto dall'avvio dell'hub · Il programma continua sull'hub"
+  },
+  "editorShortcuts": {
+    "title": "Scorciatoie da tastiera",
+    "platformNote": "⌘ su Mac · Ctrl su Windows e Linux",
+    "or": "o",
+    "close": "Chiudi",
+    "button": "Scorciatoie",
+    "hint": "Tutte le scorciatoie",
+    "footnote": "Nessuna scorciatoia a tasto singolo mentre scrivi nel modello.",
+    "undo": "Annulla",
+    "redo": "Ripeti",
+    "applyFormula": "Applica una formula (editor formule)",
+    "closePicker": "Chiudi un selettore",
+    "exitDrawMode": "Esci dalla modalità disegno",
+    "showShortcuts": "Mostra le scorciatoie da tastiera",
+    "previewStep": "Sposta l’anteprima di una nota o colonna",
+    "previewEnds": "Vai all’inizio o alla fine dell’anteprima",
+    "previewFit": "Adatta / Dimensione reale (anteprima attiva)"
   }
 }

@@ -51,8 +51,10 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
+import { ShortcutKeys } from "@/components/editor-shortcut-list";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { ariaKeyShortcuts, codeMirrorKey, EDITOR_SHORTCUTS } from "@/lib/editor-shortcuts";
 import { cn } from "@/lib/utils";
 
 import { categoriesToRender } from "./formula-categories";
@@ -375,7 +377,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
             ...historyKeymap,
             indentWithTab,
             {
-              key: "Mod-Enter",
+              key: codeMirrorKey(EDITOR_SHORTCUTS.applyFormula),
               run: () => {
                 const { expr: e, validationState: vs } = latestStateRef.current;
                 const trimmed = e.trim();
@@ -736,6 +738,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
               type="button"
               onClick={handleConfirm}
               disabled={isConfirmDisabled}
+              aria-keyshortcuts={ariaKeyShortcuts(EDITOR_SHORTCUTS.applyFormula)}
               className={cn(
                 "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                 "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -744,9 +747,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
               )}
             >
               {mode === "create" ? t("insert") : t("done")}
-              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-sans opacity-60 bg-primary-foreground/20">
-                ⌘↵
-              </kbd>
+              <ShortcutKeys shortcut={EDITOR_SHORTCUTS.applyFormula} className="hidden sm:inline-flex" />
             </button>
           </Flex>
         </Flex>

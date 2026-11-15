@@ -27,14 +27,16 @@ import {
   Undo2,
   WrapText,
 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, type ReactNode, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
+import { ShortcutKeys } from "@/components/editor-shortcut-list";
 import { HomeAssistantEntityPicker } from "@/components/home-assistant-entity-picker";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 import { AVAILABLE_COLORS, getBoardColor } from "@/lib/board-colors";
+import { ariaKeyShortcuts, EDITOR_SHORTCUTS } from "@/lib/editor-shortcuts";
 import { cn } from "@/lib/utils";
 
 import type { LineAlignment } from "../TipTapTemplateEditor";
@@ -69,6 +71,8 @@ interface TemplateEditorToolbarProps {
   onDrawModeToggle?: () => void;
   drawBrush?: DrawBrush;
   onDrawBrushChange?: (brush: DrawBrush) => void;
+  /** Pinned to the row's right end (07 `57:28704`: the "? All shortcuts" hint). */
+  trailing?: ReactNode;
 }
 
 export function TemplateEditorToolbar({
@@ -86,6 +90,7 @@ export function TemplateEditorToolbar({
   onDrawModeToggle,
   drawBrush,
   onDrawBrushChange,
+  trailing,
 }: TemplateEditorToolbarProps) {
   const t = useTranslations("templateEditor");
   const effectiveBrush: DrawBrush = drawBrush ?? { kind: "color", color: "red" };
@@ -351,12 +356,16 @@ export function TemplateEditorToolbar({
                   "border-r border-border",
                 )}
                 aria-label={t("undoAriaLabel")}
+                aria-keyshortcuts={ariaKeyShortcuts(EDITOR_SHORTCUTS.undo)}
               >
                 <Undo2 className="w-4 h-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <Text>{t("undo")}</Text>
+              <Flex align="center" gap="2">
+                <Text>{t("undo")}</Text>
+                <ShortcutKeys shortcut={EDITOR_SHORTCUTS.undo} />
+              </Flex>
             </TooltipContent>
           </Tooltip>
 
@@ -371,12 +380,16 @@ export function TemplateEditorToolbar({
                   canRedo ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                 )}
                 aria-label={t("redoAriaLabel")}
+                aria-keyshortcuts={ariaKeyShortcuts(EDITOR_SHORTCUTS.redo)}
               >
                 <Redo2 className="w-4 h-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <Text>{t("redo")}</Text>
+              <Flex align="center" gap="2">
+                <Text>{t("redo")}</Text>
+                <ShortcutKeys shortcut={EDITOR_SHORTCUTS.redo} />
+              </Flex>
             </TooltipContent>
           </Tooltip>
         </Flex>
@@ -793,6 +806,7 @@ export function TemplateEditorToolbar({
             )}
           </>
         )}
+        {trailing != null && <Box className="ml-auto">{trailing}</Box>}
       </Flex>
     </TooltipProvider>
   );

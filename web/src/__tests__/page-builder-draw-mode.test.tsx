@@ -149,12 +149,26 @@ describe("PageBuilder draw mode wiring", () => {
     await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
 
+    // binding: exitDrawMode
     fireEvent.keyDown(window, { key: "Escape" });
 
     await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "false"));
     const textbox = container.querySelector('[role="textbox"]') as HTMLElement;
     expect(textbox.closest(".hidden")).toBeNull();
     expect(container.querySelector('[data-draw-surface="true"]')).toBeNull();
+  });
+
+  it("leaves Escape to a text field while drawing", async () => {
+    const user = userEvent.setup();
+    render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+
+    const toggle = await screen.findByTestId("draw-mode-toggle");
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.keyDown(screen.getByPlaceholderText("My Custom Page"), { key: "Escape" });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
   });
 
   it("round-trips a stroke commit through applyStroke -> onChange -> templateLines without clobbering", async () => {
@@ -304,7 +318,7 @@ describe("PageBuilder draw mode undo restores line metadata", () => {
     // The commit forced row 0 to left/no-wrap.
     await waitForLastRender("{{red}}ELLO", "left", false);
 
-    // Undo (draw-mode keyboard path) rewinds the doc AND the metadata.
+    // binding: undo — the draw-mode keyboard path rewinds the doc AND the metadata.
     fireEvent.keyDown(window, { key: "z", ctrlKey: true });
     await waitForLastRender("HELLO", "center", true);
   });
@@ -320,6 +334,7 @@ describe("PageBuilder draw mode undo restores line metadata", () => {
     fireEvent.keyDown(window, { key: "z", ctrlKey: true });
     await waitForLastRender("HELLO", "center", true);
 
+    // binding: redo (Mod+Shift+Z; Mod+Y is its alternative)
     fireEvent.keyDown(window, { key: "z", ctrlKey: true, shiftKey: true });
     await waitForLastRender("{{red}}ELLO", "left", false);
   });
