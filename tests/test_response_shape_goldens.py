@@ -1201,6 +1201,8 @@ def _version_sources_get(url: str, **_kwargs: Any) -> Mock:
 
 
 def test_system_response_shapes(tmp_path, monkeypatch):
+    # The recorded success/error shapes describe the stable updater contract.
+    monkeypatch.setattr("src.system.update_service.__version__", "10.3.3")
     client = TestClient(app)
     rec = Recorder(client)
 
