@@ -1708,10 +1708,11 @@ def switch_channel(
     # Leaving the beta before the release catches up is a downgrade across a
     # major, and this file is what makes it survivable.
     extra: dict[str, Any] = {"channel": channel}
+    state = _system_update_state_load()
     if isinstance(snapshot, dict) and snapshot.get("name"):
-        if channel == "alpha":
+        if channel == "alpha" and not state.get("alpha_join_snapshot"):
             extra["alpha_join_snapshot"] = snapshot["name"]
-        if current_channel() == "stable":
+        if current_channel() == "stable" and not state.get("channel_join_snapshot"):
             extra["channel_join_snapshot"] = snapshot["name"]
     _system_update_state_update(**extra)
 
@@ -1754,6 +1755,10 @@ def reassert_release_channel() -> None:
             current_channel(),
             wanted,
         )
-        switch_channel(wanted)
+        if wanted == "alpha":
+            # The persisted intent was accepted only after explicit confirmation.
+            switch_channel(wanted, confirm_major_upgrade=True)
+        else:
+            switch_channel(wanted)
     except Exception as e:  # noqa: BLE001 - startup must survive anything here
         logger.warning("Could not re-apply the %s release channel: %s", wanted or "?", e)

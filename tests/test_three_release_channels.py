@@ -141,3 +141,21 @@ async def test_alpha_leave_restores_destination_snapshot_first(monkeypatch, tmp_
     assert order == [("restore", snapshot), ("install", tag)]
     assert result["channel"] == target
     assert result["settings_restored"] is True
+
+
+def test_alpha_reassert_uses_confirmed_intent_and_preserves_recovery(monkeypatch):
+    monkeypatch.setenv("VERSION", "10.3.3")
+    us._system_update_state_update(
+        channel="alpha", channel_join_snapshot="stable.json", alpha_join_snapshot="beta.json"
+    )
+    with (
+        patch.object(us, "channel_switch_blocker", return_value=None),
+        patch.object(us, "_updater_version", return_value={"image": "fiestaboard/fiestaboard:latest"}),
+        patch.object(us, "_take_settings_snapshot", return_value={"name": "reboot.json"}),
+        patch.object(us, "_updater_post", return_value=MagicMock(status_code=202)) as install,
+    ):
+        us.reassert_release_channel()
+    assert install.call_args.args[1]["tag"] == "v11-alpha"
+    state = us._system_update_state_load()
+    assert state["channel_join_snapshot"] == "stable.json"
+    assert state["alpha_join_snapshot"] == "beta.json"
