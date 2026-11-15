@@ -22,11 +22,12 @@ import { getViolations, injectAxe } from "axe-playwright";
 
 import { API_URL, authHeaders, configureBoard, expect, suppressWizard, test } from "./helpers";
 
-const ORIGIN = new URL(process.env.BASE_URL || "http://localhost:4420").origin;
-
 async function controlledHome(page: Page) {
   suppressWizard(page);
   await page.goto("/");
+  expect(await page.evaluate(() => window.isSecureContext), "PWA shell tests require a secure browser origin").toBe(
+    true,
+  );
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
@@ -80,7 +81,7 @@ test.describe("PWA shell and offline (2.8, WEB-16)", () => {
   test("registers the service worker at the app's base", async ({ page }) => {
     await controlledHome(page);
     const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
-    expect(scope).toBe(`${ORIGIN}/`);
+    expect(scope).toBe(`${new URL(page.url()).origin}/`);
   });
 
   test("an offline reload opens the cached shell and says this device is offline", async ({ page, context }) => {

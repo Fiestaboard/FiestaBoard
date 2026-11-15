@@ -68,6 +68,10 @@ test.describe("install offer timing (2.8, WEB-12)", () => {
     suppressWizard(page);
     await page.goto("/");
     await expect(page.getByRole("button", { name: /Change Page/i })).toBeVisible({ timeout: 15_000 });
+    expect(
+      await page.evaluate(() => window.isSecureContext),
+      "Install prompt tests require a secure browser origin",
+    ).toBe(true);
     await offerBrowserInstall(page);
   });
 
