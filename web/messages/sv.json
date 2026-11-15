@@ -2655,7 +2655,20 @@
     "leaveCta": "Lämna betan",
     "leaveConfirmTitle": "Lämna betakanalen?",
     "leaveConfirmBody": "Detta tar dig tillbaka till den aktuella stabila versionen, som är äldre än betan du kör. Dina inställningar och sidor återställs till säkerhetskopian som togs när du gick med — allt du ändrat under betan går förlorat. FiestaBoard startar om på den stabila versionen. Vill du behålla dina ändringar, vänta i stället: när nästa stabila version passerar din beta tar «Uppdatera nu» dig dit utan att något går förlorat.",
-    "leaveConfirmCta": "Lämna betan"
+    "leaveConfirmCta": "Lämna betan",
+    "chooserDescription": "Choose the release channel this install follows.",
+    "channelAlpha": "Alpha preview",
+    "currentBadge": "Current",
+    "stableDescription": "Tested releases for everyday use.",
+    "betaDescription": "Upcoming releases with early fixes and features.",
+    "alphaDescription": "FiestaBoard 11 preview; expect breaking changes.",
+    "versionUnavailable": "Version unavailable",
+    "switchUnavailable": "Channel switching is unavailable on this install.",
+    "switchTitle": "Switch to {channel}?",
+    "switchCta": "Switch channel",
+    "alphaConfirmBody": "Alpha is an early preview of FiestaBoard 11. Switching may migrate your settings and pages to a format older releases cannot read. An automatic backup must succeed before a newer major version is installed; if it fails, switching stops. Keep a downloaded backup too. Returning to Beta or Stable restores the pre-preview snapshot and loses changes made in Alpha. FiestaBoard will restart.",
+    "downgradeConfirmBody": "This switches to an older release channel. FiestaBoard restores the snapshot taken before joining the preview, so changes made since then will be lost. If no compatible snapshot exists, restore your downloaded backup from Settings → System → Backup; the older build may refuse to read migrated data. FiestaBoard will restart.",
+    "betaConfirmBody": "Beta builds can migrate your settings and pages. A backup is taken before switching. Moving to a newer major requires a successful automatic backup; returning to Stable may require restoring the pre-preview backup and losing later changes. FiestaBoard will restart."
   },
   "aiApprovalCard": {
     "heading": "Kräver ditt godkännande",
