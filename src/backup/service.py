@@ -134,7 +134,7 @@ class BackupService:
 
             from src import __version__ as app_version
 
-            return {
+            backup = {
                 BACKUP_FILE_MARKER: True,
                 "schema_version": BACKUP_SCHEMA_VERSION,
                 "exported_at": datetime.now(UTC).isoformat(),
@@ -142,6 +142,9 @@ class BackupService:
                 "data": data,
                 "installed_plugins": installed_plugins,
             }
+            if strict:
+                self._validate_backup(backup)
+            return backup
 
     def export_to_json(self, *, indent: int = 2, strict: bool = False) -> str:
         """Return the backup as a JSON string."""
