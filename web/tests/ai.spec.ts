@@ -926,47 +926,92 @@ test.describe("AI", () => {
       await request.delete(`${API_URL}/pages/${pageId}`);
     });
 
-    test("create_page walks to a fresh editor, types the page, and lands on the saved page", async ({
-      page,
-      request,
-    }) => {
-      await configureMockProvider(request);
-      await stubBoard(request);
-      await setMockScript({
-        steps: [
-          {
-            prose: "Building it.",
-            ops: [
-              {
-                op: "create_page",
-                args: { name: "Walked Page", template_lines: ["GOOD MORNING", "", "", "", "", ""] },
-              },
-            ],
-          },
-          { prose: "Done, it is open." },
-        ],
-      });
-      await openDrawer(page, "/settings");
-      await sendMessage(page, "make me a page called Walked Page");
+    for (const reducedMotion of ["no-preference", "reduce"] as const) {
+      test(`create_page walks to a fresh editor, types the page, and lands on the saved page (${reducedMotion})`, async ({
+        page,
+        request,
+      }) => {
+        await page.emulateMedia({ reducedMotion });
+        await configureMockProvider(request);
+        await stubBoard(request);
+        await setMockScript({
+          steps: [
+            {
+              prose: "Building it.",
+              ops: [
+                {
+                  op: "create_page",
+                  args: { name: "Walked Page", template_lines: ["GOOD MORNING", "", "", "", "", ""] },
+                },
+              ],
+            },
+            { prose: "Done, it is open." },
+          ],
+        });
+        await openDrawer(page, "/settings");
+        // Observe before Send: completion hides after its narration beat (only
+        // 80 ms with reduced motion), potentially before route/name polls finish.
+        // Record real visible viewport text, never a hidden or offscreen node.
+        const observed = await page.evaluateHandle(() => {
+          const seen = { narration: false, createdCaption: false };
+          const sample = () => {
+            const caption = document.querySelector('[data-testid="ai-spotlight-caption"]');
+            if (caption) {
+              const rect = caption.getBoundingClientRect();
+              const style = getComputedStyle(caption);
+              const visible =
+                rect.width > 0 &&
+                rect.height > 0 &&
+                rect.bottom > 0 &&
+                rect.right > 0 &&
+                rect.top < innerHeight &&
+                rect.left < innerWidth &&
+                style.display !== "none" &&
+                style.visibility !== "hidden" &&
+                Number(style.opacity) > 0;
+              if (visible) {
+                seen.narration = true;
+                if (/Page created/i.test(caption.textContent ?? "")) seen.createdCaption = true;
+              }
+            }
+            if (!seen.createdCaption) requestAnimationFrame(sample);
+          };
+          requestAnimationFrame(sample);
+          return seen;
+        });
+        await sendMessage(page, "make me a page called Walked Page");
 
-      // The spotlight narrates on screen, outside the chat dialog.
-      const caption = page.getByTestId("ai-spotlight-caption");
-      await expect(caption).toBeVisible({ timeout: 15_000 });
-      // The editor opens (via the Pages list) and the name is typed for real.
-      await expect(page).toHaveURL(/\/pages\/(new|edit\/)/, { timeout: 15_000 });
-      await expect(page.getByLabel(/page name/i)).toHaveValue("Walked Page", { timeout: 15_000 });
-      // It settles on the saved page, and the server has it.
-      await expect(page).toHaveURL(/\/pages\/edit\/[0-9a-f-]+/, { timeout: 20_000 });
-      await expect(caption).toHaveText(/Page created/i, { timeout: 15_000 });
-      const pages = await (await request.get(`${API_URL}/pages`)).json();
-      const list = (Array.isArray(pages) ? pages : pages.pages || []) as Array<Record<string, unknown>>;
-      const created = list.find((p) => p.name === "Walked Page");
-      expect(created).toBeTruthy();
-      // The staged draft left nothing behind for /pages/new to restore.
-      await page.goto("/pages/new");
-      await expect(page.getByText(/draft restored/i)).toHaveCount(0);
-      await request.delete(`${API_URL}/pages/${created!.id}`);
-    });
+        // The spotlight narrates on screen, outside the chat dialog.
+        await expect
+          .poll(() => observed.evaluate((seen) => seen.narration), {
+            timeout: 15_000,
+            message: "The walkthrough narration was visible in the viewport",
+          })
+          .toBe(true);
+        // The editor opens (via the Pages list) and the name is typed for real.
+        await expect(page).toHaveURL(/\/pages\/(new|edit\/)/, { timeout: 15_000 });
+        await expect(page.getByLabel(/page name/i)).toHaveValue("Walked Page", { timeout: 15_000 });
+        // It settles on the saved page, and the server has it.
+        await expect(page).toHaveURL(/\/pages\/edit\/[0-9a-f-]+/, { timeout: 20_000 });
+        await expect
+          .poll(() => observed.evaluate((seen) => seen.createdCaption), {
+            timeout: 15_000,
+            message: "The full Page created caption was visible in the viewport",
+          })
+          .toBe(true);
+        await observed.dispose();
+        const pages = await (await request.get(`${API_URL}/pages`)).json();
+        const list = (Array.isArray(pages) ? pages : pages.pages || []) as Array<Record<string, unknown>>;
+        const createdId = new URL(page.url()).pathname.split("/").at(-1);
+        const created = list.find((p) => p.id === createdId);
+        expect(created).toBeTruthy();
+        expect(created!.name).toBe("Walked Page");
+        // The staged draft left nothing behind for /pages/new to restore.
+        await page.goto("/pages/new");
+        await expect(page.getByText(/draft restored/i)).toHaveCount(0);
+        await request.delete(`${API_URL}/pages/${created!.id}`);
+      });
+    }
 
     test("update_setting goes to the section, ghosts the value over its control, and pulses the card", async ({
       page,
