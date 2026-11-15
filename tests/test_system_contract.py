@@ -82,6 +82,7 @@ def client(_isolated_data_dir):
 @pytest.fixture
 def sidecar_seams(tmp_path, monkeypatch):
     """Deterministic sidecar environment: no token, tmp state file + snapshot dir."""
+    monkeypatch.setattr(f"{UPDATE_SERVICE}.__version__", "10.3.3")
     state_file = tmp_path / "state.json"
     snap_dir = tmp_path / "update-backups"
     monkeypatch.setattr(f"{UPDATE_SERVICE}.SYSTEM_UPDATE_STATE_FILE", state_file)
@@ -162,7 +163,7 @@ def test_version_is_not_dev_when_a_production_build_is_tagged(client, monkeypatc
 # ===========================================================================
 
 
-def test_update_check_reports_the_newest_version_either_source_lists(client, monkeypatch):
+def test_update_check_reports_the_newest_version_either_source_lists(client, monkeypatch, sidecar_seams):
     from urllib.parse import urlparse
 
     def _get(url, **_kwargs):
@@ -182,7 +183,7 @@ def test_update_check_reports_the_newest_version_either_source_lists(client, mon
     assert body["package_url"] == "https://github.com/Fiestaboard/FiestaBoard/releases/tag/v99.0.0"
 
 
-def test_update_check_answers_200_with_an_error_field_when_both_sources_are_down(client):
+def test_update_check_answers_200_with_an_error_field_when_both_sources_are_down(client, sidecar_seams):
     """A probe endpoint reports the verdict about *something else* at 200.
 
     API_CONVENTIONS.md §"Status codes" allows this exactly because the body is

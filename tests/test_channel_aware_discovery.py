@@ -47,6 +47,12 @@ MIXED_TAGS = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _historical_package_version(monkeypatch):
+    """Stable VERSION falls back to the package; these scenarios predate v11."""
+    monkeypatch.setattr("src.system.update_service.__version__", "8.37.5")
+
+
 def _dockerhub(payload, *, next_page=None):
     body = dict(payload)
     body.setdefault("next", next_page)

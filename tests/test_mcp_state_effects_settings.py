@@ -362,8 +362,9 @@ def test_update_setting_release_channel_switches_through_the_sidecar(mcp, servic
     assert switched == ["beta"]
 
 
-def test_update_setting_release_channel_reports_the_blocker(mcp, services, two_boards):
+def test_update_setting_release_channel_reports_the_blocker(mcp, services, two_boards, monkeypatch):
     """No sidecar → the handler's 503 reason, not a success."""
+    monkeypatch.setattr("src.system.update_service.__version__", "10.3.3")
     message = call_expect_error(mcp, "update_setting", category="release_channel", values={"channel": "beta"})
     assert "sidecar" in message
 
