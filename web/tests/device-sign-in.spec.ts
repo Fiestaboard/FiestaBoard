@@ -91,7 +91,7 @@ for (const prefix of ["", "/test-prefix"]) {
         await secondBrowser.dispose();
       }
     });
-    test("manual code denial and retired-worker cleanup cannot replay an authenticated cache offline", async ({
+    test("manual code denial and scoped worker cleanup cannot replay an authenticated cache offline", async ({
       page,
       playwright,
     }) => {
@@ -114,22 +114,30 @@ for (const prefix of ["", "/test-prefix"]) {
           data: { device_code: challenge.device_code, client_id: "fiestaboard-androidtv" },
         });
         expect((await denied.json()).error).toBe("access_denied");
-        await page.evaluate(
+        const obsoleteCache = await page.evaluate(
           async ({ prefix }) => {
             for (const registration of await navigator.serviceWorker.getRegistrations())
               await registration.unregister();
-            const cache = await caches.open("offlineCache");
-            for (const endpoint of ["/auth/status", "/auth/sessions"])
-              await cache.put(
-                `${prefix}/api${endpoint}`,
-                new Response(JSON.stringify({ authenticated: true, sessions: [{ id: "stale" }] })),
-              );
+            const scope = new URL(`${prefix}/`, window.location.origin).href;
+            const obsolete = `workbox-precache-v2-${scope}`;
+            // Only a cache carrying this registration's scope is ours to
+            // remove. Unscoped legacy data stays untouched and is never read.
+            for (const name of [obsolete, "offlineCache"]) {
+              const cache = await caches.open(name);
+              for (const endpoint of ["/auth/status", "/auth/sessions"])
+                await cache.put(
+                  `${prefix}/api${endpoint}`,
+                  new Response(JSON.stringify({ authenticated: true, sessions: [{ id: "stale" }] })),
+                );
+            }
             await caches.open("another-app");
             await navigator.serviceWorker.register(`${prefix}/sw.js?cleanup-test`, { scope: `${prefix}/` });
+            return obsolete;
           },
           { prefix },
         );
-        await expect.poll(() => page.evaluate(() => caches.has("offlineCache"))).toBe(false);
+        await expect.poll(() => page.evaluate((name) => caches.has(name), obsoleteCache)).toBe(false);
+        expect(await page.evaluate(() => caches.has("offlineCache"))).toBe(true);
         expect(await page.evaluate(() => caches.has("another-app"))).toBe(true);
         expect((await mutate(page.request, api, "/auth/sessions/revoke", "POST", { include_current: true })).ok()).toBe(
           true,

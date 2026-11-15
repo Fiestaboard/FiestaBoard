@@ -92,7 +92,7 @@ configure_frame_headers() {
 # `base: "/"` (absolute paths). When FIESTABOARD_INGRESS_PATH_REWRITE=true
 # this snippet runs sub_filter on HTML, JS, and CSS responses to
 # prepend `$http_x_ingress_path` to every absolute reference to the
-# SPA's asset paths (`/assets/`, `/sw.js`, `/icons/`, `/manifest.json`,
+# SPA's asset paths (`/assets/`, `/icons/`, `/manifest.json`,
 # `/favicon.ico`) and the API (`/api/`).
 #
 # Division of labor with the SPA: sub_filter rewrites the build-time
@@ -159,22 +159,15 @@ sub_filter_once off;
 sub_filter_types application/javascript text/javascript text/css application/json;
 # Rewrite double-quoted ("/assets/"), single-quoted ('/assets/'), and
 # unquoted (CSS url(/assets/...) ) references. Same shape for /api/,
-# /sw.js, /registerSW.js, /icons/, /manifest.json, /favicon.ico —
-# these are the only absolute paths Vite emits.
+# /icons/, /manifest.json, /favicon.ico — these are the only absolute
+# paths Vite emits.
 sub_filter '"/assets/' '"$http_x_ingress_path/assets/';
 sub_filter "'/assets/" "'$http_x_ingress_path/assets/";
 sub_filter '(/assets/' '($http_x_ingress_path/assets/';
-sub_filter '"/sw.js' '"$http_x_ingress_path/sw.js';
-sub_filter "'/sw.js" "'$http_x_ingress_path/sw.js";
-sub_filter '"/registerSW.js' '"$http_x_ingress_path/registerSW.js';
-sub_filter "'/registerSW.js" "'$http_x_ingress_path/registerSW.js";
-# vite-plugin-pwa's generated registerSW.js registers the service worker
-# with a hard-coded root scope. A worker served from <prefix>/sw.js may
-# not claim scope "/", so without this rewrite SW registration silently
-# fails under Ingress. (Workbox precache entries are relative URLs that
-# resolve against the worker's own prefixed location, so they need no
-# rewriting of their own.)
-sub_filter "{ scope: '/' }" "{ scope: '$http_x_ingress_path/' }";
+# No /sw.js or /registerSW.js rules (web 2.8): the app registers its
+# service worker itself with appUrl("/sw.js") and scope appUrl("/"), which
+# already carry the prefix, and vite-plugin-pwa no longer emits
+# registerSW.js. A body rewrite here would double the prefix.
 # NOTE: keep the trailing slash in the /api patterns. The SPA now
 # prefixes its own API URLs at runtime (web/src/lib/base-path.ts reads
 # the rewritten React Router basename below), and its bundle contains a
@@ -195,14 +188,14 @@ sub_filter "'/favicon.ico" "'$http_x_ingress_path/favicon.ico";
 # asset references go through the runtime base path instead
 # (renderBuiltUrl -> window.__fbAssetUrl, and appUrl() for JSX srcs).
 #
-# Deliberately NO backtick variants for /icons/, /manifest.json, or
-# /favicon.ico: every first-party reference to those is wrapped in
-# appUrl() (enforced by eslint no-restricted-syntax), so a body-level
+# Deliberately NO backtick variants for /icons/, /manifest.json,
+# /favicon.ico or /sw.js: every first-party reference to those is wrapped
+# in appUrl() (enforced by eslint no-restricted-syntax; the service worker
+# is registered with appUrl("/sw.js") since web 2.8), so a body-level
 # rewrite would prefix the literal INSIDE the appUrl() call and the
-# runtime would prefix it again — double prefix, broken image.
+# runtime would prefix it again — double prefix, broken image, or a
+# worker that 404s at <prefix><prefix>/sw.js.
 sub_filter '`/assets/' '`$http_x_ingress_path/assets/';
-sub_filter '`/sw.js' '`$http_x_ingress_path/sw.js';
-sub_filter '`/registerSW.js' '`$http_x_ingress_path/registerSW.js';
 sub_filter '`/api/' '`$http_x_ingress_path/api/';
 # React Router v7 SPA hydration context. The Vite build inlines
 #   window.__reactRouterContext = {"basename":"/", ...}

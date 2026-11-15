@@ -906,14 +906,21 @@
   },
   "offline": {
     "youreOffline": "オフラインです",
-    "reconnecting": "再接続中...",
-    "offlineDescription": "インターネット接続が切断されたようです。一部の機能が利用できない場合があります。",
-    "connectionRestored": "接続が復旧しました！アプリを再読み込みしています...",
+    "offlineBody": "この{device}はネットワークに接続されていないため、{host} に接続できません。ハブとディスプレイは問題なく動いており、この{device}は必要ありません。",
+    "cantReachHub": "ハブに接続できません",
+    "cantReachBody": "この{device}はオンラインですが、{host} の FiestaBoard から応答がありませんでした。ディスプレイはハブ上でスケジュールどおり動き続けます。",
+    "checkPower": "ハブの電源は入っていて、ランプは点灯していますか？",
+    "checkWifi": "ハブと同じ Wi‑Fi に接続していますか？",
     "tryAgain": "再試行",
-    "whileOffline": "オフライン中でも以下の操作が可能です:",
-    "viewPreviouslyLoaded": "以前に読み込んだページの閲覧",
-    "accessCached": "キャッシュされたコンテンツへのアクセス",
-    "browseSaved": "保存済みデータの参照"
+    "connectionHelp": "接続のヘルプ",
+    "reconnecting": "再接続しています…",
+    "lastKnown": "最後の表示",
+    "lastKnownTitle": "最後の表示 · {board}",
+    "lastKnownAt": "最終接続 {time} · 古い可能性があります",
+    "device": {
+      "phone": "スマートフォン",
+      "computer": "コンピュータ"
+    }
   },
   "wizard": {
     "welcomeTitle": "FiestaBoard へようこそ",
@@ -1225,11 +1232,27 @@
     "stoppedTooltip": "表示サービスは一時停止中です。ボードにはコンテンツが送信されていません。"
   },
   "installPrompt": {
-    "title": "FiestaBoard コントロールをインストール",
-    "description": "ホーム画面に追加して、すばやくアクセスできるようにしましょう。",
-    "installButton": "インストール",
-    "notNow": "後で",
-    "dismissAriaLabel": "閉じる"
+    "title": "この{device}に FiestaBoard Control を追加しますか？",
+    "reasonSends": "ここから {count} 件のメッセージを送信しました。",
+    "reasonSave": "ここからページを保存しました。",
+    "body": "インストールすると、専用のウィンドウでホームが直接開きます。通信先はこれまでどおり {host} のハブだけで、FiestaBoard のアカウントやクラウドはありません。",
+    "install": "インストール",
+    "notNow": "今はしない",
+    "httpsTitle": "インストールには安全なアドレスが必要です",
+    "httpsBody": "http://{host} ではブラウザがアプリをインストールせず、オフラインでも使えるようにしないため、ここにはインストールボタンがありません。https のアドレスで FiestaBoard を開くか、ハブに HTTPS を設定してください。",
+    "httpsHelp": "HTTPS の設定方法",
+    "sheetTitle": "ホーム画面に追加",
+    "sheetIntro": "Safari ではウェブサイトが自分でインストールできないため、次の手順で追加します。約10秒で済み、ほかのアプリと同じように削除できます。",
+    "stepShare": "Safari のアドレスバーの ⋯ をタップし、共有をタップします。",
+    "stepAdd": "下にスクロールして「ホーム画面に追加」をタップします。",
+    "stepOpen": "「Webアプリとして開く」をオンのまま「追加」をタップします。",
+    "gotIt": "わかりました",
+    "dontShowAgain": "今後表示しない",
+    "close": "閉じる",
+    "device": {
+      "phone": "スマートフォン",
+      "computer": "コンピュータ"
+    }
   },
   "silenceMode": {
     "loading": "読み込み中...",
@@ -3228,5 +3251,12 @@
     "previewStep": "プレビューを1ノートまたは1列移動",
     "previewEnds": "プレビューの先頭または末尾へ移動",
     "previewFit": "全体表示 / 実寸（プレビューにフォーカス時）"
+  },
+  "pwa": {
+    "https": {
+      "title": "HTTPS が必要です",
+      "body": "インストールとオフライン利用には安全なアドレスが必要です。現在は http://{host} です。https のアドレスで FiestaBoard を開くか、ハブに HTTPS を設定してください。",
+      "help": "HTTPS の設定方法"
+    }
   }
 }

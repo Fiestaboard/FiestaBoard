@@ -2,7 +2,7 @@
  * Auto-generated regression stubs from .claude/ux-coverage.json.
  * Subarea: offline (disconnected / reconnecting indicators)
  */
-import { configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
+import { configureBoard, ensureAuthForFetch, expect, loginIfNeeded, slowRoute, test } from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -24,8 +24,8 @@ test.describe("regression: offline", () => {
    */
   test("offline.disconnected — offline indicator surfaces on disconnect", async ({ page }) => {
     // The /offline route is the PWA's offline fallback page. It reads
-    // navigator.onLine on mount; when offline it shows the "You're Offline"
-    // heading, a Try Again CTA, and a bullet list of what's still available.
+    // navigator.onLine on mount; when offline it names this device and
+    // retains the Try again action.
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "onLine", {
         configurable: true,
@@ -34,7 +34,7 @@ test.describe("regression: offline", () => {
     });
     await page.goto("/offline");
 
-    await expect(page.getByRole("heading", { name: /you're offline/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { level: 1, name: "You’re offline" })).toBeVisible({ timeout: 15_000 });
 
     // Try Again CTA only appears in the disconnected state — verifies we
     // aren't accidentally seeing the reconnecting state.
@@ -51,9 +51,8 @@ test.describe("regression: offline", () => {
    */
   test("offline.reconnecting — reconnecting indicator surfaces when connection is restored", async ({ page }) => {
     // Mount the offline page while offline, then flip navigator.onLine to
-    // true and dispatch the 'online' event. The component swaps to the
-    // "Reconnecting..." heading and shows the spinner before auto-reloading.
-    // We assert the indicator surfaces; we don't wait for the reload.
+    // true and dispatch the 'online' event. Hold the real health request
+    // so the labelled reconnecting spinner can be observed before Home.
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "onLine", {
         configurable: true,
@@ -62,7 +61,9 @@ test.describe("regression: offline", () => {
     });
     await page.goto("/offline");
 
-    await expect(page.getByRole("heading", { name: /you're offline/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { level: 1, name: "You’re offline" })).toBeVisible({ timeout: 15_000 });
+
+    const releaseHealth = await slowRoute(page, "**/api/health");
 
     // Flip to online and fire the event the listener is bound to.
     await page.evaluate(() => {
@@ -73,9 +74,13 @@ test.describe("regression: offline", () => {
       window.dispatchEvent(new Event("online"));
     });
 
-    await expect(page.getByRole("heading", { name: /reconnecting/i })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("status").filter({ hasText: "Reconnecting…" })).toBeVisible({ timeout: 5_000 });
 
     // Try Again button is gone in the reconnecting state.
     await expect(page.getByRole("button", { name: /try again/i })).toHaveCount(0);
+
+    releaseHealth();
+    await expect(page).toHaveURL(/\/$/, { timeout: 15_000 });
+    await expect(page.getByRole("status").filter({ hasText: "Reconnecting…" })).toHaveCount(0);
   });
 });

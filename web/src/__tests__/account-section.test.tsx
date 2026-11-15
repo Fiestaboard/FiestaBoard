@@ -1,9 +1,14 @@
+import "fake-indexeddb/auto";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { readLastKnownBoard } from "@/lib/pwa/last-known-board";
+
+import { seedLastKnownBoard } from "./helpers/last-known-board";
 import { server } from "./mocks/server";
 
 const replaceMock = vi.fn();
@@ -218,7 +223,28 @@ describe("AccountSection", () => {
     await waitFor(() => {
       expect(logoutCalled).toBe(true);
     });
-    expect(replaceMock).toHaveBeenCalledWith("/login");
+    // Sign out now also wipes this device's last-known board first (2.8), so
+    // the redirect lands a tick after the logout call.
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
+  });
+
+  it("wipes this account's last-known board from the device on sign out", async () => {
+    mockAuthStatus(authStatusAuthenticated);
+    server.use(http.post("/api/auth/logout", () => HttpResponse.json({ status: "ok" })));
+    await seedLastKnownBoard({
+      boardId: "b1",
+      owner: "casa",
+      message: "HELLO",
+      rows: 6,
+      cols: 22,
+      board: null,
+      savedAt: 1,
+    });
+    render(<AccountSection />, { wrapper: TestWrapper });
+    await screen.findByText("Signed in");
+    await userEvent.setup().click(screen.getByRole("button", { name: /Sign out/i }));
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
+    expect(await readLastKnownBoard()).toBeNull();
   });
 
   it("renders the 'Turn on login' nudge when auth is disabled", async () => {

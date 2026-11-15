@@ -906,14 +906,21 @@
   },
   "offline": {
     "youreOffline": "Jesteś offline",
-    "reconnecting": "Ponowne łączenie...",
-    "offlineDescription": "Wygląda na to, że utracono połączenie z internetem. Niektóre funkcje mogą być niedostępne.",
-    "connectionRestored": "Połączenie przywrócone! Ponowne ładowanie aplikacji...",
+    "offlineBody": "To urządzenie ({device}) nie jest połączone z żadną siecią, więc nie może połączyć się z {host}. Hub i wyświetlacze działają; nie potrzebują tego urządzenia.",
+    "cantReachHub": "Nie można połączyć się z hubem",
+    "cantReachBody": "To urządzenie ({device}) jest online, ale FiestaBoard pod {host} nie odpowiedział. Wyświetlacze nadal wykonują harmonogramy na hubie.",
+    "checkPower": "Czy hub jest podłączony, a jego lampka świeci światłem ciągłym?",
+    "checkWifi": "Czy jesteś w tej samej sieci Wi‑Fi co hub?",
     "tryAgain": "Spróbuj ponownie",
-    "whileOffline": "W trybie offline nadal możesz:",
-    "viewPreviouslyLoaded": "Przeglądać wcześniej załadowane strony",
-    "accessCached": "Korzystać z treści w pamięci podręcznej",
-    "browseSaved": "Przeglądać zapisane dane"
+    "connectionHelp": "Pomoc z połączeniem",
+    "reconnecting": "Ponowne łączenie…",
+    "lastKnown": "Ostatni znany stan",
+    "lastKnownTitle": "Ostatni znany stan · {board}",
+    "lastKnownAt": "Ostatnie połączenie {time} · może być nieaktualne",
+    "device": {
+      "phone": "telefon",
+      "computer": "komputer"
+    }
   },
   "wizard": {
     "welcomeTitle": "Witaj w FiestaBoard",
@@ -1225,11 +1232,27 @@
     "stoppedTooltip": "Usługa wyświetlania jest wstrzymana. Treści nie są wysyłane na tablicę."
   },
   "installPrompt": {
-    "title": "Zainstaluj FiestaBoard Control",
-    "description": "Dodaj do ekranu głównego, aby mieć szybki dostęp i lepsze wrażenia.",
-    "installButton": "Zainstaluj",
+    "title": "Dodać FiestaBoard Control na tym urządzeniu ({device})?",
+    "reasonSends": "Wysłano stąd {count} wiadomości.",
+    "reasonSave": "Zapisano stąd stronę.",
+    "body": "Po instalacji otwiera się od razu na stronie głównej we własnym oknie. Nadal łączy się tylko z twoim hubem pod {host}; nie ma konta FiestaBoard ani chmury.",
+    "install": "Zainstaluj",
     "notNow": "Nie teraz",
-    "dismissAriaLabel": "Odrzuć"
+    "httpsTitle": "Instalacja wymaga bezpiecznego adresu",
+    "httpsBody": "Pod http://{host} przeglądarka nie instaluje aplikacji ani nie udostępnia ich offline, więc nie ma tu przycisku Zainstaluj. Otwórz FiestaBoard pod adresem https albo skonfiguruj HTTPS dla huba.",
+    "httpsHelp": "Jak skonfigurować HTTPS",
+    "sheetTitle": "Dodaj do ekranu początkowego",
+    "sheetIntro": "Safari nie pozwala stronom instalować się samodzielnie, więc zrób to tak. Zajmuje to około 10 sekund i można to usunąć jak każdą aplikację.",
+    "stepShare": "Stuknij ⋯ na pasku adresu Safari, a potem Udostępnij.",
+    "stepAdd": "Przewiń w dół i stuknij Do ekranu początk.",
+    "stepOpen": "Zostaw włączone Otwórz jako aplikację internetową i stuknij Dodaj.",
+    "gotIt": "Rozumiem",
+    "dontShowAgain": "Nie pokazuj ponownie",
+    "close": "Zamknij",
+    "device": {
+      "phone": "telefon",
+      "computer": "komputer"
+    }
   },
   "silenceMode": {
     "loading": "Ładowanie...",
@@ -3228,5 +3251,12 @@
     "previewStep": "Przesuń podgląd o jedną notatkę lub kolumnę",
     "previewEnds": "Przejdź na początek lub koniec podglądu",
     "previewFit": "Dopasuj / Rzeczywisty rozmiar (podgląd aktywny)"
+  },
+  "pwa": {
+    "https": {
+      "title": "Wymagany HTTPS",
+      "body": "Instalacja i praca offline wymagają bezpiecznego adresu. Jesteś pod http://{host}. Otwórz FiestaBoard pod adresem https albo skonfiguruj HTTPS dla huba.",
+      "help": "Jak skonfigurować HTTPS"
+    }
   }
 }

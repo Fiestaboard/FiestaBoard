@@ -6,8 +6,8 @@
  *     is bundled, so for most visitors this resolves immediately).
  *  2. Hydrate the React Router app.
  *
- * There is no service worker: vite-plugin-pwa ships a self-destroying
- * sw.js that removes any previously installed one (see vite.config.ts).
+ * The app-shell service worker is registered from `PwaLifecycle` in
+ * app/root.tsx, and only in a secure context (web 2.8).
  */
 import { startTransition, StrictMode } from "react";
 import { hydrateRoot } from "react-dom/client";

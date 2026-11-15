@@ -29,6 +29,7 @@ import { NavigationSidebar } from "@/components/navigation-sidebar";
 import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
 import { PageFadeWrapper } from "@/components/page-fade-wrapper";
 import { Providers } from "@/components/providers";
+import { PwaLifecycle } from "@/components/pwa/pwa-lifecycle";
 import { ReduceMotionApplier } from "@/components/reduce-motion-applier";
 import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridge-context";
 import { SettingsRestoredBanner } from "@/components/settings-restored-banner";
@@ -67,7 +68,9 @@ export const links: Route.LinksFunction = () => [
   { rel: "icon", href: appUrl("/favicon.ico"), sizes: "any" },
   { rel: "icon", href: appUrl("/icons/favicon-32x32.png"), type: "image/png", sizes: "32x32" },
   { rel: "apple-touch-icon", href: appUrl("/icons/apple-touch-icon.png") },
-  { rel: "manifest", href: appUrl("/manifest.json") },
+  // use-credentials: under HA Ingress the manifest sits behind the ingress
+  // session cookie, which a default (anonymous) manifest fetch would not send.
+  { rel: "manifest", href: appUrl("/manifest.json"), crossOrigin: "use-credentials" },
 ];
 
 export const meta: Route.MetaFunction = () => [
@@ -77,9 +80,15 @@ export const meta: Route.MetaFunction = () => [
   // `RootBody` below — these defaults exist so the initial HTML render
   // and any prerender pass include something sensible.
   { title: "FiestaBoard" },
-  { name: "description", content: "Open-source platform for controlling split-flap displays" },
+  { name: "description", content: "Control your displays from your own FiestaBoard hub" },
   { name: "theme-color", content: "#fafafa", media: "(prefers-color-scheme: light)" },
   { name: "theme-color", content: "#0a0a0a", media: "(prefers-color-scheme: dark)" },
+  // Installed-app tags (WEB-15). iOS reads these instead of the manifest for
+  // a Home Screen web app; the manifest covers everything else.
+  { name: "mobile-web-app-capable", content: "yes" },
+  { name: "apple-mobile-web-app-capable", content: "yes" },
+  { name: "apple-mobile-web-app-title", content: "FiestaBoard" },
+  { name: "apple-mobile-web-app-status-bar-style", content: "default" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -145,6 +154,7 @@ function RootBody() {
     <>
       <PageIconGradientDefs />
       <Providers>
+        <PwaLifecycle />
         <ThemeColorMeta />
         <ReduceMotionApplier />
         <BootGate>
@@ -161,9 +171,10 @@ function RootBody() {
                       <PageFadeWrapper>
                         <Outlet />
                       </PageFadeWrapper>
+                      {/* In the page flow after the content, never on load (WEB-12). */}
+                      <InstallPrompt />
                     </MainContent>
                     <Toaster />
-                    <InstallPrompt />
                   </WizardProvider>
                 </GlobalAiPanelProvider>
               </SpotlightProvider>

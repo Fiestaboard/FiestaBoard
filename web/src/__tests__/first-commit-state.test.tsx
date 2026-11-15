@@ -67,7 +67,7 @@ describe("state that must land in the first commit", () => {
       expect(screen.getByRole("status")).toBeInTheDocument();
     });
 
-    it("uses only the loading illustration while waiting, restoring the brand icon on error", async () => {
+    it("shows the loading illustration while waiting, then the hub-unreachable screen", async () => {
       server.use(http.get(`${API_BASE}/health`, () => new HttpResponse(null, { status: 503 })));
       const { container } = render(<BootGate>app</BootGate>, { wrapper: TestWrapper });
 
@@ -78,9 +78,10 @@ describe("state that must land in the first commit", () => {
 
       await act(() => vi.advanceTimersByTimeAsync(30_000));
       expect(container.querySelector('[data-slot="spinner"]')).not.toBeInTheDocument();
-      expect(container.querySelector('svg[viewBox="0 0 32 32"]')).toBeInTheDocument();
+      expect(screen.getByTestId("offline-screen")).toHaveAttribute("data-kind", "hub-unreachable");
+      expect(screen.getByRole("heading", { name: "Can’t reach your hub" })).toBeInTheDocument();
     });
-    it("reloads the page from the error screen's Refresh page button", async () => {
+    it("reloads the page from the hub-unreachable screen’s Try again button", async () => {
       server.use(http.get(`${API_BASE}/health`, () => new HttpResponse(null, { status: 503 })));
       const originalLocation = window.location;
       const reload = vi.fn();
@@ -96,7 +97,7 @@ describe("state that must land in the first commit", () => {
 
         // Past the error timeout, the splash gives way to the error screen.
         await act(() => vi.advanceTimersByTimeAsync(31_000));
-        fireEvent.click(await screen.findByRole("button", { name: "Refresh page" }));
+        fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
 
         expect(reload).toHaveBeenCalled();
       } finally {

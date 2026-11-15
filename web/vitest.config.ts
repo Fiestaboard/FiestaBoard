@@ -52,6 +52,8 @@ export default defineConfig({
         "src/components/notification-display.tsx",
         "src/components/language-selector.tsx",
         "src/components/editor-shortcut-list.tsx",
+        "src/components/install-prompt.tsx",
+        "src/components/pwa/**",
         "src/i18n/config.ts",
         // Slice 2.3: status banners.
         "src/components/status-banners/**",

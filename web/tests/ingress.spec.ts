@@ -205,4 +205,32 @@ test.describe("HA Ingress", () => {
     expect(escapes, "deep-route requests must stay under the ingress prefix").toEqual([]);
     expect(notFound, "deep-route assets must resolve").toEqual([]);
   });
+  test("the service worker and the manifest stay under the prefix (2.8)", async ({ page, context }) => {
+    const { escapes, notFound } = trackIngressViolations(page);
+    await page.goto(`${PREFIX}/`);
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
+
+    // The worker registers at <prefix>/sw.js with scope <prefix>/, never the host root.
+    const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
+    expect(scope).toBe(`${SIMULATOR_ORIGIN}${PREFIX}/`);
+
+    // The manifest's relative start_url and icons resolve inside the prefix.
+    const manifestHref = await page.locator('link[rel="manifest"]').getAttribute("href");
+    expect(manifestHref).toBe(`${PREFIX}/manifest.json`);
+    const manifestUrl = new URL(manifestHref!, SIMULATOR_ORIGIN);
+    const manifest = await (await page.request.get(manifestUrl.href)).json();
+    expect(new URL(manifest.start_url, manifestUrl).pathname).toBe(`${PREFIX}/`);
+    const icon = await page.request.get(new URL(manifest.icons[0].src, manifestUrl).href);
+    expect(icon.status()).toBe(200);
+
+    // Offline, the cached shell opens under the prefix too.
+    await page.reload();
+    await context.setOffline(true);
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1, name: "You’re offline" })).toBeVisible({ timeout: 15_000 });
+    await context.setOffline(false);
+
+    expect(escapes, "requests must stay under the ingress prefix").toEqual([]);
+    expect(notFound, "prefixed static assets must resolve").toEqual([]);
+  });
 });

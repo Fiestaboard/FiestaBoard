@@ -905,15 +905,22 @@
     }
   },
   "offline": {
-    "youreOffline": "您已离线",
-    "reconnecting": "正在重新连接...",
-    "offlineDescription": "您的网络连接似乎已断开。部分功能可能不可用。",
-    "connectionRestored": "连接已恢复！正在重新加载应用...",
+    "youreOffline": "你已离线",
+    "offlineBody": "这台{device}没有连接到任何网络，所以无法访问 {host}。你的集线器和显示屏一切正常，它们不需要这台{device}。",
+    "cantReachHub": "无法连接到集线器",
+    "cantReachBody": "这台{device}已联网，但 {host} 上的 FiestaBoard 没有响应。你的显示屏会继续在集线器上按日程运行。",
+    "checkPower": "集线器是否已接通电源且指示灯常亮？",
+    "checkWifi": "你是否和集线器在同一个 Wi‑Fi 上？",
     "tryAgain": "重试",
-    "whileOffline": "离线时，您仍然可以：",
-    "viewPreviouslyLoaded": "查看之前加载的页面",
-    "accessCached": "访问缓存内容",
-    "browseSaved": "浏览已保存的数据"
+    "connectionHelp": "连接帮助",
+    "reconnecting": "正在重新连接…",
+    "lastKnown": "最后已知",
+    "lastKnownTitle": "最后已知 · {board}",
+    "lastKnownAt": "最后连接于 {time} · 可能已过时",
+    "device": {
+      "phone": "手机",
+      "computer": "电脑"
+    }
   },
   "wizard": {
     "welcomeTitle": "欢迎使用 FiestaBoard",
@@ -1225,11 +1232,27 @@
     "stoppedTooltip": "显示服务已暂停。内容未在向看板发送。"
   },
   "installPrompt": {
-    "title": "安装 FiestaBoard Control",
-    "description": "添加到主屏幕以获得快速访问和更好的体验。",
-    "installButton": "安装",
-    "notNow": "暂不安装",
-    "dismissAriaLabel": "关闭"
+    "title": "将 FiestaBoard Control 添加到这台{device}？",
+    "reasonSends": "你已从这里发送了 {count} 条消息。",
+    "reasonSave": "你已从这里保存了一个页面。",
+    "body": "安装后，它会在独立窗口中直接打开主页。它仍然只与 {host} 上的集线器通信；没有 FiestaBoard 账户，也没有云服务。",
+    "install": "安装",
+    "notNow": "以后再说",
+    "httpsTitle": "安装需要安全地址",
+    "httpsBody": "在 http://{host} 上，浏览器不会安装应用，也不会让它离线可用，所以这里没有安装按钮。请通过 https 地址打开 FiestaBoard，或为集线器设置 HTTPS。",
+    "httpsHelp": "如何设置 HTTPS",
+    "sheetTitle": "添加到主屏幕",
+    "sheetIntro": "Safari 不允许网站自行安装，所以请按以下步骤操作。大约需要 10 秒，之后可以像其他应用一样删除。",
+    "stepShare": "轻点 Safari 地址栏中的 ⋯，然后轻点“共享”。",
+    "stepAdd": "向下滚动并轻点“添加到主屏幕”。",
+    "stepOpen": "保持“作为网页 App 打开”开启，然后轻点“添加”。",
+    "gotIt": "知道了",
+    "dontShowAgain": "不再显示",
+    "close": "关闭",
+    "device": {
+      "phone": "手机",
+      "computer": "电脑"
+    }
   },
   "silenceMode": {
     "loading": "加载中...",
@@ -3228,5 +3251,12 @@
     "previewStep": "将预览移动一个 Note 或一列",
     "previewEnds": "跳到预览的开头或结尾",
     "previewFit": "适应 / 实际大小（预览获得焦点时）"
+  },
+  "pwa": {
+    "https": {
+      "title": "需要 HTTPS",
+      "body": "安装和离线使用需要安全地址。你当前在 http://{host}。请通过 https 地址打开 FiestaBoard，或为集线器设置 HTTPS。",
+      "help": "如何设置 HTTPS"
+    }
   }
 }
