@@ -1,5 +1,29 @@
 # fiestaboard
 
+## 11.0.0-alpha.1
+
+### Minor Changes
+
+- [#2477](https://github.com/Fiestaboard/FiestaBoard/pull/2477) [`8224f9e`](https://github.com/Fiestaboard/FiestaBoard/commit/8224f9e47f47aacb33de62f6e7bd3af1a39824cb) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Reorder the pages in a Collection by dragging the grip, from the keyboard (Space to lift, the arrow keys to move, Space to drop, Esc to cancel) or with Move up and Move down; every step is announced, and it works with touch.
+
+- [#2478](https://github.com/Fiestaboard/FiestaBoard/pull/2478) [`e579d07`](https://github.com/Fiestaboard/FiestaBoard/commit/e579d0749324c8df2dee708dc44000ff4ca78ddf) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor lists its keyboard shortcuts: press `?` (outside a text field), or use the new Shortcuts button or the "? All shortcuts" hint, to see Undo, Redo, Apply a formula, Close a picker and Leave draw mode, with ⌘ on a Mac and Ctrl elsewhere.
+
+- [#2482](https://github.com/Fiestaboard/FiestaBoard/pull/2482) [`1317f01`](https://github.com/Fiestaboard/FiestaBoard/commit/1317f0131681282430e0356f6e52869a18ecccdb) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Board previews no longer shrink to fit: a board wider than its space keeps its real tiles and scrolls sideways inside its frame, with a fade on the side that has more board, snapping to each Note or column, a "Note 1 of 3" position readout, and ← → / Home / End keys. Fit (press F) is still there as an overview, and your choice lasts the session. Board sizes now read columns × rows ("45 × 3"). The editor shortcut list now includes these preview keys when the split-flap viewport is active. Home board actions sit in the card header so they remain clear of the preview size controls.
+
+- [#2481](https://github.com/Fiestaboard/FiestaBoard/pull/2481) [`2b3311e`](https://github.com/Fiestaboard/FiestaBoard/commit/2b3311e57c7ea75bebdcabd436e86267184ea61f) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Home is rebuilt on the canonical design: one "Compose a message" button in the page header, a Now showing card with Change Page, and both verbs ending in the same duration step (15 min, 1 hr, until the Schedule's next change, until you cancel) and Show now. An Override shows its badge, a countdown and what happens next, with Cancel override and Undo; every display gets its own timed override; and the board has a context menu (right-click, Shift+F10, long-press or the ⋯ button) with Change Page, Compose, Edit page, Copy as text, Refresh and Pause. The old Force Set durations (5 and 30 minutes, and a custom 1–480 minutes) are gone, and Compose in Schedule Mode now holds a message for a set time by default (until the next Schedule change, or 1 hour) instead of until you cancel it.
+
+- [#2480](https://github.com/Fiestaboard/FiestaBoard/pull/2480) [`46053fa`](https://github.com/Fiestaboard/FiestaBoard/commit/46053fa4ae9c3c5751d399d516fe8fc53eeae66f) Thanks [@jeffredodd](https://github.com/jeffredodd)! - New navigation: phones get a bottom tab bar (Home, Pages, Schedule, Displays, More) and tablets get the side rail from 768 px; Settings, Staff Picks and Help & Docs join the nav, Integrations shows a badge when one needs setting up, and Settings is now a list of sections (You, and Hub: Network, AI provider, System & backups, Language & time), each with its own address.
+
+- [#2484](https://github.com/Fiestaboard/FiestaBoard/pull/2484) [`687b0e4`](https://github.com/Fiestaboard/FiestaBoard/commit/687b0e484699d0ddd12250606c758ba7c7c1694f) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Offer installation after a successful save or several sends, with a 30-day snooze. On secure origins that serve the public app shell, allow offline startup with a clearly labelled last-known board; sign-out clears that account’s local frames. Explain HTTPS requirements on insecure addresses and keep authenticated API responses out of the service-worker cache.
+  
+  Count the shared Home flow's successful timed Show now actions toward the install offer after stack integration.
+
+- [#2479](https://github.com/Fiestaboard/FiestaBoard/pull/2479) [`cfc3b58`](https://github.com/Fiestaboard/FiestaBoard/commit/cfc3b5804b052c79b997b83e44987189779e7d30) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Home and each display's page now show one status banner with its fix: you're offline, can't reach your hub, a display offline (with when it was last connected), paused (Resume), Silence Schedule, or no TV showing a FiestaPanel. The display switcher shows the hub's address and whether it is online, remote or can't be reached.
+
+### Patch Changes
+
+- [#2491](https://github.com/Fiestaboard/FiestaBoard/pull/2491) [`79939b6`](https://github.com/Fiestaboard/FiestaBoard/commit/79939b61ed4848f763ce87f64e2b1e4a1cca1343) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Keep the full release test suite on secure browser origins while retaining plain HTTP PWA checks, and isolate panel migration tests from in-flight display polling between tests.
+
 ## 11.0.0-alpha.0
 
 ### Major Changes
