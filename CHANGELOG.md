@@ -1,5 +1,71 @@
 # fiestaboard
 
+## 11.0.0-alpha.0
+
+### Major Changes
+
+- [#2445](https://github.com/Fiestaboard/FiestaBoard/pull/2445) [`1e1a4a2`](https://github.com/Fiestaboard/FiestaBoard/commit/1e1a4a25ead5d14fa6b5c92976ea0e55fdcd9138) Thanks [@jeffredodd](https://github.com/jeffredodd)! - FiestaBoard 11: the universal redesign. One design for the web app, TVs, phones and tablets, with a clearer layout, touch-friendly editing, and live board status on every screen.
+
+### Minor Changes
+
+- [#2456](https://github.com/Fiestaboard/FiestaBoard/pull/2456) [`2e23b3c`](https://github.com/Fiestaboard/FiestaBoard/commit/2e23b3ca97a00a98205aa736c0a10fcf98bbcd31) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Each display now says what it can draw — lowercase, colored text, highlights, color tiles, icons, any color, solid shapes and pixel drawings — along with its color model, LED text size and icon names, so editors can offer only the tools that display supports.
+
+- [#2469](https://github.com/Fiestaboard/FiestaBoard/pull/2469) [`23bf754`](https://github.com/Fiestaboard/FiestaBoard/commit/23bf754944be6f0c893c2998eb648a9234b18c09) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The setup wizard can now tell when a display you are adding is already set up on this hub (the same address, cloud key or note-array token).
+
+- [#2455](https://github.com/Fiestaboard/FiestaBoard/pull/2455) [`67f477d`](https://github.com/Fiestaboard/FiestaBoard/commit/67f477d18ca97665c37e9d8ab662a8f3ec97feb0) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Each display now reports its health: when the hub last reached it and how fast, when a frame last landed, and why the last attempt failed (a refused token, an unreachable board, a timeout, and so on).
+
+- [#2432](https://github.com/Fiestaboard/FiestaBoard/pull/2432) [`c7ae9ec`](https://github.com/Fiestaboard/FiestaBoard/commit/c7ae9ec81d53cf0d9a354d4a7aa1e5c9a37e9c33) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The iOS and Android apps can now sign in with a scoped, revocable control token that reaches only the routes the phone apps need, never account, backup, system or install settings; the "TV sign-in" switch is now "Device sign-in" and covers TVs and phones.
+
+- [#2449](https://github.com/Fiestaboard/FiestaBoard/pull/2449) [`b472f19`](https://github.com/Fiestaboard/FiestaBoard/commit/b472f196b79d1b1c00da99ae770715a6258a4d12) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Phones can pair with a one-time QR code from a signed-in browser, approve a TV's sign-in code, and return to the FiestaBoard app after connecting an integration's account.
+
+- [#2452](https://github.com/Fiestaboard/FiestaBoard/pull/2452) [`33772d2`](https://github.com/Fiestaboard/FiestaBoard/commit/33772d26a0532c3920467c0cb81f1ba07eeb9ad6) Thanks [@jeffredodd](https://github.com/jeffredodd)! - `GET /v1/boards/{board}` now says when each display is next expected to change, why, and to which page when that can be known, so apps can show a countdown without re-implementing the schedule.
+
+- [#2463](https://github.com/Fiestaboard/FiestaBoard/pull/2463) [`73dd91a`](https://github.com/Fiestaboard/FiestaBoard/commit/73dd91a1f52c34d925dc3a7a2705475c69985758) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Pages can have a draft that no board shows until you save it to the board, and keep their last 20 saved versions, including how a page looked before its first edit on this release: restore any of them into the draft from the page's history.
+
+- [#2466](https://github.com/Fiestaboard/FiestaBoard/pull/2466) [`bb350b6`](https://github.com/Fiestaboard/FiestaBoard/commit/bb350b6c8ae83842f6a6eb0da23de17667d062dc) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Copy a page for another display at that display's size, with a report of what was cut, and organize pages with tags you can filter the library by. Tags can include emoji, joined ones too. In the API, pages gain an optional `tags` list (on `/v1` as well); a request whose `tags` isn't a list of tags is now rejected.
+
+- [#2464](https://github.com/Fiestaboard/FiestaBoard/pull/2464) [`1d2a871`](https://github.com/Fiestaboard/FiestaBoard/commit/1d2a871263a67bd5bde9307ff5958e63da8d6cc8) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Each page now remembers what happened the last 20 times it was sent: shown on which display, refused while paused or during Silence, held for later, or failed and why. Repeats of the same thing, such as a display that keeps failing or a live page that lands every minute, show as one entry with a count and the last time, so they never push the rest out.
+
+- [#2454](https://github.com/Fiestaboard/FiestaBoard/pull/2454) [`bfaf71b`](https://github.com/Fiestaboard/FiestaBoard/commit/bfaf71b1e7eec24b0663871e7d0eeb13b4e3220d) Thanks [@jeffredodd](https://github.com/jeffredodd)! - TV panel status now says when the display is next expected to change and why, so the TV apps can show "Schedule · next change 9:00 PM".
+
+- [#2431](https://github.com/Fiestaboard/FiestaBoard/pull/2431) [`a29fe69`](https://github.com/Fiestaboard/FiestaBoard/commit/a29fe69fc643a2837ba3d9494b6bd2b4b058e6a5) Thanks [@jeffredodd](https://github.com/jeffredodd)! - `GET /panel/{id}` reports the board's status (override, silence, pause, schedule) so TV viewers can show a status chip.
+
+- [#2470](https://github.com/Fiestaboard/FiestaBoard/pull/2470) [`b422f8e`](https://github.com/Fiestaboard/FiestaBoard/commit/b422f8ebe0899664f54d0cf93062521c79804301) Thanks [@jeffredodd](https://github.com/jeffredodd)! - A lost password can now be reset without deleting your account: run `python -m src.auth.password_reset` inside the container for a one-time code, then choose a new password with it.
+
+- [#2451](https://github.com/Fiestaboard/FiestaBoard/pull/2451) [`7c3332c`](https://github.com/Fiestaboard/FiestaBoard/commit/7c3332cf404e191636ec24f0f3b6ee1e177938e9) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Timed overrides now work per display: each display has its own override, with a start time, and a timed message can be sent to any display, not only the primary one.
+
+- [#2450](https://github.com/Fiestaboard/FiestaBoard/pull/2450) [`3598591`](https://github.com/Fiestaboard/FiestaBoard/commit/3598591f1dac633c3b489d3f55eff13bd9349151) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The phone app can list the TVs signed in to your hub, see which ones it approved, and sign a TV out.
+
+- [#2458](https://github.com/Fiestaboard/FiestaBoard/pull/2458) [`569ac75`](https://github.com/Fiestaboard/FiestaBoard/commit/569ac7593b08d8e88db0d94031a6152ef794d917) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The template preview can now explain itself: what each formula evaluated to (or why it failed), and for each line how many rows it wanted, how many fit on the board, and which line or board edge cut the rest off. Template checks also flag lines that fall past the board's last row.
+
+- [#2460](https://github.com/Fiestaboard/FiestaBoard/pull/2460) [`c58d6ce`](https://github.com/Fiestaboard/FiestaBoard/commit/c58d6cee1d86f4125538823079e5f8d788eb7382) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The template preview can now show "what if": sample values for any variable, a data source treated as missing (so fallbacks can be checked), the board at another time of day, or the last data the hub fetched without waiting for a refresh. Previews never reach a real board.
+
+- [#2462](https://github.com/Fiestaboard/FiestaBoard/pull/2462) [`119c0ce`](https://github.com/Fiestaboard/FiestaBoard/commit/119c0cee8fd566dc7dc4258fc6808d4cccd97074) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Schedules and collections can now be tested ahead of time: ask which page a display's schedule shows at any time of day, or which page a collection's rules would pick at a given time and with sample data, including a timeline of how its choice changes over the day. Rules that read the Date & Time plugin are answered for the time asked, and a timeline too costly to simulate in full says where it stopped.
+
+- [#2467](https://github.com/Fiestaboard/FiestaBoard/pull/2467) [`23c5474`](https://github.com/Fiestaboard/FiestaBoard/commit/23c54741a2f9fcad374f98ede19b548f828c5064) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Signed-in devices now shows which phone or browser approved each TV, and signing out a phone can also sign out the TVs it approved.
+
+- [#2457](https://github.com/Fiestaboard/FiestaBoard/pull/2457) [`a944f23`](https://github.com/Fiestaboard/FiestaBoard/commit/a944f231e9016eeb3ff56706a0d729e0bb4e5974) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Template checks now measure each line at the real width of the display it is for — a Note, a note array, a FiestaPanel, a Pixoo or a TC001 — instead of always 22 columns, honor lines set to wrap, and say what kind of problem each one is.
+
+- [#2433](https://github.com/Fiestaboard/FiestaBoard/pull/2433) [`e516d80`](https://github.com/Fiestaboard/FiestaBoard/commit/e516d80078c41f570243d1175e940baea9786477) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The signed-in devices API (`GET /api/auth/sessions`) now reports when each TV last showed a FiestaPanel, and which panels it showed, for "Shown on" lists in the apps.
+
+### Patch Changes
+
+- [#2471](https://github.com/Fiestaboard/FiestaBoard/pull/2471) [`05c0f1f`](https://github.com/Fiestaboard/FiestaBoard/commit/05c0f1f1f4cda1bd116c77464bfb68c27358aeea) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The web app now builds against @fiestaboard/ui 8.17.0-alpha.2. The alpha adds the touch-size, tint, display-type and editor-mono design tokens and the new redesign components that later updates build on. This makes the released redesign primitives available to subsequent web updates.
+
+- [#2459](https://github.com/Fiestaboard/FiestaBoard/pull/2459) [`34c8916`](https://github.com/Fiestaboard/FiestaBoard/commit/34c8916dd8f4682c5be348dddad5c06479e2339f) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Formulas can no longer build text longer than 64 KB (for example by nesting REPT); such a formula now shows #VALUE instead of tying up the hub for a minute and using gigabytes of memory.
+
+- [#2461](https://github.com/Fiestaboard/FiestaBoard/pull/2461) [`50ca9a9`](https://github.com/Fiestaboard/FiestaBoard/commit/50ca9a99b2781d90a79e0beaf0d858d5270f6dd6) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Formulas now have a work limit: one that would take the hub minutes (for example by nesting FILTER over very long lists) shows #VALUE within a fraction of a second, and a formula nested too deeply shows #SYNTAX instead of breaking the whole preview.
+
+- [#2438](https://github.com/Fiestaboard/FiestaBoard/pull/2438) [`808913a`](https://github.com/Fiestaboard/FiestaBoard/commit/808913a4219f826eea3bab9eac35c8f332df084b) Thanks [@jeffredodd](https://github.com/jeffredodd)! - MQTT's `current_page` sensor now reports the page the board is actually showing (including scheduled, collection, override and silence pages) and publishes as soon as the page changes, instead of reporting the manually selected page.
+
+- [#2468](https://github.com/Fiestaboard/FiestaBoard/pull/2468) [`7b1b9a6`](https://github.com/Fiestaboard/FiestaBoard/commit/7b1b9a65b54cbab4cc8254b1f6daf7d15046f594) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The "Connect a phone" QR code no longer points the phone at localhost when the web app is open on the hub itself; it uses the hub's network name or address instead.
+
+- [#2453](https://github.com/Fiestaboard/FiestaBoard/pull/2453) [`f488d5e`](https://github.com/Fiestaboard/FiestaBoard/commit/f488d5e1551aa6788a3eed55b9159205573f4dbe) Thanks [@jeffredodd](https://github.com/jeffredodd)! - A display's quiet hours can no longer be reset to the install-wide defaults by the deferred silence migration, whatever order startup and edits happen in.
+
+- [#2487](https://github.com/Fiestaboard/FiestaBoard/pull/2487) [`7ea53ae`](https://github.com/Fiestaboard/FiestaBoard/commit/7ea53ae987feeb83eafc23fe26fcdb6db6c8093b) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Keep v11 preview installs isolated from stable and beta updates; update previews manually with the v11-alpha Docker tag.
+
+- [#2489](https://github.com/Fiestaboard/FiestaBoard/pull/2489) [`a774a6e`](https://github.com/Fiestaboard/FiestaBoard/commit/a774a6ec14bb88d5be94f7726662e3f799e4285d) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Keep stable and beta update test scenarios independent of the release version, and verify them alongside v11 update isolation under a v11 alpha package version.
+
 ## 10.3.3
 
 ### Patch Changes
