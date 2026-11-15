@@ -255,7 +255,7 @@ describe("ActivePageDisplay uses liveOutputMessage from cache", () => {
     render(<ActivePageDisplay />, { wrapper: makeWrapper(queryClient) });
 
     await waitFor(() => {
-      expect(screen.getByText("Active Display")).toBeInTheDocument();
+      expect(screen.getByTestId("now-showing")).toBeInTheDocument();
     });
   });
 
@@ -281,7 +281,7 @@ describe("ActivePageDisplay uses liveOutputMessage from cache", () => {
 
     // The component should still render (not crash) even with a pending preview
     await waitFor(() => {
-      expect(screen.getByText("Active Display")).toBeInTheDocument();
+      expect(screen.getByTestId("now-showing")).toBeInTheDocument();
     });
   });
 
@@ -307,7 +307,7 @@ describe("ActivePageDisplay uses liveOutputMessage from cache", () => {
 
     // The component should render without errors
     await waitFor(() => {
-      expect(screen.getByText("Active Display")).toBeInTheDocument();
+      expect(screen.getByTestId("now-showing")).toBeInTheDocument();
     });
 
     // Verify the liveOutputMessage is still in the cache (not cleared by mounting)
@@ -326,7 +326,7 @@ describe("ActivePageDisplay uses liveOutputMessage from cache", () => {
     render(<ActivePageDisplay />, { wrapper: makeWrapper(queryClient) });
 
     await waitFor(() => {
-      expect(screen.getByText("Active Display")).toBeInTheDocument();
+      expect(screen.getByTestId("now-showing")).toBeInTheDocument();
     });
 
     // liveOutputMessage starts as null (initialData from the useQuery in the component)

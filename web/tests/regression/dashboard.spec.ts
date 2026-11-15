@@ -95,9 +95,9 @@ test.describe("regression: dashboard", () => {
     await page.goto("/");
 
     // Header/nav remain mounted while body shows loading
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
     // Active Display card mounts immediately with its title
-    await expect(page.getByText("Active Display", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("now-showing")).toBeVisible({ timeout: 10_000 });
 
     // No "No board configured" flash (board IS configured in beforeEach)
     await expect(page.getByText("No board configured")).toHaveCount(0);
@@ -117,7 +117,7 @@ test.describe("regression: dashboard", () => {
    * Source refs: web/src/components/dashboard/*
    * Coverage status: partial
    */
-  test("dashboard.home.live — Change Page button opens sheet, active page name and Manual Mode badge render", async ({
+  test("dashboard.home.live — Change Page opens the dialog, active page name and Manual Mode badge render", async ({
     page,
   }) => {
     await deleteAllPagesAuthed();
@@ -126,27 +126,28 @@ test.describe("regression: dashboard", () => {
 
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Active Display", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("now-showing")).toBeVisible({ timeout: 10_000 });
 
     // Manual Mode badge surfaces (since schedule disabled and a page is active)
     await expect(page.getByText("Manual Mode").first()).toBeVisible({ timeout: 10_000 });
 
-    // Change Page opens the sheet (manual mode → direct sheet, no mode dialog)
-    const changeBtn = page.getByRole("button", { name: /Change Page/i });
+    // Change Page opens the one Change Page dialog (2.2; ForceSet is gone)
+    const changeBtn = page.getByRole("button", { name: "Change Page", exact: true });
     await expect(changeBtn).toBeVisible();
     await changeBtn.click();
-    await expect(page.getByRole("heading", { name: "Select Page" })).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText("Choose which page to display on your board")).toBeVisible();
+    const dialog = page.getByRole("dialog", { name: "Change Page" });
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await expect(dialog.getByText(/Nothing changes until you choose Show now\./)).toBeVisible();
   });
 
   /**
    * UX node: dashboard.actions.compose-one-off
    * Route: /
    * Preconditions: board:configured, schedule:disabled (manual mode)
-   * Interactions: click:change-page → click:compose → type:message → click:send
+   * Interactions: click:compose (PageHeader) → type:message → Until I cancel → click:show-now
    * Expected:
-   *   - "Compose a message" opens the compose dialog from the page-selector sheet
+   *   - "Compose a message" in the PageHeader (its one entry, 2.2) opens the dialog
    *   - Send posts an inline temporary override carrying the typed template
    *   - No page is created: the saved-page list is unchanged afterwards
    *   - The override is indefinite (expires_at is null), so the message stays
@@ -172,18 +173,17 @@ test.describe("regression: dashboard", () => {
 
     try {
       await page.goto("/");
-      await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
-      // Manual mode → Change Page opens the sheet directly
-      await page.getByRole("button", { name: /Change Page/i }).click();
-      await expect(page.getByRole("heading", { name: "Select Page" })).toBeVisible({ timeout: 5_000 });
-
-      // The compose entry point lives in the sheet header
-      await page.getByRole("button", { name: /Compose a message/i }).click();
+      // The one Compose entry is the PageHeader's (2.2, WEB-08)
+      await page.getByRole("button", { name: "Compose a message", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Compose a message" })).toBeVisible({ timeout: 5_000 });
 
-      // Send is inert until there is something to send
-      const sendBtn = page.getByRole("button", { name: /Send to board/i });
+      // Manual Mode with no next change: Until I cancel is preselected
+      await expect(page.getByRole("radio", { name: "Until I cancel" })).toHaveAttribute("aria-checked", "true");
+
+      // Show now is inert until there is something to send
+      const sendBtn = page.getByRole("button", { name: "Show now", exact: true });
       await expect(sendBtn).toBeDisabled();
 
       await page.getByRole("textbox", { name: /Message/i }).fill("ONE OFF HELLO");
@@ -242,11 +242,11 @@ test.describe("regression: dashboard", () => {
     });
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Active Display", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("now-showing")).toBeVisible({ timeout: 10_000 });
 
     // Change Page button is still available — primary affordance to add/select pages
-    await expect(page.getByRole("button", { name: /Change Page/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Change Page", exact: true })).toBeVisible({ timeout: 10_000 });
 
     // No board-configured alert should appear (board IS configured)
     await expect(page.getByText("No board configured")).toHaveCount(0);
@@ -281,7 +281,7 @@ test.describe("regression: dashboard", () => {
     });
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Exact alert title
     await expect(page.getByText("No board configured", { exact: true })).toBeVisible({ timeout: 10_000 });
@@ -308,7 +308,9 @@ test.describe("regression: dashboard", () => {
    * Source refs: web/src/components/dashboard/*
    * Coverage status: partial
    */
-  test("dashboard.actions.switch-page-sheet — opens, lists pages, ESC closes, click switches", async ({ page }) => {
+  test("dashboard.actions.switch-page-sheet — Change Page opens, lists and searches pages, ESC closes, Show now switches", async ({
+    page,
+  }) => {
     await deleteAllPagesAuthed();
     const ts = Date.now();
     const nameA = `Alpha ${ts}`;
@@ -318,28 +320,28 @@ test.describe("regression: dashboard", () => {
     await setActivePageAuthed(pageA);
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Active Display", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("now-showing")).toBeVisible({ timeout: 10_000 });
 
-    // Open sheet
-    await page.getByRole("button", { name: /Change Page/i }).click();
-    await expect(page.getByRole("heading", { name: "Select Page" })).toBeVisible({ timeout: 5_000 });
+    // Open Change Page
+    const dialog = page.getByRole("dialog", { name: "Change Page" });
+    await page.getByRole("button", { name: "Change Page", exact: true }).click();
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
 
-    // Both pages listed
-    await expect(page.getByText(nameA, { exact: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(nameB, { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+    // Both pages listed; search filters them
+    await expect(dialog.getByRole("button", { name: new RegExp(nameA) })).toBeVisible({ timeout: 10_000 });
+    await expect(dialog.getByRole("button", { name: new RegExp(nameB) })).toBeVisible({ timeout: 10_000 });
+    await dialog.getByRole("searchbox", { name: "Search pages and collections" }).fill("Beta");
+    await expect(dialog.getByRole("button", { name: new RegExp(nameA) })).toHaveCount(0);
 
-    // ESC closes the sheet
+    // ESC closes it
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("heading", { name: "Select Page" })).toHaveCount(0, { timeout: 5_000 });
+    await expect(dialog).toHaveCount(0, { timeout: 5_000 });
 
-    // Re-open and click Beta to switch
-    await page.getByRole("button", { name: /Change Page/i }).click();
-    await expect(page.getByRole("heading", { name: "Select Page" })).toBeVisible({ timeout: 5_000 });
-
-    // Wait briefly so the grid has hydrated (the sheet pre-renders after 500ms)
-    await page.waitForTimeout(1000);
-    await page.getByText(nameB, { exact: true }).first().click();
+    // Re-open, pick Beta, Show now (Manual Mode: Until I cancel pins it)
+    await page.getByRole("button", { name: "Change Page", exact: true }).click();
+    await dialog.getByRole("button", { name: new RegExp(nameB) }).click();
+    await dialog.getByRole("button", { name: "Show now" }).click();
 
     // Verify the API switched the active page
     await expect
@@ -367,7 +369,7 @@ test.describe("regression: dashboard", () => {
    * Source refs: web/src/components/dashboard/*
    * Coverage status: uncovered
    */
-  test("dashboard.actions.change-mode-dialog — schedule mode opens dialog; Cancel closes without changing mode", async ({
+  test("dashboard.actions.change-mode-dialog — schedule mode opens Change Page; Cancel closes without changing mode", async ({
     page,
   }) => {
     // Set up: a page + a schedule + schedule mode enabled, so clicking "Change Page"
@@ -389,22 +391,22 @@ test.describe("regression: dashboard", () => {
 
     try {
       await page.goto("/");
-      await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
       // Wait until Schedule Mode badge confirms schedule is on the page
       await expect(page.getByText("Schedule Mode").first()).toBeVisible({ timeout: 15_000 });
 
-      // Click Change Page → opens change-mode dialog (not the sheet)
-      await page.getByRole("button", { name: /Change Page/i }).click();
+      // Change Page opens the one dialog (2.2): the "Override temporarily /
+      // Turn off schedule mode" choice is gone. Picking holds an Override.
+      await page.getByRole("button", { name: "Change Page", exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "Change Page" });
+      await expect(dialog).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByText("Override temporarily")).toHaveCount(0);
+      await expect(page.getByText("Turn off schedule mode")).toHaveCount(0);
 
-      // Dialog title and both choice buttons
-      await expect(page.getByRole("heading", { name: "Change Page" })).toBeVisible({ timeout: 5_000 });
-      await expect(page.getByText("Override temporarily")).toBeVisible();
-      await expect(page.getByText("Turn off schedule mode")).toBeVisible();
-
-      // Cancel via dialog Cancel button — must not disable schedule
-      await page.getByRole("button", { name: "Cancel" }).click();
-      await expect(page.getByRole("heading", { name: "Change Page" })).toHaveCount(0, { timeout: 5_000 });
+      // Cancel closes without changing anything
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await expect(dialog).toHaveCount(0, { timeout: 5_000 });
 
       // Schedule still enabled
       const res = await fetch(`${API_URL}/schedules/enabled`, { headers: authHeaders() });
@@ -454,7 +456,7 @@ test.describe("regression: dashboard", () => {
     });
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Out-of-sync alert + Restore button appears
     await expect(page.getByText("Another app changed this board")).toBeVisible({ timeout: 15_000 });
@@ -526,12 +528,14 @@ test.describe("regression: dashboard", () => {
 
     try {
       await page.goto("/");
-      await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
-      // Override badge text contains "Override:" and a remaining-time fragment
-      await expect(page.getByText(/Override:\s*(\d+m|<1m)/).first()).toBeVisible({ timeout: 15_000 });
+      // The Override badge and its countdown (2.2: "59m left")
+      const card = page.getByTestId("now-showing");
+      await expect(card.getByText("Override", { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(card.getByRole("timer")).toHaveText(/(\d+m|1h) left/);
 
-      // Cancel-override X button (aria-label "Cancel override")
+      // Cancel override is the outline button on the card
       const cancelBtn = page.getByRole("button", { name: "Cancel override" });
       await expect(cancelBtn).toBeVisible();
 
@@ -543,7 +547,7 @@ test.describe("regression: dashboard", () => {
       await deleteResp;
 
       // Success toast
-      await expect(page.getByText("Override cancelled")).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText("Override canceled")).toBeVisible({ timeout: 10_000 });
     } finally {
       // Ensure we clean up override + schedule for follow-on tests
       await fetch(`${API_URL}/settings/temporary-override`, {

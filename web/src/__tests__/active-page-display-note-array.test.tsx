@@ -176,15 +176,18 @@ describe("ActivePageDisplay on a panel's note-array board", () => {
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await screen.findByTestId("active-display-board-name");
-    await user.click(screen.getByRole("button", { name: /Change Page/i }));
-    await screen.findByText("Panel Page");
+    await screen.findByRole("region", { name: /Now showing/ });
+    await user.click(screen.getByRole("button", { name: /^Change Page$/ }));
+    await screen.findByRole("button", { name: /Panel Page/ });
     expect(screen.getByText("No page selected")).toBeInTheDocument();
     expect(puts).toEqual([]);
 
     // Selecting a page remains an explicit, board-scoped write, even paused.
-    await user.click(screen.getByText("Panel Page"));
-    await waitFor(() => expect(puts).toEqual([{ page_id: "panel-page", board_id: "board-panel" }]));
+    await user.click(screen.getByRole("button", { name: /Panel Page/ }));
+    await user.click(screen.getByRole("button", { name: "Show now" }));
+    await waitFor(() =>
+      expect(puts).toEqual([{ page_id: "panel-page", board_id: "board-panel", override_silence: true }]),
+    );
   });
 
   it("does not pin a page when the board list arrives after the pages", async () => {
@@ -197,9 +200,9 @@ describe("ActivePageDisplay on a panel's note-array board", () => {
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await screen.findByTestId("active-display-board-name");
-    await user.click(screen.getByRole("button", { name: /Change Page/i }));
-    await screen.findByText("Panel Page");
+    await screen.findByRole("region", { name: /Now showing/ });
+    await user.click(screen.getByRole("button", { name: /^Change Page$/ }));
+    await screen.findByRole("button", { name: /Panel Page/ });
     expect(puts).toEqual([]);
   });
 
@@ -207,9 +210,9 @@ describe("ActivePageDisplay on a panel's note-array board", () => {
     const puts = usePanelBoard({ pages: [FLAGSHIP_PAGE], activePageId: null, boardMessage: null });
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-    await screen.findByTestId("active-display-board-name");
-    await user.click(screen.getByRole("button", { name: /Change Page/i }));
-    await screen.findByText("No pages match this board's size.");
+    await screen.findByRole("region", { name: /Now showing/ });
+    await user.click(screen.getByRole("button", { name: /^Change Page$/ }));
+    await screen.findByText(/No pages fit .+ yet\./);
     expect(puts).toEqual([]);
   });
 });
@@ -293,11 +296,14 @@ describe("ActivePageDisplay on a per-character panel board", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     const user = userEvent.setup();
-    await screen.findByTestId("active-display-board-name");
-    await user.click(screen.getByRole("button", { name: /Change Page/i }));
-    await screen.findByText("Grid Panel Page");
+    await screen.findByRole("region", { name: /Now showing/ });
+    await user.click(screen.getByRole("button", { name: /^Change Page$/ }));
+    await screen.findByRole("button", { name: /Grid Panel Page/ });
     expect(puts).toEqual([]);
-    await user.click(screen.getByText("Grid Panel Page"));
-    await waitFor(() => expect(puts).toEqual([{ page_id: "grid-panel-page", board_id: "board-panel" }]));
+    await user.click(screen.getByRole("button", { name: /Grid Panel Page/ }));
+    await user.click(screen.getByRole("button", { name: "Show now" }));
+    await waitFor(() =>
+      expect(puts).toEqual([{ page_id: "grid-panel-page", board_id: "board-panel", override_silence: true }]),
+    );
   });
 });

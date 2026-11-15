@@ -91,7 +91,7 @@ describe("Home page - board not configured banner", () => {
     render(<Home />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Dashboard")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeInTheDocument();
     });
 
     expect(screen.queryByText("No board configured")).not.toBeInTheDocument();
@@ -131,7 +131,7 @@ describe("Home page - board not configured banner", () => {
     render(<Home />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Dashboard")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeInTheDocument();
     });
 
     // Wait a bit to ensure async check has completed

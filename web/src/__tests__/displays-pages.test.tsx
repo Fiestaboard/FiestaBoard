@@ -309,7 +309,8 @@ describe("/displays/:boardId", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Playback" }));
     expect(await screen.findByTestId("display-transition")).toBeInTheDocument();
     expect(await screen.findByRole("switch", { name: "Silence Schedule" })).toBeInTheDocument();
-    expect(screen.getByTestId("board-card")).not.toBeVisible();
+    // Base UI finishes hiding the previous kept-mounted panel after the tab switch.
+    await waitFor(() => expect(screen.getByTestId("board-card")).not.toBeVisible());
   });
 
   it("shows that display's settings, preview and transition", async () => {

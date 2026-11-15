@@ -5,7 +5,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DaySelector } from "@/components/day-selector";
-import { ForceSetDialog } from "@/components/force-set-dialog";
+import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { SchemaForm } from "@/components/plugin-settings/schema-form";
 import { VariableRuleRow } from "@/components/variable-rule-row";
 import type { VariableRule } from "@/lib/api";
@@ -48,24 +48,34 @@ describe("prop-driven state syncs", () => {
     });
   });
 
-  describe("ForceSetDialog", () => {
-    it("resets the duration to the 5 min default each time it reopens", async () => {
+  describe("ChangePageDialog", () => {
+    it("resets the duration to its default each time it reopens", async () => {
       const user = userEvent.setup();
-      const { rerender } = render(<ForceSetDialog open onOpenChange={vi.fn()} pageId="p1" pageName="Weather" />, {
-        wrapper: QueryWrapper,
-      });
+      const dialog = (open: boolean) => (
+        <ChangePageDialog
+          open={open}
+          onOpenChange={vi.fn()}
+          board={undefined}
+          boardName="Flagship"
+          isPrimary
+          scheduleEnabled
+          nextChange={null}
+          initialPageId="page-1"
+        />
+      );
+      const { rerender } = render(dialog(true), { wrapper: QueryWrapper });
 
-      await user.click(await screen.findByRole("radio", { name: "30 min" }));
-      // Selected presets get the primary background.
-      expect(screen.getByRole("radio", { name: "30 min" })).toBeChecked();
+      await user.click(await screen.findByRole("radio", { name: "15 min" }));
+      expect(screen.getByRole("radio", { name: "15 min" })).toBeChecked();
 
-      rerender(<ForceSetDialog open={false} onOpenChange={vi.fn()} pageId="p1" pageName="Weather" />);
-      rerender(<ForceSetDialog open onOpenChange={vi.fn()} pageId="p1" pageName="Weather" />);
+      rerender(dialog(false));
+      rerender(dialog(true));
 
+      // Schedule Mode with no next change defaults to 1 hr.
       await waitFor(() => {
-        expect(screen.getByRole("radio", { name: "5 min" })).toBeChecked();
+        expect(screen.getByRole("radio", { name: "1 hr" })).toBeChecked();
       });
-      expect(screen.getByRole("radio", { name: "30 min" })).not.toBeChecked();
+      expect(screen.getByRole("radio", { name: "15 min" })).not.toBeChecked();
     });
   });
 

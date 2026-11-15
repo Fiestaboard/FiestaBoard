@@ -1066,7 +1066,7 @@ test.describe("Plugin Board Display Screenshots", () => {
         await setBoardColor(boardColor);
 
         await page.goto("/");
-        await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
         await waitForBoard(page);
 
@@ -1138,7 +1138,7 @@ test.describe("Web UI Full-Page Screenshots", () => {
     await setActivePage(pages.morningDashboard);
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
     await waitForBoard(page);
 
     await screenshotPage(page, path.join(DOCS_IMG, "web-ui-home.png"));
@@ -1258,7 +1258,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await setActivePage(pages.morningDashboard);
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
     await waitForBoard(page);
 
     await screenshotPage(page, path.join(GUIDES_IMG, "dashboard-running.png"));
@@ -1546,7 +1546,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await setActivePage(null);
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(3000);
 
     await screenshotPage(page, path.join(GUIDES_IMG, "start-service-button.png"));
@@ -1669,7 +1669,7 @@ test.describe("Homepage Feature Icon Screenshots", () => {
     await setActivePage(pages.morningDashboard);
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
     await waitForBoard(page);
 
     // Capture the sidebar / navigation area as the "open-source" feature icon

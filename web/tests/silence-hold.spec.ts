@@ -16,7 +16,6 @@ import {
   expect,
   getMockBoardState,
   gridToText,
-  resetMockBoard,
   setActivePage,
   test,
 } from "./helpers";
@@ -74,7 +73,7 @@ test.describe("Silence holds manual page changes", () => {
     await deleteAllPages().catch(() => {});
   });
 
-  test("picking a page during silence saves it without writing; Show now writes it", async ({ page }) => {
+  test("Change Page during silence says it wakes the board, and Show now writes it", async ({ page }) => {
     const before = await createPage("Before Silence", ["AWAKE", "", "", "", "", ""]);
     const picked = await createPage("Picked At Night", ["NIGHTPICK", "", "", "", "", ""]);
     await setActivePage(before);
@@ -97,29 +96,17 @@ test.describe("Silence holds manual page changes", () => {
     await page.goto("/");
     await expect(page.getByTestId("silence-alert")).toBeVisible({ timeout: 15_000 });
 
-    // Let the engine paint its silence indicator, then count from there.
     await page.waitForTimeout(2_000);
-    await resetMockBoard();
-    const quietCount = await messageCount();
 
-    await page
-      .getByRole("button", { name: /Change Page/i })
-      .first()
-      .click();
-    await expect(page.getByTestId("select-page-silence")).toBeVisible();
-    await page.getByText("Picked At Night").first().click();
+    // 2.2: Change Page ends in Show now, which shows the page right away.
+    // The dialog says before the tap that it wakes the board.
+    await page.getByRole("button", { name: "Change Page", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Change Page" });
+    await expect(dialog.getByTestId("change-page-silence")).toBeVisible();
+    await dialog.getByRole("button", { name: /Picked At Night/ }).click();
+    await dialog.getByRole("button", { name: "Show now" }).click();
 
-    // The choice is saved and the toast says it is held, with the override.
     await expect.poll(activePageId, { timeout: 10_000 }).toBe(picked);
-    const toast = page.locator("[data-sonner-toast]").filter({ hasText: /will show (at|when silence ends)/ });
-    await expect(toast).toBeVisible();
-
-    // ...and the board was not written.
-    await page.waitForTimeout(2_000);
-    expect(await messageCount(), "a page pick during silence must not reach the board").toBe(quietCount);
-
-    // The explicit override writes the picked page.
-    await toast.getByRole("button", { name: "Show now" }).click();
     await expect
       .poll(async () => gridToText((await getMockBoardState()).current_message)[0]?.trim(), { timeout: 15_000 })
       .toContain("NIGHTPICK");

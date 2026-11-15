@@ -106,7 +106,7 @@ test.describe("Setup Wizard", () => {
     await dashboardButton.click();
 
     // Should land on the Dashboard after reload
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Verify the wizard created a proper BoardInstance
     const res = await fetch(`${API_URL}/settings/board`);
@@ -134,7 +134,7 @@ test.describe("Navigation", () => {
     await suppressWizard(page);
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Navigate to Pages
     await page.getByRole("link", { name: "Pages" }).first().click();
@@ -151,7 +151,7 @@ test.describe("Navigation", () => {
 
     // Navigate back to Dashboard
     await page.getByRole("link", { name: "Home" }).first().click();
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 10_000 });
   });
 });
 

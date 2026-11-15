@@ -16,7 +16,7 @@ test.describe("Navigation", () => {
     await page.setViewportSize({ width: 375, height: 812 });
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Below 768px the destinations are a bottom tab bar, not a hamburger.
     const bar = page.locator('[data-slot="sidebar-bottom-nav"]');
@@ -26,7 +26,7 @@ test.describe("Navigation", () => {
 
   test("all sidebar links navigate correctly", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const sections = [
       { link: "Pages", heading: "Pages" },
@@ -47,13 +47,13 @@ test.describe("Navigation", () => {
 
     // Navigate back home
     await page.getByRole("link", { name: "Home" }).first().click();
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
   test("Settings is reachable from the footer menu", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -64,7 +64,7 @@ test.describe("Navigation", () => {
   test("Settings is one click away from the footer gear", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const gear = page.locator('aside [data-slot="sidebar-settings-link"]');
     await expect(gear).not.toHaveAttribute("aria-current", "page");
@@ -82,7 +82,7 @@ test.describe("Navigation", () => {
   test("theme switches between light and dark from the footer menu", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const htmlEl = page.locator("html");
 
@@ -109,7 +109,7 @@ test.describe("Navigation", () => {
   test("the About box reports the version the API reports", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const res = await fetch(`${API_URL}/version`);
     expect(res.ok).toBe(true);
@@ -132,7 +132,7 @@ test.describe("Navigation", () => {
   test("sidebar shows Fiesta gradient (red, orange, yellow, purple)", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const sidebar = page.locator("aside").first();
     await expect(sidebar).toBeVisible();
@@ -147,7 +147,7 @@ test.describe("Navigation", () => {
   test("sidebar renders one flat navigation list", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Desktop sidebar is in <aside>; mobile menu also contains duplicate nav labels
     // (hidden when the menu is closed), so scope to the fixed sidebar.
@@ -169,7 +169,7 @@ test.describe("Navigation", () => {
   test("Collections is a direct link in primary navigation", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const sidebar = page.locator("aside").first();
     const primaryNav = sidebar.getByLabel("Primary navigation");

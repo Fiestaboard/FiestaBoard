@@ -14,8 +14,8 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ActivePageDisplay } from "@/components/active-page-display";
 import { CurrentBoardProvider, useCurrentBoard } from "@/components/current-board-context";
+import { HomeCompose } from "@/components/home/home-compose";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
 
@@ -78,87 +78,75 @@ function SwitchBoardButton({ to }: { to: string }) {
   );
 }
 
-/** Select the Note (secondary) board, then open the compose dialog. */
+/** Select the Note (secondary) board, then open Compose from Home. */
 async function openComposeOnTheNoteBoard() {
   const user = userEvent.setup();
-  server.use(
-    http.get(`${API_BASE}/settings/board`, () => HttpResponse.json(FLAGSHIP_PRIMARY_NOTE_SECONDARY)),
-    http.get(`${API_BASE}/schedules/active/page`, () =>
-      HttpResponse.json({ page_id: "page-1", source: "manual", schedule_enabled: false }),
-    ),
-  );
+  server.use(http.get(`${API_BASE}/settings/board`, () => HttpResponse.json(FLAGSHIP_PRIMARY_NOTE_SECONDARY)));
+  localStorage.setItem("fiestaboard_current_board", "board-2");
 
   render(
     <>
       <SwitchBoardButton to="board-2" />
-      <ActivePageDisplay />
+      <HomeCompose open onOpenChange={vi.fn()} />
     </>,
     { wrapper: TestWrapper },
   );
 
-  await screen.findByText("Active Display", undefined, { timeout: 5000 });
-  await user.click(screen.getByRole("button", { name: "switch-board-board-2" }));
-  await waitFor(() => expect(screen.getByTestId("active-display-board-name")).toHaveTextContent(/Kitchen Note/i));
-
-  await user.click(screen.getByRole("button", { name: /Change Page/i }));
-  await user.click(await screen.findByRole("button", { name: /Compose a message/i }));
+  await screen.findByText("Shows on Kitchen Note when you choose Show now. Nothing reaches the board before that.");
   await screen.findByRole("textbox", { name: /^Message$/i });
-
   return user;
 }
 
-describe("compose one-off on a multi-board install", () => {
+function captureOverride() {
+  const bodies: Record<string, unknown>[] = [];
+  server.use(
+    http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
+      bodies.push((await request.json()) as Record<string, unknown>);
+      return HttpResponse.json({ active: true });
+    }),
+  );
+  return bodies;
+}
+
+// Since H1 every display has its own override, so Compose shows on the
+// display in the switcher (07a "Show on" defaults to it), not the primary.
+describe("Compose a message on a multi-display install (H1)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
   });
 
-  it("sends to the primary board's geometry even when a different board is selected", async () => {
-    let capturedBody: Record<string, unknown> | null = null;
-    server.use(
-      http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
-        capturedBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ active: true, template: ["HI"], device_type: "flagship" });
-      }),
-    );
-
+  it("shows on the selected display, at its own size", async () => {
+    const bodies = captureOverride();
     const user = await openComposeOnTheNoteBoard();
     await user.type(screen.getByRole("textbox", { name: /^Message$/i }), "HI");
-    await user.click(screen.getByRole("button", { name: /Send to board/i }));
+    await user.click(screen.getByRole("button", { name: /^Show now$/i }));
 
-    await waitFor(() => expect(capturedBody).not.toBeNull());
-    // The Note board is selected, but the override drives the Flagship.
-    expect(capturedBody).toMatchObject({ device_type: "flagship" });
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({ board_id: "board-2", device_type: "note", template: ["HI"] });
   });
 
-  it("names the board the message will actually land on", async () => {
+  it("names the selected display under Show on", async () => {
     await openComposeOnTheNoteBoard();
-    expect(await screen.findByText(/Living Room/)).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Show on" })).toHaveTextContent("Kitchen Note · Note 15 × 3");
   });
 
-  it("allows a message that fits the primary Flagship but not the selected Note", async () => {
-    await openComposeOnTheNoteBoard();
-    const editor = screen.getByRole("textbox", { name: /^Message$/i });
-    // 5 lines: over a Note's 3 rows, within a Flagship's 6.
-    fireChange(editor, "A\nB\nC\nD\nE");
-    await waitFor(() => expect(screen.getByRole("button", { name: /Send to board/i })).toBeEnabled());
-    expect(screen.queryByText(/too many lines/i)).not.toBeInTheDocument();
+  it("rejects a message that overflows the selected Note", async () => {
+    const user = await openComposeOnTheNoteBoard();
+    await user.type(screen.getByRole("textbox", { name: /^Message$/i }), "ONE{Enter}TWO{Enter}THREE{Enter}FOUR");
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Show now$/i })).toBeDisabled());
+    expect(screen.getByRole("alert")).toHaveTextContent("Too many lines: this board shows 3.");
   });
 
-  it("still rejects a message that overflows the primary board", async () => {
-    await openComposeOnTheNoteBoard();
-    const editor = screen.getByRole("textbox", { name: /^Message$/i });
-    fireChange(editor, "A\nB\nC\nD\nE\nF\nG");
-    await waitFor(() => expect(screen.getByText(/too many lines/i)).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /Send to board/i })).toBeDisabled();
+  it("shows on another display when Show on changes, at that display's size", async () => {
+    const bodies = captureOverride();
+    const user = await openComposeOnTheNoteBoard();
+    await user.click(screen.getByRole("combobox", { name: "Show on" }));
+    await user.click(await screen.findByRole("option", { name: /Living Room/ }));
+    await screen.findByText("Shows on Living Room when you choose Show now. Nothing reaches the board before that.");
+    await user.type(screen.getByRole("textbox", { name: /^Message$/i }), "ONE{Enter}TWO{Enter}THREE{Enter}FOUR");
+    await user.click(screen.getByRole("button", { name: /^Show now$/i }));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({ board_id: "board-1", device_type: "flagship" });
   });
 });
-
-// userEvent.type is slow for multi-line input and swallows newlines in a
-// textarea unless escaped; a direct change event is the honest way to set a
-// multi-line value here.
-function fireChange(element: HTMLElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
-  setter?.call(element, value);
-  element.dispatchEvent(new Event("input", { bubbles: true }));
-}

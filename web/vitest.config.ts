@@ -29,6 +29,8 @@ export default defineConfig({
         "src/components/board-display.tsx",
         "src/components/board-size-indicator.tsx",
         "src/components/active-page-display.tsx",
+        "src/components/home/**",
+        "src/components/compose-page-dialog.tsx",
         "src/components/navigation-sidebar.tsx",
         "src/components/more-sheet.tsx",
         "src/components/hub-line.tsx",

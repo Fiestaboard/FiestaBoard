@@ -30,9 +30,9 @@ test.beforeEach(async ({ page }) => {
 test.describe("Dashboard", () => {
   test("shows the dashboard with board display", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByText("Active Display").first()).toBeVisible({
+    await expect(page.getByTestId("now-showing")).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -42,7 +42,7 @@ test.describe("Dashboard", () => {
     await setActivePage(pageId);
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByText("Manual Mode").first()).toBeVisible({
       timeout: 10_000,
@@ -55,25 +55,18 @@ test.describe("Dashboard", () => {
     await setActivePage(pageA);
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    const changeBtn = page.getByRole("button", { name: /Change Page/i });
-    if (await changeBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await changeBtn.click();
-      await expect(page.getByText("Select Page").first()).toBeVisible({
-        timeout: 5_000,
-      });
-
-      const betaCard = page.getByText("Page Beta").first();
-      if (await betaCard.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await betaCard.click();
-
-        // Wait for the API round-trip
-        await page.waitForTimeout(2_000);
-        const activeRes = await (await fetch(`${API_URL}/settings/active-page`)).json();
-        expect(activeRes.page_id).toBe(pageB);
-      }
-    }
+    // Manual Mode: Change Page → pick → "Until I cancel" (preselected) pins it.
+    await page.getByRole("button", { name: "Change Page", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Change Page" });
+    await dialog.getByRole("button", { name: /Page Beta/ }).click();
+    await expect(dialog.getByRole("radio", { name: "Until I cancel" })).toHaveAttribute("aria-checked", "true");
+    await dialog.getByRole("button", { name: "Show now" }).click();
+    await expect(dialog).toHaveCount(0, { timeout: 10_000 });
+    await expect
+      .poll(async () => (await (await fetch(`${API_URL}/settings/active-page`)).json()).page_id, { timeout: 10_000 })
+      .toBe(pageB);
   });
 
   test("shows welcome message when no pages exist", async ({ page }) => {
@@ -81,7 +74,7 @@ test.describe("Dashboard", () => {
     await deleteAllPages();
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // The dashboard should show some kind of empty/welcome state
     const welcome = page.getByText(/welcome|get started|no pages|create/i).first();
@@ -116,10 +109,10 @@ test.describe("Dashboard", () => {
     expect(enabled).toBe(true);
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Wait for Active Display card to be visible (ensures component is mounted)
-    await expect(page.getByText("Active Display", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("now-showing")).toBeVisible({ timeout: 10_000 });
 
     // Verify schedule mode badge is displayed
     await expect(page.getByText("Schedule Mode").first()).toBeVisible({
@@ -136,7 +129,7 @@ test.describe("Dashboard", () => {
 
   test("silence status API is accessible from dashboard context", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Verify the silence-status endpoint is reachable and returns expected shape
     const res = await fetch(`${API_URL}/silence-status`);

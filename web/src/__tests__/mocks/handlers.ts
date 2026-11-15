@@ -1183,6 +1183,50 @@ export const handlers = [
     });
   }),
 
+  // `GET /v1/boards/{board}` (slice 2.2 reads H2's next change from it) and
+  // the active plugin trigger. Defaults: nothing changes soon, no trigger.
+  http.get(`${API_BASE}/v1/boards/:board`, ({ params }) => {
+    return HttpResponse.json({
+      id: String(params.board),
+      name: "Flagship",
+      device_type: "flagship",
+      rows: 6,
+      cols: 22,
+      is_primary: true,
+      paused: false,
+      schedule_enabled: false,
+      auto_restore: true,
+      output: "vestaboard",
+      characters: null,
+      text: null,
+      read_at: null,
+      active_page_id: "page-1",
+      scheduled_page_id: null,
+      resolved_page_id: "page-1",
+      source: "manual",
+      default_page_id: null,
+      override_expires_at: null,
+      override_started_at: null,
+      next_change_at: null,
+      next_change_reason: null,
+      next_page_id: null,
+    });
+  }),
+  http.get(`${API_BASE}/triggers/active`, () => HttpResponse.json({ trigger: null })),
+  http.get(`${API_BASE}/plugins`, () =>
+    HttpResponse.json({ plugins: [], plugin_system_enabled: true, total: 0, enabled_count: 0 }),
+  ),
+  // Home nudges one display after an override (2.2 S1): the per-board pass.
+  http.post(`${API_BASE}/v1/boards/:board/restore`, ({ params }) =>
+    HttpResponse.json({
+      board_id: String(params.board),
+      page_id: null,
+      sent: true,
+      reason: null,
+      device_observed: false,
+    }),
+  ),
+
   // Board settings endpoints
   // `PATCH /v1/boards/{board}` — where pausing, schedule mode and the
   // schedule's fallback page moved (was POST /settings/board/{id}/pause,

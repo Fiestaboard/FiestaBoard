@@ -57,7 +57,7 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Active Display")).toBeInTheDocument();
+      expect(screen.getByTestId("now-showing")).toBeInTheDocument();
     });
   });
 
@@ -70,46 +70,13 @@ describe("ActivePageDisplay", () => {
     });
   });
 
-  it("links the active page name to its editor when a saved page is displayed", async () => {
-    // Issue #1473: when a Page generates the current display, the Dashboard
-    // should link straight to that page's editor so the user can edit it.
+  it("offers Edit page for the saved page on the display", async () => {
+    // Issue #1473: when a Page generates the current display, Home links
+    // straight to that page's editor (07a: "Edit page" in the action row).
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(screen.getByText("Weather Page")).toBeInTheDocument();
-    });
-
-    const editLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
-    expect(editLink).toHaveAttribute("href", "/pages/edit/page-1");
-  });
-
-  it("renders the page name as a direct child of the link so hover styling reaches it", async () => {
-    // A descendant carrying its own text-* color class (e.g. <Text>, which
-    // always emits one) beats the anchor's inherited hover:text-primary, so the
-    // name would stay static on hover. Keep the name an unwrapped text node and
-    // the color on the anchor itself.
-    render(<ActivePageDisplay />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByText("Weather Page")).toBeInTheDocument();
-    });
-
-    const editLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
-    expect(editLink.className).toMatch(/hover:text-primary/);
-
-    const namedByOwnText = Array.from(editLink.childNodes).some(
-      (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "Weather Page",
-    );
-    expect(namedByOwnText).toBe(true);
-
-    // getAttribute, not .className — an <svg> descendant's className is an
-    // SVGAnimatedString rather than a string.
-    const coloredDescendants = Array.from(editLink.querySelectorAll("*")).filter((el) =>
-      /(^|\s)text-(foreground|muted-foreground|primary|destructive|info|success|warning)(\s|$)/.test(
-        el.getAttribute("class") ?? "",
-      ),
-    );
-    expect(coloredDescendants).toEqual([]);
+    expect(await screen.findByRole("heading", { level: 2, name: "Weather Page" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Edit page" })).toHaveAttribute("href", "/pages/edit/page-1");
   });
 
   it("does not render a page edit link when a collection is active", async () => {
@@ -139,11 +106,10 @@ describe("ActivePageDisplay", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(screen.getByText("Test Collection")).toBeInTheDocument();
-    });
+    expect(await screen.findByRole("heading", { level: 2, name: "Test Collection" })).toBeInTheDocument();
 
-    expect(screen.queryByRole("link", { name: /Edit page/i })).not.toBeInTheDocument();
+    // No member page is named, so there is no page to edit.
+    expect(screen.queryByRole("link", { name: /^Edit page/i })).not.toBeInTheDocument();
   });
 
   it("links the collection name and the page it is currently rendering when a collection is active", async () => {
@@ -175,11 +141,9 @@ describe("ActivePageDisplay", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(screen.getByText("Test Collection")).toBeInTheDocument();
-    });
+    expect(await screen.findByRole("heading", { level: 2, name: "Test Collection" })).toBeInTheDocument();
 
-    // Collection name links to the collections editor.
+    // The collection links to the collections editor.
     const collectionLink = screen.getByRole("link", { name: /Edit collection "Test Collection"/i });
     expect(collectionLink).toHaveAttribute("href", "/collections/collection%3Atest-collection-id");
 
@@ -206,28 +170,14 @@ describe("ActivePageDisplay", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(screen.getByText("Custom Template")).toBeInTheDocument();
-    });
-
-    const editLink = screen.getByRole("link", { name: /Edit page "Custom Template"/i });
-    expect(editLink).toHaveAttribute("href", "/pages/edit/page-2");
+    expect(await screen.findByRole("heading", { level: 2, name: "Custom Template" })).toBeInTheDocument();
     // The manual active page (page-1) is stale in schedule mode; it must not leak through.
-    expect(screen.queryByRole("link", { name: /Edit page "Weather Page"/i })).not.toBeInTheDocument();
-  });
+    expect(screen.queryByRole("heading", { level: 2, name: "Weather Page" })).not.toBeInTheDocument();
 
-  it("names the page edit link so it contains the visible page name", async () => {
-    // The aria-label overrides the visible text, so WCAG 2.5.3 (Label in Name)
-    // requires the accessible name to still contain the name shown on screen —
-    // otherwise "click Weather Page" fails for speech-input users.
-    render(<ActivePageDisplay />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByText("Weather Page")).toBeInTheDocument();
-    });
-
-    const editLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
-    expect(editLink).toHaveAccessibleName(expect.stringContaining("Weather Page"));
+    // 07a's Schedule Mode row offers View Schedule; Edit page is in the board menu.
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /^Actions for / }));
+    expect(await screen.findByRole("menuitem", { name: /Edit page/ })).toHaveAttribute("href", "/pages/edit/page-2");
   });
 
   it("does not render a page edit link during a schedule gap", async () => {
@@ -255,26 +205,23 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      const changeBtn = screen.getByRole("button", { name: /Change Page/i });
+      const changeBtn = screen.getByRole("button", { name: /^Change Page$/ });
       expect(changeBtn).toBeInTheDocument();
     });
   });
 
-  it("opens sheet when Change Page is clicked in manual mode", async () => {
+  it("opens the Change Page dialog when Change Page is clicked in manual mode", async () => {
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Change Page/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^Change Page$/ })).toBeInTheDocument();
     });
 
-    const changeBtn = screen.getByRole("button", { name: /Change Page/i });
+    const changeBtn = screen.getByRole("button", { name: /^Change Page$/ });
     await user.click(changeBtn);
 
-    await waitFor(() => {
-      expect(screen.getByText("Select Page")).toBeInTheDocument();
-      expect(screen.getByText(/Choose which page to display/i)).toBeInTheDocument();
-    });
+    expect(await screen.findByRole("dialog", { name: "Change Page" })).toBeInTheDocument();
   });
 
   it("shows schedule gap warning when schedule enabled and no active page", async () => {
@@ -417,10 +364,8 @@ describe("ActivePageDisplay", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(screen.getByText("Test Collection")).toBeInTheDocument();
-      expect(screen.getByText("Collection")).toBeInTheDocument();
-    });
+    expect(await screen.findByRole("heading", { level: 2, name: "Test Collection" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: 'Edit collection "Test Collection"' })).toHaveTextContent("Collection");
   });
 
   it("shows out-of-sync alert when board was changed externally", async () => {
@@ -609,32 +554,14 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Change Page/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^Change Page$/ })).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: /Change Page/i }));
+    await user.click(screen.getByRole("button", { name: /^Change Page$/ }));
+    await user.click(await screen.findByRole("button", { name: /Custom Template/ }));
+    await user.click(screen.getByRole("button", { name: "Show now" }));
 
-    await waitFor(() => {
-      expect(screen.getByText("Select Page")).toBeInTheDocument();
-    });
-
-    // Wait for sheet content and page grid to load (420ms animation + data fetch)
-    await waitFor(
-      () => {
-        const page2 = screen.queryByText("Custom Template");
-        expect(page2).toBeInTheDocument();
-      },
-      { timeout: 3000 },
-    );
-
-    await user.click(screen.getByText("Custom Template"));
-
-    await waitFor(
-      () => {
-        expect(toastSpy).toHaveBeenCalledWith("Failed to switch page");
-      },
-      { timeout: 3000 },
-    );
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledWith("Couldn’t change the page"));
 
     toastSpy.mockRestore();
   });
@@ -662,31 +589,15 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Change Page/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^Change Page$/ })).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: /Change Page/i }));
+    await user.click(screen.getByRole("button", { name: /^Change Page$/ }));
+    await user.click(await screen.findByRole("button", { name: /Custom Template/ }));
+    await user.click(screen.getByRole("button", { name: "Show now" }));
 
-    await waitFor(() => {
-      expect(screen.getByText("Select Page")).toBeInTheDocument();
-    });
-
-    await waitFor(
-      () => {
-        expect(screen.queryByText("Custom Template")).toBeInTheDocument();
-      },
-      { timeout: 3000 },
-    );
-
-    await user.click(screen.getByText("Custom Template"));
-
-    await waitFor(
-      () => {
-        expect(errorToastSpy).toHaveBeenCalledWith("Page switched, but sending to the board failed");
-      },
-      { timeout: 3000 },
-    );
-    expect(successToastSpy).not.toHaveBeenCalledWith("Switched to active page");
+    await waitFor(() => expect(errorToastSpy).toHaveBeenCalledWith("Saved, but sending to Flagship failed."));
+    expect(successToastSpy).not.toHaveBeenCalled();
 
     errorToastSpy.mockRestore();
     successToastSpy.mockRestore();

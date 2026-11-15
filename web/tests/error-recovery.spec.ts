@@ -41,7 +41,7 @@ test.describe("Error Recovery — Board Unreachable", () => {
     await page.waitForLoadState("networkidle");
 
     // Dashboard should still render (graceful degradation)
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Some form of offline/error/disconnected indicator should appear
     // (could be a badge, banner, or status text)
@@ -52,7 +52,7 @@ test.describe("Error Recovery — Board Unreachable", () => {
 
     // We don't require a specific UI string — just that the app doesn't crash
     // The dashboard heading check above is sufficient to confirm graceful degradation
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
 
     // Restore config
     await configureBoard();
@@ -215,12 +215,12 @@ test.describe("Error Recovery — Network Simulation", () => {
 
   test("dashboard reloads cleanly after navigation away and back", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 });
