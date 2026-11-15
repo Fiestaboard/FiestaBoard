@@ -45,6 +45,7 @@ export function InstanceNameCard() {
 
   return (
     <PageSection
+      id="general"
       icon={<Tag />}
       title={t("instanceNameTitle")}
       description={t("instanceNameDescription")}

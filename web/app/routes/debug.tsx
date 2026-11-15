@@ -1,6 +1,7 @@
 import { Box, Code, Heading, PageCard, PageHeader, PageLayout, PageSection, Text } from "@fiestaboard/ui";
 import { Activity } from "lucide-react";
 
+import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
 import { useTranslations } from "@/i18n/translations";
 
 export default function DebugMonitorPage() {
@@ -10,7 +11,7 @@ export default function DebugMonitorPage() {
     // prop — they were silently dropped and this route rendered no <h1> at
     // all. PageHeader is the component that owns the page title everywhere
     // else in the app.
-    <PageLayout>
+    <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
       <PageCard>
         <PageHeader icon={Activity} title={t("title")} description={t("monitoringRemovedTitle")} />
         <PageSection>

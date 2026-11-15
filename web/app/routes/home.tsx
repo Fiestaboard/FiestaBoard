@@ -16,6 +16,7 @@ import { ActivePageDisplay } from "@/components/active-page-display";
 import { BoardInitErrorBanner } from "@/components/board-init-error-banner";
 import { SilenceImminentBanner } from "@/components/silence-imminent-banner";
 import { useWizard } from "@/components/wizard-provider";
+import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
 import { useTranslations } from "@/i18n/translations";
 import { getSetupStatus } from "@/lib/setup-detection";
 
@@ -37,7 +38,7 @@ export default function Home() {
   }, []);
 
   return (
-    <PageLayout outerClassName="relative" className="relative z-10">
+    <PageLayout railBreakpoint={RAIL_BREAKPOINT} outerClassName="relative" className="relative z-10">
       <PageCard>
         <PageHeader icon={HomeIcon} title={t("title")} description={t("description")} />
 

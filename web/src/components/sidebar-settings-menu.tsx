@@ -107,7 +107,7 @@ export function SidebarSettingsMenu({
   };
 
   const openSettings = () => router.push("/settings");
-  const openAccount = () => router.push("/settings?section=account");
+  const openAccount = () => router.push("/settings/account");
   const selectDesktop = (action: () => void) => () => {
     setMenuOpen(false);
     action();

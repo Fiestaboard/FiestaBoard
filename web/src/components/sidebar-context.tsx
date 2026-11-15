@@ -2,9 +2,12 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
+import { TABLET_RAIL_QUERY } from "@/hooks/use-below-rail";
+
 const STORAGE_KEY = "fiestaboard_sidebar_collapsed";
 
-function readStoredCollapsed(): boolean {
+/** The rail state the reader chose last (the collapse toggle persists it). */
+export function readStoredCollapsed(): boolean {
   try {
     return localStorage.getItem(STORAGE_KEY) === "true";
   } catch {
@@ -39,7 +42,9 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   // effect renders the sidebar expanded and then snaps it closed
   // (react-hooks/set-state-in-effect, issue #1568). Safe here because the app
   // is a static SPA (`ssr: false`) — there is no server render to mismatch.
-  const [collapsed, setCollapsedState] = useState(readStoredCollapsed);
+  const [collapsed, setCollapsedState] = useState(
+    () => (window.matchMedia?.(TABLET_RAIL_QUERY)?.matches ?? false) || readStoredCollapsed(),
+  );
   const [transitioning, setTransitioning] = useState(false);
 
   const setCollapsed = useCallback((value: boolean, opts?: { persist?: boolean }) => {

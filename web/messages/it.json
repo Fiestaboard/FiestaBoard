@@ -82,7 +82,16 @@
     "skipToMainContent": "Vai al contenuto principale",
     "boardSelector": "Seleziona la bacheca da gestire",
     "selectBoard": "Seleziona bacheca",
-    "unnamedBoard": "Bacheca senza nome"
+    "unnamedBoard": "Bacheca senza nome",
+    "more": "Altro",
+    "needsAttention": "{count, plural, one {# richiede attenzione} other {# richiedono attenzione}}",
+    "fiestaBot": "FiestaBot",
+    "opensDrawer": "Apre il pannello",
+    "hub": {
+      "online": "Online",
+      "unreachable": "Non raggiungibile",
+      "version": "FiestaBoard {version}"
+    }
   },
   "settingsMenu": {
     "trigger": "Altro",
@@ -671,7 +680,7 @@
   },
   "settings": {
     "title": "Impostazioni",
-    "description": "Configura il tuo servizio FiestaBoard",
+    "description": "Il tuo account, questo browser e questo hub.",
     "advancedSection": "Avanzate",
     "setupWizardTitle": "Procedura guidata",
     "setupWizardDescription": "Riesegui la procedura guidata per riconfigurare la connessione della bacheca e le impostazioni di base.",
@@ -776,7 +785,42 @@
     "displaySilenceTitle": "Orari di silenzio degli schermi",
     "displaySilenceDescription": "Ogni schermo ha i propri orari di silenzio. Apri la scheda Riproduzione di uno schermo per modificarli.",
     "openDisplayPlayback": "Apri le impostazioni di riproduzione di {name}",
-    "openDisplays": "Gestisci schermi"
+    "openDisplays": "Gestisci schermi",
+    "hub": {
+      "you": "Tu",
+      "hubGroup": "Hub · {name}",
+      "hubFallbackName": "FiestaBoard",
+      "sections": {
+        "account": {
+          "title": "Account",
+          "description": "Con chi hai effettuato l’accesso e come accedi."
+        },
+        "appearance": {
+          "title": "Aspetto",
+          "description": "Come appare FiestaBoard in questo browser."
+        },
+        "accessibility": {
+          "title": "Accessibilità",
+          "description": "Movimento e comfort di lettura in questo browser."
+        },
+        "network": {
+          "title": "Rete",
+          "description": "Come telefoni, TV e browser raggiungono {name}. Le modifiche valgono per ogni dispositivo."
+        },
+        "ai-provider": {
+          "title": "Provider IA",
+          "description": "FiestaBot usa il provider che scegli. È spento finché non ne configuri uno."
+        },
+        "system": {
+          "title": "Sistema e backup",
+          "description": "Aggiornamenti, backup e {name} stesso."
+        },
+        "language-time": {
+          "title": "Lingua e ora",
+          "description": "Usati dall’hub per la Programmazione, le variabili orarie e ogni orario mostrato."
+        }
+      }
+    }
   },
   "offline": {
     "youreOffline": "Sei offline",

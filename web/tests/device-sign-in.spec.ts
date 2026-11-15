@@ -68,7 +68,7 @@ for (const prefix of ["", "/test-prefix"]) {
             })
           ).ok(),
         ).toBe(true);
-        await page.goto(`${prefix}/settings?section=account`);
+        await page.goto(`${prefix}/settings/account`);
         await expect(page.getByText("Signed-in devices", { exact: true })).toBeVisible();
         await expect(page.getByText("This browser", { exact: true })).toBeVisible();
         const row = page.getByRole("listitem", { name: "Acceptance TV", exact: true });

@@ -108,14 +108,14 @@ const DISPLAYS_SECTION = "displays";
 const INTEGRATIONS_PAGE = "integrations-page";
 
 /**
- * The settings tab that owns a `update_setting` category, and the card the
+ * The settings section (`/settings/:section`, slice 2.1) that owns a `update_setting` category, and the card the
  * spotlight lands on when a key has no control-level anchor of its own.
  * Keys resolve to `settings.<category>.<key>` first, then to the card.
  */
 export const SETTING_SECTIONS: Record<string, { section: string; card?: string }> = {
-  general: { section: "general" },
-  location: { section: "general", card: "settings.location" },
-  display: { section: "general", card: "settings.display" },
+  general: { section: "system", card: "settings.general" },
+  location: { section: "language-time", card: "settings.location" },
+  display: { section: "appearance", card: "settings.display" },
   polling: { section: DISPLAYS_SECTION, card: "settings.polling" },
   silence_schedule: { section: DISPLAYS_SECTION, card: "settings.silence_schedule" },
   schedule_behavior: { section: DISPLAYS_SECTION, card: "settings.schedule_behavior" },
@@ -126,8 +126,8 @@ export const SETTING_SECTIONS: Record<string, { section: string; card?: string }
   output: { section: DISPLAYS_SECTION, card: "settings.output" },
   hdmi_kiosk: { section: DISPLAYS_SECTION, card: "settings.hdmi_kiosk" },
   boards: { section: DISPLAYS_SECTION, card: "settings.boards" },
-  ai: { section: "ai", card: "settings.ai" },
-  mqtt: { section: "general", card: "settings.mqtt" },
+  ai: { section: "ai-provider", card: "settings.ai" },
+  mqtt: { section: "network", card: "settings.mqtt" },
   plugins: { section: INTEGRATIONS_PAGE, card: "settings.plugins" },
   release_channel: { section: "system", card: "settings.release_channel" },
   auto_update: { section: "system", card: "settings.auto_update" },
@@ -140,7 +140,7 @@ export function settingAnchors(category: string, key: string): { control: string
 }
 
 /**
- * The route that shows `category`: its settings tab, Displays for a board's,
+ * The route that shows `category`: its settings section, Displays for a board's,
  * or the Integrations page for plugin updates.
  */
 export function settingsHref(category: string, boardId?: string): string {
@@ -148,8 +148,8 @@ export function settingsHref(category: string, boardId?: string): string {
     return boardId ? `/displays/${encodeURIComponent(boardId)}?section=playback` : "/displays";
   }
   const owner = SETTING_SECTIONS[category];
-  const section = owner?.section ?? "general";
+  const section = owner?.section ?? "system";
   if (section === DISPLAYS_SECTION) return "/displays";
   if (section === INTEGRATIONS_PAGE) return "/integrations";
-  return `/settings?section=${section}`;
+  return `/settings/${section}`;
 }

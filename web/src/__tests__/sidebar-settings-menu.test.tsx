@@ -156,7 +156,7 @@ describe("SidebarSettingsMenu contents", () => {
     await screen.findByText("casa");
     const popup = await openMenu(user);
     await user.click(within(popup).getByRole("button", { name: "Account" }));
-    expect(pushMock).toHaveBeenCalledWith("/settings?section=account");
+    expect(pushMock).toHaveBeenCalledWith("/settings/account");
   });
 
   it("opens with the keyboard and restores focus on Escape", async () => {

@@ -60,6 +60,7 @@ import { ScheduleListView } from "@/components/schedule";
 import { type ScheduleFormHandle, useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import Link from "@/components/smart-link";
+import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
 import { queryKeys } from "@/hooks/use-board";
 import { useCollections } from "@/hooks/use-board";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
@@ -517,7 +518,7 @@ export default function SchedulePage() {
 
   if (isLoading) {
     return (
-      <PageLayout>
+      <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
         <Skeleton className="h-10 w-48 mb-4" />
         <Skeleton className="h-64 w-full" />
       </PageLayout>
@@ -537,7 +538,7 @@ export default function SchedulePage() {
   const issueCount = hasOverlaps ? (validation?.overlaps?.length ?? 0) : (validation?.gaps?.length ?? 0);
 
   return (
-    <PageLayout fillHeight={isCalendarMode}>
+    <PageLayout railBreakpoint={RAIL_BREAKPOINT} fillHeight={isCalendarMode}>
       <PageCard fillHeight={isCalendarMode}>
         {/* ── Page header ── */}
         <PageHeader

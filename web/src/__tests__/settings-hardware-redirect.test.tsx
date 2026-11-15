@@ -13,11 +13,15 @@ import { server } from "./mocks/server";
 
 const search = { value: "" };
 
-vi.mock("@/hooks/use-router", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), forward: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(search.value),
-  usePathname: () => "/settings",
-}));
+vi.mock("@/hooks/use-router", async () => {
+  const rr = await vi.importActual<typeof import("react-router")>("react-router");
+  return {
+    useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), forward: vi.fn() }),
+    useSearchParams: () => new URLSearchParams(search.value),
+    usePathname: () => "/settings",
+    useParams: rr.useParams,
+  };
+});
 
 vi.mock("@/components/wizard-provider", () => ({ useWizard: () => ({ triggerWizard: vi.fn() }) }));
 
@@ -27,7 +31,7 @@ function renderAt(query: string) {
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={[`/settings?${query}`]}>
         <Routes>
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/:section?" element={<SettingsPage />} />
           <Route path="/displays" element={<div data-testid="displays-route" />} />
         </Routes>
       </MemoryRouter>
@@ -45,10 +49,10 @@ describe("Settings → Hardware", () => {
     expect(await screen.findByTestId("displays-route")).toBeInTheDocument();
   });
 
-  it("is no longer a settings tab", async () => {
-    renderAt("section=general");
-    expect(await screen.findByRole("tab", { name: "General" })).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Hardware" })).not.toBeInTheDocument();
+  it("is no longer a settings section", async () => {
+    renderAt("");
+    expect(await screen.findByRole("list", { name: "You" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Hardware" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("displays-route")).not.toBeInTheDocument();
   });
 });
