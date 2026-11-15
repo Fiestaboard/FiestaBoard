@@ -2,7 +2,7 @@
 
 Run in a fresh interpreter so every consumer imports the v11 package version,
 just as on the Version PR. Scenario fixtures may pin their own stable/beta
-version; the v11 release suite must still enforce manual-only updates.
+version; the v11 release suite must still enforce the isolated Alpha lane.
 """
 
 import os
