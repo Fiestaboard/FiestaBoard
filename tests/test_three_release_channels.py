@@ -188,3 +188,19 @@ def test_major_upgrade_rejects_real_incomplete_backup(monkeypatch, tmp_path, fai
             us.switch_channel("alpha", confirm_major_upgrade=True)
     install.assert_not_called()
     save.assert_not_called()
+
+
+def test_boot_retention_preserves_channel_recovery_snapshots(tmp_path):
+    import json
+
+    snapshots = tmp_path / "update-backups"
+    snapshots.mkdir()
+    names = [f"pre-update-202601{i:02d}T000000.000Z.json" for i in range(1, 10)]
+    for name in names:
+        (snapshots / name).write_text("{}")
+    (tmp_path / ".system-update.json").write_text(
+        json.dumps({"channel_join_snapshot": names[0], "alpha_join_snapshot": names[1]})
+    )
+    deleted = us.prune_snapshot_dir(snapshots)
+    assert deleted == 2
+    assert {p.name for p in snapshots.iterdir()} == set(names[:2] + names[-5:])
