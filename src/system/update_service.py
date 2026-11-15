@@ -1063,9 +1063,25 @@ def prune_snapshot_dir(directory: Path) -> int:
 
     Returns the number of files deleted.
     """
+    # Startup snapshots may use a config directory other than get_data_dir().
+    # Read recovery pointers beside that directory, so its original snapshots
+    # survive every preview upgrade just as they do in the update-time pruner.
+    state_path = directory.parent / ".system-update.json"
+    try:
+        state = json.loads(state_path.read_text()) if state_path.exists() else {}
+        if directory.resolve() == _settings_snapshot_dir().resolve():
+            state = _system_update_state_load()
+        keep = {state.get("channel_join_snapshot"), state.get("alpha_join_snapshot")}
+    except (OSError, ValueError, AttributeError, TypeError):
+        logger.warning("Could not read channel recovery pointers; skipping snapshot pruning in %s", directory)
+        return 0
     try:
         candidates = sorted(
-            (p for p in directory.glob("pre-update-*.json") if _SETTINGS_SNAPSHOT_NAME_RE.match(p.name)),
+            (
+                p
+                for p in directory.glob("pre-update-*.json")
+                if _SETTINGS_SNAPSHOT_NAME_RE.match(p.name) and p.name not in keep
+            ),
             key=lambda p: p.name,
             reverse=True,
         )

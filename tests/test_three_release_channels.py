@@ -163,3 +163,19 @@ def test_alpha_reassert_uses_confirmed_intent_and_preserves_recovery(monkeypatch
     state = us._system_update_state_load()
     assert state["channel_join_snapshot"] == "stable.json"
     assert state["alpha_join_snapshot"] == "beta.json"
+
+
+def test_boot_retention_preserves_channel_recovery_snapshots(tmp_path):
+    import json
+
+    snapshots = tmp_path / "update-backups"
+    snapshots.mkdir()
+    names = [f"pre-update-202601{i:02d}T000000.000Z.json" for i in range(1, 10)]
+    for name in names:
+        (snapshots / name).write_text("{}")
+    (tmp_path / ".system-update.json").write_text(
+        json.dumps({"channel_join_snapshot": names[0], "alpha_join_snapshot": names[1]})
+    )
+    deleted = us.prune_snapshot_dir(snapshots)
+    assert deleted == 2
+    assert {p.name for p in snapshots.iterdir()} == set(names[:2] + names[-5:])
