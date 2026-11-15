@@ -159,3 +159,32 @@ def test_alpha_reassert_uses_confirmed_intent_and_preserves_recovery(monkeypatch
     state = us._system_update_state_load()
     assert state["channel_join_snapshot"] == "stable.json"
     assert state["alpha_join_snapshot"] == "beta.json"
+
+
+@pytest.mark.parametrize("failure", ["invalid_json", "unreadable", "null"])
+def test_major_upgrade_rejects_real_incomplete_backup(monkeypatch, tmp_path, failure):
+    from pathlib import Path
+    from src.backup.service import BackupService
+
+    monkeypatch.setenv("VERSION", "10.3.3")
+    path = tmp_path / "settings.json"
+    path.write_text("not json" if failure == "invalid_json" else "null" if failure == "null" else "{}")
+    service = BackupService(tmp_path)
+    original = Path.open
+
+    def read(current, *args, **kwargs):
+        if failure == "unreadable" and current == path:
+            raise PermissionError("cannot read settings")
+        return original(current, *args, **kwargs)
+
+    with (
+        patch.object(us, "_updater_version", return_value={"image": "fiestaboard/fiestaboard:latest"}),
+        patch("src.backup.service.get_backup_service", return_value=service),
+        patch.object(Path, "open", read),
+        patch.object(us, "_updater_post", return_value=MagicMock(status_code=202)) as install,
+        patch.object(us, "_system_update_state_update") as save,
+    ):
+        with pytest.raises(us.SidecarError, match="backup failed"):
+            us.switch_channel("alpha", confirm_major_upgrade=True)
+    install.assert_not_called()
+    save.assert_not_called()

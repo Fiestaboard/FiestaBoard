@@ -850,6 +850,8 @@ def _snapshot_has_content(document: str | None) -> bool:
 def _take_settings_snapshot(
     previous_digest: str | None = None,
     previous_image: str | None = None,
+    *,
+    strict: bool = False,
 ) -> dict[str, Any] | None:
     """Snapshot ``data/*.json`` to ``data/update-backups/pre-update-<ts>.json``.
 
@@ -873,7 +875,7 @@ def _take_settings_snapshot(
         from src.backup.service import get_backup_service
 
         service = get_backup_service()
-        document = service.export_to_json()
+        document = service.export_to_json(strict=True) if strict else service.export_to_json()
     except Exception:
         logger.exception("Failed to build pre-update settings snapshot")
         return None
@@ -1668,7 +1670,11 @@ def switch_channel(
         logger.warning(_STALE_SIDECAR_REMEDY)
 
     try:
-        snapshot = _take_settings_snapshot(running.get("digest"), image_ref)
+        snapshot = (
+            _take_settings_snapshot(running.get("digest"), image_ref, strict=True)
+            if major_upgrade
+            else _take_settings_snapshot(running.get("digest"), image_ref)
+        )
     except Exception as exc:
         if major_upgrade:
             raise SidecarError(503, "Automatic backup failed; the channel was not changed.") from exc
