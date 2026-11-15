@@ -165,7 +165,7 @@ def test_alpha_reassert_uses_confirmed_intent_and_preserves_recovery(monkeypatch
     assert state["alpha_join_snapshot"] == "beta.json"
 
 
-@pytest.mark.parametrize("failure", ["invalid_json", "unreadable", "null"])
+@pytest.mark.parametrize("failure", ["invalid_json", "unreadable", "null", "wrong_shape"])
 def test_major_upgrade_rejects_real_incomplete_backup(monkeypatch, tmp_path, failure):
     from pathlib import Path
 
@@ -174,7 +174,7 @@ def test_major_upgrade_rejects_real_incomplete_backup(monkeypatch, tmp_path, fai
     monkeypatch.setenv("VERSION", "10.3.3")
     monkeypatch.setattr(us, "running_version", lambda: "10.3.3")
     path = tmp_path / "settings.json"
-    path.write_text("not json" if failure == "invalid_json" else "null" if failure == "null" else "{}")
+    path.write_text({"invalid_json": "not json", "null": "null", "wrong_shape": "[]"}.get(failure, "{}"))
     service = BackupService(tmp_path)
     original = Path.open
 
