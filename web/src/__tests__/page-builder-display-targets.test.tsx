@@ -216,7 +216,7 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
       await openSizePicker(user);
       await user.click(await screen.findByRole("option", { name: PIXOO_OPTION }));
 
-      await waitFor(() => expect(screen.getByRole("img", { name: /10 rows by 16 columns/ })).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByRole("img", { name: /16 columns by 10 rows/ })).toBeInTheDocument());
       await waitFor(() =>
         expect(container.querySelector('[data-slot="display-preview"]')).toHaveAttribute(
           "data-technology",
@@ -394,7 +394,7 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
         wrapper: TestWrapper,
       });
       await expectTarget(PIXOO_OPTION);
-      expect(screen.getByRole("img", { name: /10 rows by 16 columns/ })).toBeInTheDocument();
+      expect(screen.getByRole("img", { name: /16 columns by 10 rows/ })).toBeInTheDocument();
       expect(container.querySelector('[data-slot="display-preview"]')).toHaveAttribute("data-technology", "led_matrix");
       const editor = await screen.findByRole("textbox", { name: "Template editor" });
       await user.type(editor, "Targeted");
@@ -407,7 +407,7 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
       const { container } = renderNew();
 
       await expectTarget(PIXOO_OPTION);
-      await waitFor(() => expect(screen.getByRole("img", { name: /10 rows by 16 columns/ })).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByRole("img", { name: /16 columns by 10 rows/ })).toBeInTheDocument());
       await waitFor(() =>
         expect(container.querySelector('[data-slot="display-preview"]')).toHaveAttribute(
           "data-technology",
@@ -422,7 +422,7 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
       const { container } = renderNew();
 
       await expectTarget("Note");
-      await waitFor(() => expect(screen.getByRole("img", { name: /3 rows by 15 columns/ })).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByRole("img", { name: /15 columns by 3 rows/ })).toBeInTheDocument());
       expect(container.querySelector('[data-slot="display-preview"]')).not.toBeInTheDocument();
     });
 

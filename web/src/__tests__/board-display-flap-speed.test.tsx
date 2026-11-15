@@ -23,6 +23,8 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BoardDisplay } from "@/components/board-display";
+import { BoardViewport } from "@/components/board-viewport";
+import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
 
@@ -281,6 +283,30 @@ describe("BoardDisplay message-change cascade", () => {
       <BoardDisplay message="F" isLoading={false} size="md" />,
       { budgetMs: 2000 },
     );
+
+    expect(reading.chars).toEqual(["A", "F"]);
+    expect(reading.peakFlapLayers).toBe(0);
+  });
+
+  // Slice 2.4: every readable board is now a BoardViewport (through the
+  // ScaledBoardDisplay wrapper). It must carry the same chrome, or the user's
+  // kill switch stops reaching Home, the editor and every other preview.
+  it.each([
+    ["BoardViewport", BoardViewport],
+    ["the ScaledBoardDisplay wrapper", ScaledBoardDisplay],
+  ] as const)("%s honours the board-animations kill switch too", async (_name, Board) => {
+    withDisplaySettings({ board_animations: "off" });
+
+    const { container, rerender } = render(<Board message="A" isLoading={false} size="md" />, {
+      wrapper: TestWrapper,
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    const reading = await measureCascade(container, rerender, <Board message="F" isLoading={false} size="md" />, {
+      budgetMs: 2000,
+    });
 
     expect(reading.chars).toEqual(["A", "F"]);
     expect(reading.peakFlapLayers).toBe(0);

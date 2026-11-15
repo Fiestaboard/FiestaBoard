@@ -6,6 +6,7 @@ import { memo } from "react";
 import { DevicePreview } from "@/components/device-preview";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { resolveCode62Glyph, useBoardCurrentMessage } from "@/hooks/use-board";
+import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance } from "@/lib/api";
 import { resolveBoardModel } from "@/lib/device-preview";
 
@@ -13,6 +14,10 @@ import { resolveBoardModel } from "@/lib/device-preview";
  * What a display shows right now (plan D21): its last frame from the board
  * state poll, drawn as its device — an LED board as its LED matrix, a
  * split-flap board as the app's own board, at the display's true size.
+ *
+ * A board wider than its card scrolls inside its bezel (WEB-07). On the
+ * Displays list each board's scroll region is named after its display, so a
+ * screen reader can tell a wall of them apart.
  */
 export const DisplayLivePreview = memo(function DisplayLivePreview({
   board,
@@ -22,6 +27,7 @@ export const DisplayLivePreview = memo(function DisplayLivePreview({
   size?: "sm" | "md";
 }) {
   // A paused board is hands-off and may be unplugged: read it once, never poll.
+  const t = useTranslations("boardDisplay");
   const paused = board.paused === true;
   const { data: state, isLoading, errorUpdateCount } = useBoardCurrentMessage(board.id, { poll: !paused });
   // The loading animation is for the first read only. A query that never
@@ -56,6 +62,7 @@ export const DisplayLivePreview = memo(function DisplayLivePreview({
         gridRows={board.grid_rows ?? undefined}
         gridCols={board.grid_cols ?? undefined}
         code62Glyph={resolveCode62Glyph(board.device_type, board.code62_glyph)}
+        regionLabel={board.name ? t("displayPreview", { name: board.name }) : undefined}
       />
     </DevicePreview>
   );

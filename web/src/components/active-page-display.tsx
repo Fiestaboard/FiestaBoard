@@ -22,7 +22,7 @@ import { toast } from "sonner";
 
 import { BoardOutOfSyncBanner } from "@/components/board-out-of-sync-banner";
 import { useCurrentBoard } from "@/components/current-board-context";
-import { BoardContextMenu } from "@/components/home/board-context-menu";
+import { type BoardActions, BoardActionsMenu, BoardContextMenu } from "@/components/home/board-context-menu";
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { boardMeta, HomeBoard } from "@/components/home/home-board";
 import { formatClock, formatSpan, overrideOnScreen, scheduleNextChange } from "@/components/home/home-status";
@@ -575,6 +575,20 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     </Flex>
   );
 
+  const boardActions: BoardActions = {
+    boardName: displayName,
+    onChangePage: openChangePage,
+    onCompose: compose,
+    editHref,
+    onCopyText: copyText,
+    onRefresh: refreshBoard,
+    paused: isTargetPaused,
+    onTogglePause: targetBoard
+      ? () => pauseMutation.mutate({ boardId: targetBoard.id, paused: !isTargetPaused })
+      : null,
+    busy: pauseMutation.isPending,
+  };
+
   return (
     <Stack gap="4" {...anchorProps("home.active-display")}>
       {/* Silence (#1943): what is on hold and what happens when it ends. */}
@@ -650,7 +664,13 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
 
       <NowShowingCard
         display={displayName}
-        meta={boardMeta(targetBoard, activeGeometry)}
+        meta={
+          <Text as="span" size="xs" tone="muted" className="inline-flex items-center gap-2 font-mono">
+            {boardMeta(targetBoard, activeGeometry)}
+            <BoardActionsMenu actions={boardActions} />
+          </Text>
+        }
+        className="group/home-card"
         title={title}
         headingLevel={2}
         mode={mode}
@@ -660,21 +680,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
         }}
         data-testid="now-showing"
         board={
-          <BoardContextMenu
-            actions={{
-              boardName: displayName,
-              onChangePage: openChangePage,
-              onCompose: compose,
-              editHref,
-              onCopyText: copyText,
-              onRefresh: refreshBoard,
-              paused: isTargetPaused,
-              onTogglePause: targetBoard
-                ? () => pauseMutation.mutate({ boardId: targetBoard.id, paused: !isTargetPaused })
-                : null,
-              busy: pauseMutation.isPending,
-            }}
-          >
+          <BoardContextMenu actions={boardActions}>
             {/* contain isolates the tile grid from ancestor layout changes. */}
             <Flex justify="center" className="overflow-x-hidden" style={{ contain: "layout style paint" }}>
               <HomeBoard

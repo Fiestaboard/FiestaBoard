@@ -267,7 +267,7 @@ describe("PluginBoardSettings — actions", () => {
     );
     renderScreen({ onGeometry });
     await userEvent.click(screen.getByRole("button", { name: "Detect size" }));
-    expect(await screen.findByText("Detected 10 × 16")).toBeInTheDocument();
+    expect(await screen.findByText("Detected 16 × 10")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Apply size" }));
     expect(onGeometry).toHaveBeenCalledWith(geometry);
   });
@@ -582,7 +582,7 @@ describe("the contract's board facts, conditional actions and auto-apply", () =>
     server.use(http.post(`${API}/boards/b1/actions/detect_geometry`, () => HttpResponse.json(result({ geometry }))));
     render(<Shaped facts={{ device_type: "flagship" }} onGeometry={onGeometry} />);
     await userEvent.click(screen.getByRole("button", { name: "Detect size" }));
-    expect(await screen.findByText("Set to 6 × 22")).toBeInTheDocument();
+    expect(await screen.findByText("Set to 22 × 6")).toBeInTheDocument();
     expect(onGeometry).toHaveBeenCalledWith(geometry);
     expect(screen.queryByRole("button", { name: "Apply size" })).not.toBeInTheDocument();
   });

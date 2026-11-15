@@ -945,8 +945,8 @@
     },
     "boardSetup": {
       "boardType": "Board-Typ",
-      "flagshipDimensions": "6 × 22 Zeichen",
-      "noteDimensions": "3 × 15 Zeichen",
+      "flagshipDimensions": "22 × 6 Zeichen",
+      "noteDimensions": "15 × 3 Zeichen",
       "boardColor": "Boardfarbe",
       "code62Label": "Klappe für Code 62",
       "code62Help": "Zeichencode 62 zeigt auf Flagship-Boards von vor 2026 ein Gradzeichen und auf neueren ein Herz. Wähle aus, was dein Board hat, damit die Vorschau passt.",
@@ -2138,7 +2138,16 @@
     "withMessage": "Board-Anzeige: {message}",
     "previewSizeLabel": "Vorschaugröße",
     "fitMode": "Anpassen",
-    "actualMode": "Tatsächliche Größe"
+    "actualMode": "Tatsächliche Größe",
+    "viewportNote": "Note {current} von {total}",
+    "viewportArrayColumn": "Spalte {current} von {total} · {notes} Notes",
+    "viewportColumns": "Spalten {first}–{last} von {total}",
+    "viewportOverviewNotes": "Übersicht · {notes} Notes · zum Lesen „Tatsächliche Größe“ tippen",
+    "viewportOverviewColumns": "Übersicht · {columns} Spalten · zum Lesen „Tatsächliche Größe“ tippen",
+    "viewportHintNotes": "Umschalt + Scrollen, Trackpad-Wischen oder ← → im Fokus. Rastet an jeder Note ein.",
+    "viewportHintColumns": "Umschalt + Scrollen, Trackpad-Wischen oder ← → im Fokus. Rastet an jeder Spalte ein.",
+    "viewportHintTouch": "wischen",
+    "displayPreview": "Vorschau von {name}"
   },
   "updateOverlay": {
     "takingLonger": "Aktualisierung dauert länger als erwartet",
@@ -2596,13 +2605,15 @@
       "denied": "Aktion abgelehnt",
       "details": "Aktivitätsdetails",
       "completedActions": "{count, plural, one {# Aktion abgeschlossen} other {# Aktionen abgeschlossen}}"
-    }
+    },
+    "previewRegion": "Board-Vorschau, Antwort {reply}",
+    "previewRegionStep": "Board-Vorschau, Antwort {reply}, Schritt {step}"
   },
   "boardSizeIndicator": {
     "custom": "Benutzerdefiniert",
     "panel": "Panel",
-    "ariaLabel": "{rows} Zeilen mal {cols} Spalten",
-    "ariaLabelWithLayout": "{rows} Zeilen mal {cols} Spalten, {layout}"
+    "ariaLabelColsRows": "{cols} Spalten mal {rows} Zeilen",
+    "ariaLabelColsRowsWithLayout": "{cols} Spalten mal {rows} Zeilen, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / externe Clients",
@@ -2838,7 +2849,7 @@
     "resultError": "Hat nicht funktioniert",
     "guidanceLabel": "Das kannst du versuchen",
     "fieldsFilled": "Ausgefüllt: {fields}",
-    "geometryDetected": "Erkannt: {rows} × {cols}",
+    "geometryDetected": "Erkannt: {cols} × {rows}",
     "applyGeometry": "Größe übernehmen",
     "actionInputDescription": "Für diese Aktion werden zuerst ein paar Angaben benötigt.",
     "boardNameLabel": "Board-Name",
@@ -2865,7 +2876,7 @@
     "moveSwap": "Platz {position} — mit {summary} tauschen",
     "tilesDuplicate": "Mehrere Kacheln verweisen auf dasselbe Board: {values}",
     "tileActionsLabel": "Kachelaktionen",
-    "geometryApplied": "Auf {rows} × {cols} gesetzt",
+    "geometryApplied": "Auf {cols} × {rows} gesetzt",
     "searchingNetwork": "Durchsuche {network}…",
     "searchingYourNetwork": "Durchsuche dein Netzwerk…",
     "foundOneSelected": "{device} gefunden und ausgewählt.",

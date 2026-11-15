@@ -29,9 +29,12 @@ function toDeviceType(deviceType: string): DeviceType {
 }
 
 /**
- * The kit's `rows × cols` readout, wired to the app's note-array presets and
+ * The kit's size readout, wired to the app's note-array presets and
  * translations. The kit does not model named presets, so the localized layout
  * name is resolved here and passed in as `layoutLabel`.
+ *
+ * It reads `cols × rows` ("45 × 3"), the order 07 `57:27771` and 02 `36:35275`
+ * print it in (slice 2.4), and is named "45 columns by 3 rows".
  */
 export function BoardSizeIndicator({
   deviceType,
@@ -68,9 +71,10 @@ export function BoardSizeIndicator({
       gridRows={gridRows ?? undefined}
       gridCols={gridCols ?? undefined}
       layoutLabel={presetLabel}
+      format="cols×rows"
       labels={{
-        dimensions: (rows, cols) => t("ariaLabel", { rows, cols }),
-        dimensionsWithLayout: (rows, cols, layout) => t("ariaLabelWithLayout", { rows, cols, layout }),
+        dimensions: (rows, cols) => t("ariaLabelColsRows", { rows, cols }),
+        dimensionsWithLayout: (rows, cols, layout) => t("ariaLabelColsRowsWithLayout", { rows, cols, layout }),
       }}
       className={className}
     />

@@ -945,8 +945,8 @@
     },
     "boardSetup": {
       "boardType": "Pano Türü",
-      "flagshipDimensions": "6 × 22 karakter",
-      "noteDimensions": "3 × 15 karakter",
+      "flagshipDimensions": "22 × 6 karakter",
+      "noteDimensions": "15 × 3 karakter",
       "boardColor": "Pano Rengi",
       "code62Label": "Kod 62 kanadı",
       "code62Help": "62 karakter kodu, 2026 öncesi Flagship panolarda derece işareti, daha yenilerinde kalp gösterir. Önizlemelerin uyması için panonuzdakini seçin.",
@@ -2138,7 +2138,16 @@
     "withMessage": "Board ekranı: {message}",
     "previewSizeLabel": "Önizleme boyutu",
     "fitMode": "Sığdır",
-    "actualMode": "Gerçek boyut"
+    "actualMode": "Gerçek boyut",
+    "viewportNote": "Note {current} / {total}",
+    "viewportArrayColumn": "Sütun {current} / {total} · {notes} Note",
+    "viewportColumns": "Sütunlar {first}–{last} / {total}",
+    "viewportOverviewNotes": "Genel bakış · {notes} Note · okumak için Gerçek boyut'a dokunun",
+    "viewportOverviewColumns": "Genel bakış · {columns} sütun · okumak için Gerçek boyut'a dokunun",
+    "viewportHintNotes": "Shift + kaydırma, izleme dörtgeninde kaydırma veya odaktayken ← →. Her Note'a hizalanır.",
+    "viewportHintColumns": "Shift + kaydırma, izleme dörtgeninde kaydırma veya odaktayken ← →. Her sütuna hizalanır.",
+    "viewportHintTouch": "kaydırın",
+    "displayPreview": "{name} önizlemesi"
   },
   "updateOverlay": {
     "takingLonger": "Güncelleme beklenenden uzun sürüyor",
@@ -2596,13 +2605,15 @@
       "denied": "İşlem reddedildi",
       "details": "Etkinlik ayrıntıları",
       "completedActions": "{count, plural, one {# işlem tamamlandı} other {# işlem tamamlandı}}"
-    }
+    },
+    "previewRegion": "Pano önizlemesi, yanıt {reply}",
+    "previewRegionStep": "Pano önizlemesi, yanıt {reply}, adım {step}"
   },
   "boardSizeIndicator": {
     "custom": "Özel",
     "panel": "Panel",
-    "ariaLabel": "{rows} satır {cols} sütun",
-    "ariaLabelWithLayout": "{rows} satır {cols} sütun, {layout}"
+    "ariaLabelColsRows": "{cols} sütun {rows} satır",
+    "ariaLabelColsRowsWithLayout": "{cols} sütun {rows} satır, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / harici istemciler",
@@ -2838,7 +2849,7 @@
     "resultError": "Çalışmadı",
     "guidanceLabel": "Deneyebilecekleriniz",
     "fieldsFilled": "Dolduruldu: {fields}",
-    "geometryDetected": "{rows} × {cols} algılandı",
+    "geometryDetected": "{cols} × {rows} algılandı",
     "applyGeometry": "Boyutu uygula",
     "actionInputDescription": "Bu işlem önce birkaç bilgi gerektiriyor.",
     "boardNameLabel": "Pano adı",
@@ -2865,7 +2876,7 @@
     "moveSwap": "Yuva {position} — {summary} ile yer değiştir",
     "tilesDuplicate": "Birden fazla karo aynı panoyu gösteriyor: {values}",
     "tileActionsLabel": "Döşeme işlemleri",
-    "geometryApplied": "{rows} × {cols} olarak ayarlandı",
+    "geometryApplied": "{cols} × {rows} olarak ayarlandı",
     "searchingNetwork": "{network} aranıyor…",
     "searchingYourNetwork": "Ağınız aranıyor…",
     "foundOneSelected": "{device} bulundu ve seçildi.",

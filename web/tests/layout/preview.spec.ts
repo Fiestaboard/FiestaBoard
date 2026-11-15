@@ -23,7 +23,7 @@ for (const width of [375, 390, 1280]) {
   });
 }
 
-test("drawing still hit-tests the rightmost scaled flap tile on a phone", async ({ page }) => {
+test("drawing still hit-tests the rightmost flap tile on a phone, scrolled into view", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 844 });
   await page.goto("/tests/layout/");
   await page.getByRole("button", { name: "Toggle drawing" }).click();

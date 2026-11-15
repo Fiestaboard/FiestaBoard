@@ -1,25 +1,23 @@
 /**
- * Board previews must fit the box that clips them.
+ * Board content stays reachable without widening the page.
  *
- * Every board surface in the app renders a fixed-pixel tile grid — a 22-column
- * flagship board has a hard minimum width of ~349px at the `sm` tile scale, and
- * ~371px at `md`. A phone's content box is narrower than that, so a board only
- * fits if something scales it down. Where nothing does, the grid overflows its
- * `overflow: hidden` ancestor and the first character of every row is silently
- * cut off — the board still *looks* like a board, so nothing else in the suite
- * notices.
- *
- * These tests therefore assert geometry, not presence: no tile may extend past
- * the element that clips it. A test asserting only that tiles render passes
- * happily against a board that is 34px too wide.
- *
- * The check is deliberately surface-agnostic — it sweeps every board on the
- * page rather than naming one component — because this class of bug has
- * recurred (#1397 fixed it for the dashboard and wizard; it came back on the
- * page grid) and the next regression will land on whichever surface nobody
- * thought to enumerate.
+ * Page-card pictures fit their clipping box. Readable Home boards keep at
+ * least Tile sm and scroll inside the bezel when needed (owner rule 9), so
+ * shrinking every surface to fit is no longer the contract. Geometry checks
+ * protect thumbnails from silent clipping and prove the scrolling board's
+ * first and last columns are reachable without document overflow.
  */
-import { createPage, deletePage, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
+import {
+  configureBoard,
+  createPage,
+  deletePage,
+  ensureAuthForFetch,
+  expect,
+  loginIfNeeded,
+  resetToSingleBoard,
+  setActivePage,
+  test,
+} from "../helpers";
 
 /** iPhone 14-ish. Narrow enough that an unscaled flagship board cannot fit. */
 const MOBILE = { width: 390, height: 844 };
@@ -109,8 +107,11 @@ let secondPageId: string;
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
   await loginIfNeeded(context);
+  await configureBoard();
+  await resetToSingleBoard();
   pageId = await createPage("Flap Check", WIDE_TEMPLATE);
   secondPageId = await createPage("Flap Check Two", WIDE_TEMPLATE);
+  await setActivePage(pageId);
   await page.addInitScript(() => {
     localStorage.setItem("fiestaboard_wizard_complete", "true");
   });
@@ -122,7 +123,7 @@ test.afterEach(async () => {
   await deletePage(secondPageId).catch(() => {});
 });
 
-test.describe("board previews fit their container on a phone", () => {
+test.describe("board previews fit or scroll inside their container on a phone", () => {
   // Two different invariants, deliberately not merged.
   //
   // Overflowing to the *right* can be a design: the collection cascade bleeds
@@ -174,15 +175,40 @@ test.describe("board previews fit their container on a phone", () => {
     );
   });
 
-  test("the dashboard board preview fits its container entirely at 390px", async ({ page }) => {
+  test("the dashboard keeps readable tiles and reaches its last column inside the bezel at 390px", async ({ page }) => {
     await page.goto("/");
     await waitForABoard(page);
 
-    const boards = await measureBoards(page);
-    expect(boards.length, "measured no boards — the check would pass vacuously").toBeGreaterThan(0);
+    const viewport = page.locator("[data-slot=board-viewport]").first();
+    const scroller = viewport.locator("[data-slot=board-viewport-scroller]");
+    await expect(viewport).toHaveAttribute("data-mode", "actual");
+    await expect(viewport).toHaveAttribute("data-overflow", "true");
+    await expect(scroller.locator("[data-note-row] > *")).toHaveCount(6 * 22);
+    const initial = await scroller.evaluate((el) => ({
+      tileWidth: Math.min(
+        ...Array.from(el.querySelectorAll("[data-note-row] > *"), (t) => t.getBoundingClientRect().width),
+      ),
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+    }));
+    expect(initial.tileWidth).toBeGreaterThanOrEqual(13);
+    expect(initial.scrollWidth).toBeGreaterThan(initial.clientWidth);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(MOBILE.width);
 
-    const overflowing = boards.filter((b) => b.overflowLeft > 1 || b.overflowRight > 1);
-    expect(overflowing, `the dashboard board overflows: ${JSON.stringify(overflowing, null, 2)}`).toEqual([]);
+    await scroller.focus();
+    await page.keyboard.press("End");
+    await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+    await expect
+      .poll(() =>
+        scroller.evaluate((el) => {
+          const edge = el.getBoundingClientRect().right;
+          const last = Math.max(
+            ...Array.from(el.querySelectorAll("[data-note-row] > *"), (t) => t.getBoundingClientRect().right),
+          );
+          return last <= edge + 1;
+        }),
+      )
+      .toBe(true);
   });
 
   test("no board pushes the document wider than the viewport at 390px", async ({ page }) => {

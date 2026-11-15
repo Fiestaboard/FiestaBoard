@@ -77,11 +77,10 @@ export const BOARD_VIEWPORT_SHORTCUTS: readonly EditorShortcut[] = [
 
 /**
  * Whether the editor's split-flap preview renders FiestaUI's BoardViewport.
- * False until slice 2.4 converts the app's `ScaledBoardDisplay` wrapper (the
- * editor preview's only split-flap renderer) to BoardViewport; 2.4 flips this
- * in the same change, so the rows and the kit's bindings land together.
+ * Slice 2.4 converts the app's `ScaledBoardDisplay` wrapper, the editor's
+ * split-flap renderer, so the list includes the kit's active preview bindings.
  */
-export const SPLIT_FLAP_PREVIEW_IS_BOARD_VIEWPORT = false;
+export const SPLIT_FLAP_PREVIEW_IS_BOARD_VIEWPORT = true;
 
 /**
  * Whether the preview binds BoardViewport's keys: only a split-flap preview

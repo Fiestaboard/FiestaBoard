@@ -945,8 +945,8 @@
     },
     "boardSetup": {
       "boardType": "Tipo de tablero",
-      "flagshipDimensions": "6 × 22 caracteres",
-      "noteDimensions": "3 × 15 caracteres",
+      "flagshipDimensions": "22 × 6 caracteres",
+      "noteDimensions": "15 × 3 caracteres",
       "boardColor": "Color del tablero",
       "code62Label": "Aleta del código 62",
       "code62Help": "El código de carácter 62 muestra un signo de grado en los Flagship anteriores a 2026 y un corazón en los más nuevos. Elige el que tenga tu tablero para que las vistas previas coincidan.",
@@ -2138,7 +2138,16 @@
     "withMessage": "Visualización del tablero: {message}",
     "previewSizeLabel": "Tamaño de vista previa",
     "fitMode": "Ajustar",
-    "actualMode": "Tamaño real"
+    "actualMode": "Tamaño real",
+    "viewportNote": "Note {current} de {total}",
+    "viewportArrayColumn": "Columna {current} de {total} · {notes} Notes",
+    "viewportColumns": "Columnas {first}–{last} de {total}",
+    "viewportOverviewNotes": "Vista general · {notes} Notes · toca Tamaño real para leer",
+    "viewportOverviewColumns": "Vista general · {columns} columnas · toca Tamaño real para leer",
+    "viewportHintNotes": "Mayús + desplazar, deslizar en el trackpad o ← → con el foco. Se ajusta a cada Note.",
+    "viewportHintColumns": "Mayús + desplazar, deslizar en el trackpad o ← → con el foco. Se ajusta a cada columna.",
+    "viewportHintTouch": "desliza",
+    "displayPreview": "Vista previa de {name}"
   },
   "updateOverlay": {
     "takingLonger": "La actualización está tardando más de lo esperado",
@@ -2596,13 +2605,15 @@
       "denied": "Acción rechazada",
       "details": "Detalles de actividad",
       "completedActions": "{count, plural, one {# acción completada} other {# acciones completadas}}"
-    }
+    },
+    "previewRegion": "Vista previa del tablero, respuesta {reply}",
+    "previewRegionStep": "Vista previa del tablero, respuesta {reply}, paso {step}"
   },
   "boardSizeIndicator": {
     "custom": "Personalizado",
     "panel": "Panel",
-    "ariaLabel": "{rows} filas por {cols} columnas",
-    "ariaLabelWithLayout": "{rows} filas por {cols} columnas, {layout}"
+    "ariaLabelColsRows": "{cols} columnas por {rows} filas",
+    "ariaLabelColsRowsWithLayout": "{cols} columnas por {rows} filas, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / clientes externos",
@@ -2838,7 +2849,7 @@
     "resultError": "No funcionó",
     "guidanceLabel": "Qué probar",
     "fieldsFilled": "Completado: {fields}",
-    "geometryDetected": "Detectado {rows} × {cols}",
+    "geometryDetected": "Detectado {cols} × {rows}",
     "applyGeometry": "Aplicar tamaño",
     "actionInputDescription": "Esta acción necesita algunos datos primero.",
     "boardNameLabel": "Nombre del tablero",
@@ -2865,7 +2876,7 @@
     "moveSwap": "Posición {position} — intercambiar con {summary}",
     "tilesDuplicate": "Varios mosaicos apuntan al mismo tablero: {values}",
     "tileActionsLabel": "Acciones del módulo",
-    "geometryApplied": "Ajustado a {rows} × {cols}",
+    "geometryApplied": "Ajustado a {cols} × {rows}",
     "searchingNetwork": "Buscando en {network}…",
     "searchingYourNetwork": "Buscando en tu red…",
     "foundOneSelected": "Se encontró {device} y se seleccionó.",

@@ -945,8 +945,8 @@
     },
     "boardSetup": {
       "boardType": "Type de tableau",
-      "flagshipDimensions": "6 × 22 caractères",
-      "noteDimensions": "3 × 15 caractères",
+      "flagshipDimensions": "22 × 6 caractères",
+      "noteDimensions": "15 × 3 caractères",
       "boardColor": "Couleur du tableau",
       "code62Label": "Volet du code 62",
       "code62Help": "Le code de caractère 62 affiche un symbole degré sur les Flagship d'avant 2026 et un cœur sur les plus récents. Choisissez celui de votre tableau pour que les aperçus correspondent.",
@@ -2138,7 +2138,16 @@
     "withMessage": "Affichage du tableau : {message}",
     "previewSizeLabel": "Taille de l'aperçu",
     "fitMode": "Ajuster",
-    "actualMode": "Taille réelle"
+    "actualMode": "Taille réelle",
+    "viewportNote": "Note {current} sur {total}",
+    "viewportArrayColumn": "Colonne {current} sur {total} · {notes} Notes",
+    "viewportColumns": "Colonnes {first}–{last} sur {total}",
+    "viewportOverviewNotes": "Aperçu · {notes} Notes · touchez Taille réelle pour lire",
+    "viewportOverviewColumns": "Aperçu · {columns} colonnes · touchez Taille réelle pour lire",
+    "viewportHintNotes": "Maj + défilement, balayage du pavé tactile ou ← → avec le focus. S’aligne sur chaque Note.",
+    "viewportHintColumns": "Maj + défilement, balayage du pavé tactile ou ← → avec le focus. S’aligne sur chaque colonne.",
+    "viewportHintTouch": "balayez",
+    "displayPreview": "Aperçu de {name}"
   },
   "updateOverlay": {
     "takingLonger": "La mise à jour prend plus de temps que prévu",
@@ -2596,13 +2605,15 @@
       "denied": "Action refusée",
       "details": "Détails de l’activité",
       "completedActions": "{count, plural, one {# action terminée} other {# actions terminées}}"
-    }
+    },
+    "previewRegion": "Aperçu du tableau, réponse {reply}",
+    "previewRegionStep": "Aperçu du tableau, réponse {reply}, étape {step}"
   },
   "boardSizeIndicator": {
     "custom": "Personnalisé",
     "panel": "Panneau",
-    "ariaLabel": "{rows} lignes par {cols} colonnes",
-    "ariaLabelWithLayout": "{rows} lignes par {cols} colonnes, {layout}"
+    "ariaLabelColsRows": "{cols} colonnes par {rows} lignes",
+    "ariaLabelColsRowsWithLayout": "{cols} colonnes par {rows} lignes, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / clients externes",
@@ -2838,7 +2849,7 @@
     "resultError": "Échec",
     "guidanceLabel": "À essayer",
     "fieldsFilled": "Rempli : {fields}",
-    "geometryDetected": "Détecté {rows} × {cols}",
+    "geometryDetected": "Détecté {cols} × {rows}",
     "applyGeometry": "Appliquer la taille",
     "actionInputDescription": "Cette action a d'abord besoin de quelques informations.",
     "boardNameLabel": "Nom du tableau",
@@ -2865,7 +2876,7 @@
     "moveSwap": "Emplacement {position} — échanger avec {summary}",
     "tilesDuplicate": "Plusieurs tuiles pointent vers le même tableau : {values}",
     "tileActionsLabel": "Actions de la tuile",
-    "geometryApplied": "Réglé sur {rows} × {cols}",
+    "geometryApplied": "Réglé sur {cols} × {rows}",
     "searchingNetwork": "Recherche sur {network}…",
     "searchingYourNetwork": "Recherche sur votre réseau…",
     "foundOneSelected": "{device} trouvé et sélectionné.",

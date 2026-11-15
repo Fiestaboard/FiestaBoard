@@ -38,6 +38,9 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
       "Apply a formula (formula editor)",
       "Close a picker",
       "Leave draw mode",
+      "Move the preview by one Note or column",
+      "Jump to the start or end of the preview",
+      "Fit / Actual size (preview focused)",
     ]);
 
     // 07 hangs the list in the template column, at its left edge (DD-W30).
@@ -52,6 +55,24 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
 
     await page.keyboard.press("Escape");
     await expect(list).toBeHidden();
+  });
+
+  test("the listed preview keys scroll the converted editor viewport and toggle Fit", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openEditor(page);
+    const viewport = page.locator("[data-slot=board-viewport]").first();
+    const scroller = viewport.locator("[data-slot=board-viewport-scroller]");
+    await expect(viewport).toHaveAttribute("data-mode", "actual");
+    await expect(viewport).toHaveAttribute("data-overflow", "true");
+    await scroller.focus();
+    await page.keyboard.press("End");
+    await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+    await page.keyboard.press("Home");
+    await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBe(0);
+    await page.keyboard.press("f");
+    await expect(viewport).toHaveAttribute("data-mode", "fit");
+    await page.keyboard.press("f");
+    await expect(viewport).toHaveAttribute("data-mode", "actual");
   });
 
   test("? stays a typed character in the page name and in the template", async ({ page }) => {

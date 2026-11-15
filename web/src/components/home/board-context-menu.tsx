@@ -85,14 +85,14 @@ function BoardMenuItems({ actions }: { actions: BoardActions }) {
 /**
  * The board context menu (07a §6, WEB-18): right-click, Shift+F10 / the Menu
  * key and a 500 ms long-press open it on the board itself, through FiestaUI's
- * `DropdownMenu trigger="context"` (1.8a). A ⋯ button that appears on board
- * hover or focus (always on touch) opens the same items, so the menu is never
- * the only way in. Everywhere else the browser keeps its own menu.
+ * `DropdownMenu trigger="context"` (1.8a). A ⋯ button in the card header
+ * appears on card hover or focus (always on touch) and opens the same items,
+ * so the menu is never the only way in. Everywhere else the browser keeps
+ * its own menu.
  */
 export function BoardContextMenu({ actions, children }: { actions: BoardActions; children: ReactNode }) {
-  const t = useTranslations("home.contextMenu");
   return (
-    <Box className="group/board relative">
+    <Box>
       <DropdownMenu trigger="context">
         <DropdownMenuTrigger
           render={
@@ -112,21 +112,28 @@ export function BoardContextMenu({ actions, children }: { actions: BoardActions;
           <BoardMenuItems actions={actions} />
         </DropdownMenuContent>
       </DropdownMenu>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="secondary"
-            size="icon"
-            aria-label={t("moreActions", { board: actions.boardName })}
-            className="absolute end-3 top-3 size-9 opacity-0 shadow-sm transition-opacity group-hover/board:opacity-100 group-focus-within/board:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100 pointer-coarse:opacity-100"
-          >
-            <MoreHorizontal className="size-4" aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-56">
-          <BoardMenuItems actions={actions} />
-        </DropdownMenuContent>
-      </DropdownMenu>
     </Box>
+  );
+}
+
+/** The same actions in the card header, clear of BoardViewport's controls. */
+export function BoardActionsMenu({ actions }: { actions: BoardActions }) {
+  const t = useTranslations("home.contextMenu");
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="secondary"
+          size="icon"
+          aria-label={t("moreActions", { board: actions.boardName })}
+          className="size-9 shrink-0 opacity-0 shadow-sm transition-opacity group-hover/home-card:opacity-100 group-focus-within/home-card:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100 pointer-coarse:opacity-100"
+        >
+          <MoreHorizontal className="size-4" aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-56">
+        <BoardMenuItems actions={actions} />
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

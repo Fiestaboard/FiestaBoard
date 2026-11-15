@@ -6,12 +6,12 @@ import { BoardSizeIndicator } from "@/components/board-size-indicator";
 describe("BoardSizeIndicator", () => {
   // ── Flagship ──────────────────────────────────────────────────────────────────
   describe("flagship", () => {
-    it('renders "6 × 22" for flagship (rows × cols)', () => {
+    it('renders "22 × 6" for flagship (cols × rows, 07 57:27771)', () => {
       render(<BoardSizeIndicator deviceType="flagship" />);
-      // Visual order is rows × cols, matching the wizard's "6 × 22 characters".
-      expect(screen.getByRole("img")).toHaveTextContent("6 × 22");
+      // Visual order is cols × rows, as 07 `57:27771` reads "45 × 3" (slice 2.4).
+      expect(screen.getByRole("img")).toHaveTextContent("22 × 6");
       // The accessible label names each dimension explicitly (order-independent).
-      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "6 rows by 22 columns");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "22 columns by 6 rows");
     });
 
     it("does NOT render the · separator for flagship", () => {
@@ -22,11 +22,11 @@ describe("BoardSizeIndicator", () => {
 
   // ── Note ─────────────────────────────────────────────────────────────────────
   describe("note", () => {
-    it('renders "3 × 15" for note (rows × cols)', () => {
+    it('renders "15 × 3" for note (cols × rows, 07 57:27771)', () => {
       render(<BoardSizeIndicator deviceType="note" />);
       const el = screen.getByRole("img");
-      expect(el).toHaveTextContent("3 × 15");
-      expect(el).toHaveAttribute("aria-label", "3 rows by 15 columns");
+      expect(el).toHaveTextContent("15 × 3");
+      expect(el).toHaveAttribute("aria-label", "15 columns by 3 rows");
     });
 
     it("does NOT render the · separator for note", () => {
@@ -37,95 +37,95 @@ describe("BoardSizeIndicator", () => {
 
   // ── note_array — all 5 presets ────────────────────────────────────────────────
   describe("note_array presets", () => {
-    it("2 side-by-side: 3 × 30 · 2 side-by-side", () => {
+    it("2 side-by-side: 30 × 3 · 2 side-by-side", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={2} notesTall={1} />);
-      expect(screen.getByRole("img")).toHaveTextContent("3 × 30 · 2 side-by-side");
-      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "3 rows by 30 columns, 2 side-by-side");
+      expect(screen.getByRole("img")).toHaveTextContent("30 × 3 · 2 side-by-side");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "30 columns by 3 rows, 2 side-by-side");
     });
 
-    it("4 side-by-side: 3 × 60 · 4 side-by-side", () => {
+    it("4 side-by-side: 60 × 3 · 4 side-by-side", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={4} notesTall={1} />);
-      expect(screen.getByRole("img")).toHaveTextContent("3 × 60 · 4 side-by-side");
-      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "3 rows by 60 columns, 4 side-by-side");
+      expect(screen.getByRole("img")).toHaveTextContent("60 × 3 · 4 side-by-side");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "60 columns by 3 rows, 4 side-by-side");
     });
 
-    it("2 stacked: 6 × 15 · 2 stacked", () => {
+    it("2 stacked: 15 × 6 · 2 stacked", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={1} notesTall={2} />);
-      expect(screen.getByRole("img")).toHaveTextContent("6 × 15 · 2 stacked");
-      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "6 rows by 15 columns, 2 stacked");
+      expect(screen.getByRole("img")).toHaveTextContent("15 × 6 · 2 stacked");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "15 columns by 6 rows, 2 stacked");
     });
 
-    it("4 stacked: 12 × 15 · 4 stacked", () => {
+    it("4 stacked: 15 × 12 · 4 stacked", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={1} notesTall={4} />);
-      expect(screen.getByRole("img")).toHaveTextContent("12 × 15 · 4 stacked");
-      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "12 rows by 15 columns, 4 stacked");
+      expect(screen.getByRole("img")).toHaveTextContent("15 × 12 · 4 stacked");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "15 columns by 12 rows, 4 stacked");
     });
 
-    it("2×2 grid: 6 × 30 · 2×2 grid (brief acceptance case)", () => {
+    it("2×2 grid: 30 × 6 · 2×2 grid (brief acceptance case)", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={2} notesTall={2} />);
-      expect(screen.getByRole("img")).toHaveTextContent("6 × 30 · 2×2 grid");
-      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "6 rows by 30 columns, 2×2 grid");
+      expect(screen.getByRole("img")).toHaveTextContent("30 × 6 · 2×2 grid");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "30 columns by 6 rows, 2×2 grid");
     });
   });
 
   // ── note_array — custom (no matching preset) ──────────────────────────────────
   describe("note_array custom", () => {
-    it("3×2 (custom, no preset): 6 × 45 · Custom", () => {
+    it("3×2 (custom, no preset): 45 × 6 · Custom", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={3} notesTall={2} />);
-      expect(screen.getByRole("img")).toHaveTextContent("6 × 45 · Custom");
+      expect(screen.getByRole("img")).toHaveTextContent("45 × 6 · Custom");
     });
 
-    it("1×1 (custom, not a preset): 3 × 15 · Custom", () => {
+    it("1×1 (custom, not a preset): 15 × 3 · Custom", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={1} notesTall={1} />);
-      expect(screen.getByRole("img")).toHaveTextContent("3 × 15 · Custom");
+      expect(screen.getByRole("img")).toHaveTextContent("15 × 3 · Custom");
     });
   });
 
   // ── i18n / aria-label ─────────────────────────────────────────────────────────
   describe("i18n / accessibility", () => {
-    it("aria-label for flagship uses ariaLabel key: '6 rows by 22 columns'", () => {
+    it("aria-label for flagship uses ariaLabelColsRows key: '22 columns by 6 rows'", () => {
       render(<BoardSizeIndicator deviceType="flagship" />);
-      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "6 rows by 22 columns");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "22 columns by 6 rows");
     });
 
-    it("aria-label for note_array 2×2 uses ariaLabelWithLayout key", () => {
+    it("aria-label for note_array 2×2 uses ariaLabelColsRowsWithLayout key", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={2} notesTall={2} />);
-      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "6 rows by 30 columns, 2×2 grid");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "30 columns by 6 rows, 2×2 grid");
     });
   });
 
   // ── panel (FiestaPanel, fit per character) ────────────────────────────────────
   describe("panel", () => {
-    it("renders the panel's character grid as rows × cols with a Panel label", () => {
+    it("renders the panel's character grid as cols × rows with a Panel label", () => {
       render(<BoardSizeIndicator deviceType="panel" gridRows={12} gridCols={29} />);
       const el = screen.getByRole("img");
-      expect(el).toHaveTextContent("12 × 29");
+      expect(el).toHaveTextContent("29 × 12");
       expect(el).toHaveTextContent("Panel");
-      expect(el).toHaveAttribute("aria-label", "12 rows by 29 columns, Panel");
+      expect(el).toHaveAttribute("aria-label", "29 columns by 12 rows, Panel");
     });
 
     // #2369: an LED output board's grid can be narrower than a Note (floor
-    // 1 × 5, src/devices.py). A 3 × 13 AWTRIX board was labelled 3 × 15.
+    // 1 row by 5 columns, src/devices.py). A 13 × 3 AWTRIX board was labelled 15 × 3.
     it("labels an LED panel narrower than a Note with its own grid (#2369)", () => {
       render(<BoardSizeIndicator deviceType="panel" gridRows={3} gridCols={13} />);
       const el = screen.getByRole("img");
-      expect(el).toHaveTextContent("3 × 13 · Panel");
-      expect(el).toHaveAttribute("aria-label", "3 rows by 13 columns, Panel");
+      expect(el).toHaveTextContent("13 × 3 · Panel");
+      expect(el).toHaveAttribute("aria-label", "13 columns by 3 rows, Panel");
     });
 
-    it("labels a Pixoo 64's 8 × 10 grid as 8 × 10", () => {
+    it("labels a Pixoo 64's 10 × 8 grid as 10 × 8", () => {
       render(<BoardSizeIndicator deviceType="panel" gridRows={8} gridCols={10} />);
       const el = screen.getByRole("img");
-      expect(el).toHaveTextContent("8 × 10 · Panel");
-      expect(el).toHaveAttribute("aria-label", "8 rows by 10 columns, Panel");
+      expect(el).toHaveTextContent("10 × 8 · Panel");
+      expect(el).toHaveAttribute("aria-label", "10 columns by 8 rows, Panel");
     });
 
     // The released UI must preserve the small-LED floor used by core.
-    it("labels a TC001's 1 × 8 grid as 1 × 8", () => {
+    it("labels a TC001's 8 × 1 grid as 8 × 1", () => {
       render(<BoardSizeIndicator deviceType="panel" gridRows={1} gridCols={8} />);
       const el = screen.getByRole("img");
-      expect(el).toHaveTextContent("1 × 8 · Panel");
-      expect(el).toHaveAttribute("aria-label", "1 row by 8 columns, Panel");
+      expect(el).toHaveTextContent("8 × 1 · Panel");
+      expect(el).toHaveAttribute("aria-label", "8 columns by 1 row, Panel");
     });
   });
 

@@ -41,14 +41,14 @@ const TYPE_SELECT_LABEL = "Board type and size";
 
 // Preset labels come straight from messages/en.json displaySettings.presets.*
 // and the dimensions from src/lib/board-dimensions.ts NOTE_ARRAY_PRESETS.
-// charLabel is the BoardSizeIndicator text: `{rows} × {cols}` (rows = h*3,
+// charLabel is the BoardSizeIndicator text: `{cols} × {rows}` (slice 2.4) (rows = h*3,
 // cols = w*15). All five presets except "4 side-by-side" go beyond #1178.
 const PRESETS = [
-  { label: "2 side-by-side", notesWide: 2, notesTall: 1, charLabel: "3 × 30" },
-  { label: "4 side-by-side", notesWide: 4, notesTall: 1, charLabel: "3 × 60" },
-  { label: "2 stacked", notesWide: 1, notesTall: 2, charLabel: "6 × 15" },
-  { label: "4 stacked", notesWide: 1, notesTall: 4, charLabel: "12 × 15" },
-  { label: "2×2 grid", notesWide: 2, notesTall: 2, charLabel: "6 × 30" },
+  { label: "2 side-by-side", notesWide: 2, notesTall: 1, charLabel: "30 × 3" },
+  { label: "4 side-by-side", notesWide: 4, notesTall: 1, charLabel: "60 × 3" },
+  { label: "2 stacked", notesWide: 1, notesTall: 2, charLabel: "15 × 6" },
+  { label: "4 stacked", notesWide: 1, notesTall: 4, charLabel: "15 × 12" },
+  { label: "2×2 grid", notesWide: 2, notesTall: 2, charLabel: "30 × 6" },
 ] as const;
 
 test.beforeEach(async ({ context, page }) => {
@@ -176,7 +176,7 @@ test.describe("regression: note-arrays — custom W×H", () => {
 // ---------------------------------------------------------------------------
 
 test.describe("regression: note-arrays — size indicator", () => {
-  test('configured 4 side-by-side board shows "3 × 60 · 4 side-by-side"', async ({ page }) => {
+  test('configured 4 side-by-side board shows "60 × 3 · 4 side-by-side"', async ({ page }) => {
     // Configure the single board as a 4-side-by-side note array directly via API.
     await fetch(`${API_URL}/settings/board`, {
       method: "PUT",
@@ -203,11 +203,11 @@ test.describe("regression: note-arrays — size indicator", () => {
     // The indicator is a role="img" in the display card's summary.
     // aria-label = boardSizeIndicator.ariaLabelWithLayout
     // ("{rows} rows by {cols} columns, {layout}") → board-size-indicator.tsx:31.
-    const indicator = page.getByRole("img", { name: "3 rows by 60 columns, 4 side-by-side" });
+    const indicator = page.getByRole("img", { name: "60 columns by 3 rows, 4 side-by-side" });
     await expect(indicator).toBeVisible({ timeout: 10_000 });
 
     // Visible text is `{cols} × {rows} · {preset}` (board-size-indicator.tsx:41-46).
-    await expect(indicator).toContainText("3 × 60");
+    await expect(indicator).toContainText("60 × 3");
     await expect(indicator).toContainText("4 side-by-side");
   });
 
@@ -235,9 +235,9 @@ test.describe("regression: note-arrays — size indicator", () => {
     await openDisplays(page);
 
     // 3×2 notes → 6 × 45 chars; no preset matches → boardSizeIndicator.custom ("Custom").
-    const indicator = page.getByRole("img", { name: "6 rows by 45 columns, Custom" });
+    const indicator = page.getByRole("img", { name: "45 columns by 6 rows, Custom" });
     await expect(indicator).toBeVisible({ timeout: 10_000 });
-    await expect(indicator).toContainText("6 × 45");
+    await expect(indicator).toContainText("45 × 6");
     await expect(indicator).toContainText("Custom");
   });
 });
@@ -302,8 +302,8 @@ test.describe("regression: note-arrays — auto-detect", () => {
     // Click Auto-detect (the manifest's detect_geometry action, auto_apply).
     await page.getByRole("button", { name: "Auto-detect from board" }).first().click();
 
-    // Header now shows flagship dimensions (6 × 22) and persists flagship.
-    await expect(page.getByText("6 × 22").first()).toBeVisible({ timeout: 10_000 });
+    // Header now shows flagship dimensions (22 × 6) and persists flagship.
+    await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 10_000 });
     // The Cloud API Token field is hidden once the board is no longer a note array.
     await expect(page.getByLabel(/Cloud API Token/)).toHaveCount(0, { timeout: 5_000 });
 

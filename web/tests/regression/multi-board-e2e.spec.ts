@@ -283,12 +283,12 @@ test.describe("regression: multi-board — mixed fleet through the real UI", () 
     await setActivePage(pageId, kitchenId);
 
     await page.goto(`/pages/edit/${pageId}`);
-    await expect(page.getByText("6 × 22").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 15_000 });
 
     // Flagship (6x22) -> Note (3x15): a shrinking retarget confirms first.
     await page.getByLabel("Change board size").click();
     await page.getByRole("option", { name: "Note", exact: true }).click();
-    await expect(page.getByText("3 × 15").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: "Save" }).first().click();
     await expect(page.getByRole("heading", { name: "Change board size?" })).toBeVisible({ timeout: 10_000 });

@@ -945,8 +945,8 @@
     },
     "boardSetup": {
       "boardType": "Тип доски",
-      "flagshipDimensions": "6 × 22 символов",
-      "noteDimensions": "3 × 15 символов",
+      "flagshipDimensions": "22 × 6 символов",
+      "noteDimensions": "15 × 3 символа",
       "boardColor": "Цвет доски",
       "code62Label": "Створка кода 62",
       "code62Help": "Код символа 62 показывает знак градуса на Flagship, выпущенных до 2026 года, и сердце на более новых. Выберите то, что стоит на вашей доске, чтобы предпросмотр совпадал.",
@@ -2138,7 +2138,16 @@
     "withMessage": "Дисплей board: {message}",
     "previewSizeLabel": "Размер предпросмотра",
     "fitMode": "По ширине",
-    "actualMode": "Реальный размер"
+    "actualMode": "Реальный размер",
+    "viewportNote": "Note {current} из {total}",
+    "viewportArrayColumn": "Столбец {current} из {total} · {notes} Notes",
+    "viewportColumns": "Столбцы {first}–{last} из {total}",
+    "viewportOverviewNotes": "Обзор · {notes} Notes · нажмите «Реальный размер», чтобы прочитать",
+    "viewportOverviewColumns": "Обзор · {columns} столбцов · нажмите «Реальный размер», чтобы прочитать",
+    "viewportHintNotes": "Shift + прокрутка, жест на трекпаде или ← → в фокусе. Прилипает к каждой Note.",
+    "viewportHintColumns": "Shift + прокрутка, жест на трекпаде или ← → в фокусе. Прилипает к каждому столбцу.",
+    "viewportHintTouch": "проведите",
+    "displayPreview": "Предпросмотр: {name}"
   },
   "updateOverlay": {
     "takingLonger": "Обновление занимает больше времени, чем ожидалось",
@@ -2596,13 +2605,15 @@
       "denied": "Действие отклонено",
       "details": "Сведения о действиях",
       "completedActions": "Выполнено действий: {count}"
-    }
+    },
+    "previewRegion": "Предпросмотр табло, ответ {reply}",
+    "previewRegionStep": "Предпросмотр табло, ответ {reply}, шаг {step}"
   },
   "boardSizeIndicator": {
     "custom": "Пользовательский",
     "panel": "Панель",
-    "ariaLabel": "{rows} строк на {cols} столбцов",
-    "ariaLabelWithLayout": "{rows} строк на {cols} столбцов, {layout}"
+    "ariaLabelColsRows": "{cols} столбцов на {rows} строк",
+    "ariaLabelColsRowsWithLayout": "{cols} столбцов на {rows} строк, {layout}"
   },
   "mcpSettings": {
     "title": "MCP / внешние клиенты",
@@ -2838,7 +2849,7 @@
     "resultError": "Не получилось",
     "guidanceLabel": "Что попробовать",
     "fieldsFilled": "Заполнено: {fields}",
-    "geometryDetected": "Обнаружено {rows} × {cols}",
+    "geometryDetected": "Обнаружено {cols} × {rows}",
     "applyGeometry": "Применить размер",
     "actionInputDescription": "Для этого действия сначала нужны некоторые данные.",
     "boardNameLabel": "Название табло",
@@ -2865,7 +2876,7 @@
     "moveSwap": "Ячейка {position} — поменять местами с {summary}",
     "tilesDuplicate": "Несколько плиток указывают на одну и ту же доску: {values}",
     "tileActionsLabel": "Действия с плиткой",
-    "geometryApplied": "Установлено {rows} × {cols}",
+    "geometryApplied": "Установлено {cols} × {rows}",
     "searchingNetwork": "Поиск в {network}…",
     "searchingYourNetwork": "Поиск в вашей сети…",
     "foundOneSelected": "Найдено и выбрано: {device}.",

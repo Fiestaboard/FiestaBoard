@@ -123,9 +123,9 @@ describe("PageBuilder — note-array dimensions", () => {
   });
 
   // A 4×1 note array → 4*15 = 60 cols, 1*3 = 3 rows. The BoardSizeIndicator
-  // renders rows × cols, so a real note-array preview shows
-  // "3 × 60". A 1×1 (flagship/note default) note array would only ever show
-  // "3 × 15", so asserting "3 × 60" proves the real dims were threaded through.
+  // renders cols × rows (slice 2.4), so a real note-array preview shows
+  // "60 × 3". A 1×1 (flagship/note default) note array would only ever show
+  // "15 × 3", so asserting "60 × 3" proves the real dims were threaded through.
   function configureNoteArrayBoard(notesWide: number, notesTall: number) {
     server.use(
       http.get(`${API_BASE}/settings/board`, () => {
@@ -148,22 +148,22 @@ describe("PageBuilder — note-array dimensions", () => {
   }
 
   it("previews a NEW note_array page at the configured board's real size", async () => {
-    // Configured note array is 4 wide × 1 tall → 3 × 60.
+    // Configured note array is 4 wide × 1 tall → 60 × 3.
     configureNoteArrayBoard(4, 1);
 
     render(<PageBuilder deviceType="note_array" onClose={vi.fn()} />, { wrapper: TestWrapper });
 
     // The size indicator reflects the seeded grid dims (rows × cols), not 1×1.
     await waitFor(() => {
-      expect(screen.getByRole("img", { name: /3 rows by 60 columns/i })).toBeInTheDocument();
+      expect(screen.getByRole("img", { name: /60 columns by 3 rows/i })).toBeInTheDocument();
     });
-    const indicator = screen.getByRole("img", { name: /3 rows by 60 columns/i });
-    expect(indicator).toHaveTextContent("3 × 60");
+    const indicator = screen.getByRole("img", { name: /60 columns by 3 rows/i });
+    expect(indicator).toHaveTextContent("60 × 3");
   });
 
   it("seeds dims from an EDITED note_array page", async () => {
     // Editing a 2×2 note array page (persisted notes_wide/notes_tall) →
-    // 2*15 = 30 cols × 2*3 = 6 rows → "6 × 30".
+    // 2*15 = 30 cols × 2*3 = 6 rows → "30 × 6".
     server.use(
       http.get(`${API_BASE}/v1/pages/:id`, () => {
         return HttpResponse.json({
@@ -183,19 +183,19 @@ describe("PageBuilder — note-array dimensions", () => {
     render(<PageBuilder pageId="na-page" onClose={vi.fn()} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("img", { name: /6 rows by 30 columns/i })).toBeInTheDocument();
+      expect(screen.getByRole("img", { name: /30 columns by 6 rows/i })).toBeInTheDocument();
     });
-    const indicator = screen.getByRole("img", { name: /6 rows by 30 columns/i });
-    expect(indicator).toHaveTextContent("6 × 30");
+    const indicator = screen.getByRole("img", { name: /30 columns by 6 rows/i });
+    expect(indicator).toHaveTextContent("30 × 6");
   });
 
-  it("leaves a flagship page at its fixed 6 × 22 size", async () => {
+  it("leaves a flagship page at its fixed 22 × 6 size", async () => {
     render(<PageBuilder deviceType="flagship" onClose={vi.fn()} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("img", { name: /6 rows by 22 columns/i })).toBeInTheDocument();
+      expect(screen.getByRole("img", { name: /22 columns by 6 rows/i })).toBeInTheDocument();
     });
-    const indicator = screen.getByRole("img", { name: /6 rows by 22 columns/i });
-    expect(indicator).toHaveTextContent("6 × 22");
+    const indicator = screen.getByRole("img", { name: /22 columns by 6 rows/i });
+    expect(indicator).toHaveTextContent("22 × 6");
   });
 });

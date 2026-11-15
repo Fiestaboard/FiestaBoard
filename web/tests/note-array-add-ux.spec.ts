@@ -56,7 +56,7 @@ test.describe("Add Note Array board", () => {
     // The new board's page opens: a 2×1 note array (3 rows × 30 cols).
     const card = page.getByTestId("board-card").filter({ hasText: "My Board 2" });
     await expect(card).toBeVisible({ timeout: 10_000 });
-    await expect(card).toContainText("3 × 30");
+    await expect(card).toContainText("30 × 3");
     await expect(card).toContainText("2 side-by-side");
     await page.waitForTimeout(600);
 
