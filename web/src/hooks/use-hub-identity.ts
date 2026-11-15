@@ -9,10 +9,8 @@ import { api } from "@/lib/api";
  * Settings and the hub line at the foot of the More drawer (07a `308:36070`,
  * 07e `320:7936`): "fiestapi.local · Online · FiestaBoard 11.1.0".
  *
- * `online` is true once the hub has answered, `false` once it has failed to,
- * and `null` before either: a state is only claimed when it is known, so the
- * line never says Online for a hub it has not heard from. The per-display
- * health and the Remote state are slice 2.3's (H12, BoardSelector `status`).
+ * The connection state (Online / Remote / Can't reach) is NOT here: it comes
+ * from `useHubLine` (slice 2.3), the one source every hub line reads.
  */
 export interface HubIdentity {
   /** The household's name for the hub ("Maya's FiestaPi"), or null when unset. */
@@ -20,7 +18,6 @@ export interface HubIdentity {
   /** The address this browser reached it at. */
   host: string;
   version: string | null;
-  online: boolean | null;
 }
 
 export function useHubIdentity({ enabled = true }: { enabled?: boolean } = {}): HubIdentity {
@@ -42,11 +39,9 @@ export function useHubIdentity({ enabled = true }: { enabled?: boolean } = {}): 
   });
 
   const name = settings.data?.general?.instance_name?.trim() || null;
-  const online = version.isSuccess ? true : version.isError ? false : null;
   return {
     name,
     host: typeof window === "undefined" ? "" : window.location.hostname,
     version: version.data?.running_version ?? null,
-    online,
   };
 }

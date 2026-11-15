@@ -49,6 +49,11 @@ export default defineConfig({
         "src/components/notification-display.tsx",
         "src/components/language-selector.tsx",
         "src/i18n/config.ts",
+        // Slice 2.3: status banners.
+        "src/components/status-banners/**",
+        "src/components/board-init-error-banner.tsx",
+        "src/components/silence-imminent-banner.tsx",
+        "src/components/board-out-of-sync-banner.tsx",
       ],
       exclude: ["src/__tests__/**", "**/*.stories.tsx", "src/lib/ai-chat-types.ts"],
       thresholds: {

@@ -12,6 +12,8 @@ import { isVirtualBoard } from "@/components/settings/output-boards";
 import { ScheduleBehavior } from "@/components/settings/schedule-behavior";
 import { SilenceSchedule } from "@/components/settings/silence-schedule";
 import { UpdateIntervals } from "@/components/settings/update-intervals";
+import { LastKnownBoard } from "@/components/status-banners/last-known-board";
+import { StatusBannerHost } from "@/components/status-banners/status-banner-host";
 import { useParams, useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -61,6 +63,9 @@ export default function DisplayPage() {
           <TabsTrigger value="settings">{t("tabSettings")}</TabsTrigger>
           <TabsTrigger value="playback">{t("tabPlayback")}</TabsTrigger>
         </TabsList>
+        {/* Slice 2.3: this display's one status banner, under the header and
+            tabs (07a "under the header"), on every tab. */}
+        <StatusBannerHost boardId={board.id} className="mt-3" />
       </PageSection>
       <TabsContent keepMounted value="overview" className="mt-0">
         {board && (
@@ -83,7 +88,9 @@ export default function DisplayPage() {
               />
             </Box>
             <Flex justify="center" className="overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
-              <DisplayLivePreview board={board} size="md" />
+              <LastKnownBoard boardId={board.id}>
+                <DisplayLivePreview board={board} size="md" />
+              </LastKnownBoard>
             </Flex>
           </PageSection>
         )}

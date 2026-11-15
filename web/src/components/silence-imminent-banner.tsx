@@ -1,8 +1,7 @@
 "use client";
 
-import { Alert, AlertDescription, AlertTitle, Box, Button, Flex } from "@fiestaboard/ui";
+import { StatusBanner, StatusBannerAction } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Moon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -111,41 +110,33 @@ export function SilenceImminentBanner() {
     switchNowMutation.mutate({ pageId: silencePageId, durationMinutes });
   };
 
+  // A `StatusBanner kind="silence-soon"` (07a `298:2280`). Its two actions
+  // stay: the ghost one dismisses this window only, the outline one switches
+  // to the silence page now.
   return (
-    <Box className="mb-6">
-      <Alert
-        className="border-info/50 bg-info/10 flex flex-col sm:flex-row sm:items-center sm:gap-4 [&>svg]:static [&>svg]:shrink-0 [&>svg+div]:translate-y-0 [&>svg~*]:pl-3"
-        data-testid="silence-imminent-banner"
-      >
-        <Moon className="h-4 w-4 text-info" />
-        <Box className="flex-1 min-w-0">
-          <AlertTitle>{t("silenceImminentTitle", { minutes })}</AlertTitle>
-          <AlertDescription>
-            {silencePage
-              ? t("silenceImminentDescription", { pageName: silencePage.name })
-              : t("silenceImminentDescriptionUnnamed")}
-          </AlertDescription>
-        </Box>
-        <Flex align="center" gap="2" className="self-center shrink-0">
-          <Button
+    <StatusBanner
+      kind="silence-soon"
+      data-testid="silence-imminent-banner"
+      title={t("silenceImminentTitle", { minutes })}
+      description={
+        silencePage
+          ? t("silenceImminentDescription", { pageName: silencePage.name })
+          : t("silenceImminentDescriptionUnnamed")
+      }
+      action={
+        <>
+          <StatusBannerAction
             variant="ghost"
-            size="sm"
             onClick={() => setDismissedFor(boundaryKey)}
             disabled={switchNowMutation.isPending}
           >
             {t("silenceImminentDismiss")}
-          </Button>
-          <Button
-            variant="brand"
-            size="sm"
-            onClick={handleSwitchNow}
-            disabled={switchNowMutation.isPending}
-            className="w-fit btn-lift"
-          >
+          </StatusBannerAction>
+          <StatusBannerAction onClick={handleSwitchNow} disabled={switchNowMutation.isPending}>
             {t("silenceImminentSwitchNow")}
-          </Button>
-        </Flex>
-      </Alert>
-    </Box>
+          </StatusBannerAction>
+        </>
+      }
+    />
   );
 }

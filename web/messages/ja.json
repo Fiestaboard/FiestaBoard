@@ -86,12 +86,7 @@
     "more": "その他",
     "needsAttention": "{count, plural, other {# 件の対応が必要}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "ドロワーを開きます",
-    "hub": {
-      "online": "オンライン",
-      "unreachable": "接続できません",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "ドロワーを開きます"
   },
   "settingsMenu": {
     "trigger": "その他",
@@ -3149,5 +3144,43 @@
   "plugins": {
     "communityBadge": "コミュニティ",
     "communityDescription": "FiestaBoardのGitHub組織外で公開されています。"
+  },
+  "statusBanners": {
+    "unnamedBoard": "このディスプレイ",
+    "tryAgain": "再試行",
+    "deviceOfflineTitle": "オフラインです",
+    "deviceOfflineComputer": "このコンピューターはネットワークに接続されていません。ディスプレイはハブ上で動作し続け、ネットワークが戻ると FiestaBoard が再接続します。",
+    "deviceOfflinePhone": "このスマートフォンはネットワークに接続されていません。ディスプレイはハブ上で動作し続け、ネットワークが戻ると FiestaBoard が再接続します。",
+    "hubUnreachableTitle": "{host} のハブに接続できません",
+    "hubUnreachableDetail": "ディスプレイはハブ上でスケジュールどおりに動作しているため、失われるものはありません。最終接続 {time}・{seconds} 秒ごとに再試行中。",
+    "hubUnreachableDetailNever": "ディスプレイはハブ上でスケジュールどおりに動作しているため、失われるものはありません。{seconds} 秒ごとに再試行中。",
+    "connectionHelp": "接続のヘルプ",
+    "displayOfflineTitle": "{boardName} はオフラインです",
+    "displayOfflineDetail": "最終接続 {time}。電源と Wi-Fi を確認してください。FiestaBoard が自動で再確認します。",
+    "displayOfflineDetailNever": "ハブの起動以来、接続できていません。電源と Wi-Fi を確認してください。FiestaBoard が自動で再確認します。",
+    "diagnostics": "診断",
+    "initErrorTitle": "{boardName} を起動できませんでした",
+    "initErrorTitleUnnamed": "ディスプレイを起動できませんでした",
+    "displaySettings": "ディスプレイ設定",
+    "pausedTitle": "{boardName} は一時停止中です",
+    "pausedDetail": "再開するまで {pageName} を表示し続け、スケジュールをスキップします。",
+    "pausedDetailNoPage": "再開するまでスケジュールをスキップします。",
+    "resume": "再開",
+    "silencedTitle": "{time} まで Silence Schedule",
+    "silencedTitleNoTime": "Silence Schedule がオンです",
+    "silencedDetailPage": "{boardName} は {pageName} のままで、{time} まで新しい内容は表示されません。今作成したメッセージはそれまで待機します。",
+    "silencedDetail": "{boardName} は静かです。今すぐ表示を選ばない限り、新しいメッセージは {time} まで待機します。",
+    "silencedDetailNoTime": "{boardName} は静かです。今すぐ表示を選ばない限り、新しいメッセージは Silence Schedule が終わるまで待機します。",
+    "noViewerTitle": "{boardName} を表示している TV はありません",
+    "noViewerDetail": "最後の表示: {deviceName}・{when}",
+    "noViewerDetailNever": "サインイン済みの TV ではまだ表示されていません。TV で開くとそこに表示されます。",
+    "checkAgain": "再確認",
+    "hubOnline": "オンライン",
+    "hubRemote": "リモート",
+    "hubUnreachable": "接続できません",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "オフライン",
+    "offlineMeta": "最終接続 {time}・スケジュールはハブで動作中",
+    "offlineMetaNever": "ハブの起動以来未接続・スケジュールはハブで動作中"
   }
 }

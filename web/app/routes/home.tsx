@@ -3,9 +3,8 @@ import { Home as HomeIcon, Info, PencilLine } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ActivePageDisplay } from "@/components/active-page-display";
-import { BoardInitErrorBanner } from "@/components/board-init-error-banner";
 import { HomeCompose } from "@/components/home/home-compose";
-import { SilenceImminentBanner } from "@/components/silence-imminent-banner";
+import { StatusBannerHost } from "@/components/status-banners/status-banner-host";
 import { useWizard } from "@/components/wizard-provider";
 import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
 import { useTranslations } from "@/i18n/translations";
@@ -63,8 +62,8 @@ export default function Home() {
           </Alert>
         )}
 
-        <BoardInitErrorBanner />
-        <SilenceImminentBanner />
+        {/* Slice 2.3b owns the standing silenced notice and remaining Home banner hand-offs. */}
+        <StatusBannerHost fleet exclude={["silenced"]} />
         <ActivePageDisplay onCompose={() => setComposeOpen(true)} />
       </Stack>
 

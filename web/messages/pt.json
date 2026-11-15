@@ -86,12 +86,7 @@
     "more": "Mais",
     "needsAttention": "{count, plural, one {# precisa de atenção} other {# precisam de atenção}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Abre o painel",
-    "hub": {
-      "online": "Online",
-      "unreachable": "Inacessível",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Abre o painel"
   },
   "settingsMenu": {
     "trigger": "Mais",
@@ -3149,5 +3144,43 @@
   "plugins": {
     "communityBadge": "Comunidade",
     "communityDescription": "Publicado fora da organização FiestaBoard no GitHub."
+  },
+  "statusBanners": {
+    "unnamedBoard": "Este ecrã",
+    "tryAgain": "Tentar novamente",
+    "deviceOfflineTitle": "Está offline",
+    "deviceOfflineComputer": "Este computador não tem rede. Os seus ecrãs continuam a funcionar no hub; o FiestaBoard volta a ligar-se quando a rede regressar.",
+    "deviceOfflinePhone": "Este telemóvel não tem rede. Os seus ecrãs continuam a funcionar no hub; o FiestaBoard volta a ligar-se quando a rede regressar.",
+    "hubUnreachableTitle": "Não é possível contactar o seu hub em {host}",
+    "hubUnreachableDetail": "Os seus ecrãs continuam a seguir os horários no hub, por isso nada se perde. Última ligação {time} · a tentar novamente a cada {seconds} s.",
+    "hubUnreachableDetailNever": "Os seus ecrãs continuam a seguir os horários no hub, por isso nada se perde. A tentar novamente a cada {seconds} s.",
+    "connectionHelp": "Ajuda de ligação",
+    "displayOfflineTitle": "{boardName} está offline",
+    "displayOfflineDetail": "Última ligação {time}. Verifique a alimentação e o Wi-Fi; o FiestaBoard volta a verificar sozinho.",
+    "displayOfflineDetailNever": "O hub não o contactou desde que arrancou. Verifique a alimentação e o Wi-Fi; o FiestaBoard volta a verificar sozinho.",
+    "diagnostics": "Diagnóstico",
+    "initErrorTitle": "Não foi possível iniciar {boardName}",
+    "initErrorTitleUnnamed": "Um ecrã não conseguiu iniciar",
+    "displaySettings": "Definições do ecrã",
+    "pausedTitle": "{boardName} está em pausa",
+    "pausedDetail": "Continua a mostrar {pageName} e ignora o horário até retomar.",
+    "pausedDetailNoPage": "Ignora o horário até retomar.",
+    "resume": "Retomar",
+    "silencedTitle": "Silence Schedule até às {time}",
+    "silencedTitleNoTime": "Silence Schedule está ativo",
+    "silencedDetailPage": "{boardName} fica em {pageName} e nada de novo aparece até às {time}. As mensagens que escrever agora esperam até lá.",
+    "silencedDetail": "{boardName} está em silêncio. As novas mensagens esperam até às {time}, a menos que escolha Mostrar agora.",
+    "silencedDetailNoTime": "{boardName} está em silêncio. As novas mensagens esperam até o Silence Schedule terminar, a menos que escolha Mostrar agora.",
+    "noViewerTitle": "Nenhuma TV está a mostrar {boardName}",
+    "noViewerDetail": "Última vez em {deviceName} · {when}",
+    "noViewerDetailNever": "Nenhuma TV com sessão iniciada o mostrou ainda. Abra-o numa TV para o ver lá.",
+    "checkAgain": "Verificar novamente",
+    "hubOnline": "Online",
+    "hubRemote": "Remoto",
+    "hubUnreachable": "Sem ligação",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Offline",
+    "offlineMeta": "Última ligação {time} · O horário continua no hub",
+    "offlineMetaNever": "Sem contacto desde que o hub arrancou · O horário continua no hub"
   }
 }

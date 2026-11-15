@@ -86,12 +86,7 @@
     "more": "More",
     "needsAttention": "{count, plural, one {# needs attention} other {# need attention}}",
     "fiestaBot": "FiestaBot",
-    "opensDrawer": "Opens the drawer",
-    "hub": {
-      "online": "Online",
-      "unreachable": "Can’t reach",
-      "version": "FiestaBoard {version}"
-    }
+    "opensDrawer": "Opens the drawer"
   },
   "settingsMenu": {
     "trigger": "More",
@@ -3120,6 +3115,44 @@
   "plugins": {
     "communityBadge": "Community",
     "communityDescription": "Published outside the FiestaBoard GitHub organization."
+  },
+  "statusBanners": {
+    "unnamedBoard": "This display",
+    "tryAgain": "Try again",
+    "deviceOfflineTitle": "You're offline",
+    "deviceOfflineComputer": "This computer has no network. Your displays keep running on the hub; FiestaBoard reconnects when the network is back.",
+    "deviceOfflinePhone": "This phone has no network. Your displays keep running on the hub; FiestaBoard reconnects when the network is back.",
+    "hubUnreachableTitle": "Can't reach your hub at {host}",
+    "hubUnreachableDetail": "Your displays keep running their schedules on the hub, so nothing is lost. Last connected {time} · trying again every {seconds} s.",
+    "hubUnreachableDetailNever": "Your displays keep running their schedules on the hub, so nothing is lost. Trying again every {seconds} s.",
+    "connectionHelp": "Connection help",
+    "displayOfflineTitle": "{boardName} is offline",
+    "displayOfflineDetail": "Last connected {time}. Check its power and Wi-Fi; FiestaBoard checks again on its own.",
+    "displayOfflineDetailNever": "The hub hasn't reached it since it started. Check its power and Wi-Fi; FiestaBoard checks again on its own.",
+    "diagnostics": "Diagnostics",
+    "initErrorTitle": "Couldn't start {boardName}",
+    "initErrorTitleUnnamed": "A display couldn't start",
+    "displaySettings": "Display settings",
+    "pausedTitle": "{boardName} is paused",
+    "pausedDetail": "It keeps showing {pageName} and skips the Schedule until you resume it.",
+    "pausedDetailNoPage": "It skips the Schedule until you resume it.",
+    "resume": "Resume",
+    "silencedTitle": "Silence Schedule until {time}",
+    "silencedTitleNoTime": "Silence Schedule is on",
+    "silencedDetailPage": "{boardName} stays on {pageName} and nothing new shows until {time}. Messages you compose now wait until then.",
+    "silencedDetail": "{boardName} is quiet. New messages wait until {time} unless you choose Show now.",
+    "silencedDetailNoTime": "{boardName} is quiet. New messages wait until the Silence Schedule ends unless you choose Show now.",
+    "noViewerTitle": "No TV is showing {boardName}",
+    "noViewerDetail": "Last shown on {deviceName} · {when}",
+    "noViewerDetailNever": "No signed-in TV has shown it yet. Open it on a TV to see it there.",
+    "checkAgain": "Check again",
+    "hubOnline": "Online",
+    "hubRemote": "Remote",
+    "hubUnreachable": "Can't reach",
+    "hubVersion": "FiestaBoard {version}",
+    "offlineBadge": "Offline",
+    "offlineMeta": "Last connected {time} · Schedule keeps running on the hub",
+    "offlineMetaNever": "Not reached since the hub started · Schedule keeps running on the hub"
   },
   "changePage": {
     "title": "Change Page",
