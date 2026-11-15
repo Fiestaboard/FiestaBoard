@@ -175,6 +175,7 @@ jobs:
           WORKER_MOCK_URLS=""
           WORKER_MOCK_HOSTS=""
           MOCK_CLOUD_URLS=""
+          PWA_HTTP_BASE_URL=""
 
           for i in $(seq 0 $((WORKER_COUNT - 1))); do
             # PORTS=7000,7001 — two Local-API listeners so multi-board output
@@ -195,7 +196,9 @@ jobs:
             # The backend must know the cloud mock's address at startup so
             # note-array boards actually send to it.
             CLOUD_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-cloud-$i)
+            # Browsers trust loopback HTTP; one port per worker keeps state isolated.
             docker run -d --name fiestaboard-int-$i \
+              -p "127.0.0.1:$((4420 + i)):3000" \
               -e PRODUCTION=false \
               -e FIESTABOARD_AUTH_ENABLED=false \
               -e VESTABOARD_CLOUD_API_URL=http://$CLOUD_IP:9200/ \
@@ -212,7 +215,12 @@ jobs:
             [ -n "$WORKER_MOCK_HOSTS" ] && WORKER_MOCK_HOSTS="$WORKER_MOCK_HOSTS,"
             [ -n "$MOCK_CLOUD_URLS" ] && MOCK_CLOUD_URLS="$MOCK_CLOUD_URLS,"
 
-            WORKER_URLS="${WORKER_URLS}http://$FB_IP:3000"
+            WORKER_URLS="${WORKER_URLS}http://localhost:$((4420 + i))"
+            if [ "$i" = "0" ]; then
+              PWA_HTTP_BASE_URL="http://$FB_IP:3000"
+              echo "PWA_HTTP_MOCK_URL=http://$MOCK_IP:7000" >> $GITHUB_ENV
+              echo "PWA_HTTP_MOCK_HOST=$MOCK_IP" >> $GITHUB_ENV
+            fi
             WORKER_MOCK_URLS="${WORKER_MOCK_URLS}http://$MOCK_IP:7000"
             WORKER_MOCK_HOSTS="${WORKER_MOCK_HOSTS}$MOCK_IP"
             MOCK_CLOUD_URLS="${MOCK_CLOUD_URLS}http://$CLOUD_IP:9200"
@@ -220,12 +228,14 @@ jobs:
             echo "Worker $i: FiestaBoard=$FB_IP, MockBoard=$MOCK_IP, MockCloud=$CLOUD_IP"
           done
 
+          echo "PWA_HTTP_BASE_URL=$PWA_HTTP_BASE_URL" >> $GITHUB_ENV
           echo "WORKER_URLS=$WORKER_URLS" >> $GITHUB_ENV
           echo "WORKER_MOCK_URLS=$WORKER_MOCK_URLS" >> $GITHUB_ENV
           echo "WORKER_MOCK_HOSTS=$WORKER_MOCK_HOSTS" >> $GITHUB_ENV
           echo "MOCK_CLOUD_URLS=$MOCK_CLOUD_URLS" >> $GITHUB_ENV
 
       - name: Wait for all containers to be ready (full suite)
+        id: containers_ready
         if: startsWith(github.head_ref, 'changeset-release/')
         timeout-minutes: 3
         run: |
@@ -251,13 +261,31 @@ jobs:
         if: startsWith(github.head_ref, 'changeset-release/')
         working-directory: web
         timeout-minutes: 12
-        run: npx playwright test --reporter=github
+        # Plain HTTP cases run separately below against a genuine insecure origin.
+        # Keep the configured JSON reporter as well as GitHub annotations.
+        run: |
+          npx playwright test --grep-invert=plain.http:
         env:
           CI: true
           WORKER_URLS: ${{ env.WORKER_URLS }}
           WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
           WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
           MOCK_CLOUD_URLS: ${{ env.MOCK_CLOUD_URLS }}
+
+      - name: Run insecure HTTP PWA tests (full suite)
+        if: ${{ !cancelled() && startsWith(github.head_ref, 'changeset-release/') && steps.containers_ready.outcome == 'success' }}
+        working-directory: web
+        timeout-minutes: 3
+        # No browser override: Docker-IP HTTP must retain its real restrictions.
+        run: npx playwright test pwa-https.spec.ts --workers=1
+        env:
+          CI: true
+          BASE_URL: ${{ env.PWA_HTTP_BASE_URL }}
+          WORKER_URLS: ""
+          MOCK_BOARD_URL: ${{ env.PWA_HTTP_MOCK_URL }}
+          MOCK_BOARD_HOST: ${{ env.PWA_HTTP_MOCK_HOST }}
+          PLAYWRIGHT_JSON_OUTPUT_FILE: playwright-pwa-http-report.json
+          PLAYWRIGHT_OUTPUT_DIR: playwright-pwa-http-test-results
 
       - name: Stop containers
         if: always()
@@ -272,5 +300,9 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: integration-results-${{ startsWith(github.head_ref, 'changeset-release/') && 'full' || 'smoke' }}
-          path: web/playwright-test-results/
+          path: |
+            web/playwright-test-results/
+            web/playwright-report.json
+            web/playwright-pwa-http-test-results/
+            web/playwright-pwa-http-report.json
           retention-days: 14
