@@ -31,6 +31,53 @@ from src.main import DisplayService
 from tests.conftest import _drop_all_singletons
 
 
+def test_reset_waits_for_an_in_flight_poll_before_dropping_settings(monkeypatch):
+    """A poll that already entered must not publish settings into the next test."""
+    entered = threading.Event()
+    release = threading.Event()
+    reset_done = threading.Event()
+    errors = []
+    service = DisplayService()
+    display_runtime._service = service
+    real_interval = DisplayService._get_board_read_interval
+
+    def gated_interval(self):
+        entered.set()
+        assert release.wait(5), "test never released the in-flight poll"
+        return real_interval(self)
+
+    monkeypatch.setattr(DisplayService, "_get_board_read_interval", gated_interval)
+    monkeypatch.setattr(service, "_board_poll_tick", lambda interval: 0)
+    service._poll_thread = threading.Thread(target=service._board_poll_loop, daemon=True)
+    service._poll_thread.start()
+    assert entered.wait(5)
+
+    def reset():
+        try:
+            _drop_all_singletons()
+        except BaseException as exc:
+            errors.append(exc)
+        finally:
+            reset_done.set()
+
+    reset_thread = threading.Thread(target=reset)
+    reset_thread.start()
+    try:
+        # The poll is deliberately still inside a real accessor call. A reset
+        # returning here allows that call to overwrite the next test's owner.
+        returned_while_polling = reset_done.wait(0.1)
+    finally:
+        release.set()
+        reset_thread.join(5)
+        service.running = False
+        service._poll_thread.join(5)
+
+    assert not errors, errors
+    assert reset_done.is_set(), "singleton reset did not finish"
+    assert not returned_while_polling, "reset returned while a poll could still rebuild settings"
+    assert settings_service_module._settings_service is None
+
+
 def _service_with_a_hot_poll_thread(monkeypatch) -> tuple[DisplayService, threading.Event]:
     """A real ``DisplayService`` running the real ``_board_poll_loop``.
 
