@@ -33,6 +33,12 @@ import pytest
 import src.system.update_service as update_service
 
 
+@pytest.fixture(autouse=True)
+def _historical_package_version(monkeypatch):
+    """Stable VERSION falls back to the package; these scenarios predate v11."""
+    monkeypatch.setattr("src.system.update_service.__version__", "8.37.5")
+
+
 def _accepted():
     resp = MagicMock(status_code=202, text='{"status":"queued"}')
     resp.json.return_value = {"status": "queued", "previous_digest": "sha256:abc"}
