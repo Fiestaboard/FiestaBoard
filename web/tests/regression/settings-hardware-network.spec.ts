@@ -79,8 +79,8 @@ test.describe("regression: settings.hardware", () => {
 
     await openDisplays(page);
 
-    // Open the Note board's (3 × 15) page to access its Remove button
-    const noteCard = page.getByTestId("display-card").filter({ hasText: "3 × 15" });
+    // Open the Note board's (15 × 3) page to access its Remove button
+    const noteCard = page.getByTestId("display-card").filter({ hasText: "15 × 3" });
     await expect(noteCard).toBeVisible({ timeout: 10_000 });
     await noteCard.getByRole("link", { name: /^Open settings for / }).click();
     await page.getByRole("tab", { name: "Settings", exact: true }).click();
