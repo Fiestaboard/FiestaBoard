@@ -113,8 +113,8 @@ class BackupService:
                     except (OSError, ValueError) as exc:
                         raise BackupError(f"Could not back up {filename}: {exc}") from exc
                     else:
-                        if data[key] is None:
-                            raise BackupError(f"Could not back up {filename}: null store")
+                        if not isinstance(data[key], dict):
+                            raise BackupError(f"Could not back up {filename}: expected a JSON object")
                 else:
                     data[key] = self._read_json(self.data_dir / filename)
 
