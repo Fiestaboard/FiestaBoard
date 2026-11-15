@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { isInDimWindow } from "@/components/panel/panel-view";
 import { PanelView } from "@/components/panel/panel-view";
@@ -136,16 +136,27 @@ describe("PanelView", () => {
     expect(screen.getByRole("img").getAttribute("aria-label")).toContain("HELLO PANEL");
   });
 
-  it("shows the auto-dim overlay when inside the window", async () => {
-    mockPanel({
-      ...CONFIG,
-      auto_dim: { enabled: true, start: "00:00", end: "23:59" },
-    });
-    render(<PanelView panelId="p1" />, { wrapper: Wrapper });
-    await screen.findByRole("img");
-    await waitFor(() => {
-      expect(screen.getByTestId("panel-dim")).toHaveAttribute("data-active", "true");
-    });
+  it.each([
+    { hour: 12, minute: 0, active: "true" },
+    { hour: 23, minute: 59, active: "false" },
+  ])("sets the auto-dim overlay to $active at $hour:$minute", async ({ hour, minute, active }) => {
+    // The end is exclusive: the previous wall-clock fixture failed during
+    // 23:59 on CI. Freeze only Date so network and query timers stay real.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 14, hour, minute));
+    try {
+      mockPanel({
+        ...CONFIG,
+        auto_dim: { enabled: true, start: "00:00", end: "23:59" },
+      });
+      render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+      await screen.findByRole("img");
+      await waitFor(() => {
+        expect(screen.getByTestId("panel-dim")).toHaveAttribute("data-active", active);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("passes the panel's animation setting to the board", async () => {
