@@ -164,6 +164,7 @@ def test_alpha_reassert_uses_confirmed_intent_and_preserves_recovery(monkeypatch
 @pytest.mark.parametrize("failure", ["invalid_json", "unreadable", "null", "wrong_shape"])
 def test_major_upgrade_rejects_real_incomplete_backup(monkeypatch, tmp_path, failure):
     from pathlib import Path
+
     from src.backup.service import BackupService
 
     monkeypatch.setenv("VERSION", "10.3.3")
