@@ -135,6 +135,8 @@ def _check_dockerhub_for_latest(channel: str = "stable") -> str | None:
         best: tuple | None = None
         best_str: str | None = None
         url: str | None = DOCKERHUB_TAGS_URL
+        if channel == "alpha":
+            url += "?name=v11-alpha-"
         for _ in range(DOCKERHUB_MAX_PAGES):
             if not url:
                 break
@@ -146,12 +148,20 @@ def _check_dockerhub_for_latest(channel: str = "stable") -> str | None:
                 tag = result.get("name")
                 if not tag:
                     continue
+                if channel == "alpha":
+                    if not re.fullmatch(r"v11-alpha-11\.0\.0-alpha\.\d+", tag):
+                        continue
+                    tag = tag.removeprefix("v11-alpha-")
                 core = tag.partition("-")[0]
                 parts = core.split(".")
                 if len(parts) < 2 or not all(p.isdigit() for p in parts):
                     continue  # "latest", "beta", and anything unparseable
-                if "-" in tag and channel != "beta":
+                if channel == "stable" and "-" in tag:
                     continue  # prereleases are invisible on the stable channel
+                if channel == "beta" and (
+                    int(parts[0]) >= 11 or ("-" in tag and not re.fullmatch(r"\d+\.\d+\.\d+-beta\.\d+", tag))
+                ):
+                    continue  # the v11 preview is an independent opt-in lane
                 try:
                     parsed = _parse_version(tag)
                 except ValueError:
@@ -179,6 +189,9 @@ def _check_github_releases_for_latest(channel: str = "stable") -> str | None:
 
     Returns the newest version string, or None if the check fails.
     """
+    if channel == "alpha":
+        # Only the isolated Docker lane publishes these builds.
+        return None
     try:
         if channel != "beta":
             resp = requests.get(
@@ -207,6 +220,8 @@ def _check_github_releases_for_latest(channel: str = "stable") -> str | None:
             try:
                 parsed = _parse_version(tag)
             except ValueError:
+                continue
+            if parsed[0][0] >= 11 or ("-" in tag and not re.fullmatch(r"\d+\.\d+\.\d+-beta\.\d+", tag)):
                 continue
             if best is None or parsed > best:
                 best, best_str = parsed, tag
@@ -1025,8 +1040,8 @@ def _prune_settings_snapshots() -> None:
     what makes leaving the beta survivable. Weeks of beta updates would
     otherwise quietly delete the way back.
     """
-    keep = _channel_join_snapshot_name()
-    snapshots = [s for s in _list_settings_snapshots() if s["name"] != keep]
+    keep = {_channel_join_snapshot_name(), _system_update_state_load().get("alpha_join_snapshot")}
+    snapshots = [s for s in _list_settings_snapshots() if s["name"] not in keep]
     if len(snapshots) <= SETTINGS_SNAPSHOT_RETENTION:
         return
     for stale in snapshots[SETTINGS_SNAPSHOT_RETENTION:]:
@@ -1271,7 +1286,7 @@ async def apply_update() -> UpdateApplyResponse:
         # provided the recorded channel follows it (see `graduating` below).
         tag = CHANNEL_TAGS[channel]
         discovered = await _latest_for_channel(channel)
-        if discovered and _is_newer_version(discovered, running_version()):
+        if channel != "alpha" and discovered and _is_newer_version(discovered, running_version()):
             # _is_newer_version fails closed on anything unparseable, and
             # rejects a candidate that is not strictly newer — so a stale or
             # wrong discovery result cannot walk a box backwards across a
@@ -1490,7 +1505,7 @@ async def rollback(req: RollbackRequest) -> RollbackResponse:
 # reference the compose file already names (`POST /install`, #1969).
 
 #: Docker tag per channel.
-CHANNEL_TAGS = {"stable": "latest", "beta": "beta"}
+CHANNEL_TAGS = {"stable": "latest", "beta": "beta", "alpha": "v11-alpha"}
 
 
 def current_channel() -> str:
@@ -1503,7 +1518,7 @@ def current_channel() -> str:
     build = os.getenv("VERSION", "").strip()
     core, _, prerelease = build.partition("-")
     if prerelease and all(part.isdigit() for part in core.split(".") if part):
-        return "beta"
+        return "alpha" if prerelease.startswith("alpha.") and core.startswith("11.") else "beta"
     return "stable"
 
 
@@ -1532,7 +1547,7 @@ def _channel_join_snapshot_name() -> str | None:
         return None
 
 
-async def leave_beta() -> dict[str, Any]:
+async def leave_beta(channel: str = "stable") -> dict[str, Any]:
     """Return to stable, restoring the configuration captured at join time.
 
     The ordinary way off a beta is to wait for the release to overtake it —
@@ -1558,7 +1573,11 @@ async def leave_beta() -> dict[str, Any]:
     if not repository:
         raise SidecarError(502, "could not determine the running image reference")
 
-    name = _channel_join_snapshot_name()
+    name = (
+        _system_update_state_load().get("alpha_join_snapshot")
+        if current_channel() == "alpha" and channel == "beta"
+        else _channel_join_snapshot_name()
+    )
     path = await asyncio.to_thread(_resolve_snapshot_name, name) if name else None
 
     settings_restored = False
@@ -1569,7 +1588,7 @@ async def leave_beta() -> dict[str, Any]:
     else:
         warning = (
             "No join snapshot was available, so your settings were not rolled "
-            "back. The stable build may refuse to read configuration this beta "
+            "back. The destination build may refuse to read configuration this preview "
             "migrated — restore a backup from Settings → System → Backup if it "
             "comes up empty."
         )
@@ -1579,7 +1598,7 @@ async def leave_beta() -> dict[str, Any]:
 
     await asyncio.to_thread(get_auth_service().invalidate_all_accounts)
     try:
-        resp = await asyncio.to_thread(_updater_post, "/install", {"image": repository, "tag": CHANNEL_TAGS["stable"]})
+        resp = await asyncio.to_thread(_updater_post, "/install", {"image": repository, "tag": CHANNEL_TAGS[channel]})
     except requests.RequestException as e:
         raise SidecarError(503, f"updater sidecar unreachable: {e}") from e
 
@@ -1596,18 +1615,24 @@ async def leave_beta() -> dict[str, Any]:
     # Only now: the sidecar accepting is the earliest honest moment. Recording
     # stable also stops reassert_release_channel dragging the box back to beta
     # on the next boot.
-    _system_update_state_update(channel="stable", channel_join_snapshot=None)
+    _system_update_state_update(
+        channel=channel,
+        alpha_join_snapshot=None,
+        **({"channel_join_snapshot": None} if channel == "stable" else {}),
+    )
 
     return {
         "status": "queued",
-        "channel": "stable",
-        "tag": CHANNEL_TAGS["stable"],
+        "channel": channel,
+        "tag": CHANNEL_TAGS[channel],
         "settings_restored": settings_restored,
         "warning": warning,
     }
 
 
-def switch_channel(channel: str) -> dict[str, Any]:
+def switch_channel(
+    channel: str, *, confirm_major_upgrade: bool = False, target_version: str | None = None
+) -> dict[str, Any]:
     """Snapshot, then ask the sidecar to install *channel*'s tag.
 
     The snapshot comes FIRST and is the way back: a beta may migrate data to
@@ -1616,6 +1641,15 @@ def switch_channel(channel: str) -> dict[str, Any]:
 
     Raises :class:`SidecarError` for every failure the caller should surface.
     """
+    target_major = 11 if channel == "alpha" else None
+    if target_version:
+        try:
+            target_major = _parse_version(target_version)[0][0]
+        except ValueError:
+            pass
+    major_upgrade = target_major is not None and target_major > _parse_version(running_version())[0][0]
+    if major_upgrade and not confirm_major_upgrade:
+        raise SidecarError(409, "Confirm the major-version upgrade and automatic backup before switching.")
     tag = CHANNEL_TAGS[channel]
     running = _updater_version() or {}
     image_ref = running.get("image") or ""
@@ -1633,7 +1667,14 @@ def switch_channel(channel: str) -> dict[str, Any]:
         # minutes later, with nothing anywhere connecting the three.
         logger.warning(_STALE_SIDECAR_REMEDY)
 
-    snapshot = _take_settings_snapshot(running.get("digest"), image_ref)
+    try:
+        snapshot = _take_settings_snapshot(running.get("digest"), image_ref)
+    except Exception as exc:
+        if major_upgrade:
+            raise SidecarError(503, "Automatic backup failed; the channel was not changed.") from exc
+        raise
+    if major_upgrade and (not isinstance(snapshot, dict) or not snapshot.get("name")):
+        raise SidecarError(503, "Automatic backup failed; the channel was not changed.")
 
     try:
         resp = _updater_post("/install", {"image": repository, "tag": tag})
@@ -1667,8 +1708,11 @@ def switch_channel(channel: str) -> dict[str, Any]:
     # Leaving the beta before the release catches up is a downgrade across a
     # major, and this file is what makes it survivable.
     extra: dict[str, Any] = {"channel": channel}
-    if channel == "beta" and isinstance(snapshot, dict) and snapshot.get("name"):
-        extra["channel_join_snapshot"] = snapshot["name"]
+    if isinstance(snapshot, dict) and snapshot.get("name"):
+        if channel == "alpha":
+            extra["alpha_join_snapshot"] = snapshot["name"]
+        if current_channel() == "stable":
+            extra["channel_join_snapshot"] = snapshot["name"]
     _system_update_state_update(**extra)
 
     return {"status": "queued", "channel": channel, "tag": tag, "settings_snapshot": snapshot}
