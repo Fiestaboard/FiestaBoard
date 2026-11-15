@@ -1053,6 +1053,22 @@ def test_collection_crud_round_trips(client):
     assert deleted.json() == {"id": collection_id}
 
 
+def test_a_collection_update_stores_a_reordered_playlist(client):
+    """The web editor's drag and keyboard reorder saves through this PUT (WEB-06)."""
+    first = _seed_page(client, "One")
+    second = _seed_page(client, "Two")
+    third = _seed_page(client, "Three")
+    created = client.post("/v1/collections", json={"name": "Rotation", "page_ids": [first, second, third]})
+    collection_id = created.json()["id"]
+
+    updated = client.put(f"/v1/collections/{collection_id}", json={"page_ids": [third, first, second]})
+
+    assert updated.status_code == 200
+    assert updated.json()["page_ids"] == [third, first, second]
+    assert client.get(f"/v1/collections/{collection_id}").json()["page_ids"] == [third, first, second]
+    assert client.get("/v1/collections").json()["collections"][0]["page_ids"] == [third, first, second]
+
+
 def test_a_collection_referencing_a_missing_page_is_a_400(client):
     response = client.post("/v1/collections", json={"name": "Bad", "page_ids": ["nope"]})
 

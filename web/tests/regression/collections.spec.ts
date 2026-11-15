@@ -238,7 +238,7 @@ test.describe("regression: collections.form", () => {
 
     // Form controls are present.
     await expect(dialog.getByLabel("Name")).toBeVisible();
-    await expect(dialog.getByText("Page Duration")).toBeVisible();
+    await expect(dialog.getByText("Page Duration", { exact: true })).toBeVisible();
     await expect(dialog.getByText("Pages in Collection")).toBeVisible();
 
     // Submit is initially disabled (empty name + no pages selected).

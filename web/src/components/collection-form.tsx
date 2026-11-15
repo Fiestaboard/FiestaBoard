@@ -7,6 +7,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  arrayMove,
   Badge,
   Box,
   Button,
@@ -21,11 +22,13 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { ArrowDown, ArrowUp, Clock, FileText, GripVertical, Plus, Shuffle, Sigma, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock, Plus, Shuffle, Sigma, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { CollectionPageList } from "@/components/collection-page-list";
 import { VariableRuleRow } from "@/components/variable-rule-row";
+import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useTranslations } from "@/i18n/translations";
 import type {
   Collection,
@@ -172,7 +175,7 @@ export function CollectionForm({
   const [pollSeconds, setPollSeconds] = useState(collection?.variable?.poll_seconds || 10);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const coarsePointer = useCoarsePointer();
 
   // Rule-editor state: only one rule is editable at a time.
   const [editingRuleIndex, setEditingRuleIndex] = useState<number | null>(null);
@@ -181,7 +184,7 @@ export function CollectionForm({
   // Track a freshly-added rule so we can drop it from the list if the user cancels
   // without ever saving.
   const [newRuleIndex, setNewRuleIndex] = useState<number | null>(null);
-  // Separate drag index for the rules list so it doesn't collide with page dragging.
+  // HTML5 drag index for the variable-rules list (rule reorder moves to SortableList in 2.6b).
   const [ruleDragIndex, setRuleDragIndex] = useState<number | null>(null);
 
   const snapshot = JSON.stringify({
@@ -202,15 +205,11 @@ export function CollectionForm({
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
 
-  const movePage = (index: number, direction: -1 | 1) => {
-    setSelectedPageIds((prev) => {
-      const next = [...prev];
-      const target = index + direction;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  };
+  // SortableList is controlled: each keyboard step, Move up / Move down and
+  // pointer drop lands here as one move.
+  const handleMovePage = useCallback((from: number, to: number) => {
+    setSelectedPageIds((prev) => arrayMove(prev, from, to));
+  }, []);
 
   const availablePages = useMemo(() => pages.filter((p) => !selectedPageIds.includes(p.id)), [pages, selectedPageIds]);
 
@@ -243,27 +242,6 @@ export function CollectionForm({
     },
     [defaultPageId],
   );
-
-  const handleDragStart = useCallback((index: number) => {
-    setDragIndex(index);
-  }, []);
-
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, targetIndex: number) => {
-      e.preventDefault();
-      if (dragIndex === null || dragIndex === targetIndex) return;
-      setSelectedPageIds((prev) => {
-        const next = [...prev];
-        const [moved] = next.splice(dragIndex, 1);
-        next.splice(targetIndex, 0, moved);
-        return next;
-      });
-      setDragIndex(targetIndex);
-    },
-    [dragIndex],
-  );
-
-  const handleDragEnd = useCallback(() => setDragIndex(null), []);
 
   const handleAddRule = useCallback(() => {
     // Opening a fresh rule counts as a "switch" too; if the current edit is
@@ -611,8 +589,10 @@ export function CollectionForm({
       <Stack gap="2">
         <Label>{t("pagesInCollection")}</Label>
         <Text size="xs" tone="muted">
+          {/* The hint follows the pointer, like the rows (DD-W27): touch copy for a
+              finger at any width, the keyboard copy for a mouse or trackpad. */}
           {selectionMode === "time"
-            ? t("dragToReorder")
+            ? t(coarsePointer ? "dragToReorderTouch" : "dragToReorder")
             : selectionMode === "random"
               ? t("randomMembershipHint")
               : t("variableMembershipHint")}
@@ -623,72 +603,13 @@ export function CollectionForm({
             {t("noPagesAdded")}
           </Text>
         ) : (
-          <Stack gap="1">
-            {selectedPageIds.map((pid, index) => {
-              const page = pages.find((p) => p.id === pid);
-              return (
-                <Flex
-                  key={pid}
-                  align="center"
-                  gap="2"
-                  draggable={selectionMode === "time"}
-                  onDragStart={() => handleDragStart(index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDragEnd={handleDragEnd}
-                  className={`rounded-lg border p-2.5 bg-background ${
-                    selectionMode === "time" ? "cursor-grab active:cursor-grabbing" : ""
-                  } ${dragIndex === index ? "opacity-50" : ""}`}
-                >
-                  {selectionMode === "time" && <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
-                  {selectionMode === "time" && (
-                    <Badge variant="outline" className="text-xs tabular-nums flex-shrink-0">
-                      {index + 1}
-                    </Badge>
-                  )}
-                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <Text as="span" className="truncate flex-1">
-                    {page?.name || pid}
-                  </Text>
-                  {selectionMode === "time" && (
-                    <Flex gap="1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        disabled={index === 0}
-                        aria-label={t("movePageUp", { name: page?.name || pid })}
-                        onClick={() => movePage(index, -1)}
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        disabled={index === selectedPageIds.length - 1}
-                        aria-label={t("movePageDown", { name: page?.name || pid })}
-                        onClick={() => movePage(index, 1)}
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                    </Flex>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 flex-shrink-0"
-                    aria-label={t("removePage", { name: page?.name || pid })}
-                    onClick={() => handleRemovePage(index)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                </Flex>
-              );
-            })}
-          </Stack>
+          <CollectionPageList
+            pageIds={selectedPageIds}
+            pages={pages}
+            mode={selectionMode}
+            onMove={handleMovePage}
+            onRemove={handleRemovePage}
+          />
         )}
 
         {availablePages.length > 0 && (
