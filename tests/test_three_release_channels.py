@@ -71,6 +71,7 @@ def test_channel_endpoint_reports_versions_and_running_channel():
 )
 def test_alpha_major_upgrade_requires_confirmation_and_backup(monkeypatch, confirmed, snapshot, expected):
     monkeypatch.setenv("VERSION", "10.3.3")
+    monkeypatch.setattr(us, "running_version", lambda: "10.3.3")
     with (
         patch.object(us, "channel_switch_blocker", return_value=None),
         patch.object(us, "_latest_for_channel", new=AsyncMock(return_value="11.0.0-alpha.12")),
@@ -91,6 +92,7 @@ def test_alpha_major_upgrade_requires_confirmation_and_backup(monkeypatch, confi
 
 def test_backup_exception_fails_closed(monkeypatch):
     monkeypatch.setenv("VERSION", "10.3.3")
+    monkeypatch.setattr(us, "running_version", lambda: "10.3.3")
     with (
         patch.object(us, "_updater_version", return_value={"image": "fiestaboard/fiestaboard:latest"}),
         patch.object(us, "_take_settings_snapshot", side_effect=OSError("disk full")),
@@ -103,6 +105,7 @@ def test_backup_exception_fails_closed(monkeypatch):
 
 def test_alpha_entry_preserves_original_stable_recovery(monkeypatch):
     monkeypatch.setenv("VERSION", "10.4.0-beta.2")
+    monkeypatch.setattr(us, "running_version", lambda: "10.4.0-beta.2")
     us._system_update_state_update(channel_join_snapshot="stable.json")
     with (
         patch.object(us, "_updater_version", return_value={"image": "fiestaboard/fiestaboard:beta"}),
@@ -145,6 +148,7 @@ async def test_alpha_leave_restores_destination_snapshot_first(monkeypatch, tmp_
 
 def test_alpha_reassert_uses_confirmed_intent_and_preserves_recovery(monkeypatch):
     monkeypatch.setenv("VERSION", "10.3.3")
+    monkeypatch.setattr(us, "running_version", lambda: "10.3.3")
     us._system_update_state_update(
         channel="alpha", channel_join_snapshot="stable.json", alpha_join_snapshot="beta.json"
     )

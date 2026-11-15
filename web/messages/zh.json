@@ -2791,7 +2791,20 @@
     "leaveCta": "退出测试版",
     "leaveConfirmTitle": "退出测试版通道？",
     "leaveConfirmBody": "这会让你回到当前的稳定版本，它比你正在运行的测试版更旧。你的设置和页面将回滚到加入时创建的备份——测试期间所做的任何更改都会丢失。FiestaBoard 将以稳定版本重新启动。如果你希望保留更改，请改为等待：当下一个稳定版本超过你的测试版时，“立即更新”会带你过去且不丢失任何内容。",
-    "leaveConfirmCta": "退出测试版"
+    "leaveConfirmCta": "退出测试版",
+    "chooserDescription": "Choose the release channel this install follows.",
+    "channelAlpha": "Alpha preview",
+    "currentBadge": "Current",
+    "stableDescription": "Tested releases for everyday use.",
+    "betaDescription": "Upcoming releases with early fixes and features.",
+    "alphaDescription": "FiestaBoard 11 preview; expect breaking changes.",
+    "versionUnavailable": "Version unavailable",
+    "switchUnavailable": "Channel switching is unavailable on this install.",
+    "switchTitle": "Switch to {channel}?",
+    "switchCta": "Switch channel",
+    "alphaConfirmBody": "Alpha is an early preview of FiestaBoard 11. Switching may migrate your settings and pages to a format older releases cannot read. An automatic backup must succeed before a newer major version is installed; if it fails, switching stops. Keep a downloaded backup too. Returning to Beta or Stable restores the pre-preview snapshot and loses changes made in Alpha. FiestaBoard will restart.",
+    "downgradeConfirmBody": "This switches to an older release channel. FiestaBoard restores the snapshot taken before joining the preview, so changes made since then will be lost. If no compatible snapshot exists, restore your downloaded backup from Settings → System → Backup; the older build may refuse to read migrated data. FiestaBoard will restart.",
+    "betaConfirmBody": "Beta builds can migrate your settings and pages. A backup is taken before switching. Moving to a newer major requires a successful automatic backup; returning to Stable may require restoring the pre-preview backup and losing later changes. FiestaBoard will restart."
   },
   "aiApprovalCard": {
     "heading": "需要你的批准",
