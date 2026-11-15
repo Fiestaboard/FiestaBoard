@@ -163,7 +163,8 @@ class ReleaseChannelRequest(BaseModel):
 
     # Literal, not a plain str: an unknown channel is a 422 from FastAPI
     # rather than a KeyError deep inside the handler.
-    channel: Literal["stable", "beta"]
+    channel: Literal["stable", "beta", "alpha"]
+    confirm_major_upgrade: bool = False
 
 
 class ReleaseChannelResponse(BaseModel):
@@ -171,6 +172,8 @@ class ReleaseChannelResponse(BaseModel):
 
     channel: str
     available_channels: list[str]
+    running_channel: str
+    channel_versions: dict[str, str | None]
     can_switch: bool
     #: Why switching is unavailable, when it is. None when it is available.
     reason: str | None = None

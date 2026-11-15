@@ -341,6 +341,16 @@ async def get_release_channel():
     blocker = await asyncio.to_thread(update_service.channel_switch_blocker)
     return ReleaseChannelResponse(
         channel=update_service.current_channel(),
+        running_channel=update_service.current_channel(),
+        channel_versions=dict(
+            zip(
+                update_service.CHANNEL_TAGS,
+                await asyncio.gather(
+                    *(update_service._latest_for_channel(channel) for channel in update_service.CHANNEL_TAGS)
+                ),
+                strict=True,
+            )
+        ),
         available_channels=sorted(update_service.CHANNEL_TAGS),
         can_switch=blocker is None,
         reason=blocker,
@@ -369,8 +379,16 @@ async def set_release_channel(request: ReleaseChannelRequest):
     try:
         if request.channel == "stable":
             result = await update_service.leave_beta()
+        elif update_service.current_channel() == "alpha" and request.channel == "beta":
+            result = await update_service.leave_beta("beta")
         else:
-            result = await asyncio.to_thread(update_service.switch_channel, request.channel)
+            target = await update_service._latest_for_channel(request.channel)
+            result = await asyncio.to_thread(
+                update_service.switch_channel,
+                request.channel,
+                confirm_major_upgrade=request.confirm_major_upgrade,
+                target_version=target,
+            )
     except update_service.SidecarError as e:
         raise _as_http(e) from e
     return ReleaseChannelSwitchResponse(**result)
