@@ -39,7 +39,7 @@ test.describe("regression: settings.behavior", () => {
     });
 
     await expect(page.getByText("Update intervals", { exact: false })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByLabel("Silence Schedule")).toBeVisible();
+    await expect(page.getByRole("switch", { name: "Silence Schedule", exact: true })).toBeVisible();
     // Settings v6: the install-wide Board Transitions card is gone.
     await expect(page.getByRole("heading", { name: "Board Transitions" })).toHaveCount(0);
 
@@ -190,7 +190,7 @@ test.describe("regression: settings.behavior", () => {
       timeout: 15_000,
     });
 
-    await expect(page.getByLabel("Silence Schedule")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("switch", { name: "Silence Schedule", exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Restore: write the original window back to that board.
     await fetch(`${API_URL}/settings/silence-schedule`, {
