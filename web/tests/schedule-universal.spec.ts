@@ -23,6 +23,7 @@ test("H8 displays the hub answer and clears it when the instant changes", async 
   const mode = page.getByTestId("schedule-enabled-toggle");
   await expect(mode).toBeVisible();
   if ((await mode.getAttribute("aria-checked")) === "false") await mode.click();
+  await page.getByRole("button", { name: "Which page at…", exact: true }).click();
   const response = page.waitForResponse(
     (entry) => entry.url().includes("/schedules/active/page?") && entry.url().includes("at="),
   );
@@ -106,6 +107,7 @@ test("H8 collection fixture renders separate actual and simulated winners withou
       writes++;
   });
   await page.goto("/schedule");
+  await page.getByRole("button", { name: "Which page at…", exact: true }).click();
   await page.getByRole("button", { name: "Check instant" }).click();
   await expect(page.getByText("Silenced", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Add a value…" }).click();

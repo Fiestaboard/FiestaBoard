@@ -861,7 +861,8 @@ export default function SchedulePage() {
       >
         <SheetContent
           side={belowRail ? "bottom" : "right"}
-          className="w-full sm:max-w-xl max-h-[90dvh] overflow-y-auto"
+          grabber={belowRail}
+          className={belowRail ? "w-full max-h-[90dvh]" : "w-full sm:max-w-xl max-h-[90dvh] overflow-y-auto"}
           {...anchorProps("schedule.form")}
         >
           <SheetHeader>
