@@ -259,6 +259,7 @@ export function ConnectPhone({
                       <QRCodeSVG
                         value={offer.qr_payload}
                         size={208}
+                  marginSize={4}
                         bgColor="#ffffff"
                         fgColor="#000000"
                         role="img"
