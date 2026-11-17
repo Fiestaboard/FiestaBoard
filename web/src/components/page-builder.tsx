@@ -2608,7 +2608,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     <>
       <Box
         ref={editorContentRef}
-        className="min-w-0 w-full max-w-full overflow-x-clip"
+        className="min-w-0 w-full max-w-full overflow-x-clip transition-none"
         style={viewportBottom > 0 ? { paddingBottom: viewportBottom, flexShrink: 0 } : undefined}
       >
         {/* Main Editor */}

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { useEditorViewportDock } from "@/hooks/use-editor-viewport-dock";
@@ -7,10 +7,22 @@ import { useEditorViewportDock } from "@/hooks/use-editor-viewport-dock";
 let viewport: EventTarget & { height: number; offsetTop: number; scale: number };
 const scrollIntoView = vi.fn();
 
-function Editor({ enabled = true }: { enabled?: boolean }) {
+function Editor({
+  enabled = true,
+  contractBeforeEffects = false,
+}: {
+  enabled?: boolean;
+  contractBeforeEffects?: boolean;
+}) {
   const content = useRef<HTMLDivElement>(null);
   const preview = useRef<HTMLElement>(null);
   const bottom = useEditorViewportDock(enabled, content, preview);
+  useLayoutEffect(() => {
+    if (!contractBeforeEffects) return;
+    content.current?.querySelector("textarea")?.focus();
+    viewport.height = 520;
+    viewport.dispatchEvent(new Event("resize"));
+  }, [contractBeforeEffects]);
   return (
     <div ref={content} style={{ paddingBottom: bottom }} data-testid="editor">
       <input aria-label="Page name" />
@@ -59,6 +71,14 @@ it("reserves scroll space, waits for layout, and keeps template focus while reve
   expect(screen.getByTestId("editor")).toHaveStyle({ paddingBottom: "0px" });
   act(() => vi.advanceTimersByTime(32));
   expect(scrollIntoView).toHaveBeenCalledTimes(1);
+});
+
+it("reveals the focused dock when contraction occurs before the first passive effect", () => {
+  render(<Editor contractBeforeEffects />);
+  expect(screen.getByTestId("editor")).toHaveStyle({ paddingBottom: "380px" });
+  act(() => vi.advanceTimersByTime(32));
+  expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: "start", behavior: "instant" });
+  expect(screen.getByRole("textbox", { name: "Template" })).toHaveFocus();
 });
 
 it("does not move the dock for name editing, viewport pan, or pinch zoom", () => {

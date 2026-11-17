@@ -12,14 +12,16 @@ export function useEditorViewportDock(
   // the numeric inset, and must still clear the reserved document space.
   const bottom = useVisualViewportBottom(true);
   const viewport = typeof window === "undefined" ? null : window.visualViewport;
+  // Pair height with this render's inset, even if another resize happens before
+  // the passive effect runs. A newer live height could consume the contraction.
+  const height = viewport?.height ?? 0;
 
-  const previousHeight = useRef(viewport?.height ?? 0);
+  const previousHeight = useRef(height);
   const pendingContraction = useRef(false);
 
   // Run after React commits the padding returned below. Scheduling directly
   // from the native resize listener can scroll against the old document height.
   useEffect(() => {
-    const height = viewport?.height ?? 0;
     const contracted = height < previousHeight.current;
     previousHeight.current = height;
     if (!enabled || !viewport || bottom <= 0 || viewport.scale !== 1) {
@@ -51,7 +53,7 @@ export function useEditorViewportDock(
       cancelAnimationFrame(layoutFrame);
       cancelAnimationFrame(scrollFrame);
     };
-  }, [bottom, enabled, viewport, contentRef, previewRef]);
+  }, [bottom, height, enabled, viewport, contentRef, previewRef]);
 
   return enabled ? bottom : 0;
 }
