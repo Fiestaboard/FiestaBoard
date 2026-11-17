@@ -22,6 +22,7 @@ import { isVirtualBoard } from "@/components/settings/output-boards";
 import Link from "@/components/smart-link";
 import { useBelowRail } from "@/hooks/use-below-rail";
 import { queryKeys, usePages } from "@/hooks/use-board";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { api, sessionsApi } from "@/lib/api";
@@ -37,8 +38,10 @@ export function DisplayList({
 }) {
   const t = useTranslations("displays.fleet");
   const td = useTranslations("displays");
+  const tn = useTranslations("home.nowShowing");
   const locale = useLocale();
   const phone = useBelowRail();
+  const compact = useMediaQuery("(max-width: 1023.98px)");
   const displays = useDisplayBoards();
   const [selection, setSelection] = useState<string | null>(null);
   const selected = displays.boards.find((board) => board.id === selection) ?? displays.boards[0];
@@ -106,17 +109,22 @@ export function DisplayList({
     const last = clock(health?.last_connected_at);
     const until = clock(detail?.next_change_at);
     const next = pageName(detail?.next_page_id);
-    const cause =
+    const healthCause =
       kind === "unreachable" && last
         ? t("lastConnected", { time: last })
         : kind === "outOfSync" && clock(health?.last_update_at)
           ? t("lastUpdate", { time: clock(health?.last_update_at)! })
           : kind === "noViewer"
             ? t("noViewerHint")
-            : until && next
-              ? t("nextChange", { time: until, page: next })
-              : pageName(detail?.resolved_page_id ?? status?.active_page_id);
-    return { board, kind, group, cause, detail };
+            : undefined;
+    const current = pageName(detail?.resolved_page_id ?? status?.active_page_id);
+    const cause = healthCause ?? (until && next ? t("nextChange", { time: until, page: next }) : current);
+    const compactCause = healthCause ?? (until && next ? t("nextCompact", { page: next }) : current);
+    const override =
+      detail?.override_expires_at && Date.parse(detail.override_expires_at) > Date.now()
+        ? clock(detail.override_expires_at)
+        : null;
+    return { board, kind, group, cause, compactCause, override };
   });
   return (
     <Box
@@ -133,13 +141,19 @@ export function DisplayList({
                 {t(group)}
               </Heading>
               <ListRowGroup aria-label={t(group)}>
-                {items.map(({ board, kind, cause, detail }) => (
+                {items.map(({ board, kind, cause, compactCause, override }) => (
                   <ListItem key={board.id}>
                     <ListRow
                       data-testid="display-card"
                       data-section-item={board.id}
                       selected={!phone && selected?.id === board.id}
                       size="touch"
+                      layout={compact ? "inline" : "auto"}
+                      className={
+                        compact
+                          ? "[&_[data-slot=list-row-title]]:text-sm [&_[data-slot=list-row-description]]:text-xs"
+                          : undefined
+                      }
                       render={
                         <Link
                           href={`/displays/${encodeURIComponent(board.id)}`}
@@ -167,18 +181,31 @@ export function DisplayList({
                       title={board.name || td("unnamed")}
                       description={
                         <>
-                          <Text as="span" data-testid="display-output" size="xs">
-                            {outputName(board)}
+                          <Text as="span" size="sm" tone="muted" className={compact ? "sr-only" : undefined}>
+                            <Text as="span" data-testid="display-output" size="xs">
+                              {outputName(board)}
+                            </Text>
+                            {" · "}
+                            <BoardSizeIndicator
+                              deviceType={board.device_type}
+                              notesWide={board.notes_wide}
+                              notesTall={board.notes_tall}
+                              gridRows={board.grid_rows}
+                              gridCols={board.grid_cols}
+                            />
+                            {cause && " · "}
                           </Text>
-                          {" · "}
-                          <BoardSizeIndicator
-                            deviceType={board.device_type}
-                            notesWide={board.notes_wide}
-                            notesTall={board.notes_tall}
-                            gridRows={board.grid_rows}
-                            gridCols={board.grid_cols}
-                          />
-                          {cause && <> · {cause}</>}
+                          {cause && (
+                            <Text
+                              as="span"
+                              size={compact ? "xs" : "sm"}
+                              tone="muted"
+                              className={compact ? "block truncate" : undefined}
+                              title={cause}
+                            >
+                              {compact ? compactCause : cause}
+                            </Text>
+                          )}
                         </>
                       }
                       meta={
@@ -187,22 +214,25 @@ export function DisplayList({
                             as="span"
                             size="sm"
                             className={
-                              group === "attention"
-                                ? kind === "noViewer"
-                                  ? "text-foreground"
-                                  : "text-destructive"
-                                : "text-muted-foreground"
+                              compact && override && kind === "online"
+                                ? "sr-only"
+                                : group === "attention"
+                                  ? kind === "noViewer"
+                                    ? "text-foreground"
+                                    : "text-destructive"
+                                  : "text-muted-foreground"
                             }
                           >
                             {t(kind)}
                           </Text>
-                          {detail?.override_expires_at &&
-                            Date.parse(detail.override_expires_at) > Date.now() &&
-                            clock(detail.override_expires_at) && (
-                              <Badge variant="outline">
-                                {t("overrideUntil", { time: clock(detail.override_expires_at)! })}
-                              </Badge>
-                            )}
+                          {override && (
+                            <Badge
+                              variant="outline"
+                              aria-label={compact ? t("overrideUntil", { time: override }) : undefined}
+                            >
+                              {compact ? tn("modeOverride") : t("overrideUntil", { time: override })}
+                            </Badge>
+                          )}
                         </Flex>
                       }
                       trailing={<ChevronRight aria-hidden="true" className="size-4" />}

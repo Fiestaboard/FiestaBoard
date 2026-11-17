@@ -21,7 +21,6 @@ import {
   Alert,
   AlertDescription,
   Badge,
-  Box,
   defaultTransitionIdForModel,
   Flex,
   Grid,
@@ -172,7 +171,7 @@ function LedTransitions({
           <AlertDescription>{t("snapNote")}</AlertDescription>
         </Alert>
       )}
-      <Box className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
+      <Stack gap="4" className="min-w-0">
         <Stack gap="2" className="min-w-0">
           <TransitionSelector
             value={value}
@@ -199,7 +198,7 @@ function LedTransitions({
             {t("unavailable")}
           </Text>
         )}
-      </Box>
+      </Stack>
     </Stack>
   );
 }
@@ -253,7 +252,7 @@ function SplitFlapTransitions({
           <AlertDescription>{t("cloudNote")}</AlertDescription>
         </Alert>
       )}
-      <Box className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
+      <Stack gap="4" className="min-w-0">
         <Stack gap="3" className="min-w-0">
           <TransitionSelector
             value={value}
@@ -298,7 +297,7 @@ function SplitFlapTransitions({
           interval={board.transition_step_interval_ms ?? 50}
           size={board.transition_step_size ?? 1}
         />
-      </Box>
+      </Stack>
       {framesRun && <TransitionPluginsSwitch boardId={board.id} />}
     </Stack>
   );

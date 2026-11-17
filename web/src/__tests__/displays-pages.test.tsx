@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DisplaysSection } from "../../app/routes/displays";
 import DisplaysPage from "../../app/routes/displays._index";
@@ -18,6 +18,7 @@ import { server } from "./mocks/server";
 
 const push = vi.fn();
 const params: { boardId?: string } = {};
+const originalMatchMedia = window.matchMedia;
 
 vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({ push, replace: vi.fn(), back: vi.fn(), forward: vi.fn() }),
@@ -159,7 +160,49 @@ beforeEach(() => {
   delete params.boardId;
 });
 
+afterEach(() => {
+  window.matchMedia = originalMatchMedia;
+});
+
 describe("/displays", () => {
+  it.each([390, 768, 900])(
+    "keeps the %ipx fleet concise without dropping accessible hardware or override timing",
+    async (width) => {
+      const media = originalMatchMedia("");
+      window.matchMedia = vi.fn((query) => ({
+        ...media,
+        media: query,
+        matches: query === "(max-width: 1023.98px)" || (query === "(max-width: 767.98px)" && width < 768),
+      }));
+      setup([KITCHEN, DESK], {
+        kitchen: { configured: true, health: { reachable: true, breaker_open: false } },
+        desk: { configured: true, health: { reachable: true, breaker_open: false } },
+      });
+      server.use(
+        http.get(`${API}/v1/pages`, () =>
+          HttpResponse.json({ pages: [{ id: "night", name: "Good night" }], total: 1 }),
+        ),
+        http.get(`${API}/v1/boards/:board`, ({ params: p }) =>
+          HttpResponse.json({
+            id: p.board,
+            next_change_at: "2099-11-17T05:00:00Z",
+            next_page_id: "night",
+            override_expires_at: p.board === "desk" ? "2099-11-17T05:00:00Z" : null,
+          }),
+        ),
+      );
+      renderWith(<DisplaysPage />);
+      const cards = await screen.findAllByTestId("display-card");
+      expect(await within(cards[0]).findByText("Then Good night", { exact: true })).toBeInTheDocument();
+      expect(cards[0]).toHaveAttribute("data-layout", "inline");
+      expect(within(cards[0]).getByRole("img", { name: "22 columns by 6 rows" })).toBeInTheDocument();
+      expect(within(cards[0]).getByTestId("display-output").parentElement).toHaveClass("sr-only");
+      const override = await within(cards[1]).findByText("Override", { exact: true });
+      expect(override).toHaveAccessibleName(/^Override · until /);
+      expect(within(cards[1]).getByText("Online", { exact: true })).toHaveClass("sr-only");
+    },
+  );
+
   it("groups unreachable displays before healthy displays using words as well as dots", async () => {
     setup([KITCHEN, DESK], {
       kitchen: {
@@ -199,6 +242,30 @@ describe("/displays", () => {
     renderWith(<DisplaysPage />);
     const list = await screen.findByRole("list", { name: "Other displays" });
     expect(within(list).getByText("Status unavailable")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Online" })).not.toBeInTheDocument();
+  });
+
+  it("keeps unknown and no-viewer states explicit in compact rows even with an override", async () => {
+    const media = originalMatchMedia("");
+    window.matchMedia = vi.fn((query) => ({
+      ...media,
+      media: query,
+      matches: query === "(max-width: 1023.98px)" || query === "(max-width: 767.98px)",
+    }));
+    setup([KITCHEN, TV]);
+    server.use(
+      http.get(`${API}/auth/sessions`, () => HttpResponse.json({ sessions: [], total: 0 })),
+      http.get(`${API}/v1/boards/:board`, ({ params: p }) =>
+        HttpResponse.json({ id: p.board, override_expires_at: "2099-11-17T05:00:00Z" }),
+      ),
+    );
+    renderWith(<DisplaysPage />);
+    await waitFor(() => expect(screen.getAllByText("Override", { exact: true })).toHaveLength(2));
+    const unknown = screen.getByText("Status unavailable", { exact: true });
+    const noViewer = screen.getByText("No viewer", { exact: true });
+    expect(unknown).not.toHaveClass("sr-only");
+    expect(noViewer).not.toHaveClass("sr-only");
+    expect(screen.getByText("No signed-in TV is showing this display", { exact: true })).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Online" })).not.toBeInTheDocument();
   });
 

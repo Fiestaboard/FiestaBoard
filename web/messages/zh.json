@@ -1429,6 +1429,7 @@
       "lastUpdate": "上次更新：{time}",
       "noViewerHint": "没有已登录的电视正在显示此显示设备的内容",
       "nextChange": "直到 {time} · 然后显示 {page}",
+      "nextCompact": "接下来：{page}",
       "overrideUntil": "手动覆盖 · 直到 {time}",
       "pauseDisplay": "暂停显示设备",
       "pauseHint": "看板保留当前显示的内容；日程仍会在中枢上继续运行。",

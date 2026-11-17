@@ -1429,6 +1429,7 @@
       "lastUpdate": "Senaste uppdatering: {time}",
       "noViewerHint": "Ingen inloggad tv visar den här skärmen",
       "nextChange": "Till {time} · sedan {page}",
+      "nextCompact": "Sedan {page}",
       "overrideUntil": "Manuellt · till {time}",
       "pauseDisplay": "Pausa skärmen",
       "pauseHint": "Tavlan behåller det som visas; schemat fortsätter att köras på hubben.",

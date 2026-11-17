@@ -1429,6 +1429,7 @@
       "lastUpdate": "Letzte Aktualisierung: {time}",
       "noViewerHint": "Kein angemeldeter Fernseher zeigt diese Anzeige",
       "nextChange": "Bis {time} · danach {page}",
+      "nextCompact": "Danach {page}",
       "overrideUntil": "Manuell · bis {time}",
       "pauseDisplay": "Anzeige pausieren",
       "pauseHint": "Die Tafel zeigt weiterhin denselben Inhalt; der Zeitplan läuft auf dem Hub weiter.",
