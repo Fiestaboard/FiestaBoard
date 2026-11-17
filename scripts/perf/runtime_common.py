@@ -25,6 +25,10 @@ class ProtocolError(ValueError):
     """A fixture, response or observation does not satisfy the declared contract."""
 
 
+class AuthAbort(ProtocolError):
+    """Authentication failed; further requests require explicit operator recovery."""
+
+
 @dataclass
 class HttpResult:
     status: int
@@ -54,10 +58,13 @@ class JsonClient:
         self.connection_factory = connection_factory
         self.secrets = [credentials.get("password", "")]
         self.observer = None
+        self.auth_aborted = False
         self.cookies = http.cookiejar.CookieJar()
         self._connection = None
 
     def request(self, method, path, payload=None):
+        if self.auth_aborted:
+            raise AuthAbort("No further network requests after authentication failed")
         if not path.startswith("/api/") or path.startswith("//") or urlsplit(path).netloc or urlsplit(path).fragment:
             raise ProtocolError("Request target must be a relative /api/ path")
         if method not in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
@@ -88,6 +95,8 @@ class JsonClient:
                 except Exception:
                     continue
                 self.secrets.extend(morsel.value for morsel in cookie.values() if morsel.value)
+        if result.status == 401:
+            self.auth_aborted = True
         if self.observer:
             self.observer(method, path, payload, self.safe_result(result))
         return result
@@ -267,6 +276,8 @@ def summarize_requests(records):
 
 
 def require_ok(result, *, status=200):
+    if result.status == 401:
+        raise AuthAbort("Authentication failed; run stopped without retry/relogin")
     if result.status != status or result.error or result.timed_out or not isinstance(result.body, dict):
         raise ProtocolError(f"Expected HTTP {status}; observed {result.status}, error={bool(result.error)}")
     return result.body

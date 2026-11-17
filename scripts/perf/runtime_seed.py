@@ -7,6 +7,7 @@ import hashlib
 import json
 import argparse
 import sys
+import copy
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -14,6 +15,9 @@ from runtime_common import AMD64_MANIFEST, SOURCE_COMMIT, JsonClient, JsonlWrite
 
 ARM64_MANIFEST = "sha256:e0127d1f0eed00e13cd394f098580c2b96579b458731b6dc5d7ee842c7645886"
 GEOMETRIES = {"flagship": ("flagship", 6, 22), "note": ("note", 3, 15), "array": ("note_array", 6, 30)}
+BROWSER_PREFERENCES = {"theme": "light", "locale": "en-US", "next_locale": "en", "timezone": "UTC",
+                       "display": {"reduce_motion": False, "board_animations": "on", "site_animations": "on",
+                                   "board_flap_speed": "standard"}}
 
 
 def verify_semantics(client, manifest):
@@ -69,9 +73,10 @@ def verify_semantics(client, manifest):
                         or answer.get("silenced") is not False or answer.get("temporary_override", {}).get("active") is not False):
                     raise ProtocolError("H8 calendar priority/boundary/collection contract failed")
         finally:
-            restored = require_ok(client.request("PUT", "/api/schedules/enabled", {"board_id": bid, "enabled": False}))
-            if restored.get("enabled") is not False:
-                raise ProtocolError("Could not restore manual schedule state after H8 smoke")
+            if not client.auth_aborted:
+                restored = require_ok(client.request("PUT", "/api/schedules/enabled", {"board_id": bid, "enabled": False}))
+                if restored.get("enabled") is not False:
+                    raise ProtocolError("Could not restore manual schedule state after H8 smoke")
     return {"h6_formula": True, "h8_boundaries": True, "variable_rules": True}
 
 
@@ -216,8 +221,17 @@ def validate_ownership(client, ownership, *, for_setup=True):
             raise ProtocolError("Independent run context is stale or in the future")
     exclusion = context.get("exclusion", {})
     names = exclusion.get("container_names")
-    if len(exclusion.get("running_ids", [])) != 1 or not isinstance(names, list) or not 1 <= len(names) <= 3:
+    task_id = exclusion.get("task_id")
+    inventory = exclusion.get("running_ids")
+    if not isinstance(inventory, list) or not all(isinstance(item, str) for item in inventory):
+        raise ProtocolError("Run context needs the complete literal RUNNING inventory")
+    prod_jobs = [item for item in inventory if item.startswith("prod")]
+    if (not isinstance(task_id, str) or not task_id.startswith("prod") or prod_jobs != [task_id]
+            or not isinstance(names, list) or not 1 <= len(names) <= 3):
         raise ProtocolError("Run context does not establish serialized PROD exclusion within three containers")
+    lease = exclusion.get("browser_lease_owner")
+    if lease is not None and lease != task_id and not (isinstance(lease, str) and lease.startswith(task_id + "-")):
+        raise ProtocolError("Browser lease belongs to another task")
     if "fb-dev-hub" not in names or not container.get("image_id"):
         raise ProtocolError("Run context does not identify the single published-image hub")
 
@@ -266,6 +280,9 @@ def seed(client, ownership, out_dir):
         general = {"timezone": "UTC", "instance_name": "PERF ALPHA3", "time_format": "24h", "output_target": "both"}
         _compare(general, call("PUT", "/api/config/general", general))
         _compare(general, call("GET", "/api/config/general"))
+        display = BROWSER_PREFERENCES["display"]
+        _compare(display, call("PUT", "/api/settings/display", display))
+        _compare(display, call("GET", "/api/settings/display"))
         call("PUT", "/api/settings/plugins", {"auto_update": False})
         if call("GET", "/api/settings/plugins").get("auto_update") is not False:
             raise ProtocolError("Plugin auto-update was not disabled")
@@ -314,6 +331,7 @@ def seed(client, ownership, out_dir):
                     "created_utc": utc_now(), "source_commit": SOURCE_COMMIT, "image_manifest": ownership["image_manifest"],
                     "base_url": client.base_url, "boards": boards, "panel_id": created_panel["id"], "pages": [],
                     "collections": [], "schedules": [], "plugins": plugin_metadata}
+        manifest["browser_preferences"] = copy.deepcopy(BROWSER_PREFERENCES)
         for definition in page_definitions(boards):
             payload = {k: v for k, v in definition.items() if k not in {"geometry", "kind"}}
             page = call("POST", "/api/v1/pages", payload, status=201)
@@ -429,6 +447,10 @@ def verify_manifest(client, manifest):
     }:
         raise ProtocolError("Manifest source/board set differs from fixture")
     boards = manifest["boards"]
+    if manifest.get("browser_preferences") != BROWSER_PREFERENCES:
+        raise ProtocolError("Manifest browser preferences differ from the declared baseline")
+    display = require_ok(client.request("GET", "/api/settings/display"))
+    _compare(BROWSER_PREFERENCES["display"], display)
     for key, expected in GEOMETRIES.items():
         board = boards[key]
         if (board.get("device_type"), board.get("rows"), board.get("cols")) != expected:
@@ -520,7 +542,8 @@ def verify_manifest(client, manifest):
         silence = require_ok(client.request("GET", f"/api/silence-status?board_id={bid}"))
         if silence.get("board_id") != bid or silence.get("enabled") is not False or silence.get("active") is not False or silence.get("held"):
             raise ProtocolError("Silence/held state contaminates manual baseline")
-    return {"exact_counts": True, "exact_ids": True, "geometry": True, "read_back": True, "runtime_manual_state": True}
+    return {"exact_counts": True, "exact_ids": True, "geometry": True, "read_back": True, "runtime_manual_state": True,
+            "browser_preferences": True}
 
 
 if __name__ == "__main__":

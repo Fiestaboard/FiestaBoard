@@ -2,6 +2,88 @@
 
 from pathlib import Path
 import os
+import math
+import argparse
+import json
+import sys
+import time
+
+from runtime_common import JsonlWriter, ProtocolError
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Collect actual hub Linux resources against an explicit shared-clock anchor")
+    parser.add_argument("--anchor", type=Path, required=True)
+    parser.add_argument("--proc-root", type=Path, default=Path("/proc"))
+    parser.add_argument("--cgroup-root", type=Path, default=Path("/sys/fs/cgroup"))
+    parser.add_argument("--data-dir", type=Path, required=True)
+    parser.add_argument("--out-dir", type=Path, required=True)
+    parser.add_argument("--api-pid", type=int, required=True)
+    parser.add_argument("--nginx-pid", type=int)
+    parser.add_argument("--supervisor-pid", type=int)
+    parser.add_argument("--duration", type=float, default=7200)
+    parser.add_argument("--interval", type=float, default=5)
+    args = parser.parse_args(argv)
+    writer = None
+    try:
+        anchor = json.loads(args.anchor.read_text())
+        boot_id = (args.proc_root / "sys/kernel/random/boot_id").read_text().strip()
+        namespace = os.readlink(args.proc_root / "self/ns/pid")
+        command = (args.proc_root / str(args.api_pid) / "cmdline").read_text().replace("\0", " ")
+        validate_collector_anchor(anchor, boot_id=boot_id, pid_namespace=namespace, api_cmdline=command)
+        if args.duration <= 0 or args.interval <= 0 or not all(math.isfinite(n) for n in (args.duration, args.interval)):
+            raise ProtocolError("Collector duration/interval must be positive and finite")
+        pids = {role: pid for role, pid in (("api", args.api_pid), ("nginx", args.nginx_pid), ("supervisor", args.supervisor_pid)) if pid is not None}
+        snapshot = collect_snapshot(args.proc_root, args.cgroup_root, args.data_dir, pids)
+        api = next(p for p in snapshot["processes"] if p["role"] == "api")
+        if api["start_time_ticks"] is None or api["rss_bytes"] is None:
+            raise ProtocolError("Selected API PID has no readable identity/RSS")
+        args.out_dir.mkdir(parents=True, exist_ok=True)
+        ready = {**anchor, "api_pid": args.api_pid, "api_start_time_ticks": api["start_time_ticks"], "api_cmdline": command,
+                 "collector_pid": os.getpid(), "pid_namespace": namespace, "boot_id": boot_id}
+        with (args.out_dir / "collector-ready.json").open("x") as output:
+            output.write(json.dumps(ready, indent=2) + "\n")
+        writer = JsonlWriter(args.out_dir / "resources.jsonl", anchor["run_id"])
+        start, index = anchor["start_monotonic"], 0
+        if time.monotonic() > start:
+            raise ProtocolError("Collector started after its measurement anchor")
+        while index * args.interval <= args.duration:
+            deadline = start + index * args.interval
+            wait = deadline - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            elapsed = time.monotonic() - start
+            if elapsed - index * args.interval >= args.interval:
+                writer.write("gap", reason="Collector missed interval", scheduled_elapsed_s=index * args.interval,
+                             monotonic_elapsed_s=elapsed, boot_id=boot_id, pid_namespace=namespace)
+                index = math.ceil(elapsed / args.interval)
+                continue
+            snapshot = collect_snapshot(args.proc_root, args.cgroup_root, args.data_dir, pids)
+            writer.write("resource", monotonic_elapsed_s=elapsed, boot_id=boot_id, pid_namespace=namespace, **snapshot)
+            index += 1
+        return 0
+    except (OSError, ValueError, KeyError, ProtocolError) as exc:
+        if writer is not None:
+            writer.write("interrupted", error=f"Collector stopped: {type(exc).__name__}")
+        print(f"Collector refused: {type(exc).__name__}", file=sys.stderr)
+        return 2
+    finally:
+        if writer is not None:
+            writer.close()
+
+
+def validate_collector_anchor(anchor, *, boot_id, pid_namespace, api_cmdline):
+    if anchor.get("schema_version") != 1 or not anchor.get("run_id"):
+        raise ProtocolError("Collector requires a named measurement anchor")
+    if not boot_id or anchor.get("boot_id") != boot_id:
+        raise ProtocolError("Collector and workload use different Linux monotonic clock domains")
+    if not pid_namespace or anchor.get("pid_namespace") != pid_namespace:
+        raise ProtocolError("Collector is not in the reserved published hub PID namespace")
+    if "uvicorn" not in api_cmdline or "src.api_server:app" not in api_cmdline:
+        raise ProtocolError("Selected API PID is not the published uvicorn API")
+    start = anchor.get("start_monotonic")
+    if not isinstance(start, (int, float)) or not math.isfinite(start) or start < 0:
+        raise ProtocolError("Collector anchor needs a finite monotonic start")
 
 
 def _text(path):
@@ -80,3 +162,7 @@ def collect_snapshot(proc_root, cgroup_root, data_dir, pids):
             "queues": {"available": False, "reason": "Published process has no internal queue instrumentation"},
             "node_ui_server": {"expected": False, "reason": "Published nginx serves static client"},
             "unavailable": unavailable}
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

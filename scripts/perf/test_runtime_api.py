@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
 
 from runtime_api import ApiOperation, api_operations, sample_api
+from runtime_api import main as api_main
 from runtime_common import (
     AMD64_MANIFEST,
     SOURCE_COMMIT,
@@ -56,7 +57,7 @@ def run_context():
             "seed_id": marker["seed_id"], "data_dir": marker["data_dir"], "source_commit": SOURCE_COMMIT,
             "target_origin": marker["base_url"], "container": {"id": marker["container_id"], "image_id": "image-test",
                 "manifest_digest": AMD64_MANIFEST, "architecture": "amd64"}, "ownership_sha256": "0" * 64,
-            "manifest_sha256": None, "exclusion": {"running_ids": ["offline-run"], "container_names": ["fb-dev-hub"],
+            "manifest_sha256": None, "exclusion": {"task_id": "prod-test", "running_ids": ["prod-test"], "container_names": ["fb-dev-hub"],
                 "checked_utc": stamp, "browser_lease_owner": None}, "host": {"os": "test", "architecture": "test",
                 "cpu": None, "memory": None, "unavailable": ["cpu", "memory"]},
             "calibration": {"relay_report_path": None, "lifecycle_report_path": None}}
@@ -113,7 +114,9 @@ def fixture():
                               "recurrence_type": "weekly", "enabled": True})
     return {"schema_version": 1, "fixture": "published-alpha3-96-12-32", "source_commit": SOURCE_COMMIT,
             "seed_id": "offline-test", "base_url": "http://hub.invalid:3000", "boards": boards, "pages": pages,
-            "collections": collections, "schedules": schedules, "panel_id": "panel-test"}
+            "collections": collections, "schedules": schedules, "panel_id": "panel-test",
+            "browser_preferences": {"theme": "light", "locale": "en-US", "next_locale": "en", "timezone": "UTC",
+                "display": {"reduce_motion": False, "board_animations": "on", "site_animations": "on", "board_flap_speed": "standard"}}}
 
 
 def fixture_transport(manifest):
@@ -145,6 +148,7 @@ def fixture_transport(manifest):
         ("GET", "/api/v1/schedules?board_id=*"): HttpResult(200, {"schedules": schedules, "total": 32,
                                                              "enabled": None, "default_page_id": None}),
         ("GET", "/api/settings/board"): HttpResult(200, {"boards": board_rows}),
+        ("GET", "/api/settings/display"): HttpResult(200, {"reduce_motion": False, "board_animations": "on", "site_animations": "on", "board_flap_speed": "standard"}),
         ("GET", "/api/v1/boards"): HttpResult(200, {"boards": board_rows, "total": 4}),
         ("GET", "/api/v1/status"): HttpResult(200, {"running": True, "initialized": True, "boards": statuses}),
         ("GET", "/api/panels"): HttpResult(200, {"panels": [{"id": "panel-test", "board_id": "board-panel",
@@ -325,7 +329,7 @@ class SeedTransport:
                                         "resolved_page_id": page["id"], "source": "manual", "text": page["name"],
                                         "characters": frame, "expected_characters": frame,
                                         "override_started_at": None, "override_expires_at": None})
-        if path in {"/api/config/general", "/api/settings/plugins", "/api/settings/wizard"}:
+        if path in {"/api/config/general", "/api/settings/plugins", "/api/settings/wizard", "/api/settings/display"}:
             if method == "PUT":
                 self.config[path] = payload
             return HttpResult(200, copy.deepcopy(self.config.get(path, {})))
@@ -576,6 +580,8 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertTrue(manifest["verification"]["exact_ids"])
             self.assertTrue(manifest["verification"].get("h6_formula"))
             self.assertTrue(manifest["verification"].get("h8_boundaries"))
+            self.assertEqual(manifest.get("browser_preferences"), {"theme": "light", "locale": "en-US", "next_locale": "en", "timezone": "UTC",
+                "display": {"reduce_motion": False, "board_animations": "on", "site_animations": "on", "board_flap_speed": "standard"}})
             for artifact in Path(directory).iterdir():
                 raw = artifact.read_text()
                 self.assertNotIn("password-secret", raw)
@@ -851,6 +857,65 @@ class RuntimeContractTests(unittest.TestCase):
         result = JsonClient("http://hub.invalid:3000", {}, connection_factory=lambda: connection).request("GET", "/api/v1/health")
         self.assertEqual(result.status, 302)
         self.assertEqual(connection.requests, ["/api/v1/health"])
+
+    def test_api_cli_rejects_bad_operator_hash_before_login(self):
+        # Sampling's entrypoint must enforce the same external byte binding as the seeder.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            marker, context = ownership(), run_context()
+            context["ownership_sha256"] = "f" * 64
+            for name, value in (("owner.json", marker), ("context.json", context),
+                                ("credentials.json", {"username": "perf", "password": "password-secret"})):
+                path = root / name
+                path.write_text(json.dumps(value))
+                path.chmod(0o600)
+            transport = MemoryTransport({})
+            client = JsonClient(marker["base_url"], {}, transport=transport)
+            with patch("runtime_seed.JsonClient", return_value=client), redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()):
+                code = api_main(["--base-url", marker["base_url"], "--ownership", str(root / "owner.json"),
+                                 "--run-context", str(root / "context.json"), "--credentials", str(root / "credentials.json"),
+                                 "--manifest", str(root / "manifest.json"), "--out-dir", str(root / "out")])
+            self.assertEqual(code, 2)
+            self.assertEqual(transport.exchanges, [])
+
+    def test_literal_running_inventory_allows_non_prod_jobs_but_rejects_competing_prod(self):
+        # Filtering the evidence before saving it loses load metadata; requiring just one total job falsely blocks harmless work.
+        for competing in (False, True):
+            with self.subTest(competing=competing):
+                context = run_context()
+                context["exclusion"]["running_ids"] = ["prod-test", "web23", "native-preview"] + (["prod-other"] if competing else [])
+                transport = MemoryTransport({("GET", "/api/auth/status"): HttpResult(
+                    200, {"enabled": True, "mode": "enabled", "setup_required": False})})
+                client = JsonClient("http://hub.invalid:3000", {}, transport=transport, run_context=context)
+                with tempfile.TemporaryDirectory() as directory:
+                    with self.assertRaises(ProtocolError):
+                        seed(client, ownership(), Path(directory))
+                self.assertEqual([x[:2] for x in transport.exchanges], [] if competing else [("GET", "/api/auth/status")])
+
+    def test_h8_query_auth_failure_suppresses_restoration_mutation(self):
+        # A401 must stop the whole authentication scope, including finally-block mutations.
+        class ExpiringTransport(SemanticTransport):
+            def __call__(self, method, url, payload, headers, timeout):
+                if method == "GET" and urlsplit(url).path == "/api/schedules/active/page":
+                    self.exchanges.append((method, url, payload))
+                    return HttpResult(401, {"detail": "expired"})
+                return super().__call__(method, url, payload, headers, timeout)
+
+        data = fixture()
+        transport = ExpiringTransport(data)
+        with self.assertRaises(ProtocolError):
+            verify_semantics(JsonClient(data["base_url"], {}, transport=transport), data)
+        enables = [payload["enabled"] for method, url, payload in transport.exchanges if method == "PUT" and urlsplit(url).path == "/api/schedules/enabled"]
+        self.assertEqual(enables, [True])
+        self.assertTrue(any(transport.enabled.values()))  # Explicit operator recovery remains necessary.
+
+    def test_changed_display_preferences_fail_batch_verification(self):
+        # Same content counts with animations disabled are a different browser workload.
+        data = fixture()
+        transport = fixture_transport(data)
+        transport.responses[("GET", "/api/settings/display")].body["board_animations"] = "off"
+        with self.assertRaises(ProtocolError):
+            verify_manifest(JsonClient(data["base_url"], {}, transport=transport), data)
 
 
 if __name__ == "__main__":

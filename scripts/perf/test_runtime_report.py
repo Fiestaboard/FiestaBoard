@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from runtime_report import main as report_main
 from runtime_report import read_jsonl, report_records
 
 
@@ -18,7 +19,9 @@ def phase_records():
 
 def continuous_records():
     records = [{"record_type": "metadata", "run_id": "run-1", "source_commit": "83236253aa8103db856b7efa456e088b9c9ec548",
-                "planned_phase_seconds": [600, 6000, 600], "collector_interval_seconds": 5}]
+                "planned_phase_seconds": [600, 6000, 600], "collector_interval_seconds": 5,
+                "boot_id": "boot-a", "collector_pid_namespace": "pid:[100]", "synthetic_clock": False, "diagnostic": False}]
+    records[0]["dispatch_grace_seconds"] = 0.05
     records.extend({**record, "run_id": "run-1"} for record in phase_records())
     for slot in range(6000):
         records.append({"record_type": "request", "run_id": "run-1", "phase": "activity", "cycle": slot // 10,
@@ -27,6 +30,7 @@ def continuous_records():
                         "semantic_success": True, "timed_out": False, "scheduled_elapsed_s": 600 + slot,
                         "started_elapsed_s": 600 + slot, "monotonic_elapsed_s": 600 + slot + 0.1})
     records.extend({"record_type": "resource", "run_id": "run-1", "monotonic_elapsed_s": second,
+                    "boot_id": "boot-a", "pid_namespace": "pid:[100]",
                     "processes": [{"role": "api", "pid": 42, "start_time_ticks": 100, "rss_bytes": 100000}]}
                    for second in range(0, 7201, 5))
     return records
@@ -105,6 +109,41 @@ class RuntimeReportTests(unittest.TestCase):
     def test_parse_errors_are_part_of_completion_verdict(self):
         # A caller may not discard read_jsonl.errors while accepting otherwise complete counters.
         self.assertFalse(report_records(continuous_records(), errors=[{"line": 100, "error": "partial"}])["complete"])
+
+    def test_report_cli_retains_partial_input_and_exits_nonzero(self):
+        # A successful CLI exit with incomplete evidence would be a false gate pass.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw = root / "raw.jsonl"
+            raw.write_text('{"record_type":"request","http_status":401,"semantic_success":false}\n{"partial":')
+            out = root / "report.json"
+            code = report_main([str(raw), "--out", str(out)])
+            self.assertEqual(code, 2)
+            self.assertTrue(out.exists())
+            report = json.loads(out.read_text())
+        self.assertFalse(report["complete"])
+        self.assertEqual(len(report["parse_errors"]), 1)
+        self.assertEqual(report["strata"][0]["failed"], 1)
+
+    def test_mixed_kernel_namespace_or_synthetic_clock_cannot_complete(self):
+        # Matching run IDs do not make two Linux clock domains or a unit-clock replay one measured run.
+        for defect in ("kernel", "namespace", "synthetic"):
+            with self.subTest(defect=defect):
+                records = continuous_records()
+                if defect == "synthetic":
+                    records[0]["synthetic_clock"] = True
+                else:
+                    resource = next(r for r in records if r["record_type"] == "resource")
+                    resource["boot_id" if defect == "kernel" else "pid_namespace"] = "foreign"
+                self.assertFalse(report_records(records)["complete"])
+
+    def test_report_enforces_declared_dispatch_grace(self):
+        # CorrectHTTP and phase counts do not make a60ms-late dispatch comply with a50ms declared load policy.
+        records = continuous_records()
+        request = next(r for r in records if r["record_type"] == "request")
+        request["started_elapsed_s"] += 0.06
+        request["monotonic_elapsed_s"] += 0.06
+        self.assertFalse(report_records(records)["complete"])
 
 
 if __name__ == "__main__":

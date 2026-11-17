@@ -3,9 +3,30 @@
 from collections import defaultdict
 import json
 import math
+import argparse
 from pathlib import Path
 
 from runtime_common import AMD64_MANIFEST, SOURCE_COMMIT, summarize_requests
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Offline reduction; incomplete/mixed/corrupt evidence exits nonzero")
+    parser.add_argument("inputs", nargs="+", type=Path)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args(argv)
+    records, errors = [], []
+    for path in args.inputs:
+        try:
+            parsed = read_jsonl(path)
+            records.extend(parsed["records"])
+            errors.extend({"path": str(path), **error} for error in parsed["errors"])
+        except OSError:
+            errors.append({"path": str(path), "error": "Input unavailable"})
+    report = report_records(records, errors=errors)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    with args.out.open("x", encoding="utf-8") as output:
+        output.write(json.dumps(report, indent=2, allow_nan=False) + "\n")
+    return 0 if report["complete"] else 2
 
 
 def read_jsonl(path):
@@ -71,7 +92,10 @@ def report_records(records, *, errors=()):
     metadata = [r for r in records if r.get("record_type") == "metadata"]
     declared_window = len(metadata) == 1 and metadata[0].get("planned_phase_seconds") == [600, 6000, 600]
     if declared_window:
-        declared_window = metadata[0].get("source_commit") == SOURCE_COMMIT
+        declared_window = (metadata[0].get("source_commit") == SOURCE_COMMIT
+                           and metadata[0].get("synthetic_clock") is False and metadata[0].get("diagnostic") is False
+                           and metadata[0].get("dispatch_grace_seconds") == 0.05
+                           and bool(metadata[0].get("boot_id")) and bool(metadata[0].get("collector_pid_namespace")))
 
     def finite(value):
         return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
@@ -88,7 +112,7 @@ def report_records(records, *, errors=()):
         if not valid_indices or not valid_times:
             requests_valid = False
             continue
-        if (deadline != 600 + cycle * 10 + slot or not deadline <= started < deadline + 1
+        if (deadline != 600 + cycle * 10 + slot or not deadline <= started <= deadline + 0.05 + 1e-9
                 or not started <= ended <= 6600 or started < previous_end):
             requests_valid = False
         previous_end = ended
@@ -99,6 +123,9 @@ def report_records(records, *, errors=()):
                            and all(0 < later - earlier <= 7.5 for earlier, later in zip(resource_times, resource_times[1:])))
     expected_roles = None
     for resource in resources:
+        if (len(metadata) != 1 or resource.get("boot_id") != metadata[0].get("boot_id")
+                or resource.get("pid_namespace") != metadata[0].get("collector_pid_namespace")):
+            resources_valid = False
         processes = resource.get("processes", [])
         roles = [p.get("role") for p in processes]
         if not processes or "api" not in roles or len(set(roles)) != len(roles):
@@ -119,3 +146,7 @@ def report_records(records, *, errors=()):
             "resource_samples": len(resources), "gaps": len(gaps), "parse_errors": list(errors),
             "one_run": one_run, "requests_valid": requests_valid, "resources_valid": resources_valid,
             "python_heap": {"available": False}, "queues": {"available": False}}
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

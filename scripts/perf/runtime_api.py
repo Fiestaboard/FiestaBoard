@@ -5,10 +5,33 @@ from pathlib import Path
 import json
 import uuid
 import re
+import argparse
+import sys
 from urllib.parse import urlencode
 
 from runtime_common import JsonlWriter, ProtocolError, require_ok, summarize_requests, validate_preview
-from runtime_seed import verify_manifest
+from runtime_seed import add_input_arguments, load_inputs, verify_manifest
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Explicit authenticated published-image API calibration")
+    add_input_arguments(parser)
+    parser.add_argument("--batches", type=int, default=3)
+    parser.add_argument("--samples", type=int, default=200)
+    parser.add_argument("--warmups", type=int, default=20)
+    args = parser.parse_args(argv)
+    client = None
+    try:
+        client, _, manifest = load_inputs(args)
+        client.login(min_valid_seconds=7800)
+        report = sample_api(client, manifest, args.out_dir, args.batches, args.samples, args.warmups)
+        return 0 if report["valid"] else 2
+    except (OSError, ProtocolError, ValueError, KeyError, TypeError) as exc:
+        print(f"API calibration refused: {type(exc).__name__}", file=sys.stderr)
+        return 2
+    finally:
+        if client is not None:
+            client.close()
 
 
 @dataclass
@@ -143,7 +166,7 @@ def sample_api(client, manifest, out_dir, batches=3, samples=200, warmups=20, *,
     report = {"valid": True, "aborted": False, "strata": []}
     writer.write("metadata", seed_id=manifest["seed_id"], source_commit=manifest["source_commit"],
                  base_url=client.base_url, batches=batches, samples=samples, warmups=warmups,
-                 timeout_seconds=client.timeout, auth="browser-cookie")
+                 timeout_seconds=client.timeout, auth="browser-cookie", run_context=client.run_context)
     try:
         for batch in range(1, batches + 1):
             session = client.session_info(min_valid_seconds=7800)
@@ -202,3 +225,7 @@ def sample_api(client, manifest, out_dir, batches=3, samples=200, warmups=20, *,
         return report
     finally:
         writer.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
