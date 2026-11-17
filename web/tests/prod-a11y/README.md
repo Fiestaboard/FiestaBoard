@@ -10,6 +10,39 @@ The three application states require complete Pages and Collections stores with 
 
 The operator must establish PROD exclusion using the authorized process inventory and reserve the shared hub within the total three-container cap. Use only dedicated synthetic data, including any saved login session. Record the running container's immutable image digest/source provenance separately; environment variables here are declarations, not image attestation. Provision the configured empty/static fixture above before this survey. It will fail first-run/auth/API/route/fixture preconditions instead of skipping them or scanning a loader. API preflights explicitly refuse redirects. The launcher reserves a fresh run directory; reuse of a run ID must fail rather than overwrite previous evidence.
 
+### Prepare the synthetic dataset
+
+After the resource gate, run `scripts/prod_a11y_seed.py` from the repository root inside the approved Python container. Supply an existing canonical absolute parent on the mounted ExtHD evidence path and a fresh dataset ID:
+
+```sh
+python scripts/prod_a11y_seed.py \
+  --parent /evidence/datasets \
+  --dataset-id prod-a11y-alpha3-empty-unique \
+  --acknowledge-synthetic-only
+```
+
+`/evidence/datasets` represents an approved mounted evidence directory; the tool does not create the parent, mount anything or start a container. It refuses an existing destination, including empty directories and symlinks. A partial failure remains reserved; use a new ID rather than deleting or reusing it.
+
+Mount only the resulting `data/` directory at the leased hub's `/app/data`. Keep `seed-manifest.json` and `seed-manifest.sha256` outside that mutable mount. Verify their digest and every listed input hash before boot; both manifest files must exist before treating the seed as complete. Boot can mutate the input files, so preserve the initial manifest and record the subsequent observed state separately. Use the dataset ID as `AUDIT_DATASET_ID`.
+
+The fixture contains one synthetic FiestaPanel output with no physical board connection, empty Pages/Collections/Schedules/Panels stores, completed setup, disabled sign-in/AI/data integrations/MQTT, disabled plugin auto-update and manual system updates. It was designed against alpha.3 source; successful loader tests against a newer checkout would not establish alpha.3 image behavior. Use a clean container environment without inherited credentials or configuration overrides. The production entrypoint creates its own updater token and may probe a sidecar; the shell also queries public update metadata. This fixture does not establish backend network isolation. The running-image provenance and browser preconditions still must be observed.
+
+### Check evidence protection
+
+Run these focused checks sequentially inside the approved containers, with the complete task checkout mounted:
+
+```sh
+# Repository root, approved Python container
+python -m pytest tests/test_prod_a11y_seed.py -n 2 -q --no-cov
+
+# web/, approved Node container
+node --test tests/prod-a11y/run.test.mjs
+```
+
+The launcher checks use the actual launcher with a deliberately destructive fake CLI; they exercise reservation, duplicate-ID preservation, fixed execution controls and failure receipts without a browser or hub. They do not validate real Playwright configuration loading. After installing locked web dependencies, use a fresh run ID and the full campaign environment below for `node tests/prod-a11y/run.mjs --list`; this is a case inventory, not a browser pass. Repeat that run ID and verify refusal before child startup and unchanged evidence hashes. Also verify that direct Playwright invocation without `AUDIT_RUN_TOKEN` is refused by the dedicated configuration before trusting its protection. Retain the commands, exit statuses and before/after hashes. Full typecheck/lint/format/build/coverage and the actual browser/manual audit remain separate required checks.
+
+### Declare the campaign
+
 Set these variables in the approved browser container:
 
 | Variable | Required value |
