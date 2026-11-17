@@ -4,7 +4,15 @@ import { getViolations, injectAxe } from "axe-playwright";
 const now = new Date();
 const next = new Date(now.getTime() + 3600000).toISOString();
 const boards = [
-  { id: "board-1", name: "Kitchen board", device_type: "flagship", board_color: "black", enabled: true },
+  {
+    id: "board-1",
+    name: "Kitchen board",
+    device_type: "flagship",
+    board_color: "black",
+    enabled: true,
+    output: "vestaboard",
+    output_config: { host: "192.0.2.40", local_api_key: "test_key" },
+  },
   {
     id: "board-2",
     name: "Desk Pixoo",
@@ -65,6 +73,18 @@ for (const width of [390, 768, 1280]) {
       if (width < 768) await expect(other).toBeHidden();
       else await expect(other).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      // The standalone fixture's main element also has an entrance animation.
+      // Keep contrast checks unchanged and wait for its actual settled opacity.
+      await expect
+        .poll(() =>
+          page.getByTestId("now-showing").evaluate((card) => {
+            for (let element: Element | null = card; element; element = element.parentElement) {
+              if (getComputedStyle(element).opacity !== "1") return false;
+            }
+            return true;
+          }),
+        )
+        .toBe(true);
       await injectAxe(page);
       expect(
         await getViolations(page, undefined, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }),

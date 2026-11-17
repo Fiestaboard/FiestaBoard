@@ -64,6 +64,7 @@ async function setup(page: Page, width: number) {
     else if (path === "/api/config/validate") json = { valid: true, is_first_run: false, missing_fields: [] };
     else if (path === "/api/settings/wizard") json = { state: null };
     else if (path === "/api/settings/board") json = { boards: [], active_board_id: "" };
+    else if (path === "/api/v1/status") json = { running: true, initialized: true, boards: {} };
     else if (path === "/api/config/general") json = { instance_name: "Example FiestaPi", timezone: "UTC" };
     else if (path === "/api/outputs/catalog") json = { outputs: catalog, registry_status: "available" };
     else if (path === "/api/outputs") json = [...firstPartyOutputs, led];
