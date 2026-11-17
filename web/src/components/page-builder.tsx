@@ -60,7 +60,6 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload } from "lucide-react";
-import { toast } from "sonner";
 import {
   forwardRef,
   lazy,
@@ -72,6 +71,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { CanvasesPanel, type CanvasesPanelHandle } from "@/components/canvas-editor/canvases-panel";
