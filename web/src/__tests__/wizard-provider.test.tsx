@@ -1,5 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { toast, Toaster } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { server } from "./mocks/server";
@@ -33,8 +35,13 @@ vi.mock("@/components/wizard", () => ({
 import { useWizard, WizardProvider } from "@/components/wizard-provider";
 
 function Probe() {
-  const { isWizardActive } = useWizard();
-  return <div data-testid="probe">{isWizardActive ? "wizard" : "no-wizard"}</div>;
+  const { isWizardActive, triggerWizard } = useWizard();
+  return (
+    <>
+      <div data-testid="probe">{isWizardActive ? "wizard" : "no-wizard"}</div>
+      <button onClick={triggerWizard}>Run setup again</button>
+    </>
+  );
 }
 
 function firstRunValidation() {
@@ -123,4 +130,71 @@ describe("WizardProvider", () => {
       expect(screen.getByTestId("probe").textContent).toBe("no-wizard");
     });
   });
+  it("checks the fleet before manual rerun and never flashes setup over a real display", async () => {
+    let release: (() => void) | undefined;
+    let requested = false;
+    server.use(
+      http.get("/api/config/validate", () =>
+        HttpResponse.json({ valid: true, is_first_run: false, errors: [], missing_fields: [] }),
+      ),
+      http.get("/api/settings/board", async () => {
+        requested = true;
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return HttpResponse.json({
+          boards: [{ id: "tv", name: "Living room", device_type: "panel", output: "fiestapanel", output_config: {} }],
+        });
+      }),
+    );
+    render(
+      <WizardProvider>
+        <Probe />
+      </WizardProvider>,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Run setup again" }));
+    expect(screen.queryByTestId("wizard")).not.toBeInTheDocument();
+    await waitFor(() => expect(requested).toBe(true));
+    await act(async () => {
+      release?.();
+    });
+    expect(await screen.findByTestId("probe")).toHaveTextContent("no-wizard");
+  });
+
+  it("allows rerun when the only board is an untouched legacy placeholder", async () => {
+    server.use(
+      http.get("/api/config/validate", () =>
+        HttpResponse.json({ valid: true, is_first_run: false, errors: [], missing_fields: [] }),
+      ),
+    );
+    render(
+      <WizardProvider>
+        <Probe />
+      </WizardProvider>,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Run setup again" }));
+    expect(await screen.findByTestId("wizard")).toBeInTheDocument();
+  });
+});
+
+it("shows a retryable error if a manual setup eligibility check cannot reach the hub", async () => {
+  server.use(
+    http.get("/api/config/validate", () =>
+      HttpResponse.json({ valid: true, is_first_run: false, errors: [], missing_fields: [] }),
+    ),
+    http.get("/api/settings/board", () => HttpResponse.json({ detail: "Unavailable" }, { status: 503 })),
+  );
+  render(
+    <WizardProvider>
+      <Probe />
+      <Toaster />
+    </WizardProvider>,
+  );
+  await userEvent.click(await screen.findByRole("button", { name: "Run setup again" }));
+  await screen.findByText("Couldn’t check your displays. Check your connection and try setup again.");
+  expect(screen.queryByTestId("wizard")).not.toBeInTheDocument();
+  server.use(http.get("/api/settings/board", () => HttpResponse.json({ boards: [] })));
+  await userEvent.click(screen.getByRole("button", { name: "Run setup again" }));
+  await screen.findByTestId("wizard");
+  toast.dismiss();
 });

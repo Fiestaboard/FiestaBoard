@@ -225,11 +225,7 @@ test.describe("Character code 62 — per-board glyph", () => {
   });
 });
 
-/**
- * The setup wizard is where most owners will answer this question — it is the
- * first thing a new install asks — so the swatch there has to reach the stored
- * board, not just the local form state.
- */
+/** First-run uses the legacy-safe degree default; owners can change it in Displays. */
 test.describe("Character code 62 — setup wizard", () => {
   test.beforeEach(async () => {
     await clearBoardConfig();
@@ -241,46 +237,47 @@ test.describe("Character code 62 — setup wizard", () => {
     await resetToSingleBoard();
   });
 
-  test("the flap chosen in the wizard is saved with the board", async ({ page }) => {
+  async function start(page: import("@playwright/test").Page) {
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
+      localStorage.removeItem("fiestaboard_wizard_progress");
     });
     await page.goto("/");
     await chooseVestaboardInWizard(page);
-    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
+    await page.getByLabel("Address", { exact: true }).fill(BOARD_HOST);
+    await page.getByLabel("Local API key", { exact: true }).fill("test-key");
+  }
 
-    await page.getByRole("radio", { name: /Local API/ }).click();
-    await page.getByLabel("Board IP Address").fill(BOARD_HOST);
-    await page.getByLabel("Local API Key").fill("test-key");
+  test("wizard preserves the safe default and display settings persist the owner's flap choice", async ({ page }) => {
+    await start(page);
+    await page.getByRole("button", { name: "Test connection", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: /Connected · \d+ ms/ })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Add data sources", exact: true })).toBeVisible();
+    await expect.poll(storedGlyph).toBe("degree");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Ready to go", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Finish setup", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
 
-    // Flagship is the default and the only shape this question applies to.
-    const heartSwatch = page.locator("[data-testid=wizard-code62-heart]");
-    await heartSwatch.scrollIntoViewIfNeeded();
-    await expect(heartSwatch).toHaveAttribute("aria-pressed", "false");
-    await heartSwatch.click();
-    await expect(heartSwatch).toHaveAttribute("aria-pressed", "true");
-
-    const testConnBtn = page.getByRole("button", { name: "Test Connection" });
-    await testConnBtn.scrollIntoViewIfNeeded();
-    await testConnBtn.click();
-    await expect(page.getByText("Connected!")).toBeVisible({ timeout: 15_000 });
-
-    const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
-    const data = await res.json();
-    expect(data.boards[0].code62_glyph).toBe("heart");
+    const card = await openDisplay(page, "My board");
+    await card.getByTestId("board-code62-heart").click();
+    await expect.poll(storedGlyph).toBe("heart");
+    const reloaded = await openDisplay(page, "My board");
+    await expect(reloaded.getByTestId("board-code62-heart")).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("the wizard offers no code-62 choice once Note is selected", async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.removeItem("fiestaboard_wizard_complete");
-    });
-    await page.goto("/");
-    await chooseVestaboardInWizard(page);
-    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
-
-    await expect(page.locator("[data-testid=wizard-code62-heart]")).toHaveCount(1);
-    await page.getByRole("radio", { name: "Note 15 × 3 characters" }).click();
-    await expect(page.locator("[data-testid=wizard-code62-heart]")).toHaveCount(0);
-    await expect(page.locator("[data-testid=wizard-code62-degree]")).toHaveCount(0);
+  test("the Note setup has no code-62 choice and saves Note geometry", async ({ page }) => {
+    await start(page);
+    await page.getByRole("combobox", { name: "Board type", exact: true }).click();
+    await page.getByRole("option", { name: "Note · 15 × 3", exact: true }).click();
+    await expect(page.getByTestId("wizard-code62-heart")).toHaveCount(0);
+    await expect(page.getByTestId("wizard-code62-degree")).toHaveCount(0);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Add data sources", exact: true })).toBeVisible();
+    const response = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
+    const data = await response.json();
+    expect(data.boards).toHaveLength(1);
+    expect(data.boards[0].device_type).toBe("note");
   });
 });

@@ -80,11 +80,12 @@ test.describe("FiestaPanel settings flow", () => {
     await page.getByRole("radio", { name: /FiestaPanel/ }).click();
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await page.getByLabel("TV name").fill("E2E Wall TV");
-    await page.getByLabel(/Screen size/).fill("55");
+    await page.getByRole("combobox", { name: /Screen size/ }).click();
+    await page.getByRole("option", { name: "55-inch TV · automatic board size", exact: true }).click();
     const created = page.waitForResponse(
       (response) => response.url().endsWith("/api/panels") && response.request().method() === "POST",
     );
-    await page.getByRole("button", { name: "Create TV board" }).click();
+    await page.getByRole("button", { name: "Add display", exact: true }).click();
     const response = await created;
     expect(response.status()).toBe(201);
     const panel = (await response.json()) as PanelListEntry;

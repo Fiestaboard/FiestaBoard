@@ -8,6 +8,7 @@ export default [
   index("routes/home.tsx"),
   route("activate", "routes/activate.tsx"),
   route("login", "routes/login.tsx"),
+  route("reset-password", "routes/reset-password.tsx"),
   route("offline", "routes/offline.tsx"),
   route("profile", "routes/profile.tsx"),
   // Settings is a list-detail (slice 2.1): /settings and /settings/:section.

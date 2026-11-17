@@ -90,15 +90,17 @@ describe("prop-driven state syncs", () => {
           pages={[{ id: "p1", name: "Evening" }]}
           selectablePageIds={["p1"]}
           isEditing={isEditing}
-          isDragging={false}
+          isLifted={false}
+          canMoveUp={false}
+          canMoveDown={false}
+          onMoveUp={vi.fn()}
+          onMoveDown={vi.fn()}
+          onKeyDown={vi.fn()}
           onRequestEdit={() => true}
           onSave={vi.fn()}
           onCancelEdit={vi.fn()}
           onRemove={vi.fn()}
           onDirtyChange={vi.fn()}
-          onDragStart={vi.fn()}
-          onDragOver={vi.fn()}
-          onDragEnd={vi.fn()}
           t={t}
         />
       );

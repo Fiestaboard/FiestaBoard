@@ -650,7 +650,28 @@ export interface BoardRestoreResponse {
   device_observed: boolean;
 }
 
+/** H19: only identity hints go to the hub; saved credentials never come back. */
+export interface ExistingBoardQuery {
+  output?: string;
+  host?: string;
+  port?: number;
+  cloud_key?: string;
+  note_array_token?: string;
+  exclude_board_id?: string;
+}
+export interface ExistingBoardMatch {
+  board_id: string;
+  name: string;
+  output: string;
+  matched: "host" | "cloud_key" | "note_array_token";
+}
+
 export const boardsApi = {
+  checkExistingBoards: (query: ExistingBoardQuery) =>
+    fetchApi<{ existing: ExistingBoardMatch[] }>("/config/board/existing", {
+      method: "POST",
+      body: JSON.stringify(query),
+    }),
   /** `GET /v1/boards/{board}` (H2's next change rides on it). Omitted board → the primary. */
   getBoardDetail: (boardId?: string | null) => fetchApi<BoardDetail>(`/v1/boards/${boardPathSegment(boardId)}`),
   /** `GET /triggers/active`: the plugin alert on the primary board, if any. */

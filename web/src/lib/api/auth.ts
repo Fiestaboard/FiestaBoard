@@ -2,7 +2,7 @@
 // auth-mode preference, and the MCP bearer token.
 
 import { apiUrl } from "../base-path";
-import { fetchApi } from "./core";
+import { ApiError, fetchApi } from "./core";
 
 /**
  * Shape of /auth/status. Exported so other UI surfaces (login page,
@@ -41,6 +41,23 @@ export const authApi = {
   getAuthStatus: () => fetchApi<AuthStatusResponse>("/auth/status", { cache: "no-store" }),
 
   logout: () => fetchApi<{ status: string }>("/auth/logout", { method: "POST" }),
+
+  /** Public recovery: the owner mints this one-time code inside the hub container.
+   * It must never follow a redirect carrying the code or create a signed-in session.
+   */
+  resetPassword: async (code: string, newPassword: string) => {
+    const response = await fetch(apiUrl("/auth/password-reset"), {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.timeout(30_000),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, new_password: newPassword }),
+    });
+    if (!response.ok) throw new ApiError("Password reset failed", response.status);
+    return (await response.json()) as { status: "ok" };
+  },
 
   /**
    * Change the signed-in user's password. Uses a bespoke fetch (rather than

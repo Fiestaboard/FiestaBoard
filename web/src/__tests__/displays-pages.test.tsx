@@ -430,6 +430,13 @@ describe("/displays", () => {
 
   it("opens a newly added display's page", async () => {
     setup([KITCHEN]);
+    server.use(
+      http.post(`${API}/settings/board/add`, () =>
+        HttpResponse.json({
+          boards: [KITCHEN, { id: "new", name: "My board", device_type: "flagship", output: "vestaboard" }],
+        }),
+      ),
+    );
     renderWith(
       <DisplaysSection>
         <DisplaysPage />
@@ -438,7 +445,23 @@ describe("/displays", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Add a display" }));
     await userEvent.click(await screen.findByRole("radio", { name: /Vestaboard/ }));
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    await userEvent.click(screen.getByRole("button", { name: "Note" }));
+    server.use(
+      http.post(`${API}/outputs/vestaboard/actions/test_connection`, () =>
+        HttpResponse.json({
+          status: "ok",
+          message: "Board answered",
+          guidance: [],
+          fields: null,
+          geometry: null,
+          devices: null,
+        }),
+      ),
+    );
+    await userEvent.type(await screen.findByLabelText("Address"), "192.0.2.80");
+    await userEvent.type(screen.getByLabelText("Local API key"), "test_key");
+    await userEvent.click(screen.getByRole("button", { name: "Test connection" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add display" })).toBeEnabled());
+    await userEvent.click(screen.getByRole("button", { name: "Add display" }));
     // The default add mock answers with a board "new" appended.
     await waitFor(() => expect(push).toHaveBeenCalledWith("/displays/new"));
   });
