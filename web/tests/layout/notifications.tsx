@@ -19,7 +19,9 @@ import SettingsPage from "../../app/routes/settings";
 // boundaries are substituted by the Playwright spec; no notification UI fake.
 const params = new URLSearchParams(location.search);
 const theme = params.get("theme") ?? "light";
-const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+const client = new QueryClient({
+  defaultOptions: { queries: { retry: false, staleTime: Infinity, refetchOnWindowFocus: false } },
+});
 localStorage.setItem("fiestaboard_wizard_complete", "true");
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={client}>

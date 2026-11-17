@@ -18,7 +18,7 @@ import {
 } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpCircle, ChevronRight, Info, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AboutDialog } from "@/components/about-dialog";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
@@ -67,6 +67,11 @@ export function SidebarSettingsMenu({
   const queryClient = useQueryClient();
   const [aboutOpen, setAboutOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (variant !== "desktop") return;
+    moreVisibilityChanged(menuOpen);
+    return () => moreVisibilityChanged(false);
+  }, [menuOpen, variant]);
 
   const { data: authStatus } = useQuery({
     queryKey: ["auth-status"],
@@ -105,7 +110,7 @@ export function SidebarSettingsMenu({
       // drop the client cache and bounce to /login.
     }
     // The last-known board frames belong to this account: wipe them (2.8).
-    await clearAccountDataOnDevice();
+    await clearAccountDataOnDevice(queryClient);
     queryClient.removeQueries({ queryKey: ["auth-status"] });
     router.replace("/login");
   };
@@ -248,13 +253,7 @@ export function SidebarSettingsMenu({
 
   return (
     <>
-      <Popover
-        open={menuOpen}
-        onOpenChange={(open) => {
-          setMenuOpen(open);
-          moreVisibilityChanged(open);
-        }}
-      >
+      <Popover open={menuOpen} onOpenChange={setMenuOpen}>
         <PopoverTrigger asChild>
           <SidebarAccountTrigger label={label} anonymous={!username} collapsed={collapsed} notice={notice} />
         </PopoverTrigger>

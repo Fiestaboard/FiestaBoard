@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+// Real notifications require full Chromium; the default headless shell has
+// no notification service even when the Permissions API reports granted.
+test.use({ channel: "chromium" });
+
 const SCOPE_PATH = "/api/hassio_ingress/push-worker-test/";
 
 test("the real ingress-scoped worker displays local push events and clears notifications", async ({

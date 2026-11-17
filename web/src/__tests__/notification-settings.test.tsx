@@ -1,12 +1,15 @@
+import "fake-indexeddb/auto";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NotificationSettings } from "@/components/settings/notification-settings";
-import type { PushStatus } from "@/lib/api/push";
+import { pushApi, type PushStatus } from "@/lib/api/push";
 import * as browser from "@/lib/pwa/push";
+import { clearAccountDataOnDevice } from "@/lib/pwa/sign-out";
 
 import { server } from "./mocks/server";
 
@@ -42,9 +45,13 @@ beforeEach(() => {
   );
 });
 
-function show() {
+function makeClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
+}
+
+function show(client = makeClient()) {
   return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={client}>
       <NotificationSettings />
     </QueryClientProvider>,
   );
@@ -58,6 +65,81 @@ async function enrolled() {
 }
 
 describe("notification settings", () => {
+  it("refreshes external browser permission changes on return with production focus defaults", async () => {
+    status.user_enabled = true;
+    vi.mocked(browser.readBrowserPush).mockResolvedValue({ permission: "denied", subscribed: false });
+    show();
+    const device = await screen.findByRole("switch", { name: "Enable on this browser" });
+    expect(device).toBeDisabled();
+    vi.mocked(browser.readBrowserPush).mockResolvedValue({ permission: "granted", subscribed: false });
+    fireEvent.focus(window);
+    await waitFor(() => expect(device).toBeEnabled());
+    expect(screen.queryByText("Notifications blocked by the browser")).not.toBeInTheDocument();
+    vi.mocked(browser.readBrowserPush).mockResolvedValue({ permission: "denied", subscribed: false });
+    fireEvent(document, new Event("visibilitychange"));
+    await waitFor(() => expect(device).toBeDisabled());
+    expect(browser.enableBrowserPush).not.toHaveBeenCalled();
+  });
+
+  it("does not reuse the old session's consent after rapid sign-out and sign-in", async () => {
+    const client = makeClient();
+    status = { ...status, user_enabled: true, device_enabled: true, subscribed: true };
+    const first = show(client);
+    expect(await screen.findByRole("switch", { name: "Allow notifications for my account" })).toBeChecked();
+    first.unmount();
+    await clearAccountDataOnDevice(client);
+    status = { ...status, user_enabled: false, device_enabled: false, subscribed: false };
+    show(client);
+    expect(await screen.findByRole("switch", { name: "Allow notifications for my account" })).not.toBeChecked();
+    expect(screen.getByRole("switch", { name: "Enable on this browser" })).not.toBeChecked();
+  });
+
+  it("does not restore consent when a pending save finishes after sign-out", async () => {
+    const client = makeClient();
+    let finish!: (value: PushStatus) => void;
+    const save = vi.spyOn(pushApi, "setPreference").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    try {
+      const first = show(client);
+      await userEvent.click(await screen.findByRole("switch", { name: "Allow notifications for my account" }));
+      expect(save).toHaveBeenCalledOnce();
+      first.unmount();
+      await clearAccountDataOnDevice(client);
+      await act(async () => {
+        finish({ ...status, user_enabled: true });
+      });
+      expect(client.getQueryData(["push-status"])).toBeUndefined();
+    } finally {
+      save.mockRestore();
+    }
+  });
+
+  it("discards in-flight enrollment reads at sign-out", async () => {
+    const client = makeClient();
+    let finish!: (value: PushStatus) => void;
+    const result = client
+      .fetchQuery({
+        queryKey: ["push-status"],
+        queryFn: () =>
+          new Promise<PushStatus>((resolve) => {
+            finish = resolve;
+          }),
+      })
+      .catch(() => undefined);
+    client.setQueryData(["browser-push"], { permission: "granted", subscribed: true });
+    await clearAccountDataOnDevice(client);
+    await act(async () => {
+      finish(status);
+      await result;
+    });
+    expect(client.getQueryData(["push-status"])).toBeUndefined();
+    expect(client.getQueryData(["browser-push"])).toBeUndefined();
+  });
+
   it("still explains HTTPS when no browser session exists", async () => {
     vi.mocked(browser.getPushAvailability).mockReturnValue("insecure");
     server.use(http.get("/api/push/status", () => HttpResponse.json({}, { status: 401 })));

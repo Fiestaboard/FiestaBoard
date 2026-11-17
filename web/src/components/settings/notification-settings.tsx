@@ -16,8 +16,9 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { useElementWidth } from "@/hooks/use-element-width";
 import { useTranslations } from "@/i18n/translations";
 import { pushApi, PushApiError, type PushStatus } from "@/lib/api/push";
 import { HTTPS_HELP_URL } from "@/lib/pwa/https-help";
@@ -36,11 +37,30 @@ const BROWSER_KEY = ["browser-push"];
 export function NotificationSettings() {
   const t = useTranslations("notifications");
   const queryClient = useQueryClient();
+  const panel = useRef<HTMLDivElement>(null);
+  const panelWidth = useElementWidth(panel);
   const [busy, setBusy] = useState<"account" | "device" | "test" | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const availability = typeof window === "undefined" ? "unsupported" : getPushAvailability();
   const status = useQuery({ queryKey: STATUS_KEY, queryFn: pushApi.getStatus, retry: false, staleTime: 15_000 });
   const browser = useQuery({ queryKey: BROWSER_KEY, queryFn: readBrowserPush, retry: false, staleTime: 0 });
+  const refreshStatus = status.refetch;
+  const refreshBrowser = browser.refetch;
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      void refreshStatus();
+      void refreshBrowser();
+    };
+    // Browser settings can change permission without remounting this screen.
+    // The global QueryClient intentionally disables automatic focus refetch.
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [refreshStatus, refreshBrowser]);
   const permission = browser.data?.permission ?? "default";
   const enrolled = !!status.data?.device_enabled && !!status.data.subscribed;
   const ready = enrolled && !!browser.data?.subscribed && permission === "granted" && availability === "supported";
@@ -49,6 +69,8 @@ export function NotificationSettings() {
 
   async function change(kind: "account" | "device", checked: boolean) {
     if (!status.data || busy) return;
+    const sessionQuery = queryClient.getQueryCache().find({ queryKey: STATUS_KEY });
+    const sameSession = () => queryClient.getQueryCache().find({ queryKey: STATUS_KEY }) === sessionQuery;
     setBusy(kind);
     setFeedback(null);
     try {
@@ -58,8 +80,12 @@ export function NotificationSettings() {
         : checked
           ? enableBrowserPush(status.data.public_key)
           : disableBrowserPush());
+      // Sign-out removes the query. A late mutation must not recreate the old
+      // account's consent cache after that identity boundary.
+      if (!sameSession()) return;
       queryClient.setQueryData(STATUS_KEY, next);
     } catch (error) {
+      if (!sameSession()) return;
       setFeedback(
         error instanceof BrowserPushError && error.code === "default"
           ? "dismissed"
@@ -68,21 +94,25 @@ export function NotificationSettings() {
             : "actionError",
       );
     } finally {
-      await browser.refetch();
+      if (sameSession()) await browser.refetch();
       setBusy(null);
     }
   }
 
   async function sendTest() {
+    const sessionQuery = queryClient.getQueryCache().find({ queryKey: STATUS_KEY });
+    const sameSession = () => queryClient.getQueryCache().find({ queryKey: STATUS_KEY }) === sessionQuery;
     setBusy("test");
     setFeedback(null);
     try {
       const result = await pushApi.sendTest();
+      if (!sameSession()) return;
       setFeedback(result.sent > 0 ? "testSent" : result.expired > 0 ? "testExpired" : "notSent");
       // A provider expiry removes the server registration; do not leave the toggle stale.
       await status.refetch();
       await browser.refetch();
     } catch (error) {
+      if (!sameSession()) return;
       setFeedback(error instanceof PushApiError && error.status === 429 ? "cooldown" : "testError");
     } finally {
       setBusy(null);
@@ -93,6 +123,7 @@ export function NotificationSettings() {
     availability === "insecure" ? (
       <StatusBanner
         kind="https"
+        layout={panelWidth < 560 ? "stacked" : "inline"}
         politeness="off"
         title={t("insecureTitle")}
         description={t("insecureHelp")}
@@ -119,7 +150,7 @@ export function NotificationSettings() {
 
   if (status.isPending)
     return (
-      <Stack gap="4">
+      <Stack ref={panel} gap="4">
         {environmentNotice}
         <Text role="status" tone="muted">
           {t("loading")}
@@ -129,7 +160,7 @@ export function NotificationSettings() {
   if (!status.data) {
     const needsSession = status.error instanceof PushApiError && [401, 403].includes(status.error.status);
     return (
-      <Stack gap="4">
+      <Stack ref={panel} gap="4">
         {environmentNotice}
         <Alert>
           <AlertTitle>{t(needsSession ? "signInTitle" : "loadError")}</AlertTitle>
@@ -147,7 +178,7 @@ export function NotificationSettings() {
   }
 
   return (
-    <Stack gap="4" data-slot="notification-settings" aria-busy={!!busy}>
+    <Stack ref={panel} gap="4" data-slot="notification-settings" aria-busy={!!busy}>
       <Text size="sm" tone="muted">
         {t("privacy")}
       </Text>

@@ -31,8 +31,8 @@ export function PwaLifecycle() {
   // The router pathname is already relative to the basename (HA Ingress).
   const onSignIn = pathname.startsWith("/login");
   useEffect(() => {
-    if (onSignIn) void clearAccountDataOnDevice();
-  }, [onSignIn]);
+    if (onSignIn) void clearAccountDataOnDevice(queryClient);
+  }, [onSignIn, queryClient]);
 
   return null;
 }

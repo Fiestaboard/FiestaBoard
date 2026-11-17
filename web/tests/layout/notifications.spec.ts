@@ -126,7 +126,11 @@ async function mockHub(page: Page, state: State = "default", prefix = "", sent =
         "/settings/board": { boards: [], primary_board_id: null },
         "/version": { running_version: "11.0.0-alpha.4" },
         "/system/update/status": { managed_externally: false, status: "idle" },
-      "/system/update-check": { update_available: attention, latest_version: "11.1.0", current_version: "11.0.0-alpha.4" },
+        "/system/update-check": {
+          update_available: attention,
+          latest_version: "11.1.0",
+          current_version: "11.0.0-alpha.4",
+        },
         "/plugins": { plugins: [], total: 0 },
         "/settings/ai": { enabled: false, providers: [] },
         "/health": { status: "ok" },
@@ -180,6 +184,7 @@ for (const width of [390, 768, 1280, 1438]) {
     for (const state of ["allowed", "denied", "insecure"] as const) {
       test(`notifications ${state} ${width} ${theme}`, async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: width === 390 ? 722 : 898 });
+        await page.emulateMedia({ reducedMotion: "reduce" });
         await mockHub(page, state);
         await page.goto(`/tests/layout/notifications.html?theme=${theme}`);
         await expect(page.getByRole("switch", { name: "Allow notifications for my account" })).toBeVisible();
@@ -212,33 +217,49 @@ test("More opening acknowledges the OS attention badge without restoring it on c
   await page.setViewportSize({ width: 390, height: 844 });
   await mockHub(page, "allowed", "", 1, true);
   await page.goto("/tests/layout/notifications.html");
-  await expect.poll(() => page.evaluate(() => (window as unknown as { pushCalls: { setBadge: number } }).pushCalls.setBadge)).toBeGreaterThan(0);
-  const before = await page.evaluate(() => (window as unknown as { pushCalls: { setBadge: number; clearBadge: number } }).pushCalls);
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { pushCalls: { setBadge: number } }).pushCalls.setBadge))
+    .toBeGreaterThan(0);
+  const before = await page.evaluate(
+    () => (window as unknown as { pushCalls: { setBadge: number; clearBadge: number } }).pushCalls,
+  );
   await page.locator('[data-slot="sidebar-bottom-nav"]').getByRole("button", { name: /More/ }).click();
   await expect(page.getByRole("dialog", { name: "Navigation menu" })).toBeVisible();
-  await expect.poll(() => page.evaluate(() => (window as unknown as { pushCalls: { clearBadge: number } }).pushCalls.clearBadge)).toBeGreaterThan(before.clearBadge);
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { pushCalls: { clearBadge: number } }).pushCalls.clearBadge))
+    .toBeGreaterThan(before.clearBadge);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Navigation menu" })).toHaveCount(0);
-  expect(await page.evaluate(() => (window as unknown as { pushCalls: { setBadge: number } }).pushCalls.setBadge)).toBe(before.setBadge);
+  expect(await page.evaluate(() => (window as unknown as { pushCalls: { setBadge: number } }).pushCalls.setBadge)).toBe(
+    before.setBadge,
+  );
 });
 
 test("failed enrollment rolls back the new native subscription", async ({ page }) => {
   await mockHub(page);
-  await page.route((url) => url.pathname === "/api/push/subscription", (route) => route.fulfill({ status: 422, json: {} }));
+  await page.route(
+    (url) => url.pathname === "/api/push/subscription",
+    (route) => route.fulfill({ status: 422, json: {} }),
+  );
   await page.goto("/tests/layout/notifications.html");
   await page.getByRole("switch", { name: "Allow notifications for my account" }).click();
   const device = page.getByRole("switch", { name: "Enable on this browser" });
-  await expect(device).toBeEnabled(); await device.click();
+  await expect(device).toBeEnabled();
+  await device.click();
   await expect(page.getByRole("status")).toContainText("Could not update notifications");
   await expect(device).not.toBeChecked();
-  expect(await page.evaluate(() => (window as unknown as { pushCalls: { unsubscribe: number } }).pushCalls.unsubscribe)).toBe(1);
+  expect(
+    await page.evaluate(() => (window as unknown as { pushCalls: { unsubscribe: number } }).pushCalls.unsubscribe),
+  ).toBe(1);
   await axe(page);
 });
 
 test("embedded HA ingress explains the direct HTTPS alternative", async ({ page }) => {
   await mockHub(page);
   await page.goto("/tests/layout/");
-  await page.setContent('<!doctype html><html lang="en"><head><title>Home Assistant</title></head><body><h1>Home Assistant</h1><iframe title="FiestaBoard" src="/tests/layout/notifications.html" width="390" height="844"></iframe></body></html>');
+  await page.setContent(
+    '<!doctype html><html lang="en"><head><title>Home Assistant</title></head><body><h1>Home Assistant</h1><iframe title="FiestaBoard" src="/tests/layout/notifications.html" width="390" height="844"></iframe></body></html>',
+  );
   const app = page.frameLocator('iframe[title="FiestaBoard"]');
   await expect(app.getByText("Open your hub directly")).toBeVisible();
   await expect(app.getByRole("switch", { name: "Enable on this browser" })).toBeDisabled();
@@ -247,10 +268,34 @@ test("embedded HA ingress explains the direct HTTPS alternative", async ({ page 
 test("sign-out removes the browser subscription and badge before navigating away", async ({ page }) => {
   await mockHub(page, "allowed");
   // Freeze the navigation target so the departing page's observable calls remain readable.
-  await page.route((url) => url.pathname === "/login", (route) => route.abort());
+  await page.route(
+    (url) => url.pathname === "/login",
+    (route) => route.abort(),
+  );
   await page.goto("/tests/layout/notifications.html");
   await page.getByRole("button", { name: "maya", exact: true }).click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect.poll(() => page.evaluate(() => (window as unknown as { pushCalls: { unsubscribe: number } }).pushCalls.unsubscribe)).toBe(1);
-  expect(await page.evaluate(() => (window as unknown as { pushCalls: { clearBadge: number } }).pushCalls.clearBadge)).toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { pushCalls: { unsubscribe: number } }).pushCalls.unsubscribe),
+    )
+    .toBe(1);
+  expect(
+    await page.evaluate(() => (window as unknown as { pushCalls: { clearBadge: number } }).pushCalls.clearBadge),
+  ).toBeGreaterThan(0);
+});
+
+test("HTTPS action stacks beneath text in the narrow tablet settings pane", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 960 });
+  await mockHub(page, "insecure");
+  await page.goto("/tests/layout/notifications.html");
+  const description = page.getByText("Push notifications need a secure address.", { exact: false });
+  const action = page.getByRole("link", { name: "How to set up HTTPS" });
+  await expect(action).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Allow notifications for my account" })).toBeVisible();
+  await expect(description).toBeVisible();
+  const bodyBox = await description.boundingBox();
+  const actionBox = await action.boundingBox();
+  expect(bodyBox).not.toBeNull();
+  expect(actionBox!.y).toBeGreaterThanOrEqual(bodyBox!.y + bodyBox!.height);
 });
