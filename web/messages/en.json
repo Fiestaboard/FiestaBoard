@@ -3461,6 +3461,7 @@
     "mirroring": "Mirroring",
     "mirrorHint": "Sends after each pause in typing. Stops when you leave the editor.",
     "savedToPages": "Saved to Pages",
+    "savedToPagesDescription": "{name} is in your page library.",
     "addToSchedule": "Add to Schedule",
     "showNow": "Show now",
     "saved": "Saved",

@@ -61,6 +61,8 @@ export default defineConfig({
         "src/components/language-selector.tsx",
         "src/components/editor-shortcut-list.tsx",
         "src/components/editor-tablet-tools.tsx",
+        "src/components/plain-template-toolbar.tsx",
+        "src/components/plain-text-editor.tsx",
         "src/hooks/use-tiptap-host-bridge.ts",
         "src/components/install-prompt.tsx",
         "src/components/pwa/**",

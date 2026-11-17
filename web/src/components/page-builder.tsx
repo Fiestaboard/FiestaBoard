@@ -50,6 +50,7 @@ import {
   Switch,
   Text,
   Textarea,
+  TextLink,
   toast as kitToast,
   ToolbarDropdown,
   Tooltip,
@@ -443,6 +444,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Form state (immediate - for UI responsiveness)
   const [name, setName] = useState("");
   const [templateLines, setTemplateLines] = useState<string[]>(emptyLines());
+  const [templateInputStarted, setTemplateInputStarted] = useState(false);
   const [lineAlignments, setLineAlignments] = useState<LineAlignment[]>(defaultAlignments());
   const [lineWrapEnabled, setLineWrapEnabled] = useState<boolean[]>(defaultWraps());
   const [preview, setPreview] = useState<string | null>(null);
@@ -457,6 +459,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   if (
     adoptingBoard &&
     !hasRestoredDraft &&
+    !templateInputStarted &&
     templateLines.every((line) => line === "") &&
     lineAlignments.every((alignment) => alignment === "left") &&
     lineWrapEnabled.every((wrap) => !wrap)
@@ -553,6 +556,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, [panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols, targetBoardId, currentBoardId]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
   const plainTextRef = useRef<PlainTextEditorHandle>(null);
+  const richTemplateContainerRef = useRef<HTMLDivElement>(null);
   // Metadata history keyed to stroke boundaries: done/undone mirror the
   // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
   const strokeMetaHistoryRef = useRef<{ done: StrokeMetaSnapshot[]; undone: StrokeMetaSnapshot[] }>({
@@ -991,7 +995,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const liveTargetPaused = boardSettings?.boards?.find((board) => board.id === selectedBoardId)?.paused === true;
   const { data: targetDetail } = useBoardDetail(selectedBoardId || undefined);
   const baselineDisplay = targetDetail?.drawing?.source === "baseline";
-  const newPageEmpty = !pageId && templateLines.every((line) => line === "") && canvases.length === 0;
+  // The initial board-sized blank rows are padding. Once the user enters
+  // text, authored blank lines are document content and must survive editing.
+  const initialBlankTemplate = !templateInputStarted && !hasRestoredDraft && templateLines.every((line) => line === "");
+  const newPageEmpty = !pageId && canvases.length === 0 && (initialBlankTemplate || templateLines.join("\n") === "");
   const mirrorDisabled = !selectedBoardId || liveTargetPaused || targetDetail?.paused === true;
   const previewModel = useMemo(() => resolveBoardModel(previewBoard), [previewBoard]);
   // An LED target's character set: the rich editor then reads and offers that
@@ -1184,6 +1191,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
     const lines = newValue.split("\n");
+    setTemplateInputStarted(true);
     setTemplateLines(lines);
 
     const oldLen = templateLines.length;
@@ -1722,6 +1730,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
       if (!pageId) {
         kitToast.success(tTouch("savedToPages"), {
+          description: tTouch("savedToPagesDescription", { name: data.page.name }),
+          closeButton: true,
           duration: 6000,
           position: dockedPreview ? "bottom-center" : "top-right",
           style: dockedPreview ? { bottom: "calc(64px + env(safe-area-inset-bottom))" } : { width: "380px" },
@@ -2781,7 +2791,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       </Flex>
                     </Flex>
                     {editorMode === "rich" && !baselineDisplay ? (
-                      <Box {...anchorProps("page-editor.template")} className="relative">
+                      <Box ref={richTemplateContainerRef} {...anchorProps("page-editor.template")} className="relative">
                         {newPageEmpty && (
                           <Text
                             aria-hidden
@@ -2891,6 +2901,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           lineMarkerTitle={tCanvas("markerTitle")}
                           value={newPageEmpty ? "" : templateLines.join("\n")}
                           onChange={(newValue) => {
+                            setTemplateInputStarted(true);
                             setTemplateLines(newValue.split("\n"));
                           }}
                           placeholder={
@@ -2927,14 +2938,22 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             }
                             onInsert={(text) => {
                               if (baselineDisplay || editorMode === "plain") plainTextRef.current?.insert(text);
-                              else setTemplateLines([text]);
+                              else {
+                                setTemplateInputStarted(true);
+                                setTemplateLines([text]);
+                                requestAnimationFrame(() => {
+                                  richTemplateContainerRef.current
+                                    ?.querySelector<HTMLElement>('[contenteditable="true"]')
+                                    ?.focus();
+                                });
+                              }
                             }}
                           />
                           <Button asChild variant="outline" size={dockedPreview ? "touch" : "sm"}>
-                            <a href={appUrl("/picks")}>
+                            <TextLink href={appUrl("/picks")} className="no-underline">
                               <Sparkles />
                               {tTouch("browseStaffPicks")}
-                            </a>
+                            </TextLink>
                           </Button>
                         </Flex>
                       </Stack>
@@ -3013,6 +3032,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   variant={dockedPreview ? "docked" : "pane"}
                   className={cn("order-first lg:order-2 min-w-0 top-16", dockedPreview && "px-0")}
                   title={baselineDisplay ? tTouch("plainText") : tTouch("livePreview")}
+                  dotStatus={baselineDisplay ? "warning" : "success"}
                   boardName={previewBoard?.name}
                   live={liveOutputEnabled}
                   onLiveChange={changeMirroring}

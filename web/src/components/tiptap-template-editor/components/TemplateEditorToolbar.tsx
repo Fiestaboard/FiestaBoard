@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 
 import { EditorTabletTools } from "@/components/editor-tablet-tools";
 import { HomeAssistantEntityPicker } from "@/components/home-assistant-entity-picker";
+import { useEditorToolbarPortal } from "@/hooks/use-editor-toolbar-portal";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
@@ -34,6 +35,7 @@ export function TemplateEditorToolbar(
   const tFormatting = useTranslations("formattingPicker");
   const touch = useMediaQuery("(max-width: 767px), (pointer: coarse)");
   const sheets = useMediaQuery("(max-width: 639px)");
+  const portalHost = useEditorToolbarPortal(touch, t("tools"));
   const { data, isLoading } = useQuery({ queryKey: ["template-variables"], queryFn: api.getTemplateVariables });
   const labels = Object.fromEntries(
     Object.keys(DEFAULT_TEMPLATE_EDITOR_TOOLBAR_LABELS).map((key) => [key, key === "drawColors" ? t.raw(key) : t(key)]),
@@ -82,7 +84,7 @@ export function TemplateEditorToolbar(
       icons: t("icons"),
       iconLabel: (icon) => t("iconOptionLabel", { icon }),
     },
-    container: touch && typeof document !== "undefined" ? document.body : props.container,
+    container: touch ? portalHost : props.container,
     size: touch ? "touch" : "default",
     layout: touch ? "docked" : "row",
     pickerPresentation: sheets ? "sheet" : "popover",
