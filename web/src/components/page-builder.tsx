@@ -347,7 +347,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
   const { data: status } = useStatus();
-  const { currentBoardId, currentBoard } = useCurrentBoard();
+  const { currentBoardId, currentBoard, setCurrentBoardId } = useCurrentBoard();
 
   // Device type: from prop (new pages), the requested or sidebar board (a new
   // page that asked for no device — see below), or the existing page (editing)
@@ -1711,6 +1711,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           cancel: {
             label: tTouch("addToSchedule"),
             onClick: () => {
+              // The Schedule owns the globally selected display. Carry the
+              // explicit editor target into that destination before loading it.
+              if (selectedBoardId) setCurrentBoardId(selectedBoardId);
               window.location.assign(appUrl(`/schedule?prefill_page_id=${encodeURIComponent(data.page.id)}`));
             },
           },

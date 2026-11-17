@@ -288,3 +288,37 @@ it("renders the kit first-save toast actions in Show now then Add to Schedule or
   ]);
   kitToast.dismiss();
 });
+
+it("opens Add to Schedule in the editor's display context after a first save", async () => {
+  const hall = { ...board, id: "hall", name: "Hall" };
+  localStorage.setItem("fiestaboard_current_board", "hall");
+  let saved: Record<string, unknown> | undefined;
+  server.use(
+    http.get("/api/settings/board", () =>
+      HttpResponse.json({ boards: [hall, board], devices: ["flagship"], board_type: "black" }),
+    ),
+    http.post("/api/v1/pages", async ({ request }) => {
+      saved = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json({ ...saved, id: "schedule-page", revision: 1 });
+    }),
+    http.get("/api/v1/pages/schedule-page", () => HttpResponse.json({ ...saved, id: "schedule-page", revision: 1 })),
+  );
+  const { CurrentBoardProvider } = await import("@/components/current-board-context");
+  const { Toaster, toast: kitToast } = await import("@fiestaboard/ui");
+  kitToast.dismiss();
+  const user = userEvent.setup();
+  const { container } = render(
+    <CurrentBoardProvider>
+      <Toaster />
+      <PageBuilder targetBoardId={board.id} onClose={vi.fn()} />
+    </CurrentBoardProvider>,
+    { wrapper: Wrapper },
+  );
+  fireEvent.change(await screen.findByLabelText(/page name/i), { target: { value: "Scheduled morning" } });
+  await user.click(screen.getByRole("button", { name: "Save Page" }));
+  await waitFor(() => expect(container.querySelector("[data-sonner-toast]")).toHaveTextContent("Saved to Pages"));
+  expect(localStorage.getItem("fiestaboard_current_board")).toBe("hall");
+  await user.click(screen.getByRole("button", { name: "Add to Schedule" }));
+  expect(localStorage.getItem("fiestaboard_current_board")).toBe(board.id);
+  kitToast.dismiss();
+});
