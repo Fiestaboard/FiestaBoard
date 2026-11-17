@@ -10,6 +10,7 @@ const boards = [
     device_type: "flagship",
     board_color: "black",
     enabled: true,
+    output: "vestaboard",
     // Saved connection data distinguishes configured displays from the
     // untouched placeholders that correctly show Home's no-display state.
     output_config: { api_mode: "local", host: "192.0.2.10", local_api_key: "layout-test-key" },

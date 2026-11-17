@@ -439,8 +439,8 @@ test.describe("regression: dashboard", () => {
     await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Out-of-sync alert + Restore button appears
-    await expect(page.getByText("Another app changed this board")).toBeVisible({ timeout: 15_000 });
-    const restoreBtn = page.getByRole("button", { name: "Restore" });
+    await expect(page.getByTestId("board-out-of-sync").getByText(/is out of sync$/)).toBeVisible({ timeout: 15_000 });
+    const restoreBtn = page.getByRole("button", { name: /^Show .+ again$/ });
     await expect(restoreBtn).toBeVisible();
 
     // Click and assert this board's restore (single-board Home → the

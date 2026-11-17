@@ -93,7 +93,12 @@ test.describe("Home (2.2)", () => {
     await expect(card.getByText("Override", { exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(card.getByRole("heading", { level: 2, name: "Taco Tuesday" })).toBeVisible();
     await expect(card.getByRole("timer")).toHaveText(/1[45]m left/);
-    await expect(card.getByText(/^Holds until .+, then Evening commute comes back\.$/)).toBeVisible();
+    // The card also explains an out-of-sync board in this same outcome paragraph.
+    await expect(
+      card.getByText(
+        /^Holds until .+, then Evening commute comes back\.(?: The board itself reports something else; Show Taco Tuesday again re-sends it\.)?$/,
+      ),
+    ).toBeVisible();
     await expectNoSeriousAxe(page, "Home · Override");
 
     await card.getByRole("button", { name: "Cancel override" }).click();
