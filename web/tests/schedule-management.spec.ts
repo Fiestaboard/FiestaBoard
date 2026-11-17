@@ -5,8 +5,6 @@
  * Tests the schedule toggle, form interactions, validation,
  * view modes, and day patterns.
  */
-import type { Locator } from "@playwright/test";
-
 import {
   API_URL,
   configureBoard,
@@ -22,6 +20,7 @@ import {
 test.beforeEach(async ({ page }) => {
   await configureBoard();
   await suppressWizard(page);
+  await page.addInitScript(() => localStorage.setItem("schedule-view-mode", "list"));
   await deleteAllSchedules();
 });
 
@@ -30,6 +29,7 @@ test.describe("Schedule Management", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
     await expect(page.getByText("No schedules created yet")).toBeVisible({ timeout: 10_000 });
   });
 
@@ -68,49 +68,19 @@ test.describe("Schedule Management", () => {
     // Wait for dialog
     await expect(page.getByText("Add Schedule").first()).toBeVisible({ timeout: 10_000 });
 
-    // Select the page we just created (by name) so we can later assert it on the schedule
-    const pageSelect = page.locator("#page");
-    await expect(pageSelect).toBeVisible();
+    const dialog = page.getByRole("dialog", { name: "Add Schedule", exact: true });
+    const pageSelect = dialog.getByRole("combobox", { name: /^Page or Collection/ });
     await pageSelect.click();
-    const option = page.getByRole("option", { name: "Schedule Form Test" });
-    // Page picker loads its options asynchronously; use a more generous
-    // timeout so this isn't flaky on slower CI workers.
-    await expect(option).toBeVisible({ timeout: 10_000 });
-    await option.click();
+    await page.getByRole("option", { name: "Schedule Form Test", exact: true }).click();
     await expect(pageSelect).toContainText("Schedule Form Test");
-
-    // isVisible() checks instantly (its timeout option is ignored), but the
-    // select popup mounts asynchronously — wait for the option instead.
-    const becomesVisible = (locator: Locator, timeout = 3_000) =>
-      locator.waitFor({ state: "visible", timeout }).then(
-        () => true,
-        () => false,
-      );
-
-    // Set start time
-    const startTime = page.locator("#start-time");
-    if (await startTime.isVisible().catch(() => false)) {
-      await startTime.click();
-      const opt = page.getByRole("option", { name: "08:00" });
-      if (await becomesVisible(opt)) {
-        await opt.click();
-      }
-    }
-
-    // Set end time
-    const endTime = page.locator("#end-time");
-    if (await endTime.isVisible().catch(() => false)) {
-      await endTime.click();
-      const opt = page.getByRole("option", { name: "17:00" });
-      if (await becomesVisible(opt)) {
-        await opt.click();
-      }
-    }
-
-    // Submit
-    const submitBtn = page.getByRole("button", { name: "Create Schedule" });
-    await expect(submitBtn).toBeEnabled({ timeout: 3_000 });
-    await submitBtn.click();
+    await dialog.getByLabel("Start Time", { exact: true }).fill("08:00");
+    await dialog.getByLabel("End Time", { exact: true }).fill("17:00");
+    const created = page.waitForResponse(
+      (r) => r.url().endsWith("/api/v1/schedules") && r.request().method() === "POST",
+    );
+    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    expect((await created).ok()).toBe(true);
+    await expect(dialog).toHaveCount(0);
 
     // Verify via API
     const res = await fetch(`${API_URL}/schedules`);
@@ -139,25 +109,23 @@ test.describe("Schedule Management", () => {
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Wait for schedule entries to load
-    await expect(page.getByText("09:00").first()).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.getByRole("button", { name: /Edit Schedule Page/ }).first()).toBeVisible();
 
-    // Click edit button on the schedule entry
-    const editBtn = page.getByRole("button", { name: /edit/i }).first();
-    if (await editBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await editBtn.click();
-
-      // Wait for edit dialog
-      await expect(page.getByText("Edit Schedule").first()).toBeVisible({ timeout: 5_000 });
-
-      // Verify the dialog is showing
-      const updateBtn = page.getByRole("button", {
-        name: /update schedule/i,
-      });
-      const hasUpdateBtn = await updateBtn.isVisible({ timeout: 3_000 }).catch(() => false);
-      expect(hasUpdateBtn).toBe(true);
-    }
+    await page
+      .getByRole("button", { name: /Edit Schedule Page/ })
+      .first()
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Edit Schedule", exact: true });
+    await expect(dialog.getByLabel("Start Time", { exact: true })).toHaveValue("09:00");
+    await dialog.getByLabel("Start Time", { exact: true }).fill("09:30");
+    const updated = page.waitForResponse(
+      (r) => r.url().includes(`/api/v1/schedules/${scheduleId}`) && r.request().method() === "PUT",
+    );
+    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    const response = await updated;
+    expect(response.ok()).toBe(true);
+    expect(await response.json()).toMatchObject({ id: scheduleId, page_id: pageId, start_time: "09:30" });
+    await expect(dialog).toHaveCount(0);
   });
 
   test("can delete a schedule from the edit modal", async ({ page }) => {
@@ -167,30 +135,13 @@ test.describe("Schedule Management", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Ensure list view (view can be calendar from prior test)
-    const listBtn = page.getByRole("button", { name: /list/i }).first();
-    if (await listBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await listBtn.click();
-    }
-
-    await expect(page.getByText("10:00").first()).toBeVisible({ timeout: 10_000 });
-
-    // Open the edit modal via the Edit button (aria-label includes "Edit schedule for")
-    const editBtn = page.getByRole("button", { name: /edit schedule for/i }).first();
-    await expect(editBtn).toBeVisible({ timeout: 5_000 });
-    await editBtn.click();
-
-    // Wait for edit dialog to open
-    await expect(page.getByText("Edit Schedule").first()).toBeVisible({ timeout: 5_000 });
-
-    // Close the edit modal (Cancel), then delete from the list row
-    await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByText("Edit Schedule").first()).toBeHidden({ timeout: 5_000 });
-
-    // Click the Delete button (aria-label includes "Delete schedule for")
-    const rowDeleteBtn = page.getByRole("button", { name: /delete schedule for/i }).first();
-    await expect(rowDeleteBtn).toBeVisible({ timeout: 5_000 });
-    await rowDeleteBtn.click();
+    await page
+      .getByRole("button", { name: /Edit-Delete Schedule Page/ })
+      .first()
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Edit Schedule", exact: true });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Delete entry", exact: true }).click();
 
     // Confirm deletion in the alert dialog (scoped to the alertdialog role)
     const confirmBtn = page.getByRole("alertdialog").getByRole("button", { name: "Delete" });
@@ -211,14 +162,16 @@ test.describe("Schedule Management", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByText("14:00").first()).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.getByRole("button", { name: /Delete Schedule Page/ }).first()).toBeVisible();
 
-    // Click the Delete button (aria-label includes "Delete schedule for")
-    const deleteBtn = page.getByRole("button", { name: /delete schedule for/i }).first();
-    await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
-    await deleteBtn.click();
+    await page
+      .getByRole("button", { name: /Delete Schedule Page/ })
+      .first()
+      .click();
+    await page
+      .getByRole("dialog", { name: "Edit Schedule", exact: true })
+      .getByRole("button", { name: "Delete entry", exact: true })
+      .click();
 
     // Confirm deletion (scoped to the alertdialog to avoid matching row buttons)
     const confirmBtn = page.getByRole("alertdialog").getByRole("button", { name: "Delete" });
@@ -300,20 +253,12 @@ test.describe("Schedule Management", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Look for view toggle buttons
-    const listBtn = page.getByRole("button", { name: /list/i }).first();
-    const calendarBtn = page.getByRole("button", { name: /calendar/i }).first();
-
-    const hasViewToggle =
-      (await listBtn.isVisible({ timeout: 5_000 }).catch(() => false)) &&
-      (await calendarBtn.isVisible().catch(() => false));
-
-    if (hasViewToggle) {
-      await calendarBtn.click();
-      await page.waitForTimeout(500);
-      await listBtn.click();
-      await page.waitForTimeout(500);
-    }
+    const list = page.getByRole("radio", { name: "List", exact: true });
+    const week = page.getByRole("radio", { name: "Week", exact: true });
+    await week.click();
+    await expect(week).toHaveAttribute("aria-checked", "true");
+    await list.click();
+    await expect(list).toHaveAttribute("aria-checked", "true");
 
     // Page should still be intact
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible();
@@ -336,7 +281,7 @@ test.describe("Schedule Management", () => {
     // When schedule mode is enabled the toggle pill shows "On"
     const scheduleToggle = page.getByTestId("schedule-enabled-toggle");
     await expect(scheduleToggle).toBeVisible({ timeout: 10_000 });
-    await expect(scheduleToggle.getByText("On")).toBeVisible();
+    await expect(scheduleToggle).toHaveAttribute("aria-checked", "true");
 
     // Disable schedule mode
     await fetch(`${API_URL}/schedules/enabled`, {

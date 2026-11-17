@@ -147,7 +147,8 @@ test.describe("Calendar alignment", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Calendar" }).click();
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     await page.waitForTimeout(500);
 
     const calendar = page.locator(".schedule-calendar-container");
@@ -169,7 +170,8 @@ test.describe("Calendar alignment", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Calendar" }).click();
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     await page.waitForTimeout(500);
 
     const calendar = page.locator(".schedule-calendar-container");
@@ -193,7 +195,8 @@ test.describe("Calendar alignment", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Calendar" }).click();
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     await page.waitForTimeout(1500);
 
     const calendar = page.locator(".schedule-calendar-container");
@@ -219,7 +222,8 @@ test.describe("Calendar alignment", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Calendar" }).click();
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     await page.waitForTimeout(1500);
 
     const calendar = page.locator(".schedule-calendar-container");
@@ -354,7 +358,8 @@ test.describe("Calendar alignment", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Calendar" }).click();
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     await page.waitForTimeout(1500);
 
     const calendar = page.locator(".schedule-calendar-container");
