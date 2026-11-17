@@ -10,7 +10,7 @@ import type { RegistryEntry } from "@/lib/api";
 /** The catalog's literal example remains available after installation. The
  * effective color can load after the catalog; follow it until the user makes
  * a local preview choice, without changing the actual board's settings. */
-export function IntegrationBoardPreview({ entry }: { entry?: RegistryEntry }) {
+export function IntegrationBoardPreview({ entry, size }: { entry?: RegistryEntry; size?: "sm" | "md" | "lg" }) {
   const t = useTranslations("pluginDetail");
   const { isLoading: isLoadingBoard } = useBoardSettings();
   const boardColor = useEffectiveBoardColor();
@@ -20,6 +20,7 @@ export function IntegrationBoardPreview({ entry }: { entry?: RegistryEntry }) {
   if (isLoadingBoard) return <Skeleton className="h-32 w-full" />;
   return (
     <BoardShowcase
+      size={size}
       previews={entry.previews}
       previewLabel={t("boardPreviewLabel", { name: entry.name })}
       boardType={previewColor ?? boardColor}

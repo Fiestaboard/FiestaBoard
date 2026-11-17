@@ -235,6 +235,18 @@ for (const width of [390, 768, 1280]) {
           .click();
         await expect(settings.getByLabel("Stop", { exact: true })).toHaveValue("Central");
         await capture(page, "detail-setup", width, colorScheme);
+        if (width >= 768) {
+          await page.goto("/integrations/cx-transit?from=installed");
+          await expect(page.getByLabel("Stop", { exact: true })).toHaveValue("Central");
+          await expect(page.getByTestId("integration-attention-banner")).toBeVisible();
+          await expectAccessible(page);
+          await capture(page, "full-detail-setup", width, colorScheme);
+          await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();
+          await page
+            .getByRole("list", { name: "Needs attention" })
+            .getByRole("button", { name: /^CX Transit/ })
+            .click();
+        }
         await settings.getByLabel("Stop", { exact: true }).fill("Museum");
         await settings.getByRole("button", { name: "Save Changes", exact: true }).click();
         await expect.poll(() => saved).toEqual({ config: { stop: "Museum" } });
