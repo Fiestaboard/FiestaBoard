@@ -626,7 +626,7 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     expect(noteBoard).toBeDefined();
 
     await page.goto(`/pages/new?board=${noteBoard!.id}`);
-    await expect(page.getByText("Create Page")).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 

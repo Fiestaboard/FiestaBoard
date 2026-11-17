@@ -26,79 +26,98 @@ const kitchenMorning = {
 };
 
 async function mockEditorApi(page: Page) {
-  await page.route("**/api/**", async (route) => {
-    const pathname = new URL(route.request().url()).pathname.slice(4);
-    let response: unknown;
-    if (pathname === "/settings/board") {
-      response = { boards: [board], devices: ["flagship"], board_type: "black" };
-    } else if (pathname.startsWith("/v1/boards/")) {
-      response = {
-        ...board,
-        rows: 6,
-        cols: 22,
-        is_primary: true,
-        paused: false,
-        schedule_enabled: false,
-        drawing: { source: "profile", features: {} },
-        next_change_at: null,
-        next_page_id: null,
-        active_page_id: kitchenMorning.id,
-      };
-    } else if (pathname === `/v1/pages/${kitchenMorning.id}`) {
-      response = kitchenMorning;
-    } else if (pathname === "/v1/pages" || pathname === "/pages") {
-      response = { pages: [kitchenMorning] };
-    } else if (pathname === "/v1/variables") {
-      response = {
-        variables: { weather: ["temperature"], datetime: ["time"] },
-        max_lengths: { "weather.temperature": 3, "datetime.time": 5 },
-        colors: { red: 63, orange: 64, yellow: 65, green: 66, blue: 67, violet: 68, white: 69, black: 70 },
-        formatting: {
-          fill_space: { syntax: "{{fill_space}}", description: "Fill the remaining line width" },
-        },
-      };
-    } else if (pathname === "/templates/render" || pathname === "/templates/render/live") {
-      const request = route.request().postDataJSON() as { template: string | string[] };
-      const template = Array.isArray(request.template) ? request.template.join("\n") : request.template;
-      const rendered = template.replaceAll("{{weather.temperature}}", "72").replaceAll("{{datetime.time}}", "7:30 AM");
-      response = {
-        rendered,
-        lines: rendered.split("\n"),
-        line_count: rendered.split("\n").length,
-        charset: "vestaboard_v1",
-        charset_issues: [],
-        ...(pathname.endsWith("/live") && {
-          sent_to_board: true,
-          board_id: board.id,
+  // Match backend URLs only: Vite also loads source modules under /src/lib/api/.
+  await page.route(
+    (url) => url.pathname.startsWith("/api/"),
+    async (route) => {
+      const pathname = new URL(route.request().url()).pathname.slice(4);
+      let response: unknown;
+      if (pathname === "/settings/board") {
+        response = { boards: [board], devices: ["flagship"], board_type: "black" };
+      } else if (pathname.startsWith("/v1/boards/")) {
+        response = {
+          ...board,
+          rows: 6,
+          cols: 22,
+          is_primary: true,
           paused: false,
-          silenced: false,
-        }),
-      };
-    } else if (pathname === "/outputs") {
-      response = outputs;
-    } else if (pathname === "/settings/plugins") {
-      response = { transition_plugins_enabled: false, output_plugins_enabled: false, auto_update: false };
-    } else if (pathname === "/plugins") {
-      response = { plugins: [], total: 0, enabled_count: 0, plugin_system_enabled: true };
-    } else if (pathname === "/plugins/registry") {
-      response = { entries: [] };
-    } else if (pathname === "/silence-status") {
-      response = { active: false, holds_blocked_sends: false, held: null };
-    } else if (pathname === "/schedules") {
-      response = { schedules: [] };
-    } else if (pathname === "/collections") {
-      response = { collections: [] };
-    } else if (pathname === "/settings/all") {
-      response = { display: { board_animations: "off", board_flap_speed: "standard" } };
-    } else if (pathname === "/config") {
-      response = { board_type: "black", refresh_interval: 60 };
-    } else {
-      // Unlisted endpoints fail visibly instead of reaching a live installation.
-      await route.fulfill({ status: 404, json: { detail: `Unmocked editor fixture endpoint: ${pathname}` } });
-      return;
-    }
-    await route.fulfill({ json: response });
-  });
+          schedule_enabled: false,
+          drawing: { source: "profile", features: {} },
+          next_change_at: null,
+          next_page_id: null,
+          active_page_id: kitchenMorning.id,
+        };
+      } else if (pathname === `/v1/pages/${kitchenMorning.id}`) {
+        response = kitchenMorning;
+      } else if (pathname === "/v1/pages" || pathname === "/pages") {
+        response = { pages: [kitchenMorning] };
+      } else if (pathname === "/v1/variables") {
+        response = {
+          variables: { weather: ["temperature"], datetime: ["time"] },
+          max_lengths: { "weather.temperature": 3, "datetime.time": 5 },
+          colors: { red: 63, orange: 64, yellow: 65, green: 66, blue: 67, violet: 68, white: 69, black: 70 },
+          formatting: {
+            fill_space: { syntax: "{{fill_space}}", description: "Fill the remaining line width" },
+          },
+        };
+      } else if (pathname === "/templates/render" || pathname === "/templates/render/live") {
+        const request = route.request().postDataJSON() as { template: string | string[] };
+        const template = Array.isArray(request.template) ? request.template.join("\n") : request.template;
+        const rendered = template
+          .replaceAll("{{weather.temperature}}", "72")
+          .replaceAll("{{datetime.time}}", "7:30 AM");
+        response = {
+          rendered,
+          lines: rendered.split("\n"),
+          line_count: rendered.split("\n").length,
+          charset: "vestaboard_v1",
+          charset_issues: [],
+          ...(pathname.endsWith("/live") && {
+            sent_to_board: true,
+            board_id: board.id,
+            paused: false,
+            silenced: false,
+          }),
+        };
+      } else if (pathname === "/outputs") {
+        response = outputs;
+      } else if (pathname === "/settings/plugins") {
+        response = { transition_plugins_enabled: false, output_plugins_enabled: false, auto_update: false };
+      } else if (pathname === "/plugins") {
+        response = { plugins: [], total: 0, enabled_count: 0, plugin_system_enabled: true };
+      } else if (pathname === "/plugins/registry") {
+        response = { entries: [] };
+      } else if (pathname === "/silence-status") {
+        response = { active: false, holds_blocked_sends: false, held: null };
+      } else if (pathname === "/schedules") {
+        response = { schedules: [] };
+      } else if (pathname === "/collections" || pathname === "/v1/collections") {
+        response = { collections: [] };
+      } else if (pathname === "/v1/status") {
+        response = {
+          running: true,
+          initialized: true,
+          config_summary: {
+            weather_enabled: true,
+            home_assistant_enabled: false,
+            guest_wifi_enabled: false,
+            star_trek_quotes_enabled: false,
+          },
+        };
+      } else if (pathname === "/panels") {
+        response = { panels: [], total: 0 };
+      } else if (pathname === "/settings/all") {
+        response = { display: { board_animations: "off", board_flap_speed: "standard" } };
+      } else if (pathname === "/config") {
+        response = { board_type: "black", refresh_interval: 60 };
+      } else {
+        // Unlisted endpoints fail visibly instead of reaching a live installation.
+        await route.fulfill({ status: 404, json: { detail: `Unmocked editor fixture endpoint: ${pathname}` } });
+        return;
+      }
+      await route.fulfill({ json: response });
+    },
+  );
 }
 
 for (const theme of ["light", "dark"] as const) {
@@ -111,7 +130,15 @@ for (const theme of ["light", "dark"] as const) {
     test.describe(`${width}px ${coarse ? "coarse" : "fine"} pointer in ${theme}`, () => {
       test.use({ hasTouch: coarse });
       test("real editor preview and toolbar fit their independent breakpoints", async ({ page }, testInfo) => {
+        page.on("pageerror", (error) => console.error("Editor fixture page error:", error.message));
         const shots = process.env.EDITOR_TOUCH_SHOTS || testInfo.outputPath("editor-touch-shots");
+        if (process.env.EDITOR_TOUCH_DEBUG) {
+          page.on("console", (message) => console.log("browser-console", message.type(), message.text()));
+          page.on("requestfailed", (request) => console.log("request-failed", request.url(), request.failure()));
+          page.on("response", (response) => {
+            if (response.status() >= 400) console.log("bad-response", response.status(), response.url());
+          });
+        }
         await page.setViewportSize({ width, height: 900 });
         await page.emulateMedia({ reducedMotion: "reduce" });
         await mockEditorApi(page);
@@ -125,6 +152,41 @@ for (const theme of ["light", "dark"] as const) {
         const preview = page.locator('[data-slot="editor-preview"]');
         await expect(preview).toHaveAttribute("data-variant", width < 1024 ? "docked" : "pane");
         await expect(preview).toContainText("Live preview");
+        if (width === 390) {
+          const header = page.locator('[data-slot="card-header"]').first();
+          const headerBounds = await header.boundingBox();
+          const previewBounds = await preview.boundingBox();
+          const viewport = preview.locator('[data-slot="board-viewport"]');
+          if (process.env.EDITOR_TOUCH_DEBUG)
+            console.log("phone-header-preview", {
+              headerBounds,
+              previewBounds,
+              mode: await viewport.getAttribute("data-mode"),
+              overflow: await viewport.getAttribute("data-overflow"),
+              metrics: await viewport.evaluate((element) => {
+                const scroller = element.querySelector('[data-slot="board-viewport-scroller"]')!;
+                const board = element.querySelector('[data-slot="board-display"]')!;
+                const tile = board.querySelector("[data-note-tile]")!;
+                return {
+                  documentWidth: document.documentElement.clientWidth,
+                  viewportWidth: element.clientWidth,
+                  scrollerWidth: scroller.clientWidth,
+                  scrollWidth: scroller.scrollWidth,
+                  boardWidth: board.getBoundingClientRect().width,
+                  tileWidth: tile.getBoundingClientRect().width,
+                  tileCss: getComputedStyle(tile).width,
+                  boardStyle: (board as HTMLElement).style.cssText,
+                };
+              }),
+            });
+          expect.soft(headerBounds!.height).toBeLessThanOrEqual(64);
+          expect.soft(Math.abs(previewBounds!.y - (headerBounds!.y + headerBounds!.height))).toBeLessThanOrEqual(8);
+          await expect.soft(viewport).toHaveAttribute("data-mode", "actual");
+          await expect.soft(viewport).toHaveAttribute("data-overflow", "false");
+          const scroller = viewport.locator('[data-slot="board-viewport-scroller"]');
+          expect.soft(await scroller.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+        }
+
         await expect(preview.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(1);
         await expect(page.getByRole("button", { name: /hide preview/i })).toHaveCount(0);
         const bounds = await preview.boundingBox();
@@ -146,7 +208,41 @@ for (const theme of ["light", "dark"] as const) {
         await injectAxe(page);
         await checkA11y(page, "main");
         await mkdir(shots, { recursive: true });
-        await page.screenshot({ path: path.join(shots, `impl-${width}-${theme}.png`), animations: "disabled" });
+        if (touch) {
+          const geometry = await touchToolbar.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+            const ancestors = [];
+            for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+              const style = getComputedStyle(ancestor);
+              ancestors.push({
+                tag: ancestor.tagName,
+                class: ancestor.className,
+                overflow: style.overflow,
+                transform: style.transform,
+                contain: style.contain,
+                filter: style.filter,
+              });
+            }
+            return {
+              x: rect.x,
+              y: rect.y,
+              width: rect.width,
+              height: rect.height,
+              hit: !!hit && element.contains(hit),
+              ancestors,
+            };
+          });
+          if (process.env.EDITOR_TOUCH_DEBUG) console.log("touch-toolbar-geometry", JSON.stringify(geometry));
+          expect(geometry.x).toBeGreaterThanOrEqual(0);
+          expect(geometry.y).toBeGreaterThanOrEqual(0);
+          expect(geometry.x + geometry.width).toBeLessThanOrEqual(width);
+          expect(geometry.y + geometry.height).toBeLessThanOrEqual(900);
+          expect(geometry.height).toBeGreaterThanOrEqual(44);
+          expect(geometry.hit).toBe(true);
+        }
+
+        await page.screenshot({ path: path.join(shots, `impl-${width}-${theme}.png`) });
 
         if (touch) {
           await page.getByRole("button", { name: "More", exact: true }).click();
@@ -156,12 +252,18 @@ for (const theme of ["light", "dark"] as const) {
               : page.getByTestId("toolbar-dropdown-panel");
           await expect(sheet).toBeVisible();
           await expect(sheet.getByRole("switch", { name: "Mirror to board while editing", exact: true })).toBeVisible();
-          if (width < 640) {
-            await expect(sheet.getByText("Clipboard", { exact: true })).toBeVisible();
-          } else {
-            await expect(sheet.getByRole("group", { name: "Clipboard", exact: true })).toBeVisible();
-          }
+          await expect(sheet.getByRole("group", { name: "Clipboard", exact: true })).toBeVisible();
+          await checkA11y(page, width < 640 ? '[role="dialog"]' : '[data-testid="toolbar-dropdown-panel"]');
           const sheetBounds = await sheet.boundingBox();
+          if (process.env.EDITOR_TOUCH_DEBUG)
+            console.log(
+              "more-geometry",
+              sheetBounds,
+              await sheet.evaluate((element) => ({
+                transform: getComputedStyle(element).transform,
+                inlineTransform: (element as HTMLElement).style.transform,
+              })),
+            );
           expect(sheetBounds!.x).toBeGreaterThanOrEqual(0);
           expect(sheetBounds!.x + sheetBounds!.width).toBeLessThanOrEqual(width);
           expect(sheetBounds!.y).toBeGreaterThanOrEqual(0);
@@ -172,8 +274,7 @@ for (const theme of ["light", "dark"] as const) {
             expect(bounds!.x).toBeGreaterThanOrEqual(sheetBounds!.x);
             expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(sheetBounds!.x + sheetBounds!.width);
           }
-          await checkA11y(page, width < 640 ? '[role="dialog"]' : '[data-testid="toolbar-dropdown-panel"]');
-          await page.screenshot({ path: path.join(shots, `impl-${width}-${theme}-more.png`), animations: "disabled" });
+          await page.screenshot({ path: path.join(shots, `impl-${width}-${theme}-more.png`) });
         }
       });
     });

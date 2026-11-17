@@ -26,7 +26,7 @@ createRoot(document.getElementById("root")!).render(
           <ThemeProvider defaultTheme={theme}>
             <CurrentBoardProvider>
               <main className="content-root min-h-screen bg-background text-foreground">
-                <div className="mx-auto max-w-screen-xl p-3 sm:p-6">
+                <div className="mx-auto max-w-screen-xl p-0 lg:p-6">
                   <PageBuilder pageId="kitchen-morning" embedded onClose={() => {}} />
                 </div>
               </main>

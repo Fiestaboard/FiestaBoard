@@ -26,7 +26,7 @@ test.beforeEach(async ({ page }) => {
 test.describe("Page Builder", () => {
   test("can create a template page with 6 lines", async ({ page }) => {
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -78,7 +78,7 @@ test.describe("Page Builder", () => {
 
   test("validates required fields — name cannot be empty", async ({ page }) => {
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -92,7 +92,7 @@ test.describe("Page Builder", () => {
 
   test("can preview page content in the builder", async ({ page }) => {
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -150,7 +150,7 @@ test.describe("Page Builder", () => {
 
   test("template variables autocomplete/picker works", async ({ page }) => {
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -194,7 +194,7 @@ test.describe("Sync from Board", () => {
   test("Sync from Board button is visible on new page, hidden on edit page", async ({ page }) => {
     // New page: button should appear
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -235,7 +235,7 @@ test.describe("Sync from Board", () => {
       await waitForNoActiveDisplay();
 
       await page.goto("/pages/new");
-      await expect(page.getByText("Create Page").first()).toBeVisible({
+      await expect(page.locator("#page-name")).toBeVisible({
         timeout: 15_000,
       });
 
@@ -269,7 +269,7 @@ test.describe("Sync from Board", () => {
     await setActivePage(sourcePageId);
 
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 

@@ -119,7 +119,7 @@ test.describe("Note pages – UI", () => {
     const pageName = `UI Note ${Date.now()}`;
 
     await page.goto("/pages/new?device=note");
-    await expect(page.getByText("Create Page")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("#page-name")).toBeVisible({ timeout: 15_000 });
 
     // Fill name
     await page.getByPlaceholder("My Custom Page").fill(pageName);
@@ -144,7 +144,7 @@ test.describe("Note pages – UI", () => {
 
   test("Note editor shows 3-line area (not 6)", async ({ page }) => {
     await page.goto("/pages/new?device=note");
-    await expect(page.getByText("Create Page")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("#page-name")).toBeVisible({ timeout: 15_000 });
 
     const editor = page.locator('[contenteditable="true"]').first();
     await expect(editor).toBeVisible();
@@ -159,7 +159,7 @@ test.describe("Note pages – UI", () => {
     const id = await createNotePage(name, ["ORIGINAL", "", ""]);
 
     await page.goto(`/pages/edit/${id}`);
-    await expect(page.getByText("Edit Page")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("#page-name")).toBeVisible({ timeout: 15_000 });
 
     // Verify editor loaded with Note content
     const editor = page.locator('[contenteditable="true"]').first();
@@ -172,7 +172,7 @@ test.describe("Note pages – UI", () => {
 
   test("Note page preview renders 3×15 grid", async ({ page }) => {
     await page.goto("/pages/new?device=note");
-    await expect(page.getByText("Create Page")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("#page-name")).toBeVisible({ timeout: 15_000 });
 
     // Type some text so preview renders
     const editor = page.locator('[contenteditable="true"]').first();

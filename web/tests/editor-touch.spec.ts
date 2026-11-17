@@ -128,7 +128,7 @@ test.describe("Editor phone flows", () => {
     );
     await toggle.getByRole("button", { name: "Fit", exact: true }).click();
     await expect(toggle.getByRole("button", { name: "Fit", exact: true })).toHaveAttribute("aria-pressed", "true");
-    expect(await page.evaluate(() => localStorage.getItem("fiestaboard:boardPreviewMode"))).toBe("fit");
+    expect(await page.evaluate(() => sessionStorage.getItem("fiestaboard:boardPreviewMode"))).toBe("fit");
     await page.reload();
     await expect(page.locator(MODE_TOGGLE)).toHaveCount(1);
     await expect(page.locator(MODE_TOGGLE).getByRole("button", { name: "Fit", exact: true })).toHaveAttribute(

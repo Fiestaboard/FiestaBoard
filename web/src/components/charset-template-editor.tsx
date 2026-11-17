@@ -207,6 +207,7 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
     const hasHomeAssistant = Boolean(templateVars?.variables?.home_assistant);
 
     const toolbarProps: TemplateEditorToolbarSlotProps = {
+      container: touch && typeof document !== "undefined" ? document.body : undefined,
       size: touch ? "touch" : "default",
       layout: touch ? "docked" : "row",
       pickerPresentation: sheets ? "sheet" : "popover",

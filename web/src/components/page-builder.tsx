@@ -790,6 +790,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const beginStaging = useCallback(() => {
     if (stagingSnapshotRef.current) return;
     stagingSnapshotRef.current = takeSnapshot();
+    stagingDirtyRef.current = hasUnsavedChangesRef.current;
     setStagingActive(true);
   }, [takeSnapshot]);
 
@@ -814,9 +815,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   const discardStaging = useCallback(() => {
     const snap = stagingSnapshotRef.current;
+    const wasDirty = stagingDirtyRef.current;
     stagingSnapshotRef.current = null;
+    stagingDirtyRef.current = null;
     setStagingActive(false);
-    if (snap) applySnapshot(snap);
+    if (snap) {
+      applySnapshot(snap);
+      // create_page settles by discarding staging and navigating in one tick.
+      // Restore the pre-staging guard synchronously, before React commits the
+      // restored fields, while preserving a user's original dirty draft.
+      hasUnsavedChangesRef.current = wasDirty ?? hasUnsavedChangesRef.current;
+    }
     try {
       localStorage.removeItem(getDraftKey(pageId));
     } catch {
@@ -829,6 +838,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // notice. Its successful server update must not replace this local draft.
     if (!stagingSnapshotRef.current && hasUnsavedChangesRef.current) return;
     stagingSnapshotRef.current = null;
+    stagingDirtyRef.current = null;
     setStagingActive(false);
     if (!pageId) return;
     forceReseedRef.current = true;
@@ -1016,7 +1026,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (enabled) setChosenLiveBoardId(selectedBoardId);
     setLiveOutputEnabled(enabled);
   };
-  const mirrorMoreContent = (
+  const mirrorControl = (
     <Stack gap="2">
       <Flex align="center" justify="between" gap="3">
         <label htmlFor="editor-more-mirror">{tTouch("mirror") || DEFAULT_EDITOR_PREVIEW_LABELS.liveLabel}</label>
@@ -1283,6 +1293,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // While the walkthrough stages values: the snapshot to restore, and a
   // flag the autosave and Save button read.
   const stagingSnapshotRef = useRef<PageSnapshot | null>(null);
+  const stagingDirtyRef = useRef<boolean | null>(null);
   const [stagingActive, setStagingActive] = useState(false);
 
   // Load draft or existing page data
@@ -2376,6 +2387,165 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     return () => window.removeEventListener("keydown", onKey);
   }, [drawMode]);
 
+  // Compact editors keep Save and Show now in the bar. Secondary actions
+  // share their original handlers/dialogs between desktop chrome and More.
+  const secondaryActions = (
+    <TooltipProvider skipDelayDuration={0}>
+      <Flex align="center" gap="1.5" className="flex-wrap">
+        {/* Per-page transition override. Null (the default) inherits
+         *  the global setting; the trigger carries a dot when this
+         *  page overrides it. */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative h-9 w-9"
+                  aria-label={t("transitionPickerAriaLabel")}
+                >
+                  <Sparkles className={`h-4 w-4 ${transitionStrategy ? "text-brand" : ""}`} />
+                  {transitionStrategy && (
+                    <Text
+                      as="span"
+                      aria-hidden="true"
+                      className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand"
+                    />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <Text>{t("transitionPickerTooltip", { strategy: transitionLabel })}</Text>
+            </TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="text-xs font-medium">{t("transitionMenuTitle")}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup
+              value={transitionStrategy ?? TRANSITION_INHERIT}
+              onValueChange={(value) => setTransitionStrategy(value === TRANSITION_INHERIT ? null : String(value))}
+            >
+              {/* Base UI's MenuRadioItem defaults closeOnClick to
+               *  false; without this the menu stays open after a
+               *  pick and its inert backdrop swallows clicks on
+               *  Save. Picking a transition is a one-shot choice,
+               *  so every item closes the menu. */}
+              <DropdownMenuRadioItem value={TRANSITION_INHERIT} className="text-xs" closeOnClick>
+                {t("transitionUseDisplayTransition")}
+              </DropdownMenuRadioItem>
+              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                {t("transitionBuiltInGroup")}
+              </DropdownMenuLabel>
+              {BUILT_IN_TRANSITIONS.map((strategy) => (
+                <DropdownMenuRadioItem key={strategy.value} value={strategy.value} className="text-xs" closeOnClick>
+                  {tTransitions(`strategies.${strategy.labelKey}.label`)}
+                </DropdownMenuRadioItem>
+              ))}
+              {transitionPlugins.length > 0 && (
+                <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                  {t("transitionPluginsGroup")}
+                </DropdownMenuLabel>
+              )}
+              {transitionPlugins.map((plugin) => (
+                <DropdownMenuRadioItem
+                  key={plugin.id}
+                  value={`${PLUGIN_STRATEGY_PREFIX}${plugin.id}`}
+                  className="text-xs"
+                  closeOnClick
+                >
+                  {plugin.name}
+                </DropdownMenuRadioItem>
+              ))}
+              {unknownPluginStrategy && (
+                <DropdownMenuRadioItem value={transitionStrategy!} className="text-xs" closeOnClick>
+                  {unknownPluginStrategy}
+                </DropdownMenuRadioItem>
+              )}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {/* Delete button - only show when editing */}
+        {pageId && (
+          <AlertDialog>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    aria-label={t("deletePageTooltip")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <Text>{t("deletePageTooltip")}</Text>
+              </TooltipContent>
+            </Tooltip>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("deletePageTitle")}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {name ? t("deletePageConfirmation", { pageName: name }) : t("deletePageConfirmationGeneric")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteMutation.mutate()}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleteMutation.isPending ? tCommon("deleting") : tCommon("delete")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+        {/* 07 `57:28576`: the secondary "Shortcuts" button, left of Save. */}
+        <EditorShortcutList variant="header" {...shortcutListProps} />
+        {/* Export button — only on existing pages */}
+        {pageId && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-8 gap-1.5 px-3 text-xs"
+                disabled={hasUnsavedChanges}
+                onClick={async () => {
+                  try {
+                    const res = await api.getPageShareString(pageId);
+                    setExportShareString(res.share_string);
+                    setExportOpen(true);
+                  } catch {
+                    toast.error(t("exportFailed"));
+                  }
+                }}
+                aria-label={t("exportPageAriaLabel")}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                {t("exportPage")}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <Text>{hasUnsavedChanges ? t("exportDisabledTooltip") : t("exportPageTooltip")}</Text>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </Flex>
+    </TooltipProvider>
+  );
+  const mirrorMoreContent = (
+    <Stack gap="3">
+      {mirrorControl}
+      {dockedPreview && secondaryActions}
+    </Stack>
+  );
+
   if (pageId && loadingPage) {
     return (
       <Card>
@@ -2410,179 +2580,62 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         {/* Main Editor */}
         <Card
           className={cn(
-            "flex flex-col min-h-0 w-full max-w-full overflow-x-clip",
+            "flex flex-col min-h-0 w-full max-w-full overflow-x-clip gap-0 py-0",
             embedded && "rounded-none border-0 bg-transparent shadow-none",
           )}
         >
-          <CardHeader className="sticky top-0 z-20 bg-background pb-2 flex-shrink-0 px-2 lg:px-4">
-            <Flex align="center" justify="between" className="flex-wrap gap-2">
-              <Flex align="center" gap="2" className="min-w-0">
-                {!embedded && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={onClose}
-                    aria-label={t("backToPages")}
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                )}
-                {/* Embedded, the page's name is the section's h2 just above; this
-                    row is the editor's own label, so it steps down to a quiet
-                    caption instead of reading as a second heading of equal rank. */}
-                <CardTitle className={cn("text-base lg:text-2xl truncate")}>
-                  {name || (pageId ? t("editPage") : t("createPage"))}
-                </CardTitle>
-                <Text size="xs" tone="muted">
+          <CardHeader className="sticky top-0 z-20 h-14 lg:min-h-16 bg-background flex-shrink-0 gap-0 px-2 lg:px-4 py-0">
+            <Flex align="center" className="h-full min-w-0 flex-nowrap gap-1.5">
+              {(!embedded || dockedPreview) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 shrink-0"
+                  onClick={onClose}
+                  aria-label={t("backToPages")}
+                >
+                  <ArrowLeft className="size-4" />
+                </Button>
+              )}
+              <Box className="relative h-11 lg:h-12 min-w-0 flex-1">
+                <label htmlFor="page-name" className="sr-only">
+                  {t("pageNameLabel")}
+                </label>
+                <CardTitle className="sr-only">{name || (pageId ? t("editPage") : t("createPage"))}</CardTitle>
+                <Input
+                  id="page-name"
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder={t("pageNamePlaceholder")}
+                  className="h-11 lg:h-12 w-full min-w-0 border-transparent bg-transparent px-0 pt-0 pb-4 text-base lg:text-2xl font-semibold shadow-none"
+                />
+                <Text
+                  size="xs"
+                  tone="muted"
+                  className="pointer-events-none absolute bottom-0 left-0 truncate font-mono"
+                >
                   {hasUnsavedChanges
                     ? tTouch("unsaved")
                     : savedAt
                       ? `${tTouch("saved")} ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
                       : ""}
                 </Text>
-              </Flex>
-              {/* `skipDelayDuration={0}` disables Radix's "skip the
-               *  hover delay when moving between tooltips" behavior.
-               *  Without it, clicking the AI toggle and triggering a
-               *  layout shift could flash the next-nearest tooltip
-               *  (e.g. the rich-text toolbar's "Paste" tooltip) under
-               *  the cursor. Keeping the full delay gives the cursor
-               *  time to settle on the new layout before any new
-               *  tooltip pops. */}
+              </Box>
+              {!dockedPreview && (
+                <Flex align="center" gap="1.5" className="hidden lg:flex shrink-0">
+                  {secondaryActions}
+                </Flex>
+              )}
               <TooltipProvider skipDelayDuration={0}>
-                <Flex align="center" gap="1.5" className="flex-wrap justify-end">
-                  {/* Per-page transition override. Null (the default) inherits
-                   *  the global setting; the trigger carries a dot when this
-                   *  page overrides it. */}
-                  <DropdownMenu>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="relative h-9 w-9"
-                            aria-label={t("transitionPickerAriaLabel")}
-                          >
-                            <Sparkles className={`h-4 w-4 ${transitionStrategy ? "text-brand" : ""}`} />
-                            {transitionStrategy && (
-                              <Text
-                                as="span"
-                                aria-hidden="true"
-                                className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand"
-                              />
-                            )}
-                          </Button>
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <Text>{t("transitionPickerTooltip", { strategy: transitionLabel })}</Text>
-                      </TooltipContent>
-                    </Tooltip>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuLabel className="text-xs font-medium">{t("transitionMenuTitle")}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuRadioGroup
-                        value={transitionStrategy ?? TRANSITION_INHERIT}
-                        onValueChange={(value) =>
-                          setTransitionStrategy(value === TRANSITION_INHERIT ? null : String(value))
-                        }
-                      >
-                        {/* Base UI's MenuRadioItem defaults closeOnClick to
-                         *  false; without this the menu stays open after a
-                         *  pick and its inert backdrop swallows clicks on
-                         *  Save. Picking a transition is a one-shot choice,
-                         *  so every item closes the menu. */}
-                        <DropdownMenuRadioItem value={TRANSITION_INHERIT} className="text-xs" closeOnClick>
-                          {t("transitionUseDisplayTransition")}
-                        </DropdownMenuRadioItem>
-                        <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                          {t("transitionBuiltInGroup")}
-                        </DropdownMenuLabel>
-                        {BUILT_IN_TRANSITIONS.map((strategy) => (
-                          <DropdownMenuRadioItem
-                            key={strategy.value}
-                            value={strategy.value}
-                            className="text-xs"
-                            closeOnClick
-                          >
-                            {tTransitions(`strategies.${strategy.labelKey}.label`)}
-                          </DropdownMenuRadioItem>
-                        ))}
-                        {transitionPlugins.length > 0 && (
-                          <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                            {t("transitionPluginsGroup")}
-                          </DropdownMenuLabel>
-                        )}
-                        {transitionPlugins.map((plugin) => (
-                          <DropdownMenuRadioItem
-                            key={plugin.id}
-                            value={`${PLUGIN_STRATEGY_PREFIX}${plugin.id}`}
-                            className="text-xs"
-                            closeOnClick
-                          >
-                            {plugin.name}
-                          </DropdownMenuRadioItem>
-                        ))}
-                        {unknownPluginStrategy && (
-                          <DropdownMenuRadioItem value={transitionStrategy!} className="text-xs" closeOnClick>
-                            {unknownPluginStrategy}
-                          </DropdownMenuRadioItem>
-                        )}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  {/* Delete button - only show when editing */}
-                  {pageId && (
-                    <AlertDialog>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              aria-label={t("deletePageTooltip")}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <Text>{t("deletePageTooltip")}</Text>
-                        </TooltipContent>
-                      </Tooltip>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>{t("deletePageTitle")}</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {name
-                              ? t("deletePageConfirmation", { pageName: name })
-                              : t("deletePageConfirmationGeneric")}
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteMutation.mutate()}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            {deleteMutation.isPending ? tCommon("deleting") : tCommon("delete")}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                  {/* 07 `57:28576`: the secondary "Shortcuts" button, left of Save. */}
-                  <EditorShortcutList variant="header" {...shortcutListProps} />
+                <Flex align="center" gap="1.5" className="shrink-0 flex-nowrap">
                   {/* Save button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="secondary"
                         size={dockedPreview ? "touch" : "sm"}
-                        className="gap-1.5"
+                        className="shrink-0 gap-1.5 px-3 text-sm"
                         {...anchorProps("page-editor.save")}
                         onClick={() => {
                           if (!name.trim()) {
@@ -2610,48 +2663,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <Button
                     variant="brand"
                     size={dockedPreview ? "touch" : "sm"}
+                    className="shrink-0 gap-1.5 px-3 text-sm"
                     disabled={saveMutation.isPending || stagingActive || !selectedBoardId}
                     onClick={() => requestShowNowRef.current()}
                   >
                     <Send className="size-4" />
                     {tTouch("showNow")}
                   </Button>
-                  {/* Export button — only on existing pages */}
-                  {pageId && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="h-8 gap-1.5 px-3 text-xs"
-                          disabled={hasUnsavedChanges}
-                          onClick={async () => {
-                            try {
-                              const res = await api.getPageShareString(pageId);
-                              setExportShareString(res.share_string);
-                              setExportOpen(true);
-                            } catch {
-                              toast.error(t("exportFailed"));
-                            }
-                          }}
-                          aria-label={t("exportPageAriaLabel")}
-                        >
-                          <Upload className="h-3.5 w-3.5" />
-                          {t("exportPage")}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <Text>{hasUnsavedChanges ? t("exportDisabledTooltip") : t("exportPageTooltip")}</Text>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
                 </Flex>
               </TooltipProvider>
             </Flex>
           </CardHeader>
 
-          <CardContent className="flex flex-col flex-1 min-h-0 px-2 lg:px-4 pt-2 pb-20">
-            <Box className="space-y-4">
+          <CardContent className="flex flex-col flex-1 min-h-0 px-0 lg:px-4 pt-0 pb-20">
+            <Box className="min-w-0">
               {/* Draft restored notification */}
               {draftRestored && (
                 <Alert className="bg-info/10 border-info/20">
@@ -2659,57 +2684,43 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 </Alert>
               )}
 
-              {/* Page name */}
-              <Stack gap="1.5">
-                <label htmlFor="page-name" className="text-xs sm:text-sm font-medium">
-                  {t("pageNameLabel")}
-                </label>
-                <Input
-                  id="page-name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t("pageNamePlaceholder")}
-                  className="w-full h-10 sm:h-9 px-3 text-sm rounded-md border bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-              </Stack>
-
-              <Flex align="center" justify="between" gap="2" className="flex-wrap">
-                {pixelBoard && (
-                  <Flex role="group" aria-label={t("editingSurfaceLabel")} className="rounded-lg border p-1" gap="1">
-                    <Button
-                      size="sm"
-                      variant={editingSurface === "text" ? "secondary" : "ghost"}
-                      aria-pressed={editingSurface === "text"}
-                      onClick={() => setEditingSurface("text")}
-                    >
-                      {t("textMode")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={editingSurface === "canvases" ? "secondary" : "ghost"}
-                      aria-pressed={editingSurface === "canvases"}
-                      onClick={() => setEditingSurface("canvases")}
-                    >
-                      {t("canvasesMode")}
-                    </Button>
-                  </Flex>
-                )}
-                {/* At tablet widths or without a web toolbar, the hint sits above
+              {(pixelBoard || (!hintOnToolbar && !dockedPreview)) && (
+                <Flex align="center" justify="between" gap="2" className="flex-wrap">
+                  {pixelBoard && (
+                    <Flex role="group" aria-label={t("editingSurfaceLabel")} className="rounded-lg border p-1" gap="1">
+                      <Button
+                        size="sm"
+                        variant={editingSurface === "text" ? "secondary" : "ghost"}
+                        aria-pressed={editingSurface === "text"}
+                        onClick={() => setEditingSurface("text")}
+                      >
+                        {t("textMode")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={editingSurface === "canvases" ? "secondary" : "ghost"}
+                        aria-pressed={editingSurface === "canvases"}
+                        onClick={() => setEditingSurface("canvases")}
+                      >
+                        {t("canvasesMode")}
+                      </Button>
+                    </Flex>
+                  )}
+                  {/* At tablet widths or without a web toolbar, the hint sits above
                     the template instead of wrapping onto its own toolbar line (DD-W59). */}
-                {!hintOnToolbar && (
-                  <Box className="ml-auto">
-                    <EditorShortcutList variant="hint" {...shortcutListProps} />
-                  </Box>
-                )}
-              </Flex>
-
-              <Box ref={setToolbarContainer} className="min-w-0" />
-              <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-6">
+                  {!hintOnToolbar && !dockedPreview && (
+                    <Box className="ml-auto">
+                      <EditorShortcutList variant="hint" {...shortcutListProps} />
+                    </Box>
+                  )}
+                </Flex>
+              )}
+              {!useTouchToolbar && <Box ref={setToolbarContainer} className="min-w-0" />}
+              <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-0 lg:gap-6">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
-                <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0">
+                <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0 px-2 lg:px-0">
                   <Stack gap="3" className="min-w-0">
-                    <Flex ref={templateHeadingRef} align="center" justify="between">
+                    <Flex ref={templateHeadingRef} align="center" justify="between" className="order-2 lg:order-none">
                       <label htmlFor="page-template-plain" className="text-xs sm:text-sm font-medium">
                         {t("templateLabel")}
                       </label>
@@ -2924,7 +2935,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 <EditorPreview
                   id="page-editor-preview"
                   variant={dockedPreview ? "docked" : "pane"}
-                  className="order-first lg:order-2 min-w-0 top-16"
+                  className={cn("order-first lg:order-2 min-w-0 top-16", dockedPreview && "px-0")}
                   title={tTouch("livePreview")}
                   boardName={previewBoard?.name}
                   live={liveOutputEnabled}
@@ -3003,6 +3014,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             }
                             isStatic={drawMode}
                             size={dockedPreview ? "sm" : "md"}
+                            layout={dockedPreview ? "phone-hero" : "pane"}
                             mode={previewMode}
                             onModeChange={changePreviewMode}
                             showModeToggle={false}
@@ -3057,7 +3069,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     onStopOverriding={() => setLiveOverrideSilence(false)}
                   />
                 </EditorPreview>
-                <Box className="order-3 min-w-0 lg:col-start-1">
+                <Box className="order-3 min-w-0 px-2 lg:px-0 lg:col-start-1">
                   <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
                     <Flex align="center" gap="2" className="flex-wrap">
                       <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>

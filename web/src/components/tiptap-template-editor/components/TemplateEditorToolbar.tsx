@@ -82,6 +82,7 @@ export function TemplateEditorToolbar(
       icons: t("icons"),
       iconLabel: (icon) => t("iconOptionLabel", { icon }),
     },
+    container: touch && typeof document !== "undefined" ? document.body : props.container,
     size: touch ? "touch" : "default",
     layout: touch ? "docked" : "row",
     pickerPresentation: sheets ? "sheet" : "popover",

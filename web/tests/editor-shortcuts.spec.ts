@@ -17,7 +17,7 @@ const LIST = { name: "Keyboard shortcuts" } as const;
 
 async function openEditor(page: Page) {
   await page.goto("/pages/new");
-  await expect(page.getByText("Create Page").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("#page-name")).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[contenteditable="true"]').first()).toBeVisible({ timeout: 15_000 });
 }
 
