@@ -18,6 +18,7 @@ a phone must never be able to read a stored secret or send one somewhere new:
 from __future__ import annotations
 
 import copy
+import json
 import re
 from typing import Any
 
@@ -26,12 +27,16 @@ from .scopes import CONTROL
 MASK = "***"
 KEY_REQUIRED = "key_required"
 
-#: Provider fields that decide where the stored key is sent.
-_ENDPOINT_FIELDS = ("base_url", "protocol")
+#: Provider fields that decide where the stored key (or sign-in token) is sent.
+_ENDPOINT_FIELDS = ("base_url", "protocol", "sign_in")
 
-#: Keys whose values a phone's backup never carries. Broader than the browser's
-#: SENSITIVE_FIELDS on purpose: over-masking a redacted export loses nothing.
-_SECRET_KEY = re.compile(r"(key|token|secret|passw|credential|auth|cookie|session|private|signature)", re.I)
+#: Key names whose values a phone's backup never carries, on top of the hub's own
+#: ``SENSITIVE_FIELDS`` and each display output's schema-declared secrets.
+_SECRET_KEY = re.compile(
+    r"(api_?key|_key$|^key$|token|secret|passw|credential|authoriz|^auth$|auth_?(code|header|key)"
+    r"|cookie|private_?key|signature$|^session(_?id|_?key)?$|^pin$)",
+    re.I,
+)
 
 
 def is_phone(request: Any) -> bool:
@@ -51,10 +56,18 @@ def key_required_body(detail: str) -> dict[str, str]:
 
 
 def _endpoint(provider: dict[str, Any]) -> tuple[str, ...]:
+    from src.ai.protocols import DEFAULT_PROTOCOL, PROTOCOLS
+
     values = []
     for field in _ENDPOINT_FIELDS:
         value = provider.get(field)
-        values.append(value.strip().rstrip("/").lower() if isinstance(value, str) else repr(value))
+        if field == "protocol" and (not value or value not in PROTOCOLS):
+            # The generator treats a missing or unknown protocol as the default.
+            value = DEFAULT_PROTOCOL
+        if isinstance(value, str):
+            values.append(value.strip().rstrip("/").lower())
+        else:
+            values.append(json.dumps(value, sort_keys=True, default=str))
     return tuple(values)
 
 
@@ -117,29 +130,60 @@ def draft_needs_key(draft: dict[str, Any]) -> bool:
 # -- Backups ------------------------------------------------------------------------
 
 
-def redact(value: Any, key: str = "") -> Any:
+def _is_secret_key(key: str) -> bool:
+    from src.config_manager import SENSITIVE_FIELDS
+
+    return key in SENSITIVE_FIELDS or bool(_SECRET_KEY.search(key))
+
+
+def redact(value: Any, key: str = "", *, inside_secret: bool = False) -> Any:
     """*value* with every secret-looking entry replaced by the mask.
 
-    A key that looks secret masks whatever it holds (a nested object included);
-    ``headers`` objects are masked value by value.
+    Scalars are masked, structures keep their shape: under a secret-looking key
+    (or ``headers``) every non-empty string leaf is masked, and elsewhere each
+    entry is judged by its own key. Numbers and booleans are never secrets.
     """
-    if key and _SECRET_KEY.search(key) and value not in (None, "", [], {}):
-        if isinstance(value, bool | int | float):
-            return value
-        return MASK
+    secret = inside_secret or key == "headers" or (bool(key) and _is_secret_key(key))
     if isinstance(value, dict):
-        if key == "headers":
-            return {name: (MASK if item else item) for name, item in value.items()}
-        return {name: redact(item, str(name)) for name, item in value.items()}
+        return {name: redact(item, str(name), inside_secret=secret) for name, item in value.items()}
     if isinstance(value, list):
-        return [redact(item, key if key == "headers" else "") for item in value]
+        return [redact(item, "", inside_secret=secret) for item in value]
+    if secret and isinstance(value, str) and value:
+        return MASK
     return value
+
+
+def _mask_display_configs(data: dict[str, Any]) -> None:
+    """Mask each saved display's ``output_config`` by its output's own secret schema, in place.
+
+    The browser's board view masks these the same way (``BoardSettings._mask_board``),
+    whatever the secret field is called. When an output cannot say, every string in
+    that config is masked (fail closed).
+    """
+    settings = data.get("settings")
+    board_block = settings.get("board") if isinstance(settings, dict) else None
+    boards = board_block.get("boards") if isinstance(board_block, dict) else None
+    if not isinstance(boards, list):
+        return
+    from src.outputs.config_hooks import mask_config
+    from src.outputs.registry import resolve_output_id
+
+    for board in boards:
+        if not isinstance(board, dict) or not isinstance(board.get("output_config"), dict):
+            continue
+        try:
+            board["output_config"] = mask_config(resolve_output_id(board), board["output_config"])
+        except Exception:
+            board["output_config"] = redact(board["output_config"], inside_secret=True)
 
 
 def redact_backup(backup: dict[str, Any]) -> dict[str, Any]:
     """A phone's copy of a backup document: secrets masked, marked ``redacted``."""
     document = dict(backup)
-    document["data"] = redact(backup.get("data") or {})
+    data = copy.deepcopy(backup.get("data") or {})
+    if isinstance(data, dict):
+        _mask_display_configs(data)
+    document["data"] = redact(data)
     document["redacted"] = True
     document["redacted_note"] = (
         "Exported from a phone: passwords, keys and tokens are replaced by ***. "
