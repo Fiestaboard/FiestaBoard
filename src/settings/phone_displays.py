@@ -35,9 +35,9 @@ def _leaves(value: Any, path: tuple = ()):
 
 def _at(value: Any, path: tuple) -> Any:
     for step in path:
-        if isinstance(value, dict) and step in value:
-            value = value[step]
-        elif isinstance(value, list) and isinstance(step, int) and 0 <= step < len(value):
+        if (isinstance(value, dict) and step in value) or (
+            isinstance(value, list) and isinstance(step, int) and 0 <= step < len(value)
+        ):
             value = value[step]
         else:
             return None
