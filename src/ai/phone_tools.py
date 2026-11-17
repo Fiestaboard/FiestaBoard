@@ -63,7 +63,6 @@ _ALLOWED = (
     "validate_template",
     "list_formula_functions",
     "export_page",
-    "list_staff_picks",
     "get_current_display",
     "get_template_variables",
     "set_active_page",
@@ -86,7 +85,6 @@ _ALLOWED = (
     "get_temporary_override",
     "set_temporary_override",
     "cancel_temporary_override",
-    "force_refresh",
     "get_silence_status",
     "pause_board",
     "resume_board",
@@ -153,6 +151,10 @@ _DENIED = (
     "run_display_action",
     "import_page",
     "import_staff_pick",
+    # Their routes are not on the phone's REST surface (/staff-picks, the
+    # debug router's /force-refresh), so the chat does not add them.
+    "list_staff_picks",
+    "force_refresh",
     "get_settings_summary",
     "blank_board",
     "fill_board",
@@ -171,23 +173,12 @@ CONTROL_TOOLS: dict[str, Tier] = {
 #: Arguments that make an otherwise permitted call a denied one.
 _GIT_INSTALL_ARGS = ("repository", "branch")
 
-#: ``update_setting`` categories a phone may change (tier 2). The others stay
-#: with the web app: ``mqtt`` (a host change would send the stored password to
-#: the new host), ``ai`` (the REST route enforces key re-entry instead), the
-#: release channel and automatic updates, and anything not listed.
-PHONE_SETTING_CATEGORIES = frozenset(
-    {
-        "active_page",
-        "display",
-        "transitions",
-        "output",
-        "polling",
-        "location",
-        "silence_schedule",
-        "schedule_behavior",
-        "general",
-    }
-)
+#: ``update_setting`` categories a phone may change (tier 2): exactly the
+#: categories whose REST route a phone reaches. Anything else stays with the
+#: web app (``mqtt`` would send the stored password to a new host, ``ai`` has
+#: its own key re-entry route, the release channel and automatic updates are
+#: browser-only, and the rest have no phone route).
+PHONE_SETTING_CATEGORIES = frozenset({"active_page", "general", "silence_schedule", "schedule_behavior"})
 
 
 def tier_for(name: str, args: dict[str, Any] | None = None) -> Tier:
