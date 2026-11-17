@@ -14,6 +14,9 @@ for (const width of [390, 768, 1280]) {
       await page.goto(`/tests/layout/displays.html?theme=${theme}`);
       await expect(page.getByRole("list", { name: "Needs a look" })).toContainText("Can't reach");
       await expect(page.getByTestId("display-card").filter({ hasText: "Kitchen board" })).toContainText("Good night");
+      await expect(
+        page.getByRole("list", { name: "Needs a look" }).getByTestId("display-card").filter({ hasText: "Fridge note" }),
+      ).toContainText("Out of sync");
       const entry = page.getByTestId("display-card").filter({ hasText: "Entry clock" });
       await expect(entry).toBeVisible();
       await expect(page.getByTestId("display-detail-pane")).toHaveCount(width < 768 ? 0 : 1);
