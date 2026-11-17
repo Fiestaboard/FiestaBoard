@@ -316,20 +316,59 @@ class _SlowButHonestPlugin(PluginBase):
 
 
 class TestSlowIsNotWedged:
-    def test_a_plugin_that_answers_after_the_budget_is_never_quarantined(self, registry):
+    def test_a_plugin_that_answers_after_the_budget_is_never_quarantined(self, registry, release, monkeypatch):
         """Shortening the budget must not turn slow data sources into dead ones.
 
         The abandoned fetch still lands and fills PluginBase's cache, so the
         next tick serves it inline — which is proof the plugin answered, and
         ends its timeout streak.
         """
-        plugin = _SlowButHonestPlugin(delay=TIMEOUT * 3)
+        started = threading.Event()
+
+        class SlowButHonestPlugin(_SlowButHonestPlugin):
+            def fetch_data(self) -> PluginResult:
+                self.fetches += 1
+                started.set()
+                assert release.wait(timeout=10), "test never released the slow fetch"
+                return PluginResult(available=True, data={"value": "LATE"})
+
+        plugin = SlowButHonestPlugin(delay=0)
         registry._plugins["slow_honest"] = plugin
         registry._enabled["slow_honest"] = True
 
-        contexts = [registry.build_template_context(plugin_ids=["slow_honest"]) for _ in range(SETTLE_TICKS)]
+        real_wait = registry_module.futures_wait
+        pending = []
 
-        assert contexts[-1] == {"slow_honest": {"value": "LATE"}}, "late data never reached the board"
+        def expire_budget(futures, timeout):
+            # Start the real worker before expiring the budget, so this tests a
+            # running slow fetch, not a cancelled task still waiting in the pool.
+            assert started.wait(timeout=10), "slow fetch never started"
+            pending.extend(futures)
+            return real_wait(futures, timeout=0)
+
+        # Control the wait boundary rather than racing a sleep against three
+        # render budgets. The executor, timeout accounting and cache stay real.
+        with monkeypatch.context() as budget:
+            budget.setattr(registry_module, "futures_wait", expire_budget)
+            assert registry.build_template_context(plugin_ids=["slow_honest"]) == {}
+
+        status = registry.get_fetch_breaker_status()["slow_honest"]
+        assert status["consecutive_timeouts"] == 1, "the slow fetch never exceeded a render budget"
+        assert status["quarantined"] is False, "one slow answer opened the breaker"
+        assert len(pending) == 1
+
+        release.set()
+        # Future completion includes PluginBase's cache publication, unlike an
+        # event signalled inside fetch_data. This deadline only bounds a broken
+        # test; scheduler speed cannot advance the breaker's timeout streak.
+        pending[0].result(timeout=10)
+        cached = plugin.cached_result()
+        assert cached is not None, "the late fetch never filled the real cache"
+        assert cached.data == {"value": "LATE"}
+        assert registry.get_fetch_breaker_status()["slow_honest"]["quarantined"] is False
+
+        context = registry.build_template_context(plugin_ids=["slow_honest"])
+        assert context == {"slow_honest": {"value": "LATE"}}, "late data never reached the board"
         assert registry.get_fetch_breaker_status() == {}, "a slow-but-answering plugin was quarantined"
         assert plugin.fetches == 1, "the cached answer was refetched instead of served"
 
