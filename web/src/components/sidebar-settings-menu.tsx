@@ -26,6 +26,7 @@ import { useRouter } from "@/hooks/use-router";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { moreVisibilityChanged } from "@/lib/pwa/app-badge";
 import { clearAccountDataOnDevice } from "@/lib/pwa/sign-out";
 
 interface SidebarSettingsMenuProps {
@@ -247,7 +248,13 @@ export function SidebarSettingsMenu({
 
   return (
     <>
-      <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+      <Popover
+        open={menuOpen}
+        onOpenChange={(open) => {
+          setMenuOpen(open);
+          moreVisibilityChanged(open);
+        }}
+      >
         <PopoverTrigger asChild>
           <SidebarAccountTrigger label={label} anonymous={!username} collapsed={collapsed} notice={notice} />
         </PopoverTrigger>

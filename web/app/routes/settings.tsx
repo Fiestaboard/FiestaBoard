@@ -30,7 +30,6 @@ import { AboutDialog } from "@/components/about-dialog";
 import { AccountSection } from "@/components/account-section";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { HubLine } from "@/components/hub-line";
-import { HttpsRequiredBanner } from "@/components/pwa/https-required-banner";
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings";
 import { AiSettings } from "@/components/settings/ai-settings";
 import { AnimationSettings } from "@/components/settings/animation-settings";
@@ -44,6 +43,7 @@ import { LocationSettingsCard } from "@/components/settings/location-settings";
 import { McpSettings } from "@/components/settings/mcp-settings";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
 import { NetworkSettings } from "@/components/settings/network-settings";
+import { NotificationSettings } from "@/components/settings/notification-settings";
 import { ReleaseChannelCard } from "@/components/settings/release-channel";
 import { SystemControls } from "@/components/settings/system-controls";
 import { SystemUpdate } from "@/components/settings/system-update";
@@ -214,9 +214,13 @@ export default function SettingsPage() {
           {tHub(`sections.${active}.description`, { name: hubName })}
         </Text>
       </Stack>
-      <PageCard>
-        <SettingsSectionBody section={active} />
-      </PageCard>
+      {active === "notifications" ? (
+        <NotificationSettings />
+      ) : (
+        <PageCard>
+          <SettingsSectionBody section={active} />
+        </PageCard>
+      )}
     </Stack>
   );
 
@@ -239,8 +243,6 @@ export default function SettingsPage() {
       {/* Unwrapped on purpose: SystemUpdate brings its own section when it
           has something to announce and renders nothing when it does not. */}
       <SystemUpdate />
-      {/* 2.8: Notifications will own this once slice 2.13 supplies that section. */}
-      <HttpsRequiredBanner className="mt-4" />
 
       {/* The columns follow the room the page actually has, not the
           viewport: FiestaBot's drawer takes 396px from 1024px up, which at
