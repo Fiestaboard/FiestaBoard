@@ -791,6 +791,10 @@ from .auth.session_routes import router as auth_sessions_router  # noqa: E402
 app.include_router(device_auth_router)
 app.include_router(pairing_auth_router)
 app.include_router(auth_sessions_router)
+
+from .push.routes import router as push_router  # noqa: E402
+
+app.include_router(push_router)
 if is_auth_enabled():
     logger.info("Authentication is ENABLED (FIESTABOARD_AUTH_ENABLED=true)")
 else:
