@@ -457,6 +457,7 @@ Full documentation is at **[fiestaboard.app](https://fiestaboard.app)**, includi
 - **[Plugin Directory](https://fiestaboard.app/plugins)** - Browse every plugin and its setup guide
 - **[Schedule Mode](https://fiestaboard.app/docs/features/schedule)** - Automate your display
 - **[Raspberry Pi Deployment](https://fiestaboard.app/docs/deployment/raspberry-pi)** - Always-on setup
+- **[Web Push Backend](docs/development/web-push.md)** - Browser enrollment, test notifications, and delivery limits
 - **[Plugin Development Guide](https://fiestaboard.app/docs/development/plugin-guide)** - Build your own plugins
 
 ---

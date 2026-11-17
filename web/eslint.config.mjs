@@ -38,6 +38,7 @@ const eslintConfig = [
       "node_modules/**",
       ".vite-layout/**",
       ".react-router/**",
+      ".vite-layout/**",
       "build/**",
       "dist/**",
       "out/**",

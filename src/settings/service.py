@@ -511,10 +511,12 @@ class TemporaryOverride:
         """True when this override carries inline content instead of a page reference."""
         return bool(self.template)
 
-    def is_expired(self) -> bool:
-        """Return True when the override's expiry timestamp has passed.
+    def is_expired(self, at: datetime | None = None) -> bool:
+        """Return True when the override's expiry timestamp has passed at *at*.
 
         An indefinite override (``expires_at is None``) is never expired.
+        Omit *at* to use the current UTC time. The display engine supplies
+        one instant for both consumption and its subsequent expiry decision.
         """
         if self.expires_at is None:
             return False
@@ -522,7 +524,7 @@ class TemporaryOverride:
             expiry = datetime.fromisoformat(self.expires_at)
             if expiry.tzinfo is None:
                 expiry = expiry.replace(tzinfo=UTC)
-            return datetime.now(UTC) >= expiry
+            return (at if at is not None else datetime.now(UTC)) >= expiry
         except (ValueError, TypeError):
             return True
 
@@ -2993,45 +2995,48 @@ class SettingsService:
         try:
             self._save_to_file()
         except OSError as e:
-            # Background GC on a read path (the display loop calls this
-            # every tick). The override is already expired in memory, so
-            # the caller's answer is correct either way; failing the read
-            # would stall the loop over a write that will be retried on
-            # the next expiry.
+            # Background GC belongs to the display loop's consume path.
+            # The expired entry is already removed in memory; let the
+            # engine apply its revert even if persistence failed. A later
+            # settings save persists the removal; restart drops expired
+            # entries when loading, rather than replaying their reverts.
             logger.error(f"Could not persist temporary-override expiry: {e}")
 
     @_locked
     def get_temporary_override(self, board_id: str | None = None) -> TemporaryOverride | None:
         """Return *board_id*'s active override (default: primary), or None if absent or expired.
 
-        Auto-clears that board's stored override when it has expired so
-        subsequent reads don't need to check expiry themselves.
+        Reads never remove expired state: the display engine still needs
+        it to apply the pending revert through consume_temporary_override().
         """
         key = self._override_key(board_id)
         override = self._temporary_overrides.get(key)
         if override is None:
             return None
         if override.is_expired():
-            del self._temporary_overrides[key]
-            self._persist_override_gc()
             return None
         return override
 
     @_locked
-    def consume_temporary_override(self, board_id: str | None = None) -> TemporaryOverride | None:
+    def consume_temporary_override(
+        self, board_id: str | None = None, *, at: datetime | None = None
+    ) -> TemporaryOverride | None:
         """Return *board_id*'s override (live or expired) and clear it if expired.
 
         Used by each board's display pass so it can detect a just-expired
         override and apply revert-mode side-effects (blank board, set active
         page, etc.) to that board. Unlike get_temporary_override(), this
         returns the expired object instead of None so the caller can inspect
-        revert_mode before it's gone.
+        revert_mode before it's gone. The engine passes the same *at* to
+        this method and its expiry check, so an override cannot become
+        expired between the claim and the revert decision. Removal and
+        replacement are serialized under the settings lock.
         """
         key = self._override_key(board_id)
         raw = self._temporary_overrides.get(key)
         if raw is None:
             return None
-        if raw.is_expired():
+        if raw.is_expired(at=at):
             del self._temporary_overrides[key]
             self._persist_override_gc()
         return raw

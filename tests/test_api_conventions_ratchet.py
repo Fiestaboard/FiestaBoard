@@ -53,6 +53,8 @@ import typing
 from pathlib import Path
 from typing import Any
 
+from fastapi.routing import APIRoute
+
 from tests.test_route_inventory import build_route_metadata
 
 MANIFEST_PATH = Path(__file__).parent / "conventions_manifest.json"
@@ -96,7 +98,12 @@ def _excused(manifest: dict[str, Any]) -> set[tuple[str, str]]:
 
 def _records_for_domain(records: list[dict[str, Any]], domain: str) -> list[dict[str, Any]]:
     """Routes belonging to ``domain``, identified by their router tag."""
-    return [r for r in records if r["kind"] == "APIRoute" and domain in (r["tags"] or [])]
+    return [r for r in records if _is_api_route(r) and domain in (r["tags"] or [])]
+
+
+def _is_api_route(record: dict[str, Any]) -> bool:
+    """Custom APIRoute subclasses must satisfy the same conventions."""
+    return record["kind"] == "APIRoute" or isinstance(record.get("route"), APIRoute)
 
 
 def _converted_records(
@@ -519,9 +526,9 @@ def validate_manifest(manifest: dict[str, Any], records: list[dict[str, Any]]) -
     if len(set(domains)) != len(domains):
         problems.append(f"converted_domains has duplicates: {sorted(domains)}")
 
-    known_routes = {key for r in records if r["kind"] == "APIRoute" for key in _route_keys(r)}
-    route_domain = {key: set(r["tags"] or []) for r in records if r["kind"] == "APIRoute" for key in _route_keys(r)}
-    record_by_key = {key: r for r in records if r["kind"] == "APIRoute" for key in _route_keys(r)}
+    known_routes = {key for r in records if _is_api_route(r) for key in _route_keys(r)}
+    route_domain = {key: set(r["tags"] or []) for r in records if _is_api_route(r) for key in _route_keys(r)}
+    record_by_key = {key: r for r in records if _is_api_route(r) for key in _route_keys(r)}
 
     for domain in domains:
         if not _records_for_domain(records, domain):

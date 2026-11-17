@@ -50,11 +50,11 @@ function renderStep(props: Partial<Parameters<typeof StepWelcome>[0]>) {
 }
 
 describe("the wizard's welcome message", () => {
-  it("hands off to the page editor without sending the optional welcome message", async () => {
+  it("finishes on Home without sending a welcome message", async () => {
     const complete = vi.fn();
     renderStep({ onComplete: complete });
-    await userEvent.click(screen.getByRole("button", { name: /create my first page/i }));
-    await waitFor(() => expect(complete).toHaveBeenCalledWith("/pages/new"));
+    await userEvent.click(screen.getByRole("button", { name: /Finish setup/i }));
+    await waitFor(() => expect(complete).toHaveBeenCalledWith("/"));
     expect(bodies).toEqual([]);
   });
 
@@ -70,12 +70,12 @@ describe("the wizard's welcome message", () => {
       http.patch("/api/v1/plugins/weather", () => HttpResponse.json({ detail: "Set your location" }, { status: 400 })),
     );
     renderStep({ pluginConfig: { ...PLUGINS, registry_selected: ["weather"] }, onComplete: complete });
-    await userEvent.click(screen.getByRole("button", { name: /create my first page/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Finish setup/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Set your location");
     expect(complete).not.toHaveBeenCalled();
     expect(installs).toBe(0);
     await userEvent.click(screen.getByRole("button", { name: /configure integrations later/i }));
-    expect(complete).toHaveBeenCalledWith("/integrations");
+    expect(complete).toHaveBeenCalledWith("/");
   });
 
   it("saves selected integrations before finishing without sending a message", async () => {
@@ -91,7 +91,7 @@ describe("the wizard's welcome message", () => {
       pluginConfig: { date_time: { enabled: true, timezone: "Europe/Paris" }, registry_selected: [] },
       onComplete: complete,
     });
-    await userEvent.click(screen.getByRole("button", { name: /Go to Dashboard/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Finish setup/i }));
     await waitFor(() => expect(complete).toHaveBeenCalled());
     expect(saved).toContainEqual({ config: { timezone: "Europe/Paris" } });
     expect(saved).toContainEqual({ enabled: true });
@@ -119,10 +119,10 @@ describe("the wizard's welcome message", () => {
       pluginConfig: { date_time: { enabled: true, timezone: "UTC" }, registry_selected: ["countdown"] },
       onComplete: complete,
     });
-    await userEvent.click(screen.getByRole("button", { name: /Go to Dashboard/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Finish setup/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Choose an event date first");
     expect(complete).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: /Go to Dashboard/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Finish setup/i }));
     await waitFor(() => expect(complete).toHaveBeenCalled());
     expect(attempts).toBe(2);
     expect(dateWrites).toHaveLength(2);
@@ -144,40 +144,14 @@ describe("the wizard's welcome message", () => {
       }),
     );
     renderStep({ pluginConfig: { ...PLUGINS, registry_selected: ["countdown"] }, onComplete: complete });
-    await userEvent.click(screen.getByRole("button", { name: /Go to Dashboard/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Finish setup/i }));
     await waitFor(() => expect(complete).toHaveBeenCalled());
     expect(enables).toBe(1);
     expect(installs).toBe(0);
   });
 
-  it("does not claim a quiet-hours refusal sent or queued a message", async () => {
-    server.use(
-      http.post("/api/send-welcome-message", () => HttpResponse.json({ detail: "Quiet hours" }, { status: 409 })),
-    );
-    renderStep({});
-    await userEvent.click(screen.getByRole("button", { name: /Hello from FiestaBoard/ }));
-    expect(await screen.findByRole("status")).toHaveTextContent(/not sent/i);
-    expect(screen.queryByRole("button", { name: "Message Sent!" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Hello from FiestaBoard/ })).toBeEnabled();
-  });
-
   it("does not finish while a request is in progress", () => {
     renderStep({ isLoading: true });
-    expect(screen.getByRole("button", { name: /Go to Dashboard/i })).toBeDisabled();
-  });
-
-  it("greets the board an output-plugin step created", async () => {
-    renderStep({
-      output: { id: "divoom_pixoo", name: "Divoom Pixoo" },
-      createdBoard: { outputId: "divoom_pixoo", boardId: "px1", name: "Desk" },
-    });
-    await userEvent.click(screen.getByRole("button", { name: /Hello from FiestaBoard/ }));
-    await waitFor(() => expect(bodies).toEqual([{ board_id: "px1" }]));
-  });
-
-  it("greets the primary board on the Vestaboard path, as before", async () => {
-    renderStep({ output: { id: "vestaboard", name: "Vestaboard" } });
-    await userEvent.click(screen.getByRole("button", { name: /Hello from FiestaBoard/ }));
-    await waitFor(() => expect(bodies).toEqual([null]));
+    expect(screen.getByRole("button", { name: "Finish setup" })).toBeDisabled();
   });
 });

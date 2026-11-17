@@ -70,6 +70,18 @@ When the GitHub Release exists but a later step failed (the docs dispatch or
 the FiestaPi dispatch), a fresh run sees the release and does nothing. Use
 **Re-run failed jobs** instead.
 
+### The Version PR is the merge gate
+
+`main` has no merge queue. Each PR is tested against its own head, so two
+individually-green PRs can still combine into a broken `main`. The Version PR
+catches that before it ships. The action rebuilds it on every push to `main`,
+so its head is the merged result of everything waiting to release, and it
+always runs the full CI fleet (it bumps `package.json`, which trips the
+`shared` path filter). It is also the only PR that runs the full,
+four-backend integration suite. Every other PR runs the smoke subset. Don't
+merge a red Version PR. Fix `main` first. `tests/test_e2e_spec_reachability.py`
+fails if a Playwright spec stops running on the Version PR.
+
 Every `changeset-release/*` Version PR runs the full four-backend integration
 suite. Its CI is the release gate; normal PRs retain the smaller smoke suite.
 Merge the Version PR only after its current head is green and reviewed.
@@ -207,8 +219,8 @@ longer needed.
   that.
 - **`CLAUDE_CODE_OAUTH_TOKEN`** writes the stable release summary. The summary
   is optional, and the release ships without it if the call fails.
-- **Rulesets.** `main` and `PR policy` target the default branch (merge queue,
-  squash). `alpha` has its own ruleset: PR plus the required `CI Success`
+- **Rulesets.** `main` and `PR policy` target the default branch (squash, no
+  merge queue). `alpha` has its own ruleset: PR plus the required `CI Success`
   check, no merge queue, merge commits allowed (for syncs), and deletion allowed
   (for restarts).
 - **FiestaPi.** `build-fiestapi.yml` is dispatched by the Release workflow with

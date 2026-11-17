@@ -16,6 +16,7 @@
  */
 import {
   API_URL,
+  authHeaders,
   BOARD_HOST,
   chooseVestaboardInWizard,
   clearBoardConfig,
@@ -73,50 +74,62 @@ test.describe("Setup Wizard", () => {
     // Wait for the wizard to render (it lazy-loads)
     await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
 
-    // Step 1: choose the display (plan D18). Step 2: Connect Your Board
+    // Welcome, choose the first display, then connect it.
     await chooseVestaboardInWizard(page);
-    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Connect your Vestaboard" })).toBeVisible();
 
     // Select Local API mode
-    await page.getByRole("radio", { name: /Local API/ }).click();
+    await page.getByRole("radio", { name: "Local API", exact: true }).click();
 
     // Fill in board host and API key
-    await page.getByLabel("Board IP Address").fill(BOARD_HOST);
-    await page.getByLabel("Local API Key").fill("test-key");
+    await page.getByLabel("Address", { exact: true }).fill(BOARD_HOST);
+    await page.getByLabel("Local API key", { exact: true }).fill("test-key");
 
-    // Click "Test Connection" and wait for success
-    await page.getByRole("button", { name: "Test Connection" }).click();
-    await expect(page.getByText("Connected!")).toBeVisible({ timeout: 15_000 });
+    const pagesBefore = await (await fetch(`${API_URL}/pages`, { headers: authHeaders() })).json();
+    const settingsBefore = await (await fetch(`${API_URL}/settings/board`, { headers: authHeaders() })).json();
 
-    // Proceed to Step 3
-    await page.getByRole("button", { name: "Next", exact: true }).click();
+    // Testing a draft must not create a board or persist its secret.
+    await page.getByRole("button", { name: "Test connection", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: /Connected · \d+ ms/ })).toBeVisible({ timeout: 15_000 });
 
-    // Step 3: Add Data Sources — just proceed
-    await expect(page.getByRole("heading", { name: "Add Data Sources" })).toBeVisible();
-    await page.getByRole("button", { name: "Next", exact: true }).click();
+    expect(await (await fetch(`${API_URL}/settings/board`, { headers: authHeaders() })).json()).toEqual(settingsBefore);
 
-    // Step 4: You're All Set — finish
-    await expect(page.getByRole("heading", { name: "Ready for your first page" })).toBeVisible();
+    // Continue saves the tested display, then opens data sources.
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
 
-    // Click through to the dashboard (could be either label)
+    // Step 3: Add data sources — just proceed
+    await expect(page.getByRole("heading", { name: "Add data sources" })).toBeVisible();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+
+    // Step 4: review, then finish without creating starter content.
+    await expect(page.getByRole("heading", { name: "Ready to go" })).toBeVisible();
+
+    // Finish returns to Home.
     const dashboardButton = page.getByRole("button", {
-      name: "Save & go to dashboard",
+      name: "Finish setup",
     });
     await dashboardButton.click();
 
-    // Should land on the Dashboard after reload
+    // The wizard yields to Home.
     await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Verify the wizard created a proper BoardInstance
-    const res = await fetch(`${API_URL}/settings/board`);
+    const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
     const data = await res.json();
-    expect(data.boards.length).toBeGreaterThanOrEqual(1);
+    expect(data.boards).toHaveLength(1);
     const board = data.boards[0];
-    expect(board.name).toBe("My Board");
+    expect(board.name).toBe("My board");
     expect(board.device_type).toBe("flagship");
     expect(board.board_color).toBe("black");
-    expect(board.api_mode).toBe("local");
+    expect(board.output_config.api_mode).toBe("local");
     expect(board.enabled).toBe(true);
+
+    expect(board.output_config.host).toBe(BOARD_HOST);
+    expect(board.output_config.local_api_key).toBe("***");
+    const pagesAfter = await (await fetch(`${API_URL}/pages`, { headers: authHeaders() })).json();
+    expect(pagesAfter.pages.map((item: { id: string }) => item.id).sort()).toEqual(
+      pagesBefore.pages.map((item: { id: string }) => item.id).sort(),
+    );
 
     // Clean up
     await resetToSingleBoard();

@@ -850,14 +850,14 @@ export function suppressWizard(page: Page) {
   });
 }
 
-/**
- * The setup wizard opens on "What do you want to show FiestaBoard on?"
- * (plan D18). Choose the Vestaboard card and continue to its connect step.
- */
+/** Start the first-run hub setup and choose its first display. */
 export async function chooseVestaboardInWizard(page: Page) {
-  await page.getByRole("heading", { name: "What do you want to show FiestaBoard on?" }).waitFor({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Get started", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "What will FiestaBoard drive?" })).toBeVisible();
   await page.getByRole("radio", { name: /Vestaboard/ }).click();
-  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Connect your Vestaboard" })).toBeVisible();
 }
 
 /**
@@ -891,22 +891,71 @@ export async function openDisplay(page: Page, name: string): Promise<Locator> {
   return settings;
 }
 
-/**
- * Displays → Add a display → Vestaboard → *shape*: adds that board and lands
- * on its page. Returns the new board's id.
- */
+/** Add a distinct mock-backed Vestaboard through the two-step connection dialog. */
 export async function addVestaboardDisplay(page: Page, shape: "Flagship" | "Note" | "Note Array"): Promise<string> {
+  const before = await (await fetch(`${API_URL}/settings/board`, { headers: authHeaders() })).json();
+  const names = new Set(before.boards.map((board: { name: string }) => board.name));
+  let suffix = 2;
+  while (names.has(`My Board ${suffix}`)) suffix++;
+  const name = `My Board ${suffix}`;
   await openDisplays(page);
-  await page.getByRole("button", { name: "Add a display" }).click();
-  const dialog = page.getByRole("dialog", { name: "Add a display" });
+  await page.getByRole("button", { name: "Add a display", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Add a display", exact: true });
   await dialog.getByRole("radio", { name: /Vestaboard/ }).click();
   await dialog.getByRole("button", { name: "Next", exact: true }).click();
-  await page
-    .getByRole("dialog", { name: "Add a Vestaboard" })
-    .getByRole("button", { name: shape, exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/displays\/[^/]+$/, { timeout: 15_000 });
-  return decodeURIComponent(new URL(page.url()).pathname.split("/").pop() ?? "");
+  await dialog.getByRole("combobox", { name: "Board type", exact: true }).click();
+  if (shape === "Note Array") {
+    await expect(page.getByRole("option", { name: "Flagship · 22 × 6", exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Note · 15 × 3", exact: true })).toBeVisible();
+  }
+  const optionName = shape === "Note Array" ? "Note Array" : `${shape} · ${shape === "Note" ? "15 × 3" : "22 × 6"}`;
+  await page.getByRole("option", { name: optionName, exact: true }).click();
+  await dialog.getByLabel("Display name", { exact: true }).fill(name);
+  if (shape !== "Note Array") await dialog.getByRole("radio", { name: /Cloud/ }).click();
+  const secret = `e2e-${shape.toLowerCase().replaceAll(" ", "-")}-${suffix}-cloud-credential`;
+  await dialog
+    .getByLabel(shape === "Note Array" ? "Cloud API Token" : "Cloud Read/Write key", { exact: true })
+    .fill(secret);
+  const draftRoute = "**/api/outputs/vestaboard/actions/test_connection";
+  const handleDraft: Parameters<Page["route"]>[1] = async (route) => {
+    expect(route.request().postDataJSON().output_config).toMatchObject({
+      api_mode: "cloud",
+      [shape === "Note Array" ? "note_array_token" : "cloud_key"]: secret,
+      ...(shape === "Note Array" ? { device_type: "note_array", notes_wide: 2, notes_tall: 1 } : {}),
+    });
+    // Only the external hardware call is faked; adding and persisting the board
+    // below still use the real backend and are asserted by callers.
+    await route.fulfill({
+      json: {
+        status: "ok",
+        message: "Mock display connection verified",
+        guidance: [],
+        fields: {},
+        geometry: null,
+        devices: [],
+      },
+    });
+  };
+  await page.route(draftRoute, handleDraft);
+  try {
+    await expect(dialog.getByRole("button", { name: "Add display", exact: true })).toBeDisabled();
+    await dialog.getByRole("button", { name: "Test connection", exact: true }).click();
+    await expect(dialog.getByRole("status").filter({ hasText: /Connected · \d+ ms/ })).toBeVisible();
+    const added = page.waitForResponse(
+      (response) => response.url().endsWith("/api/settings/board/add") && response.request().method() === "POST",
+    );
+    await dialog.getByRole("button", { name: "Add display", exact: true }).click();
+    const response = await added;
+    expect(response.ok()).toBe(true);
+    const settings = await response.json();
+    const board = settings.boards.find((item: { name: string }) => item.name === name);
+    expect(board).toBeDefined();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/displays/${encodeURIComponent(board.id)}$`));
+    return board.id;
+  } finally {
+    await page.unroute(draftRoute, handleDraft);
+  }
 }
 
 /**

@@ -140,7 +140,9 @@ async def list_boards() -> BoardListResponse:
         "One answer to 'what is this board showing, and why'. It merges what the internal API splits across three "
         "endpoints: the flaps currently on the board, the page pinned to it by hand, and the page its schedule "
         "selects for right now. `source` says which of the two won. `board` may be a board id or the literal "
-        "`primary`."
+        "`primary`. Expired overrides have null `override_started_at` and `override_expires_at`, even while "
+        "their revert is pending. Polling never consumes the pending revert; the display engine handles it "
+        "for this board. Null timestamps do not guarantee the physical board has repainted yet."
     ),
 )
 async def get_board(board: str) -> BoardDetail:

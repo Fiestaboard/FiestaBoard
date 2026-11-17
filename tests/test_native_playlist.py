@@ -424,7 +424,7 @@ def test_temporary_override_still_wins_over_native_freeze_silence(native_engine)
     env.service._poll_output_devices()
     env.cfg.is_silence_mode_active.return_value = True
     env.settings.consume_temporary_override.return_value = SimpleNamespace(
-        is_expired=lambda: False, is_inline=False, page_id="pA"
+        is_expired=lambda at=None: False, is_inline=False, page_id="pA"
     )
     env.drive()
     assert env.plugin.writes[-1][0][0].value == "A", "explicit override must win over selected B freeze"
@@ -436,7 +436,7 @@ def test_native_feedback_is_ignored_after_a_plain_override(native_engine):
     env = native_engine
     env.drive()
     env.settings.consume_temporary_override.return_value = SimpleNamespace(
-        is_expired=lambda: False, is_inline=False, page_id="pA"
+        is_expired=lambda at=None: False, is_inline=False, page_id="pA"
     )
     env.drive()
     env.plugin.news = DevicePoll(native_selection=NativePageSelection("pB"))

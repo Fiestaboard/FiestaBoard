@@ -97,7 +97,7 @@ class TestGetTemporaryOverride:
 
     def test_returns_inactive_when_override_expired(self, client, settings_service):
         past = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
-        # Set directly without the auto-clear logic on get
+        # Seed an expired override awaiting the display engine's revert.
         settings_service._temporary_override = TemporaryOverride(page_id="p1", expires_at=past, revert_mode="schedule")
         r = client.get("/settings/temporary-override")
         assert r.status_code == 200
@@ -265,7 +265,9 @@ class TestSettingsServiceOverride:
         svc._temporary_override = TemporaryOverride(page_id="p1", expires_at=past, revert_mode="schedule")
         result = svc.get_temporary_override()
         assert result is None
-        # Also verifies auto-clear persisted
+        # Status reads leave the pending revert for the display engine.
+        assert svc._temporary_override is not None
+        assert svc.consume_temporary_override().page_id == "p1"
         assert svc._temporary_override is None
 
     def test_clear_override(self, tmp_settings_file):
