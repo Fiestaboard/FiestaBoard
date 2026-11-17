@@ -65,7 +65,7 @@ from .service import (
     verify_mcp_bearer,
 )
 from .session_store import SessionLimit
-from .step_up import is_elevated, step_up_required_response
+from .step_up import STEP_UP_REQUIRED_BODY, is_elevated
 
 logger = logging.getLogger(__name__)
 
@@ -328,7 +328,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 status_code=403,
             )
         if requires_step_up(scope, method, path) and not await run_in_threadpool(is_elevated, svc, session.id):
-            return step_up_required_response()
+            return JSONResponse(dict(STEP_UP_REQUIRED_BODY), status_code=403)
         if scope == TV_PANELS and method == "PATCH":
             try:
                 body = await request.json()
