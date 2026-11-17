@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { locales, type Locale } from "@/i18n/config";
+import { type Locale, locales } from "@/i18n/config";
 import i18n, { i18nReady } from "@/i18n/i18next";
 import { useTranslations } from "@/i18n/translations";
 

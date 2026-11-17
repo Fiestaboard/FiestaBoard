@@ -12,11 +12,13 @@
 
 **Review focus:** Locale-specific zero/one/few/many and exact ICU selectors; language switching; medium DOM/visual order; desktop sidebar geometry; phone preview independent of settings and dirty-state propagation.
 
-- [ ] Add failing layout-order and independent phone-preview tests; add browser geometry assertions to the existing 24-state parity matrix.
-- [ ] Add failing real translation-hook tests for all locales and relevant plural categories.
-- [ ] Run and observe RED before production edits, then implement minimal fixes and observe GREEN.
-- [ ] Run full web coverage, typecheck, lint, format, build, collection e2e and axe; capture 390/768/900/1280 light/dark.
+- [x] Add failing layout-order and independent phone-preview tests; add browser geometry assertions to the existing 24-state parity matrix.
+- [x] Add failing real translation-hook tests for all locales and relevant plural categories.
+- [x] Run and observe RED before production edits, then implement minimal fixes and observe GREEN.
+- [x] Run full web coverage, typecheck, lint, format, build, collection e2e and axe; capture 390/768/900/1280 light/dark.
 - [ ] Recheck live Figma (initial calls rate-limited), independent Astra review, fix any findings within two rounds.
 - [ ] Commit, push normal, PR into v11, observe CI and record evidence/status/ownership.
 
 Decision: Jev selected conditional preview placement (p=0.80), retaining one mounted preview at each breakpoint and independent phone disclosures, instead of splitting settings or CSS ordering.
+
+Verification ledger: layout RED2/GREEN11; locale RED25/GREEN93; full coverage300files/3781pass/7skip (all80%gates pass). Initial browser matrix24states/28captures passed. Documentation lint passed. Final evidence and review are recorded in program status `web26bf.md`; PR#2522 targets `v11`.
