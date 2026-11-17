@@ -1256,7 +1256,7 @@ async def get_board_settings():
     responses={**ERROR_400},
     dependencies=[flat_board_fields_notice()],
 )
-async def update_board_settings(request: BoardSettingsUpdate):
+async def update_board_settings(request: BoardSettingsUpdate, http_request: Request):
     """
     Update board settings.
 
@@ -1286,6 +1286,17 @@ async def update_board_settings(request: BoardSettingsUpdate):
             return board.to_dict()
         if "boards" in provided:
             before = [dict(b) for b in (settings_service.get_board_settings().boards or []) if isinstance(b, dict)]
+            if phone_policy.is_phone(http_request):
+                from .phone_displays import first_board_needing_key
+
+                needs_key = first_board_needing_key(provided["boards"], before)
+                if needs_key is not None:
+                    return JSONResponse(
+                        phone_policy.key_required_body(
+                            f"Enter the key for display {needs_key!r} again: its connection settings changed."
+                        ),
+                        status_code=400,
+                    )
             board = settings_service.set_boards(provided["boards"])
             resized = _resized_boards(before, board.boards)
             # Drop each resized board's old-shape frames BEFORE rebuilding

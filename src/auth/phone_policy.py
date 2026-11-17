@@ -154,3 +154,5 @@ def redact_backup(backup: dict[str, Any]) -> dict[str, Any]:
         "Restoring this file keeps *** in their place, so enter them again afterwards."
     )
     return document
+
+

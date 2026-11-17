@@ -114,9 +114,16 @@ _ALLOWED = (
     "check_plugin_updates",
     "check_for_update",
     "test_ai_provider",
-    # Displays: read-only descriptions (secrets masked).
+    # Displays: read-only descriptions (secrets masked), and H21a's add, change,
+    # remove and detect-size. A connection change that echoes a masked key is
+    # refused for phones (see _DISPLAY_CONNECTION_TOOLS).
     "list_display_outputs",
     "get_display_info",
+    "add_board",
+    "remove_board",
+    "detect_board_size",
+    "update_board",  # not its host or mode: see the argument rule
+    "create_display",
     # Status and diagnostics.
     "get_system_status",
     "run_network_diagnostics",
@@ -137,16 +144,12 @@ _STEP_UP = (
     "export_backup",  # redacted for a phone
 )
 
-# Denied for phones, named so the table is complete. Display add, remove,
-# resize and connection changes wait for H21a. Importing pages saves them (the
+# Denied for phones, named so the table is complete. Importing pages saves them (the
 # phone only previews an import). The rest are debug tools, demo pages and a
 # settings summary whose routes a phone cannot reach.
 _DENIED = (
-    "add_board",
-    "remove_board",
-    "detect_board_size",
-    "update_board",
-    "create_display",
+    # Merges connection settings and keeps omitted secrets; a phone changes a
+    # display's connection through PUT /settings/board, which checks re-entry.
     "configure_display",
     # Device actions can carry temporary connection edits; until the output
     # side of the H10 F5 host guard ships, the chat does not add a new path to them.
@@ -170,6 +173,9 @@ CONTROL_TOOLS: dict[str, Tier] = {
 
 #: Arguments that make an otherwise permitted call a denied one.
 _GIT_INSTALL_ARGS = ("repository", "branch")
+
+#: ``update_board`` arguments that change where a display's key is sent (H21a).
+_BOARD_CONNECTION_ARGS = ("host", "api_mode")
 
 #: ``update_setting`` categories a phone may change (tier 2). The others stay
 #: with the web app: ``mqtt`` (a host change would send the stored password to
@@ -197,6 +203,10 @@ def tier_for(name: str, args: dict[str, Any] | None = None) -> Tier:
         # Install from a Git URL runs arbitrary code; it stays browser-only.
         return DENIED
     if name == "update_setting" and (args or {}).get("category") not in PHONE_SETTING_CATEGORIES:
+        return DENIED
+    if name == "update_board" and any(key in (args or {}) for key in _BOARD_CONNECTION_ARGS):
+        # The tool takes no key, so a host or mode change would keep the stored
+        # one and send it to the new host. A phone uses PUT /settings/board.
         return DENIED
     return tier
 

@@ -238,8 +238,8 @@ controls new phone sign-ins, as it does for TVs. A phone can also pair with a QR
 instead of a password (see below). The TV-style code on `/activate` is not offered to
 phones.
 
-A phone credential can do what the app needs: show and change what each display
-shows, start and end overrides, edit pages, collections and schedules, configure
+A phone credential can do what the app needs: add, change and remove displays (every
+display type, MQTT included), show and change what each display shows, start and end overrides, edit pages, collections and schedules, configure
 installed integrations and their sign-ins, manage TVs, run device actions such as
 **Identify**, and read status and diagnostics. It also has the whole `/v1` API.
 
@@ -250,8 +250,9 @@ A phone credential **cannot**:
 - export a backup with its secrets, or reinstall plugins while restoring a backup;
 - change the update channel, turn automatic updates on or off, or roll back an update;
 - install plugins from a Git URL, or install outputs;
-- read stored secrets, or change MQTT or display connection settings;
-- move an AI provider to a new address or protocol without typing its key again.
+- read stored secrets, or change MQTT settings;
+- move an AI provider or a display to new connection settings without typing its key
+  again.
 
 ### Step-up on the phone
 
@@ -283,6 +284,11 @@ A phone reads AI provider keys and custom header values as `***`. If it changes 
 provider's address or protocol, it has to send the key again, or the hub answers `400`
 with `"error": "key_required"`. A phone can test a saved provider. It can test an
 unsaved one only with the key typed in.
+
+A phone reads display keys as `***`. If it changes a saved display's connection
+settings (address, port, mode, tiles or its plugin settings), it has to send the key
+again, or the hub answers `400` with `"error": "key_required"`. A connection test on
+edited settings follows the same rule. Leaving the key out of a save clears it.
 
 Checking for plugin updates doesn't need step-up. Neither do general settings
 (`PUT /config/general`), reading Wi-Fi status, saved networks and scan results, or
