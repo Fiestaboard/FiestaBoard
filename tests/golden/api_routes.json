@@ -2389,6 +2389,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/v1/render-assets",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_render_assets",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/v1/schedules",
       "methods": [
         "GET"
