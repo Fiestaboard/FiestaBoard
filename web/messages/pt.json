@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "Alterações, painel e histórico",
       "scope": "O modo de aprovação no painel aplica-se a todos neste hub.",
-      "unavailable": "As preferências pessoais de aprovação, painel e histórico ainda não estão disponíveis. Gerencie as conversas no painel do FiestaBot.",
-      "open": "Abrir FiestaBot"
+      "unavailable": "As preferências pessoais de aprovação, painel e histórico ainda não estão disponíveis.",
+      "open": "Abrir FiestaBot",
+      "setup": "Configurar provedor de IA",
+      "needsSetup": "O FiestaBot precisa de IA ativada e um provedor configurado neste hub.",
+      "checking": "Verificando a disponibilidade do FiestaBot…",
+      "checkFailed": "Não foi possível verificar a disponibilidade do FiestaBot.",
+      "retry": "Tentar novamente"
     },
     "addresses": {
       "title": "Endereços",

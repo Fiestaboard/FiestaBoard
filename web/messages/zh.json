@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "更改、侧栏和历史记录",
       "scope": "侧栏中的审批模式适用于此中枢上的所有人。",
-      "unavailable": "暂不支持个人审批、侧栏和历史记录偏好。请在 FiestaBot 侧栏中管理对话。",
-      "open": "打开 FiestaBot"
+      "unavailable": "暂不支持个人审批、侧栏和历史记录偏好。",
+      "open": "打开 FiestaBot",
+      "setup": "设置 AI 提供商",
+      "needsSetup": "FiestaBot 需要在此中枢上启用 AI 并配置提供商。",
+      "checking": "正在检查 FiestaBot 是否可用…",
+      "checkFailed": "无法检查 FiestaBot 是否可用。",
+      "retry": "重试"
     },
     "addresses": {
       "title": "地址",

@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "Änderungen, Seitenleiste und Verlauf",
       "scope": "Der Genehmigungsmodus in der Seitenleiste gilt für alle an diesem Hub.",
-      "unavailable": "Persönliche Einstellungen für Genehmigungen, Seitenleiste und Verlauf sind noch nicht verfügbar. Verwalte Unterhaltungen in der FiestaBot-Seitenleiste.",
-      "open": "FiestaBot öffnen"
+      "unavailable": "Persönliche Einstellungen für Genehmigungen, Seitenleiste und Verlauf sind noch nicht verfügbar.",
+      "open": "FiestaBot öffnen",
+      "setup": "KI-Anbieter einrichten",
+      "needsSetup": "FiestaBot benötigt aktivierte KI und einen eingerichteten Anbieter auf diesem Hub.",
+      "checking": "Verfügbarkeit von FiestaBot wird geprüft…",
+      "checkFailed": "Die Verfügbarkeit von FiestaBot konnte nicht geprüft werden.",
+      "retry": "Erneut versuchen"
     },
     "addresses": {
       "title": "Adressen",

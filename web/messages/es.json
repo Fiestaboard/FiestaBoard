@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "Cambios, panel e historial",
       "scope": "El modo de aprobación del panel se aplica a todos en este hub.",
-      "unavailable": "Aún no hay preferencias personales de aprobación, panel e historial. Gestiona las conversaciones en el panel de FiestaBot.",
-      "open": "Abrir FiestaBot"
+      "unavailable": "Aún no hay preferencias personales de aprobación, panel e historial.",
+      "open": "Abrir FiestaBot",
+      "setup": "Configurar proveedor de IA",
+      "needsSetup": "FiestaBot necesita que la IA esté habilitada y un proveedor configurado en este hub.",
+      "checking": "Comprobando la disponibilidad de FiestaBot…",
+      "checkFailed": "No se pudo comprobar la disponibilidad de FiestaBot.",
+      "retry": "Reintentar"
     },
     "addresses": {
       "title": "Direcciones",

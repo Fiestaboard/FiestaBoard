@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "Modifiche, pannello e cronologia",
       "scope": "La modalità di approvazione nel pannello vale per tutti su questo hub.",
-      "unavailable": "Le preferenze personali per approvazione, pannello e cronologia non sono ancora disponibili. Gestisci le conversazioni nel pannello FiestaBot.",
-      "open": "Apri FiestaBot"
+      "unavailable": "Le preferenze personali per approvazione, pannello e cronologia non sono ancora disponibili.",
+      "open": "Apri FiestaBot",
+      "setup": "Configura il fornitore IA",
+      "needsSetup": "FiestaBot richiede IA abilitata e un fornitore configurato su questo hub.",
+      "checking": "Verifica della disponibilità di FiestaBot…",
+      "checkFailed": "Impossibile verificare la disponibilità di FiestaBot.",
+      "retry": "Riprova"
     },
     "addresses": {
       "title": "Indirizzi",

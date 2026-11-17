@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "変更、パネル、履歴",
       "scope": "パネルの承認モードはこのハブの全員に適用されます。",
-      "unavailable": "個人別の承認、パネル、履歴の設定はまだ利用できません。FiestaBotパネルで会話を管理してください。",
-      "open": "FiestaBotを開く"
+      "unavailable": "個人別の承認、パネル、履歴の設定はまだ利用できません。",
+      "open": "FiestaBotを開く",
+      "setup": "AIプロバイダーを設定",
+      "needsSetup": "FiestaBotを使うには、このハブでAIを有効にし、プロバイダーを設定してください。",
+      "checking": "FiestaBotが利用可能か確認中…",
+      "checkFailed": "FiestaBotが利用可能か確認できませんでした。",
+      "retry": "再試行"
     },
     "addresses": {
       "title": "アドレス",

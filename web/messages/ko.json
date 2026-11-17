@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "변경, 패널 및 기록",
       "scope": "패널의 승인 모드는 이 허브의 모든 사용자에게 적용됩니다.",
-      "unavailable": "개인별 승인, 패널 및 기록 설정은 아직 지원되지 않습니다. FiestaBot 패널에서 대화를 관리하세요.",
-      "open": "FiestaBot 열기"
+      "unavailable": "개인별 승인, 패널 및 기록 설정은 아직 지원되지 않습니다.",
+      "open": "FiestaBot 열기",
+      "setup": "AI 제공자 설정",
+      "needsSetup": "FiestaBot을 사용하려면 이 허브에서 AI를 활성화하고 제공자를 설정해야 합니다.",
+      "checking": "FiestaBot 사용 가능 여부 확인 중…",
+      "checkFailed": "FiestaBot 사용 가능 여부를 확인할 수 없습니다.",
+      "retry": "다시 시도"
     },
     "addresses": {
       "title": "주소",

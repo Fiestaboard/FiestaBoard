@@ -939,8 +939,13 @@
     "fiestabot": {
       "title": "Changes, drawer and history",
       "scope": "Approval mode in the drawer applies to everyone on this hub.",
-      "unavailable": "Per-person approval, drawer and history preferences are not available yet. Manage conversations in the FiestaBot drawer.",
-      "open": "Open FiestaBot"
+      "unavailable": "Per-person approval, drawer and history preferences are not available yet.",
+      "open": "Open FiestaBot",
+      "setup": "Set up AI provider",
+      "needsSetup": "FiestaBot needs AI enabled and a configured provider on this hub.",
+      "checking": "Checking FiestaBot availability…",
+      "checkFailed": "Could not check FiestaBot availability.",
+      "retry": "Try again"
     },
     "addresses": {
       "title": "Addresses",

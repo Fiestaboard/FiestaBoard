@@ -34,9 +34,11 @@ for (const width of [390, 768, 1280]) {
         await expect(page.locator("body")).toHaveJSProperty("scrollWidth", width);
         await injectAxe(page);
         const violations = await getViolations(page, '[data-slot="settings-detail"]', {
-          runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+          runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
+          // axe disables this WCAG 2.2 AA rule by default; browser layout is available here.
+          rules: { "target-size": { enabled: true } },
         });
-        expect(violations.filter((v) => v.impact === "serious" || v.impact === "critical")).toEqual([]);
+        expect(violations).toEqual([]);
         await page.screenshot({
           path: testInfo.outputPath(`cx-settings-${section}-${width}-${theme}.png`),
           fullPage: true,

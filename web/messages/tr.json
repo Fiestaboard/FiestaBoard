@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "Değişiklikler, panel ve geçmiş",
       "scope": "Paneldeki onay modu bu hub üzerindeki herkes için geçerlidir.",
-      "unavailable": "Kişiye özel onay, panel ve geçmiş tercihleri henüz kullanılamıyor. Görüşmeleri FiestaBot panelinden yönetin.",
-      "open": "FiestaBot’u aç"
+      "unavailable": "Kişiye özel onay, panel ve geçmiş tercihleri henüz kullanılamıyor.",
+      "open": "FiestaBot’u aç",
+      "setup": "AI sağlayıcısını ayarla",
+      "needsSetup": "FiestaBot için bu hub üzerinde AI etkin ve bir sağlayıcı yapılandırılmış olmalıdır.",
+      "checking": "FiestaBot kullanılabilirliği kontrol ediliyor…",
+      "checkFailed": "FiestaBot kullanılabilirliği kontrol edilemedi.",
+      "retry": "Yeniden dene"
     },
     "addresses": {
       "title": "Adresler",

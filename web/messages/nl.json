@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "Wijzigingen, paneel en geschiedenis",
       "scope": "De goedkeuringsmodus in het paneel geldt voor iedereen op deze hub.",
-      "unavailable": "Persoonlijke voorkeuren voor goedkeuring, paneel en geschiedenis zijn nog niet beschikbaar. Beheer gesprekken in het FiestaBot-paneel.",
-      "open": "FiestaBot openen"
+      "unavailable": "Persoonlijke voorkeuren voor goedkeuring, paneel en geschiedenis zijn nog niet beschikbaar.",
+      "open": "FiestaBot openen",
+      "setup": "AI-provider instellen",
+      "needsSetup": "FiestaBot vereist ingeschakelde AI en een ingestelde provider op deze hub.",
+      "checking": "Beschikbaarheid van FiestaBot controleren…",
+      "checkFailed": "De beschikbaarheid van FiestaBot kon niet worden gecontroleerd.",
+      "retry": "Opnieuw proberen"
     },
     "addresses": {
       "title": "Adressen",

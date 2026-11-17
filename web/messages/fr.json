@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "Modifications, panneau et historique",
       "scope": "Le mode d’approbation du panneau concerne tous les utilisateurs de ce hub.",
-      "unavailable": "Les préférences personnelles d’approbation, de panneau et d’historique ne sont pas encore disponibles. Gérez les conversations dans le panneau FiestaBot.",
-      "open": "Ouvrir FiestaBot"
+      "unavailable": "Les préférences personnelles d’approbation, de panneau et d’historique ne sont pas encore disponibles.",
+      "open": "Ouvrir FiestaBot",
+      "setup": "Configurer le fournisseur d’IA",
+      "needsSetup": "FiestaBot nécessite une IA activée et un fournisseur configuré sur ce hub.",
+      "checking": "Vérification de la disponibilité de FiestaBot…",
+      "checkFailed": "Impossible de vérifier la disponibilité de FiestaBot.",
+      "retry": "Réessayer"
     },
     "addresses": {
       "title": "Adresses",

@@ -6,29 +6,12 @@ import { http, HttpResponse } from "msw";
 import path from "path";
 import { describe, expect, it } from "vitest";
 
-import { GlobalAiPanelProvider, useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings";
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
-import { FiestaBotSettings } from "@/components/settings/fiestabot-settings";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { locales } from "@/i18n/config";
 
 import { server } from "./mocks/server";
-
-function DrawerState() {
-  return useGlobalAiPanel().isOpen ? <div>Drawer opened</div> : null;
-}
-
-it("opens the real global FiestaBot drawer from Settings", async () => {
-  render(
-    <GlobalAiPanelProvider>
-      <FiestaBotSettings />
-      <DrawerState />
-    </GlobalAiPanelProvider>,
-  );
-  await userEvent.click(screen.getByRole("button", { name: "Open FiestaBot" }));
-  expect(screen.getByText("Drawer opened")).toBeInTheDocument();
-});
 
 it("saves theme in this browser", async () => {
   localStorage.setItem("theme", "light");
@@ -68,7 +51,7 @@ describe("Settings section locale coverage", () => {
     for (const [group, keys] of Object.entries({
       panels: ["theme", "browserTheme", "motionScope"],
       addresses: ["title", "description", "browser", "ip", "hint"],
-      fiestabot: ["title", "scope", "unavailable", "open"],
+      fiestabot: ["title", "scope", "unavailable", "open", "setup", "needsSetup", "checking", "checkFailed", "retry"],
     })) {
       for (const key of keys) expect(messages.settings[group][key]).toEqual(expect.any(String));
     }

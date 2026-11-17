@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "Zmiany, panel i historia",
       "scope": "Tryb zatwierdzania w panelu dotyczy wszystkich użytkowników tego huba.",
-      "unavailable": "Osobiste preferencje zatwierdzania, panelu i historii nie są jeszcze dostępne. Zarządzaj rozmowami w panelu FiestaBot.",
-      "open": "Otwórz FiestaBot"
+      "unavailable": "Osobiste preferencje zatwierdzania, panelu i historii nie są jeszcze dostępne.",
+      "open": "Otwórz FiestaBot",
+      "setup": "Skonfiguruj dostawcę AI",
+      "needsSetup": "FiestaBot wymaga włączenia AI i skonfigurowania dostawcy na tym hubie.",
+      "checking": "Sprawdzanie dostępności FiestaBot…",
+      "checkFailed": "Nie udało się sprawdzić dostępności FiestaBot.",
+      "retry": "Spróbuj ponownie"
     },
     "addresses": {
       "title": "Adresy",

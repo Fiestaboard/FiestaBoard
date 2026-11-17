@@ -983,8 +983,13 @@
     "fiestabot": {
       "title": "Ändringar, panel och historik",
       "scope": "Godkännandeläget i panelen gäller alla på den här hubben.",
-      "unavailable": "Personliga inställningar för godkännande, panel och historik är ännu inte tillgängliga. Hantera samtal i FiestaBot-panelen.",
-      "open": "Öppna FiestaBot"
+      "unavailable": "Personliga inställningar för godkännande, panel och historik är ännu inte tillgängliga.",
+      "open": "Öppna FiestaBot",
+      "setup": "Konfigurera AI-leverantör",
+      "needsSetup": "FiestaBot kräver aktiverad AI och en konfigurerad leverantör på den här hubben.",
+      "checking": "Kontrollerar om FiestaBot är tillgänglig…",
+      "checkFailed": "Det gick inte att kontrollera om FiestaBot är tillgänglig.",
+      "retry": "Försök igen"
     },
     "addresses": {
       "title": "Adresser",
