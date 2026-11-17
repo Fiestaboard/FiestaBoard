@@ -1,12 +1,12 @@
 """Published-image endpoint calibration; all execution is explicitly requested."""
 
+import argparse
+import json
+import re
+import sys
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
-import json
-import uuid
-import re
-import argparse
-import sys
 from urllib.parse import urlencode
 
 from runtime_common import JsonlWriter, ProtocolError, require_ok, summarize_requests, validate_preview
@@ -57,35 +57,74 @@ def api_operations(manifest):
             raise ProtocolError(message)
 
     def listing(key, count):
-        return lambda body: check(body.get("total") == count and len(body.get(key, [])) == count,
-                                  "Timed list count differs from verified fixture")
+        return lambda body: check(
+            body.get("total") == count and len(body.get(key, [])) == count,
+            "Timed list count differs from verified fixture",
+        )
 
     operations = [
-        ApiOperation("health", "all", "n/a", "GET", "/api/v1/health", None,
-                     lambda body: check(body.get("status") == "healthy", "Liveness failed")),
-        ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", None,
-                     lambda body: check(body.get("running") is True and body.get("initialized") is True,
-                                        "Runtime stopped or uninitialized")),
+        ApiOperation(
+            "health",
+            "all",
+            "n/a",
+            "GET",
+            "/api/v1/health",
+            None,
+            lambda body: check(body.get("status") == "healthy", "Liveness failed"),
+        ),
+        ApiOperation(
+            "status",
+            "all",
+            "n/a",
+            "GET",
+            "/api/v1/status",
+            None,
+            lambda body: check(
+                body.get("running") is True and body.get("initialized") is True, "Runtime stopped or uninitialized"
+            ),
+        ),
         ApiOperation("boards", "all", "n/a", "GET", "/api/v1/boards", None, listing("boards", 4)),
         ApiOperation("pages", "all", "n/a", "GET", "/api/v1/pages", None, listing("pages", 96)),
         ApiOperation("collections", "all", "n/a", "GET", "/api/v1/collections", None, listing("collections", 12)),
-        ApiOperation("schedules_all", "all", "n/a", "GET", "/api/v1/schedules?board_id=*", None, listing("schedules", 32)),
+        ApiOperation(
+            "schedules_all", "all", "n/a", "GET", "/api/v1/schedules?board_id=*", None, listing("schedules", 32)
+        ),
     ]
     pages_by_id = {p["id"]: p for p in manifest["pages"]}
     for geometry, board in manifest["boards"].items():
         bid = board["id"]
         ids = board["page_ids"][4:16]  # Exclude primary active01 and the mutable02–04 ring.
-        operations.append(ApiOperation("board_detail", geometry, "n/a", "GET", f"/api/v1/boards/{bid}", None,
-                                       lambda body, b=board: check(body.get("id") == b["id"] and
-                                           (body.get("rows"), body.get("cols")) == (b["rows"], b["cols"]),
-                                           "Board detail identity/geometry differs")))
-        operations.append(ApiOperation("schedules", geometry, "n/a", "GET", f"/api/v1/schedules?board_id={bid}", None,
-                                       listing("schedules", 8)))
+        operations.append(
+            ApiOperation(
+                "board_detail",
+                geometry,
+                "n/a",
+                "GET",
+                f"/api/v1/boards/{bid}",
+                None,
+                lambda body, b=board: check(
+                    body.get("id") == b["id"] and (body.get("rows"), body.get("cols")) == (b["rows"], b["cols"]),
+                    "Board detail identity/geometry differs",
+                ),
+            )
+        )
+        operations.append(
+            ApiOperation(
+                "schedules", geometry, "n/a", "GET", f"/api/v1/schedules?board_id={bid}", None, listing("schedules", 8)
+            )
+        )
         for forced in (False, True):
-            operations.append(ApiOperation("preview_batch_forced" if forced else "preview_batch_prefilled", geometry,
-                                           "forced-page-render" if forced else "prefilled-preview", "POST", "/api/pages/preview/batch",
-                                           {"page_ids": ids, "force_refresh": forced, "board_id": bid},
-                                           lambda body, wanted=ids: validate_preview(body, wanted)))
+            operations.append(
+                ApiOperation(
+                    "preview_batch_forced" if forced else "preview_batch_prefilled",
+                    geometry,
+                    "forced-page-render" if forced else "prefilled-preview",
+                    "POST",
+                    "/api/pages/preview/batch",
+                    {"page_ids": ids, "force_refresh": forced, "board_id": bid},
+                    lambda body, wanted=ids: validate_preview(body, wanted),
+                )
+            )
         template = ["PERF", '{{= SUM(1,2) }} {{= UPPER("a") }}', '{{= DEFAULT(countdown.days,"N/A") }} {{= 4*5 }}']
         target = {"board_id": bid, "device_type": board["device_type"], "template": template}
         if geometry == "array":
@@ -96,39 +135,109 @@ def api_operations(manifest):
         def render_check(body, diagnostics=False, b=board):
             lines = body.get("lines")
             check(isinstance(lines, list) and len(lines) == b["rows"], "Rendered row geometry differs")
-            check(all(isinstance(line, str) and len(line) <= b["cols"] for line in lines), "Rendered column geometry differs")
-            check(not re.search(r"#(?:REF|VALUE|DIV/0|NAME\?|NUM|SYNTAX)", body.get("rendered", "")), "Unexpected formula error")
+            check(
+                all(isinstance(line, str) and len(line) <= b["cols"] for line in lines),
+                "Rendered column geometry differs",
+            )
+            check(
+                not re.search(r"#(?:REF|VALUE|DIV/0|NAME\?|NUM|SYNTAX)", body.get("rendered", "")),
+                "Unexpected formula error",
+            )
             if diagnostics:
                 formulas = body.get("diagnostics", {}).get("formulas", [])
-                check([f.get("value") for f in formulas] == ["3", "A", "N/A", "20"] and
-                      all(f.get("error") is None for f in formulas), "Formula diagnostics differ")
+                check(
+                    [f.get("value") for f in formulas] == ["3", "A", "N/A", "20"]
+                    and all(f.get("error") is None for f in formulas),
+                    "Formula diagnostics differ",
+                )
 
         for name, diagnostics in (("render", False), ("render_diagnostics", True)):
-            payload = {**target, "diagnostics": diagnostics, "preview": {"data": "cached", "at": "2026-11-17T12:00:00+00:00",
-                        "values": {"date_time.hour": 12}, "missing": ["countdown.days"]}}
-            operations.append(ApiOperation(name, geometry, "cached-plugin-data", "POST", "/api/templates/render", payload,
-                                           lambda body, d=diagnostics, validate=render_check: validate(body, d)))
-        operations.append(ApiOperation("validate", geometry, "n/a", "POST", "/api/templates/validate", target,
-                                       lambda body, b=board: check(body.get("valid") is True and not body.get("errors")
-                                           and (body.get("rows"), body.get("cols")) == (b["rows"], b["cols"]),
-                                           "Template validation/geometry failed")))
+            payload = {
+                **target,
+                "diagnostics": diagnostics,
+                "preview": {
+                    "data": "cached",
+                    "at": "2026-11-17T12:00:00+00:00",
+                    "values": {"date_time.hour": 12},
+                    "missing": ["countdown.days"],
+                },
+            }
+            operations.append(
+                ApiOperation(
+                    name,
+                    geometry,
+                    "cached-plugin-data",
+                    "POST",
+                    "/api/templates/render",
+                    payload,
+                    lambda body, d=diagnostics, validate=render_check: validate(body, d),
+                )
+            )
+        operations.append(
+            ApiOperation(
+                "validate",
+                geometry,
+                "n/a",
+                "POST",
+                "/api/templates/validate",
+                target,
+                lambda body, b=board: check(
+                    body.get("valid") is True
+                    and not body.get("errors")
+                    and (body.get("rows"), body.get("cols")) == (b["rows"], b["cols"]),
+                    "Template validation/geometry failed",
+                ),
+            )
+        )
         variable = next(c for c in manifest["collections"] if c["geometry"] == geometry and c["mode"] == "variable")
         expected_pid = variable["page_ids"][0]
-        operations.append(ApiOperation("collection_dry_run", geometry, "cached-plugin-data", "POST",
-            f"/api/collections/{variable['id']}/dry-run", {"at": "2026-11-17T12:00:00+00:00", "data": "cached",
-                "values": {"date_time.hour": 12}, "window_seconds": 3600, "step_seconds": 300},
-            lambda body, pid=expected_pid: check(body.get("page_id") == pid and body.get("truncated") is False and
-                body.get("matched_rule") == 0 and all(r.get("error") is None for r in body.get("rules", [])),
-                "Variable dry-run selected wrong page or truncated/errored")))
+        operations.append(
+            ApiOperation(
+                "collection_dry_run",
+                geometry,
+                "cached-plugin-data",
+                "POST",
+                f"/api/collections/{variable['id']}/dry-run",
+                {
+                    "at": "2026-11-17T12:00:00+00:00",
+                    "data": "cached",
+                    "values": {"date_time.hour": 12},
+                    "window_seconds": 3600,
+                    "step_seconds": 300,
+                },
+                lambda body, pid=expected_pid: check(
+                    body.get("page_id") == pid
+                    and body.get("truncated") is False
+                    and body.get("matched_rule") == 0
+                    and all(r.get("error") is None for r in body.get("rules", [])),
+                    "Variable dry-run selected wrong page or truncated/errored",
+                ),
+            )
+        )
         query = urlencode({"board_id": bid, "at": "2026-11-17T12:00:00+00:00"})
+
         def schedule_checked(body, key=geometry, b=board):
             selected = manifest.get("soak_active_refs", {}).get(key, b["page_ids"][0])
             members = next((c["page_ids"] for c in manifest["collections"] if c["id"] == selected), [selected])
-            check(body.get("schedule_enabled") is False and body.get("source") == "manual"
-                  and body.get("page_id") == selected and body.get("resolved_page_id") in members,
-                  "Declared manual/collection schedule-at selection differs")
-        operations.append(ApiOperation("schedule_at_manual", geometry, "n/a", "GET", f"/api/schedules/active/page?{query}", None,
-            schedule_checked))
+            check(
+                body.get("schedule_enabled") is False
+                and body.get("source") == "manual"
+                and body.get("page_id") == selected
+                and body.get("resolved_page_id") in members,
+                "Declared manual/collection schedule-at selection differs",
+            )
+
+        operations.append(
+            ApiOperation(
+                "schedule_at_manual",
+                geometry,
+                "n/a",
+                "GET",
+                f"/api/schedules/active/page?{query}",
+                None,
+                schedule_checked,
+            )
+        )
         page = pages_by_id[board["page_ids"][1]]
         save_state = {"counter": 0, "last_template": None, "page": page}
 
@@ -140,13 +249,21 @@ def api_operations(manifest):
 
         def saved(body, state=save_state):
             updated = body.get("page", {})
-            check(updated.get("id") == state["page"]["id"] and bool(updated.get("revision")) and
-                updated.get("revision") != state["page"]["revision"] and updated.get("template") == state["last_template"]
-                and body.get("incompatible_references") == [], "Sparse save did not confirm changed content/new revision")
+            check(
+                updated.get("id") == state["page"]["id"]
+                and bool(updated.get("revision"))
+                and updated.get("revision") != state["page"]["revision"]
+                and updated.get("template") == state["last_template"]
+                and body.get("incompatible_references") == [],
+                "Sparse save did not confirm changed content/new revision",
+            )
             state["page"].update(revision=updated["revision"], template=updated["template"])
 
-        operations.append(ApiOperation("save", geometry, "invalidates-page-cache", "PUT", f"/api/v1/pages/{page['id']}",
-                                       prepare_save, saved))
+        operations.append(
+            ApiOperation(
+                "save", geometry, "invalidates-page-cache", "PUT", f"/api/v1/pages/{page['id']}", prepare_save, saved
+            )
+        )
         send_state = {"counter": 0}
 
         def prepare_send(state=send_state, b=board):
@@ -155,11 +272,27 @@ def api_operations(manifest):
 
         def sent(body, b=board):
             frame = body.get("characters", [])
-            check(body.get("sent") is True and body.get("board_id") == b["id"] and not body.get("reason") and
-                len(frame) == b["rows"] and all(len(row) == b["cols"] for row in frame), "Virtual send did not deliver expected geometry")
+            check(
+                body.get("sent") is True
+                and body.get("board_id") == b["id"]
+                and not body.get("reason")
+                and len(frame) == b["rows"]
+                and all(len(row) == b["cols"] for row in frame),
+                "Virtual send did not deliver expected geometry",
+            )
 
-        operations.append(ApiOperation("send", geometry, "n/a", "POST", f"/api/v1/boards/{bid}/message", prepare_send, sent,
-                                       (f"/api/v1/boards/{bid}/active-page", {"page_id": board["page_ids"][0]})))
+        operations.append(
+            ApiOperation(
+                "send",
+                geometry,
+                "n/a",
+                "POST",
+                f"/api/v1/boards/{bid}/message",
+                prepare_send,
+                sent,
+                (f"/api/v1/boards/{bid}/active-page", {"page_id": board["page_ids"][0]}),
+            )
+        )
     return operations
 
 
@@ -174,9 +307,18 @@ def sample_api(client, manifest, out_dir, batches=3, samples=200, warmups=20, *,
     out_dir = Path(out_dir)
     writer = JsonlWriter(out_dir / "requests.jsonl", str(uuid.uuid4()), secrets=client.secrets)
     report = {"valid": True, "aborted": False, "strata": []}
-    writer.write("metadata", seed_id=manifest["seed_id"], source_commit=manifest["source_commit"],
-                 base_url=client.base_url, batches=batches, samples=samples, warmups=warmups,
-                 timeout_seconds=client.timeout, auth="browser-cookie", run_context=client.run_context)
+    writer.write(
+        "metadata",
+        seed_id=manifest["seed_id"],
+        source_commit=manifest["source_commit"],
+        base_url=client.base_url,
+        batches=batches,
+        samples=samples,
+        warmups=warmups,
+        timeout_seconds=client.timeout,
+        auth="browser-cookie",
+        run_context=client.run_context,
+    )
     try:
         for batch in range(1, batches + 1):
             session = client.session_info(min_valid_seconds=7800)
@@ -198,10 +340,20 @@ def sample_api(client, manifest, out_dir, batches=3, samples=200, warmups=20, *,
                     except (ProtocolError, KeyError, TypeError, ValueError):
                         error = error or "HTTP or response-semantic assertion failed"
                     record = writer.write(
-                        "request", phase=phase, batch=batch, operation=operation.name, geometry=operation.geometry,
-                        cache=operation.cache, auth="browser-cookie", elapsed_ms=result.elapsed_ms,
-                        http_status=result.status, bytes=result.body_bytes, semantic_success=success,
-                        error=error, timed_out=result.timed_out, timeout_seconds=client.timeout,
+                        "request",
+                        phase=phase,
+                        batch=batch,
+                        operation=operation.name,
+                        geometry=operation.geometry,
+                        cache=operation.cache,
+                        auth="browser-cookie",
+                        elapsed_ms=result.elapsed_ms,
+                        http_status=result.status,
+                        bytes=result.body_bytes,
+                        semantic_success=success,
+                        error=error,
+                        timed_out=result.timed_out,
+                        timeout_seconds=client.timeout,
                         request={"method": operation.method, "path": operation.path, "body": payload},
                         response=client.safe_result(result),
                     )
@@ -213,9 +365,15 @@ def sample_api(client, manifest, out_dir, batches=3, samples=200, warmups=20, *,
                         report["aborted"] = True
                         break
                 summary = summarize_requests(records)
-                summary.update(batch=batch, operation=operation.name, geometry=operation.geometry,
-                               cache=operation.cache, auth="browser-cookie", planned_samples=samples,
-                               warmups_valid=warmup_ok)
+                summary.update(
+                    batch=batch,
+                    operation=operation.name,
+                    geometry=operation.geometry,
+                    cache=operation.cache,
+                    auth="browser-cookie",
+                    planned_samples=samples,
+                    warmups_valid=warmup_ok,
+                )
                 summary["valid"] = summary["valid"] and len(records) == samples and warmup_ok
                 report["strata"].append(summary)
                 report["valid"] = report["valid"] and summary["valid"]

@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import math
-import json
-import http.cookiejar
 import http.client
+import http.cookiejar
+import json
+import math
 import socket
 import stat
 import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -42,7 +42,9 @@ class HttpResult:
 
 
 class JsonClient:
-    def __init__(self, base_url, credentials, *, transport=None, timeout=30.0, run_context=None, connection_factory=None):
+    def __init__(
+        self, base_url, credentials, *, transport=None, timeout=30.0, run_context=None, connection_factory=None
+    ):
         parsed = urlsplit(base_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
             raise ProtocolError("Use an explicit HTTP(S) origin without credentials")
@@ -76,17 +78,22 @@ class JsonClient:
         try:
             exchange = self.transport or self._exchange
             result = exchange(method, self.base_url + path, payload, headers, self.timeout)
-        except (TimeoutError, socket.timeout):
+        except TimeoutError:
             self.close()
-            result = HttpResult(0, None, elapsed_ms=(time.monotonic() - started) * 1000,
-                                error="Request timed out", timed_out=True)
+            result = HttpResult(
+                0, None, elapsed_ms=(time.monotonic() - started) * 1000, error="Request timed out", timed_out=True
+            )
         except (OSError, urllib.error.URLError, http.client.HTTPException, ValueError) as exc:
             self.close()
             # Do not retain exception text: third-party errors can echo credentials/headers.
             timed_out = isinstance(getattr(exc, "reason", None), (TimeoutError, socket.timeout))
-            result = HttpResult(0, None, elapsed_ms=(time.monotonic() - started) * 1000,
-                                error="Request timed out" if timed_out else f"Transport failure: {type(exc).__name__}",
-                                timed_out=timed_out)
+            result = HttpResult(
+                0,
+                None,
+                elapsed_ms=(time.monotonic() - started) * 1000,
+                error="Request timed out" if timed_out else f"Transport failure: {type(exc).__name__}",
+                timed_out=timed_out,
+            )
         for name, value in result.headers.items():
             if name.lower() == "set-cookie":
                 cookie = SimpleCookie()
@@ -129,8 +136,15 @@ class JsonClient:
                 error = None
             except (ValueError, UnicodeDecodeError):
                 decoded, error = None, "Response was not JSON"
-            result = HttpResult(response.status, decoded, dict(response.headers.items()), elapsed, len(raw), error,
-                                connection_reused=reused)
+            result = HttpResult(
+                response.status,
+                decoded,
+                dict(response.headers.items()),
+                elapsed,
+                len(raw),
+                error,
+                connection_reused=reused,
+            )
             if response.will_close:
                 self.close()
             return result
@@ -144,17 +158,29 @@ class JsonClient:
             self._connection = None
 
     def login(self, *, min_valid_seconds=600):
-        body = require_ok(self.request("POST", "/api/auth/login", {
-            "username": self.credentials["username"], "password": self.credentials["password"], "remember_me": False
-        }))
+        body = require_ok(
+            self.request(
+                "POST",
+                "/api/auth/login",
+                {
+                    "username": self.credentials["username"],
+                    "password": self.credentials["password"],
+                    "remember_me": False,
+                },
+            )
+        )
         if body.get("status") != "ok" or body.get("username") != self.credentials["username"]:
             raise ProtocolError("Login did not confirm synthetic account")
         return self.session_info(min_valid_seconds=min_valid_seconds)
 
     def session_info(self, *, min_valid_seconds=600):
         status = require_ok(self.request("GET", "/api/auth/status"))
-        if (status.get("enabled") is not True or status.get("authenticated") is not True
-                or status.get("setup_required") is not False or status.get("auth_kind") != "browser"):
+        if (
+            status.get("enabled") is not True
+            or status.get("authenticated") is not True
+            or status.get("setup_required") is not False
+            or status.get("auth_kind") != "browser"
+        ):
             raise ProtocolError("A real authenticated browser cookie is required")
         body = require_ok(self.request("GET", "/api/auth/sessions"))
         sessions = body.get("sessions", [])
@@ -166,9 +192,13 @@ class JsonClient:
             expires = datetime.fromisoformat(current[0]["expires_at"].replace("Z", "+00:00"))
         except (KeyError, TypeError, ValueError) as exc:
             raise ProtocolError("Session expiry is missing/malformed") from exc
-        if expires.tzinfo is None or (expires - datetime.now(timezone.utc)).total_seconds() <= min_valid_seconds:
+        if expires.tzinfo is None or (expires - datetime.now(UTC)).total_seconds() <= min_valid_seconds:
             raise ProtocolError("Session lifetime is insufficient for declared measurement plus margin")
-        return {"current_session_id": current_id, "active_sessions": len(sessions), "expires_at": current[0]["expires_at"]}
+        return {
+            "current_session_id": current_id,
+            "active_sessions": len(sessions),
+            "expires_at": current[0]["expires_at"],
+        }
 
     def safe_result(self, result):
         return redact(result.__dict__, self.secrets)
@@ -183,7 +213,7 @@ class _CookieResponse:
 
 
 def utc_now():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def read_credentials(path):
@@ -194,9 +224,14 @@ def read_credentials(path):
         credentials = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise ProtocolError("Cannot read private credentials") from exc
-    if (not isinstance(credentials, dict) or set(credentials) != {"username", "password"}
-            or not isinstance(credentials["username"], str) or not credentials["username"].strip()
-            or not isinstance(credentials["password"], str) or len(credentials["password"]) < 8):
+    if (
+        not isinstance(credentials, dict)
+        or set(credentials) != {"username", "password"}
+        or not isinstance(credentials["username"], str)
+        or not credentials["username"].strip()
+        or not isinstance(credentials["password"], str)
+        or len(credentials["password"]) < 8
+    ):
         raise ProtocolError("Private credentials need a synthetic username and password of at least8 characters")
     return credentials
 
@@ -213,8 +248,14 @@ class JsonlWriter:
         self.secrets = secrets
 
     def write(self, record_type, **fields):
-        record = {"schema_version": 1, "run_id": self.run_id, "record_type": record_type, "utc": utc_now(),
-                  "monotonic_elapsed_s": time.monotonic() - self.started, **fields}
+        record = {
+            "schema_version": 1,
+            "run_id": self.run_id,
+            "record_type": record_type,
+            "utc": utc_now(),
+            "monotonic_elapsed_s": time.monotonic() - self.started,
+            **fields,
+        }
         self.file.write(json.dumps(redact(record, self.secrets), sort_keys=True, allow_nan=False) + "\n")
         self.file.flush()
         return record
@@ -227,8 +268,10 @@ def redact(value, secrets=()):
     """Remove credentials by field name and known values even in free-text errors."""
     private = {"password", "current_password", "new_password", "cookie", "set-cookie", "authorization", "csrf_token"}
     if isinstance(value, dict):
-        return {str(key): "[REDACTED]" if str(key).lower() in private else redact(item, secrets)
-                for key, item in value.items()}
+        return {
+            str(key): "[REDACTED]" if str(key).lower() in private else redact(item, secrets)
+            for key, item in value.items()
+        }
     if isinstance(value, (list, tuple)):
         return [redact(item, secrets) for item in value]
     if isinstance(value, str):
@@ -262,17 +305,29 @@ def validate_preview(body, page_ids):
 
 
 def summarize_requests(records):
-    successes = [r for r in records if r.get("semantic_success") is True
-                 and isinstance(r.get("http_status"), int) and 200 <= r["http_status"] < 300
-                 and not r.get("timed_out")]
+    successes = [
+        r
+        for r in records
+        if r.get("semantic_success") is True
+        and isinstance(r.get("http_status"), int)
+        and 200 <= r["http_status"] < 300
+        and not r.get("timed_out")
+    ]
     values = [r["elapsed_ms"] for r in successes]
-    latency = {"median": nearest_rank(values, 0.5) if values else None,
-               "p75": nearest_rank(values, 0.75) if values else None,
-               "p95": nearest_rank(values, 0.95) if values else None,
-               "max": max(values) if values else None}
-    return {"valid": bool(records) and len(successes) == len(records), "observed": len(records),
-            "successful": len(successes), "failed": len(records) - len(successes),
-            "timeouts": sum(bool(r.get("timed_out")) for r in records), "latency_ms": latency}
+    latency = {
+        "median": nearest_rank(values, 0.5) if values else None,
+        "p75": nearest_rank(values, 0.75) if values else None,
+        "p95": nearest_rank(values, 0.95) if values else None,
+        "max": max(values) if values else None,
+    }
+    return {
+        "valid": bool(records) and len(successes) == len(records),
+        "observed": len(records),
+        "successful": len(successes),
+        "failed": len(records) - len(successes),
+        "timeouts": sum(bool(r.get("timed_out")) for r in records),
+        "latency_ms": latency,
+    }
 
 
 def require_ok(result, *, status=200):

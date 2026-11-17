@@ -1,25 +1,22 @@
 """Offline scheduling and Linux-telemetry tests; never start a runtime."""
 
+import io
+import json
+import runpy
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-import json
+from unittest.mock import patch
 
+from runtime_api import ApiOperation
 from runtime_collect import collect_snapshot, validate_collector_anchor
 from runtime_collect import main as collector_main
-from runtime_soak import SlotPacer, run_phase, soak_operations, run_soak, WarmupScenarios, CollectionProfile
-from runtime_soak import main as soak_main
 from runtime_common import HttpResult, JsonClient, JsonlWriter, ProtocolError
-from runtime_api import ApiOperation
-from test_runtime_api import fixture, fixture_transport, run_context
-from test_runtime_api import ownership
-from datetime import datetime, timedelta, timezone
-from contextlib import redirect_stderr
-import io
-import hashlib
-import runpy
-from contextlib import redirect_stdout
-from unittest.mock import patch
+from runtime_soak import CollectionProfile, SlotPacer, WarmupScenarios, run_phase, run_soak, soak_operations
+from runtime_soak import main as soak_main
+from test_runtime_api import fixture, fixture_transport, ownership, run_context
 
 
 class ManualClock:
@@ -92,13 +89,26 @@ class SoakContractTests(unittest.TestCase):
             return HttpResult(200, {"ok": True}, elapsed_ms=2400 if len(arrivals) == 1 else 100)
 
         client = JsonClient("http://hub.invalid:3000", {}, transport=transport)
-        operations = [ApiOperation(f"slot{i}", "note", "mixed", "GET", "/api/v1/health", None, lambda body: None) for i in range(10)]
+        operations = [
+            ApiOperation(f"slot{i}", "note", "mixed", "GET", "/api/v1/health", None, lambda body: None)
+            for i in range(10)
+        ]
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "soak.jsonl"
             writer = JsonlWriter(path, "unit-run")
             try:
-                result = run_phase(client, operations, writer, phase="activity", start=100.0, duration=5,
-                                   slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100.0)
+                result = run_phase(
+                    client,
+                    operations,
+                    writer,
+                    phase="activity",
+                    start=100.0,
+                    duration=5,
+                    slot_seconds=1,
+                    clock=clock,
+                    sleep=clock.sleep,
+                    measurement_start=100.0,
+                )
             finally:
                 writer.close()
             records = [json.loads(line) for line in path.read_text().splitlines()]
@@ -111,13 +121,25 @@ class SoakContractTests(unittest.TestCase):
         # The phase driver must honor the same auth abort as endpoint calibration.
         clock = ManualClock()
         calls = []
-        client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: calls.append(args) or HttpResult(401, {}))
+        client = JsonClient(
+            "http://hub.invalid:3000", {}, transport=lambda *args: calls.append(args) or HttpResult(401, {})
+        )
         operation = ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", None, lambda body: None)
         with tempfile.TemporaryDirectory() as directory:
             writer = JsonlWriter(Path(directory) / "soak.jsonl", "unit-run")
             try:
-                result = run_phase(client, [operation] * 10, writer, phase="activity", start=100.0, duration=20,
-                                   slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100.0)
+                result = run_phase(
+                    client,
+                    [operation] * 10,
+                    writer,
+                    phase="activity",
+                    start=100.0,
+                    duration=20,
+                    slot_seconds=1,
+                    clock=clock,
+                    sleep=clock.sleep,
+                    measurement_start=100.0,
+                )
             finally:
                 writer.close()
         self.assertTrue(result.get("aborted"))
@@ -143,14 +165,23 @@ class SoakContractTests(unittest.TestCase):
 
     def test_collector_refuses_foreign_clock_or_pid_namespace_or_non_api_process(self):
         # A process with the same numeric PID in another container is not the published API.
-        anchor = {"schema_version": 1, "run_id": "unit-run", "boot_id": "boot-a", "pid_namespace": "pid:[100]",
-                  "start_monotonic": 100.0}
-        for boot_id, namespace, command in [("boot-b", "pid:[100]", "uvicorn src.api_server:app"),
-                                             ("boot-a", "pid:[200]", "uvicorn src.api_server:app"),
-                                             ("boot-a", "pid:[100]", "pytest test_api.py")]:
-            with self.subTest(boot=boot_id, namespace=namespace, command=command):
-                with self.assertRaises(ProtocolError):
-                    validate_collector_anchor(anchor, boot_id=boot_id, pid_namespace=namespace, api_cmdline=command)
+        anchor = {
+            "schema_version": 1,
+            "run_id": "unit-run",
+            "boot_id": "boot-a",
+            "pid_namespace": "pid:[100]",
+            "start_monotonic": 100.0,
+        }
+        for boot_id, namespace, command in [
+            ("boot-b", "pid:[100]", "uvicorn src.api_server:app"),
+            ("boot-a", "pid:[200]", "uvicorn src.api_server:app"),
+            ("boot-a", "pid:[100]", "pytest test_api.py"),
+        ]:
+            with (
+                self.subTest(boot=boot_id, namespace=namespace, command=command),
+                self.assertRaises(ProtocolError),
+            ):
+                validate_collector_anchor(anchor, boot_id=boot_id, pid_namespace=namespace, api_cmdline=command)
 
     def test_dynamic_phase_rotates_geometry_only_at_complete_cycle_boundaries(self):
         # A fixed operation list would measure one geometry for the whole active phase.
@@ -159,18 +190,36 @@ class SoakContractTests(unittest.TestCase):
         geometries = ("flagship", "note", "array", "panel")
 
         def factory(cycle):
-            return [ApiOperation(f"slot{i}", geometries[cycle % 4], "mixed", "GET", "/api/v1/health", None,
-                                 lambda body: None) for i in range(10)]
+            return [
+                ApiOperation(
+                    f"slot{i}", geometries[cycle % 4], "mixed", "GET", "/api/v1/health", None, lambda body: None
+                )
+                for i in range(10)
+            ]
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "soak.jsonl"
             writer = JsonlWriter(path, "unit-run")
             try:
-                run_phase(client, factory, writer, phase="activity", start=100, duration=120, slot_seconds=1,
-                          clock=clock, sleep=clock.sleep, measurement_start=100)
+                run_phase(
+                    client,
+                    factory,
+                    writer,
+                    phase="activity",
+                    start=100,
+                    duration=120,
+                    slot_seconds=1,
+                    clock=clock,
+                    sleep=clock.sleep,
+                    measurement_start=100,
+                )
             finally:
                 writer.close()
-            requests = [json.loads(line) for line in path.read_text().splitlines() if json.loads(line)["record_type"] == "request"]
+            requests = [
+                json.loads(line)
+                for line in path.read_text().splitlines()
+                if json.loads(line)["record_type"] == "request"
+            ]
         self.assertEqual(len(requests), 120)
         self.assertEqual([r["geometry"] for r in requests[::10]], list(geometries) * 3)
 
@@ -181,35 +230,76 @@ class SoakContractTests(unittest.TestCase):
         transport = fixture_transport(data)
         transport.responses[("GET", "/api/v1/health")] = HttpResult(200, {"status": "healthy"})
         client = JsonClient(data["base_url"], {}, transport=transport, run_context=run_context())
-        anchor = {"schema_version": 1, "run_id": "unit-run", "boot_id": "boot-a", "pid_namespace": "pid:[100]",
-                  "start_monotonic": 100.0}
-        ready = {**anchor, "api_cmdline": "python -m uvicorn src.api_server:app", "api_pid": 42, "api_start_time_ticks": 123}
+        anchor = {
+            "schema_version": 1,
+            "run_id": "unit-run",
+            "boot_id": "boot-a",
+            "pid_namespace": "pid:[100]",
+            "start_monotonic": 100.0,
+        }
+        ready = {
+            **anchor,
+            "api_cmdline": "python -m uvicorn src.api_server:app",
+            "api_pid": 42,
+            "api_start_time_ticks": 123,
+        }
         operation = ApiOperation("health", "all", "n/a", "GET", "/api/v1/health", None, lambda body: None)
         with tempfile.TemporaryDirectory() as directory:
-            report = run_soak(client, data, Path(directory), anchor, ready, phase_seconds=(1, 10, 1),
-                              clock=clock, sleep=clock.sleep, operation_factory=lambda cycle: [operation] * 10)
+            report = run_soak(
+                client,
+                data,
+                Path(directory),
+                anchor,
+                ready,
+                phase_seconds=(1, 10, 1),
+                clock=clock,
+                sleep=clock.sleep,
+                operation_factory=lambda cycle: [operation] * 10,
+            )
             self.assertEqual(report.get("measured_seconds"), 12)
             self.assertEqual(report.get("activity_requests"), 10)
             self.assertFalse(report.get("complete", True))
             self.assertTrue(report.get("diagnostic"))
             path = Path(directory) / "soak.jsonl"
             self.assertTrue(path.exists())
-            phases = [json.loads(line) for line in path.read_text().splitlines() if json.loads(line)["record_type"] == "phase"]
-        self.assertEqual([(r["phase"], r["event"]) for r in phases], [(p, e) for p in ("warmup", "activity", "drain") for e in ("start", "end")])
+            phases = [
+                json.loads(line) for line in path.read_text().splitlines() if json.loads(line)["record_type"] == "phase"
+            ]
+        self.assertEqual(
+            [(r["phase"], r["event"]) for r in phases],
+            [(p, e) for p in ("warmup", "activity", "drain") for e in ("start", "end")],
+        )
 
     def test_wrong_collector_ready_identity_rejected_before_any_api_read(self):
         # Readiness from another namespace/clock must not start even a diagnostic phase.
         data = fixture()
         transport = fixture_transport(data)
         client = JsonClient(data["base_url"], {}, transport=transport, run_context=run_context())
-        anchor = {"schema_version": 1, "run_id": "unit-run", "boot_id": "boot-a", "pid_namespace": "pid:[100]",
-                  "start_monotonic": 100.0}
-        ready = {**anchor, "boot_id": "boot-b", "api_cmdline": "uvicorn src.api_server:app", "api_pid": 42,
-                 "api_start_time_ticks": 123}
-        with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaises(ProtocolError):
-                run_soak(client, data, Path(directory), anchor, ready, phase_seconds=(1, 10, 1),
-                         clock=ManualClock(), sleep=lambda seconds: None)
+        anchor = {
+            "schema_version": 1,
+            "run_id": "unit-run",
+            "boot_id": "boot-a",
+            "pid_namespace": "pid:[100]",
+            "start_monotonic": 100.0,
+        }
+        ready = {
+            **anchor,
+            "boot_id": "boot-b",
+            "api_cmdline": "uvicorn src.api_server:app",
+            "api_pid": 42,
+            "api_start_time_ticks": 123,
+        }
+        with tempfile.TemporaryDirectory() as directory, self.assertRaises(ProtocolError):
+            run_soak(
+                client,
+                data,
+                Path(directory),
+                anchor,
+                ready,
+                phase_seconds=(1, 10, 1),
+                clock=ManualClock(),
+                sleep=lambda seconds: None,
+            )
         self.assertEqual(transport.exchanges, [])
 
     def test_collector_cli_refuses_foreign_local_kernel_before_sampling(self):
@@ -223,13 +313,30 @@ class SoakContractTests(unittest.TestCase):
             (proc / "self/ns/pid").symlink_to("pid:[100]")
             (proc / "42").mkdir()
             (proc / "42/cmdline").write_text("python\0-m\0uvicorn\0src.api_server:app\0")
-            anchor = {"schema_version": 1, "run_id": "unit-run", "boot_id": "boot-a", "pid_namespace": "pid:[100]",
-                      "start_monotonic": 100.0}
+            anchor = {
+                "schema_version": 1,
+                "run_id": "unit-run",
+                "boot_id": "boot-a",
+                "pid_namespace": "pid:[100]",
+                "start_monotonic": 100.0,
+            }
             path = root / "anchor.json"
             path.write_text(json.dumps(anchor))
             with redirect_stderr(io.StringIO()):
-                code = collector_main(["--anchor", str(path), "--proc-root", str(proc), "--api-pid", "42",
-                                       "--data-dir", str(root / "data"), "--out-dir", str(root / "out")])
+                code = collector_main(
+                    [
+                        "--anchor",
+                        str(path),
+                        "--proc-root",
+                        str(proc),
+                        "--api-pid",
+                        "42",
+                        "--data-dir",
+                        str(root / "data"),
+                        "--out-dir",
+                        str(root / "out"),
+                    ]
+                )
             self.assertEqual(code, 2)
             self.assertFalse((root / "out/resources.jsonl").exists())
 
@@ -238,13 +345,25 @@ class SoakContractTests(unittest.TestCase):
         clock = ManualClock()
         clock.now = 100.001
         arrivals = []
-        client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: arrivals.append(clock()) or HttpResult(200, {}))
+        client = JsonClient(
+            "http://hub.invalid:3000", {}, transport=lambda *args: arrivals.append(clock()) or HttpResult(200, {})
+        )
         operation = ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", None, lambda body: None)
         with tempfile.TemporaryDirectory() as directory:
             writer = JsonlWriter(Path(directory) / "soak.jsonl", "unit-run")
             try:
-                result = run_phase(client, [operation] * 10, writer, phase="activity", start=100, duration=2,
-                                   slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100)
+                result = run_phase(
+                    client,
+                    [operation] * 10,
+                    writer,
+                    phase="activity",
+                    start=100,
+                    duration=2,
+                    slot_seconds=1,
+                    clock=clock,
+                    sleep=clock.sleep,
+                    measurement_start=100,
+                )
             finally:
                 writer.close()
         self.assertEqual(arrivals, [100.001, 101.0])
@@ -259,14 +378,27 @@ class SoakContractTests(unittest.TestCase):
         clock = JitterClock()
         clock.now = 100.001
         arrivals = []
-        client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: arrivals.append(clock()) or HttpResult(200, {}))
+        client = JsonClient(
+            "http://hub.invalid:3000", {}, transport=lambda *args: arrivals.append(clock()) or HttpResult(200, {})
+        )
         operation = ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", None, lambda body: None)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "soak.jsonl"
             writer = JsonlWriter(path, "unit-run")
             try:
-                result = run_phase(client, [operation] * 10, writer, phase="activity", start=100, duration=4,
-                    slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100, dispatch_grace_seconds=0.05)
+                result = run_phase(
+                    client,
+                    [operation] * 10,
+                    writer,
+                    phase="activity",
+                    start=100,
+                    duration=4,
+                    slot_seconds=1,
+                    clock=clock,
+                    sleep=clock.sleep,
+                    measurement_start=100,
+                    dispatch_grace_seconds=0.05,
+                )
             finally:
                 writer.close()
             requests = [r for r in map(json.loads, path.read_text().splitlines()) if r["record_type"] == "request"]
@@ -283,13 +415,26 @@ class SoakContractTests(unittest.TestCase):
                 self.now += seconds + 0.06
 
         clock, arrivals = LateClock(), []
-        client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: arrivals.append(clock()) or HttpResult(200, {}))
+        client = JsonClient(
+            "http://hub.invalid:3000", {}, transport=lambda *args: arrivals.append(clock()) or HttpResult(200, {})
+        )
         operation = ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", None, lambda body: None)
         with tempfile.TemporaryDirectory() as directory:
             writer = JsonlWriter(Path(directory) / "soak.jsonl", "unit-run")
             try:
-                result = run_phase(client, [operation] * 10, writer, phase="activity", start=100, duration=4,
-                    slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100, dispatch_grace_seconds=0.05)
+                result = run_phase(
+                    client,
+                    [operation] * 10,
+                    writer,
+                    phase="activity",
+                    start=100,
+                    duration=4,
+                    slot_seconds=1,
+                    clock=clock,
+                    sleep=clock.sleep,
+                    measurement_start=100,
+                    dispatch_grace_seconds=0.05,
+                )
             finally:
                 writer.close()
         self.assertEqual(arrivals, [100])
@@ -305,14 +450,32 @@ class SoakContractTests(unittest.TestCase):
         data, transport = fixture(), fixture_transport(fixture())
         transport.responses[("GET", "/api/v1/health")] = HttpResult(200, {})
         client = JsonClient(data["base_url"], {}, transport=transport, run_context=run_context())
-        anchor = {"schema_version": 1, "run_id": "unit-run", "boot_id": "boot-a", "pid_namespace": "pid:[100]", "start_monotonic": 100}
+        anchor = {
+            "schema_version": 1,
+            "run_id": "unit-run",
+            "boot_id": "boot-a",
+            "pid_namespace": "pid:[100]",
+            "start_monotonic": 100,
+        }
         ready = {**anchor, "api_cmdline": "uvicorn src.api_server:app", "api_pid": 42, "api_start_time_ticks": 123}
         op = ApiOperation("health", "all", "n/a", "GET", "/api/v1/health", None, lambda body: None)
         with tempfile.TemporaryDirectory() as directory:
-            run_soak(client, data, Path(directory), anchor, ready, phase_seconds=(1, 10, 1), clock=clock, sleep=clock.sleep,
-                     operation_factory=lambda cycle: [op] * 10)
-            requests = [r for r in map(json.loads, (Path(directory) / "soak.jsonl").read_text().splitlines())
-                        if r["record_type"] == "request" and r["phase"] == "activity"]
+            run_soak(
+                client,
+                data,
+                Path(directory),
+                anchor,
+                ready,
+                phase_seconds=(1, 10, 1),
+                clock=clock,
+                sleep=clock.sleep,
+                operation_factory=lambda cycle: [op] * 10,
+            )
+            requests = [
+                r
+                for r in map(json.loads, (Path(directory) / "soak.jsonl").read_text().splitlines())
+                if r["record_type"] == "request" and r["phase"] == "activity"
+            ]
         self.assertEqual([r["scheduled_elapsed_s"] for r in requests], list(range(1, 11)))
 
     def test_slow_factory_or_payload_cannot_dispatch_after_grace(self):
@@ -320,15 +483,29 @@ class SoakContractTests(unittest.TestCase):
         for slow in ("factory", "payload"):
             with self.subTest(slow=slow):
                 clock, arrivals = ManualClock(), []
-                client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: arrivals.append(clock()) or HttpResult(200, {}))
+                client = JsonClient(
+                    "http://hub.invalid:3000",
+                    {},
+                    transport=lambda *args, arrivals=arrivals, clock=clock: (
+                        arrivals.append(clock()) or HttpResult(200, {})
+                    ),
+                )
 
-                def payload():
+                def payload(clock=clock):
                     clock.now += 0.06
-                    return None
+                    return
 
-                op = ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", payload if slow == "payload" else None, lambda body: None)
+                op = ApiOperation(
+                    "status",
+                    "all",
+                    "n/a",
+                    "GET",
+                    "/api/v1/status",
+                    payload if slow == "payload" else None,
+                    lambda body: None,
+                )
 
-                def factory(cycle):
+                def factory(cycle, slow=slow, clock=clock, op=op):
                     if slow == "factory":
                         clock.now += 0.06
                     return [op] * 10
@@ -336,8 +513,18 @@ class SoakContractTests(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as directory:
                     writer = JsonlWriter(Path(directory) / "soak.jsonl", "unit-run")
                     try:
-                        result = run_phase(client, factory, writer, phase="activity", start=100, duration=3, slot_seconds=1,
-                                           clock=clock, sleep=clock.sleep, measurement_start=100)
+                        result = run_phase(
+                            client,
+                            factory,
+                            writer,
+                            phase="activity",
+                            start=100,
+                            duration=3,
+                            slot_seconds=1,
+                            clock=clock,
+                            sleep=clock.sleep,
+                            measurement_start=100,
+                        )
                     finally:
                         writer.close()
                 self.assertEqual(arrivals, [101, 102] if slow == "factory" else [])
@@ -346,7 +533,7 @@ class SoakContractTests(unittest.TestCase):
     def test_warmup_control_sequence_requires_real_expiry_held_frame_and_restoration(self):
         # A202 envelope or elapsed fake minute alone does not prove queue delivery/restored baseline.
         data = fixture()
-        now = [datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)]
+        now = [datetime(2026, 11, 17, 12, 0, tzinfo=UTC)]
         scenarios = WarmupScenarios(data, utcnow=lambda: now[0])
         board = data["boards"]["flagship"]
         bid = board["id"]
@@ -355,36 +542,52 @@ class SoakContractTests(unittest.TestCase):
         self.assertEqual((op.method, op.path), ("POST", "/api/settings/temporary-override"))
         self.assertEqual(op.payload["duration_minutes"], 1)
         self.assertEqual(op.payload["revert_page_id"], board["page_ids"][0])
-        op.validate({"active": True, "board_id": bid, "page_id": op.payload["page_id"],
-                     "expires_at": "2026-11-17T12:01:00+00:00", "started_at": now[0].isoformat()})
+        op.validate(
+            {
+                "active": True,
+                "board_id": bid,
+                "page_id": op.payload["page_id"],
+                "expires_at": "2026-11-17T12:01:00+00:00",
+                "started_at": now[0].isoformat(),
+            }
+        )
         now[0] += timedelta(seconds=30)
         scenarios.next_operation(30).validate({"active": True, "board_id": bid})
         self.assertFalse(scenarios.verification()["complete"])
         now[0] += timedelta(seconds=31)
         scenarios.next_operation(61).validate({"active": False, "board_id": bid})
         frame = [[0] * 22 for _ in range(6)]
-        restored = {"id": bid, "active_page_id": board["page_ids"][0], "resolved_page_id": board["page_ids"][0],
-                    "text": "PERF flagship 01", "characters": frame, "expected_characters": frame}
+        restored = {
+            "id": bid,
+            "active_page_id": board["page_ids"][0],
+            "resolved_page_id": board["page_ids"][0],
+            "text": "PERF flagship 01",
+            "characters": frame,
+            "expected_characters": frame,
+        }
         scenarios.next_operation(67).validate(restored)
         quiet = scenarios.next_operation(73)
         self.assertEqual((quiet.method, quiet.path), ("PUT", "/api/settings/silence-schedule"))
         self.assertEqual((quiet.payload["start_time"], quiet.payload["end_time"]), ("12:02+00:00", "12:03+00:00"))
         quiet.validate({"board_id": bid, "config": {**quiet.payload}})
-        now[0] = datetime(2026, 11, 17, 12, 2, tzinfo=timezone.utc)
+        now[0] = datetime(2026, 11, 17, 12, 2, tzinfo=UTC)
         scenarios.next_operation(120).validate({"board_id": bid, "enabled": True, "active": True, "held": None})
         held = scenarios.next_operation(126)
         self.assertEqual(held.expected_status, 202)
         self.assertEqual(held.payload["lines"][0], "PERF HELD")
         held.validate({"board_id": bid, "sent": False, "held": True, "silenced": True})
-        scenarios.next_operation(132).validate({"board_id": bid, "enabled": True, "active": True,
-                                               "held": {"kind": "lines", "preview": "PERF HELD"}})
-        now[0] = datetime(2026, 11, 17, 12, 3, 6, tzinfo=timezone.utc)
+        scenarios.next_operation(132).validate(
+            {"board_id": bid, "enabled": True, "active": True, "held": {"kind": "lines", "preview": "PERF HELD"}}
+        )
+        now[0] = datetime(2026, 11, 17, 12, 3, 6, tzinfo=UTC)
         scenarios.next_operation(186).validate({"board_id": bid, "enabled": True, "active": False, "held": None})
         scenarios.next_operation(192).validate({**restored, "text": "PERF HELD"})
         disabled = scenarios.next_operation(198)
         self.assertIs(disabled.payload["enabled"], False)
         disabled.validate({"board_id": bid, "config": {**disabled.payload}})
-        scenarios.next_operation(204).validate({"board_id": bid, "page_id": board["page_ids"][0], "sent": True, "error": None})
+        scenarios.next_operation(204).validate(
+            {"board_id": bid, "page_id": board["page_ids"][0], "sent": True, "error": None}
+        )
         scenarios.next_operation(210).validate(restored)
         self.assertTrue(scenarios.verification()["complete"])
         self.assertIsNone(scenarios.next_operation(216))
@@ -402,13 +605,28 @@ class SoakContractTests(unittest.TestCase):
         data, transport = fixture(), fixture_transport(fixture())
         transport.responses[("GET", "/api/v1/health")] = HttpResult(200, {})
         client = JsonClient(data["base_url"], {}, transport=transport, run_context=run_context())
-        anchor = {"schema_version": 1, "run_id": "unit-run", "boot_id": "boot-a", "pid_namespace": "pid:[100]", "start_monotonic": 100}
+        anchor = {
+            "schema_version": 1,
+            "run_id": "unit-run",
+            "boot_id": "boot-a",
+            "pid_namespace": "pid:[100]",
+            "start_monotonic": 100,
+        }
         ready = {**anchor, "api_cmdline": "uvicorn src.api_server:app", "api_pid": 42, "api_start_time_ticks": 123}
         operation = ApiOperation("health", "all", "n/a", "GET", "/api/v1/health", None, lambda body: None)
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaises(ProtocolError):
-                run_soak(client, data, Path(directory), anchor, ready, clock=clock, sleep=clock.sleep,
-                         operation_factory=lambda cycle: [operation] * 10, scenarios=NeverDone())
+                run_soak(
+                    client,
+                    data,
+                    Path(directory),
+                    anchor,
+                    ready,
+                    clock=clock,
+                    sleep=clock.sleep,
+                    operation_factory=lambda cycle: [operation] * 10,
+                    scenarios=NeverDone(),
+                )
             records = [json.loads(line) for line in (Path(directory) / "soak.jsonl").read_text().splitlines()]
         self.assertLessEqual(clock(), 400.001)
         self.assertFalse(any(r["record_type"] == "phase" and r["phase"] == "activity" for r in records))
@@ -424,11 +642,22 @@ class SoakContractTests(unittest.TestCase):
             pin = profile.next_activation(index * 12)
             self.assertIsNotNone(pin)
             self.assertEqual(pin.payload, {"page_id": collection["id"]})
-            pin.validate({"board_id": board["id"], "page_id": collection["id"], "sent": False, "error": None, "warnings": []})
+            pin.validate(
+                {"board_id": board["id"], "page_id": collection["id"], "sent": False, "error": None, "warnings": []}
+            )
             frame = [[0] * board["cols"] for _ in range(board["rows"])]
-            profile.next_activation(index * 12 + 6).validate({"id": board["id"], "active_page_id": collection["id"],
-                "resolved_page_id": collection["page_ids"][0], "source": "manual", "rows": board["rows"], "cols": board["cols"],
-                "characters": frame, "expected_characters": frame})
+            profile.next_activation(index * 12 + 6).validate(
+                {
+                    "id": board["id"],
+                    "active_page_id": collection["id"],
+                    "resolved_page_id": collection["page_ids"][0],
+                    "source": "manual",
+                    "rows": board["rows"],
+                    "cols": board["cols"],
+                    "characters": frame,
+                    "expected_characters": frame,
+                }
+            )
         self.assertTrue(profile.verification()["activated"])
         self.assertEqual(set(profile.active_refs), set(data["boards"]))
         accelerate = profile.transitions(True)
@@ -454,17 +683,40 @@ class SoakContractTests(unittest.TestCase):
         for held in (True, False):
             with self.subTest(held=held):
                 clock = ManualClock()
-                client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: HttpResult(202, {"held": held}))
+                client = JsonClient(
+                    "http://hub.invalid:3000", {}, transport=lambda *args, held=held: HttpResult(202, {"held": held})
+                )
+
                 def validate(body):
                     if body.get("held") is not True:
                         raise ProtocolError("Expected held result")
-                op = ApiOperation("held", "flagship", "control", "POST", "/api/v1/boards/board-flagship/message", {},
-                                  validate, expected_status=202, abort_on_failure=True)
+
+                op = ApiOperation(
+                    "held",
+                    "flagship",
+                    "control",
+                    "POST",
+                    "/api/v1/boards/board-flagship/message",
+                    {},
+                    validate,
+                    expected_status=202,
+                    abort_on_failure=True,
+                )
                 with tempfile.TemporaryDirectory() as directory:
                     writer = JsonlWriter(Path(directory) / "run.jsonl", "unit-run")
                     try:
-                        result = run_phase(client, [op] * 10, writer, phase="warmup", start=100, duration=1,
-                            slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100)
+                        result = run_phase(
+                            client,
+                            [op] * 10,
+                            writer,
+                            phase="warmup",
+                            start=100,
+                            duration=1,
+                            slot_seconds=1,
+                            clock=clock,
+                            sleep=clock.sleep,
+                            measurement_start=100,
+                        )
                     finally:
                         writer.close()
                 self.assertEqual(result["successful"], 1 if held else 0)
@@ -473,23 +725,47 @@ class SoakContractTests(unittest.TestCase):
     def test_transition_slots_and_readonly_drain_idle_slots_are_explicit(self):
         # Control writes must displace ordinary arrivals; idle drain seconds are neither fake requests nor missed arrivals.
         clock, calls = ManualClock(), []
-        client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: calls.append(clock()) or HttpResult(200, {}))
+        client = JsonClient(
+            "http://hub.invalid:3000", {}, transport=lambda *args: calls.append(clock()) or HttpResult(200, {})
+        )
         ordinary = ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", None, lambda body: None)
-        transition = ApiOperation("cadence_restore", "all", "control", "PUT", "/api/v1/collections/c", {}, lambda body: None,
-                                  kind="transition", abort_on_failure=True)
+        transition = ApiOperation(
+            "cadence_restore",
+            "all",
+            "control",
+            "PUT",
+            "/api/v1/collections/c",
+            {},
+            lambda body: None,
+            kind="transition",
+            abort_on_failure=True,
+        )
+
         def transform(op, index, deadline):
             return transition if index < 12 else ordinary if (index - 12) % 5 == 0 else None
+
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "run.jsonl"
             writer = JsonlWriter(path, "unit-run")
             try:
-                result = run_phase(client, [ordinary] * 10, writer, phase="drain", start=100, duration=20,
-                    slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100, slot_transform=transform,
-                    critical_slots=range(12))
+                result = run_phase(
+                    client,
+                    [ordinary] * 10,
+                    writer,
+                    phase="drain",
+                    start=100,
+                    duration=20,
+                    slot_seconds=1,
+                    clock=clock,
+                    sleep=clock.sleep,
+                    measurement_start=100,
+                    slot_transform=transform,
+                    critical_slots=range(12),
+                )
             finally:
                 writer.close()
             records = list(map(json.loads, path.read_text().splitlines()))
-        self.assertEqual(calls, list(range(100, 113)) + [117])
+        self.assertEqual(calls, [*range(100, 113), 117])
         self.assertEqual(result["missed"], 0)
         self.assertEqual(result["idle"], 6)
         self.assertEqual(sum(r.get("activity_kind") == "transition" for r in records), 12)
@@ -499,15 +775,37 @@ class SoakContractTests(unittest.TestCase):
         clock = ManualClock()
         clock.now = 100.06
         calls = []
-        client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: calls.append(args) or HttpResult(200, {}))
-        op = ApiOperation("cadence_accelerate", "all", "control", "PUT", "/api/v1/collections/c", {}, lambda body: None,
-                          kind="transition", abort_on_failure=True)
+        client = JsonClient(
+            "http://hub.invalid:3000", {}, transport=lambda *args: calls.append(args) or HttpResult(200, {})
+        )
+        op = ApiOperation(
+            "cadence_accelerate",
+            "all",
+            "control",
+            "PUT",
+            "/api/v1/collections/c",
+            {},
+            lambda body: None,
+            kind="transition",
+            abort_on_failure=True,
+        )
         with tempfile.TemporaryDirectory() as directory:
             writer = JsonlWriter(Path(directory) / "run.jsonl", "unit-run")
             try:
                 with self.assertRaises(ProtocolError):
-                    run_phase(client, [op] * 10, writer, phase="activity", start=100, duration=20, slot_seconds=1,
-                        clock=clock, sleep=clock.sleep, measurement_start=100, critical_slots=range(12))
+                    run_phase(
+                        client,
+                        [op] * 10,
+                        writer,
+                        phase="activity",
+                        start=100,
+                        duration=20,
+                        slot_seconds=1,
+                        clock=clock,
+                        sleep=clock.sleep,
+                        measurement_start=100,
+                        critical_slots=range(12),
+                    )
             finally:
                 writer.close()
         self.assertEqual(calls, [])
@@ -518,37 +816,86 @@ class SoakContractTests(unittest.TestCase):
             root = Path(directory)
             marker, context = ownership(), run_context()
             context["ownership_sha256"] = "f" * 64
-            for name, value in (("owner.json", marker), ("context.json", context),
-                ("credentials.json", {"username": "perf", "password": "password-secret"})):
+            for name, value in (
+                ("owner.json", marker),
+                ("context.json", context),
+                ("credentials.json", {"username": "perf", "password": "password-secret"}),
+            ):
                 path = root / name
                 path.write_text(json.dumps(value))
                 path.chmod(0o600)
-            client = JsonClient(marker["base_url"], {}, transport=lambda *args: self.fail("No network before ownership validation"))
-            with patch("runtime_seed.JsonClient", return_value=client), redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()):
-                code = soak_main(["--base-url", marker["base_url"], "--credentials", str(root / "credentials.json"),
-                    "--ownership", str(root / "owner.json"), "--run-context", str(root / "context.json"),
-                    "--manifest", str(root / "manifest.json"), "--anchor", str(root / "anchor.json"),
-                    "--collector-ready", str(root / "ready.json"), "--out-dir", str(root / "out")])
+            client = JsonClient(
+                marker["base_url"], {}, transport=lambda *args: self.fail("No network before ownership validation")
+            )
+            with (
+                patch("runtime_seed.JsonClient", return_value=client),
+                redirect_stderr(io.StringIO()),
+                redirect_stdout(io.StringIO()),
+            ):
+                code = soak_main(
+                    [
+                        "--base-url",
+                        marker["base_url"],
+                        "--credentials",
+                        str(root / "credentials.json"),
+                        "--ownership",
+                        str(root / "owner.json"),
+                        "--run-context",
+                        str(root / "context.json"),
+                        "--manifest",
+                        str(root / "manifest.json"),
+                        "--anchor",
+                        str(root / "anchor.json"),
+                        "--collector-ready",
+                        str(root / "ready.json"),
+                        "--out-dir",
+                        str(root / "out"),
+                    ]
+                )
         self.assertEqual(code, 2)
 
     def test_transition_span_and_readonly_recovery_are_actual_separate_durations(self):
         # Twelve reserved control seconds are not twelve seconds of completed request span or readonly recovery.
         clock = ManualClock()
+
         def transport(*args):
             clock.now += 0.1
             return HttpResult(200, {}, elapsed_ms=100)
+
         client = JsonClient("http://hub.invalid:3000", {}, transport=transport)
         status = ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", None, lambda body: None)
-        transition = ApiOperation("cadence_restore", "all", "control", "PUT", "/api/v1/collections/c", {}, lambda body: None,
-                                  kind="transition", abort_on_failure=True)
+        transition = ApiOperation(
+            "cadence_restore",
+            "all",
+            "control",
+            "PUT",
+            "/api/v1/collections/c",
+            {},
+            lambda body: None,
+            kind="transition",
+            abort_on_failure=True,
+        )
+
         def transform(operation, index, deadline):
             return transition if index < 12 else status if (index - 12) % 5 == 0 else None
+
         with tempfile.TemporaryDirectory() as directory:
             writer = JsonlWriter(Path(directory) / "run.jsonl", "unit-run")
             try:
-                report = run_phase(client, [status] * 10, writer, phase="drain", start=100, duration=20,
-                    slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100, slot_transform=transform,
-                    critical_slots=range(12))
+                report = run_phase(
+                    client,
+                    [status] * 10,
+                    writer,
+                    phase="drain",
+                    start=100,
+                    duration=20,
+                    slot_seconds=1,
+                    clock=clock,
+                    sleep=clock.sleep,
+                    measurement_start=100,
+                    slot_transform=transform,
+                    critical_slots=range(12),
+                )
             finally:
                 writer.close()
         self.assertEqual(report.get("transition_slot_window_seconds"), 12)
@@ -562,30 +909,67 @@ class SoakContractTests(unittest.TestCase):
         transport.responses[("POST", "/api/auth/login")] = HttpResult(200, {"status": "ok", "username": "perf"})
         context = run_context()
         context["run_id"] = "unit-run"
-        client = JsonClient(data["base_url"], {"username": "perf", "password": "password-secret"},
-                            transport=transport, run_context=context)
-        anchor = {"schema_version": 1, "run_id": "unit-run", "boot_id": "boot-a", "pid_namespace": "pid:[100]", "start_monotonic": 100}
+        client = JsonClient(
+            data["base_url"],
+            {"username": "perf", "password": "password-secret"},
+            transport=transport,
+            run_context=context,
+        )
+        anchor = {
+            "schema_version": 1,
+            "run_id": "unit-run",
+            "boot_id": "boot-a",
+            "pid_namespace": "pid:[100]",
+            "start_monotonic": 100,
+        }
         ready = {**anchor, "api_cmdline": "uvicorn src.api_server:app", "api_pid": 42, "api_start_time_ticks": 123}
         original_read = Path.read_text
+
         def read_text(path, *args, **kwargs):
             if str(path) == "/proc/sys/kernel/random/boot_id":
                 return "boot-a\n"
             return original_read(path, *args, **kwargs)
+
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "anchor.json").write_text(json.dumps(anchor))
             (root / "ready.json").write_text(json.dumps(ready))
             script = Path(__file__).with_name("runtime_soak.py")
-            argv = [str(script), "--base-url", data["base_url"], "--credentials", str(root / "credentials.json"),
-                    "--ownership", str(root / "owner.json"), "--run-context", str(root / "context.json"),
-                    "--manifest", str(root / "manifest.json"), "--anchor", str(root / "anchor.json"),
-                    "--collector-ready", str(root / "ready.json"), "--out-dir", str(root / "out"),
-                    "--diagnostic-phase-seconds", "1", "10", "1", "--diagnostic-only"]
-            with patch("runtime_seed.load_inputs", return_value=(client, ownership(), data)), patch("sys.argv", argv), \
-                 patch("time.monotonic", clock), patch("time.sleep", clock.sleep), patch.object(Path, "read_text", read_text), \
-                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                with self.assertRaises(SystemExit) as exited:
-                    runpy.run_path(str(script), run_name="__main__")
+            argv = [
+                str(script),
+                "--base-url",
+                data["base_url"],
+                "--credentials",
+                str(root / "credentials.json"),
+                "--ownership",
+                str(root / "owner.json"),
+                "--run-context",
+                str(root / "context.json"),
+                "--manifest",
+                str(root / "manifest.json"),
+                "--anchor",
+                str(root / "anchor.json"),
+                "--collector-ready",
+                str(root / "ready.json"),
+                "--out-dir",
+                str(root / "out"),
+                "--diagnostic-phase-seconds",
+                "1",
+                "10",
+                "1",
+                "--diagnostic-only",
+            ]
+            with (
+                patch("runtime_seed.load_inputs", return_value=(client, ownership(), data)),
+                patch("sys.argv", argv),
+                patch("time.monotonic", clock),
+                patch("time.sleep", clock.sleep),
+                patch.object(Path, "read_text", read_text),
+                redirect_stdout(io.StringIO()),
+                redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit) as exited,
+            ):
+                runpy.run_path(str(script), run_name="__main__")
             self.assertEqual(exited.exception.code, 0)
             report = json.loads((root / "out/driver-summary.json").read_text())
         self.assertTrue(report["diagnostic"])

@@ -5,16 +5,15 @@ transport double where a real hub would otherwise be needed. No app starts.
 """
 
 import copy
+import io
 import json
 import tempfile
 import unittest
-import hashlib
-import io
 from contextlib import redirect_stderr, redirect_stdout
-from unittest.mock import patch
+from datetime import UTC, datetime, timedelta
 from email.message import Message
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 
 from runtime_api import ApiOperation, api_operations, sample_api
@@ -46,21 +45,39 @@ def ownership():
         "image_manifest": AMD64_MANIFEST,
         "empty_before_start": True,
         "prestart_entries": [],
-        "attested_utc": datetime.now(timezone.utc).isoformat(),
+        "attested_utc": datetime.now(UTC).isoformat(),
     }
 
 
 def run_context():
     marker = ownership()
-    stamp = datetime.now(timezone.utc).isoformat()
-    return {"schema_version": 1, "run_id": "offline-run", "captured_utc": stamp,
-            "seed_id": marker["seed_id"], "data_dir": marker["data_dir"], "source_commit": SOURCE_COMMIT,
-            "target_origin": marker["base_url"], "container": {"id": marker["container_id"], "image_id": "image-test",
-                "manifest_digest": AMD64_MANIFEST, "architecture": "amd64"}, "ownership_sha256": "0" * 64,
-            "manifest_sha256": None, "exclusion": {"task_id": "prod-test", "running_ids": ["prod-test"], "container_names": ["fb-dev-hub"],
-                "checked_utc": stamp, "browser_lease_owner": None}, "host": {"os": "test", "architecture": "test",
-                "cpu": None, "memory": None, "unavailable": ["cpu", "memory"]},
-            "calibration": {"relay_report_path": None, "lifecycle_report_path": None}}
+    stamp = datetime.now(UTC).isoformat()
+    return {
+        "schema_version": 1,
+        "run_id": "offline-run",
+        "captured_utc": stamp,
+        "seed_id": marker["seed_id"],
+        "data_dir": marker["data_dir"],
+        "source_commit": SOURCE_COMMIT,
+        "target_origin": marker["base_url"],
+        "container": {
+            "id": marker["container_id"],
+            "image_id": "image-test",
+            "manifest_digest": AMD64_MANIFEST,
+            "architecture": "amd64",
+        },
+        "ownership_sha256": "0" * 64,
+        "manifest_sha256": None,
+        "exclusion": {
+            "task_id": "prod-test",
+            "running_ids": ["prod-test"],
+            "container_names": ["fb-dev-hub"],
+            "checked_utc": stamp,
+            "browser_lease_owner": None,
+        },
+        "host": {"os": "test", "architecture": "test", "cpu": None, "memory": None, "unavailable": ["cpu", "memory"]},
+        "calibration": {"relay_report_path": None, "lifecycle_report_path": None},
+    }
 
 
 class MemoryTransport:
@@ -94,32 +111,85 @@ def fixture():
         ("panel", "panel", 8, 40),
     ]:
         ids = [f"{key}-{i:02}" for i in range(1, 25)]
-        boards[key] = {"id": f"board-{key}", "name": key, "device_type": device, "rows": rows, "cols": cols,
-                       "page_ids": ids}
+        boards[key] = {
+            "id": f"board-{key}",
+            "name": key,
+            "device_type": device,
+            "rows": rows,
+            "cols": cols,
+            "page_ids": ids,
+        }
         for i, pid in enumerate(ids, 1):
-            page = {"id": pid, "name": f"PERF {key} {i:02}", "geometry": key, "revision": f"rev-{pid}",
-                    "kind": "literal" if i <= 8 else "formula" if i <= 16 else "single" if i <= 20 else "composite",
-                    "device_type": device, "type": "template" if i <= 16 else "single" if i <= 20 else "composite"}
+            page = {
+                "id": pid,
+                "name": f"PERF {key} {i:02}",
+                "geometry": key,
+                "revision": f"rev-{pid}",
+                "kind": "literal" if i <= 8 else "formula" if i <= 16 else "single" if i <= 20 else "composite",
+                "device_type": device,
+                "type": "template" if i <= 16 else "single" if i <= 20 else "composite",
+            }
             if key == "array":
                 page.update(notes_wide=2, notes_tall=2)
             if key == "panel":
                 page.update(grid_rows=rows, grid_cols=cols)
             pages.append(page)
         for i, mode in enumerate(("time", "random", "variable")):
-            collections.append({"id": f"collection:{key}-{mode}", "name": f"PERF {key} {mode}", "geometry": key,
-                                "mode": mode, "selection_mode": mode, "page_ids": ids[i * 8:(i + 1) * 8],
-                                "revision": f"rev-{key}-{mode}", mode: {"interval_seconds": 30} if mode != "variable" else {
-                                    "rules": [{"expression": "date_time.hour >= 12", "page_id": ids[16]}],
-                                    "default_page_id": ids[17], "poll_seconds": 10}})
+            collections.append(
+                {
+                    "id": f"collection:{key}-{mode}",
+                    "name": f"PERF {key} {mode}",
+                    "geometry": key,
+                    "mode": mode,
+                    "selection_mode": mode,
+                    "page_ids": ids[i * 8 : (i + 1) * 8],
+                    "revision": f"rev-{key}-{mode}",
+                    mode: {"interval_seconds": 30}
+                    if mode != "variable"
+                    else {
+                        "rules": [{"expression": "date_time.hour >= 12", "page_id": ids[16]}],
+                        "default_page_id": ids[17],
+                        "poll_seconds": 10,
+                    },
+                }
+            )
         for i in range(8):
-            schedules.append({"id": f"schedule-{key}-{i}", "board_id": f"board-{key}", "page_id": ids[i],
-                              "start_time": "06:00", "end_time": "07:00", "day_pattern": "weekdays",
-                              "recurrence_type": "weekly", "enabled": True})
-    return {"schema_version": 1, "fixture": "published-alpha3-96-12-32", "source_commit": SOURCE_COMMIT,
-            "seed_id": "offline-test", "base_url": "http://hub.invalid:3000", "boards": boards, "pages": pages,
-            "collections": collections, "schedules": schedules, "panel_id": "panel-test",
-            "browser_preferences": {"theme": "light", "locale": "en-US", "next_locale": "en", "timezone": "UTC",
-                "display": {"reduce_motion": False, "board_animations": "on", "site_animations": "on", "board_flap_speed": "standard"}}}
+            schedules.append(
+                {
+                    "id": f"schedule-{key}-{i}",
+                    "board_id": f"board-{key}",
+                    "page_id": ids[i],
+                    "start_time": "06:00",
+                    "end_time": "07:00",
+                    "day_pattern": "weekdays",
+                    "recurrence_type": "weekly",
+                    "enabled": True,
+                }
+            )
+    return {
+        "schema_version": 1,
+        "fixture": "published-alpha3-96-12-32",
+        "source_commit": SOURCE_COMMIT,
+        "seed_id": "offline-test",
+        "base_url": "http://hub.invalid:3000",
+        "boards": boards,
+        "pages": pages,
+        "collections": collections,
+        "schedules": schedules,
+        "panel_id": "panel-test",
+        "browser_preferences": {
+            "theme": "light",
+            "locale": "en-US",
+            "next_locale": "en",
+            "timezone": "UTC",
+            "display": {
+                "reduce_motion": False,
+                "board_animations": "on",
+                "site_animations": "on",
+                "board_flap_speed": "standard",
+            },
+        },
+    }
 
 
 def fixture_transport(manifest):
@@ -139,24 +209,54 @@ def fixture_transport(manifest):
         if row["device_type"] == "panel":
             row.update(grid_rows=8, grid_cols=40)
         board_rows.append(row)
-    statuses = {b["id"]: {"configured": True, "paused": False, "active_page_id": manifest["boards"][key]["page_ids"][0],
-                           "error": None} for key, b in zip(manifest["boards"], board_rows)}
+    statuses = {
+        b["id"]: {
+            "configured": True,
+            "paused": False,
+            "active_page_id": manifest["boards"][key]["page_ids"][0],
+            "error": None,
+        }
+        for key, b in zip(manifest["boards"], board_rows, strict=True)
+    }
     responses = {
-        ("GET", "/api/auth/status"): HttpResult(200, {"enabled": True, "authenticated": True,
-                                                    "setup_required": False, "auth_kind": "browser"}),
-        ("GET", "/api/auth/sessions"): HttpResult(200, {"current_session_id": "browser-1", "sessions": [
-            {"id": "browser-1", "kind": "browser", "expires_at": "2099-01-01T00:00:00+00:00"}]}),
+        ("GET", "/api/auth/status"): HttpResult(
+            200, {"enabled": True, "authenticated": True, "setup_required": False, "auth_kind": "browser"}
+        ),
+        ("GET", "/api/auth/sessions"): HttpResult(
+            200,
+            {
+                "current_session_id": "browser-1",
+                "sessions": [{"id": "browser-1", "kind": "browser", "expires_at": "2099-01-01T00:00:00+00:00"}],
+            },
+        ),
         ("GET", "/api/v1/pages"): HttpResult(200, {"pages": pages, "total": 96}),
         ("GET", "/api/v1/collections"): HttpResult(200, {"collections": collections, "total": 12}),
-        ("GET", "/api/v1/schedules?board_id=*"): HttpResult(200, {"schedules": schedules, "total": 32,
-                                                             "enabled": None, "default_page_id": None}),
+        ("GET", "/api/v1/schedules?board_id=*"): HttpResult(
+            200, {"schedules": schedules, "total": 32, "enabled": None, "default_page_id": None}
+        ),
         ("GET", "/api/settings/board"): HttpResult(200, {"boards": board_rows}),
-        ("GET", "/api/settings/display"): HttpResult(200, {"reduce_motion": False, "board_animations": "on", "site_animations": "on", "board_flap_speed": "standard"}),
+        ("GET", "/api/settings/display"): HttpResult(
+            200,
+            {"reduce_motion": False, "board_animations": "on", "site_animations": "on", "board_flap_speed": "standard"},
+        ),
         ("GET", "/api/v1/boards"): HttpResult(200, {"boards": board_rows, "total": 4}),
         ("GET", "/api/v1/status"): HttpResult(200, {"running": True, "initialized": True, "boards": statuses}),
-        ("GET", "/api/panels"): HttpResult(200, {"panels": [{"id": "panel-test", "board_id": "board-panel",
-                                                           "device_type": "panel", "rows": 8, "cols": 40,
-                                                           "board_missing": False}], "total": 1}),
+        ("GET", "/api/panels"): HttpResult(
+            200,
+            {
+                "panels": [
+                    {
+                        "id": "panel-test",
+                        "board_id": "board-panel",
+                        "device_type": "panel",
+                        "rows": 8,
+                        "cols": 40,
+                        "board_missing": False,
+                    }
+                ],
+                "total": 1,
+            },
+        ),
     }
     for group, entries in (("pages", pages), ("collections", collections), ("schedules", schedules)):
         for item in entries:
@@ -169,9 +269,18 @@ def fixture_transport(manifest):
         page = next(p for p in pages if p["id"] == statuses[board["id"]]["active_page_id"])
         frame = [[0] * board["cols"] for _ in range(board["rows"])]
         responses[("GET", f"/api/v1/boards/{board['id']}")] = HttpResult(
-            200, {**board, "active_page_id": page["id"], "resolved_page_id": page["id"], "source": "manual",
-                  "characters": frame, "expected_characters": frame, "text": page["name"],
-                  "override_started_at": None, "override_expires_at": None}
+            200,
+            {
+                **board,
+                "active_page_id": page["id"],
+                "resolved_page_id": page["id"],
+                "source": "manual",
+                "characters": frame,
+                "expected_characters": frame,
+                "text": page["name"],
+                "override_started_at": None,
+                "override_expires_at": None,
+            },
         )
         responses[("GET", f"/api/silence-status?board_id={board['id']}")] = HttpResult(
             200, {"enabled": False, "active": False, "board_id": board["id"], "held": None}
@@ -195,16 +304,35 @@ class SemanticTransport:
             rows = {"flagship": 6, "note": 3, "note_array": 6, "panel": 8}[payload["device_type"]]
             values = ["3", "A", "N/A", "20"] if not self.fail_formula else ["3", "A", "#REF", "20"]
             lines = ["PERF", "3 A", values[2] + " 20"] + [""] * (rows - 3)
-            return HttpResult(200, {"rendered": "\n".join(lines), "lines": lines, "line_count": rows,
-                "diagnostics": {"formulas": [{"value": value, "error": "#REF" if value == "#REF" else None} for value in values]}})
+            return HttpResult(
+                200,
+                {
+                    "rendered": "\n".join(lines),
+                    "lines": lines,
+                    "line_count": rows,
+                    "diagnostics": {
+                        "formulas": [{"value": value, "error": "#REF" if value == "#REF" else None} for value in values]
+                    },
+                },
+            )
         if method == "POST" and path.endswith("/dry-run"):
             cid = path.split("/")[3]
             collection = next(c for c in self.manifest["collections"] if c["id"] == cid)
             matched = payload["values"]["date_time.hour"] >= 12
             pid = collection["page_ids"][0 if matched else 1]
-            return HttpResult(200, {"collection_id": cid, "selection_mode": "variable", "page_id": pid,
-                "matched_rule": 0 if matched else None, "rules": [{"matched": matched, "error": None}],
-                "timeline": [], "truncated": False, "truncated_reason": None})
+            return HttpResult(
+                200,
+                {
+                    "collection_id": cid,
+                    "selection_mode": "variable",
+                    "page_id": pid,
+                    "matched_rule": 0 if matched else None,
+                    "rules": [{"matched": matched, "error": None}],
+                    "timeline": [],
+                    "truncated": False,
+                    "truncated_reason": None,
+                },
+            )
         if method == "PUT" and path == "/api/schedules/enabled":
             self.enabled[payload["board_id"]] = payload["enabled"]
             return HttpResult(200, {"enabled": payload["enabled"]})
@@ -213,20 +341,47 @@ class SemanticTransport:
             board = next(b for b in self.manifest["boards"].values() if b["id"] == bid)
             at = datetime.fromisoformat(instant)
             hhmm = at.strftime("%H:%M")
-            mapping = {"05:59": None, "06:00": 0, "07:00": None, "10:00": 5, "10:30": 6, "10:45": 5,
-                       "11:00": None, "13:00": None, "20:00": 4, "23:00": 3, "00:59": 3, "01:00": None, "08:00": 2}
+            mapping = {
+                "05:59": None,
+                "06:00": 0,
+                "07:00": None,
+                "10:00": 5,
+                "10:30": 6,
+                "10:45": 5,
+                "11:00": None,
+                "13:00": None,
+                "20:00": 4,
+                "23:00": 3,
+                "00:59": 3,
+                "01:00": None,
+                "08:00": 2,
+            }
             index = 1 if at.date().isoformat() == "2026-11-22" else mapping.get(hhmm)
             ref = board["page_ids"][index] if index is not None else None
             if hhmm == "12:00":
-                ref = next(c["id"] for c in self.manifest["collections"] if c["geometry"] == next(
-                    key for key, value in self.manifest["boards"].items() if value["id"] == bid) and c["mode"] == "time")
+                ref = next(
+                    c["id"]
+                    for c in self.manifest["collections"]
+                    if c["geometry"]
+                    == next(key for key, value in self.manifest["boards"].items() if value["id"] == bid)
+                    and c["mode"] == "time"
+                )
             if self.fail_boundary and hhmm == "10:45":
                 ref = board["page_ids"][6]
             if not self.enabled[bid]:
                 ref = board["page_ids"][0]
-            return HttpResult(200, {"page_id": ref, "resolved_page_id": board["page_ids"][0] if ref and ref.startswith("collection:") else ref,
-                "source": "schedule" if ref else "none", "schedule_enabled": self.enabled[bid],
-                "at": instant, "silenced": False, "temporary_override": {"active": False}})
+            return HttpResult(
+                200,
+                {
+                    "page_id": ref,
+                    "resolved_page_id": board["page_ids"][0] if ref and ref.startswith("collection:") else ref,
+                    "source": "schedule" if ref else "none",
+                    "schedule_enabled": self.enabled[bid],
+                    "at": instant,
+                    "silenced": False,
+                    "temporary_override": {"active": False},
+                },
+            )
         raise AssertionError(f"Unexpected semantic HTTP exchange: {method} {path}")
 
 
@@ -236,8 +391,18 @@ class SeedTransport:
     def __init__(self, *, unexpected_page=False, refuse_send=False):
         self.exchanges = []
         self.user = None
-        self.boards = [{"id": "bootstrap", "name": "My Board", "device_type": "flagship", "api_mode": "local",
-                        "output": "vestaboard", "host": "", "local_api_key": "", "cloud_key": ""}]
+        self.boards = [
+            {
+                "id": "bootstrap",
+                "name": "My Board",
+                "device_type": "flagship",
+                "api_mode": "local",
+                "output": "vestaboard",
+                "host": "",
+                "local_api_key": "",
+                "cloud_key": "",
+            }
+        ]
         self.groups = {"pages": [], "collections": [], "schedules": [], "panels": []}
         self.config = {}
         self.active = {}
@@ -250,15 +415,31 @@ class SeedTransport:
         path, query = urlsplit(url).path, parse_qs(urlsplit(url).query)
         self.exchanges.append((method, path, copy.deepcopy(payload)))
         if path == "/api/auth/status" and method == "GET":
-            return HttpResult(200, {"enabled": True, "mode": "enabled", "setup_required": self.user is None,
-                                    "authenticated": self.user is not None, "auth_kind": "browser" if self.user else None})
+            return HttpResult(
+                200,
+                {
+                    "enabled": True,
+                    "mode": "enabled",
+                    "setup_required": self.user is None,
+                    "authenticated": self.user is not None,
+                    "auth_kind": "browser" if self.user else None,
+                },
+            )
         if path == "/api/auth/setup" and method == "POST" and self.user is None:
             self.user = payload["username"]
-            return HttpResult(201, {"status": "ok", "username": self.user},
-                              {"Set-Cookie": "fiestaboard_session=seed-cookie-secret; HttpOnly"})
+            return HttpResult(
+                201,
+                {"status": "ok", "username": self.user},
+                {"Set-Cookie": "fiestaboard_session=seed-cookie-secret; HttpOnly"},
+            )
         if path == "/api/auth/sessions" and method == "GET":
-            return HttpResult(200, {"current_session_id": "browser-1", "sessions": [
-                {"id": "browser-1", "kind": "browser", "expires_at": "2099-01-01T00:00:00+00:00"}]})
+            return HttpResult(
+                200,
+                {
+                    "current_session_id": "browser-1",
+                    "sessions": [{"id": "browser-1", "kind": "browser", "expires_at": "2099-01-01T00:00:00+00:00"}],
+                },
+            )
         if path == "/api/settings/board":
             if method == "PUT":
                 self.boards = copy.deepcopy(payload["boards"])
@@ -266,24 +447,58 @@ class SeedTransport:
                     board["output"] = "fiestapanel" if board["api_mode"] == "virtual" else "vestaboard"
             return HttpResult(200, {"boards": copy.deepcopy(self.boards)})
         if path == "/api/panels" and method == "POST":
-            panel = {**payload, "id": "generated-panel", "board_id": "generated-panel-board", "rows": 8, "cols": 40,
-                     "device_type": "panel", "board_missing": False}
+            panel = {
+                **payload,
+                "id": "generated-panel",
+                "board_id": "generated-panel-board",
+                "rows": 8,
+                "cols": 40,
+                "device_type": "panel",
+                "board_missing": False,
+            }
             self.groups["panels"].append(panel)
-            self.boards.append({"id": panel["board_id"], "name": payload["name"] + " (Panel)", "device_type": "panel",
-                                "grid_rows": 8, "grid_cols": 40, "api_mode": "virtual", "output": "fiestapanel",
-                                "enabled": True, "paused": False, "schedule_enabled": False})
+            self.boards.append(
+                {
+                    "id": panel["board_id"],
+                    "name": payload["name"] + " (Panel)",
+                    "device_type": "panel",
+                    "grid_rows": 8,
+                    "grid_cols": 40,
+                    "api_mode": "virtual",
+                    "output": "fiestapanel",
+                    "enabled": True,
+                    "paused": False,
+                    "schedule_enabled": False,
+                }
+            )
             return HttpResult(201, panel)
-        if (path == "/api/templates/render" or path.endswith("/dry-run")
-                or path in {"/api/schedules/enabled", "/api/schedules/active/page"}):
+        if (
+            path == "/api/templates/render"
+            or path.endswith("/dry-run")
+            or path in {"/api/schedules/enabled", "/api/schedules/active/page"}
+        ):
             if self.semantic is None:
                 boards = {}
-                for key, board in zip(("flagship", "note", "array", "panel"), self.boards):
-                    rows, cols = {"flagship": (6, 22), "note": (3, 15), "note_array": (6, 30), "panel": (8, 40)}[board["device_type"]]
-                    boards[key] = {**board, "rows": rows, "cols": cols, "page_ids": [p["id"] for p in self.groups["pages"]
-                                                                                      if p["device_type"] == board["device_type"]]}
-                collections = [{**collection, "mode": collection["selection_mode"], "geometry": next(
-                    key for key, board in boards.items() if collection["page_ids"][0] in board["page_ids"])}
-                    for collection in self.groups["collections"]]
+                for key, board in zip(("flagship", "note", "array", "panel"), self.boards, strict=True):
+                    rows, cols = {"flagship": (6, 22), "note": (3, 15), "note_array": (6, 30), "panel": (8, 40)}[
+                        board["device_type"]
+                    ]
+                    boards[key] = {
+                        **board,
+                        "rows": rows,
+                        "cols": cols,
+                        "page_ids": [p["id"] for p in self.groups["pages"] if p["device_type"] == board["device_type"]],
+                    }
+                collections = [
+                    {
+                        **collection,
+                        "mode": collection["selection_mode"],
+                        "geometry": next(
+                            key for key, board in boards.items() if collection["page_ids"][0] in board["page_ids"]
+                        ),
+                    }
+                    for collection in self.groups["collections"]
+                ]
                 self.semantic = SemanticTransport({"boards": boards, "collections": collections})
             answer = self.semantic(method, url, payload, headers, timeout)
             if path == "/api/schedules/enabled":
@@ -306,12 +521,25 @@ class SeedTransport:
                         items = [s for s in items if s["board_id"] == query["board_id"][0]]
                     return HttpResult(200, {group: items, "total": len(items)})
             if method == "GET" and path.startswith(prefix + "/"):
-                pid = path[len(prefix) + 1:]
+                pid = path[len(prefix) + 1 :]
                 return HttpResult(200, next(copy.deepcopy(p) for p in self.groups[group] if p["id"] == pid))
         if path == "/api/v1/status" and method == "GET":
-            return HttpResult(200, {"running": True, "initialized": True, "boards": {
-                b["id"]: {"configured": True, "paused": False, "error": None,
-                           "active_page_id": self.active.get(b["id"])} for b in self.boards}})
+            return HttpResult(
+                200,
+                {
+                    "running": True,
+                    "initialized": True,
+                    "boards": {
+                        b["id"]: {
+                            "configured": True,
+                            "paused": False,
+                            "error": None,
+                            "active_page_id": self.active.get(b["id"]),
+                        }
+                        for b in self.boards
+                    },
+                },
+            )
         if path == "/api/v1/boards" and method == "GET":
             return HttpResult(200, {"boards": copy.deepcopy(self.boards), "total": len(self.boards)})
         if path == "/api/silence-status" and method == "GET":
@@ -320,18 +548,39 @@ class SeedTransport:
             bid = path.split("/")[4]
             if method == "PUT" and path.endswith("/active-page"):
                 self.active[bid] = payload["page_id"]
-                return HttpResult(200, {"board_id": bid, "page_id": payload["page_id"], "sent": not self.refuse_send,
-                                        "error": "refused" if self.refuse_send else None, "warnings": []})
+                return HttpResult(
+                    200,
+                    {
+                        "board_id": bid,
+                        "page_id": payload["page_id"],
+                        "sent": not self.refuse_send,
+                        "error": "refused" if self.refuse_send else None,
+                        "warnings": [],
+                    },
+                )
             if method == "GET":
                 board = next(b for b in self.boards if b["id"] == bid)
                 rows, cols = {"flagship": (6, 22), "note": (3, 15), "note_array": (6, 30), "panel": (8, 40)}[
-                    board["device_type"]]
+                    board["device_type"]
+                ]
                 page = next(p for p in self.groups["pages"] if p["id"] == self.active[bid])
                 frame = [[0] * cols for _ in range(rows)]
-                return HttpResult(200, {**board, "rows": rows, "cols": cols, "active_page_id": page["id"],
-                                        "resolved_page_id": page["id"], "source": "manual", "text": page["name"],
-                                        "characters": frame, "expected_characters": frame,
-                                        "override_started_at": None, "override_expires_at": None})
+                return HttpResult(
+                    200,
+                    {
+                        **board,
+                        "rows": rows,
+                        "cols": cols,
+                        "active_page_id": page["id"],
+                        "resolved_page_id": page["id"],
+                        "source": "manual",
+                        "text": page["name"],
+                        "characters": frame,
+                        "expected_characters": frame,
+                        "override_started_at": None,
+                        "override_expires_at": None,
+                    },
+                )
         if path in {"/api/config/general", "/api/settings/plugins", "/api/settings/wizard", "/api/settings/display"}:
             if method == "PUT":
                 self.config[path] = payload
@@ -344,13 +593,22 @@ class SeedTransport:
             if method == "POST" and path.endswith("/enable"):
                 return HttpResult(200, {"plugin_id": plugin, "enabled": True})
             if method == "GET" and path.endswith("/data"):
-                return HttpResult(200, {"plugin_id": plugin, "available": True, "data": {}, "formatted_lines": ["PERF"]})
+                return HttpResult(
+                    200, {"plugin_id": plugin, "available": True, "data": {}, "formatted_lines": ["PERF"]}
+                )
             if method == "GET" and path == f"/api/plugins/{plugin}":
-                return HttpResult(200, {"id": plugin, "version": "1.3.1", "enabled": True,
-                                        "config": self.config.get(plugin, {})})
+                return HttpResult(
+                    200, {"id": plugin, "version": "1.3.1", "enabled": True, "config": self.config.get(plugin, {})}
+                )
         if path == "/api/plugins" and method == "GET":
-            return HttpResult(200, {"plugins": [{"id": "date_time", "enabled": True},
-                                               {"id": "countdown", "enabled": True}], "total": 2, "enabled_count": 2})
+            return HttpResult(
+                200,
+                {
+                    "plugins": [{"id": "date_time", "enabled": True}, {"id": "countdown", "enabled": True}],
+                    "total": 2,
+                    "enabled_count": 2,
+                },
+            )
         if path == "/api/pages/preview/batch" and method == "POST":
             previews = {}
             for pid in payload["page_ids"]:
@@ -370,13 +628,17 @@ class RuntimeContractTests(unittest.TestCase):
 
     def test_existing_account_rejected_before_any_mutation(self):
         # Removing the setup_required guard would permit resetting/seeding an existing install.
-        transport = MemoryTransport({("GET", "/api/auth/status"): HttpResult(
-            200, {"enabled": True, "setup_required": False, "authenticated": False, "mode": "enabled"})})
+        transport = MemoryTransport(
+            {
+                ("GET", "/api/auth/status"): HttpResult(
+                    200, {"enabled": True, "setup_required": False, "authenticated": False, "mode": "enabled"}
+                )
+            }
+        )
         client = JsonClient("http://hub.invalid:3000", {"username": "perf", "password": "secret"}, transport=transport)
         client.run_context = run_context()
-        with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaises(ProtocolError):
-                seed(client, ownership(), Path(directory))
+        with tempfile.TemporaryDirectory() as directory, self.assertRaises(ProtocolError):
+            seed(client, ownership(), Path(directory))
         self.assertEqual([x for x in transport.exchanges if x[0] != "GET"], [])
         self.assertEqual([x[:2] for x in transport.exchanges], [("GET", "/api/auth/status")])
 
@@ -386,9 +648,8 @@ class RuntimeContractTests(unittest.TestCase):
         marker["base_url"] = "http://other.invalid:3000"
         transport = MemoryTransport({})
         client = JsonClient("http://hub.invalid:3000", {"username": "perf", "password": "secret"}, transport=transport)
-        with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaises(ProtocolError):
-                seed(client, marker, Path(directory))
+        with tempfile.TemporaryDirectory() as directory, self.assertRaises(ProtocolError):
+            seed(client, marker, Path(directory))
         self.assertEqual(transport.exchanges, [])
 
     def test_missing_prestart_empty_inventory_rejected_before_network(self):
@@ -397,9 +658,8 @@ class RuntimeContractTests(unittest.TestCase):
         marker["prestart_entries"] = ["auth.json"]
         transport = MemoryTransport({})
         client = JsonClient("http://hub.invalid:3000", {"username": "perf", "password": "secret"}, transport=transport)
-        with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaises(ProtocolError):
-                seed(client, marker, Path(directory))
+        with tempfile.TemporaryDirectory() as directory, self.assertRaises(ProtocolError):
+            seed(client, marker, Path(directory))
         self.assertEqual(transport.exchanges, [])
 
     def test_fixture_verification_accepts_complete_matching_real_id_sets(self):
@@ -436,10 +696,14 @@ class RuntimeContractTests(unittest.TestCase):
 
     def test_http_200_preview_unavailable_item_is_semantic_failure(self):
         # HTTP status alone cannot establish success of a batch preview.
-        body = {"total": 2, "successful": 2, "previews": {
-            "p1": {"page_id": "p1", "available": True, "lines": ["PERF"]},
-            "p2": {"page_id": "p2", "available": False, "error": "render failed"},
-        }}
+        body = {
+            "total": 2,
+            "successful": 2,
+            "previews": {
+                "p1": {"page_id": "p1", "available": True, "lines": ["PERF"]},
+                "p2": {"page_id": "p2", "available": False, "error": "render failed"},
+            },
+        }
         with self.assertRaises(ProtocolError):
             validate_preview(body, ["p1", "p2"])
 
@@ -459,9 +723,15 @@ class RuntimeContractTests(unittest.TestCase):
 
     def test_redacts_nested_credentials_headers_and_echoed_error_values(self):
         # Key-only redaction misses server/transport errors echoing a secret in free text.
-        raw = {"password": "password-secret", "headers": {"Set-Cookie": "fiestaboard_session=cookie-secret",
-                                                       "Cookie": "fiestaboard_session=cookie-secret"},
-               "error": "password-secret then cookie-secret", "safe": {"page_id": "perf-note-01"}}
+        raw = {
+            "password": "password-secret",
+            "headers": {
+                "Set-Cookie": "fiestaboard_session=cookie-secret",
+                "Cookie": "fiestaboard_session=cookie-secret",
+            },
+            "error": "password-secret then cookie-secret",
+            "safe": {"page_id": "perf-note-01"},
+        }
         saved = json.dumps(redact(raw, ("password-secret", "cookie-secret")))
         self.assertNotIn("password-secret", saved)
         self.assertNotIn("cookie-secret", saved)
@@ -483,33 +753,62 @@ class RuntimeContractTests(unittest.TestCase):
 
     def test_explicit_login_verifies_current_browser_session_expiry(self):
         # A successful login envelope alone does not prove auth or sufficient session lifetime.
-        transport = MemoryTransport({
-            ("POST", "/api/auth/login"): HttpResult(200, {"status": "ok", "username": "perf"},
-                                                   {"Set-Cookie": "fiestaboard_session=cookie-secret; HttpOnly"}),
-            ("GET", "/api/auth/status"): HttpResult(200, {"enabled": True, "authenticated": True,
-                                                        "setup_required": False, "auth_kind": "browser"}),
-            ("GET", "/api/auth/sessions"): HttpResult(200, {"current_session_id": "browser-1", "sessions": [
-                {"id": "browser-1", "kind": "browser", "expires_at": "2099-01-01T00:00:00+00:00"}]}),
-        })
-        client = JsonClient("http://hub.invalid:3000", {"username": "perf", "password": "password-secret"},
-                            transport=transport, run_context=run_context())
+        transport = MemoryTransport(
+            {
+                ("POST", "/api/auth/login"): HttpResult(
+                    200,
+                    {"status": "ok", "username": "perf"},
+                    {"Set-Cookie": "fiestaboard_session=cookie-secret; HttpOnly"},
+                ),
+                ("GET", "/api/auth/status"): HttpResult(
+                    200, {"enabled": True, "authenticated": True, "setup_required": False, "auth_kind": "browser"}
+                ),
+                ("GET", "/api/auth/sessions"): HttpResult(
+                    200,
+                    {
+                        "current_session_id": "browser-1",
+                        "sessions": [{"id": "browser-1", "kind": "browser", "expires_at": "2099-01-01T00:00:00+00:00"}],
+                    },
+                ),
+            }
+        )
+        client = JsonClient(
+            "http://hub.invalid:3000",
+            {"username": "perf", "password": "password-secret"},
+            transport=transport,
+            run_context=run_context(),
+        )
         session = client.login(min_valid_seconds=7800)
         self.assertIsNotNone(session)
         self.assertEqual(session["active_sessions"], 1)
         self.assertEqual(session["current_session_id"], "browser-1")
-        self.assertNotIn("cookie-secret", json.dumps(client.safe_result(transport.responses[("POST", "/api/auth/login")])) )
+        self.assertNotIn(
+            "cookie-secret", json.dumps(client.safe_result(transport.responses[("POST", "/api/auth/login")]))
+        )
 
     def test_short_session_cannot_start_long_measurement(self):
         # Ignoring actual expiry makes a long run end in 401s despite a fresh context.
-        transport = MemoryTransport({
-            ("POST", "/api/auth/login"): HttpResult(200, {"status": "ok", "username": "perf"}),
-            ("GET", "/api/auth/status"): HttpResult(200, {"enabled": True, "authenticated": True,
-                                                        "setup_required": False, "auth_kind": "browser"}),
-            ("GET", "/api/auth/sessions"): HttpResult(200, {"current_session_id": "browser-1", "sessions": [
-                {"id": "browser-1", "kind": "browser", "expires_at": "2000-01-01T00:00:00+00:00"}]}),
-        })
-        client = JsonClient("http://hub.invalid:3000", {"username": "perf", "password": "password-secret"},
-                            transport=transport, run_context=run_context())
+        transport = MemoryTransport(
+            {
+                ("POST", "/api/auth/login"): HttpResult(200, {"status": "ok", "username": "perf"}),
+                ("GET", "/api/auth/status"): HttpResult(
+                    200, {"enabled": True, "authenticated": True, "setup_required": False, "auth_kind": "browser"}
+                ),
+                ("GET", "/api/auth/sessions"): HttpResult(
+                    200,
+                    {
+                        "current_session_id": "browser-1",
+                        "sessions": [{"id": "browser-1", "kind": "browser", "expires_at": "2000-01-01T00:00:00+00:00"}],
+                    },
+                ),
+            }
+        )
+        client = JsonClient(
+            "http://hub.invalid:3000",
+            {"username": "perf", "password": "password-secret"},
+            transport=transport,
+            run_context=run_context(),
+        )
         with self.assertRaises(ProtocolError):
             client.login(min_valid_seconds=7800)
 
@@ -518,12 +817,18 @@ class RuntimeContractTests(unittest.TestCase):
         definitions = page_definitions(fixture()["boards"])
         self.assertEqual(len(definitions), 96)
         self.assertEqual(len({p["name"] for p in definitions}), 96)
-        for geometry, device, rows, cols in [("flagship", "flagship", 6, 22), ("note", "note", 3, 15),
-                                             ("array", "note_array", 6, 30), ("panel", "panel", 8, 40)]:
+        for geometry, device, rows, cols in [
+            ("flagship", "flagship", 6, 22),
+            ("note", "note", 3, 15),
+            ("array", "note_array", 6, 30),
+            ("panel", "panel", 8, 40),
+        ]:
             group = [p for p in definitions if p["geometry"] == geometry]
             self.assertEqual(len(group), 24)
-            self.assertEqual([sum(p["kind"] == kind for p in group) for kind in
-                              ("literal", "formula", "single", "composite")], [8, 8, 4, 4])
+            self.assertEqual(
+                [sum(p["kind"] == kind for p in group) for kind in ("literal", "formula", "single", "composite")],
+                [8, 8, 4, 4],
+            )
             for page in group:
                 self.assertEqual(page["device_type"], device)
                 if geometry == "array":
@@ -537,12 +842,21 @@ class RuntimeContractTests(unittest.TestCase):
         data = fixture()
         transport = fixture_transport(data)
         transport.responses[("POST", "/api/pages/preview/batch")] = HttpResult(
-            200, {"total": 1, "successful": 0, "previews": {"flagship-01": {"available": False, "error": "bad"}}},
-            elapsed_ms=4.0, body_bytes=80
+            200,
+            {"total": 1, "successful": 0, "previews": {"flagship-01": {"available": False, "error": "bad"}}},
+            elapsed_ms=4.0,
+            body_bytes=80,
         )
         client = JsonClient(data["base_url"], {}, transport=transport)
-        op = ApiOperation("preview", "flagship", "forced", "POST", "/api/pages/preview/batch",
-                          {"page_ids": ["flagship-01"]}, lambda body: validate_preview(body, ["flagship-01"]))
+        op = ApiOperation(
+            "preview",
+            "flagship",
+            "forced",
+            "POST",
+            "/api/pages/preview/batch",
+            {"page_ids": ["flagship-01"]},
+            lambda body: validate_preview(body, ["flagship-01"]),
+        )
         with tempfile.TemporaryDirectory() as directory:
             report = sample_api(client, data, Path(directory), batches=1, samples=1, warmups=0, operations=[op])
             self.assertIs(report.get("valid"), False)
@@ -573,8 +887,12 @@ class RuntimeContractTests(unittest.TestCase):
     def test_seed_reads_actual_generated_ids_and_never_sends_wrong_geometry(self):
         # A seed that guesses IDs/dimensions or leaves a partial content set is unusable for browser/API runs.
         transport = SeedTransport()
-        client = JsonClient("http://hub.invalid:3000", {"username": "perf", "password": "password-secret"},
-                            transport=transport, run_context=run_context())
+        client = JsonClient(
+            "http://hub.invalid:3000",
+            {"username": "perf", "password": "password-secret"},
+            transport=transport,
+            run_context=run_context(),
+        )
         with tempfile.TemporaryDirectory() as directory:
             manifest = seed(client, ownership(), Path(directory))
             self.assertEqual([len(manifest[group]) for group in ("pages", "collections", "schedules")], [96, 12, 32])
@@ -583,8 +901,21 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertTrue(manifest["verification"]["exact_ids"])
             self.assertTrue(manifest["verification"].get("h6_formula"))
             self.assertTrue(manifest["verification"].get("h8_boundaries"))
-            self.assertEqual(manifest.get("browser_preferences"), {"theme": "light", "locale": "en-US", "next_locale": "en", "timezone": "UTC",
-                "display": {"reduce_motion": False, "board_animations": "on", "site_animations": "on", "board_flap_speed": "standard"}})
+            self.assertEqual(
+                manifest.get("browser_preferences"),
+                {
+                    "theme": "light",
+                    "locale": "en-US",
+                    "next_locale": "en",
+                    "timezone": "UTC",
+                    "display": {
+                        "reduce_motion": False,
+                        "board_animations": "on",
+                        "site_animations": "on",
+                        "board_flap_speed": "standard",
+                    },
+                },
+            )
             for artifact in Path(directory).iterdir():
                 raw = artifact.read_text()
                 self.assertNotIn("password-secret", raw)
@@ -596,19 +927,26 @@ class RuntimeContractTests(unittest.TestCase):
     def test_unexpected_content_after_setup_prevents_seed_configuration_writes(self):
         # Public status cannot inspect protected content; the first post-setup inventory must stop wrong-store writes.
         transport = SeedTransport(unexpected_page=True)
-        client = JsonClient("http://hub.invalid:3000", {"username": "perf", "password": "password-secret"},
-                            transport=transport, run_context=run_context())
-        with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaises(ProtocolError):
-                seed(client, ownership(), Path(directory))
+        client = JsonClient(
+            "http://hub.invalid:3000",
+            {"username": "perf", "password": "password-secret"},
+            transport=transport,
+            run_context=run_context(),
+        )
+        with tempfile.TemporaryDirectory() as directory, self.assertRaises(ProtocolError):
+            seed(client, ownership(), Path(directory))
         writes = [x[1] for x in transport.exchanges if x[0] != "GET"]
         self.assertEqual(writes, ["/api/auth/setup"])
 
     def test_pin_refusal_does_not_produce_verified_manifest(self):
         # Persisted selection must not masquerade as successful virtual delivery.
         transport = SeedTransport(refuse_send=True)
-        client = JsonClient("http://hub.invalid:3000", {"username": "perf", "password": "password-secret"},
-                            transport=transport, run_context=run_context())
+        client = JsonClient(
+            "http://hub.invalid:3000",
+            {"username": "perf", "password": "password-secret"},
+            transport=transport,
+            run_context=run_context(),
+        )
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaises(ProtocolError):
                 seed(client, ownership(), Path(directory))
@@ -656,8 +994,11 @@ class RuntimeContractTests(unittest.TestCase):
         original = next(p for p in data["pages"] if p["id"] == page_id)
         original_revision = original["revision"]
         transport.responses[("PUT", op.path)] = lambda method, target, payload: HttpResult(
-            200, {"page": {**original, "template": payload["template"], "revision": "next-generation"},
-                  "incompatible_references": []}
+            200,
+            {
+                "page": {**original, "template": payload["template"], "revision": "next-generation"},
+                "incompatible_references": [],
+            },
         )
         client = JsonClient(data["base_url"], {}, transport=transport)
         with tempfile.TemporaryDirectory() as directory:
@@ -672,13 +1013,17 @@ class RuntimeContractTests(unittest.TestCase):
         for offset in (-3600, 3600):
             with self.subTest(offset=offset):
                 marker = ownership()
-                marker["attested_utc"] = (datetime.now(timezone.utc) + timedelta(seconds=offset)).isoformat()
-                transport = MemoryTransport({("GET", "/api/auth/status"): HttpResult(
-                    200, {"enabled": True, "mode": "enabled", "setup_required": False})})
+                marker["attested_utc"] = (datetime.now(UTC) + timedelta(seconds=offset)).isoformat()
+                transport = MemoryTransport(
+                    {
+                        ("GET", "/api/auth/status"): HttpResult(
+                            200, {"enabled": True, "mode": "enabled", "setup_required": False}
+                        )
+                    }
+                )
                 client = JsonClient(marker["base_url"], {}, transport=transport, run_context=run_context())
-                with tempfile.TemporaryDirectory() as directory:
-                    with self.assertRaises(ProtocolError):
-                        seed(client, marker, Path(directory))
+                with tempfile.TemporaryDirectory() as directory, self.assertRaises(ProtocolError):
+                    seed(client, marker, Path(directory))
                 self.assertEqual(transport.exchanges, [])
 
     def test_independent_live_context_must_match_complete_store_binding(self):
@@ -692,12 +1037,16 @@ class RuntimeContractTests(unittest.TestCase):
                     context["container"]["manifest_digest"] = "different"
                 else:
                     context["target_origin" if field == "base_url" else field] = "different"
-                transport = MemoryTransport({("GET", "/api/auth/status"): HttpResult(
-                    200, {"enabled": True, "mode": "enabled", "setup_required": False})})
+                transport = MemoryTransport(
+                    {
+                        ("GET", "/api/auth/status"): HttpResult(
+                            200, {"enabled": True, "mode": "enabled", "setup_required": False}
+                        )
+                    }
+                )
                 client = JsonClient(marker["base_url"], {}, transport=transport, run_context=context)
-                with tempfile.TemporaryDirectory() as directory:
-                    with self.assertRaises(ProtocolError):
-                        seed(client, marker, Path(directory))
+                with tempfile.TemporaryDirectory() as directory, self.assertRaises(ProtocolError):
+                    seed(client, marker, Path(directory))
                 self.assertEqual(transport.exchanges, [])
 
     def test_sampler_refuses_auth_disabled_target_before_timed_requests(self):
@@ -708,9 +1057,8 @@ class RuntimeContractTests(unittest.TestCase):
         transport.responses[("GET", "/api/v1/health")] = HttpResult(200, {"status": "healthy"})
         client = JsonClient(data["base_url"], {}, transport=transport)
         operation = ApiOperation("health", "all", "n/a", "GET", "/api/v1/health", None, lambda body: None)
-        with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaises(ProtocolError):
-                sample_api(client, data, Path(directory), batches=1, samples=1, warmups=0, operations=[operation])
+        with tempfile.TemporaryDirectory() as directory, self.assertRaises(ProtocolError):
+            sample_api(client, data, Path(directory), batches=1, samples=1, warmups=0, operations=[operation])
         self.assertEqual([x for x in transport.exchanges if x[1] == "/api/v1/health"], [])
 
     def test_batch_fixture_rejects_changed_schedule_or_override_or_silence(self):
@@ -722,7 +1070,9 @@ class RuntimeContractTests(unittest.TestCase):
                 if changed == "schedule":
                     transport.responses[("GET", "/api/settings/board")].body["boards"][0]["schedule_enabled"] = True
                 elif changed == "override":
-                    transport.responses[("GET", "/api/v1/boards/board-flagship")].body["override_started_at"] = "2026-11-17T00:00:00+00:00"
+                    transport.responses[("GET", "/api/v1/boards/board-flagship")].body["override_started_at"] = (
+                        "2026-11-17T00:00:00+00:00"
+                    )
                 elif changed == "silence":
                     transport.responses[("GET", "/api/silence-status?board_id=board-flagship")].body["active"] = True
                 else:
@@ -755,17 +1105,38 @@ class RuntimeContractTests(unittest.TestCase):
             marker = ownership()
             context = run_context()
             context["ownership_sha256"] = "f" * 64
-            for filename, value in (("owner.json", marker), ("context.json", context),
-                                    ("credentials.json", {"username": "perf", "password": "password-secret"})):
+            for filename, value in (
+                ("owner.json", marker),
+                ("context.json", context),
+                ("credentials.json", {"username": "perf", "password": "password-secret"}),
+            ):
                 file = root / filename
                 file.write_text(json.dumps(value))
                 file.chmod(0o600)
             transport = MemoryTransport({})
-            client = JsonClient(marker["base_url"], {"username": "perf", "password": "password-secret"}, transport=transport)
-            with patch("runtime_seed.JsonClient", return_value=client), redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()):
-                code = seed_main(["seed", "--base-url", marker["base_url"], "--ownership", str(root / "owner.json"),
-                    "--run-context", str(root / "context.json"), "--credentials", str(root / "credentials.json"),
-                    "--out-dir", str(root / "out")])
+            client = JsonClient(
+                marker["base_url"], {"username": "perf", "password": "password-secret"}, transport=transport
+            )
+            with (
+                patch("runtime_seed.JsonClient", return_value=client),
+                redirect_stderr(io.StringIO()),
+                redirect_stdout(io.StringIO()),
+            ):
+                code = seed_main(
+                    [
+                        "seed",
+                        "--base-url",
+                        marker["base_url"],
+                        "--ownership",
+                        str(root / "owner.json"),
+                        "--run-context",
+                        str(root / "context.json"),
+                        "--credentials",
+                        str(root / "credentials.json"),
+                        "--out-dir",
+                        str(root / "out"),
+                    ]
+                )
             self.assertEqual(code, 2)
             self.assertEqual(transport.exchanges, [])
 
@@ -773,8 +1144,11 @@ class RuntimeContractTests(unittest.TestCase):
         # A missing import inside the generated lambda escaped operation-definition-only tests.
         operation = next(op for op in api_operations(fixture()) if op.name == "preview_batch_forced")
         ids = operation.payload["page_ids"]
-        body = {"total": 12, "successful": 12, "previews": {pid: {"page_id": pid, "available": True,
-                "lines": ["PERF"]} for pid in ids}}
+        body = {
+            "total": 12,
+            "successful": 12,
+            "previews": {pid: {"page_id": pid, "available": True, "lines": ["PERF"]} for pid in ids},
+        }
         self.assertIsNone(operation.validate(body))
         body["previews"][ids[-1]]["available"] = False
         with self.assertRaises(ProtocolError):
@@ -834,8 +1208,10 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(first.status, 200)
         self.assertFalse(first.connection_reused)
         self.assertTrue(second.connection_reused)
-        self.assertEqual({key.lower(): value for key, value in connection.requests[1][2].items()}["cookie"],
-                         "fiestaboard_session=server-cookie")
+        self.assertEqual(
+            {key.lower(): value for key, value in connection.requests[1][2].items()}["cookie"],
+            "fiestaboard_session=server-cookie",
+        )
         self.assertNotIn("server-cookie", json.dumps(client.safe_result(first)))
 
     def test_metadata_redirect_is_not_followed_even_to_same_origin(self):
@@ -850,14 +1226,19 @@ class RuntimeContractTests(unittest.TestCase):
                 self.requests.append(target)
 
             def getresponse(self):
-                response = type("Response", (), {"status": 302, "will_close": False,
-                    "read": lambda self, limit: b"{}", "close": lambda self: None})()
+                response = type(
+                    "Response",
+                    (),
+                    {"status": 302, "will_close": False, "read": lambda self, limit: b"{}", "close": lambda self: None},
+                )()
                 response.headers = Message()
                 response.headers["Location"] = "http://other.invalid/api/v1/health"
                 return response
 
         connection = Connection()
-        result = JsonClient("http://hub.invalid:3000", {}, connection_factory=lambda: connection).request("GET", "/api/v1/health")
+        result = JsonClient("http://hub.invalid:3000", {}, connection_factory=lambda: connection).request(
+            "GET", "/api/v1/health"
+        )
         self.assertEqual(result.status, 302)
         self.assertEqual(connection.requests, ["/api/v1/health"])
 
@@ -867,17 +1248,37 @@ class RuntimeContractTests(unittest.TestCase):
             root = Path(directory)
             marker, context = ownership(), run_context()
             context["ownership_sha256"] = "f" * 64
-            for name, value in (("owner.json", marker), ("context.json", context),
-                                ("credentials.json", {"username": "perf", "password": "password-secret"})):
+            for name, value in (
+                ("owner.json", marker),
+                ("context.json", context),
+                ("credentials.json", {"username": "perf", "password": "password-secret"}),
+            ):
                 path = root / name
                 path.write_text(json.dumps(value))
                 path.chmod(0o600)
             transport = MemoryTransport({})
             client = JsonClient(marker["base_url"], {}, transport=transport)
-            with patch("runtime_seed.JsonClient", return_value=client), redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()):
-                code = api_main(["--base-url", marker["base_url"], "--ownership", str(root / "owner.json"),
-                                 "--run-context", str(root / "context.json"), "--credentials", str(root / "credentials.json"),
-                                 "--manifest", str(root / "manifest.json"), "--out-dir", str(root / "out")])
+            with (
+                patch("runtime_seed.JsonClient", return_value=client),
+                redirect_stderr(io.StringIO()),
+                redirect_stdout(io.StringIO()),
+            ):
+                code = api_main(
+                    [
+                        "--base-url",
+                        marker["base_url"],
+                        "--ownership",
+                        str(root / "owner.json"),
+                        "--run-context",
+                        str(root / "context.json"),
+                        "--credentials",
+                        str(root / "credentials.json"),
+                        "--manifest",
+                        str(root / "manifest.json"),
+                        "--out-dir",
+                        str(root / "out"),
+                    ]
+                )
             self.assertEqual(code, 2)
             self.assertEqual(transport.exchanges, [])
 
@@ -886,14 +1287,22 @@ class RuntimeContractTests(unittest.TestCase):
         for competing in (False, True):
             with self.subTest(competing=competing):
                 context = run_context()
-                context["exclusion"]["running_ids"] = ["prod-test", "web23", "native-preview"] + (["prod-other"] if competing else [])
-                transport = MemoryTransport({("GET", "/api/auth/status"): HttpResult(
-                    200, {"enabled": True, "mode": "enabled", "setup_required": False})})
+                context["exclusion"]["running_ids"] = ["prod-test", "web23", "native-preview"] + (
+                    ["prod-other"] if competing else []
+                )
+                transport = MemoryTransport(
+                    {
+                        ("GET", "/api/auth/status"): HttpResult(
+                            200, {"enabled": True, "mode": "enabled", "setup_required": False}
+                        )
+                    }
+                )
                 client = JsonClient("http://hub.invalid:3000", {}, transport=transport, run_context=context)
-                with tempfile.TemporaryDirectory() as directory:
-                    with self.assertRaises(ProtocolError):
-                        seed(client, ownership(), Path(directory))
-                self.assertEqual([x[:2] for x in transport.exchanges], [] if competing else [("GET", "/api/auth/status")])
+                with tempfile.TemporaryDirectory() as directory, self.assertRaises(ProtocolError):
+                    seed(client, ownership(), Path(directory))
+                self.assertEqual(
+                    [x[:2] for x in transport.exchanges], [] if competing else [("GET", "/api/auth/status")]
+                )
 
     def test_h8_query_auth_failure_suppresses_restoration_mutation(self):
         # A401 must stop the whole authentication scope, including finally-block mutations.
@@ -908,7 +1317,11 @@ class RuntimeContractTests(unittest.TestCase):
         transport = ExpiringTransport(data)
         with self.assertRaises(ProtocolError):
             verify_semantics(JsonClient(data["base_url"], {}, transport=transport), data)
-        enables = [payload["enabled"] for method, url, payload in transport.exchanges if method == "PUT" and urlsplit(url).path == "/api/schedules/enabled"]
+        enables = [
+            payload["enabled"]
+            for method, url, payload in transport.exchanges
+            if method == "PUT" and urlsplit(url).path == "/api/schedules/enabled"
+        ]
         self.assertEqual(enables, [True])
         self.assertTrue(any(transport.enabled.values()))  # Explicit operator recovery remains necessary.
 
@@ -926,12 +1339,16 @@ class RuntimeContractTests(unittest.TestCase):
             with self.subTest(lease=lease):
                 context = run_context()
                 context["exclusion"]["browser_lease_owner"] = lease
-                transport = MemoryTransport({("GET", "/api/auth/status"): HttpResult(
-                    200, {"enabled": True, "mode": "enabled", "setup_required": False})})
+                transport = MemoryTransport(
+                    {
+                        ("GET", "/api/auth/status"): HttpResult(
+                            200, {"enabled": True, "mode": "enabled", "setup_required": False}
+                        )
+                    }
+                )
                 client = JsonClient("http://hub.invalid:3000", {}, transport=transport, run_context=context)
-                with tempfile.TemporaryDirectory() as directory:
-                    with self.assertRaises(ProtocolError):
-                        seed(client, ownership(), Path(directory))
+                with tempfile.TemporaryDirectory() as directory, self.assertRaises(ProtocolError):
+                    seed(client, ownership(), Path(directory))
                 expected = [] if lease == "prod-test-" else [("GET", "/api/auth/status")]
                 self.assertEqual([item[:2] for item in transport.exchanges], expected)
 

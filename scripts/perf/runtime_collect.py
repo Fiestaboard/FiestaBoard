@@ -1,18 +1,20 @@
 """Read-only Linux proc/cgroup collector; no process is started at import time."""
 
-from pathlib import Path
-import os
-import math
 import argparse
 import json
+import math
+import os
 import sys
 import time
+from pathlib import Path
 
 from runtime_common import JsonlWriter, ProtocolError
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Collect actual hub Linux resources against an explicit shared-clock anchor")
+    parser = argparse.ArgumentParser(
+        description="Collect actual hub Linux resources against an explicit shared-clock anchor"
+    )
     parser.add_argument("--anchor", type=Path, required=True)
     parser.add_argument("--proc-root", type=Path, default=Path("/proc"))
     parser.add_argument("--cgroup-root", type=Path, default=Path("/sys/fs/cgroup"))
@@ -31,16 +33,31 @@ def main(argv=None):
         namespace = os.readlink(args.proc_root / "self/ns/pid")
         command = (args.proc_root / str(args.api_pid) / "cmdline").read_text().replace("\0", " ")
         validate_collector_anchor(anchor, boot_id=boot_id, pid_namespace=namespace, api_cmdline=command)
-        if args.duration <= 0 or args.interval <= 0 or not all(math.isfinite(n) for n in (args.duration, args.interval)):
+        if (
+            args.duration <= 0
+            or args.interval <= 0
+            or not all(math.isfinite(n) for n in (args.duration, args.interval))
+        ):
             raise ProtocolError("Collector duration/interval must be positive and finite")
-        pids = {role: pid for role, pid in (("api", args.api_pid), ("nginx", args.nginx_pid), ("supervisor", args.supervisor_pid)) if pid is not None}
+        pids = {
+            role: pid
+            for role, pid in (("api", args.api_pid), ("nginx", args.nginx_pid), ("supervisor", args.supervisor_pid))
+            if pid is not None
+        }
         snapshot = collect_snapshot(args.proc_root, args.cgroup_root, args.data_dir, pids)
         api = next(p for p in snapshot["processes"] if p["role"] == "api")
         if api["start_time_ticks"] is None or api["rss_bytes"] is None:
             raise ProtocolError("Selected API PID has no readable identity/RSS")
         args.out_dir.mkdir(parents=True, exist_ok=True)
-        ready = {**anchor, "api_pid": args.api_pid, "api_start_time_ticks": api["start_time_ticks"], "api_cmdline": command,
-                 "collector_pid": os.getpid(), "pid_namespace": namespace, "boot_id": boot_id}
+        ready = {
+            **anchor,
+            "api_pid": args.api_pid,
+            "api_start_time_ticks": api["start_time_ticks"],
+            "api_cmdline": command,
+            "collector_pid": os.getpid(),
+            "pid_namespace": namespace,
+            "boot_id": boot_id,
+        }
         with (args.out_dir / "collector-ready.json").open("x") as output:
             output.write(json.dumps(ready, indent=2) + "\n")
         writer = JsonlWriter(args.out_dir / "resources.jsonl", anchor["run_id"])
@@ -54,8 +71,14 @@ def main(argv=None):
                 time.sleep(wait)
             elapsed = time.monotonic() - start
             if elapsed - index * args.interval >= args.interval:
-                writer.write("gap", reason="Collector missed interval", scheduled_elapsed_s=index * args.interval,
-                             monotonic_elapsed_s=elapsed, boot_id=boot_id, pid_namespace=namespace)
+                writer.write(
+                    "gap",
+                    reason="Collector missed interval",
+                    scheduled_elapsed_s=index * args.interval,
+                    monotonic_elapsed_s=elapsed,
+                    boot_id=boot_id,
+                    pid_namespace=namespace,
+                )
                 index = math.ceil(elapsed / args.interval)
                 continue
             snapshot = collect_snapshot(args.proc_root, args.cgroup_root, args.data_dir, pids)
@@ -130,11 +153,23 @@ def collect_snapshot(proc_root, cgroup_root, data_dir, pids):
                     continue
         except OSError:
             unavailable.append(f"{role}:fd/socket")
-        processes.append({"role": role, "pid": pid, "start_time_ticks": start, "rss_bytes": status.get("VmRSS"),
-                          "rss_anon_bytes": status.get("RssAnon"), "rss_file_bytes": status.get("RssFile"),
-                          "virtual_bytes": status.get("VmSize"), "threads": status.get("Threads"),
-                          "pss_bytes": smaps.get("Pss"), "private_clean_bytes": smaps.get("Private_Clean"),
-                          "private_dirty_bytes": smaps.get("Private_Dirty"), "fd_count": fd_count, "socket_count": socket_count})
+        processes.append(
+            {
+                "role": role,
+                "pid": pid,
+                "start_time_ticks": start,
+                "rss_bytes": status.get("VmRSS"),
+                "rss_anon_bytes": status.get("RssAnon"),
+                "rss_file_bytes": status.get("RssFile"),
+                "virtual_bytes": status.get("VmSize"),
+                "threads": status.get("Threads"),
+                "pss_bytes": smaps.get("Pss"),
+                "private_clean_bytes": smaps.get("Private_Clean"),
+                "private_dirty_bytes": smaps.get("Private_Dirty"),
+                "fd_count": fd_count,
+                "socket_count": socket_count,
+            }
+        )
     cgroup = {}
     for name in ("memory.current", "memory.max", "memory.peak", "pids.current", "pids.max"):
         raw = _text(cgroup_root / name)
@@ -144,7 +179,9 @@ def collect_snapshot(proc_root, cgroup_root, data_dir, pids):
         cgroup[name] = _text(cgroup_root / name)
     store_bytes, files = 0, 0
     try:
-        for directory, dirs, names in os.walk(data_dir, followlinks=False, onerror=lambda error: (_ for _ in ()).throw(error)):
+        for directory, dirs, names in os.walk(
+            data_dir, followlinks=False, onerror=lambda error: (_ for _ in ()).throw(error)
+        ):
             if any((Path(directory) / name).is_symlink() for name in dirs + names):
                 raise OSError("Store contains symlinks; footprint unresolved")
             for name in names:
@@ -155,13 +192,19 @@ def collect_snapshot(proc_root, cgroup_root, data_dir, pids):
     except OSError:
         store_bytes, files, free_bytes = None, None, None
         unavailable.append("data_store")
-    return {"processes": processes, "cgroup": cgroup, "data_store_bytes": store_bytes, "data_store_files": files,
-            "data_filesystem_available_bytes": free_bytes,
-            "host_loadavg": _text(proc_root / "loadavg"), "host_meminfo": _text(proc_root / "meminfo"),
-            "python_heap": {"available": False, "reason": "Published process has no heap instrumentation"},
-            "queues": {"available": False, "reason": "Published process has no internal queue instrumentation"},
-            "node_ui_server": {"expected": False, "reason": "Published nginx serves static client"},
-            "unavailable": unavailable}
+    return {
+        "processes": processes,
+        "cgroup": cgroup,
+        "data_store_bytes": store_bytes,
+        "data_store_files": files,
+        "data_filesystem_available_bytes": free_bytes,
+        "host_loadavg": _text(proc_root / "loadavg"),
+        "host_meminfo": _text(proc_root / "meminfo"),
+        "python_heap": {"available": False, "reason": "Published process has no heap instrumentation"},
+        "queues": {"available": False, "reason": "Published process has no internal queue instrumentation"},
+        "node_ui_server": {"expected": False, "reason": "Published nginx serves static client"},
+        "unavailable": unavailable,
+    }
 
 
 if __name__ == "__main__":

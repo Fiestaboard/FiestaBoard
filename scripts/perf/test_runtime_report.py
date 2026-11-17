@@ -1,7 +1,6 @@
 """Offline reducer tests: retain partial evidence and reject false completeness."""
 
 import json
-import copy
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,40 +10,108 @@ from runtime_report import read_jsonl, report_records
 
 
 def phase_records():
-    return [{"record_type": "phase", "phase": phase, "event": event, "monotonic_elapsed_s": elapsed}
-            for phase, event, elapsed in [("warmup", "start", 0), ("warmup", "end", 600),
-                                          ("activity", "start", 600), ("activity", "end", 6600),
-                                          ("drain", "start", 6600), ("drain", "end", 7200)]]
+    return [
+        {"record_type": "phase", "phase": phase, "event": event, "monotonic_elapsed_s": elapsed}
+        for phase, event, elapsed in [
+            ("warmup", "start", 0),
+            ("warmup", "end", 600),
+            ("activity", "start", 600),
+            ("activity", "end", 6600),
+            ("drain", "start", 6600),
+            ("drain", "end", 7200),
+        ]
+    ]
 
 
 def continuous_records():
-    records = [{"record_type": "metadata", "run_id": "run-1", "source_commit": "83236253aa8103db856b7efa456e088b9c9ec548",
-                "planned_phase_seconds": [600, 6000, 600], "collector_interval_seconds": 5,
-                "boot_id": "boot-a", "collector_pid_namespace": "pid:[100]", "synthetic_clock": False, "diagnostic": False}]
+    records = [
+        {
+            "record_type": "metadata",
+            "run_id": "run-1",
+            "source_commit": "83236253aa8103db856b7efa456e088b9c9ec548",
+            "planned_phase_seconds": [600, 6000, 600],
+            "collector_interval_seconds": 5,
+            "boot_id": "boot-a",
+            "collector_pid_namespace": "pid:[100]",
+            "synthetic_clock": False,
+            "diagnostic": False,
+        }
+    ]
     records[0]["dispatch_grace_seconds"] = 0.05
     records.extend({**record, "run_id": "run-1"} for record in phase_records())
     for slot in range(6000):
-        records.append({"record_type": "request", "run_id": "run-1", "phase": "activity", "cycle": slot // 10,
-                        "cycle_slot": slot % 10, "operation": f"slot{slot % 10}", "geometry": "note", "cache": "mixed",
-                        "auth": "browser-cookie", "batch": 1, "elapsed_ms": 100, "http_status": 200,
-                        "semantic_success": True, "timed_out": False, "scheduled_elapsed_s": 600 + slot,
-                        "started_elapsed_s": 600 + slot, "monotonic_elapsed_s": 600 + slot + 0.1,
-                        "activity_kind": "transition" if slot < 12 else "ordinary",
-                        "transition_index": slot if slot < 12 else None,
-                        "transition_target": f"collection-{slot}" if slot < 12 else None})
-    records.extend({"record_type": "request", "run_id": "run-1", "phase": "drain", "cycle": slot // 10,
-        "cycle_slot": slot % 10, "operation": "cadence_restore", "geometry": "all", "cache": "control",
-        "auth": "browser-cookie", "batch": 1, "elapsed_ms": 100, "http_status": 200, "semantic_success": True,
-        "timed_out": False, "scheduled_elapsed_s": 6600 + slot, "started_elapsed_s": 6600 + slot,
-        "monotonic_elapsed_s": 6600 + slot + 0.1, "activity_kind": "transition", "transition_index": slot,
-        "transition_target": f"collection-{slot}"} for slot in range(12))
-    records.extend({"record_type": "resource", "run_id": "run-1", "monotonic_elapsed_s": second,
-                    "boot_id": "boot-a", "pid_namespace": "pid:[100]",
-                    "processes": [{"role": "api", "pid": 42, "start_time_ticks": 100, "rss_bytes": 100000}]}
-                   for second in range(0, 7201, 5))
-    records.append({"record_type": "driver_summary", "run_id": "run-1", "monotonic_elapsed_s": 7200.2,
-                    "subscenarios_verified": True, "selection_verified": True, "final_state_verified": True,
-                    "warmup_controls_completed_elapsed_s": 240, "steady_settling_seconds": 360})
+        records.append(
+            {
+                "record_type": "request",
+                "run_id": "run-1",
+                "phase": "activity",
+                "cycle": slot // 10,
+                "cycle_slot": slot % 10,
+                "operation": f"slot{slot % 10}",
+                "geometry": "note",
+                "cache": "mixed",
+                "auth": "browser-cookie",
+                "batch": 1,
+                "elapsed_ms": 100,
+                "http_status": 200,
+                "semantic_success": True,
+                "timed_out": False,
+                "scheduled_elapsed_s": 600 + slot,
+                "started_elapsed_s": 600 + slot,
+                "monotonic_elapsed_s": 600 + slot + 0.1,
+                "activity_kind": "transition" if slot < 12 else "ordinary",
+                "transition_index": slot if slot < 12 else None,
+                "transition_target": f"collection-{slot}" if slot < 12 else None,
+            }
+        )
+    records.extend(
+        {
+            "record_type": "request",
+            "run_id": "run-1",
+            "phase": "drain",
+            "cycle": slot // 10,
+            "cycle_slot": slot % 10,
+            "operation": "cadence_restore",
+            "geometry": "all",
+            "cache": "control",
+            "auth": "browser-cookie",
+            "batch": 1,
+            "elapsed_ms": 100,
+            "http_status": 200,
+            "semantic_success": True,
+            "timed_out": False,
+            "scheduled_elapsed_s": 6600 + slot,
+            "started_elapsed_s": 6600 + slot,
+            "monotonic_elapsed_s": 6600 + slot + 0.1,
+            "activity_kind": "transition",
+            "transition_index": slot,
+            "transition_target": f"collection-{slot}",
+        }
+        for slot in range(12)
+    )
+    records.extend(
+        {
+            "record_type": "resource",
+            "run_id": "run-1",
+            "monotonic_elapsed_s": second,
+            "boot_id": "boot-a",
+            "pid_namespace": "pid:[100]",
+            "processes": [{"role": "api", "pid": 42, "start_time_ticks": 100, "rss_bytes": 100000}],
+        }
+        for second in range(0, 7201, 5)
+    )
+    records.append(
+        {
+            "record_type": "driver_summary",
+            "run_id": "run-1",
+            "monotonic_elapsed_s": 7200.2,
+            "subscenarios_verified": True,
+            "selection_verified": True,
+            "final_state_verified": True,
+            "warmup_controls_completed_elapsed_s": 240,
+            "steady_settling_seconds": 360,
+        }
+    )
     return records
 
 
@@ -61,11 +128,18 @@ class RuntimeReportTests(unittest.TestCase):
 
     def test_pid_reuse_is_a_restart_even_when_rss_is_flat(self):
         # PID-only joining can splice a freshly restarted API into an apparently stable curve.
-        records = [{"record_type": "resource", "monotonic_elapsed_s": t,
-                    "processes": [{"role": "api", "pid": 42, "start_time_ticks": start, "rss_bytes": 100000}]}
-                   for t, start in [(0, 100), (5, 100), (10, 200)]]
+        records = [
+            {
+                "record_type": "resource",
+                "monotonic_elapsed_s": t,
+                "processes": [{"role": "api", "pid": 42, "start_time_ticks": start, "rss_bytes": 100000}],
+            }
+            for t, start in [(0, 100), (5, 100), (10, 200)]
+        ]
         report = report_records(records)
-        self.assertEqual(report.get("process_restarts"), [{"role": "api", "pid": 42, "from_start": 100, "to_start": 200}])
+        self.assertEqual(
+            report.get("process_restarts"), [{"role": "api", "pid": 42, "from_start": 100, "to_start": 200}]
+        )
 
     def test_partial_last_jsonl_keeps_prior_observations_and_error(self):
         # Dropping the whole file or silently ignoring a partial tail destroys interrupted-run evidence.
@@ -79,13 +153,27 @@ class RuntimeReportTests(unittest.TestCase):
 
     def test_different_endpoint_geometry_cache_batches_are_not_pooled(self):
         # Pooling strata can conceal a regressed phone/panel/cold case inside fast requests.
-        records = [{"record_type": "request", "phase": "sample", "operation": "render", "batch": batch,
-                    "geometry": geometry, "cache": cache, "auth": "browser-cookie", "elapsed_ms": elapsed,
-                    "http_status": status, "semantic_success": status == 200, "timed_out": False}
-                   for batch, geometry, cache, elapsed, status in [(1, "note", "cached", 10, 200),
-                                                                  (1, "panel", "cached", 500, 200),
-                                                                  (2, "note", "cached", 20, 200),
-                                                                  (1, "note", "forced", 0.1, 401)]]
+        records = [
+            {
+                "record_type": "request",
+                "phase": "sample",
+                "operation": "render",
+                "batch": batch,
+                "geometry": geometry,
+                "cache": cache,
+                "auth": "browser-cookie",
+                "elapsed_ms": elapsed,
+                "http_status": status,
+                "semantic_success": status == 200,
+                "timed_out": False,
+            }
+            for batch, geometry, cache, elapsed, status in [
+                (1, "note", "cached", 10, 200),
+                (1, "panel", "cached", 500, 200),
+                (2, "note", "cached", 20, 200),
+                (1, "note", "forced", 0.1, 401),
+            ]
+        ]
         report = report_records(records)
         self.assertEqual(len(report.get("strata", [])), 4)
         panel = next(s for s in report["strata"] if s["geometry"] == "panel")
@@ -97,13 +185,23 @@ class RuntimeReportTests(unittest.TestCase):
     def test_complete_requires_one_continuous_valid_run_with_covered_telemetry(self):
         # Structural counters plus one empty resource record cannot establish a two-hour continuous run.
         self.assertTrue(report_records(continuous_records())["complete"])
-        for defect in ("empty_resource", "mixed_run", "outside_window", "http_failure", "timeout", "sparse_telemetry", "missing_identity"):
+        for defect in (
+            "empty_resource",
+            "mixed_run",
+            "outside_window",
+            "http_failure",
+            "timeout",
+            "sparse_telemetry",
+            "missing_identity",
+        ):
             with self.subTest(defect=defect):
                 records = continuous_records()
                 request = next(r for r in records if r["record_type"] == "request")
                 if defect == "empty_resource":
                     records = [r for r in records if r["record_type"] != "resource"]
-                    records.append({"record_type": "resource", "run_id": "run-1", "monotonic_elapsed_s": 0, "processes": []})
+                    records.append(
+                        {"record_type": "resource", "run_id": "run-1", "monotonic_elapsed_s": 0, "processes": []}
+                    )
                 elif defect == "mixed_run":
                     request["run_id"] = "other-run"
                 elif defect == "outside_window":
@@ -113,9 +211,13 @@ class RuntimeReportTests(unittest.TestCase):
                 elif defect == "timeout":
                     request["timed_out"] = True
                 elif defect == "sparse_telemetry":
-                    records = [r for r in records if r["record_type"] != "resource" or r["monotonic_elapsed_s"] in (0, 7200)]
+                    records = [
+                        r for r in records if r["record_type"] != "resource" or r["monotonic_elapsed_s"] in (0, 7200)
+                    ]
                 else:
-                    next(r for r in records if r["record_type"] == "resource")["processes"][0]["start_time_ticks"] = None
+                    next(r for r in records if r["record_type"] == "resource")["processes"][0]["start_time_ticks"] = (
+                        None
+                    )
                 self.assertFalse(report_records(records)["complete"])
 
     def test_parse_errors_are_part_of_completion_verdict(self):
@@ -164,15 +266,22 @@ class RuntimeReportTests(unittest.TestCase):
                 records = continuous_records()
                 summary = next(r for r in records if r["record_type"] == "driver_summary")
                 if defect in {"subscenario", "selection", "final_state"}:
-                    summary[{"subscenario": "subscenarios_verified", "selection": "selection_verified",
-                             "final_state": "final_state_verified"}[defect]] = False
+                    summary[
+                        {
+                            "subscenario": "subscenarios_verified",
+                            "selection": "selection_verified",
+                            "final_state": "final_state_verified",
+                        }[defect]
+                    ] = False
                 elif defect == "late_controls":
                     summary["warmup_controls_completed_elapsed_s"] = 301
                     summary["steady_settling_seconds"] = 299
                 elif defect == "missing_summary":
                     records.remove(summary)
                 else:
-                    records.remove(next(r for r in records if r.get("phase") == "drain" and r.get("transition_index") == 3))
+                    records.remove(
+                        next(r for r in records if r.get("phase") == "drain" and r.get("transition_index") == 3)
+                    )
                 self.assertFalse(report_records(records)["complete"])
 
     def test_control_slots_are_not_counted_as_complete_normal_api_cycles(self):
@@ -187,9 +296,15 @@ class RuntimeReportTests(unittest.TestCase):
 
     def test_resource_growth_blocks_never_splice_restarted_process_identity(self):
         # A restart's lowRSS must not cancel a prior process's growth in one curve.
-        records = [{"record_type": "resource", "run_id": "run-1", "monotonic_elapsed_s": index * 5,
-                    "processes": [{"role": "api", "pid": 42, "start_time_ticks": start, "rss_bytes": rss}]}
-                   for index, (start, rss) in enumerate([(100, 100000), (100, 120000), (200, 90000)])]
+        records = [
+            {
+                "record_type": "resource",
+                "run_id": "run-1",
+                "monotonic_elapsed_s": index * 5,
+                "processes": [{"role": "api", "pid": 42, "start_time_ticks": start, "rss_bytes": rss}],
+            }
+            for index, (start, rss) in enumerate([(100, 100000), (100, 120000), (200, 90000)])
+        ]
         report = report_records(records)
         blocks = report.get("resource_blocks", [])
         self.assertEqual(len(blocks), 2)
