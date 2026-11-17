@@ -43,14 +43,23 @@ test.describe("plain http: honest about install and offline (2.8)", () => {
   });
 
   test("Settings says Requires HTTPS, with how to fix it", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/notifications");
     await expect(page.getByText("Requires HTTPS")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("link", { name: "How to set up HTTPS" })).toHaveAttribute(
       "href",
       /fiestaboard\.app\/docs\/deployment\/production/,
     );
     // Let the route's entrance fade finish: axe reads mid-fade text as low contrast.
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document
+              .getAnimations()
+              .filter((a) => a.playState === "running" && a.effect?.getTiming().iterations !== Infinity).length,
+        ),
+      )
+      .toBe(0);
     await injectAxe(page);
     const violations = (await getViolations(page)).filter((v) => v.impact === "serious" || v.impact === "critical");
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);

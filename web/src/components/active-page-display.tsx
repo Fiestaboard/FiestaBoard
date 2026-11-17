@@ -7,6 +7,8 @@ import {
   type BoardCellGrid,
   Box,
   Button,
+  Card,
+  CardTitle,
   Countdown,
   Flex,
   Kbd,
@@ -16,8 +18,8 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Calendar, ChevronRight, LayoutGrid, Moon, Pause, PencilLine, Radio } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Calendar, ChevronRight, LayoutGrid, Pause, PencilLine, Radio } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -36,7 +38,7 @@ import {
   useRefreshHomeStatus,
 } from "@/components/home/use-home-data";
 import { useHomeKeys } from "@/components/home/use-home-keys";
-import { SilenceNotice } from "@/components/silence-notice";
+import { useMediaQuery } from "@/components/home/use-media-query";
 import Link from "@/components/smart-link";
 import {
   collectionPollMs,
@@ -49,16 +51,18 @@ import {
   useBoardSettings,
   usePagePreview,
   usePages,
-  useSetActivePage,
+  useStatus,
 } from "@/hooks/use-board";
+import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useSilence } from "@/hooks/use-silence";
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { Collection, DeviceType, SetActivePageResponse, SetTemporaryOverrideRequest } from "@/lib/api";
+import type { Collection, DeviceType, SetTemporaryOverrideRequest } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import type { BoardGeometry } from "@/lib/board-characters-to-template";
 import { classifyDimensions } from "@/lib/board-dimensions";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
+import { isDisplayOffline } from "@/lib/status-banners";
 
 export interface ActivePageDisplayProps {
   /** Opens Compose a message, the PageHeader's one entry (C, and the board menu). */
@@ -76,6 +80,15 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   const t = useTranslations("activeDisplay");
   const tn = useTranslations("home.nowShowing");
   const tm = useTranslations("home.contextMenu");
+  const tb = useTranslations("home.banners");
+  const connection = useHubConnection();
+  const sendsDisabled = !connection.deviceOnline || !connection.hubReachable;
+  const currentSendsDisabled = useRef(sendsDisabled);
+  useEffect(() => {
+    currentSendsDisabled.current = sendsDisabled;
+  }, [sendsDisabled]);
+  const { data: fleetStatus } = useStatus();
+  const phone = useMediaQuery("(max-width: 767px)");
   const tPause = useTranslations("displaySettings.pause");
   const navigate = useNavigate();
   const locale = useLocale();
@@ -155,6 +168,8 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   const targetBoard = currentBoard ?? boardSettings?.boards?.[0];
   const displayName = targetBoard?.name ?? "";
   const isTargetPaused = targetBoard?.paused === true;
+  const health = targetBoard ? fleetStatus?.boards?.[targetBoard.id]?.health : undefined;
+  const displayOffline = isDisplayOffline(health);
 
   // Pause / resume (issue #2051), now in the board menu (07a §6).
   const pauseMutation = useMutation({
@@ -183,26 +198,6 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           null)
         : null,
     [pages, collectionsData],
-  );
-
-  const setActivePageMutation = useSetActivePage(scopedBoardId);
-
-  // "Show now" (#1943): wake a silenced board with its manual page.
-  const showPageNow = useCallback(
-    (pageId: string, pageName: string) => {
-      setActivePageMutation.mutate(
-        { pageId, overrideSilence: true },
-        {
-          onSuccess: (result: SetActivePageResponse) => {
-            if (result.error) toast.error(t("toastSwitchNotSent"));
-            else if (result.paused) toast.info(t("toastSwitchPaused", { pageName }));
-            else toast.success(t("toastShownNow", { pageName }));
-          },
-          onError: () => toast.error(t("toastSwitchFailed")),
-        },
-      );
-    },
-    [setActivePageMutation, t],
   );
 
   // Discard the message held until silence ends (#1944).
@@ -244,17 +239,38 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   // "Override canceled · Undo" toast for 10 s.
   // H1: every override call names its display, always (one rule, review S7).
   const overrideBoardId = scopedBoardId ?? targetBoard?.id;
+  // Root's Toaster survives route changes. A retained action must not use
+  // this mount's frozen connectivity after leaving Home. Display switches
+  // keep the action's captured board ID while this Home is still mounted.
+  const overrideUndoOwner = useRef<{ toastIds: Set<string> } | null>(null);
+  useEffect(() => {
+    const owner = { toastIds: new Set<string>() };
+    overrideUndoOwner.current = owner;
+    return () => {
+      overrideUndoOwner.current = null;
+      owner.toastIds.forEach((id) => toast.dismiss(id));
+    };
+  }, []);
 
   const cancelOverrideMutation = useMutation({
-    mutationFn: ({ boardId }: { boardId: string | undefined; previous: typeof temporaryOverride }) =>
-      api.clearTemporaryOverride(boardId),
-    onSuccess: (_result, { boardId, previous }) => {
+    mutationFn: ({
+      boardId,
+    }: {
+      boardId: string | undefined;
+      previous: typeof temporaryOverride;
+      owner: typeof overrideUndoOwner.current;
+    }) => api.clearTemporaryOverride(boardId),
+    onSuccess: (_result, { boardId, previous, owner }) => {
       refresh();
-      nudgeDisplay(boardId);
+      if (!owner || overrideUndoOwner.current !== owner) return;
+      if (!currentSendsDisabled.current) nudgeDisplay(boardId);
+      owner.toastIds.add(overrideUndoToastId(boardId));
       toast.info(tn("toastOverrideCanceled"), {
         id: overrideUndoToastId(boardId),
         duration: 10_000,
-        action: previous?.active ? { label: tn("undo"), onClick: () => restoreOverride(previous, boardId) } : undefined,
+        action: previous?.active
+          ? { label: tn("undo"), onClick: () => restoreOverride(previous, boardId, owner) }
+          : undefined,
       });
     },
     onError: () => toast.error(tn("toastCancelFailed")),
@@ -266,7 +282,12 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   // that would already have ended is not re-created (review S2). The bar
   // restarts: the hub stamps a new started_at.
   const restoreOverride = useCallback(
-    async (previous: NonNullable<typeof temporaryOverride>, boardId: string | undefined) => {
+    async (
+      previous: NonNullable<typeof temporaryOverride>,
+      boardId: string | undefined,
+      owner: NonNullable<typeof overrideUndoOwner.current>,
+    ) => {
+      if (currentSendsDisabled.current || overrideUndoOwner.current !== owner) return;
       let remainingMs = previous.expires_at ? new Date(previous.expires_at).getTime() - Date.now() : null;
       if (remainingMs !== null && remainingMs <= 0) {
         toast.info(tn("toastUndoEnded"));
@@ -274,6 +295,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       }
       try {
         const current = await api.getTemporaryOverride(boardId);
+        if (currentSendsDisabled.current || overrideUndoOwner.current !== owner) return;
         if (current.active) {
           toast.info(tn("toastUndoNewer"));
           return;
@@ -304,7 +326,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           ...(previous.revert_page_id ? { revert_page_id: previous.revert_page_id } : {}),
         } as SetTemporaryOverrideRequest);
         refresh();
-        nudgeDisplay(boardId);
+        if (!currentSendsDisabled.current && overrideUndoOwner.current === owner) nudgeDisplay(boardId);
       } catch {
         toast.error(tn("toastCancelFailed"));
       }
@@ -361,10 +383,14 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     return { deviceType: getEffectiveDeviceType(boardSettings), notesWide: 1, notesTall: 1 };
   }, [boardState, currentBoard, boardSettings]);
 
-  const displayMessage = liveMessageForBoard ?? boardState?.message ?? fallbackPreview?.message ?? null;
+  // Last known must come from a confirmed board frame, never a local mirror or rendered page.
+  const confirmedOnly = sendsDisabled || displayOffline;
+  const localLiveMessage = confirmedOnly ? null : liveMessageForBoard;
+  const displayMessage =
+    localLiveMessage ?? boardState?.message ?? (confirmedOnly ? null : fallbackPreview?.message) ?? null;
   const displayCells =
-    !liveMessageForBoard && boardState?.message != null ? (boardState.cells as BoardCellGrid | undefined) : undefined;
-  const displayLayers = displayCells ? boardState?.layers : undefined;
+    !localLiveMessage && boardState?.message != null ? (boardState.cells as BoardCellGrid | undefined) : undefined;
+  const displayLayers = !localLiveMessage && boardState?.message != null ? boardState.layers : undefined;
 
   // ── What the card says ────────────────────────────────────────────────
   const overridePageId = overrideActive ? (temporaryOverride?.page_id ?? null) : null;
@@ -432,8 +458,12 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     return null;
   })();
 
-  const openChangePage = useCallback(() => setChangePageOpen(true), []);
-  const compose = useCallback(() => onCompose?.(), [onCompose]);
+  const openChangePage = useCallback(() => {
+    if (!sendsDisabled) setChangePageOpen(true);
+  }, [sendsDisabled]);
+  const compose = useCallback(() => {
+    if (!sendsDisabled) onCompose?.();
+  }, [onCompose, sendsDisabled]);
   useHomeKeys({
     onCompose: compose,
     onChangePage: openChangePage,
@@ -450,6 +480,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       }
     : null;
   const refreshBoard = () => {
+    if (sendsDisabled) return;
     api
       .restoreBoard(scopedBoardId)
       .then(() => {
@@ -502,14 +533,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           {tn("liveMode")}
         </Badge>
       )}
-      {silenceStatus?.active && (
-        <Text as="span" className="inline-flex items-center gap-1.5">
-          <Moon className="h-3 w-3 text-info" aria-hidden="true" />
-          <Text as="span" size="xs" tone="info">
-            {t("silenceModeActive")}
-          </Text>
-        </Text>
-      )}
+      {silenceStatus?.active && <Badge variant="secondary">{tb("silenced")}</Badge>}
       {isTargetPaused && (
         <Badge
           variant="default"
@@ -532,15 +556,26 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
 
   const actions = (
     <Flex align="center" gap="3" wrap className="w-full">
-      <Button variant="secondary" onClick={openChangePage} className="gap-2 max-sm:flex-1 max-sm:h-11">
+      <Button
+        variant="secondary"
+        disabled={sendsDisabled}
+        onClick={openChangePage}
+        className="gap-2 max-sm:flex-1 max-sm:h-11"
+      >
         <LayoutGrid className="size-4" aria-hidden="true" />
         {tn("changePage")}
       </Button>
       {overrideActive && (
         <Button
           variant="outline"
-          onClick={() => cancelOverrideMutation.mutate({ boardId: overrideBoardId, previous: temporaryOverride })}
-          disabled={cancelOverrideMutation.isPending}
+          onClick={() =>
+            cancelOverrideMutation.mutate({
+              boardId: overrideBoardId,
+              previous: temporaryOverride,
+              owner: overrideUndoOwner.current,
+            })
+          }
+          disabled={sendsDisabled || cancelOverrideMutation.isPending}
           className="max-sm:flex-1 max-sm:h-11"
         >
           {tn("cancelOverride")}
@@ -588,57 +623,53 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     onTogglePause: targetBoard
       ? () => pauseMutation.mutate({ boardId: targetBoard.id, paused: !isTargetPaused })
       : null,
-    busy: pauseMutation.isPending,
+    busy: sendsDisabled || pauseMutation.isPending,
+    sendsDisabled,
   };
+
+  const outOfSync =
+    !!boardState &&
+    ((boardState.characters != null &&
+      boardState.expected_characters != null &&
+      JSON.stringify(boardState.characters) !== JSON.stringify(boardState.expected_characters)) ||
+      !!boardState.overwritten_at);
+  const recoverableOutOfSync =
+    outOfSync && !silence.active && !liveMessageForBoard && !sendsDisabled && !displayOffline;
+  const heldTime = silence.held?.queued_at ? new Date(silence.held.queued_at) : null;
+  const heldCard =
+    silence.active && silence.held ? (
+      <Card className="gap-3 p-4 md:p-5" data-testid="home-held-message">
+        <CardTitle className="font-mono text-xs font-medium uppercase text-brand">
+          {heldTime && Number.isFinite(heldTime.getTime())
+            ? tb("heldAt", { time: formatClock(heldTime, locale) })
+            : tb("heldTitle")}
+        </CardTitle>
+        <Text size="sm" className="font-semibold">
+          “{silence.held.preview}”
+        </Text>
+        <Text size="sm" tone="muted">
+          {silence.until
+            ? tb(scheduleEnabled ? "heldBody" : "heldManualBody", { board: displayName, time: silence.until })
+            : tb(scheduleEnabled ? "heldNoTime" : "heldManualNoTime")}
+        </Text>
+        {/* The hub has no release-held-now endpoint; hide that action, per 07a. */}
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={sendsDisabled || discardHeldMutation.isPending}
+          onClick={() => {
+            if (!sendsDisabled) discardHeldMutation.mutate();
+          }}
+          className="self-start max-md:min-h-11"
+        >
+          {tb("discard")}
+        </Button>
+      </Card>
+    ) : null;
 
   return (
     <Stack gap="4" {...anchorProps("home.active-display")}>
-      {/* Silence (#1943): what is on hold and what happens when it ends. */}
-      {silence.active && (
-        <SilenceNotice
-          until={silence.until}
-          data-testid="silence-alert"
-          description={
-            <>
-              <Text as="span" size="sm" className="block">
-                {scheduleEnabled
-                  ? t("silenceSchedule")
-                  : activeCollection || activePage
-                    ? t("silenceManual", { pageName: activeCollection?.name ?? activePage?.name ?? "" })
-                    : t("silenceNoPage")}
-              </Text>
-              {silence.held && (
-                <Text as="span" size="sm" className="mt-1 block" data-testid="silence-held">
-                  {t("silenceHeld", { preview: silence.held.preview })}
-                </Text>
-              )}
-            </>
-          }
-        >
-          {!scheduleEnabled && activePage && !activeCollection ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => showPageNow(activePage.id, activePage.name)}
-              disabled={setActivePageMutation.isPending}
-              data-testid="silence-show-now"
-            >
-              {t("showNow")}
-            </Button>
-          ) : null}
-          {silence.held ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => discardHeldMutation.mutate()}
-              disabled={discardHeldMutation.isPending}
-              data-testid="silence-discard-held"
-            >
-              {t("discardHeld")}
-            </Button>
-          ) : null}
-        </SilenceNotice>
-      )}
+      {phone && heldCard}
 
       {scheduleEnabled && !activePageId && !overrideActive && (
         <Alert variant="default" className="border-warning/50 bg-warning/10">
@@ -661,7 +692,8 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
         boardId={scopedBoardId}
         geometry={activeGeometry}
         paused={isTargetPaused}
-        suppressed={!!liveMessageForBoard}
+        suppressed={!!liveMessageForBoard || sendsDisabled || displayOffline}
+        home={{ display: displayName, pageName: title }}
       />
 
       <Box
@@ -679,16 +711,29 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           className="group/home-card min-w-0"
           title={title}
           headingLevel={2}
-          mode={mode}
+          mode={sendsDisabled || displayOffline || silence.active ? undefined : mode}
+          status={sendsDisabled ? "neutral" : displayOffline ? "danger" : recoverableOutOfSync ? "warning" : "success"}
           labels={{
-            nowShowing: tn("label"),
+            nowShowing: recoverableOutOfSync ? tb("shouldShow") : tn("label"),
             modes: { schedule: tn("modeSchedule"), manual: tn("modeManual"), override: tn("modeOverride") },
           }}
           data-testid="now-showing"
           board={
             <BoardContextMenu actions={boardActions}>
-              {/* contain isolates the tile grid from ancestor layout changes. */}
-              <Flex justify="center" className="overflow-x-hidden" style={{ contain: "layout style paint" }}>
+              {/* TODO(FiestaUI G4): add a board-only last-known state. Dim the hardware
+                  picture, keeping viewport controls and scroll instructions at full contrast. */}
+              <Flex
+                justify="center"
+                data-testid="home-board-state"
+                className={
+                  sendsDisabled
+                    ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-50 [&_[data-slot=led-matrix-display]]:opacity-50"
+                    : displayOffline
+                      ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-60 [&_[data-slot=led-matrix-display]]:opacity-60"
+                      : "overflow-x-hidden"
+                }
+                style={{ contain: "layout style paint" }}
+              >
                 <HomeBoard
                   board={currentBoard ?? boardSettings?.boards?.[0]}
                   geometry={activeGeometry}
@@ -703,9 +748,24 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
               </Flex>
             </BoardContextMenu>
           }
-          description={hasDescription ? description : undefined}
+          description={
+            sendsDisabled || displayOffline ? (
+              <>
+                <Badge variant={sendsDisabled ? "outline" : "destructive"}>
+                  {sendsDisabled ? tb("lastKnown") : tb("offline")}
+                </Badge>
+                {sendsDisabled && connection.lastContactAt ? (
+                  <Text as="span" size="sm" className="ms-2">
+                    {tb("asOf", { board: displayName, time: formatClock(new Date(connection.lastContactAt), locale) })}
+                  </Text>
+                ) : null}
+              </>
+            ) : hasDescription ? (
+              description
+            ) : undefined
+          }
           countdown={
-            countdownEndsAt ? (
+            countdownEndsAt && !sendsDisabled && !displayOffline ? (
               <Countdown
                 endsAt={countdownEndsAt}
                 startedAt={countdownStartedAt ? new Date(countdownStartedAt) : undefined}
@@ -721,7 +781,17 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
               />
             ) : undefined
           }
-          outcome={outcome}
+          outcome={
+            sendsDisabled
+              ? tb("sendsPaused")
+              : displayOffline
+                ? health?.last_connected_at
+                  ? tb("offlineMeta", { time: formatClock(new Date(health.last_connected_at), locale) })
+                  : tb("offlineNever")
+                : recoverableOutOfSync
+                  ? `${outcome ?? ""} ${tb("outOfSyncOutcome", { page: title })}`
+                  : outcome
+          }
           actions={actions}
         />
 
@@ -732,6 +802,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           pageName={nameOf(activePageId)}
           nameOf={nameOf}
           refresh={refresh}
+          leading={phone ? undefined : heldCard}
         />
       </Box>
 

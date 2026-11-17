@@ -338,9 +338,9 @@ export const SilencedManualHeld: Story = {
   decorators: [silenced(createQueryClient("page-1", false, true, undefined, HELD))],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByTestId("silence-show-now")).toBeVisible());
-    await waitFor(() => expect(canvas.getByTestId("silence-discard-held")).toBeVisible());
-    await expect(canvas.getByTestId("silence-held")).toHaveTextContent("GOOD MORNING EVERYONE HAVE A…");
+    await expect(canvas.queryByTestId("silence-show-now")).not.toBeInTheDocument();
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Discard" })).toBeVisible());
+    await expect(canvas.getByTestId("home-held-message")).toHaveTextContent("GOOD MORNING EVERYONE HAVE A…");
   },
 };
 

@@ -30,6 +30,7 @@ export interface BoardActions {
   paused: boolean;
   onTogglePause: (() => void) | null;
   busy?: boolean;
+  sendsDisabled?: boolean;
 }
 
 /**
@@ -42,12 +43,12 @@ function BoardMenuItems({ actions }: { actions: BoardActions }) {
   return (
     <>
       <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{actions.boardName}</DropdownMenuLabel>
-      <DropdownMenuItem onClick={actions.onChangePage}>
+      <DropdownMenuItem onClick={actions.onChangePage} disabled={actions.sendsDisabled}>
         <LayoutGrid aria-hidden="true" />
         {t("changePage")}
         <DropdownMenuShortcut>P</DropdownMenuShortcut>
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={actions.onCompose}>
+      <DropdownMenuItem onClick={actions.onCompose} disabled={actions.sendsDisabled}>
         <PencilLine aria-hidden="true" />
         {t("compose")}
         <DropdownMenuShortcut>C</DropdownMenuShortcut>

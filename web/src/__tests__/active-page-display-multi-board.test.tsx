@@ -332,7 +332,10 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
         http.get(`${API_BASE}/board/current-message`, ({ request }) => {
           const selected = boardId(request) === "board-2";
           return HttpResponse.json({
-            characters: selected ? observed : Array.from({ length: 6 }, () => Array(22).fill(1)),
+            characters: selected
+              ? Array.from({ length: rows }, () => Array(cols).fill(2))
+              : Array.from({ length: 6 }, () => Array(22).fill(1)),
+            external_characters: selected ? observed : null,
             message: "THIS PREVIEW TEXT MUST NOT BE SAVED",
             rows: selected ? rows : 6,
             cols: selected ? cols : 22,
