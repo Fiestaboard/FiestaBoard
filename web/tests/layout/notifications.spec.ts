@@ -146,6 +146,8 @@ async function axe(page: Page) {
   await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
   await injectAxe(page);
   await checkA11y(page, undefined, {
+    detailedReport: true,
+    detailedReportOptions: { html: true },
     axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
   });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -188,7 +190,13 @@ for (const width of [390, 768, 1280, 1438]) {
         await mockHub(page, state);
         await page.goto(`/tests/layout/notifications.html?theme=${theme}`);
         await expect(page.getByRole("switch", { name: "Allow notifications for my account" })).toBeVisible();
-        if (state === "allowed") await expect(page.getByRole("button", { name: "Send a test" })).toBeEnabled();
+        if (state === "allowed") {
+          const sendTest = page.getByRole("button", { name: "Send a test" });
+          await expect(sendTest).toBeEnabled();
+          // Browser enrollment resolves after server status. Wait for the kit's
+          // disabled-to-enabled opacity transition before contrast sampling.
+          await expect(sendTest).toHaveCSS("opacity", "1");
+        }
         if (state === "denied") await expect(page.getByText("Notifications blocked by the browser")).toBeVisible();
         if (state === "insecure") await expect(page.getByText("Requires HTTPS")).toBeVisible();
         await axe(page);
