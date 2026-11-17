@@ -30,6 +30,7 @@ them.
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 from datetime import UTC
 
@@ -229,7 +230,7 @@ async def get_ai_settings():
     return {**cm.get_ai_providers_masked(), "tv_chat_supported": True}
 
 
-@router.put("/settings/ai", response_model=AiProvidersResponse)
+@router.put("/settings/ai", response_model=AiProvidersResponse, responses=errors(400))
 async def update_ai_settings(request: AiProvidersUpdate):
     """Update AI provider configuration.
 
@@ -246,7 +247,10 @@ async def update_ai_settings(request: AiProvidersUpdate):
     """
     cm = get_config_manager()
     before = cm.get_ai_providers()
-    updated = cm.set_ai_providers(request.model_dump(exclude_unset=True))
+    try:
+        updated = cm.set_ai_providers(request.model_dump(exclude_unset=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     # A provider that was signed in and is now gone (or back on an API key)
     # leaves no tokens behind.
     from src.ai.sign_in import forget_removed_providers
@@ -302,11 +306,19 @@ async def test_ai_provider(request: AiTestRequest):
     cm = get_config_manager()
 
     if isinstance(draft, dict):
-        provider = dict(draft)
+        from src.config_manager import restore_ai_provider_headers
+
+        provider = copy.deepcopy(draft)
+        if not provider.get("id") and provider_id:
+            provider["id"] = provider_id
         if provider.get("api_key") == "***":
             stored_id = provider.get("id") or provider_id
             stored = cm.get_ai_provider(stored_id) if stored_id else None
             provider["api_key"] = (stored or {}).get("api_key", "")
+        try:
+            restore_ai_provider_headers(provider, cm.get_ai_providers().get("providers", []))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     else:
         block = cm.get_ai_providers()
         if not block.get("providers"):

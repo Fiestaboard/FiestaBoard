@@ -196,6 +196,46 @@ def _mask_settings_block(cm: Any, block: Any) -> Any:
     return cm._mask_sensitive(mask_output_settings(_serialize(block)))
 
 
+def _backup_schema_supported(schema: Any) -> bool:
+    """Whether the declarative masker can visit every schema branch.
+
+    Output masking supports properties/items. Other schema branches must
+    not turn an assistant export into an unmasked configuration dump.
+    """
+    if isinstance(schema, bool):
+        return True
+    if not isinstance(schema, dict):
+        return False
+    unsupported = {
+        "$ref",
+        "$dynamicRef",
+        "$recursiveRef",
+        "$defs",
+        "definitions",
+        "allOf",
+        "anyOf",
+        "oneOf",
+        "not",
+        "if",
+        "then",
+        "else",
+        "patternProperties",
+        "dependencies",
+        "dependentSchemas",
+        "prefixItems",
+        "additionalItems",
+        "unevaluatedProperties",
+        "unevaluatedItems",
+        "contentSchema",
+    }
+    if unsupported.intersection(schema) or isinstance(schema.get("additionalProperties"), dict):
+        return False
+    properties = schema.get("properties", {})
+    if not isinstance(properties, dict) or not all(_backup_schema_supported(value) for value in properties.values()):
+        return False
+    return "items" not in schema or _backup_schema_supported(schema["items"])
+
+
 def _rest_error(exc: Any) -> Exception:
     """Map a REST handler's HTTPException onto the MCP error contract."""
     return ToolError(_rest_detail(exc))
@@ -3200,9 +3240,25 @@ def _build_mcp_server() -> Any:
         For a restorable file the user downloads it from Settings → Backup.
         """
         from .backup import get_backup_service
-        from .config_manager import get_config_manager
+        from .config_manager import get_config_manager, mask_ai_provider_headers
+        from .outputs.output_config import mask_output_config
+        from .plugins.registry import get_plugin_settings_schema
 
-        return _mask_settings_block(get_config_manager(), get_backup_service().build_backup())
+        backup = _mask_settings_block(get_config_manager(), get_backup_service().build_backup())
+        config = backup.get("data", {}).get("config")
+        if isinstance(config, dict):
+            if "ai_providers" in config:
+                config["ai_providers"] = mask_ai_provider_headers(config["ai_providers"])
+            plugins = config.get("plugins")
+            if isinstance(plugins, dict):
+                for plugin_id, settings in plugins.items():
+                    schema = get_plugin_settings_schema(plugin_id)
+                    plugins[plugin_id] = (
+                        mask_output_config(settings, schema)
+                        if schema is not None and _backup_schema_supported(schema)
+                        else {}
+                    )
+        return backup
 
     @_tool(read_only=True, open_world=True)
     async def test_ai_provider(provider_id: str | None = None, model: str | None = None) -> dict[str, Any]:
