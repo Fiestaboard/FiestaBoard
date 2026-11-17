@@ -73,7 +73,7 @@ python3 scripts/perf/bundle_budget.py \
 Use a copy from the exact production image under test, not a development
 directory. Record the image digest and source revision beside the report.
 The utility refuses missing/empty HTML, JavaScript or CSS, symlinks, and
-malformed limits. Exit 0 means the raw-byte limits passed; 1 means an exceeded
+unreadable subdirectories, and malformed limits. Exit 0 means the raw-byte limits passed; 1 means an exceeded
 limit (report still written); 2 means invalid input. Gzip and file hashes remain
 diagnostic. Hosted `bundle-measurement` artifacts are retained for 30 days.
 

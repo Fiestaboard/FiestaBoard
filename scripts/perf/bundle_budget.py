@@ -28,10 +28,15 @@ def measure(client: Path) -> dict:
         raise ValueError("Client directory does not exist")
     groups = {key: {"count": 0, "raw_bytes": 0, "gzip6_bytes": 0} for key in GROUPS}
     files = []
-    for path in sorted(client.rglob("*")):
+    # Path.rglob suppresses directory-read errors, which could turn an
+    # incomplete inventory into a passing budget. iterdir propagates them.
+    pending = [client]
+    while pending:
+        path = pending.pop()
         if path.is_symlink():
             raise ValueError(f"Refusing symlink: {path.relative_to(client)}")
         if path.is_dir():
+            pending.extend(path.iterdir())
             continue
         if not path.is_file():
             raise ValueError(f"Refusing nonregular file: {path.relative_to(client)}")
@@ -61,6 +66,7 @@ def measure(client: Path) -> dict:
         groups[group]["count"] += 1
         groups[group]["raw_bytes"] += raw_bytes
         groups[group]["gzip6_bytes"] += gzip_bytes
+    files.sort(key=lambda item: item["path"])
     if not any(item["path"] == "index.html" and item["raw_bytes"] for item in files):
         raise ValueError("Build must contain a nonempty index.html")
     if not groups["javascript"]["raw_bytes"]:

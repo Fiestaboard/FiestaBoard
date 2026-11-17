@@ -91,6 +91,23 @@ class BundleBudgetTests(unittest.TestCase):
                     measure(self.client)
                 link.unlink()
 
+    def test_rejects_unreadable_subdirectory_instead_of_undercounting(self):
+        blocked = self.client / "blocked"
+        blocked.mkdir()
+        (blocked / "large.js").write_bytes(b"x" * 10000)
+        blocked.chmod(0)
+        try:
+            try:
+                list(blocked.iterdir())
+            except PermissionError:
+                pass
+            else:
+                self.skipTest("Process can read chmod-000 directories")
+            with self.assertRaises(PermissionError):
+                measure(self.client)
+        finally:
+            blocked.chmod(0o700)
+
     def test_equality_passes_and_each_overshoot_fails(self):
         report = measure(self.client)
         self.assertEqual(check_budget(report, self.budget), [])
