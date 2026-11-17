@@ -69,7 +69,7 @@ character, or no glyph. The charset normalization step in `src/led/charsets.py`
 separately checks supported characters, tries uppercase and the degree/heart
 swap, then blank; it also removes unsupported spans and tiles. Consumers must
 preserve the applicable renderer pipeline rather than infer replacement glyphs
-from this asset response. Native rasterizers already use the same face data;
+from this asset response. Native renderers already use the same face data;
 this endpoint does not supply a new fallback registry.
 
 ## Authentication and conditional requests
@@ -91,13 +91,13 @@ Cache-Control: private, no-cache
 The quoted SHA-256 ETag is a strong validator of the exact UTF-8 response bytes.
 `private` permits storage in a client cache; `no-cache` requires revalidation
 before reuse. Store the returned validator verbatim instead of constructing it
-from `revision` or reserializing the JSON.
+from `revision` or encoding the JSON again.
 
 On a later GET, send that value in `If-None-Match`. An exact match, weak match
 (`W/"..."`), matching member of a comma-separated list, or wildcard `*` returns
 `304 Not Modified` with an empty body and the same ETag and cache policy. Values
 across repeated `If-None-Match` headers are considered together. A stale or
-nonmatching validator returns `200` with the full current document. Authentication
+different validator returns `200` with the full current document. Authentication
 and scope checks run before conditional handling: a matching ETag never grants
 access to an unauthenticated or disallowed caller.
 

@@ -310,3 +310,31 @@ def test_recorded_native_responses(client, auth):
         for secret in clients.values():
             assert secret.encode() not in body
     assert (directory / "not-modified.body").read_bytes() == b""
+
+
+@pytest.mark.parametrize("condition", ["{etag},", ", {etag}", '"old", , W/{etag}', ", , {etag}, ,"])
+def test_conditional_list_ignores_empty_members(client, condition):
+    first = _catalog(client)
+    response = client.get(PATH, headers={"If-None-Match": condition.format(etag=first.headers["etag"])})
+    assert response.status_code == 304
+    assert response.content == b""
+
+
+def test_empty_repeated_conditional_field_does_not_hide_matching_tag(client):
+    first = _catalog(client)
+    response = client.get(PATH, headers=[("If-None-Match", ""), ("If-None-Match", first.headers["etag"])])
+    assert response.status_code == 304
+
+
+def test_comma_inside_quoted_etag_is_not_a_separator(client):
+    first = _catalog(client)
+    etag = first.headers["etag"]
+    response = client.get(PATH, headers={"If-None-Match": '"comma,in,tag", , W/' + etag})
+    assert response.status_code == 304
+    assert client.get(PATH, headers={"If-None-Match": '"comma,in,tag", , "old"'}).status_code == 200
+
+
+def test_malformed_quoted_list_does_not_match_an_embedded_tag(client):
+    first = _catalog(client)
+    condition = '"before, ' + first.headers["etag"] + ', after"'
+    assert client.get(PATH, headers={"If-None-Match": condition}).status_code == 200

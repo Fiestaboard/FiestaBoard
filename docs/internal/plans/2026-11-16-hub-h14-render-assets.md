@@ -2,9 +2,9 @@
 
 > Execute test-first; use a separate astra reviewer on the exact final head.
 
-**Goal:** Let native iOS and Android clients retrieve the hub's built-in LED fonts and character sets as one versioned, revalidatable snapshot.
+**Goal:** Let native iOS and Android clients retrieve the hub's built-in LED fonts and character sets as one versioned, cacheable snapshot.
 
-**Architecture:** `GET /v1/render-assets` serves the existing vendored maps through a typed envelope. Preserve the nested FiestaUI camelCase documents and optional-field omission. `schema_version: 1` versions the wire format; `revision` hashes the canonical fonts/character_sets content. The quoted SHA-256 ETag hashes the actual serialized response bytes. `Cache-Control: private, no-cache` permits storage but requires authenticated revalidation. Conditional GET supports exact, weak, comma-list, wildcard and repeated If-None-Match values. A match returns an empty 304 with the same cache headers. No charset materializer or bitmap copy is introduced.
+**Architecture:** `GET /v1/render-assets` serves the existing vendored maps through a typed envelope. Preserve the nested FiestaUI camelCase documents and optional-field omission. `schema_version: 1` versions the wire format; `revision` hashes the canonical fonts/character_sets content. The quoted SHA-256 ETag hashes the actual serialized response bytes. `Cache-Control: private, no-cache` permits storage but requires authenticated revalidation. Conditional GET supports exact, weak, comma-list, wildcard and repeated If-None-Match values. A match returns an empty 304 with the same cache headers. No charset expansion logic or bitmap copy is introduced.
 
 **Spec:** program MASTER-PLAN Phase 3 H14 and owner handoff. Built-ins only, not dynamic plugin sets; no native app changes, TV scope expansion or web UI changes. Normal mobile control credentials already reach `/v1/*`. No Figma visual surface changes.
 

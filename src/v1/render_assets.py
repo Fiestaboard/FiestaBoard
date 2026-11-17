@@ -90,10 +90,9 @@ def render_asset_snapshot() -> tuple[bytes, str]:
     return body, '"' + hashlib.sha256(body).hexdigest() + '"'
 
 
-# RFC entity tags may contain commas. Validate the whole list before extracting
-# tags, rather than treating a comma inside a quoted value as a separator.
-_ENTITY_TAG = r'(?:W/)?"[\x21\x23-\x7e\x80-\xff]*"'
-_ENTITY_TAG_LIST = re.compile(rf"[ \t]*{_ENTITY_TAG}(?:[ \t]*,[ \t]*{_ENTITY_TAG})*[ \t]*")
+# RFC 9110 sections 5.6.1.2 and 13.1.2: commas inside entity tags are data,
+# but empty list members outside them must be ignored by recipients.
+_ENTITY_TAG = re.compile(r'(?:W/)?"[\x21\x23-\x7e\x80-\xff]*"')
 
 
 def matches_if_none_match(values: list[str] | None, etag: str) -> bool:
@@ -103,6 +102,21 @@ def matches_if_none_match(values: list[str] | None, etag: str) -> bool:
     combined = ", ".join(values).strip(" \t")
     if combined == "*":
         return True
-    if not _ENTITY_TAG_LIST.fullmatch(combined):
-        return False
-    return any(tag.removeprefix("W/") == etag for tag in re.findall(_ENTITY_TAG, combined))
+    position = 0
+    matched = False
+    needs_comma = False
+    while position < len(combined):
+        character = combined[position]
+        if character in " \t":
+            position += 1
+        elif character == ",":
+            needs_comma = False
+            position += 1
+        else:
+            tag = _ENTITY_TAG.match(combined, position)
+            if needs_comma or tag is None:
+                return False
+            matched |= tag.group().removeprefix("W/") == etag
+            position = tag.end()
+            needs_comma = True
+    return matched
