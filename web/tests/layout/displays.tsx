@@ -123,16 +123,31 @@ window.fetch = async (input, init) => {
       silence_schedule: { config: { enabled: true, start_time: "06:00", end_time: "15:00", mode: "indicator" } },
     };
   else if (path.startsWith("/silence")) value = { active: false, enabled: false };
-  else if (path.endsWith("/current-message"))
-    value = {
-      message: url.searchParams.get("board_id") === "fridge" ? "EXTERNAL MESSAGE" : "GOOD EVENING\n64 CLEAR",
-      characters: url.searchParams.get("board_id") === "fridge" ? [[1]] : [[2]],
-      expected_characters: [[2]],
-      api_mode: "local",
-      rows: 6,
-      cols: 22,
+  else if (path.endsWith("/current-message")) {
+    const id = url.searchParams.get("board_id");
+    const board = boards.find((item) => item.id === id);
+    const rows = board?.grid_rows ?? (board?.device_type === "note" ? 3 : 6);
+    const cols = board?.grid_cols ?? (board?.device_type === "note" ? 15 : 22);
+    const expected = id === "fridge" ? "EVENING COMMUTE" : "GOOD EVENING\nCLEAR";
+    const actual = id === "fridge" ? "HELLO FRIDGE" : expected;
+    const encode = (text: string) => {
+      const lines = text.split("\n");
+      return Array.from({ length: rows }, (_, row) =>
+        Array.from({ length: cols }, (_, col) => {
+          const code = (lines[row]?.[col]?.charCodeAt(0) ?? 64) - 64;
+          return code >= 1 && code <= 26 ? code : 0;
+        }),
+      );
     };
-  else if (path.startsWith("/v1/boards/")) {
+    value = {
+      message: actual,
+      characters: encode(actual),
+      expected_characters: encode(expected),
+      api_mode: "local",
+      rows,
+      cols,
+    };
+  } else if (path.startsWith("/v1/boards/")) {
     const board = boards.find((item) => item.id === path.split("/")[3]);
     if (board && init?.method === "PATCH") Object.assign(board, JSON.parse(String(init.body)));
     value = {
