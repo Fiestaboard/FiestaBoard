@@ -441,7 +441,7 @@
     "retryButton": "Opnieuw proberen",
     "editorNameLabel": "Naam van de collectie",
     "editorMeta": "Collectie · {count, plural, one {# pagina} other {# pagina's}}",
-    "ruleCount": "{count} regels + standaardpagina",
+    "ruleCount": "{count, plural, one {# regel} other {# regels}} + standaardpagina",
     "randomEvery": "Willekeurig elke {duration}",
     "rotationTotal": "{duration} · herhaalt zich",
     "deleteAction": "Verwijderen…",

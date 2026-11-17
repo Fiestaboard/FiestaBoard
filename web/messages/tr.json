@@ -441,7 +441,7 @@
     "retryButton": "Tekrar dene",
     "editorNameLabel": "Koleksiyon adı",
     "editorMeta": "Koleksiyon · {count, plural, one {# sayfa} other {# sayfa}}",
-    "ruleCount": "{count} kural + varsayılan",
+    "ruleCount": "{count, plural, other {# kural}} + varsayılan",
     "randomEvery": "Her {duration} rastgele",
     "rotationTotal": "{duration} · tekrar eder",
     "deleteAction": "Sil…",

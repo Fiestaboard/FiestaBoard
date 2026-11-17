@@ -441,7 +441,7 @@
     "retryButton": "Tentar novamente",
     "editorNameLabel": "Nome da coleção",
     "editorMeta": "Coleção · {count, plural, one {# página} other {# páginas}}",
-    "ruleCount": "{count} regras + padrão",
+    "ruleCount": "{count, plural, one {# regra} other {# regras}} + padrão",
     "randomEvery": "Aleatório a cada {duration}",
     "rotationTotal": "{duration} · repete",
     "deleteAction": "Excluir…",

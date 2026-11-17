@@ -441,7 +441,7 @@
     "retryButton": "다시 시도",
     "editorNameLabel": "컬렉션 이름",
     "editorMeta": "컬렉션 · {count, plural, one {# 페이지} other {# 페이지}}",
-    "ruleCount": "규칙 {count}개 + 기본 페이지",
+    "ruleCount": "{count, plural, other {규칙 #개}} + 기본 페이지",
     "randomEvery": "{duration}마다 무작위 선택",
     "rotationTotal": "{duration} · 반복",
     "deleteAction": "삭제…",

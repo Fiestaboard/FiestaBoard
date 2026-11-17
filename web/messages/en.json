@@ -397,7 +397,7 @@
     "retryButton": "Try again",
     "editorNameLabel": "Collection name",
     "editorMeta": "Collection · {count, plural, one {# page} other {# pages}}",
-    "ruleCount": "{count} rules + default",
+    "ruleCount": "{count, plural, one {# rule} other {# rules}} + default",
     "randomEvery": "Random every {duration}",
     "rotationTotal": "{duration} · repeats",
     "deleteAction": "Delete…",

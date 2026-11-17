@@ -441,7 +441,7 @@
     "retryButton": "Réessayer",
     "editorNameLabel": "Nom de la collection",
     "editorMeta": "Collection · {count, plural, one {# page} other {# pages}}",
-    "ruleCount": "{count} règles + page par défaut",
+    "ruleCount": "{count, plural, one {# règle} other {# règles}} + page par défaut",
     "randomEvery": "Aléatoire toutes les {duration}",
     "rotationTotal": "{duration} · en boucle",
     "deleteAction": "Supprimer…",

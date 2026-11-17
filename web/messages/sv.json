@@ -441,7 +441,7 @@
     "retryButton": "Försök igen",
     "editorNameLabel": "Samlingens namn",
     "editorMeta": "Samling · {count, plural, one {# sida} other {# sidor}}",
-    "ruleCount": "{count} regler + standardsida",
+    "ruleCount": "{count, plural, one {# regel} other {# regler}} + standardsida",
     "randomEvery": "Slumpmässigt var {duration}",
     "rotationTotal": "{duration} · upprepas",
     "deleteAction": "Ta bort…",

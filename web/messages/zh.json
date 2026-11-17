@@ -441,7 +441,7 @@
     "retryButton": "重试",
     "editorNameLabel": "合集名称",
     "editorMeta": "合集 · {count, plural, one {# 个页面} other {# 个页面}}",
-    "ruleCount": "{count} 条规则 + 默认页面",
+    "ruleCount": "{count, plural, other {# 条规则}} + 默认页面",
     "randomEvery": "每 {duration} 随机选择",
     "rotationTotal": "{duration} · 循环",
     "deleteAction": "删除…",

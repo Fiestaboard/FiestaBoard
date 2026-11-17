@@ -441,7 +441,7 @@
     "retryButton": "Erneut versuchen",
     "editorNameLabel": "Name der Sammlung",
     "editorMeta": "Sammlung · {count, plural, one {# Seite} other {# Seiten}}",
-    "ruleCount": "{count} Regeln + Standardseite",
+    "ruleCount": "{count, plural, one {# Regel} other {# Regeln}} + Standardseite",
     "randomEvery": "Zufällig alle {duration}",
     "rotationTotal": "{duration} · wiederholt sich",
     "deleteAction": "Löschen…",
