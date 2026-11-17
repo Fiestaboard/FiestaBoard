@@ -35,6 +35,35 @@ for (const width of [390, 768, 1280]) {
         await configureBoard();
         await suppressWizard(page);
         await page.addInitScript((theme) => localStorage.setItem("theme", theme), colorScheme);
+        await page.addInitScript(() => localStorage.setItem("fiestaboard_current_board", "selected"));
+        let boardWrites = 0;
+        await page.route("**/api/settings/board", (route) => {
+          if (route.request().method() !== "GET") boardWrites++;
+          return route.fulfill({
+            json: {
+              board_type: "black",
+              devices: ["flagship"],
+              boards: [
+                {
+                  id: "primary",
+                  name: "Primary",
+                  device_type: "flagship",
+                  board_color: "black",
+                  code62_glyph: "degree",
+                  enabled: true,
+                },
+                {
+                  id: "selected",
+                  name: "Selected",
+                  device_type: "flagship",
+                  board_color: "white",
+                  code62_glyph: "heart",
+                  enabled: true,
+                },
+              ],
+            },
+          });
+        });
         let configured = false;
         let connected = false;
         let saved: unknown;
@@ -93,6 +122,20 @@ for (const width of [390, 768, 1280]) {
           route.fulfill({
             json: {
               entries: [
+                {
+                  id: "cx-calendar",
+                  name: "CX Calendar",
+                  description: "Calendar events on your display",
+                  category: "utility",
+                  author: "Example",
+                  icon: "calendar",
+                  repository: "https://github.com/example/cx-integrations",
+                  installed: true,
+                  previews: [
+                    { device_type: "flagship", rows: ["52 °F CLEAR"] },
+                    { device_type: "note", rows: ["NOTE FORECAST"] },
+                  ],
+                },
                 {
                   id: "cx-arrivals",
                   name: "CX Arrivals",
@@ -162,8 +205,28 @@ for (const width of [390, 768, 1280]) {
         await expect(page.getByTestId("oauth-connection").getByText("Connected", { exact: true })).toBeVisible();
         await expect(page.getByText("Account connected.", { exact: true })).toBeVisible();
         expect(page.context().pages()).toHaveLength(pageCount);
+        const preview = page.locator('[data-slot="board-showcase"]');
+        await expect(preview.getByRole("img", { name: /split-flap board/i })).toContainText("52♥FCLEAR");
+        const colors = preview.getByRole("group", { name: "Board color" });
+        await expect(colors.getByRole("button", { name: "White Board" })).toHaveAttribute("aria-pressed", "true");
+        await capture(page, "detail-connected-preview", width, colorScheme);
+        await colors.getByRole("button", { name: "Black Board" }).click();
+        await expect(colors.getByRole("button", { name: "Black Board" })).toHaveAttribute("aria-pressed", "true");
+        await preview.getByRole("tab", { name: /Note/ }).click();
+        await expect(preview.getByRole("img", { name: /split-flap board/i })).toContainText("NOTEFORECAST");
+        expect(boardWrites).toBe(0);
         await expectAccessible(page);
         await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();
+
+        if (width >= 768) {
+          await page
+            .getByRole("list", { name: "Installed" })
+            .getByRole("button", { name: /^CX Calendar/ })
+            .click();
+          await expect(settings.locator('[data-slot="board-showcase"]')).toBeVisible();
+          await expectAccessible(page);
+          await capture(page, "connected-pane", width, colorScheme);
+        }
 
         await page
           .getByRole("list", { name: "Needs attention" })
@@ -171,6 +234,19 @@ for (const width of [390, 768, 1280]) {
           .locator('[data-slot="list-row-trailing"]')
           .click();
         await expect(settings.getByLabel("Stop", { exact: true })).toHaveValue("Central");
+        await capture(page, "detail-setup", width, colorScheme);
+        if (width >= 768) {
+          await page.goto("/integrations/cx-transit?from=installed");
+          await expect(page.getByLabel("Stop", { exact: true })).toHaveValue("Central");
+          await expect(page.getByTestId("integration-attention-banner")).toBeVisible();
+          await expectAccessible(page);
+          await capture(page, "full-detail-setup", width, colorScheme);
+          await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();
+          await page
+            .getByRole("list", { name: "Needs attention" })
+            .getByRole("button", { name: /^CX Transit/ })
+            .click();
+        }
         await settings.getByLabel("Stop", { exact: true }).fill("Museum");
         await settings.getByRole("button", { name: "Save Changes", exact: true }).click();
         await expect.poll(() => saved).toEqual({ config: { stop: "Museum" } });
@@ -208,6 +284,11 @@ for (const width of [390, 768, 1280]) {
         await expectAccessible(page);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await capture(page, "marketplace", width, colorScheme);
+        await page.getByRole("button", { name: "More options", exact: true }).click();
+        await page.getByRole("menuitem", { name: "Add from Git", exact: true }).click();
+        await expect(page.getByRole("dialog", { name: "Install Plugin from Git", exact: true })).toBeVisible();
+        await expectAccessible(page);
+        await capture(page, "git-install", width, colorScheme);
       });
     });
   }

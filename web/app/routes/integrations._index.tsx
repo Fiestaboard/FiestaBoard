@@ -1427,7 +1427,7 @@ export function InstalledPluginRow({
           <TabsTrigger value="readme">{t("readmeTab")}</TabsTrigger>
         </TabsList>
         <TabsContent value="settings">
-          {fullPage && <IntegrationBoardPreview entry={registryEntry} />}
+          <IntegrationBoardPreview entry={registryEntry} size={fullPage ? undefined : "sm"} />
           <Stack gap="6" className="py-6">
             {isLoadingDetails ? (
               <Stack gap="4">

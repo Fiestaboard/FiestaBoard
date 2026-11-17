@@ -1590,6 +1590,7 @@
       "lastUpdate": "Dernière mise à jour : {time}",
       "noViewerHint": "Aucun téléviseur connecté à un compte n’affiche cet écran",
       "nextChange": "Jusqu’à {time} · puis {page}",
+      "nextCompact": "Puis {page}",
       "overrideUntil": "Manuel · jusqu’à {time}",
       "pauseDisplay": "Mettre l’écran en pause",
       "pauseHint": "Le tableau conserve son affichage ; la programmation continue de s’exécuter sur le hub.",

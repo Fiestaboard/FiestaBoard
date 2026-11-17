@@ -1590,6 +1590,7 @@
       "lastUpdate": "Ultimo aggiornamento: {time}",
       "noViewerHint": "Nessun televisore con accesso effettuato mostra questo schermo",
       "nextChange": "Fino alle {time} · poi {page}",
+      "nextCompact": "Poi {page}",
       "overrideUntil": "Manuale · fino alle {time}",
       "pauseDisplay": "Metti in pausa lo schermo",
       "pauseHint": "Il tabellone mantiene il contenuto visualizzato; la programmazione continua a funzionare sull’hub.",

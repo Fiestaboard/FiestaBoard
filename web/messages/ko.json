@@ -1590,6 +1590,7 @@
       "lastUpdate": "마지막 업데이트: {time}",
       "noViewerHint": "이 디스플레이를 표시하는 로그인된 TV가 없습니다",
       "nextChange": "{time}까지 · 다음: {page}",
+      "nextCompact": "다음: {page}",
       "overrideUntil": "수동 표시 · {time}까지",
       "pauseDisplay": "디스플레이 일시 중지",
       "pauseHint": "보드는 현재 내용을 계속 표시하며, 허브에서는 일정이 계속 실행됩니다.",

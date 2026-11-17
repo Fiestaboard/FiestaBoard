@@ -41,6 +41,27 @@ function setup(schedules = [entry], extra = {}) {
   return props;
 }
 describe("Schedule workspace", () => {
+  it.each(["day", "list"])("offers default preview and entry creation in an empty %s view", (view) => {
+    const props = setup([], { view });
+    expect(screen.getByRole("region", { name: "No schedules created yet" })).toBeInTheDocument();
+    expect(screen.getByText("Gaps use Morning page.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add Schedule" }));
+    expect(props.onCreate).toHaveBeenCalled();
+  });
+  it("opens lookup on request and restores the selected inspector when closed", () => {
+    setup();
+    expect(screen.queryByLabelText("Instant")).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: /Morning page/ })[0]);
+    const lookup = screen.getByRole("button", { name: "Which page at…" });
+    fireEvent.click(lookup);
+    expect(lookup).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("Instant")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit entry" })).not.toBeInTheDocument();
+    fireEvent.click(lookup);
+    expect(lookup).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Instant")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit entry" })).toBeInTheDocument();
+  });
   it("explains the actual default page in an empty schedule and opens entry creation", () => {
     const props = setup([]);
     expect(screen.getByText("No schedules created yet")).toBeInTheDocument();
