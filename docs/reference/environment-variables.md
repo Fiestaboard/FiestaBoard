@@ -120,6 +120,20 @@ These variables belong to plugins you install from the [registry](/plugins), not
 | `VERSION` | Build version (set automatically during Docker builds -- do not change) | `dev` |
 | `FIESTABOARD_OAUTH_REDIRECT_URI` | Redirect URI used when a plugin [connects an account](/docs/features/connecting-accounts). Change it only if you host your own copy of the sign-in relay. | `https://fiestaboard.app/auth/oauth/redirect` |
 
+## Built-in HTTPS
+
+HTTPS is opt-in. HTTP remains on container port `3000`; enabled TLS adds port `3443`. See [Built-in HTTPS](/docs/deployment/production#built-in-https) for the compose overlay, certificate trust, renewal, and the limitation with one-click updates.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FIESTABOARD_TLS_MODE` | `off`, `self-signed`, or `custom`. Invalid TLS configuration stops startup; there is no automatic HTTP fallback. | `off` |
+| `FIESTABOARD_TLS_HOSTS` | Required in `self-signed` mode: 1–32 comma-separated DNS names or IP addresses for the certificate's subject alternative names. No schemes, ports, paths, or wildcards. Include the names clients actually use. Changing the list requires deliberate certificate rotation. | Unset |
+| `FIESTABOARD_TLS_CERT_FILE` | Required in `custom` mode: absolute container path to a PEM certificate, including its intermediate chain when applicable. Must be readable by `appuser` (UID `1000`). | Unset |
+| `FIESTABOARD_TLS_KEY_FILE` | Required in `custom` mode: absolute container path to the matching unencrypted PEM private key, readable by `appuser` (UID `1000`). | Unset |
+| `FIESTABOARD_TLS_PORT` | Host port published by the optional `docker-compose.tls.yml` overlay. This is a Compose setting; the container TLS port stays `3443`. | `4443` |
+
+Self-signed certificates last 365 days and persist at `data/tls/server.crt` and `data/tls/server.key`. Restarts reuse them. The directory has mode `0700` and the private key has mode `0600`. Expiry or changed hosts requires an offline backup and deliberate rotation, followed by trusting the replacement on each client. Custom certificates are validated for matching keys and validity dates but never modified or renewed. Disabling TLS retains certificate files.
+
 ## FiestaUpdater
 
 These variables control the optional [`fiestaupdater`](/docs/deployment/fiestaupdater) sidecar that powers one-click in-app updates. On [FiestaPi](/docs/setup/raspberry-pi) they're configured automatically on first boot.

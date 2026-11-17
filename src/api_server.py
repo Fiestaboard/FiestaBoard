@@ -493,6 +493,15 @@ nginx fronts the API under `/api`, so every path below is reached as
 `http://fiestaboard.local:4420/api/v1/status`. These docs live at
 `/api/docs`, the schema at `/api/openapi.json`.
 
+With built-in TLS enabled, the same routes are available at
+`https://fiestaboard.local:4443/api` (the example HTTPS host port).
+HTTP stays available for local clients and Home Assistant ingress. Transport
+selection does not change authentication or endpoint shapes. Configure
+self-signed or operator-supplied certificates using the
+[production deployment guide](https://fiestaboard.app/docs/deployment/production#built-in-https).
+Clients must trust the certificate and use a hostname or IP in its subject
+alternative names; do not disable certificate verification.
+
 ### What is not here
 
 This document is the API to build against: 33 operations. The app serves
