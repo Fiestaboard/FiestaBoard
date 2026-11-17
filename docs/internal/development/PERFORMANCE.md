@@ -80,10 +80,15 @@ diagnostic. Hosted `bundle-measurement` artifacts are retained for 30 days.
 ## Runtime gates still open
 
 No API p95 baseline, LCP, INP, or memory-soak result is established by this PR.
-Local process inspection was sandbox-denied; the owner requires verifiable PROD
-exclusion before any Docker use. No local Docker command or application suite
-ran. Artifact measurements used macOS 27.2 arm64 and Python 3.9.6; host CPU model
-and RAM queries were also denied. A contemporaneous load observation was
+The initial artifact extraction used no containers or application suites.
+Local process inspection was sandbox-denied. For this campaign, the owner now
+accepts fresh dispatcher `codex/RUNNING` evidence plus Docker inventory to verify
+PROD exclusion. Shared role containers have since been used for local source
+checks; a published runtime hub still requires a free slot within the three-container
+cap. Other jobs' resources must not be stopped or removed.
+
+Artifact measurements used macOS 27.2 arm64 and Python 3.9.6; host CPU model
+and RAM queries were denied. A contemporaneous load observation was
 5.91/3.95/3.38 (1/5/15 minutes). Load does not alter file bytes; it precludes
 inferring timing results from this extraction.
 
