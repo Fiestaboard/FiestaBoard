@@ -99,7 +99,7 @@ async def _dispatch(op_name: str, args: dict[str, Any]) -> dict[str, Any]:
     responses=errors(400, 403, 404, 412, 422),
     summary="Execute one chat-grammar operation server-side",
 )
-async def execute_operation(request: OperationRequest, http_request: Request) -> OperationResponse:
+async def execute_operation(request: OperationRequest, http_request: Request = None) -> OperationResponse:
     """Validate and execute a chat tool call through the shared ops layer.
 
     - unknown op, or an op the chat grammar does not spell → **404**
