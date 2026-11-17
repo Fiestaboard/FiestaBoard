@@ -17,6 +17,7 @@ import {
   createPage,
   deleteAllPages,
   deletePagesByDevice,
+  displayCard,
   expect,
   openDisplay,
   openDisplays,
@@ -50,10 +51,10 @@ test.describe("Displays – Display Card", () => {
     await expect(page.getByText("22 × 6").first()).toBeVisible();
   });
 
-  test("board card shows Connected badge when credentials are set", async ({ page }) => {
+  test("display row reports Online when the configured output connects", async ({ page }) => {
     await openDisplays(page);
 
-    await expect(page.getByText("Connected").first()).toBeVisible({
+    await expect(displayCard(page, "My Board").getByText("Online", { exact: true })).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -292,7 +293,10 @@ test.describe("Displays – Board Instance CRUD", () => {
     await expect(removeBtn.first()).toBeVisible({ timeout: 5_000 });
     await expect(removeBtn.first()).toBeEnabled();
     await removeBtn.first().click();
-    await page.waitForTimeout(1_500);
+    const confirmation = page.getByRole("alertdialog");
+    await expect(confirmation).toBeVisible();
+    await confirmation.getByRole("button", { name: "Remove Board", exact: true }).click();
+    await expect(page).toHaveURL(/\/displays$/, { timeout: 10_000 });
 
     const resAfter = await fetch(`${API_URL}/settings/board`);
     const dataAfter = await resAfter.json();
@@ -531,7 +535,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
       timeout: 10_000,
     });
     await expect(page.getByText("15 × 3").first()).toBeVisible();
-    await expect(page.getByText("Connected").first()).toBeVisible();
+    await expect(displayCard(page, "My Board").getByText("Online", { exact: true })).toBeVisible();
   });
 });
 
