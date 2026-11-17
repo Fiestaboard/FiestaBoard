@@ -257,6 +257,30 @@
       "toastCopyFailed": "Det gick inte att kopiera tavlan",
       "toastRefreshed": "Skickade sidan till {board} igen",
       "toastRefreshFailed": "Det gick inte att uppdatera {board}"
+    },
+    "supporting": {
+      "upNext": "Härnäst",
+      "upNextDisplay": "Härnäst · {display}",
+      "resumes": "Schemat återupptas",
+      "silenceStarts": "Silence Schedule börjar",
+      "silenceEnds": "Silence Schedule slutar",
+      "changes": "Schemat ändras",
+      "empty": "Hubben har inte rapporterat någon kommande ändring.",
+      "viewSchedule": "Visa schema",
+      "manualTitle": "Schemaläget är avstängt",
+      "manualBody": "Inget ändras automatiskt. {page} visas tills du väljer Byt sida, Skriv ett meddelande eller slår på schemaläget igen.",
+      "manualEmpty": "Inget ändras automatiskt. Välj Byt sida, Skriv ett meddelande eller slå på schemaläget igen.",
+      "scheduleMode": "Schemaläge",
+      "manualMode": "Manuellt läge",
+      "overrideMode": "Åsidosättning",
+      "unknown": "Okänd status",
+      "enabled": "Schemaläget är på igen",
+      "undo": "Ångra",
+      "failed": "Det gick inte att ändra schemaläget. Försök igen.",
+      "otherDisplays": "Andra skärmar",
+      "allDisplays": "Alla skärmar",
+      "selectDisplay": "Hantera {display}",
+      "offline": "Offline"
     }
   },
   "pages": {

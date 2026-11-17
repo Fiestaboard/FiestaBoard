@@ -6,7 +6,7 @@ keywords: [FiestaBoard 11 upgrade, v11 rollback, backup, restore, Docker, Fiesta
 
 # Upgrading to v11 and Recovering 10.x
 
-This guide covers the **11.0.0-alpha.3** preview and published **10.3.3 / 10.3.4-beta.0** as checked on **November 17, 2026**. Alpha is for testing. The production-image upgrade, updater and restore scenarios remain **unverified at runtime**; the procedures below describe source behavior and operator recovery requirements, not a completed release qualification.
+This guide covers the **11.0.0-alpha.5** preview and published **10.3.3 / 10.3.4-beta.0** as checked on **November 17, 2026**. Alpha is for testing. The production-image upgrade, updater and restore scenarios remain **unverified at runtime**; the procedures below describe source behavior and operator recovery requirements, not a completed release qualification.
 
 The published 10.x builds do **not** have the Alpha chooser. The [chooser backport (#2492)](https://github.com/Fiestaboard/FiestaBoard/pull/2492) is an unpublished candidate. Candidate testing and a released, reachable chooser are separate gates. Read [Release Channels](/docs/features/release-channels) and [what is new](/docs/setup/v11-preview) first.
 
@@ -62,7 +62,7 @@ Use this manual route for a controlled preview test when the installed 10.x buil
 2. Leave the hub stopped. In the existing Compose file, change the FiestaBoard service image to the chosen preview, preserving its data mounts, ports and remaining configuration:
 
    ```yaml
-   image: fiestaboard/fiestaboard:v11-alpha-11.0.0-alpha.3
+   image: fiestaboard/fiestaboard:v11-alpha-11.0.0-alpha.5
    ```
 
 3. Pull that service, then recreate it from the same install directory and project:
