@@ -61,6 +61,7 @@ export function ScheduleAgenda({
   const events = schedulesToCalendarEvents(schedules, startOfWeek(date), pages, collections, sunTimesMap)
     .filter((event) => isSameDay(event.start, date))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
+  const datedOverlaps = supportsDatedGaps(schedules) ? overlaps : [];
   const dayName = date.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const dayGaps = (supportsDatedGaps(schedules) ? gaps : []).filter((gap) =>
     gap.days.some((day) => day.toLowerCase().slice(0, 3) === dayName.slice(0, 3)),
@@ -108,7 +109,7 @@ export function ScheduleAgenda({
                   time={`${time(event.start)} – ${time(event.end)}`}
                   detail={isCollectionId(event.resource.pageId) ? t("collection") : t("page")}
                   kind={
-                    overlaps.some(
+                    datedOverlaps.some(
                       (overlap) =>
                         overlap.schedule1_id === event.resource.scheduleId ||
                         overlap.schedule2_id === event.resource.scheduleId,

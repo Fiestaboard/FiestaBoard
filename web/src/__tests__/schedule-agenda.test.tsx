@@ -91,3 +91,17 @@ it("withholds weekly solar validation gaps for a selected date's different sun t
   expect(screen.queryByText("Gap · Fallback page")).not.toBeInTheDocument();
   expect(screen.getByText(/8:00 AM/)).toBeInTheDocument();
 });
+
+it("does not repeat today's solar overlap claim onto a different dated agenda", () => {
+  render(
+    <ScheduleAgenda
+      date={new Date(2026, 10, 18)}
+      schedules={[{ ...entry, start_type: "sunrise", resolved_start_time: "07:00" }]}
+      pages={pages}
+      overlaps={[{ schedule1_id: entry.id, schedule2_id: "other", conflict_description: "Today only" }]}
+      onEdit={vi.fn()}
+    />,
+  );
+  expect(screen.queryByText("Overlap")).not.toBeInTheDocument();
+  expect(screen.getByText("Morning page")).toBeInTheDocument();
+});

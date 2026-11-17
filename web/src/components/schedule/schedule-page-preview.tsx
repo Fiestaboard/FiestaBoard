@@ -2,7 +2,10 @@ import { Text } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 
 import { BoardViewport } from "@/components/board-viewport";
+import { useCurrentBoard } from "@/components/current-board-context";
+import { DevicePreview } from "@/components/device-preview";
 import { api, isCollectionId, type Page } from "@/lib/api";
+import { resolveBoardModel } from "@/lib/device-preview";
 /** Render only the identified page in this evidence context; null means no winner. */
 export function SchedulePagePreview({
   pageId,
@@ -21,6 +24,9 @@ export function SchedulePagePreview({
   missing?: string[];
   label: string;
 }) {
+  const { boards, currentBoard } = useCurrentBoard();
+  const target = boardId ? boards?.find((board) => board.id === boardId) : currentBoard;
+  const model = resolveBoardModel(target);
   const collection = useQuery({
     queryKey: ["schedule-preview-collection", pageId, at, values, missing],
     queryFn: () => api.dryRunCollection(pageId!, { at, values, missing }),
@@ -55,16 +61,27 @@ export function SchedulePagePreview({
   return (
     <>
       {preview.data && resolved && (
-        <BoardViewport
+        <DevicePreview
+          model={model}
+          layers={preview.data.layers}
+          ledLayout={target?.led_layout}
           message={preview.data.lines.join("\n")}
-          deviceType={resolved.device_type}
-          notesWide={resolved.notes_wide}
-          notesTall={resolved.notes_tall}
-          gridRows={resolved.grid_rows ?? undefined}
-          gridCols={resolved.grid_cols ?? undefined}
-          layout="phone-hero"
-          regionLabel={label}
-        />
+          size="sm"
+          previewLabel={label}
+        >
+          <BoardViewport
+            boardType={target?.board_color}
+            code62Glyph={target?.code62_glyph}
+            message={preview.data.lines.join("\n")}
+            deviceType={resolved.device_type}
+            notesWide={resolved.notes_wide}
+            notesTall={resolved.notes_tall}
+            gridRows={resolved.grid_rows ?? undefined}
+            gridCols={resolved.grid_cols ?? undefined}
+            layout="phone-hero"
+            regionLabel={label}
+          />
+        </DevicePreview>
       )}
       {preview.isError && (
         <Text role="alert" tone="destructive">

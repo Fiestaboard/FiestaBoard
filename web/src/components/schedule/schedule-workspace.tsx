@@ -297,7 +297,7 @@ export function ScheduleWorkspace({
                 pages={pages}
                 collections={collections}
                 gaps={gaps}
-                overlaps={overlaps}
+                overlaps={supportsDatedGaps(schedules) ? overlaps : []}
                 defaultPageId={defaultPageId}
                 silenceSchedule={silenceSchedule}
                 sunTimesMap={sunTimesMap}
