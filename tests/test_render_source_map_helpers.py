@@ -154,6 +154,36 @@ def test_split_replace_translate_and_strip_keep_source_offsets(sm):
     assert [sm.origin_at(changed, index).start for index in range(4)] == [12, 12, 15, 16]
 
 
+@pytest.mark.parametrize("table, expected", [({}, "A" * 10_000), ({ord("A"): ord("B")}, "B" * 10_000)])
+def test_translation_keeps_one_to_one_literal_runs_compact(sm, table, expected):
+    tracker = sm.SourceTracker()
+    text = tracker.source("A" * 10_000, line=2, offset=7)
+    translated = text.translate(table)
+
+    assert translated == expected
+    assert len(translated.runs) == 1
+    assert sm.origin_at(translated, 0) == sm.Source(2, 7, 8, "literal")
+    assert sm.origin_at(translated, 9_999) == sm.Source(2, 10_006, 10_007, "literal")
+
+
+def test_sparse_translation_preserves_compact_unchanged_regions(sm):
+    tracker = sm.SourceTracker()
+    text = tracker.source("A" * 1_000 + "\x01" + "B" * 1_000 + "\x02" + "C" * 1_000, line=3, offset=10)
+    translated = text.translate({1: "XY", 2: None})
+
+    assert translated == "A" * 1_000 + "XY" + "B" * 1_000 + "C" * 1_000
+    assert len(translated.runs) == 4
+    assert [sm.origin_at(translated, at).start for at in (999, 1_000, 1_001, 1_002, 2_001, 2_002, 3_001)] == [
+        1_009,
+        1_010,
+        1_010,
+        1_011,
+        2_010,
+        2_012,
+        3_011,
+    ]
+
+
 def test_interning_is_only_for_visible_cells_and_padding_is_null(sm):
     tracker = sm.SourceTracker()
     hidden = tracker.mapped("SECRET", sm.Source(1, 0, 11, "variable"))

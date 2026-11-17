@@ -241,18 +241,71 @@ class MappedText(str):
         return sub(re.compile(re.escape(old)), lambda _match: new, self, count=max(0, count))
 
     def translate(self, table: Mapping[int, Any]) -> str:
-        return self._characters(lambda char: str.translate(char, table))
+        # Charge before scanning/copying or constructing any new source runs.
+        if not self.tracker.reserve(len(self)):
+            return str.translate(self, table)
+        raw = str(self)
+        widths: dict[int, int] = {}
+        length = 0
+        one_to_one = True
+        for char in raw:
+            code = ord(char)
+            if code not in widths:
+                try:
+                    replacement = table[code]
+                except LookupError:
+                    replacement = char
+                if replacement is None:
+                    widths[code] = 0
+                elif isinstance(replacement, int):
+                    widths[code] = 1
+                elif isinstance(replacement, str):
+                    widths[code] = len(replacement)
+                else:
+                    # Let the builtin raise its normal error for a bad table.
+                    return str.translate(self, table)
+            width = widths[code]
+            length += width
+            one_to_one = one_to_one and width == 1
+        if not self.tracker.reserve(length):
+            return str.translate(self, table)
+        value = str.translate(self, table)
+        if one_to_one:
+            # Identity and single-character replacements change no offsets.
+            # In particular, unprotecting braces must not expand an affine
+            # literal run into thousands of single-character constant runs.
+            return MappedText(value, self.runs, self.tracker)
 
-    def _characters(self, transform: Callable[[str], str]) -> str:
-        if self.tracker.limited:
-            return transform(str(self))
-        parts: list[str] = []
-        for index, char in enumerate(str(self)):
-            value = transform(char)
-            parts.append(self.tracker.mapped(value, origin_at(self, index)))
-            if self.tracker.limited:
-                return transform(str(self))
-        return concat(parts)
+        runs: list[_Run] = []
+        original = output = 0
+        for run in self.runs:
+            output += sum(widths[ord(raw[at])] for at in range(original, run.start))
+            original = run.end
+            if not run.affine:
+                end = output + sum(widths[ord(raw[at])] for at in range(run.start, run.end))
+                if end > output:
+                    _append(runs, _Run(output, end, run.source))
+                output = end
+                continue
+            source = run.source
+            first, segment_output = run.start, output
+            for at in range(run.start, run.end):
+                width = widths[ord(raw[at])]
+                if width != 1:
+                    if first < at:
+                        origin = Source(
+                            source.line, source.start + first - run.start, source.start + at - run.start, source.kind
+                        )
+                        _append(runs, _Run(segment_output, output, origin, True))
+                    if width:
+                        start = source.start + at - run.start
+                        _append(runs, _Run(output, output + width, Source(source.line, start, start + 1, source.kind)))
+                    first, segment_output = at + 1, output + width
+                output += width
+            if first < run.end:
+                origin = Source(source.line, source.start + first - run.start, source.end, source.kind)
+                _append(runs, _Run(segment_output, output, origin, True))
+        return MappedText(value, tuple(runs), self.tracker)
 
     def ljust(self, width: int, fillchar: str = " ") -> str:
         result = str.ljust(self, width, fillchar)
