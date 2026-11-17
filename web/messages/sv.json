@@ -959,6 +959,10 @@
         "language-time": {
           "title": "Språk och tid",
           "description": "Används av hubben för Schemat, tidsvariabler och varje tidsstämpel."
+        },
+        "notifications": {
+          "title": "Aviseringar",
+          "description": "Välj om ditt konto och den här webbläsaren får ta emot varningar från din hubb."
         }
       }
     }
@@ -3563,5 +3567,55 @@
     "success": "Alla webbläsare, TV-apparater och telefoner har loggats ut. Logga in med ditt nya lösenord.",
     "signIn": "Logga in",
     "tokenUnchanged": "MCP/API-token är oförändrad. Byt den i Inställningar om du tror att den har röjts."
+  },
+  "notifications": {
+    "privacy": "Din hubb skickar varningstext via webbläsarens pushtjänst. Skärminnehåll och kontots inloggningsuppgifter skickas inte med.",
+    "account": "Tillåt aviseringar för mitt konto",
+    "accountHint": "Aviseringar måste vara aktiverade både för ditt konto och för varje webbläsare.",
+    "device": "Aktivera i den här webbläsaren",
+    "deviceHint": "Endast den här inloggade webbläsaren får testaviseringar.",
+    "categories": "Automatiska varningar",
+    "unavailable": "Automatiska varningar är inte tillgängliga ännu. Du kan aktivera den här webbläsaren och skicka ett test.",
+    "offline": "En skärm går offline",
+    "offlineHint": "När en skärm tappar anslutningen",
+    "override": "En tillfällig ändring avslutas",
+    "overrideHint": "När Schemaläge återupptas",
+    "update": "Uppdatering tillgänglig",
+    "updateHint": "Uppdateringar för FiestaBoard och insticksprogram",
+    "silence": "Tyst schema har hållit tillbaka ett meddelande",
+    "silenceHint": "Så att du kan välja Visa nu",
+    "permissionGranted": "Tillåtna av den här webbläsaren",
+    "permissionDefault": "Tillstånd har inte begärts",
+    "permissionDenied": "Aviseringar blockerade av webbläsaren",
+    "deniedHelp": "Tillåt aviseringar för den här webbplatsen i webbläsarens inställningar. Gå sedan tillbaka hit och aktivera den här webbläsaren.",
+    "insecureTitle": "Kräver HTTPS",
+    "insecureHelp": "Pushaviseringar behöver en säker adress. Öppna din hubb via HTTPS och aktivera sedan den här webbläsaren.",
+    "httpsHelp": "Så ställer du in HTTPS",
+    "embeddedTitle": "Öppna din hubb direkt",
+    "embeddedHelp": "Aviseringar kan inte aktiveras i en inbäddad Home Assistant-sida. Öppna hubben direkt via HTTPS i en webbläsarflik.",
+    "installTitle": "Lägg till FiestaBoard på hemskärmen",
+    "installHelp": "På iPhone eller iPad öppnar du den installerade appen på hemskärmen för att aktivera aviseringar.",
+    "unsupportedTitle": "Aviseringar är inte tillgängliga",
+    "unsupportedHelp": "Den här webbläsaren stöder inte webbpush. Prova en webbläsare med stöd för aviseringar.",
+    "signInTitle": "Logga in för att aktivera aviseringar",
+    "signInHelp": "Aviseringar kräver att du är inloggad i webbläsaren, även när inloggning på hubben är avstängd.",
+    "loadError": "Det gick inte att läsa in aviseringsinställningarna. Kontrollera anslutningen och försök igen.",
+    "retry": "Försök igen",
+    "working": "Uppdaterar aviseringar…",
+    "actionError": "Det gick inte att uppdatera aviseringarna. Kontrollera anslutningen och försök igen.",
+    "dismissed": "Tillstånd gavs inte. Aktivera den här webbläsaren när du är redo.",
+    "reconnect": "Den här webbläsaren behöver aktiveras igen.",
+    "senderUnavailable": "Det går inte att skicka tester. Hubbens kontakt för pushaviseringar måste ställas in innan tester kan skickas.",
+    "sendTest": "Skicka ett test",
+    "sending": "Skickar…",
+    "testSent": "Pushtjänsten har tagit emot testet. Kontrollera om aviseringen visas i den här webbläsaren.",
+    "notSent": "Testet skickades inte. Försök igen senare.",
+    "testExpired": "Den här prenumerationen har löpt ut. Aktivera den här webbläsaren igen.",
+    "cooldown": "Vänta en minut innan du skickar ett nytt test.",
+    "testError": "Pushtjänsten kunde inte ta emot testet. Försök igen senare.",
+    "blockedLabel": "blockerade av webbläsaren",
+    "httpsLabel": "behöver HTTPS",
+    "notAvailableLabel": "inte tillgängliga ännu",
+    "loading": "Läser in aviseringsinställningar…"
   }
 }

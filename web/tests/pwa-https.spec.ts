@@ -43,7 +43,7 @@ test.describe("plain http: honest about install and offline (2.8)", () => {
   });
 
   test("Settings says Requires HTTPS, with how to fix it", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/notifications");
     await expect(page.getByText("Requires HTTPS")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("link", { name: "How to set up HTTPS" })).toHaveAttribute(
       "href",

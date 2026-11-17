@@ -959,6 +959,10 @@
         "language-time": {
           "title": "Taal en tijd",
           "description": "Gebruikt door de hub voor de Planning, tijdvariabelen en elke tijdstempel."
+        },
+        "notifications": {
+          "title": "Meldingen",
+          "description": "Kies of je account en deze browser waarschuwingen van je hub mogen ontvangen."
         }
       }
     }
@@ -3563,5 +3567,55 @@
     "success": "Alle browsers, tv’s en telefoons zijn afgemeld. Meld je aan met je nieuwe wachtwoord.",
     "signIn": "Aanmelden",
     "tokenUnchanged": "Het MCP/API-token blijft ongewijzigd. Vernieuw het in Instellingen als je denkt dat het is uitgelekt."
+  },
+  "notifications": {
+    "privacy": "Je hub verstuurt de tekst van meldingen via de pushdienst van je browser. Scherminhoud en inloggegevens van je account worden niet meegestuurd.",
+    "account": "Meldingen voor mijn account toestaan",
+    "accountHint": "Meldingen moeten zowel voor je account als voor elke browser zijn ingeschakeld.",
+    "device": "Inschakelen in deze browser",
+    "deviceHint": "Alleen deze aangemelde browser ontvangt testmeldingen.",
+    "categories": "Automatische waarschuwingen",
+    "unavailable": "Automatische waarschuwingen zijn nog niet beschikbaar. Je kunt deze browser inschakelen en een test versturen.",
+    "offline": "Een scherm gaat offline",
+    "offlineHint": "Wanneer een scherm de verbinding verliest",
+    "override": "Een tijdelijke wijziging eindigt",
+    "overrideHint": "Wanneer de Planningsmodus wordt hervat",
+    "update": "Update beschikbaar",
+    "updateHint": "Updates voor FiestaBoard en plug-ins",
+    "silence": "De Stilteperiode heeft een bericht tegengehouden",
+    "silenceHint": "Zodat je Nu tonen kunt kiezen",
+    "permissionGranted": "Toegestaan door deze browser",
+    "permissionDefault": "Toestemming nog niet gevraagd",
+    "permissionDenied": "Meldingen geblokkeerd door de browser",
+    "deniedHelp": "Sta meldingen voor deze site toe in de browserinstellingen. Kom daarna hier terug en schakel deze browser in.",
+    "insecureTitle": "HTTPS vereist",
+    "insecureHelp": "Pushmeldingen hebben een beveiligd adres nodig. Open je hub via HTTPS en schakel daarna deze browser in.",
+    "httpsHelp": "HTTPS instellen",
+    "embeddedTitle": "Open je hub rechtstreeks",
+    "embeddedHelp": "Je kunt meldingen niet inschakelen binnen een ingesloten Home Assistant-pagina. Open de hub rechtstreeks via HTTPS in een browsertabblad.",
+    "installTitle": "Voeg FiestaBoard toe aan je beginscherm",
+    "installHelp": "Open op een iPhone of iPad de geïnstalleerde app op je beginscherm om meldingen in te schakelen.",
+    "unsupportedTitle": "Meldingen niet beschikbaar",
+    "unsupportedHelp": "Deze browser ondersteunt geen webpush. Probeer een browser die meldingen ondersteunt.",
+    "signInTitle": "Meld je aan om meldingen in te schakelen",
+    "signInHelp": "Meldingen vereisen een aangemelde browsersessie, ook als aanmelden bij de hub is uitgeschakeld.",
+    "loadError": "De meldingsinstellingen konden niet worden geladen. Controleer je verbinding en probeer het opnieuw.",
+    "retry": "Opnieuw proberen",
+    "working": "Meldingen bijwerken…",
+    "actionError": "Meldingen konden niet worden bijgewerkt. Controleer je verbinding en probeer het opnieuw.",
+    "dismissed": "Er is geen toestemming gegeven. Schakel deze browser in wanneer je zover bent.",
+    "reconnect": "Deze browser moet opnieuw worden ingeschakeld.",
+    "senderUnavailable": "Testberichten versturen is niet beschikbaar. Het pushcontact van de hub moet worden ingesteld voordat je tests kunt versturen.",
+    "sendTest": "Test versturen",
+    "sending": "Versturen…",
+    "testSent": "De pushdienst heeft de test geaccepteerd. Controleer of de melding in deze browser verschijnt.",
+    "notSent": "De test is niet verstuurd. Probeer het later opnieuw.",
+    "testExpired": "Dit abonnement is verlopen. Schakel deze browser opnieuw in.",
+    "cooldown": "Wacht een minuut voordat je nog een test verstuurt.",
+    "testError": "De pushdienst kon de test niet accepteren. Probeer het later opnieuw.",
+    "blockedLabel": "geblokkeerd door de browser",
+    "httpsLabel": "heeft HTTPS nodig",
+    "notAvailableLabel": "nog niet beschikbaar",
+    "loading": "Meldingsinstellingen laden…"
   }
 }

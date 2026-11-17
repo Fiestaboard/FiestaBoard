@@ -915,6 +915,10 @@
         "language-time": {
           "title": "Language & time",
           "description": "Used by the hub for the Schedule, time variables and every timestamp you see."
+        },
+        "notifications": {
+          "title": "Notifications",
+          "description": "Choose whether your account and this browser can receive alerts from your hub."
         }
       }
     }
@@ -3563,5 +3567,55 @@
     "success": "Every browser, TV and phone has been signed out. Sign in with your new password.",
     "signIn": "Sign in",
     "tokenUnchanged": "The MCP/API token is unchanged. Rotate it in Settings if you think it was exposed."
+  },
+  "notifications": {
+    "privacy": "Your hub sends alert text through your browser’s push service. Board content and account credentials are not included.",
+    "account": "Allow notifications for my account",
+    "accountHint": "Your account and each browser must both be enabled.",
+    "device": "Enable on this browser",
+    "deviceHint": "Only this signed-in browser will receive test notifications.",
+    "categories": "Automatic alerts",
+    "unavailable": "Automatic alerts are not available yet. You can enable this browser and send a test.",
+    "offline": "A display goes offline",
+    "offlineHint": "When a display loses its connection",
+    "override": "An override ends",
+    "overrideHint": "When Schedule Mode resumes",
+    "update": "Update available",
+    "updateHint": "FiestaBoard and plugin updates",
+    "silence": "Silence Schedule held a message",
+    "silenceHint": "So you can choose Show now",
+    "permissionGranted": "Allowed by this browser",
+    "permissionDefault": "Permission not requested",
+    "permissionDenied": "Notifications blocked by the browser",
+    "deniedHelp": "Allow notifications for this site in your browser settings, then return here and enable this browser.",
+    "insecureTitle": "Requires HTTPS",
+    "insecureHelp": "Push notifications need a secure address. Open your hub over HTTPS, then enable this browser.",
+    "httpsHelp": "How to set up HTTPS",
+    "embeddedTitle": "Open your hub directly",
+    "embeddedHelp": "Notifications cannot be enabled inside an embedded Home Assistant page. Open the hub directly over HTTPS in a browser tab.",
+    "installTitle": "Add FiestaBoard to your Home Screen",
+    "installHelp": "On iPhone or iPad, open the installed Home Screen app to enable notifications.",
+    "unsupportedTitle": "Notifications unavailable",
+    "unsupportedHelp": "This browser does not support web push. Try a browser with notification support.",
+    "signInTitle": "Sign in to enable notifications",
+    "signInHelp": "Notifications need a signed-in browser session, even when hub sign-in is turned off.",
+    "loadError": "Could not load notification settings. Check your connection and try again.",
+    "retry": "Try again",
+    "working": "Updating notifications…",
+    "actionError": "Could not update notifications. Check your connection and try again.",
+    "dismissed": "Permission was not granted. Enable this browser when you are ready.",
+    "reconnect": "This browser needs to be enabled again.",
+    "senderUnavailable": "Test delivery is unavailable. The hub’s push contact must be configured before sending tests.",
+    "sendTest": "Send a test",
+    "sending": "Sending…",
+    "testSent": "The push service accepted the test. Check this browser for the notification.",
+    "notSent": "The test was not sent. Try again later.",
+    "testExpired": "This subscription expired. Enable this browser again.",
+    "cooldown": "Please wait a minute before sending another test.",
+    "testError": "The push service could not accept the test. Try again later.",
+    "blockedLabel": "blocked by the browser",
+    "httpsLabel": "needs HTTPS",
+    "notAvailableLabel": "not available yet",
+    "loading": "Loading notification settings…"
   }
 }
