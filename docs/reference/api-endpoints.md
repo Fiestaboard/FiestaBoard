@@ -1112,6 +1112,34 @@ The webhook target. A plugin that declares a `receive` handler accepts a JSON bo
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 | `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
 
+### `GET /v1/render-assets` {#get-v1-render-assets}
+
+**Read the native renderer's fonts and character sets**
+
+One atomic snapshot of the hub's vendored built-in LED fonts and flattened character sets. The nested documents retain FiestaUI's field names and bitmap rows ('#' lit, '.' unlit). `schema_version` versions this envelope; `revision` identifies its font and charset content; `source` names the upstream release. Custom plugin character sets are not included. Cache the response privately and send its ETag in `If-None-Match` to revalidate: a matching validator (including weak tags, lists or '*') returns an empty 304 with the same cache headers. Authentication is checked before revalidation. Mobile control credentials, browser sessions and configured API tokens use the existing v1 access rules; TV credentials do not gain access.
+
+**Parameters**
+
+| Name | In | Type | Required | Description |
+|------|----|------|----------|-------------|
+| `if-none-match` | header | array of `string` \| `null` | no | Cached ETag(s), comma-separated or repeated; weak tags and '*' are accepted. |
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`RenderAssets`](#schema-renderassets) | Successful Response |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `304` | no body | The cached catalog is current; no response body. |
+| `401` | [`ErrorResponse`](#schema-errorresponse) | Not authenticated — no valid session cookie or bearer token was presented, or the credentials were wrong. |
+| `403` | [`ErrorResponse`](#schema-errorresponse) | Forbidden. |
+| `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
+
 ## `service` {#tag-service}
 
 The display loop itself: health, status, start/stop/refresh.
@@ -1362,6 +1390,26 @@ a consumer writing to a board has any use for.
 | `schedule_enabled` | `boolean` \| `null` | no | Turn this board's schedule on or off. |
 | `auto_restore` | `boolean` \| `null` | no | Turn off to let another app keep this board after it overwrites FiestaBoard's content; on (the default) puts the content back. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
+
+### `BuiltinCharacterSet` {#schema-builtincharacterset}
+
+A flattened built-in set, retaining FiestaUI's document field names.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | — |
+| `label` | `string` | yes | — |
+| `version` | `integer` | yes | min 1 |
+| `chars` | array of `string` | yes | — |
+| `tiles` | `boolean` | yes | — |
+| `icons` | array of `string` | yes | — |
+| `mixedCase` | `boolean` | yes | — |
+| `colorSpans` | `boolean` | yes | — |
+| `blockSpans` | `boolean` | yes | — |
+| `extends` | `string` \| `null` | no | — |
+| `font` | `"5x7"` \| `"3x5"` \| `null` | no | — |
+| `code62Glyph` | `"degree"` \| `"heart"` \| `null` | no | — |
+| `glyphs` | object of array of `string` \| `null` | no | — |
 
 ### `CanvasLayerModel` {#schema-canvaslayermodel}
 
@@ -1694,6 +1742,19 @@ Warn-only: the backend never mutates or removes the reference.
 ### `JsonValue` {#schema-jsonvalue}
 
 _No fields._
+
+### `LedFont` {#schema-ledfont}
+
+A row-major face. '#' lights a pixel; '.' leaves it unlit.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `glyphWidth` | `integer` | yes | — |
+| `glyphHeight` | `integer` | yes | — |
+| `spacingX` | `integer` | yes | min 0 |
+| `spacingY` | `integer` | yes | min 0 |
+| `glyphs` | object of array of `string` | yes | — |
+| `icons` | object of array of `string` | yes | — |
 
 ### `LineMetadata` {#schema-linemetadata}
 
@@ -2086,6 +2147,28 @@ both are present, which is what the pre-conversion handler did.
 | `board_id` | `string` \| `null` | no | — |
 | `sent` | `boolean` | yes | — |
 
+### `RenderAssets` {#schema-renderassets}
+
+One atomic built-in catalog, independent of boards and plugin state.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schema_version` | `integer` | yes | Wire-format version, independent of charset versions. |
+| `revision` | `string` | yes | SHA-256 of canonical fonts and character_sets JSON. |
+| `source` | [`RenderAssetSource`](#schema-renderassetsource) | yes | — |
+| `fonts` | object of [`LedFont`](#schema-ledfont) | yes | — |
+| `character_sets` | object of [`BuiltinCharacterSet`](#schema-builtincharacterset) | yes | — |
+
+### `RenderAssetSource` {#schema-renderassetsource}
+
+The upstream data release; not the catalog's content revision.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `source` | `string` | yes | — |
+| `commit` | `string` | yes | — |
+| `version` | `string` | yes | — |
+
 ### `RenderRequest` {#schema-renderrequest}
 
 `POST /v1/render` — render a template without saving or sending it.
@@ -2385,7 +2468,7 @@ truthy non-error result selects `page_id` as the active page.
 
 ## Where the rest of the API went
 
-This page documents the 36 operations the app publishes. The other
+This page documents the 37 operations the app publishes. The other
 ~200 paths the app serves are the web UI's private RPC channel: they still
 answer exactly as they always have, but they are undocumented on purpose,
 carry no compatibility promise, and may change in any release. They are

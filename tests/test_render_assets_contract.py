@@ -138,9 +138,15 @@ def test_mobile_control_credentials_can_fetch_and_revalidate(client, auth, clien
     from src.auth.device_models import DeviceMetadata
     from src.auth.device_service import DeviceService
 
-    token = DeviceService(auth).login(
-        "admin", "contract-password", DeviceMetadata(client_id=client_id, device_name="Contract phone", app_version="1")
-    ).access_token
+    token = (
+        DeviceService(auth)
+        .login(
+            "admin",
+            "contract-password",
+            DeviceMetadata(client_id=client_id, device_name="Contract phone", app_version="1"),
+        )
+        .access_token
+    )
     client.headers["Authorization"] = "Bearer " + token
     response = _catalog(client)
     assert client.get(PATH, headers={"If-None-Match": response.headers["etag"]}).status_code == 304
@@ -161,10 +167,15 @@ def test_tv_scope_does_not_gain_access_to_catalog(client, auth):
     from src.auth.device_models import DeviceMetadata
     from src.auth.device_service import DeviceService
 
-    token = DeviceService(auth).login(
-        "admin", "contract-password",
-        DeviceMetadata(client_id="fiestaboard-tvos", device_name="Contract TV", app_version="1"),
-    ).access_token
+    token = (
+        DeviceService(auth)
+        .login(
+            "admin",
+            "contract-password",
+            DeviceMetadata(client_id="fiestaboard-tvos", device_name="Contract TV", app_version="1"),
+        )
+        .access_token
+    )
     response = client.get(PATH, headers={"Authorization": "Bearer " + token, "If-None-Match": "*"})
     assert response.status_code == 403
     assert "etag" not in response.headers
@@ -187,7 +198,8 @@ def test_revoked_phone_cannot_revalidate_cached_catalog(client, auth):
     from src.auth.device_service import DeviceService
 
     issued = DeviceService(auth).login(
-        "admin", "contract-password",
+        "admin",
+        "contract-password",
         DeviceMetadata(client_id="fiestaboard-ios", device_name="Contract phone", app_version="1"),
     )
     client.headers["Authorization"] = "Bearer " + issued.access_token
@@ -203,3 +215,98 @@ def test_unquoted_or_prefix_validator_does_not_match(client):
     etag = response.headers["etag"]
     for condition in (etag.strip('"'), etag[:-2] + '"', '"' + etag.strip('"') + 'extra"'):
         assert client.get(PATH, headers={"If-None-Match": condition}).status_code == 200
+
+
+def test_recorded_native_responses(client, auth):
+    """Native fixtures are actual authenticated HTTP-boundary response bytes."""
+    import os
+    from pathlib import Path
+
+    from src.auth.device_models import DeviceMetadata
+    from src.auth.device_service import DeviceService
+
+    root = Path(__file__).resolve().parent.parent
+    directory = root / "tests/fixtures/render-assets-v1"
+    service = DeviceService(auth)
+    clients = {}
+    for name, client_id in (("ios", "fiestaboard-ios"), ("android", "fiestaboard-android"), ("tv", "fiestaboard-tvos")):
+        clients[name] = service.login(
+            "admin",
+            "contract-password",
+            DeviceMetadata(client_id=client_id, device_name="Contract client", app_version="1"),
+        ).access_token
+    first = client.get(PATH, headers={"Authorization": "Bearer " + clients["ios"]})
+    assert first.status_code == 200
+    etag = first.headers["etag"]
+    cases = [
+        ("ios-catalog", "ios", {}, 200),
+        ("android-catalog", "android", {}, 200),
+        ("not-modified", "ios", {"If-None-Match": etag}, 304),
+        ("unauthenticated", None, {"If-None-Match": etag}, 401),
+        ("tv-forbidden", "tv", {"If-None-Match": etag}, 403),
+    ]
+    recording = os.getenv("RECORD_RENDER_ASSETS")
+    records = []
+    bodies = {}
+    for name, identity, conditional, status in cases:
+        headers = dict(conditional)
+        if identity:
+            headers["Authorization"] = "Bearer " + clients[identity]
+        response = client.get(PATH, headers=headers)
+        assert response.status_code == status, response.text
+        body_file = name + (".body" if status == 304 else ".json")
+        bodies[body_file] = response.content
+        records.append(
+            {
+                "id": name,
+                "request": {"method": "GET", "path": PATH, "credential_kind": identity, "headers": conditional},
+                "status": status,
+                "headers": {
+                    key: response.headers[key]
+                    for key in ("etag", "cache-control", "content-type")
+                    if key in response.headers
+                },
+                "body": body_file,
+                "sha256": hashlib.sha256(response.content).hexdigest(),
+            }
+        )
+    source_files = [
+        "src/v1/render_assets.py",
+        "src/v1/routes_render_assets.py",
+        "src/v1/__init__.py",
+        "src/fiestaui/led-fonts.json",
+        "src/fiestaui/character-sets.json",
+        "src/fiestaui/provenance.json",
+        "src/auth/middleware.py",
+        "src/auth/scopes.py",
+        "scripts/record_render_assets.py",
+        "tests/test_render_assets_contract.py",
+    ]
+    hashes = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in source_files}
+    if recording:
+        directory.mkdir(parents=True, exist_ok=True)
+        for name, body in bodies.items():
+            (directory / name).write_bytes(body)
+        (directory / "SOURCE.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "hub_commit": recording,
+                    "capture": "FastAPI TestClient with real middleware, synthetic mobile/TV sessions and vendored assets",
+                    "recorder": "scripts/record_render_assets.py",
+                    "source_files_sha256": hashes,
+                    "responses": records,
+                },
+                indent=2,
+            )
+            + "\n"
+        )
+    source = json.loads((directory / "SOURCE.json").read_text())
+    assert source["source_files_sha256"] == hashes
+    assert source["responses"] == records
+    assert len(source["hub_commit"]) == 40 and set(source["hub_commit"]) <= set("0123456789abcdef")
+    for name, body in bodies.items():
+        assert (directory / name).read_bytes() == body
+        for secret in clients.values():
+            assert secret.encode() not in body
+    assert (directory / "not-modified.body").read_bytes() == b""
