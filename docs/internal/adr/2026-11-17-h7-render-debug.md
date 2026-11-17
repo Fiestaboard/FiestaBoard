@@ -84,8 +84,10 @@ rows are null. Clipped/covered/beyond-board text has no output cell.
 ## Request and memory budgets
 
 Debug requests are capped at 64 template lines, 16,384 total template code
-points and 4,096 board cells. Reject over-budget requests with 422 before
-context fetch/evaluation. Trace input is additionally capped at 4,096 formula
+points and 4,096 board cells. Reject over-budget request fields with typed 422
+validation before context fetch/evaluation. A configured board resolved by the
+route that exceeds the cell cap is a semantic 400, following the repository's
+FastAPI-only 422 convention. Trace input is additionally capped at 4,096 formula
 body code points. Per-render provenance work has a fixed 262,144-character
 cumulative intermediate tracking budget. Charge before copying/tokenizing or
 materializing runs; repeated operations consume this same request budget. On

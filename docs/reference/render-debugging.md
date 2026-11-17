@@ -86,7 +86,9 @@ those modes.
 
 A debug request allows at most 64 template lines, 64 formulas, 16,384 template
 code points and 4,096 board cells. A selected trace body allows at most 4,096
-code points. Oversized requests return 422 before plugin data is fetched.
+code points. Oversized request fields return 422 before plugin data is fetched.
+When the request uses a configured board's geometry instead, a board exceeding
+4,096 cells returns 400 before plugin data is fetched.
 Provenance has a cumulative 262,144-character tracking budget. Formula text,
 steps and deadlines remain subject to the existing evaluator limits.
 

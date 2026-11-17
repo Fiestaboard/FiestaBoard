@@ -28,6 +28,7 @@ from src.devices import (
     MAX_GRID_ROWS,
     MAX_NOTES_PER_AXIS,
     DeviceType,
+    board_context_for,
 )
 from src.templates.expressions import MAX_STRING_LENGTH, find_formulas
 
@@ -313,6 +314,10 @@ class TemplateRenderRequest(TemplateTarget):
             raise ValueError("Debug is not available for pixel canvas layouts")
         if len(self.template) > 64 or sum(map(len, self.template)) > 16384:
             raise ValueError("Debug allows at most 64 lines and 16384 template code points")
+        if self.device_type is not None:
+            dims = board_context_for(self.device_type, self.notes_wide, self.notes_tall, self.grid_rows, self.grid_cols)
+            if dims.rows * dims.cols > 4096:
+                raise ValueError("Debug allows at most 4096 board cells")
         formulas = [
             (line, start, body)
             for line, text in enumerate(self.template, 1)

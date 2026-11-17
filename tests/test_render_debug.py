@@ -323,3 +323,17 @@ def test_variable_names_resembling_fill_directives_remain_variables(client, sour
     body = render(client, [atom], {"source_map": True}, preview={"values": {source + ".word": "A"}})
     assert body["lines"][0].strip() == "A"
     assert origin(body, 0, 0) == {"line": 1, "start": 0, "end": len(atom), "kind": "variable"}
+
+
+def test_configured_board_over_debug_limit_is_a_semantic_error_before_fetch(client, monkeypatch):
+    from src.templates import routes
+
+    monkeypatch.setattr(routes, "_render_geometry", lambda request, board: ("panel", 1, 1, 96, 128))
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("Oversized configured board fetched plugin context")
+
+    monkeypatch.setattr(TemplateEngine, "_build_context", forbidden)
+    response = client.post("/templates/render", json={"template": ["A"], "debug": {"source_map": True}})
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == "Debug allows at most 4096 board cells"

@@ -250,7 +250,7 @@ async def render_template(request: TemplateRenderRequest):
     dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
     num_rows = dims.rows
     if request.debug is not None and dims.rows * dims.cols > 4096:
-        raise HTTPException(status_code=422, detail="Debug allows at most 4096 board cells")
+        raise HTTPException(status_code=400, detail="Debug allows at most 4096 board cells")
     inspection = (
         RenderDebug(trace=request.debug.trace, source_map=request.debug.source_map)
         if request.debug is not None
