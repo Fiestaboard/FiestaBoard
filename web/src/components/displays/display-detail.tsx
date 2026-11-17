@@ -152,7 +152,11 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
           live TV preview, the FiestaPi HDMI kiosk. */}
         {board && isVirtualBoard(board) && (
           <Box data-testid="display-panel-settings">
-            <FiestaPanelSettings boardId={board.id} onDeleted={backToList} />
+            <FiestaPanelSettings
+              boardId={board.id}
+              onDeleted={backToList}
+              preview={<DisplayLivePreview board={board} size="md" />}
+            />
           </Box>
         )}
       </TabsContent>

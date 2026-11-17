@@ -675,8 +675,8 @@ describe("/displays/:boardId", () => {
     renderWith(<DisplayPage />);
     await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
     const panel = await screen.findByTestId("display-panel-settings");
-    expect(await within(panel).findByText("Living Room")).toBeInTheDocument();
-    expect(within(panel).queryByText("Bedroom")).not.toBeInTheDocument();
+    expect(await within(panel).findByLabelText("Panel name")).toHaveValue("Living Room");
+    expect(within(panel).queryByDisplayValue("Bedroom")).not.toBeInTheDocument();
     // New panels come from Add a display, not from a panel's page.
     expect(within(panel).queryByRole("button", { name: "Create panel" })).not.toBeInTheDocument();
   });

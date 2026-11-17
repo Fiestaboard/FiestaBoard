@@ -9,8 +9,11 @@ for (const width of [390, 768, 1280]) {
       test.setTimeout(90_000);
       await page.clock.install({ time: new Date("2026-11-17T02:18:00Z") });
       await page.setViewportSize({ width, height: 1000 });
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(`/tests/layout/displays.html?theme=${theme}`);
       await expect(page.getByRole("list", { name: "Needs a look" })).toContainText("Can't reach");
+      await expect(page.getByTestId("display-card").filter({ hasText: "Kitchen board" })).toContainText("Good night");
       const entry = page.getByTestId("display-card").filter({ hasText: "Entry clock" });
       await expect(entry).toBeVisible();
       await expect(page.getByTestId("display-detail-pane")).toHaveCount(width < 768 ? 0 : 1);
@@ -64,6 +67,7 @@ for (const width of [390, 768, 1280]) {
       await checkA11y(page, undefined, {
         axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
       });
+      expect(errors).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     });
   }
