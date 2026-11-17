@@ -1,5 +1,6 @@
 import { Box, Card, Heading, ListRow, ListRowGroup, Prose, Skeleton, Stack, Text, TextLink } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
+import type { CSSProperties } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -44,7 +45,17 @@ export function IntegrationReadme({
     <Box className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,0.4fr)]">
       <Card className="min-w-0 p-5 sm:p-7">
         {readme ? (
-          <Prose headingOffset={1} className="max-w-none overflow-x-auto">
+          <Prose
+            className="max-w-none overflow-x-auto"
+            style={
+              {
+                "--prose-h3-size": "var(--text-xl)",
+                "--prose-h4-size": "var(--text-lg)",
+                "--prose-h5-size": "var(--text-base)",
+                "--prose-h6-size": "var(--text-sm)",
+              } as CSSProperties
+            }
+          >
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -63,11 +74,14 @@ export function IntegrationReadme({
                     {children}
                   </Heading>
                 ),
-                h3: ({ children }) => (
-                  <Heading level={4} size="base">
-                    {children}
-                  </Heading>
-                ),
+                /* Kit Heading stops at h4. Prose styles these deeper native
+                   headings while retaining the document's accessible outline. */
+                /* eslint-disable react/forbid-elements */
+                h3: ({ children }) => <h5>{children}</h5>,
+                h4: ({ children }) => <h6>{children}</h6>,
+                h5: ({ children }) => <h6>{children}</h6>,
+                h6: ({ children }) => <h6>{children}</h6>,
+                /* eslint-enable react/forbid-elements */
               }}
             >
               {readme}
@@ -93,7 +107,7 @@ export function IntegrationReadme({
           {repository && (
             <ListRow
               title={t("sourceLabel")}
-              meta={
+              description={
                 <TextLink href={repository} target="_blank" rel="noopener noreferrer" className="break-all">
                   {repository.replace(/^https?:\/\//, "").replace(/\.git$/, "")}
                 </TextLink>

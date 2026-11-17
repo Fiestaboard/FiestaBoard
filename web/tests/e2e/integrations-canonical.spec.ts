@@ -328,6 +328,13 @@ for (const width of [390, 768, 1280]) {
         await expect(
           documentView.locator('[data-slot="prose"]').getByRole("heading", { name: "CX integration guide" }),
         ).toBeVisible();
+        expect(
+          await documentView.locator('[data-slot="prose"]').evaluate((prose) => {
+            const heading = prose.querySelector("h3")!;
+            const paragraph = prose.querySelector("p")!;
+            return parseFloat(getComputedStyle(heading).fontSize) > parseFloat(getComputedStyle(paragraph).fontSize);
+          }),
+        ).toBe(true);
         await expect(
           documentView.getByRole("region", { name: "About" }).getByText("1.2.0", { exact: true }),
         ).toBeVisible();
@@ -335,6 +342,24 @@ for (const width of [390, 768, 1280]) {
           "href",
           "https://github.com/example/cx-integrations/blob/main/docs/SETUP.md",
         );
+        const about = documentView.getByRole("region", { name: "About" });
+        const source = about.getByRole("link", { name: "github.com/example/cx-integrations", exact: true });
+        await expect(source).toHaveAttribute("href", "https://github.com/example/cx-integrations");
+        // An overflowing link remains visible to locators and screen readers.
+        // Check every rendered text fragment against the card's content box.
+        expect(
+          await source.evaluate((link) => {
+            const card = link.closest('[role="region"]')!;
+            const bounds = card.getBoundingClientRect();
+            const style = getComputedStyle(card);
+            const left = bounds.left + parseFloat(style.paddingLeft) + parseFloat(style.borderLeftWidth);
+            const right = bounds.right - parseFloat(style.paddingRight) - parseFloat(style.borderRightWidth);
+            const range = document.createRange();
+            range.selectNodeContents(link);
+            const fragments = Array.from(range.getClientRects());
+            return fragments.length > 0 && fragments.every((rect) => rect.left >= left - 1 && rect.right <= right + 1);
+          }),
+        ).toBe(true);
         await expectAccessible(page, colorScheme);
         await capture(page, "detail-readme", width, colorScheme);
         await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();

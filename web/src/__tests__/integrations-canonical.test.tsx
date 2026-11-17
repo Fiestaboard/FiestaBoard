@@ -98,6 +98,8 @@ describe("Integrations canonical groups", () => {
     renderPage();
     const loading = screen.getByRole("status", { name: "Loading..." });
     expect(loading).toHaveAttribute("aria-busy", "true");
+    expect(loading.querySelectorAll("li li")).toHaveLength(0);
+    expect(loading.querySelectorAll("ul > li")).toHaveLength(5);
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     await screen.findByRole("list", { name: "Needs attention" });
     expect(screen.queryByRole("status", { name: "Loading..." })).not.toBeInTheDocument();

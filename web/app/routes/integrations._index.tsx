@@ -2567,13 +2567,12 @@ export default function IntegrationsPage() {
                 <Text className="sr-only">{tCommon("loading")}</Text>
                 <ListRowGroup size="touch" aria-hidden="true">
                   {Array.from({ length: 5 }, (_, i) => (
-                    <ListItem key={i}>
-                      <ListRow
-                        leading={<Skeleton className="h-8 w-8 rounded-md" />}
-                        title={<Skeleton className="h-4 w-32 max-w-full" />}
-                        description={<Skeleton className="h-3 w-20 max-w-full" />}
-                      />
-                    </ListItem>
+                    <ListRow
+                      key={i}
+                      leading={<Skeleton className="h-8 w-8 rounded-md" />}
+                      title={<Skeleton className="h-4 w-32 max-w-full" />}
+                      description={<Skeleton className="h-3 w-20 max-w-full" />}
+                    />
                   ))}
                 </ListRowGroup>
               </Box>
