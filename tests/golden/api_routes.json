@@ -2213,6 +2213,22 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/v1/boards/{board}/compose",
+      "methods": [
+        "POST"
+      ],
+      "name": "compose",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/boards/{board}/compose/{request_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "compose_outcome",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/v1/boards/{board}/message",
       "methods": [
         "DELETE"

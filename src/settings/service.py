@@ -502,6 +502,10 @@ class TemporaryOverride:
     #: is the identity of one run (Live Activity, H1). None in files written
     #: before H1.
     started_at: str | None = None
+    compose_request_id: str | None = None
+    compose_sent: bool | None = None
+    compose_duration: dict | None = None
+    compose_silence: str | None = None
 
     def __post_init__(self) -> None:
         has_page = bool(self.page_id)
@@ -543,7 +547,7 @@ class TemporaryOverride:
             return 0.0
 
     def to_dict(self) -> dict:
-        return {
+        value = {
             "page_id": self.page_id,
             "expires_at": self.expires_at,
             "revert_mode": self.revert_mode,
@@ -557,6 +561,15 @@ class TemporaryOverride:
             "grid_cols": self.grid_cols,
             "started_at": self.started_at,
         }
+
+        if self.compose_request_id is not None:
+            value.update(
+                compose_request_id=self.compose_request_id,
+                compose_sent=self.compose_sent,
+                compose_duration=self.compose_duration,
+                compose_silence=self.compose_silence,
+            )
+        return value
 
     @classmethod
     def from_dict(cls, data: dict) -> "TemporaryOverride":
@@ -573,6 +586,10 @@ class TemporaryOverride:
             grid_rows=data.get("grid_rows"),
             grid_cols=data.get("grid_cols"),
             started_at=data.get("started_at"),
+            compose_request_id=data.get("compose_request_id"),
+            compose_sent=data.get("compose_sent"),
+            compose_duration=data.get("compose_duration"),
+            compose_silence=data.get("compose_silence"),
         )
 
 
@@ -1653,6 +1670,8 @@ class SettingsService:
     def reload(self) -> None:
         """Reload this live owner after restore without changing its lock."""
         self.runtime_revision = str(uuid.uuid4())
+        self.control_revision = str(uuid.uuid4())
+        self._last_control_intent = None
         self._override_undo_receipts = {}
         # Restore/reload must not forget a manual writer already in flight.
         self._override_mutations_pending = getattr(self, "_override_mutations_pending", 0)
@@ -3043,6 +3062,13 @@ class SettingsService:
         return raw
 
     @_locked
+    def record_control_intent(self, intent_id: str) -> None:
+        """Semantic admission generation; nested leases cannot revive an old intent."""
+        if self._last_control_intent != intent_id:
+            self._last_control_intent = intent_id
+            self.control_revision = str(uuid.uuid4())
+
+    @_locked
     def begin_override_mutation(self) -> None:
         """Block Undo while a relevant manual mutation is in flight."""
         self._override_mutations_pending += 1
@@ -3133,11 +3159,28 @@ class SettingsService:
         return self._temporary_overrides[key]
 
     @_locked
-    def set_temporary_override(self, override: TemporaryOverride, board_id: str | None = None) -> TemporaryOverride:
+    def set_temporary_override(
+        self,
+        override: TemporaryOverride,
+        board_id: str | None = None,
+        *,
+        started_at: str | None = None,
+        rollback_on_error: bool = False,
+    ) -> TemporaryOverride:
         """Persist a new override for *board_id* (default: primary), replacing that board's only."""
-        override.started_at = datetime.now(UTC).isoformat()
-        self._temporary_overrides[self._override_key(board_id)] = override
-        self._save_to_file()
+        override.started_at = started_at or datetime.now(UTC).isoformat()
+        key = self._override_key(board_id)
+        previous = self._temporary_overrides.get(key)
+        self._temporary_overrides[key] = override
+        try:
+            self._save_to_file()
+        except OSError:
+            if rollback_on_error:
+                if previous is None:
+                    self._temporary_overrides.pop(key, None)
+                else:
+                    self._temporary_overrides[key] = previous
+            raise
         logger.info(
             "Temporary override set on %s: %s expires=%s revert=%s",
             self._override_key(board_id),

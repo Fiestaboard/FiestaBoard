@@ -123,6 +123,77 @@ Start here: `POST /v1/boards/primary/message` with `{"text": "HELLO"}` puts text
 
 Every write reports what actually happened rather than merely acknowledging the request: `sent` is true only when flaps moved, and a `reason` says why when they did not.
 
+### `POST /v1/boards/{board}/compose` {#post-v1-boards-board-compose}
+
+**Show one captured Compose intent**
+
+Preserve original template formatting, captured display geometry, explicit duration and silence consent as one durable request UUID. Relative duration starts on accepted delivery, including a later Hold release. Exact duplicates read their original outcome and never send hardware again. A pending or unknown outcome is not physical success; poll the authenticated request outcome rather than replaying.
+
+**Parameters**
+
+| Name | In | Type | Required | Description |
+|------|----|------|----------|-------------|
+| `board` | path | `string` | yes | — |
+
+**Request body** (required) — [`ComposeRequest`](#schema-composerequest)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `protocol` | `string` | yes | — |
+| `request_id` | `uuid` | yes | — |
+| `prepared_at` | `string` | yes | — |
+| `template` | array of `string` | yes | — |
+| `line_metadata` | array of [`ComposeLineMetadata`](#schema-composelinemetadata) \| `null` | no | — |
+| `geometry` | [`ComposeGeometry`](#schema-composegeometry) | yes | — |
+| `duration` | [`MinuteDuration`](#schema-minuteduration) \| [`EndDuration`](#schema-endduration) \| [`IndefiniteDuration`](#schema-indefiniteduration) | yes | — |
+| `silence` | `"hold"` \| `"override"` | yes | — |
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`ComposeReceipt`](#schema-composereceipt) | Successful Response |
+| `202` | [`ComposeReceipt`](#schema-composereceipt) | Accepted |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `409` | [`ComposeError`](#schema-composeerror) | Conflict — duplicate id, or a resource pinned by the environment. |
+| `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
+| `429` | [`ComposeError`](#schema-composeerror) | Rate-limited — the request arrived inside a minimum interval; see Retry-After. |
+| `502` | [`ComposeError`](#schema-composeerror) | An upstream the server called on your behalf failed. |
+| `503` | [`ComposeError`](#schema-composeerror) | A required dependency is unavailable. |
+
+### `GET /v1/boards/{board}/compose/{request_id}` {#get-v1-boards-board-compose-request-id}
+
+**Read this session's one-shot Compose outcome**
+
+Read the durable outcome of one Compose UUID issued by this authenticated session and target. This never dispatches hardware. Held, pending, accepted, unchanged, partial, expired and unknown outcomes remain distinct, and a replaced held intent is reported as superseded.
+
+**Parameters**
+
+| Name | In | Type | Required | Description |
+|------|----|------|----------|-------------|
+| `board` | path | `string` | yes | — |
+| `request_id` | path | `uuid` | yes | — |
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`ComposeReceipt`](#schema-composereceipt) | Successful Response |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `404` | [`ErrorResponse`](#schema-errorresponse) | Resource not found. |
+| `409` | [`ErrorResponse`](#schema-errorresponse) | Conflict — duplicate id, or a resource pinned by the environment. |
+| `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
+
 ### `GET /v1/boards` {#get-v1-boards}
 
 **List the boards this install drives**
@@ -1266,6 +1337,8 @@ one document, because "what is this board doing" is one question.
 | `output` | `string` | yes | The output that drives this board: "vestaboard" (a Vestaboard, local or cloud) or "fiestapanel" (a FiestaPanel TV). More outputs may appear as they are installed. |
 | `device_model` | `string` \| `null` | no | The FiestaUI device model the board is drawn as (e.g. "vestaboard_flagship", "divoom_pixoo64"). Null when it is not known (a FiestaPanel, for now). |
 | `charset` | `string` \| `null` | no | The character set the board draws with, a FiestaUI id (e.g. "vestaboard_v1", "led_3x5"). Null when it is not known. |
+| `compose_protocol` | `string` | no | default `"compose-intent-v1"` |
+| `compose_receipt` | `object` \| `null` | no | — |
 | `characters` | array of array of `integer` \| `null` | no | The flap codes currently on the board, or null if nothing has been sent to it yet. |
 | `text` | `string` \| `null` | no | `characters` decoded back to text, for reading. Null when `characters` is null. |
 | `expected_characters` | array of array of `integer` \| `null` | no | The flap grid FiestaBoard last sent to this board. When it differs from `characters` the board has drifted from what was sent — a flap that did not turn, or something else writing to the board. Null until this instance has sent anything. |
@@ -1441,6 +1514,59 @@ Request model for updating an existing collection.
 | `variable` | [`VariableModeConfig`](#schema-variablemodeconfig) \| `null` | no | — |
 | `random` | [`RandomModeConfig`](#schema-randommodeconfig) \| `null` | no | — |
 
+### `ComposeError` {#schema-composeerror}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `detail` | `string` \| [`ComposeReceipt`](#schema-composereceipt) | yes | — |
+
+### `ComposeGeometry` {#schema-composegeometry}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `device_type` | `"flagship"` \| `"note"` \| `"note_array"` \| `"panel"` | yes | — |
+| `notes_wide` | `integer` | no | 1–8; default `1` |
+| `notes_tall` | `integer` | no | 1–8; default `1` |
+| `grid_rows` | `integer` \| `null` | no | 1–96 |
+| `grid_cols` | `integer` \| `null` | no | 5–128 |
+
+### `ComposeLineMetadata` {#schema-composelinemetadata}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `alignment` | `"left"` \| `"center"` \| `"right"` | no | default `"left"` |
+| `wrap` | `boolean` | no | default `false` |
+
+### `ComposeReceipt` {#schema-composereceipt}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `protocol` | `string` | no | default `"compose-intent-v1"` |
+| `request_id` | `uuid` | yes | — |
+| `board_id` | `string` | yes | — |
+| `status` | `"preparing"` \| `"dispatching"` \| `"held"` \| `"sent"` \| `"unchanged"` \| `"not_sent"` \| `"partial"` \| `"expired"` \| `"superseded"` \| `"unknown"` \| `"rejected"` | yes | — |
+| `sent` | `boolean` \| `null` | no | — |
+| `expires_at` | `string` \| `null` | no | — |
+| `started_at` | `string` \| `null` | no | — |
+| `held_until` | `string` \| `null` | no | — |
+| `reason` | `string` \| `null` | no | — |
+| `duration` | [`MinuteDuration`](#schema-minuteduration) \| [`EndDuration`](#schema-endduration) \| [`IndefiniteDuration`](#schema-indefiniteduration) | yes | — |
+| `retry_after_seconds` | `integer` \| `null` | no | — |
+| `failed_regions` | array of object of `integer` | no | — |
+
+### `ComposeRequest` {#schema-composerequest}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `protocol` | `string` | yes | — |
+| `request_id` | `uuid` | yes | — |
+| `prepared_at` | `string` | yes | — |
+| `template` | array of `string` | yes | — |
+| `line_metadata` | array of [`ComposeLineMetadata`](#schema-composelinemetadata) \| `null` | no | — |
+| `geometry` | [`ComposeGeometry`](#schema-composegeometry) | yes | — |
+| `duration` | [`MinuteDuration`](#schema-minuteduration) \| [`EndDuration`](#schema-endduration) \| [`IndefiniteDuration`](#schema-indefiniteduration) | yes | — |
+| `silence` | `"hold"` \| `"override"` | yes | — |
+
 ### `DocumentArea` {#schema-documentarea}
 
 | Field | Type | Required | Description |
@@ -1591,6 +1717,13 @@ tools and the hub never disagree.
 | `solid_shapes` | `boolean` | yes | Neighboring tiles of one color join into one solid shape (seamless LED style). |
 | `pixels` | `boolean` | yes | A pixel matrix: the board draws a page's pixel canvases. |
 
+### `EndDuration` {#schema-endduration}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `kind` | `string` | yes | — |
+| `ends_at` | `string` | yes | — |
+
 ### `ErrorResponse` {#schema-errorresponse}
 
 The single error body the API serves.
@@ -1672,6 +1805,12 @@ Warn-only: the backend never mutates or removes the reference.
 | `board_name` | `string` | yes | — |
 | `surface` | `"schedule"` \| `"active_page"` \| `"silence"` | yes | — |
 | `schedule_id` | `string` \| `null` | no | — |
+
+### `IndefiniteDuration` {#schema-indefiniteduration}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `kind` | `string` | yes | — |
 
 ### `InstallSettings` {#schema-installsettings}
 
@@ -1767,6 +1906,13 @@ loop rather than written on the spot. `reason` names which.
 | `reason` | `string` \| `null` | no | Why nothing was written, when sent is false. Null when sent is true. |
 | `silenced` | `boolean` | no | True when the board's silence window kept this write off the board. (default `false`) |
 | `held` | `boolean` | no | True when the write is held and will be shown when silence ends (HTTP 202). (default `false`) |
+
+### `MinuteDuration` {#schema-minuteduration}
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `kind` | `string` | yes | — |
+| `minutes` | `integer` | yes | 1–480 |
 
 ### `OutputStatusSummary` {#schema-outputstatussummary}
 
@@ -2385,7 +2531,7 @@ truthy non-error result selects `page_id` as the active page.
 
 ## Where the rest of the API went
 
-This page documents the 36 operations the app publishes. The other
+This page documents the 38 operations the app publishes. The other
 ~200 paths the app serves are the web UI's private RPC channel: they still
 answer exactly as they always have, but they are undocumented on purpose,
 carry no compatibility promise, and may change in any release. They are

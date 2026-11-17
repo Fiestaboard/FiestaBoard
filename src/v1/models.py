@@ -92,6 +92,9 @@ class BoardDetail(BoardSummary):
     one document, because "what is this board doing" is one question.
     """
 
+    compose_protocol: Literal["compose-intent-v1"] = "compose-intent-v1"
+    compose_receipt: dict[str, Any] | None = None
+
     characters: list[list[int]] | None = Field(
         default=None,
         description="The flap codes currently on the board, or null if nothing has been sent to it yet.",

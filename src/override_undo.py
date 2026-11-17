@@ -10,6 +10,7 @@ import re
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
 from functools import wraps
+from uuid import uuid4
 
 from starlette.types import ASGIApp, Scope
 
@@ -56,7 +57,7 @@ _MANUAL = re.compile(
 )
 
 
-_manual_intent = ContextVar("override_undo_manual_intent", default=False)
+_manual_intent = ContextVar("override_undo_manual_intent", default=None)
 
 
 def track_send_job(key: tuple):
@@ -66,6 +67,8 @@ def track_send_job(key: tuple):
     from src.settings.service import get_settings_service
 
     settings = get_settings_service()
+    if _manual_intent.get() is None:
+        settings.record_control_intent("worker:" + str(uuid4()))
     settings.begin_override_mutation()
     return lambda: settings.finish_override_mutation(success=True)
 
@@ -102,7 +105,11 @@ class OverrideMutationMiddleware:
                 success = 200 <= message["status"] < 300 or message["status"] >= 500
             await send(message)
 
-        intent = _manual_intent.set(True)
+        previous = _manual_intent.get()
+        current = previous or "http:" + str(uuid4())
+        if previous is None:
+            settings.record_control_intent(current)
+        intent = _manual_intent.set(current)
         try:
             await self.app(scope, receive, observe)
         finally:
@@ -125,12 +132,16 @@ def _changed(result) -> bool:
 
 
 @contextmanager
-def _manual_operation():
+def _manual_operation(intent_id: str | None = None):
     from src.settings.service import get_settings_service
 
     settings = get_settings_service()
     settings.begin_override_mutation()
-    intent = _manual_intent.set(True)
+    previous = _manual_intent.get()
+    current = previous or intent_id or "operation:" + str(uuid4())
+    if previous is None:
+        settings.record_control_intent(current)
+    intent = _manual_intent.set(current)
     state = [True]
     try:
         yield state
