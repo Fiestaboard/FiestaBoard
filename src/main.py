@@ -34,7 +34,7 @@ from .outputs.hooks import DevicePoll
 from .outputs.native_playlist import NativePageSelection, NativePlaylist, NativePlaylistEntry
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
-from .override_undo import manual_mutation
+from .override_undo import track_send_job
 from .pages.models import LineMetadata, Page
 from .pages.sends import record_send
 from .pages.service import (
@@ -867,8 +867,13 @@ class DisplayService:
             logger.warning(f"Board {board_id}: {message}")
             return False
 
-        job = SendJob(key=key, run=run_job, sink=sink, board_id=board_id)
-        worker.submit(job)
+        settled = track_send_job(key)
+        job = SendJob(key=key, run=run_job, sink=sink, board_id=board_id, on_settled=settled)
+        try:
+            worker.submit(job)
+        except BaseException:
+            job._finish(False, reason="Board send submission failed")
+            raise
         if not wait:
             # Engine tick: the send is in motion; "content changed and is
             # being delivered" is this path's success signal. run() ignores
@@ -3459,7 +3464,6 @@ class DisplayService:
         rt.silence_queued_shown = content
         return self._send_trigger_content(content, rt, wait=wait, on_success=lambda: silence_queue.discard(board_id))
 
-    @manual_mutation
     def _send_trigger_content(
         self,
         content: str,

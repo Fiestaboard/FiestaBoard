@@ -677,6 +677,7 @@ def delete_page(page_id: str, *, expected_revision: str | None = None) -> dict[s
         return err(f"Error deleting page '{page_id}': {exc}")
 
 
+@manual_mutation
 async def set_active_page(
     page_id: str, board_id: str | None = None, *, override_silence: bool = False
 ) -> dict[str, Any]:
@@ -2043,6 +2044,7 @@ async def cancel_temporary_override(board_id: str | None = None) -> dict[str, An
     return ok(f"Temporary override cancelled (revert mode: {revert_mode}).", was_active=True, revert_mode=revert_mode)
 
 
+@manual_mutation
 async def force_refresh() -> dict[str, Any]:
     """Resend the active content to every board, ignoring the unchanged-content caches.
 

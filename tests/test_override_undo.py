@@ -347,18 +347,22 @@ def test_reload_does_not_forget_an_in_flight_manual_writer(store):
 @pytest.mark.parametrize("path", ["/pages/p1/send", "/settings/active-page", "/v1/boards/a/active-page"])
 def test_every_physical_write_front_door_enters_barrier(path):
     from src.override_undo import _MANUAL
+
     assert _MANUAL.fullmatch(path)
 
 
 def test_uncertain_executor_error_invalidates_receipt(store, monkeypatch):
-    from src.override_undo import manual_mutation
     import src.settings.service as services
+    from src.override_undo import manual_mutation
+
     monkeypatch.setattr(services, "get_settings_service", lambda: store)
     start(store)
     _, token, _ = cancel(store)
+
     @manual_mutation
     def timed_out_after_hardware_write():
         return {"status": "error", "error": "timeout after dispatch"}
+
     timed_out_after_hardware_write()
     with pytest.raises(ValueError):
         restore(store, token)
@@ -366,17 +370,21 @@ def test_uncertain_executor_error_invalidates_receipt(store, monkeypatch):
 
 def test_async_internal_mutation_owns_barrier_until_awaited_completion(store, monkeypatch):
     import asyncio
-    from src.override_undo import manual_mutation
+
     import src.settings.service as services
+    from src.override_undo import manual_mutation
+
     monkeypatch.setattr(services, "get_settings_service", lambda: store)
     start(store)
     _, token, _ = cancel(store)
+
     @manual_mutation
     async def write():
         await asyncio.sleep(0)
         with pytest.raises(ValueError, match="in progress"):
             restore(store, token)
         return {"status": "success"}
+
     asyncio.run(write())
     with pytest.raises(ValueError):
         restore(store, token)
@@ -384,11 +392,13 @@ def test_async_internal_mutation_owns_barrier_until_awaited_completion(store, mo
 
 def test_worker_barrier_retires_only_when_superseding_job_finishes(store):
     from src.displays.send_worker import SendJob
+
     start(store)
     _, token, _ = cancel(store)
     store.begin_override_mutation()
-    old = SendJob(key=("trigger", "old"), run=lambda: True,
-        on_settled=lambda: store.finish_override_mutation(success=True))
+    old = SendJob(
+        key=("trigger", "old"), run=lambda: True, on_settled=lambda: store.finish_override_mutation(success=True)
+    )
     latest = SendJob(key=("page", "new"), run=lambda: True)
     latest.adopt(old)
     with pytest.raises(ValueError, match="in progress"):
@@ -402,21 +412,76 @@ def test_worker_barrier_retires_only_when_superseding_job_finishes(store):
 def test_fire_and_forget_trigger_blocks_receipt_issued_after_enqueue(store, monkeypatch):
     from types import SimpleNamespace
     from unittest.mock import Mock
-    from src.main import DisplayService
+
     import src.settings.service as services
+    from src.main import DisplayService
+
     monkeypatch.setattr(services, "get_settings_service", lambda: store)
     runtime = SimpleNamespace(board_id="a", output=SimpleNamespace(preempt=Mock()), last_active_page_id=None)
+    import threading
+
     service = DisplayService.__new__(DisplayService)
+    service._send_capture = threading.local()
     service.runtimes = {"a": runtime}
     pending = []
     monkeypatch.setattr(service, "_worker_for", lambda rt: SimpleNamespace(submit=pending.append))
-    assert service._dispatch_send(runtime, "a", key=("trigger", "HI"), send=lambda: (True, True),
-        on_complete=lambda *args: False, wait=False, sink=None)
+    assert service._dispatch_send(
+        runtime,
+        "a",
+        key=("trigger", "HI"),
+        send=lambda: (True, True),
+        on_complete=lambda *args: False,
+        wait=False,
+        sink=None,
+    )
     start(store)
     _, token, _ = cancel(store)
     with pytest.raises(ValueError, match="in progress"):
         restore(store, token)
     pending[0].execute()
+    assert store._override_mutations_pending == 0
+    with pytest.raises(ValueError):
+        restore(store, token)
+
+
+def test_real_executor_write_then_timeout_invalidates_receipt(store, monkeypatch):
+    from types import SimpleNamespace
+
+    import src.settings.service as services
+    from src.ops import executors
+
+    start(store)
+    _, token, _ = cancel(store)
+    writes = []
+
+    def uncertain_render(*args, **kwargs):
+        writes.append("physical write attempted")
+        raise TimeoutError("response lost after sending")
+
+    target = SimpleNamespace(client=SimpleNamespace(render=uncertain_render))
+    monkeypatch.setattr(services, "get_settings_service", lambda: store)
+    monkeypatch.setattr(executors, "_resolve_send_target", lambda *args, **kwargs: (target, None))
+    monkeypatch.setattr(executors, "_transition_for", lambda *args, **kwargs: (None, None, None))
+    result = executors.send_characters([[1]], board_id="a")
+    assert writes == ["physical write attempted"]
+    assert result["status"] == "error"
+    with pytest.raises(ValueError):
+        restore(store, token)
+
+
+def test_stopped_worker_retires_manual_authority_without_leaking_pending_count(store):
+    from src.displays.send_worker import BoardSendWorker, SendJob
+
+    start(store)
+    _, token, _ = cancel(store)
+    worker = BoardSendWorker("undo-stopped")
+    worker.stop()
+    store.begin_override_mutation()
+    job = SendJob(
+        key=("trigger", "stopped"), run=lambda: True, on_settled=lambda: store.finish_override_mutation(success=True)
+    )
+    worker.submit(job)
+    assert job.wait(0)
     assert store._override_mutations_pending == 0
     with pytest.raises(ValueError):
         restore(store, token)

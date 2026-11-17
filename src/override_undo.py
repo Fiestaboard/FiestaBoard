@@ -5,8 +5,10 @@ restart loses authority safely. These locks match content deletion/resize order.
 """
 
 import hashlib
+import inspect
 import re
 from contextlib import ExitStack, contextmanager
+from contextvars import ContextVar
 from functools import wraps
 
 from starlette.types import ASGIApp, Scope
@@ -49,8 +51,23 @@ def content_owners(settings):
 _MANUAL = re.compile(
     r"/(?:send-message|send-welcome-message|refresh|templates/render/live|"
     r"displays/[^/]+/send|v1/boards/[^/]+/(?:message|restore)|board/external-frame|"
-    r"debug/(?:blank|fill|info|test-connection|clear-cache)|force-refresh|clear-cache)"
+    r"debug/(?:blank|fill|info|test-connection|clear-cache)|force-refresh|clear-cache|"
+    r"pages/[^/]+/send|settings/active-page|v1/boards/[^/]+/active-page)"
 )
+
+
+_manual_intent = ContextVar("override_undo_manual_intent", default=False)
+
+
+def track_send_job(key: tuple):
+    """Return a terminal callback owning authority through actual worker completion."""
+    if not _manual_intent.get() and (not key or key[0] != "trigger"):
+        return None
+    from src.settings.service import get_settings_service
+
+    settings = get_settings_service()
+    settings.begin_override_mutation()
+    return lambda: settings.finish_override_mutation(success=True)
 
 
 class OverrideMutationMiddleware:
@@ -78,37 +95,65 @@ class OverrideMutationMiddleware:
                 success = 200 <= message["status"] < 300 or message["status"] >= 500
             await send(message)
 
+        intent = _manual_intent.set(True)
         try:
             await self.app(scope, receive, observe)
         finally:
+            _manual_intent.reset(intent)
             settings.finish_override_mutation(success=success)
+
+
+def _changed(result) -> bool:
+    if isinstance(result, dict):
+        # An error may follow a write accepted by hardware before timeout.
+        # Only explicit blocked/skipped outcomes establish no mutation.
+        return bool(
+            result.get("partial")
+            or result.get("held")
+            or (result.get("status") != "blocked" and not result.get("skipped"))
+        )
+    # Legacy bool/void senders cannot establish that a failed physical send
+    # left hardware untouched. Refuse conservatively after any completed run.
+    return True
+
+
+@contextmanager
+def _manual_operation():
+    from src.settings.service import get_settings_service
+
+    settings = get_settings_service()
+    settings.begin_override_mutation()
+    intent = _manual_intent.set(True)
+    state = [True]
+    try:
+        yield state
+    finally:
+        _manual_intent.reset(intent)
+        settings.finish_override_mutation(success=state[0])
 
 
 def manual_mutation(function):
-    """Cover internal/MCP manual executors for their entire synchronous run."""
+    """Cover HTTP-independent manual operations, including awaited async calls.
+
+    Worker jobs inherit the intent and acquire independent terminal authority,
+    so timeout/return/enqueue cannot retire an actual in-flight hardware write.
+    """
+    if inspect.iscoroutinefunction(function):
+
+        @wraps(function)
+        async def asynchronous(*args, **kwargs):
+            with _manual_operation() as state:
+                result = await function(*args, **kwargs)
+                state[0] = _changed(result)
+                return result
+
+        return asynchronous
 
     @wraps(function)
-    def guarded(*args, **kwargs):
-        from src.settings.service import get_settings_service
-
-        settings = get_settings_service()
-        settings.begin_override_mutation()
-        success = True
-        try:
+    def synchronous(*args, **kwargs):
+        with _manual_operation() as state:
             result = function(*args, **kwargs)
-            if isinstance(result, dict):
-                success = bool(
-                    result.get("partial")
-                    or result.get("held")
-                    or (result.get("status") == "success" and not result.get("skipped"))
-                )
-            elif isinstance(result, bool):
-                success = result
-            # Void-return legacy MQTT handlers cannot establish non-mutation;
-            # conservatively invalidate after a completed command.
-
+            state[0] = _changed(result)
             return result
-        finally:
-            settings.finish_override_mutation(success=success)
 
-    return guarded
+    return synchronous

@@ -33,8 +33,12 @@ schedules lock order. Settings writes and content-owner saves/reloads change
 runtime generations, so ABA changes and internal/background content writes are
 refused even when their HTTP/SSE response has already completed. Physical manual
 HTTP writes and internal/MCP/MQTT sends use an in-flight barrier; successful or
-uncertain writes invalidate authority. Trigger/held-message delivery joins that
-barrier without changing its delivery, silence or queue semantics. Unauthenticated
+uncertain writes invalidate authority. Native/MCP active-page and refresh
+operations carry manual intent into the existing send pool. Each queued manual
+or trigger job retains separate authority until terminal worker completion,
+including fire-and-forget submission, timeouts, adoption by a newer pending job,
+and worker stop. Trigger/held-message delivery joins that barrier without
+changing its delivery, silence or queue semantics. Unauthenticated
 HTTP attempts never reach it; previews do not enter it.
 
 Invalidation is intentionally conservative: changes to another display,
