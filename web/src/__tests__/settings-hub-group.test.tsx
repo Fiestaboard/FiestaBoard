@@ -110,7 +110,7 @@ afterEach(() => {
 });
 
 describe("Settings index", () => {
-  it("lists the You group: Account, Appearance, Accessibility, FiestaBot", async () => {
+  it("lists the You group in the 06 order: Account, Notifications, Appearance, Accessibility, FiestaBot", async () => {
     renderAt("/settings");
     const you = await screen.findByRole("list", { name: "You" });
     await waitFor(() =>
@@ -118,7 +118,7 @@ describe("Settings index", () => {
         within(you)
           .getAllByRole("link")
           .map((link) => link.textContent),
-      ).toEqual(["Account", "Appearance", "Accessibility", "FiestaBot"]),
+      ).toEqual(["Account", "Notifications", "Appearance", "Accessibility", "FiestaBot"]),
     );
   });
 

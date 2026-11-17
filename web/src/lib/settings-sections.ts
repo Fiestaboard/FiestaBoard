@@ -1,4 +1,4 @@
-import { Accessibility, Bot, Palette, User } from "lucide-react";
+import { Accessibility, Bell, Palette, Sparkles, User } from "lucide-react";
 
 import { HUB_SETTINGS_LINKS, type HubSettingsLink } from "@/lib/nav-items";
 
@@ -8,12 +8,13 @@ import { HUB_SETTINGS_LINKS, type HubSettingsLink } from "@/lib/nav-items";
  * ("Hub · <name>", the Settings › Hub group the More sheet also lists). Each
  * section is a route, `/settings/:section`.
  *
- * Notifications (WEB-13) arrives with slice 2.13. FiestaBot has its own
- * section; unsupported per-person preferences are explained there.
+ * The You order follows 06 `333:54525`: Account, Notifications (2.13),
+ * Appearance, Accessibility, FiestaBot. FiestaBot has its own section;
+ * unsupported per-person preferences are explained there.
  */
 
 export type HubSettingsSectionId = HubSettingsLink["section"];
-export type YouSettingsSectionId = "account" | "appearance" | "accessibility" | "fiestabot";
+export type YouSettingsSectionId = "account" | "notifications" | "appearance" | "accessibility" | "fiestabot";
 export type SettingsSectionId = YouSettingsSectionId | HubSettingsSectionId;
 export type SettingsGroup = "you" | "hub";
 
@@ -25,9 +26,10 @@ export interface SettingsSectionDef {
 
 export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
   { id: "account", group: "you", icon: User },
+  { id: "notifications", group: "you", icon: Bell },
   { id: "appearance", group: "you", icon: Palette },
   { id: "accessibility", group: "you", icon: Accessibility },
-  { id: "fiestabot", group: "you", icon: Bot },
+  { id: "fiestabot", group: "you", icon: Sparkles },
   ...HUB_SETTINGS_LINKS.map((link) => ({ id: link.section, group: "hub" as const, icon: link.icon })),
 ];
 
@@ -52,6 +54,7 @@ export function settingsSectionHref(id: SettingsSectionId): string {
 export const LEGACY_SECTIONS: Readonly<Record<string, SettingsSectionId>> = {
   general: "appearance",
   account: "account",
+  notifications: "notifications",
   network: "network",
   ai: "ai-provider",
   integrations: "ai-provider",

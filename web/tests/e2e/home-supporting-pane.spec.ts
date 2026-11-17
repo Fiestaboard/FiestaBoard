@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { getViolations, injectAxe } from "axe-playwright";
 
 import {
@@ -12,6 +13,21 @@ import {
   suppressWizard,
   test,
 } from "../helpers";
+
+// Visibility can pass partway through the route's entrance fade. Axe must
+// sample settled ancestor opacity, not the lighter colors during that fade.
+async function waitForHomeEntrance(page: Page) {
+  await expect
+    .poll(() =>
+      page.getByTestId("now-showing").evaluate((card) => {
+        for (let element: Element | null = card; element; element = element.parentElement) {
+          if (getComputedStyle(element).opacity !== "1") return false;
+        }
+        return true;
+      }),
+    )
+    .toBe(true);
+}
 
 test("Home Manual Mode switch resumes this display's Schedule and offers Undo", async ({ page }, testInfo) => {
   await configureBoard();
@@ -30,6 +46,7 @@ test("Home Manual Mode switch resumes this display's Schedule and offers Undo", 
   const toast = page.locator("[data-sonner-toast]").filter({ hasText: "Back on Schedule Mode" });
   await expect(toast).toBeVisible();
   await expect(toast).toHaveCSS("opacity", "1");
+  await waitForHomeEntrance(page);
   await injectAxe(page);
   expect(
     await getViolations(page, undefined, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }),
@@ -37,6 +54,7 @@ test("Home Manual Mode switch resumes this display's Schedule and offers Undo", 
   await toast.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(pane.getByRole("switch", { name: "Schedule Mode" })).not.toBeChecked();
   await expect(toast).toHaveCount(0);
+  await waitForHomeEntrance(page);
   await injectAxe(page);
   const violations = await getViolations(page, undefined, {
     runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
@@ -50,6 +68,7 @@ test("Home Manual Mode switch resumes this display's Schedule and offers Undo", 
       await page.reload();
       await expect(page.getByTestId("now-showing").getByRole("heading", { name: "Evening commute" })).toBeVisible();
       await expect(pane.getByText("Schedule Mode is off")).toBeVisible();
+      await waitForHomeEntrance(page);
       await page.screenshot({ path: testInfo.outputPath(`impl-${width}-${theme}.png`), fullPage: true });
     }
   }
@@ -150,10 +169,12 @@ test("Home supporting cards follow the selected display across responsive shell 
         await expect(page.getByRole("button", { name: "Manage Entry clock" })).toContainText("Schedule Mode · Clock");
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      await waitForHomeEntrance(page);
       await injectAxe(page);
       expect(
         await getViolations(page, undefined, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }),
       ).toEqual([]);
+      await waitForHomeEntrance(page);
       await page.screenshot({ path: testInfo.outputPath(`impl-schedule-${width}-${theme}.png`), fullPage: true });
     }
   await page.getByRole("button", { name: "Manage Desk Pixoo" }).click();

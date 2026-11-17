@@ -9,6 +9,7 @@ import { MoreSheetExtras } from "@/components/more-sheet";
 import { readStoredCollapsed, useSidebar } from "@/components/sidebar-context";
 import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
+import { useAppBadge } from "@/hooks/use-app-badge";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
 import { RAIL_BREAKPOINT, useBelowRail, useTabletRailCollapse } from "@/hooks/use-below-rail";
 import { usePrefetchPagesData } from "@/hooks/use-board";
@@ -65,6 +66,15 @@ export function NavigationSidebar() {
     enabled: !chromeless,
   });
   const needsAttention = integrationsNeedingAttention(pluginList?.plugins);
+  const attentionPlugins =
+    pluginList?.plugins
+      .filter((plugin) => (plugin.plugin_type ?? "data") === "data" && plugin.enabled && !plugin.configured)
+      .map((plugin) => plugin.id)
+      .sort()
+      .join(",") ?? "";
+  useAppBadge(
+    chromeless || (!updateAvailable && !needsAttention) ? "" : `${updateAvailable ?? ""}:${attentionPlugins}`,
+  );
 
   // Below 768px the tab bar is the nav (WEB-01/02). It and the rail are one
   // Sidebar, but they list different things: the bar has no row for nested

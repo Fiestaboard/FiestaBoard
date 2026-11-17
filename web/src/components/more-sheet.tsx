@@ -2,7 +2,7 @@
 
 import { Box, NavList, NavListItem, NavListLink, Text } from "@fiestaboard/ui";
 import { Sparkles } from "lucide-react";
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 
 import { HubLine } from "@/components/hub-line";
 import { ViewTransitionLink } from "@/components/view-transition-link";
@@ -10,6 +10,7 @@ import { useHubIdentity } from "@/hooks/use-hub-identity";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { HUB_SETTINGS_LINKS } from "@/lib/nav-items";
+import { observeMoreVisibility } from "@/lib/pwa/app-badge";
 import { settingsSectionHref } from "@/lib/settings-sections";
 import { cn } from "@/lib/utils";
 
@@ -54,11 +55,15 @@ export function MoreSheetExtras({ ai, closeMenu }: MoreSheetExtrasProps) {
   const pathname = usePathname();
   const hub = useHubIdentity();
   const hubHeadingId = useId();
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (moreRef.current) return observeMoreVisibility(moreRef.current);
+  }, []);
 
   return (
     // -mx-3 -my-3 cancel the drawer footer's own px-3 py-3, so this block
     // starts flush under the drawer's nav/footer hairline.
-    <Box className="-mx-3 -my-3" data-slot="more-extras">
+    <Box ref={moreRef} className="-mx-3 -my-3" data-slot="more-extras">
       {/* 07a draws one hairline between the nav group and the Hub group, and
           it is not FiestaBot's: it is always there. With no FiestaBot row,
           the nav group ends right above this block, so the divider lies over

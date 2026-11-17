@@ -22,6 +22,7 @@ import { isUntouchedPlaceholder } from "@/components/wizard/default-board";
 import { useWizard } from "@/components/wizard-provider";
 import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
 import { useBoardSettings } from "@/hooks/use-board";
+import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { getSetupStatus } from "@/lib/setup-detection";
@@ -41,6 +42,8 @@ export default function Home() {
   const router = useRouter();
   const { triggerWizard } = useWizard();
   const t = useTranslations("home");
+  const connection = useHubConnection();
+  const sendsDisabled = !connection.deviceOnline || !connection.hubReachable;
   const td = useTranslations("displays");
   const tw = useTranslations("wizard.noDisplays");
 
@@ -60,7 +63,14 @@ export default function Home() {
     <PageLayout outerClassName="relative" className="relative z-10" railBreakpoint={RAIL_BREAKPOINT}>
       <PageHeader icon={HomeIcon} title={t("title")} description={t("description")} hue="orange">
         {!noDisplays && (
-          <Button variant="brand" onClick={() => setComposeOpen(true)} className="gap-2 max-md:h-11">
+          <Button
+            variant="brand"
+            disabled={sendsDisabled}
+            onClick={() => {
+              if (!sendsDisabled) setComposeOpen(true);
+            }}
+            className="gap-2 max-md:h-11"
+          >
             <PencilLine className="size-4" aria-hidden="true" />
             {t("compose")}
           </Button>
@@ -108,8 +118,7 @@ export default function Home() {
               </Alert>
             )}
 
-            {/* Slice 2.3b owns the standing silenced notice and remaining Home banner hand-offs. */}
-            <StatusBannerHost fleet exclude={["silenced"]} />
+            <StatusBannerHost fleet />
             <ActivePageDisplay onCompose={() => setComposeOpen(true)} />
           </>
         )}
