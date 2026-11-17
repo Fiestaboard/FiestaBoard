@@ -140,27 +140,35 @@ describe("Add a display", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
-  it("adds a Vestaboard of the shape picked and hands back its id", async () => {
+  it("tests a Vestaboard connection before creating it, preserving existing displays", async () => {
     const { calls, onCreated } = setup();
+    server.use(
+      http.post(`${API}/outputs/vestaboard/actions/test_connection`, () =>
+        HttpResponse.json({
+          status: "ok",
+          message: "Board answered",
+          guidance: [],
+          fields: null,
+          geometry: null,
+          devices: null,
+        }),
+      ),
+    );
     await choose(/Vestaboard/);
-    expect(screen.getByRole("dialog", { name: "Add a Vestaboard" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Note" }));
+    await userEvent.type(await screen.findByLabelText("Address"), "192.0.2.70");
+    await userEvent.type(screen.getByLabelText("Local API key"), "test_key");
+    expect(screen.getByRole("button", { name: "Add display" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Test connection" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Board answered");
+    expect(calls.add).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("note-1"));
-    expect(calls.add).toEqual([{ device_type: "note" }]);
-  });
-
-  it("a Note Array starts as a 2×1 cloud-mode array", async () => {
-    const { calls } = setup();
-    await choose(/Vestaboard/);
-    await userEvent.click(screen.getByRole("button", { name: "Note Array" }));
-    await waitFor(() => expect(calls.add).toHaveLength(1));
-    expect(calls.add[0]).toEqual({
-      device_type: "note_array",
-      notes_wide: 2,
-      notes_tall: 1,
-      output: "vestaboard",
-      output_config: { api_mode: "cloud" },
-    });
+    expect(calls.add).toEqual([
+      expect.objectContaining({
+        output: "vestaboard",
+        output_config: { api_mode: "local", host: "192.0.2.70", local_api_key: "test_key" },
+      }),
+    ]);
   });
 
   it("installs a bundled output when chosen, then creates its board from its own screen", async () => {
@@ -169,9 +177,12 @@ describe("Add a display", () => {
       available({ id: "acme_sign", name: "Acme Sign", source: "seed", installed: false }),
     ]);
     await choose(/Acme Sign/);
-    const dialog = await screen.findByRole("dialog", { name: "Add a Acme Sign" });
+    const dialog = await screen.findByRole("dialog", { name: "Add a display" });
     await userEvent.type(await within(dialog).findByLabelText(/Sign address/), "192.0.2.50");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Add board" }));
+    await userEvent.click(
+      within(dialog).getByLabelText("Skip the connection test and add this community display untested"),
+    );
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("sign-1"));
     expect(calls.install).toEqual(["acme_sign"]);
     expect(calls.create).toEqual([
@@ -205,9 +216,12 @@ describe("Add a display", () => {
       ),
     );
     await choose(/Acme Sign/);
-    const dialog = await screen.findByRole("dialog", { name: "Add a Acme Sign" });
+    const dialog = await screen.findByRole("dialog", { name: "Add a display" });
     await userEvent.type(await within(dialog).findByLabelText(/Sign address/), "192.0.2.50");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Add board" }));
+    await userEvent.click(
+      within(dialog).getByLabelText("Skip the connection test and add this community display untested"),
+    );
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
     expect(calls.removed).toEqual([]);
   });
@@ -225,8 +239,8 @@ describe("Add a display", () => {
       }),
     );
     await choose(/FiestaPanel/);
-    expect(screen.getByRole("dialog", { name: "Add a TV or browser" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Create/ }));
+    expect(screen.getByRole("dialog", { name: "Add a display" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("panel-board"));
     expect(created).toHaveLength(1);
   });
@@ -247,7 +261,7 @@ describe("Add a display", () => {
       }),
     );
     await choose(/FiestaPanel/);
-    await userEvent.click(screen.getByRole("button", { name: /Create/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("panel-board"));
     await waitFor(() => expect(client.getQueryData<{ panels: unknown[] }>(PANELS_QUERY_KEY)?.panels).toEqual([panel]));
   });
@@ -284,10 +298,10 @@ describe("marketplace displays in the shared chooser", () => {
     const { calls } = setup([...BUILT_INS, remote]);
     await userEvent.click(await screen.findByRole("radio", { name: /Far Sign/ }));
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(await screen.findByRole("dialog", { name: "Add a Far Sign" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Add a display" })).toBeInTheDocument();
     await waitFor(() => expect(calls.install).toEqual(["far_sign"]));
     await userEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(await screen.findByText("Selected: Far Sign")).toBeInTheDocument();
+    expect(await screen.findByRole("radio", { name: /Far Sign/ })).toBeChecked();
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });
 });

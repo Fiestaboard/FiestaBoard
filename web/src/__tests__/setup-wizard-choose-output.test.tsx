@@ -87,6 +87,7 @@ function available(extra: AvailableOutput[] = []) {
 }
 
 function renderWizard() {
+  localStorage.setItem("fiestaboard_wizard_progress", JSON.stringify({ currentStep: 1 }));
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <SetupWizard />
@@ -96,7 +97,7 @@ function renderWizard() {
 
 async function choose(name: RegExp) {
   await userEvent.click(await screen.findByRole("radio", { name }));
-  await userEvent.click(screen.getByRole("button", { name: "Next" }));
+  await userEvent.click(screen.getByRole("button", { name: "Continue" }));
 }
 
 /** Requests the wizard made to `path` (method + body). */
@@ -121,9 +122,7 @@ describe("choosing the display", () => {
   it("opens on the question, with a card per available output", async () => {
     available([SIGN_AVAILABLE]);
     renderWizard();
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "What do you want to show FiestaBoard on?" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "What will FiestaBoard drive?" })).toBeInTheDocument();
     const group = await screen.findByRole("radiogroup", { name: "Displays" });
     expect(
       within(group)
@@ -140,9 +139,9 @@ describe("choosing the display", () => {
     available();
     renderWizard();
     await screen.findByRole("radiogroup", { name: "Displays" });
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
     await userEvent.click(screen.getByRole("radio", { name: /Vestaboard/ }));
-    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
 
   it("says which display downloads, and never asks for an opt-in", async () => {
@@ -169,195 +168,86 @@ describe("choosing the display", () => {
     available();
     renderWizard();
     await choose(/Vestaboard/);
-    const heading = await screen.findByRole("heading", { level: 2, name: "Connect Your Board" });
+    const heading = await screen.findByRole("heading", { level: 1, name: "Connect your Vestaboard" });
     await waitFor(() => expect(heading).toHaveFocus());
   });
 });
 
 describe("the Vestaboard path", () => {
-  it("leads to the existing connect step, which still offers Skip for now", async () => {
-    available();
-    const recorded = record("put", "/api/settings/wizard", (body) => HttpResponse.json(body as object));
-    renderWizard();
-    await choose(/Vestaboard/);
-    expect(await screen.findByRole("heading", { name: "Connect Your Board" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Skip for now" }));
-    await waitFor(() => expect(recorded).toEqual([{ state: "skipped" }]));
-  });
-
-  it("saves the board through the board store and never the deprecated PUT /config/board", async () => {
+  it("tests draft settings without writing and adds a board only on Continue", async () => {
     available();
     const tests = record("post", "/api/outputs/vestaboard/actions/test_connection", () =>
       HttpResponse.json({
         status: "ok",
-        message: "Successfully connected to your board!",
+        message: "Board answered",
         guidance: [],
         fields: null,
         geometry: null,
         devices: null,
       }),
     );
-    const boards = record("put", "/api/settings/board", (body) =>
-      HttpResponse.json({ board_type: "black", boards: (body as { boards: unknown[] }).boards, devices: ["flagship"] }),
+    const boards = record("post", "/api/settings/board/add", (body) =>
+      HttpResponse.json({ boards: [{ ...(body as object), id: "new-board" }] }),
     );
     const legacy = record("put", "/api/config/board", () => HttpResponse.json({}));
     renderWizard();
     await choose(/Vestaboard/);
-    // The Vestaboard's own settings screen, on draft settings: cloud by default.
-    await userEvent.type(await screen.findByLabelText(/Read\/Write API Key/), "test_cloud_key");
-    await userEvent.click(screen.getByRole("button", { name: "Test Connection" }));
-    await waitFor(() => expect(boards).toHaveLength(1));
-    expect(tests).toEqual([{ output_config: { api_mode: "cloud", cloud_key: "test_cloud_key" } }]);
-    const saved = (boards[0] as { boards: Array<Record<string, unknown>> }).boards[0];
-    expect(saved).toMatchObject({
-      output: "vestaboard",
-      output_config: { api_mode: "cloud", cloud_key: "test_cloud_key" },
-      device_type: "flagship",
-      enabled: true,
-    });
-    expect(saved).not.toHaveProperty("cloud_key");
-    expect(await screen.findByText("Connected! Your board is saved.")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Next" })).toBeEnabled());
-    expect(legacy).toEqual([]);
-
-    // Appearance edits after the test must not leave Next claiming they were saved.
-    await userEvent.click(screen.getByRole("button", { name: "White" }));
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
-    expect(screen.queryByTestId("wizard-board-saved")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Test Connection" }));
-    await waitFor(() => expect(boards).toHaveLength(2));
-    expect((boards[1] as { boards: Array<Record<string, unknown>> }).boards[0].board_color).toBe("white");
-  });
-
-  it("connects a board over the Local API with the type, colour and flap chosen", async () => {
-    available();
-    const tests = record("post", "/api/outputs/vestaboard/actions/test_connection", () =>
-      HttpResponse.json({
-        status: "ok",
-        message: "Successfully connected to your board!",
-        guidance: [],
-        fields: null,
-        geometry: null,
-        devices: null,
-      }),
-    );
-    const boards = record("put", "/api/settings/board", (body) =>
-      HttpResponse.json({ board_type: "black", boards: (body as { boards: unknown[] }).boards, devices: ["flagship"] }),
-    );
-    renderWizard();
-    await choose(/Vestaboard/);
-    await userEvent.click(await screen.findByRole("radio", { name: /Local API/ }));
-    await userEvent.type(screen.getByLabelText(/Board IP Address/), "192.168.0.50");
-    await userEvent.type(screen.getByLabelText(/Local API Key/), "test-local-key");
-    await userEvent.click(screen.getByTestId("wizard-code62-heart"));
-    await userEvent.click(screen.getByRole("button", { name: "White" }));
-    await userEvent.click(screen.getByRole("button", { name: "Test Connection" }));
-    await waitFor(() => expect(boards).toHaveLength(1));
-
-    expect(tests).toEqual([
-      { output_config: { api_mode: "local", host: "192.168.0.50", local_api_key: "test-local-key" } },
-    ]);
-    expect((boards[0] as { boards: Array<Record<string, unknown>> }).boards[0]).toMatchObject({
-      output: "vestaboard",
-      output_config: { api_mode: "local", host: "192.168.0.50", local_api_key: "test-local-key" },
-      board_color: "white",
-      code62_glyph: "heart",
-    });
-  });
-
-  it("a failed test saves nothing and keeps Next disabled", async () => {
-    available();
-    record("post", "/api/outputs/vestaboard/actions/test_connection", () =>
-      HttpResponse.json({
-        status: "error",
-        message: "Your API key was rejected by the Vestaboard cloud service (HTTP 401).",
-        guidance: ["Check the key in the Vestaboard app."],
-        fields: null,
-        geometry: null,
-        devices: null,
-      }),
-    );
-    const boards = record("put", "/api/settings/board", () => HttpResponse.json({}));
-    renderWizard();
-    await choose(/Vestaboard/);
-    await userEvent.type(await screen.findByLabelText(/Read\/Write API Key/), "test_bad_key");
-    await userEvent.click(screen.getByRole("button", { name: "Test Connection" }));
-
-    expect(await screen.findByText("Check the key in the Vestaboard app.")).toBeInTheDocument();
+    await userEvent.type(await screen.findByLabelText("Address"), "192.0.2.60");
+    await userEvent.type(screen.getByLabelText("Local API key"), "test_key");
+    await userEvent.click(screen.getByRole("button", { name: "Test connection" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Board answered");
     expect(boards).toEqual([]);
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(tests).toEqual([
+      { output_config: expect.objectContaining({ api_mode: "local", host: "192.0.2.60", local_api_key: "test_key" }) },
+    ]);
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByText("Step 3 of 4")).toBeInTheDocument();
+    expect(boards).toEqual([
+      expect.objectContaining({
+        device_type: "flagship",
+        output: "vestaboard",
+        output_config: expect.objectContaining({ host: "192.0.2.60" }),
+      }),
+    ]);
+    expect(legacy).toEqual([]);
   });
 });
 
 describe("the TV path", () => {
-  it("creates a panel, removes the untouched placeholder board and shows the TV address", async () => {
+  it("creates on Continue, removes only the untouched placeholder and carries its name into Review", async () => {
     available();
     const created = record("post", "/api/panels", (body) =>
-      HttpResponse.json(
-        {
-          id: "panel-1",
-          short_code: 3,
-          name: (body as { name: string }).name,
-          board_id: "panel-board",
-          screen_diagonal_inches: (body as { screen_diagonal_inches: number }).screen_diagonal_inches,
-        },
-        { status: 201 },
-      ),
+      HttpResponse.json({
+        id: "panel-1",
+        short_code: 3,
+        name: (body as { name: string }).name,
+        board_id: "panel-board",
+      }),
     );
     server.use(
       http.get("/api/settings/board", () =>
         HttpResponse.json({
-          board_type: "black",
           boards: [
-            { id: "placeholder", name: "My Board", device_type: "flagship", api_mode: "local", host: "" },
-            { id: "panel-board", name: "Den TV (Panel)", device_type: "panel", api_mode: "virtual", host: "" },
+            { id: "placeholder", name: "My Board", device_type: "flagship", output: "vestaboard", output_config: {} },
+            { id: "panel-board", name: "Den TV", device_type: "panel", output: "fiestapanel" },
           ],
-          devices: ["flagship"],
         }),
       ),
     );
-    const removed: string[] = [];
-    server.use(
-      http.delete("/api/settings/board/:boardId", ({ params }) => {
-        removed.push(String(params.boardId));
-        return HttpResponse.json({ board_type: "black", boards: [], devices: [] });
-      }),
-    );
+    const removed = record("delete", "/api/settings/board/placeholder", () => HttpResponse.json({ boards: [] }));
     renderWizard();
     await choose(/FiestaPanel/);
-    expect(await screen.findByRole("heading", { name: "Set Up Your TV" })).toBeInTheDocument();
-    const name = screen.getByLabelText("TV name");
+    const name = await screen.findByLabelText("TV name");
     await userEvent.clear(name);
     await userEvent.type(name, "Den TV");
-    const size = screen.getByLabelText("Screen size (inches, measured diagonally)");
-    await userEvent.clear(size);
-    await userEvent.type(size, "65");
-    await userEvent.click(screen.getByRole("button", { name: "Create TV board" }));
-
-    expect(await screen.findByTestId("wizard-panel-created")).toHaveTextContent("/p/3");
-    expect(created).toEqual([{ name: "Den TV", screen_diagonal_inches: 65 }]);
-    expect(removed).toEqual(["placeholder"]);
-    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
-
-    // The last step sums up the TV, not a Vestaboard connection.
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    await screen.findByRole("heading", { level: 2, name: "Add Data Sources" });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Next" })).toBeEnabled());
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(await screen.findByText("Den TV (FiestaPanel) is set up")).toBeInTheDocument();
-  });
-
-  it("refuses a screen size outside the range before calling the server", async () => {
-    available();
-    const created = record("post", "/api/panels", () => HttpResponse.json({}, { status: 201 }));
-    renderWizard();
-    await choose(/FiestaPanel/);
-    const size = await screen.findByLabelText("Screen size (inches, measured diagonally)");
-    await userEvent.clear(size);
-    await userEvent.type(size, "500");
-    expect(size).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByRole("button", { name: "Create TV board" })).toBeDisabled();
-    expect(created).toEqual([]);
+    expect(screen.getByText("How the TV connects")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByText("Step 3 of 4")).toBeInTheDocument();
+    expect(created).toEqual([{ name: "Den TV", screen_diagonal_inches: 55 }]);
+    expect(removed).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByText("Den TV")).toBeInTheDocument();
   });
 });
 
@@ -397,46 +287,12 @@ describe("an output plugin", () => {
     const name = screen.getByLabelText("Board name");
     await userEvent.clear(name);
     await userEvent.type(name, "Porch sign");
+    await userEvent.click(screen.getByLabelText("Skip the connection test and add this community display untested"));
     await userEvent.click(screen.getByRole("button", { name: "Add board" }));
 
     expect(await screen.findByTestId("wizard-output-created")).toHaveTextContent("Porch sign is saved.");
     expect(boards).toEqual([{ device_model: "sign_small", output_config: { host: "192.0.2.10" }, name: "Porch sign" }]);
-    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
-  });
-
-  it("previews a built-in LED device as its matrix, showing the board's name", async () => {
-    available([SIGN_AVAILABLE]);
-    const pixoo = { ...SIGN, device_models: [{ id: "divoom_pixoo64", label: "Pixoo 64" }] };
-    record("post", `/api/outputs/${SIGN.id}/install`, () => HttpResponse.json(pixoo, { status: 201 }));
-    renderWizard();
-    await choose(/Recording Sign/);
-    const preview = await screen.findByTestId("wizard-output-device-preview");
-    expect(preview.querySelector('[data-slot="display-preview"]')).toHaveAttribute("data-model", "divoom_pixoo64");
-    expect(within(preview).getByRole("img").getAttribute("aria-label")).toContain("Recording Sign");
-  });
-
-  it("previews a new LED board in the face it will be created in", async () => {
-    // A new Pixoo board is created Large (5x7, 8x10), not in the model's own
-    // small 3x5 face: core names the new-board face per device model.
-    available([SIGN_AVAILABLE]);
-    const pixoo = {
-      ...SIGN,
-      device_models: [{ id: "divoom_pixoo64", label: "Pixoo 64", new_board_font: "5x7", new_board_charset: "led_5x7" }],
-    };
-    record("post", `/api/outputs/${SIGN.id}/install`, () => HttpResponse.json(pixoo, { status: 201 }));
-    renderWizard();
-    await choose(/Recording Sign/);
-    const preview = await screen.findByTestId("wizard-output-device-preview");
-    expect(preview.querySelector("[data-font]")).toHaveAttribute("data-font", "5x7");
-  });
-
-  it("shows no device preview for a plugin's own model it cannot resolve", async () => {
-    available([SIGN_AVAILABLE]);
-    signInstalls();
-    renderWizard();
-    await choose(/Recording Sign/);
-    await screen.findByTestId("plugin-board-settings");
-    expect(screen.queryByTestId("wizard-output-device-preview")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
 
   it("runs the plugin's actions on the draft route", async () => {

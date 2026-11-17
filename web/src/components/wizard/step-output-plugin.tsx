@@ -18,8 +18,8 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Box,
   Button,
+  Checkbox,
   Flex,
   Grid,
   Input,
@@ -37,7 +37,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, WifiOff, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { DevicePreview } from "@/components/device-preview";
 import { OUTPUTS_QUERY_KEY } from "@/components/settings/output-boards";
 import { PluginBoardSettings } from "@/components/settings/plugin-board-settings";
 import { queryKeys } from "@/hooks/use-board";
@@ -54,7 +53,6 @@ import {
   NOTE_COLS,
   NOTE_ROWS,
 } from "@/lib/board-dimensions";
-import { isLedModel, modelInNewBoardFace, resolveBoardModel } from "@/lib/device-preview";
 
 import { removeUntouchedPlaceholder } from "./default-board";
 
@@ -86,6 +84,7 @@ interface StepOutputPluginProps {
    * every board the user has where it is.
    */
   replacePlaceholder?: boolean;
+  createLabel?: string;
 }
 
 type InstallFailure = { kind: "offline"; message: string } | { kind: "refused"; message: string };
@@ -102,6 +101,7 @@ export function StepOutputPlugin({
   onValidChange,
   setIsLoading,
   replacePlaceholder = true,
+  createLabel,
 }: StepOutputPluginProps) {
   const t = useTranslations("wizard.outputSetup");
   const tbs = useTranslations("boardSettingsScreen");
@@ -187,7 +187,7 @@ export function StepOutputPlugin({
       output={install.data}
       setIsLoading={setIsLoading}
       onCreated={onCreated}
-      createLabel={tbs("createBoard")}
+      createLabel={createLabel ?? tbs("createBoard")}
       replacePlaceholder={replacePlaceholder}
     />
   );
@@ -247,21 +247,13 @@ function OutputBoardForm({
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [verifiedConfig, setVerifiedConfig] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState(false);
+  const [skipTest, setSkipTest] = useState(false);
   const configKey = JSON.stringify({ config, deviceModel });
   const verified = verifiedConfig === configKey;
-  const canTest = output.actions.some((action) => action.id === "test_connection");
-  // What the chosen LED device looks like, showing the board's name: FiestaUI
-  // draws a model it builds in as its matrix; a plugin's own model is only
-  // known once the board exists, so it shows no preview here (nor does a
-  // split-flap one, whose shape the rest of the wizard already shows).
-  // A new LED board is drawn in the face it will be created in (a Pixoo 64
-  // is created Large, 5x7), which core names per device model.
-  const resolvedModel = modelInNewBoardFace(
-    resolveBoardModel({ device_model: deviceModel }),
-    output.device_models.find((model) => model.id === deviceModel),
+  const requiredValid = ((output.settings_schema.required as string[] | undefined) ?? []).every(
+    (key) => config[key] !== undefined && config[key] !== "",
   );
-  const previewModel = isLedModel(resolvedModel) ? resolvedModel : null;
-
+  const canTest = output.actions.some((action) => action.id === "test_connection");
   const create = useMutation({
     // Creating a board is not idempotent: an interrupted response must not submit it twice.
     retry: false,
@@ -359,12 +351,11 @@ function OutputBoardForm({
           </Grid>
         </Stack>
       )}
-      {previewModel && (
-        <Box data-testid="wizard-output-device-preview" className="flex justify-center">
-          <DevicePreview model={previewModel} message={name.trim() || output.name} size="sm">
-            {null}
-          </DevicePreview>
-        </Box>
+      {!output.builtin && (
+        <Alert variant="info">
+          <AlertTitle>{t("community")}</AlertTitle>
+          <AlertDescription>{t(deviceModel.includes("tc001") ? "tc001Untested" : "communityHint")}</AlertDescription>
+        </Alert>
       )}
       <PluginBoardSettings
         output={output}
@@ -372,6 +363,7 @@ function OutputBoardForm({
         onChange={(values) => {
           setConfig(values);
           setVerifiedConfig(null);
+          setSkipTest(false);
         }}
         deviceModel={deviceModel}
         facts={{ device_type: "panel", device_model: deviceModel }}
@@ -411,10 +403,24 @@ function OutputBoardForm({
           <AlertDescription>{create.error.message}</AlertDescription>
         </Alert>
       )}
+      {!output.builtin && !verified && (
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox checked={skipTest} onChange={(event) => setSkipTest(event.target.checked)} />
+          {t("skipTest")}
+        </label>
+      )}
       <Button
         type="button"
         onClick={() => create.mutate()}
-        disabled={create.isPending || actionPending || !deviceModel || !sizeValid}
+        disabled={
+          create.isPending ||
+          actionPending ||
+          !deviceModel ||
+          !sizeValid ||
+          !name.trim() ||
+          !requiredValid ||
+          (!verified && !skipTest)
+        }
         className="w-full"
       >
         {create.isPending ? tbs("creating") : createLabel}

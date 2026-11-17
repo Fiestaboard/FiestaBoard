@@ -3,12 +3,15 @@
 import { Box, Flex, Text } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import type { ReactNode } from "react";
-import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { api } from "@/lib/api";
 import { isChromelessPath } from "@/lib/chromeless";
 import { clearWizardCompletion, shouldShowWizard } from "@/lib/setup-detection";
+
+import { isUntouchedPlaceholder } from "./wizard/default-board";
 
 function WizardLoadingFallback() {
   const t = useTranslations("wizardProvider");
@@ -66,6 +69,14 @@ export function WizardProvider({ children }: WizardProviderProps) {
   const isOnAuthScreen = pathname ? isChromelessPath(pathname) : false;
   const [isWizardActive, setIsWizardActive] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
+  const rerunRequest = useRef(0);
+
+  useEffect(
+    () => () => {
+      rerunRequest.current++;
+    },
+    [isOnAuthScreen],
+  );
 
   useEffect(() => {
     // Skip the check on /login — ``/config/validate`` would 401 there and
@@ -79,7 +90,10 @@ export function WizardProvider({ children }: WizardProviderProps) {
     let cancelled = false;
     const checkWizard = async () => {
       try {
-        const shouldShow = await shouldShowWizard();
+        const requested = await shouldShowWizard();
+        // A broken connection on an installed display belongs to Displays.
+        // Setup is only for an empty hub (including the old seed placeholder).
+        const shouldShow = requested && (await api.getBoardSettings()).boards.every(isUntouchedPlaceholder);
         if (!cancelled) setIsWizardActive(shouldShow);
       } catch (error) {
         console.error("Failed to check wizard status:", error);
@@ -96,12 +110,21 @@ export function WizardProvider({ children }: WizardProviderProps) {
   }, [isOnAuthScreen]);
 
   const triggerWizard = useCallback(() => {
-    // Clear completion status to allow re-running
-    clearWizardCompletion();
-    setIsWizardActive(true);
-  }, []);
+    const request = ++rerunRequest.current;
+    // Check before changing visibility: a pending fleet read must never
+    // replace the app with a wizard and then take it away again.
+    void api
+      .getBoardSettings()
+      .then(({ boards }) => {
+        if (request !== rerunRequest.current || isOnAuthScreen || !boards.every(isUntouchedPlaceholder)) return;
+        clearWizardCompletion();
+        setIsWizardActive(true);
+      })
+      .catch((error) => console.error("Failed to check displays before setup:", error));
+  }, [isOnAuthScreen]);
 
   const handleComplete = useCallback(() => {
+    rerunRequest.current++;
     setIsWizardActive(false);
   }, []);
 
