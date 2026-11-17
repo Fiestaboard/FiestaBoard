@@ -4,6 +4,7 @@ import math
 import time
 import json
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 from runtime_common import JsonlWriter, ProtocolError, SOURCE_COMMIT
 from runtime_common import require_ok
@@ -12,8 +13,150 @@ from runtime_collect import validate_collector_anchor
 from runtime_seed import verify_manifest
 
 
+class WarmupScenarios:
+    def __init__(self, manifest, *, utcnow=None, elapsed_clock=None):
+        self.manifest = manifest
+        self.board = manifest["boards"]["flagship"]
+        self.utcnow = utcnow or (lambda: datetime.now(timezone.utc))
+        self.elapsed_clock = elapsed_clock
+        self.state = "override_start"
+        self.failed = False
+        self.events = []
+        self.elapsed = 0
+        self.completed_elapsed = None
+        self.override_expires = None
+        self.quiet = None
+        self.quiet_end = None
+
+    def _check(self, condition):
+        if not condition:
+            self.failed = True
+            raise ProtocolError("Warmup transition/frame assertion failed; explicit recovery required")
+
+    def _frame(self, body, marker, *, baseline=False):
+        frame = body.get("characters")
+        self._check(body.get("id") == self.board["id"] and isinstance(frame, list) and len(frame) == self.board["rows"]
+                    and all(isinstance(row, list) and len(row) == self.board["cols"] for row in frame)
+                    and body.get("expected_characters") == frame and marker in (body.get("text") or ""))
+        if baseline:
+            self._check(body.get("active_page_id") == self.board["page_ids"][0]
+                        and body.get("resolved_page_id") == self.board["page_ids"][0])
+
+    def _operation(self, name, method, path, payload, validate, *, status=200):
+        def observed(body):
+            validate(body)
+            elapsed = self.elapsed_clock() if self.elapsed_clock is not None else self.elapsed
+            self.events.append({"operation": name, "elapsed_s": elapsed, "observed_utc": self.utcnow().isoformat(), "state": self.state})
+            if self.state == "complete":
+                self.completed_elapsed = elapsed
+        return ApiOperation(name, "flagship", "warmup-control", method, path, payload, observed,
+                            expected_status=status, abort_on_failure=True)
+
+    def next_operation(self, elapsed):
+        self.elapsed = elapsed
+        if self.failed:
+            raise ProtocolError("Warmup controls failed; explicit operator recovery required")
+        if self.state == "complete":
+            return None
+        if elapsed >= 300:
+            self.failed = True
+            raise ProtocolError("Warmup controls/restoration did not complete by300 seconds")
+        bid = self.board["id"]
+        page_id = self.board["page_ids"][0]
+        marker = next(p["name"] for p in self.manifest["pages"] if p["id"] == page_id)
+        if self.state == "override_start":
+            payload = {"board_id": bid, "page_id": self.board["page_ids"][1], "duration_minutes": 1,
+                       "revert_mode": "page", "revert_page_id": page_id}
+            def begin(body):
+                self._check(body.get("active") is True and body.get("board_id") == bid and body.get("page_id") == payload["page_id"])
+                try:
+                    self.override_expires = datetime.fromisoformat(body["expires_at"].replace("Z", "+00:00"))
+                    self._check(self.override_expires.tzinfo is not None and self.override_expires > self.utcnow())
+                except (KeyError, ValueError, TypeError):
+                    self._check(False)
+                self.state = "override_wait"
+            return self._operation("override_begin", "POST", "/api/settings/temporary-override", payload, begin)
+        if self.state == "override_wait":
+            def expiry(body):
+                self._check(body.get("board_id") == bid and isinstance(body.get("active"), bool))
+                if body["active"] is False:
+                    self._check(self.utcnow() >= self.override_expires)
+                    self.state = "override_frame"
+            return self._operation("override_expiry_poll", "GET", f"/api/settings/temporary-override?board_id={bid}", None, expiry)
+        if self.state == "override_frame":
+            def restored(body):
+                self._frame(body, marker, baseline=True)
+                self.state = "silence_start"
+            return self._operation("override_restored_frame", "GET", f"/api/v1/boards/{bid}", None, restored)
+        if self.state == "silence_start":
+            start = self.utcnow().replace(second=0, microsecond=0) + timedelta(minutes=1)
+            self.quiet_end = start + timedelta(minutes=1)
+            self.quiet = {"board_id": bid, "enabled": True, "start_time": start.strftime("%H:%M+00:00"),
+                          "end_time": self.quiet_end.strftime("%H:%M+00:00"), "mode": "freeze", "show_queued_on_exit": True}
+            def configured(body):
+                config = body.get("config", {})
+                self._check(body.get("board_id") == bid and config.get("enabled") is True and config.get("show_queued_on_exit") is True)
+                self.state = "silence_wait"
+            return self._operation("silence_configure", "PUT", "/api/settings/silence-schedule", self.quiet, configured)
+        if self.state == "silence_wait":
+            def quiet(body):
+                self._check(body.get("board_id") == bid and body.get("enabled") is True and isinstance(body.get("active"), bool))
+                if body["active"]:
+                    self.state = "silence_hold"
+                else:
+                    self._check(self.utcnow() < self.quiet_end)
+            return self._operation("silence_enter_poll", "GET", f"/api/silence-status?board_id={bid}", None, quiet)
+        if self.state == "silence_hold":
+            def held(body):
+                self._check(body.get("board_id") == bid and body.get("held") is True and body.get("sent") is False and body.get("silenced") is True)
+                self.state = "silence_queue"
+            return self._operation("silence_held_send", "POST", f"/api/v1/boards/{bid}/message",
+                                   {"lines": ["PERF HELD"] + [""] * (self.board["rows"] - 1)}, held, status=202)
+        if self.state == "silence_queue":
+            def queued(body):
+                held = body.get("held")
+                self._check(body.get("board_id") == bid and body.get("enabled") is True and
+                            isinstance(held, dict) and held.get("kind") == "lines" and "PERF HELD" in held.get("preview", ""))
+                self.state = "silence_release"
+            return self._operation("silence_queue_verify", "GET", f"/api/silence-status?board_id={bid}", None, queued)
+        if self.state == "silence_release":
+            def released(body):
+                self._check(body.get("board_id") == bid and body.get("enabled") is True and isinstance(body.get("active"), bool))
+                if body.get("active") is False and body.get("held") is None:
+                    self._check(self.utcnow() >= self.quiet_end)
+                    self.state = "silence_frame"
+            return self._operation("silence_release_poll", "GET", f"/api/silence-status?board_id={bid}", None, released)
+        if self.state == "silence_frame":
+            def shown(body):
+                self._frame(body, "PERF HELD")
+                self.state = "silence_disable"
+            return self._operation("silence_held_frame", "GET", f"/api/v1/boards/{bid}", None, shown)
+        if self.state == "silence_disable":
+            payload = {**self.quiet, "enabled": False, "show_queued_on_exit": False}
+            def disabled(body):
+                self._check(body.get("board_id") == bid and body.get("config", {}).get("enabled") is False)
+                self.state = "manual_restore"
+            return self._operation("silence_disable", "PUT", "/api/settings/silence-schedule", payload, disabled)
+        if self.state == "manual_restore":
+            def pinned(body):
+                self._check(body.get("board_id") == bid and body.get("page_id") == page_id and body.get("sent") is True and not body.get("error"))
+                self.state = "final_frame"
+            return self._operation("warmup_manual_restore", "PUT", f"/api/v1/boards/{bid}/active-page", {"page_id": page_id}, pinned)
+        if self.state == "final_frame":
+            def final(body):
+                self._frame(body, marker, baseline=True)
+                self.state = "complete"
+            return self._operation("warmup_restored_frame", "GET", f"/api/v1/boards/{bid}", None, final)
+        raise ProtocolError("Unknown warmup subscenario state")
+
+    def verification(self):
+        return {"complete": self.state == "complete" and not self.failed, "state": self.state,
+                "completed_elapsed_s": self.completed_elapsed, "requires_operator_recovery": self.state not in {"override_start", "complete"},
+                "events": list(self.events)}
+
+
 def run_soak(client, manifest, out_dir, anchor, collector_ready, *, phase_seconds=(600, 6000, 600),
-             clock=None, sleep=None, operation_factory=None):
+             clock=None, sleep=None, operation_factory=None, scenarios=None):
     synthetic_clock = clock is not None
     clock, sleep = clock or time.monotonic, sleep or time.sleep
     if len(phase_seconds) != 3 or any(not isinstance(n, (int, float)) or n <= 0 or not math.isfinite(n) for n in phase_seconds):
@@ -45,13 +188,35 @@ def run_soak(client, manifest, out_dir, anchor, collector_ready, *, phase_second
                  session=session, measurement_start_monotonic=start, monotonic_elapsed_s=0)
     geometries = ("flagship", "note", "array", "panel")
     factory = operation_factory or (lambda cycle: soak_operations(manifest, geometries[cycle % 4], (cycle // 4) % 3, cycle))
+    controls = scenarios
+    if controls is None and operation_factory is None:
+        controls = WarmupScenarios(manifest, elapsed_clock=lambda: clock() - start)
+    status_operation = next(op for op in api_operations(manifest) if op.name == "status")
+
+    def warmup_slot(operation, index, deadline):
+        if controls is not None:
+            verification = controls.verification()
+            if not verification.get("complete"):
+                if clock() - start >= 300:
+                    raise ProtocolError("Warmup controls not complete by300s; activity must not start")
+                selected = controls.next_operation(clock() - start)
+                if selected is None:
+                    raise ProtocolError("Warmup control state is incomplete without a next operation")
+                return selected
+        # Settling keeps the verified baseline frame rather than continually
+        # replacing it with save/send work before the activity phase.
+        return status_operation if operation.name in {"save", "send"} else operation
     results = {}
     try:
         remaining = start - clock()
         if remaining > 0:
             sleep(remaining)
+        phase_offset = 0
         for phase, duration, cadence in zip(("warmup", "activity", "drain"), phase_seconds, (6, 1, 5)):
-            phase_start = clock()
+            phase_start = start + phase_offset
+            wait = phase_start - clock()
+            if wait > 0:
+                sleep(wait)
             if phase == "drain":
                 status = next(op for op in api_operations(manifest) if op.name == "status")
                 operations = [status] * 10
@@ -60,14 +225,23 @@ def run_soak(client, manifest, out_dir, anchor, collector_ready, *, phase_second
             else:
                 operations = factory
             result = run_phase(client, operations, writer, phase=phase, start=phase_start, duration=duration,
-                               slot_seconds=cadence, clock=clock, sleep=sleep, measurement_start=start)
+                               slot_seconds=cadence, clock=clock, sleep=sleep, measurement_start=start,
+                               slot_transform=warmup_slot if phase == "warmup" else None)
             results[phase] = result
+            phase_offset += duration
             if result["aborted"]:
                 break
+            if phase == "warmup" and controls is not None:
+                verified = controls.verification()
+                if (not verified.get("complete") or verified.get("completed_elapsed_s", float("inf")) > 300
+                        or (tuple(phase_seconds) == (600, 6000, 600) and phase_start + duration - start - verified["completed_elapsed_s"] < 300)):
+                    raise ProtocolError("Warmup controls/restoration and300-second settling contract incomplete")
+                writer.write("warmup_controls", verification=verified, monotonic_elapsed_s=clock() - start)
         report = {"complete": False, "requires_resource_merge": True, "diagnostic": diagnostic,
                   "measured_seconds": clock() - start, "activity_requests": results.get("activity", {}).get("attempted", 0),
                   "whole_window_requests": sum(result["attempted"] for result in results.values()),
-                  "phases": results, "subscenarios_verified": False}
+                  "phases": results, "subscenarios_verified": bool(controls and controls.verification().get("complete")),
+                  "warmup_controls": controls.verification() if controls is not None else None}
         writer.write("driver_summary", monotonic_elapsed_s=clock() - start, **report)
         (out_dir / "driver-summary.json").write_text(json.dumps(report, indent=2) + "\n")
         return report
@@ -79,7 +253,7 @@ def run_soak(client, manifest, out_dir, anchor, collector_ready, *, phase_second
 
 
 def run_phase(client, operations, writer, *, phase, start, duration, slot_seconds, clock, sleep, measurement_start,
-              dispatch_grace_seconds=0.05):
+              dispatch_grace_seconds=0.05, slot_transform=None):
     if not callable(operations) and len(operations) != 10:
         raise ProtocolError("A phase cycle needs exactly ten declared slots")
     factory = operations if callable(operations) else lambda cycle: operations
@@ -87,7 +261,8 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
     pacer = SlotPacer(start, duration, slot_seconds)
     if not math.isfinite(dispatch_grace_seconds) or not 0 <= dispatch_grace_seconds < slot_seconds:
         raise ProtocolError("Dispatch grace must be finite/nonnegative and shorter than an arrival slot")
-    writer.write("phase", phase=phase, event="start", monotonic_elapsed_s=start - measurement_start)
+    writer.write("phase", phase=phase, event="start", scheduled_elapsed_s=start - measurement_start,
+                 monotonic_elapsed_s=clock() - measurement_start)
     attempted, missed, successful, aborted = 0, 0, 0, False
     initial = True
     while True:
@@ -123,12 +298,21 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
             if len(cycles[cycle]) != 10:
                 raise ProtocolError("A dynamic phase cycle needs exactly ten declared slots")
         operation = cycles[cycle][index % 10]
+        if slot_transform is not None:
+            operation = slot_transform(operation, index, arrival["deadline"])
         payload = operation.payload() if callable(operation.payload) else operation.payload
         started = clock()
+        if started - arrival["deadline"] > dispatch_grace_seconds + 1e-9:
+            missed += 1
+            writer.write("missed_slot", phase=phase, slot=index, cycle=cycle, cycle_slot=index % 10,
+                         reason="Preparation exceeded dispatch grace", dispatch_lateness_ms=(started - arrival["deadline"]) * 1000,
+                         scheduled_elapsed_s=arrival["deadline"] - measurement_start,
+                         monotonic_elapsed_s=started - measurement_start)
+            continue
         result = client.request(operation.method, operation.path, payload)
         semantic_success, error = False, result.error
         try:
-            if operation.validate(require_ok(result)) is False:
+            if operation.validate(require_ok(result, status=operation.expected_status)) is False:
                 raise ProtocolError("Semantic validator refused result")
             semantic_success = True
         except (ProtocolError, ValueError, KeyError, TypeError):
@@ -144,9 +328,9 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
                      error=error, timed_out=result.timed_out, timeout_seconds=client.timeout,
                      request={"method": operation.method, "path": operation.path, "body": payload},
                      response=client.safe_result(result))
-        if result.status == 401:
+        if result.status == 401 or (not semantic_success and operation.abort_on_failure):
             aborted = True
-            writer.write("interrupted", phase=phase, reason="Authentication failed; no retry/relogin/cleanup",
+            writer.write("interrupted", phase=phase, reason="Authentication or critical control failed; explicit operator recovery required",
                          monotonic_elapsed_s=clock() - measurement_start)
             break
     if not aborted:
@@ -154,7 +338,8 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
         if remaining > 0:
             sleep(remaining)
     ended = clock()
-    writer.write("phase", phase=phase, event="end", monotonic_elapsed_s=ended - measurement_start)
+    writer.write("phase", phase=phase, event="end", scheduled_elapsed_s=start + duration - measurement_start,
+                 monotonic_elapsed_s=ended - measurement_start)
     return {"attempted": attempted, "missed": missed, "successful": successful, "aborted": aborted,
             "actual_seconds": ended - start}
 

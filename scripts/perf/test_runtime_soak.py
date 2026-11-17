@@ -7,10 +7,11 @@ import json
 
 from runtime_collect import collect_snapshot, validate_collector_anchor
 from runtime_collect import main as collector_main
-from runtime_soak import SlotPacer, run_phase, soak_operations, run_soak
+from runtime_soak import SlotPacer, run_phase, soak_operations, run_soak, WarmupScenarios
 from runtime_common import HttpResult, JsonClient, JsonlWriter, ProtocolError
 from runtime_api import ApiOperation
 from test_runtime_api import fixture, fixture_transport, run_context
+from datetime import datetime, timedelta, timezone
 from contextlib import redirect_stderr
 import io
 
@@ -286,6 +287,124 @@ class SoakContractTests(unittest.TestCase):
                 writer.close()
         self.assertEqual(arrivals, [100])
         self.assertEqual(result["missed"], 3)
+
+    def test_boundary_sleep_jitter_does_not_rebase_activity_deadlines(self):
+        # Each phase must retain anchor+cumulative duration, not inherit preceding sleep/JSONL overhead.
+        class JitterClock(ManualClock):
+            def sleep(self, seconds):
+                self.now += seconds + 0.001
+
+        clock = JitterClock()
+        data, transport = fixture(), fixture_transport(fixture())
+        transport.responses[("GET", "/api/v1/health")] = HttpResult(200, {})
+        client = JsonClient(data["base_url"], {}, transport=transport, run_context=run_context())
+        anchor = {"schema_version": 1, "run_id": "unit-run", "boot_id": "boot-a", "pid_namespace": "pid:[100]", "start_monotonic": 100}
+        ready = {**anchor, "api_cmdline": "uvicorn src.api_server:app", "api_pid": 42, "api_start_time_ticks": 123}
+        op = ApiOperation("health", "all", "n/a", "GET", "/api/v1/health", None, lambda body: None)
+        with tempfile.TemporaryDirectory() as directory:
+            run_soak(client, data, Path(directory), anchor, ready, phase_seconds=(1, 10, 1), clock=clock, sleep=clock.sleep,
+                     operation_factory=lambda cycle: [op] * 10)
+            requests = [r for r in map(json.loads, (Path(directory) / "soak.jsonl").read_text().splitlines())
+                        if r["record_type"] == "request" and r["phase"] == "activity"]
+        self.assertEqual([r["scheduled_elapsed_s"] for r in requests], list(range(1, 11)))
+
+    def test_slow_factory_or_payload_cannot_dispatch_after_grace(self):
+        # Preparation is part of dispatch; checking only before preparation misses real deadline violations.
+        for slow in ("factory", "payload"):
+            with self.subTest(slow=slow):
+                clock, arrivals = ManualClock(), []
+                client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: arrivals.append(clock()) or HttpResult(200, {}))
+
+                def payload():
+                    clock.now += 0.06
+                    return None
+
+                op = ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", payload if slow == "payload" else None, lambda body: None)
+
+                def factory(cycle):
+                    if slow == "factory":
+                        clock.now += 0.06
+                    return [op] * 10
+
+                with tempfile.TemporaryDirectory() as directory:
+                    writer = JsonlWriter(Path(directory) / "soak.jsonl", "unit-run")
+                    try:
+                        result = run_phase(client, factory, writer, phase="activity", start=100, duration=3, slot_seconds=1,
+                                           clock=clock, sleep=clock.sleep, measurement_start=100)
+                    finally:
+                        writer.close()
+                self.assertEqual(arrivals, [101, 102] if slow == "factory" else [])
+                self.assertEqual(result["missed"], 1 if slow == "factory" else 3)
+
+    def test_warmup_control_sequence_requires_real_expiry_held_frame_and_restoration(self):
+        # A202 envelope or elapsed fake minute alone does not prove queue delivery/restored baseline.
+        data = fixture()
+        now = [datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)]
+        scenarios = WarmupScenarios(data, utcnow=lambda: now[0])
+        board = data["boards"]["flagship"]
+        bid = board["id"]
+        op = scenarios.next_operation(0)
+        self.assertIsNotNone(op)
+        self.assertEqual((op.method, op.path), ("POST", "/api/settings/temporary-override"))
+        self.assertEqual(op.payload["duration_minutes"], 1)
+        self.assertEqual(op.payload["revert_page_id"], board["page_ids"][0])
+        op.validate({"active": True, "board_id": bid, "page_id": op.payload["page_id"],
+                     "expires_at": "2026-11-17T12:01:00+00:00", "started_at": now[0].isoformat()})
+        now[0] += timedelta(seconds=30)
+        scenarios.next_operation(30).validate({"active": True, "board_id": bid})
+        self.assertFalse(scenarios.verification()["complete"])
+        now[0] += timedelta(seconds=31)
+        scenarios.next_operation(61).validate({"active": False, "board_id": bid})
+        frame = [[0] * 22 for _ in range(6)]
+        restored = {"id": bid, "active_page_id": board["page_ids"][0], "resolved_page_id": board["page_ids"][0],
+                    "text": "PERF flagship 01", "characters": frame, "expected_characters": frame}
+        scenarios.next_operation(67).validate(restored)
+        quiet = scenarios.next_operation(73)
+        self.assertEqual((quiet.method, quiet.path), ("PUT", "/api/settings/silence-schedule"))
+        self.assertEqual((quiet.payload["start_time"], quiet.payload["end_time"]), ("12:02+00:00", "12:03+00:00"))
+        quiet.validate({"board_id": bid, "config": {**quiet.payload}})
+        now[0] = datetime(2026, 11, 17, 12, 2, tzinfo=timezone.utc)
+        scenarios.next_operation(120).validate({"board_id": bid, "enabled": True, "active": True, "held": None})
+        held = scenarios.next_operation(126)
+        self.assertEqual(held.expected_status, 202)
+        self.assertEqual(held.payload["lines"][0], "PERF HELD")
+        held.validate({"board_id": bid, "sent": False, "held": True, "silenced": True})
+        scenarios.next_operation(132).validate({"board_id": bid, "enabled": True, "active": True,
+                                               "held": {"kind": "lines", "preview": "PERF HELD"}})
+        now[0] = datetime(2026, 11, 17, 12, 3, 6, tzinfo=timezone.utc)
+        scenarios.next_operation(186).validate({"board_id": bid, "enabled": True, "active": False, "held": None})
+        scenarios.next_operation(192).validate({**restored, "text": "PERF HELD"})
+        disabled = scenarios.next_operation(198)
+        self.assertIs(disabled.payload["enabled"], False)
+        disabled.validate({"board_id": bid, "config": {**disabled.payload}})
+        scenarios.next_operation(204).validate({"board_id": bid, "page_id": board["page_ids"][0], "sent": True, "error": None})
+        scenarios.next_operation(210).validate(restored)
+        self.assertTrue(scenarios.verification()["complete"])
+        self.assertIsNone(scenarios.next_operation(216))
+
+    def test_unfinished_controls_stop_full_run_before_activity(self):
+        # Starting activity with silence/override still pending violates both warmupsettling and workload invariants.
+        class NeverDone:
+            def next_operation(self, elapsed):
+                return operation
+
+            def verification(self):
+                return {"complete": False}
+
+        clock = ManualClock()
+        data, transport = fixture(), fixture_transport(fixture())
+        transport.responses[("GET", "/api/v1/health")] = HttpResult(200, {})
+        client = JsonClient(data["base_url"], {}, transport=transport, run_context=run_context())
+        anchor = {"schema_version": 1, "run_id": "unit-run", "boot_id": "boot-a", "pid_namespace": "pid:[100]", "start_monotonic": 100}
+        ready = {**anchor, "api_cmdline": "uvicorn src.api_server:app", "api_pid": 42, "api_start_time_ticks": 123}
+        operation = ApiOperation("health", "all", "n/a", "GET", "/api/v1/health", None, lambda body: None)
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(ProtocolError):
+                run_soak(client, data, Path(directory), anchor, ready, clock=clock, sleep=clock.sleep,
+                         operation_factory=lambda cycle: [operation] * 10, scenarios=NeverDone())
+            records = [json.loads(line) for line in (Path(directory) / "soak.jsonl").read_text().splitlines()]
+        self.assertLessEqual(clock(), 400.001)
+        self.assertFalse(any(r["record_type"] == "phase" and r["phase"] == "activity" for r in records))
 
 
 if __name__ == "__main__":

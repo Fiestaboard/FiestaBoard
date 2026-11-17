@@ -44,6 +44,8 @@ class ApiOperation:
     payload: object
     validate: object
     cleanup: object = None
+    expected_status: int = 200
+    abort_on_failure: bool = False
 
 
 def api_operations(manifest):

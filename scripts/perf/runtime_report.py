@@ -45,6 +45,7 @@ def read_jsonl(path):
 
 def report_records(records, *, errors=()):
     phases = {}
+    actual_phases = {}
     duplicate_phase = False
     resources, requests, gaps = [], [], []
     strata = defaultdict(list)
@@ -55,7 +56,8 @@ def report_records(records, *, errors=()):
         if kind == "phase":
             key = record.get("phase"), record.get("event")
             duplicate_phase = duplicate_phase or key in phases
-            phases[key] = record.get("monotonic_elapsed_s")
+            phases[key] = record.get("scheduled_elapsed_s", record.get("monotonic_elapsed_s"))
+            actual_phases[key] = record.get("monotonic_elapsed_s")
         elif kind == "request":
             requests.append(record)
             key = tuple(record.get(field) for field in ("run_id", "batch", "operation", "geometry", "cache", "auth", "phase"))
@@ -75,7 +77,8 @@ def report_records(records, *, errors=()):
     expected = {("warmup", "start"): 0, ("warmup", "end"): 600, ("activity", "start"): 600,
                 ("activity", "end"): 6600, ("drain", "start"): 6600, ("drain", "end"): 7200}
     window_complete = not duplicate_phase and all(
-        isinstance(phases.get(key), (int, float)) and expected_time <= phases[key] <= expected_time + 2
+        isinstance(phases.get(key), (int, float)) and phases[key] == expected_time
+        and isinstance(actual_phases.get(key), (int, float)) and expected_time <= actual_phases[key] <= expected_time + 0.05 + 1e-9
         for key, expected_time in expected.items()
     )
     if window_complete:
@@ -145,6 +148,8 @@ def report_records(records, *, errors=()):
             "activity_requests": len(activity), "completed_cycles": complete_cycles, "realized_activity_factor": complete_cycles / 100,
             "resource_samples": len(resources), "gaps": len(gaps), "parse_errors": list(errors),
             "one_run": one_run, "requests_valid": requests_valid, "resources_valid": resources_valid,
+            "actual_phase_observation_intervals": {phase: actual_phases[(phase, "end")] - actual_phases[(phase, "start")]
+                for phase in ("warmup", "activity", "drain") if (phase, "start") in actual_phases and (phase, "end") in actual_phases},
             "python_heap": {"available": False}, "queues": {"available": False}}
 
 
