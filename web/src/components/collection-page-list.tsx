@@ -121,7 +121,11 @@ export function CollectionPageList({
               key={member.id}
               render={<ListItem />}
               size={size}
-              title={member.name}
+              title={
+                <Text as="span" size="sm" weight="semibold">
+                  {member.name}
+                </Text>
+              }
               meta={
                 <Flex gap="3" align="center" wrap>
                   {member.id === evaluatedPageId && <Badge variant="success">{t("selectedBadge")}</Badge>}
@@ -136,7 +140,7 @@ export function CollectionPageList({
                 <Button
                   type="button"
                   variant="ghost"
-                  size={coarse ? "touch" : "icon-lg"}
+                  size={coarse ? "icon-touch" : "icon-lg"}
                   disabled={disabled}
                   aria-label={t("removePage", { name: member.name })}
                   onClick={() => onRemove(index)}
@@ -227,7 +231,7 @@ function SortableRow({
               <Button
                 type="button"
                 variant="ghost"
-                size={size === "touch" ? "touch" : "icon-lg"}
+                size={size === "touch" ? "icon-touch" : "icon-lg"}
                 aria-label={t("pageActions", { name: member.name })}
               >
                 <Ellipsis aria-hidden="true" />

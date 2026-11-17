@@ -496,7 +496,7 @@ export function CollectionForm({
           {t("title")}
         </Button>
         <Stack gap="0.5" className="flex-1 min-w-40 max-md:flex-none max-md:w-full">
-          <Heading level={1} size="2xl">
+          <Heading level={1} size="2xl" className="md:text-xl lg:text-2xl">
             {name || t(isEdit ? "editCollection" : "newCollection")}
           </Heading>
           <Text size="xs" tone="muted" className="font-mono uppercase max-md:hidden">

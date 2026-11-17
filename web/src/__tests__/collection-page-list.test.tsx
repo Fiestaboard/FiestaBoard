@@ -210,7 +210,7 @@ describe("CollectionPageList, time mode", () => {
   it("gives a coarse pointer the larger ••• button", () => {
     stubCoarsePointer(true);
     render(<Harness />);
-    expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute("data-size", "touch");
+    expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute("data-size", "icon-touch");
   });
 
   it("keeps the compact ••• button for a fine pointer", () => {
@@ -260,7 +260,7 @@ describe("CollectionPageList, random list on touch", () => {
     for (const row of within(screen.getByRole("list")).getAllByRole("listitem")) {
       expect(row).toHaveAttribute("data-size", "touch");
     }
-    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "touch");
+    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "icon-touch");
   });
 
   it("keeps compact rows and × for a fine pointer", () => {

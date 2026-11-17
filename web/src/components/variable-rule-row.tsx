@@ -339,7 +339,7 @@ export function VariableRuleRow({
           </Flex>
           {result && (
             <Flex gap="2" align="center">
-              <Badge variant={result.error ? "destructive" : "outline"}>{result.value}</Badge>
+              <Badge variant={result.error ? "destructive" : "formula"}>{result.value}</Badge>
               <Text size="xs" tone={result.error ? "destructive" : "muted"}>
                 {result.message || t("savedRuleResult")}
               </Text>
