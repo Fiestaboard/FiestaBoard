@@ -29,3 +29,13 @@ export function silenceEndsAtLabel(status?: SilenceStatus | null, now: number = 
   const at = silenceEndsAt(status, now);
   return at ? at.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : null;
 }
+
+/** Formats the configured UTC end on the upcoming window's date, not a historical date. */
+export function upcomingSilenceEnd(clock: string | null | undefined, startsAt: Date): Date | null {
+  const parts = /^(\d{2}):(\d{2})(?:\+00:00)?$/.exec(clock ?? "");
+  if (!parts || Number(parts[1]) > 23 || Number(parts[2]) > 59 || !Number.isFinite(startsAt.getTime())) return null;
+  const at = new Date(startsAt);
+  at.setUTCHours(Number(parts[1]), Number(parts[2]), 0, 0);
+  if (at <= startsAt) at.setUTCDate(at.getUTCDate() + 1);
+  return at;
+}

@@ -1,4 +1,4 @@
-// ActivePageDisplay shows the Moon "Silence mode active" badge when silence is
+// ActivePageDisplay shows the Moon "Silenced" badge when silence is
 // active (regardless of mode). The old snoozing indicator overlay was removed
 // when Active Display was refactored to show the polled board state directly.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -82,7 +82,7 @@ describe("ActivePageDisplay - silence overlay visibility", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
     await waitFor(() => {
-      expect(screen.queryByText("Silence mode active")).not.toBeInTheDocument();
+      expect(screen.queryByText("Silenced")).not.toBeInTheDocument();
     });
   });
 
@@ -102,7 +102,7 @@ describe("ActivePageDisplay - silence overlay visibility", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => expect(screen.getByText("Silence mode active")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Silenced")).toBeInTheDocument());
   });
 
   it("shows silence badge when active and mode === 'freeze'", async () => {
@@ -112,7 +112,7 @@ describe("ActivePageDisplay - silence overlay visibility", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => expect(screen.getByText("Silence mode active")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Silenced")).toBeInTheDocument());
   });
 
   it("shows silence badge when active and mode === 'page'", async () => {
@@ -124,7 +124,7 @@ describe("ActivePageDisplay - silence overlay visibility", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => expect(screen.getByText("Silence mode active")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Silenced")).toBeInTheDocument());
   });
 
   it("names and links the configured silence page when mode === 'page' (issue #1637)", async () => {
@@ -178,7 +178,7 @@ describe("ActivePageDisplay - silence overlay visibility", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => expect(screen.getByText("Silence mode active")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Silenced")).toBeInTheDocument());
   });
 });
 
@@ -233,154 +233,54 @@ function capturePicks(answer: Record<string, unknown> = {}) {
   return bodies;
 }
 
-describe("ActivePageDisplay - silence alert (#1943, #1944)", () => {
+describe("ActivePageDisplay - silence hand-off (2.3b)", () => {
   afterEach(() => {
     server.resetHandlers();
     vi.restoreAllMocks();
   });
-
-  it("says when silence ends and which page shows then (manual mode)", async () => {
+  it("keeps only the Silenced badge; the route owns the standing notice", async () => {
     serveSilence(silenced());
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-
-    const alert = await screen.findByTestId("silence-alert");
-    expect(alert).toHaveTextContent(`Silenced until ${localTime(ENDS_AT)}`);
-    await waitFor(() =>
-      expect(alert).toHaveTextContent("“Weather Page” will show when silence ends. The board stays quiet until then."),
-    );
-    expect(screen.getByTestId("silence-show-now")).toBeInTheDocument();
-    expect(screen.queryByTestId("silence-discard-held")).not.toBeInTheDocument();
-  });
-
-  it("says the schedule resumes in schedule mode, with no Show now", async () => {
-    serveSilence(silenced());
-    server.use(
-      http.get(`${API_BASE}/schedules/active/page`, () =>
-        HttpResponse.json({
-          page_id: "page-1",
-          source: "schedule",
-          schedule_enabled: true,
-          temporary_override: { active: false },
-        }),
-      ),
-    );
-    render(<ActivePageDisplay />, { wrapper: TestWrapper });
-
-    const alert = await screen.findByTestId("silence-alert");
-    await waitFor(() => expect(alert).toHaveTextContent("Your schedule resumes when silence ends."));
+    await screen.findByText("Silenced");
+    expect(screen.queryByTestId("silence-alert")).not.toBeInTheDocument();
     expect(screen.queryByTestId("silence-show-now")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("home-held-message")).not.toBeInTheDocument();
   });
-
-  it("names a collection but offers no Show now for it", async () => {
-    serveSilence(silenced());
-    server.use(
-      http.get(`${API_BASE}/settings/active-page`, () =>
-        HttpResponse.json({ page_id: "collection:mornings", resolved_page_id: "page-1", board_id: null }),
-      ),
-      http.get(`${API_BASE}/v1/collections`, () =>
-        HttpResponse.json({
-          collections: [{ id: "collection:mornings", name: "Mornings", page_ids: ["page-1"], mode: "rotate" }],
-          total: 1,
-        }),
-      ),
-    );
-    render(<ActivePageDisplay />, { wrapper: TestWrapper });
-
-    const alert = await screen.findByTestId("silence-alert");
-    await waitFor(() => expect(alert).toHaveTextContent("“Mornings” will show when silence ends."));
-    expect(screen.queryByTestId("silence-show-now")).not.toBeInTheDocument();
-  });
-
-  it("says only that the board stays quiet when no page is selected", async () => {
-    serveSilence(silenced());
-    server.use(
-      http.get(`${API_BASE}/settings/active-page`, () =>
-        HttpResponse.json({ page_id: null, resolved_page_id: null, board_id: null }),
-      ),
-      http.get(`${API_BASE}/schedules/active/page`, () =>
-        HttpResponse.json({ page_id: null, source: "manual", schedule_enabled: false, temporary_override: null }),
-      ),
-      http.get(`${API_BASE}/v1/pages`, () => HttpResponse.json({ pages: [], total: 0 })),
-    );
-    render(<ActivePageDisplay />, { wrapper: TestWrapper });
-
-    const alert = await screen.findByTestId("silence-alert");
-    expect(alert).toHaveTextContent("The board stays quiet until then.");
-    expect(alert).not.toHaveTextContent("will show when silence ends");
-  });
-
-  it("hides the 'changed by another app' warning while silenced, since Restore cannot send", async () => {
+  it("suppresses another-app recovery while silenced", async () => {
     serveSilence(silenced());
     server.use(
       http.get(`${API_BASE}/board/current-message`, () =>
-        HttpResponse.json({
-          characters: Array.from({ length: 6 }, () => Array(22).fill(1)),
-          message: "",
-          rows: 6,
-          cols: 22,
-          expected_characters: Array.from({ length: 6 }, () => Array(22).fill(2)),
-          cached_at: null,
-          api_mode: "local",
-        }),
+        HttpResponse.json({ characters: [[1]], expected_characters: [[2]], message: "", rows: 6, cols: 22 }),
       ),
     );
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-
-    await waitFor(() => expect(screen.getByTestId("silence-alert")).toBeInTheDocument());
-    await new Promise((r) => setTimeout(r, 50));
+    await screen.findByText("Silenced");
     expect(screen.queryByTestId("board-out-of-sync")).not.toBeInTheDocument();
   });
-
-  it("shows nothing when the board is not silenced", async () => {
-    serveSilence(silenceStatus({ active: false }));
-    render(<ActivePageDisplay />, { wrapper: TestWrapper });
-    await screen.findByRole("heading", { level: 2, name: "Weather Page" });
-    expect(screen.queryByTestId("silence-alert")).not.toBeInTheDocument();
-  });
-
-  it("shows the held message first, and Discard deletes it and refreshes the status", async () => {
+  it("keeps the held message and Discard refreshes its status", async () => {
     const calls = { count: 0 };
     serveSilence(
       silenced({
         holds_blocked_sends: true,
-        held: { kind: "text", preview: "GOOD MORNING EVERYONE HAVE A…", queued_at: "2026-05-04T09:00:00+00:00" },
+        held: { kind: "text", preview: "GOOD LUCK", queued_at: "2026-05-04T09:00:00Z" },
       }),
       calls,
     );
-    let deleted: string | null = null;
+    let deleted = false;
     server.use(
-      http.delete(`${API_BASE}/silence-queue`, ({ request }) => {
-        deleted = request.url;
-        return HttpResponse.json({ board_id: "default", discarded: true });
+      http.delete(`${API_BASE}/silence-queue`, () => {
+        deleted = true;
+        return HttpResponse.json({ discarded: true });
       }),
     );
-    const success = vi.spyOn((await import("sonner")).toast, "success");
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-
-    expect(await screen.findByTestId("silence-held")).toHaveTextContent(
-      "Held message: “GOOD MORNING EVERYONE HAVE A…” — it shows first.",
-    );
+    expect(await screen.findByTestId("home-held-message")).toHaveTextContent("GOOD LUCK");
     const before = calls.count;
-    await user.click(screen.getByTestId("silence-discard-held"));
-
-    await waitFor(() => expect(deleted).not.toBeNull());
-    await waitFor(() => expect(success).toHaveBeenCalledWith("Held message discarded"));
+    await user.click(screen.getByRole("button", { name: "Discard" }));
+    await waitFor(() => expect(deleted).toBe(true));
     await waitFor(() => expect(calls.count).toBeGreaterThan(before));
-  });
-
-  it("Show now re-sends the active page with override_silence and says so", async () => {
-    serveSilence(silenced());
-    const bodies = capturePicks();
-    const success = vi.spyOn((await import("sonner")).toast, "success");
-    const user = userEvent.setup();
-    render(<ActivePageDisplay />, { wrapper: TestWrapper });
-
-    await user.click(await screen.findByTestId("silence-show-now"));
-
-    await waitFor(() => expect(bodies).toHaveLength(1));
-    expect(bodies[0]).toMatchObject({ page_id: "page-1", override_silence: true });
-    await waitFor(() => expect(success).toHaveBeenCalledWith("Showing “Weather Page” now"));
+    expect(screen.queryByTestId("silence-show-now")).not.toBeInTheDocument();
   });
 });
 

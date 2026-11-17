@@ -34,6 +34,8 @@ export interface BoardOutOfSyncBannerProps {
   paused: boolean;
   /** Render nothing (Live Mode is driving the board from the page editor). */
   suppressed?: boolean;
+  /** Home owns the resolved expected page; other surfaces retain their recovery tools. */
+  home?: { display: string; pageName: string };
 }
 
 type Face = "out-of-sync" | "overwritten" | "kept";
@@ -61,8 +63,15 @@ type SavedPage = { id: string; name: string; gridKey: string };
  * It owns its data like SilenceImminentBanner: the board-state query the
  * preview already observes (deduped by React Query) and the silence status.
  */
-export function BoardOutOfSyncBanner({ boardId, geometry, paused, suppressed = false }: BoardOutOfSyncBannerProps) {
+export function BoardOutOfSyncBanner({
+  boardId,
+  geometry,
+  paused,
+  suppressed = false,
+  home,
+}: BoardOutOfSyncBannerProps) {
   const t = useTranslations("boardOutOfSync");
+  const th = useTranslations("home.banners");
   const locale = useLocale();
   const queryClient = useQueryClient();
 
@@ -225,9 +234,17 @@ export function BoardOutOfSyncBanner({ boardId, geometry, paused, suppressed = f
       data-testid="board-out-of-sync"
       data-face={face}
       data-saved={saved ? "true" : undefined}
-      title={title}
-      description={description}
-      action={actions}
+      title={home ? th("outTitle", { board: home.display }) : title}
+      description={home ? th("outDetail", { page: home.pageName }) : description}
+      action={
+        home ? (
+          <StatusBannerAction onClick={restore} disabled={isRestoring || paused}>
+            {th("showAgain", { page: home.pageName })}
+          </StatusBannerAction>
+        ) : (
+          actions
+        )
+      }
     />
   );
 }

@@ -50,7 +50,16 @@ test.describe("plain http: honest about install and offline (2.8)", () => {
       /fiestaboard\.app\/docs\/deployment\/production/,
     );
     // Let the route's entrance fade finish: axe reads mid-fade text as low contrast.
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document
+              .getAnimations()
+              .filter((a) => a.playState === "running" && a.effect?.getTiming().iterations !== Infinity).length,
+        ),
+      )
+      .toBe(0);
     await injectAxe(page);
     const violations = (await getViolations(page)).filter((v) => v.impact === "serious" || v.impact === "critical");
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
