@@ -7,6 +7,7 @@ received an acknowledgment. Process ownership covers the direct child only.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
@@ -20,7 +21,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from http.client import HTTPConnection
 from pathlib import Path
-from threading import Thread
+from threading import Event, Thread
 from urllib.parse import urlsplit
 
 import pytest
@@ -199,6 +200,7 @@ def test_offline_rejects_without_acceptance_then_recovers(tmp_path):
     with BarrierBoard(tmp_path / "receipts.jsonl") as board:
         board.arm("offline")
         assert _request(board.url, {"characters": _frame()})[0] == 503
+        assert board.wait_for("offline", timeout=1)
         assert board.frame is None
         assert "accepted" not in _names(board.events())
         assert "rejected" in _names(board.events())
@@ -260,6 +262,74 @@ def test_oversized_declared_body_is_rejected_without_reading_it(tmp_path):
             connection.close()
         assert board.frame is None
         assert "accepted" not in _names(board.events())
+
+
+def test_incomplete_declared_body_never_accepts_a_parseable_frame(tmp_path):
+    with BarrierBoard(tmp_path / "receipts.jsonl") as board:
+        target = urlsplit(board.url)
+        body = json.dumps({"characters": _frame()}).encode()
+        with socket.create_connection((target.hostname, target.port), timeout=2) as client:
+            client.sendall(
+                b"POST /local-api/message HTTP/1.1\r\nHost: localhost\r\n"
+                + f"Content-Length: {len(body) + 1}\r\n\r\n".encode()
+                + body
+            )
+            client.shutdown(socket.SHUT_WR)
+            response = client.recv(4096)
+            assert b" 400 " in response
+        assert board.frame is None
+        assert "accepted" not in _names(board.events())
+
+
+def test_trickled_headers_have_an_absolute_read_deadline(tmp_path):
+    with BarrierBoard(tmp_path / "receipts.jsonl") as board:
+        target = urlsplit(board.url)
+        with socket.create_connection((target.hostname, target.port), timeout=3) as client:
+            client.sendall(b"POST /local-api/message HTTP/1.1\r\nX-Slow: ")
+            stop = Event()
+
+            def trickle():
+                # Every chunk is inside the socket's inactivity timeout. Only
+                # the absolute deadline can close this unfinished header.
+                for _ in range(25):
+                    if stop.wait(0.1):
+                        return
+                    try:
+                        client.sendall(b"x")
+                    except OSError:
+                        return
+
+            sender = Thread(target=trickle, daemon=True)
+            sender.start()
+            try:
+                try:
+                    assert client.recv(1) == b""
+                except ConnectionResetError:
+                    pass
+            finally:
+                stop.set()
+                sender.join(timeout=1)
+                assert not sender.is_alive()
+        assert board.frame is None
+        assert _request(board.url, {"characters": _frame()})[0] == 200
+
+
+def test_journal_sync_failure_prevents_acceptance_and_further_writes(tmp_path, monkeypatch):
+    journal = tmp_path / "receipts.jsonl"
+
+    def fail_sync(_fd):
+        raise OSError(errno.ENOSPC, "synthetic full evidence store")
+
+    with BarrierBoard(journal) as board:
+        monkeypatch.setattr(fixtures.os, "fsync", fail_sync)
+        with pytest.raises(OSError):
+            _request(board.url, {"characters": _frame()})
+        before = journal.read_bytes()
+        assert board.frame is None
+        assert "accepted" not in _names(board.events())
+        assert _request(board.url, {"characters": _frame(fill=2)})[0] == 503
+        assert journal.read_bytes() == before
+        assert board.frame is None
 
 
 @pytest.mark.parametrize("path", ["/mock/reset", "/mock/configure", "/control", "/release", "/arm"])

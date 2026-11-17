@@ -132,7 +132,10 @@ class BarrierBoard:
         if phase not in _PHASES | _EVENTS:
             raise ValueError("unknown receiver phase")
         with self._condition:
-            return self._condition.wait_for(lambda: phase in self._reached, _seconds(timeout))
+            return self._condition.wait_for(
+                lambda: phase in self._reached and (phase != "responded" or not self._inflight),
+                _seconds(timeout),
+            )
 
     def _record(self, event, request_id, frame_hash, **extra):
         with self._condition:
@@ -241,7 +244,10 @@ class BarrierBoard:
                     self.respond(400, {"error": "bounded content length required"})
                     return
                 try:
-                    body = json.loads(self.rfile.read(length))
+                    raw = self.rfile.read(length)
+                    if len(raw) != length:
+                        raise ValueError("incomplete body")
+                    body = json.loads(raw)
                 except (ValueError, OSError):
                     self.respond(400, {"error": "invalid or incomplete JSON body"})
                     return
@@ -260,11 +266,15 @@ class BarrierBoard:
                     board._request_id += 1
                     request_id = board._request_id
                     mode, board._mode = board._mode, None
+                    board._reached.clear()
                     board._inflight = True
                 try:
                     board._record("received", request_id, frame_hash)
                     if mode == "offline":
                         board._record("rejected", request_id, frame_hash)
+                        with board._condition:
+                            board._reached.add("offline")
+                            board._condition.notify_all()
                         status = 503
                     elif mode == "before_accept" and not board._gate(mode, request_id, frame_hash):
                         status = 504

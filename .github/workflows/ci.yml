@@ -50,6 +50,8 @@ jobs:
               - 'Dockerfile'
               - 'start-dev.sh'
               - 'tests/**'
+              # Platform Tests explicitly collects this separate fixture suite.
+              - 'integration-tests/**'
               - 'scripts/**'
               - 'pyproject.toml'
               # The output seed's pins: the image build and the platform

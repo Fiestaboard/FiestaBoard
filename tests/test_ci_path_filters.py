@@ -82,3 +82,14 @@ def test_dependency_locks_trigger_platform_tests() -> None:
     patterns = _platform_patterns()
     for name in ("package-lock.json", "web/package-lock.json"):
         assert _matches(name, patterns), f"{name} must trigger the developer dependency security guards"
+
+
+def test_integration_fixture_changes_trigger_the_suite_that_collects_them() -> None:
+    patterns = _platform_patterns()
+    for path in (
+        "integration-tests/test_resilience_fixtures.py",
+        "integration-tests/resilience/fixtures.py",
+        "integration-tests/test_cloud_mock.py",
+        "integration-tests/mock-board/server.py",
+    ):
+        assert _matches(path, patterns), f"{path} must trigger Platform Tests and its integration-tests/ step"

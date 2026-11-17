@@ -45,6 +45,10 @@ overwrite an existing evidence file. Require each relevant test to fail for its
 intended reason, then restore the fixture and require passing results. Missing
 imports alone do not establish meaningful red/green proof.
 
+The API path filter includes `integration-tests/**`, so fixture-only changes
+trigger the existing Platform Tests step that collects that directory. A guard
+in `tests/test_ci_path_filters.py` covers this routing.
+
 Run the full applicable Python checks, integration mock suite, Ruff check and
 format, and API reference check before proposing a merge-ready PR. One heavy
 process per job; pytest at most two workers. Never run these tests or their
