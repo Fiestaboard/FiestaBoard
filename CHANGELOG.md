@@ -1,5 +1,12 @@
 # fiestaboard
 
+## 11.0.0-alpha.3
+
+### Patch Changes
+
+- [#2496](https://github.com/Fiestaboard/FiestaBoard/pull/2496) [`35adf28`](https://github.com/Fiestaboard/FiestaBoard/commit/35adf287ed9ade0d24cc099ad6e4944509f6a0a8) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Keep release-channel exploration separate from confirmation, show channel choices
+  while cached version discovery loads, and translate the remaining chooser text.
+
 ## 11.0.0-alpha.2
 
 ### Minor Changes
