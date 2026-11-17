@@ -24,4 +24,4 @@ Files: board-out-of-sync-banner.tsx; silence-imminent-banner.tsx; status-banner-
 
 ## Review focus / preflight ledger
 
-Task1's connection state must guard Task2 recovery and held discard as well as visible send buttons. Mid-dialog hub failure must preserve text. Unknown health stays unknown; explicit H12 unreachable only marks Offline. Existing cached data persists from shared queries. No silent queue. Held author/release API absent: omit author and hide early-release action. All undrawn tablet/dark states derive existing kit tokens/layout. Remote simultaneous mutation revision guarantees remain a hub API gap inherited from 2.2b.
+Task1's connection state must guard Task2 recovery and held discard as well as visible send buttons. Mid-dialog hub failure must preserve text. Unknown health stays unknown; explicit H12 unreachable only marks Offline. Existing cached data persists from shared queries. No silent queue. Held author/release API absent: omit author and hide early-release action. All tablet/dark states without references derive existing kit tokens/layout. Remote simultaneous mutation revision guarantees remain a hub API gap inherited from 2.2b.
