@@ -274,8 +274,13 @@ def test_replacement_before_consume_supersedes_expired_revert(store, clock):
 
 @pytest.mark.parametrize("endpoint", ["override", "schedule", "board"])
 @pytest.mark.parametrize("board_id", ["b1", "b2"])
-def test_http_status_is_inactive_without_consuming_pending_revert(  # noqa: F811
-    client, board_client, store, clock, endpoint, board_id
+def test_http_status_is_inactive_without_consuming_pending_revert(
+    client,  # noqa: F811
+    board_client,  # noqa: F811
+    store,
+    clock,
+    endpoint,
+    board_id,
 ):
     override = _arm(store, board_id=board_id)
     clock.now = END
@@ -300,8 +305,13 @@ def test_http_status_is_inactive_without_consuming_pending_revert(  # noqa: F811
 
 @pytest.mark.parametrize("mode", ["schedule", "page", "blank"])
 @pytest.mark.parametrize("expired", [False, True])
-def test_explicit_cancellation_preserves_its_existing_revert_contract(  # noqa: F811
-    client, board_client, store, clock, mode, expired
+def test_explicit_cancellation_preserves_its_existing_revert_contract(
+    client,  # noqa: F811
+    board_client,  # noqa: F811
+    store,
+    clock,
+    mode,
+    expired,
 ):
     _arm(store, mode, board_id="b2")
     unaffected = _arm(store, board_id="b1")

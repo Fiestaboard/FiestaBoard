@@ -145,7 +145,7 @@ Every configured board, with the id you use in the rest of this API, its grid si
 
 **Read a board and everything it is doing**
 
-One answer to 'what is this board showing, and why'. It merges what the internal API splits across three endpoints: the flaps currently on the board, the page pinned to it by hand, and the page its schedule selects for right now. `source` says which of the two won. `board` may be a board id or the literal `primary`.
+One answer to 'what is this board showing, and why'. It merges what the internal API splits across three endpoints: the flaps currently on the board, the page pinned to it by hand, and the page its schedule selects for right now. `source` says which of the two won. `board` may be a board id or the literal `primary`. Expired overrides have null `override_started_at` and `override_expires_at`, even while their revert is pending. Polling never consumes the pending revert; the display engine handles it for this board. Null timestamps do not guarantee the physical board has repainted yet.
 
 **Parameters**
 
@@ -1276,11 +1276,11 @@ one document, because "what is this board doing" is one question.
 | `resolved_next_check_seconds` | `integer` \| `null` | no | Seconds until `resolved_page_id` may change on its own, when it came from a collection that rotates. Poll again after this long rather than on a guessed timer. Null for a plain page and for a collection that cannot rotate. |
 | `source` | `"manual"` \| `"schedule"` \| `"none"` | yes | Where `resolved_page_id` came from. |
 | `default_page_id` | `string` \| `null` | no | The page shown when the schedule has a gap. |
-| `override_expires_at` | `string` \| `null` | no | When this board's active timed message expires (ISO 8601), or null if none is running. |
+| `override_expires_at` | `string` \| `null` | no | When this board's active timed message expires (ISO 8601), or null if none is running. Null after expiry even while the display engine still has a pending revert. |
 | `next_change_at` | `string` \| `null` | no | When this board is next expected to change (ISO 8601 UTC, whole seconds): its override ends, its schedule hands over to a different page, its quiet hours start or end, or the collection showing rotates. Null when paused or when nothing changes within 8 days. Plugin triggers are never predicted. |
 | `next_change_reason` | `"override_ends"` \| `"schedule"` \| `"silence_starts"` \| `"silence_ends"` \| `"collection"` \| `null` | no | Why next_change_at is when it is. Null exactly when next_change_at is. |
 | `next_page_id` | `string` \| `null` | no | The page or collection in force after next_change_at, when the hub can know it; null when it cannot (a collection rotation, a blank revert, a quiet-hours indicator). |
-| `override_started_at` | `string` \| `null` | no | When this board's active override began (ISO 8601), or null if none is running. A replaced override has a new value, so it identifies one run (for a Live Activity or Live Update). |
+| `override_started_at` | `string` \| `null` | no | When this board's active override began (ISO 8601), or null if none is running. A replaced override has a new value, so it identifies one run (for a Live Activity or Live Update). Null after expiry even while the display engine still has a pending revert. |
 | `health` | [`HealthSummary`](#schema-healthsummary) | no | When the hub last reached this board (last_connected_at, latency_ms), when a frame last landed (last_update_at), and the last failed contact (last_error_at, last_error); these survive a hub restart. reachable says whether this hub process last reached the board or failed to, and breaker_open whether writes are held back after repeated failures. |
 | `drawing` | [`BoardDrawing`](#schema-boarddrawing) | yes | What this board's display can draw (lowercase, colored text, highlights, tiles, icons, any color, solid shapes, pixel canvases), with the color model, LED text face, icon names and pixel size an editor's tools need. |
 | `layers` | array of [`CanvasLayerModel`](#schema-canvaslayermodel) \| `null` | no | A pixel-matrix board only: the page's pixel canvases on the frame it shows, drawn over `characters` (`{x, y, width, height, rgba}`, rgba base64 RGBA; `[]` for none). Null on any other board. |
