@@ -156,6 +156,38 @@ beforeEach(() => {
 });
 
 describe("/displays", () => {
+  it("groups unreachable displays before healthy displays using words as well as dots", async () => {
+    setup([KITCHEN, DESK], {
+      kitchen: {
+        configured: true,
+        paused: false,
+        active_page_id: null,
+        health: { reachable: true, breaker_open: false },
+      },
+      desk: {
+        configured: true,
+        paused: false,
+        active_page_id: null,
+        health: { reachable: false, breaker_open: false },
+      },
+    });
+    renderWith(<DisplaysPage />);
+    const problems = await screen.findByRole("list", { name: "Needs a look" });
+    expect(within(problems).getByText("Desk Pixoo")).toBeInTheDocument();
+    expect(within(problems).getByText("Can't reach")).toBeInTheDocument();
+    const online = screen.getByRole("list", { name: "Online" });
+    expect(within(online).getByText("Kitchen")).toBeInTheDocument();
+    expect(problems.compareDocumentPosition(online) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("does not claim an unknown display is online", async () => {
+    setup([KITCHEN]);
+    renderWith(<DisplaysPage />);
+    const list = await screen.findByRole("list", { name: "Other displays" });
+    expect(within(list).getByText("Status unavailable")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Online" })).not.toBeInTheDocument();
+  });
+
   it("lists every display with its name, output and a way into its settings", async () => {
     setup([KITCHEN, DESK]);
     renderWith(<DisplaysPage />);
@@ -164,10 +196,7 @@ describe("/displays", () => {
     expect(within(cards[0]).getByText("Kitchen")).toBeInTheDocument();
     await waitFor(() => expect(within(cards[0]).getByTestId("display-output")).toHaveTextContent("Vestaboard"));
     expect(within(cards[1]).getByTestId("display-output")).toHaveTextContent("Divoom Pixoo");
-    expect(within(cards[1]).getByRole("link", { name: "Open settings for Desk Pixoo" })).toHaveAttribute(
-      "href",
-      "/displays/desk",
-    );
+    expect(cards[1]).toHaveAttribute("href", "/displays/desk");
   });
 
   it("shows each display's status from the status poll", async () => {
@@ -187,32 +216,58 @@ describe("/displays", () => {
     });
     renderWith(<DisplaysPage />);
     const cards = await screen.findAllByTestId("display-card");
-    expect(await within(cards[0]).findByTestId("board-status-badge")).toHaveTextContent("Connected");
-    expect(await within(cards[1]).findByTestId("board-status-badge")).toHaveTextContent("Not configured");
+    expect(await screen.findByRole("list", { name: "Needs a look" })).toHaveTextContent("Not configured");
+    expect(await screen.findByRole("list", { name: "Online" })).toHaveTextContent("Online");
   });
 
   it("draws an LED display as its LED matrix and a split-flap one as flaps", async () => {
     setup([KITCHEN, DESK]);
     renderWith(<DisplaysPage />);
     const cards = await screen.findAllByTestId("display-card");
+    await userEvent.click(cards[1]);
+    const pane = screen.getByTestId("display-detail-pane");
     await waitFor(() =>
-      expect(cards[1].querySelector("[data-slot='display-preview']")).toHaveAttribute("data-model", "divoom_pixoo64"),
+      expect(pane.querySelector("[data-slot='display-preview']")).toHaveAttribute("data-model", "divoom_pixoo64"),
     );
-    expect(cards[0].querySelector("[data-slot='display-preview']")).toBeNull();
+    expect(push).not.toHaveBeenCalled();
   });
 
-  it("pauses a display from its card", async () => {
+  it("pauses the selected display from its overview", async () => {
     const calls = setup([KITCHEN]);
     renderWith(<DisplaysPage />);
-    await userEvent.click(await screen.findByRole("button", { name: "Pause Kitchen" }));
+    await userEvent.click(await screen.findByRole("switch", { name: "Pause display" }));
     await waitFor(() => expect(calls.pause).toEqual([{ board: "kitchen", paused: true }]));
+  });
+
+  it("opens diagnostics with this display's health evidence", async () => {
+    setup([KITCHEN], {
+      kitchen: {
+        configured: true,
+        paused: false,
+        active_page_id: null,
+        health: {
+          reachable: false,
+          breaker_open: false,
+          latency_ms: 42,
+          last_connected_at: null,
+          last_update_at: null,
+          last_error: "timeout",
+        },
+      },
+    });
+    renderWith(<DisplaysPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Diagnostics" }));
+    const diagnostics = await screen.findByTestId("display-diagnostics");
+    expect(diagnostics).toHaveTextContent("42 ms");
+    expect(diagnostics).toHaveTextContent("Can't reach");
+    expect(diagnostics).toHaveTextContent("Last error");
   });
 
   it("offers Resume on a paused display", async () => {
     setup([{ ...KITCHEN, paused: true }]);
     renderWith(<DisplaysPage />);
-    expect(await screen.findByRole("button", { name: "Resume Kitchen" })).toBeInTheDocument();
-    expect(screen.getByTestId("board-paused-badge")).toBeInTheDocument();
+    expect(await screen.findByRole("switch", { name: "Pause display" })).toBeChecked();
+    expect(await screen.findByRole("list", { name: "Other displays" })).toHaveTextContent("Paused");
   });
 
   it("Add a display opens the output-first flow", async () => {

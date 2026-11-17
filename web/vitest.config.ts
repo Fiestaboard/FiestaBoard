@@ -32,6 +32,7 @@ export default defineConfig({
         "src/components/scaled-board-display.tsx",
         "src/components/active-page-display.tsx",
         "src/components/home/**",
+        "src/components/displays/display-{list,detail,overview,diagnostics}.tsx",
         "src/components/compose-page-dialog.tsx",
         "src/components/navigation-sidebar.tsx",
         "src/components/more-sheet.tsx",
