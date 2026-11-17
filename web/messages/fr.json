@@ -3584,7 +3584,6 @@
     "signInHelp": "Les notifications nécessitent une session connectée dans le navigateur, même lorsque la connexion au hub est désactivée.",
     "loadError": "Impossible de charger les paramètres de notification. Vérifiez votre connexion et réessayez.",
     "retry": "Réessayer",
-    "working": "Mise à jour des notifications…",
     "actionError": "Impossible de mettre à jour les notifications. Vérifiez votre connexion et réessayez.",
     "dismissed": "L’autorisation n’a pas été accordée. Activez ce navigateur lorsque vous le souhaitez.",
     "reconnect": "Ce navigateur doit être activé à nouveau.",
@@ -3592,13 +3591,13 @@
     "sendTest": "Envoyer un test",
     "sending": "Envoi…",
     "testSent": "Le service de notifications push a accepté le test. Vérifiez si la notification apparaît dans ce navigateur.",
+    "testFailed": "L’envoi de la notification de test a échoué. Réessayez plus tard.",
     "notSent": "Le test n’a pas été envoyé. Réessayez plus tard.",
     "testExpired": "Cet abonnement a expiré. Activez à nouveau ce navigateur.",
     "cooldown": "Veuillez patienter une minute avant d’envoyer un autre test.",
     "testError": "Le service de notifications push n’a pas pu accepter le test. Réessayez plus tard.",
     "blockedLabel": "bloquées par le navigateur",
     "httpsLabel": "nécessite HTTPS",
-    "notAvailableLabel": "pas encore disponibles",
     "loading": "Chargement des paramètres de notification…"
   }
 }

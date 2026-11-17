@@ -185,6 +185,36 @@ test("account opt-in, browser permission, test counts and device opt-out through
   ).toBe(1);
 });
 
+for (const width of [390, 768, 1280]) {
+  for (const theme of ["light", "dark"]) {
+    test(`failed notification test ${width} ${theme}`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 898 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await mockHub(page, "allowed");
+      await page.route("**/api/push/test", (route) =>
+        route.fulfill({ json: { sent: 0, failed: 1, skipped: 0, expired: 0 } }),
+      );
+      await page.goto(`/tests/layout/notifications.html?theme=${theme}&route=/settings?section=notifications`);
+      const sendTest = page.getByRole("button", { name: "Send a test" });
+      await expect(sendTest).toBeEnabled();
+      await sendTest.click();
+      await expect(page.getByRole("status")).toHaveText("Sending the test notification failed. Try again later.");
+      await expect(sendTest).toBeEnabled();
+      await expect(page.getByRole("switch", { name: "Enable on this browser" })).toBeChecked();
+      await axe(page);
+      // A viewport capture preserves the real fixed-navigation geometry on phones.
+      await page.getByRole("status").evaluate((element) => element.scrollIntoView({ block: "center" }));
+      await expect(page.getByRole("status")).toBeInViewport({ ratio: 1 });
+      if (width === 390) {
+        const feedback = await page.getByRole("status").boundingBox();
+        const navigation = await page.locator('[data-slot="sidebar-bottom-nav"]').boundingBox();
+        expect(feedback && navigation && feedback.y + feedback.height <= navigation.y).toBe(true);
+      }
+      await page.screenshot({ path: testInfo.outputPath(`impl-failed-${width}-${theme}.png`) });
+    });
+  }
+}
+
 for (const width of [390, 768, 1280, 1438]) {
   for (const theme of ["light", "dark"]) {
     for (const state of ["allowed", "denied", "insecure"] as const) {

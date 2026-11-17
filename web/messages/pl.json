@@ -3584,7 +3584,6 @@
     "signInHelp": "Powiadomienia wymagają aktywnej sesji logowania w przeglądarce, nawet jeśli logowanie do centrum jest wyłączone.",
     "loadError": "Nie udało się wczytać ustawień powiadomień. Sprawdź połączenie i spróbuj ponownie.",
     "retry": "Spróbuj ponownie",
-    "working": "Aktualizowanie powiadomień…",
     "actionError": "Nie udało się zaktualizować powiadomień. Sprawdź połączenie i spróbuj ponownie.",
     "dismissed": "Nie udzielono uprawnienia. Włącz tę przeglądarkę, gdy zechcesz.",
     "reconnect": "Trzeba ponownie włączyć tę przeglądarkę.",
@@ -3592,13 +3591,13 @@
     "sendTest": "Wyślij test",
     "sending": "Wysyłanie…",
     "testSent": "Usługa powiadomień push przyjęła test. Sprawdź, czy powiadomienie pojawiło się w tej przeglądarce.",
+    "testFailed": "Nie udało się wysłać powiadomienia testowego. Spróbuj ponownie później.",
     "notSent": "Test nie został wysłany. Spróbuj ponownie później.",
     "testExpired": "Ta subskrypcja wygasła. Włącz tę przeglądarkę ponownie.",
     "cooldown": "Odczekaj minutę przed wysłaniem kolejnego testu.",
     "testError": "Usługa powiadomień push nie mogła przyjąć testu. Spróbuj ponownie później.",
     "blockedLabel": "zablokowane przez przeglądarkę",
     "httpsLabel": "wymaga HTTPS",
-    "notAvailableLabel": "jeszcze niedostępne",
     "loading": "Wczytywanie ustawień powiadomień…"
   }
 }

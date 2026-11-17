@@ -3584,7 +3584,6 @@
     "signInHelp": "Aviseringar kräver att du är inloggad i webbläsaren, även när inloggning på hubben är avstängd.",
     "loadError": "Det gick inte att läsa in aviseringsinställningarna. Kontrollera anslutningen och försök igen.",
     "retry": "Försök igen",
-    "working": "Uppdaterar aviseringar…",
     "actionError": "Det gick inte att uppdatera aviseringarna. Kontrollera anslutningen och försök igen.",
     "dismissed": "Tillstånd gavs inte. Aktivera den här webbläsaren när du är redo.",
     "reconnect": "Den här webbläsaren behöver aktiveras igen.",
@@ -3592,13 +3591,13 @@
     "sendTest": "Skicka ett test",
     "sending": "Skickar…",
     "testSent": "Pushtjänsten har tagit emot testet. Kontrollera om aviseringen visas i den här webbläsaren.",
+    "testFailed": "Det gick inte att skicka testaviseringen. Försök igen senare.",
     "notSent": "Testet skickades inte. Försök igen senare.",
     "testExpired": "Den här prenumerationen har löpt ut. Aktivera den här webbläsaren igen.",
     "cooldown": "Vänta en minut innan du skickar ett nytt test.",
     "testError": "Pushtjänsten kunde inte ta emot testet. Försök igen senare.",
     "blockedLabel": "blockerade av webbläsaren",
     "httpsLabel": "behöver HTTPS",
-    "notAvailableLabel": "inte tillgängliga ännu",
     "loading": "Läser in aviseringsinställningar…"
   }
 }
