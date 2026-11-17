@@ -2270,11 +2270,11 @@ class DisplayService:
             # not only on the exit edge: the entry is discarded only once its
             # send succeeds, so a board that is offline at 7:00 gets it on a
             # later tick (up to the store's 24h TTL).
-            if not silence_mode_active and silence_config.get("show_queued_on_exit"):
+            if not silence_mode_active:
                 from src import silence_queue
 
                 held = silence_queue.peek(board_id)
-                if held is not None:
+                if held is not None and (held.kind == "compose" or silence_config.get("show_queued_on_exit")):
                     return self._deliver_held_send(held, rt, wait=wait)
 
             # --- Stage: trigger input (PRIMARY only; suppressed during silence) ---
@@ -2506,7 +2506,11 @@ class DisplayService:
             # --- Silence dispatch (per-board delivery, sized to this board) ---
             # A user-initiated temporary override (this board's own, since H1)
             # wins over silence (issue #949); everything else is silenced.
-            if silence_mode_active and not override_active:
+            compose_honors_silence = (
+                isinstance(getattr(override, "compose_request_id", None), str)
+                and getattr(override, "compose_silence", None) != "override"
+            )
+            if silence_mode_active and (not override_active or compose_honors_silence):
                 silence_mode = silence_config["mode"]
                 silence_geometry = self._silence_geometry(board, is_primary=is_primary)
                 silence_dt, silence_nw, silence_nt, silence_gr, silence_gc = silence_geometry
@@ -3439,6 +3443,11 @@ class DisplayService:
     def _deliver_held_send(self, held, rt: BoardRuntime, *, wait: bool = True) -> bool:
         """Paint the send held during silence; forget it only once it lands."""
         from src import silence_queue
+
+        if held.kind == "compose":
+            from src.compose.service import release
+
+            return release(held, self, rt, wait=wait)
 
         board_id = held.board_id
         try:

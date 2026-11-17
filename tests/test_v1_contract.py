@@ -118,11 +118,12 @@ def _seed_page(client: TestClient, name: str = "Contract Page") -> str:
 # ── the surface itself ──────────────────────────────────────────────────────
 
 
-def test_v1_publishes_exactly_thirty_four_operations():
-    """The contract is 34 operations. A 35th is a decision, not a side effect.
+def test_v1_publishes_exactly_thirty_six_operations():
+    """The contract is 36 operations. Each addition is an explicit decision.
 
     The 34th, ``POST /v1/boards/{board}/restore``, was that decision (#2354):
     recovering a board another client overwrote had no board-scoped path.
+    Compose adds explicit captured-intent admission and actor-bound outcome polling.
     """
     from tests.test_route_inventory import build_route_inventory
 
@@ -139,6 +140,8 @@ def test_v1_publishes_exactly_thirty_four_operations():
             "GET /v1/boards/{board}",
             "PATCH /v1/boards/{board}",
             "POST /v1/boards/{board}/message",
+            "POST /v1/boards/{board}/compose",
+            "GET /v1/boards/{board}/compose/{request_id}",
             "DELETE /v1/boards/{board}/message",
             "POST /v1/boards/{board}/restore",
             "PUT /v1/boards/{board}/active-page",
@@ -334,6 +337,8 @@ def test_get_board_merges_the_three_reads_into_one_answer(client, boards, board_
         "default_page_id",
         "override_expires_at",
         "override_started_at",
+        "compose_protocol",
+        "compose_receipt",
         "next_change_at",
         "next_change_reason",
         "next_page_id",

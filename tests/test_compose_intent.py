@@ -135,3 +135,66 @@ def test_prepared_request_has_a_bounded_replay_window():
         value = decode(prepared_at=prepared.isoformat())
         with pytest.raises(InvalidComposeDuration):
             value.validate_admission(now=now)
+
+
+def test_strict_compose_hold_failure_does_not_claim_persistence(monkeypatch):
+    from src import silence_queue
+
+    held = silence_queue.HeldSend.compose(decode().model_dump(mode="json"), board_id="strict-a")
+    monkeypatch.setattr(silence_queue, "_save_locked", lambda **kwargs: (_ for _ in ()).throw(OSError("read only")))
+    with pytest.raises(OSError):
+        silence_queue.hold(held, strict=True)
+    assert silence_queue.peek("strict-a") is None
+
+
+def test_queue_compare_and_commit_is_atomic_with_exact_captured_entry():
+    from src import silence_queue
+
+    old = silence_queue.HeldSend.compose(decode().model_dump(mode="json"), board_id="atomic-a")
+    newer = silence_queue.HeldSend.compose(decode().model_dump(mode="json"), board_id="atomic-a")
+    silence_queue.hold(old)
+    silence_queue.hold(newer)
+    committed = []
+    assert not silence_queue.commit_if_current(old, lambda: committed.append("old"))
+    assert committed == []
+    assert silence_queue.commit_if_current(newer, lambda: committed.append("new"))
+    assert committed == ["new"] and silence_queue.peek("atomic-a") is None
+
+
+def test_nested_old_operation_cannot_revive_its_control_generation():
+    import contextvars
+
+    from src.override_undo import _manual_operation
+    from src.settings.service import get_settings_service
+
+    settings = get_settings_service()
+    with _manual_operation():
+        old = settings.control_revision
+
+        def newer_operation():
+            with _manual_operation():
+                pass
+
+        contextvars.Context().run(newer_operation)
+        new = settings.control_revision
+        assert new != old
+        with _manual_operation():
+            assert settings.control_revision == new
+
+
+def test_failed_queue_consumption_preserves_exact_entry_for_reconciliation(monkeypatch):
+    from src import silence_queue
+
+    held = silence_queue.HeldSend.compose(decode().model_dump(mode="json"), board_id="consume-failure")
+    silence_queue.hold(held)
+    saved = silence_queue._save_locked
+
+    def fail_strict(**kwargs):
+        if kwargs.get("strict"):
+            raise OSError("read only")
+        return saved(**kwargs)
+
+    monkeypatch.setattr(silence_queue, "_save_locked", fail_strict)
+    with pytest.raises(OSError):
+        silence_queue.discard_if_current(held)
+    assert silence_queue.peek(held.board_id) == held

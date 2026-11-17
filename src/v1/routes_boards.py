@@ -185,7 +185,10 @@ async def get_board(board: str) -> BoardDetail:
         chosen = None
 
     override = settings_service.get_temporary_override(board_id)
+    from src.compose.service import readback
+
     return BoardDetail(
+        compose_receipt=readback(override),
         **base.model_dump(),
         characters=characters,
         text=characters_to_message(characters) if characters else None,

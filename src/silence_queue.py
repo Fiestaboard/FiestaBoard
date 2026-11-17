@@ -154,7 +154,7 @@ def _load_locked() -> dict[str, HeldSend]:
     return _held
 
 
-def _save_locked() -> None:
+def _save_locked(*, strict: bool = False) -> None:
     """Atomically rewrite the store file (caller holds ``_lock``)."""
     held = _held or {}
     path = _path()
@@ -167,15 +167,25 @@ def _save_locked() -> None:
     except OSError as exc:
         # A held message that is not persisted still works until a restart;
         # failing the send that asked for it would be worse.
+        if strict:
+            raise
         logger.warning("Could not persist held sends to %s: %s", path, exc)
 
 
-def hold(send: HeldSend) -> None:
+def hold(send: HeldSend, *, strict: bool = False) -> None:
     """Hold *send* for its board, replacing whatever was held there."""
     with _lock:
         held = _load_locked()
+        previous = held.get(send.board_id)
         held[send.board_id] = send
-        _save_locked()
+        try:
+            _save_locked(strict=strict)
+        except OSError:
+            if previous is None:
+                held.pop(send.board_id, None)
+            else:
+                held[send.board_id] = previous
+            raise
 
 
 def peek(board_id: str | None) -> HeldSend | None:
@@ -220,15 +230,29 @@ def _reset_for_tests() -> None:
         _held = None
 
 
-def discard_if_current(send: HeldSend) -> bool:
-    """Consume exactly a captured queue entry; a newer intent always survives."""
+def commit_if_matches(board_id: str, expected: HeldSend | None, commit) -> bool:
+    """Caller holds settings before this queue lock; commit cannot race replacement."""
     with _lock:
         held = _load_locked()
-        if held.get(send.board_id) != send:
+        if held.get(board_id) != expected:
             return False
-        del held[send.board_id]
-        _save_locked()
+        commit()
+        if expected is not None:
+            del held[board_id]
+            try:
+                _save_locked(strict=True)
+            except OSError:
+                held[board_id] = expected
+                raise
         return True
+
+
+def commit_if_current(send: HeldSend, commit) -> bool:
+    return commit_if_matches(send.board_id, send, commit)
+
+
+def discard_if_current(send: HeldSend) -> bool:
+    return commit_if_current(send, lambda: None)
 
 
 def _page_name(page_id: str) -> str:
@@ -254,6 +278,8 @@ def _truncate(text: str) -> str:
 
 def preview_text(send: HeldSend) -> str:
     """A short, human preview of *send* for the UI (at most 40 characters)."""
+    if send.kind == "compose":
+        return _truncate(" ".join(str(line) for line in send.payload.get("template", [])))
     if send.kind == "text":
         return _truncate(str(send.payload))
     if send.kind == "lines":

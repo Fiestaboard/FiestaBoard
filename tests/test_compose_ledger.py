@@ -79,3 +79,13 @@ def test_failed_reservation_persistence_never_claims_a_new_intent(tmp_path, monk
     with pytest.raises(OSError):
         store.begin(value, board_id="a", actor="phone-one")
     assert store.get(value.request_id, board_id="a", actor="phone-one") is None
+
+
+def test_missing_receipt_in_durable_history_fails_closed_as_unavailable(tmp_path):
+    import json
+
+    path = tmp_path / "compose_requests.json"
+    path.write_text(json.dumps({"records": {"bad": {}}}))
+    with pytest.raises(ValueError, match="history is unavailable"):
+        ledger(tmp_path)
+    assert json.loads(path.read_text()) == {"records": {"bad": {}}}

@@ -11,7 +11,7 @@ from uuid import UUID
 from src.paths import get_data_dir
 from src.storage.json_store import JsonStore
 
-from .models import ComposeReceipt, ComposeRequest
+from .models import ComposeReceipt, ComposeRequest, instant
 
 
 class ComposeRequestConflict(ValueError):
@@ -45,13 +45,18 @@ class ComposeLedger:
         self._records = copy.deepcopy(raw["records"])
         interrupted = False
         for key, record in self._records.items():
-            receipt = ComposeReceipt.model_validate(record["receipt"])
-            if (
-                str(receipt.request_id) != key
-                or not isinstance(record.get("fingerprint"), str)
-                or not isinstance(record.get("actor"), str)
-            ):
-                raise ValueError("Compose request history is unavailable")
+            try:
+                receipt = ComposeReceipt.model_validate(record["receipt"])
+                if (
+                    str(receipt.request_id) != key
+                    or not isinstance(record.get("fingerprint"), str)
+                    or not isinstance(record.get("actor"), str)
+                    or not isinstance(record.get("created_at"), str)
+                ):
+                    raise ValueError("Invalid record")
+                instant(record["created_at"])
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("Compose request history is unavailable") from None
             if receipt.status in {"preparing", "dispatching"}:
                 record["receipt"] = receipt.model_copy(
                     update={
@@ -128,6 +133,24 @@ class ComposeLedger:
             records[str(request.request_id)]["receipt"] = result.model_dump(mode="json")
             self._persist(records)
             return result
+
+    def reconcile_held(self, *, board_id: str, current_request_id: str | None) -> None:
+        """Caller holds settings; terminal receipts never become physical retries."""
+        with self._store.lock:
+            records = copy.deepcopy(self._records)
+            changed = False
+            for key, record in records.items():
+                receipt = record["receipt"]
+                if receipt["board_id"] == board_id and receipt["status"] == "held" and key != current_request_id:
+                    receipt.update(
+                        status="superseded",
+                        sent=False,
+                        held_until=None,
+                        reason="This intent is no longer held for delivery",
+                    )
+                    changed = True
+            if changed:
+                self._persist(records)
 
     def mark_dispatching(self, request: ComposeRequest, *, board_id: str) -> bool:
         with self._store.lock:

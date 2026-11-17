@@ -147,3 +147,9 @@ class ComposeReceipt(StrictModel):
     held_until: str | None = None
     reason: str | None = None
     duration: MinuteDuration | EndDuration | IndefiniteDuration
+    retry_after_seconds: StrictInt | None = None
+    failed_regions: list[dict[str, int]] = Field(default_factory=list)
+
+
+class ComposeError(StrictModel):
+    detail: str | ComposeReceipt

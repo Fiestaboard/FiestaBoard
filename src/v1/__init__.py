@@ -24,6 +24,8 @@ published schema tells every consumer the API is unauthenticated.
 
 from __future__ import annotations
 
+from src.compose import routes as compose_routes
+
 from . import routes_boards, routes_content, routes_install, routes_meta, routes_plugins
 from .openapi import install_security_scheme
 from .router import router
