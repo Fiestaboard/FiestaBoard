@@ -228,11 +228,14 @@ export function validateDocumentObservation(plan, observation) {
   const hidden = events.filter((event) => event.event === "visibility" && event.visibility === "hidden" && event.controlled === true);
   if (hidden.length !== 1 || !Number.isFinite(hidden[0].document_ms)) throw new Error("Exactly one actual controlled hidden lifecycle event is required");
   const settled = events.filter((event) => event.event === "post_action_settled");
-  if (settled.length !== 1 || settled[0].frame_count !== 2 || settled[0].idle_did_timeout !== false || !Number.isFinite(settled[0].document_ms) || settled[0].document_ms >= hidden[0].document_ms) throw new Error("Observed native frame/idle settle before hidden is required");
+  if (!settled.length || settled.some((event) => event.frame_count !== 2 || event.idle_did_timeout !== false || !Number.isFinite(event.document_ms))) throw new Error("Observed native frame/idle settle before hidden is required");
+  const latestSettle = [...settled].sort((left, right) => left.document_ms - right.document_ms).at(-1);
+  if (latestSettle.document_ms >= hidden[0].document_ms) throw new Error("Settle must precede the actual hidden transition");
   if (!events.some((event) => event.diagnostic_type === "first-input" && event.entry?.entryType === "first-input")) throw new Error("Actual raw first-input proof is missing from settle evidence");
   const inputs = events.filter((event) => event.event === "trusted_input");
   if (!inputs.length || inputs.length !== lifecycle.trustedInputCount || inputs.some((event) => !Number.isFinite(event.document_ms))) throw new Error("Actual trusted input records are missing or inconsistent");
   const firstInput = Math.min(...inputs.map((event) => event.document_ms));
+  if (latestSettle.document_ms < Math.max(...inputs.map((event) => event.document_ms)) || latestSettle.trusted_input_count !== inputs.length) throw new Error("Latest settle must follow every trusted input in the script");
   if (firstInput - observation.ready_ms < 1000) throw new Error("First trusted input preceded the fixed post-ready observation window");
   const scripts = {
     home: ["compose-open", "compose-type", "compose-cancel"], pages: ["page-open"],
@@ -276,7 +279,7 @@ export function installBrowserCollector(preferences) {
   if (window.top !== window || !["http:", "https:"].includes(window.location.protocol)) return null;
   if (window.__perfBrowser) throw new Error("Collector already installed in this document");
   const documentId = window.crypto.randomUUID();
-  const state = { documentId, trustedInputCount: 0, hiddenObserved: false, invalidReason: null, sinkFailed: false, firstInputCount: 0, lastEventStart: null, postActionSettled: false };
+  const state = { documentId, trustedInputCount: 0, hiddenObserved: false, invalidReason: null, sinkFailed: false, firstInputCount: 0, lastEventStart: null, postActionSettled: false, lastSettledInputCount: null };
   const pending = new Set();
   const observers = [];
   let hideArmed = false;
@@ -329,6 +332,7 @@ export function installBrowserCollector(preferences) {
       let idleHandle;
       let cancelled = false;
       let frames = 0;
+      const inputGeneration = state.trustedInputCount;
       const frame = () => new Promise((resolve) => {
         frameHandle = window.requestAnimationFrame(() => { if (!cancelled) { frames += 1; resolve(); } });
       });
@@ -343,14 +347,18 @@ export function installBrowserCollector(preferences) {
           }, { timeout: timeoutMs });
         });
         if (cancelled || state.invalidReason || window.document.visibilityState !== "visible") throw new Error("Lifecycle changed during foreground settle");
+        if (state.trustedInputCount !== inputGeneration) throw new Error("New trusted input arrived during settle; fresh barrier required");
         for (const { observer, type } of observers) for (const entry of observer.takeRecords()) diagnostic(entry, type);
         await api.drain();
         if (state.firstInputCount < 1) throw new Error("Raw first-input proof missing at settle");
+        if (state.trustedInputCount !== inputGeneration) throw new Error("New trusted input arrived before settle acknowledgement");
         if (state.invalidReason) throw new Error("Sink/lifecycle failed during settle");
         state.postActionSettled = true;
-        emit({ record_type: "browser_lifecycle", event: "post_action_settled", frame_count: frames, idle_did_timeout: false, first_input_count: state.firstInputCount, last_event_start_ms: state.lastEventStart });
+        state.lastSettledInputCount = inputGeneration;
+        emit({ record_type: "browser_lifecycle", event: "post_action_settled", frame_count: frames, idle_did_timeout: false, trusted_input_count: inputGeneration, first_input_count: state.firstInputCount, last_event_start_ms: state.lastEventStart });
         await api.drain();
         if (state.invalidReason) throw new Error("Sink/lifecycle failed after settle acknowledgement");
+        if (state.trustedInputCount !== inputGeneration) throw new Error("New trusted input arrived during settle acknowledgement");
         return { ...state };
       };
       const timeout = new Promise((_resolve, reject) => {
@@ -372,6 +380,7 @@ export function installBrowserCollector(preferences) {
     },
     beforeHide: () => {
       if (window.document.visibilityState !== "visible" || state.hiddenObserved) invalidate("unexpected_hidden");
+      if (!state.postActionSettled || state.lastSettledInputCount !== state.trustedInputCount || state.trustedInputCount < 1) invalidate("post_action_unsettled");
       hideArmed = true;
     },
     drain: async () => {
@@ -384,6 +393,7 @@ export function installBrowserCollector(preferences) {
     window.addEventListener(type, (event) => {
       if (!event.isTrusted) return;
       if (window.document.visibilityState !== "visible" || state.hiddenObserved) invalidate("input_after_hidden");
+      state.postActionSettled = false;
       state.trustedInputCount += 1;
       emit({ record_type: "browser_lifecycle", event: "trusted_input", input_type: type });
     }, { capture: true });

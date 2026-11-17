@@ -365,8 +365,10 @@ test("an untrusted DOM event cannot finalize LCP, while a genuine first input ca
 });
 
 test("controlled hidden flush retains a received final INP callback without synthesizing a missing callback", async () => {
-  const c = collectorRealm();
+  const c = collectorRealm({ observerTypes: ["first-input"] });
   c.fire("click", { isTrusted: true });
+  c.deliver("first-input", [{ entryType: "first-input", startTime: 25, duration: 0 }]);
+  await c.api.settleAfterActions({ timeoutMs: 1000 });
   c.api.beforeHide();
   c.realm.document.visibilityState = "hidden";
   c.fire("visibilitychange", { isTrusted: true });
@@ -846,7 +848,7 @@ function documentObservation(documentId = "doc-one", { controlled = false } = {}
       { record_type: "browser_lifecycle", event: "trusted_input", document_id: documentId, document_ms: 1150, input_type: "keydown" },
       { record_type: "browser_lifecycle", event: "trusted_input", document_id: documentId, document_ms: 1200, input_type: "click" },
       { record_type: "browser_diagnostic", diagnostic_type: "first-input", document_id: documentId, document_ms: 1210, entry: { entryType: "first-input", startTime: 1100, duration: 0, processingStart: 1100, processingEnd: 1100 } },
-      { record_type: "browser_lifecycle", event: "post_action_settled", document_id: documentId, document_ms: 1250, frame_count: 2, idle_did_timeout: false },
+      { record_type: "browser_lifecycle", event: "post_action_settled", document_id: documentId, document_ms: 1250, frame_count: 2, idle_did_timeout: false, trusted_input_count: 3 },
       { record_type: "browser_lifecycle", event: "visibility", document_id: documentId, document_ms: 1300, visibility: "hidden", controlled: true },
       { record_type: "browser_metric", document_id: documentId, document_ms: 1101, name: "LCP", id: `lcp-${documentId}`, value: 250, final: true },
       { record_type: "browser_metric", document_id: documentId, document_ms: 1301, name: "INP", id: `inp-${documentId}`, value: 24, final: true },
@@ -1075,4 +1077,26 @@ test("failed Chromium startup is bounded and cleans its owned process/profile be
   const profile = fake.seen[0]?.find((arg) => arg.startsWith("--user-data-dir="))?.slice(16);
   assert.ok(profile);
   await assert.rejects(lstat(profile), /ENOENT/);
+});
+
+test("a later trusted input invalidates an earlier settled state and hiding requires a fresh barrier", async () => {
+  const c = collectorRealm({ observerTypes: ["first-input"] });
+  c.fire("click", { isTrusted: true });
+  c.deliver("first-input", [{ entryType: "first-input", startTime: 25, duration: 0 }]);
+  await c.api.settleAfterActions({ timeoutMs: 1000 });
+  assert.equal(c.api.state().postActionSettled, true);
+  c.fire("keydown", { isTrusted: true });
+  assert.equal(c.api.state().postActionSettled, false);
+  c.api.beforeHide();
+  assert.equal(c.api.state().invalidReason, "post_action_unsettled");
+});
+
+test("the latest observed settle must follow the last trusted input and multiple genuine barriers remain admissible", () => {
+  const plan = planBrowserBatch(routeConfig, routeManifest);
+  const earlier = documentObservation();
+  earlier.events.filter((event) => event.event === "trusted_input").at(-1).document_ms = 1275;
+  assert.throws(() => validateDocumentObservation(plan, earlier), /settle|input/i);
+  const settledAgain = documentObservation();
+  settledAgain.events.push({ record_type: "browser_lifecycle", document_id: "doc-one", event: "post_action_settled", document_ms: 1280, frame_count: 2, idle_did_timeout: false, trusted_input_count: 3 });
+  assert.equal(validateDocumentObservation(plan, settledAgain).complete, true);
 });
