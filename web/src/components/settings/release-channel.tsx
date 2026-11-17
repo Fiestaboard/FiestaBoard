@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Badge,
+  Button,
   ChoiceCard,
   ChoiceCardGroup,
   PageSection,
@@ -29,20 +30,33 @@ import type { ReleaseChannel } from "@/lib/api/system";
 const CHANNELS: ReleaseChannel[] = ["stable", "beta", "alpha"];
 const LABELS = { stable: "channelStable", beta: "channelBeta", alpha: "channelAlpha" } as const;
 
-/** Settings → System; the current selection always describes the running image. */
+/** Settings → System; exploring channels never installs an image. */
 export function ReleaseChannelCard() {
   const t = useTranslations("releaseChannel");
   const queryClient = useQueryClient();
   const { startUpdate } = useUpdate();
+  const [selection, setSelection] = useState<ReleaseChannel | null>(null);
   const [target, setTarget] = useState<ReleaseChannel | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["system", "channel"],
     queryFn: () => api.getReleaseChannel(),
     staleTime: 60_000,
   });
+  const versions = useQuery({
+    queryKey: ["system", "channel", "versions"],
+    queryFn: () => api.getReleaseChannelVersions(),
+    enabled: !!data?.can_switch,
+    staleTime: 60_000,
+    retry: false,
+  });
   const switchMutation = useMutation({
     // A separate dialog action explicitly confirms the major-upgrade warning.
-    mutationFn: (channel: ReleaseChannel) => api.setReleaseChannel(channel, true),
+    mutationFn: (channel: ReleaseChannel) => {
+      const targetVersion = versions.data?.channel_versions[channel];
+      const targetMajor = targetVersion ? Number.parseInt(targetVersion, 10) : channel === "alpha" ? 11 : NaN;
+      const runningMajor = Number.parseInt(data?.running_version ?? "", 10);
+      return api.setReleaseChannel(channel, targetMajor > runningMajor);
+    },
     onSuccess: (result) => {
       setTarget(null);
       if (result?.warning) toast.warning(result.warning);
@@ -56,6 +70,7 @@ export function ReleaseChannelCard() {
   });
   if (isLoading || !data) return null;
   const current = data.running_channel ?? data.channel;
+  const selected = selection ?? current;
   const leaving = (current === "alpha" && target !== "alpha") || (current === "beta" && target === "stable");
 
   return (
@@ -66,30 +81,45 @@ export function ReleaseChannelCard() {
       {...anchorProps("settings.release_channel")}
     >
       {data.can_switch ? (
-        <ChoiceCardGroup
-          aria-label={t("title")}
-          value={current}
-          disabled={switchMutation.isPending}
-          onValueChange={(value) => {
-            if (CHANNELS.includes(value as ReleaseChannel) && value !== current) setTarget(value as ReleaseChannel);
-          }}
-          {...anchorProps("settings.release_channel.channel")}
-        >
-          {CHANNELS.map((channel) => (
-            <ChoiceCard
-              key={channel}
-              value={channel}
-              disabled={!data.available_channels.includes(channel)}
-              title={
-                <>
-                  {t(LABELS[channel])} {current === channel && <Badge variant="secondary">{t("currentBadge")}</Badge>}
-                </>
+        <>
+          <ChoiceCardGroup
+            aria-label={t("title")}
+            value={selected}
+            disabled={switchMutation.isPending}
+            onValueChange={(value) => {
+              if (CHANNELS.includes(value as ReleaseChannel)) setSelection(value as ReleaseChannel);
+            }}
+            onKeyDown={(event) => {
+              if ((event.key === "Enter" || event.key === " ") && selected !== current) {
+                event.preventDefault();
+                setTarget(selected);
               }
-              description={t(`${channel}Description`)}
-              meta={data.channel_versions?.[channel] ?? t("versionUnavailable")}
-            />
-          ))}
-        </ChoiceCardGroup>
+            }}
+            {...anchorProps("settings.release_channel.channel")}
+          >
+            {CHANNELS.map((channel) => (
+              <ChoiceCard
+                key={channel}
+                value={channel}
+                disabled={!data.available_channels.includes(channel)}
+                title={
+                  <>
+                    {t(LABELS[channel])} {current === channel && <Badge variant="secondary">{t("currentBadge")}</Badge>}
+                  </>
+                }
+                description={t(`${channel}Description`)}
+                meta={
+                  versions.isPending
+                    ? t("versionLoading")
+                    : (versions.data?.channel_versions[channel] ?? t("versionUnavailable"))
+                }
+              />
+            ))}
+          </ChoiceCardGroup>
+          <Button disabled={selected === current || switchMutation.isPending} onClick={() => setTarget(selected)}>
+            {t("switchCta")}
+          </Button>
+        </>
       ) : (
         <Text size="sm" tone="muted">
           {data.reason ?? t("switchUnavailable")}
