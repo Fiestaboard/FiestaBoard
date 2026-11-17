@@ -46,13 +46,6 @@
     return typeof value === 'string' ? Array.from(value).slice(0, limit).join('') : '';
   }
 
-  async function clearBadge() {
-    try {
-      var nav = self.navigator;
-      if (nav && typeof nav.clearAppBadge === 'function') await nav.clearAppBadge();
-    } catch (e) { /* Unsupported, revoked, or unavailable: cleanup is best effort. */ }
-  }
-
   self.addEventListener('push', function (event) {
     event.waitUntil((async function () {
       var payload;
@@ -93,12 +86,13 @@
       notifications.forEach(function (notification) {
         try { notification.close(); } catch (e) { /* Continue closing the remaining notifications. */ }
       });
-    } catch (e) { /* Registration cleanup must not prevent badge cleanup. */ }
+    } catch (e) { /* Notification cleanup is best effort. */ }
   }
 
   self.addEventListener('message', function (event) {
     var type = event.data && event.data.type;
-    if (type === 'CLEAR_BADGE') event.waitUntil(clearBadge());
-    else if (type === 'CLEAR_PUSH') event.waitUntil(Promise.all([clearBadge(), closeNotifications()]));
+    // The page owns More attention and clears its badge on sign-out. Push
+    // cleanup must not acknowledge that independent attention state.
+    if (type === 'CLEAR_PUSH') event.waitUntil(closeNotifications());
   });
 })();

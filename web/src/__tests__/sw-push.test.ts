@@ -155,12 +155,13 @@ describe("push delivery", () => {
   });
 
   it.each(["unsupported", "reject", "throw"])(
-    "displays push and tolerates badge cleanup when Badging is %s",
+    "push cleanup leaves app attention unchanged when Badging is %s",
     async (mode) => {
       const h = harness(SCOPE, mode);
       await h.push({ title: "Alert", body: "Hello" });
       expect(h.shown[0].title).toBe("Alert");
-      await h.message("CLEAR_BADGE");
+      await h.message("CLEAR_PUSH");
+      expect(h.badgeClears).toEqual([]);
     },
   );
 
@@ -259,25 +260,18 @@ describe("notification interaction", () => {
     expect(h.opened).toEqual([SCOPE]);
   });
 
-  it("CLEAR_BADGE leaves notifications visible", async () => {
-    const h = harness();
-    await h.message("CLEAR_BADGE");
-    expect(h.badgeClears).toEqual([true]);
-    expect(h.closed).toEqual([]);
-  });
-
-  it("CLEAR_PUSH clears both badge and notifications", async () => {
+  it("CLEAR_PUSH closes notifications without acknowledging More attention", async () => {
     const h = harness();
     await h.message("CLEAR_PUSH");
-    expect(h.badgeClears).toEqual([true]);
+    expect(h.badgeClears).toEqual([]);
     expect(h.closed).toEqual(["existing"]);
   });
 
-  it("still clears the badge when notification lookup fails", async () => {
+  it("notification lookup failure leaves More attention unchanged", async () => {
     const h = harness();
     h.failNotificationLookup();
     await h.message("CLEAR_PUSH");
-    expect(h.badgeClears).toEqual([true]);
+    expect(h.badgeClears).toEqual([]);
   });
 
   it("closes remaining notifications if one close fails", async () => {

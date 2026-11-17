@@ -33,7 +33,7 @@ Files: new web/src/lib/api/push.ts, web/src/lib/pwa/push.ts and focused tests; w
 
 Files: web/public/sw-push.js, additive import in web/public/sw.js, web/src/**tests**/sw-push.test.ts.
 
-- [x] RED: execute real worker code at browser seams; validate payload, showNotification, waitUntil, same-origin scope routing, focus/open, CLEAR_PUSH notification cleanup and CLEAR_BADGE message.
+- [x] RED: execute real worker code at browser seams; validate payload, showNotification, waitUntil, same-origin scope routing, focus/open and CLEAR_PUSH notification cleanup. Badge ownership stays with the page, independent of push cleanup.
 - [x] Implement imported worker module. Payload title/body/url/tag matches H15; push never changes badges: the app drives a dot from More attention, never an unread count. Reject external/traversing URLs and fall back to scope root; preserve HA prefixes. No app-shell caching change.
 - [x] GREEN: helper focused tests, parent integrates and inspects diff.
 

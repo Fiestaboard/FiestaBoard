@@ -72,7 +72,7 @@ test("the real ingress-scoped worker displays local push events and clears notif
         }));
       }, SCOPE_PATH);
 
-    const clear = async (type: "CLEAR_BADGE" | "CLEAR_PUSH") => {
+    const clear = async (type: "CLEAR_PUSH") => {
       await page.evaluate(
         async ({ scopePath, messageType }) => {
           const registration = await navigator.serviceWorker.getRegistration(scopePath);
@@ -106,8 +106,6 @@ test("the real ingress-scoped worker displays local push events and clears notif
     ];
     await expect.poll(notices).toEqual(expected);
 
-    await clear("CLEAR_BADGE");
-    await expect.poll(notices).toEqual(expected);
     await clear("CLEAR_PUSH");
     await expect.poll(notices).toEqual([]);
 
