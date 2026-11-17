@@ -185,6 +185,15 @@ describe("/displays", () => {
     expect(problems.compareDocumentPosition(online) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("uses readable status text with a warning dot for a panel without a viewer", async () => {
+    setup([TV]);
+    server.use(http.get(`${API}/auth/sessions`, () => HttpResponse.json({ sessions: [], total: 0 })));
+    renderWith(<DisplaysPage />);
+    const group = await screen.findByRole("list", { name: "Needs a look" });
+    expect(within(group).getByText("No viewer", { exact: true })).toHaveClass("text-foreground");
+    expect(group.querySelector('[data-slot="status-dot"]')).toHaveAttribute("data-status", "warning");
+  });
+
   it("does not claim an unknown display is online", async () => {
     setup([KITCHEN]);
     renderWith(<DisplaysPage />);

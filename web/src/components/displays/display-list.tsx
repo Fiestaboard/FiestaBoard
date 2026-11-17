@@ -189,7 +189,7 @@ export function DisplayList({
                             className={
                               group === "attention"
                                 ? kind === "noViewer"
-                                  ? "text-warning"
+                                  ? "text-foreground"
                                   : "text-destructive"
                                 : "text-muted-foreground"
                             }
