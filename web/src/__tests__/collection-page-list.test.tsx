@@ -210,7 +210,10 @@ describe("CollectionPageList, time mode", () => {
   it("gives a coarse pointer the larger ••• button", () => {
     stubCoarsePointer(true);
     render(<Harness />);
-    expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute("data-size", "icon-touch");
+    expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute(
+      "data-size",
+      "icon-touch",
+    );
   });
 
   it("keeps the compact ••• button for a fine pointer", () => {
