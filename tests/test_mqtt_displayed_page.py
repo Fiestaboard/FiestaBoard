@@ -178,7 +178,7 @@ class TestCurrentPageFollowsTheBoard:
         svc, _clients = _service_with_runtimes(boards)
         override = SimpleNamespace(
             is_inline=False,
-            is_expired=lambda: False,
+            is_expired=lambda at=None: False,
             page_id="pS",
             revert_mode="schedule",
             revert_page_id=None,
@@ -201,7 +201,7 @@ class TestCurrentPageFollowsTheBoard:
         svc, _clients = _service_with_runtimes(boards)
         override = SimpleNamespace(
             is_inline=True,
-            is_expired=lambda: False,
+            is_expired=lambda at=None: False,
             template=["ONE OFF"],
             line_metadata=None,
             device_type="flagship",
