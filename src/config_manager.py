@@ -1294,10 +1294,12 @@ class ConfigManager:
 
                 self._save_internal()
             logger.info("General settings updated")
-            return True
         except Exception as e:
             logger.error(f"Failed to update general settings: {e}")
             return False
+        if "instance_name" in settings:
+            _refresh_mdns_advertisement()
+        return True
 
     def get_ai_providers(self) -> dict[str, Any]:
         """Get the AI providers configuration block.
@@ -2295,3 +2297,13 @@ class ConfigManager:
 def get_config_manager() -> ConfigManager:
     """Get the singleton ConfigManager instance."""
     return ConfigManager()
+
+
+def _refresh_mdns_advertisement() -> None:
+    """Re-announce the mDNS TXT ``name=`` after a rename (H13 PR 3); never fails a save."""
+    try:
+        from src.system.mdns import refresh_mdns_advertisement
+
+        refresh_mdns_advertisement()
+    except Exception:
+        logger.debug("Could not schedule an mDNS TXT refresh", exc_info=True)

@@ -284,9 +284,10 @@ credential as a password sign-in, listed in **Signed-in devices** as a QR / code
   hub's network address, or set `FIESTABOARD_EXTERNAL_URL`.
   `FIESTABOARD_EXTERNAL_URL` must be `scheme://host[:port]` with no path (a reverse
   proxy on a sub-path isn't supported here); a value that isn't is logged once and
-  skipped. In Docker's default bridge network the hub's own LAN address is the
-  container's, so it's left out; with `network_mode: host` it's kept. If you removed
-  Docker's default bridge, set `FIESTABOARD_EXTERNAL_URL` instead.
+  skipped. In a bridged Docker or Podman container the hub's own LAN address is the
+  container's, whatever its range, so it's left out; with host networking
+  (`network_mode: host`, `--network host`) it's kept. If you removed Docker's or
+  Podman's default bridge (`docker0`, `podman0`), set `FIESTABOARD_EXTERNAL_URL` instead.
 
 The endpoints are `POST /auth/pairing` (browser session), `GET /auth/pairing/{id}`,
 `DELETE /auth/pairing` and `POST /auth/pairing/claim` (the app).

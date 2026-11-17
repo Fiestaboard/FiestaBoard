@@ -10,13 +10,15 @@ first, and never a loopback one:
 2. ``configured``: the operator's ``FIESTABOARD_EXTERNAL_URL``;
 3. ``mdns``: the ``<hostname>.local`` name this hub advertises (the same name
    as H13's TXT ``host=``), while the advertisement is up;
-4. ``lan``: this host's LAN IPv4, on the browser's port. Inside a Docker
-   bridge network that address (172.16.0.0/12) is the container's own,
-   which no phone can reach, so it is left out there. A bridge network is
-   told from ``network_mode: host`` by the host's ``docker0`` interface:
-   visible in a host-network container, absent in a bridged one. (A host
-   with Docker's default bridge removed reads as bridged; set
-   ``FIESTABOARD_EXTERNAL_URL`` there.)
+4. ``lan``: this host's LAN IPv4, on the browser's port. Inside a bridged
+   container that address is the container's own, which no phone can
+   reach, so it is left out there whatever its range (Docker's 172.16.0.0/12,
+   Podman's 10.88.0.0/16, or a user-defined network) (H18b). A container is
+   told by Docker's ``/.dockerenv`` or Podman's ``/run/.containerenv``; a
+   bridged one from ``network_mode: host`` by the host's ``docker0`` /
+   ``podman0`` interface: visible in a host-network container, absent in a
+   bridged one. (A host with that default bridge removed reads as bridged;
+   set ``FIESTABOARD_EXTERNAL_URL`` there.)
 """
 
 from __future__ import annotations
@@ -30,10 +32,10 @@ from typing import Any
 from .origins import normalized_origin
 
 Origin = tuple[str, str, int]
-_DOCKER_BRIDGE = ipaddress.ip_network("172.16.0.0/12")
-#: Docker's marker file, and the host's default-bridge interface (seen only with host networking).
-DOCKERENV = Path("/.dockerenv")
-HOST_DOCKER_BRIDGE = Path("/sys/class/net/docker0")
+#: Docker's and Podman's in-container marker files.
+CONTAINER_MARKERS = (Path("/.dockerenv"), Path("/run/.containerenv"))
+#: The hosts' default-bridge interfaces (seen inside a container only with host networking).
+HOST_BRIDGES = (Path("/sys/class/net/docker0"), Path("/sys/class/net/podman0"))
 
 logger = logging.getLogger(__name__)
 #: The malformed FIESTABOARD_EXTERNAL_URL values already logged (say it once, not per offer).
@@ -53,8 +55,8 @@ def lan_ipv4() -> str:
 
 
 def in_bridge_network() -> bool:
-    """Whether this runs in a Docker bridge network, where the LAN address seen is the container's."""
-    return DOCKERENV.exists() and not HOST_DOCKER_BRIDGE.exists()
+    """Whether this runs in a bridged container (Docker or Podman), where the LAN address seen is the container's."""
+    return any(m.exists() for m in CONTAINER_MARKERS) and not any(b.exists() for b in HOST_BRIDGES)
 
 
 def is_loopback(host: str) -> bool:
@@ -84,7 +86,7 @@ def _lan(origin: Origin | None) -> Origin | None:
         address = ipaddress.ip_address(ip)
     except ValueError:
         return None
-    if address.is_loopback or address.is_unspecified or (in_bridge_network() and address in _DOCKER_BRIDGE):
+    if address.is_loopback or address.is_unspecified or in_bridge_network():
         return None
     scheme, port = (origin[0], origin[2]) if origin else ("http", int(os.environ.get("MDNS_PORT", "4420")))
     return scheme, ip, port

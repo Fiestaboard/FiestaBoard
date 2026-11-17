@@ -244,8 +244,9 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
         )
     except Exception:
         # The board answered; a failing lookup must not turn that into a 500.
-        logger.error("Existing-board check failed during a connection test; reporting none", exc_info=True)
-        verdict["existing_boards"] = []
+        # null, not []: "not checked" must not read as "no display uses this" (H19 follow-up).
+        logger.error("Existing-board check failed during a connection test; reporting it as not checked", exc_info=True)
+        verdict["existing_boards"] = None
     return verdict
 
 

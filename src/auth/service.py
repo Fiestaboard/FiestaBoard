@@ -458,6 +458,13 @@ class AuthService:
             else:
                 self._data["auth_pref"] = preference
             self._save()
+        # The mDNS TXT carries the hub's name only while sign-in is off (H13 PR 3).
+        try:
+            from src.system.mdns import refresh_mdns_advertisement
+
+            refresh_mdns_advertisement()
+        except Exception:
+            logger.debug("Could not schedule an mDNS TXT refresh", exc_info=True)
 
     # -- MCP bearer token --------------------------------------------------
 
