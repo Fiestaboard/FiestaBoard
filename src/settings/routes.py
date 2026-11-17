@@ -40,6 +40,7 @@ from fastapi.responses import JSONResponse
 
 from src.api_deprecation import deprecation_notice, flat_board_fields_notice
 from src.api_errors import errors
+from src.auth import phone_policy
 from src.board_send_executor import run_board_send
 from src.collections.service import resolve_active_page_id, resolve_next_check_seconds
 from src.devices import classify_dimensions, geometry_of
@@ -106,8 +107,6 @@ from .models import (
     UndoTemporaryOverrideRequest,
     WizardStateBody,
 )
-from src.auth import phone_policy
-
 from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, page_transition
 from .service import temporary_override_payload as _temporary_override_payload
 

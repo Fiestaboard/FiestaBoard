@@ -302,7 +302,10 @@ def test_moving_a_provider_with_its_key_typed_again_is_allowed(phone, config):
 
 def test_editing_in_place_keeps_masked_secrets(phone, config):
     step_up(phone)
-    assert phone.put("/settings/ai", json=provider_update(name="Acme 2", base_url=PROVIDER["base_url"] + "/")).status_code == 200
+    assert (
+        phone.put("/settings/ai", json=provider_update(name="Acme 2", base_url=PROVIDER["base_url"] + "/")).status_code
+        == 200
+    )
     stored = config.get_ai_provider("acme")
     assert stored["name"] == "Acme 2"
     assert stored["api_key"] == SECRET_KEY and stored["headers"] == {"X-Org": SECRET_HEADER}
