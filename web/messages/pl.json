@@ -3290,6 +3290,7 @@
     "unknownDisplay": "Nie można ustalić, co ten wyświetlacz potrafi wyświetlać",
     "plainTextOnly": "Dostępny jest zwykły tekst. Kolory i narzędzia właściwe dla wyświetlacza są niedostępne.",
     "targetUnavailable": "Ten wyświetlacz jest niedostępny do wyświetlania na żywo.",
-    "nameRequired": "Nadaj nazwę tej stronie"
+    "nameRequired": "Nadaj nazwę tej stronie",
+    "newerChangesUnsaved": "Zmiany wprowadzone podczas zapisywania nadal nie są zapisane. Zapisz ponownie przed ich wyświetleniem."
   }
 }

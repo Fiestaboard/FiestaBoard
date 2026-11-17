@@ -50,6 +50,7 @@ import {
   Switch,
   Text,
   Textarea,
+  toast as kitToast,
   ToolbarDropdown,
   Tooltip,
   TooltipContent,
@@ -59,6 +60,7 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload } from "lucide-react";
+import { toast } from "sonner";
 import {
   forwardRef,
   lazy,
@@ -70,7 +72,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { CanvasesPanel, type CanvasesPanelHandle } from "@/components/canvas-editor/canvases-panel";
@@ -193,6 +194,7 @@ interface PageBuilderProps {
  */
 export interface PageBuilderHandle {
   getCurrentPage: () => CurrentPageSnapshot | undefined;
+  getPageId: () => string | undefined;
   getDeviceType: () => DeviceType;
   applyToolCall: (call: EditorToolCall) => void;
   /** Persist the current editor content to the API without closing. */
@@ -322,6 +324,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const tBoardDisplay = useTranslations("boardDisplay");
   const dockedPreview = useMediaQuery("(max-width: 1023px)");
   const sheetPickers = useMediaQuery("(max-width: 639px)");
+  const useTouchToolbar = useMediaQuery("(max-width: 767px), (pointer: coarse)");
   const [previewMode, setPreviewMode] = useState<BoardPreviewMode>(() => readStoredBoardPreviewMode() ?? "actual");
   const changePreviewMode = (mode: BoardPreviewMode) => {
     setPreviewMode(mode);
@@ -329,6 +332,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   };
   const [showPageId, setShowPageId] = useState<string | null>(null);
   const showAfterSaveRef = useRef(false);
+  const requestShowNowRef = useRef<(savedId?: string) => void>(() => {});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
@@ -843,6 +847,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       discardStaging,
       reloadFromServer,
       getCurrentPage: getCurrentPageSnapshot,
+      getPageId: () => pageId,
       getDeviceType: () => deviceTypeRef.current,
       applyToolCall,
       save: async () => {
@@ -946,7 +951,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // character set is what the render is checked against.
   const previewBoard = useMemo(
     () =>
-      boardForShape(boardSettings?.boards, [targetBoardId, chosenLiveBoardId, currentBoardId], {
+      boardForShape(boardSettings?.boards, [chosenLiveBoardId, targetBoardId, currentBoardId], {
         device_type: deviceType,
         notes_wide: notesWide,
         notes_tall: notesTall,
@@ -1606,6 +1611,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     return { cleanedLines, metadata };
   };
 
+  type SubmittedForm = NonNullable<typeof savedSnapshot>;
+  const snapshotForm = (): SubmittedForm => ({
+    name,
+    deviceType,
+    geometry: JSON.stringify(geometryFields(deviceType, notesWide, notesTall, panelGrid)),
+    templateLines: [...templateLines],
+    lineAlignments: [...lineAlignments],
+    lineWrapEnabled: [...lineWrapEnabled],
+    transitionStrategy,
+    canvases: structuredClone(canvases),
+  });
+
   // Save mutation
   const saveMutation = useMutation({
     // Since the Phase 2 conventions pass the two endpoints answer differently:
@@ -1613,7 +1630,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // at 201. Both are normalized to PageUpdateResponse here so `onSuccess`
     // reads one shape — a create simply reports no stale references, which is
     // true: a brand-new page cannot have any.
-    mutationFn: async (): Promise<PageUpdateResponse> => {
+    mutationFn: async (): Promise<PageUpdateResponse & { submitted: SubmittedForm; showRequested: boolean }> => {
+      const submitted = snapshotForm();
+      const showRequested = showAfterSaveRef.current;
+      showAfterSaveRef.current = false;
       const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
         const payload: PageUpdate = {
@@ -1630,7 +1650,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           // Always sent: null clears canvases the user deleted.
           canvases: canvases.length > 0 ? canvases : null,
         };
-        return api.updatePage(pageId, payload);
+        return { ...(await api.updatePage(pageId, payload)), submitted, showRequested };
       } else {
         const payload: PageCreate = {
           name,
@@ -1643,21 +1663,22 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           ...(canvases.length > 0 && { canvases }),
         };
         const created = await api.createPage(payload);
-        return { page: created, incompatible_references: [] };
+        return { page: created, incompatible_references: [], submitted, showRequested };
       }
     },
     onSuccess: (data) => {
       // The saved page is always `data.page` after the normalization in
       // mutationFn — reading `data.id` here was undefined and silently skipped
       // every id-keyed cleanup below when creating a new page (issue #1586).
-      const targetPageId = pageId || data.page.id;
+      const targetPageId = data.page.id;
+      const newerEdits = JSON.stringify(snapshotForm()) !== JSON.stringify(data.submitted);
+      hasUnsavedChangesRef.current = newerEdits;
 
       // Clear draft on successful save
       const draftKey = getDraftKey(targetPageId);
-      localStorage.removeItem(draftKey);
-      // Also clear the 'new' draft if this was a new page
-      if (!pageId) {
-        localStorage.removeItem(getDraftKey());
+      if (!newerEdits) {
+        localStorage.removeItem(draftKey);
+        if (!pageId) localStorage.removeItem(getDraftKey());
       }
 
       // Clear preview cache for this page
@@ -1682,11 +1703,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
 
       if (!pageId) {
-        toast.success(tTouch("savedToPages"), {
+        kitToast.success(tTouch("savedToPages"), {
           duration: 6000,
           position: dockedPreview ? "bottom-center" : "top-right",
           style: dockedPreview ? { bottom: "calc(64px + env(safe-area-inset-bottom))" } : { width: "380px" },
-          action: { label: tTouch("showNow"), onClick: () => setShowPageId(data.page.id) },
+          action: { label: tTouch("showNow"), onClick: () => requestShowNowRef.current(data.page.id) },
           cancel: {
             label: tTouch("addToSchedule"),
             onClick: () => {
@@ -1706,18 +1727,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         setCreatedPageId(data.page.id);
       }
       setSavedAt(new Date());
-      setSavedSnapshot({
-        name,
-        deviceType,
-        geometry: JSON.stringify(geometryFields(deviceType, notesWide, notesTall, panelGrid)),
-        templateLines: [...templateLines],
-        lineAlignments: [...lineAlignments],
-        lineWrapEnabled: [...lineWrapEnabled],
-        transitionStrategy,
-        canvases: [...canvases],
-      });
-      if (showAfterSaveRef.current) {
-        showAfterSaveRef.current = false;
+      setSavedSnapshot(data.submitted);
+      if (newerEdits) {
+        toast.info(tTouch("newerChangesUnsaved"));
+      } else if (data.showRequested) {
         setShowPageId(data.page.id);
       }
 
@@ -1736,8 +1749,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         toast.warning(t("retargetIncompatibleWarning", { list }), { duration: 10000 });
       }
 
-      // Navigation runs synchronously, before a dirty-state effect can update.
-      hasUnsavedChangesRef.current = false;
       onSave?.();
     },
     onError: (error: Error) => {
@@ -1745,6 +1756,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       toast.error(error.message);
     },
   });
+
+  requestShowNowRef.current = (savedId) => {
+    if (!name.trim()) {
+      document.getElementById("page-name")?.focus();
+      return;
+    }
+    if (saveMutation.isPending || stagingActive) return;
+    if (hasUnsavedChangesRef.current || !(pageId ?? savedId)) {
+      showAfterSaveRef.current = true;
+      if (isShrinkingRetarget) setConfirmRetargetOpen(true);
+      else saveMutation.mutate();
+    } else setShowPageId(pageId ?? savedId ?? null);
+  };
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -2582,17 +2606,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     variant="brand"
                     size={dockedPreview ? "touch" : "sm"}
                     disabled={saveMutation.isPending || stagingActive || !selectedBoardId}
-                    onClick={() => {
-                      if (!name.trim()) {
-                        document.getElementById("page-name")?.focus();
-                        return;
-                      }
-                      if (hasUnsavedChanges || !pageId) {
-                        showAfterSaveRef.current = true;
-                        if (isShrinkingRetarget) setConfirmRetargetOpen(true);
-                        else saveMutation.mutate();
-                      } else setShowPageId(pageId);
-                    }}
+                    onClick={() => requestShowNowRef.current()}
                   >
                     <Send className="size-4" />
                     {tTouch("showNow")}
@@ -2922,17 +2936,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   }
                   headerAction={
                     <Flex align="center" gap="1">
-                      <BoardPreviewModeToggle
-                        mode={previewMode}
-                        onModeChange={changePreviewMode}
-                        size={dockedPreview ? "touch" : "default"}
-                        labels={{
-                          previewSize: tBoardDisplay("previewSizeLabel"),
-                          fit: tBoardDisplay("fitMode"),
-                          actual: tBoardDisplay("actualMode"),
-                        }}
-                      />
-                      {dockedPreview && (editorMode === "plain" || baselineDisplay) && (
+                      {!baselineDisplay && (
+                        <BoardPreviewModeToggle
+                          mode={previewMode}
+                          onModeChange={changePreviewMode}
+                          size={dockedPreview ? "touch" : "default"}
+                          labels={{
+                            previewSize: tBoardDisplay("previewSizeLabel"),
+                            fit: tBoardDisplay("fitMode"),
+                            actual: tBoardDisplay("actualMode"),
+                          }}
+                        />
+                      )}
+                      {dockedPreview && (editorMode === "plain" || baselineDisplay || !useTouchToolbar) && (
                         <ToolbarDropdown
                           label={tToolbar("more")}
                           icon={<Ellipsis />}
@@ -2945,163 +2961,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Flex>
                   }
                 >
-                  <Box className={dockedPreview ? "hidden" : undefined}>
-                    <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
-                      <Flex align="center" gap="2" className="flex-wrap">
-                        <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
-                        <BoardSizeIndicator
-                          deviceType={deviceType}
-                          notesWide={notesWide}
-                          notesTall={notesTall}
-                          gridRows={gridRows}
-                          gridCols={gridCols}
-                          className="ml-1"
-                        />
-                        <PanelFitNote
-                          deviceType={deviceType}
-                          notesWide={notesWide}
-                          notesTall={notesTall}
-                          gridRows={gridRows}
-                          gridCols={gridCols}
-                        />
-                        {/* Device/size retarget (issue #1250): both new AND saved
-                          pages can change board size. Converting a saved page is
-                          lossy (shrinks truncate), so saving a shrinking retarget
-                          asks for confirmation first. */}
-                        <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
-                          <SelectTrigger
-                            {...anchorProps("page-editor.device")}
-                            className="h-7 w-auto gap-1 px-2 text-xs"
-                            aria-label={t("deviceTypeSwitcherAriaLabel")}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {/* FiestaPanels first: a panel's grid is auto-fit from
-                              its TV size, so nobody can pick it out of the
-                              generic Notes-wide/tall selects below. Absent on an
-                              install with no panels, leaving the picker exactly
-                              the three sizes it has always been. */}
-                            {fiestaPanelTargets.length > 0 && (
-                              <SelectGroup>
-                                <SelectLabel>{tPanels("yourPanelsGroupLabel")}</SelectLabel>
-                                {fiestaPanelTargets.map((panel) => (
-                                  <SelectItem key={panel.id} value={targetValue(panel)} className="text-xs">
-                                    {tPanels("panelSizeOption", {
-                                      name: panel.name,
-                                      cols: panel.cols,
-                                      rows: panel.rows,
-                                    })}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            )}
-                            {/* Every other display with a custom grid — an output
-                              plugin's board, such as an LED matrix — named for
-                              its board and model, so a page can be authored
-                              for it. Driven by the board list alone. */}
-                            {otherDisplayTargets.length > 0 && (
-                              <SelectGroup>
-                                <SelectLabel>{tPanels("yourDisplaysGroupLabel")}</SelectLabel>
-                                {otherDisplayTargets.map((display) => (
-                                  <SelectItem key={display.id} value={targetValue(display)} className="text-xs">
-                                    {tPanels(
-                                      display.modelLabel
-                                        ? display.led
-                                          ? "displaySizeOptionLed"
-                                          : "displaySizeOption"
-                                        : "panelSizeOption",
-                                      {
-                                        name: display.name,
-                                        model: display.modelLabel ?? "",
-                                        cols: display.cols,
-                                        rows: display.rows,
-                                      },
-                                    )}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            )}
-                            <SelectItem value="flagship" className="text-xs">
-                              {tDisplaySettings("flagshipLabel")}
-                            </SelectItem>
-                            <SelectItem value="note" className="text-xs">
-                              {tDisplaySettings("noteLabel")}
-                            </SelectItem>
-                            <SelectItem value="note_array" className="text-xs">
-                              {tDisplaySettings("noteArrayLabel")}
-                            </SelectItem>
-                            {/* A panel page no listed panel matches: still named,
-                              at its own grid, so the trigger never goes blank. */}
-                            {sizeSelectValue === "panel" && (
-                              <SelectItem value="panel" className="text-xs">
-                                {tPanels("panelGridOption", { cols: dims.cols, rows: dims.rows })}
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        {deviceType === "note_array" && (
-                          <>
-                            <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
-                              <SelectTrigger
-                                className="h-7 w-auto gap-1 px-2 text-xs"
-                                aria-label={tDisplaySettings("notesWideLabel")}
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {NOTE_AXIS_OPTIONS.map((n) => (
-                                  <SelectItem key={`w-${n}`} value={String(n)} className="text-xs">
-                                    {t("notesWideOption", { count: n })}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
-                              <SelectTrigger
-                                className="h-7 w-auto gap-1 px-2 text-xs"
-                                aria-label={tDisplaySettings("notesTallLabel")}
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {NOTE_AXIS_OPTIONS.map((n) => (
-                                  <SelectItem key={`t-${n}`} value={String(n)} className="text-xs">
-                                    {t("notesTallOption", { count: n })}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </>
-                        )}
-                      </Flex>
-                      <Flex align="center" gap="1.5" className="shrink-0">
-                        <Text as="span" size="xs" tone="muted" className="mr-0.5">
-                          {t("boardColorLabel")}
-                        </Text>
-                        <button
-                          onClick={() => setPreviewBoardColor("black")}
-                          aria-label={t("previewAsBlack")}
-                          aria-pressed={effectiveBoardColor === "black"}
-                          className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                            effectiveBoardColor === "black"
-                              ? "border-primary ring-1 ring-primary/30"
-                              : "border-border hover:border-muted-foreground"
-                          }`}
-                        />
-                        <button
-                          onClick={() => setPreviewBoardColor("white")}
-                          aria-label={t("previewAsWhite")}
-                          aria-pressed={effectiveBoardColor === "white"}
-                          className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                            effectiveBoardColor === "white"
-                              ? "border-primary ring-1 ring-primary/30"
-                              : "border-border hover:border-muted-foreground"
-                          }`}
-                        />
-                      </Flex>
-                    </Flex>
-                  </Box>
                   <Flex justify="center">
                     {baselineDisplay ? (
                       <Text className="w-full whitespace-pre-wrap font-mono">{editorPreviewMessage}</Text>
@@ -3193,6 +3052,163 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     onStopOverriding={() => setLiveOverrideSilence(false)}
                   />
                 </EditorPreview>
+                <Box className="order-3 min-w-0 lg:col-start-1">
+                  <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
+                    <Flex align="center" gap="2" className="flex-wrap">
+                      <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
+                      <BoardSizeIndicator
+                        deviceType={deviceType}
+                        notesWide={notesWide}
+                        notesTall={notesTall}
+                        gridRows={gridRows}
+                        gridCols={gridCols}
+                        className="ml-1"
+                      />
+                      <PanelFitNote
+                        deviceType={deviceType}
+                        notesWide={notesWide}
+                        notesTall={notesTall}
+                        gridRows={gridRows}
+                        gridCols={gridCols}
+                      />
+                      {/* Device/size retarget (issue #1250): both new AND saved
+                          pages can change board size. Converting a saved page is
+                          lossy (shrinks truncate), so saving a shrinking retarget
+                          asks for confirmation first. */}
+                      <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
+                        <SelectTrigger
+                          {...anchorProps("page-editor.device")}
+                          className="h-7 w-auto gap-1 px-2 text-xs"
+                          aria-label={t("deviceTypeSwitcherAriaLabel")}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {/* FiestaPanels first: a panel's grid is auto-fit from
+                              its TV size, so nobody can pick it out of the
+                              generic Notes-wide/tall selects below. Absent on an
+                              install with no panels, leaving the picker exactly
+                              the three sizes it has always been. */}
+                          {fiestaPanelTargets.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>{tPanels("yourPanelsGroupLabel")}</SelectLabel>
+                              {fiestaPanelTargets.map((panel) => (
+                                <SelectItem key={panel.id} value={targetValue(panel)} className="text-xs">
+                                  {tPanels("panelSizeOption", {
+                                    name: panel.name,
+                                    cols: panel.cols,
+                                    rows: panel.rows,
+                                  })}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
+                          {/* Every other display with a custom grid — an output
+                              plugin's board, such as an LED matrix — named for
+                              its board and model, so a page can be authored
+                              for it. Driven by the board list alone. */}
+                          {otherDisplayTargets.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>{tPanels("yourDisplaysGroupLabel")}</SelectLabel>
+                              {otherDisplayTargets.map((display) => (
+                                <SelectItem key={display.id} value={targetValue(display)} className="text-xs">
+                                  {tPanels(
+                                    display.modelLabel
+                                      ? display.led
+                                        ? "displaySizeOptionLed"
+                                        : "displaySizeOption"
+                                      : "panelSizeOption",
+                                    {
+                                      name: display.name,
+                                      model: display.modelLabel ?? "",
+                                      cols: display.cols,
+                                      rows: display.rows,
+                                    },
+                                  )}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
+                          <SelectItem value="flagship" className="text-xs">
+                            {tDisplaySettings("flagshipLabel")}
+                          </SelectItem>
+                          <SelectItem value="note" className="text-xs">
+                            {tDisplaySettings("noteLabel")}
+                          </SelectItem>
+                          <SelectItem value="note_array" className="text-xs">
+                            {tDisplaySettings("noteArrayLabel")}
+                          </SelectItem>
+                          {/* A panel page no listed panel matches: still named,
+                              at its own grid, so the trigger never goes blank. */}
+                          {sizeSelectValue === "panel" && (
+                            <SelectItem value="panel" className="text-xs">
+                              {tPanels("panelGridOption", { cols: dims.cols, rows: dims.rows })}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {deviceType === "note_array" && (
+                        <>
+                          <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
+                            <SelectTrigger
+                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              aria-label={tDisplaySettings("notesWideLabel")}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {NOTE_AXIS_OPTIONS.map((n) => (
+                                <SelectItem key={`w-${n}`} value={String(n)} className="text-xs">
+                                  {t("notesWideOption", { count: n })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
+                            <SelectTrigger
+                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              aria-label={tDisplaySettings("notesTallLabel")}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {NOTE_AXIS_OPTIONS.map((n) => (
+                                <SelectItem key={`t-${n}`} value={String(n)} className="text-xs">
+                                  {t("notesTallOption", { count: n })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </>
+                      )}
+                    </Flex>
+                    <Flex align="center" gap="1.5" className="shrink-0">
+                      <Text as="span" size="xs" tone="muted" className="mr-0.5">
+                        {t("boardColorLabel")}
+                      </Text>
+                      <button
+                        onClick={() => setPreviewBoardColor("black")}
+                        aria-label={t("previewAsBlack")}
+                        aria-pressed={effectiveBoardColor === "black"}
+                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                          effectiveBoardColor === "black"
+                            ? "border-primary ring-1 ring-primary/30"
+                            : "border-border hover:border-muted-foreground"
+                        }`}
+                      />
+                      <button
+                        onClick={() => setPreviewBoardColor("white")}
+                        aria-label={t("previewAsWhite")}
+                        aria-pressed={effectiveBoardColor === "white"}
+                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                          effectiveBoardColor === "white"
+                            ? "border-primary ring-1 ring-primary/30"
+                            : "border-border hover:border-muted-foreground"
+                        }`}
+                      />
+                    </Flex>
+                  </Flex>
+                </Box>
 
                 {/* Pixel canvases: edited for an LED pixel board; on any other
                     board a page that has them says why their areas are blank. */}
@@ -3228,7 +3244,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           if (!open) setShowPageId(null);
         }}
         initialPageId={showPageId}
-        board={previewBoard ?? undefined}
+        board={boardSettings?.boards?.find((board) => board.id === selectedBoardId)}
         isPrimary={boardSettings?.boards?.[0]?.id === selectedBoardId}
         scheduleEnabled={targetDetail?.schedule_enabled ?? previewBoard?.schedule_enabled ?? false}
         nextChange={scheduleNextChange(targetDetail, new Date())}
@@ -3262,7 +3278,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       {/* Shrinking-retarget confirmation (issue #1250). Conversion between
           geometries is lossy: content that doesn't fit the smaller board is
           cut off, so the save is gated behind an explicit confirm. */}
-      <AlertDialog open={confirmRetargetOpen} onOpenChange={setConfirmRetargetOpen}>
+      <AlertDialog
+        open={confirmRetargetOpen}
+        onOpenChange={(open) => {
+          setConfirmRetargetOpen(open);
+          if (!open) showAfterSaveRef.current = false;
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("retargetConfirmTitle")}</AlertDialogTitle>

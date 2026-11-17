@@ -3290,6 +3290,7 @@
     "unknownDisplay": "无法确定此显示屏能显示哪些内容",
     "plainTextOnly": "可以使用纯文本。颜色和显示屏专用工具不可用。",
     "targetUnavailable": "此显示屏无法用于同步显示。",
-    "nameRequired": "请为此页面命名"
+    "nameRequired": "请为此页面命名",
+    "newerChangesUnsaved": "保存期间所做的更改尚未保存。显示前请再次保存。"
   }
 }

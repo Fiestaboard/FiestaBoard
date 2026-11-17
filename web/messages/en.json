@@ -3290,6 +3290,7 @@
     "unknownDisplay": "Can’t tell what this display draws",
     "plainTextOnly": "Plain text is available. Colors and display-specific tools are unavailable.",
     "targetUnavailable": "This display is unavailable for mirroring.",
-    "nameRequired": "Name this page"
+    "nameRequired": "Name this page",
+    "newerChangesUnsaved": "Changes made while saving are still unsaved. Save again before showing them."
   }
 }

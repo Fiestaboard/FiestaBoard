@@ -3290,6 +3290,7 @@
     "unknownDisplay": "Bu ekranın neleri gösterebildiği belirlenemiyor",
     "plainTextOnly": "Düz metin kullanılabilir. Renkler ve ekrana özel araçlar kullanılamaz.",
     "targetUnavailable": "Bu ekran yansıtma için kullanılamıyor.",
-    "nameRequired": "Bu sayfayı adlandırın"
+    "nameRequired": "Bu sayfayı adlandırın",
+    "newerChangesUnsaved": "Kaydetme sırasında yapılan değişiklikler hâlâ kaydedilmedi. Göstermeden önce yeniden kaydedin."
   }
 }

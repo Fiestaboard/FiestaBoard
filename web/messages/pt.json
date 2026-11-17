@@ -3290,6 +3290,7 @@
     "unknownDisplay": "Não é possível determinar o que esta tela pode exibir",
     "plainTextOnly": "O texto simples está disponível. As cores e as ferramentas específicas da tela não estão disponíveis.",
     "targetUnavailable": "Esta tela não está disponível para espelhamento.",
-    "nameRequired": "Dê um nome a esta página"
+    "nameRequired": "Dê um nome a esta página",
+    "newerChangesUnsaved": "As alterações feitas durante o salvamento ainda não foram salvas. Salve novamente antes de mostrá-las."
   }
 }

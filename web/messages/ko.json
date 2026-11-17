@@ -3290,6 +3290,7 @@
     "unknownDisplay": "이 디스플레이가 무엇을 표시할 수 있는지 알 수 없습니다",
     "plainTextOnly": "일반 텍스트를 사용할 수 있습니다. 색상 및 디스플레이 전용 도구는 사용할 수 없습니다.",
     "targetUnavailable": "이 디스플레이는 미러링에 사용할 수 없습니다.",
-    "nameRequired": "이 페이지의 이름을 지정하세요"
+    "nameRequired": "이 페이지의 이름을 지정하세요",
+    "newerChangesUnsaved": "저장 중에 변경한 내용은 아직 저장되지 않았습니다. 표시하기 전에 다시 저장하세요."
   }
 }

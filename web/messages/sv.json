@@ -3290,6 +3290,7 @@
     "unknownDisplay": "Det går inte att avgöra vad den här skärmen kan visa",
     "plainTextOnly": "Oformaterad text är tillgänglig. Färger och skärmspecifika verktyg är inte tillgängliga.",
     "targetUnavailable": "Den här skärmen är inte tillgänglig för spegling.",
-    "nameRequired": "Namnge den här sidan"
+    "nameRequired": "Namnge den här sidan",
+    "newerChangesUnsaved": "Ändringar som gjordes under sparandet är fortfarande osparade. Spara igen innan du visar dem."
   }
 }

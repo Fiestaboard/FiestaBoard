@@ -102,43 +102,80 @@ async function mockEditorApi(page: Page) {
 }
 
 for (const theme of ["light", "dark"] as const) {
-  for (const width of [390, 768, 1280]) {
-    test(`real editor preview fits ${width}px in ${theme}`, async ({ page }, testInfo) => {
-      const shots = process.env.EDITOR_TOUCH_SHOTS || testInfo.outputPath("editor-touch-shots");
-      await page.setViewportSize({ width, height: 900 });
-      await page.emulateMedia({ reducedMotion: "reduce" });
-      await mockEditorApi(page);
-      const rendered = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/templates/render");
-      await page.goto(`/tests/layout/editor-touch.html?theme=${theme}`);
-      await rendered;
-      await expect(page.getByRole("textbox", { name: /page name/i })).toHaveValue("Kitchen morning");
-      await expect(page.locator('[contenteditable="true"]')).toBeVisible();
-      const preview = page.locator('[data-slot="editor-preview"]');
-      await expect(preview).toHaveAttribute("data-variant", width < 1024 ? "docked" : "pane");
-      await expect(preview).toContainText("Live preview");
-      await expect(preview.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(1);
-      await expect(page.getByRole("button", { name: /hide preview/i })).toHaveCount(0);
-      const bounds = await preview.boundingBox();
-      expect(bounds!.x).toBeGreaterThanOrEqual(0);
-      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      if (width < 1024) {
-        await expect(page.locator('[data-slot="editor-toolbar"][data-size="touch"]')).toBeVisible();
-      }
-      await page.evaluate(() => document.fonts.ready);
-      await injectAxe(page);
-      await checkA11y(page, "main");
-      await mkdir(shots, { recursive: true });
-      await page.screenshot({ path: path.join(shots, `impl-${width}-${theme}.png`), animations: "disabled" });
+  for (const { width, coarse } of [
+    { width: 390, coarse: false },
+    { width: 768, coarse: false },
+    { width: 1280, coarse: false },
+    { width: 1024, coarse: true },
+  ]) {
+    test.describe(`${width}px ${coarse ? "coarse" : "fine"} pointer in ${theme}`, () => {
+      test.use({ hasTouch: coarse });
+      test("real editor preview and toolbar fit their independent breakpoints", async ({ page }, testInfo) => {
+        const shots = process.env.EDITOR_TOUCH_SHOTS || testInfo.outputPath("editor-touch-shots");
+        await page.setViewportSize({ width, height: 900 });
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await mockEditorApi(page);
+        const rendered = page.waitForResponse(
+          (response) => new URL(response.url()).pathname === "/api/templates/render",
+        );
+        await page.goto(`/tests/layout/editor-touch.html?theme=${theme}`);
+        await rendered;
+        await expect(page.getByRole("textbox", { name: /page name/i })).toHaveValue("Kitchen morning");
+        await expect(page.locator('[contenteditable="true"]')).toBeVisible();
+        const preview = page.locator('[data-slot="editor-preview"]');
+        await expect(preview).toHaveAttribute("data-variant", width < 1024 ? "docked" : "pane");
+        await expect(preview).toContainText("Live preview");
+        await expect(preview.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(1);
+        await expect(page.getByRole("button", { name: /hide preview/i })).toHaveCount(0);
+        const bounds = await preview.boundingBox();
+        expect(bounds!.x).toBeGreaterThanOrEqual(0);
+        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const touch = width < 768 || coarse;
+        const touchToolbar = page.locator('[data-slot="editor-toolbar"][data-size="touch"]');
+        expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(coarse);
+        if (touch) {
+          await expect(touchToolbar).toBeVisible();
+          await expect(touchToolbar).toHaveAttribute("data-layout", "docked");
+        } else {
+          // A fine-pointer 768px tablet docks its preview but keeps the default toolbar.
+          await expect(touchToolbar).toHaveCount(0);
+          await expect(page.getByRole("button", { name: "Draw on board", exact: true })).toBeVisible();
+        }
+        await page.evaluate(() => document.fonts.ready);
+        await injectAxe(page);
+        await checkA11y(page, "main");
+        await mkdir(shots, { recursive: true });
+        await page.screenshot({ path: path.join(shots, `impl-${width}-${theme}.png`), animations: "disabled" });
 
-      if (width === 390) {
-        await page.getByRole("button", { name: "More", exact: true }).click();
-        const sheet = page.getByRole("dialog", { name: "More", exact: true });
-        await expect(sheet).toBeVisible();
-        await expect(sheet.getByRole("switch", { name: "Mirror to board while editing", exact: true })).toBeVisible();
-        await checkA11y(page, '[role="dialog"]');
-        await page.screenshot({ path: path.join(shots, `impl-${width}-${theme}-more.png`), animations: "disabled" });
-      }
+        if (touch) {
+          await page.getByRole("button", { name: "More", exact: true }).click();
+          const sheet =
+            width < 640
+              ? page.getByRole("dialog", { name: "More", exact: true })
+              : page.getByTestId("toolbar-dropdown-panel");
+          await expect(sheet).toBeVisible();
+          await expect(sheet.getByRole("switch", { name: "Mirror to board while editing", exact: true })).toBeVisible();
+          if (width < 640) {
+            await expect(sheet.getByText("Clipboard", { exact: true })).toBeVisible();
+          } else {
+            await expect(sheet.getByRole("group", { name: "Clipboard", exact: true })).toBeVisible();
+          }
+          const sheetBounds = await sheet.boundingBox();
+          expect(sheetBounds!.x).toBeGreaterThanOrEqual(0);
+          expect(sheetBounds!.x + sheetBounds!.width).toBeLessThanOrEqual(width);
+          expect(sheetBounds!.y).toBeGreaterThanOrEqual(0);
+          expect(sheetBounds!.y + sheetBounds!.height).toBeLessThanOrEqual(900);
+          expect(await sheet.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+          for (const name of ["Cut", "Copy", "Paste"]) {
+            const bounds = await sheet.getByRole("button", { name, exact: true }).boundingBox();
+            expect(bounds!.x).toBeGreaterThanOrEqual(sheetBounds!.x);
+            expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(sheetBounds!.x + sheetBounds!.width);
+          }
+          await checkA11y(page, width < 640 ? '[role="dialog"]' : '[data-testid="toolbar-dropdown-panel"]');
+          await page.screenshot({ path: path.join(shots, `impl-${width}-${theme}-more.png`), animations: "disabled" });
+        }
+      });
     });
   }
 }

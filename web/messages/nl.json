@@ -3290,6 +3290,7 @@
     "unknownDisplay": "Onbekend wat dit scherm kan weergeven",
     "plainTextOnly": "Platte tekst is beschikbaar. Kleuren en schermspecifieke hulpmiddelen zijn niet beschikbaar.",
     "targetUnavailable": "Dit scherm is niet beschikbaar voor liveweergave.",
-    "nameRequired": "Geef deze pagina een naam"
+    "nameRequired": "Geef deze pagina een naam",
+    "newerChangesUnsaved": "Wijzigingen die tijdens het opslaan zijn aangebracht, zijn nog niet opgeslagen. Sla opnieuw op voordat je ze weergeeft."
   }
 }

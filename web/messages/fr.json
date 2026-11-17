@@ -3290,6 +3290,7 @@
     "unknownDisplay": "Impossible de déterminer ce que cet écran peut afficher",
     "plainTextOnly": "Le texte brut est disponible. Les couleurs et les outils propres à l’écran sont indisponibles.",
     "targetUnavailable": "Cet écran est indisponible pour la reproduction en direct.",
-    "nameRequired": "Nommer cette page"
+    "nameRequired": "Nommer cette page",
+    "newerChangesUnsaved": "Les modifications effectuées pendant l’enregistrement ne sont pas encore enregistrées. Enregistrez à nouveau avant de les afficher."
   }
 }

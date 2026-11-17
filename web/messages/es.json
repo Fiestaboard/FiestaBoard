@@ -3290,6 +3290,7 @@
     "unknownDisplay": "No se puede determinar qué muestra esta pantalla",
     "plainTextOnly": "El texto sin formato está disponible. Los colores y las herramientas específicas de la pantalla no están disponibles.",
     "targetUnavailable": "Esta pantalla no está disponible para reflejar contenido.",
-    "nameRequired": "Ponle un nombre a esta página"
+    "nameRequired": "Ponle un nombre a esta página",
+    "newerChangesUnsaved": "Los cambios realizados mientras se guardaba siguen sin guardarse. Guarda de nuevo antes de mostrarlos."
   }
 }

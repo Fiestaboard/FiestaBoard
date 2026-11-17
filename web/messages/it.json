@@ -3290,6 +3290,7 @@
     "unknownDisplay": "Impossibile determinare cosa può visualizzare questo display",
     "plainTextOnly": "Il testo semplice è disponibile. I colori e gli strumenti specifici del display non sono disponibili.",
     "targetUnavailable": "Questo display non è disponibile per la riproduzione in tempo reale.",
-    "nameRequired": "Assegna un nome a questa pagina"
+    "nameRequired": "Assegna un nome a questa pagina",
+    "newerChangesUnsaved": "Le modifiche apportate durante il salvataggio non sono ancora salvate. Salva di nuovo prima di mostrarle."
   }
 }

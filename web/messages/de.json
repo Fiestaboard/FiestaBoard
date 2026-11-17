@@ -3290,6 +3290,7 @@
     "unknownDisplay": "Der Zeichensatz dieses Displays ist unbekannt",
     "plainTextOnly": "Einfacher Text ist verfügbar. Farben und displayspezifische Werkzeuge sind nicht verfügbar.",
     "targetUnavailable": "Dieses Display ist für die Spiegelung nicht verfügbar.",
-    "nameRequired": "Diese Seite benennen"
+    "nameRequired": "Diese Seite benennen",
+    "newerChangesUnsaved": "Änderungen, die während des Speicherns vorgenommen wurden, sind noch nicht gespeichert. Speichere erneut, bevor du sie anzeigst."
   }
 }

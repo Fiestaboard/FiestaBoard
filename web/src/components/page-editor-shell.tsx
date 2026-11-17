@@ -10,6 +10,12 @@ import {
   AlertDialogTitle,
   Button,
   Flex,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
   Stack,
 } from "@fiestaboard/ui";
 import { useCallback, useEffect, useRef } from "react";
@@ -17,6 +23,7 @@ import { type BlockerFunction, useBlocker } from "react-router";
 
 import { PageBuilder, type PageBuilderHandle } from "@/components/page-builder";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 
@@ -56,6 +63,15 @@ export function PageEditorShell({
     return !staysOnPage && (builderRef.current?.hasUnsavedChanges() ?? false);
   }, []);
   const blocker = useBlocker(shouldBlock);
+  const phone = useMediaQuery("(max-width: 639px)");
+  const keepEditingRef = useRef<HTMLButtonElement>(null);
+  const resetBlockedNavigation = () => {
+    if (blocker.state === "blocked") blocker.reset();
+  };
+  const discardAndLeave = () => {
+    // Let the router unmount the confirmation; resetting here can cancel a POP.
+    if (blocker.state === "blocked") blocker.proceed();
+  };
 
   const call = <K extends keyof PageBuilderHandle>(key: K): PageBuilderHandle[K] | undefined =>
     builderRef.current?.[key];
@@ -63,7 +79,7 @@ export function PageEditorShell({
   useEffect(() => {
     register({
       getSnapshot: () => call("getCurrentPage")?.() ?? null,
-      getPageId: () => pageId,
+      getPageId: () => call("getPageId")?.() ?? pageId,
       hasUnsavedChanges: () => call("hasUnsavedChanges")?.() ?? false,
       revealText: () => call("revealText")?.(),
       beginStaging: () => call("beginStaging")?.(),
@@ -78,32 +94,56 @@ export function PageEditorShell({
 
   return (
     <>
-      <AlertDialog
-        open={blocker.state === "blocked"}
-        onOpenChange={(open) => {
-          if (!open && blocker.state === "blocked") blocker.reset();
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("discardChangesTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("discardChangesDescription")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("keepEditing")}</AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                // Let the router close/unmount the dialog; resetting it here can
-                // cancel a history POP that is still proceeding.
-                if (blocker.state === "blocked") blocker.proceed();
-              }}
-            >
-              {t("discardAndLeave")}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {phone ? (
+        <Sheet
+          modal
+          open={blocker.state === "blocked"}
+          onOpenChange={(open) => {
+            if (!open) resetBlockedNavigation();
+          }}
+        >
+          <SheetContent side="bottom" role="alertdialog" grabber scrim initialFocus={keepEditingRef}>
+            <SheetHeader>
+              <SheetTitle>{t("discardChangesTitle")}</SheetTitle>
+              <SheetDescription>{t("discardChangesDescription")}</SheetDescription>
+            </SheetHeader>
+            <SheetFooter className="flex-col gap-2">
+              <Button
+                ref={keepEditingRef}
+                variant="outline"
+                size="touch"
+                className="w-full"
+                onClick={resetBlockedNavigation}
+              >
+                {t("keepEditing")}
+              </Button>
+              <Button variant="destructive" size="touch" className="w-full" onClick={discardAndLeave}>
+                {t("discardAndLeave")}
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <AlertDialog
+          open={blocker.state === "blocked"}
+          onOpenChange={(open) => {
+            if (!open) resetBlockedNavigation();
+          }}
+        >
+          <AlertDialogContent initialFocus={keepEditingRef}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("discardChangesTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>{t("discardChangesDescription")}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel ref={keepEditingRef}>{t("keepEditing")}</AlertDialogCancel>
+              <Button variant="destructive" onClick={discardAndLeave}>
+                {t("discardAndLeave")}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
       <Flex className="flex-1 min-h-0 w-full overflow-hidden">
         {/* No padding of its own: it sits in the Pages section's card, which
           already puts the editor on the content column. */}
