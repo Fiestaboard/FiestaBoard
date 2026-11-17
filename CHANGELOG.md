@@ -1,5 +1,19 @@
 # fiestaboard
 
+## 11.0.0-alpha.5
+
+### Minor Changes
+
+- [#2504](https://github.com/Fiestaboard/FiestaBoard/pull/2504) [`e779041`](https://github.com/Fiestaboard/FiestaBoard/commit/e779041f7ebd074cb57985413d7c3dcc062fb5f6) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Align first-run setup and display connection with the universal web design, add single-use phone QR pairing and phone/TV sign-out controls, and improve TV approval and password recovery.
+
+### Patch Changes
+
+- [#2517](https://github.com/Fiestaboard/FiestaBoard/pull/2517) [`ae12478`](https://github.com/Fiestaboard/FiestaBoard/commit/ae12478c10eb966327bbda7ca437f2f9de43e517) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Harden hub HTTPS startup with nginx configuration validation and Mozilla intermediate TLS 1.2 ciphers. Make generated public certificates mode 0644 while keeping private keys mode 0600.
+
+- [#2504](https://github.com/Fiestaboard/FiestaBoard/pull/2504) [`e779041`](https://github.com/Fiestaboard/FiestaBoard/commit/e779041f7ebd074cb57985413d7c3dcc062fb5f6) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Match setup and TV approval spacing, display-picker layout, session surfaces, and phone sign-out sheets to the live web designs.
+
+- [#2519](https://github.com/Fiestaboard/FiestaBoard/pull/2519) [`1a1bb61`](https://github.com/Fiestaboard/FiestaBoard/commit/1a1bb615f36d082d5898a1e6bddb21c357ffc897) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Document the v11 Alpha preview, release-channel availability, and 10.x upgrade and recovery procedures, including backup limits and sign-in consequences. Correct outdated update and rollback guidance.
+
 ## 11.0.0-alpha.4
 
 ### Minor Changes

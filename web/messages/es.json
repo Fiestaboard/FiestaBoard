@@ -257,6 +257,30 @@
       "toastCopyFailed": "No se pudo copiar el tablero",
       "toastRefreshed": "Se volvió a enviar la página a {board}",
       "toastRefreshFailed": "No se pudo actualizar {board}"
+    },
+    "supporting": {
+      "upNext": "A continuación",
+      "upNextDisplay": "A continuación · {display}",
+      "resumes": "Se reanuda el horario",
+      "silenceStarts": "Comienza Silence Schedule",
+      "silenceEnds": "Termina Silence Schedule",
+      "changes": "Cambia el horario",
+      "empty": "El hub no ha notificado ningún cambio próximo.",
+      "viewSchedule": "Ver horario",
+      "manualTitle": "El modo de horario está desactivado",
+      "manualBody": "Nada cambia por sí solo. {page} se mantiene hasta que elijas Cambiar página, Redactar un mensaje o vuelvas a activar el modo de horario.",
+      "manualEmpty": "Nada cambia por sí solo. Elige Cambiar página, Redactar un mensaje o vuelve a activar el modo de horario.",
+      "scheduleMode": "Modo de horario",
+      "manualMode": "Modo manual",
+      "overrideMode": "Anulación",
+      "unknown": "Estado desconocido",
+      "enabled": "Modo de horario reactivado",
+      "undo": "Deshacer",
+      "failed": "No se pudo cambiar el modo de horario. Inténtalo de nuevo.",
+      "otherDisplays": "Otras pantallas",
+      "allDisplays": "Todas las pantallas",
+      "selectDisplay": "Administrar {display}",
+      "offline": "Sin conexión"
     }
   },
   "pages": {
