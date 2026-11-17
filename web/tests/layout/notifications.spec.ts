@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { checkA11y, injectAxe } from "axe-playwright";
+import { getViolations, injectAxe } from "axe-playwright";
 
 const key = "B" + "A".repeat(86);
 type State = "default" | "allowed" | "denied" | "insecure" | "unsupported" | "install" | "auth" | "error";
@@ -145,11 +145,15 @@ async function mockHub(page: Page, state: State = "default", prefix = "", sent =
 async function axe(page: Page) {
   await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
   await injectAxe(page);
-  await checkA11y(page, undefined, {
-    detailedReport: true,
-    detailedReportOptions: { html: true },
-    axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
+  const violations = await getViolations(page, undefined, {
+    runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
   });
+  expect(
+    violations.map(({ id, nodes }) => ({
+      id,
+      nodes: nodes.map(({ target, failureSummary, any }) => ({ target, failureSummary, checks: any })),
+    })),
+  ).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 
@@ -193,9 +197,6 @@ for (const width of [390, 768, 1280, 1438]) {
         if (state === "allowed") {
           const sendTest = page.getByRole("button", { name: "Send a test" });
           await expect(sendTest).toBeEnabled();
-          // Browser enrollment resolves after server status. Wait for the kit's
-          // disabled-to-enabled opacity transition before contrast sampling.
-          await expect(sendTest).toHaveCSS("opacity", "1");
         }
         if (state === "denied") await expect(page.getByText("Notifications blocked by the browser")).toBeVisible();
         if (state === "insecure") await expect(page.getByText("Requires HTTPS")).toBeVisible();

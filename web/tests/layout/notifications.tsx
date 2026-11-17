@@ -19,6 +19,10 @@ import SettingsPage from "../../app/routes/settings";
 // boundaries are substituted by the Playwright spec; no notification UI fake.
 const params = new URLSearchParams(location.search);
 const theme = params.get("theme") ?? "light";
+// Static-theme evidence starts in that palette. ThemeProvider remains live,
+// but its first effect must not create a light-to-dark color transition
+// while axe samples the page's foreground and background separately.
+document.documentElement.classList.toggle("dark", theme === "dark");
 const client = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity, refetchOnWindowFocus: false } },
 });
