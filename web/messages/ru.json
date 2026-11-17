@@ -926,29 +926,29 @@
     "welcomeTitle": "Добро пожаловать в FiestaBoard",
     "welcomeSubtitle": "Давайте настроим всё за несколько шагов",
     "progressConnect": "Подключение",
-    "progressCustomize": "Настройка",
-    "progressFinish": "Готово",
+    "progressCustomize": "Источники данных",
+    "progressFinish": "Проверка",
     "progressLabel": "Ход настройки",
     "stepOf": "Шаг {current} из {total}",
     "skipForNow": "Пропустить",
     "stepTitles": {
-      "connectBoard": "Подключите вашу доску",
-      "addDataSources": "Добавьте источники данных",
+      "connectBoard": "Подключите свой Vestaboard",
+      "addDataSources": "Добавить источники данных",
       "allSet": "Всё готово!",
-      "chooseOutput": "На чём показывать FiestaBoard?",
-      "setUpTv": "Настройка телевизора",
+      "chooseOutput": "Каким экраном будет управлять FiestaBoard?",
+      "setUpTv": "Настроить телевизор FiestaPanel",
       "setUpOutput": "Настройка: {name}",
-      "review": "Review & Finish"
+      "review": "Всё готово"
     },
     "stepDescriptions": {
-      "enterCredentials": "Введите учётные данные доски для начала работы",
+      "enterCredentials": "Используйте локальный API, чтобы хаб общался с табло в вашей сети напрямую, без облака.",
       "enableFeatures": "Включите дополнительные функции, которые работают сразу",
       "sendTestMessage": "Отправьте тестовое сообщение на вашу доску",
-      "chooseOutput": "Выберите ваш дисплей. Другие можно добавить позже в настройках.",
-      "setUpTv": "Назовите телевизор и укажите размер экрана",
-      "setUpOutput": "Подключите, проверьте и сохраните как табло",
+      "chooseOutput": "Выберите первый экран. Позже можно добавить другие в разделе «Экраны».",
+      "setUpTv": "Телевизор показывает табло на весь экран через приложение FiestaBoard для ТВ или любой браузер.",
+      "setUpOutput": "Хаб отправляет обновления на экран по вашей сети.",
       "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
-      "review": "Save your choices, try an optional test message, then create your first page."
+      "review": "Вот что будет сохранено. Позже всё можно изменить в разделах «Настройки» и «Экраны»."
     },
     "boardSetup": {
       "boardType": "Тип доски",
@@ -1022,13 +1022,30 @@
         "spacecraft_launches": {
           "name": "Spacecraft Launches",
           "description": "Track upcoming launch countdowns and statuses."
+        },
+        "calendar_sub": {
+          "name": "Календарь",
+          "description": "События Google или iCal"
+        },
+        "muni": {
+          "name": "Транспорт",
+          "description": "Ближайшие отправления рядом с вами"
+        },
+        "home_assistant": {
+          "name": "Home Assistant",
+          "description": "Датчики и состояния вашего дома"
+        },
+        "later": {
+          "name": "Что-то другое",
+          "description": "Просмотреть интеграции позже"
         }
       },
       "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
       "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
       "readyBadge": "Ready to use",
       "configureBadge": "Configure after setup",
-      "toggleLabel": "Select {name}"
+      "toggleLabel": "Select {name}",
+      "selectedCount": "Выбрано: {count}"
     },
     "welcome": {
       "setupComplete": "Настройка завершена!",
@@ -1058,7 +1075,7 @@
       "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
       "nextTitle": "Next: make it yours",
       "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
-      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "scheduleHint": "После завершения откроется главная страница. Расписание изначально пустое; добавляйте страницы и выбирайте время показа, когда будете готовы.",
       "saveFailed": "Some integrations still need attention",
       "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
       "continueToIntegrations": "Continue and configure integrations later",
@@ -1066,7 +1083,7 @@
       "createFirstPage": "Save & create my first page",
       "saveGoToDashboard": "Save & go to dashboard"
     },
-    "progressDisplay": "Дисплей",
+    "progressDisplay": "Вывод",
     "chooseOutput": {
       "loading": "Поиск дисплеев…",
       "loadFailed": "Не удалось загрузить список дисплеев.",
@@ -1099,7 +1116,11 @@
       "notesTall": "Notes tall",
       "notesWide": "Notes wide",
       "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
-      "sizeRange": "Whole number from {min} to {max}"
+      "sizeRange": "Whole number from {min} to {max}",
+      "community": "Модуль вывода от сообщества",
+      "communityHint": "Создан сообществом. Сообщайте о проблемах на его странице в разделе «Интеграции».",
+      "tc001Untested": "Сообщество · TC001 не проверен на оборудовании. Сообщайте о проблемах на его странице в разделе «Интеграции».",
+      "skipTest": "Пропустить проверку подключения и добавить этот экран от сообщества без проверки"
     },
     "panelSetup": {
       "nameLabel": "Название телевизора",
@@ -1111,9 +1132,77 @@
       "created": "{name} готов",
       "openOnTv": "Откройте этот адрес в браузере телевизора:",
       "failed": "Не удалось создать табло для ТВ",
-      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address.",
+      "autoSize": "ТВ {inches} дюймов · автоматический размер табло",
+      "autoSizeHint": "Хаб подгоняет табло под размер ТВ. Позже это можно изменить в разделе «Экраны».",
+      "howConnects": "Как подключается телевизор",
+      "tvApp": "Приложение для Apple TV или Google TV",
+      "tvAppHint": "Откройте FiestaBoard на ТВ и выберите «Войти». Подтвердите код по адресу",
+      "browser": "Любой браузер на ТВ",
+      "browserHint": "После настройки откройте адрес просмотра этого экрана на ТВ и один раз войдите в систему.",
+      "waiting": "Ожидание ТВ · можно завершить настройку и подключить его позже."
     },
-    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser.",
+    "continue": "Продолжить",
+    "intro": {
+      "defaultName": "Мой FiestaPi",
+      "description": "Давайте начнём что-нибудь показывать на вашем хабе. Это займёт около 5 минут; позже всё можно изменить в настройках.",
+      "name": "Назовите этот хаб",
+      "nameHint": "Это имя показывают телефоны, ТВ и экран с QR-кодом.",
+      "timezone": "Часовой пояс",
+      "timezoneHint": "Определён по этому браузеру. Используется в расписании.",
+      "restore": "Восстановить из резервной копии…",
+      "start": "Начать",
+      "saveFailed": "Не удалось сохранить настройки хаба. Повторите попытку.",
+      "hub": "Хаб"
+    },
+    "connection": {
+      "defaultName": "Моё табло",
+      "name": "Название экрана",
+      "connection": "Подключение",
+      "local": "Локальный API",
+      "cloud": "Облако (ключ чтения/записи)",
+      "address": "Адрес",
+      "addressHint": "Введите адрес из приложения Vestaboard. Тест подключения проверит его.",
+      "localKey": "Ключ локального API",
+      "cloudKey": "Облачный ключ чтения/записи",
+      "keyHint": "В приложении Vestaboard › Настройки › Разработчик › Локальный API.",
+      "cloudHint": "Используйте ключ чтения/записи для этого табло из своей учётной записи Vestaboard.",
+      "showKey": "Показать ключ API",
+      "hideKey": "Скрыть ключ API",
+      "boardType": "Тип табло",
+      "test": "Проверить подключение",
+      "testAgain": "Проверить снова",
+      "passed": "Подключено · {ms} мс",
+      "failed": "Не удалось связаться с табло",
+      "unchanged": "На табло ничего не изменилось.",
+      "tryThis": "Попробуйте следующее",
+      "checkPower": "Проверьте, что табло включено, а индикатор горит непрерывно.",
+      "checkNetwork": "Убедитесь, что оно в той же сети Wi-Fi, что и хаб.",
+      "checkKey": "Включите локальный API в приложении Vestaboard и скопируйте ключ снова.",
+      "useCloud": "Использовать облачный ключ",
+      "knownTitle": "Это табло уже подключено",
+      "knownDescription": "{name} по адресу {host} уже добавлено на этот хаб. Повторное добавление заставит два экрана конкурировать за одно табло.",
+      "keep": "Оставить {name}",
+      "keepHint": "Пропустить этот шаг. Ничего не изменится.",
+      "update": "Обновить подключение",
+      "updateHint": "Заменить адрес и ключ для этого экрана.",
+      "saveFailed": "Не удалось сохранить экран. Повторите попытку.",
+      "typeFlagship": "Flagship · 22 × 6",
+      "typeNote": "Note · 15 × 3"
+    },
+    "review": {
+      "display": "Экран",
+      "connection": "Подключение",
+      "sources": "Источники данных",
+      "finish": "Завершить настройку"
+    },
+    "noDisplays": {
+      "title": "Экранов пока нет",
+      "description": "Добавьте первый экран, чтобы начать показывать страницы. Разделы «Страницы», «Расписание» и «Интеграции» готовы, когда вам понадобятся.",
+      "add": "Добавить экран",
+      "rerun": "Пройти настройку заново"
+    }
   },
   "activeDisplay": {
     "collectionBadge": "Карусель",
@@ -1473,10 +1562,13 @@
       "findMoreEmpty": "В реестре пока нет других дисплеев.",
       "byAuthor": "автор: {author}",
       "vestaboardTitle": "Добавить Vestaboard",
-      "vestaboardDescription": "Выберите форму. Подключить его можно будет потом на его странице.",
+      "vestaboardDescription": "Введите параметры подключения и проверьте его перед добавлением экрана.",
       "panelTitle": "Добавить телевизор или браузер",
       "outputTitle": "Добавить: {name}",
-      "setupDescription": "Настройте, затем добавьте."
+      "setupDescription": "Подключите этот экран. Его добавление не создаёт страниц и не меняет расписание.",
+      "step": "Шаг {current} из 2",
+      "confirm": "Добавить экран",
+      "added": "{name} добавлен · Показать страницу"
     },
     "marketplace": {
       "searchLabel": "Поиск дисплеев",

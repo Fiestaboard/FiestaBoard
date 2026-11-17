@@ -926,29 +926,29 @@
     "welcomeTitle": "Welkom bij FiestaBoard",
     "welcomeSubtitle": "Laten we je in een paar stappen instellen",
     "progressConnect": "Verbinden",
-    "progressCustomize": "Aanpassen",
-    "progressFinish": "Afronden",
+    "progressCustomize": "Gegevensbronnen",
+    "progressFinish": "Controleren",
     "progressLabel": "Installatievoortgang",
     "stepOf": "Stap {current} van {total}",
     "skipForNow": "Voorlopig overslaan",
     "stepTitles": {
-      "connectBoard": "Verbind je bord",
+      "connectBoard": "Verbind je Vestaboard",
       "addDataSources": "Gegevensbronnen toevoegen",
       "allSet": "Je bent klaar!",
-      "chooseOutput": "Waarop wil je FiestaBoard tonen?",
-      "setUpTv": "Je tv instellen",
+      "chooseOutput": "Welk scherm gaat FiestaBoard aansturen?",
+      "setUpTv": "Een FiestaPanel-tv instellen",
       "setUpOutput": "{name} instellen",
-      "review": "Review & Finish"
+      "review": "Klaar om te beginnen"
     },
     "stepDescriptions": {
-      "enterCredentials": "Voer je bordreferenties in om te beginnen",
+      "enterCredentials": "Gebruik de lokale API zodat de hub rechtstreeks via je netwerk met het bord communiceert, zonder cloud ertussen.",
       "enableFeatures": "Schakel optionele functies in die direct werken",
       "sendTestMessage": "Stuur een testbericht naar je bord",
-      "chooseOutput": "Kies het scherm dat je hebt. Je kunt er later meer toevoegen in Instellingen.",
-      "setUpTv": "Geef je tv een naam en vertel ons hoe groot het scherm is",
-      "setUpOutput": "Verbind het, test het en sla het op als bord",
+      "chooseOutput": "Kies het eerste scherm. Je kunt later meer toevoegen via Schermen.",
+      "setUpTv": "Een tv toont je bord op volledig scherm via de FiestaBoard-tv-app of een webbrowser.",
+      "setUpOutput": "De hub stuurt updates via je netwerk naar het scherm.",
       "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
-      "review": "Save your choices, try an optional test message, then create your first page."
+      "review": "Dit wordt opgeslagen. Je kunt alles later wijzigen in Instellingen en Schermen."
     },
     "boardSetup": {
       "boardType": "Bordtype",
@@ -1022,13 +1022,30 @@
         "spacecraft_launches": {
           "name": "Spacecraft Launches",
           "description": "Track upcoming launch countdowns and statuses."
+        },
+        "calendar_sub": {
+          "name": "Agenda",
+          "description": "Google- of iCal-afspraken"
+        },
+        "muni": {
+          "name": "Openbaar vervoer",
+          "description": "Volgende vertrekken bij jou in de buurt"
+        },
+        "home_assistant": {
+          "name": "Home Assistant",
+          "description": "Sensoren en statussen uit je huis"
+        },
+        "later": {
+          "name": "Iets anders",
+          "description": "Later door Integraties bladeren"
         }
       },
       "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
       "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
       "readyBadge": "Ready to use",
       "configureBadge": "Configure after setup",
-      "toggleLabel": "Select {name}"
+      "toggleLabel": "Select {name}",
+      "selectedCount": "{count} geselecteerd"
     },
     "welcome": {
       "setupComplete": "Installatie voltooid!",
@@ -1058,7 +1075,7 @@
       "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
       "nextTitle": "Next: make it yours",
       "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
-      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "scheduleHint": "Afronden opent Start. Je schema begint leeg; voeg pagina’s toe en kies wanneer ze worden getoond zodra je zover bent.",
       "saveFailed": "Some integrations still need attention",
       "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
       "continueToIntegrations": "Continue and configure integrations later",
@@ -1066,7 +1083,7 @@
       "createFirstPage": "Save & create my first page",
       "saveGoToDashboard": "Save & go to dashboard"
     },
-    "progressDisplay": "Scherm",
+    "progressDisplay": "Uitvoer",
     "chooseOutput": {
       "loading": "Schermen zoeken…",
       "loadFailed": "De lijst met schermen kon niet worden geladen.",
@@ -1099,7 +1116,11 @@
       "notesTall": "Notes tall",
       "notesWide": "Notes wide",
       "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
-      "sizeRange": "Whole number from {min} to {max}"
+      "sizeRange": "Whole number from {min} to {max}",
+      "community": "Uitvoer van de community",
+      "communityHint": "Gemaakt door de community. Meld problemen op de bijbehorende Integraties-pagina.",
+      "tc001Untested": "Community · TC001 niet getest op hardware. Meld problemen op de bijbehorende Integraties-pagina.",
+      "skipTest": "Verbindingstest overslaan en dit communityscherm ongetest toevoegen"
     },
     "panelSetup": {
       "nameLabel": "Naam van de tv",
@@ -1111,9 +1132,77 @@
       "created": "{name} is klaar",
       "openOnTv": "Open dit adres in de browser van de tv:",
       "failed": "Het tv-bord kon niet worden gemaakt",
-      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address.",
+      "autoSize": "Tv van {inches} inch · automatische bordgrootte",
+      "autoSizeHint": "De hub past het bord aan het formaat van de tv aan. Je kunt dit later wijzigen in Schermen.",
+      "howConnects": "Hoe de tv verbinding maakt",
+      "tvApp": "Apple TV- of Google TV-app",
+      "tvAppHint": "Open FiestaBoard op de tv en kies Aanmelden. Keur de code goed op",
+      "browser": "Een willekeurige browser op de tv",
+      "browserHint": "Open na het instellen het weergaveadres van dit scherm op de tv en meld je één keer aan.",
+      "waiting": "Wachten op de tv · je kunt de instellingen afronden en de tv later verbinden."
     },
-    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser.",
+    "continue": "Doorgaan",
+    "intro": {
+      "defaultName": "Mijn FiestaPi",
+      "description": "Laten we je hub iets laten tonen. Het duurt ongeveer 5 minuten en je kunt alles later wijzigen in Instellingen.",
+      "name": "Geef deze hub een naam",
+      "nameHint": "Telefoons, tv’s en het QR-scherm tonen deze naam.",
+      "timezone": "Tijdzone",
+      "timezoneHint": "Gedetecteerd via deze browser. Wordt gebruikt door het schema.",
+      "restore": "Herstellen vanuit een back-up…",
+      "start": "Aan de slag",
+      "saveFailed": "De hubinstellingen konden niet worden opgeslagen. Probeer het opnieuw.",
+      "hub": "Hub"
+    },
+    "connection": {
+      "defaultName": "Mijn bord",
+      "name": "Schermnaam",
+      "connection": "Verbinding",
+      "local": "Lokale API",
+      "cloud": "Cloud (lees-/schrijfsleutel)",
+      "address": "Adres",
+      "addressHint": "Voer het adres uit de Vestaboard-app in. De verbindingstest controleert het.",
+      "localKey": "Lokale API-sleutel",
+      "cloudKey": "Lees-/schrijfsleutel voor de cloud",
+      "keyHint": "Uit de Vestaboard-app › Instellingen › Ontwikkelaar › Lokale API.",
+      "cloudHint": "Gebruik de lees-/schrijfsleutel voor dit bord uit je Vestaboard-account.",
+      "showKey": "API-sleutel tonen",
+      "hideKey": "API-sleutel verbergen",
+      "boardType": "Bordtype",
+      "test": "Verbinding testen",
+      "testAgain": "Opnieuw testen",
+      "passed": "Verbonden · {ms} ms",
+      "failed": "Het bord kon niet worden bereikt",
+      "unchanged": "Er is niets op het bord gewijzigd.",
+      "tryThis": "Probeer dit",
+      "checkPower": "Controleer of het bord aanstaat en het lampje continu brandt.",
+      "checkNetwork": "Zorg dat het op hetzelfde wifinetwerk zit als de hub.",
+      "checkKey": "Schakel de lokale API in de Vestaboard-app in en kopieer de sleutel opnieuw.",
+      "useCloud": "Cloudsleutel gebruiken",
+      "knownTitle": "Dit bord is al verbonden",
+      "knownDescription": "{name} op {host} staat al op deze hub. Als je het opnieuw toevoegt, proberen twee schermen hetzelfde bord aan te sturen.",
+      "keep": "{name} behouden",
+      "keepHint": "Deze stap overslaan. Er verandert niets.",
+      "update": "Verbinding bijwerken",
+      "updateHint": "Het adres en de sleutel voor dit scherm vervangen.",
+      "saveFailed": "Het scherm kon niet worden opgeslagen. Probeer het opnieuw.",
+      "typeFlagship": "Flagship · 22 × 6",
+      "typeNote": "Note · 15 × 3"
+    },
+    "review": {
+      "display": "Scherm",
+      "connection": "Verbinding",
+      "sources": "Gegevensbronnen",
+      "finish": "Instellen afronden"
+    },
+    "noDisplays": {
+      "title": "Nog geen schermen",
+      "description": "Voeg je eerste scherm toe om pagina’s te tonen. Pagina’s, Schema en Integraties staan klaar zodra jij zover bent.",
+      "add": "Scherm toevoegen",
+      "rerun": "Opnieuw instellen"
+    }
   },
   "activeDisplay": {
     "collectionBadge": "Carrousel",
@@ -1473,10 +1562,13 @@
       "findMoreEmpty": "Het register bevat nog geen andere schermen.",
       "byAuthor": "door {author}",
       "vestaboardTitle": "Vestaboard toevoegen",
-      "vestaboardDescription": "Kies de vorm. Daarna verbind je het op de eigen pagina.",
+      "vestaboardDescription": "Voer de verbindingsgegevens in en test de verbinding voordat je het scherm toevoegt.",
       "panelTitle": "Tv of browser toevoegen",
       "outputTitle": "{name} toevoegen",
-      "setupDescription": "Stel het in en voeg het dan toe."
+      "setupDescription": "Verbind dit scherm. Toevoegen maakt geen pagina’s en wijzigt het schema niet.",
+      "step": "Stap {current} van 2",
+      "confirm": "Scherm toevoegen",
+      "added": "{name} toegevoegd · Een pagina tonen"
     },
     "marketplace": {
       "searchLabel": "Schermen zoeken",

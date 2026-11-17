@@ -926,29 +926,29 @@
     "welcomeTitle": "FiestaBoard에 오신 것을 환영합니다",
     "welcomeSubtitle": "몇 가지 간단한 단계로 설정을 완료하세요",
     "progressConnect": "연결",
-    "progressCustomize": "사용자 지정",
-    "progressFinish": "완료",
+    "progressCustomize": "데이터 소스",
+    "progressFinish": "검토",
     "progressLabel": "설정 진행 상황",
     "stepOf": "단계 {current} / {total}",
     "skipForNow": "지금은 건너뛰기",
     "stepTitles": {
-      "connectBoard": "보드 연결",
+      "connectBoard": "Vestaboard 연결",
       "addDataSources": "데이터 소스 추가",
       "allSet": "모든 설정이 완료되었습니다!",
-      "chooseOutput": "FiestaBoard를 어디에 표시할까요?",
-      "setUpTv": "TV 설정",
+      "chooseOutput": "FiestaBoard로 어떤 디스플레이를 제어할까요?",
+      "setUpTv": "FiestaPanel TV 설정",
       "setUpOutput": "{name} 설정",
-      "review": "Review & Finish"
+      "review": "시작할 준비 완료"
     },
     "stepDescriptions": {
-      "enterCredentials": "보드 자격 증명을 입력하여 시작하세요",
+      "enterCredentials": "로컬 API를 사용하면 클라우드를 거치지 않고 허브가 네트워크 내 보드와 통신합니다.",
       "enableFeatures": "바로 사용할 수 있는 선택 기능을 활성화하세요",
       "sendTestMessage": "보드에 테스트 메시지를 보내보세요",
-      "chooseOutput": "가지고 있는 디스플레이를 선택하세요. 나중에 설정에서 더 추가할 수 있습니다.",
-      "setUpTv": "TV 이름과 화면 크기를 알려 주세요",
-      "setUpOutput": "연결하고 테스트한 뒤 보드로 저장하세요",
+      "chooseOutput": "첫 번째 디스플레이를 선택하세요. 나중에 디스플레이에서 더 추가할 수 있습니다.",
+      "setUpTv": "TV에서는 FiestaBoard TV 앱이나 웹 브라우저로 보드를 전체 화면에 표시합니다.",
+      "setUpOutput": "허브가 네트워크를 통해 디스플레이에 업데이트를 보냅니다.",
       "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
-      "review": "Save your choices, try an optional test message, then create your first page."
+      "review": "다음 내용이 저장됩니다. 나중에 설정과 디스플레이에서 모두 변경할 수 있습니다."
     },
     "boardSetup": {
       "boardType": "보드 유형",
@@ -1022,13 +1022,30 @@
         "spacecraft_launches": {
           "name": "Spacecraft Launches",
           "description": "Track upcoming launch countdowns and statuses."
+        },
+        "calendar_sub": {
+          "name": "캘린더",
+          "description": "Google 또는 iCal 일정"
+        },
+        "muni": {
+          "name": "대중교통",
+          "description": "근처의 다음 출발 정보"
+        },
+        "home_assistant": {
+          "name": "Home Assistant",
+          "description": "집 안의 센서와 상태"
+        },
+        "later": {
+          "name": "기타",
+          "description": "나중에 연동 둘러보기"
         }
       },
       "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
       "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
       "readyBadge": "Ready to use",
       "configureBadge": "Configure after setup",
-      "toggleLabel": "Select {name}"
+      "toggleLabel": "Select {name}",
+      "selectedCount": "{count}개 선택됨"
     },
     "welcome": {
       "setupComplete": "설정 완료!",
@@ -1058,7 +1075,7 @@
       "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
       "nextTitle": "Next: make it yours",
       "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
-      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "scheduleHint": "완료하면 홈이 열립니다. 스케줄은 비어 있는 상태로 시작합니다. 준비가 되면 페이지를 추가하고 표시할 시간을 선택하세요.",
       "saveFailed": "Some integrations still need attention",
       "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
       "continueToIntegrations": "Continue and configure integrations later",
@@ -1066,7 +1083,7 @@
       "createFirstPage": "Save & create my first page",
       "saveGoToDashboard": "Save & go to dashboard"
     },
-    "progressDisplay": "디스플레이",
+    "progressDisplay": "출력",
     "chooseOutput": {
       "loading": "디스플레이를 찾는 중…",
       "loadFailed": "디스플레이 목록을 불러오지 못했습니다.",
@@ -1099,7 +1116,11 @@
       "notesTall": "Notes tall",
       "notesWide": "Notes wide",
       "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
-      "sizeRange": "Whole number from {min} to {max}"
+      "sizeRange": "Whole number from {min} to {max}",
+      "community": "커뮤니티 출력",
+      "communityHint": "커뮤니티에서 제작했습니다. 해당 연동 페이지에서 문제를 신고하세요.",
+      "tc001Untested": "커뮤니티 · TC001은 실제 하드웨어에서 테스트되지 않았습니다. 해당 연동 페이지에서 문제를 신고하세요.",
+      "skipTest": "연결 테스트를 건너뛰고 이 커뮤니티 디스플레이를 테스트 없이 추가"
     },
     "panelSetup": {
       "nameLabel": "TV 이름",
@@ -1111,9 +1132,77 @@
       "created": "{name} 준비 완료",
       "openOnTv": "TV 브라우저에서 이 주소를 여세요:",
       "failed": "TV 보드를 만들지 못했습니다",
-      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address.",
+      "autoSize": "{inches}인치 TV · 자동 보드 크기",
+      "autoSizeHint": "허브가 TV 크기에 맞게 보드를 조정합니다. 나중에 디스플레이에서 변경할 수 있습니다.",
+      "howConnects": "TV 연결 방법",
+      "tvApp": "Apple TV 또는 Google TV 앱",
+      "tvAppHint": "TV에서 FiestaBoard를 열고 로그인을 선택하세요. 다음 주소에서 코드를 승인하세요:",
+      "browser": "TV의 모든 브라우저",
+      "browserHint": "설정 후 TV에서 이 디스플레이의 뷰어 주소를 열고 한 번 로그인하세요.",
+      "waiting": "TV 대기 중 · 설정을 완료하고 나중에 연결해도 됩니다."
     },
-    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser.",
+    "continue": "계속",
+    "intro": {
+      "defaultName": "내 FiestaPi",
+      "description": "허브에 무언가를 표시해 봅시다. 약 5분이 걸리며 나중에 설정에서 모두 변경할 수 있습니다.",
+      "name": "이 허브의 이름 지정",
+      "nameHint": "휴대폰, TV, QR 화면에 이 이름이 표시됩니다.",
+      "timezone": "시간대",
+      "timezoneHint": "이 브라우저에서 감지했습니다. 스케줄에 사용됩니다.",
+      "restore": "백업에서 복원…",
+      "start": "시작하기",
+      "saveFailed": "허브 설정을 저장하지 못했습니다. 다시 시도하세요.",
+      "hub": "허브"
+    },
+    "connection": {
+      "defaultName": "내 보드",
+      "name": "디스플레이 이름",
+      "connection": "연결",
+      "local": "로컬 API",
+      "cloud": "클라우드(읽기/쓰기 키)",
+      "address": "주소",
+      "addressHint": "Vestaboard 앱에 표시된 주소를 입력하세요. 연결 테스트에서 이 주소를 확인합니다.",
+      "localKey": "로컬 API 키",
+      "cloudKey": "클라우드 읽기/쓰기 키",
+      "keyHint": "Vestaboard 앱 › 설정 › 개발자 › 로컬 API에서 확인하세요.",
+      "cloudHint": "Vestaboard 계정에 있는 이 보드의 읽기/쓰기 키를 사용하세요.",
+      "showKey": "API 키 표시",
+      "hideKey": "API 키 숨기기",
+      "boardType": "보드 종류",
+      "test": "연결 테스트",
+      "testAgain": "다시 테스트",
+      "passed": "연결됨 · {ms}밀리초",
+      "failed": "보드에 연결하지 못했습니다",
+      "unchanged": "보드에서 변경된 내용은 없습니다.",
+      "tryThis": "다음을 시도하세요",
+      "checkPower": "보드가 켜져 있고 표시등이 깜박이지 않고 켜져 있는지 확인하세요.",
+      "checkNetwork": "허브와 같은 Wi-Fi에 연결되어 있는지 확인하세요.",
+      "checkKey": "Vestaboard 앱에서 로컬 API를 켜고 키를 다시 복사하세요.",
+      "useCloud": "클라우드 키 사용",
+      "knownTitle": "이 보드는 이미 연결되어 있습니다",
+      "knownDescription": "{host}의 {name}은 이미 이 허브에 있습니다. 다시 추가하면 두 디스플레이가 하나의 보드를 제어하려고 충돌합니다.",
+      "keep": "{name} 유지",
+      "keepHint": "이 단계를 건너뜁니다. 변경되는 내용은 없습니다.",
+      "update": "연결 업데이트",
+      "updateHint": "이 디스플레이의 주소와 키를 교체합니다.",
+      "saveFailed": "디스플레이를 저장하지 못했습니다. 다시 시도하세요.",
+      "typeFlagship": "Flagship · 22 × 6",
+      "typeNote": "Note · 15 × 3"
+    },
+    "review": {
+      "display": "디스플레이",
+      "connection": "연결",
+      "sources": "데이터 소스",
+      "finish": "설정 완료"
+    },
+    "noDisplays": {
+      "title": "아직 디스플레이가 없습니다",
+      "description": "첫 번째 디스플레이를 추가해 페이지 표시를 시작하세요. 페이지, 스케줄, 연동은 언제든 사용할 수 있습니다.",
+      "add": "디스플레이 추가",
+      "rerun": "설정 다시 실행"
+    }
   },
   "activeDisplay": {
     "collectionBadge": "캐러셀",
@@ -1473,10 +1562,13 @@
       "findMoreEmpty": "레지스트리에 다른 디스플레이가 아직 없습니다.",
       "byAuthor": "제작: {author}",
       "vestaboardTitle": "Vestaboard 추가",
-      "vestaboardDescription": "형태를 고르세요. 연결은 다음에 해당 페이지에서 합니다.",
+      "vestaboardDescription": "디스플레이를 추가하기 전에 연결 정보를 입력하고 테스트하세요.",
       "panelTitle": "TV 또는 브라우저 추가",
       "outputTitle": "{name} 추가",
-      "setupDescription": "설정한 다음 추가하세요."
+      "setupDescription": "이 디스플레이를 연결합니다. 추가해도 페이지가 생성되거나 스케줄이 변경되지 않습니다.",
+      "step": "2단계 중 {current}단계",
+      "confirm": "디스플레이 추가",
+      "added": "{name} 추가됨 · 페이지 표시"
     },
     "marketplace": {
       "searchLabel": "디스플레이 검색",

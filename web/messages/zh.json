@@ -926,29 +926,29 @@
     "welcomeTitle": "欢迎使用 FiestaBoard",
     "welcomeSubtitle": "只需几步即可完成设置",
     "progressConnect": "连接",
-    "progressCustomize": "自定义",
-    "progressFinish": "完成",
+    "progressCustomize": "数据源",
+    "progressFinish": "检查",
     "progressLabel": "设置进度",
     "stepOf": "第 {current} 步，共 {total} 步",
     "skipForNow": "暂时跳过",
     "stepTitles": {
-      "connectBoard": "连接您的看板",
+      "connectBoard": "连接您的 Vestaboard",
       "addDataSources": "添加数据源",
       "allSet": "一切就绪！",
-      "chooseOutput": "你想在哪里显示 FiestaBoard？",
-      "setUpTv": "设置你的电视",
+      "chooseOutput": "FiestaBoard 将控制哪种显示屏？",
+      "setUpTv": "设置 FiestaPanel 电视",
       "setUpOutput": "设置 {name}",
-      "review": "Review & Finish"
+      "review": "准备就绪"
     },
     "stepDescriptions": {
-      "enterCredentials": "输入您的看板凭据以开始使用",
+      "enterCredentials": "使用本地 API，让中枢通过您的网络直接与看板通信，无需经过云端。",
       "enableFeatures": "启用即开即用的可选功能",
       "sendTestMessage": "向您的看板发送测试消息",
-      "chooseOutput": "选择你拥有的显示设备。之后可以在设置中添加更多。",
-      "setUpTv": "为电视命名并告诉我们屏幕尺寸",
-      "setUpOutput": "连接、测试并保存为显示板",
+      "chooseOutput": "选择第一个显示屏。稍后可在“显示屏”中添加更多。",
+      "setUpTv": "电视通过 FiestaBoard 电视应用或任意网页浏览器，全屏显示您的看板。",
+      "setUpOutput": "中枢通过您的网络向显示屏发送更新。",
       "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
-      "review": "Save your choices, try an optional test message, then create your first page."
+      "review": "以下内容将被保存。您可以稍后在“设置”和“显示屏”中更改。"
     },
     "boardSetup": {
       "boardType": "看板类型",
@@ -1022,13 +1022,30 @@
         "spacecraft_launches": {
           "name": "Spacecraft Launches",
           "description": "Track upcoming launch countdowns and statuses."
+        },
+        "calendar_sub": {
+          "name": "日历",
+          "description": "Google 或 iCal 日程"
+        },
+        "muni": {
+          "name": "公共交通",
+          "description": "附近的下一班次"
+        },
+        "home_assistant": {
+          "name": "Home Assistant",
+          "description": "家中的传感器和状态"
+        },
+        "later": {
+          "name": "其他内容",
+          "description": "稍后浏览集成"
         }
       },
       "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
       "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
       "readyBadge": "Ready to use",
       "configureBadge": "Configure after setup",
-      "toggleLabel": "Select {name}"
+      "toggleLabel": "Select {name}",
+      "selectedCount": "已选择 {count} 项"
     },
     "welcome": {
       "setupComplete": "设置完成！",
@@ -1058,7 +1075,7 @@
       "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
       "nextTitle": "Next: make it yours",
       "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
-      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "scheduleHint": "完成后将打开首页。您的排程初始为空；准备就绪后，可添加页面并选择显示时间。",
       "saveFailed": "Some integrations still need attention",
       "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
       "continueToIntegrations": "Continue and configure integrations later",
@@ -1066,7 +1083,7 @@
       "createFirstPage": "Save & create my first page",
       "saveGoToDashboard": "Save & go to dashboard"
     },
-    "progressDisplay": "显示设备",
+    "progressDisplay": "输出",
     "chooseOutput": {
       "loading": "正在查找显示设备…",
       "loadFailed": "无法加载显示设备列表。",
@@ -1099,7 +1116,11 @@
       "notesTall": "Notes tall",
       "notesWide": "Notes wide",
       "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
-      "sizeRange": "Whole number from {min} to {max}"
+      "sizeRange": "Whole number from {min} to {max}",
+      "community": "社区输出",
+      "communityHint": "由社区开发。请在其集成页面上报告问题。",
+      "tc001Untested": "社区 · TC001 尚未经实机测试。请在其集成页面上报告问题。",
+      "skipTest": "跳过连接测试，直接添加此未经测试的社区显示屏"
     },
     "panelSetup": {
       "nameLabel": "电视名称",
@@ -1111,9 +1132,77 @@
       "created": "{name} 已就绪",
       "openOnTv": "在电视的浏览器中打开此地址：",
       "failed": "无法创建电视显示板",
-      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address.",
+      "autoSize": "{inches} 英寸电视 · 自动调整看板大小",
+      "autoSizeHint": "中枢会根据电视尺寸调整看板大小。您可以稍后在“显示屏”中修改。",
+      "howConnects": "电视如何连接",
+      "tvApp": "Apple TV 或 Google TV 应用",
+      "tvAppHint": "在电视上打开 FiestaBoard 并选择“登录”。请在以下地址批准其代码：",
+      "browser": "电视上的任意浏览器",
+      "browserHint": "设置完成后，在电视上打开此显示屏的查看地址，并登录一次。",
+      "waiting": "正在等待电视 · 您可以先完成设置，稍后再连接。"
     },
-    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser.",
+    "continue": "继续",
+    "intro": {
+      "defaultName": "我的 FiestaPi",
+      "description": "让您的中枢开始显示内容吧。大约需要 5 分钟，之后可以在“设置”中更改所有内容。",
+      "name": "为此中枢命名",
+      "nameHint": "手机、电视和二维码屏幕将显示此名称。",
+      "timezone": "时区",
+      "timezoneHint": "根据此浏览器检测。排程将使用此时区。",
+      "restore": "从备份恢复…",
+      "start": "开始",
+      "saveFailed": "无法保存中枢设置。请重试。",
+      "hub": "中枢"
+    },
+    "connection": {
+      "defaultName": "我的看板",
+      "name": "显示屏名称",
+      "connection": "连接",
+      "local": "本地 API",
+      "cloud": "云端（读写密钥）",
+      "address": "地址",
+      "addressHint": "输入 Vestaboard 应用中显示的地址。连接测试将检查此地址。",
+      "localKey": "本地 API 密钥",
+      "cloudKey": "云端读写密钥",
+      "keyHint": "从 Vestaboard 应用 › 设置 › 开发者 › 本地 API 获取。",
+      "cloudHint": "请使用您的 Vestaboard 账户中此看板的读写密钥。",
+      "showKey": "显示 API 密钥",
+      "hideKey": "隐藏 API 密钥",
+      "boardType": "看板类型",
+      "test": "测试连接",
+      "testAgain": "重新测试",
+      "passed": "已连接 · {ms} 毫秒",
+      "failed": "无法连接到看板",
+      "unchanged": "未对看板进行任何更改。",
+      "tryThis": "请尝试以下操作",
+      "checkPower": "检查看板是否已开机，且指示灯常亮。",
+      "checkNetwork": "确保它与中枢连接到同一个 Wi-Fi 网络。",
+      "checkKey": "在 Vestaboard 应用中启用本地 API，并重新复制密钥。",
+      "useCloud": "使用云端密钥",
+      "knownTitle": "此看板已连接",
+      "knownDescription": "位于 {host} 的 {name} 已在此中枢中。再次添加会导致两个显示屏争相控制同一个看板。",
+      "keep": "保留 {name}",
+      "keepHint": "跳过此步骤。不做任何更改。",
+      "update": "更新其连接",
+      "updateHint": "替换此显示屏的地址和密钥。",
+      "saveFailed": "无法保存显示屏。请重试。",
+      "typeFlagship": "Flagship · 22 × 6",
+      "typeNote": "Note · 15 × 3"
+    },
+    "review": {
+      "display": "显示屏",
+      "connection": "连接",
+      "sources": "数据源",
+      "finish": "完成设置"
+    },
+    "noDisplays": {
+      "title": "暂无显示屏",
+      "description": "添加您的第一个显示屏，开始显示页面。您随时可以使用“页面”“排程”和“集成”。",
+      "add": "添加显示屏",
+      "rerun": "重新运行设置"
+    }
   },
   "activeDisplay": {
     "collectionBadge": "轮播",
@@ -1473,10 +1562,13 @@
       "findMoreEmpty": "注册表中暂时没有其他显示设备。",
       "byAuthor": "作者：{author}",
       "vestaboardTitle": "添加 Vestaboard",
-      "vestaboardDescription": "选择它的形状。接下来在它的页面上进行连接。",
+      "vestaboardDescription": "输入连接信息并测试后，再添加显示屏。",
       "panelTitle": "添加电视或浏览器",
       "outputTitle": "添加 {name}",
-      "setupDescription": "先完成设置，再添加。"
+      "setupDescription": "连接此显示屏。添加显示屏不会创建页面，也不会更改排程。",
+      "step": "第 {current} 步，共 2 步",
+      "confirm": "添加显示屏",
+      "added": "已添加 {name} · 显示页面"
     },
     "marketplace": {
       "searchLabel": "搜索显示屏",

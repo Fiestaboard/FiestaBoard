@@ -926,29 +926,29 @@
     "welcomeTitle": "Bem-vindo ao FiestaBoard",
     "welcomeSubtitle": "Vamos configurar tudo em apenas alguns passos",
     "progressConnect": "Conectar",
-    "progressCustomize": "Personalizar",
-    "progressFinish": "Finalizar",
+    "progressCustomize": "Fontes de dados",
+    "progressFinish": "Revisar",
     "progressLabel": "Progresso da configuração",
     "stepOf": "Passo {current} de {total}",
     "skipForNow": "Pular por enquanto",
     "stepTitles": {
-      "connectBoard": "Conecte Seu Painel",
-      "addDataSources": "Adicione Fontes de Dados",
+      "connectBoard": "Conecte seu Vestaboard",
+      "addDataSources": "Adicionar fontes de dados",
       "allSet": "Tudo Pronto!",
-      "chooseOutput": "Onde quer mostrar o FiestaBoard?",
-      "setUpTv": "Configurar a sua TV",
+      "chooseOutput": "Qual tela o FiestaBoard vai controlar?",
+      "setUpTv": "Configurar uma TV FiestaPanel",
       "setUpOutput": "Configurar {name}",
-      "review": "Review & Finish"
+      "review": "Tudo pronto"
     },
     "stepDescriptions": {
-      "enterCredentials": "Insira as credenciais do seu painel para começar",
+      "enterCredentials": "Use a API local para o hub se comunicar com o painel pela sua rede, sem passar pela nuvem.",
       "enableFeatures": "Ative recursos opcionais que funcionam imediatamente",
       "sendTestMessage": "Envie uma mensagem de teste para o seu painel",
-      "chooseOutput": "Escolha o ecrã que tem. Pode adicionar mais depois nas Definições.",
-      "setUpTv": "Dê um nome à TV e indique o tamanho do ecrã",
-      "setUpOutput": "Ligue-o, teste-o e guarde-o como painel",
+      "chooseOutput": "Escolha a primeira tela. Você pode adicionar outras em Telas depois.",
+      "setUpTv": "Uma TV mostra seu painel em tela cheia pelo app FiestaBoard para TV ou por qualquer navegador.",
+      "setUpOutput": "O hub envia atualizações à tela pela sua rede.",
       "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
-      "review": "Save your choices, try an optional test message, then create your first page."
+      "review": "Veja o que será salvo. Você pode alterar tudo depois em Configurações e Telas."
     },
     "boardSetup": {
       "boardType": "Tipo de Painel",
@@ -1022,13 +1022,30 @@
         "spacecraft_launches": {
           "name": "Spacecraft Launches",
           "description": "Track upcoming launch countdowns and statuses."
+        },
+        "calendar_sub": {
+          "name": "Calendário",
+          "description": "Eventos do Google ou iCal"
+        },
+        "muni": {
+          "name": "Transporte público",
+          "description": "Próximas partidas perto de você"
+        },
+        "home_assistant": {
+          "name": "Home Assistant",
+          "description": "Sensores e estados da sua casa"
+        },
+        "later": {
+          "name": "Outra coisa",
+          "description": "Explorar Integrações depois"
         }
       },
       "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
       "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
       "readyBadge": "Ready to use",
       "configureBadge": "Configure after setup",
-      "toggleLabel": "Select {name}"
+      "toggleLabel": "Select {name}",
+      "selectedCount": "{count} selecionadas"
     },
     "welcome": {
       "setupComplete": "Configuração Concluída!",
@@ -1058,7 +1075,7 @@
       "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
       "nextTitle": "Next: make it yours",
       "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
-      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "scheduleHint": "Concluir abre o Início. Sua programação começa vazia; adicione páginas e escolha quando exibi-las quando quiser.",
       "saveFailed": "Some integrations still need attention",
       "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
       "continueToIntegrations": "Continue and configure integrations later",
@@ -1066,7 +1083,7 @@
       "createFirstPage": "Save & create my first page",
       "saveGoToDashboard": "Save & go to dashboard"
     },
-    "progressDisplay": "Ecrã",
+    "progressDisplay": "Saída",
     "chooseOutput": {
       "loading": "A procurar ecrãs…",
       "loadFailed": "Não foi possível carregar a lista de ecrãs.",
@@ -1099,7 +1116,11 @@
       "notesTall": "Notes tall",
       "notesWide": "Notes wide",
       "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
-      "sizeRange": "Whole number from {min} to {max}"
+      "sizeRange": "Whole number from {min} to {max}",
+      "community": "Saída da comunidade",
+      "communityHint": "Criada pela comunidade. Relate problemas na página da integração.",
+      "tc001Untested": "Comunidade · TC001 não testado em hardware. Relate problemas na página da integração.",
+      "skipTest": "Pular o teste de conexão e adicionar esta tela da comunidade sem testar"
     },
     "panelSetup": {
       "nameLabel": "Nome da TV",
@@ -1111,9 +1132,77 @@
       "created": "{name} está pronta",
       "openOnTv": "Abra este endereço no navegador da TV:",
       "failed": "Não foi possível criar o painel de TV",
-      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address.",
+      "autoSize": "TV de {inches} polegadas · tamanho automático do painel",
+      "autoSizeHint": "O hub ajusta o painel ao tamanho da TV. Você pode alterar isso em Telas depois.",
+      "howConnects": "Como a TV se conecta",
+      "tvApp": "App para Apple TV ou Google TV",
+      "tvAppHint": "Abra o FiestaBoard na TV e escolha Entrar. Aprove o código em",
+      "browser": "Qualquer navegador na TV",
+      "browserHint": "Após a configuração, abra o endereço de visualização desta tela na TV e entre uma vez.",
+      "waiting": "Aguardando a TV · você pode concluir a configuração e conectá-la depois."
     },
-    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser.",
+    "continue": "Continuar",
+    "intro": {
+      "defaultName": "Meu FiestaPi",
+      "description": "Vamos fazer seu hub mostrar algo. Leva cerca de 5 minutos e você pode alterar tudo em Configurações depois.",
+      "name": "Dê um nome a este hub",
+      "nameHint": "Celulares, TVs e a tela do QR mostram este nome.",
+      "timezone": "Fuso horário",
+      "timezoneHint": "Detectado neste navegador. Usado pela programação.",
+      "restore": "Restaurar de um backup…",
+      "start": "Começar",
+      "saveFailed": "Não foi possível salvar as configurações do hub. Tente novamente.",
+      "hub": "Hub"
+    },
+    "connection": {
+      "defaultName": "Meu painel",
+      "name": "Nome da tela",
+      "connection": "Conexão",
+      "local": "API local",
+      "cloud": "Nuvem (chave de leitura/gravação)",
+      "address": "Endereço",
+      "addressHint": "Digite o endereço exibido no app Vestaboard. O teste de conexão verifica esse endereço.",
+      "localKey": "Chave da API local",
+      "cloudKey": "Chave de leitura/gravação da nuvem",
+      "keyHint": "No app Vestaboard › Configurações › Desenvolvedor › API local.",
+      "cloudHint": "Use a chave de leitura/gravação deste painel da sua conta Vestaboard.",
+      "showKey": "Mostrar chave de API",
+      "hideKey": "Ocultar chave de API",
+      "boardType": "Tipo de painel",
+      "test": "Testar conexão",
+      "testAgain": "Testar novamente",
+      "passed": "Conectado · {ms} ms",
+      "failed": "Não foi possível acessar o painel",
+      "unchanged": "Nada foi alterado no painel.",
+      "tryThis": "Tente isto",
+      "checkPower": "Verifique se o painel está ligado e se a luz está acesa sem piscar.",
+      "checkNetwork": "Confirme que ele está na mesma rede Wi-Fi do hub.",
+      "checkKey": "Ative a API local no app Vestaboard e copie a chave novamente.",
+      "useCloud": "Usar chave da nuvem",
+      "knownTitle": "Este painel já está conectado",
+      "knownDescription": "{name} em {host} já está neste hub. Adicioná-lo novamente faria duas telas disputarem o controle do mesmo painel.",
+      "keep": "Manter {name}",
+      "keepHint": "Pular esta etapa. Nada muda.",
+      "update": "Atualizar conexão",
+      "updateHint": "Substituir o endereço e a chave desta tela.",
+      "saveFailed": "Não foi possível salvar a tela. Tente novamente.",
+      "typeFlagship": "Flagship · 22 × 6",
+      "typeNote": "Note · 15 × 3"
+    },
+    "review": {
+      "display": "Tela",
+      "connection": "Conexão",
+      "sources": "Fontes de dados",
+      "finish": "Concluir configuração"
+    },
+    "noDisplays": {
+      "title": "Ainda não há telas",
+      "description": "Adicione sua primeira tela para começar a exibir páginas. Páginas, Programação e Integrações estão prontas quando você quiser.",
+      "add": "Adicionar tela",
+      "rerun": "Executar configuração novamente"
+    }
   },
   "activeDisplay": {
     "collectionBadge": "Carrossel",
@@ -1473,10 +1562,13 @@
       "findMoreEmpty": "Ainda não há outros ecrãs no registo.",
       "byAuthor": "por {author}",
       "vestaboardTitle": "Adicionar um Vestaboard",
-      "vestaboardDescription": "Escolha a forma. Vai ligá-lo depois na página dele.",
+      "vestaboardDescription": "Digite os dados de conexão e teste antes de adicionar a tela.",
       "panelTitle": "Adicionar uma TV ou um navegador",
       "outputTitle": "Adicionar {name}",
-      "setupDescription": "Configure-o e depois adicione-o."
+      "setupDescription": "Conecte esta tela. Adicioná-la não cria páginas nem altera a programação.",
+      "step": "Etapa {current} de 2",
+      "confirm": "Adicionar tela",
+      "added": "{name} adicionada · Exibir uma página"
     },
     "marketplace": {
       "searchLabel": "Pesquisar ecrãs",
