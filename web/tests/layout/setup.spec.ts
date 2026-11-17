@@ -81,6 +81,9 @@ for (const width of [390, 768, 1280]) {
         const bounds = await page.getByRole("dialog").boundingBox();
         expect(Math.round(bounds!.x)).toBe(0);
         expect(Math.round(bounds!.width)).toBe(390);
+        expect(
+          (await page.getByRole("button", { name: "Make a new code", exact: true }).boundingBox())!.height,
+        ).toBeGreaterThanOrEqual(44);
       }
       await checkSetupA11y(page);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -89,6 +92,10 @@ for (const width of [390, 768, 1280]) {
       state = "claimed";
       await expect(page.getByText("Example phone is connected", { exact: true })).toBeVisible();
       await expect(page.getByRole("img", { name: "Scan with the FiestaBoard app" })).toHaveCount(0);
+      if (width === 390)
+        expect(
+          (await page.getByRole("button", { name: "Sign it out", exact: true }).boundingBox())!.height,
+        ).toBeGreaterThanOrEqual(44);
       await checkSetupA11y(page);
       if (shots) await page.screenshot({ path: `${shots}/impl-qr-connected-${width}-${theme}.png`, fullPage: false });
       await page.getByRole("button", { name: "Sign it out", exact: true }).click();

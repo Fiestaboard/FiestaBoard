@@ -27,7 +27,7 @@ export function WizardFrame({
   footer: ReactNode;
 }) {
   return (
-    <Box className="fixed inset-0 z-50 overflow-y-auto bg-background" data-testid="setup-wizard">
+    <Box className="fixed inset-0 z-50 w-screen overflow-y-auto bg-background" data-testid="setup-wizard">
       <Box className="hidden md:block">
         <BoardBackdrop phrases={PHRASES} fixed />
       </Box>
@@ -39,7 +39,14 @@ export function WizardFrame({
               {hub}
             </Text>
           </Box>
-          {current > 0 && <WizardProgress current={current} steps={steps} label={progressLabel} />}
+          {current > 0 && (
+            <WizardProgress
+              current={current}
+              steps={steps}
+              label={progressLabel}
+              className="[&_li>span:last-child]:whitespace-normal [&_li>span:last-child]:break-words"
+            />
+          )}
           <Stack gap="3">
             {eyebrow && (
               <Text size="xs" weight="medium" className="text-brand">

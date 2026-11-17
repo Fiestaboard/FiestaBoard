@@ -88,6 +88,11 @@ for (const width of [390, 768, 1280]) {
       });
       await page.goto(`/tests/layout/setup.html?mode=wizard&theme=${theme}`);
       await expect(page.getByLabel("Name this hub")).toHaveValue("Example FiestaPi");
+      if (width === 390) {
+        const card = await page.getByTestId("setup-wizard").locator('[data-slot="card"]').boundingBox();
+        expect(Math.round(card!.x)).toBe(16);
+        expect(Math.round(card!.width)).toBe(358);
+      }
       await injectAxe(page);
       const axe = async () => checkSetupA11y(page);
       const shot = async (state: string) => {
@@ -98,6 +103,12 @@ for (const width of [390, 768, 1280]) {
       await shot("welcome");
       await page.getByRole("button", { name: "Get started", exact: true }).click();
       await page.getByRole("radio", { name: /Vestaboard/ }).click();
+      expect(
+        await page
+          .getByRole("list", { name: "Setup progress" })
+          .locator("li > span:last-child")
+          .evaluateAll((labels) => labels.every((label) => label.scrollWidth <= label.clientWidth)),
+      ).toBe(true);
       await shot("output");
       await page.getByRole("button", { name: "Continue", exact: true }).click();
       await page.getByLabel("Display name", { exact: true }).fill("Kitchen board");

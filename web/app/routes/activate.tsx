@@ -203,7 +203,7 @@ export default function Activate() {
       direction="col"
       align="center"
       justify="center"
-      className="relative isolate min-h-svh bg-background px-4 py-6 sm:p-8"
+      className="relative isolate min-h-svh w-screen bg-background px-4 py-6 sm:p-8"
     >
       <meta name="referrer" content="no-referrer" />
       <BoardBackdrop phrases={BACKDROP_PHRASES} fixed className="hidden sm:block" />

@@ -68,7 +68,7 @@ export function AddDisplayDialog({
   };
   return (
     <DialogContent
-      className="max-h-[90dvh] overflow-y-auto sm:max-w-[560px] max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[92dvh] max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-b-none"
+      className="max-h-[90dvh] overflow-y-auto sm:max-w-[560px] max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[92dvh] max-sm:w-screen max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-b-none"
       data-testid="add-display-dialog"
     >
       <DialogHeader>

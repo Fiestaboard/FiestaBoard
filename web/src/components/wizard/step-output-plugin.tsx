@@ -506,7 +506,7 @@ function OutputBoardForm({
         </label>
       )}
       {!hideCreate && (
-        <Button type="button" onClick={() => create.mutate()} disabled={!valid} className="w-full">
+        <Button type="button" onClick={() => create.mutate()} disabled={!valid} className="w-full max-sm:min-h-11">
           {create.isPending ? tbs("creating") : createLabel}
         </Button>
       )}

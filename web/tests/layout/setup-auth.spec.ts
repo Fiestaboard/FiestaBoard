@@ -41,6 +41,11 @@ for (const width of [390, 768, 1280]) {
       });
       await page.goto(`/tests/layout/setup.html?mode=activate&theme=${theme}`);
       await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeDisabled();
+      if (width === 390) {
+        const card = await page.locator('[data-slot="card"]').first().boundingBox();
+        expect(Math.round(card!.x)).toBe(16);
+        expect(Math.round(card!.width)).toBe(358);
+      }
       await injectAxe(page);
       const axe = async () => checkSetupA11y(page);
       await axe();
@@ -58,6 +63,11 @@ for (const width of [390, 768, 1280]) {
       await page.screenshot({ path: `${shots}/impl-activate-approved-${width}-${theme}.png`, fullPage: true });
       await page.goto(`/tests/layout/setup.html?mode=reset&theme=${theme}`);
       await expect(page.getByRole("heading", { name: "Reset password", exact: true })).toBeVisible();
+      if (width === 390) {
+        const card = await page.locator('[data-slot="card"]').first().boundingBox();
+        expect(Math.round(card!.x)).toBe(16);
+        expect(Math.round(card!.width)).toBe(358);
+      }
       await injectAxe(page);
       await axe();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

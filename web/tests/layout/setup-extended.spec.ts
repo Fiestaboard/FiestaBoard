@@ -101,6 +101,7 @@ for (const width of [390, 768, 1280]) {
       await page.getByRole("button", { name: "Add display", exact: true }).click();
       const dialog = page.getByRole("dialog");
       await expect(dialog.getByRole("radio", { name: /Vestaboard/ })).toBeVisible();
+      if (width === 390) expect(Math.round((await dialog.boundingBox())!.width)).toBe(390);
       await shot(page, "add-display-type", width, theme);
       await dialog.getByRole("radio", { name: /Vestaboard/ }).click();
       await dialog.getByRole("button", { name: "Next", exact: true }).click();
@@ -135,6 +136,7 @@ for (const width of [390, 768, 1280]) {
         })
         .check();
       await expect(add).toBeEnabled();
+      if (width === 390) expect((await add.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await injectAxe(page);
       await shot(page, "add-community-untested", width, theme);
       expect(unexpected).toEqual([]);

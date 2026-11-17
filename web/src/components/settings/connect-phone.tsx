@@ -335,7 +335,7 @@ export function ConnectPhone({
             </Stack>
           )
         )}
-        <DialogFooter className="flex-col md:flex-row">
+        <DialogFooter className="flex-col md:flex-row [&_button]:max-md:min-h-11">
           {claimed ? (
             <Button variant="outline" disabled={busy || !state.session_id} onClick={() => void revoke()}>
               {t("signOut")}
