@@ -19,6 +19,13 @@ export async function auditDocument(page: Page, testInfo: TestInfo, state: Recor
   await expect(page.locator('[data-slot="skeleton"]:visible, [aria-busy="true"]:visible')).toHaveCount(0);
   await page.evaluate(async () => {
     await document.fonts.ready;
+    // Let the normal route entrance finish without disabling motion. Infinite
+    // animations are a separate manual/motion state, not an unbounded wait.
+    await Promise.all(
+      document.getAnimations().flatMap((animation) =>
+        animation.effect?.getTiming().iterations !== Infinity ? [animation.finished.catch(() => undefined)] : [],
+      ),
+    );
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
   });
   await injectAxe(page);
