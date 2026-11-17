@@ -24,6 +24,7 @@ import {
   ensureAuthForFetch,
   expect,
   loginIfNeeded,
+  resetToSingleBoard,
   slowRoute,
   test,
 } from "../helpers";
@@ -101,6 +102,7 @@ test.describe("regression: schedule.form", () => {
   test("schedule.form.sun-start — sunrise/sunset start type swaps to offset input with resolved time hint", async ({
     page,
   }) => {
+    await resetToSingleBoard();
     await createPage("Sun Start Page");
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
@@ -153,15 +155,23 @@ test.describe("regression: schedule.form", () => {
     const response = await created;
     expect(response.ok()).toBe(true);
     expect(response.request().postDataJSON()).toMatchObject({
-      board_id: expect.any(String),
       start_type: "sunrise",
       start_sun_offset: -30,
     });
+    expect(response.request().postDataJSON()).not.toHaveProperty("board_id");
     const saved = await response.json();
-    const persisted = await fetch(`${API_URL}/v1/schedules`, { headers: authHeaders() });
+    expect(saved.board_id).toBe("");
+    const boards = await fetch(`${API_URL}/v1/boards`, { headers: authHeaders() });
+    expect(boards.ok).toBe(true);
+    const boardId = (await boards.json()).boards[0].id;
+    const persisted = await fetch(`${API_URL}/v1/schedules?board_id=${encodeURIComponent(boardId)}`, {
+      headers: authHeaders(),
+    });
     expect(persisted.ok).toBe(true);
     expect((await persisted.json()).schedules).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: saved.id, start_type: "sunrise", start_sun_offset: -30 })]),
+      expect.arrayContaining([
+        expect.objectContaining({ id: saved.id, board_id: "", start_type: "sunrise", start_sun_offset: -30 }),
+      ]),
     );
   });
 
@@ -181,6 +191,7 @@ test.describe("regression: schedule.form", () => {
   test("schedule.form.sun-end — sunrise/sunset end type swaps to offset input mirroring start behavior", async ({
     page,
   }) => {
+    await resetToSingleBoard();
     await createPage("Sun End Page");
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
@@ -223,15 +234,23 @@ test.describe("regression: schedule.form", () => {
     const response = await created;
     expect(response.ok()).toBe(true);
     expect(response.request().postDataJSON()).toMatchObject({
-      board_id: expect.any(String),
       end_type: "sunset",
       end_sun_offset: 15,
     });
+    expect(response.request().postDataJSON()).not.toHaveProperty("board_id");
     const saved = await response.json();
-    const persisted = await fetch(`${API_URL}/v1/schedules`, { headers: authHeaders() });
+    expect(saved.board_id).toBe("");
+    const boards = await fetch(`${API_URL}/v1/boards`, { headers: authHeaders() });
+    expect(boards.ok).toBe(true);
+    const boardId = (await boards.json()).boards[0].id;
+    const persisted = await fetch(`${API_URL}/v1/schedules?board_id=${encodeURIComponent(boardId)}`, {
+      headers: authHeaders(),
+    });
     expect(persisted.ok).toBe(true);
     expect((await persisted.json()).schedules).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: saved.id, end_type: "sunset", end_sun_offset: 15 })]),
+      expect.arrayContaining([
+        expect.objectContaining({ id: saved.id, board_id: "", end_type: "sunset", end_sun_offset: 15 }),
+      ]),
     );
   });
 

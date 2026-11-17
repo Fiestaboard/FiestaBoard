@@ -303,7 +303,7 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
     await page.getByRole("radio", { name: "Week", exact: true }).click();
     await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
 
-    const zoomControls = page.locator(".schedule-calendar-container .ml-auto.flex.items-center").first();
+    const zoomControls = page.locator(".schedule-calendar-wrapper .ml-auto.flex.items-center").first();
     await expect(zoomControls).toBeVisible({ timeout: 10_000 });
 
     const box = await zoomControls.boundingBox();

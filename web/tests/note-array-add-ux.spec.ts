@@ -9,7 +9,16 @@
  * Videos are recorded (`test.use({ video: "on" })`) so the flow can be
  * validated visually.
  */
-import { configureBoard, expect, openDisplays, resetToSingleBoard, suppressWizard, test } from "./helpers";
+import {
+  addVestaboardDisplay,
+  API_URL,
+  authHeaders,
+  configureBoard,
+  expect,
+  resetToSingleBoard,
+  suppressWizard,
+  test,
+} from "./helpers";
 
 test.use({ video: "on" });
 
@@ -24,37 +33,22 @@ test.describe("Add Note Array board", () => {
     await resetToSingleBoard();
   });
 
-  test("Note Array is offered as a device type and starts as a cloud 2×1 array", async ({ page }) => {
-    await openDisplays(page);
-
-    const addButton = page.getByRole("button", { name: "Add a display" });
-    await addButton.scrollIntoViewIfNeeded();
-    await addButton.hover();
-    await page.waitForTimeout(600);
-    await addButton.click();
-    await page.getByRole("radio", { name: /Vestaboard/ }).click();
-    await page.getByRole("button", { name: "Next", exact: true }).click();
-
-    // All three Vestaboard product shapes are offered — Note Array is its own
-    // one-click choice, not "add a Note, then convert its type". Hover each so
-    // the recording clearly shows the picker.
-    const flagshipChoice = page.getByRole("button", { name: "Flagship", exact: true });
-    const noteChoice = page.getByRole("button", { name: "Note", exact: true });
-    const arrayChoice = page.getByRole("button", { name: "Note Array", exact: true });
-    await expect(flagshipChoice).toBeVisible();
-    await expect(noteChoice).toBeVisible();
-    await expect(arrayChoice).toBeVisible();
-    await flagshipChoice.hover();
-    await page.waitForTimeout(450);
-    await noteChoice.hover();
-    await page.waitForTimeout(450);
-    await arrayChoice.hover();
-    await page.waitForTimeout(700);
-    await arrayChoice.click();
-    await page.getByRole("tab", { name: "Settings", exact: true }).click();
+  test("Note Array is added as a tested cloud 2×1 array", async ({ page }) => {
+    // Note Array remains a first-class choice in Add a display. The shared
+    // helper supplies a mock cloud token and verifies the required connection
+    // test before the real backend creates the array.
+    await addVestaboardDisplay(page, "Note Array");
+    const settings = await (await fetch(`${API_URL}/settings/board`, { headers: authHeaders() })).json();
+    const array = settings.boards.find((board: { name: string }) => board.name === "My Board 2");
+    expect(array).toMatchObject({ device_type: "note_array", notes_wide: 2, notes_tall: 1 });
+    expect(array.output_config).toMatchObject({ api_mode: "cloud", note_array_token: "***" });
 
     // The new board's page opens: a 2×1 note array (3 rows × 30 cols).
+    // Wait for its mounted settings before clicking a tab: the previous
+    // embedded display can remain visible while creation navigation settles.
     const card = page.getByTestId("board-card").filter({ hasText: "My Board 2" });
+    await expect(card.getByTestId("board-name-input")).toHaveValue("My Board 2", { timeout: 10_000 });
+    await page.getByRole("tab", { name: "Settings", exact: true }).click();
     await expect(card).toBeVisible({ timeout: 10_000 });
     await expect(card).toContainText("30 × 3");
     await expect(card).toContainText("2 side-by-side");
@@ -64,8 +58,8 @@ test.describe("Add Note Array board", () => {
     const localMode = card.getByRole("radio", { name: /Local API/ });
     await expect(localMode).toBeVisible();
     await expect(card.getByLabel(/Cloud API Token/)).toBeVisible();
-    // A tokenless array is not usable yet — the token field itself says it is needed.
-    await expect(card.getByLabel(/Cloud API Token/)).toHaveAccessibleDescription(/Required/);
+    // The saved cloud token stays masked after successful creation.
+    await expect(card.getByLabel(/Cloud API Token/)).toHaveAttribute("type", "password");
 
     // Bring the connection section on screen and dwell so the video
     // clearly shows the mode switch.

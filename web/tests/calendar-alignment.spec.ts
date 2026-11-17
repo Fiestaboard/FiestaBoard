@@ -103,6 +103,7 @@ async function measureCalendarAlignment(page: Page): Promise<AlignmentResult> {
 async function setupScheduleWithData(page: Page) {
   await configureBoard();
   await suppressWizard(page);
+  await page.addInitScript(() => localStorage.setItem("schedule-view-mode", "calendar"));
   await deleteAllSchedules();
   await deleteAllPages();
 
@@ -149,7 +150,8 @@ test.describe("Calendar alignment", () => {
 
     await page.getByRole("radio", { name: "Week", exact: true }).click();
     await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator(".schedule-calendar-container .rbc-calendar")).toBeVisible();
 
     const calendar = page.locator(".schedule-calendar-container");
     await expect(calendar).toBeVisible({ timeout: 10_000 });
@@ -172,7 +174,8 @@ test.describe("Calendar alignment", () => {
 
     await page.getByRole("radio", { name: "Week", exact: true }).click();
     await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator(".schedule-calendar-container .rbc-calendar")).toBeVisible();
 
     const calendar = page.locator(".schedule-calendar-container");
     await expect(calendar).toBeVisible({ timeout: 10_000 });
@@ -207,7 +210,9 @@ test.describe("Calendar alignment", () => {
     });
 
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.waitForTimeout(500);
+    await expect(calendar).toHaveClass(/schedule-calendar-mobile/);
+    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator(".schedule-calendar-container .rbc-calendar")).toBeVisible();
 
     await calendar.screenshot({
       path: `${outputDir}/calendar-mobile.png`,
@@ -338,6 +343,7 @@ test.describe("Calendar alignment", () => {
     // Setup: replace standard schedules with an overnight schedule + one daytime for context
     await configureBoard();
     await suppressWizard(page);
+    await page.addInitScript(() => localStorage.setItem("schedule-view-mode", "calendar"));
     await deleteAllSchedules();
     await deleteAllPages();
 
@@ -377,7 +383,9 @@ test.describe("Calendar alignment", () => {
 
     // Mobile: taller viewport to show more of the calendar
     await page.setViewportSize({ width: 390, height: 900 });
-    await page.waitForTimeout(500);
+    await expect(calendar).toHaveClass(/schedule-calendar-mobile/);
+    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator(".schedule-calendar-container .rbc-calendar")).toBeVisible();
 
     await calendar.screenshot({
       path: `${outputDir}/calendar-full-mobile-crossday.png`,

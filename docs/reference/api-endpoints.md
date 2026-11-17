@@ -57,6 +57,15 @@ nginx fronts the API under `/api`, so every path below is reached as
 `http://fiestaboard.local:4420/api/v1/status`. These docs live at
 `/api/docs`, the schema at `/api/openapi.json`.
 
+With built-in TLS enabled, the same routes are available at
+`https://fiestaboard.local:4443/api` (the example HTTPS host port).
+HTTP stays available for local clients and Home Assistant ingress. Transport
+selection does not change authentication or endpoint shapes. Configure
+self-signed or operator-supplied certificates using the
+[production deployment guide](https://fiestaboard.app/docs/deployment/production#built-in-https).
+Clients must trust the certificate and use a hostname or IP in its subject
+alternative names; do not disable certificate verification.
+
 ## What is not here
 
 This document is the API to build against: 33 operations. The app serves
@@ -145,7 +154,7 @@ Every configured board, with the id you use in the rest of this API, its grid si
 
 **Read a board and everything it is doing**
 
-One answer to 'what is this board showing, and why'. It merges what the internal API splits across three endpoints: the flaps currently on the board, the page pinned to it by hand, and the page its schedule selects for right now. `source` says which of the two won. `board` may be a board id or the literal `primary`.
+One answer to 'what is this board showing, and why'. It merges what the internal API splits across three endpoints: the flaps currently on the board, the page pinned to it by hand, and the page its schedule selects for right now. `source` says which of the two won. `board` may be a board id or the literal `primary`. Expired overrides have null `override_started_at` and `override_expires_at`, even while their revert is pending. Polling never consumes the pending revert; the display engine handles it for this board. Null timestamps do not guarantee the physical board has repainted yet.
 
 **Parameters**
 
@@ -1112,6 +1121,34 @@ The webhook target. A plugin that declares a `receive` handler accepts a JSON bo
 | `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
 | `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
 
+### `GET /v1/render-assets` {#get-v1-render-assets}
+
+**Read the native renderer's fonts and character sets**
+
+One atomic snapshot of the hub's vendored built-in LED fonts and flattened character sets. The nested documents retain FiestaUI's field names and bitmap rows ('#' lit, '.' unlit). `schema_version` versions this envelope; `revision` identifies its font and charset content; `source` names the upstream release. Custom plugin character sets are not included. Cache the response privately and send its ETag in `If-None-Match` to revalidate: a matching validator (including weak tags, lists or '*') returns an empty 304 with the same cache headers. Authentication is checked before revalidation. Mobile control credentials, browser sessions and configured API tokens use the existing v1 access rules; TV credentials do not gain access.
+
+**Parameters**
+
+| Name | In | Type | Required | Description |
+|------|----|------|----------|-------------|
+| `if-none-match` | header | array of `string` \| `null` | no | Cached ETag(s), comma-separated or repeated; weak tags and '*' are accepted. |
+
+**Responses**
+
+| Status | Body | Description |
+|--------|------|-------------|
+| `200` | [`RenderAssets`](#schema-renderassets) | Successful Response |
+
+**Errors**
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| `304` | no body | The cached catalog is current; no response body. |
+| `401` | [`ErrorResponse`](#schema-errorresponse) | Not authenticated — no valid session cookie or bearer token was presented, or the credentials were wrong. |
+| `403` | [`ErrorResponse`](#schema-errorresponse) | Forbidden. |
+| `422` | [`HTTPValidationError`](#schema-httpvalidationerror) | Validation Error |
+| `503` | [`ErrorResponse`](#schema-errorresponse) | A required dependency is unavailable. |
+
 ## `service` {#tag-service}
 
 The display loop itself: health, status, start/stop/refresh.
@@ -1276,11 +1313,11 @@ one document, because "what is this board doing" is one question.
 | `resolved_next_check_seconds` | `integer` \| `null` | no | Seconds until `resolved_page_id` may change on its own, when it came from a collection that rotates. Poll again after this long rather than on a guessed timer. Null for a plain page and for a collection that cannot rotate. |
 | `source` | `"manual"` \| `"schedule"` \| `"none"` | yes | Where `resolved_page_id` came from. |
 | `default_page_id` | `string` \| `null` | no | The page shown when the schedule has a gap. |
-| `override_expires_at` | `string` \| `null` | no | When this board's active timed message expires (ISO 8601), or null if none is running. |
+| `override_expires_at` | `string` \| `null` | no | When this board's active timed message expires (ISO 8601), or null if none is running. Null after expiry even while the display engine still has a pending revert. |
 | `next_change_at` | `string` \| `null` | no | When this board is next expected to change (ISO 8601 UTC, whole seconds): its override ends, its schedule hands over to a different page, its quiet hours start or end, or the collection showing rotates. Null when paused or when nothing changes within 8 days. Plugin triggers are never predicted. |
 | `next_change_reason` | `"override_ends"` \| `"schedule"` \| `"silence_starts"` \| `"silence_ends"` \| `"collection"` \| `null` | no | Why next_change_at is when it is. Null exactly when next_change_at is. |
 | `next_page_id` | `string` \| `null` | no | The page or collection in force after next_change_at, when the hub can know it; null when it cannot (a collection rotation, a blank revert, a quiet-hours indicator). |
-| `override_started_at` | `string` \| `null` | no | When this board's active override began (ISO 8601), or null if none is running. A replaced override has a new value, so it identifies one run (for a Live Activity or Live Update). |
+| `override_started_at` | `string` \| `null` | no | When this board's active override began (ISO 8601), or null if none is running. A replaced override has a new value, so it identifies one run (for a Live Activity or Live Update). Null after expiry even while the display engine still has a pending revert. |
 | `health` | [`HealthSummary`](#schema-healthsummary) | no | When the hub last reached this board (last_connected_at, latency_ms), when a frame last landed (last_update_at), and the last failed contact (last_error_at, last_error); these survive a hub restart. reachable says whether this hub process last reached the board or failed to, and breaker_open whether writes are held back after repeated failures. |
 | `drawing` | [`BoardDrawing`](#schema-boarddrawing) | yes | What this board's display can draw (lowercase, colored text, highlights, tiles, icons, any color, solid shapes, pixel canvases), with the color model, LED text face, icon names and pixel size an editor's tools need. |
 | `layers` | array of [`CanvasLayerModel`](#schema-canvaslayermodel) \| `null` | no | A pixel-matrix board only: the page's pixel canvases on the frame it shows, drawn over `characters` (`{x, y, width, height, rgba}`, rgba base64 RGBA; `[]` for none). Null on any other board. |
@@ -1362,6 +1399,26 @@ a consumer writing to a board has any use for.
 | `schedule_enabled` | `boolean` \| `null` | no | Turn this board's schedule on or off. |
 | `auto_restore` | `boolean` \| `null` | no | Turn off to let another app keep this board after it overwrites FiestaBoard's content; on (the default) puts the content back. |
 | `default_page_id` | `string` \| `null` | no | Page shown when the schedule has a gap. Send null to clear it. |
+
+### `BuiltinCharacterSet` {#schema-builtincharacterset}
+
+A flattened built-in set, retaining FiestaUI's document field names.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | — |
+| `label` | `string` | yes | — |
+| `version` | `integer` | yes | min 1 |
+| `chars` | array of `string` | yes | — |
+| `tiles` | `boolean` | yes | — |
+| `icons` | array of `string` | yes | — |
+| `mixedCase` | `boolean` | yes | — |
+| `colorSpans` | `boolean` | yes | — |
+| `blockSpans` | `boolean` | yes | — |
+| `extends` | `string` \| `null` | no | — |
+| `font` | `"5x7"` \| `"3x5"` \| `null` | no | — |
+| `code62Glyph` | `"degree"` \| `"heart"` \| `null` | no | — |
+| `glyphs` | object of array of `string` \| `null` | no | — |
 
 ### `CanvasLayerModel` {#schema-canvaslayermodel}
 
@@ -1694,6 +1751,19 @@ Warn-only: the backend never mutates or removes the reference.
 ### `JsonValue` {#schema-jsonvalue}
 
 _No fields._
+
+### `LedFont` {#schema-ledfont}
+
+A row-major face. '#' lights a pixel; '.' leaves it unlit.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `glyphWidth` | `integer` | yes | — |
+| `glyphHeight` | `integer` | yes | — |
+| `spacingX` | `integer` | yes | min 0 |
+| `spacingY` | `integer` | yes | min 0 |
+| `glyphs` | object of array of `string` | yes | — |
+| `icons` | object of array of `string` | yes | — |
 
 ### `LineMetadata` {#schema-linemetadata}
 
@@ -2086,6 +2156,28 @@ both are present, which is what the pre-conversion handler did.
 | `board_id` | `string` \| `null` | no | — |
 | `sent` | `boolean` | yes | — |
 
+### `RenderAssets` {#schema-renderassets}
+
+One atomic built-in catalog, independent of boards and plugin state.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schema_version` | `integer` | yes | Wire-format version, independent of charset versions. |
+| `revision` | `string` | yes | SHA-256 of canonical fonts and character_sets JSON. |
+| `source` | [`RenderAssetSource`](#schema-renderassetsource) | yes | — |
+| `fonts` | object of [`LedFont`](#schema-ledfont) | yes | — |
+| `character_sets` | object of [`BuiltinCharacterSet`](#schema-builtincharacterset) | yes | — |
+
+### `RenderAssetSource` {#schema-renderassetsource}
+
+The upstream data release; not the catalog's content revision.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `source` | `string` | yes | — |
+| `commit` | `string` | yes | — |
+| `version` | `string` | yes | — |
+
 ### `RenderRequest` {#schema-renderrequest}
 
 `POST /v1/render` — render a template without saving or sending it.
@@ -2385,7 +2477,7 @@ truthy non-error result selects `page_id` as the active page.
 
 ## Where the rest of the API went
 
-This page documents the 36 operations the app publishes. The other
+This page documents the 37 operations the app publishes. The other
 ~200 paths the app serves are the web UI's private RPC channel: they still
 answer exactly as they always have, but they are undocumented on purpose,
 carry no compatibility promise, and may change in any release. They are

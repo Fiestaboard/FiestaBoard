@@ -118,11 +118,12 @@ def _seed_page(client: TestClient, name: str = "Contract Page") -> str:
 # ── the surface itself ──────────────────────────────────────────────────────
 
 
-def test_v1_publishes_exactly_thirty_four_operations():
-    """The contract is 34 operations. A 35th is a decision, not a side effect.
+def test_v1_publishes_exactly_thirty_five_operations():
+    """The contract is 35 operations. A 36th is a decision, not a side effect.
 
     The 34th, ``POST /v1/boards/{board}/restore``, was that decision (#2354):
     recovering a board another client overwrote had no board-scoped path.
+    The 35th is H14: GET /v1/render-assets, the native renderer catalog.
     """
     from tests.test_route_inventory import build_route_inventory
 
@@ -167,6 +168,7 @@ def test_v1_publishes_exactly_thirty_four_operations():
             "GET /v1/variables",
             "POST /v1/render",
             "GET /v1/functions",
+            "GET /v1/render-assets",
             "GET /v1/health",
             "GET /v1/status",
         ]

@@ -493,6 +493,15 @@ nginx fronts the API under `/api`, so every path below is reached as
 `http://fiestaboard.local:4420/api/v1/status`. These docs live at
 `/api/docs`, the schema at `/api/openapi.json`.
 
+With built-in TLS enabled, the same routes are available at
+`https://fiestaboard.local:4443/api` (the example HTTPS host port).
+HTTP stays available for local clients and Home Assistant ingress. Transport
+selection does not change authentication or endpoint shapes. Configure
+self-signed or operator-supplied certificates using the
+[production deployment guide](https://fiestaboard.app/docs/deployment/production#built-in-https).
+Clients must trust the certificate and use a hostname or IP in its subject
+alternative names; do not disable certificate verification.
+
 ### What is not here
 
 This document is the API to build against: 33 operations. The app serves
@@ -564,6 +573,7 @@ OPENAPI_TAGS = [
     {"name": "backup", "description": "Export and import the whole install as one file."},
     {"name": "mqtt", "description": "MQTT / Home Assistant discovery status and republish."},
     {"name": "auth", "description": "Optional login, password/username management and MCP bearer tokens."},
+    {"name": "push", "description": "Web push enrollment, account and browser consent, and test notifications."},
     {
         "name": "oauth",
         "description": "OAuth sign-in for plugins: connection status, starting a flow, and the relay callback.",
@@ -791,6 +801,10 @@ from .auth.session_routes import router as auth_sessions_router  # noqa: E402
 app.include_router(device_auth_router)
 app.include_router(pairing_auth_router)
 app.include_router(auth_sessions_router)
+
+from .push.routes import router as push_router  # noqa: E402
+
+app.include_router(push_router)
 if is_auth_enabled():
     logger.info("Authentication is ENABLED (FIESTABOARD_AUTH_ENABLED=true)")
 else:

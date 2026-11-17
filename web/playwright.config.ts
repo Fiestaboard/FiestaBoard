@@ -40,6 +40,7 @@ export default defineConfig({
     "**/draw-mode-demo.spec.ts",
     "**/layout/**",
     "**/device-sign-in.spec.ts",
+    "**/setup-pairing.spec.ts",
   ],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

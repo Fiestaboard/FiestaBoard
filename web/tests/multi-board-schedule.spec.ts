@@ -92,12 +92,10 @@ test.describe("Multi-Board and Schedule", () => {
 
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("09:00").first()).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByText("12:00").first()).toBeVisible({
-      timeout: 5_000,
-    });
+    await page.getByRole("radio", { name: "List", exact: true }).click();
+    await expect(page.getByRole("button", { name: /Schedule Multi-Board Page/ }).first()).toContainText(
+      /9:00\s*AM – 12:00\s*PM/,
+    );
   });
 
   test("schedules API returns data with two boards", async () => {
@@ -154,16 +152,19 @@ test.describe("Multi-Board and Schedule", () => {
 
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
-    // First board selected: should show 09:00–12:00
-    await expect(page.getByText("09:00").first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("12:00").first()).toBeVisible({ timeout: 5_000 });
+    await page.getByRole("radio", { name: "List", exact: true }).click();
+    await expect(page.getByRole("button", { name: /Board One Page/ }).first()).toContainText(/9:00\s*AM – 12:00\s*PM/);
+    await expect(page.getByRole("button", { name: /Board Two Page/ })).toHaveCount(0);
     // Switch to the second board using the shared sidebar board selector (#1248).
     const boardSelector = page.getByRole("combobox", { name: /board/i }).first();
     await boardSelector.click();
     // Pick the second option in the dropdown
     await page.getByRole("option").nth(1).click();
-    // After switch: should show 14:00–18:00 for board 2
-    await expect(page.getByText("14:00").first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("18:00").first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("button", { name: /Board Two Page/ }).first()).toContainText(/2:00\s*PM – 6:00\s*PM/);
+    await expect(page.getByRole("button", { name: /Board One Page/ })).toHaveCount(0);
+    await boardSelector.click();
+    await page.getByRole("option").nth(0).click();
+    await expect(page.getByRole("button", { name: /Board One Page/ }).first()).toContainText(/9:00\s*AM – 12:00\s*PM/);
+    await expect(page.getByRole("button", { name: /Board Two Page/ })).toHaveCount(0);
   });
 });

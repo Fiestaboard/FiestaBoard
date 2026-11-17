@@ -8,7 +8,7 @@ disk or a read-only ``data/`` the UI showed the new value, the in-memory
 object held it, and the next restart silently reverted it.
 
 Background paths (boot-time seed save, the expiry GC in
-``get_temporary_override`` / ``consume_temporary_override``) are the
+``consume_temporary_override``) are the
 deliberate exception: they run outside a request, so they log and continue
 rather than take the process down. Those exceptions are pinned here too, so
 "it is swallowed" can never quietly come back for the request paths.
@@ -64,14 +64,14 @@ class TestServiceLevel:
             service = _service(tmp_path)
         assert service.get_polling_settings() is not None
 
-    def test_get_override_gc_failure_does_not_break_the_read(self, tmp_path):
-        """The display loop reads the override every tick; a failed GC write
-        must not turn a read into an exception."""
+    def test_get_expired_override_needs_no_write_and_preserves_pending_revert(self, tmp_path):
+        """An unwritable store cannot turn a status read into expiry GC."""
         service = _service(tmp_path)
         service.set_temporary_override(TemporaryOverride(page_id="p1", expires_at="2000-01-01T00:00:00+00:00"))
         service._store._path = _make_undirectory(tmp_path)
 
         assert service.get_temporary_override() is None
+        assert service.peek_temporary_override() is not None
 
     def test_consume_override_gc_failure_does_not_break_the_read(self, tmp_path):
         service = _service(tmp_path)

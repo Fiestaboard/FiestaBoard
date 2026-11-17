@@ -306,3 +306,66 @@ class TestProdPrebuiltCompose:
     def test_port_mapping(self):
         ports = self.compose["services"]["fiestaboard"].get("ports", [])
         assert "4420:3000" in ports
+
+
+# ---------------------------------------------------------------------------
+# Optional .env (fresh installs)
+# ---------------------------------------------------------------------------
+
+# Compose files a user can run straight from a fresh download or clone,
+# before any `.env` exists (e.g. `curl -O .../docker-compose.hub.yml &&
+# docker compose -f docker-compose.hub.yml up -d`).
+ENV_OPTIONAL_COMPOSE_FILES = [
+    "docker-compose.yml",
+    "docker-compose.dev.yml",
+    "docker-compose.hub.yml",
+    "docker-compose.prod.yml",
+    "pi-image/stage-fiestaboard/01-install-fiestaboard/files/docker-compose.yml",
+]
+
+
+@pytest.mark.parametrize("filename", ENV_OPTIONAL_COMPOSE_FILES)
+def test_env_file_is_optional(filename):
+    """A missing .env must not stop `docker compose up`.
+
+    Short-form `env_file: [.env]` makes the file required, so Compose aborts
+    with "env file .../.env not found". Every entry must use the long form
+    with `required: false`.
+    """
+    compose = _load_compose(filename)
+    checked = 0
+    for name, svc in compose["services"].items():
+        env_files = svc.get("env_file")
+        if env_files is None:
+            continue
+        if not isinstance(env_files, list):
+            env_files = [env_files]
+        for entry in env_files:
+            checked += 1
+            assert isinstance(entry, dict) and entry.get("required") is False, (
+                f"{filename}: service {name!r} env_file entry {entry!r} must be "
+                "`{path: .env, required: false}` so a missing .env is not fatal"
+            )
+    assert checked, f"{filename}: expected at least one env_file entry"
+
+
+# Compose files that define the fiestaupdater sidecar.
+FIESTAUPDATER_COMPOSE_FILES = [
+    "docker-compose.yml",
+    "docker-compose.hub.yml",
+    "pi-image/stage-fiestaboard/01-install-fiestaboard/files/docker-compose.yml",
+]
+
+
+@pytest.mark.parametrize("filename", FIESTAUPDATER_COMPOSE_FILES)
+def test_fiestaupdater_token_has_default(filename):
+    """An unset FIESTAUPDATER_TOKEN must not make Compose print a warning."""
+    path = os.path.join(REPO_ROOT, filename)
+    if not os.path.exists(path):
+        pytest.skip(f"{filename} not found")
+    with open(path) as fh:
+        text = fh.read()
+    assert "${FIESTAUPDATER_TOKEN:-}" in text
+    assert "${FIESTAUPDATER_TOKEN}" not in text, (
+        f"{filename}: use ${{FIESTAUPDATER_TOKEN:-}} so an unset token is silent"
+    )

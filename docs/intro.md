@@ -7,7 +7,7 @@ keywords: [FiestaBoard, split-flap display, LED matrix display, Divoom Pixoo 64,
 # Welcome to FiestaBoard
 
 :::note Version availability
-These instructions describe FiestaBoard v10 (`next` / beta). The output-plugin setup and Divoom Pixoo 64 support are not available in stable v9. Native Apple TV and Android TV apps are coming soon; use a browser for TV viewing.
+At the November 17, 2026 checkpoint, Stable is 10.3.3, Beta is 10.3.4-beta.0, and FiestaBoard 11 is an Alpha preview. Start with [what is new in v11](/docs/setup/v11-preview), the [upgrade and recovery guide](/docs/setup/v11-upgrade), and [Release Channels](/docs/features/release-channels) before trying the preview. An Alpha image does not imply every planned screen or native app has shipped.
 :::
 
 **Your data, out in the real world.** FiestaBoard turns live data into something you can glance at from across the room — your morning commute, the markets, the surf, a little Star Trek wisdom — on the displays around you: split-flap boards like Vestaboard, LED matrices like the Divoom Pixoo 64, or any TV with a browser. Pick from 60+ plugins, design pages in a visual editor, schedule what shows when, and build your own plugins. Free, open source, and self-hosted in Docker.
@@ -124,7 +124,10 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 | **[AI Page Drafts](/docs/setup/ai-providers)** | Optional: bring your own LLM to draft pages from a prompt |
 | **[Schedule Mode](/docs/features/schedule)** | Automating when pages display |
 | **[Silence Schedule](/docs/features/silence-schedule)** | Setting quiet hours for your board |
-| **[In-App Updates](/docs/features/updating)** | One-click updates from the Settings UI |
+| **[In-App Updates](/docs/features/updating)** | Updates from the Settings UI |
+| **[FiestaBoard 11 Preview](/docs/setup/v11-preview)** | What is new and what remains unfinished |
+| **[V11 Upgrade and Recovery](/docs/setup/v11-upgrade)** | Back up 10.x, try the preview, and recover compatible data |
+| **[Release Channels](/docs/features/release-channels)** | Stable, Beta and Alpha availability |
 | **[Raspberry Pi](/docs/deployment/raspberry-pi)** | Always-on deployment on a Pi |
 | **[V3 Migration](/docs/setup/v3-migration)** | Upgrading from FiestaBoard V2 (external plugins) |
 | **[V2 Migration](/docs/setup/v2-migration)** | Upgrading from FiestaBoard V1 |

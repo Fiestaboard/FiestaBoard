@@ -94,7 +94,7 @@ async function openCollection(page: Page, name: string): Promise<void> {
  * it by its placeholder/value text "Add a page...".
  */
 function addPageCombobox(dialog: Locator): Locator {
-  return dialog.getByRole("combobox").filter({ hasText: "Add a page..." });
+  return dialog.getByRole("button", { name: "Add page" });
 }
 
 // ---------------------------------------------------------------------------
@@ -212,7 +212,7 @@ async function openCreateRoute(page: Page): Promise<Locator> {
   } else {
     await page.getByRole("button", { name: "New Collection" }).first().click();
   }
-  const dialog = page.locator('[data-slot="page-card"]');
+  const dialog = page.locator("form");
   await expect(dialog).toBeVisible({ timeout: 10_000 });
   return dialog;
 }
@@ -237,7 +237,7 @@ test.describe("regression: collections.form", () => {
     await expect(dialog.getByRole("heading", { name: "New Collection" })).toBeVisible();
 
     // Form controls are present.
-    await expect(dialog.getByLabel("Name")).toBeVisible();
+    await expect(dialog.getByLabel("Collection name")).toBeVisible();
     await expect(dialog.getByText("Page Duration", { exact: true })).toBeVisible();
     await expect(dialog.getByText("Pages in Collection")).toBeVisible();
 
@@ -246,7 +246,7 @@ test.describe("regression: collections.form", () => {
     await expect(submit).toBeDisabled();
 
     // Type a name — still disabled (no pages added).
-    await dialog.getByLabel("Name").fill("Route Test Collection");
+    await dialog.getByLabel("Collection name").fill("Route Test Collection");
     await expect(submit).toBeDisabled();
   });
 
@@ -265,14 +265,14 @@ test.describe("regression: collections.form", () => {
     await page.goto("/collections");
     await openCollection(page, name);
 
-    const dialog = page.locator('[data-slot="page-card"]');
+    const dialog = page.locator("form");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
-    await expect(dialog.getByLabel("Name")).toHaveValue(name);
+    await expect(dialog.getByLabel("Collection name")).toHaveValue(name);
 
-    await expect(dialog.getByLabel("Name")).toHaveValue(name);
+    await expect(dialog.getByLabel("Collection name")).toHaveValue(name);
 
-    await expect(dialog.getByRole("button", { name: "Delete" })).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Update Collection" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Delete…" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Save" })).toBeVisible();
   });
 
   /**
@@ -290,7 +290,7 @@ test.describe("regression: collections.form", () => {
     await page.goto("/collections");
     const dialog = await openCreateRoute(page);
 
-    await dialog.getByLabel("Name").fill("Collection With No Pages");
+    await dialog.getByLabel("Collection name").fill("Collection With No Pages");
 
     await expect(dialog.getByText("No pages added yet")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "Create Collection" })).toBeDisabled();
@@ -319,10 +319,10 @@ test.describe("regression: collections.form", () => {
 
     await page.goto("/collections");
     const dialog = await openCreateRoute(page);
-    await dialog.getByLabel("Name").fill("Creating State Collection");
+    await dialog.getByLabel("Collection name").fill("Creating State Collection");
 
     await addPageCombobox(dialog).click();
-    await page.getByRole("option", { name: pageName }).click();
+    await page.getByRole("menuitem", { name: pageName }).click();
 
     const submit = dialog.getByRole("button", { name: "Create Collection" });
     await expect(submit).toBeEnabled();
@@ -339,7 +339,7 @@ test.describe("regression: collections.form", () => {
 
     release!();
     await expect(page).toHaveURL(/\/collections$/);
-    await expect(dialog.getByLabel("Name")).toBeHidden({ timeout: 10_000 });
+    await expect(dialog.getByLabel("Collection name")).toBeHidden({ timeout: 10_000 });
   });
 
   /**
@@ -367,33 +367,31 @@ test.describe("regression: collections.form", () => {
     await page.goto("/collections");
     const dialog = await openCreateRoute(page);
     const distinctName = `Preserved Name ${Date.now()}`;
-    await dialog.getByLabel("Name").fill(distinctName);
+    await dialog.getByLabel("Collection name").fill(distinctName);
 
     await addPageCombobox(dialog).click();
-    await page.getByRole("option", { name: pageName }).click();
+    await page.getByRole("menuitem", { name: pageName }).click();
 
     await dialog.getByRole("button", { name: "Create Collection" }).click();
 
     // A failed save remains inline beside the preserved form.
-    await expect(dialog.getByRole("alert")).toContainText(/boom/i, {
+    await expect(page.getByRole("alert")).toContainText(/boom/i, {
       timeout: 10_000,
     });
 
     // Detail stays open with the typed name preserved.
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel("Name")).toHaveValue(distinctName);
+    await expect(dialog.getByLabel("Collection name")).toHaveValue(distinctName);
   });
 
   /**
    * UX node: collections.form.updating
    * Route: /collections (detail)
    * Preconditions: update-mutation:pending
-   * Expected: Update Collection button disabled, announced busy, spinner while PUT in flight
+   * Expected: Save button disabled, announced busy, spinner while PUT in flight
    * Source refs: web/src/app/collections/page.tsx (isSubmitting branch)
    */
-  test("collections.form.updating — Update Collection button shows pending state while PUT is in flight", async ({
-    page,
-  }) => {
+  test("collections.form.updating — Save button shows pending state while PUT is in flight", async ({ page }) => {
     const pageId = await createPage(`E2E Page ${Date.now()}`);
     const name = `E2E Updating Collection ${Date.now()}`;
     const collection = await createCollectionApi(name, [pageId], 30);
@@ -411,11 +409,11 @@ test.describe("regression: collections.form", () => {
     await page.goto("/collections");
     await openCollection(page, name);
 
-    const dialog = page.locator('[data-slot="page-card"]');
-    await expect(dialog.getByLabel("Name")).toHaveValue(name);
-    await dialog.getByLabel("Name").fill(`${name} edited`);
+    const dialog = page.locator("form");
+    await expect(dialog.getByLabel("Collection name")).toHaveValue(name);
+    await dialog.getByLabel("Collection name").fill(`${name} edited`);
 
-    const submit = dialog.getByRole("button", { name: "Update Collection" });
+    const submit = dialog.getByRole("button", { name: "Save" });
     await submit.click();
 
     await expect(submit).toBeDisabled({ timeout: 5_000 });
@@ -423,11 +421,11 @@ test.describe("regression: collections.form", () => {
     // tech, and visibly indicated. Not the CSS animation class that paints it.
     await expect(submit).toHaveAttribute("aria-busy", "true");
     await expect(submit.locator("[data-slot='spinner']")).toBeVisible();
-    await expect(submit).toHaveAccessibleName("Update Collection");
+    await expect(submit).toHaveAccessibleName("Save");
 
     release!();
     await expect(page).toHaveURL(/\/collections$/);
-    await expect(dialog.getByLabel("Name")).toBeHidden({ timeout: 10_000 });
+    await expect(dialog.getByLabel("Collection name")).toBeHidden({ timeout: 10_000 });
   });
 
   /**
@@ -454,20 +452,20 @@ test.describe("regression: collections.form", () => {
     await page.goto("/collections");
     await openCollection(page, name);
 
-    const dialog = page.locator('[data-slot="page-card"]');
-    await expect(dialog.getByLabel("Name")).toHaveValue(name);
+    const dialog = page.locator("form");
+    await expect(dialog.getByLabel("Collection name")).toHaveValue(name);
     const editedName = `${name} dirty`;
-    await dialog.getByLabel("Name").fill(editedName);
+    await dialog.getByLabel("Collection name").fill(editedName);
 
-    await dialog.getByRole("button", { name: "Update Collection" }).click();
+    await dialog.getByRole("button", { name: "Save" }).click();
 
     // A failed save remains inline beside the preserved form.
-    await expect(dialog.getByRole("alert")).toContainText(/boom/i, {
+    await expect(page.getByRole("alert")).toContainText(/boom/i, {
       timeout: 10_000,
     });
 
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel("Name")).toHaveValue(editedName);
+    await expect(dialog.getByLabel("Collection name")).toHaveValue(editedName);
   });
 });
 
@@ -494,10 +492,10 @@ test.describe("regression: collections.delete-confirm", () => {
     await page.goto("/collections");
     await openCollection(page, name);
 
-    const sheet = page.locator('[data-slot="page-card"]');
+    const sheet = page.locator("form");
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByLabel("Name")).toHaveValue(name);
-    await sheet.getByRole("button", { name: "Delete" }).click();
+    await expect(sheet.getByLabel("Collection name")).toHaveValue(name);
+    await sheet.getByRole("button", { name: "Delete…" }).click();
 
     // The detail stays mounted while the AlertDialog opens.
     const alert = page.getByRole("alertdialog");
@@ -507,11 +505,11 @@ test.describe("regression: collections.delete-confirm", () => {
     // ---- Cancel path: dialog closes, row remains ----
     await alert.getByRole("button", { name: "Cancel" }).click();
     await expect(alert).toBeHidden();
-    await expect(sheet.getByLabel("Name")).toHaveValue(name);
+    await expect(sheet.getByLabel("Collection name")).toHaveValue(name);
 
     // ---- Confirm path: the detail form is retained after cancellation ----
     await expect(sheet).toBeVisible();
-    await sheet.getByRole("button", { name: "Delete" }).click();
+    await sheet.getByRole("button", { name: "Delete…" }).click();
     await expect(alert).toBeVisible();
 
     await alert.getByRole("button", { name: "Delete" }).click();
