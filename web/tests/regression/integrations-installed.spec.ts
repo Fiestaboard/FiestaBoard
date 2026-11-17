@@ -188,18 +188,18 @@ test.describe("regression: integrations.installed", () => {
     await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 15_000 });
 
     // -- Column sort: clicking the Name header should flip chevron direction.
-    const nameHeaderTh = page.locator("th").filter({ hasText: /^Name/ }).first();
+    const nameHeaderTh = page.getByRole("button", { name: /^Name,/ }).first();
     await expect(nameHeaderTh).toBeVisible();
-    // The header is a real button and the th announces direction via aria-sort (#2003).
-    await expect(nameHeaderTh).toHaveAttribute("aria-sort", "ascending");
-    await nameHeaderTh.getByRole("button").click();
-    await expect(nameHeaderTh).toHaveAttribute("aria-sort", "descending");
-    await nameHeaderTh.getByRole("button").click(); // toggle once more to assert direction can flip
-    await expect(nameHeaderTh).toHaveAttribute("aria-sort", "ascending");
+    // The real sort button announces its direction in its accessible name (#2003).
+    await expect(nameHeaderTh).toHaveAttribute("aria-label", "Name, ascending");
+    await nameHeaderTh.click();
+    await expect(nameHeaderTh).toHaveAttribute("aria-label", "Name, descending");
+    await nameHeaderTh.click(); // toggle once more to assert direction can flip
+    await expect(nameHeaderTh).toHaveAttribute("aria-label", "Name, ascending");
     await expect(nameHeaderTh.locator("svg")).toBeVisible();
 
     // -- Overflow menu: opens the DropdownMenu with action items.
-    const row = page.locator("tr").filter({
+    const row = page.locator('[data-slot="list-row"]').filter({
       has: page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` }),
     });
     await row.getByRole("button", { name: "More options" }).click();
@@ -403,7 +403,7 @@ test.describe("regression: integrations.installed", () => {
     const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
     await expect(sw).toBeVisible({ timeout: 15_000 });
 
-    const row = page.locator("tr").filter({ has: sw });
+    const row = page.locator('[data-slot="list-row"]').filter({ has: sw });
     await row.getByRole("button", { name: "More options" }).click();
 
     // Configure + Add Instance + Enable/Disable are guaranteed for any installed
@@ -429,7 +429,7 @@ test.describe("regression: integrations.installed", () => {
     const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
     await expect(sw).toBeVisible({ timeout: 15_000 });
 
-    const row = page.locator("tr").filter({ has: sw });
+    const row = page.locator('[data-slot="list-row"]').filter({ has: sw });
     await row.getByRole("button", { name: "More options" }).click();
     await page.getByRole("menuitem", { name: /Add Instance/i }).click();
 
@@ -439,7 +439,11 @@ test.describe("regression: integrations.installed", () => {
     await expect(page.getByRole("button", { name: /^Create$/ })).toBeVisible();
 
     // Cancel without submitting — we DO NOT actually create an instance.
-    await page.getByRole("button", { name: /^Cancel$/ }).click();
+    await page
+      .getByRole("listitem")
+      .filter({ hasText: "Instance name:" })
+      .getByRole("button", { name: /^Cancel$/ })
+      .click();
     await expect(page.getByText(/Instance name:/i)).toHaveCount(0);
   });
 
@@ -467,7 +471,7 @@ test.describe("regression: integrations.installed", () => {
     await page.goto("/integrations");
     const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
     await expect(sw).toBeVisible({ timeout: 15_000 });
-    const row = page.locator("tr").filter({ has: sw });
+    const row = page.locator('[data-slot="list-row"]').filter({ has: sw });
     await row.getByRole("button", { name: "More options" }).click();
     await page.getByRole("menuitem", { name: /Add Instance/i }).click();
 
@@ -523,7 +527,7 @@ test.describe("regression: integrations.installed", () => {
     await page.goto("/integrations");
     const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
     await expect(sw).toBeVisible({ timeout: 15_000 });
-    const row = page.locator("tr").filter({ has: sw });
+    const row = page.locator('[data-slot="list-row"]').filter({ has: sw });
     await row.getByRole("button", { name: "More options" }).click();
 
     const updateItem = page.getByRole("menuitem", { name: /^Update$/ });
@@ -586,7 +590,7 @@ test.describe("regression: integrations.installed", () => {
     await page.goto("/integrations");
     const toggle = page.getByRole("switch", { name: "Toggle Uninstall Test Plugin" });
     await expect(toggle).toBeVisible({ timeout: 15_000 });
-    const row = page.locator("tr").filter({ has: toggle });
+    const row = page.locator('[data-slot="list-row"]').filter({ has: toggle });
     await row.getByRole("button", { name: "More options" }).click();
     await page.getByRole("menuitem", { name: /^Delete$/ }).click();
     // The new alert-dialog-cancel testid lets us assert the confirm dialog

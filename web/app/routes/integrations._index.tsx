@@ -35,8 +35,12 @@ import {
   Flex,
   Grid,
   Heading,
+  IconTile,
   Input,
   Label,
+  ListItem,
+  ListRow,
+  ListRowGroup,
   PageSection,
   PageToolbar,
   PluginCard,
@@ -47,10 +51,8 @@ import {
   SelectTrigger,
   SelectValue,
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -114,6 +116,7 @@ import {
   Check,
   CheckCircle,
   ChevronDown,
+  ChevronRight,
   ChevronsUp,
   ChevronUp,
   Church,
@@ -272,6 +275,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { GitInstallFields, useGitPluginInstall } from "@/components/plugin-git-install";
@@ -291,10 +295,11 @@ import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
 import { useEffectiveCode62Glyph } from "@/hooks/use-effective-code62-glyph";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
-import type { PluginInfo, RegistryEntry } from "@/lib/api";
+import type { OAuthConnection, PluginInfo, RegistryEntry } from "@/lib/api";
 import { api } from "@/lib/api";
 import type { FiestaboardColorName } from "@/lib/board-colors";
 import { ALL_COLOR_CODES, AVAILABLE_COLORS, FIESTABOARD_COLORS } from "@/lib/board-colors";
@@ -1024,6 +1029,11 @@ interface InstalledPluginRowProps {
   isUpdating?: boolean;
   /** Open the settings sheet on mount: the row an OAuth sign-in just returned to. */
   initiallyOpen?: boolean;
+  connection?: OAuthConnection;
+  desktop?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
+  detailTarget?: HTMLElement | null;
 }
 
 /**
@@ -1042,17 +1052,9 @@ function DeprecatedBadge({ label }: { label: string }) {
 
 type SortDir = "asc" | "desc";
 
-/** `aria-sort` for a sortable column header: only the active column gets a direction. */
-function ariaSortFor(active: boolean, dir: SortDir): "ascending" | "descending" | "none" {
-  if (!active) return "none";
-  return dir === "asc" ? "ascending" : "descending";
-}
-
 /**
- * The clickable part of a sortable column header (#2003). A real `<button>` so
- * it is focusable and activates with Enter / Space; the direction itself is
- * announced through `aria-sort` on the enclosing `<th>`, so the chevron is
- * decorative and hidden from assistive tech.
+ * Keyboard-operable sorting for grouped rows and compact results (#2003).
+ * The pressed button announces its localized direction; chevrons are decorative.
  */
 function SortHeaderButton({
   label,
@@ -1065,11 +1067,14 @@ function SortHeaderButton({
   dir: SortDir;
   onSort: () => void;
 }) {
+  const t = useTranslations("integrations");
   return (
     <button
       type="button"
       onClick={onSort}
-      className="flex w-full items-center gap-1 rounded-sm text-left font-medium cursor-pointer select-none hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-pressed={active}
+      aria-label={active ? `${label}, ${t(dir === "asc" ? "sortAscending" : "sortDescending")}` : label}
+      className="flex items-center gap-1 rounded-sm text-left font-medium cursor-pointer select-none hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {label}
       {active ? (
@@ -1095,8 +1100,18 @@ function InstalledPluginRow({
   isUninstalling,
   isUpdating,
   initiallyOpen = false,
+  connection,
+  desktop = false,
+  selected = false,
+  onSelect,
+  detailTarget,
 }: InstalledPluginRowProps) {
-  const [isConfigOpen, setIsConfigOpen] = useState(initiallyOpen);
+  const [sheetOpen, setSheetOpen] = useState(initiallyOpen);
+  const isConfigOpen = desktop ? selected : sheetOpen;
+  const setIsConfigOpen = (open: boolean) => {
+    if (desktop) onSelect?.(open ? plugin.id : "");
+    else setSheetOpen(open);
+  };
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isCreatingDemo, setIsCreatingDemo] = useState(false);
@@ -1125,7 +1140,8 @@ function InstalledPluginRow({
   // for it either, so it gets the same treatment: a type badge, no toggle.
   const isOutput = plugin.plugin_type === "output";
   const hasNoToggle = isTransition || isOutput;
-  const isActive = plugin.enabled || hasNoToggle;
+  const needsReconnect = plugin.enabled && connection?.status === "reauthorization_required";
+  const needsSetup = plugin.enabled && !hasNoToggle && !plugin.configured;
 
   // Fetch plugin details when opening config
   const { data: pluginDetails, isLoading: isLoadingDetails } = useQuery({
@@ -1333,11 +1349,6 @@ function InstalledPluginRow({
   // Use icon from plugin manifest, falling back to Puzzle
   const Icon = ICON_MAP[normalizePluginIconKey(plugin.icon)] ?? Puzzle;
 
-  const sourceType = plugin.source?.source_type;
-  // "builtin" = ships with FiestaBoard, "external"/"registry" = from marketplace, "git" = user custom git URL
-  const isCore = sourceType === "builtin";
-  const isMarketplace = sourceType === "registry" || sourceType === "external";
-  const isGitExternal = sourceType === "git";
   const categoryLabel = categoryLabels[plugin.category || "utility"] || plugin.category || categoryLabels.utility;
 
   function handleCreateInstance() {
@@ -1374,194 +1385,138 @@ function InstalledPluginRow({
     }
   }
 
-  const configSheet = (
-    <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("configureButton")}>
-          <Settings className="h-3.5 w-3.5" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Icon className="h-5 w-5" />
-            {plugin.name}
-          </SheetTitle>
-          <SheetDescription>{t("configureDescription")}</SheetDescription>
-        </SheetHeader>
-        <Stack gap="6" className="py-6">
-          {isLoadingDetails ? (
-            <Stack gap="4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </Stack>
-          ) : (
-            <>
-              {/* Demo Page Section */}
-              {pluginDetails?.has_demo && (
-                <Stack gap="3" className="rounded-lg border bg-muted/30 p-4">
-                  <Flex align="center" justify="between">
-                    <Box>
-                      <Heading level={4} size="sm" className="font-medium">
-                        {t("demoPage.title")}
-                      </Heading>
-                      <Text size="xs" tone="muted" className="mt-0.5">
-                        {pluginDetails.demo_page_id ? t("demoPage.alreadyExists") : t("demoPage.createDescription")}
-                      </Text>
-                    </Box>
-                    {pluginDetails.demo_page_id ? (
-                      <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" disabled={!areDemoRequirementsMet() || isCreatingDemo}>
-                            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                            {t("demoPage.recreateButton")}
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
-                            <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
-                          </DialogHeader>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
-                              {tCommon("cancel")}
-                            </Button>
-                            <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
-                              {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    ) : (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={handleCreateDemoPage}
-                        disabled={!areDemoRequirementsMet() || isCreatingDemo}
-                      >
-                        <Play className="h-3.5 w-3.5 mr-1.5" />
-                        {isCreatingDemo ? t("demoPage.creating") : t("demoPage.createAction")}
-                      </Button>
-                    )}
-                  </Flex>
-                  {!areDemoRequirementsMet() && (
-                    <Text size="xs" tone="warning">
-                      {t("demoPage.requirementsWarning")}
-                    </Text>
-                  )}
-                </Stack>
-              )}
-
-              {/* Renders nothing unless the plugin's manifest declares OAuth. */}
-              <OAuthConnectionSection
-                pluginId={plugin.id}
-                appFields={{
-                  values: configValues,
-                  onChange: (key, value) => setConfigValues((current) => ({ ...current, [key]: value })),
-                  save: saveConfigForSignIn,
-                  setupGuideUrl,
-                }}
-              />
-
-              {/* Settings Section */}
-              {Object.keys(formSchema.properties).length > 0 && (
-                <Stack gap="4">
-                  <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                    {t("settingsSection")}
-                  </Heading>
-                  <SchemaForm
-                    schema={formSchema}
-                    values={configValues}
-                    onChange={setConfigValues}
-                    disabled={isSaving}
-                    // Lets `remote-options` fields ask this plugin — and only
-                    // this plugin — for their catalogs.
-                    pluginId={plugin.id}
-                  />
-                </Stack>
-              )}
-
-              {/* Template Variables Section */}
-              {variableRows.length > 0 && (
-                <TooltipProvider delayDuration={200}>
-                  <Stack gap="3">
-                    <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                      {t("templateVariablesSection")}
-                      <Text as="span" size="xs" tone="muted" className="ml-2">
-                        ({t("templateVariablesClickToCopy")})
-                      </Text>
+  // One settings body: the same queries, schema, OAuth, variables and color
+  // rules live in a desktop detail panel or a narrow-screen sheet.
+  const configContent = (
+    <>
+      <Flex gap="2" align="center" wrap className="mt-3">
+        <Badge variant="outline">{tCommon("versionShort", { version: plugin.version })}</Badge>
+        <PluginProvenance repository={plugin.source?.repository_url} />
+        <Badge variant="outline">
+          {t(
+            plugin.source?.source_type === "builtin"
+              ? "sourceCoreBadge"
+              : plugin.source?.source_type === "git"
+                ? "sourceExternalBadge"
+                : "sourceMarketplaceBadge",
+          )}
+        </Badge>
+      </Flex>
+      <Stack gap="6" className="py-6">
+        {isLoadingDetails ? (
+          <Stack gap="4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </Stack>
+        ) : (
+          <>
+            {/* Demo Page Section */}
+            {pluginDetails?.has_demo && (
+              <Stack gap="3" className="rounded-lg border bg-muted/30 p-4">
+                <Flex align="center" justify="between">
+                  <Box>
+                    <Heading level={4} size="sm" className="font-medium">
+                      {t("demoPage.title")}
                     </Heading>
-                    {!plugin.enabled && (
-                      <Text size="xs" tone="muted" className="italic">
-                        {t("enablePluginForLiveValues")}
-                      </Text>
-                    )}
-                    {plugin.enabled && pluginData && pluginData.available === false && (
-                      <Text size="xs" tone="warning">
-                        {pluginData.error
-                          ? t("liveValuesUnavailableWithError", { error: pluginData.error })
-                          : t("liveValuesUnavailable")}
-                      </Text>
-                    )}
-                    <Box className="rounded-md border overflow-hidden">
-                      <Table className="text-xs">
-                        <TableHeader className="bg-muted/50">
-                          <TableRow>
-                            <TableHead className="text-left px-3 py-2 font-medium h-auto">
-                              {t("variableColumn")}
-                            </TableHead>
-                            <TableHead className="text-left px-3 py-2 font-medium h-auto">
-                              {t("descriptionColumn")}
-                            </TableHead>
-                            <TableHead className="text-left px-3 py-2 font-medium h-auto">
-                              {t("currentValueColumn")}
-                              {plugin.enabled && isFetchingPluginData && !isLoadingPluginData && (
-                                <Text as="span" size="xs" tone="muted" className="ml-1.5 text-[10px] font-normal">
-                                  ({t("refreshingValues")})
-                                </Text>
-                              )}
-                            </TableHead>
-                            <TableHead className="text-center px-3 py-2 font-medium h-auto">{t("maxColumn")}</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody className="divide-y">
-                          {hasVariableGroups
-                            ? groupVariableRows(variableRows, variableGroups, "General").map((section) => (
-                                <Fragment key={section.groupId ?? "__general__"}>
-                                  <TableRow className="bg-muted/40">
-                                    <TableHead
-                                      scope="colgroup"
-                                      colSpan={4}
-                                      className="text-left px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground h-auto"
-                                    >
-                                      {section.label}
-                                    </TableHead>
-                                  </TableRow>
-                                  {section.rows.map(renderVariableRow)}
-                                </Fragment>
-                              ))
-                            : variableRows.map(renderVariableRow)}
-                        </TableBody>
-                      </Table>
-                    </Box>
-                    <Text size="xs" tone="muted">
-                      {t.rich("useInTemplates", {
-                        example: () => (
-                          <CodeChip className="bg-muted px-1 py-0 rounded">{`{{${plugin.id}.variable}}`}</CodeChip>
-                        ),
-                      })}
+                    <Text size="xs" tone="muted" className="mt-0.5">
+                      {pluginDetails.demo_page_id ? t("demoPage.alreadyExists") : t("demoPage.createDescription")}
                     </Text>
-                  </Stack>
-                </TooltipProvider>
-              )}
+                  </Box>
+                  {pluginDetails.demo_page_id ? (
+                    <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={!areDemoRequirementsMet() || isCreatingDemo}>
+                          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                          {t("demoPage.recreateButton")}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
+                          <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
+                            {tCommon("cancel")}
+                          </Button>
+                          <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
+                            {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleCreateDemoPage}
+                      disabled={!areDemoRequirementsMet() || isCreatingDemo}
+                    >
+                      <Play className="h-3.5 w-3.5 mr-1.5" />
+                      {isCreatingDemo ? t("demoPage.creating") : t("demoPage.createAction")}
+                    </Button>
+                  )}
+                </Flex>
+                {!areDemoRequirementsMet() && (
+                  <Text size="xs" tone="warning">
+                    {t("demoPage.requirementsWarning")}
+                  </Text>
+                )}
+              </Stack>
+            )}
 
-              {/* Environment Variables Section */}
-              {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
+            {/* Renders nothing unless the plugin's manifest declares OAuth. */}
+            <OAuthConnectionSection
+              pluginId={plugin.id}
+              appFields={{
+                values: configValues,
+                onChange: (key, value) => setConfigValues((current) => ({ ...current, [key]: value })),
+                save: saveConfigForSignIn,
+                setupGuideUrl,
+              }}
+            />
+
+            {/* Settings Section */}
+            {Object.keys(formSchema.properties).length > 0 && (
+              <Stack gap="4">
+                <Heading level={4} size="sm" className="font-medium text-muted-foreground">
+                  {t("settingsSection")}
+                </Heading>
+                <SchemaForm
+                  schema={formSchema}
+                  values={configValues}
+                  onChange={setConfigValues}
+                  disabled={isSaving}
+                  // Lets `remote-options` fields ask this plugin — and only
+                  // this plugin — for their catalogs.
+                  pluginId={plugin.id}
+                />
+              </Stack>
+            )}
+
+            {/* Template Variables Section */}
+            {variableRows.length > 0 && (
+              <TooltipProvider delayDuration={200}>
                 <Stack gap="3">
                   <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                    {t("environmentVariablesSection")}
+                    {t("templateVariablesSection")}
+                    <Text as="span" size="xs" tone="muted" className="ml-2">
+                      ({t("templateVariablesClickToCopy")})
+                    </Text>
                   </Heading>
+                  {!plugin.enabled && (
+                    <Text size="xs" tone="muted" className="italic">
+                      {t("enablePluginForLiveValues")}
+                    </Text>
+                  )}
+                  {plugin.enabled && pluginData && pluginData.available === false && (
+                    <Text size="xs" tone="warning">
+                      {pluginData.error
+                        ? t("liveValuesUnavailableWithError", { error: pluginData.error })
+                        : t("liveValuesUnavailable")}
+                    </Text>
+                  )}
                   <Box className="rounded-md border overflow-hidden">
                     <Table className="text-xs">
                       <TableHeader className="bg-muted/50">
@@ -1572,281 +1527,321 @@ function InstalledPluginRow({
                           <TableHead className="text-left px-3 py-2 font-medium h-auto">
                             {t("descriptionColumn")}
                           </TableHead>
-                          <TableHead className="text-center px-3 py-2 font-medium h-auto">
-                            {t("requiredBadge")}
+                          <TableHead className="text-left px-3 py-2 font-medium h-auto">
+                            {t("currentValueColumn")}
+                            {plugin.enabled && isFetchingPluginData && !isLoadingPluginData && (
+                              <Text as="span" size="xs" tone="muted" className="ml-1.5 text-[10px] font-normal">
+                                ({t("refreshingValues")})
+                              </Text>
+                            )}
                           </TableHead>
+                          <TableHead className="text-center px-3 py-2 font-medium h-auto">{t("maxColumn")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody className="divide-y">
-                        {pluginDetails.env_vars.map((envVar) => (
-                          <TableRow key={envVar.name} className="hover:bg-muted/30">
-                            <TableCell className="px-3 py-2">
-                              <CodeChip>{envVar.name}</CodeChip>
-                            </TableCell>
-                            <TableCell className="px-3 py-2 text-muted-foreground">{envVar.description}</TableCell>
-                            <TableCell className="px-3 py-2 text-center">
-                              {envVar.required ? (
-                                <Badge variant="destructive" className="text-[10px]">
-                                  {t("requiredBadge")}
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {t("optionalBadge")}
-                                </Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {hasVariableGroups
+                          ? groupVariableRows(variableRows, variableGroups, "General").map((section) => (
+                              <Fragment key={section.groupId ?? "__general__"}>
+                                <TableRow className="bg-muted/40">
+                                  <TableHead
+                                    scope="colgroup"
+                                    colSpan={4}
+                                    className="text-left px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground h-auto"
+                                  >
+                                    {section.label}
+                                  </TableHead>
+                                </TableRow>
+                                {section.rows.map(renderVariableRow)}
+                              </Fragment>
+                            ))
+                          : variableRows.map(renderVariableRow)}
                       </TableBody>
                     </Table>
                   </Box>
+                  <Text size="xs" tone="muted">
+                    {t.rich("useInTemplates", {
+                      example: () => (
+                        <CodeChip className="bg-muted px-1 py-0 rounded">{`{{${plugin.id}.variable}}`}</CodeChip>
+                      ),
+                    })}
+                  </Text>
                 </Stack>
-              )}
+              </TooltipProvider>
+            )}
 
-              {/* Color Rules Section */}
-              <ColorRulesEditor
-                pluginId={plugin.id}
-                colorRules={(configValues.color_rules as ColorRulesConfig) || {}}
-                onChange={(newRules) => {
-                  setConfigValues((prev) => ({ ...prev, color_rules: newRules }));
-                }}
-                onVarCopied={handleVarCopied}
-              />
+            {/* Environment Variables Section */}
+            {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
+              <Stack gap="3">
+                <Heading level={4} size="sm" className="font-medium text-muted-foreground">
+                  {t("environmentVariablesSection")}
+                </Heading>
+                <Box className="rounded-md border overflow-hidden">
+                  <Table className="text-xs">
+                    <TableHeader className="bg-muted/50">
+                      <TableRow>
+                        <TableHead className="text-left px-3 py-2 font-medium h-auto">{t("variableColumn")}</TableHead>
+                        <TableHead className="text-left px-3 py-2 font-medium h-auto">
+                          {t("descriptionColumn")}
+                        </TableHead>
+                        <TableHead className="text-center px-3 py-2 font-medium h-auto">{t("requiredBadge")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="divide-y">
+                      {pluginDetails.env_vars.map((envVar) => (
+                        <TableRow key={envVar.name} className="hover:bg-muted/30">
+                          <TableCell className="px-3 py-2">
+                            <CodeChip>{envVar.name}</CodeChip>
+                          </TableCell>
+                          <TableCell className="px-3 py-2 text-muted-foreground">{envVar.description}</TableCell>
+                          <TableCell className="px-3 py-2 text-center">
+                            {envVar.required ? (
+                              <Badge variant="destructive" className="text-[10px]">
+                                {t("requiredBadge")}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px]">
+                                {t("optionalBadge")}
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Box>
+              </Stack>
+            )}
 
-              {/* No config message */}
-              {(!pluginDetails?.settings_schema ||
-                Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
-                variableRows.length === 0 && <Text tone="muted">{t("noConfigOptions")}</Text>}
-            </>
-          )}
-        </Stack>
-        <SheetFooter className="flex-col gap-2 sm:flex-row">
-          {canUninstall && onUninstall && (
-            <Button
-              variant="destructive"
-              className="sm:mr-auto"
-              size="sm"
-              onClick={() => {
-                setIsConfigOpen(false);
-                onUninstall(plugin.id);
+            {/* Color Rules Section */}
+            <ColorRulesEditor
+              pluginId={plugin.id}
+              colorRules={(configValues.color_rules as ColorRulesConfig) || {}}
+              onChange={(newRules) => {
+                setConfigValues((prev) => ({ ...prev, color_rules: newRules }));
               }}
-              disabled={isUninstalling}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1" />
-              {isUninstalling ? "Uninstalling..." : "Uninstall"}
-            </Button>
-          )}
-          <SheetClose asChild>
-            <Button variant="outline" disabled={isSaving}>
-              {tCommon("cancel")}
-            </Button>
-          </SheetClose>
-          <Button onClick={handleSaveConfig} disabled={isSaving || isLoadingDetails}>
-            {isSaving ? "Saving..." : "Save Changes"}
+              onVarCopied={handleVarCopied}
+            />
+
+            {/* No config message */}
+            {(!pluginDetails?.settings_schema ||
+              Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
+              variableRows.length === 0 && <Text tone="muted">{t("noConfigOptions")}</Text>}
+          </>
+        )}
+      </Stack>
+      <Flex gap="2" wrap className="justify-end">
+        {canUninstall && onUninstall && (
+          <Button
+            variant="destructive"
+            className="sm:mr-auto"
+            size="sm"
+            onClick={() => {
+              setIsConfigOpen(false);
+              onUninstall(plugin.id);
+            }}
+            disabled={isUninstalling}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" />
+            {isUninstalling ? "Uninstalling..." : "Uninstall"}
           </Button>
-        </SheetFooter>
+        )}
+        <Button variant="outline" disabled={isSaving} onClick={() => setIsConfigOpen(false)}>
+          {tCommon("cancel")}
+        </Button>
+        <Button onClick={handleSaveConfig} disabled={isSaving || isLoadingDetails}>
+          {isSaving ? "Saving..." : "Save Changes"}
+        </Button>
+      </Flex>
+    </>
+  );
+  const configSheet = desktop ? (
+    isConfigOpen && detailTarget ? (
+      createPortal(
+        <Card className="p-5 min-w-0 overflow-x-auto">
+          <Heading level={2} size="xl">
+            {plugin.name}
+          </Heading>
+          <Text tone="muted">{t("configureDescription")}</Text>
+          {configContent}
+        </Card>,
+        detailTarget,
+      )
+    ) : null
+  ) : (
+    <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="hidden xl:inline-flex" aria-label={t("configureButton")}>
+          <Settings className="h-4 w-4" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Icon className="h-5 w-5" />
+            {plugin.name}
+          </SheetTitle>
+          <SheetDescription>{t("configureDescription")}</SheetDescription>
+        </SheetHeader>
+        {configContent}
       </SheetContent>
     </Sheet>
   );
 
   const rows = (
     <>
-      <TableRow
+      <ListRow
         {...anchorProps(`plugin.${plugin.id}`)}
-        className={cn(
-          "border-b last:border-b-0 transition-colors",
-          isActive ? "hover:bg-muted/30" : "opacity-60 hover:opacity-80 hover:bg-muted/20",
-        )}
-      >
-        {/* Name column: icon + name + version + source badges */}
-        <TableCell className="px-4 py-2.5">
-          <Flex align="center" gap="3">
-            <Box
-              className={cn(
-                "p-1.5 rounded-md shrink-0",
-                isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-            </Box>
-            <Flex align="center" gap="1.5" wrap className="min-w-0">
-              <Text as="span" weight="medium" className="whitespace-nowrap">
-                {plugin.name}
-              </Text>
-              <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4 shrink-0">
-                {tCommon("versionShort", { version: plugin.version })}
-              </Badge>
-              {isCore && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-orange-300 text-orange-600 dark:text-orange-400 dark:border-orange-700"
-                >
-                  <BoxIcon className="h-2.5 w-2.5" />
-                  {t("sourceCoreBadge")}
-                </Badge>
-              )}
-              {isMarketplace && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-sky-300 text-sky-600 dark:text-sky-400 dark:border-sky-700"
-                >
-                  <Package className="h-2.5 w-2.5" />
-                  {t("sourceMarketplaceBadge")}
-                </Badge>
-              )}
-              {isGitExternal && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-purple-300 text-purple-600 dark:text-purple-400 dark:border-purple-700"
-                >
-                  <GitBranch className="h-2.5 w-2.5" />
-                  {t("sourceExternalBadge")}
-                </Badge>
-              )}
-              <PluginProvenance repository={plugin.source?.repository_url} />
-              {hasUpdate && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950 dark:text-amber-400"
-                >
-                  <ArrowDownToLine className="h-2.5 w-2.5" />
-                  {t("updateAvailableBadge")}
-                </Badge>
-              )}
-            </Flex>
-          </Flex>
-        </TableCell>
-
-        {/* Category column */}
-        <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap hidden sm:table-cell">
-          {categoryLabel}
-        </TableCell>
-
-        {/* Status column — transitions have no enabled state to report, so the
-            cell carries the plugin type instead, and the state every transition
-            plugin is in: deprecated. */}
-        <TableCell className="px-4 py-2.5 whitespace-nowrap hidden md:table-cell">
-          {isTransition ? (
-            <Flex align="center" gap="1">
-              <Badge
-                variant="outline"
-                className="text-[10px] gap-1 px-1.5 py-0 h-5 border-violet-300 text-violet-600 dark:text-violet-400 dark:border-violet-700"
-              >
-                <Wand2 className="h-2.5 w-2.5" />
-                {t("transitionBadge")}
-              </Badge>
-              <DeprecatedBadge label={t("deprecatedBadge")} />
-            </Flex>
-          ) : isOutput ? (
-            <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">
-              <Tv className="h-2.5 w-2.5" />
-              {t("outputBadge")}
-            </Badge>
-          ) : plugin.enabled ? (
-            plugin.configured ? (
-              <Badge variant="default" className="text-[10px] gap-1 px-1.5 py-0 h-5">
-                <CheckCircle className="h-2.5 w-2.5" />
-                {t("configuredBadge")}
-              </Badge>
+        selected={desktop && selected}
+        leading={
+          <IconTile size="sm" tone="muted">
+            <Icon className="h-4 w-4" />
+          </IconTile>
+        }
+        title={
+          <Button
+            variant="ghost"
+            className="h-auto min-h-6 p-0 justify-start whitespace-normal text-left"
+            onClick={() => setIsConfigOpen(true)}
+          >
+            {plugin.name}
+          </Button>
+        }
+        description={
+          <>
+            {isTransition ? (
+              <>
+                <Text as="span">{t("transitionBadge")}</Text> · <DeprecatedBadge label={t("deprecatedBadge")} />
+              </>
+            ) : isOutput ? (
+              <Text as="span">{t("outputBadge")}</Text>
+            ) : needsReconnect ? (
+              t("oauth.statusReconnect")
+            ) : !plugin.enabled ? (
+              t("disabledBadge")
+            ) : needsSetup ? (
+              t("setupRequiredBadge")
             ) : (
-              <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
-                <AlertCircle className="h-2.5 w-2.5" />
-                {t("setupRequiredBadge")}
-              </Badge>
-            )
-          ) : (
-            <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">
-              <XCircle className="h-2.5 w-2.5" />
-              {t("disabledBadge")}
-            </Badge>
-          )}
-        </TableCell>
-
-        {/* Actions column: toggle + configure + overflow */}
-        <TableCell className="px-4 py-2.5">
-          <Flex align="center" justify="end" gap="0.5">
-            {!hasNoToggle && (
-              <Switch
-                checked={plugin.enabled}
-                onCheckedChange={(checked) => onToggle(plugin.id, checked)}
-                disabled={isToggling}
-                aria-label={t("toggleAriaLabel", { pluginName: plugin.name })}
-              />
+              t("configuredBadge")
             )}
-            {configSheet}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("moreOptionsAriaLabel")}>
-                  <MoreHorizontal className="h-3.5 w-3.5" />
+            <Text as="span" className="sr-only">
+              {categoryLabel}
+            </Text>
+            {hasUpdate && (
+              <Badge variant="outline" className="ml-2">
+                {t("updateAvailableBadge")}
+              </Badge>
+            )}
+          </>
+        }
+        trailing={
+          <Flex align="center" gap="1">
+            {(needsReconnect || needsSetup) && (
+              <Button variant="ghost" className="text-brand" onClick={() => setIsConfigOpen(true)}>
+                {needsReconnect ? t("oauth.reconnectButton") : t("setUpAction")}
+              </Button>
+            )}
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            <Flex
+              align="center"
+              justify="end"
+              gap="0.5"
+              className="[&_[data-slot=switch]]:hidden xl:[&_[data-slot=switch]]:inline-flex"
+            >
+              {!hasNoToggle && (
+                <Switch
+                  checked={plugin.enabled}
+                  onCheckedChange={(checked) => onToggle(plugin.id, checked)}
+                  disabled={isToggling}
+                  aria-label={t("toggleAriaLabel", { pluginName: plugin.name })}
+                />
+              )}
+              {desktop ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden xl:inline-flex"
+                  aria-label={t("configureButton")}
+                  onClick={() => setIsConfigOpen(true)}
+                >
+                  <Settings className="h-4 w-4" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsConfigOpen(true)}>
-                  <Settings className="h-3.5 w-3.5 mr-2" />
-                  {t("configureButton")}
-                </DropdownMenuItem>
-                {!isInstance && (
-                  <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
-                    <CopyPlus className="h-3.5 w-3.5 mr-2" />
-                    {t("addInstanceAction")}
+              ) : (
+                configSheet
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("moreOptionsAriaLabel")}>
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setIsConfigOpen(true)}>
+                    <Settings className="h-3.5 w-3.5 mr-2" />
+                    {t("configureButton")}
                   </DropdownMenuItem>
-                )}
-                {!hasNoToggle && (
-                  <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
-                    {plugin.enabled ? (
-                      <XCircle className="h-3.5 w-3.5 mr-2" />
-                    ) : (
-                      <CheckCircle className="h-3.5 w-3.5 mr-2" />
-                    )}
-                    {plugin.enabled ? "Disable" : "Enable"}
-                  </DropdownMenuItem>
-                )}
-                {hasUpdate && onUpdate && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onUpdate(plugin.id)} disabled={isUpdating}>
-                      {isUpdating ? (
-                        <Spinner size="sm" className="mr-2" label={null} />
+                  {!isInstance && (
+                    <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
+                      <CopyPlus className="h-3.5 w-3.5 mr-2" />
+                      {t("addInstanceAction")}
+                    </DropdownMenuItem>
+                  )}
+                  {!hasNoToggle && (
+                    <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
+                      {plugin.enabled ? (
+                        <XCircle className="h-3.5 w-3.5 mr-2" />
                       ) : (
-                        <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                        <CheckCircle className="h-3.5 w-3.5 mr-2" />
                       )}
-                      {isUpdating ? "Updating..." : "Update"}
+                      {plugin.enabled ? "Disable" : "Enable"}
                     </DropdownMenuItem>
-                  </>
-                )}
-                {isInstance && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-2" />
-                      {tCommon("delete")}
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {canUninstall && onUninstall && !isInstance && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setShowDeleteConfirm(true)}
-                      disabled={isUninstalling}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-2" />
-                      {isUninstalling ? "Uninstalling..." : "Delete"}
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  )}
+                  {hasUpdate && onUpdate && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onUpdate(plugin.id)} disabled={isUpdating}>
+                        {isUpdating ? (
+                          <Spinner size="sm" className="mr-2" label={null} />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                        )}
+                        {isUpdating ? "Updating..." : "Update"}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {isInstance && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-2" />
+                        {tCommon("delete")}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {canUninstall && onUninstall && !isInstance && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setShowDeleteConfirm(true)}
+                        disabled={isUninstalling}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-2" />
+                        {isUninstalling ? "Uninstalling..." : "Delete"}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </Flex>
           </Flex>
-        </TableCell>
-      </TableRow>
+        }
+      />
       {showAddInstance && (
-        <TableRow className="border-b last:border-b-0">
-          <TableCell colSpan={4} className="px-4 py-3">
+        <ListItem className="p-4">
+          <Box>
             <Flex align="center" gap="3" className="max-w-md">
               <Label htmlFor={`instance-label-${plugin.id}`} className="text-sm whitespace-nowrap">
                 {t("instanceNameInlineLabel")}
@@ -1891,8 +1886,8 @@ function InstalledPluginRow({
             <Text size="xs" tone="muted" className="mt-1.5">
               {t("addInstanceInlineHelp")}
             </Text>
-          </TableCell>
-        </TableRow>
+          </Box>
+        </ListItem>
       )}
     </>
   );
@@ -1934,6 +1929,7 @@ function InstalledPluginRow({
   return (
     <>
       {rows}
+      {desktop && configSheet}
       {deleteConfirmDialog}
     </>
   );
@@ -1952,28 +1948,58 @@ function RegistryPluginCard({
   isInstalling,
   isInstalled = false,
   index = 0,
+  compact = false,
 }: {
   entry: RegistryEntry;
   onInstall: (pluginId: string) => void;
   isInstalling: boolean;
   isInstalled?: boolean;
   index?: number;
+  compact?: boolean;
 }) {
   const t = useTranslations("integrations");
   const boardColor = useEffectiveBoardColor();
   const code62Glyph = useEffectiveCode62Glyph();
+  const categoryLabels = useCategoryLabels();
+  const Icon = ICON_MAP[normalizePluginIconKey(entry.icon)] ?? Puzzle;
 
   return (
     <Box {...anchorProps(`plugin.${entry.id}`)}>
       <PluginCard
+        variant={compact ? "compact" : "card"}
+        icon={<Icon className="h-5 w-5" />}
+        category={compact ? entry.category : undefined}
+        categoryLabel={categoryLabels[entry.category] || entry.category}
         className="animate-card-fade-in"
         style={{ animationDelay: `${index * 60}ms` }}
         name={entry.name}
-        description={entry.description}
+        description={
+          <>
+            {entry.description}
+            {entry.plugin_type === "output" && <Badge variant="outline">{t("outputBadge")}</Badge>}
+            {entry.plugin_type === "transition" && (
+              <>
+                <Badge variant="outline">{t("transitionBadge")}</Badge>
+                <DeprecatedBadge label={t("deprecatedBadge")} />
+              </>
+            )}
+          </>
+        }
         authorLabel={
           <Text as="span" className="inline-flex flex-wrap items-center gap-2">
             {t("byAuthor", { author: entry.author })}
             <PluginProvenance repository={entry.repository} />
+            {compact && (
+              <Text as="span" size="xs" tone="muted">
+                {entry.added
+                  ? new Date(`${entry.added}T00:00:00`).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "—"}
+              </Text>
+            )}
           </Text>
         }
         teaser={entry.teaser}
@@ -2009,114 +2035,6 @@ function RegistryPluginCard({
         }
       />
     </Box>
-  );
-}
-
-function RegistryPluginRow({
-  entry,
-  onInstall,
-  isInstalling,
-  isInstalled = false,
-}: {
-  entry: RegistryEntry;
-  onInstall: (pluginId: string) => void;
-  isInstalling: boolean;
-  isInstalled?: boolean;
-}) {
-  const t = useTranslations("integrations");
-  const categoryLabels = useCategoryLabels();
-
-  const formattedAdded = useMemo(() => {
-    if (!entry.added) return null;
-    try {
-      return new Date(`${entry.added}T00:00:00`).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return null;
-    }
-  }, [entry.added]);
-  const Icon = ICON_MAP[normalizePluginIconKey(entry.icon)] ?? Puzzle;
-  return (
-    <TableRow
-      className="border-b last:border-b-0 hover:bg-muted/30 transition-colors"
-      {...anchorProps(`plugin.${entry.id}`)}
-    >
-      <TableCell className="px-4 py-2.5">
-        <Link href={`/integrations/${entry.id}`} className="flex items-center gap-3 group">
-          <Box className="p-1.5 rounded-md bg-muted text-muted-foreground shrink-0">
-            <Icon className="h-4 w-4" />
-          </Box>
-          <Box>
-            <Flex align="center" gap="2">
-              <Text as="span" weight="medium" className="group-hover:underline underline-offset-2">
-                {entry.name}
-              </Text>
-              <PluginProvenance repository={entry.repository} />
-              {isInstalled && (
-                <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
-                  <CheckCircle className="h-2.5 w-2.5" />
-                  {t("installedBadge")}
-                </Badge>
-              )}
-              {/* Transitions behave nothing like data plugins once installed —
-                  no variables, no enable toggle — so the marketplace flags the
-                  type up front, with the same badge the Installed table uses. */}
-              {entry.plugin_type === "transition" && (
-                <>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] gap-1 px-1.5 py-0 h-5 border-violet-300 text-violet-600 dark:text-violet-400 dark:border-violet-700"
-                  >
-                    <Wand2 className="h-2.5 w-2.5" />
-                    {t("transitionBadge")}
-                  </Badge>
-                  <DeprecatedBadge label={t("deprecatedBadge")} />
-                </>
-              )}
-              {entry.plugin_type === "output" && (
-                <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">
-                  <Tv className="h-2.5 w-2.5" />
-                  {t("outputBadge")}
-                </Badge>
-              )}
-            </Flex>
-            {entry.description && (
-              <Text size="xs" tone="muted" className="truncate max-w-xs">
-                {entry.description}
-              </Text>
-            )}
-          </Box>
-        </Link>
-      </TableCell>
-      <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
-        {categoryLabels[entry.category || "utility"] || entry.category || categoryLabels.utility}
-      </TableCell>
-      <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{entry.author}</TableCell>
-      <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
-        {formattedAdded ?? "—"}
-      </TableCell>
-      <TableCell className="px-4 py-2.5 text-right">
-        {!isInstalled && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs"
-            onClick={() => onInstall(entry.id)}
-            disabled={isInstalling}
-          >
-            {isInstalling ? (
-              <Spinner label={null} className="h-3 w-3 mr-1" />
-            ) : (
-              <ArrowDownToLine className="h-3 w-3 mr-1" aria-hidden="true" />
-            )}
-            {isInstalling ? t("installing") : t("installAction")}
-          </Button>
-        )}
-      </TableCell>
-    </TableRow>
   );
 }
 
@@ -2168,6 +2086,14 @@ export default function IntegrationsPage() {
   const [marketplacePage, setMarketplacePage] = useState(0);
   const [gitDialogOpen, setGitDialogOpen] = useState(false);
   const gitInstall = useGitPluginInstall();
+  const desktop = useMediaQuery("(min-width: 768px)");
+  const phone = useMediaQuery("(max-width: 767px)");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailTarget, setDetailTarget] = useState<HTMLElement | null>(null);
+  const { data: connections } = useQuery({
+    queryKey: OAUTH_CONNECTIONS_QUERY_KEY,
+    queryFn: api.listOAuthConnections,
+  });
 
   // Fetch installed plugins list
   const { data, isLoading, error } = useQuery({
@@ -2425,6 +2351,20 @@ export default function IntegrationsPage() {
     return installedSort.dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
   });
 
+  const needsAttention = (plugin: PluginInfo) =>
+    plugin.enabled &&
+    plugin.plugin_type !== "output" &&
+    plugin.plugin_type !== "transition" &&
+    (!plugin.configured ||
+      findOAuthConnection(connections?.connections, plugin.id)?.status === "reauthorization_required");
+  const attentionPlugins = sortedInstalled.filter(needsAttention);
+  const readyPlugins = sortedInstalled.filter((plugin) => !needsAttention(plugin));
+  const currentSelectedId = sortedInstalled.some((plugin) => plugin.id === selectedId)
+    ? selectedId
+    : selectedId === ""
+      ? ""
+      : (oauthReturn?.pluginId ?? attentionPlugins[0]?.id ?? sortedInstalled[0]?.id);
+
   const updatesAvailableCount = (data?.plugins ?? []).filter((p) => p.update_available === true).length;
 
   // Git install dialog (shared, used in Marketplace tab)
@@ -2522,32 +2462,43 @@ export default function IntegrationsPage() {
             {activeTab === "installed" && <PluginAutoUpdateSwitch className="sm:justify-self-end" />}
             {activeTab === "marketplace" && (
               <Flex align="center" gap="2" className="shrink-0 md:justify-self-end">
-                <Flex className="rounded-md border overflow-hidden">
-                  <Button
-                    variant={marketplaceView === "card" ? "secondary" : "ghost"}
-                    size="icon"
-                    className="h-9 w-9 rounded-none border-0"
-                    onClick={() => setMarketplaceView("card")}
-                    aria-label={t("cardViewAriaLabel")}
-                    aria-pressed={marketplaceView === "card"}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={marketplaceView === "list" ? "secondary" : "ghost"}
-                    size="icon"
-                    className="h-9 w-9 rounded-none border-0"
-                    onClick={() => setMarketplaceView("list")}
-                    aria-label={t("listViewAriaLabel")}
-                    aria-pressed={marketplaceView === "list"}
-                  >
-                    <LayoutList className="h-4 w-4" />
-                  </Button>
-                </Flex>
-                <Button variant="outline" className="gap-2" onClick={() => setGitDialogOpen(true)}>
-                  <GitBranch className="h-4 w-4" />
-                  {t("addFromGit")}
-                </Button>
+                {!phone && !query && (
+                  <Flex className="rounded-md border overflow-hidden">
+                    <Button
+                      variant={marketplaceView === "card" ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-9 w-9 rounded-none border-0"
+                      onClick={() => setMarketplaceView("card")}
+                      aria-label={t("cardViewAriaLabel")}
+                      aria-pressed={marketplaceView === "card"}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={marketplaceView === "list" ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-9 w-9 rounded-none border-0"
+                      onClick={() => setMarketplaceView("list")}
+                      aria-label={t("listViewAriaLabel")}
+                      aria-pressed={marketplaceView === "list"}
+                    >
+                      <LayoutList className="h-4 w-4" />
+                    </Button>
+                  </Flex>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label={t("moreOptionsAriaLabel")}>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setGitDialogOpen(true)}>
+                      <GitBranch className="h-4 w-4 mr-2" />
+                      {t("addFromGit")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </Flex>
             )}
           </Box>
@@ -2653,57 +2604,61 @@ export default function IntegrationsPage() {
                     </Button>
                   </Flex>
                 )}
-                <Card className="overflow-hidden animate-card-fade-in">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-b bg-muted/40">
-                        {(["name", "category", "status"] as const).map((col) => {
-                          const labels: Record<string, string> = {
-                            name: t("nameColumn"),
-                            category: t("categoryColumn"),
-                            status: t("statusColumn"),
-                          };
-                          const active = installedSort.key === col;
-                          return (
-                            <TableHead
-                              key={col}
-                              className={cn(
-                                "px-4 py-2.5 text-left font-medium text-muted-foreground text-xs h-auto",
-                                col === "category" && "hidden sm:table-cell",
-                                col === "status" && "hidden md:table-cell",
-                              )}
-                              aria-sort={ariaSortFor(active, installedSort.dir)}
-                            >
-                              <SortHeaderButton
-                                label={labels[col]}
-                                active={active}
-                                dir={installedSort.dir}
-                                onSort={() => handleInstalledSort(col)}
+                <Flex gap="3" wrap role="group" aria-label={t("sortInstalled")}>
+                  {(["name", "category", "status"] as const).map((key) => (
+                    <SortHeaderButton
+                      key={key}
+                      label={t(`${key}Column`)}
+                      active={installedSort.key === key}
+                      dir={installedSort.dir}
+                      onSort={() => handleInstalledSort(key)}
+                    />
+                  ))}
+                </Flex>
+                <Box className="grid items-start gap-5 md:grid-cols-[minmax(0,0.45fr)_minmax(0,0.55fr)] xl:grid-cols-[minmax(0,0.6fr)_minmax(0,0.4fr)]">
+                  <Stack gap="4" className="min-w-0">
+                    {[
+                      { label: t("needsAttention"), plugins: attentionPlugins },
+                      { label: t("tabInstalled"), plugins: readyPlugins },
+                    ]
+                      .filter((group) => group.plugins.length > 0)
+                      .map((group) => (
+                        <Stack gap="2" key={group.label}>
+                          <Heading
+                            level={2}
+                            size="sm"
+                            className="px-4 font-mono uppercase tracking-wide text-muted-foreground"
+                          >
+                            {group.label}
+                          </Heading>
+                          <ListRowGroup aria-label={group.label} size="touch">
+                            {group.plugins.map((plugin) => (
+                              <InstalledPluginRow
+                                key={plugin.id}
+                                plugin={plugin}
+                                connection={findOAuthConnection(connections?.connections, plugin.id)}
+                                desktop={desktop}
+                                selected={currentSelectedId === plugin.id}
+                                onSelect={setSelectedId}
+                                detailTarget={detailTarget}
+                                onToggle={handleToggle}
+                                isToggling={toggleMutation.isPending}
+                                onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
+                                onUninstall={handleUninstall}
+                                onUpdate={handleUpdate}
+                                isUninstalling={uninstallingId === plugin.id}
+                                isUpdating={updatingId === plugin.id}
+                                initiallyOpen={oauthReturn?.pluginId === plugin.id}
                               />
-                            </TableHead>
-                          );
-                        })}
-                        <TableHead className="px-4 py-2.5 w-32 h-auto" />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedInstalled.map((plugin) => (
-                        <InstalledPluginRow
-                          key={plugin.id}
-                          plugin={plugin}
-                          onToggle={handleToggle}
-                          isToggling={toggleMutation.isPending}
-                          onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
-                          onUninstall={handleUninstall}
-                          onUpdate={handleUpdate}
-                          isUninstalling={uninstallingId === plugin.id}
-                          isUpdating={updatingId === plugin.id}
-                          initiallyOpen={oauthReturn?.pluginId === plugin.id}
-                        />
+                            ))}
+                          </ListRowGroup>
+                        </Stack>
                       ))}
-                    </TableBody>
-                  </Table>
-                </Card>
+                  </Stack>
+                  {desktop && (
+                    <Box as="aside" aria-label={t("integrationSettings")} ref={setDetailTarget} className="min-w-0" />
+                  )}
+                </Box>
               </Stack>
             )}
           </TabsContent>
@@ -2747,7 +2702,7 @@ export default function IntegrationsPage() {
                   className="py-16"
                 />
               )
-            ) : marketplaceView === "card" ? (
+            ) : marketplaceView === "card" && !phone && !query ? (
               <Stack gap="6" className="animate-card-fade-in">
                 {(() => {
                   let globalIndex = 0;
@@ -2787,50 +2742,31 @@ export default function IntegrationsPage() {
                 })()}
               </Stack>
             ) : (
-              /* List view */
-              <Card className="overflow-hidden animate-card-fade-in">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b bg-muted/40">
-                      {(["name", "category", "author", "added"] as const).map((col) => {
-                        const labels: Record<string, string> = {
-                          name: t("nameColumn"),
-                          category: t("categoryColumn"),
-                          author: t("authorColumn"),
-                          added: t("addedColumn"),
-                        };
-                        const active = marketplaceSort.key === col;
-                        return (
-                          <TableHead
-                            key={col}
-                            className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs h-auto"
-                            aria-sort={ariaSortFor(active, marketplaceSort.dir)}
-                          >
-                            <SortHeaderButton
-                              label={labels[col]}
-                              active={active}
-                              dir={marketplaceSort.dir}
-                              onSort={() => handleMarketplaceSort(col)}
-                            />
-                          </TableHead>
-                        );
-                      })}
-                      <TableHead className="px-4 py-2.5 w-24 h-auto" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visibleRegistry.map((entry) => (
-                      <RegistryPluginRow
-                        key={entry.id}
-                        entry={entry}
-                        onInstall={handleInstall}
-                        isInstalling={installingId === entry.id}
-                        isInstalled={installedIds.has(entry.id)}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
-              </Card>
+              <Stack gap="3">
+                <Flex gap="3" wrap role="group" aria-label={t("sortMarketplace")}>
+                  {(["name", "category", "author", "added"] as const).map((key) => (
+                    <SortHeaderButton
+                      key={key}
+                      label={t(`${key}Column`)}
+                      active={marketplaceSort.key === key}
+                      dir={marketplaceSort.dir}
+                      onSort={() => handleMarketplaceSort(key)}
+                    />
+                  ))}
+                </Flex>
+                <Card className="overflow-hidden divide-y">
+                  {visibleRegistry.map((entry) => (
+                    <RegistryPluginCard
+                      key={entry.id}
+                      compact
+                      entry={entry}
+                      onInstall={handleInstall}
+                      isInstalling={installingId === entry.id}
+                      isInstalled={installedIds.has(entry.id)}
+                    />
+                  ))}
+                </Card>
+              </Stack>
             )}
             {resultPages > 1 && (
               <Flex align="center" justify="between" gap="2">

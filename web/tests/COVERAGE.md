@@ -196,3 +196,11 @@ The mock servers (`integration-tests/mock-board`, `integration-tests/mock-cloud`
 `integration-tests/mock-llm`) simulate the Vestaboard Local API, the Vestaboard
 Cloud API, and an OpenAI-compatible LLM, so no real hardware or API key is
 needed for any test in this suite.
+
+### Universal Displays (2.14)
+
+`layout/displays.spec.ts` exercises the real Displays routes with deterministic API fixtures at 390/768/1280 in light/dark: health grouping, selection versus phone navigation, selected-display pause, diagnostics, overflow and axe. Screenshots attach to each layout test result.
+
+### Universal Integrations (2.14)
+
+`e2e/integrations-canonical.spec.ts` covers Needs attention actions, the shared schema save at 390/768/1280 in light/dark, compact Marketplace results, axe and attached screenshots.

@@ -24,6 +24,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: [
+        "app/routes/integrations._index.tsx",
         "src/lib/**",
         "src/hooks/**",
         "src/components/board-display.tsx",
@@ -32,6 +33,7 @@ export default defineConfig({
         "src/components/scaled-board-display.tsx",
         "src/components/active-page-display.tsx",
         "src/components/home/**",
+        "src/components/displays/display-{list,detail,overview,diagnostics}.tsx",
         "src/components/compose-page-dialog.tsx",
         "src/components/navigation-sidebar.tsx",
         "src/components/more-sheet.tsx",
@@ -56,6 +58,9 @@ export default defineConfig({
         "src/components/timezone-picker.tsx",
         "src/components/page-grid-selector.tsx",
         "src/components/schedule-entry-form.tsx",
+        "src/components/schedule/schedule-agenda.tsx",
+        "src/components/schedule/schedule-lookup.tsx",
+        "src/components/schedule/schedule-workspace.tsx",
         "src/components/collection-page-list.tsx",
         "src/components/live-output.tsx",
         "src/components/notification-display.tsx",

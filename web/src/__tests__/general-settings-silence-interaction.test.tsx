@@ -139,7 +139,8 @@ describe("GeneralSettings - silence interaction handlers", () => {
     const modeSelect = await screen.findByRole("combobox", { name: /While Silenced/i });
     await user.click(modeSelect);
 
-    const freezeOption = await screen.findByText("Leave board unchanged");
+    // Activate the option itself; ItemText is a presentation-only nested div.
+    const freezeOption = await screen.findByRole("option", { name: "Leave board unchanged" });
     await user.click(freezeOption);
 
     // After switching to freeze, the indicator text/position controls disappear

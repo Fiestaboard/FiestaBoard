@@ -18,10 +18,19 @@
 import {
   Alert,
   AlertDescription,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertTitle,
   Badge as BadgeUI,
   Box,
   Button,
+  Card,
   Flex,
   Input,
   Select,
@@ -372,6 +381,9 @@ export function BoardEditor({
   onRemoved?: () => void;
 }) {
   const t = useTranslations("displaySettings");
+  const tf = useTranslations("displays.fleet");
+  const tc = useTranslations("common");
+  const [confirmRemove, setConfirmRemove] = useState(false);
   // The note-array selector's custom inputs and their range error.
   const [customOpen, setCustomOpen] = useState(false);
   const [dimError, setDimError] = useState<string | undefined>(undefined);
@@ -721,12 +733,11 @@ export function BoardEditor({
       {/* Remove board - bottom. A virtual board still referenced by a panel is
           removed by deleting the panel, not here — pulling it out from under a
           live panel blanks the TV. */}
-      <Box className="border-t pt-2">
+      <Card className="gap-3 p-4">
         <Button
-          variant="ghost"
-          size="sm"
-          className="text-[11px] text-muted-foreground hover:text-destructive h-7 px-2"
-          onClick={() => void handleRemove()}
+          variant="destructive"
+          size="touch"
+          onClick={() => setConfirmRemove(true)}
           disabled={boards.length <= 1 || (isVirtual && panelName !== undefined)}
           title={isVirtual && panelName !== undefined ? t("virtualRemoveHint") : undefined}
         >
@@ -738,7 +749,19 @@ export function BoardEditor({
             {t("virtualRemoveHint")}
           </Text>
         )}
-      </Box>
+      </Card>
+      <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tf("removeConfirmTitle", { name: board.name || t("unnamedBoard") })}</AlertDialogTitle>
+            <AlertDialogDescription>{tf("removeConfirmBody")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleRemove()}>{t("removeBoard")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Stack>
   );
 }
