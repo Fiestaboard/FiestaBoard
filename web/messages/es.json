@@ -546,6 +546,13 @@
     }
   },
   "integrations": {
+    "needsAttention": "Necesita atención",
+    "setUpAction": "Configurar",
+    "integrationSettings": "Ajustes de integración",
+    "sortInstalled": "Ordenar integraciones instaladas",
+    "sortMarketplace": "Ordenar resultados del catálogo",
+    "sortAscending": "ascendente",
+    "sortDescending": "descendente",
     "title": "Integraciones",
     "description": "Habilita y configura complementos de fuentes de datos para tu FiestaBoard",
     "totalLabel": "Total:",

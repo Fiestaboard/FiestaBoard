@@ -546,6 +546,13 @@
     }
   },
   "integrations": {
+    "needsAttention": "Требует внимания",
+    "setUpAction": "Настроить",
+    "integrationSettings": "Настройки интеграции",
+    "sortInstalled": "Сортировать установленные интеграции",
+    "sortMarketplace": "Сортировать результаты каталога",
+    "sortAscending": "по возрастанию",
+    "sortDescending": "по убыванию",
     "title": "Интеграции",
     "description": "Включайте и настраивайте плагины источников данных для вашего FiestaBoard",
     "totalLabel": "Всего:",

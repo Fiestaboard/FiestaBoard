@@ -44,7 +44,8 @@ test.describe("Plugin Detail Page", () => {
       await expect(page).toHaveURL(/\/integrations\/[^?]+/, { timeout: 10_000 });
     } else {
       // If no direct links, verify the marketplace tab is at least visible with content
-      await expect(page.getByRole("button", { name: /add from git/i }).first()).toBeVisible({ timeout: 5_000 });
+      await page.getByRole("button", { name: "More options" }).click();
+      await expect(page.getByRole("menuitem", { name: /add from git/i }).first()).toBeVisible({ timeout: 5_000 });
     }
   });
 

@@ -546,6 +546,13 @@
     }
   },
   "integrations": {
+    "needsAttention": "要対応",
+    "setUpAction": "設定",
+    "integrationSettings": "連携設定",
+    "sortInstalled": "インストール済み連携を並べ替え",
+    "sortMarketplace": "マーケットプレイスの結果を並べ替え",
+    "sortAscending": "昇順",
+    "sortDescending": "降順",
     "title": "連携",
     "description": "FiestaBoard のデータソースプラグインを有効化・設定します",
     "totalLabel": "合計:",

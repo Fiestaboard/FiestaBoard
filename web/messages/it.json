@@ -546,6 +546,13 @@
     }
   },
   "integrations": {
+    "needsAttention": "Richiede attenzione",
+    "setUpAction": "Configura",
+    "integrationSettings": "Impostazioni integrazione",
+    "sortInstalled": "Ordina integrazioni installate",
+    "sortMarketplace": "Ordina risultati del catalogo",
+    "sortAscending": "crescente",
+    "sortDescending": "decrescente",
     "title": "Integrazioni",
     "description": "Attiva e configura i plugin delle fonti dati per il tuo FiestaBoard",
     "totalLabel": "Totale:",

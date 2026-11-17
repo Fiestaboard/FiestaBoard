@@ -546,6 +546,13 @@
     }
   },
   "integrations": {
+    "needsAttention": "Handlungsbedarf",
+    "setUpAction": "Einrichten",
+    "integrationSettings": "Integrationseinstellungen",
+    "sortInstalled": "Installierte Integrationen sortieren",
+    "sortMarketplace": "Marketplace-Ergebnisse sortieren",
+    "sortAscending": "aufsteigend",
+    "sortDescending": "absteigend",
     "title": "Integrationen",
     "description": "Aktivieren und konfigurieren Sie Datenquellen-Plugins für Ihr FiestaBoard",
     "totalLabel": "Gesamt:",

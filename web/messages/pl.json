@@ -546,6 +546,13 @@
     }
   },
   "integrations": {
+    "needsAttention": "Wymaga uwagi",
+    "setUpAction": "Skonfiguruj",
+    "integrationSettings": "Ustawienia integracji",
+    "sortInstalled": "Sortuj zainstalowane integracje",
+    "sortMarketplace": "Sortuj wyniki katalogu",
+    "sortAscending": "rosnąco",
+    "sortDescending": "malejąco",
     "title": "Integracje",
     "description": "Włącz i skonfiguruj wtyczki źródeł danych dla swojego FiestaBoard",
     "totalLabel": "Łącznie:",

@@ -502,6 +502,13 @@
     }
   },
   "integrations": {
+    "needsAttention": "Needs attention",
+    "setUpAction": "Set up",
+    "integrationSettings": "Integration settings",
+    "sortInstalled": "Sort installed integrations",
+    "sortMarketplace": "Sort marketplace results",
+    "sortAscending": "ascending",
+    "sortDescending": "descending",
     "title": "Integrations",
     "description": "Enable and configure data source plugins for your FiestaBoard",
     "totalLabel": "Total:",

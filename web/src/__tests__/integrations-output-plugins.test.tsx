@@ -62,7 +62,7 @@ function renderWithQuery(ui: ReactElement) {
 }
 
 async function rowFor(name: string): Promise<HTMLElement> {
-  const row = (await screen.findByText(name)).closest("tr");
+  const row = (await screen.findByText(name)).closest('[data-slot="list-row"], [data-slot="plugin-card"]');
   if (!row) throw new Error(`No table row for ${name}`);
   return row as HTMLElement;
 }

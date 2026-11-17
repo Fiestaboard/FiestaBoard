@@ -109,7 +109,7 @@ function renderPage() {
 /** The installed-table row whose Name cell holds `name`. */
 async function rowFor(name: string): Promise<HTMLElement> {
   const cell = await screen.findByText(name);
-  const row = cell.closest("tr");
+  const row = cell.closest('[data-slot="list-row"], [data-slot="plugin-card"]');
   if (!row) throw new Error(`No table row found for plugin "${name}"`);
   return row as HTMLElement;
 }

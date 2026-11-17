@@ -546,6 +546,13 @@
     }
   },
   "integrations": {
+    "needsAttention": "Aandacht nodig",
+    "setUpAction": "Instellen",
+    "integrationSettings": "Integratie-instellingen",
+    "sortInstalled": "Geïnstalleerde integraties sorteren",
+    "sortMarketplace": "Marketplace-resultaten sorteren",
+    "sortAscending": "oplopend",
+    "sortDescending": "aflopend",
     "title": "Integraties",
     "description": "Schakel databronplug-ins in en configureer ze voor je FiestaBoard",
     "totalLabel": "Totaal:",

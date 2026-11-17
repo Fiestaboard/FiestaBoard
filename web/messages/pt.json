@@ -546,6 +546,13 @@
     }
   },
   "integrations": {
+    "needsAttention": "Requer atenção",
+    "setUpAction": "Configurar",
+    "integrationSettings": "Definições da integração",
+    "sortInstalled": "Ordenar integrações instaladas",
+    "sortMarketplace": "Ordenar resultados do catálogo",
+    "sortAscending": "crescente",
+    "sortDescending": "decrescente",
     "title": "Integrações",
     "description": "Ative e configure plugins de fontes de dados para o seu FiestaBoard",
     "totalLabel": "Total:",

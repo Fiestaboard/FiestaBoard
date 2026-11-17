@@ -71,7 +71,7 @@ async function openConfigSheet(page: Page) {
   await expect(toggle).toBeVisible({ timeout: 15_000 });
 
   // The Configure button is the sibling in the same row
-  const row = page.locator("tr").filter({ has: toggle });
+  const row = page.locator('[data-slot="list-row"]').filter({ has: toggle });
   const configureBtn = row.getByRole("button", { name: "Configure" }).first();
   await configureBtn.click();
 }
@@ -96,7 +96,9 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await openConfigSheet(page);
 
     // Header: plugin name as SheetTitle
-    const sheetTitle = page.locator('[role="dialog"]').getByText(TEST_PLUGIN_NAME, { exact: true });
+    const sheetTitle = page
+      .getByRole("complementary", { name: "Integration settings" })
+      .getByText(TEST_PLUGIN_NAME, { exact: true });
     await expect(sheetTitle).toBeVisible({ timeout: 15_000 });
 
     // Save Changes button (rendering of the sheet has completed)
@@ -135,7 +137,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
 
     const toggle = page.getByRole("switch", { name: `Toggle ${TEST_PLUGIN_NAME}` });
     await expect(toggle).toBeVisible({ timeout: 15_000 });
-    const row = page.locator("tr").filter({ has: toggle });
+    const row = page.locator('[data-slot="list-row"]').filter({ has: toggle });
     await row.getByRole("button", { name: "Configure" }).first().click();
 
     // Sheet header is visible; body shows skeletons. Save button is rendered
@@ -177,7 +179,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
 
     const toggle = page.getByRole("switch", { name: `Toggle ${TEST_PLUGIN_NAME}` });
     await expect(toggle).toBeVisible({ timeout: 15_000 });
-    const row = page.locator("tr").filter({ has: toggle });
+    const row = page.locator('[data-slot="list-row"]').filter({ has: toggle });
     await row.getByRole("button", { name: "Configure" }).first().click();
 
     await expect(page.getByText(/No configuration options available for this plugin/i)).toBeVisible({
@@ -242,7 +244,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     // Find the env-vars table — its header includes a "Required" column.
     // Confirm at least one row exists by checking for known env-var name patterns
     // (date_time exposes FIESTABOARD_TIMEZONE or similar).
-    const dialog = page.locator('[role="dialog"]');
+    const dialog = page.getByRole("complementary", { name: "Integration settings" });
     const envTable = dialog.locator("table").filter({ hasText: "Required" });
     await expect(envTable).toBeVisible({ timeout: 5_000 });
     const rows = envTable.locator("tbody tr");
@@ -274,7 +276,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible({ timeout: 15_000 });
 
     // Locate the variables table by its column headers (it includes "Current Value" + "Max").
-    const dialog = page.locator('[role="dialog"]');
+    const dialog = page.getByRole("complementary", { name: "Integration settings" });
     const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
     await expect(varsTable).toBeVisible({ timeout: 5_000 });
 
@@ -306,7 +308,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
 
     await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible({ timeout: 15_000 });
 
-    const dialog = page.locator('[role="dialog"]');
+    const dialog = page.getByRole("complementary", { name: "Integration settings" });
     const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
     await expect(varsTable).toBeVisible({ timeout: 5_000 });
 
@@ -358,7 +360,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     // Sheet renders, Template Variables section is present (page didn't crash).
     await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible({ timeout: 15_000 });
 
-    const dialog = page.locator('[role="dialog"]');
+    const dialog = page.getByRole("complementary", { name: "Integration settings" });
     const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
     await expect(varsTable).toBeVisible({ timeout: 5_000 });
 
@@ -413,7 +415,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
   test("integrations.plugin.color-rules-editor — color rules editor surfaces in config sheet", async ({ page }) => {
     await openConfigSheet(page);
     await expect(page.getByRole("button", { name: "Save Changes" })).toBeEnabled({ timeout: 15_000 });
-    const dialog = page.locator('[role="dialog"]');
+    const dialog = page.getByRole("complementary", { name: "Integration settings" });
     // Plugins that support color rules expose an "Add field" affordance in
     // their config sheet. If it's present, the editor is wired correctly.
     const addFieldBtn = dialog.getByRole("button", { name: /Add field/i });
@@ -445,7 +447,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await openConfigSheet(page);
     await expect(page.getByRole("button", { name: "Save Changes" })).toBeEnabled({ timeout: 15_000 });
 
-    const dialog = page.locator('[role="dialog"]');
+    const dialog = page.getByRole("complementary", { name: "Integration settings" });
     const createBtn = dialog.getByRole("button", { name: /Create Demo Page/i });
     await expect(createBtn).toBeVisible({ timeout: 5_000 });
     await createBtn.click();
@@ -489,7 +491,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await openConfigSheet(page);
     await expect(page.getByRole("button", { name: "Save Changes" })).toBeEnabled({ timeout: 15_000 });
 
-    const sheet = page.locator('[role="dialog"]').first();
+    const sheet = page.getByRole("complementary", { name: "Integration settings" }).first();
     const recreateBtn = sheet.getByRole("button", { name: /^Recreate$/ });
     if (!(await recreateBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
       test.skip(true, "Recreate button not present");
@@ -551,7 +553,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
 
     const toggle = page.getByRole("switch", { name: "Toggle Mock External Plugin" });
     await expect(toggle).toBeVisible({ timeout: 15_000 });
-    const row = page.locator("tr").filter({ has: toggle });
+    const row = page.locator('[data-slot="list-row"]').filter({ has: toggle });
 
     await row.getByRole("button", { name: "More options" }).click();
     await page.getByRole("menuitem", { name: /^Delete$/ }).click();

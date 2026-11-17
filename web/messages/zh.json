@@ -546,6 +546,13 @@
     }
   },
   "integrations": {
+    "needsAttention": "需要处理",
+    "setUpAction": "设置",
+    "integrationSettings": "集成设置",
+    "sortInstalled": "排序已安装的集成",
+    "sortMarketplace": "排序市场结果",
+    "sortAscending": "升序",
+    "sortDescending": "降序",
     "title": "集成",
     "description": "为您的 FiestaBoard 启用和配置数据源插件",
     "totalLabel": "总计：",

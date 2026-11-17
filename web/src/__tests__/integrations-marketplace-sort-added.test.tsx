@@ -68,7 +68,7 @@ async function openMarketplaceList(user: ReturnType<typeof userEvent.setup>) {
 
 /** Plugin names in the order the table currently renders them. */
 function renderedOrder(names: string[]): string[] {
-  const rows = screen.getAllByRole("row");
+  const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="plugin-card"]'));
   const seen: string[] = [];
   for (const row of rows) {
     for (const name of names) {
