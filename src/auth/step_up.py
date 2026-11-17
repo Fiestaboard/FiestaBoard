@@ -15,8 +15,6 @@ that phone (``POST /auth/device/elevate``) within the last ten minutes.
 
 from __future__ import annotations
 
-from starlette.responses import JSONResponse
-
 from .service import AuthService
 
 #: How long one password re-entry lasts (owner-approved: 10 minutes).
@@ -36,12 +34,9 @@ def is_elevated(auth: AuthService, session_id: str | None) -> bool:
     return elevated_until(auth, session_id) is not None
 
 
-def step_up_required_response() -> JSONResponse:
-    return JSONResponse(
-        {
-            "error": STEP_UP_REQUIRED,
-            "code": STEP_UP_REQUIRED,
-            "detail": "Enter your password on this phone to continue.",
-        },
-        status_code=403,
-    )
+#: The ``403`` body of a tier-2 route reached without a step-up.
+STEP_UP_REQUIRED_BODY = {
+    "error": STEP_UP_REQUIRED,
+    "code": STEP_UP_REQUIRED,
+    "detail": "Enter your password on this phone to continue.",
+}
