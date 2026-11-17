@@ -219,9 +219,30 @@ describe("Integrations plugin previews — extended markup on a split-flap board
   });
 });
 
-afterEach(() => localStorage.removeItem("fiestaboard_current_board"));
+afterEach(() => {
+  localStorage.removeItem("fiestaboard_current_board");
+  vi.unstubAllGlobals();
+});
 
 describe("Installed integration board previews", () => {
+  it("keeps the installed sample available in the selected desktop detail pane", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(min-width: 768px)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    mockBoard("heart");
+    mockWeatherRegistry("52 °F CLEAR", { installed: true });
+    renderWithQueryClient(<IntegrationsPage />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /^Weather/ }));
+    const detail = screen.getByRole("complementary", { name: "Integration settings" });
+    const board = await within(detail).findByRole("img", { name: /split-flap board/i });
+    expect(board).toHaveTextContent("52♥FCLEAR");
+    expect(within(detail).getByRole("group", { name: "Board color" })).toBeInTheDocument();
+  });
+
   it("preserves the showcase and its controls using the selected board’s color and code-62 glyph", async () => {
     mockWeatherRegistry("52 °F CLEAR", {
       installed: true,
