@@ -70,8 +70,11 @@ test.describe("Settings Page", () => {
       timeout: 15_000,
     });
     await expect(page).toHaveURL(/\/displays\/[^/?]+\?section=playback$/);
-    await expect(page.getByText("Silence Schedule").first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Update Intervals").first()).toBeVisible();
+    const playback = page.getByRole("region", { name: "Playback", exact: true });
+    await expect(playback).toBeVisible({ timeout: 10_000 });
+    await expect(playback.getByRole("heading", { name: "Silence Schedule", exact: true })).toBeVisible();
+    await expect(playback.getByRole("switch", { name: "Silence Schedule", exact: true })).toBeVisible();
+    await expect(playback.getByRole("heading", { name: "Update Intervals", exact: true })).toBeVisible();
   });
 
   test("an old ?section=integrations link opens AI provider", async ({ page }) => {
