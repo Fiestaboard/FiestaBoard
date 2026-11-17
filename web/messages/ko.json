@@ -573,7 +573,32 @@
         "schedule": "일정",
         "manual": "수동",
         "none": "선택 없음"
-      }
+      },
+      "timezoneFallback": "허브 시간대가 없거나 잘못되어 UTC를 사용합니다.",
+      "quickMoments": "빠른 시각",
+      "quickNow": "지금",
+      "quickTonight": "오늘 밤 21:00",
+      "quickTomorrow": "내일 15:00",
+      "quickSaturday": "토요일 12:30",
+      "missing": "누락으로 처리 (줄마다 변수 경로 하나)",
+      "winningRule": "첫 번째 적용 규칙",
+      "sourceFreshness": "소스 최신 상태",
+      "sourceState": {
+        "fresh": "최신",
+        "stale": "오래됨",
+        "live": "실시간",
+        "none": "데이터 없음",
+        "unknown": "알 수 없음"
+      },
+      "actualPreview": "선택한 시각의 페이지 · 페이지",
+      "simulatedPreview": "컬렉션 시험 실행 · 페이지",
+      "whatIf": "가정",
+      "addValue": "값 추가…",
+      "samplePath": "변수 경로",
+      "sampleValue": "값 (텍스트 또는 JSON)",
+      "confirmValue": "값 추가",
+      "removeValue": "{path} 삭제",
+      "editValuesJson": "JSON 값 편집"
     },
     "agenda": {
       "empty": "이 날짜에 항목이 없습니다",
@@ -602,7 +627,35 @@
       "repeat": "반복",
       "legacy": "항목 이동 또는 길이 조절",
       "calendar": "주간 달력",
-      "sunUnavailable": "일출·일몰 시간을 사용할 수 없어 저장된 대체 시간을 사용합니다."
+      "sunUnavailable": "일출·일몰 시간을 사용할 수 없어 저장된 대체 시간을 사용합니다.",
+      "datedGapsUnavailable": "주간 빈 시간 검사는 날짜 예외를 제외하고 오늘의 일출·일몰을 사용합니다. 실제 페이지는 특정 시각을 확인하세요.",
+      "repairStart": "대신 {time}에 시작",
+      "repairRepeats": "이 주간 항목이 반복되는 모든 날짜에 적용합니다.",
+      "repaired": "시작 시간 업데이트됨",
+      "undo": "실행 취소",
+      "repairFailed": "항목을 업데이트하지 못했습니다."
+    },
+    "adapter": {
+      "display": "디스플레이",
+      "startFallback": "시작 대체 시간",
+      "endFallback": "종료 대체 시간",
+      "fallbackHint": "일출·일몰을 계산할 수 없을 때 사용합니다.",
+      "invalidTime": "올바른 시간을 입력하세요.",
+      "delete": "항목 삭제…",
+      "required": "(필수)",
+      "allShort": "모두",
+      "weekdaysShort": "평일",
+      "weekendsShort": "주말",
+      "customShort": "사용자 지정",
+      "openEnded": "종료 없음"
+    },
+    "copy": {
+      "open": "다른 디스플레이에서 복사…",
+      "description": "모든 페이지가 맞는 경우에만 복사합니다. 도중 실패하면 새로 복사한 항목을 삭제합니다.",
+      "source": "원본 디스플레이",
+      "run": "항목 복사",
+      "incompatible": "복사하지 않았습니다. 맞지 않는 페이지가 있습니다.",
+      "partial": "새 복사 항목을 삭제하지 못했습니다: {ids}"
     }
   },
   "integrations": {
@@ -1543,7 +1596,10 @@
         "read_failed": "디스플레이를 읽을 수 없음"
       },
       "removeConfirmTitle": "{name}을(를) 삭제할까요?",
-      "removeConfirmBody": "이 허브에서 디스플레이가 삭제됩니다."
+      "removeConfirmBody": "이 허브에서 디스플레이가 삭제됩니다.",
+      "expected": "FiestaBoard가 전송한 내용",
+      "readbackUnavailable": "이 디스플레이에서는 현재 화면을 읽을 수 없습니다.",
+      "advanced": "디스플레이 고급 설정"
     },
     "title": "디스플레이",
     "description": "FiestaBoard가 표시하는 모든 보드와 화면입니다. 설정을 바꾸려면 하나를 여세요.",
@@ -1853,7 +1909,10 @@
     "updateIntervalsTitle": "업데이트 간격",
     "updateIntervalsDescription": "보드가 새 콘텐츠를 가져오고 현재 상태를 다시 읽는 빈도",
     "silenceShowHeldLabel": "무음이 끝나면 보류된 메시지 표시",
-    "silenceShowHeldHelp": "무음 중에 이 보드로 보낸 메시지는 보류되었다가 무음이 끝나는 즉시 표시됩니다. 끄면 대신 거부됩니다. 페이지 변경은 항상 저장되므로 이 설정이 필요하지 않습니다."
+    "silenceShowHeldHelp": "무음 중에 이 보드로 보낸 메시지는 보류되었다가 무음이 끝나는 즉시 표시됩니다. 끄면 대신 거부됩니다. 페이지 변경은 항상 저장되므로 이 설정이 필요하지 않습니다.",
+    "silenceModeIndicatorShort": "표시기",
+    "silenceModeFreezeShort": "고정",
+    "silenceModePageShort": "페이지 표시"
   },
   "serviceControls": {
     "title": "서비스 제어",
@@ -2901,7 +2960,12 @@
     "geometryLoading": "화면 구조 계산 중…",
     "draftContentPending": "저장하고 일치하는 프레임을 받으면 콘텐츠 미리보기가 업데이트됩니다.",
     "geometryUnsupported": "이 LED 격자는 표시할 수 없습니다. 이 패널을 편집하고 화면 모양에 맞추기를 선택하여 지원되는 격자를 사용하세요.",
-    "legacyGridHint": "이 패널은 기존 문자 격자를 유지합니다. 레이아웃을 변경하려면 화면 모양에 맞추기를 선택하세요."
+    "legacyGridHint": "이 패널은 기존 문자 격자를 유지합니다. 레이아웃을 변경하려면 화면 모양에 맞추기를 선택하세요.",
+    "displaySettings": "디스플레이",
+    "previewAt": "{inches}인치 미리보기",
+    "removeDisplayTitle": "디스플레이 삭제",
+    "removeDisplay": "디스플레이 삭제…",
+    "advancedSettings": "고급 패널 설정"
   },
   "releaseChannel": {
     "title": "릴리스 채널",

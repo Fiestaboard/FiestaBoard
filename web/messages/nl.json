@@ -573,7 +573,32 @@
         "schedule": "Schema",
         "manual": "Handmatig",
         "none": "Geen selectie"
-      }
+      },
+      "timezoneFallback": "Hubtijdzone ontbreekt of is ongeldig; UTC wordt gebruikt.",
+      "quickMoments": "Snelle tijdstippen",
+      "quickNow": "Nu",
+      "quickTonight": "Vanavond 21:00",
+      "quickTomorrow": "Morgen 15:00",
+      "quickSaturday": "Za 12:30",
+      "missing": "Als ontbrekend behandelen (één variabelepad per regel)",
+      "winningRule": "Eerste winnende regel",
+      "sourceFreshness": "Actualiteit van bronnen",
+      "sourceState": {
+        "fresh": "Actueel",
+        "stale": "Verouderd",
+        "live": "Live",
+        "none": "Geen gegevens",
+        "unknown": "Onbekend"
+      },
+      "actualPreview": "Actieve pagina op tijdstip · Pagina",
+      "simulatedPreview": "Collectieproef · Pagina",
+      "whatIf": "Wat als",
+      "addValue": "Waarde toevoegen…",
+      "samplePath": "Variabelepad",
+      "sampleValue": "Waarde (tekst of JSON)",
+      "confirmValue": "Waarde toevoegen",
+      "removeValue": "{path} verwijderen",
+      "editValuesJson": "JSON-waarden bewerken"
     },
     "agenda": {
       "empty": "Geen items op deze dag",
@@ -602,7 +627,35 @@
       "repeat": "Herhaling",
       "legacy": "Items verplaatsen of vergroten",
       "calendar": "Weekkalender",
-      "sunUnavailable": "Zonnetijden niet beschikbaar. Opgeslagen vervangende tijden worden gebruikt."
+      "sunUnavailable": "Zonnetijden niet beschikbaar. Opgeslagen vervangende tijden worden gebruikt.",
+      "datedGapsUnavailable": "Wekelijkse controle sluit datumuitzonderingen uit en gebruikt de zonnetijden van vandaag. Controleer een tijdstip voor de werkelijke pagina.",
+      "repairStart": "Begin in plaats daarvan om {time}",
+      "repairRepeats": "Wijzigt dit wekelijkse item op elke herhalingsdag.",
+      "repaired": "Begintijd bijgewerkt",
+      "undo": "Ongedaan maken",
+      "repairFailed": "Kon het item niet bijwerken."
+    },
+    "adapter": {
+      "display": "Scherm",
+      "startFallback": "Alternatieve begintijd",
+      "endFallback": "Alternatieve eindtijd",
+      "fallbackHint": "Gebruikt als zonnetijden niet kunnen worden berekend.",
+      "invalidTime": "Voer een geldige tijd in.",
+      "delete": "Item verwijderen…",
+      "required": "(verplicht)",
+      "allShort": "Alle",
+      "weekdaysShort": "Ma–Vr",
+      "weekendsShort": "Za–Zo",
+      "customShort": "Eigen",
+      "openEnded": "Open"
+    },
+    "copy": {
+      "open": "Kopiëren van ander scherm…",
+      "description": "Kopieer alleen als alle pagina’s passen. Nieuwe kopieën worden verwijderd als een volgende kopie mislukt.",
+      "source": "Bronscherm",
+      "run": "Items kopiëren",
+      "incompatible": "Niets gekopieerd: een of meer pagina’s passen niet.",
+      "partial": "Nieuwe kopieën konden niet worden verwijderd: {ids}"
     }
   },
   "integrations": {
@@ -1543,7 +1596,10 @@
         "read_failed": "Scherm kon niet worden gelezen"
       },
       "removeConfirmTitle": "{name} verwijderen?",
-      "removeConfirmBody": "Hiermee verwijder je het scherm van deze hub."
+      "removeConfirmBody": "Hiermee verwijder je het scherm van deze hub.",
+      "expected": "Wat FiestaBoard heeft verzonden",
+      "readbackUnavailable": "Dit scherm biedt geen leesbaar huidig beeld.",
+      "advanced": "Geavanceerde scherminstellingen"
     },
     "title": "Schermen",
     "description": "Elk bord en scherm waarop FiestaBoard toont. Open er een om de instellingen te wijzigen.",
@@ -1853,7 +1909,10 @@
     "updateIntervalsTitle": "Update-intervallen",
     "updateIntervalsDescription": "Hoe vaak het bord nieuwe inhoud ophaalt en zijn huidige status opnieuw leest",
     "silenceShowHeldLabel": "Vastgehouden berichten tonen als de stilte eindigt",
-    "silenceShowHeldHelp": "Een bericht dat tijdens de stilte naar dit bord wordt gestuurd, wordt vastgehouden en getoond zodra de stilte eindigt. Staat dit uit, dan wordt het geweigerd. Paginawijzigingen blijven altijd bewaard en hebben dit niet nodig."
+    "silenceShowHeldHelp": "Een bericht dat tijdens de stilte naar dit bord wordt gestuurd, wordt vastgehouden en getoond zodra de stilte eindigt. Staat dit uit, dan wordt het geweigerd. Paginawijzigingen blijven altijd bewaard en hebben dit niet nodig.",
+    "silenceModeIndicatorShort": "Indicator",
+    "silenceModeFreezeShort": "Bevriezen",
+    "silenceModePageShort": "Pagina tonen"
   },
   "serviceControls": {
     "title": "Servicebeheer",
@@ -2901,7 +2960,12 @@
     "geometryLoading": "Schermgeometrie berekenen…",
     "draftContentPending": "Het inhoudsvoorbeeld wordt bijgewerkt na het opslaan en ontvangen van een passend frame.",
     "geometryUnsupported": "Dit LED-raster kan niet worden weergegeven. Bewerk dit paneel en kies Aanpassen aan schermvorm om een ondersteund raster te gebruiken.",
-    "legacyGridHint": "Dit paneel behoudt het bestaande tekenraster. Kies Aanpassen aan schermvorm om de indeling te wijzigen."
+    "legacyGridHint": "Dit paneel behoudt het bestaande tekenraster. Kies Aanpassen aan schermvorm om de indeling te wijzigen.",
+    "displaySettings": "Display",
+    "previewAt": "Voorbeeld op {inches}″",
+    "removeDisplayTitle": "Display verwijderen",
+    "removeDisplay": "Display verwijderen…",
+    "advancedSettings": "Geavanceerde paneelinstellingen"
   },
   "releaseChannel": {
     "title": "Releasekanaal",

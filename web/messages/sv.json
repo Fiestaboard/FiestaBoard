@@ -573,7 +573,32 @@
         "schedule": "Schema",
         "manual": "Manuellt",
         "none": "Inget val"
-      }
+      },
+      "timezoneFallback": "Hubbens tidszon saknas eller är ogiltig; UTC används.",
+      "quickMoments": "Snabba tidpunkter",
+      "quickNow": "Nu",
+      "quickTonight": "Ikväll 21:00",
+      "quickTomorrow": "Imorgon 15:00",
+      "quickSaturday": "Lör 12:30",
+      "missing": "Behandla som saknad (en variabelsökväg per rad)",
+      "winningRule": "Första vinnande regeln",
+      "sourceFreshness": "Källornas aktualitet",
+      "sourceState": {
+        "fresh": "Aktuell",
+        "stale": "Föråldrad",
+        "live": "Live",
+        "none": "Inga data",
+        "unknown": "Okänd"
+      },
+      "actualPreview": "Aktiv sida vid tidpunkten · Sida",
+      "simulatedPreview": "Testa samling · Sida",
+      "whatIf": "Tänk om",
+      "addValue": "Lägg till värde…",
+      "samplePath": "Variabelsökväg",
+      "sampleValue": "Värde (text eller JSON)",
+      "confirmValue": "Lägg till värde",
+      "removeValue": "Ta bort {path}",
+      "editValuesJson": "Redigera JSON-värden"
     },
     "agenda": {
       "empty": "Inga poster den här dagen",
@@ -602,7 +627,35 @@
       "repeat": "Upprepning",
       "legacy": "Flytta eller ändra längd på poster",
       "calendar": "Veckokalender",
-      "sunUnavailable": "Soltider är inte tillgängliga. Sparade reservtider används."
+      "sunUnavailable": "Soltider är inte tillgängliga. Sparade reservtider används.",
+      "datedGapsUnavailable": "Veckokontrollen utesluter datumundantag och använder dagens soltider. Kontrollera en tidpunkt för den faktiska sidan.",
+      "repairStart": "Börja istället {time}",
+      "repairRepeats": "Ändrar denna veckopost alla dagar den upprepas.",
+      "repaired": "Start uppdaterad",
+      "undo": "Ångra",
+      "repairFailed": "Kunde inte uppdatera posten."
+    },
+    "adapter": {
+      "display": "Skärm",
+      "startFallback": "Reservtid för start",
+      "endFallback": "Reservtid för slut",
+      "fallbackHint": "Används om soltiderna inte kan beräknas.",
+      "invalidTime": "Ange en giltig tid.",
+      "delete": "Ta bort post…",
+      "required": "(obligatoriskt)",
+      "allShort": "Alla",
+      "weekdaysShort": "Mån–Fre",
+      "weekendsShort": "Lör–Sön",
+      "customShort": "Egna",
+      "openEnded": "Öppet"
+    },
+    "copy": {
+      "open": "Kopiera från en annan skärm…",
+      "description": "Kopiera bara om alla sidor passar. Nya kopior tas bort om en senare kopia misslyckas.",
+      "source": "Källskärm",
+      "run": "Kopiera poster",
+      "incompatible": "Inget kopierat: en eller flera sidor passar inte.",
+      "partial": "Kunde inte ta bort nya kopior: {ids}"
     }
   },
   "integrations": {
@@ -1543,7 +1596,10 @@
         "read_failed": "Kunde inte läsa skärmen"
       },
       "removeConfirmTitle": "Ta bort {name}?",
-      "removeConfirmBody": "Detta tar bort skärmen från denna hubb."
+      "removeConfirmBody": "Detta tar bort skärmen från denna hubb.",
+      "expected": "Det som FiestaBoard skickade",
+      "readbackUnavailable": "Denna skärm tillhandahåller ingen läsbar aktuell bild.",
+      "advanced": "Avancerade skärminställningar"
     },
     "title": "Skärmar",
     "description": "Alla tavlor och skärmar som FiestaBoard visar på. Öppna en för att ändra dess inställningar.",
@@ -1853,7 +1909,10 @@
     "updateIntervalsTitle": "Uppdateringsintervall",
     "updateIntervalsDescription": "Hur ofta tavlan söker efter nytt innehåll och läser om sitt aktuella tillstånd",
     "silenceShowHeldLabel": "Visa väntande meddelanden när tystnaden tar slut",
-    "silenceShowHeldHelp": "Ett meddelande som skickas till den här tavlan under tystnaden får vänta och visas så fort tystnaden tar slut. När det är av avvisas det i stället. Sidbyten sparas alltid och behöver inte detta."
+    "silenceShowHeldHelp": "Ett meddelande som skickas till den här tavlan under tystnaden får vänta och visas så fort tystnaden tar slut. När det är av avvisas det i stället. Sidbyten sparas alltid och behöver inte detta.",
+    "silenceModeIndicatorShort": "Indikator",
+    "silenceModeFreezeShort": "Frys",
+    "silenceModePageShort": "Visa sida"
   },
   "serviceControls": {
     "title": "Tjänststyrning",
@@ -2901,7 +2960,12 @@
     "geometryLoading": "Beräknar skärmens geometri…",
     "draftContentPending": "Innehållsförhandsvisningen uppdateras när du har sparat och en matchande bildruta har tagits emot.",
     "geometryUnsupported": "Det här LED-rutnätet kan inte visas. Redigera panelen och välj Anpassa till skärmens form för att använda ett rutnät som stöds.",
-    "legacyGridHint": "Panelen behåller sitt befintliga teckenrutnät. Välj Anpassa till skärmens form för att ändra layouten."
+    "legacyGridHint": "Panelen behåller sitt befintliga teckenrutnät. Välj Anpassa till skärmens form för att ändra layouten.",
+    "displaySettings": "Display",
+    "previewAt": "Förhandsvisning vid {inches}″",
+    "removeDisplayTitle": "Ta bort display",
+    "removeDisplay": "Ta bort display…",
+    "advancedSettings": "Avancerade panelinställningar"
   },
   "releaseChannel": {
     "title": "Versionskanal",

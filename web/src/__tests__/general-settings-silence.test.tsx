@@ -149,7 +149,7 @@ describe("GeneralSettings - silence indicator controls visibility", () => {
     render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Silence enabled, mode=freeze — text/position controls must be absent
-    await screen.findByRole("combobox", { name: /While Silenced/i });
+    await screen.findByRole("radiogroup", { name: /While Silenced/i });
     expect(screen.queryByLabelText(/message text/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Message Position/i)).not.toBeInTheDocument();
   });
