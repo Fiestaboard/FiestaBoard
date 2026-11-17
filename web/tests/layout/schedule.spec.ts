@@ -15,14 +15,14 @@ for (const width of [390, 768, 1280]) {
         page.getByRole("radio", { name: width < 768 ? "Day" : width < 1024 ? "List" : "Week", exact: true }),
       ).toHaveAttribute("aria-checked", "true");
       const shot = async (state: string) => {
-        const path = testInfo.outputPath(`schedule-${state}-${width}-${theme}.png`);
+        const path = testInfo.outputPath(`impl-schedule-${state}-${width}-${theme}.png`);
         await page.screenshot({ path, fullPage: true });
         await testInfo.attach(`schedule-${state}-${width}-${theme}`, { path, contentType: "image/png" });
       };
       await injectAxe(page);
       const axe = () =>
         checkA11y(page, undefined, {
-          axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
+          axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } },
         });
       await shot("agenda");
       await axe();
@@ -76,7 +76,7 @@ for (const width of [390, 1280]) {
     await page.goto("/tests/layout/schedule.html?state=empty");
     await page.getByRole("radio", { name: "Week", exact: true }).click();
     await expect(page.getByText("No schedules created yet", { exact: true })).toBeVisible();
-    const path = testInfo.outputPath(`schedule-empty-${width}.png`);
+    const path = testInfo.outputPath(`impl-schedule-empty-${width}.png`);
     await page.screenshot({ path, fullPage: true });
     await testInfo.attach(`schedule-empty-${width}`, { path, contentType: "image/png" });
     await page.getByRole("button", { name: "Copy from another display…", exact: true }).click();

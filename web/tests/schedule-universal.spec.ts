@@ -122,7 +122,7 @@ test("H8 collection fixture renders separate actual and simulated winners withou
   await expect(actual.locator('[data-slot="board-display"]')).toHaveAttribute("aria-label", /ACTUAL A/);
   await expect(simulated.locator('[data-slot="board-display"]')).toHaveAttribute("aria-label", /SIMULATED B/);
   await expect(page.getByText("First winning rule", { exact: true })).toBeVisible();
-  const path = testInfo.outputPath("schedule-h8-distinct-winners.png");
+  const path = testInfo.outputPath("impl-schedule-h8-distinct-winners.png");
   await page.screenshot({ path, fullPage: true });
   await testInfo.attach("schedule-h8-distinct-winners", { path, contentType: "image/png" });
 });
@@ -148,10 +148,10 @@ for (const width of [390, 768, 1280]) {
       if (width < 768) await expect(page.getByRole("radiogroup", { name: "Choose a day" })).toBeVisible();
       await injectAxe(page);
       const violations = await getViolations(page, "main", {
-        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
+        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
       });
       expect(violations).toEqual([]);
-      const path = testInfo.outputPath(`schedule-${width}-${theme}.png`);
+      const path = testInfo.outputPath(`impl-schedule-${width}-${theme}.png`);
       await page.screenshot({ path, fullPage: true });
       await testInfo.attach(`schedule-${width}-${theme}`, { path, contentType: "image/png" });
       if (width >= 1024) {
@@ -160,7 +160,7 @@ for (const width of [390, 768, 1280]) {
           .first()
           .click();
         await expect(page.getByRole("button", { name: "Edit entry", exact: true })).toBeVisible();
-        const inspectorPath = testInfo.outputPath(`schedule-${width}-${theme}-inspector.png`);
+        const inspectorPath = testInfo.outputPath(`impl-schedule-${width}-${theme}-inspector.png`);
         await page.screenshot({ path: inspectorPath, fullPage: true });
         await testInfo.attach(`schedule-${width}-${theme}-inspector`, {
           path: inspectorPath,
@@ -171,15 +171,15 @@ for (const width of [390, 768, 1280]) {
       await expect(page.getByRole("radiogroup", { name: "Start time type" })).toBeVisible();
       await expect(page.getByLabel("Start Time", { exact: true })).toHaveAttribute("type", "time");
       const entryViolations = await getViolations(page, undefined, {
-        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
+        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
       });
       expect(entryViolations).toEqual([]);
-      const entryPath = testInfo.outputPath(`schedule-${width}-${theme}-entry.png`);
+      const entryPath = testInfo.outputPath(`impl-schedule-${width}-${theme}-entry.png`);
       await page.screenshot({ path: entryPath, fullPage: true });
       await testInfo.attach(`schedule-${width}-${theme}-entry`, { path: entryPath, contentType: "image/png" });
       await page.getByRole("radio", { name: "Specific date", exact: true }).click();
       await expect(page.getByLabel("Date", { exact: true })).toHaveAttribute("type", "date");
-      const recurrencePath = testInfo.outputPath(`schedule-${width}-${theme}-date-entry.png`);
+      const recurrencePath = testInfo.outputPath(`impl-schedule-${width}-${theme}-date-entry.png`);
       await page.screenshot({ path: recurrencePath, fullPage: true });
       await testInfo.attach(`schedule-${width}-${theme}-date-entry`, {
         path: recurrencePath,
@@ -195,7 +195,7 @@ for (const width of [390, 1280]) {
     await page.addInitScript(() => localStorage.setItem("schedule-view-mode", "calendar"));
     await page.goto("/schedule");
     await expect(page.getByText("No schedules created yet", { exact: true })).toBeVisible();
-    const path = testInfo.outputPath(`schedule-empty-${width}.png`);
+    const path = testInfo.outputPath(`impl-schedule-empty-${width}.png`);
     await page.screenshot({ path, fullPage: true });
     await testInfo.attach(`schedule-empty-${width}`, { path, contentType: "image/png" });
   });
