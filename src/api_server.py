@@ -33,6 +33,7 @@ from . import (  # noqa: E402,F401  (re-export)
 from .api_deprecation import deprecation_notice  # noqa: E402
 from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
+from .auth.request_boundary import RequestBoundaryMiddleware, configured_origins  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
 
 # Re-export: src/mcp_server.py imports this name from here, and
@@ -576,54 +577,11 @@ CORS_ORIGINS_ENV = "FIESTABOARD_CORS_ORIGINS"
 
 
 def cors_settings() -> dict:
-    """Resolve the CORS policy from the environment.
-
-    The UI is served from the same origin as the API (nginx fronts both),
-    so CORS only ever matters for third-party callers. Two regimes:
-
-    * ``FIESTABOARD_CORS_ORIGINS`` unset (the default) — allow any origin
-      but **without** credentials. Anonymous cross-origin reads keep
-      working exactly as before; what stops working is a browser sending
-      the session cookie (or any other credential) on behalf of a page
-      the operator never allow-listed.
-    * ``FIESTABOARD_CORS_ORIGINS`` set to a comma-separated list of
-      origins — only those origins are allowed, and they may send
-      credentials.
-
-    ``allow_origins=["*"]`` together with ``allow_credentials=True`` is
-    never emitted: browsers reject that pairing, and Starlette "helpfully"
-    works around it by echoing back whatever ``Origin`` the caller sent —
-    which is how every site on the internet ended up holding a
-    credentialed grant to a LAN board (#1744).
-    """
-    raw = os.environ.get(CORS_ORIGINS_ENV, "")
-    origins = [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
-
-    if not origins:
-        return {
-            "allow_origins": ["*"],
-            "allow_credentials": False,
-            "allow_methods": ["*"],
-            "allow_headers": ["*"],
-        }
-
-    if "*" in origins:
-        logger.warning(
-            "%s contains '*'; credentials disabled for CORS because a wildcard "
-            "origin cannot be combined with credentials. List explicit origins "
-            "to allow credentialed cross-origin requests.",
-            CORS_ORIGINS_ENV,
-        )
-        return {
-            "allow_origins": ["*"],
-            "allow_credentials": False,
-            "allow_methods": ["*"],
-            "allow_headers": ["*"],
-        }
-
+    """Grant browser access only to explicitly configured exact origins."""
+    origins = configured_origins()
     return {
         "allow_origins": origins,
-        "allow_credentials": True,
+        "allow_credentials": bool(origins),
         "allow_methods": ["*"],
         "allow_headers": ["*"],
     }
@@ -766,6 +724,7 @@ app.mount("/mcp", _mcp_mount)
 # (plural) stays behind auth like everything else.
 app.add_middleware(RequestTraceMiddleware)
 app.add_middleware(AuthMiddleware, extra_public_paths=("/panel/",))
+app.add_middleware(RequestBoundaryMiddleware)
 app.include_router(auth_router)
 from .auth.device_routes import router as device_auth_router  # noqa: E402
 from .auth.session_routes import router as auth_sessions_router  # noqa: E402

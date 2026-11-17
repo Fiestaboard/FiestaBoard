@@ -148,28 +148,39 @@ so CORS only affects third-party callers — for example a dashboard of your
 own, on a different host or port, calling the FiestaBoard API from a
 browser.
 
-:::warning Behaviour change: credentialed cross-origin requests need an allowlist
-
-Any origin may still make **anonymous** cross-origin requests, exactly as
-before. What changed is that **no** origin may send credentials (cookies,
-TLS client certificates) unless you list it. Previously every origin on the
-internet held a credentialed grant to the whole API, so any page you
-visited could drive your board.
-
-If your own page calls the API with `credentials: "include"`, list its
-origin in `FIESTABOARD_CORS_ORIGINS`:
+Browser requests from another origin require an explicit allowlist, even
+when sign-in is off. List each trusted dashboard's exact origin:
 
 ```bash
 FIESTABOARD_CORS_ORIGINS=https://dashboard.example,http://192.0.2.10:8080
 ```
 
-Origins must match exactly — scheme, host, and port. A `*` in the list is
-accepted, but drops credentials again: the wildcard and credentials cannot
-be combined.
-:::
+Origins match by scheme, host and port. Wildcards and invalid entries do
+not grant access. The finder at `https://fiestaboard.app` can still read
+`GET /api/discover`; this exception does not apply to other routes.
 
-MCP clients such as Claude Desktop and Claude Code are not browsers, so
-CORS never applies to them.
+The API also checks its request hostname. IP addresses, `localhost`,
+`fiestaboard`, `fiestapi`, their `.local` names, the container hostname and
+`MDNS_HOSTNAME` (with its `.local` name) work by default. Declare other
+hostnames explicitly; entries are exact names, without wildcards:
+
+```bash
+FIESTABOARD_ALLOWED_HOSTS=board.example,homeassistant.local
+FIESTABOARD_EXTERNAL_URL=https://board.example:8443
+```
+
+The hostname from an explicit CORS origin or `FIESTABOARD_EXTERNAL_URL` is
+also accepted. An external URL supplies the browser origin when a proxy
+terminates TLS. Home Assistant ingress must preserve the public Host and
+scheme, or declare its external origin with `FIESTABOARD_CORS_ORIGINS` and
+its upstream hostname with `FIESTABOARD_ALLOWED_HOSTS`. Ingress headers alone
+do not grant access. Restart the service after changing these variables.
+
+Direct scripts and MCP clients without an Origin header still work through
+an accepted hostname. These address checks do not replace sign-in: with
+sign-in off, callers that can directly reach the hub retain its normal
+administration capabilities. A configured API token protects MCP; it does
+not make the entire anonymous REST surface private.
 
 ## Managing your account
 

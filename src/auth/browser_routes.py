@@ -8,6 +8,7 @@ from fastapi import Request
 
 from .device_models import AuthFlowError
 from .origins import normalized_origin
+from .request_boundary import _trusted_origins
 from .service import SESSION_COOKIE_NAME, get_auth_service
 from .session_models import SessionRecord
 
@@ -31,6 +32,7 @@ def _require_portal_origin(request: Request) -> None:
     allowed.update(
         filter(None, (normalized_origin(x.strip()) for x in os.environ.get("FIESTABOARD_CORS_ORIGINS", "").split(",")))
     )
+    allowed.update(_trusted_origins())
     supplied = normalized_origin(request.headers.get("origin", ""))
     if not supplied or supplied not in allowed:
         raise AuthFlowError("forbidden", "This request must come from the FiestaBoard web portal.", 403)

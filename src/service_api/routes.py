@@ -135,9 +135,8 @@ async def discover(response: Response):
     ones that answer here. Public (``src/auth/middleware.py``) because a
     person looking for their board has no session on it yet.
     """
-    # Under the default CORS policy the middleware replaces this with "*".
-    # Under an operator's allow-list it leaves it alone, so the find page
-    # still works without the operator having to know it exists.
+    # The shared request boundary permits this one finder origin and route.
+    # Keep its read grant even without an operator CORS allowlist.
     response.headers["Access-Control-Allow-Origin"] = FIND_ORIGIN
     response.headers["Cache-Control"] = "no-store"
 
