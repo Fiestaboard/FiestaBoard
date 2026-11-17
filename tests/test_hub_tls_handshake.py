@@ -119,7 +119,10 @@ def _unused_ports():
         return first.getsockname()[1], second.getsockname()[1]
 
 
-@pytest.fixture(scope="module", params=["nginx.conf", "nginx-dev.conf"])
+@pytest.fixture(
+    scope="module",
+    params=[(config, mode) for config in ("nginx.conf", "nginx-dev.conf") for mode in ("self-signed", "custom")],
+)
 def nginx_tls(request, tmp_path_factory):
     # Deliberately fail rather than skip: CI installs nginx, and silently losing
     # real certificate validation would remove the essential regression guard.
@@ -127,6 +130,7 @@ def nginx_tls(request, tmp_path_factory):
     assert nginx, "The TLS handshake tests require nginx in the test image / CI runner."
     from src.system.tls import configure_tls
 
+    config_name, mode = request.param
     root = tmp_path_factory.mktemp("hub-tls")
     snippets = root / "etc/nginx/fiestaboard"
     locations = snippets / "location-root"
@@ -145,6 +149,20 @@ def nginx_tls(request, tmp_path_factory):
     )
     assert certificate is not None
 
+    if mode == "custom":
+        # Treat the generated fixture identity as externally supplied material.
+        # custom mode must consume it without creating/replacing local state.
+        configure_tls(
+            {
+                "FIESTABOARD_TLS_MODE": "custom",
+                "FIESTABOARD_TLS_CERT_FILE": str(certificate),
+                "FIESTABOARD_TLS_KEY_FILE": str(root / "data/tls/server.key"),
+            },
+            data_dir=root / "unused-custom-data",
+            snippet_dir=snippets,
+        )
+        assert not (root / "unused-custom-data").exists()
+
     # Consume the production ingress rules verbatim instead of reproducing a
     # simplified substitute that could pass after entrypoint.sh regresses.
     entrypoint = (REPO_ROOT / "entrypoint.sh").read_text()
@@ -158,7 +176,7 @@ def nginx_tls(request, tmp_path_factory):
     process = None
     try:
         http_port, https_port = _unused_ports()
-        config = (REPO_ROOT / request.param).read_text()
+        config = (REPO_ROOT / config_name).read_text()
         for prefix in ("/etc/nginx", "/var/lib/nginx", "/var/log/nginx", "/app"):
             config = config.replace(prefix, str(root / prefix.lstrip("/")))
         config = config.replace("listen 3000;", f"listen 127.0.0.1:{http_port};")
@@ -216,9 +234,7 @@ def nginx_tls(request, tmp_path_factory):
 
 def test_http_and_verified_https_serve_the_same_spa(nginx_tls):
     http_status, _, http_body = _get(nginx_tls.http_port, "/pages/example")
-    https_status, _, https_body = _get(
-        nginx_tls.https_port, "/pages/example", context=nginx_tls.trusted_context()
-    )
+    https_status, _, https_body = _get(nginx_tls.https_port, "/pages/example", context=nginx_tls.trusted_context())
     assert http_status == https_status == 200
     assert http_body == https_body == SPA_BODY
 
@@ -229,7 +245,7 @@ def test_https_rejects_an_untrusted_certificate(nginx_tls):
 
 
 def test_https_rejects_a_trusted_certificate_for_the_wrong_hostname(nginx_tls):
-    with pytest.raises(ssl.SSLCertVerificationError, match="[Hh]ostname mismatch"):
+    with pytest.raises(ssl.SSLCertVerificationError, match=r"[Hh]ostname mismatch"):
         _get(nginx_tls.https_port, context=nginx_tls.trusted_context(), hostname="wrong-host.invalid")
 
 

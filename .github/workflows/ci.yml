@@ -247,6 +247,11 @@ jobs:
         # after the tests re-checksums and diffs.
         find data -type f 2>/dev/null | sort | xargs -r shasum > /tmp/data-before.txt || true
 
+    - name: Install TLS handshake test dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends nginx openssl
+
     - name: Run platform tests with coverage
       run: |
         # Exclude integration tests (network-dependent, run in a separate step).

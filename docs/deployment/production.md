@@ -121,7 +121,7 @@ docker compose logs -f fiestaboard
 
 ## Built-in HTTPS
 
-FiestaBoard serves HTTP by default at `http://your-host:4420`. Built-in TLS is an optional additional listener: container port `3443`, published as `4443` by `docker-compose.tls.yml`. HTTP stays available on `4420`, including the existing healthcheck. There is no automatic HTTPS redirect or HSTS header. Restrict access to HTTP at your firewall if you require clients to use HTTPS.
+FiestaBoard serves HTTP by default at `http://your-host:4420`. Built-in TLS is an optional additional listener: container port `3443`, published as `4443` by `docker-compose.tls.yml`. HTTP stays available on `4420`, including the existing healthcheck. There is no automatic HTTPS redirect or HTTP Strict Transport Security header. Restrict access to HTTP at your firewall if you require clients to use HTTPS.
 
 Run the examples from your existing installation directory so the same `.env` and data mounts are used. The examples use `docker-compose.hub.yml`; substitute `docker-compose.prod.yml` or `docker-compose.yml` for a source build, adding `--build` when needed. Keep the same list of compose files on every start, update, and recreate.
 
