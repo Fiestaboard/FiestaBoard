@@ -1576,7 +1576,10 @@
         "read_failed": "Impossible de lire l’affichage"
       },
       "removeConfirmTitle": "Supprimer {name} ?",
-      "removeConfirmBody": "Cela supprime l’affichage de ce hub."
+      "removeConfirmBody": "Cela supprime l’affichage de ce hub.",
+      "expected": "Ce que FiestaBoard a envoyé",
+      "readbackUnavailable": "Cet affichage ne fournit pas d’image actuelle lisible.",
+      "advanced": "Réglages avancés de l’affichage"
     },
     "title": "Écrans",
     "description": "Tous les tableaux et écrans sur lesquels FiestaBoard affiche. Ouvrez-en un pour modifier ses paramètres.",
@@ -1886,7 +1889,10 @@
     "updateIntervalsTitle": "Intervalles de mise à jour",
     "updateIntervalsDescription": "À quelle fréquence le tableau récupère le nouveau contenu et relit son état actuel",
     "silenceShowHeldLabel": "Afficher les messages en attente à la fin du silence",
-    "silenceShowHeldHelp": "Un message envoyé à ce tableau pendant le silence est mis en attente et affiché dès la fin du silence. Désactivé, il est refusé. Les changements de page sont toujours conservés et n'en ont pas besoin."
+    "silenceShowHeldHelp": "Un message envoyé à ce tableau pendant le silence est mis en attente et affiché dès la fin du silence. Désactivé, il est refusé. Les changements de page sont toujours conservés et n'en ont pas besoin.",
+    "silenceModeIndicatorShort": "Indicateur",
+    "silenceModeFreezeShort": "Figer",
+    "silenceModePageShort": "Afficher page"
   },
   "serviceControls": {
     "title": "Contrôle du service",
@@ -2934,7 +2940,12 @@
     "geometryLoading": "Calcul de la géométrie de l’écran…",
     "draftContentPending": "L’aperçu du contenu sera actualisé après l’enregistrement et la réception d’une image compatible.",
     "geometryUnsupported": "Cette grille LED ne peut pas être affichée. Modifiez ce panneau et choisissez Adapter à la forme de l’écran pour utiliser une grille compatible.",
-    "legacyGridHint": "Ce panneau conserve sa grille de caractères actuelle. Choisissez Adapter à la forme de l’écran pour changer sa disposition."
+    "legacyGridHint": "Ce panneau conserve sa grille de caractères actuelle. Choisissez Adapter à la forme de l’écran pour changer sa disposition.",
+    "displaySettings": "Écran",
+    "previewAt": "Aperçu à {inches}″",
+    "removeDisplayTitle": "Supprimer l’écran",
+    "removeDisplay": "Supprimer l’écran…",
+    "advancedSettings": "Réglages avancés du panneau"
   },
   "releaseChannel": {
     "title": "Canal de versions",

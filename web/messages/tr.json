@@ -1576,7 +1576,10 @@
         "read_failed": "Ekran okunamadı"
       },
       "removeConfirmTitle": "{name} kaldırılsın mı?",
-      "removeConfirmBody": "Bu işlem ekranı bu hub’dan kaldırır."
+      "removeConfirmBody": "Bu işlem ekranı bu hub’dan kaldırır.",
+      "expected": "FiestaBoard’un gönderdiği içerik",
+      "readbackUnavailable": "Bu ekran okunabilir bir güncel görüntü sunmuyor.",
+      "advanced": "Gelişmiş ekran ayarları"
     },
     "title": "Ekranlar",
     "description": "FiestaBoard'un gösterim yaptığı tüm panolar ve ekranlar. Ayarlarını değiştirmek için birini açın.",
@@ -1886,7 +1889,10 @@
     "updateIntervalsTitle": "Güncelleme Aralıkları",
     "updateIntervalsDescription": "Panonun yeni içerik için ne sıklıkla sorgulama yaptığı ve mevcut durumunu yeniden okuduğu",
     "silenceShowHeldLabel": "Sessizlik bittiğinde bekletilen mesajları göster",
-    "silenceShowHeldHelp": "Sessizlik sırasında bu panoya gönderilen bir mesaj bekletilir ve sessizlik biter bitmez gösterilir. Kapalıyken bunun yerine reddedilir. Sayfa değişiklikleri her zaman korunur ve buna ihtiyaç duymaz."
+    "silenceShowHeldHelp": "Sessizlik sırasında bu panoya gönderilen bir mesaj bekletilir ve sessizlik biter bitmez gösterilir. Kapalıyken bunun yerine reddedilir. Sayfa değişiklikleri her zaman korunur ve buna ihtiyaç duymaz.",
+    "silenceModeIndicatorShort": "Gösterge",
+    "silenceModeFreezeShort": "Dondur",
+    "silenceModePageShort": "Sayfa göster"
   },
   "serviceControls": {
     "title": "Hizmet Kontrolü",
@@ -2934,7 +2940,12 @@
     "geometryLoading": "Ekran geometrisi hesaplanıyor…",
     "draftContentPending": "İçerik önizlemesi kaydedildikten ve eşleşen bir kare alındıktan sonra güncellenecektir.",
     "geometryUnsupported": "Bu LED ızgarası görüntülenemiyor. Desteklenen bir ızgara kullanmak için bu paneli düzenleyin ve Ekran şekline uyarla seçeneğini seçin.",
-    "legacyGridHint": "Bu panel mevcut karakter ızgarasını korur. Düzenini değiştirmek için Ekran şekline uyarla seçeneğini seçin."
+    "legacyGridHint": "Bu panel mevcut karakter ızgarasını korur. Düzenini değiştirmek için Ekran şekline uyarla seçeneğini seçin.",
+    "displaySettings": "Ekran",
+    "previewAt": "{inches}″ önizleme",
+    "removeDisplayTitle": "Ekranı kaldır",
+    "removeDisplay": "Ekranı kaldır…",
+    "advancedSettings": "Gelişmiş panel ayarları"
   },
   "releaseChannel": {
     "title": "Sürüm kanalı",

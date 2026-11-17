@@ -1576,7 +1576,10 @@
         "read_failed": "Não foi possível ler o ecrã"
       },
       "removeConfirmTitle": "Remover {name}?",
-      "removeConfirmBody": "Isto remove o ecrã deste hub."
+      "removeConfirmBody": "Isto remove o ecrã deste hub.",
+      "expected": "O que o FiestaBoard enviou",
+      "readbackUnavailable": "Este ecrã não fornece uma imagem atual legível.",
+      "advanced": "Definições avançadas do ecrã"
     },
     "title": "Ecrãs",
     "description": "Todos os painéis e ecrãs em que o FiestaBoard mostra conteúdo. Abra um para alterar as configurações.",
@@ -1886,7 +1889,10 @@
     "updateIntervalsTitle": "Intervalos de atualização",
     "updateIntervalsDescription": "Com que frequência o quadro busca novo conteúdo e relê seu estado atual",
     "silenceShowHeldLabel": "Mostrar mensagens retidas quando o silêncio terminar",
-    "silenceShowHeldHelp": "Uma mensagem enviada a este quadro durante o silêncio é retida e exibida no momento em que o silêncio termina. Desativado, ela é recusada. Mudanças de página são sempre mantidas e não precisam disso."
+    "silenceShowHeldHelp": "Uma mensagem enviada a este quadro durante o silêncio é retida e exibida no momento em que o silêncio termina. Desativado, ela é recusada. Mudanças de página são sempre mantidas e não precisam disso.",
+    "silenceModeIndicatorShort": "Indicador",
+    "silenceModeFreezeShort": "Congelar",
+    "silenceModePageShort": "Mostrar página"
   },
   "serviceControls": {
     "title": "Controle do Serviço",
@@ -2934,7 +2940,12 @@
     "geometryLoading": "Calculando a geometria da tela…",
     "draftContentPending": "A prévia do conteúdo será atualizada após salvar e receber um quadro compatível.",
     "geometryUnsupported": "Esta grade LED não pode ser exibida. Edite este painel e escolha Ajustar ao formato da tela para usar uma grade compatível.",
-    "legacyGridHint": "Este painel mantém a grade de caracteres atual. Escolha Ajustar ao formato da tela para alterar o layout."
+    "legacyGridHint": "Este painel mantém a grade de caracteres atual. Escolha Ajustar ao formato da tela para alterar o layout.",
+    "displaySettings": "Tela",
+    "previewAt": "Prévia em {inches}″",
+    "removeDisplayTitle": "Remover tela",
+    "removeDisplay": "Remover tela…",
+    "advancedSettings": "Configurações avançadas do painel"
   },
   "releaseChannel": {
     "title": "Canal de versões",

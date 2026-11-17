@@ -1,5 +1,20 @@
-import { Box, Button, Flex, PageSection, Tabs, TabsContent, TabsList, TabsTrigger } from "@fiestaboard/ui";
-import { Eye } from "lucide-react";
+import {
+  Box,
+  Button,
+  Card,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Flex,
+  Grid,
+  PageSection,
+  Stack,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@fiestaboard/ui";
+import { ChevronDown, Eye } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { BoardOutOfSyncBanner } from "@/components/board-out-of-sync-banner";
@@ -8,7 +23,7 @@ import { DisplayEditor } from "@/components/displays/display-editor";
 import { DisplayLivePreview } from "@/components/displays/display-live-preview";
 import { DisplayOverview } from "@/components/displays/display-overview";
 import { DisplayTransition } from "@/components/displays/display-transition";
-import { useDisplayBoards } from "@/components/settings/display-settings";
+import { BoardEditor, BoardNameField, useDisplayBoards } from "@/components/settings/display-settings";
 import { FiestaPanelSettings } from "@/components/settings/fiestapanel-settings";
 import { isVirtualBoard } from "@/components/settings/output-boards";
 import { ScheduleBehavior } from "@/components/settings/schedule-behavior";
@@ -131,31 +146,71 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
           }}
           paused={board.paused === true}
         />
-        <DisplayDiagnostics boardId={board.id} />
+        <DisplayDiagnostics board={board} />
       </TabsContent>
       <TabsContent keepMounted value="settings" className="mt-0">
-        <DisplayEditor boardId={boardId} onRemoved={backToList} />
+        {!isVirtualBoard(board) && <DisplayEditor boardId={boardId} onRemoved={backToList} />}
 
         {/* A FiestaPanel's own controls: TV size and fit, viewer URL / QR,
           live TV preview, the FiestaPi HDMI kiosk. */}
         {board && isVirtualBoard(board) && (
-          <Box data-testid="display-panel-settings">
-            <FiestaPanelSettings boardId={board.id} onDeleted={backToList} />
+          <Box data-testid="display-panel-settings" className="p-4">
+            <FiestaPanelSettings
+              boardId={board.id}
+              onDeleted={backToList}
+              preview={<DisplayLivePreview board={board} size="md" />}
+              displayNameField={(pending) => (
+                <BoardNameField
+                  board={board}
+                  disabled={pending || displays.saving}
+                  onRename={(name) => displays.updateBoard(board.id, { name })}
+                />
+              )}
+            />
+            <Card className="mt-5 gap-0 p-4">
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="touch" className="w-full justify-between">
+                    {tf("advanced")}
+                    <ChevronDown className="size-4" aria-hidden="true" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4">
+                  <BoardEditor board={board} displays={displays} hideName onRemoved={backToList} />
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
           </Box>
         )}
       </TabsContent>
       <TabsContent keepMounted value="playback" className="mt-0">
-        {board && (
-          <DisplayTransition
-            board={board}
-            disabled={displays.saving}
-            onChange={(updates) => displays.updateBoard(board.id, updates)}
-          />
-        )}
-
-        <SilenceSchedule key={board.id} boardId={board.id} />
-        <ScheduleBehavior key={`behavior-${board.id}`} board={board} />
-        <UpdateIntervals key={`intervals-${board.id}`} board={board} />
+        <Grid
+          role="region"
+          aria-label={t("tabPlayback")}
+          gap="5"
+          className="p-4 lg:grid-cols-[minmax(0,1.54fr)_minmax(0,1fr)]"
+        >
+          <Stack gap="5" className="min-w-0">
+            <Card className="gap-0 py-0">
+              <SilenceSchedule key={board.id} boardId={board.id} />
+            </Card>
+            <Card className="gap-0 py-0">
+              <ScheduleBehavior key={`behavior-${board.id}`} board={board} />
+            </Card>
+          </Stack>
+          <Stack gap="5" className="min-w-0">
+            <Card className="gap-0 py-0">
+              <DisplayTransition
+                board={board}
+                disabled={displays.saving}
+                onChange={(updates) => displays.updateBoard(board.id, updates)}
+              />
+            </Card>
+            <Card className="gap-0 py-0">
+              <UpdateIntervals key={`intervals-${board.id}`} board={board} />
+            </Card>
+          </Stack>
+        </Grid>
       </TabsContent>
     </Tabs>
   );

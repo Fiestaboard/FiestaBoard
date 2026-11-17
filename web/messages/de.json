@@ -1576,7 +1576,10 @@
         "read_failed": "Display konnte nicht gelesen werden"
       },
       "removeConfirmTitle": "{name} entfernen?",
-      "removeConfirmBody": "Dadurch wird das Display von diesem Hub entfernt."
+      "removeConfirmBody": "Dadurch wird das Display von diesem Hub entfernt.",
+      "expected": "Was FiestaBoard gesendet hat",
+      "readbackUnavailable": "Dieses Display liefert kein lesbares aktuelles Bild.",
+      "advanced": "Erweiterte Displayeinstellungen"
     },
     "title": "Anzeigen",
     "description": "Alle Boards und Bildschirme, auf denen FiestaBoard anzeigt. Öffne eine Anzeige, um ihre Einstellungen zu ändern.",
@@ -1886,7 +1889,10 @@
     "updateIntervalsTitle": "Aktualisierungsintervalle",
     "updateIntervalsDescription": "Wie oft das Board nach neuen Inhalten sucht und seinen aktuellen Zustand erneut liest",
     "silenceShowHeldLabel": "Zurückgehaltene Nachrichten nach dem Ruhemodus anzeigen",
-    "silenceShowHeldHelp": "Eine Nachricht, die während des Ruhemodus an dieses Board gesendet wird, wird zurückgehalten und angezeigt, sobald der Ruhemodus endet. Ist dies aus, wird sie stattdessen abgelehnt. Seitenwechsel werden immer gespeichert und brauchen das nicht."
+    "silenceShowHeldHelp": "Eine Nachricht, die während des Ruhemodus an dieses Board gesendet wird, wird zurückgehalten und angezeigt, sobald der Ruhemodus endet. Ist dies aus, wird sie stattdessen abgelehnt. Seitenwechsel werden immer gespeichert und brauchen das nicht.",
+    "silenceModeIndicatorShort": "Hinweis",
+    "silenceModeFreezeShort": "Einfrieren",
+    "silenceModePageShort": "Seite zeigen"
   },
   "serviceControls": {
     "title": "Dienststeuerung",
@@ -2934,7 +2940,12 @@
     "geometryLoading": "Bildschirmgeometrie wird berechnet…",
     "draftContentPending": "Die Inhaltsvorschau wird nach dem Speichern und dem Empfang eines passenden Bildes aktualisiert.",
     "geometryUnsupported": "Dieses LED-Raster kann nicht angezeigt werden. Bearbeite das Panel und wähle An Bildschirmform anpassen, um ein unterstütztes Raster zu verwenden.",
-    "legacyGridHint": "Dieses Panel behält sein bestehendes Zeichenraster. Wähle An Bildschirmform anpassen, um das Layout zu ändern."
+    "legacyGridHint": "Dieses Panel behält sein bestehendes Zeichenraster. Wähle An Bildschirmform anpassen, um das Layout zu ändern.",
+    "displaySettings": "Display",
+    "previewAt": "Vorschau bei {inches}″",
+    "removeDisplayTitle": "Display entfernen",
+    "removeDisplay": "Display entfernen…",
+    "advancedSettings": "Erweiterte Panel-Einstellungen"
   },
   "releaseChannel": {
     "title": "Veröffentlichungskanal",

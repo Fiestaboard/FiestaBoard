@@ -1576,7 +1576,10 @@
         "read_failed": "Nie udało się odczytać wyświetlacza"
       },
       "removeConfirmTitle": "Usunąć {name}?",
-      "removeConfirmBody": "Spowoduje to usunięcie wyświetlacza z tego huba."
+      "removeConfirmBody": "Spowoduje to usunięcie wyświetlacza z tego huba.",
+      "expected": "Co wysłał FiestaBoard",
+      "readbackUnavailable": "Ten wyświetlacz nie udostępnia odczytu bieżącego obrazu.",
+      "advanced": "Zaawansowane ustawienia wyświetlacza"
     },
     "title": "Wyświetlacze",
     "description": "Wszystkie tablice i ekrany, na których wyświetla FiestaBoard. Otwórz jeden, aby zmienić jego ustawienia.",
@@ -1886,7 +1889,10 @@
     "updateIntervalsTitle": "Interwały aktualizacji",
     "updateIntervalsDescription": "Jak często tablica sprawdza nową treść i ponownie odczytuje swój aktualny stan",
     "silenceShowHeldLabel": "Pokazuj wstrzymane wiadomości po zakończeniu ciszy",
-    "silenceShowHeldHelp": "Wiadomość wysłana na tę tablicę w czasie ciszy jest wstrzymywana i pokazywana w chwili, gdy cisza się kończy. Gdy ta opcja jest wyłączona, wiadomość jest odrzucana. Zmiany strony są zawsze zapisywane i jej nie potrzebują."
+    "silenceShowHeldHelp": "Wiadomość wysłana na tę tablicę w czasie ciszy jest wstrzymywana i pokazywana w chwili, gdy cisza się kończy. Gdy ta opcja jest wyłączona, wiadomość jest odrzucana. Zmiany strony są zawsze zapisywane i jej nie potrzebują.",
+    "silenceModeIndicatorShort": "Wskaźnik",
+    "silenceModeFreezeShort": "Zatrzymaj",
+    "silenceModePageShort": "Pokaż stronę"
   },
   "serviceControls": {
     "title": "Kontrola usługi",
@@ -2934,7 +2940,12 @@
     "geometryLoading": "Obliczanie geometrii ekranu…",
     "draftContentPending": "Podgląd zawartości zaktualizuje się po zapisaniu i otrzymaniu pasującej klatki.",
     "geometryUnsupported": "Nie można wyświetlić tej siatki LED. Edytuj panel i wybierz Dopasuj do kształtu ekranu, aby użyć obsługiwanej siatki.",
-    "legacyGridHint": "Ten panel zachowuje obecną siatkę znaków. Wybierz Dopasuj do kształtu ekranu, aby zmienić układ."
+    "legacyGridHint": "Ten panel zachowuje obecną siatkę znaków. Wybierz Dopasuj do kształtu ekranu, aby zmienić układ.",
+    "displaySettings": "Wyświetlacz",
+    "previewAt": "Podgląd przy {inches}″",
+    "removeDisplayTitle": "Usuń wyświetlacz",
+    "removeDisplay": "Usuń wyświetlacz…",
+    "advancedSettings": "Zaawansowane ustawienia panelu"
   },
   "releaseChannel": {
     "title": "Kanał wydań",

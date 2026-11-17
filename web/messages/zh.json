@@ -1576,7 +1576,10 @@
         "read_failed": "无法读取显示设备"
       },
       "removeConfirmTitle": "移除 {name}？",
-      "removeConfirmBody": "这会从此中心移除显示设备。"
+      "removeConfirmBody": "这会从此中心移除显示设备。",
+      "expected": "FiestaBoard 发送的内容",
+      "readbackUnavailable": "此显示设备不支持读取当前画面。",
+      "advanced": "显示设备高级设置"
     },
     "title": "显示设备",
     "description": "FiestaBoard 进行显示的所有看板和屏幕。打开其中一个即可更改其设置。",
@@ -1886,7 +1889,10 @@
     "updateIntervalsTitle": "更新间隔",
     "updateIntervalsDescription": "看板查询新内容和重新读取当前状态的频率",
     "silenceShowHeldLabel": "静默结束时显示暂存的消息",
-    "silenceShowHeldHelp": "静默期间发送到此看板的消息会被暂存，并在静默结束的那一刻显示。关闭时则会被拒绝。页面更改始终会被保存，不需要此选项。"
+    "silenceShowHeldHelp": "静默期间发送到此看板的消息会被暂存，并在静默结束的那一刻显示。关闭时则会被拒绝。页面更改始终会被保存，不需要此选项。",
+    "silenceModeIndicatorShort": "指示文字",
+    "silenceModeFreezeShort": "冻结",
+    "silenceModePageShort": "显示页面"
   },
   "serviceControls": {
     "title": "服务控制",
@@ -2934,7 +2940,12 @@
     "geometryLoading": "正在计算屏幕布局…",
     "draftContentPending": "保存并收到匹配的帧后，内容预览将更新。",
     "geometryUnsupported": "无法显示此 LED 网格。请编辑此面板并选择“适应屏幕形状”，以使用受支持的网格。",
-    "legacyGridHint": "此面板保留现有字符网格。选择“适应屏幕形状”可更改其布局。"
+    "legacyGridHint": "此面板保留现有字符网格。选择“适应屏幕形状”可更改其布局。",
+    "displaySettings": "显示屏",
+    "previewAt": "{inches} 英寸预览",
+    "removeDisplayTitle": "移除显示屏",
+    "removeDisplay": "移除显示屏…",
+    "advancedSettings": "面板高级设置"
   },
   "releaseChannel": {
     "title": "发布通道",

@@ -1576,7 +1576,10 @@
         "read_failed": "디스플레이를 읽을 수 없음"
       },
       "removeConfirmTitle": "{name}을(를) 삭제할까요?",
-      "removeConfirmBody": "이 허브에서 디스플레이가 삭제됩니다."
+      "removeConfirmBody": "이 허브에서 디스플레이가 삭제됩니다.",
+      "expected": "FiestaBoard가 전송한 내용",
+      "readbackUnavailable": "이 디스플레이에서는 현재 화면을 읽을 수 없습니다.",
+      "advanced": "디스플레이 고급 설정"
     },
     "title": "디스플레이",
     "description": "FiestaBoard가 표시하는 모든 보드와 화면입니다. 설정을 바꾸려면 하나를 여세요.",
@@ -1886,7 +1889,10 @@
     "updateIntervalsTitle": "업데이트 간격",
     "updateIntervalsDescription": "보드가 새 콘텐츠를 가져오고 현재 상태를 다시 읽는 빈도",
     "silenceShowHeldLabel": "무음이 끝나면 보류된 메시지 표시",
-    "silenceShowHeldHelp": "무음 중에 이 보드로 보낸 메시지는 보류되었다가 무음이 끝나는 즉시 표시됩니다. 끄면 대신 거부됩니다. 페이지 변경은 항상 저장되므로 이 설정이 필요하지 않습니다."
+    "silenceShowHeldHelp": "무음 중에 이 보드로 보낸 메시지는 보류되었다가 무음이 끝나는 즉시 표시됩니다. 끄면 대신 거부됩니다. 페이지 변경은 항상 저장되므로 이 설정이 필요하지 않습니다.",
+    "silenceModeIndicatorShort": "표시기",
+    "silenceModeFreezeShort": "고정",
+    "silenceModePageShort": "페이지 표시"
   },
   "serviceControls": {
     "title": "서비스 제어",
@@ -2934,7 +2940,12 @@
     "geometryLoading": "화면 구조 계산 중…",
     "draftContentPending": "저장하고 일치하는 프레임을 받으면 콘텐츠 미리보기가 업데이트됩니다.",
     "geometryUnsupported": "이 LED 격자는 표시할 수 없습니다. 이 패널을 편집하고 화면 모양에 맞추기를 선택하여 지원되는 격자를 사용하세요.",
-    "legacyGridHint": "이 패널은 기존 문자 격자를 유지합니다. 레이아웃을 변경하려면 화면 모양에 맞추기를 선택하세요."
+    "legacyGridHint": "이 패널은 기존 문자 격자를 유지합니다. 레이아웃을 변경하려면 화면 모양에 맞추기를 선택하세요.",
+    "displaySettings": "디스플레이",
+    "previewAt": "{inches}인치 미리보기",
+    "removeDisplayTitle": "디스플레이 삭제",
+    "removeDisplay": "디스플레이 삭제…",
+    "advancedSettings": "고급 패널 설정"
   },
   "releaseChannel": {
     "title": "릴리스 채널",

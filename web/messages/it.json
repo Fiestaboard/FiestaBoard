@@ -1576,7 +1576,10 @@
         "read_failed": "Impossibile leggere il display"
       },
       "removeConfirmTitle": "Rimuovere {name}?",
-      "removeConfirmBody": "Il display verrà rimosso da questo hub."
+      "removeConfirmBody": "Il display verrà rimosso da questo hub.",
+      "expected": "Cosa ha inviato FiestaBoard",
+      "readbackUnavailable": "Questo display non fornisce un’immagine attuale leggibile.",
+      "advanced": "Impostazioni avanzate del display"
     },
     "title": "Schermi",
     "description": "Tutte le bacheche e gli schermi su cui FiestaBoard mostra contenuti. Aprine uno per modificarne le impostazioni.",
@@ -1886,7 +1889,10 @@
     "updateIntervalsTitle": "Intervalli di aggiornamento",
     "updateIntervalsDescription": "Con quale frequenza la board recupera nuovi contenuti e rilegge il proprio stato",
     "silenceShowHeldLabel": "Mostra i messaggi in attesa al termine del silenzio",
-    "silenceShowHeldHelp": "Un messaggio inviato a questo tabellone durante il silenzio viene messo in attesa e mostrato appena il silenzio termina. Se disattivato, viene rifiutato. I cambi di pagina vengono sempre conservati e non ne hanno bisogno."
+    "silenceShowHeldHelp": "Un messaggio inviato a questo tabellone durante il silenzio viene messo in attesa e mostrato appena il silenzio termina. Se disattivato, viene rifiutato. I cambi di pagina vengono sempre conservati e non ne hanno bisogno.",
+    "silenceModeIndicatorShort": "Indicatore",
+    "silenceModeFreezeShort": "Blocca",
+    "silenceModePageShort": "Mostra pagina"
   },
   "serviceControls": {
     "title": "Controllo servizio",
@@ -2934,7 +2940,12 @@
     "geometryLoading": "Calcolo della geometria dello schermo…",
     "draftContentPending": "L’anteprima del contenuto si aggiornerà dopo il salvataggio e la ricezione di un fotogramma compatibile.",
     "geometryUnsupported": "Questa griglia LED non può essere visualizzata. Modifica il pannello e scegli Adatta alla forma dello schermo per usare una griglia supportata.",
-    "legacyGridHint": "Questo pannello mantiene la griglia di caratteri attuale. Scegli Adatta alla forma dello schermo per cambiarne il layout."
+    "legacyGridHint": "Questo pannello mantiene la griglia di caratteri attuale. Scegli Adatta alla forma dello schermo per cambiarne il layout.",
+    "displaySettings": "Display",
+    "previewAt": "Anteprima a {inches}″",
+    "removeDisplayTitle": "Rimuovi display",
+    "removeDisplay": "Rimuovi display…",
+    "advancedSettings": "Impostazioni avanzate del pannello"
   },
   "releaseChannel": {
     "title": "Canale di rilascio",

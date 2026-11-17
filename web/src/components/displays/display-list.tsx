@@ -1,4 +1,16 @@
-import { Badge, Box, Card, Flex, Heading, ListRow, ListRowGroup, Stack, StatusDot, Text } from "@fiestaboard/ui";
+import {
+  Badge,
+  Box,
+  Card,
+  Flex,
+  Heading,
+  ListItem,
+  ListRow,
+  ListRowGroup,
+  Stack,
+  StatusDot,
+  Text,
+} from "@fiestaboard/ui";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
@@ -121,71 +133,72 @@ export function DisplayList({
               </Heading>
               <ListRowGroup aria-label={t(group)}>
                 {items.map(({ board, kind, cause, detail }) => (
-                  <ListRow
-                    key={board.id}
-                    data-testid="display-card"
-                    data-section-item={board.id}
-                    selected={!phone && selected?.id === board.id}
-                    size="touch"
-                    render={
-                      <Link
-                        href={`/displays/${encodeURIComponent(board.id)}`}
-                        onClick={(event) => {
-                          if (phone || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                          event.preventDefault();
-                          setSelection(board.id);
-                        }}
-                      />
-                    }
-                    leading={
-                      <StatusDot
-                        size="sm"
-                        status={
-                          kind === "online"
-                            ? "success"
-                            : kind === "noViewer"
-                              ? "warning"
-                              : group === "attention"
-                                ? "danger"
-                                : "neutral"
-                        }
-                      />
-                    }
-                    title={board.name || td("unnamed")}
-                    description={
-                      <>
-                        <Text as="span" data-testid="display-output" size="xs">
-                          {outputName(board)}
-                        </Text>
-                        {cause && <> · {cause}</>}
-                      </>
-                    }
-                    meta={
-                      <Flex align="center" gap="2" wrap>
-                        <Text
-                          as="span"
+                  <ListItem key={board.id}>
+                    <ListRow
+                      data-testid="display-card"
+                      data-section-item={board.id}
+                      selected={!phone && selected?.id === board.id}
+                      size="touch"
+                      render={
+                        <Link
+                          href={`/displays/${encodeURIComponent(board.id)}`}
+                          onClick={(event) => {
+                            if (phone || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                            event.preventDefault();
+                            setSelection(board.id);
+                          }}
+                        />
+                      }
+                      leading={
+                        <StatusDot
                           size="sm"
-                          className={
-                            group === "attention"
-                              ? kind === "noViewer"
-                                ? "text-warning"
-                                : "text-destructive"
-                              : "text-muted-foreground"
+                          status={
+                            kind === "online"
+                              ? "success"
+                              : kind === "noViewer"
+                                ? "warning"
+                                : group === "attention"
+                                  ? "danger"
+                                  : "neutral"
                           }
-                        >
-                          {t(kind)}
-                        </Text>
-                        {detail?.override_expires_at &&
-                          Date.parse(detail.override_expires_at) > Date.now() &&
-                          clock(detail.override_expires_at) && (
-                            <Badge variant="outline">
-                              {t("overrideUntil", { time: clock(detail.override_expires_at)! })}
-                            </Badge>
-                          )}
-                      </Flex>
-                    }
-                    trailing={<ChevronRight aria-hidden="true" className="size-4" />}
-                  />
+                        />
+                      }
+                      title={board.name || td("unnamed")}
+                      description={
+                        <>
+                          <Text as="span" data-testid="display-output" size="xs">
+                            {outputName(board)}
+                          </Text>
+                          {cause && <> · {cause}</>}
+                        </>
+                      }
+                      meta={
+                        <Flex align="center" gap="2" wrap>
+                          <Text
+                            as="span"
+                            size="sm"
+                            className={
+                              group === "attention"
+                                ? kind === "noViewer"
+                                  ? "text-warning"
+                                  : "text-destructive"
+                                : "text-muted-foreground"
+                            }
+                          >
+                            {t(kind)}
+                          </Text>
+                          {detail?.override_expires_at &&
+                            Date.parse(detail.override_expires_at) > Date.now() &&
+                            clock(detail.override_expires_at) && (
+                              <Badge variant="outline">
+                                {t("overrideUntil", { time: clock(detail.override_expires_at)! })}
+                              </Badge>
+                            )}
+                        </Flex>
+                      }
+                      trailing={<ChevronRight aria-hidden="true" className="size-4" />}
+                    />
+                  </ListItem>
                 ))}
               </ListRowGroup>
             </Stack>
