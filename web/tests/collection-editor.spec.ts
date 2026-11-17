@@ -155,6 +155,19 @@ test("07c parity evidence at four widths in both themes and every mode", async (
           const path = testInfo.outputPath(name);
           await capture.screenshot({ path, fullPage: true, animations: "disabled" });
           await testInfo.attach(name, { path, contentType: "image/png" });
+          if (width === 1280 && theme === "dark" && mode === "variable") {
+            await capture.getByRole("button", { name: "More actions for rule 1", exact: true }).click();
+            await capture.getByRole("menuitem", { name: "Edit rule 1", exact: true }).click();
+            await capture.getByRole("button", { name: "Show expression syntax help", exact: true }).click();
+            expect(
+              await getViolations(capture, undefined, {
+                runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
+              }),
+            ).toEqual([]);
+            const edit = testInfo.outputPath("impl-1280-dark-variable-edit.png");
+            await capture.screenshot({ path: edit, fullPage: true, animations: "disabled" });
+            await testInfo.attach("impl-1280-dark-variable-edit.png", { path: edit, contentType: "image/png" });
+          }
           if (width === 390 && theme === "light") {
             await capture.getByRole("button", { name: "Collection settings", exact: true }).click();
             await expect(capture.getByLabel("Collection name")).toBeVisible();

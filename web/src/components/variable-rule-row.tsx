@@ -224,9 +224,11 @@ export function VariableRuleRow({
                   {EXAMPLE_EXPRESSIONS.map((ex) => (
                     <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       key={ex}
                       onClick={() => insertExpressionAtCursor(ex)}
-                      className="rounded border bg-background px-1.5 py-0.5 font-mono text-[10px] hover:bg-accent"
+                      className="font-mono"
                     >
                       {ex}
                     </Button>
