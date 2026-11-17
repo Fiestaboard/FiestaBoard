@@ -46,11 +46,25 @@ def test_self_signed_identity_is_private_persistent_and_separate_from_legacy_cle
     original = (cert.read_bytes(), key.read_bytes())
     assert (data / "tls").stat().st_mode & 0o777 == 0o700
     assert key.stat().st_mode & 0o777 == 0o600
+    assert cert.stat().st_mode & 0o777 == 0o644
     assert configure(SELF_SIGNED, data, snippets) == cert
     assert (cert.read_bytes(), key.read_bytes()) == original
     assert remove_legacy_https_certs(data) == 0
     assert (cert.read_bytes(), key.read_bytes()) == original
     configure({"FIESTABOARD_TLS_MODE": "off"}, data, snippets)
+    assert (cert.read_bytes(), key.read_bytes()) == original
+
+
+def test_reused_self_signed_public_cert_permissions_are_upgraded_without_rotation(locations):
+    data, snippets = locations
+    cert = configure(SELF_SIGNED, data, snippets)
+    key = data / "tls/server.key"
+    cert.chmod(0o600)  # Identity persisted by the initial H16 release.
+    original = (cert.read_bytes(), key.read_bytes())
+    assert configure(SELF_SIGNED, data, snippets) == cert
+    assert cert.stat().st_mode & 0o777 == 0o644
+    assert key.stat().st_mode & 0o777 == 0o600
+    assert (data / "tls").stat().st_mode & 0o777 == 0o700
     assert (cert.read_bytes(), key.read_bytes()) == original
 
 
@@ -118,14 +132,15 @@ def test_custom_certificate_is_read_only_input_and_key_match_is_checked(location
     source_data.mkdir()
     cert = configure(SELF_SIGNED, source_data, snippets)
     key = source_data / "tls/server.key"
-    original = (cert.read_bytes(), key.read_bytes(), key.stat().st_mode)
+    cert.chmod(0o600)
+    original = (cert.read_bytes(), key.read_bytes(), cert.stat().st_mode, key.stat().st_mode)
     env = {
         "FIESTABOARD_TLS_MODE": "custom",
         "FIESTABOARD_TLS_CERT_FILE": str(cert),
         "FIESTABOARD_TLS_KEY_FILE": str(key),
     }
     assert configure(env, data, snippets) == cert
-    assert (cert.read_bytes(), key.read_bytes(), key.stat().st_mode) == original
+    assert (cert.read_bytes(), key.read_bytes(), cert.stat().st_mode, key.stat().st_mode) == original
     assert list(data.iterdir()) == []
     other_data = tmp_path / "other"
     other_data.mkdir()
@@ -195,3 +210,33 @@ def test_cli_invalid_mode_exits_nonzero_without_starting_server(tmp_path):
     )
     assert result.returncode != 0
     assert "FIESTABOARD_TLS_MODE" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        FileNotFoundError("nginx unavailable"),
+        subprocess.TimeoutExpired(["nginx", "-t"], timeout=30),
+        subprocess.CalledProcessError(1, ["nginx", "-t"], stderr="operator private diagnostics"),
+    ],
+)
+def test_boot_nginx_validation_errors_are_bounded_and_fail_closed(monkeypatch, capsys, tmp_path, error):
+    from src.system import tls
+
+    prepared = []
+    monkeypatch.setattr(tls, "get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr(tls, "configure_tls", lambda *args: prepared.append(True))
+
+    def reject(command, **kwargs):
+        assert prepared == [True]
+        assert command == ["nginx", "-t"]
+        assert kwargs["stdin"] == subprocess.DEVNULL
+        assert kwargs["capture_output"] and kwargs["check"]
+        assert 0 < kwargs["timeout"] <= 30
+        raise error
+
+    monkeypatch.setattr(tls.subprocess, "run", reject)
+    assert tls.main() == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "[tls] nginx configuration validation failed; refusing to start services\n"

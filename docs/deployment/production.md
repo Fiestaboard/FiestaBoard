@@ -123,6 +123,8 @@ docker compose logs -f fiestaboard
 
 FiestaBoard serves HTTP by default at `http://your-host:4420`. Built-in TLS is an optional additional listener: container port `3443`, published as `4443` by `docker-compose.tls.yml`. HTTP stays available on `4420`, including the existing healthcheck. There is no automatic HTTPS redirect or HTTP Strict Transport Security header. Restrict access to HTTP at your firewall if you require clients to use HTTPS.
 
+Built-in HTTPS supports TLS 1.2 and TLS 1.3. TLS 1.2 uses the [Mozilla intermediate cipher list](https://ssl-config.mozilla.org/guidelines/5.7.json); TLS 1.3 keeps the TLS library defaults.
+
 Run the examples from your existing installation directory so the same `.env` and data mounts are used. The examples use `docker-compose.hub.yml`; substitute `docker-compose.prod.yml` or `docker-compose.yml` for a source build, adding `--build` when needed. Keep the same list of compose files on every start, update, and recreate.
 
 :::warning One-click updates and overlays
@@ -145,7 +147,7 @@ The hosts list accepts 1–32 comma-separated DNS names or IP addresses. Use bar
 docker compose -f docker-compose.hub.yml -f docker-compose.tls.yml up -d --force-recreate fiestaboard
 ```
 
-Open `https://fiestaboard.local:4443` using a name included in your hosts list. On first startup, FiestaBoard generates a certificate valid for 365 days and saves it as `data/tls/server.crt` with its key at `data/tls/server.key`. Restarts reuse the same pair. The directory is mode `0700` and the private key is mode `0600`.
+Open `https://fiestaboard.local:4443` using a name included in your hosts list. On first startup, FiestaBoard generates a certificate valid for 365 days and saves it as `data/tls/server.crt` with its key at `data/tls/server.key`. Restarts reuse the same pair. The public certificate is mode `0644`, including certificates created by earlier versions after restart. The directory remains mode `0700` and the private key remains mode `0600`, so accessing the stored certificate still requires the directory owner or root.
 
 Browsers do not automatically trust a self-signed certificate. Install only the public certificate in each client's appropriate trust store and verify it belongs to your hub. Never distribute `server.key`. Dismissing a certificate warning does not reliably enable service workers, installation, or push: those features require a secure context accepted by the browser. For devices where managing trust is impractical, use a certificate they already trust or a reverse proxy with one.
 
@@ -209,6 +211,8 @@ For custom mode, include `-f docker-compose.tls-custom.yml` in both commands as 
 ### Disable TLS or recover from an error
 
 Invalid TLS settings, unreadable files, an expired certificate, or a mismatched certificate and key stop container startup. There is no silent fallback to HTTP when TLS was requested. Check `docker compose -f docker-compose.hub.yml logs fiestaboard`, correct the configuration, and recreate with the same compose files.
+
+After preparing the configuration, startup also runs `nginx -t` as the service user before starting any services, including when TLS is off. Failure logs `[tls] nginx configuration validation failed; refusing to start services` and stops startup. Run `nginx -t` as the service user inside the container to inspect nginx's detailed diagnostics; those diagnostics are not copied into the startup log.
 
 To deliberately return to HTTP, set `FIESTABOARD_TLS_MODE=off` in `.env` and recreate the service. The TLS listener configuration is removed, but stored certificates and keys are retained. You can also omit the TLS overlays when recreating to remove their port and mount. Browse to `http://your-host:4420` again.
 
