@@ -1,5 +1,5 @@
 /** Slice 2.14/DD-W12: full phone detail, supported reconnect, README and whole-row navigation. */
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { getViolations, injectAxe } from "axe-playwright";
 
 import { configureBoard, expect, suppressWizard, test } from "../helpers";
@@ -29,6 +29,39 @@ async function capture(page: Page, state: string, width: number, theme: string) 
   });
 }
 
+async function expectPreviewReachable(page: Page, preview: Locator) {
+  const scroller = preview.locator('[data-slot="board-viewport-scroller"]');
+  const row = scroller.locator("[data-note-row]").first();
+  const tiles = row.locator("[data-note-tile]");
+  await expect(scroller).toBeVisible();
+  const viewportWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  const scrollerBounds = await scroller.boundingBox();
+  expect(scrollerBounds).not.toBeNull();
+  expect(scrollerBounds!.x).toBeGreaterThanOrEqual(0);
+  expect(scrollerBounds!.x + scrollerBounds!.width).toBeLessThanOrEqual(viewportWidth);
+  const scrolls = (await scroller.getAttribute("tabindex")) === "0";
+  if (scrolls) {
+    await scroller.focus();
+    await page.keyboard.press("Home");
+  }
+  await expect
+    .poll(async () => {
+      const edge = await tiles.first().boundingBox();
+      const slot = await scroller.boundingBox();
+      return !!edge && !!slot && edge.x >= slot.x - 1;
+    })
+    .toBe(true);
+  if (scrolls) await page.keyboard.press("End");
+  await expect
+    .poll(async () => {
+      const edge = await tiles.last().boundingBox();
+      const slot = await scroller.boundingBox();
+      return !!edge && !!slot && edge.x + edge.width <= slot.x + slot.width + 1;
+    })
+    .toBe(true);
+  if (scrolls) await page.keyboard.press("Home");
+}
+
 for (const width of [390, 768, 1280]) {
   for (const colorScheme of ["light", "dark"] as const) {
     test.describe(`Integrations canonical ${width} ${colorScheme}`, () => {
@@ -40,6 +73,7 @@ for (const width of [390, 768, 1280]) {
         await configureBoard();
         await suppressWizard(page);
         await page.addInitScript((theme) => localStorage.setItem("theme", theme), colorScheme);
+        await page.addInitScript(() => sessionStorage.setItem("fiestaboard:boardPreviewMode", "actual"));
         await page.addInitScript(() => localStorage.setItem("fiestaboard_current_board", "selected"));
         let boardWrites = 0;
         await page.route("**/api/settings/board", (route) => {
@@ -217,14 +251,26 @@ for (const width of [390, 768, 1280]) {
         await expect(page.getByText("Account connected.", { exact: true })).toBeVisible();
         expect(page.context().pages()).toHaveLength(pageCount);
         const preview = page.locator('[data-slot="board-showcase"]');
-        await expect(preview.getByRole("img", { name: /split-flap board/i })).toContainText("52♥FCLEAR");
+        await expect(preview.getByRole("img", { name: /Board display:/i })).toContainText("52♥FCLEAR");
         const colors = preview.getByRole("group", { name: "Board color" });
         await expect(colors.getByRole("button", { name: "White Board" })).toHaveAttribute("aria-pressed", "true");
+        await expectPreviewReachable(page, preview);
+        const recovery = page.getByRole("button", { name: /Sign-in didn't come back\? Paste the address/ });
+        await expect(recovery).toBeVisible();
+        const recoveryBounds = await recovery.boundingBox();
+        const connectionBounds = await page.getByTestId("oauth-connection").boundingBox();
+        expect(recoveryBounds).not.toBeNull();
+        expect(connectionBounds).not.toBeNull();
+        expect(recoveryBounds!.x).toBeGreaterThanOrEqual(connectionBounds!.x);
+        expect(recoveryBounds!.x + recoveryBounds!.width).toBeLessThanOrEqual(
+          connectionBounds!.x + connectionBounds!.width,
+        );
+        expect(recoveryBounds!.height).toBeGreaterThanOrEqual(44);
         await capture(page, "detail-connected-preview", width, colorScheme);
         await colors.getByRole("button", { name: "Black Board" }).click();
         await expect(colors.getByRole("button", { name: "Black Board" })).toHaveAttribute("aria-pressed", "true");
         await preview.getByRole("tab", { name: /Note/ }).click();
-        await expect(preview.getByRole("img", { name: /split-flap board/i })).toContainText("NOTEFORECAST");
+        await expect(preview.getByRole("img", { name: /Board display:/i })).toContainText("NOTEFORECAST");
         expect(boardWrites).toBe(0);
         await expectAccessible(page, colorScheme);
         await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();
@@ -235,6 +281,7 @@ for (const width of [390, 768, 1280]) {
             .getByRole("button", { name: /^CX Calendar/ })
             .click();
           await expect(settings.locator('[data-slot="board-showcase"]')).toBeVisible();
+          await expectPreviewReachable(page, settings.locator('[data-slot="board-showcase"]'));
           await expectAccessible(page, colorScheme);
           await capture(page, "connected-pane", width, colorScheme);
         }
