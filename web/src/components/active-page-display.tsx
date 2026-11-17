@@ -5,6 +5,7 @@ import {
   AlertDescription,
   Badge,
   type BoardCellGrid,
+  Box,
   Button,
   Countdown,
   Flex,
@@ -26,6 +27,7 @@ import { type BoardActions, BoardActionsMenu, BoardContextMenu } from "@/compone
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { boardMeta, HomeBoard } from "@/components/home/home-board";
 import { formatClock, formatSpan, overrideOnScreen, scheduleNextChange } from "@/components/home/home-status";
+import { HomeSupportingPane } from "@/components/home/home-supporting-pane";
 import {
   nudgeDisplay,
   overrideUndoToastId,
@@ -662,62 +664,76 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
         suppressed={!!liveMessageForBoard}
       />
 
-      <NowShowingCard
-        display={displayName}
-        meta={
-          <Text as="span" size="xs" tone="muted" className="inline-flex items-center gap-2 font-mono">
-            {boardMeta(targetBoard, activeGeometry)}
-            <BoardActionsMenu actions={boardActions} />
-          </Text>
-        }
-        className="group/home-card"
-        title={title}
-        headingLevel={2}
-        mode={mode}
-        labels={{
-          nowShowing: tn("label"),
-          modes: { schedule: tn("modeSchedule"), manual: tn("modeManual"), override: tn("modeOverride") },
-        }}
-        data-testid="now-showing"
-        board={
-          <BoardContextMenu actions={boardActions}>
-            {/* contain isolates the tile grid from ancestor layout changes. */}
-            <Flex justify="center" className="overflow-x-hidden" style={{ contain: "layout style paint" }}>
-              <HomeBoard
-                board={currentBoard ?? boardSettings?.boards?.[0]}
-                geometry={activeGeometry}
-                message={displayMessage}
-                cells={displayCells}
-                layers={displayLayers}
-                isLoading={!boardState && !liveMessageForBoard}
-                size="md"
-                fallbackColor={getEffectiveBoardColor(boardSettings)}
-                fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
+      <Box
+        className="grid min-w-0 gap-4 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_274px] items-start"
+        data-testid="home-columns"
+      >
+        <NowShowingCard
+          display={displayName}
+          meta={
+            <Text as="span" size="xs" tone="muted" className="inline-flex items-center gap-2 font-mono">
+              {boardMeta(targetBoard, activeGeometry)}
+              <BoardActionsMenu actions={boardActions} />
+            </Text>
+          }
+          className="group/home-card"
+          title={title}
+          headingLevel={2}
+          mode={mode}
+          labels={{
+            nowShowing: tn("label"),
+            modes: { schedule: tn("modeSchedule"), manual: tn("modeManual"), override: tn("modeOverride") },
+          }}
+          data-testid="now-showing"
+          board={
+            <BoardContextMenu actions={boardActions}>
+              {/* contain isolates the tile grid from ancestor layout changes. */}
+              <Flex justify="center" className="overflow-x-hidden" style={{ contain: "layout style paint" }}>
+                <HomeBoard
+                  board={currentBoard ?? boardSettings?.boards?.[0]}
+                  geometry={activeGeometry}
+                  message={displayMessage}
+                  cells={displayCells}
+                  layers={displayLayers}
+                  isLoading={!boardState && !liveMessageForBoard}
+                  size="md"
+                  fallbackColor={getEffectiveBoardColor(boardSettings)}
+                  fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
+                />
+              </Flex>
+            </BoardContextMenu>
+          }
+          description={hasDescription ? description : undefined}
+          countdown={
+            countdownEndsAt ? (
+              <Countdown
+                endsAt={countdownEndsAt}
+                startedAt={countdownStartedAt ? new Date(countdownStartedAt) : undefined}
+                labels={{
+                  remaining: (ms) => tn("remaining", { time: formatSpan(ms) }),
+                  until: (time) => tn("until", { time }),
+                  ended: tn("ended"),
+                  endedAnnouncement: tn("endedAnnouncement"),
+                }}
+                locale={locale}
+                onEnd={refresh}
+                data-testid="override-countdown"
               />
-            </Flex>
-          </BoardContextMenu>
-        }
-        description={hasDescription ? description : undefined}
-        countdown={
-          countdownEndsAt ? (
-            <Countdown
-              endsAt={countdownEndsAt}
-              startedAt={countdownStartedAt ? new Date(countdownStartedAt) : undefined}
-              labels={{
-                remaining: (ms) => tn("remaining", { time: formatSpan(ms) }),
-                until: (time) => tn("until", { time }),
-                ended: tn("ended"),
-                endedAnnouncement: tn("endedAnnouncement"),
-              }}
-              locale={locale}
-              onEnd={refresh}
-              data-testid="override-countdown"
-            />
-          ) : undefined
-        }
-        outcome={outcome}
-        actions={actions}
-      />
+            ) : undefined
+          }
+          outcome={outcome}
+          actions={actions}
+        />
+
+        <HomeSupportingPane
+          board={targetBoard}
+          scheduleEnabled={activeScheduleData?.schedule_enabled}
+          detail={boardDetail}
+          pageName={nameOf(activePageId)}
+          nameOf={nameOf}
+          refresh={refresh}
+        />
+      </Box>
 
       <ChangePageDialog
         open={changePageOpen}
