@@ -20,6 +20,7 @@ const status = {
 beforeEach(() => {
   params.delete("user_code");
   router.replace.mockReset();
+  router.push.mockReset();
   approved = 0;
   inspected = "";
   server.use(
@@ -51,7 +52,7 @@ it("scanning displays consent without approving; only Allow grants access", asyn
   expect(screen.getByText(/view and control panels/i)).toBeInTheDocument();
   expect(document.querySelector('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
   await userEvent.click(screen.getByRole("button", { name: "Allow this TV" }));
-  await screen.findByText(/TV approved/i);
+  await screen.findByRole("heading", { name: "Living room TV is signed in" });
   expect(approved).toBe(1);
 });
 it("preserves the scanned code through anonymous login", async () => {
@@ -71,7 +72,7 @@ it("normalizes manual codes and requires explicit consent", async () => {
   expect(inspected).toBe("WDJBMJHT");
   expect(approved).toBe(0);
   await userEvent.click(screen.getByRole("button", { name: "Deny" }));
-  await screen.findByText(/request was denied/i);
+  await screen.findByRole("heading", { name: "Not allowed" });
   expect(approved).toBe(0);
 });
 it.each(["expired_token", "access_denied", "invalid_grant"])("cannot approve unusable code %s", async (error) => {
@@ -82,7 +83,14 @@ it.each(["expired_token", "access_denied", "invalid_grant"])("cannot approve unu
   );
   params.set("user_code", "WDJB-MJHT");
   render(<Activate />);
-  await screen.findByRole("alert");
+  await screen.findByRole("heading", {
+    name:
+      error === "expired_token"
+        ? "This code expired"
+        : error === "access_denied"
+          ? "Not allowed"
+          : "This code is no longer available",
+  });
   expect(screen.queryByRole("button", { name: "Allow this TV" })).not.toBeInTheDocument();
 });
 it("explains disabled enrollment", async () => {
@@ -104,7 +112,7 @@ it.each(["scanned", "manual"])("moves keyboard focus to the consent heading for 
     await user.type(await screen.findByLabelText("TV code"), "WDJB-MJHT");
     await user.click(screen.getByRole("button", { name: "Continue" }));
   }
-  const heading = await screen.findByRole("heading", { name: "Living room TV" });
+  const heading = await screen.findByRole("heading", { name: "Allow this TV?" });
   expect(heading).toHaveFocus();
   expect(approved).toBe(0);
   await userEvent.tab();
@@ -120,8 +128,42 @@ it("can retry an initial connection failure without losing the scanned code or g
   expect(screen.queryByRole("button", { name: "Allow this TV" })).not.toBeInTheDocument();
   server.use(http.get("/api/auth/status", () => HttpResponse.json(status)));
   await userEvent.click(screen.getByRole("button", { name: "Retry" }));
-  expect(await screen.findByRole("heading", { name: "Living room TV" })).toHaveFocus();
+  expect(await screen.findByRole("heading", { name: "Allow this TV?" })).toHaveFocus();
   expect(inspected).toBe("WDJBMJHT");
   expect(approved).toBe(0);
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("waits for a complete eight-character code before offering consent", async () => {
+  render(<Activate />);
+  const field = await screen.findByLabelText("TV code");
+  await userEvent.type(field, "WDJB-MJH");
+  expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+  expect(inspected).toBe("");
+  await userEvent.type(field, "T");
+  expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+});
+
+it("offers a fresh-code recovery from expiry without reinspecting the scanned code", async () => {
+  server.use(
+    http.post("/api/auth/device/inspect", () => HttpResponse.json({ error: "expired_token" }, { status: 400 })),
+  );
+  params.set("user_code", "WDJB-MJHT");
+  render(<Activate />);
+  await screen.findByRole("heading", { name: "This code expired" });
+  await userEvent.click(screen.getByRole("button", { name: "Enter a new code" }));
+  expect(await screen.findByLabelText("TV code")).toHaveValue("");
+  await waitFor(() => expect(screen.getByLabelText("TV code")).toHaveFocus());
+  expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+});
+
+it("does not claim an invalid code was definitely used or invent a decision timestamp", async () => {
+  server.use(
+    http.post("/api/auth/device/inspect", () => HttpResponse.json({ error: "invalid_grant" }, { status: 400 })),
+  );
+  params.set("user_code", "WDJB-MJHT");
+  render(<Activate />);
+  await screen.findByRole("heading", { name: "This code is no longer available" });
+  await userEvent.click(screen.getByRole("button", { name: "See signed-in devices" }));
+  expect(router.push).toHaveBeenCalledWith("/settings/account");
 });

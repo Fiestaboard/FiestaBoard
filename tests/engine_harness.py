@@ -290,7 +290,7 @@ def make_settings_service(
     svc.get_transition_settings.return_value = TRANSITIONS
     svc.get_polling_interval.return_value = polling_interval
     svc.should_send_to_board.return_value = True
-    svc.consume_temporary_override.side_effect = lambda board_id=None: (
+    svc.consume_temporary_override.side_effect = lambda board_id=None, at=None: (
         pending_overrides.pop(0) if pending_overrides and (board_id or primary_id) == primary_id else None
     )
     return svc

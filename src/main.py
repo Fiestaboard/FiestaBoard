@@ -7,6 +7,7 @@ import signal
 import threading
 import time
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from typing import Any
 
 import schedule
@@ -2298,9 +2299,12 @@ class DisplayService:
             active_page_id = None
             override_active = False
             inline_page = None
-            override = settings_service.consume_temporary_override(board_id=board_id)
+            # Classify and consume at one instant. A second clock sample
+            # could expire a live, unconsumed record and revert it twice.
+            override_at = datetime.now(UTC)
+            override = settings_service.consume_temporary_override(board_id=board_id, at=override_at)
             if override is not None:
-                if not override.is_expired():
+                if not override.is_expired(at=override_at):
                     if override.is_inline:
                         # One-off content (issue #1787): build an in-memory
                         # Page so the normal template render path applies.

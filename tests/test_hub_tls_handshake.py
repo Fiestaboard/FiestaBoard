@@ -10,7 +10,9 @@ from __future__ import annotations
 import asyncio
 import http.client
 import json
+import os
 import re
+import shlex
 import shutil
 import socket
 import ssl
@@ -105,6 +107,10 @@ class _Nginx:
     http_port: int
     https_port: int
     certificate: Path
+    command: list[str]
+    snippets: Path
+    mode: str
+    key_type: str
 
     def trusted_context(self):
         return ssl.create_default_context(cafile=str(self.certificate))
@@ -121,7 +127,11 @@ def _unused_ports():
 
 @pytest.fixture(
     scope="module",
-    params=[(config, mode) for config in ("nginx.conf", "nginx-dev.conf") for mode in ("self-signed", "custom")],
+    params=[
+        (config, mode)
+        for config in ("nginx.conf", "nginx-dev.conf")
+        for mode in ("self-signed", "custom", "custom-ecdsa")
+    ],
 )
 def nginx_tls(request, tmp_path_factory):
     # Deliberately fail rather than skip: CI installs nginx, and silently losing
@@ -149,6 +159,35 @@ def nginx_tls(request, tmp_path_factory):
     )
     assert certificate is not None
 
+    key_type = "ECDSA" if mode == "custom-ecdsa" else "RSA"
+    if mode == "custom-ecdsa":
+        subprocess.run(
+            [
+                "openssl",
+                "req",
+                "-x509",
+                "-newkey",
+                "ec",
+                "-pkeyopt",
+                "ec_paramgen_curve:P-256",
+                "-nodes",
+                "-days",
+                "1",
+                "-subj",
+                "/CN=localhost",
+                "-addext",
+                "subjectAltName=DNS:localhost,IP:127.0.0.1",
+                "-keyout",
+                str(root / "data/tls/server.key"),
+                "-out",
+                str(certificate),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10,
+        )
+        mode = "custom"
     if mode == "custom":
         # Treat the generated fixture identity as externally supplied material.
         # custom mode must consume it without creating/replacing local state.
@@ -217,7 +256,7 @@ def nginx_tls(request, tmp_path_factory):
                 if time.monotonic() >= deadline:
                     pytest.fail(f"nginx did not become ready: {(root / 'var/log/nginx/error.log').read_text()}")
                 time.sleep(0.02)
-            yield _Nginx(http_port, https_port, certificate)
+            yield _Nginx(http_port, https_port, certificate, command, snippets, mode, key_type)
     finally:
         if process is not None:
             process.terminate()
@@ -237,6 +276,115 @@ def test_http_and_verified_https_serve_the_same_spa(nginx_tls):
     https_status, _, https_body = _get(nginx_tls.https_port, "/pages/example", context=nginx_tls.trusted_context())
     assert http_status == https_status == 200
     assert http_body == https_body == SPA_BODY
+
+
+@pytest.mark.parametrize(
+    "cipher",
+    ["ECDHE-RSA-AES128-GCM-SHA256", "ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-CHACHA20-POLY1305"],
+)
+def test_tls12_accepts_intermediate_ciphers(nginx_tls, cipher):
+    context = nginx_tls.trusted_context()
+    context.minimum_version = context.maximum_version = ssl.TLSVersion.TLSv1_2
+    context.set_ciphers(cipher.replace("RSA", nginx_tls.key_type))
+    assert _get(nginx_tls.https_port, context=context)[0] == 200
+
+
+@pytest.mark.parametrize("cipher", ["AES128-GCM-SHA256", "AES256-SHA", "ECDHE-RSA-AES128-SHA256"])
+def test_tls12_rejects_static_rsa_and_cbc_ciphers(nginx_tls, cipher):
+    context = nginx_tls.trusted_context()
+    context.minimum_version = context.maximum_version = ssl.TLSVersion.TLSv1_2
+    context.set_ciphers(cipher.replace("ECDHE-RSA", f"ECDHE-{nginx_tls.key_type}"))
+    with pytest.raises(ssl.SSLError, match="handshake failure"):
+        _get(nginx_tls.https_port, context=context)
+
+
+def test_tls13_keeps_library_defaults(nginx_tls):
+    context = nginx_tls.trusted_context()
+    context.minimum_version = context.maximum_version = ssl.TLSVersion.TLSv1_3
+    assert _get(nginx_tls.https_port, context=context)[0] == 200
+
+
+@pytest.mark.parametrize("uid", ["0", "1000"])
+@pytest.mark.parametrize("invalid", [False, True])
+@pytest.mark.parametrize("disabled", [False, True])
+def test_boot_checks_written_config_and_stops_before_services_on_failure(nginx_tls, tmp_path, uid, invalid, disabled):
+    """Run the shipped privilege-dispatch block and real TLS CLI/nginx check.
+
+    Shims redirect only paths/ports and simulate the two privilege branches;
+    nginx itself parses the generated TLS and shipped server configuration.
+    """
+    snippets = nginx_tls.snippets
+    snippet = snippets / "tls.conf"
+    original = snippet.read_bytes()
+    marker = tmp_path / "services-started"
+    checked = tmp_path / "nginx-checked"
+    dispatched = tmp_path / "gosu-dispatched"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    bootstrap = tmp_path / "tls_bootstrap.py"
+    invalid_directive = "invalid_tls_directive;\n" if invalid else ""
+    bootstrap.write_text(
+        "import sys\nfrom pathlib import Path\nfrom src.system import tls\n"
+        "configure = tls.configure_tls\n"
+        "def isolated(environ, data_dir, snippet_dir):\n"
+        f"    cert = configure(environ, Path({str(nginx_tls.certificate.parents[1])!r}), Path({str(snippets)!r}))\n"
+        f"    snippet = Path({str(snippet)!r})\n"
+        "    contents = snippet.read_text() if snippet.exists() else ''\n"
+        f"    contents = contents.replace('listen 3443 ssl;', 'listen 127.0.0.1:{nginx_tls.https_port} ssl;')\n"
+        f"    contents = contents.replace('listen [::]:3443 ssl;', 'listen [::1]:{nginx_tls.https_port} ssl;')\n"
+        f"    if contents or {invalid!r}:\n"
+        f"        snippet.write_text(contents + {invalid_directive!r})\n"
+        "    return cert\n"
+        "tls.configure_tls = isolated\n"
+        "sys.exit(tls.main())\n"
+    )
+    scripts = {
+        "id": f"printf '%s\\n' {shlex.quote(uid)}",
+        "gosu": f'test "$1" = appuser || exit 91\ntouch {shlex.quote(str(dispatched))}\nshift\nexec "$@"',
+        "python": f"exec {shlex.quote(os.sys.executable)} {shlex.quote(str(bootstrap))}",
+        "nginx": (
+            f'test "$1" = -t || exit 92\ntouch {shlex.quote(str(checked))}\nexec {shlex.join(nginx_tls.command)} "$@"'
+        ),
+    }
+    for name, body in scripts.items():
+        executable = bin_dir / name
+        executable.write_text("#!/bin/sh\nset -e\n" + body + "\n")
+        executable.chmod(0o755)
+    entrypoint = (REPO_ROOT / "entrypoint.sh").read_text()
+    # Keep set -e and the actual production TLS dispatch/exec ordering.
+    boot_block = entrypoint[entrypoint.index("# Prepare optional TLS") :]
+    boot_block = boot_block[: boot_block.index("# Docker-socket permission fixup")]
+    script = "#!/bin/sh\nset -e\n" + boot_block + '\nexec "$@"\n'
+    env = {
+        **os.environ,
+        "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        "PYTHONPATH": str(REPO_ROOT),
+        "FIESTABOARD_DATA_DIR": str(nginx_tls.certificate.parents[1]),
+        "FIESTABOARD_TLS_MODE": "off" if disabled else nginx_tls.mode,
+        "FIESTABOARD_TLS_HOSTS": "localhost,127.0.0.1",
+        "FIESTABOARD_TLS_CERT_FILE": str(nginx_tls.certificate),
+        "FIESTABOARD_TLS_KEY_FILE": str(nginx_tls.certificate.with_suffix(".key")),
+    }
+    try:
+        result = subprocess.run(
+            ["sh", "-c", script, "entrypoint", "touch", str(marker)],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if invalid:
+            assert result.returncode != 0, "Invalid nginx configuration must abort boot"
+            assert not marker.exists(), "No service command may run after failed validation"
+            assert "[tls] nginx configuration validation failed; refusing to start services" in result.stderr
+        else:
+            assert result.returncode == 0, result.stderr
+            assert marker.exists()
+            assert snippet.exists() is not disabled
+        assert checked.exists(), "Boot must run nginx -t after writing tls.conf"
+        assert dispatched.exists() == (uid == "0")
+    finally:
+        snippet.write_bytes(original)
 
 
 def test_https_rejects_an_untrusted_certificate(nginx_tls):

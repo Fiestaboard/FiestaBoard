@@ -11,9 +11,20 @@ import {
   Badge,
   Box,
   Button,
+  Card,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Flex,
+  Heading,
   Input,
   Label,
+  SegmentedControl,
+  SegmentedControlItem,
   Select,
   SelectContent,
   SelectItem,
@@ -22,14 +33,15 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { ArrowDown, ArrowUp, Clock, Plus, Shuffle, Sigma, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronLeft, Clock, Plus, Send, Trash2 } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CollectionPageList } from "@/components/collection-page-list";
+import { useMediaQuery } from "@/components/home/use-media-query";
 import { VariableRuleRow } from "@/components/variable-rule-row";
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
-import { useTranslations } from "@/i18n/translations";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import type {
   Collection,
   CollectionCreate,
@@ -38,6 +50,7 @@ import type {
   Page,
   VariableRule,
 } from "@/lib/api";
+import { collectionCapabilities } from "@/lib/api";
 
 // Page-duration bounds. These mirror MIN_INTERVAL_SECONDS / MAX_INTERVAL_SECONDS
 // in src/collections/models.py — the server rejects anything outside them, so
@@ -140,6 +153,11 @@ interface CollectionFormProps {
   onCancel: () => void;
   onDelete?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onShowNow?: () => void;
+  onTestAtTime?: () => void;
+  preview?: (dirty: boolean) => ReactNode;
+  evaluatedPageId?: string | null;
+  ruleResults?: Array<{ index: number; value: string; error: string | null; message: string | null; matched: boolean }>;
 }
 
 export function CollectionForm({
@@ -149,10 +167,25 @@ export function CollectionForm({
   onCancel,
   onDelete,
   onDirtyChange,
+  onShowNow,
+  onTestAtTime,
+  preview,
+  ruleResults,
+  evaluatedPageId,
 }: CollectionFormProps) {
   const t = useTranslations("collections");
   const tc = useTranslations("common");
+  const locale = useLocale();
+  const durationLabel = (seconds: number) => {
+    const { amount, unit } = splitInterval(seconds);
+    return new Intl.NumberFormat(locale, { style: "unit", unit: unit.slice(0, -1), unitDisplay: "short" }).format(
+      amount,
+    );
+  };
   const isEdit = Boolean(collection);
+  const phone = useMediaQuery("(max-width: 767.98px)");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const [name, setName] = useState(collection?.name || "");
   const [selectedPageIds, setSelectedPageIds] = useState<string[]>(collection?.page_ids || []);
@@ -184,8 +217,12 @@ export function CollectionForm({
   // Track a freshly-added rule so we can drop it from the list if the user cancels
   // without ever saving.
   const [newRuleIndex, setNewRuleIndex] = useState<number | null>(null);
-  // HTML5 drag index for the variable-rules list (rule reorder moves to SortableList in 2.6b).
-  const [ruleDragIndex, setRuleDragIndex] = useState<number | null>(null);
+  const [liftedRule, setLiftedRule] = useState<number | null>(null);
+  const [ruleOrderBeforeLift, setRuleOrderBeforeLift] = useState<VariableRule[]>([]);
+  const [ruleAnnouncement, setRuleAnnouncement] = useState("");
+  useLayoutEffect(() => {
+    if (liftedRule !== null) document.getElementById(`collection-rule-${liftedRule}`)?.focus();
+  }, [liftedRule]);
 
   const snapshot = JSON.stringify({
     name,
@@ -200,7 +237,7 @@ export function CollectionForm({
     pollSeconds,
   });
   const [initialSnapshot] = useState(snapshot);
-  const dirty = snapshot !== initialSnapshot || editingRuleDirty || newRuleIndex !== null;
+  const dirty = snapshot !== initialSnapshot || editingRuleDirty || newRuleIndex !== null || liftedRule !== null;
   useEffect(() => {
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
@@ -346,10 +383,6 @@ export function CollectionForm({
     setPendingSwitchIndex(null);
   }, []);
 
-  const handleRuleDragStart = useCallback((index: number) => {
-    setRuleDragIndex(index);
-  }, []);
-
   const moveRule = useCallback(
     (fromIndex: number, targetIndex: number) => {
       // Rule editors are keyed by position; protect a live expression draft.
@@ -372,18 +405,6 @@ export function CollectionForm({
     },
     [editingRuleDirty, rules.length],
   );
-
-  const handleRuleDragOver = useCallback(
-    (e: React.DragEvent, targetIndex: number) => {
-      e.preventDefault();
-      if (editingRuleDirty || ruleDragIndex === null || ruleDragIndex === targetIndex) return;
-      moveRule(ruleDragIndex, targetIndex);
-      setRuleDragIndex(targetIndex);
-    },
-    [ruleDragIndex, editingRuleDirty, moveRule],
-  );
-
-  const handleRuleDragEnd = useCallback(() => setRuleDragIndex(null), []);
 
   // The duration control only exists in time and random mode; a half-typed
   // custom value must not block saving a variable-mode collection, whose
@@ -413,7 +434,8 @@ export function CollectionForm({
     [intervalSeconds],
   );
 
-  const hasUnsavedRule = selectionMode === "variable" && (editingRuleDirty || newRuleIndex !== null);
+  const hasUnsavedRule =
+    selectionMode === "variable" && (editingRuleDirty || newRuleIndex !== null || liftedRule !== null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -467,342 +489,520 @@ export function CollectionForm({
       (defaultPageId.length > 0 && rules.every((r) => r.expression.trim().length > 0 && r.page_id.length > 0)));
 
   return (
-    <Box as="form" onSubmit={handleSubmit} className="space-y-6">
-      {/* Name */}
-      <Stack gap="2">
-        <Label htmlFor="collection-name">{t("nameLabel")}</Label>
-        <Input
-          id="collection-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t("namePlaceholder")}
-          maxLength={100}
-        />
-      </Stack>
-
-      {/* Selection mode */}
-      <Stack gap="2">
-        <Label htmlFor="collection-mode">{t("selectionModeLabel")}</Label>
-        <Text size="xs" tone="muted">
-          {t("selectionModeDescription")}
-        </Text>
-        <Select value={selectionMode} onValueChange={(v) => setSelectionMode(v as CollectionSelectionMode)}>
-          <SelectTrigger id="collection-mode">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="time">
-              <Flex align="center" gap="2">
-                <Clock className="h-4 w-4" aria-hidden="true" />
-                <Text as="span">{t("modeTimeLabel")}</Text>
-              </Flex>
-            </SelectItem>
-            <SelectItem value="variable">
-              <Flex align="center" gap="2">
-                <Sigma className="h-4 w-4" aria-hidden="true" />
-                <Text as="span">{t("modeVariableLabel")}</Text>
-                <Badge variant="outline" className="text-[10px] uppercase tracking-wide ml-1 py-0">
-                  {t("betaBadge")}
-                </Badge>
-              </Flex>
-            </SelectItem>
-            <SelectItem value="random">
-              <Flex align="center" gap="2">
-                <Shuffle className="h-4 w-4" aria-hidden="true" />
-                <Text as="span">{t("modeRandomLabel")}</Text>
-              </Flex>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </Stack>
-
-      {/* Page-duration controls (time + random modes) */}
-      {(selectionMode === "time" || selectionMode === "random") && (
-        <Stack gap="2">
-          <Label htmlFor="collection-interval">{t("pageDurationLabel")}</Label>
-          <Text size="xs" tone="muted">
-            {selectionMode === "random" ? t("randomDurationDescription") : t("pageDurationDescription")}
-          </Text>
-          <Select
-            value={isCustomInterval ? CUSTOM_INTERVAL : String(intervalSeconds)}
-            onValueChange={handleIntervalChange}
-          >
-            <SelectTrigger id="collection-interval">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {INTERVAL_PRESETS.map((p) => (
-                <SelectItem key={p.value} value={String(p.value)}>
-                  {t(p.labelKey)}
-                </SelectItem>
-              ))}
-              <SelectItem value={CUSTOM_INTERVAL}>{t("intervalCustom")}</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {isCustomInterval && (
-            <Flex gap="2" align="end" className="flex-wrap">
-              <Stack gap="1" className="flex-1 min-w-[7rem]">
-                <Label htmlFor="collection-interval-amount">{t("customDurationLabel")}</Label>
-                <Input
-                  id="collection-interval-amount"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  aria-invalid={customIntervalInvalid || undefined}
-                  aria-describedby={customIntervalInvalid ? "collection-interval-error" : undefined}
-                />
-              </Stack>
-              <Stack gap="1" className="w-40">
-                <Label htmlFor="collection-interval-unit">{t("customDurationUnitLabel")}</Label>
-                <Select value={customUnit} onValueChange={(v) => v && setCustomUnit(v as IntervalUnit)}>
-                  <SelectTrigger id="collection-interval-unit">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {UNIT_OPTIONS.map((u) => (
-                      <SelectItem key={u.value} value={u.value}>
-                        {t(u.labelKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Stack>
-            </Flex>
-          )}
-          {isCustomInterval &&
-            (customIntervalInvalid ? (
-              <Text id="collection-interval-error" size="xs" tone="destructive" role="alert">
-                {t("customDurationError")}
-              </Text>
-            ) : (
-              <Text size="xs" tone="muted">
-                {t("customDurationResolved", { duration: formatInterval(customIntervalSeconds ?? 0) })}
-              </Text>
-            ))}
-        </Stack>
-      )}
-
-      {/* Selected Pages (reorderable) */}
-      <Stack gap="2">
-        <Label>{t("pagesInCollection")}</Label>
-        <Text size="xs" tone="muted">
-          {/* The hint follows the pointer, like the rows (DD-W27): touch copy for a
-              finger at any width, the keyboard copy for a mouse or trackpad. */}
-          {selectionMode === "time"
-            ? t(coarsePointer ? "dragToReorderTouch" : "dragToReorder")
-            : selectionMode === "random"
-              ? t("randomMembershipHint")
-              : t("variableMembershipHint")}
-        </Text>
-
-        {selectedPageIds.length === 0 ? (
-          <Text tone="muted" className="border border-dashed rounded-lg p-4 text-center">
-            {t("noPagesAdded")}
-          </Text>
-        ) : (
-          <CollectionPageList
-            pageIds={selectedPageIds}
-            pages={pages}
-            mode={selectionMode}
-            onMove={handleMovePage}
-            onRemove={handleRemovePage}
-          />
-        )}
-
-        {availablePages.length > 0 && (
-          <Select onValueChange={handleAddPage} value="">
-            <SelectTrigger className="mt-2" aria-label={t("addPagePlaceholder")}>
-              <SelectValue placeholder={t("addPagePlaceholder")} />
-            </SelectTrigger>
-            <SelectContent>
-              {availablePages.map((page) => (
-                <SelectItem key={page.id} value={page.id}>
-                  {page.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </Stack>
-
-      {/* Variable-mode controls */}
-      {selectionMode === "variable" && (
-        <Stack gap="4" className="border-t pt-4">
-          <Flex
-            align="start"
-            gap="2"
-            className="rounded-md border border-dashed bg-muted/40 p-2.5 text-xs text-muted-foreground"
-          >
-            <Badge variant="outline" className="text-[10px] uppercase tracking-wide py-0">
-              {t("betaBadge")}
-            </Badge>
-            <Text as="span" size="xs" tone="muted">
-              {t("variableModeBetaNote")}
-            </Text>
-          </Flex>
-          <Stack gap="2">
-            <Label htmlFor="collection-default">{t("variableDefaultLabel")}</Label>
-            <Text size="xs" tone="muted">
-              {t("variableDefaultDescription")}
-            </Text>
-            <Select value={defaultPageId} onValueChange={setDefaultPageId} disabled={selectedPageIds.length === 0}>
-              <SelectTrigger id="collection-default">
-                <SelectValue placeholder={t("variableDefaultPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {selectedPageIds.map((pid) => {
-                  const page = pages.find((p) => p.id === pid);
-                  return (
-                    <SelectItem key={pid} value={pid}>
-                      {page?.name || pid}
-                    </SelectItem>
-                  );
+    <Box as="form" onSubmit={handleSubmit} className="space-y-5 min-w-0">
+      <Flex align="center" gap="3" wrap className="max-md:flex-col max-md:items-start">
+        <Button type="button" variant="ghost" size={coarsePointer ? "touch" : "default"} onClick={onCancel}>
+          <ChevronLeft aria-hidden="true" />
+          {t("title")}
+        </Button>
+        <Stack gap="0.5" className="flex-1 min-w-40 max-md:flex-none max-md:w-full">
+          <Heading level={1} size="2xl" className="md:text-xl lg:text-2xl">
+            {name || t(isEdit ? "editCollection" : "newCollection")}
+          </Heading>
+          <Text size="xs" tone="muted" className="font-mono uppercase max-md:hidden">
+            {t("editorMeta", { count: selectedPageIds.length })} ·{" "}
+            {selectionMode === "variable"
+              ? t("ruleCount", { count: rules.length })
+              : t(selectionMode === "random" ? "randomEvery" : "rotationTotal", {
+                  duration: durationLabel(
+                    (resolvedIntervalSeconds ?? intervalSeconds) *
+                      (selectionMode === "time" ? selectedPageIds.length : 1),
+                  ),
                 })}
-              </SelectContent>
-            </Select>
-          </Stack>
-
-          <Stack gap="2">
-            <Label>{t("variableRulesLabel")}</Label>
-            <Text size="xs" tone="muted">
-              {t("variableRulesDescription")}
-            </Text>
-
-            {rules.length === 0 ? (
-              <Text tone="muted" className="border border-dashed rounded-lg p-4 text-center">
-                {t("variableNoRules")}
-              </Text>
-            ) : (
-              <Stack gap="2">
-                {rules.map((rule, index) => (
-                  <Stack key={index} gap="1">
-                    <VariableRuleRow
-                      rule={rule}
-                      index={index}
-                      pages={pages}
-                      selectablePageIds={selectedPageIds}
-                      isEditing={editingRuleIndex === index}
-                      isDragging={ruleDragIndex === index}
-                      onRequestEdit={() => handleRequestEditRule(index)}
-                      onSave={(next) => handleSaveRule(index, next)}
-                      onCancelEdit={handleCancelEditRule}
-                      onRemove={() => handleRemoveRule(index)}
-                      onDirtyChange={(dirty) => {
-                        if (editingRuleIndex === index) setEditingRuleDirty(dirty);
-                      }}
-                      onDragStart={() => handleRuleDragStart(index)}
-                      onDragOver={(e) => handleRuleDragOver(e, index)}
-                      onDragEnd={handleRuleDragEnd}
-                      t={t}
-                    />
-                    <Flex gap="1" justify="end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        disabled={editingRuleDirty || index === 0}
-                        aria-label={t("moveRuleUp", { number: index + 1 })}
-                        onClick={() => moveRule(index, index - 1)}
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        disabled={editingRuleDirty || index === rules.length - 1}
-                        aria-label={t("moveRuleDown", { number: index + 1 })}
-                        onClick={() => moveRule(index, index + 1)}
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                    </Flex>
-                  </Stack>
-                ))}
-              </Stack>
-            )}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddRule}
-              disabled={selectedPageIds.length === 0}
-              className="mt-2"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              {t("variableAddRule")}
-            </Button>
-
-            <AlertDialog
-              open={pendingSwitchIndex !== null}
-              onOpenChange={(open) => !open && handleCancelDiscardSwitch()}
-            >
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t("variableDiscardTitle")}</AlertDialogTitle>
-                  <AlertDialogDescription>{t("variableDiscardDescription")}</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={handleCancelDiscardSwitch}>{tc("cancel")}</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleConfirmDiscardSwitch}>
-                    {t("variableDiscardConfirm")}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            {hasUnsavedRule && (
-              <Text role="status" size="sm" tone="muted">
-                {t("variableSaveOrCancelRule")}
-              </Text>
-            )}
-          </Stack>
-
-          <Stack gap="2">
-            <Label htmlFor="collection-poll">{t("variablePollLabel")}</Label>
-            <Text size="xs" tone="muted">
-              {t("variablePollDescription")}
-            </Text>
-            <Select value={String(pollSeconds)} onValueChange={(v) => setPollSeconds(Number(v))}>
-              <SelectTrigger id="collection-poll">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {POLL_PRESETS.map((p) => (
-                  <SelectItem key={p.value} value={String(p.value)}>
-                    {t(p.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Stack>
+          </Text>
         </Stack>
-      )}
-
-      {/* Actions */}
-      <Flex justify="between" gap="2" wrap className="pt-2">
-        <Box>
+        <Flex gap="2" wrap>
           {isEdit && onDelete && (
-            <Button type="button" variant="destructive" onClick={onDelete} disabled={isSubmitting}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              {tc("delete")}
+            <Button type="button" variant="ghost" onClick={onDelete} disabled={isSubmitting || liftedRule !== null}>
+              <Trash2 aria-hidden="true" />
+              {t("deleteAction")}
             </Button>
           )}
-        </Box>
-        <Flex gap="2">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-            {tc("cancel")}
-          </Button>
+          {isEdit && onShowNow && (
+            <Button type="button" variant="outline" onClick={onShowNow} disabled={dirty || isSubmitting}>
+              <Send aria-hidden="true" />
+              {t("showNowAction")}
+            </Button>
+          )}
           <Button type="submit" loading={isSubmitting} disabled={!canSubmit || isSubmitting}>
-            {isEdit ? t("updateCollection") : t("createCollection")}
+            {isEdit ? tc("save") : t("createCollection")}
           </Button>
         </Flex>
       </Flex>
+      <Box className="relative min-w-0 lg:pe-[429px]">
+        <Box className="relative min-w-0">
+          <Card aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block" />
+          <Stack gap="5" className="relative lg:p-6">
+            {phone && (
+              <Flex gap="2" align="center" wrap>
+                <Badge variant="outline">
+                  {t(
+                    selectionMode === "time"
+                      ? "modeTimeLabel"
+                      : selectionMode === "random"
+                        ? "modeRandomLabel"
+                        : "modeVariableLabel",
+                  )}
+                </Badge>
+                <Text size="sm" tone="muted">
+                  {tc("pageCount", { count: selectedPageIds.length })}
+                </Text>
+              </Flex>
+            )}
+            <Collapsible open={!phone || settingsOpen} onOpenChange={setSettingsOpen}>
+              {phone && (
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="outline" disabled={liftedRule !== null}>
+                    {t("collectionSettings")}
+                  </Button>
+                </CollapsibleTrigger>
+              )}
+              <CollapsibleContent keepMounted>
+                <Stack gap="5">
+                  {" "}
+                  {/* Name */}
+                  <Stack gap="2">
+                    <Label htmlFor="collection-name">{t("editorNameLabel")}</Label>
+                    <Input
+                      className="max-w-[260px]"
+                      disabled={liftedRule !== null}
+                      id="collection-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={t("namePlaceholder")}
+                      maxLength={100}
+                    />
+                  </Stack>
+                  {/* Selection mode */}
+                  <Stack gap="2">
+                    <Label id="collection-mode-label">{t("selectionModeLabel")}</Label>
+                    <SegmentedControl
+                      disabled={liftedRule !== null}
+                      aria-labelledby="collection-mode-label"
+                      value={selectionMode}
+                      onValueChange={(v) => {
+                        if (v) setSelectionMode(v as CollectionSelectionMode);
+                      }}
+                      wrap
+                      className="max-w-full"
+                      size={coarsePointer ? "touch" : "md"}
+                    >
+                      <SegmentedControlItem value="time">{t("modeTimeLabel")}</SegmentedControlItem>
+                      <SegmentedControlItem value="random">{t("modeRandomLabel")}</SegmentedControlItem>
+                      <SegmentedControlItem value="variable">{t("modeVariableLabel")}</SegmentedControlItem>
+                    </SegmentedControl>
+                  </Stack>
+                  {/* Page-duration controls (time + random modes) */}
+                  {(selectionMode === "time" || selectionMode === "random") && (
+                    <Stack
+                      gap="2"
+                      className={selectionMode === "random" ? "flex-row flex-wrap items-center" : undefined}
+                    >
+                      <Label htmlFor="collection-interval">
+                        {t(selectionMode === "random" ? "changeEvery" : "pageDurationLabel")}
+                      </Label>
+                      {selectionMode === "time" && (
+                        <Text size="xs" tone="muted">
+                          {t("pageDurationDescription")}
+                        </Text>
+                      )}
+                      <Select
+                        value={isCustomInterval ? CUSTOM_INTERVAL : String(intervalSeconds)}
+                        onValueChange={handleIntervalChange}
+                      >
+                        <SelectTrigger
+                          id="collection-interval"
+                          className={selectionMode === "random" ? "w-[110px]" : undefined}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INTERVAL_PRESETS.map((p) => (
+                            <SelectItem key={p.value} value={String(p.value)}>
+                              {t(p.labelKey)}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value={CUSTOM_INTERVAL}>{t("intervalCustom")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {isCustomInterval && (
+                        <Flex gap="2" align="end" className="flex-wrap">
+                          <Stack gap="1" className="flex-1 min-w-[7rem]">
+                            <Label htmlFor="collection-interval-amount">{t("customDurationLabel")}</Label>
+                            <Input
+                              id="collection-interval-amount"
+                              type="number"
+                              inputMode="numeric"
+                              min={1}
+                              value={customAmount}
+                              onChange={(e) => setCustomAmount(e.target.value)}
+                              aria-invalid={customIntervalInvalid || undefined}
+                              aria-describedby={customIntervalInvalid ? "collection-interval-error" : undefined}
+                            />
+                          </Stack>
+                          <Stack gap="1" className="w-40">
+                            <Label htmlFor="collection-interval-unit">{t("customDurationUnitLabel")}</Label>
+                            <Select value={customUnit} onValueChange={(v) => v && setCustomUnit(v as IntervalUnit)}>
+                              <SelectTrigger id="collection-interval-unit">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {UNIT_OPTIONS.map((u) => (
+                                  <SelectItem key={u.value} value={u.value}>
+                                    {t(u.labelKey)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </Stack>
+                        </Flex>
+                      )}
+                      {isCustomInterval &&
+                        (customIntervalInvalid ? (
+                          <Text id="collection-interval-error" size="xs" tone="destructive" role="alert">
+                            {t("customDurationError")}
+                          </Text>
+                        ) : (
+                          <Text size="xs" tone="muted">
+                            {t("customDurationResolved", { duration: formatInterval(customIntervalSeconds ?? 0) })}
+                          </Text>
+                        ))}
+                    </Stack>
+                  )}
+                </Stack>
+              </CollapsibleContent>
+            </Collapsible>
+            {preview && (
+              <Box className="min-w-0 lg:absolute lg:top-0 lg:-end-[429px] lg:w-[405px]">
+                <Collapsible open={!phone || previewOpen} onOpenChange={setPreviewOpen}>
+                  {phone && (
+                    <CollapsibleTrigger asChild>
+                      <Button type="button" variant="outline">
+                        {t("nowInCollection")}
+                      </Button>
+                    </CollapsibleTrigger>
+                  )}
+                  <CollapsibleContent keepMounted>{preview(dirty)}</CollapsibleContent>
+                </Collapsible>
+              </Box>
+            )}
+
+            {selectionMode !== "variable" && (
+              <>
+                {/* Selected Pages (reorderable) */}
+                <Stack gap="2">
+                  <Label>{t("pagesInCollection")}</Label>
+                  <Text size="xs" tone="muted">
+                    {/* The hint follows the pointer, like the rows (DD-W27): touch copy for a
+              finger at any width, the keyboard copy for a mouse or trackpad. */}
+                    {selectionMode === "time"
+                      ? t(coarsePointer ? "dragToReorderTouch" : "dragToReorder")
+                      : selectionMode === "random"
+                        ? t("randomMembershipHint")
+                        : t("variableMembershipHint")}
+                  </Text>
+
+                  {selectedPageIds.length === 0 ? (
+                    <Text tone="muted" className="border border-dashed rounded-lg p-4 text-center">
+                      {t("noPagesAdded")}
+                    </Text>
+                  ) : (
+                    <CollectionPageList
+                      pageIds={selectedPageIds}
+                      pages={pages}
+                      mode={selectionMode}
+                      onMove={handleMovePage}
+                      evaluatedPageId={!dirty ? evaluatedPageId : null}
+                      onRemove={handleRemovePage}
+                      disabled={liftedRule !== null}
+                    />
+                  )}
+
+                  {availablePages.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline" className="self-start" disabled={liftedRule !== null}>
+                          <Plus aria-hidden="true" />
+                          {t("addPageAction")}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {availablePages.map((page) => (
+                          <DropdownMenuItem key={page.id} onClick={() => handleAddPage(page.id)}>
+                            {page.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  {selectionMode === "random" && !collectionCapabilities.editableNoRepeat && (
+                    <Text size="xs" tone="muted">
+                      {t("randomNoRepeatFixed")}
+                    </Text>
+                  )}
+                </Stack>
+              </>
+            )}
+            {/* Variable-mode controls */}
+            {selectionMode === "variable" && (
+              <Stack gap="4" className="">
+                <Stack gap="2">
+                  <Label>{t("variableRulesLabel")}</Label>
+                  <Text id="collection-rule-instructions" size="xs" tone="muted">
+                    {t("sortInstructions")}
+                  </Text>
+                  <Text size="xs" tone="muted">
+                    {t("variableRulesDescription")}
+                  </Text>
+
+                  {rules.length === 0 ? (
+                    <Text tone="muted" className="border border-dashed rounded-lg p-4 text-center">
+                      {t("variableNoRules")}
+                    </Text>
+                  ) : (
+                    <Stack gap="2.5">
+                      {rules.map((rule, index) => (
+                        <VariableRuleRow
+                          key={index}
+                          rule={rule}
+                          index={index}
+                          pages={pages}
+                          selectablePageIds={selectedPageIds}
+                          isEditing={editingRuleIndex === index}
+                          isLifted={liftedRule === index}
+                          actionsDisabled={liftedRule !== null}
+                          onRequestEdit={() => handleRequestEditRule(index)}
+                          onSave={(next) => handleSaveRule(index, next)}
+                          onCancelEdit={handleCancelEditRule}
+                          onRemove={() => handleRemoveRule(index)}
+                          onDirtyChange={(dirty) => {
+                            if (editingRuleIndex === index) setEditingRuleDirty(dirty);
+                          }}
+                          canMoveUp={!editingRuleDirty && liftedRule === null && index > 0}
+                          canMoveDown={!editingRuleDirty && liftedRule === null && index < rules.length - 1}
+                          onMoveUp={() => moveRule(index, index - 1)}
+                          onMoveDown={() => moveRule(index, index + 1)}
+                          result={!dirty ? ruleResults?.find((r) => r.index === index) : undefined}
+                          onKeyDown={(event) => {
+                            if (
+                              event.target !== event.currentTarget ||
+                              editingRuleDirty ||
+                              editingRuleIndex !== null ||
+                              newRuleIndex !== null
+                            )
+                              return;
+                            if (event.key === " " && liftedRule === null) {
+                              event.preventDefault();
+                              setRuleOrderBeforeLift(rules);
+                              setLiftedRule(index);
+                              setRuleAnnouncement(t("ruleLifted", { number: index + 1 }));
+                            } else if (
+                              liftedRule !== null &&
+                              [" ", "Escape", "ArrowUp", "ArrowDown"].includes(event.key)
+                            ) {
+                              event.preventDefault();
+                              if (event.key === "Escape") {
+                                setRules(ruleOrderBeforeLift);
+                                document
+                                  .getElementById(`collection-rule-${ruleOrderBeforeLift.indexOf(rule)}`)
+                                  ?.focus();
+                                setLiftedRule(null);
+                                setRuleAnnouncement(t("ruleMoveCancelled"));
+                              } else if (event.key === " ") {
+                                setLiftedRule(null);
+                                setRuleAnnouncement(t("ruleDropped", { number: index + 1 }));
+                              } else {
+                                const next = index + (event.key === "ArrowUp" ? -1 : 1);
+                                if (next >= 0 && next < rules.length) {
+                                  moveRule(index, next);
+                                  setLiftedRule(next);
+                                  setRuleAnnouncement(t("ruleMoved", { number: next + 1 }));
+                                }
+                              }
+                            }
+                          }}
+                          t={t}
+                        />
+                      ))}
+                      <Text role="status" aria-live="polite" size="xs" tone="muted">
+                        {ruleAnnouncement}
+                      </Text>
+                    </Stack>
+                  )}
+
+                  <Flex gap="2" align="center" wrap className="rounded-xl bg-muted p-3.5">
+                    <Badge variant="outline">{t("variableDefaultLabel")}</Badge>
+                    <Label htmlFor="collection-default" className="sr-only">
+                      {t("variableDefaultLabel")}
+                    </Label>
+                    <Text size="xs" tone="muted">
+                      {t("defaultHint")}
+                    </Text>
+                    <Select
+                      value={defaultPageId}
+                      onValueChange={setDefaultPageId}
+                      disabled={selectedPageIds.length === 0 || liftedRule !== null}
+                    >
+                      <SelectTrigger id="collection-default" className="w-[200px] max-w-full">
+                        <SelectValue placeholder={t("variableDefaultPlaceholder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedPageIds.map((pid) => {
+                          const page = pages.find((p) => p.id === pid);
+                          return (
+                            <SelectItem key={pid} value={pid}>
+                              {page?.name || pid}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    {!dirty && evaluatedPageId && evaluatedPageId === defaultPageId && (
+                      <Badge variant="success">{t("selectedBadge")}</Badge>
+                    )}
+                  </Flex>
+
+                  <Flex gap="2" align="center" wrap>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddRule}
+                      disabled={selectedPageIds.length === 0 || liftedRule !== null}
+                      className="mt-2"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      {t("variableAddRule")}
+                    </Button>
+                    {onTestAtTime && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="self-start"
+                        onClick={onTestAtTime}
+                        disabled={dirty}
+                      >
+                        <Clock aria-hidden="true" />
+                        {t("testAtTime")}
+                      </Button>
+                    )}
+                  </Flex>
+                  <AlertDialog
+                    open={pendingSwitchIndex !== null}
+                    onOpenChange={(open) => !open && handleCancelDiscardSwitch()}
+                  >
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{t("variableDiscardTitle")}</AlertDialogTitle>
+                        <AlertDialogDescription>{t("variableDiscardDescription")}</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={handleCancelDiscardSwitch}>{tc("cancel")}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDiscardSwitch}>
+                          {t("variableDiscardConfirm")}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  {hasUnsavedRule && (
+                    <Text role="status" size="sm" tone="muted">
+                      {t("variableSaveOrCancelRule")}
+                    </Text>
+                  )}
+                </Stack>
+
+                <Collapsible>
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="ghost" disabled={liftedRule !== null}>
+                      {t("variablePollLabel")}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    {" "}
+                    <Stack gap="2">
+                      <Label htmlFor="collection-poll">{t("variablePollLabel")}</Label>
+                      <Text size="xs" tone="muted">
+                        {t("variablePollDescription")}
+                      </Text>
+                      <Select value={String(pollSeconds)} onValueChange={(v) => setPollSeconds(Number(v))}>
+                        <SelectTrigger id="collection-poll">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {POLL_PRESETS.map((p) => (
+                            <SelectItem key={p.value} value={String(p.value)}>
+                              {t(p.labelKey)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Stack>
+                    <Text size="xs" tone="muted">
+                      {t("variableModeBetaNote")}
+                    </Text>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Stack>
+            )}
+            {selectionMode === "variable" && (
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="ghost">
+                    {t("pagesInCollection")}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  {" "}
+                  {/* Selected Pages (reorderable) */}
+                  <Stack gap="2">
+                    <Label>{t("pagesInCollection")}</Label>
+                    <Text size="xs" tone="muted">
+                      {/* The hint follows the pointer, like the rows (DD-W27): touch copy for a
+              finger at any width, the keyboard copy for a mouse or trackpad. */}
+                      {t("variableMembershipHint")}
+                    </Text>
+
+                    {selectedPageIds.length === 0 ? (
+                      <Text tone="muted" className="border border-dashed rounded-lg p-4 text-center">
+                        {t("noPagesAdded")}
+                      </Text>
+                    ) : (
+                      <CollectionPageList
+                        pageIds={selectedPageIds}
+                        pages={pages}
+                        mode={selectionMode}
+                        onMove={handleMovePage}
+                        evaluatedPageId={!dirty ? evaluatedPageId : null}
+                        onRemove={handleRemovePage}
+                        disabled={liftedRule !== null}
+                      />
+                    )}
+
+                    {availablePages.length > 0 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button type="button" variant="outline" className="self-start" disabled={liftedRule !== null}>
+                            <Plus aria-hidden="true" />
+                            {t("addPageAction")}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {availablePages.map((page) => (
+                            <DropdownMenuItem key={page.id} onClick={() => handleAddPage(page.id)}>
+                              {page.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </Stack>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </Stack>
+        </Box>
+      </Box>
     </Box>
   );
 }

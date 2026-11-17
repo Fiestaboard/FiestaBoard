@@ -2,7 +2,7 @@ import { apiUrl } from "../base-path";
 
 export type SessionSummary = {
   id: string;
-  kind: "browser" | "tv" | "legacy";
+  kind: "browser" | "tv" | "mobile" | "legacy";
   device_name: string;
   client_id?: string | null;
   app_version?: string | null;
@@ -10,10 +10,28 @@ export type SessionSummary = {
   created_at: string;
   last_active_at: string;
   expires_at: string;
+  approved_by?: {
+    session_id: string;
+    kind: "browser" | "tv" | "mobile" | "legacy";
+    label: string;
+    signed_in: boolean;
+  } | null;
   /** H13b: when this signed-in TV last fetched a panel frame (null if never). */
   last_shown_at?: string | null;
   /** H13b: per panel, newest first. */
   shown_panels?: { panel_id: string; last_shown_at: string }[];
+};
+export type PairingOffer = {
+  pairing_id: string;
+  qr_payload: string;
+  hub: string;
+  expires_in: number;
+  hub_addresses: { url: string; kind: "browser" | "configured" | "mdns" | "lan" }[];
+};
+export type PairingState = {
+  state: "pending" | "claimed" | "expired" | "cancelled";
+  device_name?: string | null;
+  session_id?: string | null;
 };
 export type SessionList = { sessions: SessionSummary[]; current_session_id: string };
 export type DeviceInspection = {
@@ -62,13 +80,28 @@ async function mutate<T>(path: string, method: string, body?: unknown): Promise<
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
+// Pairing cancellation is account-wide. Serialize mutations so closing while
+// creation is in flight cannot cancel a newer dialog's offer after reopening.
+let pairingMutation: Promise<unknown> = Promise.resolve();
+function pairingWork<T>(work: () => Promise<T>): Promise<T> {
+  const next = pairingMutation.then(work, work);
+  pairingMutation = next.catch(() => undefined);
+  return next;
+}
 export const sessionsApi = {
   getContext,
   inspectDevice: (user_code: string) => mutate<DeviceInspection>("/auth/device/inspect", "POST", { user_code }),
   approveDevice: (user_code: string) => mutate<{ status: string }>("/auth/device/approve", "POST", { user_code }),
   denyDevice: (user_code: string) => mutate<{ status: string }>("/auth/device/deny", "POST", { user_code }),
   listSessions: () => request<SessionList>("/auth/sessions"),
-  revokeSession: (id: string) => mutate<{ status: string }>(`/auth/sessions/${encodeURIComponent(id)}`, "DELETE"),
+  revokeSession: (id: string, includeApproved?: boolean) =>
+    mutate<{ status: string; also_signed_out?: string[] }>(
+      `/auth/sessions/${encodeURIComponent(id)}${includeApproved === undefined ? "" : `?include_approved=${includeApproved}`}`,
+      "DELETE",
+    ),
+  createPairing: (hub?: string) => pairingWork(() => mutate<PairingOffer>("/auth/pairing", "POST", hub ? { hub } : {})),
+  cancelPairing: () => pairingWork(() => mutate<{ status: string }>("/auth/pairing", "DELETE")),
+  pairingState: (id: string) => request<PairingState>(`/auth/pairing/${encodeURIComponent(id)}`),
   revokeSessions: (include_current: boolean) =>
     mutate<{ status: string }>("/auth/sessions/revoke", "POST", { include_current }),
   getDeviceSettings: () => request<{ enabled: boolean }>("/auth/device/settings"),

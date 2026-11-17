@@ -1,5 +1,42 @@
 # fiestaboard
 
+## 11.0.0-alpha.5
+
+### Minor Changes
+
+- [#2504](https://github.com/Fiestaboard/FiestaBoard/pull/2504) [`e779041`](https://github.com/Fiestaboard/FiestaBoard/commit/e779041f7ebd074cb57985413d7c3dcc062fb5f6) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Align first-run setup and display connection with the universal web design, add single-use phone QR pairing and phone/TV sign-out controls, and improve TV approval and password recovery.
+
+### Patch Changes
+
+- [#2517](https://github.com/Fiestaboard/FiestaBoard/pull/2517) [`ae12478`](https://github.com/Fiestaboard/FiestaBoard/commit/ae12478c10eb966327bbda7ca437f2f9de43e517) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Harden hub HTTPS startup with nginx configuration validation and Mozilla intermediate TLS 1.2 ciphers. Make generated public certificates mode 0644 while keeping private keys mode 0600.
+
+- [#2504](https://github.com/Fiestaboard/FiestaBoard/pull/2504) [`e779041`](https://github.com/Fiestaboard/FiestaBoard/commit/e779041f7ebd074cb57985413d7c3dcc062fb5f6) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Match setup and TV approval spacing, display-picker layout, session surfaces, and phone sign-out sheets to the live web designs.
+
+- [#2519](https://github.com/Fiestaboard/FiestaBoard/pull/2519) [`1a1bb61`](https://github.com/Fiestaboard/FiestaBoard/commit/1a1bb615f36d082d5898a1e6bddb21c357ffc897) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Document the v11 Alpha preview, release-channel availability, and 10.x upgrade and recovery procedures, including backup limits and sign-in consequences. Correct outdated update and rollback guidance.
+
+## 11.0.0-alpha.4
+
+### Minor Changes
+
+- [#2500](https://github.com/Fiestaboard/FiestaBoard/pull/2500) [`0441ad7`](https://github.com/Fiestaboard/FiestaBoard/commit/0441ad75e0238d24b40f79cb3c580d23be566f9f) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Arrange the Collection editor with selection-mode chips, header actions, a saved-state preview, accessible rule menus and keyboard ordering.
+
+- [#2509](https://github.com/Fiestaboard/FiestaBoard/pull/2509) [`67d7c40`](https://github.com/Fiestaboard/FiestaBoard/commit/67d7c4086f4fa548c2f376df625cf0a6e702045c) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Expose a versioned, ETag-cacheable catalog of built-in LED fonts and character sets at `GET /v1/render-assets` for native renderers, with recorded response fixtures and a native-client contract guide.
+
+- [#2510](https://github.com/Fiestaboard/FiestaBoard/pull/2510) [`bfd7ff5`](https://github.com/Fiestaboard/FiestaBoard/commit/bfd7ff5362f0b52e7600682bd810b59d1f431883) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Add optional built-in HTTPS with persistent self-signed or operator-supplied certificates, preserving local HTTP and Home Assistant ingress.
+
+- [#2514](https://github.com/Fiestaboard/FiestaBoard/pull/2514) [`a9bc76b`](https://github.com/Fiestaboard/FiestaBoard/commit/a9bc76bd69e4ccda9836358167c4b3b39dda46c5) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Add secure web push enrollment and delivery with persistent private VAPID keys,
+  independent account/browser consent, bounded retries, expired subscription cleanup,
+  and a rate-limited current-browser test. Expose an honest event-source capability
+  list for the upcoming notification settings UI.
+
+- [#2513](https://github.com/Fiestaboard/FiestaBoard/pull/2513) [`98c0acb`](https://github.com/Fiestaboard/FiestaBoard/commit/98c0acb25da7620dcc59a01d93bee9decb72fc93) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Add bounded formula execution traces and per-cell template source maps to render previews for web and native editor debugging.
+
+### Patch Changes
+
+- [#2508](https://github.com/Fiestaboard/FiestaBoard/pull/2508) [`85747d1`](https://github.com/Fiestaboard/FiestaBoard/commit/85747d1739aa32370bd0473191bcd9ee1573c18e) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Fix status polling at temporary-message expiry so each board's pending return to its schedule, saved page, or blank display is preserved for the display engine.
+
+- [#2472](https://github.com/Fiestaboard/FiestaBoard/pull/2472) [`9101893`](https://github.com/Fiestaboard/FiestaBoard/commit/91018934a676b4d9b1ce7fee622ece1bd5f3d603) Thanks [@roblesi](https://github.com/roblesi)! - Docker Compose no longer fails with "env file .env not found" on a fresh install: the `.env` file is now optional, and an unset `FIESTAUPDATER_TOKEN` no longer prints a warning.
+
 ## 11.0.0-alpha.3
 
 ### Patch Changes

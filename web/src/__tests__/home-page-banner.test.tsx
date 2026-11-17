@@ -71,13 +71,26 @@ describe("Home page - board not configured banner", () => {
     render(<Home />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("No board configured")).toBeInTheDocument();
-      expect(screen.getByText(/You can create and preview pages now/)).toBeInTheDocument();
+      expect(screen.getByText("No displays yet")).toBeInTheDocument();
+      expect(screen.getByText(/Add your first display/)).toBeInTheDocument();
     });
   });
 
   it("does not show info banner when board is configured", async () => {
     server.use(
+      http.get(`${API_BASE}/settings/board`, () =>
+        HttpResponse.json({
+          boards: [
+            {
+              id: "connected",
+              name: "Board",
+              device_type: "flagship",
+              output: "vestaboard",
+              output_config: { host: "192.0.2.60", local_api_key: "***" },
+            },
+          ],
+        }),
+      ),
       http.get(`${API_BASE}/config/validate`, () =>
         HttpResponse.json({
           valid: true,
@@ -94,7 +107,7 @@ describe("Home page - board not configured banner", () => {
       expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeInTheDocument();
     });
 
-    expect(screen.queryByText("No board configured")).not.toBeInTheDocument();
+    expect(screen.queryByText("No displays yet")).not.toBeInTheDocument();
   });
 
   it("shows Run Setup Wizard button that triggers wizard", async () => {
@@ -113,11 +126,11 @@ describe("Home page - board not configured banner", () => {
     render(<Home />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("No board configured")).toBeInTheDocument();
+      expect(screen.getByText("No displays yet")).toBeInTheDocument();
     });
 
     const wizardBtn = screen.getByRole("button", {
-      name: /Run Setup Wizard/i,
+      name: /Run setup again/i,
     });
     await user.click(wizardBtn);
 
@@ -137,6 +150,7 @@ describe("Home page - board not configured banner", () => {
     // Wait a bit to ensure async check has completed
     await new Promise((r) => setTimeout(r, 100));
     expect(screen.queryByText("No board configured")).not.toBeInTheDocument();
+    expect(screen.getByText("No displays yet")).toBeInTheDocument();
 
     consoleSpy.mockRestore();
   });

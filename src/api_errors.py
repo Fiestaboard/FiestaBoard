@@ -71,6 +71,7 @@ _DESCRIPTIONS: dict[int, str] = {
     405: "The resource exists but does not implement this operation.",
     409: "Conflict — duplicate id, or a resource pinned by the environment.",
     412: "Precondition failed — the resource changed since it was loaded. Reload before editing.",
+    413: "Request body exceeds the size limit.",
     422: "Request body failed validation.",
     429: "Rate-limited — the request arrived inside a minimum interval; see Retry-After.",
     500: "The server could not complete the operation. Deliberately raised, not an unhandled error.",

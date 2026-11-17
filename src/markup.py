@@ -330,6 +330,13 @@ def _pieces(
     preserve_case: bool = False,
     max_tokens: int | None = None,
 ) -> list[_Piece]:
+    # Templates import markup during package initialization: keep the helper
+    # import local, and leave ordinary strings on the existing path.
+    if type(line) is not str:
+        from .templates.source_map import MappedText
+
+        if isinstance(line, MappedText) and not line.tracker.reserve(len(line)):
+            line = str(line)
     pieces: list[_Piece] = []
     drawn = 0
 
@@ -364,7 +371,7 @@ def _pieces(
                         token = BoardToken("color", code=match.group(1))
                     elif match.group(2) and COLOR_CODES.get(match.group(2).lower()):
                         token = BoardToken("color", code=match.group(2).lower())
-                    add(token, match.group(0), heads, i, root)
+                    add(token, line[i : match.end()], heads, i, root)
                     i = match.end()
                     continue
                 after = extended_marker(i, end, span, heads, root, depth) if extended_markup else -1
@@ -535,6 +542,10 @@ def _serialize(pieces: list[_Piece]) -> str:
         open_heads = piece.heads
         out.append(piece.source)
     out.append("}" * len(open_heads))
+    if any(type(part) is not str for part in out):
+        from .templates.source_map import concat
+
+        return concat(out)
     return "".join(out)
 
 
@@ -714,7 +725,12 @@ def wrap_line(
         word_tiles = _tiles(word)
         if current and current_tiles + 1 + word_tiles <= width():
             space = sep.token if sep is not None and sep.token is not None else _BLANK
-            joiner = _Piece(replace(space, value=" "), " ", sep.heads if sep else (), -1, -1)
+            source = " "
+            if sep is not None and type(sep.source) is not str:
+                from .templates.source_map import mapped_like
+
+                source = mapped_like(" ", sep.source)
+            joiner = _Piece(replace(space, value=" "), source, sep.heads if sep else (), -1, -1)
             current = [*current, joiner, *word]
             current_tiles += 1 + word_tiles
             continue
