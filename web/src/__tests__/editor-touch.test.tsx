@@ -69,7 +69,7 @@ it("honors H3 baseline by exposing plain text and no palette", async () => {
   );
   render(<PageBuilder onClose={vi.fn()} />, { wrapper: Wrapper });
   expect(await screen.findByText("Can’t tell what this display draws")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Colors" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Colors" })).toBeDisabled();
   expect(screen.queryByRole("group", { name: "Preview size" })).not.toBeInTheDocument();
   expect(screen.getByRole("textbox", { name: /template/i })).toBeInTheDocument();
 });
@@ -282,7 +282,9 @@ it("renders the kit first-save toast actions in Show now then Add to Schedule or
   await user.click(screen.getByRole("button", { name: "Save Page" }));
   await waitFor(() => expect(container.querySelector("[data-sonner-toast]")).toHaveTextContent("Saved to Pages"));
   const toastElement = container.querySelector("[data-sonner-toast]")!;
-  expect(Array.from(toastElement.querySelectorAll("button")).map((button) => button.textContent)).toEqual([
+  expect(toastElement.querySelector("[data-description]")).toHaveTextContent("Toast morning is in your page library.");
+  expect(toastElement.querySelector("[data-close-button]")).toBeInTheDocument();
+  expect(Array.from(toastElement.querySelectorAll("[data-button]")).map((button) => button.textContent)).toEqual([
     "Show now",
     "Add to Schedule",
   ]);

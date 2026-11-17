@@ -257,6 +257,30 @@
       "toastCopyFailed": "Bord kopiëren mislukt",
       "toastRefreshed": "Pagina opnieuw naar {board} gestuurd",
       "toastRefreshFailed": "{board} vernieuwen mislukt"
+    },
+    "supporting": {
+      "upNext": "Hierna",
+      "upNextDisplay": "Hierna · {display}",
+      "resumes": "Planning wordt hervat",
+      "silenceStarts": "Silence Schedule begint",
+      "silenceEnds": "Silence Schedule eindigt",
+      "changes": "Planning verandert",
+      "empty": "De hub heeft geen komende wijziging gemeld.",
+      "viewSchedule": "Planning bekijken",
+      "manualTitle": "Planningsmodus staat uit",
+      "manualBody": "Niets verandert vanzelf. {page} blijft staan totdat je Pagina wisselen of Bericht opstellen kiest, of de planningsmodus weer inschakelt.",
+      "manualEmpty": "Niets verandert vanzelf. Kies Pagina wisselen of Bericht opstellen, of schakel de planningsmodus weer in.",
+      "scheduleMode": "Planningsmodus",
+      "manualMode": "Handmatige modus",
+      "overrideMode": "Override",
+      "unknown": "Status onbekend",
+      "enabled": "Planningsmodus weer ingeschakeld",
+      "undo": "Ongedaan maken",
+      "failed": "Kan de planningsmodus niet wijzigen. Probeer het opnieuw.",
+      "otherDisplays": "Andere schermen",
+      "allDisplays": "Alle schermen",
+      "selectDisplay": "{display} beheren",
+      "offline": "Offline"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "Weergave actief",
     "mirrorHint": "Verstuurt na elke typepauze. Stopt wanneer je de editor verlaat.",
     "savedToPages": "Opgeslagen in Pagina’s",
+    "savedToPagesDescription": "{name} staat in je paginabibliotheek.",
     "addToSchedule": "Toevoegen aan planning",
     "showNow": "Nu weergeven",
     "saved": "Opgeslagen",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "Platte tekst is beschikbaar. Kleuren en schermspecifieke hulpmiddelen zijn niet beschikbaar.",
     "targetUnavailable": "Dit scherm is niet beschikbaar voor liveweergave.",
     "nameRequired": "Geef deze pagina een naam",
-    "newerChangesUnsaved": "Wijzigingen die tijdens het opslaan zijn aangebracht, zijn nog niet opgeslagen. Sla opnieuw op voordat je ze weergeeft."
+    "newerChangesUnsaved": "Wijzigingen die tijdens het opslaan zijn aangebracht, zijn nog niet opgeslagen. Sla opnieuw op voordat je ze weergeeft.",
+    "plainText": "Platte tekst",
+    "plainTemplate": "Sjabloon · alleen platte tekst",
+    "editorTools": "Hulpmiddelen van de editor",
+    "displayToolsUnavailable": "Kleuren en Opmaak zijn niet beschikbaar — het schermtype is onbekend.",
+    "plainTemplateHelp": "Elke regel wordt verzonden zoals je die typt. De breedte en tekens kunnen voor dit scherm niet worden gecontroleerd.",
+    "emptyPrompt": "Typ wat {board} moet weergeven…",
+    "thisDisplay": "dit scherm",
+    "startFrom": "Of begin met",
+    "insertVariable": "Een variabele invoegen",
+    "browseStaffPicks": "Aanbevolen inhoud bekijken"
   },
   "phonePairing": {
     "title": "Een telefoon verbinden",

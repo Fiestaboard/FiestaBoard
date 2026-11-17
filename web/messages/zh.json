@@ -257,6 +257,30 @@
       "toastCopyFailed": "无法复制看板",
       "toastRefreshed": "已重新向 {board} 发送页面",
       "toastRefreshFailed": "无法刷新 {board}"
+    },
+    "supporting": {
+      "upNext": "接下来",
+      "upNextDisplay": "接下来 · {display}",
+      "resumes": "日程恢复",
+      "silenceStarts": "Silence Schedule 开始",
+      "silenceEnds": "Silence Schedule 结束",
+      "changes": "日程变更",
+      "empty": "中枢未报告即将发生的变更。",
+      "viewSchedule": "查看日程",
+      "manualTitle": "日程模式已关闭",
+      "manualBody": "内容不会自动更改。{page} 将一直显示，直到你选择“更换页面”、“撰写消息”或重新开启日程模式。",
+      "manualEmpty": "内容不会自动更改。请选择“更换页面”、“撰写消息”或重新开启日程模式。",
+      "scheduleMode": "日程模式",
+      "manualMode": "手动模式",
+      "overrideMode": "覆盖",
+      "unknown": "状态未知",
+      "enabled": "已重新开启日程模式",
+      "undo": "撤销",
+      "failed": "无法更改日程模式。请重试。",
+      "otherDisplays": "其他显示设备",
+      "allDisplays": "所有显示设备",
+      "selectDisplay": "管理 {display}",
+      "offline": "离线"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "正在同步",
     "mirrorHint": "每次暂停输入后发送。离开编辑器后停止。",
     "savedToPages": "已保存到页面",
+    "savedToPagesDescription": "{name}已保存到您的页面库。",
     "addToSchedule": "添加到日程",
     "showNow": "立即显示",
     "saved": "已保存",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "可以使用纯文本。颜色和显示屏专用工具不可用。",
     "targetUnavailable": "此显示屏无法用于同步显示。",
     "nameRequired": "请为此页面命名",
-    "newerChangesUnsaved": "保存期间所做的更改尚未保存。显示前请再次保存。"
+    "newerChangesUnsaved": "保存期间所做的更改尚未保存。显示前请再次保存。",
+    "plainText": "纯文本",
+    "plainTemplate": "模板 · 仅限纯文本",
+    "editorTools": "编辑器工具",
+    "displayToolsUnavailable": "颜色和格式化不可用 — 显示屏类型未知。",
+    "plainTemplateHelp": "每行都会按输入的原样发送。无法检查此显示屏的宽度和支持的字符。",
+    "emptyPrompt": "输入希望{board}显示的内容…",
+    "thisDisplay": "此显示屏",
+    "startFrom": "也可以从这里开始",
+    "insertVariable": "插入变量",
+    "browseStaffPicks": "浏览团队精选"
   },
   "phonePairing": {
     "title": "连接手机",

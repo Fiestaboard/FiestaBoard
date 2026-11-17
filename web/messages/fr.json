@@ -257,6 +257,30 @@
       "toastCopyFailed": "Impossible de copier le tableau",
       "toastRefreshed": "Page renvoyée à {board}",
       "toastRefreshFailed": "Impossible d’actualiser {board}"
+    },
+    "supporting": {
+      "upNext": "À suivre",
+      "upNextDisplay": "À suivre · {display}",
+      "resumes": "La planification reprend",
+      "silenceStarts": "Silence Schedule commence",
+      "silenceEnds": "Silence Schedule se termine",
+      "changes": "La planification change",
+      "empty": "Aucun changement à venir signalé par le hub.",
+      "viewSchedule": "Voir la planification",
+      "manualTitle": "Le mode planification est désactivé",
+      "manualBody": "Rien ne change automatiquement. {page} reste affichée jusqu’à ce que vous choisissiez Changer de page, Rédiger un message ou réactiviez le mode planification.",
+      "manualEmpty": "Rien ne change automatiquement. Choisissez Changer de page, Rédiger un message ou réactivez le mode planification.",
+      "scheduleMode": "Mode planification",
+      "manualMode": "Mode manuel",
+      "overrideMode": "Remplacement",
+      "unknown": "État inconnu",
+      "enabled": "Mode planification réactivé",
+      "undo": "Annuler",
+      "failed": "Impossible de modifier le mode planification. Réessayez.",
+      "otherDisplays": "Autres écrans",
+      "allDisplays": "Tous les écrans",
+      "selectDisplay": "Gérer {display}",
+      "offline": "Hors ligne"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "Reproduction en cours",
     "mirrorHint": "Envoie après chaque pause de saisie. S’arrête lorsque vous quittez l’éditeur.",
     "savedToPages": "Enregistré dans Pages",
+    "savedToPagesDescription": "{name} est dans votre bibliothèque de pages.",
     "addToSchedule": "Ajouter à la planification",
     "showNow": "Afficher maintenant",
     "saved": "Enregistré",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "Le texte brut est disponible. Les couleurs et les outils propres à l’écran sont indisponibles.",
     "targetUnavailable": "Cet écran est indisponible pour la reproduction en direct.",
     "nameRequired": "Nommer cette page",
-    "newerChangesUnsaved": "Les modifications effectuées pendant l’enregistrement ne sont pas encore enregistrées. Enregistrez à nouveau avant de les afficher."
+    "newerChangesUnsaved": "Les modifications effectuées pendant l’enregistrement ne sont pas encore enregistrées. Enregistrez à nouveau avant de les afficher.",
+    "plainText": "Texte brut",
+    "plainTemplate": "Modèle · texte brut uniquement",
+    "editorTools": "Outils de l’éditeur",
+    "displayToolsUnavailable": "Couleurs et Mise en forme sont indisponibles — le type d’écran est inconnu.",
+    "plainTemplateHelp": "Chaque ligne est envoyée telle que vous la saisissez. La largeur et les caractères ne peuvent pas être vérifiés pour cet écran.",
+    "emptyPrompt": "Saisissez ce que {board} doit afficher…",
+    "thisDisplay": "cet écran",
+    "startFrom": "Ou commencez par",
+    "insertVariable": "Insérer une variable",
+    "browseStaffPicks": "Parcourir les Sélections de l’équipe"
   },
   "phonePairing": {
     "title": "Connecter un téléphone",

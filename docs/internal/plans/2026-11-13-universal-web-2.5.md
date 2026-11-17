@@ -51,3 +51,15 @@ Files: page-builder.tsx, page-editor-shell.tsx and route callbacks as needed; sa
 - [ ] Independent locale/e2e work integrated; changeset and DD-W row.
 - [ ] Full unit coverage, static checks/build, browser/axe and screenshots locally where supported; otherwise hosted e2e per batch ruling.
 - [ ] Push normal PR into v11; Astra review <=3 rounds exact head; fix findings test-first, poll hosted CI until green or the owner wrap-up flag.
+
+## Bounded parity continuation (2026-11-17)
+
+Specification: external `program/reviews/pr-2501-figma-parity.md`, findings F2–F7. Preserve the frozen source review and completed 19-node live Figma evidence.
+
+- [ ] Correct Colors accessible locator and explicit plugin/functions fixtures; settle one full Formula axe scan before diagnosing additional findings.
+- [ ] Add failing landmark/cleanup/interaction regressions. Give touch toolbars a translated body-level region through kit container APIs.
+- [ ] Diagnose contracted visual viewport geometry from actual rectangles; keep readable board tiles and distinguish synthetic evidence from native IME.
+- [ ] Add failing H3 and empty-state interaction tests. Compose kit tools with working plain-text insertion, grouped warning/preview, disabled unsupported tools and starter actions.
+- [ ] Verify shared kit Toaster adoption against a local alpha+409 build while preserving drawer/walkthrough/locale/theme and caller placement. Registry publication remains required; do not commit tarballs or app-specific styling.
+- [ ] Run full coverage/static/build, serial browser flows, actual-route axe and every affected drawn state in both themes. Independently review exact head and inspect hosted layout artifact upload.
+- [ ] Normal commit/push, observe final CI, update status/ownership; owner Fable/VRT/merge gates remain separate.

@@ -257,6 +257,30 @@
       "toastCopyFailed": "Impossibile copiare il tabellone",
       "toastRefreshed": "Pagina inviata di nuovo a {board}",
       "toastRefreshFailed": "Impossibile aggiornare {board}"
+    },
+    "supporting": {
+      "upNext": "In arrivo",
+      "upNextDisplay": "In arrivo · {display}",
+      "resumes": "La programmazione riprende",
+      "silenceStarts": "Inizia Silence Schedule",
+      "silenceEnds": "Termina Silence Schedule",
+      "changes": "La programmazione cambia",
+      "empty": "L’hub non ha segnalato modifiche in arrivo.",
+      "viewSchedule": "Vedi programmazione",
+      "manualTitle": "La modalità programmazione è disattivata",
+      "manualBody": "Nulla cambia automaticamente. {page} resta visualizzata finché non scegli Cambia pagina, Scrivi un messaggio o riattivi la modalità programmazione.",
+      "manualEmpty": "Nulla cambia automaticamente. Scegli Cambia pagina, Scrivi un messaggio o riattiva la modalità programmazione.",
+      "scheduleMode": "Modalità programmazione",
+      "manualMode": "Modalità manuale",
+      "overrideMode": "Sostituzione",
+      "unknown": "Stato sconosciuto",
+      "enabled": "Modalità programmazione riattivata",
+      "undo": "Annulla",
+      "failed": "Impossibile cambiare la modalità programmazione. Riprova.",
+      "otherDisplays": "Altri schermi",
+      "allDisplays": "Tutti gli schermi",
+      "selectDisplay": "Gestisci {display}",
+      "offline": "Offline"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "Riproduzione in corso",
     "mirrorHint": "Invia dopo ogni pausa nella digitazione. Si interrompe quando esci dall’editor.",
     "savedToPages": "Salvato in Pagine",
+    "savedToPagesDescription": "{name} è nella tua libreria di pagine.",
     "addToSchedule": "Aggiungi alla programmazione",
     "showNow": "Mostra ora",
     "saved": "Salvato",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "Il testo semplice è disponibile. I colori e gli strumenti specifici del display non sono disponibili.",
     "targetUnavailable": "Questo display non è disponibile per la riproduzione in tempo reale.",
     "nameRequired": "Assegna un nome a questa pagina",
-    "newerChangesUnsaved": "Le modifiche apportate durante il salvataggio non sono ancora salvate. Salva di nuovo prima di mostrarle."
+    "newerChangesUnsaved": "Le modifiche apportate durante il salvataggio non sono ancora salvate. Salva di nuovo prima di mostrarle.",
+    "plainText": "Testo semplice",
+    "plainTemplate": "Modello · solo testo semplice",
+    "editorTools": "Strumenti dell’editor",
+    "displayToolsUnavailable": "Colori e Formattazione non disponibili — tipo di display sconosciuto.",
+    "plainTemplateHelp": "Ogni riga viene inviata così come la scrivi. La larghezza e i caratteri non possono essere verificati per questo display.",
+    "emptyPrompt": "Scrivi cosa deve mostrare {board}…",
+    "thisDisplay": "questo display",
+    "startFrom": "Oppure inizia da",
+    "insertVariable": "Inserisci una variabile",
+    "browseStaffPicks": "Sfoglia le Scelte del team"
   },
   "phonePairing": {
     "title": "Collega un telefono",

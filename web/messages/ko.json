@@ -257,6 +257,30 @@
       "toastCopyFailed": "보드를 복사하지 못했습니다",
       "toastRefreshed": "{board}에 페이지를 다시 보냈습니다",
       "toastRefreshFailed": "{board}을(를) 새로 고치지 못했습니다"
+    },
+    "supporting": {
+      "upNext": "다음 예정",
+      "upNextDisplay": "다음 예정 · {display}",
+      "resumes": "스케줄 재개",
+      "silenceStarts": "Silence Schedule 시작",
+      "silenceEnds": "Silence Schedule 종료",
+      "changes": "스케줄 변경",
+      "empty": "허브에서 보고한 예정된 변경 사항이 없습니다.",
+      "viewSchedule": "스케줄 보기",
+      "manualTitle": "스케줄 모드가 꺼져 있습니다",
+      "manualBody": "자동으로 바뀌지 않습니다. 페이지 변경이나 메시지 작성을 선택하거나 스케줄 모드를 다시 켤 때까지 {page} 페이지가 계속 표시됩니다.",
+      "manualEmpty": "자동으로 바뀌지 않습니다. 페이지 변경이나 메시지 작성을 선택하거나 스케줄 모드를 다시 켜세요.",
+      "scheduleMode": "스케줄 모드",
+      "manualMode": "수동 모드",
+      "overrideMode": "재정의",
+      "unknown": "상태 알 수 없음",
+      "enabled": "스케줄 모드를 다시 켰습니다",
+      "undo": "실행 취소",
+      "failed": "스케줄 모드를 변경하지 못했습니다. 다시 시도하세요.",
+      "otherDisplays": "다른 디스플레이",
+      "allDisplays": "모든 디스플레이",
+      "selectDisplay": "{display} 관리",
+      "offline": "오프라인"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "미러링 중",
     "mirrorHint": "입력을 잠시 멈출 때마다 전송합니다. 편집기를 나가면 중지됩니다.",
     "savedToPages": "페이지에 저장됨",
+    "savedToPagesDescription": "{name}이(가) 페이지 라이브러리에 있습니다.",
     "addToSchedule": "스케줄에 추가",
     "showNow": "지금 표시",
     "saved": "저장됨",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "일반 텍스트를 사용할 수 있습니다. 색상 및 디스플레이 전용 도구는 사용할 수 없습니다.",
     "targetUnavailable": "이 디스플레이는 미러링에 사용할 수 없습니다.",
     "nameRequired": "이 페이지의 이름을 지정하세요",
-    "newerChangesUnsaved": "저장 중에 변경한 내용은 아직 저장되지 않았습니다. 표시하기 전에 다시 저장하세요."
+    "newerChangesUnsaved": "저장 중에 변경한 내용은 아직 저장되지 않았습니다. 표시하기 전에 다시 저장하세요.",
+    "plainText": "일반 텍스트",
+    "plainTemplate": "템플릿 · 일반 텍스트만",
+    "editorTools": "편집기 도구",
+    "displayToolsUnavailable": "디스플레이 유형을 알 수 없어 색상 및 서식을 사용할 수 없습니다.",
+    "plainTemplateHelp": "각 줄은 입력한 그대로 전송됩니다. 이 디스플레이의 너비와 지원 문자는 확인할 수 없습니다.",
+    "emptyPrompt": "{board}에 표시할 내용을 입력하세요…",
+    "thisDisplay": "이 디스플레이",
+    "startFrom": "또는 다음으로 시작하세요",
+    "insertVariable": "변수 삽입",
+    "browseStaffPicks": "스태프 추천 둘러보기"
   },
   "phonePairing": {
     "title": "휴대폰 연결",

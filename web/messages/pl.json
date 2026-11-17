@@ -257,6 +257,30 @@
       "toastCopyFailed": "Nie udało się skopiować tablicy",
       "toastRefreshed": "Ponownie wysłano stronę na {board}",
       "toastRefreshFailed": "Nie udało się odświeżyć: {board}"
+    },
+    "supporting": {
+      "upNext": "Wkrótce",
+      "upNextDisplay": "Wkrótce · {display}",
+      "resumes": "Harmonogram zostanie wznowiony",
+      "silenceStarts": "Silence Schedule rozpocznie się",
+      "silenceEnds": "Silence Schedule zakończy się",
+      "changes": "Harmonogram się zmieni",
+      "empty": "Centrum nie zgłosiło żadnych nadchodzących zmian.",
+      "viewSchedule": "Zobacz harmonogram",
+      "manualTitle": "Tryb harmonogramu jest wyłączony",
+      "manualBody": "Nic nie zmienia się automatycznie. {page} pozostanie na ekranie, dopóki nie wybierzesz Zmień stronę, Napisz wiadomość lub ponownie nie włączysz trybu harmonogramu.",
+      "manualEmpty": "Nic nie zmienia się automatycznie. Wybierz Zmień stronę, Napisz wiadomość lub ponownie włącz tryb harmonogramu.",
+      "scheduleMode": "Tryb harmonogramu",
+      "manualMode": "Tryb ręczny",
+      "overrideMode": "Nadpisanie",
+      "unknown": "Stan nieznany",
+      "enabled": "Tryb harmonogramu ponownie włączony",
+      "undo": "Cofnij",
+      "failed": "Nie udało się zmienić trybu harmonogramu. Spróbuj ponownie.",
+      "otherDisplays": "Inne wyświetlacze",
+      "allDisplays": "Wszystkie wyświetlacze",
+      "selectDisplay": "Zarządzaj {display}",
+      "offline": "Offline"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "Wyświetlanie na żywo",
     "mirrorHint": "Wysyła po każdej przerwie w pisaniu. Zatrzymuje się po opuszczeniu edytora.",
     "savedToPages": "Zapisano w Stronach",
+    "savedToPagesDescription": "{name} jest w Twojej bibliotece stron.",
     "addToSchedule": "Dodaj do harmonogramu",
     "showNow": "Wyświetl teraz",
     "saved": "Zapisano",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "Dostępny jest zwykły tekst. Kolory i narzędzia właściwe dla wyświetlacza są niedostępne.",
     "targetUnavailable": "Ten wyświetlacz jest niedostępny do wyświetlania na żywo.",
     "nameRequired": "Nadaj nazwę tej stronie",
-    "newerChangesUnsaved": "Zmiany wprowadzone podczas zapisywania nadal nie są zapisane. Zapisz ponownie przed ich wyświetleniem."
+    "newerChangesUnsaved": "Zmiany wprowadzone podczas zapisywania nadal nie są zapisane. Zapisz ponownie przed ich wyświetleniem.",
+    "plainText": "Tekst zwykły",
+    "plainTemplate": "Szablon · tylko zwykły tekst",
+    "editorTools": "Narzędzia edytora",
+    "displayToolsUnavailable": "Kolory i Formatowanie są niedostępne — nieznany typ wyświetlacza.",
+    "plainTemplateHelp": "Każdy wiersz jest wysyłany dokładnie tak, jak go wpiszesz. Nie można sprawdzić szerokości ani znaków dla tego wyświetlacza.",
+    "emptyPrompt": "Wpisz treść, którą ma wyświetlać {board}…",
+    "thisDisplay": "ten wyświetlacz",
+    "startFrom": "Lub zacznij od",
+    "insertVariable": "Wstaw zmienną",
+    "browseStaffPicks": "Przeglądaj Polecane"
   },
   "phonePairing": {
     "title": "Połącz telefon",

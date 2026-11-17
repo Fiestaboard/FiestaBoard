@@ -100,12 +100,13 @@ describe("Apply a formula (Mod+Enter)", () => {
   it("confirms a valid expression from the formula editor's keymap", async () => {
     vi.mocked(api.validateTemplate).mockResolvedValue({ valid: true, errors: [], warnings: [] } as never);
     const onConfirm = vi.fn();
-    const { container } = render(<FormulaEditorPanel mode="edit" initialExpr="1 + 1" onConfirm={onConfirm} />, {
+    render(<FormulaEditorPanel mode="edit" initialExpr="1 + 1" onConfirm={onConfirm} />, {
       wrapper: Wrapper,
     });
     const done = await screen.findByRole("button", { name: /Done/ }, { timeout: 5000 });
     await waitFor(() => expect(done).toBeEnabled(), { timeout: 3000 });
-    const content = container.querySelector(".cm-content") as HTMLElement;
+    const content = screen.getByRole("textbox", { name: "Formula expression" });
+    expect(content).toHaveFocus();
     fireEvent.keyDown(content, { key: "Enter", ctrlKey: true });
     expect(onConfirm).toHaveBeenCalledWith("1 + 1");
   });

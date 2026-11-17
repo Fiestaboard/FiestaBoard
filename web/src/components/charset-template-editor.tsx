@@ -36,6 +36,7 @@ import { forwardRef, lazy, type ReactNode, Suspense, useMemo, useRef } from "rea
 
 import { EditorTabletTools } from "@/components/editor-tablet-tools";
 import { HomeAssistantEntityPicker } from "@/components/home-assistant-entity-picker";
+import { useEditorToolbarPortal } from "@/hooks/use-editor-toolbar-portal";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTiptapHostBridge } from "@/hooks/use-tiptap-host-bridge";
 import { useTranslations } from "@/i18n/translations";
@@ -149,6 +150,7 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
     const { editor, firstLine, lastLine } = useTiptapHostBridge(hostRef);
     const tabletTools = touch && !sheets && editor !== null;
     const t = useTranslations("templateEditor");
+    const portalHost = useEditorToolbarPortal(touch, t("tools"));
     const tCanvas = useTranslations("canvasEditor");
     const { data: templateVars, isLoading } = useQuery({
       queryKey: ["template-variables"],
@@ -207,7 +209,7 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
     const hasHomeAssistant = Boolean(templateVars?.variables?.home_assistant);
 
     const toolbarProps: TemplateEditorToolbarSlotProps = {
-      container: touch && typeof document !== "undefined" ? document.body : undefined,
+      container: touch ? portalHost : undefined,
       size: touch ? "touch" : "default",
       layout: touch ? "docked" : "row",
       pickerPresentation: sheets ? "sheet" : "popover",

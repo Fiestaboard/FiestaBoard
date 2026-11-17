@@ -257,6 +257,30 @@
       "toastCopyFailed": "Pano kopyalanamadı",
       "toastRefreshed": "Sayfa {board} cihazına yeniden gönderildi",
       "toastRefreshFailed": "{board} yenilenemedi"
+    },
+    "supporting": {
+      "upNext": "Sıradaki",
+      "upNextDisplay": "Sıradaki · {display}",
+      "resumes": "Zamanlama devam eder",
+      "silenceStarts": "Silence Schedule başlar",
+      "silenceEnds": "Silence Schedule biter",
+      "changes": "Zamanlama değişir",
+      "empty": "Merkez yaklaşan bir değişiklik bildirmedi.",
+      "viewSchedule": "Zamanlamayı görüntüle",
+      "manualTitle": "Zamanlama Modu kapalı",
+      "manualBody": "Hiçbir şey kendiliğinden değişmez. Sayfa Değiştir veya Mesaj yaz seçeneğini kullanana ya da Zamanlama Modunu yeniden açana kadar {page} ekranda kalır.",
+      "manualEmpty": "Hiçbir şey kendiliğinden değişmez. Sayfa Değiştir veya Mesaj yaz seçeneğini kullanın ya da Zamanlama Modunu yeniden açın.",
+      "scheduleMode": "Zamanlama Modu",
+      "manualMode": "Manuel Mod",
+      "overrideMode": "Geçersiz kılma",
+      "unknown": "Durum bilinmiyor",
+      "enabled": "Zamanlama Modu yeniden açıldı",
+      "undo": "Geri al",
+      "failed": "Zamanlama Modu değiştirilemedi. Tekrar deneyin.",
+      "otherDisplays": "Diğer ekranlar",
+      "allDisplays": "Tüm ekranlar",
+      "selectDisplay": "{display} yönet",
+      "offline": "Çevrimdışı"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "Yansıtılıyor",
     "mirrorHint": "Yazmaya her ara verdiğinizde gönderir. Düzenleyiciden çıkınca durur.",
     "savedToPages": "Sayfalara kaydedildi",
+    "savedToPagesDescription": "{name}, sayfa kitaplığınızda.",
     "addToSchedule": "Zamanlamaya ekle",
     "showNow": "Şimdi göster",
     "saved": "Kaydedildi",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "Düz metin kullanılabilir. Renkler ve ekrana özel araçlar kullanılamaz.",
     "targetUnavailable": "Bu ekran yansıtma için kullanılamıyor.",
     "nameRequired": "Bu sayfayı adlandırın",
-    "newerChangesUnsaved": "Kaydetme sırasında yapılan değişiklikler hâlâ kaydedilmedi. Göstermeden önce yeniden kaydedin."
+    "newerChangesUnsaved": "Kaydetme sırasında yapılan değişiklikler hâlâ kaydedilmedi. Göstermeden önce yeniden kaydedin.",
+    "plainText": "Düz metin",
+    "plainTemplate": "Şablon · yalnızca düz metin",
+    "editorTools": "Düzenleyici araçları",
+    "displayToolsUnavailable": "Renkler ve Biçimlendirme kullanılamıyor — ekran türü bilinmiyor.",
+    "plainTemplateHelp": "Her satır yazıldığı gibi gönderilir. Bu ekran için genişlik ve karakterler denetlenemez.",
+    "emptyPrompt": "{board} üzerinde görünecek metni yazın…",
+    "thisDisplay": "bu ekran",
+    "startFrom": "Ya da şununla başlayın",
+    "insertVariable": "Bir değişken ekle",
+    "browseStaffPicks": "Ekip Seçimlerine göz at"
   },
   "phonePairing": {
     "title": "Telefon bağla",

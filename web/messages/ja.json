@@ -257,6 +257,30 @@
       "toastCopyFailed": "ボードをコピーできませんでした",
       "toastRefreshed": "{board} にページを再送信しました",
       "toastRefreshFailed": "{board} を更新できませんでした"
+    },
+    "supporting": {
+      "upNext": "次の予定",
+      "upNextDisplay": "次の予定 · {display}",
+      "resumes": "スケジュールが再開",
+      "silenceStarts": "Silence Schedule が開始",
+      "silenceEnds": "Silence Schedule が終了",
+      "changes": "スケジュールが変更",
+      "empty": "ハブから次の変更は報告されていません。",
+      "viewSchedule": "スケジュールを表示",
+      "manualTitle": "スケジュールモードはオフです",
+      "manualBody": "自動では変更されません。「ページを変更」か「メッセージを作成」を選択するか、スケジュールモードを再びオンにするまで、{page} が表示されます。",
+      "manualEmpty": "自動では変更されません。「ページを変更」か「メッセージを作成」を選択するか、スケジュールモードを再びオンにしてください。",
+      "scheduleMode": "スケジュールモード",
+      "manualMode": "手動モード",
+      "overrideMode": "上書き",
+      "unknown": "ステータス不明",
+      "enabled": "スケジュールモードを再びオンにしました",
+      "undo": "元に戻す",
+      "failed": "スケジュールモードを変更できませんでした。もう一度お試しください。",
+      "otherDisplays": "他のディスプレイ",
+      "allDisplays": "すべてのディスプレイ",
+      "selectDisplay": "{display} を管理",
+      "offline": "オフライン"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "ミラーリング中",
     "mirrorHint": "入力が一時停止するたびに送信します。エディターを離れると停止します。",
     "savedToPages": "ページに保存しました",
+    "savedToPagesDescription": "{name}はページライブラリにあります。",
     "addToSchedule": "スケジュールに追加",
     "showNow": "今すぐ表示",
     "saved": "保存済み",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "プレーンテキストは使用できます。色やディスプレイ専用のツールは使用できません。",
     "targetUnavailable": "このディスプレイはミラーリングに使用できません。",
     "nameRequired": "このページに名前を付けてください",
-    "newerChangesUnsaved": "保存中に行った変更はまだ保存されていません。表示する前にもう一度保存してください。"
+    "newerChangesUnsaved": "保存中に行った変更はまだ保存されていません。表示する前にもう一度保存してください。",
+    "plainText": "プレーンテキスト",
+    "plainTemplate": "テンプレート · プレーンテキストのみ",
+    "editorTools": "エディターのツール",
+    "displayToolsUnavailable": "ディスプレイの種類が不明なため、色とフォーマットは使用できません。",
+    "plainTemplateHelp": "各行は入力したとおりに送信されます。このディスプレイでは、表示幅や使用できる文字を確認できません。",
+    "emptyPrompt": "{board}に表示する内容を入力…",
+    "thisDisplay": "このディスプレイ",
+    "startFrom": "または、こちらから始める",
+    "insertVariable": "変数を挿入",
+    "browseStaffPicks": "スタッフのおすすめを見る"
   },
   "phonePairing": {
     "title": "スマートフォンを接続",

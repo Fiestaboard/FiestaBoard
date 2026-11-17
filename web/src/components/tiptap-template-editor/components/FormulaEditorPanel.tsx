@@ -49,7 +49,7 @@ import {
   Type as TypeIcon,
   XCircle,
 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { ShortcutKeys } from "@/components/editor-shortcut-list";
 import { useTranslations } from "@/i18n/translations";
@@ -210,14 +210,14 @@ const formulaBaseTheme = EditorView.theme({
 
 // ─── Category metadata ────────────────────────────────────────────────────────
 
-const CATEGORY_META: Record<string, { icon: LucideIcon; text: string; border: string }> = {
-  logic: { icon: GitBranch, text: "text-violet-400", border: "border-l-violet-400/60" },
-  array: { icon: ListIcon, text: "text-orange-400", border: "border-l-orange-400/60" },
-  date: { icon: CalendarClock, text: "text-teal-400", border: "border-l-teal-400/60" },
-  math: { icon: Hash, text: "text-emerald-400", border: "border-l-emerald-400/60" },
-  text: { icon: TypeIcon, text: "text-sky-400", border: "border-l-sky-400/60" },
-  convert: { icon: ArrowLeftRight, text: "text-amber-400", border: "border-l-amber-400/60" },
-  color: { icon: Palette, text: "text-pink-400", border: "border-l-pink-400/60" },
+const CATEGORY_META: Record<string, { icon: LucideIcon; border: string }> = {
+  logic: { icon: GitBranch, border: "border-l-violet-400/60" },
+  array: { icon: ListIcon, border: "border-l-orange-400/60" },
+  date: { icon: CalendarClock, border: "border-l-teal-400/60" },
+  math: { icon: Hash, border: "border-l-emerald-400/60" },
+  text: { icon: TypeIcon, border: "border-l-sky-400/60" },
+  convert: { icon: ArrowLeftRight, border: "border-l-amber-400/60" },
+  color: { icon: Palette, border: "border-l-pink-400/60" },
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -237,6 +237,7 @@ interface FormulaEditorPanelProps {
 
 export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel }: FormulaEditorPanelProps) {
   const t = useTranslations("formulaEditor");
+  const expressionLabelId = useId();
   const categoryLabels: Record<string, string> = {
     logic: t("categoryLogic"),
     math: t("categoryMath"),
@@ -371,6 +372,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
           formulaStreamLang,
           syntaxHighlighting(formulaHighlighter),
           formulaBaseTheme,
+          EditorView.contentAttributes.of({ "aria-labelledby": expressionLabelId }),
           history(),
           EditorView.lineWrapping,
           keymap.of([
@@ -558,16 +560,15 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
                         onClick={() => toggleCategory(cat)}
                         className={cn(
                           "flex items-center justify-between w-full px-2 py-1.5 text-[11px] font-semibold transition-colors",
-                          "bg-muted/40 hover:bg-muted/70",
-                          meta?.text ?? "text-muted-foreground",
+                          "bg-muted/40 hover:bg-muted/70 text-foreground",
                         )}
                       >
-                        {/* Carry the button's dynamic category color + sub-xs size
-                            so <Text as="span">'s default tone/size don't clobber them. */}
+                        {/* Category color remains in the border; labels use the
+                            shared foreground token for contrast in both themes. */}
                         <Text
                           as="span"
                           weight="semibold"
-                          className={cn("flex items-center gap-1.5 text-[11px]", meta?.text ?? "text-muted-foreground")}
+                          className="flex items-center gap-1.5 text-[11px] text-foreground"
                         >
                           {IconComp && <IconComp className="w-3 h-3" />}
                           {categoryLabels[cat] ?? cat}
@@ -651,9 +652,12 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
         <Flex direction="col" className="order-1 sm:order-2 flex-1 min-w-0 sm:overflow-hidden">
           {/* Desktop: flex column fills, editor sizes within. Mobile: parent modal scrolls — no nested scroll. */}
           <Stack gap="1.5" className="px-3 pt-3 pb-2.5 sm:flex-1 sm:flex sm:flex-col sm:overflow-hidden">
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <Text
+              id={expressionLabelId}
+              className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
+            >
               {t("formulaExpression")}
-            </label>
+            </Text>
 
             {/* Editor container — border changes colour with validation state */}
             <Box

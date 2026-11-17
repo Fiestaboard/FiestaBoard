@@ -257,6 +257,30 @@
       "toastCopyFailed": "Não foi possível copiar o quadro",
       "toastRefreshed": "Página enviada de novo para {board}",
       "toastRefreshFailed": "Não foi possível atualizar {board}"
+    },
+    "supporting": {
+      "upNext": "A seguir",
+      "upNextDisplay": "A seguir · {display}",
+      "resumes": "A agenda é retomada",
+      "silenceStarts": "Silence Schedule começa",
+      "silenceEnds": "Silence Schedule termina",
+      "changes": "A agenda muda",
+      "empty": "O hub não comunicou nenhuma alteração futura.",
+      "viewSchedule": "Ver agenda",
+      "manualTitle": "O Modo de Agenda está desativado",
+      "manualBody": "Nada muda automaticamente. {page} mantém-se no ecrã até escolheres Trocar página, Escrever uma mensagem ou voltares a ativar o Modo de Agenda.",
+      "manualEmpty": "Nada muda automaticamente. Escolhe Trocar página, Escrever uma mensagem ou volta a ativar o Modo de Agenda.",
+      "scheduleMode": "Modo de Agenda",
+      "manualMode": "Modo manual",
+      "overrideMode": "Substituição",
+      "unknown": "Estado desconhecido",
+      "enabled": "Modo de Agenda reativado",
+      "undo": "Anular",
+      "failed": "Não foi possível alterar o Modo de Agenda. Tenta novamente.",
+      "otherDisplays": "Outros ecrãs",
+      "allDisplays": "Todos os ecrãs",
+      "selectDisplay": "Gerir {display}",
+      "offline": "Offline"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "Espelhando",
     "mirrorHint": "Envia após cada pausa na digitação. Para ao sair do editor.",
     "savedToPages": "Salvo em Páginas",
+    "savedToPagesDescription": "{name} está na sua biblioteca de páginas.",
     "addToSchedule": "Adicionar à agenda",
     "showNow": "Mostrar agora",
     "saved": "Salvo",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "O texto simples está disponível. As cores e as ferramentas específicas da tela não estão disponíveis.",
     "targetUnavailable": "Esta tela não está disponível para espelhamento.",
     "nameRequired": "Dê um nome a esta página",
-    "newerChangesUnsaved": "As alterações feitas durante o salvamento ainda não foram salvas. Salve novamente antes de mostrá-las."
+    "newerChangesUnsaved": "As alterações feitas durante o salvamento ainda não foram salvas. Salve novamente antes de mostrá-las.",
+    "plainText": "Texto simples",
+    "plainTemplate": "Modelo · apenas texto simples",
+    "editorTools": "Ferramentas do editor",
+    "displayToolsUnavailable": "Cores e Formatação não estão disponíveis — o tipo de tela é desconhecido.",
+    "plainTemplateHelp": "Cada linha é enviada exatamente como você a digita. A largura e os caracteres não podem ser verificados para esta tela.",
+    "emptyPrompt": "Digite o que {board} deve mostrar…",
+    "thisDisplay": "esta tela",
+    "startFrom": "Ou comece por",
+    "insertVariable": "Inserir uma variável",
+    "browseStaffPicks": "Explorar as Seleções da equipa"
   },
   "phonePairing": {
     "title": "Conectar um celular",

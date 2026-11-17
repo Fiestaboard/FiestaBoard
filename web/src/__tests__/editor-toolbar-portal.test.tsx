@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
 import { TemplateEditorToolbar } from "@/components/tiptap-template-editor/components/TemplateEditorToolbar";
 
-it("portals the phone toolbar out of the editor's contained layout", () => {
+it("keeps portaled phone tools in a named landmark outside the contained editor and cleans up", () => {
   vi.spyOn(window, "matchMedia").mockImplementation(
     (q) =>
       ({
@@ -23,7 +23,11 @@ it("portals the phone toolbar out of the editor's contained layout", () => {
       <TemplateEditorToolbar editor={null} container={host} />
     </QueryClientProvider>,
   );
-  expect(screen.getByRole("group", { name: "Editor tools" }).parentElement).toBe(document.body);
+  const region = screen.getByRole("region", { name: "Editor tools" });
+  expect(region.parentElement).toBe(document.body);
+  expect(within(region).getByRole("group", { name: "Editor tools" })).toBeInTheDocument();
+  expect(host).not.toContainElement(region);
   unmount();
+  expect(region).not.toBeInTheDocument();
   host.remove();
 });

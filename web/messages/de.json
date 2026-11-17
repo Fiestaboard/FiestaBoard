@@ -257,6 +257,30 @@
       "toastCopyFailed": "Board konnte nicht kopiert werden",
       "toastRefreshed": "Seite erneut an {board} gesendet",
       "toastRefreshFailed": "{board} konnte nicht aktualisiert werden"
+    },
+    "supporting": {
+      "upNext": "Als Nächstes",
+      "upNextDisplay": "Als Nächstes · {display}",
+      "resumes": "Zeitplan wird fortgesetzt",
+      "silenceStarts": "Silence Schedule beginnt",
+      "silenceEnds": "Silence Schedule endet",
+      "changes": "Zeitplan ändert sich",
+      "empty": "Der Hub hat keine bevorstehende Änderung gemeldet.",
+      "viewSchedule": "Zeitplan ansehen",
+      "manualTitle": "Zeitplanmodus ist aus",
+      "manualBody": "Nichts ändert sich automatisch. {page} bleibt angezeigt, bis Sie „Seite wechseln“ oder „Nachricht verfassen“ wählen oder den Zeitplanmodus wieder einschalten.",
+      "manualEmpty": "Nichts ändert sich automatisch. Wählen Sie „Seite wechseln“ oder „Nachricht verfassen“ oder schalten Sie den Zeitplanmodus wieder ein.",
+      "scheduleMode": "Zeitplanmodus",
+      "manualMode": "Manueller Modus",
+      "overrideMode": "Übersteuerung",
+      "unknown": "Status unbekannt",
+      "enabled": "Zeitplanmodus wieder eingeschaltet",
+      "undo": "Rückgängig",
+      "failed": "Zeitplanmodus konnte nicht geändert werden. Versuchen Sie es erneut.",
+      "otherDisplays": "Andere Anzeigen",
+      "allDisplays": "Alle Anzeigen",
+      "selectDisplay": "{display} verwalten",
+      "offline": "Offline"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "Spiegelung aktiv",
     "mirrorHint": "Sendet nach jeder Tipp-Pause. Endet beim Verlassen des Editors.",
     "savedToPages": "In Seiten gespeichert",
+    "savedToPagesDescription": "{name} ist in deiner Seitenbibliothek.",
     "addToSchedule": "Zum Zeitplan hinzufügen",
     "showNow": "Jetzt anzeigen",
     "saved": "Gespeichert",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "Einfacher Text ist verfügbar. Farben und displayspezifische Werkzeuge sind nicht verfügbar.",
     "targetUnavailable": "Dieses Display ist für die Spiegelung nicht verfügbar.",
     "nameRequired": "Diese Seite benennen",
-    "newerChangesUnsaved": "Änderungen, die während des Speicherns vorgenommen wurden, sind noch nicht gespeichert. Speichere erneut, bevor du sie anzeigst."
+    "newerChangesUnsaved": "Änderungen, die während des Speicherns vorgenommen wurden, sind noch nicht gespeichert. Speichere erneut, bevor du sie anzeigst.",
+    "plainText": "Klartext",
+    "plainTemplate": "Vorlage · nur Klartext",
+    "editorTools": "Editor-Werkzeuge",
+    "displayToolsUnavailable": "Farben und Formatierung sind nicht verfügbar — der Displaytyp ist unbekannt.",
+    "plainTemplateHelp": "Jede Zeile wird wie eingegeben gesendet. Breite und Zeichen können für dieses Display nicht geprüft werden.",
+    "emptyPrompt": "Gib ein, was {board} anzeigen soll…",
+    "thisDisplay": "dieses Display",
+    "startFrom": "Oder beginne mit",
+    "insertVariable": "Eine Variable einfügen",
+    "browseStaffPicks": "Empfehlungen durchsuchen"
   },
   "phonePairing": {
     "title": "Smartphone verbinden",

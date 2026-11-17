@@ -1,6 +1,6 @@
 import { resolveCharacterSet } from "@fiestaboard/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { TiptapEditorHTMLElement } from "@tiptap/core";
 import { useState } from "react";
@@ -71,10 +71,14 @@ describe("CharsetTemplateEditor exact LED picker boundary", () => {
   it("keeps the kit's phone touch sheet at 639px", async () => {
     mediaAt(639);
     const user = userEvent.setup();
-    mountEditor();
+    const { unmount } = mountEditor();
     await screen.findByRole("textbox", { name: "Template editor" });
-    await user.click(screen.getByRole("button", { name: "Text color" }));
+    const region = screen.getByRole("region", { name: "Editor tools" });
+    expect(region.parentElement).toBe(document.body);
+    await user.click(within(region).getByRole("button", { name: "Text color" }));
     expect(document.querySelector('[data-slot="sheet-content"]')).toBeInTheDocument();
+    unmount();
+    expect(region).not.toBeInTheDocument();
   });
 
   it.each([
@@ -89,6 +93,9 @@ describe("CharsetTemplateEditor exact LED picker boundary", () => {
       expect(document.querySelector('[data-slot="charset-editor-host"]')).toHaveAttribute("data-toolbar", "tablet"),
     );
     expect(document.querySelectorAll('[data-slot="editor-toolbar"]')).toHaveLength(1);
+    const region = screen.getByRole("region", { name: "Editor tools" });
+    expect(region.parentElement).toBe(document.body);
+    expect(within(region).getByRole("button", { name: "More" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Text color" }));
     expect(screen.getByRole("group", { name: "Text colour" })).toBeVisible();
     expect(document.querySelector('[data-slot="sheet-content"]')).toBeNull();
@@ -168,6 +175,7 @@ describe("CharsetTemplateEditor exact LED picker boundary", () => {
       expect(document.querySelector('[data-slot="charset-editor-host"]')).toHaveAttribute("data-toolbar", "kit"),
     );
     expect(screen.getByRole("button", { name: "Colors" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Editor tools" })).not.toBeInTheDocument();
     expect((surface as TiptapEditorHTMLElement).editor).toBe(editor);
   });
 });

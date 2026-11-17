@@ -39,24 +39,11 @@ import {
   Undo2,
   Variable,
 } from "lucide-react";
-import { type ReactNode, Suspense, useEffect, useState, useSyncExternalStore } from "react";
+import { type ReactNode, Suspense, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { useVisualViewportBottom } from "@/hooks/use-visual-viewport-bottom";
 import { cn } from "@/lib/utils";
-
-function subscribeViewport(callback: () => void) {
-  const viewport = window.visualViewport;
-  viewport?.addEventListener("resize", callback);
-  viewport?.addEventListener("scroll", callback);
-  return () => {
-    viewport?.removeEventListener("resize", callback);
-    viewport?.removeEventListener("scroll", callback);
-  };
-}
-function keyboardInset() {
-  const viewport = window.visualViewport;
-  return viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
-}
 
 /** Labelled editor tool with the kit's collision and nested-portal handling. */
 export function EditorAnchoredTool({
@@ -99,7 +86,7 @@ export function EditorTabletTools(props: TemplateEditorToolbarProps) {
   const led = (props.capabilities ?? (set?.colorSpans || set?.font ? "led-text" : "split-flap")) === "led-text";
   const [entityOpen, setEntityOpen] = useState(false);
   const [history, setHistory] = useState({ undo: false, redo: false, selection: false });
-  const bottom = useSyncExternalStore(subscribeViewport, keyboardInset, () => 0);
+  const bottom = useVisualViewportBottom();
   useEffect(() => {
     if (!editor) return;
     const update = () =>

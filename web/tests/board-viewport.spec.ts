@@ -88,12 +88,22 @@ test("a page card's thumbnail is not a scroll region (it sits inside a button)",
   await expect(card.getByRole("region")).toHaveCount(0);
 });
 
-test("a desktop Home board that fits draws no toggle or indicator (1280)", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
+test("a wide desktop Home board that fits draws no toggle or indicator (1600)", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto("/");
   await expect(page.getByTestId("char-tile-0-0")).toBeVisible({ timeout: 15_000 });
   await expect(homeViewport(page)).toHaveAttribute("data-overflow", "false");
   await expect(homeViewport(page).getByRole("group", { name: "Preview size" })).toHaveCount(0);
+});
+
+test("the 1280 desktop supporting pane preserves readable horizontal board scrolling", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await expect(homeViewport(page)).toHaveAttribute("data-overflow", "true");
+  await expect(homeViewport(page)).toHaveAttribute("data-mode", "actual");
+  const sizes = await homeScroller(page).evaluate((el) => ({ client: el.clientWidth, scroll: el.scrollWidth }));
+  expect(sizes.scroll).toBeGreaterThan(sizes.client);
+  await expect(homeViewport(page).getByRole("group", { name: "Preview size" })).toBeVisible();
 });
 
 // M1 (review of #2482): a note-array page card used to carry the kit's Fit /

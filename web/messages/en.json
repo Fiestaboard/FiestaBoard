@@ -213,6 +213,30 @@
       "toastCopyFailed": "Couldn’t copy the board",
       "toastRefreshed": "Sent {board} its page again",
       "toastRefreshFailed": "Couldn’t refresh {board}"
+    },
+    "supporting": {
+      "upNext": "Up next",
+      "upNextDisplay": "Up next · {display}",
+      "resumes": "Schedule resumes",
+      "silenceStarts": "Silence Schedule starts",
+      "silenceEnds": "Silence Schedule ends",
+      "changes": "Schedule changes",
+      "empty": "No upcoming change reported by the hub.",
+      "viewSchedule": "View Schedule",
+      "manualTitle": "Schedule Mode is off",
+      "manualBody": "Nothing changes on its own. {page} stays up until you Change Page, Compose a message, or turn Schedule Mode back on.",
+      "manualEmpty": "Nothing changes on its own. Change Page, Compose a message, or turn Schedule Mode back on.",
+      "scheduleMode": "Schedule Mode",
+      "manualMode": "Manual Mode",
+      "overrideMode": "Override",
+      "unknown": "Status unknown",
+      "enabled": "Back on Schedule Mode",
+      "undo": "Undo",
+      "failed": "Could not change Schedule Mode. Try again.",
+      "otherDisplays": "Other displays",
+      "allDisplays": "All displays",
+      "selectDisplay": "Manage {display}",
+      "offline": "Offline"
     }
   },
   "pages": {
@@ -3461,6 +3485,7 @@
     "mirroring": "Mirroring",
     "mirrorHint": "Sends after each pause in typing. Stops when you leave the editor.",
     "savedToPages": "Saved to Pages",
+    "savedToPagesDescription": "{name} is in your page library.",
     "addToSchedule": "Add to Schedule",
     "showNow": "Show now",
     "saved": "Saved",
@@ -3469,7 +3494,17 @@
     "plainTextOnly": "Plain text is available. Colors and display-specific tools are unavailable.",
     "targetUnavailable": "This display is unavailable for mirroring.",
     "nameRequired": "Name this page",
-    "newerChangesUnsaved": "Changes made while saving are still unsaved. Save again before showing them."
+    "newerChangesUnsaved": "Changes made while saving are still unsaved. Save again before showing them.",
+    "plainText": "Plain text",
+    "plainTemplate": "Template · plain text only",
+    "editorTools": "Editor tools",
+    "displayToolsUnavailable": "Colors and Formatting unavailable — display type unknown.",
+    "plainTemplateHelp": "Each line is sent as typed; width and characters cannot be checked for this display.",
+    "emptyPrompt": "Type what the {board} should say…",
+    "thisDisplay": "display",
+    "startFrom": "Or start from",
+    "insertVariable": "Insert a variable",
+    "browseStaffPicks": "Browse Staff Picks"
   },
   "phonePairing": {
     "title": "Connect a phone",

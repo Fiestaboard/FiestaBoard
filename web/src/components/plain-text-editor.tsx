@@ -1,10 +1,15 @@
 "use client";
 
 import { Box, Stack, Text, Textarea } from "@fiestaboard/ui";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, type ReactNode, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
+
+export interface PlainTextEditorHandle {
+  /** Insert literal template syntax at the current selection and return focus. */
+  insert: (text: string) => void;
+}
 
 interface PlainTextEditorProps {
   /** id on the underlying textarea, so a caller can point a <Label htmlFor> at it. */
@@ -35,19 +40,22 @@ interface PlainTextEditorProps {
  * Plain text code editor for template editing.
  * No line-count restrictions — a validation warning is shown when over the limit.
  */
-export function PlainTextEditor({
-  id,
-  value,
-  onChange,
-  onFocus,
-  placeholder,
-  className,
-  boardLines = 6,
-  boardWidth = 22,
-  lineMarkers,
-  lineMarkerTitle,
-  help,
-}: PlainTextEditorProps) {
+export const PlainTextEditor = forwardRef<PlainTextEditorHandle, PlainTextEditorProps>(function PlainTextEditor(
+  {
+    id,
+    value,
+    onChange,
+    onFocus,
+    placeholder,
+    className,
+    boardLines = 6,
+    boardWidth = 22,
+    lineMarkers,
+    lineMarkerTitle,
+    help,
+  }: PlainTextEditorProps,
+  ref,
+) {
   const t = useTranslations("plainTextEditor");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
@@ -55,6 +63,24 @@ export function PlainTextEditor({
   const mirrorRef = useRef<HTMLDivElement>(null);
   const effectivePlaceholder = placeholder ?? t("placeholder");
   const [lineHeights, setLineHeights] = useState<number[]>([]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      insert(text) {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        onChange(value.slice(0, start) + text + value.slice(end));
+        requestAnimationFrame(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + text.length, start + text.length);
+        });
+      },
+    }),
+    [onChange, value],
+  );
 
   const computeLineHeights = useCallback(() => {
     const mirror = mirrorRef.current;
@@ -261,4 +287,4 @@ export function PlainTextEditor({
       )}
     </Box>
   );
-}
+});
