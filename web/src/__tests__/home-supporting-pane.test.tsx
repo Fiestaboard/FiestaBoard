@@ -9,7 +9,7 @@ import type { BoardDetail, BoardInstance } from "@/lib/api";
 
 import { server } from "./mocks/server";
 
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), dismiss: vi.fn() } }));
 vi.mock("@/components/smart-link", () => ({
   default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
     <a href={href} {...rest}>
@@ -136,4 +136,80 @@ describe("Other displays", () => {
     fireEvent.click(other);
     await waitFor(() => expect(screen.getByLabelText("Selected display")).toHaveTextContent("board-3"));
   });
+});
+
+describe("Schedule Undo lifetime", () => {
+  it("retires the old Home Undo when leaving Home", async () => {
+    server.use(http.patch("/api/v1/boards/board-2", () => HttpResponse.json({ schedule_enabled: true })));
+    const view = draw({ scheduleEnabled: false });
+    fireEvent.click(screen.getByRole("switch", { name: "Schedule Mode" }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    view.unmount();
+    expect(toast.dismiss).toHaveBeenCalledWith("home-schedule:board-2");
+  });
+  it("does not offer stale Undo when the enable finishes after leaving Home", async () => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.patch("/api/v1/boards/board-2", async () => {
+        await pending;
+        return HttpResponse.json({ schedule_enabled: true });
+      }),
+    );
+    const view = draw({ scheduleEnabled: false });
+    fireEvent.click(screen.getByRole("switch", { name: "Schedule Mode" }));
+    view.unmount();
+    release();
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+});
+
+it("keeps a retired Undo inert after A → B → A, including an in-flight status read", async () => {
+  let release!: () => void;
+  let reading = false;
+  let writes = 0;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.use(
+    http.patch("/api/v1/boards/board-2", () => {
+      writes += 1;
+      return HttpResponse.json({ schedule_enabled: true });
+    }),
+    http.get("/api/v1/boards/board-2", async () => {
+      reading = true;
+      await pending;
+      return HttpResponse.json({ schedule_enabled: true });
+    }),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const pane = (selected: BoardInstance) => (
+    <QueryClientProvider client={client}>
+      <HomeSupportingPane
+        board={selected}
+        scheduleEnabled={false}
+        detail={detail()}
+        pageName="Evening"
+        nameOf={() => null}
+        refresh={refresh}
+      />
+    </QueryClientProvider>
+  );
+  const view = render(pane(board));
+  fireEvent.click(screen.getByRole("switch", { name: "Schedule Mode" }));
+  await waitFor(() => expect(toast.success).toHaveBeenCalled());
+  const undo = (vi.mocked(toast.success).mock.calls[0][1]?.action as unknown as { onClick: () => Promise<void> })
+    .onClick;
+  const undoing = undo();
+  await waitFor(() => expect(reading).toBe(true));
+  view.rerender(pane({ ...board, id: "board-3", name: "Lobby" }));
+  view.rerender(pane(board));
+  release();
+  await undoing;
+  expect(writes).toBe(1);
+  await undo();
+  expect(writes).toBe(1);
 });

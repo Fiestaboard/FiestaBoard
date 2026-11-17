@@ -15,7 +15,7 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Monitor } from "lucide-react";
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { toast } from "sonner";
 
 import { useCurrentBoard } from "@/components/current-board-context";
@@ -51,6 +51,15 @@ export function HomeSupportingPane({
   const t = useTranslations("home.supporting");
   const locale = useLocale();
   const switchId = useId();
+  const undoOwner = useRef<{ id: string } | null>(null);
+  useEffect(() => {
+    const id = board?.id ?? null;
+    undoOwner.current = id ? { id } : null;
+    return () => {
+      undoOwner.current = null;
+      if (id) toast.dismiss(`home-schedule:${id}`);
+    };
+  }, [board?.id]);
   const { boards, currentBoardId } = useCurrentBoard();
   const nextAt = detail?.next_change_at ? new Date(detail.next_change_at) : null;
   const hasNext = nextAt && Number.isFinite(nextAt.getTime()) && nextAt.getTime() > Date.now();
@@ -64,10 +73,12 @@ export function HomeSupportingPane({
           ? t("silenceEnds")
           : (nextName ?? t("changes"));
   const toggle = useMutation({
-    mutationFn: (id: string) => api.setScheduleEnabled(true, id),
-    onSuccess: (_, id) => {
+    mutationFn: ({ id }: { id: string; owner: { id: string } | null }) => api.setScheduleEnabled(true, id),
+    onSuccess: (_, { id, owner }) => {
       refresh();
       nudgeDisplay(id);
+      // Navigation or another display ends this Home action's Undo lifetime.
+      if (undoOwner.current !== owner) return;
       toast.success(t("enabled"), {
         id: `home-schedule:${id}`,
         duration: 10000,
@@ -76,7 +87,7 @@ export function HomeSupportingPane({
           onClick: async () => {
             try {
               const current = await api.getBoardDetail(id);
-              if (!current.schedule_enabled) return;
+              if (!current.schedule_enabled || undoOwner.current !== owner) return;
               await api.setScheduleEnabled(false, id);
               refresh();
               nudgeDisplay(id);
@@ -107,7 +118,7 @@ export function HomeSupportingPane({
                 checked={false}
                 disabled={!board || toggle.isPending}
                 onCheckedChange={() => {
-                  if (board) toggle.mutate(board.id);
+                  if (board) toggle.mutate({ id: board.id, owner: undoOwner.current });
                 }}
               />
             </Flex>
