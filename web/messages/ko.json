@@ -292,7 +292,7 @@
       "heldBody": "{time}에 {board}에 표시된 후 스케줄이 재개됩니다.",
       "heldNoTime": "Silence Schedule이 끝날 때까지 기다린 후 스케줄이 재개됩니다.",
       "discard": "삭제",
-      "composeUnreachable": "허브에 연결할 수 없습니다",
+      "composeUnreachable": "{host}의 허브에 연결할 수 없습니다",
       "composeOffline": "오프라인 상태입니다",
       "composeDetail": "허브가 응답할 때까지 메시지가 여기에 보관됩니다. {seconds}초마다 다시 시도합니다.",
       "tryAgain": "다시 시도",
@@ -308,7 +308,10 @@
       "editSilence": "Silence Schedule 편집",
       "silencedHeld": "{boardName}에 보낼 메시지 1개가 보류 중입니다. 지금 표시를 선택하지 않으면 {time}에 표시됩니다.",
       "silenceSoonPageUntil": "{board}이(가) {minutes}분 후 무음 상태가 되며 {time}까지 {page} 표시를 유지합니다.",
-      "silenceSoonOtherUntil": "{board}이(가) {minutes}분 후 무음 상태가 됩니다. 새 메시지는 {time}까지 대기합니다."
+      "silenceSoonOtherUntil": "{board}이(가) {minutes}분 후 무음 상태가 됩니다. 새 메시지는 {time}까지 대기합니다.",
+      "composeDetailLast": "허브가 응답할 때까지 메시지가 여기에 보관됩니다. 마지막 연결: {time} · {seconds}초마다 다시 시도합니다.",
+      "changeDetail": "허브가 응답할 때까지 전송이 일시 중지됩니다. {seconds}초마다 다시 시도합니다.",
+      "changeDetailLast": "허브가 응답할 때까지 전송이 일시 중지됩니다. 마지막 연결: {time} · {seconds}초마다 다시 시도합니다."
     }
   },
   "pages": {

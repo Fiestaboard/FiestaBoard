@@ -292,7 +292,7 @@
       "heldBody": "Wird um {time} auf {board} angezeigt, danach übernimmt der Zeitplan wieder.",
       "heldNoTime": "Wartet, bis Silence Schedule endet, danach übernimmt der Zeitplan wieder.",
       "discard": "Verwerfen",
-      "composeUnreachable": "Ihr Hub ist nicht erreichbar",
+      "composeUnreachable": "Ihr Hub unter {host} ist nicht erreichbar",
       "composeOffline": "Sie sind offline",
       "composeDetail": "Ihre Nachricht bleibt hier gespeichert, bis der Hub antwortet. Ein neuer Versuch erfolgt alle {seconds} s.",
       "tryAgain": "Erneut versuchen",
@@ -308,7 +308,10 @@
       "editSilence": "Silence Schedule bearbeiten",
       "silencedHeld": "1 Nachricht wird für {boardName} zurückgehalten. Sie wird um {time} angezeigt, sofern Sie nicht „Jetzt anzeigen“ wählen.",
       "silenceSoonPageUntil": "{board} wird in {minutes} Min. still und zeigt {page} bis {time} an.",
-      "silenceSoonOtherUntil": "{board} wird in {minutes} Min. still. Neue Nachrichten warten bis {time}."
+      "silenceSoonOtherUntil": "{board} wird in {minutes} Min. still. Neue Nachrichten warten bis {time}.",
+      "composeDetailLast": "Ihre Nachricht bleibt hier gespeichert, bis der Hub antwortet. Zuletzt verbunden: {time} · Ein neuer Versuch erfolgt alle {seconds} s.",
+      "changeDetail": "Das Senden ist pausiert, bis der Hub antwortet. Ein neuer Versuch erfolgt alle {seconds} s.",
+      "changeDetailLast": "Das Senden ist pausiert, bis der Hub antwortet. Zuletzt verbunden: {time} · Ein neuer Versuch erfolgt alle {seconds} s."
     }
   },
   "pages": {

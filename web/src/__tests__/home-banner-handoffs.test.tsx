@@ -167,3 +167,121 @@ it("pauses an already-open Change Page dialog when hub connectivity drops", asyn
   expect(screen.getByRole("button", { name: "Show now" })).toBeDisabled();
   expect(screen.getByText("You’re offline")).toBeInTheDocument();
 });
+
+it.each(["hub", "display"])("Last known ignores unconfirmed Live Output for %s loss", async (lost) => {
+  connection.hubReachable = lost !== "hub";
+  if (lost === "display")
+    server.use(
+      http.get("/api/v1/status", () => HttpResponse.json({ boards: { default: { health: { reachable: false } } } })),
+    );
+  localStorage.setItem("fiestaboard:liveOutputMessage", JSON.stringify("UNSENT MIRROR"));
+  server.use(
+    http.get("/api/settings/board", () =>
+      HttpResponse.json({
+        boards: [
+          {
+            id: "default",
+            name: "Desk",
+            device_type: "panel",
+            device_model: "divoom_pixoo64",
+            grid_rows: 8,
+            grid_cols: 10,
+          },
+        ],
+      }),
+    ),
+    http.get("/api/board/current-message", () =>
+      HttpResponse.json({ message: "LAST SENT", characters: null, expected_characters: null, rows: 8, cols: 10 }),
+    ),
+  );
+  render(<ActivePageDisplay />, { wrapper: Wrapper });
+  await waitFor(() =>
+    expect(screen.getByRole("img")).toHaveAttribute("aria-label", expect.stringContaining("LAST SENT")),
+  );
+  expect(screen.getByRole("img").getAttribute("aria-label")).not.toContain("UNSENT MIRROR");
+  fireEvent(
+    window,
+    new StorageEvent("storage", { key: "fiestaboard:liveOutputMessage", newValue: JSON.stringify("NEW UNSENT TEXT") }),
+  );
+  expect(screen.getByRole("img").getAttribute("aria-label")).toContain("LAST SENT");
+  expect(screen.getByRole("img").getAttribute("aria-label")).not.toContain("NEW UNSENT TEXT");
+});
+
+it.each(["silence", "live"])("does not advertise unavailable out-of-sync recovery during %s", async (state) => {
+  if (state === "live") localStorage.setItem("fiestaboard:liveOutputMessage", JSON.stringify("MIRROR"));
+  else
+    server.use(
+      http.get("/api/silence-status", () => HttpResponse.json({ active: true, enabled: true, mode: "freeze" })),
+    );
+  server.use(
+    http.get("/api/board/current-message", () =>
+      HttpResponse.json({ message: "OTHER", characters: [[1]], expected_characters: [[2]], rows: 6, cols: 22 }),
+    ),
+  );
+  render(<ActivePageDisplay />, { wrapper: Wrapper });
+  await screen.findByRole("heading", { name: "Weather Page", level: 2 });
+  expect(screen.queryByTestId("board-out-of-sync")).not.toBeInTheDocument();
+  expect(screen.queryByText(/The board itself reports something else/)).not.toBeInTheDocument();
+  expect(screen.queryByText("Should be showing · Flagship")).not.toBeInTheDocument();
+});
+
+it.each(["before", "during"])(
+  "Cancel override Undo cannot send when connectivity drops %s its status read",
+  async (when) => {
+    const { toast } = await import("sonner");
+    const info = vi.spyOn(toast, "info");
+    let reads = 0;
+    let writes = 0;
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get("/api/schedules/active/page", () =>
+        HttpResponse.json({
+          schedule_enabled: true,
+          page_id: "page-1",
+          temporary_override: {
+            active: true,
+            page_id: "page-2",
+            expires_at: new Date(Date.now() + 3600000).toISOString(),
+            revert_mode: "schedule",
+          },
+        }),
+      ),
+      http.delete("/api/settings/temporary-override", () => HttpResponse.json({ revert_mode: "schedule" })),
+      http.get("/api/settings/temporary-override", async () => {
+        reads++;
+        if (when === "during") await pending;
+        return HttpResponse.json({ active: false });
+      }),
+      http.post("/api/settings/temporary-override", () => {
+        writes++;
+        return HttpResponse.json({ active: true });
+      }),
+    );
+    const view = render(<ActivePageDisplay />, { wrapper: Wrapper });
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel override" }));
+    await waitFor(() => expect(info).toHaveBeenCalled());
+    const undo = (
+      info.mock.calls.find((args) => args[0] === "Override canceled")?.[1]?.action as unknown as {
+        onClick: () => Promise<void>;
+      }
+    ).onClick;
+    if (when === "before") {
+      connection.deviceOnline = false;
+      view.rerender(<ActivePageDisplay />);
+      await undo();
+      expect(reads).toBe(0);
+    } else {
+      const undoing = undo();
+      await waitFor(() => expect(reads).toBe(1));
+      connection.hubReachable = false;
+      view.rerender(<ActivePageDisplay />);
+      release();
+      await undoing;
+    }
+    expect(writes).toBe(0);
+    info.mockRestore();
+  },
+);

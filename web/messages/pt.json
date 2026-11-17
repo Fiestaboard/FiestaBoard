@@ -292,7 +292,7 @@
       "heldBody": "É mostrada em {board} às {time}; depois, a agenda é retomada.",
       "heldNoTime": "Aguarda o fim de Silence Schedule; depois, a agenda é retomada.",
       "discard": "Descartar",
-      "composeUnreachable": "Não é possível contactar o teu hub",
+      "composeUnreachable": "Não é possível contactar o teu hub em {host}",
       "composeOffline": "Estás offline",
       "composeDetail": "A tua mensagem fica guardada aqui até o hub responder. Nova tentativa a cada {seconds} s.",
       "tryAgain": "Tentar novamente",
@@ -308,7 +308,10 @@
       "editSilence": "Editar Silence Schedule",
       "silencedHeld": "Há 1 mensagem retida para {boardName}. É mostrada às {time}, a menos que escolhas Mostrar agora.",
       "silenceSoonPageUntil": "{board} entra em silêncio daqui a {minutes} min e mantém {page} até às {time}.",
-      "silenceSoonOtherUntil": "{board} entra em silêncio daqui a {minutes} min. As novas mensagens aguardam até às {time}."
+      "silenceSoonOtherUntil": "{board} entra em silêncio daqui a {minutes} min. As novas mensagens aguardam até às {time}.",
+      "composeDetailLast": "A tua mensagem fica guardada aqui até o hub responder. Última ligação: {time} · Nova tentativa a cada {seconds} s.",
+      "changeDetail": "Os envios estão em pausa até o hub responder. Nova tentativa a cada {seconds} s.",
+      "changeDetailLast": "Os envios estão em pausa até o hub responder. Última ligação: {time} · Nova tentativa a cada {seconds} s."
     }
   },
   "pages": {

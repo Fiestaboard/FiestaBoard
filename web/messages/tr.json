@@ -292,7 +292,7 @@
       "heldBody": "{time} saatinde {board} üzerinde gösterilir, ardından Zamanlama devam eder.",
       "heldNoTime": "Silence Schedule bitene kadar bekler, ardından Zamanlama devam eder.",
       "discard": "Sil",
-      "composeUnreachable": "Merkezinize ulaşılamıyor",
+      "composeUnreachable": "{host} adresindeki merkezinize ulaşılamıyor",
       "composeOffline": "Çevrimdışısınız",
       "composeDetail": "Mesajınız merkez yanıt verene kadar burada saklanır. Her {seconds} saniyede bir yeniden deneniyor.",
       "tryAgain": "Tekrar dene",
@@ -308,7 +308,10 @@
       "editSilence": "Silence Schedule düzenle",
       "silencedHeld": "{boardName} için 1 mesaj bekletiliyor. Şimdi göster seçeneğini kullanmazsanız {time} saatinde gösterilir.",
       "silenceSoonPageUntil": "{board} {minutes} dk içinde sessizleşir ve {page} {time} saatine kadar ekranda kalır.",
-      "silenceSoonOtherUntil": "{board} {minutes} dk içinde sessizleşir. Yeni mesajlar {time} saatine kadar bekler."
+      "silenceSoonOtherUntil": "{board} {minutes} dk içinde sessizleşir. Yeni mesajlar {time} saatine kadar bekler.",
+      "composeDetailLast": "Mesajınız merkez yanıt verene kadar burada saklanır. Son bağlantı: {time} · Her {seconds} saniyede bir yeniden deneniyor.",
+      "changeDetail": "Merkez yanıt verene kadar gönderimler duraklatıldı. Her {seconds} saniyede bir yeniden deneniyor.",
+      "changeDetailLast": "Merkez yanıt verene kadar gönderimler duraklatıldı. Son bağlantı: {time} · Her {seconds} saniyede bir yeniden deneniyor."
     }
   },
   "pages": {

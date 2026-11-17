@@ -314,7 +314,7 @@ export function ComposePageDialog({
         </DialogHeader>
 
         <Stack gap="4" className="min-h-0 overflow-y-auto py-2">
-          <HomeConnectionNotice />
+          <HomeConnectionNotice composing />
           {showOn && (
             <Stack gap="2">
               <Label htmlFor={showOnId}>{t("showOn")}</Label>

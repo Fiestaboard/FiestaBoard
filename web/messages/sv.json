@@ -292,7 +292,7 @@
       "heldBody": "Visas på {board} klockan {time}, sedan återupptas schemat.",
       "heldNoTime": "Väntar tills Silence Schedule slutar, sedan återupptas schemat.",
       "discard": "Kasta",
-      "composeUnreachable": "Det går inte att nå din hubb",
+      "composeUnreachable": "Det går inte att nå din hubb på {host}",
       "composeOffline": "Du är offline",
       "composeDetail": "Ditt meddelande sparas här tills hubben svarar. Försöker igen var {seconds}:e sekund.",
       "tryAgain": "Försök igen",
@@ -308,7 +308,10 @@
       "editSilence": "Redigera Silence Schedule",
       "silencedHeld": "1 meddelande väntar för {boardName}. Det visas {time} om du inte väljer Visa nu.",
       "silenceSoonPageUntil": "{board} blir tyst om {minutes} min och behåller {page} till {time}.",
-      "silenceSoonOtherUntil": "{board} blir tyst om {minutes} min. Nya meddelanden väntar till {time}."
+      "silenceSoonOtherUntil": "{board} blir tyst om {minutes} min. Nya meddelanden väntar till {time}.",
+      "composeDetailLast": "Ditt meddelande sparas här tills hubben svarar. Senast ansluten {time} · Försöker igen var {seconds}:e sekund.",
+      "changeDetail": "Sändningar är pausade tills hubben svarar. Försöker igen var {seconds}:e sekund.",
+      "changeDetailLast": "Sändningar är pausade tills hubben svarar. Senast ansluten {time} · Försöker igen var {seconds}:e sekund."
     }
   },
   "pages": {

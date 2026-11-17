@@ -292,7 +292,7 @@
       "heldBody": "Viene mostrato su {board} alle {time}, poi la programmazione riprende.",
       "heldNoTime": "Attende la fine di Silence Schedule, poi la programmazione riprende.",
       "discard": "Scarta",
-      "composeUnreachable": "Impossibile raggiungere il tuo hub",
+      "composeUnreachable": "Impossibile raggiungere il tuo hub su {host}",
       "composeOffline": "Sei offline",
       "composeDetail": "Il messaggio viene conservato qui finché l’hub non risponde. Nuovo tentativo ogni {seconds} s.",
       "tryAgain": "Riprova",
@@ -308,7 +308,10 @@
       "editSilence": "Modifica Silence Schedule",
       "silencedHeld": "1 messaggio è in attesa per {boardName}. Viene mostrato alle {time}, a meno che tu non scelga Mostra ora.",
       "silenceSoonPageUntil": "{board} entra in silenzio tra {minutes} min e mantiene {page} fino alle {time}.",
-      "silenceSoonOtherUntil": "{board} entra in silenzio tra {minutes} min. I nuovi messaggi attendono fino alle {time}."
+      "silenceSoonOtherUntil": "{board} entra in silenzio tra {minutes} min. I nuovi messaggi attendono fino alle {time}.",
+      "composeDetailLast": "Il messaggio viene conservato qui finché l’hub non risponde. Ultima connessione: {time} · Nuovo tentativo ogni {seconds} s.",
+      "changeDetail": "Gli invii sono in pausa finché l’hub non risponde. Nuovo tentativo ogni {seconds} s.",
+      "changeDetailLast": "Gli invii sono in pausa finché l’hub non risponde. Ultima connessione: {time} · Nuovo tentativo ogni {seconds} s."
     }
   },
   "pages": {

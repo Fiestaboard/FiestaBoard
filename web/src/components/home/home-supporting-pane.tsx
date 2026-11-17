@@ -85,7 +85,7 @@ export function HomeSupportingPane({
     mutationFn: ({ id }: { id: string; owner: { id: string } | null }) => api.setScheduleEnabled(true, id),
     onSuccess: (_, { id, owner }) => {
       refresh();
-      nudgeDisplay(id);
+      if (!undoBlocked.current) nudgeDisplay(id);
       // Navigation or another display ends this Home action's Undo lifetime.
       if (undoOwner.current !== owner) return;
       toast.success(t("enabled"), {
@@ -100,7 +100,7 @@ export function HomeSupportingPane({
               if (!current.schedule_enabled || undoBlocked.current || undoOwner.current !== owner) return;
               await api.setScheduleEnabled(false, id);
               refresh();
-              nudgeDisplay(id);
+              if (!undoBlocked.current) nudgeDisplay(id);
             } catch {
               toast.error(t("failed"));
             }

@@ -292,7 +292,7 @@
       "heldBody": "将在 {time} 显示在 {board} 上，之后日程恢复。",
       "heldNoTime": "等待 Silence Schedule 结束，之后日程恢复。",
       "discard": "丢弃",
-      "composeUnreachable": "无法连接到你的中枢",
+      "composeUnreachable": "无法连接到 {host} 上的中枢",
       "composeOffline": "你已离线",
       "composeDetail": "在中枢响应之前，你的消息会保存在这里。每 {seconds} 秒重试一次。",
       "tryAgain": "重试",
@@ -308,7 +308,10 @@
       "editSilence": "编辑 Silence Schedule",
       "silencedHeld": "{boardName} 有 1 条待发送消息。如不选择“立即显示”，消息将在 {time} 显示。",
       "silenceSoonPageUntil": "{board} 将在 {minutes} 分钟后静音，并保持显示 {page} 直到 {time}。",
-      "silenceSoonOtherUntil": "{board} 将在 {minutes} 分钟后静音。新消息将等待至 {time}。"
+      "silenceSoonOtherUntil": "{board} 将在 {minutes} 分钟后静音。新消息将等待至 {time}。",
+      "composeDetailLast": "在中枢响应之前，你的消息会保存在这里。上次连接：{time} · 每 {seconds} 秒重试一次。",
+      "changeDetail": "发送已暂停，直到中枢响应。每 {seconds} 秒重试一次。",
+      "changeDetailLast": "发送已暂停，直到中枢响应。上次连接：{time} · 每 {seconds} 秒重试一次。"
     }
   },
   "pages": {

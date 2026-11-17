@@ -292,7 +292,7 @@
       "heldBody": "Verschijnt op {board} om {time}, daarna wordt de planning hervat.",
       "heldNoTime": "Wacht tot Silence Schedule eindigt, daarna wordt de planning hervat.",
       "discard": "Verwerpen",
-      "composeUnreachable": "Je hub is niet bereikbaar",
+      "composeUnreachable": "Je hub op {host} is niet bereikbaar",
       "composeOffline": "Je bent offline",
       "composeDetail": "Je bericht wordt hier bewaard totdat de hub antwoordt. Elke {seconds} s wordt het opnieuw geprobeerd.",
       "tryAgain": "Opnieuw proberen",
@@ -308,7 +308,10 @@
       "editSilence": "Silence Schedule bewerken",
       "silencedHeld": "Er wacht 1 bericht voor {boardName}. Het verschijnt om {time}, tenzij je Nu tonen kiest.",
       "silenceSoonPageUntil": "{board} wordt over {minutes} min stil en houdt {page} in beeld tot {time}.",
-      "silenceSoonOtherUntil": "{board} wordt over {minutes} min stil. Nieuwe berichten wachten tot {time}."
+      "silenceSoonOtherUntil": "{board} wordt over {minutes} min stil. Nieuwe berichten wachten tot {time}.",
+      "composeDetailLast": "Je bericht wordt hier bewaard totdat de hub antwoordt. Laatst verbonden: {time} · Elke {seconds} s wordt het opnieuw geprobeerd.",
+      "changeDetail": "Verzenden is gepauzeerd totdat de hub antwoordt. Elke {seconds} s wordt het opnieuw geprobeerd.",
+      "changeDetailLast": "Verzenden is gepauzeerd totdat de hub antwoordt. Laatst verbonden: {time} · Elke {seconds} s wordt het opnieuw geprobeerd."
     }
   },
   "pages": {

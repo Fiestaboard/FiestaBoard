@@ -292,7 +292,7 @@
       "heldBody": "{time} に {board} に表示され、その後スケジュールが再開します。",
       "heldNoTime": "Silence Schedule が終了するまで待機し、その後スケジュールが再開します。",
       "discard": "破棄",
-      "composeUnreachable": "ハブに接続できません",
+      "composeUnreachable": "{host} のハブに接続できません",
       "composeOffline": "オフラインです",
       "composeDetail": "ハブが応答するまでメッセージはここに保存されます。{seconds} 秒ごとに再試行しています。",
       "tryAgain": "再試行",
@@ -308,7 +308,10 @@
       "editSilence": "Silence Schedule を編集",
       "silencedHeld": "{boardName} 宛てのメッセージが 1 件保留中です。「今すぐ表示」を選択しなければ、{time} に表示されます。",
       "silenceSoonPageUntil": "{board} は {minutes} 分後に静音状態になり、{time} まで {page} の表示を保持します。",
-      "silenceSoonOtherUntil": "{board} は {minutes} 分後に静音状態になります。新しいメッセージは {time} まで待機します。"
+      "silenceSoonOtherUntil": "{board} は {minutes} 分後に静音状態になります。新しいメッセージは {time} まで待機します。",
+      "composeDetailLast": "ハブが応答するまでメッセージはここに保存されます。最終接続：{time} · {seconds} 秒ごとに再試行しています。",
+      "changeDetail": "ハブが応答するまで送信は一時停止されます。{seconds} 秒ごとに再試行しています。",
+      "changeDetailLast": "ハブが応答するまで送信は一時停止されます。最終接続：{time} · {seconds} 秒ごとに再試行しています。"
     }
   },
   "pages": {

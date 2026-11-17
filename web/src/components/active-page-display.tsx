@@ -19,7 +19,7 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Calendar, ChevronRight, LayoutGrid, Pause, PencilLine, Radio } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -83,6 +83,10 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   const tb = useTranslations("home.banners");
   const connection = useHubConnection();
   const sendsDisabled = !connection.deviceOnline || !connection.hubReachable;
+  const currentSendsDisabled = useRef(sendsDisabled);
+  useEffect(() => {
+    currentSendsDisabled.current = sendsDisabled;
+  }, [sendsDisabled]);
   const { data: fleetStatus } = useStatus();
   const phone = useMediaQuery("(max-width: 767px)");
   const tPause = useTranslations("displaySettings.pause");
@@ -241,7 +245,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       api.clearTemporaryOverride(boardId),
     onSuccess: (_result, { boardId, previous }) => {
       refresh();
-      nudgeDisplay(boardId);
+      if (!currentSendsDisabled.current) nudgeDisplay(boardId);
       toast.info(tn("toastOverrideCanceled"), {
         id: overrideUndoToastId(boardId),
         duration: 10_000,
@@ -258,6 +262,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   // restarts: the hub stamps a new started_at.
   const restoreOverride = useCallback(
     async (previous: NonNullable<typeof temporaryOverride>, boardId: string | undefined) => {
+      if (currentSendsDisabled.current) return;
       let remainingMs = previous.expires_at ? new Date(previous.expires_at).getTime() - Date.now() : null;
       if (remainingMs !== null && remainingMs <= 0) {
         toast.info(tn("toastUndoEnded"));
@@ -265,6 +270,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       }
       try {
         const current = await api.getTemporaryOverride(boardId);
+        if (currentSendsDisabled.current) return;
         if (current.active) {
           toast.info(tn("toastUndoNewer"));
           return;
@@ -295,7 +301,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           ...(previous.revert_page_id ? { revert_page_id: previous.revert_page_id } : {}),
         } as SetTemporaryOverrideRequest);
         refresh();
-        nudgeDisplay(boardId);
+        if (!currentSendsDisabled.current) nudgeDisplay(boardId);
       } catch {
         toast.error(tn("toastCancelFailed"));
       }
@@ -352,10 +358,14 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     return { deviceType: getEffectiveDeviceType(boardSettings), notesWide: 1, notesTall: 1 };
   }, [boardState, currentBoard, boardSettings]);
 
-  const displayMessage = liveMessageForBoard ?? boardState?.message ?? fallbackPreview?.message ?? null;
+  // Last known must come from a confirmed board frame, never a local mirror or rendered page.
+  const confirmedOnly = sendsDisabled || displayOffline;
+  const localLiveMessage = confirmedOnly ? null : liveMessageForBoard;
+  const displayMessage =
+    localLiveMessage ?? boardState?.message ?? (confirmedOnly ? null : fallbackPreview?.message) ?? null;
   const displayCells =
-    !liveMessageForBoard && boardState?.message != null ? (boardState.cells as BoardCellGrid | undefined) : undefined;
-  const displayLayers = displayCells ? boardState?.layers : undefined;
+    !localLiveMessage && boardState?.message != null ? (boardState.cells as BoardCellGrid | undefined) : undefined;
+  const displayLayers = !localLiveMessage && boardState?.message != null ? boardState.layers : undefined;
 
   // ── What the card says ────────────────────────────────────────────────
   const overridePageId = overrideActive ? (temporaryOverride?.page_id ?? null) : null;
@@ -592,6 +602,8 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       boardState.expected_characters != null &&
       JSON.stringify(boardState.characters) !== JSON.stringify(boardState.expected_characters)) ||
       !!boardState.overwritten_at);
+  const recoverableOutOfSync =
+    outOfSync && !silence.active && !liveMessageForBoard && !sendsDisabled && !displayOffline;
   const heldTime = silence.held?.queued_at ? new Date(silence.held.queued_at) : null;
   const heldCard =
     silence.active && silence.held ? (
@@ -665,12 +677,9 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           title={title}
           headingLevel={2}
           mode={sendsDisabled || displayOffline || silence.active ? undefined : mode}
-          status={
-            sendsDisabled ? "neutral" : displayOffline ? "danger" : outOfSync && !silence.active ? "warning" : "success"
-          }
+          status={sendsDisabled ? "neutral" : displayOffline ? "danger" : recoverableOutOfSync ? "warning" : "success"}
           labels={{
-            nowShowing:
-              outOfSync && !silence.active && !sendsDisabled && !displayOffline ? tb("shouldShow") : tn("label"),
+            nowShowing: recoverableOutOfSync ? tb("shouldShow") : tn("label"),
             modes: { schedule: tn("modeSchedule"), manual: tn("modeManual"), override: tn("modeOverride") },
           }}
           data-testid="now-showing"
@@ -743,7 +752,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
                 ? health?.last_connected_at
                   ? tb("offlineMeta", { time: formatClock(new Date(health.last_connected_at), locale) })
                   : tb("offlineNever")
-                : outOfSync
+                : recoverableOutOfSync
                   ? `${outcome ?? ""} ${tb("outOfSyncOutcome", { page: title })}`
                   : outcome
           }

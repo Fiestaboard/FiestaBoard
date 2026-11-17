@@ -292,7 +292,7 @@
       "heldBody": "Pojawi się na {board} o {time}, potem harmonogram zostanie wznowiony.",
       "heldNoTime": "Czeka do końca Silence Schedule, potem harmonogram zostanie wznowiony.",
       "discard": "Odrzuć",
-      "composeUnreachable": "Nie można połączyć się z centrum",
+      "composeUnreachable": "Nie można połączyć się z centrum pod adresem {host}",
       "composeOffline": "Jesteś offline",
       "composeDetail": "Wiadomość jest przechowywana tutaj, aż centrum odpowie. Ponawianie co {seconds} s.",
       "tryAgain": "Spróbuj ponownie",
@@ -308,7 +308,10 @@
       "editSilence": "Edytuj Silence Schedule",
       "silencedHeld": "1 wiadomość czeka na {boardName}. Pojawi się o {time}, chyba że wybierzesz Pokaż teraz.",
       "silenceSoonPageUntil": "{board} wyciszy się za {minutes} min i zachowa {page} na ekranie do {time}.",
-      "silenceSoonOtherUntil": "{board} wyciszy się za {minutes} min. Nowe wiadomości poczekają do {time}."
+      "silenceSoonOtherUntil": "{board} wyciszy się za {minutes} min. Nowe wiadomości poczekają do {time}.",
+      "composeDetailLast": "Wiadomość jest przechowywana tutaj, aż centrum odpowie. Ostatnie połączenie: {time} · Ponawianie co {seconds} s.",
+      "changeDetail": "Wysyłanie jest wstrzymane, aż centrum odpowie. Ponawianie co {seconds} s.",
+      "changeDetailLast": "Wysyłanie jest wstrzymane, aż centrum odpowie. Ostatnie połączenie: {time} · Ponawianie co {seconds} s."
     }
   },
   "pages": {

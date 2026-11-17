@@ -292,7 +292,7 @@
       "heldBody": "Se muestra en {board} a las {time}; después se reanuda el horario.",
       "heldNoTime": "Espera hasta que termine Silence Schedule; después se reanuda el horario.",
       "discard": "Descartar",
-      "composeUnreachable": "No se puede contactar con tu hub",
+      "composeUnreachable": "No se puede contactar con tu hub en {host}",
       "composeOffline": "Estás sin conexión",
       "composeDetail": "Tu mensaje se guarda aquí hasta que el hub responda. Se reintenta cada {seconds} s.",
       "tryAgain": "Reintentar",
@@ -308,7 +308,10 @@
       "editSilence": "Editar Silence Schedule",
       "silencedHeld": "Hay 1 mensaje retenido para {boardName}. Se muestra a las {time}, salvo que elijas Mostrar ahora.",
       "silenceSoonPageUntil": "{board} entra en silencio en {minutes} min y mantiene {page} hasta las {time}.",
-      "silenceSoonOtherUntil": "{board} entra en silencio en {minutes} min. Los mensajes nuevos esperan hasta las {time}."
+      "silenceSoonOtherUntil": "{board} entra en silencio en {minutes} min. Los mensajes nuevos esperan hasta las {time}.",
+      "composeDetailLast": "Tu mensaje se guarda aquí hasta que el hub responda. Última conexión: {time} · Se reintenta cada {seconds} s.",
+      "changeDetail": "Los envíos están en pausa hasta que el hub responda. Se reintenta cada {seconds} s.",
+      "changeDetailLast": "Los envíos están en pausa hasta que el hub responda. Última conexión: {time} · Se reintenta cada {seconds} s."
     }
   },
   "pages": {

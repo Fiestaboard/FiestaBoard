@@ -10,6 +10,7 @@ import Link from "@/components/smart-link";
 import { queryKeys, usePages } from "@/hooks/use-board";
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { upcomingSilenceEnd } from "@/lib/silence-until";
 
 // 07a includes a 12 min warning. Jev all_modes_15min p=0.94: read the hub boundary for every silence mode.
 const IMMINENT_THRESHOLD_SECONDS = 15 * 60;
@@ -46,11 +47,8 @@ export function SilenceImminentBanner() {
   const startsAt = new Date(anchor.receivedAt + anchor.seconds * 1000);
   const page = status.mode === "page" ? pagesData?.pages?.find((p) => p.id === status.page_id) : null;
   const board = currentBoard?.name ?? ts("unnamedBoard");
-  const end = /^(\d{2}):(\d{2})/.exec(status.end_time_utc ?? "");
-  const endTime =
-    end && Number(end[1]) < 24 && Number(end[2]) < 60
-      ? formatClock(new Date(Date.UTC(2000, 0, 1, Number(end[1]), Number(end[2]))), locale)
-      : null;
+  const endAt = upcomingSilenceEnd(status.end_time_utc, startsAt);
+  const endTime = endAt ? formatClock(endAt, locale) : null;
   return (
     <StatusBanner
       kind="silence-soon"

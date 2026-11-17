@@ -248,7 +248,7 @@
       "heldBody": "Shows on {board} at {time}, then Schedule resumes.",
       "heldNoTime": "Waits until Silence Schedule ends, then Schedule resumes.",
       "discard": "Discard",
-      "composeUnreachable": "Can’t reach your hub",
+      "composeUnreachable": "Can’t reach your hub at {host}",
       "composeOffline": "You’re offline",
       "composeDetail": "Your message is kept here until the hub answers. Trying again every {seconds} s.",
       "tryAgain": "Try again",
@@ -264,7 +264,10 @@
       "editSilence": "Edit Silence Schedule",
       "silencedHeld": "1 message is held for {boardName}. It shows at {time} unless you choose Show now.",
       "silenceSoonPageUntil": "{board} goes quiet in {minutes} min and holds {page} until {time}.",
-      "silenceSoonOtherUntil": "{board} goes quiet in {minutes} min. New messages wait until {time}."
+      "silenceSoonOtherUntil": "{board} goes quiet in {minutes} min. New messages wait until {time}.",
+      "composeDetailLast": "Your message is kept here until the hub answers. Last connected {time} · trying again every {seconds} s.",
+      "changeDetail": "Sends are paused until the hub answers. Trying again every {seconds} s.",
+      "changeDetailLast": "Sends are paused until the hub answers. Last connected {time} · trying again every {seconds} s."
     }
   },
   "pages": {
