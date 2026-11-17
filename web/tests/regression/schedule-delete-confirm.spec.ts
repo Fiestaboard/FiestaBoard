@@ -99,9 +99,15 @@ test.describe("regression: schedule.delete-confirm", () => {
   }) => {
     const { schedId } = await seedScheduleAndOpen(page);
     let attempts = 0;
+    let rejectDeletes = true;
     await page.route(`**/api/v1/schedules/${schedId}*`, (route) => {
-      if (route.request().method() === "DELETE" && ++attempts === 1) {
-        return route.fulfill({ status: 500, contentType: "application/json", body: '{"detail":"boom"}' });
+      if (route.request().method() === "DELETE") {
+        attempts++;
+        // Providers retries failed mutations once. Keep the outage active until
+        // the user sees the terminal error and explicitly retries below.
+        if (rejectDeletes) {
+          return route.fulfill({ status: 500, contentType: "application/json", body: '{"detail":"boom"}' });
+        }
       }
       return route.continue();
     });
@@ -113,8 +119,10 @@ test.describe("regression: schedule.delete-confirm", () => {
     expect((await failed).status()).toBe(500);
     await expect(dialog).toBeHidden();
     await expect(page.getByText("boom", { exact: true }).first()).toBeVisible();
+    expect(attempts).toBe(2);
     await expectPersisted(schedId, true);
 
+    rejectDeletes = false;
     await openDeleteConfirmation(page);
     const retried = page.waitForResponse(
       (response) => response.url().includes(`/api/v1/schedules/${schedId}`) && response.request().method() === "DELETE",
@@ -122,7 +130,7 @@ test.describe("regression: schedule.delete-confirm", () => {
     await dialog.getByRole("button", { name: "Delete", exact: true }).click();
     expect((await retried).ok()).toBe(true);
     await expect(page.getByRole("button", { name: /Sched Page/ })).toHaveCount(0);
-    expect(attempts).toBe(2);
+    expect(attempts).toBe(3);
     await expectPersisted(schedId, false);
   });
 
