@@ -38,14 +38,17 @@ test.describe("Add Note Array board", () => {
     // helper supplies a mock cloud token and verifies the required connection
     // test before the real backend creates the array.
     await addVestaboardDisplay(page, "Note Array");
-    await page.getByRole("tab", { name: "Settings", exact: true }).click();
     const settings = await (await fetch(`${API_URL}/settings/board`, { headers: authHeaders() })).json();
     const array = settings.boards.find((board: { name: string }) => board.name === "My Board 2");
     expect(array).toMatchObject({ device_type: "note_array", notes_wide: 2, notes_tall: 1 });
     expect(array.output_config).toMatchObject({ api_mode: "cloud", note_array_token: "***" });
 
     // The new board's page opens: a 2×1 note array (3 rows × 30 cols).
+    // Wait for its mounted settings before clicking a tab: the previous
+    // embedded display can remain visible while creation navigation settles.
     const card = page.getByTestId("board-card").filter({ hasText: "My Board 2" });
+    await expect(card.getByTestId("board-name-input")).toHaveValue("My Board 2", { timeout: 10_000 });
+    await page.getByRole("tab", { name: "Settings", exact: true }).click();
     await expect(card).toBeVisible({ timeout: 10_000 });
     await expect(card).toContainText("30 × 3");
     await expect(card).toContainText("2 side-by-side");

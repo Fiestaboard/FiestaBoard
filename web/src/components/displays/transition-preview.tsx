@@ -51,7 +51,7 @@ function NativePreview({
       key={replay}
       role="img"
       aria-label={t("previewLabel", { name: t("previewMessage") })}
-      className="grid w-fit max-w-full grid-cols-12 gap-0.5 rounded-lg bg-black p-2"
+      className="grid w-full max-w-sm grid-cols-12 gap-0.5 rounded-lg bg-black p-2"
       data-native-strategy={strategy}
     >
       {cells.map(({ char, index }) => (
@@ -59,7 +59,7 @@ function NativePreview({
           as="span"
           key={index}
           aria-hidden="true"
-          className="flex h-7 w-4 items-center justify-center rounded-sm bg-zinc-800 font-mono text-xs text-white sm:h-9 sm:w-6 sm:text-base"
+          className="flex h-7 min-w-0 w-full items-center justify-center rounded-sm bg-zinc-800 font-mono text-xs text-white sm:h-9 sm:text-base"
           style={
             replay > 0 && !reduced && strategy !== "none"
               ? {

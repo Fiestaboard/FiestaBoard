@@ -369,6 +369,15 @@ jobs:
       working-directory: web
       run: npx playwright test --config tests/layout/playwright.config.ts
 
+    - name: Preserve browser layout evidence
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: cx-web-layout-${{ github.run_id }}-${{ github.run_attempt }}
+        path: web/test-results/
+        if-no-files-found: ignore
+        retention-days: 14
+
     - name: Upload setup parity screenshots
       if: always()
       uses: actions/upload-artifact@v7
