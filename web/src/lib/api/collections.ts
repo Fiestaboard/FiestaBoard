@@ -64,6 +64,28 @@ export interface CollectionUpdate {
   random?: RandomModeConfig | null;
 }
 
+/** Read-only evaluation of a saved Collection using the hub's cached values. */
+export interface CollectionEvaluation {
+  collection_id: string;
+  selection_mode: CollectionSelectionMode;
+  at: string;
+  page_id: string | null;
+  rules: Array<{
+    index: number;
+    expression: string;
+    page_id: string;
+    value: string;
+    error: string | null;
+    message: string | null;
+    matched: boolean;
+  }> | null;
+  matched_rule: number | null;
+}
+
+// No hub protocol advertises an editable no-repeat flag. Random selection
+// always uses shuffle bags (src/collections/models.py); never send a fake flag.
+export const collectionCapabilities = { editableNoRepeat: false } as const;
+
 export interface CollectionsResponse {
   collections: Collection[];
   total: number;
@@ -82,6 +104,12 @@ export interface CollectionDeleteResponse {
 // same handlers `/collections*` does, so the models and status codes are
 // identical and only the path moved.
 export const collectionsApi = {
+  evaluateCollection: (collectionId: string, at?: string) =>
+    fetchApi<CollectionEvaluation>(`/collections/${encodeURIComponent(collectionId)}/dry-run`, {
+      method: "POST",
+      body: JSON.stringify(at ? { at } : {}),
+    }),
+
   // Collection endpoints
   getCollections: () => fetchApi<CollectionsResponse>("/v1/collections"),
 

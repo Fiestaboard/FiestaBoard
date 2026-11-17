@@ -1,3 +1,4 @@
+import { PageLayout } from "@fiestaboard/ui";
 import { GalleryHorizontalEnd } from "lucide-react";
 import { Outlet } from "react-router";
 
@@ -27,6 +28,12 @@ export default function CollectionsLayout() {
           description: t("editDescription"),
         }
       : null;
+  if (detail)
+    return (
+      <PageLayout railBreakpoint="md">
+        <Outlet />
+      </PageLayout>
+    );
   return (
     <SectionShell
       icon={GalleryHorizontalEnd}
