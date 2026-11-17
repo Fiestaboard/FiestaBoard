@@ -16,19 +16,19 @@ The published versions checked on **November 17, 2026** were:
 | --- | --- | --- | --- |
 | Stable | `10.3.3` | `latest` | `10.3.3` |
 | Beta | `10.3.4-beta.0` | `beta` | `10.3.4-beta.0` |
-| Alpha | `11.0.0-alpha.4` | `v11-alpha` | `v11-alpha-11.0.0-alpha.4` |
+| Alpha | `11.0.0-alpha.5` | `v11-alpha` | `v11-alpha-11.0.0-alpha.5` |
 
-All tags use the repository `fiestaboard/fiestaboard`. For example, the exact Alpha image is `fiestaboard/fiestaboard:v11-alpha-11.0.0-alpha.4`.
+All tags use the repository `fiestaboard/fiestaboard`. For example, the exact Alpha image is `fiestaboard/fiestaboard:v11-alpha-11.0.0-alpha.5`.
 
 Moving tags follow new publications in their channel. Exact-version tags identify a particular published build; use one when you need to reproduce a preview or report a problem. Check the running version in **Settings → System** after an update.
 
-The source branch names can be confusing: `main` publishes **Stable**, the branch named `alpha` publishes **Beta**, and `v11` publishes **Alpha**. Alpha previews have a Git tag such as `v11.0.0-alpha.4`, but deliberately have **no GitHub Release**. Their absence from the Releases page does not mean an Alpha image is unavailable.
+The source branch names can be confusing: `main` publishes **Stable**, the branch named `alpha` publishes **Beta**, and `v11` publishes **Alpha**. Alpha previews have a Git tag such as `v11.0.0-alpha.5`, but deliberately have **no GitHub Release**. Their absence from the Releases page does not mean an Alpha image is unavailable.
 
 ## Which controls will I see?
 
 **Stable 10.3.3 and Beta 10.3.4-beta.0 have Stable/Beta controls only.** You will not see an Alpha option there. Joining the currently published Beta does not add it. To try Alpha, follow the [v11 preview setup guide](/docs/setup/v11-preview).
 
-The three-choice **Stable / Beta / Alpha** chooser is present in the published **11.0.0-alpha.4** source. The [10.x chooser backport, PR #2492](https://github.com/Fiestaboard/FiestaBoard/pull/2492), remained open at the November 17 checkpoint; its candidate had not been built or published. An open PR or successful CI does not add the feature to your installed release.
+The three-choice **Stable / Beta / Alpha** chooser is present in the published **11.0.0-alpha.5** source. The [10.x chooser backport, PR #2492](https://github.com/Fiestaboard/FiestaBoard/pull/2492), remained open at the November 17 checkpoint; its candidate had not been built or published. An open PR or successful CI does not add the feature to your installed release.
 
 :::caution Preview availability and upgrade readiness
 The Alpha image is published, but the production upgrade-and-restore check remains incomplete. Live channel switching, automatic backup before image replacement, and recovery have not passed that runtime gate. Read the [v11 upgrade and recovery guide](/docs/setup/v11-upgrade) before using Alpha with existing data.

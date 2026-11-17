@@ -6,7 +6,7 @@ keywords: [FiestaBoard 11, v11, alpha preview, onboarding, upgrade, universal UI
 
 # Try the FiestaBoard 11 Preview
 
-FiestaBoard 11 is an **Alpha preview**, not the Stable or Beta release. This guide describes the published **11.0.0-alpha.4** checkpoint checked on **November 17, 2026**. Later work on the `v11` branch is not necessarily in that image.
+FiestaBoard 11 is an **Alpha preview**, not the Stable or Beta release. This guide describes the published **11.0.0-alpha.5** checkpoint checked on **November 17, 2026**. Later work on the `v11` branch is not necessarily in that image.
 
 For everyday use, stay on Stable. To explore the preview, use a separate test installation and test data. To carry existing data into it, first read [Upgrading to v11 and recovering 10.x](/docs/setup/v11-upgrade). The real-image upgrade and restore gate is still incomplete; publication of an Alpha image is not a claim that those recovery scenarios passed.
 
@@ -19,7 +19,7 @@ For everyday use, stay on Stable. To explore the preview, use a separate test in
 - **Clearer connection state.** Home reports display health and silence. The installable web app can show a last-known board when the hub is unreachable; that is cached information, not confirmation of what is showing now. Signing out clears its private offline data. Installation support depends on the browser and a secure connection.
 - **Explicit release channels.** The v11 preview has a Stable / Beta / Alpha chooser. Returning to an older channel can discard changes made after the recovery snapshot. Read [Release Channels](/docs/features/release-channels) before switching.
 
-This is a checkpoint of the redesign, not the finished universal UI. The new touch editor, complex editing and Creator IDE screens, full setup redesign, and remaining Settings, Schedule, Displays and Integrations layouts are not all in alpha.4. Backend support for a feature does not mean its planned screen or native app has shipped.
+This is a checkpoint of the redesign, not the finished universal UI. The new touch editor, complex editing and Creator IDE screens, and remaining Settings, Schedule, Displays and Integrations layouts are not all in alpha.5. Backend support for a feature does not mean its planned screen or native app has shipped.
 
 Built-in hub HTTPS and the web push backend are included from **11.0.0-alpha.4**. HTTPS is opt-in; see [built-in HTTPS setup](/docs/deployment/production#built-in-https) for certificate and listener configuration. The web push backend supports browser enrollment and test delivery, but automatic event alerts and the notification settings screen are not included in this checkpoint.
 
@@ -37,7 +37,7 @@ Stock Stable **10.3.3** and Beta **10.3.4-beta.0** do not offer Alpha in their c
 For a separate Docker test installation, follow the normal Docker setup, using a separate install directory, Compose project/container names, host port and persistent directories. Before its first start, set the FiestaBoard service's image to:
 
 ```yaml
-image: fiestaboard/fiestaboard:v11-alpha-11.0.0-alpha.4
+image: fiestaboard/fiestaboard:v11-alpha-11.0.0-alpha.5
 ```
 
 This exact-version tag selects the documented checkpoint. The moving tag `v11-alpha` can select a newer preview. Existing installations must follow the [plain image-swap procedure](/docs/setup/v11-upgrade#plain-image-swap) instead of starting over or sharing live files.
