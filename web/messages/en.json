@@ -3469,7 +3469,17 @@
     "plainTextOnly": "Plain text is available. Colors and display-specific tools are unavailable.",
     "targetUnavailable": "This display is unavailable for mirroring.",
     "nameRequired": "Name this page",
-    "newerChangesUnsaved": "Changes made while saving are still unsaved. Save again before showing them."
+    "newerChangesUnsaved": "Changes made while saving are still unsaved. Save again before showing them.",
+    "plainText": "Plain text",
+    "plainTemplate": "Template · plain text only",
+    "editorTools": "Editor tools",
+    "displayToolsUnavailable": "Colors and Formatting unavailable — display type unknown.",
+    "plainTemplateHelp": "Each line is sent as typed; width and characters cannot be checked for this display.",
+    "emptyPrompt": "Type what the {board} should say…",
+    "thisDisplay": "display",
+    "startFrom": "Or start from",
+    "insertVariable": "Insert a variable",
+    "browseStaffPicks": "Browse Staff Picks"
   },
   "phonePairing": {
     "title": "Connect a phone",

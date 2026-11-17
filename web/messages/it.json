@@ -3469,7 +3469,17 @@
     "plainTextOnly": "Il testo semplice è disponibile. I colori e gli strumenti specifici del display non sono disponibili.",
     "targetUnavailable": "Questo display non è disponibile per la riproduzione in tempo reale.",
     "nameRequired": "Assegna un nome a questa pagina",
-    "newerChangesUnsaved": "Le modifiche apportate durante il salvataggio non sono ancora salvate. Salva di nuovo prima di mostrarle."
+    "newerChangesUnsaved": "Le modifiche apportate durante il salvataggio non sono ancora salvate. Salva di nuovo prima di mostrarle.",
+    "plainText": "Plain text",
+    "plainTemplate": "Template · plain text only",
+    "editorTools": "Editor tools",
+    "displayToolsUnavailable": "Colors and Formatting unavailable — display type unknown.",
+    "plainTemplateHelp": "Each line is sent as typed; width and characters cannot be checked for this display.",
+    "emptyPrompt": "Type what the {board} should say…",
+    "thisDisplay": "display",
+    "startFrom": "Or start from",
+    "insertVariable": "Insert a variable",
+    "browseStaffPicks": "Browse Staff Picks"
   },
   "phonePairing": {
     "title": "Collega un telefono",

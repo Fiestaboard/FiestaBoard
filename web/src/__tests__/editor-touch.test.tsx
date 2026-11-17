@@ -69,7 +69,7 @@ it("honors H3 baseline by exposing plain text and no palette", async () => {
   );
   render(<PageBuilder onClose={vi.fn()} />, { wrapper: Wrapper });
   expect(await screen.findByText("Can’t tell what this display draws")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Colors" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Colors" })).toBeDisabled();
   expect(screen.queryByRole("group", { name: "Preview size" })).not.toBeInTheDocument();
   expect(screen.getByRole("textbox", { name: /template/i })).toBeInTheDocument();
 });

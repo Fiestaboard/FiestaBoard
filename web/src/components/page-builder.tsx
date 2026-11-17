@@ -59,7 +59,7 @@ import {
   writeStoredBoardPreviewMode,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload, Zap } from "lucide-react";
+import { ArrowLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload, Variable, Zap } from "lucide-react";
 import {
   forwardRef,
   lazy,
@@ -86,7 +86,8 @@ import { scheduleNextChange } from "@/components/home/home-status";
 import { useBoardDetail } from "@/components/home/use-home-data";
 import { LiveOutputSilenceStrip } from "@/components/live-output-silence-strip";
 import { PanelFitNote } from "@/components/panel-fit-note";
-import { PlainTextEditor } from "@/components/plain-text-editor";
+import { PlainTemplateToolbar, PlainTemplateVariablePicker } from "@/components/plain-template-toolbar";
+import { PlainTextEditor, type PlainTextEditorHandle } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import type {
   DrawHistoryEvent,
@@ -551,6 +552,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     return fit ? targetValue(fit) : deviceType;
   }, [panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols, targetBoardId, currentBoardId]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
+  const plainTextRef = useRef<PlainTextEditorHandle>(null);
   // Metadata history keyed to stroke boundaries: done/undone mirror the
   // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
   const strokeMetaHistoryRef = useRef<{ done: StrokeMetaSnapshot[]; undone: StrokeMetaSnapshot[] }>({
@@ -989,6 +991,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const liveTargetPaused = boardSettings?.boards?.find((board) => board.id === selectedBoardId)?.paused === true;
   const { data: targetDetail } = useBoardDetail(selectedBoardId || undefined);
   const baselineDisplay = targetDetail?.drawing?.source === "baseline";
+  const newPageEmpty = !pageId && templateLines.every((line) => line === "") && canvases.length === 0;
   const mirrorDisabled = !selectedBoardId || liveTargetPaused || targetDetail?.paused === true;
   const previewModel = useMemo(() => resolveBoardModel(previewBoard), [previewBoard]);
   // An LED target's character set: the rich editor then reads and offers that
@@ -2734,13 +2737,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 </Flex>
               )}
               {!useTouchToolbar && <Box ref={setToolbarContainer} className="min-w-0" />}
+              {baselineDisplay && (
+                <PlainTemplateToolbar
+                  onInsert={(text) => plainTextRef.current?.insert(text)}
+                  moreContent={mirrorMoreContent}
+                />
+              )}
               <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-0 lg:gap-6">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
                 <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0 px-2 lg:px-0">
                   <Stack gap="3" className="min-w-0">
                     <Flex ref={templateHeadingRef} align="center" justify="between" className="order-2 lg:order-none">
                       <label htmlFor="page-template-plain" className="text-xs sm:text-sm font-medium">
-                        {t("templateLabel")}
+                        {baselineDisplay ? tTouch("plainTemplate") : t("templateLabel")}
                       </label>
                       <Flex
                         align="center"
@@ -2771,16 +2780,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </Button>
                       </Flex>
                     </Flex>
-                    {baselineDisplay && (
-                      <Alert>
-                        <AlertDescription>
-                          <Text weight="semibold">{tTouch("unknownDisplay")}</Text>
-                          <Text>{tTouch("plainTextOnly")}</Text>
-                        </AlertDescription>
-                      </Alert>
-                    )}
                     {editorMode === "rich" && !baselineDisplay ? (
-                      <Box {...anchorProps("page-editor.template")}>
+                      <Box {...anchorProps("page-editor.template")} className="relative">
+                        {newPageEmpty && (
+                          <Text
+                            aria-hidden
+                            className="pointer-events-none absolute left-12 top-2 z-10 font-mono text-sm text-muted-foreground"
+                          >
+                            {tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })}
+                          </Text>
+                        )}
                         {/* Template editor with device-specific dimensions */}
                         <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
                           {editorCharset ? (
@@ -2795,7 +2804,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               }}
                               moreContent={mirrorMoreContent}
                               charset={editorCharset}
-                              value={templateLines.join("\n")}
+                              value={newPageEmpty ? "" : templateLines.join("\n")}
                               onChange={handleRichEditorChange}
                               lineAlignments={lineAlignments}
                               lineWrapEnabled={lineWrapEnabled}
@@ -2813,7 +2822,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                   return next;
                                 });
                               }}
-                              placeholder={t("richEditorPlaceholder")}
+                              placeholder={
+                                newPageEmpty
+                                  ? tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })
+                                  : t("richEditorPlaceholder")
+                              }
                               boardWidth={dims.cols}
                               boardLines={numLines}
                               deviceType={deviceType}
@@ -2824,7 +2837,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           ) : (
                             <TipTapTemplateEditor
                               ref={tipTapRef}
-                              value={templateLines.join("\n")}
+                              value={newPageEmpty ? "" : templateLines.join("\n")}
                               onChange={handleRichEditorChange}
                               lineAlignments={lineAlignments}
                               lineWrapEnabled={lineWrapEnabled}
@@ -2842,7 +2855,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                   return newWrapStates;
                                 });
                               }}
-                              placeholder={t("richEditorPlaceholder")}
+                              placeholder={
+                                newPageEmpty
+                                  ? tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })
+                                  : t("richEditorPlaceholder")
+                              }
                               showAlignmentControls={true}
                               showToolbar={true}
                               boardWidth={dims.cols}
@@ -2868,18 +2885,59 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     ) : (
                       <Box {...anchorProps("page-editor.template")}>
                         <PlainTextEditor
+                          ref={plainTextRef}
                           id="page-template-plain"
                           lineMarkers={pixelBoard ? canvasMarkers(canvases, numLines) : undefined}
                           lineMarkerTitle={tCanvas("markerTitle")}
-                          value={templateLines.join("\n")}
+                          value={newPageEmpty ? "" : templateLines.join("\n")}
                           onChange={(newValue) => {
                             setTemplateLines(newValue.split("\n"));
                           }}
-                          placeholder={t("plainEditorPlaceholder")}
+                          placeholder={
+                            newPageEmpty
+                              ? tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })
+                              : t("plainEditorPlaceholder")
+                          }
                           boardLines={numLines}
                           boardWidth={dims.cols}
+                          help={
+                            baselineDisplay ? (
+                              <Text size="xs" tone="muted">
+                                {tTouch("plainTemplateHelp")}
+                              </Text>
+                            ) : undefined
+                          }
                         />
                       </Box>
+                    )}
+                    {newPageEmpty && (
+                      <Stack gap="2">
+                        {!dockedPreview && (
+                          <Text size="sm" tone="muted">
+                            {tTouch("startFrom")}
+                          </Text>
+                        )}
+                        <Flex gap="2" className="flex-col lg:flex-row lg:flex-wrap">
+                          <PlainTemplateVariablePicker
+                            trigger={
+                              <Button variant="outline" size={dockedPreview ? "touch" : "sm"}>
+                                <Variable />
+                                {tTouch("insertVariable")}
+                              </Button>
+                            }
+                            onInsert={(text) => {
+                              if (baselineDisplay || editorMode === "plain") plainTextRef.current?.insert(text);
+                              else setTemplateLines([text]);
+                            }}
+                          />
+                          <Button asChild variant="outline" size={dockedPreview ? "touch" : "sm"}>
+                            <a href={appUrl("/picks")}>
+                              <Sparkles />
+                              {tTouch("browseStaffPicks")}
+                            </a>
+                          </Button>
+                        </Flex>
+                      </Stack>
                     )}
 
                     {/* Line count validation warning */}
@@ -2954,7 +3012,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   id="page-editor-preview"
                   variant={dockedPreview ? "docked" : "pane"}
                   className={cn("order-first lg:order-2 min-w-0 top-16", dockedPreview && "px-0")}
-                  title={tTouch("livePreview")}
+                  title={baselineDisplay ? tTouch("plainText") : tTouch("livePreview")}
                   boardName={previewBoard?.name}
                   live={liveOutputEnabled}
                   onLiveChange={changeMirroring}
@@ -2983,7 +3041,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         />
                       )}
                       {dockedPreview &&
-                        (editorMode === "plain" || baselineDisplay || !useTouchToolbar) &&
+                        !baselineDisplay &&
+                        (editorMode === "plain" || !useTouchToolbar) &&
                         (sheetPickers ? (
                           <ToolbarDropdown
                             label={tToolbar("more")}
@@ -3003,7 +3062,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 >
                   <Flex justify="center">
                     {baselineDisplay ? (
-                      <Text className="w-full whitespace-pre-wrap font-mono">{editorPreviewMessage}</Text>
+                      <Alert variant="warning" className="w-full">
+                        <AlertDescription>
+                          <Stack gap="2">
+                            <Text weight="semibold">{tTouch("unknownDisplay")}</Text>
+                            <Text>{tTouch("plainTextOnly")}</Text>
+                            <Box className="rounded-lg border bg-background p-3">
+                              <Text className="whitespace-pre-wrap font-mono">{editorPreviewMessage}</Text>
+                            </Box>
+                          </Stack>
+                        </AlertDescription>
+                      </Alert>
                     ) : (
                       <DrawableBoardPreview
                         active={drawMode}

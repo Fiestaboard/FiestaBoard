@@ -3469,7 +3469,17 @@
     "plainTextOnly": "일반 텍스트를 사용할 수 있습니다. 색상 및 디스플레이 전용 도구는 사용할 수 없습니다.",
     "targetUnavailable": "이 디스플레이는 미러링에 사용할 수 없습니다.",
     "nameRequired": "이 페이지의 이름을 지정하세요",
-    "newerChangesUnsaved": "저장 중에 변경한 내용은 아직 저장되지 않았습니다. 표시하기 전에 다시 저장하세요."
+    "newerChangesUnsaved": "저장 중에 변경한 내용은 아직 저장되지 않았습니다. 표시하기 전에 다시 저장하세요.",
+    "plainText": "Plain text",
+    "plainTemplate": "Template · plain text only",
+    "editorTools": "Editor tools",
+    "displayToolsUnavailable": "Colors and Formatting unavailable — display type unknown.",
+    "plainTemplateHelp": "Each line is sent as typed; width and characters cannot be checked for this display.",
+    "emptyPrompt": "Type what the {board} should say…",
+    "thisDisplay": "display",
+    "startFrom": "Or start from",
+    "insertVariable": "Insert a variable",
+    "browseStaffPicks": "Browse Staff Picks"
   },
   "phonePairing": {
     "title": "휴대폰 연결",

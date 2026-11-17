@@ -3469,7 +3469,17 @@
     "plainTextOnly": "El texto sin formato está disponible. Los colores y las herramientas específicas de la pantalla no están disponibles.",
     "targetUnavailable": "Esta pantalla no está disponible para reflejar contenido.",
     "nameRequired": "Ponle un nombre a esta página",
-    "newerChangesUnsaved": "Los cambios realizados mientras se guardaba siguen sin guardarse. Guarda de nuevo antes de mostrarlos."
+    "newerChangesUnsaved": "Los cambios realizados mientras se guardaba siguen sin guardarse. Guarda de nuevo antes de mostrarlos.",
+    "plainText": "Plain text",
+    "plainTemplate": "Template · plain text only",
+    "editorTools": "Editor tools",
+    "displayToolsUnavailable": "Colors and Formatting unavailable — display type unknown.",
+    "plainTemplateHelp": "Each line is sent as typed; width and characters cannot be checked for this display.",
+    "emptyPrompt": "Type what the {board} should say…",
+    "thisDisplay": "display",
+    "startFrom": "Or start from",
+    "insertVariable": "Insert a variable",
+    "browseStaffPicks": "Browse Staff Picks"
   },
   "phonePairing": {
     "title": "Conectar un teléfono",
