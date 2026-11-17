@@ -1,5 +1,4 @@
 import {
-  BoardShowcase,
   Box,
   Button,
   Dialog,
@@ -22,11 +21,10 @@ import { ArrowDownToLine, CopyPlus, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { IntegrationBoardPreview } from "@/components/integrations/integration-board-preview";
 import { IntegrationReadme } from "@/components/integrations/integration-readme";
 import { findOAuthConnection, OAUTH_CONNECTIONS_QUERY_KEY } from "@/components/plugin-settings";
 import { SectionAction } from "@/components/section-shell";
-import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
-import { useEffectiveCode62Glyph } from "@/hooks/use-effective-code62-glyph";
 import { useParams, useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
@@ -41,8 +39,6 @@ function MarketplacePluginDetail() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const boardColor = useEffectiveBoardColor();
-  const code62Glyph = useEffectiveCode62Glyph();
   const pluginId = params.pluginId as string;
   const [addInstanceOpen, setAddInstanceOpen] = useState(false);
   const [instanceLabel, setInstanceLabel] = useState("");
@@ -144,21 +140,7 @@ function MarketplacePluginDetail() {
             for plugins that predate the previews contract. */}
         {previews.length > 0 && (
           <PageSection>
-            <BoardShowcase
-              previews={previews}
-              previewLabel={t("boardPreviewLabel", { name: entry?.name ?? pluginId })}
-              defaultBoardType={boardColor}
-              code62Glyph={code62Glyph}
-              labels={{
-                flagship: t("deviceFlagship"),
-                note: t("deviceNote"),
-                noteArray: t("deviceNoteArray"),
-                boardShape: t("boardShapeLabel"),
-                boardColor: t("boardColorLabel"),
-                blackBoard: t("blackBoard"),
-                whiteBoard: t("whiteBoard"),
-              }}
-            />
+            <IntegrationBoardPreview entry={entry} />
           </PageSection>
         )}
 

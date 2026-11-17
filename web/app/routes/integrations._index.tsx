@@ -273,6 +273,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
+import { IntegrationBoardPreview } from "@/components/integrations/integration-board-preview";
 import { IntegrationReadme } from "@/components/integrations/integration-readme";
 import { GitInstallFields, useGitPluginInstall } from "@/components/plugin-git-install";
 import { PluginProvenance } from "@/components/plugin-provenance";
@@ -1426,6 +1427,7 @@ export function InstalledPluginRow({
           <TabsTrigger value="readme">{t("readmeTab")}</TabsTrigger>
         </TabsList>
         <TabsContent value="settings">
+          {fullPage && <IntegrationBoardPreview entry={registryEntry} />}
           <Stack gap="6" className="py-6">
             {isLoadingDetails ? (
               <Stack gap="4">
