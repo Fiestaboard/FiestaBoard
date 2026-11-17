@@ -23,7 +23,7 @@ for (const width of [390, 768, 1280]) {
       await page.screenshot({ path: testInfo.outputPath(`impl-displays-${width}-${theme}.png`), fullPage: true });
       await injectAxe(page);
       await checkA11y(page, undefined, {
-        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
+        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } },
       });
       const shot = async (state: string) => {
         await page.screenshot({
@@ -44,7 +44,7 @@ for (const width of [390, 768, 1280]) {
       await page.getByRole("button", { name: "Diagnostics", exact: true }).click();
       await expect(page.getByTestId("display-diagnostics")).toContainText("Response timed out");
       await checkA11y(page, undefined, {
-        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
+        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } },
       });
       await shot("diagnostics");
       // Full-width Playback and inline FiestaPanel Settings, at the same slot.
@@ -52,7 +52,7 @@ for (const width of [390, 768, 1280]) {
       await expect(page.getByRole("region", { name: "Playback", exact: true })).toBeVisible();
       await shot("playback");
       await checkA11y(page, undefined, {
-        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
+        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } },
       });
       await page.getByRole("link", { name: "Back to Displays" }).click();
       await page.getByTestId("display-card").filter({ hasText: "Fridge note" }).click();
@@ -68,7 +68,7 @@ for (const width of [390, 768, 1280]) {
       await expect(page.getByTestId("display-panel-settings")).toBeVisible();
       await shot("panel-settings");
       await checkA11y(page, undefined, {
-        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
+        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } },
       });
       expect(errors).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

@@ -15,6 +15,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { BOARD_DETAIL_KEY } from "@/components/home/use-home-data";
 import { useDisplayBoards } from "@/components/settings/display-settings";
 import { isVirtualBoard } from "@/components/settings/output-boards";
@@ -169,6 +170,14 @@ export function DisplayList({
                           <Text as="span" data-testid="display-output" size="xs">
                             {outputName(board)}
                           </Text>
+                          {" · "}
+                          <BoardSizeIndicator
+                            deviceType={board.device_type}
+                            notesWide={board.notes_wide}
+                            notesTall={board.notes_tall}
+                            gridRows={board.grid_rows}
+                            gridCols={board.grid_cols}
+                          />
                           {cause && <> · {cause}</>}
                         </>
                       }

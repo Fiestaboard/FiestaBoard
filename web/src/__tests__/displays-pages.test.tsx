@@ -201,6 +201,8 @@ describe("/displays", () => {
     expect(within(cards[0]).getByText("Kitchen")).toBeInTheDocument();
     await waitFor(() => expect(within(cards[0]).getByTestId("display-output")).toHaveTextContent("Vestaboard"));
     expect(within(cards[1]).getByTestId("display-output")).toHaveTextContent("Divoom Pixoo");
+    expect(within(cards[0]).getByRole("img", { name: "22 columns by 6 rows" })).toHaveTextContent("22 × 6");
+    expect(within(cards[1]).getByRole("img", { name: "10 columns by 8 rows, Panel" })).toHaveTextContent("10 × 8");
     expect(cards[1]).toHaveAttribute("href", "/displays/desk");
   });
 
