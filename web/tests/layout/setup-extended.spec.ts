@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { checkA11y, injectAxe } from "axe-playwright";
 
-import firstPartyOutputs from "../../src/__tests__/mocks/first-party-outputs.json";
+import firstPartyOutputs from "../../src/__tests__/mocks/first-party-outputs.json" with { type: "json" };
 
 const shots = process.env.WEB212_SHOTS ?? "test-results/web212-shots";
 // This API-contract fixture is rendered by the real output-schema form; it
@@ -59,7 +59,8 @@ async function setup(page: Page, width: number) {
   await page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     let json: unknown;
-    if (path === "/api/config/validate") json = { valid: true, is_first_run: false, missing_fields: [] };
+    if (path === "/api/config/board/existing") json = { existing: [] };
+    else if (path === "/api/config/validate") json = { valid: true, is_first_run: false, missing_fields: [] };
     else if (path === "/api/settings/board") json = { boards: [], active_board_id: "" };
     else if (path === "/api/config/general") json = { instance_name: "Example FiestaPi", timezone: "UTC" };
     else if (path === "/api/outputs/catalog") json = { outputs: catalog, registry_status: "available" };

@@ -20,7 +20,7 @@
 - [ ] Primary: write failing sessions and QR tests, observe red; add mobile/approver fields, grouped rows, cascade confirmation, pairing create/poll/cancel, loopback warning, address select, connected/revoke and expiration states.
 - [ ] Integrate builder commits; merge locale additions by namespace. Add coverage thresholds and changeset.
 - [ ] Run full unit coverage, typecheck, lint, formatting, production build; Playwright flow + axe with one worker/spec; capture six breakpoint/theme screenshots and key states.
-- [ ] Open PR into v11, get Astra review (maximum three rounds), fix findings and confirm READY at exact head. Poll CI to green unless WRAPUP arrives.
+- [ ] Open PR into v11, get Astra review (maximum three rounds), fix findings and confirm READY at exact head. Poll CI to green unless the wrap-up flag arrives.
 
 ## Review focus
 

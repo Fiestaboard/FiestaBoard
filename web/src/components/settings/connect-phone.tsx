@@ -29,7 +29,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
-import { type PairingOffer, type PairingState, sessionsApi } from "@/lib/api/sessions";
+import { type PairingOffer, type PairingState, SessionApiError, sessionsApi } from "@/lib/api/sessions";
 
 function reachable(address: string): boolean {
   try {
@@ -79,6 +79,7 @@ export function ConnectPhone({
   onChanged: () => void;
 }) {
   const t = useTranslations("phonePairing");
+  const te = useTranslations("deviceSignIn.errors");
   const phone = useMediaQuery("(max-width: 767px)");
   const [offer, setOffer] = useState<PairingOffer | null>(null);
   const [state, setState] = useState<PairingState>({ state: "pending" });
@@ -106,13 +107,25 @@ export function ConnectPhone({
         deadline.current = Date.now() + next.expires_in * 1000;
         setRemaining(next.expires_in);
         setOffer(next);
-      } catch {
-        if (active.current && run === generation.current) setError(t("error"));
+      } catch (failure) {
+        if (active.current && run === generation.current) {
+          const message =
+            failure instanceof SessionApiError
+              ? failure.status === 401
+                ? te("signIn")
+                : failure.code === "feature_disabled"
+                  ? te("feature_disabled")
+                  : failure.status === 429
+                    ? te("rate_limited")
+                    : t("error")
+              : t("error");
+          setError(message);
+        }
       } finally {
         if (active.current && run === generation.current) setBusy(false);
       }
     },
-    [t],
+    [t, te],
   );
   const invalidate = useCallback(() => {
     generation.current++;
@@ -207,7 +220,7 @@ export function ConnectPhone({
             {t("back")}
           </Button>
         )}
-        <DialogHeader>
+        <DialogHeader className="text-left">
           <DialogTitle className="text-2xl md:text-xl">{title}</DialogTitle>
           <DialogDescription>
             {t(claimed ? "connectedHint" : expired ? "expiredHint" : "description")}
@@ -259,7 +272,7 @@ export function ConnectPhone({
                       <QRCodeSVG
                         value={offer.qr_payload}
                         size={208}
-                  marginSize={4}
+                        marginSize={4}
                         bgColor="#ffffff"
                         fgColor="#000000"
                         role="img"

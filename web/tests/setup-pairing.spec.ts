@@ -63,7 +63,7 @@ for (const prefix of ["", "/test-prefix"]) {
       const authorize = await tv.post(`${api}/auth/device/authorize`, {
         data: { client_id: "fiestaboard-tvos", device_name: "Phone-approved TV", app_version: "test" },
       });
-      expect(authorize.ok()).toBe(true);
+      expect(authorize.status()).toBe(200);
       const challenge = await authorize.json();
       expect(
         (

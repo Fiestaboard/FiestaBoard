@@ -9,7 +9,16 @@
  * Videos are recorded (`test.use({ video: "on" })`) so the flow can be
  * validated visually.
  */
-import { addVestaboardDisplay, API_URL, authHeaders, configureBoard, expect, resetToSingleBoard, suppressWizard, test } from "./helpers";
+import {
+  addVestaboardDisplay,
+  API_URL,
+  authHeaders,
+  configureBoard,
+  expect,
+  resetToSingleBoard,
+  suppressWizard,
+  test,
+} from "./helpers";
 
 test.use({ video: "on" });
 

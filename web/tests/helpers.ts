@@ -911,7 +911,9 @@ export async function addVestaboardDisplay(page: Page, shape: "Flagship" | "Note
   await dialog.getByLabel("Display name", { exact: true }).fill(name);
   if (shape !== "Note Array") await dialog.getByRole("radio", { name: /Cloud/ }).click();
   const secret = `e2e-${shape.toLowerCase().replaceAll(" ", "-")}-${suffix}-cloud-credential`;
-  await dialog.getByLabel(shape === "Note Array" ? "Cloud API Token" : "Cloud Read/Write key", { exact: true }).fill(secret);
+  await dialog
+    .getByLabel(shape === "Note Array" ? "Cloud API Token" : "Cloud Read/Write key", { exact: true })
+    .fill(secret);
   const draftRoute = "**/api/outputs/vestaboard/actions/test_connection";
   const handleDraft: Parameters<Page["route"]>[1] = async (route) => {
     expect(route.request().postDataJSON().output_config).toMatchObject({

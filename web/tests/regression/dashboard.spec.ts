@@ -9,7 +9,16 @@
  * Auth pattern: this dev container has auth enabled. Every test must run
  * after ensureAuthForFetch + loginIfNeeded so cookies/headers are valid.
  */
-import { API_URL, authHeaders, chooseVestaboardInWizard, configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
+import {
+  API_URL,
+  authHeaders,
+  chooseVestaboardInWizard,
+  configureBoard,
+  ensureAuthForFetch,
+  expect,
+  loginIfNeeded,
+  test,
+} from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -561,7 +570,9 @@ test.describe("regression: dashboard", () => {
     await expect(page.getByRole("radio", { name: /Vestaboard/ })).toBeVisible();
   });
 
-  test("dashboard.wizard.board-setup — missing credentials block Continue and Back returns to outputs", async ({ page }) => {
+  test("dashboard.wizard.board-setup — missing credentials block Continue and Back returns to outputs", async ({
+    page,
+  }) => {
     await mockEmptyHub(page, true);
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
@@ -581,17 +592,21 @@ test.describe("regression: dashboard", () => {
     await mockEmptyHub(page, true);
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
-      localStorage.setItem("fiestaboard_wizard_progress", JSON.stringify({
-        currentStep: 3,
-        outputId: "vestaboard",
-        outputName: "Vestaboard",
-        boardConfig: { device_type: "flagship", board_color: "black", output_config: { api_mode: "local" } },
-        plugins: { date_time: { enabled: false, timezone: "UTC" }, registry_selected: [] },
-      }));
+      localStorage.setItem(
+        "fiestaboard_wizard_progress",
+        JSON.stringify({
+          currentStep: 3,
+          outputId: "vestaboard",
+          outputName: "Vestaboard",
+          boardConfig: { device_type: "flagship", board_color: "black", output_config: { api_mode: "local" } },
+          plugins: { date_time: { enabled: false, timezone: "UTC" }, registry_selected: [] },
+        }),
+      );
     });
     const installs: string[] = [];
     page.on("request", (request) => {
-      if (request.method() === "POST" && /\/plugins\/.*\/(install|enable)/.test(request.url())) installs.push(request.url());
+      if (request.method() === "POST" && /\/plugins\/.*\/(install|enable)/.test(request.url()))
+        installs.push(request.url());
     });
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Add data sources", exact: true })).toBeVisible();

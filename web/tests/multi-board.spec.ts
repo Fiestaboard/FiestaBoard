@@ -409,14 +409,18 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await expect(key).toHaveAttribute("type", "text");
     await page.getByRole("button", { name: "Hide API key", exact: true }).click();
     await expect(key).toHaveAttribute("type", "password");
-    await expect.poll(() => page.evaluate(() => localStorage.getItem("fiestaboard_wizard_progress") ?? "")).not.toContain("test-key");
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem("fiestaboard_wizard_progress") ?? ""))
+      .not.toContain("test-key");
     const before = await savedBoards();
     await page.getByRole("button", { name: "Test connection", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: /Connected · \d+ ms/ })).toBeVisible({ timeout: 15_000 });
     expect(await savedBoards()).toEqual(before);
   });
 
-  test("Continue saves name, Note geometry and credentials; color is editable in display settings", async ({ page }) => {
+  test("Continue saves name, Note geometry and credentials; color is editable in display settings", async ({
+    page,
+  }) => {
     await start(page);
     await fillConnection(page);
     await page.getByLabel("Display name", { exact: true }).fill("E2E Note");

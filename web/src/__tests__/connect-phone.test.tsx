@@ -134,3 +134,14 @@ it("checks server truth after the local countdown reaches zero so a last-second 
   expect(screen.queryByText("Nothing was connected.")).not.toBeInTheDocument();
   await screen.findByText("Just connected is connected");
 });
+
+it.each([
+  [403, "feature_disabled", "Device sign-in is disabled. Enable device sign-in in Settings → Account."],
+  [401, "unauthorized", "Sign in again to continue."],
+  [429, "rate_limited", "Too many attempts. Wait a moment and try again."],
+] as const)("explains an actionable pairing refusal (%s)", async (status, error, message) => {
+  server.use(http.post("/api/auth/pairing", () => HttpResponse.json({ error }, { status })));
+  render(<ConnectPhone open onClose={vi.fn()} onChanged={vi.fn()} />);
+  await screen.findByText(message);
+  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+});

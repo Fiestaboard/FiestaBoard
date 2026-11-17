@@ -25,6 +25,7 @@ import {
 } from "@fiestaboard/ui";
 import { Clock, Monitor, QrCode, Smartphone, Tv } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -42,7 +43,6 @@ export function SignedInDevices() {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"others" | "all" | SessionSummary | null>(null);
   const [cascade, setCascade] = useState(true);
   const [pairing, setPairing] = useState(false);
@@ -83,7 +83,6 @@ export function SignedInDevices() {
   async function action(work: () => Promise<unknown>, signOut = false) {
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
       await work();
       setConfirm(null);
@@ -107,6 +106,7 @@ export function SignedInDevices() {
           }
         }
         setError(message);
+        if (phone) toast.error(message);
       }
     } finally {
       setBusy(false);
@@ -147,7 +147,6 @@ export function SignedInDevices() {
             {error}
           </Text>
         )}
-        {notice && <Text role="status">{notice}</Text>}
         {!data && !error && <Text role="status">{t("loading")}</Text>}
         {!data && error && (
           <Button
@@ -312,7 +311,7 @@ export function SignedInDevices() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             {error && (
-              <Text role="alert" tone="destructive">
+              <Text role={phone ? undefined : "alert"} tone="destructive">
                 {error}
               </Text>
             )}
@@ -358,7 +357,7 @@ export function SignedInDevices() {
                         (tv) => wanted.includes(tv.id) && !result.also_signed_out?.includes(tv.id),
                       );
                       if (failed.length) throw new Error("partial_sign_out");
-                      setNotice(
+                      toast.success(
                         t("signedOutPhone", { name: phone.device_name, count: result.also_signed_out?.length ?? 0 }),
                       );
                     });

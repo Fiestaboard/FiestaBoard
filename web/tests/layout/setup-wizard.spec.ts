@@ -7,6 +7,7 @@ for (const width of [390, 768, 1280]) {
     test(`first-run welcome, output, connection and review ${width} ${theme}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 1000 });
       let passed = false;
+      let known = false;
       const writes: string[] = [];
       const board = {
         id: "kitchen",
@@ -18,7 +19,15 @@ for (const width of [390, 768, 1280]) {
       };
       await page.route("**/api/**", async (route) => {
         const path = new URL(route.request().url()).pathname;
-        if (path === "/api/config/general")
+        if (path === "/api/config/board/existing")
+          await route.fulfill({
+            json: {
+              existing: known
+                ? [{ board_id: "kitchen", name: "Kitchen board", output: "vestaboard", matched: "host" }]
+                : [],
+            },
+          });
+        else if (path === "/api/config/general")
           await route.fulfill({ json: { instance_name: "Example FiestaPi", timezone: "UTC" } });
         else if (path === "/api/outputs/catalog")
           await route.fulfill({
@@ -107,6 +116,21 @@ for (const width of [390, 768, 1280]) {
       await expect(page.getByRole("button", { name: "Finish setup", exact: true })).toBeVisible();
       await shot("review");
       expect(writes).toEqual(["/api/settings/board/add"]);
+      known = true;
+      await page.addInitScript(() =>
+        localStorage.setItem(
+          "fiestaboard_wizard_progress",
+          JSON.stringify({
+            currentStep: 2,
+            outputId: "vestaboard",
+            boardConfig: { output_config: { api_mode: "local", host: "192.0.2.60", local_api_key: "test_key" } },
+          }),
+        ),
+      );
+      await page.reload();
+      await expect(page.getByText("This board is already connected", { exact: true })).toBeVisible();
+      await injectAxe(page);
+      await shot("known-board");
     });
   }
 }
