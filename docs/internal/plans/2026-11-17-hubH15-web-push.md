@@ -4,9 +4,9 @@
 
 **Goal:** Supply the secure backend web push contract needed by web 2.13.
 
-**Architecture:** A private SQLite database owns generated P-256 VAPID material, account-generation consent and browser-session subscriptions. Browser-only routes reuse the existing session, Origin and CSRF gates. A synchronous notifier uses pywebpush cryptography with an HTTPS transport that allowlists browser providers, validates DNS results and pins the connection while preserving TLS hostname checks.
+**Architecture:** A private SQLite database owns generated P-256 VAPID material, account-generation consent and browser-session subscriptions. Browser-only routes reuse the existing session, Origin and CSRF gates. A synchronous notifier uses `pywebpush` cryptography with an HTTPS transport that allowlists browser providers, validates DNS results and pins the connection while preserving TLS hostname checks.
 
-**Tech Stack:** Python, FastAPI/Pydantic, SQLite, pywebpush/cryptography, standard-library HTTPS.
+**Tech Stack:** Python, FastAPI/Pydantic, SQLite, `pywebpush`/cryptography, standard-library HTTPS.
 
 **Spec:** `/Volumes/ExtHD/fiestaboard-universal-design/program/status/hubH15.md`, MASTER-PLAN Phase 3 H15 and shared WEB-SLICE-BRIEF.
 
@@ -28,7 +28,7 @@
 
 ## Decisions
 
-Jev selected `private_sqlite_allowlist_pinned`, probability 0.90 (confidence 0.88), over unrestricted public HTTPS and private JSON. Verify guarantees with tests; probability is advisory. Supported providers initially FCM, Mozilla autopush and Apple web push. A device is a browser session: signing out ends push delivery and signing in again requires subscription registration. Account consent is tied to the existing account generation. No event category policy or frontend is introduced.
+Jev selected `private_sqlite_allowlist_pinned`, probability 0.90 (confidence 0.88), over unrestricted public HTTPS and private JSON. Verify guarantees with tests; probability is advisory. Supported providers initially FCM, Mozilla push service and Apple web push. A device is a browser session: signing out ends push delivery and signing in again requires subscription registration. Account consent is tied to the existing account generation. No event category policy or frontend is introduced.
 
 ### Task 1: Persistence and browser contract
 
@@ -49,7 +49,7 @@ Jev selected `private_sqlite_allowlist_pinned`, probability 0.90 (confidence 0.8
 
 - [ ] Add transport tests for provider URL validation, mixed/private DNS, original TLS hostname with pinned public address, no redirects/proxies, response body not read/logged. Add delivery tests for encryption/VAPID, 404/410 deletion, retryable network/429/5xx statuses, bounded three attempts/backoff, payload/TTL bounds, expiry, consent/session recheck and stale-revision deletion.
 - [ ] Run tests to observe RED.
-- [ ] Implement pywebpush adapter and synchronous bounded notifier; transport times out, errors carry no endpoint/body; check consent before each attempt.
+- [ ] Implement `pywebpush` adapter and synchronous bounded notifier; transport times out, errors carry no endpoint/body; check consent before each attempt.
 - [ ] Run focused tests; commit with required trailer.
 
 ### Task 3: Documentation and verification

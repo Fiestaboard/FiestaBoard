@@ -19,7 +19,15 @@ class UnsafeEndpoint(ValueError):
     pass
 
 
+class DeliveryCancelled(Exception):
+    """Consent, session validity or the delivery deadline changed during I/O."""
+
+
 class PinnedHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, *args, guard=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.guard = guard
+
     def connect(self):
         addresses = socket.getaddrinfo(self.host, 443, type=socket.SOCK_STREAM)
         if not addresses or len(addresses) > 32:
@@ -28,6 +36,8 @@ class PinnedHTTPSConnection(http.client.HTTPSConnection):
             ip = ipaddress.ip_address(address[0])
             if family not in (socket.AF_INET, socket.AF_INET6) or not ip.is_global or ip.is_multicast or ip.is_reserved:
                 raise UnsafeEndpoint("Push provider address unavailable")
+        if self.guard is not None:
+            self.guard()
         family, socktype, protocol, _, address = addresses[0]
         raw = socket.socket(family, socktype, protocol)
         try:
@@ -40,6 +50,9 @@ class PinnedHTTPSConnection(http.client.HTTPSConnection):
 
 
 class PinnedTransport:
+    def __init__(self, guard=None):
+        self.guard = guard
+
     def post(self, url, data, headers, timeout):
         try:
             validate_endpoint(url)
@@ -47,9 +60,14 @@ class PinnedTransport:
             raise UnsafeEndpoint("Unsupported push endpoint") from None
         parts = urlsplit(url)
         connection = PinnedHTTPSConnection(
-            parts.hostname, timeout=min(float(timeout), 5), context=ssl.create_default_context()
+            parts.hostname, timeout=min(float(timeout), 5), context=ssl.create_default_context(), guard=self.guard
         )
         try:
+            # DNS and TLS can block. Check consent/deadlines again after both,
+            # immediately before emitting the request, and refresh provider TTL.
+            connection.connect()
+            if self.guard is not None:
+                headers = {**headers, "ttl": str(self.guard())}
             target = parts.path + ("?" + parts.query if parts.query else "")
             connection.request("POST", target, body=data, headers={**headers, "Host": parts.hostname})
             upstream = connection.getresponse()

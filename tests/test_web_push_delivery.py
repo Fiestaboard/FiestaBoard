@@ -266,10 +266,13 @@ def test_redirect_is_not_followed_and_response_body_not_read(monkeypatch):
             raise AssertionError("Provider bodies must not be read")
 
     class Connection:
-        def __init__(self, host, timeout, context):
+        def __init__(self, host, timeout, context, guard=None):
             assert host == "fcm.googleapis.com"
             assert context.check_hostname
             assert context.verify_mode == transport.ssl.CERT_REQUIRED
+
+        def connect(self):
+            pass
 
         def request(self, method, target, body, headers):
             requests.append((method, target, body, headers))
@@ -317,7 +320,7 @@ def test_test_notification_is_fixed_current_device_only_and_rate_limited(prepare
     other = second_browser()
     monkeypatch.setenv("FIESTABOARD_WEB_PUSH_SUBJECT", "mailto:push@example.com")
     provider = Provider([201])
-    monkeypatch.setattr(notifier_module, "PinnedTransport", lambda: provider)
+    monkeypatch.setattr(notifier_module, "PinnedTransport", lambda **kw: provider)
     result = browser.post("/push/test", json={})
     assert result.status_code == 200
     assert result.json() == {"sent": 1, "failed": 0, "skipped": 0, "expired": 0}
@@ -339,3 +342,99 @@ def test_retry_after_beyond_budget_does_not_retry_early(prepared, auth):
     assert result.skipped == 1
     assert len(provider.deliveries) == 1
     assert sleeps == []
+
+
+def test_unsubscribe_reregister_and_restart_cannot_reset_test_cooldown(
+    prepared, auth, browser, subscription, monkeypatch
+):
+    from src.push import notifier as notifier_module
+    from src.push import store as store_module
+
+    monkeypatch.setenv("FIESTABOARD_WEB_PUSH_SUBJECT", "mailto:push@example.com")
+    provider = Provider([201, 201])
+    monkeypatch.setattr(notifier_module, "PinnedTransport", lambda **kw: provider)
+    assert browser.post("/push/test", json={}).status_code == 200
+    assert browser.delete("/push/subscription").status_code == 200
+    assert register(browser, subscription).status_code == 200
+    monkeypatch.setattr(store_module, "_store", None)
+    assert browser.post("/push/test", json={}).status_code == 429
+    assert len(provider.deliveries) == 1
+
+
+def test_serialized_utf8_payload_must_fit_web_push_record(prepared, auth):
+    provider = Provider([201])
+    with pytest.raises(ValueError, match="payload"):
+        notifier(prepared, auth, provider, []).notify("admin", {"title": "Test", "url": "/" + "😀" * 1023})
+    assert provider.deliveries == []
+
+
+@pytest.mark.parametrize(
+    "phase,action", [("dns", "expire"), ("dns", "revoke"), ("tls", "expire"), ("tls", "revoke"), ("tls", "delay")]
+)
+def test_slow_transport_rechecks_consent_and_refreshes_ttl(prepared, auth, monkeypatch, phase, action):
+    import time
+
+    from src.push import transport
+    from src.push.notifier import PushNotifier
+
+    clock = [time.time_ns() // 1_000_000]
+    delivered = []
+
+    def elapsed(boundary):
+        if boundary != phase:
+            return
+        if action == "expire":
+            clock[0] += 31_000
+        elif action == "revoke":
+            auth.sessions.revoke_session("admin", prepared[1].id)
+        else:
+            clock[0] += 1000
+
+    def resolve(*args, **kwargs):
+        elapsed("dns")
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443))]
+
+    class Wire:
+        def settimeout(self, timeout):
+            pass
+
+        def connect(self, address):
+            pass
+
+        def close(self):
+            pass
+
+    def tls(context, sock, server_hostname):
+        elapsed("tls")
+        return sock
+
+    def request(connection, method, target, body, headers):
+        if connection.sock is None:
+            connection.connect()
+        delivered.append(headers)
+
+    class Accepted:
+        status = 201
+
+        def getheader(self, key):
+            return None
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
+    monkeypatch.setattr(socket, "socket", lambda *a, **kw: Wire())
+    monkeypatch.setattr(transport.ssl.SSLContext, "wrap_socket", tls)
+    monkeypatch.setattr(transport.PinnedHTTPSConnection, "request", request)
+    monkeypatch.setattr(transport.PinnedHTTPSConnection, "getresponse", lambda self: Accepted())
+    sender = PushNotifier(
+        prepared[0],
+        auth,
+        clock_ms=lambda: clock[0],
+        monotonic=lambda: clock[0] / 1000,
+        subject="mailto:push@example.com",
+    )
+    result = sender.notify("admin", {"title": "Test"})
+    if action == "delay":
+        assert result.sent == 1
+        assert int(delivered[0]["ttl"]) == 299
+    else:
+        assert result.skipped == 1
+        assert delivered == []

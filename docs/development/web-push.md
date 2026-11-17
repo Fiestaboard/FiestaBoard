@@ -31,7 +31,7 @@ from `GET /auth/sessions/context`. Responses are `Cache-Control: no-store`.
 | `GET /push/status` | None | Current account/browser consent and public VAPID key |
 | `PUT /push/preferences` | `{"enabled":true}` | Set consent for the signed-in account generation |
 | `PUT /push/subscription` | `{"enabled":true,"subscription":<PushSubscription.toJSON()>}` | Register or replace this browser session's subscription and device consent |
-| `DELETE /push/subscription` | None | Idempotently erase this browser's subscription |
+| `DELETE /push/subscription` | None | Erase this browser's subscription |
 | `POST /push/test` | `{}` | Fixed test text to the current browser only, at most once a minute |
 
 Status has this shape:
@@ -57,7 +57,7 @@ separate from these server flags.
 
 `public_key` is the `applicationServerKey` for `PushManager.subscribe` after
 base64url decoding. Subscription `keys.p256dh` must be an uncompressed P-256 point;
-`keys.auth` is a 16-byte secret, both canonical unpadded base64url. `expirationTime`
+`keys.auth` is a 16-byte secret, both canonical base64url without padding. `expirationTime`
 is an optional integer Unix timestamp in milliseconds. An already expired
 subscription is rejected. Endpoints and encryption keys are never returned.
 
@@ -69,7 +69,7 @@ connects directly to one checked address while TLS verifies the original
 hostname. It follows no redirects and ignores HTTP proxy environment variables.
 
 Requests are limited to 8 KiB, endpoints to 2,048 characters, and subscriptions
-to 20 per account / 100 per install. Invalid input returns a redacted 422;
+to 20 per account / 100 per install. Expired subscriptions return 400; invalid input returns a redacted 422;
 identity failures return 401/403, duplicate endpoint ownership and missing test
 consent return 409, request size returns 413, and capacity/cooldown returns 429.
 Storage/configuration failure or a rejected test delivery returns 503.
@@ -105,9 +105,9 @@ result = PushNotifier(get_push_store(), get_auth_service()).notify(
 The caller owns event selection and deduplication; there is no durable queue.
 Only alert text should be supplied, never board content, credentials, or plugin
 configuration. The payload accepts `title` (1–80 characters), `body` (up to 240),
-a hub-relative `url` (up to 1,024), and `tag` (up to 64). TTL is 1–86,400 seconds.
+a hub-relative `url` (up to 1,024), and `tag` (up to 64). TTL is 1–86,400 seconds. The complete serialized UTF-8 payload must fit in 3,993 bytes.
 Delivery runs synchronously; producers should schedule it outside display/render
-and ASGI event-loop work. At most two calls send concurrently per process.
+and API event-loop work. At most two calls send concurrently per process.
 
 Each subscription gets at most three attempts. Network failures, 429 and 5xx
 responses retry with bounded 1–5 second backoff; other failures do not. Provider
@@ -118,7 +118,7 @@ can extend elapsed time. There is no guarantee of background delivery after a
 process restart. Expired subscriptions and provider 404/410 responses remove the
 matching stored revision; an old response cannot delete a new registration.
 
-Every attempt rechecks account generation, active browser session and both
+After DNS resolution and TLS setup, delivery rechecks consent and deadlines before any HTTP write and refreshes the provider TTL. Every attempt rechecks account generation, active browser session and both
 consent revisions. Opt-out followed by opt-in does not revive an older retry.
 A message already accepted by the provider cannot be recalled by signing out.
 

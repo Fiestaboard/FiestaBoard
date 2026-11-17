@@ -62,6 +62,12 @@ class PushStore:
                 if db.execute("PRAGMA user_version").fetchone()[0] != 1:
                     raise ValueError("Push storage unavailable")
                 self._read_key(db)
+                db.execute("""CREATE TABLE IF NOT EXISTS test_limits (
+                    session_id TEXT PRIMARY KEY, after_ms INTEGER NOT NULL)""")
+                # Additive migration from the enrollment-row cooldown: preserve
+                # existing reservations, including across restart/rollback.
+                db.execute("""INSERT OR IGNORE INTO test_limits
+                    SELECT session_id,test_after_ms FROM subscriptions WHERE test_after_ms>0""")
         finally:
             os.close(fd)
 
@@ -182,6 +188,10 @@ class PushStore:
                 if (row[0], row[1]) not in live:
                     db.execute("DELETE FROM subscriptions WHERE session_id=?", (row[0],))
 
+    def owners(self):
+        with self.transaction() as db:
+            return [row[0] for row in db.execute("SELECT DISTINCT username FROM subscriptions")]
+
     def candidates(self, username):
         with self.transaction() as db:
             return [
@@ -212,11 +222,12 @@ class PushStore:
 
     def reserve_test(self, session, now_ms):
         with self.transaction() as db:
+            db.execute("DELETE FROM test_limits WHERE after_ms<=?", (now_ms,))
             return bool(
                 db.execute(
-                    """UPDATE subscriptions SET test_after_ms=?
-                WHERE session_id=? AND username=? AND generation=? AND test_after_ms<=?""",
-                    (now_ms + 60_000, session.id, session.username, session.account_generation, now_ms),
+                    """INSERT INTO test_limits VALUES (?,?) ON CONFLICT(session_id)
+                    DO UPDATE SET after_ms=excluded.after_ms WHERE test_limits.after_ms<=?""",
+                    (session.id, now_ms + 60_000, now_ms),
                 ).rowcount
             )
 

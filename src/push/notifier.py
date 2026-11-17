@@ -16,7 +16,7 @@ from requests import RequestException
 
 from .models import DeliveryResult, Notification
 from .service import configured_subject
-from .transport import PinnedTransport, UnsafeEndpoint
+from .transport import DeliveryCancelled, PinnedTransport, UnsafeEndpoint
 
 _SEND_SLOTS = threading.BoundedSemaphore(2)
 
@@ -43,7 +43,7 @@ class PushNotifier:
     ):
         self.store = store
         self.auth = auth
-        self.transport = transport or PinnedTransport()
+        self.transport = transport
         self.sleep = sleep
         self.clock_ms = clock_ms or (lambda: time.time_ns() // 1_000_000)
         self.monotonic = monotonic
@@ -66,6 +66,8 @@ class PushNotifier:
         callers pass only server-owned alert text; payloads never enter logs.
         """
         data = Notification.model_validate(payload).model_dump_json()
+        if len(data.encode("utf-8")) > 3993:
+            raise ValueError("Push payload exceeds the encrypted record size limit")
         if type(ttl_seconds) is not int or not 1 <= ttl_seconds <= 86400:
             raise ValueError("Push TTL must be 1..86400 seconds")
         if not self.subject:
@@ -95,6 +97,11 @@ class PushNotifier:
                 return "skipped"
             response = None
             try:
+                transport = (
+                    self.transport
+                    if self.transport is not None
+                    else PinnedTransport(guard=lambda: self._transport_guard(row, expires_ms, deadline))
+                )
                 response = webpush(
                     {"endpoint": row["endpoint"], "keys": {"p256dh": row["p256dh"], "auth": row["auth"]}},
                     data=data,
@@ -102,7 +109,7 @@ class PushNotifier:
                     vapid_claims={"sub": self.subject},
                     ttl=max(1, (expires_ms - now) // 1000),
                     timeout=min(5, deadline - self.monotonic()),
-                    requests_session=self.transport,
+                    requests_session=transport,
                     verbose=False,
                 )
                 status = response.status_code
@@ -111,6 +118,8 @@ class PushNotifier:
                 status = response.status_code if response is not None else 0
             except RequestException:
                 status = 0
+            except DeliveryCancelled:
+                return "skipped"
             except (UnsafeEndpoint, ValueError):
                 return "failed"
             if 200 <= status < 300:
@@ -127,3 +136,14 @@ class PushNotifier:
                 return "skipped"
             self.sleep(delay)
         return "failed"
+
+    def _transport_guard(self, row, expires_ms, deadline):
+        now = self.clock_ms()
+        if (
+            now >= expires_ms
+            or self.monotonic() >= deadline
+            or (row["expires_ms"] is not None and row["expires_ms"] <= now)
+            or not self._authorized(row)
+        ):
+            raise DeliveryCancelled()
+        return max(1, (expires_ms - now) // 1000)

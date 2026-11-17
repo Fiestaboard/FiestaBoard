@@ -67,10 +67,12 @@ def subscribe(session, payload):
         payload.subscription.expirationTime is not None
         and payload.subscription.expirationTime <= time.time_ns() // 1_000_000
     ):
-        raise PushError(422, "Subscription has expired")
+        raise PushError(400, "Subscription has expired")
     with storage_errors():
         store = get_push_store()
-        store.prune(session.username, get_auth_service().sessions.list_sessions(session.username))
+        auth = get_auth_service()
+        for owner in store.owners():
+            store.prune(owner, auth.sessions.list_sessions(owner) if auth.get_user(owner) else [])
         store.subscribe(session, payload)
     return status(session)
 

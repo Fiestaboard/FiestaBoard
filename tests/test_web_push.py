@@ -151,7 +151,7 @@ def test_invalid_browser_keys_rejected_without_echo(browser, subscription, key, 
 
 def test_expired_subscription_and_spoofed_identity_rejected(browser, subscription):
     subscription["expirationTime"] = 1
-    assert register(browser, subscription).status_code == 422
+    assert register(browser, subscription).status_code == 400
     assert browser.put("/push/preferences", json={"enabled": True, "username": "someone"}).status_code == 422
     assert browser.put("/push/preferences", json={"enabled": "true"}).status_code == 422
 
@@ -235,3 +235,24 @@ def test_revoked_sessions_do_not_exhaust_subscription_capacity(browser, auth, su
         )
         store.subscribe(stale, payload)
     assert register(browser, subscription).status_code == 200
+
+
+def test_renamed_account_can_reclaim_its_old_browser_endpoint(browser, auth, subscription):
+    assert register(browser, subscription).status_code == 200
+    auth.change_username("admin", PASSWORD, "renamed")
+    client = TestClient(app)
+    assert client.post("/auth/login", json={"username": "renamed", "password": PASSWORD}).status_code == 200
+    context = client.get("/auth/sessions/context").json()
+    client.headers.update({"Origin": "http://testserver", "X-CSRF-Token": context["csrf_token"]})
+    assert register(client, subscription).status_code == 200
+
+
+def test_redacted_validation_matches_declared_error_schema(browser, subscription):
+    invalid = browser.put("/push/preferences", json={"enabled": "yes"})
+    assert invalid.status_code == 422
+    assert isinstance(invalid.json()["detail"], str)
+    schema = browser.get("/internal/openapi.json").json()
+    response = schema["paths"]["/push/preferences"]["put"]["responses"]["422"]
+    assert response["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/ErrorResponse"}
+    subscription["expirationTime"] = 1
+    assert register(browser, subscription).status_code == 400

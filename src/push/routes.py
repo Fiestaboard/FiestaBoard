@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from starlette.responses import JSONResponse
 
-from src.api_errors import errors
+from src.api_errors import ErrorResponse, errors
 from src.auth.browser_routes import require_browser_mutation, require_browser_session
 
 from . import service
@@ -37,7 +37,7 @@ class PrivatePushRoute(APIRoute):
 
 
 router = APIRouter(prefix="/push", tags=["push"], route_class=PrivatePushRoute)
-RESPONSES = errors(401, 403, 409, 413, 422, 429, 503)
+RESPONSES = errors(400, 401, 403, 409, 413, 422, 429, 503, models={422: ErrorResponse})
 SECURITY = {"security": [{"session": []}]}
 
 
