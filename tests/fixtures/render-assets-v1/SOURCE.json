@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "hub_commit": "9e70b02237695e50f07ba3d28f3cdbc7f3e01ed3",
+  "hub_commit": "66abc72a09d47a5854843c516eaf5e557bba3bb9",
   "capture": "FastAPI TestClient with real middleware, synthetic mobile/TV sessions and vendored assets",
   "recorder": "scripts/record_render_assets.py",
   "source_files_sha256": {
@@ -11,7 +11,7 @@
     "src/fiestaui/character-sets.json": "3f5705bb7746f817e91fc685e65616bb4470aa1496068bf72db994c3de5b6e91",
     "src/fiestaui/provenance.json": "3f8f627962d0ee09a3d16847eb9100aedac2fbe1d96295f82c08a73e33ef32bb",
     "src/auth/middleware.py": "ea4d1172b0422e6f635bd9647a62a53986c9250c9c356b81566dcc198e30efb2",
-    "src/auth/scopes.py": "401a3e730a61306d783a86a1a0b69c517651ce163fff3d4ac44e9aea4a353d49",
+    "src/auth/scopes.py": "5423f8520143ad753402f78667c7a12cd963f1194cade38777875fa3b914d460",
     "scripts/record_render_assets.py": "abb2a46f366d8b309287868aea700bd4f1575042ac69b892faadff6d5ecf5dc8",
     "tests/test_render_assets_contract.py": "55d3c0760d8cdbe22819a897531c9f578a09286492660395e3834757be40fda7"
   },
