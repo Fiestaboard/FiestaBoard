@@ -12,9 +12,10 @@ someone adds them on purpose.
   ``/v1`` API plus the internal routes the phone apps need to show and change
   what a display shows, edit pages and schedules, set up integrations, manage
   TVs and read diagnostics. It never reaches account and credential
-  management, backups, the host (network, update, restart), installing or
-  removing code, or settings that hold third-party secrets (AI keys, MQTT,
-  ``/config/board``). It may approve or deny a TV's sign-in code (H11), but
+  management, backups, the host (network, update, restart), installing code
+  from a Git URL, or settings that hold third-party secrets (AI keys, MQTT,
+  ``/config/board``). Registry plugin install, update and uninstall are tier 2
+  (H21c). It may approve or deny a TV's sign-in code (H11), but
   never create pairing codes for other phones (``/auth/pairing``). It may
   list and sign out the account's TVs (H10b), never browsers or phones.
 
@@ -181,6 +182,8 @@ CONTROL_RULES = (
         ("GET,POST", "/plugins/{}/instances"),
         ("DELETE", "/plugins/{}/instances/{}"),
         ("POST", "/plugins/{}/options/{}"),
+        # H21c tier 1: ask the plugin sources whether updates exist. Changes no code.
+        ("POST", "/plugins/updates/check"),
         ("GET", "/home-assistant/entities"),
         ("GET", "/oauth/connections"),
         ("GET,DELETE", "/oauth/connections/{}"),
@@ -222,7 +225,14 @@ CONTROL_RULES = (
 
 # H21s tier 2: reachable by ``control`` only with a live step-up elevation.
 # Each ticket that widens the phone (H21c, H21d) adds its rows here, with a test.
-CONTROL_STEP_UP_RULES: tuple[Rule, ...] = ()
+CONTROL_STEP_UP_RULES: tuple[Rule, ...] = _rules(
+    # H21c: plugin lifecycle from the curated registry. Install from a Git URL
+    # (POST /plugins/install) runs arbitrary code and stays browser-only.
+    ("POST", "/plugins/registry/{}/install"),
+    ("POST", "/plugins/{}/update"),
+    ("POST", "/plugins/updates/apply"),
+    ("DELETE", "/plugins/{}/uninstall"),
+)
 
 _RULES = {TV_PANELS: TV_PANELS_RULES, CONTROL: CONTROL_RULES}
 
