@@ -1528,7 +1528,7 @@ export function InstalledPluginRow({
                       {t("environmentVariablesSection")}
                     </Heading>
                     <Box className="rounded-md border overflow-hidden">
-                      <Table className="text-xs">
+                      <Table className="text-xs focus-ring" tabIndex={0} aria-label={t("environmentVariablesSection")}>
                         <TableHeader className="bg-muted/50">
                           <TableRow>
                             <TableHead className="text-left px-3 py-2 font-medium h-auto">

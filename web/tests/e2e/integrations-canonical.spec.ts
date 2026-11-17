@@ -171,7 +171,13 @@ for (const width of [390, 768, 1280]) {
               config: { stop: configured ? "Museum" : "Central" },
               settings_schema: { type: "object", properties: { stop: { type: "string", title: "Stop" } } },
               variables: { simple: { next_title: { description: "Next departure", max_length: 40 } } },
-              env_vars: [],
+              env_vars: [
+                {
+                  name: "CX_TRANSIT_STOP_NAME",
+                  description: "Name of the transit stop to display (can also be set in Settings)",
+                  required: false,
+                },
+              ],
               documentation:
                 "# CX integration guide\n\nUse this integration in your pages.\n\n[Setup guide](docs/SETUP.md)\n\n```\n{{cx-transit.next_title}}\n```",
             },
@@ -239,6 +245,11 @@ for (const width of [390, 768, 1280]) {
           .locator('[data-slot="list-row-trailing"]')
           .click();
         await expect(settings.getByLabel("Stop", { exact: true })).toHaveValue("Central");
+        const environmentTable = settings.getByRole("table", { name: "Environment Variables", exact: true });
+        await settings.getByLabel("Stop", { exact: true }).focus();
+        await page.keyboard.press("Tab");
+        await expect(environmentTable).toBeFocused();
+        await expectAccessible(page, colorScheme);
         await capture(page, "detail-setup", width, colorScheme);
         if (width >= 768) {
           await page.goto("/integrations/cx-transit?from=installed");
