@@ -78,7 +78,7 @@ test.describe("regression: pages.edit", () => {
     const id = await createPage("Dirty Test", ["A", "", "", "", "", ""]);
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
-    await page.locator("textarea").first().fill("MODIFIED\n\n\n\n\n");
+    await page.getByRole("textbox", { name: "Template", exact: true }).fill("MODIFIED\n\n\n\n\n");
     const exportBtn = page.getByRole("button", { name: "Export Page" });
     await expect(exportBtn).toBeDisabled({ timeout: 5_000 });
   });
@@ -90,7 +90,7 @@ test.describe("regression: pages.edit", () => {
     const id = await createPage("Dirty Mark", ["A", "", "", "", "", ""]);
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
-    await page.locator("textarea").first().fill("CHANGED\n\n\n\n\n");
+    await page.getByRole("textbox", { name: "Template", exact: true }).fill("CHANGED\n\n\n\n\n");
     const saveBtn = page.getByRole("button", { name: "Save Page" });
     await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
   });
@@ -109,7 +109,7 @@ test.describe("regression: pages.edit", () => {
     });
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
-    await page.locator("textarea").first().fill("CHANGED\n\n\n\n\n");
+    await page.getByRole("textbox", { name: "Template", exact: true }).fill("CHANGED\n\n\n\n\n");
     const saveBtn = page.getByRole("button", { name: "Save Page" });
     await saveBtn.click();
     await expect(saveBtn).toBeDisabled({ timeout: 5_000 });
@@ -127,7 +127,7 @@ test.describe("regression: pages.edit", () => {
     });
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
-    await page.locator("textarea").first().fill("X\n\n\n\n\n");
+    await page.getByRole("textbox", { name: "Template", exact: true }).fill("X\n\n\n\n\n");
     await page.getByRole("button", { name: "Save Page" }).click();
     await expect(page.locator("[data-sonner-toast]").first()).toBeVisible({ timeout: 10_000 });
   });
@@ -137,7 +137,7 @@ test.describe("regression: pages.edit", () => {
     const id = await createPage("Save Ok", ["A", "", "", "", "", ""]);
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
-    await page.locator("textarea").first().fill("SAVED\n\n\n\n\n");
+    await page.getByRole("textbox", { name: "Template", exact: true }).fill("SAVED\n\n\n\n\n");
     await page.getByRole("button", { name: "Save Page" }).click();
     await expect(page.getByText(/^Saved \d/)).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(new RegExp(`/pages/edit/${id}$`));

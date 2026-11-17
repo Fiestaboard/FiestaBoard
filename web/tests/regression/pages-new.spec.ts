@@ -22,7 +22,7 @@ test.describe("regression: pages.new", () => {
   test("pages.new.line-count-warning — over-line-count entry surfaces banner", async ({ page }) => {
     await page.goto("/pages/new?device=note");
     await page.getByRole("button", { name: "Plain Text", exact: true }).click();
-    const textarea = page.locator("textarea").first();
+    const textarea = page.getByRole("textbox", { name: "Template", exact: true });
     await textarea.fill("L1\nL2\nL3\nL4\nL5\nL6\nL7");
     await expect(page.getByText(/Template has \d+ lines but the board only displays \d+/)).toBeVisible({
       timeout: 5_000,
@@ -37,7 +37,7 @@ test.describe("regression: pages.new", () => {
   test("pages.new.wrap-budget-warning — editor renders without crashing for long content", async ({ page }) => {
     await page.goto("/pages/new");
     await page.getByRole("button", { name: "Plain Text", exact: true }).click();
-    const textarea = page.locator("textarea").first();
+    const textarea = page.getByRole("textbox", { name: "Template", exact: true });
     // Fill with content that would trip wrap-budget heuristics — saturated text
     // on every line with no empty/wrap line below.
     const longLine = "X".repeat(22);
@@ -53,7 +53,7 @@ test.describe("regression: pages.new", () => {
     const plainBtn = page.getByRole("button", { name: "Plain Text", exact: true });
     await plainBtn.click();
     await expect(plainBtn).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("textarea").first()).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Template", exact: true })).toBeVisible();
     const stored = await page.evaluate(() => localStorage.getItem("fiestaboard_editor_mode"));
     expect(stored).toBe("plain");
   });
