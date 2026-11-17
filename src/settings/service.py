@@ -1654,7 +1654,8 @@ class SettingsService:
         """Reload this live owner after restore without changing its lock."""
         self.runtime_revision = str(uuid.uuid4())
         self._override_undo_receipts = {}
-        self._override_mutations_pending = 0
+        # Restore/reload must not forget a manual writer already in flight.
+        self._override_mutations_pending = getattr(self, "_override_mutations_pending", 0)
         self._needs_seed_save = False
         # Run ordered schema migrations on the raw settings file BEFORE any
         # subsystem reads, so every _load_* sees fully migrated values. This

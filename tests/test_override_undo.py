@@ -330,3 +330,15 @@ def test_cold_preview_config_bootstrap_conservatively_refuses_receipt(http, stor
     assert (
         http.post("/settings/temporary-override/undo", json={"board_id": "a", "undo_token": token}).status_code == 409
     )
+
+
+def test_reload_does_not_forget_an_in_flight_manual_writer(store):
+    store.begin_override_mutation()
+    store.reload()
+    start(store)
+    _, token, _ = cancel(store)
+    with pytest.raises(ValueError, match="in progress"):
+        restore(store, token)
+    store.finish_override_mutation(success=True)
+    with pytest.raises(ValueError):
+        restore(store, token)
