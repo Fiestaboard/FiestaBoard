@@ -564,6 +564,7 @@ OPENAPI_TAGS = [
     {"name": "backup", "description": "Export and import the whole install as one file."},
     {"name": "mqtt", "description": "MQTT / Home Assistant discovery status and republish."},
     {"name": "auth", "description": "Optional login, password/username management and MCP bearer tokens."},
+    {"name": "push", "description": "Web push enrollment, account and browser consent, and test notifications."},
     {
         "name": "oauth",
         "description": "OAuth sign-in for plugins: connection status, starting a flow, and the relay callback.",
