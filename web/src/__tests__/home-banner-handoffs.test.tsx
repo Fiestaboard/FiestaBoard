@@ -155,8 +155,24 @@ it("uses the expected page in Home's out-of-sync banner with one recovery action
 vi.mock("@/components/wizard-provider", () => ({ useWizard: () => ({ triggerWizard: vi.fn() }) }));
 it("disables header Compose during hub loss and has one standing silence banner", async () => {
   const { default: Home } = await import("../../app/routes/home");
+  server.use(
+    http.get("/api/settings/board", () =>
+      HttpResponse.json({
+        boards: [
+          {
+            id: "default",
+            name: "Configured Flagship",
+            device_type: "flagship",
+            output: "vestaboard",
+            output_config: { host: "192.0.2.60", local_api_key: "test-key" },
+          },
+        ],
+      }),
+    ),
+  );
   connection.hubReachable = false;
   const view = render(<Home />, { wrapper: Wrapper });
+  await screen.findByText("Now showing · Configured Flagship");
   expect(screen.getByRole("button", { name: "Compose a message" })).toBeDisabled();
   view.unmount();
   connection.hubReachable = true;
