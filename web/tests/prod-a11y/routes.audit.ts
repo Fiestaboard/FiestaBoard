@@ -144,6 +144,7 @@ test.beforeEach(async ({ page, context }, testInfo) => {
 
 test.afterEach(async ({ page }, testInfo) => {
   const ledger = networks.get(page);
+  const expectedErrors = ledger?.expectedErrors ?? new Set<string>();
   await attachJson(testInfo, "browser-network.json", {
     blocked: ledger?.blocked ?? [],
     failed: ledger?.failed ?? [],
@@ -166,7 +167,7 @@ test.afterEach(async ({ page }, testInfo) => {
   expect(ledger?.failed ?? [], "A failed HTTP request invalidates this survey state").toEqual([]);
   expect(
     ledger?.apiResponses.filter(
-      ({ path, status }) => status >= 300 && !ledger.expectedErrors.has(`${path}:${status}`),
+      ({ path, status }) => status >= 300 && !expectedErrors.has(`${path}:${status}`),
     ) ?? [],
     "Unexpected API errors also invalidate the final captured state",
   ).toEqual([]);
@@ -238,9 +239,13 @@ for (const scenario of routes) {
       assertEmpty(observed["/api/v1/collections"], "collections");
     }
     await expect(page.getByRole("heading", { name: scenario.title, exact: true }).first()).toBeVisible();
-    await expect(page.getByText(scenario.marker, { exact: true })).toBeVisible();
     if (scenario.path === "/debug") {
+      // PageHeader repeats this copy as its description; the final content
+      // marker is specifically the tombstone heading, not either text node.
+      await expect(page.getByRole("heading", { name: scenario.marker, exact: true })).toBeVisible();
       await expect(page.getByText("docker logs fiestaboard", { exact: true })).toBeVisible();
+    } else {
+      await expect(page.getByText(scenario.marker, { exact: true })).toBeVisible();
     }
     await settledNetwork(page);
     await auditDocument(page, testInfo, {
