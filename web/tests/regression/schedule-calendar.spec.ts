@@ -32,6 +32,7 @@ test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
   await loginIfNeeded(context);
   await configureBoard();
+  await deleteAllSchedules();
   await page.addInitScript(() => {
     localStorage.setItem("fiestaboard_wizard_complete", "true");
   });
@@ -71,6 +72,8 @@ test.describe("regression: schedule.calendar", () => {
     const schedId = await createSchedule(pageId, "09:00", "10:00", "weekdays");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     const event = page.locator(`[data-testid="calendar-event-${schedId}"]`).first();
     await expect(event).toBeVisible({ timeout: 15_000 });
     await expect(event).toHaveAttribute("data-enabled", "true");
@@ -99,20 +102,20 @@ test.describe("regression: schedule.calendar", () => {
     await page.addInitScript(() => {
       localStorage.setItem("schedule-view-mode", "calendar");
     });
+    const pageId = await createPage("Retained calendar target");
+    await createSchedule(pageId, "09:00", "10:00");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     // Find the zoom slider (Radix Slider exposes role="slider")
-    const slider = page.getByRole("slider").first();
-    if (await slider.isVisible().catch(() => false)) {
-      await slider.focus();
-      // Bump the slider value with arrow keys (deterministic across themes).
-      await page.keyboard.press("ArrowRight");
-      await page.keyboard.press("ArrowRight");
-      const stored = await page.evaluate(() => localStorage.getItem("schedule-calendar-zoom"));
-      expect(stored).not.toBeNull();
-    } else {
-      test.skip(true, "zoom slider not rendered in this calendar variant");
-    }
+    const slider = page.locator(".schedule-calendar-container").getByRole("slider").first();
+    await expect(slider).toBeVisible();
+    await slider.focus();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowRight");
+    const stored = await page.evaluate(() => localStorage.getItem("schedule-calendar-zoom"));
+    expect(stored).not.toBeNull();
   });
 
   /**
@@ -147,8 +150,12 @@ test.describe("regression: schedule.calendar", () => {
         body: JSON.stringify({ sunrise: "06:30", sunset: "19:00", location_configured: true }),
       }),
     );
+    const pageId = await createPage("Retained calendar target");
+    await createSchedule(pageId, "09:00", "10:00");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     await expect(page.locator(".rbc-calendar").first()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -179,8 +186,12 @@ test.describe("regression: schedule.calendar", () => {
       }
       await route.continue();
     });
+    const pageId = await createPage("Retained calendar target");
+    await createSchedule(pageId, "09:00", "10:00");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     // react-big-calendar drag is intentionally not simulated here (flaky);
     // we verify the mutation endpoint hook is wired and the calendar mounts.
     await expect(page.locator(".rbc-calendar").first()).toBeVisible({ timeout: 15_000 });
@@ -209,8 +220,12 @@ test.describe("regression: schedule.calendar", () => {
       }
       return route.continue();
     });
+    const pageId = await createPage("Retained calendar target");
+    await createSchedule(pageId, "09:00", "10:00");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     await expect(page.locator(".rbc-calendar").first()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -239,6 +254,8 @@ test.describe("regression: schedule.calendar", () => {
     const schedId = await createSchedule(pageId, "09:00", "10:00", "weekdays", undefined, { enabled: false });
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     const event = page.locator(`[data-testid="calendar-event-${schedId}"]`).first();
     await expect(event).toBeVisible({ timeout: 15_000 });
     await expect(event).toHaveAttribute("data-enabled", "false");
@@ -265,6 +282,8 @@ test.describe("regression: schedule.calendar", () => {
     const schedB = await createSchedule(pageId, "10:00", "12:00", "weekdays");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     const eventA = page.locator(`[data-testid="calendar-event-${schedA}"]`).first();
     const eventB = page.locator(`[data-testid="calendar-event-${schedB}"]`).first();
     await expect(eventA).toBeVisible({ timeout: 15_000 });
@@ -301,6 +320,8 @@ test.describe("regression: schedule.calendar", () => {
     const schedId = await createSchedule(pageId, "22:00", "02:00", "weekdays");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     const evening = page.locator(`[data-testid="calendar-event-${schedId}"][data-split="evening"]`).first();
     await expect(evening).toBeVisible({ timeout: 15_000 });
   });
@@ -329,6 +350,8 @@ test.describe("regression: schedule.calendar", () => {
     const schedId = await createSchedule(pageId, "22:00", "02:00", "weekdays");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     const morning = page.locator(`[data-testid="calendar-event-${schedId}"][data-split="morning"]`).first();
     await expect(morning).toBeVisible({ timeout: 15_000 });
   });
@@ -356,8 +379,12 @@ test.describe("regression: schedule.calendar", () => {
     await page.addInitScript(() => {
       localStorage.setItem("schedule-view-mode", "calendar");
     });
+    const pageId = await createPage("Retained calendar target");
+    await createSchedule(pageId, "09:00", "10:00");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     await expect(page.locator(".rbc-calendar").first()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -381,8 +408,12 @@ test.describe("regression: schedule.calendar", () => {
     await page.addInitScript(() => {
       localStorage.setItem("schedule-view-mode", "calendar");
     });
+    const pageId = await createPage("Retained calendar target");
+    await createSchedule(pageId, "09:00", "10:00");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
     const container = page.locator(".rbc-calendar, [data-slot=skeleton]").first();
     await expect(container).toBeVisible({ timeout: 15_000 });
   });
@@ -406,8 +437,8 @@ test.describe("regression: schedule.calendar", () => {
     });
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    const cal = page.locator(".rbc-calendar").first();
-    await expect(cal).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("No schedules created yet", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add Schedule", exact: true }).first()).toBeVisible();
   });
 });
 
