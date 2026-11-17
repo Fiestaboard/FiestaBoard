@@ -22,6 +22,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi.responses import JSONResponse
 
 from src.api_errors import errors
 from src.auth import phone_policy
@@ -83,10 +84,13 @@ async def import_backup(
     if reinstall_plugins and phone_policy.is_phone(request):
         # H21d: re-cloning plugins from a backup runs code from the file's Git
         # URLs, which stays browser-only. A phone restores with it off.
-        raise HTTPException(
+        return JSONResponse(
+            {
+                "error": "browser_only",
+                "detail": "Reinstalling plugins from a backup is only available in the web app. "
+                "Send reinstall_plugins=false to restore from this phone.",
+            },
             status_code=400,
-            detail="Reinstalling plugins from a backup is only available in the web app. "
-            "Send reinstall_plugins=false to restore from this phone.",
         )
 
     # ``exclude_unset`` keeps the document byte-for-byte what was uploaded:

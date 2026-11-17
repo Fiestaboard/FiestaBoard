@@ -250,7 +250,8 @@ A phone credential **cannot**:
 - export a backup with its secrets, or reinstall plugins while restoring a backup;
 - change the update channel, turn automatic updates on or off, or roll back an update;
 - install plugins from a Git URL, or install outputs;
-- read stored secrets, or change MQTT settings;
+- read stored secrets, or change MQTT settings (except by restoring a backup, which needs
+  step-up);
 - move an AI provider or a display to new connection settings without typing its key
   again.
 

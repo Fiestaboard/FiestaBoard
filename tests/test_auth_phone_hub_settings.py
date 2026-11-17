@@ -117,6 +117,20 @@ def calls(monkeypatch):
     return record
 
 
+@pytest.fixture(autouse=True)
+def no_provider_calls(monkeypatch):
+    """The model list and provider test answer from stubs; nothing leaves the process."""
+
+    async def list_models(provider):
+        return [{"id": "m1", "name": "m1"}]
+
+    async def test_provider(provider, model=None):
+        return {"ok": True, "message": "stubbed", "model_used": model}
+
+    monkeypatch.setattr("src.ai.generator.list_models", list_models)
+    monkeypatch.setattr("src.ai.generator.test_provider", test_provider)
+
+
 @pytest.fixture
 def config(tmp_path, monkeypatch):
     cm = ConfigManager(config_path=str(tmp_path / "config.json"))
@@ -191,6 +205,8 @@ def minimal_backup():
 def test_tier_one_needs_no_step_up(phone, method, path, body):
     response = phone.request(method, path, json=body)
     assert response.status_code not in (401, 403), (path, response.status_code, response.text)
+    if path.startswith(("/settings/ai", "/config/general")):
+        assert response.status_code == 200, (path, response.text)
 
 
 @pytest.mark.parametrize(("method", "path", "body"), TIER2)
@@ -311,6 +327,23 @@ def test_editing_in_place_keeps_masked_secrets(phone, config):
     assert stored["api_key"] == SECRET_KEY and stored["headers"] == {"X-Org": SECRET_HEADER}
 
 
+@pytest.mark.parametrize("protocol", [None, "openai", "an-unknown-protocol"])
+def test_an_explicit_default_protocol_is_not_a_move(phone, config, monkeypatch, protocol):
+    stored = config.get_ai_providers()
+    stored["providers"][0].pop("protocol")
+    monkeypatch.setattr(config, "get_ai_providers", lambda: stored)
+    step_up(phone)
+    update = provider_update(name="Acme 3")
+    update["providers"][0]["protocol"] = protocol
+    assert phone.put("/settings/ai", json=update).status_code == 200
+
+
+def test_changing_a_sign_in_preset_needs_the_key(phone, config):
+    step_up(phone)
+    response = phone.put("/settings/ai", json=provider_update(sign_in={"preset": "other"}))
+    assert response.status_code == 400 and response.json()["error"] == "key_required"
+
+
 def test_browser_is_not_held_to_key_re_entry(browser, config):
     update = provider_update(base_url="https://other.example.org/v1", headers={"X-Org": SECRET_HEADER})
     assert browser.put("/settings/ai", json=update).status_code == 200
@@ -378,7 +411,8 @@ def test_phone_import_never_reinstalls_plugins(phone, backups, monkeypatch):
     monkeypatch.setattr(backups, "import_from_dict", lambda doc, reinstall_plugins: seen.append(reinstall_plugins))
     step_up(phone)
     refused = phone.post("/backup/import", json=minimal_backup())  # reinstall_plugins defaults to true
-    assert refused.status_code == 400 and "web app" in refused.json()["detail"]
+    assert refused.status_code == 400 and refused.json()["error"] == "browser_only"
+    assert "web app" in refused.json()["detail"]
     refused = phone.post("/backup/import?reinstall_plugins=true", json=minimal_backup())
     assert refused.status_code == 400
     assert seen == []
@@ -390,6 +424,8 @@ def test_redaction_masks_nested_secrets():
             "a": {"refresh_token": "x", "nested": {"client_secret": "y", "Authorization": "z"}},
             "headers": {"X-Anything": "w"},
             "list": [{"password": "v"}],
+            "oauth": {"tokens": {"value": "u", "expires": 5}},
+            "client_id": "registered-app",
             "count": 3,
             "api_key_set": True,
         }
@@ -398,9 +434,38 @@ def test_redaction_masks_nested_secrets():
         "a": {"refresh_token": "***", "nested": {"client_secret": "***", "Authorization": "***"}},
         "headers": {"X-Anything": "***"},
         "list": [{"password": "***"}],
+        "oauth": {"tokens": {"value": "***", "expires": 5}},
+        "client_id": "***",
         "count": 3,
         "api_key_set": True,
     }
+
+
+def test_redaction_keeps_ordinary_settings():
+    kept = {"author": "Ana", "keywords": ["news"], "authority": "x", "session_count": 2, "city": "Paris"}
+    assert phone_policy.redact(kept) == kept
+
+
+def test_redaction_masks_display_secrets_by_their_output_schema(monkeypatch):
+    # An output whose secret is called something no name rule would catch.
+    def mask_config(output_id, config):
+        return {**config, "pairing_word": "***"} if config.get("pairing_word") else config
+
+    monkeypatch.setattr("src.outputs.config_hooks.mask_config", mask_config)
+    backup = {"data": {"settings": {"board": {"boards": [{"output": "x", "output_config": {"pairing_word": "s3"}}]}}}}
+    redacted = phone_policy.redact_backup(backup)
+    assert "s3" not in json.dumps(redacted)
+    assert backup["data"]["settings"]["board"]["boards"][0]["output_config"]["pairing_word"] == "s3"
+
+
+def test_redaction_fails_closed_when_an_output_cannot_mask(monkeypatch):
+    def broken(output_id, config):
+        raise RuntimeError("plugin failed")
+
+    monkeypatch.setattr("src.outputs.config_hooks.mask_config", broken)
+    backup = {"data": {"settings": {"board": {"boards": [{"output": "x", "output_config": {"word": "s3", "n": 1}}]}}}}
+    config = phone_policy.redact_backup(backup)["data"]["settings"]["board"]["boards"][0]["output_config"]
+    assert config == {"word": "***", "n": 1}
 
 
 def test_table_rows():
