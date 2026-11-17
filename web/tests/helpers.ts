@@ -952,6 +952,9 @@ export async function addVestaboardDisplay(page: Page, shape: "Flagship" | "Note
     expect(board).toBeDefined();
     await expect(dialog).toHaveCount(0);
     await expect(page).toHaveURL(new RegExp(`/displays/${encodeURIComponent(board.id)}$`));
+    // The URL can update while the previous display's tabs are still mounted.
+    // Await this board's content before callers interact with its Settings tab.
+    await expect(page.getByTestId("board-card").getByTestId("board-name-input")).toHaveValue(name);
     return board.id;
   } finally {
     await page.unroute(draftRoute, handleDraft);
