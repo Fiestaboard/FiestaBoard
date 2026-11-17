@@ -1279,10 +1279,14 @@ class ConfigManager:
         Returns:
             True if settings were saved successfully, False otherwise.
         """
+        renamed = False
         try:
             with self._file_lock:
                 if "general" not in self._config:
                     self._config["general"] = {}
+                renamed = "instance_name" in settings and settings["instance_name"] != self._config["general"].get(
+                    "instance_name"
+                )
 
                 for key, value in settings.items():
                     if key in DEFAULT_CONFIG.get("general", {}):
@@ -1297,7 +1301,7 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"Failed to update general settings: {e}")
             return False
-        if "instance_name" in settings:
+        if renamed:
             _refresh_mdns_advertisement()
         return True
 

@@ -286,8 +286,10 @@ credential as a password sign-in, listed in **Signed-in devices** as a QR / code
   proxy on a sub-path isn't supported here); a value that isn't is logged once and
   skipped. In a bridged Docker or Podman container the hub's own LAN address is the
   container's, whatever its range, so it's left out; with host networking
-  (`network_mode: host`, `--network host`) it's kept. If you removed Docker's or
-  Podman's default bridge (`docker0`, `podman0`), set `FIESTABOARD_EXTERNAL_URL` instead.
+  (`network_mode: host`, `--network host`) it's kept. Some setups read as bridged even
+  though the address is reachable: a container on a macvlan or ipvlan network, rootless
+  Podman with `--network host`, or a host with Docker's or Podman's default bridge
+  (`docker0`, `podman0`) removed. In those, set `FIESTABOARD_EXTERNAL_URL`.
 
 The endpoints are `POST /auth/pairing` (browser session), `GET /auth/pairing/{id}`,
 `DELETE /auth/pairing` and `POST /auth/pairing/claim` (the app).

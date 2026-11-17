@@ -192,6 +192,9 @@ def test_renaming_the_hub_schedules_a_refresh(tmp_path, monkeypatch):
     assert calls == []
     assert manager.set_general({"instance_name": "Office"})
     assert calls == ["refresh"]
+    # The settings form sends the whole block: an unchanged name is not a rename.
+    assert manager.set_general({"instance_name": "Office", "timezone": "UTC"})
+    assert calls == ["refresh"]
 
 
 def test_changing_the_sign_in_preference_schedules_a_refresh(tmp_path, monkeypatch):
@@ -204,3 +207,62 @@ def test_changing_the_sign_in_preference_schedules_a_refresh(tmp_path, monkeypat
     service.set_auth_preference("disabled")
 
     assert calls == ["refresh"]
+
+
+def test_creating_the_first_account_schedules_a_refresh(tmp_path, monkeypatch):
+    """POST /auth/setup turns sign-in on: the name must leave the air."""
+    from src.auth.service import AuthService
+
+    calls = []
+    monkeypatch.setattr(mdns_module, "refresh_mdns_advertisement", lambda: calls.append("refresh"))
+    service = AuthService(tmp_path / "auth.json")
+
+    service.create_initial_user("admin", "a-long-test-password-1")
+
+    assert calls == ["refresh"]
+
+
+def test_turning_sign_in_off_for_the_user_schedules_a_refresh(tmp_path, monkeypatch):
+    """POST /auth/disable turns sign-in off."""
+    from src.auth.service import AuthService
+
+    calls = []
+    monkeypatch.setattr(mdns_module, "refresh_mdns_advertisement", lambda: calls.append("refresh"))
+    service = AuthService(tmp_path / "auth.json")
+    service.create_initial_user("admin", "a-long-test-password-1")
+    calls.clear()
+
+    service.disable_auth_for_user("admin", "a-long-test-password-1")
+
+    assert calls == ["refresh"]
+
+
+def test_a_wrong_password_turns_nothing_off_and_refreshes_nothing(tmp_path, monkeypatch):
+    from src.auth.service import AuthService, InvalidCredentials
+
+    calls = []
+    monkeypatch.setattr(mdns_module, "refresh_mdns_advertisement", lambda: calls.append("refresh"))
+    service = AuthService(tmp_path / "auth.json")
+    service.create_initial_user("admin", "a-long-test-password-1")
+    calls.clear()
+
+    with pytest.raises(InvalidCredentials):
+        service.disable_auth_for_user("admin", "wrong-password-xx")
+    with pytest.raises(InvalidCredentials):
+        service.disable_auth_for_user("nobody", "a-long-test-password-1")
+
+    assert calls == []
+
+
+def test_a_change_during_registration_is_caught_up_once_registered(general, sign_in_off, zeroconf):
+    """The record is built before the blocking registration; a rename in that
+    window finds nothing running, so the background start refreshes once after."""
+
+    def rename_while_registering(info):
+        general["instance_name"] = "Office"
+
+    zeroconf.register_service.side_effect = rename_while_registering
+
+    mdns_module.start_mdns_background().join(5)
+
+    assert _txt(mdns_module.get_mdns_service())["name"] == "Office"

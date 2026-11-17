@@ -17,8 +17,9 @@ first, and never a loopback one:
    told by Docker's ``/.dockerenv`` or Podman's ``/run/.containerenv``; a
    bridged one from ``network_mode: host`` by the host's ``docker0`` /
    ``podman0`` interface: visible in a host-network container, absent in a
-   bridged one. (A host with that default bridge removed reads as bridged;
-   set ``FIESTABOARD_EXTERNAL_URL`` there.)
+   bridged one. (A host with that default bridge removed, a macvlan/ipvlan
+   network, or rootless Podman with host networking reads as bridged; set
+   ``FIESTABOARD_EXTERNAL_URL`` there.)
 """
 
 from __future__ import annotations

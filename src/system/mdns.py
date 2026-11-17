@@ -181,7 +181,7 @@ class MDNSService:
         """Unregister and shut down the mDNS service."""
         if not self._started:
             return
-        # Not taken before the check above: stop_mdns() must not wait on an in-flight registration.
+        # The lock only orders this against a TXT refresh still on the air.
         with self._lock:
             self._stop_locked()
 
@@ -292,6 +292,12 @@ def start_mdns_background(on_registered: Callable[[str], None] | None = None) ->
             # that is going away.
             stop_mdns()
             return
+        # A rename or sign-in change during the (blocking) registration found
+        # nothing running to refresh; catch it up now. A no-op when unchanged.
+        try:
+            get_mdns_service().refresh()
+        except Exception:
+            logger.warning("Could not update the mDNS TXT record", exc_info=True)
         if on_registered is not None:
             try:
                 on_registered(get_mdns_service().local_url)

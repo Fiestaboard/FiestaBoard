@@ -458,13 +458,7 @@ class AuthService:
             else:
                 self._data["auth_pref"] = preference
             self._save()
-        # The mDNS TXT carries the hub's name only while sign-in is off (H13 PR 3).
-        try:
-            from src.system.mdns import refresh_mdns_advertisement
-
-            refresh_mdns_advertisement()
-        except Exception:
-            logger.debug("Could not schedule an mDNS TXT refresh", exc_info=True)
+        _announce_sign_in_change()
 
     # -- MCP bearer token --------------------------------------------------
 
@@ -528,6 +522,7 @@ class AuthService:
             # persist it so the install no longer counts as undecided.
             self._data["auth_pref"] = "enabled"
             self._save()
+        _announce_sign_in_change()
 
     def change_username(self, current_username: str, password: str, new_username: str) -> str:
         """Rename the current user, gated by their password.
@@ -626,8 +621,10 @@ class AuthService:
                     self._data["auth_pref"] = "disabled"
                     self._save()
                     self.sessions.revoke_sessions(username)
-                    return
-            raise InvalidCredentials("Unknown user")
+                    break
+            else:
+                raise InvalidCredentials("Unknown user")
+        _announce_sign_in_change()
 
     # -- auth flow ---------------------------------------------------------
 
@@ -780,3 +777,18 @@ def _reset_for_tests() -> None:
     global _service
     with _service_lock:
         _service = None
+
+
+def _announce_sign_in_change() -> None:
+    """Re-announce the mDNS TXT record after the sign-in mode may have changed.
+
+    The record carries the hub's name only while sign-in is off (H13 PR 3), so
+    every writer of ``auth_pref`` calls this, after releasing its lock. It only
+    schedules a daemon thread and never fails the caller.
+    """
+    try:
+        from src.system.mdns import refresh_mdns_advertisement
+
+        refresh_mdns_advertisement()
+    except Exception:
+        logger.debug("Could not schedule an mDNS TXT refresh", exc_info=True)
