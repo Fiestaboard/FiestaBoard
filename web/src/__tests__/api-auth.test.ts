@@ -197,3 +197,23 @@ describe("api auth helpers", () => {
     });
   });
 });
+
+describe("owner password recovery", () => {
+  it("posts the one-time code without following redirects or caching the secret", async () => {
+    let submitted: unknown;
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    server.use(
+      http.post("/api/auth/password-reset", async ({ request }) => {
+        submitted = await request.json();
+        return HttpResponse.json({ status: "ok" });
+      }),
+    );
+    await api.resetPassword("fb_reset_private", "new password");
+    expect(submitted).toEqual({ code: "fb_reset_private", new_password: "new password" });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/auth/password-reset",
+      expect.objectContaining({ redirect: "error", cache: "no-store", credentials: "same-origin" }),
+    );
+    fetchSpy.mockRestore();
+  });
+});

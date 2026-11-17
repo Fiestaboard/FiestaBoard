@@ -11,3 +11,5 @@ package-lock.json
 .vercel/
 test-results/
 playwright-report/
+
+.vite-layout/

@@ -42,7 +42,7 @@ within an hour without needing a restart.
 
 FiestaBoard uses a small companion container called `fiestaupdater`. It sits on the same Docker Compose internal network as FiestaBoard and has access to the Docker socket — FiestaBoard itself does not.
 
-When you click Update Now, the web UI POSTs to the FiestaBoard API, which calls the updater over the internal network. The updater runs `docker compose pull && docker compose up -d` against your compose file. Because it's a separate process, FiestaBoard can update itself without getting cut off mid-response.
+When you click Update Now, the web UI POSTs to the FiestaBoard API, which calls the updater over the internal network. Stable updates normally ask the updater to pull and recreate the Compose service. Preview-channel updates use the updater’s install endpoint with a selected channel/version image; they do not simply pull the tag written in the Compose file. Because it's a separate process, FiestaBoard can update itself without getting cut off mid-response.
 
 **See also:** [FiestaUpdater reference](/docs/deployment/fiestaupdater) for the full sidecar architecture, HTTP API, and security model.
 
@@ -81,7 +81,7 @@ The Update Now button will appear in Settings → System once the sidecar is hea
 
 If you prefer not to use the Docker socket at all, leave the `fiestaupdater` profile off and update manually instead.
 
-## Updating manually (always works)
+## Updating manually {#updating-manually-always-works}
 
 The Update Now button is a convenience shortcut. You can always update from the terminal:
 
@@ -102,98 +102,65 @@ docker compose pull && docker compose up -d
 The compose file uses a relative bind mount (`./data:/app/data`), so persistence depends on your current shell directory. If you run `docker compose pull && up -d` from a different folder than your original install, FiestaBoard will come up with empty settings — your data isn't deleted, but Docker is mounting a different (empty) folder. See [Troubleshooting → Settings or board credentials are gone after an update](/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update) if this has happened.
 :::
 
-## The beta channel
+## Stable, Beta and Alpha {#the-beta-channel}
 
-Beta builds come from the `next` branch and carry changes that have not reached
-a stable release yet. They are published on every merge, so a beta is newer than
-stable but has had far less time in front of real boards.
+See [Release Channels](/docs/features/release-channels) for the published versions,
+image tags and controls available in each release. The branch named `alpha`
+publishes Beta; `v11` publishes the separate Alpha preview. Builds are published
+by reviewed version releases, not on every feature merge.
 
-:::caution Betas can break, and going back is not free
-A beta may migrate your settings and pages to a format stable does not
-understand. FiestaBoard refuses to read such a file rather than misinterpret it,
-so returning to stable means restoring a backup. **Take one before you opt in:**
-Settings → System → Backup → Export.
-:::
+At the November 17, 2026 checkpoint, Stable 10.3.3 and Beta 10.3.4-beta.0 offer
+Stable/Beta controls but **no Alpha choice**. Joining the currently published
+Beta does not add the Alpha chooser. Published v11 Alpha includes the three-choice
+chooser; the 10.x backport remains an unpublished candidate.
 
-### FiestaPi
+### FiestaPi and Docker
 
-Settings → System → **Release channel** → **Join the beta**.
+In-app channel changes require a reachable FiestaUpdater sidecar. Export a backup
+before joining a preview. A move to a newer major through the chooser requires
+explicit confirmation and a successful automatic backup. Returning to an older
+channel can restore the join snapshot and lose changes made since then; it also
+signs out sessions. Return controls exist in the published source, but the v11
+production-image upgrade/restore gate is still incomplete.
 
-A backup is taken automatically before the switch, and FiestaBoard restarts onto
-the beta build. From then on **Update Now** keeps you on betas — it moves you
-from one beta to the next, not back to stable.
-
-Joining is one-way on a Pi for now; see [Going back to stable](#going-back-to-stable)
-before you opt in.
-
-The choice survives a reboot. A Pi re-pulls its images on every boot, which would
-otherwise put you back on stable, so FiestaBoard re-applies your channel at
-startup if the build that came up does not match it.
-
-### Docker installs
-
-You already control which build you run — it is the image tag in your compose
-file. Edit `docker-compose.hub.yml`:
-
-```yaml
-services:
-  fiestaboard:
-    image: fiestaboard/fiestaboard:beta # was :latest
-```
-
-Then, from the folder you originally installed in:
-
-```bash
-cd ~/fiestaboard
-docker compose -f docker-compose.hub.yml pull
-docker compose -f docker-compose.hub.yml up -d
-```
-
-Two tags are published:
-
-| Tag | Use it when |
-| --- | --- |
-| `beta` | You want the newest beta, and want Update Now to keep you on betas |
-| `9.0.0-beta.12` | You want to stay on one exact build, or you are filing a bug |
-
-The in-app **Update Now** button pulls whatever tag your compose file names, so
-once you are on `:beta` it keeps you on betas. Nothing else to configure.
+For a manual preview installation, use the [v11 guide](/docs/setup/v11-preview).
+To upgrade an existing installation, follow the [backup and image-swap
+procedure](/docs/setup/v11-upgrade). Keep the original install directory and
+mounts. On startup the hub can reapply a saved channel choice, so verify the
+version after a restart as well as after the initial switch.
 
 ### Home Assistant
 
-Not available. The HA Supervisor owns updating for add-ons — FiestaBoard cannot
-change the image it runs, and the Release channel card will tell you so rather
-than offering a button that cannot work. Supporting betas there means shipping a
-separate add-on entry, which is not planned yet.
+The HA Supervisor owns add-on updates. FiestaBoard cannot switch its managed
+image through the in-app channel control. These instructions do not provide a
+Beta or Alpha add-on.
 
 ### Going back to stable
 
-**Docker** — set the tag back to `:latest`, pull, bring the stack up again, then
-restore the backup you took before opting in.
+Read [Recovery options](/docs/setup/v11-upgrade#recovery-options) **before**
+changing the image. Managed return restores its available join snapshot before
+requesting the destination channel image. It does not promise to restore every
+file or installed plugin version, and a missing snapshot can leave restoration
+undone.
 
-If you skipped that backup and the app reports a schema it cannot read, your data
-is still on disk and intact. The newer FiestaBoard can still read it, so going
-back to `:beta` gets you running again — export a backup, then switch.
-
-**FiestaPi** — there is no in-app way back yet.
-
-:::warning A FiestaPi cannot leave the beta from the app
-Joining is currently one-way on a Pi. The control to return to stable has not
-shipped, so treat joining as a decision to stay on beta for now. If that is not
-what you want, wait — it is being worked on.
-:::
+Manual recovery needs a known-good image **and compatible pre-upgrade data**.
+Sign out everywhere before stopping for a downgrade, restore the compatible
+baseline before starting the older image, and verify the result. Exporting from
+a newer build does not convert its schemas for an older release. Do not start an older image on
+newer data and assume an apparently empty UI means the data was deleted.
 
 ## Troubleshooting
 
 **The Update Now button isn't showing** — Check the status panel just below the button area in Settings → System. It will say whether the updater sidecar is reachable. Most common cause: `COMPOSE_PROFILES=fiestaupdater` isn't set in `.env`, or the sidecar container isn't running.
 
-**Update started but the page never came back** — Open `http://localhost:4420` on the Docker host, or `http://fiestapi.local:4420` on a FiestaPi, again after a minute. From another device on a standard Docker install, use the host's IP address. If it's still down, check logs: `docker logs fiestaboard`. As a last resort, `docker compose up -d` will bring you back online.
+**Update started but the page never came back** — Open `http://localhost:4420` on the Docker host, or `http://fiestapi.local:4420` on a FiestaPi, again after a minute. From another device on a standard Docker install, use the host's IP address. If it's still down, check logs: `docker logs fiestaboard`. Before recreating the service, confirm its image and data mounts match the intended installation. See [Recovery options](/docs/setup/v11-upgrade#recovery-options) if the failure followed a version change.
 
-**I joined the beta but came back on stable** — The switch works by pointing
-the image name in your compose file at the beta build, and an out-of-date
-updater sidecar can undo that when it recreates the container. FiestaBoard re-applies your channel at
-startup, so the box usually arrives on the beta a minute later after an extra
-restart. To stop it happening: reboot a FiestaPi to pick up the current sidecar,
-or on Docker run `docker compose pull fiestaupdater && docker compose up -d`.
+**I joined the beta but came back on stable** — The updater installs the selected
+channel image while your Compose file may still name Stable. A later recreation
+can therefore start a different image, and the hub may reapply its saved channel
+at startup. Check the running version, Compose image and saved channel together.
+For an outdated updater, pull and recreate the `fiestaupdater` service using your
+actual Compose file; see [FiestaUpdater](/docs/deployment/fiestaupdater). Do not
+use repeated restarts as proof that a channel switch succeeded.
 
-**I want to roll back** — Pin the previous image tag in `docker-compose.yml`, then `docker compose up -d`. Automated rollback is planned for a future release.
+**I want to roll back** — Follow [Recovery options](/docs/setup/v11-upgrade#recovery-options). Channel return, snapshot rollback and manual recovery have different image and data behavior. A partial settings restore or an accepted updater request is not proof that the old image booted.

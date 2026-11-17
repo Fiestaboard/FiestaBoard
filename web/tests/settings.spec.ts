@@ -48,17 +48,15 @@ test.describe("Settings Page", () => {
     await expect(page).toHaveURL(/\/settings\/network$/);
     await expect(page.getByText("Home Assistant (MQTT)")).toBeVisible({ timeout: 10_000 });
 
-    // System & backups contains Debug Tools (the old Advanced tab) and the
-    // Setup Wizard card, and no About card (the About box in the account
-    // menu replaced it)
+    // Installed hubs keep Debug Tools here. Setup is only available while
+    // the hub has no displays; existing displays are managed in Displays.
     await hub.getByRole("link", { name: "System & backups" }).click();
     await expect(page).toHaveURL(/\/settings\/system$/);
     await expect(page.getByText("Debug Tools").first()).toBeVisible({
       timeout: 5_000,
     });
-    await expect(page.getByText("Setup Wizard").first()).toBeVisible({
-      timeout: 5_000,
-    });
+    await expect(page.getByText("Setup Wizard", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Run Setup Wizard", exact: true })).toHaveCount(0);
     await expect(page.getByText("About This FiestaBoard")).toHaveCount(0);
   });
 

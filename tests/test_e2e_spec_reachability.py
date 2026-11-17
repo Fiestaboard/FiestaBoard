@@ -374,12 +374,14 @@ def test_path_filtered_workflows_must_match_a_version_pr_file():
     assert not _pull_request_reaches_version_pr({"push": None})
 
 
-def test_device_sign_in_has_a_dedicated_version_pr_gate():
+def test_device_sign_in_and_pairing_have_dedicated_version_pr_gates():
     invocations = collect_invocations()
     device = [inv for inv in invocations if inv.config.name == "playwright.device.config.ts"]
-    assert len(device) == 1
-    assert device[0].runs_on_version_pr
-    assert _runs("device-sign-in.spec.ts", device[0])
-    assert not any(
-        _runs("device-sign-in.spec.ts", inv) for inv in invocations if inv.config.name != "playwright.device.config.ts"
-    )
+    # Separate invocations use separate backend stores, so the older device
+    # suite cannot consume the pairing suite's authorization rate budget.
+    assert len(device) == 2
+    for spec in ("device-sign-in.spec.ts", "setup-pairing.spec.ts"):
+        owners = [inv for inv in device if _runs(spec, inv)]
+        assert len(owners) == 1
+        assert owners[0].runs_on_version_pr
+        assert not any(_runs(spec, inv) for inv in invocations if inv.config.name != "playwright.device.config.ts")

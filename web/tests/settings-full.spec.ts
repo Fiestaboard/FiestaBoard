@@ -3,10 +3,10 @@
  *
  * Deep settings coverage beyond the existing settings.spec.ts.
  * Tests timezone, refresh interval, output target, board type,
- * service control, silence schedule, wizard rerun, debug tools,
+ * service control, silence schedule, wizard eligibility, debug tools,
  * and system info.
  */
-import { API_URL, configureBoard, expect, suppressWizard, test } from "./helpers";
+import { API_URL, authHeaders, configureBoard, expect, suppressWizard, test } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
@@ -245,21 +245,30 @@ test.describe("Settings – Full Coverage", () => {
     expect(typeof data.active).toBe("boolean");
   });
 
-  test("can navigate to run setup wizard from settings", async ({ page }) => {
+  test("installed hubs hide setup rerun and preserve their display settings", async ({ page }) => {
+    const beforeResponse = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
+    expect(beforeResponse.ok).toBe(true);
+    const before = await beforeResponse.json();
+    expect(before.boards.length).toBeGreaterThan(0);
+    expect(before.boards.some((board: { output_config?: { host?: string } }) => board.output_config?.host)).toBe(true);
+
+    const loaded = page.waitForResponse(
+      (response) => response.url().endsWith("/api/settings/board") && response.request().method() === "GET",
+    );
     await page.goto("/settings/system");
+    expect((await loaded).ok()).toBe(true);
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible();
+    await expect(page.getByText("Debug Tools", { exact: true })).toBeVisible();
 
-    // Setup Wizard lives under System & backups
-    await expect(page.getByRole("heading", { level: 2, name: "System & backups", exact: true })).toBeVisible({
-      timeout: 15_000,
-    });
-
-    const wizardBtn = page
-      .getByRole("button", { name: /run setup wizard/i })
-      .first()
-      .or(page.getByText(/run setup wizard/i).first());
-
-    await expect(wizardBtn).toBeVisible({ timeout: 10_000 });
+    // A configured hub is not eligible for first-run setup. Displays remains
+    // the entry point for adding or repairing its existing fleet.
+    await expect(page.getByText("Setup Wizard", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /run setup wizard/i })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard", exact: true })).toHaveCount(0);
+    const afterResponse = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
+    expect(afterResponse.ok).toBe(true);
+    expect(await afterResponse.json()).toEqual(before);
   });
 
   test("debug section shows system info", async ({ page }) => {
