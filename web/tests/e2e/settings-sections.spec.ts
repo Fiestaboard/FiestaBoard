@@ -40,7 +40,7 @@ for (const width of [390, 768, 1280]) {
         });
         expect(violations).toEqual([]);
         await page.screenshot({
-          path: testInfo.outputPath(`cx-settings-${section}-${width}-${theme}.png`),
+          path: testInfo.outputPath(`impl-settings-${section}-${width}-${theme}.png`),
           fullPage: true,
         });
       }
