@@ -228,7 +228,7 @@ async def update_mqtt_settings(request: MqttSettingsUpdate):
 
 
 @router.get("/settings/ai", response_model=AiProvidersResponse)
-async def get_ai_settings(request: Request):
+async def get_ai_settings(request: Request = None):
     """Return AI provider configuration with each provider's api_key masked.
 
     A phone also reads every custom header value masked (H21d).
@@ -241,7 +241,7 @@ async def get_ai_settings(request: Request):
 
 
 @router.put("/settings/ai", response_model=AiProvidersResponse)
-async def update_ai_settings(request: AiProvidersUpdate, http_request: Request):
+async def update_ai_settings(request: AiProvidersUpdate, http_request: Request = None):
     """Update AI provider configuration.
 
     Body may include any of:
@@ -308,7 +308,7 @@ async def list_ai_provider_models(provider_id: str):
     response_model=AiTestResponse,
     responses={**ERROR_400, **ERROR_404},
 )
-async def test_ai_provider(request: AiTestRequest, http_request: Request):
+async def test_ai_provider(request: AiTestRequest, http_request: Request = None):
     """Send a tiny smoke-test request to a configured provider.
 
     Body: ``{provider_id?: str, model?: str, provider?: dict}``. When

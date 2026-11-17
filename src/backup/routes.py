@@ -34,7 +34,7 @@ router = APIRouter(tags=["backup"])
 
 
 @router.get("/backup/export")
-async def export_backup(request: Request):
+async def export_backup(request: Request = None):
     """Download a JSON file containing all user data (config, settings,
     pages, collections, schedules, and metadata for installed external
     plugins).
@@ -68,7 +68,7 @@ async def export_backup(request: Request):
 @router.post("/backup/import", response_model=BackupImportResponse, responses=errors(400, 500))
 async def import_backup(
     payload: BackupDocument,
-    request: Request,
+    request: Request = None,
     reinstall_plugins: bool = Query(True),
 ):
     """Restore a backup file produced by ``/backup/export``.
