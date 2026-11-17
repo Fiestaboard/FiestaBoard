@@ -54,6 +54,7 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
   }, [onValidChange]);
 
   const isSelected = (id: string) => {
+    if (id === "later") return !config.date_time.enabled && config.registry_selected.length === 0;
     if (id === "date_time") return config.date_time.enabled;
     return config.registry_selected.includes(id);
   };

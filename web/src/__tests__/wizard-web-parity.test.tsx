@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AddDisplayDialog } from "@/components/displays/add-display-dialog";
 import { SetupWizard } from "@/components/wizard";
+import { StepEasyPlugins } from "@/components/wizard/step-easy-plugins";
 
 import { server } from "./mocks/server";
 
@@ -51,6 +52,22 @@ describe("07e setup flow", () => {
       expect.objectContaining({ instance_name: expect.any(String), timezone: expect.any(String) }),
     ]);
     expect(screen.getByRole("list", { name: "Setup progress" })).toBeInTheDocument();
+    expect(await screen.findByRole("radio", { name: /Vestaboard/ })).toBeChecked();
+  });
+
+  it("opens backup settings with one navigation when restoring", async () => {
+    renderFlow();
+    await userEvent.click(await screen.findByRole("button", { name: "Restore from a backup…" }));
+    expect(push.mock.calls).toEqual([["/settings/system"]]);
+  });
+
+  it("selects Something else for no data sources and clears it after selecting a source", () => {
+    const config = { date_time: { enabled: false, timezone: "UTC" }, registry_selected: [] };
+    const props = { onConfigChange: vi.fn(), onValidChange: vi.fn() };
+    const view = render(<StepEasyPlugins {...props} config={config} />);
+    expect(screen.getByRole("button", { name: /Something else/ })).toHaveAttribute("aria-pressed", "true");
+    view.rerender(<StepEasyPlugins {...props} config={{ ...config, registry_selected: ["weather"] }} />);
+    expect(screen.getByRole("button", { name: /Something else/ })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("allows an untested connection but blocks Continue after failure and offers recovery", async () => {

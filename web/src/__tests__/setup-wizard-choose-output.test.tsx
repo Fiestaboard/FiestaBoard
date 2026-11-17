@@ -287,12 +287,40 @@ describe("an output plugin", () => {
     const name = screen.getByLabelText("Board name");
     await userEvent.clear(name);
     await userEvent.type(name, "Porch sign");
-    await userEvent.click(screen.getByLabelText("Skip the connection test and add this community display untested"));
-    await userEvent.click(screen.getByRole("button", { name: "Add board" }));
+    await userEvent.click(screen.getByRole("button", { name: "Skip for now" }));
 
-    expect(await screen.findByTestId("wizard-output-created")).toHaveTextContent("Porch sign is saved.");
+    expect(await screen.findByText("Step 3 of 4")).toBeInTheDocument();
     expect(boards).toEqual([{ device_model: "sign_small", output_config: { host: "192.0.2.10" }, name: "Porch sign" }]);
     expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+  });
+
+  it("saves a tested Community output on Continue with no extra create step", async () => {
+    available([SIGN_AVAILABLE]);
+    signInstalls();
+    record("post", `/api/outputs/${SIGN.id}/actions/test_connection`, () =>
+      HttpResponse.json({
+        status: "ok",
+        message: "Sign answered",
+        guidance: [],
+        fields: null,
+        geometry: null,
+        devices: null,
+      }),
+    );
+    const writes = record("post", `/api/outputs/${SIGN.id}/boards`, () =>
+      HttpResponse.json({ id: "sign-board", name: "Recording Sign" }),
+    );
+    renderWizard();
+    await choose(/Recording Sign/);
+    await userEvent.type(await screen.findByLabelText("Sign address"), "192.0.2.30");
+    await userEvent.click(screen.getByRole("button", { name: "Test sign" }));
+    expect(await screen.findByTestId("action-result")).toHaveTextContent("Sign answered");
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Add board" })).not.toBeInTheDocument();
+    expect(writes).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByText("Step 3 of 4")).toBeInTheDocument();
+    expect(writes).toHaveLength(1);
   });
 
   it("runs the plugin's actions on the draft route", async () => {

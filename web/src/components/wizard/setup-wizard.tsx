@@ -13,7 +13,12 @@ import { clearWizardProgress, getWizardProgress, markWizardComplete, saveWizardP
 import { type BoardConfig, type BoardSetupHandle, StepBoardSetup } from "./step-board-setup";
 import { StepChooseOutput } from "./step-choose-output";
 import { StepEasyPlugins, type WizardPluginConfig } from "./step-easy-plugins";
-import { StepOutputPlugin, type WizardCreatedBoard, type WizardOutputChoice } from "./step-output-plugin";
+import {
+  type OutputSetupHandle,
+  StepOutputPlugin,
+  type WizardCreatedBoard,
+  type WizardOutputChoice,
+} from "./step-output-plugin";
 import { type PanelSetupHandle, StepPanelSetup } from "./step-panel-setup";
 import { StepWelcome } from "./step-welcome";
 import { WizardFrame } from "./wizard-frame";
@@ -29,7 +34,11 @@ export function SetupWizard({ onComplete }: { onComplete?: () => void }) {
   const [canProceed, setCanProceed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [output, setOutput] = useState<WizardOutputChoice | null>(() =>
-    saved?.outputId ? { id: saved.outputId, name: saved.outputName ?? saved.outputId } : null,
+    saved?.outputId
+      ? { id: saved.outputId, name: saved.outputName ?? saved.outputId }
+      : saved
+        ? null
+        : { id: "vestaboard", name: "Vestaboard" },
   );
   const [createdBoard, setCreatedBoard] = useState<WizardCreatedBoard | null>(() => saved?.createdBoard ?? null);
   const [boardConfig, setBoardConfig] = useState<BoardConfig>(() => ({
@@ -56,6 +65,7 @@ export function SetupWizard({ onComplete }: { onComplete?: () => void }) {
   const timezone = timezoneDraft ?? general.data?.timezone ?? pluginConfig.date_time.timezone;
   const boardStep = useRef<BoardSetupHandle>(null);
   const panelStep = useRef<PanelSetupHandle>(null);
+  const outputStep = useRef<OutputSetupHandle>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const previousStep = useRef(currentStep);
   const busy = useRef(false);
@@ -105,6 +115,10 @@ export function SetupWizard({ onComplete }: { onComplete?: () => void }) {
           setCreatedBoard(board);
         } else if (output?.id === "fiestapanel") {
           const board = await panelStep.current?.save();
+          if (!board) return;
+          setCreatedBoard(board);
+        } else if (output && createdBoard?.outputId !== output.id) {
+          const board = await outputStep.current?.save(skipTest);
           if (!board) return;
           setCreatedBoard(board);
         }
@@ -165,8 +179,7 @@ export function SetupWizard({ onComplete }: { onComplete?: () => void }) {
               <Button
                 variant="ghost"
                 onClick={() => {
-                  finish("skipped");
-                  router.push("/settings/system");
+                  finish("skipped", "/settings/system");
                 }}
               >
                 {t("intro.restore")}
@@ -183,11 +196,7 @@ export function SetupWizard({ onComplete }: { onComplete?: () => void }) {
                 </Button>
               )}
               {currentStep === 2 && (
-                <Button
-                  variant="ghost"
-                  disabled={isLoading}
-                  onClick={() => (output?.id === "vestaboard" ? void next(true) : finish("skipped"))}
-                >
+                <Button variant="ghost" disabled={isLoading} onClick={() => void next(true)}>
                   {t("skipForNow")}
                 </Button>
               )}
@@ -264,6 +273,8 @@ export function SetupWizard({ onComplete }: { onComplete?: () => void }) {
             />
           ) : output && output.id !== "vestaboard" ? (
             <StepOutputPlugin
+              ref={outputStep}
+              hideCreate
               key={output.id}
               output={output}
               created={createdBoard}

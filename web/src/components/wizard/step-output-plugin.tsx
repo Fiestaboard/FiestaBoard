@@ -35,7 +35,7 @@ import {
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, WifiOff, XCircle } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import { OUTPUTS_QUERY_KEY } from "@/components/settings/output-boards";
 import { PluginBoardSettings } from "@/components/settings/plugin-board-settings";
@@ -72,7 +72,13 @@ export interface WizardCreatedBoard {
   connectionVerified?: boolean;
 }
 
+export interface OutputSetupHandle {
+  save: (skipTest?: boolean) => Promise<WizardCreatedBoard | null>;
+}
+
 interface StepOutputPluginProps {
+  ref?: React.Ref<OutputSetupHandle>;
+  hideCreate?: boolean;
   output: WizardOutputChoice;
   created: WizardCreatedBoard | null;
   onCreated: (board: WizardCreatedBoard) => void;
@@ -102,6 +108,8 @@ export function StepOutputPlugin({
   setIsLoading,
   replacePlaceholder = true,
   createLabel,
+  ref,
+  hideCreate = false,
 }: StepOutputPluginProps) {
   const t = useTranslations("wizard.outputSetup");
   const tbs = useTranslations("boardSettingsScreen");
@@ -184,6 +192,9 @@ export function StepOutputPlugin({
   if (!install.data) return null;
   return (
     <OutputBoardForm
+      ref={ref}
+      hideCreate={hideCreate}
+      onValidChange={onValidChange}
       output={install.data}
       setIsLoading={setIsLoading}
       onCreated={onCreated}
@@ -194,12 +205,18 @@ export function StepOutputPlugin({
 }
 
 function OutputBoardForm({
+  ref,
+  hideCreate,
+  onValidChange,
   output,
   onCreated,
   setIsLoading,
   createLabel,
   replacePlaceholder,
 }: {
+  ref?: React.Ref<OutputSetupHandle>;
+  hideCreate: boolean;
+  onValidChange: (valid: boolean) => void;
   output: OutputSummary;
   onCreated: (board: WizardCreatedBoard) => void;
   setIsLoading: (loading: boolean) => void;
@@ -278,6 +295,28 @@ function OutputBoardForm({
     },
   });
 
+  const fieldsValid = !!deviceModel && sizeValid && !!name.trim() && requiredValid;
+  const valid = fieldsValid && (verified || (!output.builtin && skipTest)) && !create.isPending && !actionPending;
+  useEffect(() => {
+    onValidChange(valid);
+  }, [valid, onValidChange]);
+  const saving = useRef(false);
+  useImperativeHandle(ref, () => ({
+    save: async (skip = false) => {
+      if (saving.current || create.isPending || actionPending || !fieldsValid || (!valid && !(skip && !output.builtin)))
+        return null;
+      saving.current = true;
+      try {
+        const board = await create.mutateAsync();
+        return { outputId: output.id, boardId: board.id, name: board.name, connectionVerified: verified };
+      } catch {
+        return null;
+      } finally {
+        saving.current = false;
+      }
+    },
+  }));
+
   return (
     // Not a <form>: an action's input dialog is a form of its own, and React
     // bubbles its submit through the portal into any form around it.
@@ -303,6 +342,7 @@ function OutputBoardForm({
                 setDeviceModel(v);
                 setSize({});
                 setVerifiedConfig(null);
+                setSkipTest(false);
               }
             }}
           >
@@ -403,28 +443,30 @@ function OutputBoardForm({
           <AlertDescription>{create.error.message}</AlertDescription>
         </Alert>
       )}
-      {!output.builtin && !verified && (
+      {!hideCreate && !output.builtin && !verified && (
         <label className="flex items-center gap-2 text-sm">
           <Checkbox checked={skipTest} onChange={(event) => setSkipTest(event.target.checked)} />
           {t("skipTest")}
         </label>
       )}
-      <Button
-        type="button"
-        onClick={() => create.mutate()}
-        disabled={
-          create.isPending ||
-          actionPending ||
-          !deviceModel ||
-          !sizeValid ||
-          !name.trim() ||
-          !requiredValid ||
-          (!verified && !skipTest)
-        }
-        className="w-full"
-      >
-        {create.isPending ? tbs("creating") : createLabel}
-      </Button>
+      {!hideCreate && (
+        <Button
+          type="button"
+          onClick={() => create.mutate()}
+          disabled={
+            create.isPending ||
+            actionPending ||
+            !deviceModel ||
+            !sizeValid ||
+            !name.trim() ||
+            !requiredValid ||
+            (!verified && !skipTest)
+          }
+          className="w-full"
+        >
+          {create.isPending ? tbs("creating") : createLabel}
+        </Button>
+      )}
     </Stack>
   );
 }
