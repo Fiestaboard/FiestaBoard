@@ -4,7 +4,7 @@ import { lstat, readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { redact, validateSessionBatch, validateSessionCookieHeaders } from "./web_protocol.mjs";
+import { redact, validateBatchTiming, validateSessionBatch, validateSessionCookieHeaders } from "./web_protocol.mjs";
 
 // Browser runner entry point. No side effects on import; root owns execution.
 export async function readPrivateCredentials(path) {
@@ -112,12 +112,14 @@ export async function verifyFixtureThroughSession({ manifest, origin, session, a
   }
 }
 
-export async function createBatchSession({ origin, credentials, userAgent, nowUtc, batchSeconds, marginSeconds, expectedCount, timeoutMs = 10000, onRecord = () => {} }) {
+export async function createBatchSession({ origin, credentials, userAgent, clock = () => new Date().toISOString(), batchSeconds, marginSeconds, expectedCount, timeoutMs = 10000, onRecord = () => {} }) {
   const base = new URL(origin);
   if (!["http:", "https:"].includes(base.protocol) || base.username || base.password || base.pathname !== "/" || base.search || base.hash) throw new Error("Batch authentication requires one credential-free origin");
   if (!credentials?.username || !credentials.password || !userAgent?.startsWith("Mozilla/")) throw new Error("Private credentials and a pinned browser User-Agent are required");
   const secrets = [credentials.password];
-  const timing = { nowUtc, batchSeconds, marginSeconds, expectedCount };
+  const timing = { batchSeconds, marginSeconds, expectedCount };
+  if (typeof clock !== "function" || !Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("Batch clock and request timeout must be valid before login");
+  validateBatchTiming({ ...timing, nowUtc: clock() });
   let cookieHeader;
   let cookieValue;
   let cookieFlags;
@@ -188,7 +190,7 @@ export async function createBatchSession({ origin, credentials, userAgent, nowUt
   if (authenticated.enabled !== true || authenticated.authenticated !== true || authenticated.auth_kind !== "browser" || authenticated.setup_required !== false) throw new Error("Real browser cookie authentication was not verified");
   const verifySession = async () => {
     const snapshot = await getJson("/api/auth/sessions");
-    metadata = validateSessionBatch(snapshot, { ...timing, expectedCount: metadata?.session_count ?? expectedCount });
+    metadata = validateSessionBatch(snapshot, { ...timing, nowUtc: clock(), expectedCount: metadata?.session_count ?? expectedCount });
     return { ...metadata };
   };
   await verifySession();

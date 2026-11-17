@@ -75,6 +75,11 @@ source contract is `GET /api/auth/sessions` returning `sessions` and
 `expires_at`. Counts must remain stable after the one login. The root publishes
 the source-backed protocol amendment before execution.
 
+Validate the time window before login can create a session. Repeated session
+checks use the actual current clock after each response, with an injected clock
+only for deterministic utility tests; an earlier frozen timestamp cannot prove
+enough remaining lifetime after a delayed preflight.
+
 ## Collection gates
 
 - Pin actual Chromium executable/version, Playwright version, headful display,
@@ -168,6 +173,7 @@ The root captures a separate `run-context.json` from fresh actual inventory:
     "architecture": "<actual architecture>"
   },
   "exclusion": {
+    "task_id": "prodPerfc1",
     "running_ids": [],
     "container_names": [],
     "checked_utc": "<actual inventory UTC>",
@@ -191,6 +197,13 @@ service-worker state and authentication/session metadata come from the runner's
 actual observations. Unknown host facts stay unavailable. Root has not yet
 produced this live inventory context; these examples authorize no execution.
 
+`exclusion.running_ids` retains the complete literal fresh RUNNING inventory,
+including other non-PROD tasks as host-load evidence. Derive the active PROD
+subset with the source's case-sensitive `prod` prefix and require exactly this
+nonempty `task_id`. Its browser lease owner must equal `task_id` or start with
+`task_id + "-"`. Do not silently drop other task IDs or mistake legitimate
+non-PROD work for a second PROD reservation.
+
 The manifest's internal canonical-content hash is distinct from the root
 context's `manifest_sha256`, which binds the actual public manifest file bytes
 including that internal field. Compare each hash against its own representation.
@@ -212,3 +225,29 @@ saved config payload. Retain the actual GET diagnostics, compare Date & Time's
 configuration before/after outside timers, and reject any config-write request
 during this script. The recipe adds no plugin or provider and must still be
 validated on the exact published image before baseline sampling.
+
+## Explicit shared preference stratum
+
+Both profiles require this exact `manifest.browser_preferences` declaration,
+server readback and effective browser verification before timing:
+
+```json
+{
+  "theme": "light",
+  "locale": "en-US",
+  "next_locale": "en",
+  "timezone": "UTC",
+  "display": {
+    "reduce_motion": false,
+    "board_animations": "on",
+    "site_animations": "on",
+    "board_flap_speed": "standard"
+  }
+}
+```
+
+The browser theme comes from `localStorage.theme`; context locale/timezone and
+reduced-motion emulation plus the genuine `NEXT_LOCALE` cookie must match. The
+API builder owns the real display-settings PUT/readback and subsequent exact
+verification. These values define this configuration stratum; do not substitute
+system theme or a profile-dependent animation setting.

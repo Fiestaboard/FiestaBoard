@@ -89,12 +89,18 @@ export function relayRequestHeaders(headers, { upstreamOrigin, relayOrigin }) {
   return forwarded;
 }
 
-export function validateSessionBatch(snapshot, { nowUtc, batchSeconds, marginSeconds, expectedCount }) {
-  const offsetDate = (value) => typeof value === "string" && /(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? Date.parse(value) : NaN;
+const offsetDate = (value) => typeof value === "string" && /(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? Date.parse(value) : NaN;
+
+export function validateBatchTiming({ nowUtc, batchSeconds, marginSeconds }) {
   const now = offsetDate(nowUtc);
   if (!Number.isFinite(now) || !Number.isFinite(batchSeconds) || batchSeconds <= 0 || !Number.isFinite(marginSeconds) || marginSeconds < 0) {
     throw new Error("Explicit batch time and expiry margin are required");
   }
+  return now;
+}
+
+export function validateSessionBatch(snapshot, { nowUtc, batchSeconds, marginSeconds, expectedCount }) {
+  const now = validateBatchTiming({ nowUtc, batchSeconds, marginSeconds });
   if (!Array.isArray(snapshot?.sessions) || snapshot.sessions.length === 0 || snapshot.sessions.length > 200) throw new Error("Invalid session count");
   if (expectedCount !== undefined && snapshot.sessions.length !== expectedCount) throw new Error("Session count changed during the batch");
   const current = snapshot.sessions.filter((row) => row.id === snapshot.current_session_id);
@@ -149,7 +155,13 @@ export function validateRunEvidence({ manifestBytes, ownershipBytes, context, ta
     const time = Date.parse(value);
     if (!Number.isFinite(time) || time > now || now - time > maxAgeSeconds * 1000) throw new Error("Stale or future run/inventory observation; fresh evidence required");
   }
-  if (!Array.isArray(context.exclusion.running_ids) || !context.exclusion.running_ids.includes(context.exclusion.browser_lease_owner) || !Array.isArray(context.exclusion.container_names) || context.exclusion.container_names.length > 3 || context.exclusion.container_names.length === 0) throw new Error("Missing current exclusion/lease evidence");
+  const exclusion = context.exclusion;
+  const taskId = exclusion.task_id;
+  const lease = exclusion.browser_lease_owner;
+  const inventory = exclusion.running_ids;
+  const activeProd = Array.isArray(inventory) ? inventory.filter((id) => typeof id === "string" && id.startsWith("prod")) : [];
+  const ownedLease = typeof taskId === "string" && typeof lease === "string" && (lease === taskId || (lease.startsWith(`${taskId}-`) && lease.length > taskId.length + 1));
+  if (typeof taskId !== "string" || !taskId.startsWith("prod") || !Array.isArray(inventory) || !inventory.every((id) => typeof id === "string" && id.length > 0) || activeProd.length !== 1 || activeProd[0] !== taskId || !ownedLease || !Array.isArray(exclusion.container_names) || exclusion.container_names.length > 3 || exclusion.container_names.length === 0) throw new Error("Missing/competing active PROD task or owned browser lease exclusion");
   if (!context.host || !Array.isArray(context.host.unavailable)) throw new Error("Host identity or explicit unavailable fields missing");
   if (diagnostic !== true) throw new Error("Baseline calibration evidence validation is not implemented; only explicit diagnostics are currently executable");
   return { manifest, ownership, context, diagnostic: true };

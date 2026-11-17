@@ -251,7 +251,7 @@ const session = {
   created_at: "2026-11-17T10:00:00+00:00", expires_at: "2026-11-18T10:00:00+00:00", last_active_at: "2026-11-17T11:00:00+00:00",
   last_shown_at: null, shown_panels: [], approved_by: null,
 };
-const batchTiming = { nowUtc: "2026-11-17T11:00:00Z", batchSeconds: 3600, marginSeconds: 300, expectedCount: 1 };
+const batchTiming = { nowUtc: "2026-11-17T11:00:00Z", clock: () => "2026-11-17T11:00:00Z", batchSeconds: 3600, marginSeconds: 300, expectedCount: 1 };
 
 test("session preflight retains only safe count and actual expiry metadata for a sufficiently long real browser session", () => {
   assert.deepEqual(validateSessionBatch({ sessions: [session], current_session_id: session.id }, batchTiming), {
@@ -420,7 +420,7 @@ function evidenceFixture() {
       schema_version: 1, run_id: "run-one", seed_id: "seed-one", source_commit: publishedSource, data_dir: "/synthetic/seed-one", captured_utc: "2026-11-17T10:59:30Z",
       manifest_sha256: createHash("sha256").update(manifestBytes).digest("hex"), ownership_sha256: createHash("sha256").update(ownershipBytes).digest("hex"), target_origin: "http://hub:3000",
       container: { id: "owned-container", image_id: armImage, manifest_digest: armManifest, architecture: "arm64" },
-      exclusion: { running_ids: ["prodPerf"], container_names: ["hub", "web", "api"], checked_utc: "2026-11-17T10:59:30Z", browser_lease_owner: "prodPerf" },
+      exclusion: { task_id: "prodPerf", running_ids: ["prodPerf"], container_names: ["hub", "web", "api"], checked_utc: "2026-11-17T10:59:30Z", browser_lease_owner: "prodPerf" },
       host: { os: "Linux", architecture: "arm64", cpu: null, memory: null, unavailable: ["cpu", "memory"] },
       calibration: { relay_report_path: null, lifecycle_report_path: null },
     },
@@ -743,4 +743,43 @@ test("batch API cancellation closes a real in-flight request rather than leaving
   controller.abort();
   await assert.rejects(pending, /abort/i);
   await observed.protectedClosed;
+});
+
+test("exclusion rejects a competing PROD task and missing or empty owned task/lease identity", () => {
+  const concurrent = evidenceFixture();
+  concurrent.context.exclusion.running_ids.push("prodOther");
+  assert.throws(() => validateRunEvidence(concurrent), /exclusion|owner|active|serial/i);
+  const emptyOwner = evidenceFixture();
+  emptyOwner.context.exclusion.running_ids = [""];
+  emptyOwner.context.exclusion.browser_lease_owner = "";
+  assert.throws(() => validateRunEvidence(emptyOwner), /exclusion|owner|active/i);
+  for (const task_id of [undefined, "", "web23"]) {
+    const invalid = evidenceFixture();
+    invalid.context.exclusion.task_id = task_id;
+    assert.throws(() => validateRunEvidence(invalid), /exclusion|owner|task/i);
+  }
+});
+
+test("complete RUNNING inventory retains legitimate nonPROD jobs and permits only this PROD task's owned lease token", () => {
+  const input = evidenceFixture();
+  input.context.exclusion.running_ids.push("web23", "uiDesign");
+  assert.ok(validateRunEvidence(input));
+  input.context.exclusion.browser_lease_owner = "prodPerf-browser-unique";
+  assert.ok(validateRunEvidence(input));
+  input.context.exclusion.browser_lease_owner = "prodPerfOther";
+  assert.throws(() => validateRunEvidence(input), /lease|owner|exclusion/i);
+});
+
+test("session verification uses a fresh injected clock so delayed preflight cannot accept an insufficient remaining lifetime", { timeout: 5000 }, async (t) => {
+  const { origin } = await authUpstream(t, { expire: "2026-11-17T12:05:01+00:00" });
+  let now = "2026-11-17T11:00:00Z";
+  const batch = await createBatchSession({ origin, credentials: { username: "perf_alpha3", password: "password-secret" }, userAgent: "Mozilla/5.0 test-browser", ...batchTiming, clock: () => now, timeoutMs: 1000 });
+  now = "2026-11-17T11:00:02Z";
+  await assert.rejects(batch.verifySession(), /expiry|expires/i);
+});
+
+test("invalid batch timing is refused before creating a login/session row", { timeout: 5000 }, async (t) => {
+  const { origin, observed } = await authUpstream(t);
+  await assert.rejects(createBatchSession({ origin, credentials: { username: "perf_alpha3", password: "password-secret" }, userAgent: "Mozilla/5.0 test-browser", ...batchTiming, batchSeconds: 0, timeoutMs: 1000 }), /time|batch/i);
+  assert.equal(observed.logins, 0);
 });
