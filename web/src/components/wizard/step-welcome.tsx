@@ -40,6 +40,8 @@ export function StepWelcome({
   const apiMode = boardConfig.output_config.api_mode === "local" ? "local" : "cloud";
   const t = useTranslations("wizard.welcome");
   const tc = useTranslations("common");
+  const td = useTranslations("displaySettings");
+  const to = useTranslations("outputSettings.vestaboard.fields");
   const tw = useTranslations("wizard");
   const [savedPlugins, setSavedPlugins] = useState<string[]>([]);
   const [saveErrors, setSaveErrors] = useState<{ id: string; message: string }[]>([]);
@@ -109,7 +111,11 @@ export function StepWelcome({
             tw("review.display"),
             createdBoard?.name ??
               otherDisplay?.name ??
-              (boardConfig.device_type === "flagship" ? tc("flagship") : tc("note")),
+              (boardConfig.device_type === "note_array"
+                ? td("noteArrayLabel")
+                : boardConfig.device_type === "flagship"
+                  ? tc("flagship")
+                  : tc("note")),
           ],
           [
             tw("review.connection"),
@@ -117,7 +123,7 @@ export function StepWelcome({
               ? createdBoard?.connectionVerified
                 ? tw("outputSetup.verified")
                 : tw("outputSetup.savedUnverified")
-              : `${apiMode === "local" ? tw("connection.local") : tw("connection.cloud")} · ${boardConfig.connectionVerified ? tw("outputSetup.verified") : tw("outputSetup.savedUnverified")}`,
+              : `${apiMode === "local" ? tw("connection.local") : boardConfig.device_type === "note_array" ? to("api_mode.cards.cloud.title") : tw("connection.cloud")} · ${boardConfig.connectionVerified ? tw("outputSetup.verified") : tw("outputSetup.savedUnverified")}`,
           ],
           [tw("review.sources"), enabledPlugins.map(({ name }) => name).join(" · ") || t("noIntegrationsSelected")],
         ].map(([label, value]) => (

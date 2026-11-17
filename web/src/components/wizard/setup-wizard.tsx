@@ -50,6 +50,8 @@ export function SetupWizard({ onComplete }: { onComplete?: () => void }) {
     },
     connectionVerified: false,
     device_type: saved?.boardConfig?.device_type ?? "flagship",
+    notes_wide: saved?.boardConfig?.notes_wide,
+    notes_tall: saved?.boardConfig?.notes_tall,
     board_color: saved?.boardConfig?.board_color ?? "black",
     code62_glyph: saved?.boardConfig?.code62_glyph ?? "degree",
   }));

@@ -30,6 +30,7 @@ import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { ActionResult, BoardInstance, Code62Glyph } from "@/lib/api";
 import { api } from "@/lib/api";
+import { MAX_NOTES_PER_AXIS } from "@/lib/board-dimensions";
 
 import { removeUntouchedPlaceholder } from "./default-board";
 import {
@@ -43,7 +44,9 @@ import type { WizardCreatedBoard } from "./step-output-plugin";
 export interface BoardConfig {
   output_config: Record<string, unknown>;
   connectionVerified: boolean;
-  device_type: "flagship" | "note";
+  device_type: "flagship" | "note" | "note_array";
+  notes_wide?: number;
+  notes_tall?: number;
   board_color: "black" | "white";
   code62_glyph: Code62Glyph;
   name?: string;
@@ -78,6 +81,9 @@ export function StepBoardSetup({
   ref,
 }: StepBoardSetupProps) {
   const t = useTranslations("wizard.connection");
+  const td = useTranslations("displaySettings");
+  const to = useTranslations("outputSettings.vestaboard.fields");
+  const tw = useTranslations("wizard.outputSetup");
   const queryClient = useQueryClient();
   const { data: settings } = useBoardSettings();
   const [result, setResult] = useState<ActionResult | null>(null);
@@ -93,15 +99,25 @@ export function StepBoardSetup({
       alive.current = false;
     };
   }, []);
+  const isArray = config.device_type === "note_array";
+  const notesWide = config.notes_wide ?? 2;
+  const notesTall = config.notes_tall ?? 1;
+  const topologyValid =
+    !isArray ||
+    [notesWide, notesTall].every((value) => Number.isInteger(value) && value >= 1 && value <= MAX_NOTES_PER_AXIS);
   const mode = config.output_config.api_mode === "cloud" ? "cloud" : "local";
   const host = String(config.output_config.host ?? "");
-  const keyField = mode === "local" ? "local_api_key" : "cloud_key";
+  const keyField = isArray ? "note_array_token" : mode === "local" ? "local_api_key" : "cloud_key";
   const secret = String(config.output_config[keyField] ?? "");
   const name = config.name ?? t("defaultName");
   const lookupQuery = existingDisplayQuery(
     "vestaboard",
     {
-      ...(mode === "local" ? { host, port: config.output_config.port } : { cloud_key: secret }),
+      ...(isArray
+        ? { note_array_token: secret }
+        : mode === "local"
+          ? { host, port: config.output_config.port }
+          : { cloud_key: secret }),
     },
     createdBoardId,
   );
@@ -117,7 +133,7 @@ export function StepBoardSetup({
     if (known) setKnownSelection({ boardId: known.board_id, value });
   };
   const keep = !!known && knownChoice === "keep";
-  const fieldsValid = !!name.trim() && !!secret.trim() && (mode === "cloud" || !!host.trim());
+  const fieldsValid = topologyValid && !!name.trim() && !!secret.trim() && (mode === "cloud" || !!host.trim());
   const failed = result?.status === "error";
   const valid =
     !lookup.pending &&
@@ -145,7 +161,10 @@ export function StepBoardSetup({
     const start = performance.now();
     try {
       const response = await api.runDraftOutputAction("vestaboard", "test_connection", {
-        output_config: config.output_config,
+        output_config: {
+          ...config.output_config,
+          ...(isArray ? { device_type: "note_array", notes_wide: notesWide, notes_tall: notesTall } : {}),
+        },
       });
       if (!alive.current || revision.current !== testedRevision) return;
       setElapsed(Math.round(performance.now() - start));
@@ -154,7 +173,14 @@ export function StepBoardSetup({
       onConfigChange({
         ...config,
         connectionVerified: response.status === "ok",
-        ...(deviceType === "flagship" || deviceType === "note" ? { device_type: deviceType } : {}),
+        ...(isArray
+          ? {
+              notes_wide: response.geometry?.notes_wide ?? notesWide,
+              notes_tall: response.geometry?.notes_tall ?? notesTall,
+            }
+          : deviceType === "flagship" || deviceType === "note"
+            ? { device_type: deviceType }
+            : {}),
       });
     } catch (failure) {
       if (alive.current && revision.current === testedRevision) {
@@ -207,6 +233,7 @@ export function StepBoardSetup({
           const saved = await api.addBoard({
             name: name.trim(),
             device_type: config.device_type,
+            ...(isArray ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
             board_color: config.board_color,
             code62_glyph: config.code62_glyph,
             enabled: true,
@@ -266,11 +293,11 @@ export function StepBoardSetup({
               onValueChange={(value) => connection({ ...config.output_config, api_mode: value })}
               aria-label={t("connection")}
             >
-              <SegmentedControlItem value="local" disabled={isLoading}>
+              <SegmentedControlItem value="local" disabled={isLoading || isArray}>
                 {t("local")}
               </SegmentedControlItem>
               <SegmentedControlItem value="cloud" disabled={isLoading}>
-                {t("cloud")}
+                {isArray ? to("api_mode.cards.cloud.title") : t("cloud")}
               </SegmentedControlItem>
             </SegmentedControl>
           </Grid>
@@ -291,9 +318,12 @@ export function StepBoardSetup({
             </Grid>
           )}
           <Grid gap="1.5">
-            <Label htmlFor="setup-board-key">{t(mode === "local" ? "localKey" : "cloudKey")}</Label>
+            <Label htmlFor="setup-board-key">
+              {isArray ? to("note_array_token.title") : t(mode === "local" ? "localKey" : "cloudKey")}
+            </Label>
             <SecretInput
               id="setup-board-key"
+              maxLength={512}
               value={secret}
               disabled={isLoading}
               revealDisabled={secret === "***"}
@@ -303,7 +333,7 @@ export function StepBoardSetup({
               aria-describedby="setup-key-help"
             />
             <Text id="setup-key-help" size="xs" tone="muted">
-              {t(mode === "local" ? "keyHint" : "cloudHint")}
+              {isArray ? to("note_array_token.description") : t(mode === "local" ? "keyHint" : "cloudHint")}
             </Text>
           </Grid>
           <Grid gap="1.5">
@@ -311,7 +341,15 @@ export function StepBoardSetup({
             <Select
               value={config.device_type}
               onValueChange={(value) => {
-                if (value === "flagship" || value === "note") change({ ...config, device_type: value });
+                if (value === "note_array")
+                  change({
+                    ...config,
+                    device_type: value,
+                    notes_wide: 2,
+                    notes_tall: 1,
+                    output_config: { api_mode: "cloud", note_array_token: config.output_config.note_array_token ?? "" },
+                  });
+                else if (value === "flagship" || value === "note") change({ ...config, device_type: value });
               }}
               disabled={isLoading}
             >
@@ -321,9 +359,34 @@ export function StepBoardSetup({
               <SelectContent>
                 <SelectItem value="flagship">{t("typeFlagship")}</SelectItem>
                 <SelectItem value="note">{t("typeNote")}</SelectItem>
+                <SelectItem value="note_array">{td("noteArrayLabel")}</SelectItem>
               </SelectContent>
             </Select>
           </Grid>
+          {isArray && (
+            <Grid cols="2" gap="3">
+              {(
+                [
+                  { key: "notes_wide", value: notesWide, label: "notesWide" },
+                  { key: "notes_tall", value: notesTall, label: "notesTall" },
+                ] as const
+              ).map((field) => (
+                <Grid key={field.key} gap="1.5">
+                  <Label htmlFor={`setup-${field.key}`}>{tw(field.label)}</Label>
+                  <Input
+                    id={`setup-${field.key}`}
+                    type="number"
+                    min={1}
+                    max={MAX_NOTES_PER_AXIS}
+                    value={field.value}
+                    disabled={isLoading}
+                    onChange={(event) => change({ ...config, [field.key]: Number(event.target.value) })}
+                    aria-invalid={!Number.isInteger(field.value) || field.value < 1 || field.value > MAX_NOTES_PER_AXIS}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          )}
           {result?.status === "ok" && (
             <Alert variant="success" role="status">
               <CheckCircle2 aria-hidden="true" />
