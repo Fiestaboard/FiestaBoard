@@ -4,7 +4,16 @@ import { getViolations, injectAxe } from "axe-playwright";
 const now = new Date();
 const next = new Date(now.getTime() + 3600000).toISOString();
 const boards = [
-  { id: "board-1", name: "Kitchen board", device_type: "flagship", board_color: "black", enabled: true },
+  {
+    id: "board-1",
+    name: "Kitchen board",
+    device_type: "flagship",
+    board_color: "black",
+    enabled: true,
+    // Saved connection data distinguishes configured displays from the
+    // untouched placeholders that correctly show Home's no-display state.
+    output_config: { api_mode: "local", host: "192.0.2.10", local_api_key: "layout-test-key" },
+  },
   {
     id: "board-2",
     name: "Desk Pixoo",
@@ -12,6 +21,7 @@ const boards = [
     board_color: "black",
     enabled: true,
     device_model: "divoom_pixoo64",
+    output_config: { api_mode: "local", host: "192.0.2.11", local_api_key: "layout-test-key" },
   },
 ];
 
