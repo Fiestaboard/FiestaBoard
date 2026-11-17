@@ -185,9 +185,10 @@ describe("/displays", () => {
         http.get(`${API}/v1/boards/:board`, ({ params: p }) =>
           HttpResponse.json({
             id: p.board,
-            next_change_at: "2099-11-17T05:00:00Z",
+            schedule_enabled: true,
+            next_change_at: new Date(2099, 10, 17, 22).toISOString(),
             next_page_id: "night",
-            override_expires_at: p.board === "desk" ? "2099-11-17T05:00:00Z" : null,
+            override_expires_at: p.board === "desk" ? new Date(2099, 10, 17, 21).toISOString() : null,
           }),
         ),
       );
@@ -200,6 +201,7 @@ describe("/displays", () => {
       const override = await within(cards[1]).findByText("Override", { exact: true });
       expect(override).toHaveAccessibleName(/^Override · until /);
       expect(within(cards[1]).getByText("Online", { exact: true })).toHaveClass("sr-only");
+      expect(within(cards[1]).getByText("Holds until 9:00 PM, then Schedule resumes.", { exact: true })).toBeVisible();
     },
   );
 
@@ -256,7 +258,11 @@ describe("/displays", () => {
     server.use(
       http.get(`${API}/auth/sessions`, () => HttpResponse.json({ sessions: [], total: 0 })),
       http.get(`${API}/v1/boards/:board`, ({ params: p }) =>
-        HttpResponse.json({ id: p.board, override_expires_at: "2099-11-17T05:00:00Z" }),
+        HttpResponse.json({
+          id: p.board,
+          schedule_enabled: false,
+          override_expires_at: new Date(2099, 10, 17, 21).toISOString(),
+        }),
       ),
     );
     renderWith(<DisplaysPage />);
@@ -266,6 +272,8 @@ describe("/displays", () => {
     expect(unknown).not.toHaveClass("sr-only");
     expect(noViewer).not.toHaveClass("sr-only");
     expect(screen.getByText("No signed-in TV is showing this display", { exact: true })).toBeInTheDocument();
+    expect(screen.getAllByText("Override · until 9:00 PM", { exact: true })).toHaveLength(2);
+    expect(screen.queryByText(/then Schedule resumes/)).not.toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Online" })).not.toBeInTheDocument();
   });
 

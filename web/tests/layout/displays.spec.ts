@@ -24,7 +24,15 @@ for (const width of [390, 768, 900, 1280]) {
         const cards = page.getByTestId("display-card");
         const kitchen = cards.filter({ hasText: "Kitchen board" });
         await expect(kitchen.getByText("Then Good night", { exact: true })).toBeVisible();
-        await expect(cards.filter({ hasText: "Desk Pixoo" }).getByText("Override", { exact: true })).toBeVisible();
+        const desk = cards.filter({ hasText: "Desk Pixoo" });
+        await expect(desk.getByText("Override", { exact: true })).toBeVisible();
+        const expiry = desk.getByText("Holds until 9:00 PM, then Schedule resumes.", { exact: true });
+        await expect(expiry).toBeVisible();
+        expect(
+          await expiry.evaluate(
+            (element) => element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight,
+          ),
+        ).toBe(true);
         for (const card of await cards.all()) {
           await expect(card).toHaveAttribute("data-layout", "inline");
           const title = await card.locator('[data-slot="list-row-title"]').boundingBox();
@@ -34,7 +42,11 @@ for (const width of [390, 768, 900, 1280]) {
           expect(meta).not.toBeNull();
           expect(bounds).not.toBeNull();
           expect(meta!.y).toBeLessThan(title!.y + title!.height);
-          expect(bounds!.height).toBeLessThanOrEqual(80);
+          if (await card.getByText("Override", { exact: true }).count()) {
+            const expiryBounds = await expiry.boundingBox();
+            expect(expiryBounds).not.toBeNull();
+            expect(expiryBounds!.y + expiryBounds!.height).toBeLessThanOrEqual(bounds!.y + bounds!.height);
+          } else expect(bounds!.height).toBeLessThanOrEqual(80);
         }
       }
       await expect(page.getByTestId("display-detail-pane")).toHaveCount(width < 768 ? 0 : 1);

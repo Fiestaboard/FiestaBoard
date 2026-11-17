@@ -119,12 +119,18 @@ export function DisplayList({
             : undefined;
     const current = pageName(detail?.resolved_page_id ?? status?.active_page_id);
     const cause = healthCause ?? (until && next ? t("nextChange", { time: until, page: next }) : current);
-    const compactCause = healthCause ?? (until && next ? t("nextCompact", { page: next }) : current);
     const override =
       detail?.override_expires_at && Date.parse(detail.override_expires_at) > Date.now()
         ? clock(detail.override_expires_at)
         : null;
-    return { board, kind, group, cause, compactCause, override };
+    const overrideSummary = override
+      ? kind === "online" && detail?.schedule_enabled === true
+        ? tn("overrideOutcome", { time: override })
+        : t("overrideUntil", { time: override })
+      : undefined;
+    const compactCause = healthCause ?? overrideSummary ?? (until && next ? t("nextCompact", { page: next }) : current);
+    const extraOverride = healthCause && override ? t("overrideUntil", { time: override }) : undefined;
+    return { board, kind, group, cause, compactCause, override, extraOverride };
   });
   return (
     <Box
@@ -141,7 +147,7 @@ export function DisplayList({
                 {t(group)}
               </Heading>
               <ListRowGroup aria-label={t(group)}>
-                {items.map(({ board, kind, cause, compactCause, override }) => (
+                {items.map(({ board, kind, cause, compactCause, override, extraOverride }) => (
                   <ListItem key={board.id}>
                     <ListRow
                       data-testid="display-card"
@@ -151,7 +157,7 @@ export function DisplayList({
                       layout={compact ? "inline" : "auto"}
                       className={
                         compact
-                          ? "[&_[data-slot=list-row-title]]:text-sm [&_[data-slot=list-row-description]]:text-xs"
+                          ? "[&_[data-slot=list-row-title]]:text-sm [&_[data-slot=list-row-description]]:text-xs [&_[data-slot=list-row-meta]]:self-start"
                           : undefined
                       }
                       render={
@@ -193,17 +199,22 @@ export function DisplayList({
                               gridRows={board.grid_rows}
                               gridCols={board.grid_cols}
                             />
-                            {cause && " · "}
+                            {(cause || (compact && compactCause)) && " · "}
                           </Text>
-                          {cause && (
+                          {(cause || (compact && compactCause)) && (
                             <Text
                               as="span"
                               size={compact ? "xs" : "sm"}
                               tone="muted"
-                              className={compact ? "block truncate" : undefined}
-                              title={cause}
+                              className={compact ? (override ? "block" : "block truncate") : undefined}
+                              title={compact ? compactCause : cause}
                             >
                               {compact ? compactCause : cause}
+                            </Text>
+                          )}
+                          {compact && extraOverride && (
+                            <Text as="span" size="xs" tone="muted" className="block">
+                              {extraOverride}
                             </Text>
                           )}
                         </>
