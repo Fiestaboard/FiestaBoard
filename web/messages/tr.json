@@ -2821,7 +2821,12 @@
     "geometryLoading": "Ekran geometrisi hesaplanıyor…",
     "draftContentPending": "İçerik önizlemesi kaydedildikten ve eşleşen bir kare alındıktan sonra güncellenecektir.",
     "geometryUnsupported": "Bu LED ızgarası görüntülenemiyor. Desteklenen bir ızgara kullanmak için bu paneli düzenleyin ve Ekran şekline uyarla seçeneğini seçin.",
-    "legacyGridHint": "Bu panel mevcut karakter ızgarasını korur. Düzenini değiştirmek için Ekran şekline uyarla seçeneğini seçin."
+    "legacyGridHint": "Bu panel mevcut karakter ızgarasını korur. Düzenini değiştirmek için Ekran şekline uyarla seçeneğini seçin.",
+    "displaySettings": "Ekran",
+    "previewAt": "{inches}″ önizleme",
+    "removeDisplayTitle": "Ekranı kaldır",
+    "removeDisplay": "Ekranı kaldır…",
+    "advancedSettings": "Gelişmiş panel ayarları"
   },
   "releaseChannel": {
     "title": "Sürüm kanalı",

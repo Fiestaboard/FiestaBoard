@@ -2821,7 +2821,12 @@
     "geometryLoading": "正在计算屏幕布局…",
     "draftContentPending": "保存并收到匹配的帧后，内容预览将更新。",
     "geometryUnsupported": "无法显示此 LED 网格。请编辑此面板并选择“适应屏幕形状”，以使用受支持的网格。",
-    "legacyGridHint": "此面板保留现有字符网格。选择“适应屏幕形状”可更改其布局。"
+    "legacyGridHint": "此面板保留现有字符网格。选择“适应屏幕形状”可更改其布局。",
+    "displaySettings": "显示屏",
+    "previewAt": "{inches} 英寸预览",
+    "removeDisplayTitle": "移除显示屏",
+    "removeDisplay": "移除显示屏…",
+    "advancedSettings": "面板高级设置"
   },
   "releaseChannel": {
     "title": "发布通道",

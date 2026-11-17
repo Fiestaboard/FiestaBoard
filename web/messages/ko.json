@@ -2821,7 +2821,12 @@
     "geometryLoading": "화면 구조 계산 중…",
     "draftContentPending": "저장하고 일치하는 프레임을 받으면 콘텐츠 미리보기가 업데이트됩니다.",
     "geometryUnsupported": "이 LED 격자는 표시할 수 없습니다. 이 패널을 편집하고 화면 모양에 맞추기를 선택하여 지원되는 격자를 사용하세요.",
-    "legacyGridHint": "이 패널은 기존 문자 격자를 유지합니다. 레이아웃을 변경하려면 화면 모양에 맞추기를 선택하세요."
+    "legacyGridHint": "이 패널은 기존 문자 격자를 유지합니다. 레이아웃을 변경하려면 화면 모양에 맞추기를 선택하세요.",
+    "displaySettings": "디스플레이",
+    "previewAt": "{inches}인치 미리보기",
+    "removeDisplayTitle": "디스플레이 삭제",
+    "removeDisplay": "디스플레이 삭제…",
+    "advancedSettings": "고급 패널 설정"
   },
   "releaseChannel": {
     "title": "릴리스 채널",

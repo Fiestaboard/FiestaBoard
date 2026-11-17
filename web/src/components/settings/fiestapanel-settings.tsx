@@ -31,12 +31,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Pencil, Trash2, Tv } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
 import { PanelMatrixEditorPreview } from "@/components/panel/panel-matrix-editor-preview";
 import { PanelTvPreview } from "@/components/panel/panel-tv-preview";
 import { TvPreview } from "@/components/panel/tv-preview";
+import { InlinePanelSettings } from "@/components/settings/inline-panel-settings";
 import { TimePicker } from "@/components/ui/time-picker";
 import { queryKeys } from "@/hooks/use-board";
 import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
@@ -51,8 +52,10 @@ import {
   type MatrixSizing,
   type Panel,
   type PanelGeometryRequest,
+  type PanelPublicConfig,
   type PanelRenderStyle,
   type PanelUpdateRequest,
+  type PanelUpdateResult,
 } from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
 
@@ -181,7 +184,11 @@ function geometryRequest(editor: EditorState): PanelGeometryRequest {
  * display's panel only and creates none — new panels come from Displays →
  * Add a display; `onDeleted` runs once that panel is gone.
  */
-export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; onDeleted?: () => void } = {}) {
+export function FiestaPanelSettings({
+  boardId,
+  onDeleted,
+  preview,
+}: { boardId?: string; onDeleted?: () => void; preview?: ReactNode } = {}) {
   const t = useTranslations("fiestaPanels");
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -256,6 +263,51 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
     void queryClient.invalidateQueries({ queryKey: ["panel-geometry"] });
   };
 
+  const notifyPanelSaved = (result: PanelUpdateResult) => {
+    invalidate();
+    toast.success(t("saved"));
+    const staleRefs = result.incompatible_references ?? [];
+    if (staleRefs.length > 0) {
+      const names = [...new Set(staleRefs.map((ref) => ref.page_name))];
+      toast.warning(t("resizeStaleRefs", { pages: names.join(", ") }), { duration: 10000 });
+    }
+  };
+
+  const inlineMutation = useMutation({
+    mutationFn: ({ panel, changes }: { panel: Panel; changes: PanelUpdateRequest }) =>
+      api.updatePanel(panel.id, changes),
+    onMutate: async ({ panel, changes }) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: PANELS_QUERY_KEY }),
+        queryClient.cancelQueries({ queryKey: ["panel", panel.id] }),
+      ]);
+      const previousConfig = queryClient.getQueryData<PanelPublicConfig>(["panel", panel.id]);
+      queryClient.setQueryData<{ panels: Panel[]; total: number }>(
+        PANELS_QUERY_KEY,
+        (current) =>
+          current && { ...current, panels: current.panels.map((p) => (p.id === panel.id ? { ...p, ...changes } : p)) },
+      );
+      if (previousConfig) queryClient.setQueryData(["panel", panel.id], { ...previousConfig, ...changes });
+      return { previousConfig };
+    },
+    onSuccess: (result) => {
+      queryClient.setQueryData<{ panels: Panel[]; total: number }>(
+        PANELS_QUERY_KEY,
+        (current) => current && { ...current, panels: current.panels.map((p) => (p.id === result.id ? result : p)) },
+      );
+      notifyPanelSaved(result);
+    },
+    onError: (error: Error, { panel }, context) => {
+      queryClient.setQueryData<{ panels: Panel[]; total: number }>(
+        PANELS_QUERY_KEY,
+        (current) => current && { ...current, panels: current.panels.map((p) => (p.id === panel.id ? panel : p)) },
+      );
+      if (context?.previousConfig) queryClient.setQueryData(["panel", panel.id], context.previousConfig);
+      toast.error(error.message);
+      invalidate();
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: (state: EditorState) =>
       api.createPanel({
@@ -314,7 +366,7 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
       return api.updatePanel(state.panelId ?? "", changes);
     },
     onSuccess: (result, state) => {
-      invalidate();
+      notifyPanelSaved(result);
       if (state.copyContent) {
         for (const queryKey of [
           queryKeys.pages,
@@ -327,14 +379,6 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
         }
       }
       setEditor(null);
-      toast.success(t("saved"));
-      // A TV-size change re-fits the board's grid; pages authored for the
-      // old grid stay referenced but can no longer render on this panel.
-      const staleRefs = result.incompatible_references ?? [];
-      if (staleRefs.length > 0) {
-        const names = [...new Set(staleRefs.map((ref) => ref.page_name))];
-        toast.warning(t("resizeStaleRefs", { pages: names.join(", ") }), { duration: 10000 });
-      }
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -393,81 +437,104 @@ export function FiestaPanelSettings({ boardId, onDeleted }: { boardId?: string; 
   return (
     <PageSection
       icon={<Tv />}
-      title={t("title")}
-      description={t("description")}
-      className="space-y-4"
+      title={boardId ? undefined : t("title")}
+      description={boardId ? undefined : t("description")}
+      className={boardId ? "p-0" : "space-y-4"}
       {...anchorProps("settings.panels")}
     >
       {panels.length === 0 ? (
         <Text tone="muted">{t("empty")}</Text>
       ) : (
         <Stack gap="3">
-          {panels.map((panel) => (
-            <Flex key={panel.id} gap="4" align="start" className="rounded-lg border border-border p-4">
-              <Box aria-hidden="true" className="hidden rounded-md bg-white p-1.5 sm:block">
-                <QRCodeSVG value={panelViewerUrl(panel)} size={72} />
-              </Box>
-              <Stack gap="1" className="min-w-0 flex-1">
-                <Text className="font-medium">{panel.name}</Text>
-                <Text size="sm" tone="muted">
-                  {t("screenMeta", { inches: panel.screen_diagonal_inches })}
-                  {panel.rows && panel.cols
-                    ? ` · ${t(panel.render_style === "led_matrix" ? "ledGridMeta" : "gridMeta", { cols: panel.cols, rows: panel.rows })}`
-                    : ""}
-                  {panel.board_missing ? ` · ${t("boardMissing")}` : ""}
-                </Text>
-                <Flex gap="2" align="center" className="min-w-0">
-                  <Code className="truncate text-xs">{panelViewerUrl(panel)}</Code>
-                  <Button variant="ghost" size="icon-sm" aria-label={t("copyUrl")} onClick={() => void copyUrl(panel)}>
-                    <Copy />
+          {panels.map((panel) =>
+            boardId ? (
+              <InlinePanelSettings
+                key={panel.id}
+                panel={panel}
+                url={panelViewerUrl(panel)}
+                preview={preview}
+                renderStyles={RENDER_STYLES}
+                pending={
+                  (inlineMutation.isPending && inlineMutation.variables?.panel.id === panel.id) ||
+                  deleteMutation.isPending
+                }
+                error={inlineMutation.variables?.panel.id === panel.id ? inlineMutation.error : null}
+                onPatch={(changes) => inlineMutation.mutate({ panel, changes })}
+                onAdvanced={() => setEditor(editorFromPanel(panel))}
+                onDelete={() => setDeleteTarget(panel)}
+              />
+            ) : (
+              <Flex key={panel.id} gap="4" align="start" className="rounded-lg border border-border p-4">
+                <Box aria-hidden="true" className="hidden rounded-md bg-white p-1.5 sm:block">
+                  <QRCodeSVG value={panelViewerUrl(panel)} size={72} />
+                </Box>
+                <Stack gap="1" className="min-w-0 flex-1">
+                  <Text className="font-medium">{panel.name}</Text>
+                  <Text size="sm" tone="muted">
+                    {t("screenMeta", { inches: panel.screen_diagonal_inches })}
+                    {panel.rows && panel.cols
+                      ? ` · ${t(panel.render_style === "led_matrix" ? "ledGridMeta" : "gridMeta", { cols: panel.cols, rows: panel.rows })}`
+                      : ""}
+                    {panel.board_missing ? ` · ${t("boardMissing")}` : ""}
+                  </Text>
+                  <Flex gap="2" align="center" className="min-w-0">
+                    <Code className="truncate text-xs">{panelViewerUrl(panel)}</Code>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t("copyUrl")}
+                      onClick={() => void copyUrl(panel)}
+                    >
+                      <Copy />
+                    </Button>
+                  </Flex>
+                  <Text size="xs" tone="muted">
+                    {t("openOnTv")}
+                  </Text>
+                  <Flex gap="2" align="center">
+                    <Switch
+                      id={`panel-display-${panel.id}`}
+                      checked={panel.is_display}
+                      disabled={displayMutation.isPending && displayMutation.variables?.panelId === panel.id}
+                      onCheckedChange={(checked) =>
+                        displayMutation.mutate({ panelId: panel.id, isDisplay: checked === true })
+                      }
+                    />
+                    <Label htmlFor={`panel-display-${panel.id}`} className="text-sm font-normal">
+                      {t("displayOutput")}
+                    </Label>
+                  </Flex>
+                  {panel.is_display && (
+                    <Text size="xs" tone="muted">
+                      {t("displayOutputHint")}
+                    </Text>
+                  )}
+                  {/* What the TV is showing right now, on the TV. */}
+                  <Box className="mt-2 w-full max-w-60" data-testid={`panel-live-preview-${panel.id}`}>
+                    <PanelTvPreview panelId={panel.id} />
+                  </Box>
+                </Stack>
+                <Flex gap="1">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t("editPanel")}
+                    onClick={() => setEditor(editorFromPanel(panel))}
+                  >
+                    <Pencil />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t("deletePanel")}
+                    onClick={() => setDeleteTarget(panel)}
+                  >
+                    <Trash2 />
                   </Button>
                 </Flex>
-                <Text size="xs" tone="muted">
-                  {t("openOnTv")}
-                </Text>
-                <Flex gap="2" align="center">
-                  <Switch
-                    id={`panel-display-${panel.id}`}
-                    checked={panel.is_display}
-                    disabled={displayMutation.isPending && displayMutation.variables?.panelId === panel.id}
-                    onCheckedChange={(checked) =>
-                      displayMutation.mutate({ panelId: panel.id, isDisplay: checked === true })
-                    }
-                  />
-                  <Label htmlFor={`panel-display-${panel.id}`} className="text-sm font-normal">
-                    {t("displayOutput")}
-                  </Label>
-                </Flex>
-                {panel.is_display && (
-                  <Text size="xs" tone="muted">
-                    {t("displayOutputHint")}
-                  </Text>
-                )}
-                {/* What the TV is showing right now, on the TV. */}
-                <Box className="mt-2 w-full max-w-60" data-testid={`panel-live-preview-${panel.id}`}>
-                  <PanelTvPreview panelId={panel.id} />
-                </Box>
-              </Stack>
-              <Flex gap="1">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t("editPanel")}
-                  onClick={() => setEditor(editorFromPanel(panel))}
-                >
-                  <Pencil />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t("deletePanel")}
-                  onClick={() => setDeleteTarget(panel)}
-                >
-                  <Trash2 />
-                </Button>
               </Flex>
-            </Flex>
-          ))}
+            ),
+          )}
         </Stack>
       )}
 

@@ -2792,7 +2792,12 @@
     "geometryLoading": "Resolving screen geometry…",
     "draftContentPending": "Content preview will update after saving and receiving a matching frame.",
     "geometryUnsupported": "This LED grid cannot be displayed. Edit this panel and choose Fit screen shape to use a supported grid.",
-    "legacyGridHint": "This panel keeps its existing character grid. Choose Fit screen shape to change its layout."
+    "legacyGridHint": "This panel keeps its existing character grid. Choose Fit screen shape to change its layout.",
+    "displaySettings": "Display",
+    "previewAt": "Preview at {inches}″",
+    "removeDisplayTitle": "Remove display",
+    "removeDisplay": "Remove display…",
+    "advancedSettings": "Advanced panel settings"
   },
   "releaseChannel": {
     "title": "Release channel",
