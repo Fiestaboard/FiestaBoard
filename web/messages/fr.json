@@ -845,7 +845,8 @@
         "modelsAfterSave": "Enregistrez les modifications pour choisir parmi les modèles du fournisseur."
       },
       "addModel": "Ajouter un modèle",
-      "refreshModels": "Actualiser les modèles"
+      "refreshModels": "Actualiser les modèles",
+      "promptDestination": "Les requêtes sont envoyées à {destination}"
     },
     "backup": {
       "cardTitle": "Sauvegarde et restauration",
@@ -879,11 +880,11 @@
         },
         "appearance": {
           "title": "Apparence",
-          "description": "L’apparence de FiestaBoard dans ce navigateur."
+          "description": "Thème pour ce navigateur ; animations des aperçus pour tous les utilisateurs du hub."
         },
         "accessibility": {
           "title": "Accessibilité",
-          "description": "Animations et confort de lecture dans ce navigateur."
+          "description": "Préférences de mouvement et d'animation"
         },
         "network": {
           "title": "Réseau",
@@ -899,9 +900,31 @@
         },
         "language-time": {
           "title": "Langue et heure",
-          "description": "Utilisés par le hub pour le Programme, les variables d’heure et chaque horodatage."
+          "description": "Langue de ce navigateur ; horloge et planification du hub."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "Préférences et conversations FiestaBot."
         }
       }
+    },
+    "panels": {
+      "theme": "Thème",
+      "browserTheme": "Pour ce navigateur uniquement.",
+      "motionScope": "Les préférences de mouvement concernent tous les utilisateurs de ce hub."
+    },
+    "fiestabot": {
+      "title": "Modifications, panneau et historique",
+      "scope": "Le mode d’approbation du panneau concerne tous les utilisateurs de ce hub.",
+      "unavailable": "Les préférences personnelles d’approbation, de panneau et d’historique ne sont pas encore disponibles. Gérez les conversations dans le panneau FiestaBot.",
+      "open": "Ouvrir FiestaBot"
+    },
+    "addresses": {
+      "title": "Adresses",
+      "description": "Comment ce navigateur accède au hub.",
+      "browser": "Ce navigateur utilise",
+      "ip": "Adresse IP signalée par le hub",
+      "hint": "Le hub peut signaler une adresse de conteneur. Cette adresse n’est pas vérifiée pour connecter un autre appareil."
     }
   },
   "offline": {

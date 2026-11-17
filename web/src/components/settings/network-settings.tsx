@@ -14,7 +14,6 @@ import {
   Label,
   List,
   ListItem,
-  PageSection,
   SecretInput,
   Stack,
   Text,
@@ -25,6 +24,7 @@ import { Check, Lock, RefreshCw, Trash2, Unlink, Wifi, WifiOff, X } from "lucide
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { SavedWifiNetwork, WifiNetwork } from "@/lib/api";
@@ -142,7 +142,7 @@ export function NetworkSettings() {
   return (
     <>
       {/* ── Current connection ─────────────────────────────────────────── */}
-      <PageSection
+      <SettingsPanel
         icon={isConnected ? <Wifi className="text-emerald-600" /> : <WifiOff className="text-muted-foreground" />}
         title={t("currentConnection")}
         description={t("description")}
@@ -213,10 +213,10 @@ export function NetworkSettings() {
             </Button>
           )}
         </Flex>
-      </PageSection>
+      </SettingsPanel>
 
       {/* ── Available networks ─────────────────────────────────────────── */}
-      <PageSection
+      <SettingsPanel
         icon={<Wifi />}
         title={t("availableNetworks")}
         action={
@@ -264,10 +264,10 @@ export function NetworkSettings() {
             ))}
           </List>
         )}
-      </PageSection>
+      </SettingsPanel>
 
       {/* ── Saved networks ─────────────────────────────────────────────── */}
-      <PageSection title={t("savedNetworks")}>
+      <SettingsPanel title={t("savedNetworks")}>
         {savedQuery.isLoading ? (
           <Spinner className="text-muted-foreground" label={tCommon("loading")} />
         ) : !savedQuery.data || savedQuery.data.length === 0 ? (
@@ -292,7 +292,7 @@ export function NetworkSettings() {
             ))}
           </List>
         )}
-      </PageSection>
+      </SettingsPanel>
 
       {/* ── Connect dialog ─────────────────────────────────────────────── */}
       <Dialog

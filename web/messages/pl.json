@@ -845,7 +845,8 @@
         "modelsAfterSave": "Zapisz zmiany, aby wybrać spośród modeli dostawcy."
       },
       "addModel": "Dodaj model",
-      "refreshModels": "Odśwież modele"
+      "refreshModels": "Odśwież modele",
+      "promptDestination": "Prompty są wysyłane do {destination}"
     },
     "backup": {
       "cardTitle": "Kopia zapasowa i przywracanie",
@@ -879,11 +880,11 @@
         },
         "appearance": {
           "title": "Wygląd",
-          "description": "Jak FiestaBoard wygląda w tej przeglądarce."
+          "description": "Motyw tej przeglądarki; ruch podglądów dla wszystkich użytkowników huba."
         },
         "accessibility": {
           "title": "Dostępność",
-          "description": "Ruch i wygoda czytania w tej przeglądarce."
+          "description": "Preferencje ruchu i animacji"
         },
         "network": {
           "title": "Sieć",
@@ -899,9 +900,31 @@
         },
         "language-time": {
           "title": "Język i czas",
-          "description": "Używane przez hub w Harmonogramie, zmiennych czasu i każdym znaczniku czasu."
+          "description": "Język tej przeglądarki; zegar huba i czas harmonogramu."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "Preferencje i rozmowy FiestaBot."
         }
       }
+    },
+    "panels": {
+      "theme": "Motyw",
+      "browserTheme": "Tylko w tej przeglądarce.",
+      "motionScope": "Preferencje ruchu dotyczą wszystkich użytkowników tego huba."
+    },
+    "fiestabot": {
+      "title": "Zmiany, panel i historia",
+      "scope": "Tryb zatwierdzania w panelu dotyczy wszystkich użytkowników tego huba.",
+      "unavailable": "Osobiste preferencje zatwierdzania, panelu i historii nie są jeszcze dostępne. Zarządzaj rozmowami w panelu FiestaBot.",
+      "open": "Otwórz FiestaBot"
+    },
+    "addresses": {
+      "title": "Adresy",
+      "description": "Jak ta przeglądarka łączy się z hubem.",
+      "browser": "Ta przeglądarka używa",
+      "ip": "Adres IP zgłoszony przez hub",
+      "hint": "Hub może zgłaszać adres kontenera. Nie jest to zweryfikowany adres do łączenia innego urządzenia."
     }
   },
   "offline": {

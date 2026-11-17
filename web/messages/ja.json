@@ -845,7 +845,8 @@
         "modelsAfterSave": "変更を保存すると、プロバイダーのモデルから選べます。"
       },
       "addModel": "モデルを追加",
-      "refreshModels": "モデルを更新"
+      "refreshModels": "モデルを更新",
+      "promptDestination": "プロンプトの送信先: {destination}"
     },
     "backup": {
       "cardTitle": "バックアップと復元",
@@ -879,11 +880,11 @@
         },
         "appearance": {
           "title": "外観",
-          "description": "このブラウザーでの FiestaBoard の見た目。"
+          "description": "テーマはこのブラウザーのみ。プレビューの動きはハブの全員に適用されます。"
         },
         "accessibility": {
           "title": "アクセシビリティ",
-          "description": "このブラウザーでの動きと読みやすさ。"
+          "description": "動きとアニメーションの設定"
         },
         "network": {
           "title": "ネットワーク",
@@ -899,9 +900,31 @@
         },
         "language-time": {
           "title": "言語と時刻",
-          "description": "スケジュール、時刻変数、すべてのタイムスタンプにハブが使用します。"
+          "description": "言語はこのブラウザーのみ。時計とスケジュールはハブの設定です。"
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBotの設定と会話。"
         }
       }
+    },
+    "panels": {
+      "theme": "テーマ",
+      "browserTheme": "このブラウザーのみ。",
+      "motionScope": "動きの設定はこのハブの全員に適用されます。"
+    },
+    "fiestabot": {
+      "title": "変更、パネル、履歴",
+      "scope": "パネルの承認モードはこのハブの全員に適用されます。",
+      "unavailable": "個人別の承認、パネル、履歴の設定はまだ利用できません。FiestaBotパネルで会話を管理してください。",
+      "open": "FiestaBotを開く"
+    },
+    "addresses": {
+      "title": "アドレス",
+      "description": "このブラウザーからハブへの接続先。",
+      "browser": "このブラウザーの接続先",
+      "ip": "ハブが報告したIPアドレス",
+      "hint": "ハブがコンテナーのアドレスを報告する場合があります。別の端末の接続先として確認されたアドレスではありません。"
     }
   },
   "offline": {

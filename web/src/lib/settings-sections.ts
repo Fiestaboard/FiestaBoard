@@ -1,4 +1,4 @@
-import { Accessibility, Palette, User } from "lucide-react";
+import { Accessibility, Bot, Palette, User } from "lucide-react";
 
 import { HUB_SETTINGS_LINKS, type HubSettingsLink } from "@/lib/nav-items";
 
@@ -8,12 +8,12 @@ import { HUB_SETTINGS_LINKS, type HubSettingsLink } from "@/lib/nav-items";
  * ("Hub · <name>", the Settings › Hub group the More sheet also lists). Each
  * section is a route, `/settings/:section`.
  *
- * Notifications (WEB-13) and FiestaBot behaviour arrive with slices 2.13 and
- * 2.14; their rows join the You group then.
+ * Notifications (WEB-13) arrives with slice 2.13. FiestaBot has its own
+ * section; unsupported per-person preferences are explained there.
  */
 
 export type HubSettingsSectionId = HubSettingsLink["section"];
-export type YouSettingsSectionId = "account" | "appearance" | "accessibility";
+export type YouSettingsSectionId = "account" | "appearance" | "accessibility" | "fiestabot";
 export type SettingsSectionId = YouSettingsSectionId | HubSettingsSectionId;
 export type SettingsGroup = "you" | "hub";
 
@@ -27,6 +27,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
   { id: "account", group: "you", icon: User },
   { id: "appearance", group: "you", icon: Palette },
   { id: "accessibility", group: "you", icon: Accessibility },
+  { id: "fiestabot", group: "you", icon: Bot },
   ...HUB_SETTINGS_LINKS.map((link) => ({ id: link.section, group: "hub" as const, icon: link.icon })),
 ];
 

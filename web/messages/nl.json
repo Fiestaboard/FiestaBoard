@@ -845,7 +845,8 @@
         "modelsAfterSave": "Sla de wijzigingen op om uit de modellen van de provider te kiezen."
       },
       "addModel": "Een model toevoegen",
-      "refreshModels": "Modellen vernieuwen"
+      "refreshModels": "Modellen vernieuwen",
+      "promptDestination": "Prompts gaan naar {destination}"
     },
     "backup": {
       "cardTitle": "Back-up & herstel",
@@ -879,11 +880,11 @@
         },
         "appearance": {
           "title": "Weergave",
-          "description": "Hoe FiestaBoard eruitziet in deze browser."
+          "description": "Thema voor deze browser; voorbeeldbewegingen voor iedereen op deze hub."
         },
         "accessibility": {
           "title": "Toegankelijkheid",
-          "description": "Beweging en leescomfort in deze browser."
+          "description": "Voorkeuren voor beweging en animatie"
         },
         "network": {
           "title": "Netwerk",
@@ -899,9 +900,31 @@
         },
         "language-time": {
           "title": "Taal en tijd",
-          "description": "Gebruikt door de hub voor de Planning, tijdvariabelen en elke tijdstempel."
+          "description": "Taal voor deze browser; hubklok en planningstijd."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot-voorkeuren en gesprekken."
         }
       }
+    },
+    "panels": {
+      "theme": "Thema",
+      "browserTheme": "Alleen voor deze browser.",
+      "motionScope": "Bewegingsvoorkeuren gelden voor iedereen op deze hub."
+    },
+    "fiestabot": {
+      "title": "Wijzigingen, paneel en geschiedenis",
+      "scope": "De goedkeuringsmodus in het paneel geldt voor iedereen op deze hub.",
+      "unavailable": "Persoonlijke voorkeuren voor goedkeuring, paneel en geschiedenis zijn nog niet beschikbaar. Beheer gesprekken in het FiestaBot-paneel.",
+      "open": "FiestaBot openen"
+    },
+    "addresses": {
+      "title": "Adressen",
+      "description": "Hoe deze browser de hub bereikt.",
+      "browser": "Deze browser gebruikt",
+      "ip": "Door de hub gemeld IP-adres",
+      "hint": "De hub kan een containeradres melden. Dit is geen geverifieerd adres om een ander apparaat te verbinden."
     }
   },
   "offline": {

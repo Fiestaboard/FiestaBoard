@@ -801,7 +801,8 @@
         "modelsAfterSave": "Save changes to pick from the provider's models."
       },
       "addModel": "Add a model",
-      "refreshModels": "Refresh models"
+      "refreshModels": "Refresh models",
+      "promptDestination": "Prompts go to {destination}"
     },
     "backup": {
       "cardTitle": "Backup & Restore",
@@ -835,11 +836,11 @@
         },
         "appearance": {
           "title": "Appearance",
-          "description": "How FiestaBoard looks in this browser."
+          "description": "Theme for this browser; preview motion for everyone on this hub."
         },
         "accessibility": {
           "title": "Accessibility",
-          "description": "Motion and reading comfort in this browser."
+          "description": "Motion and animation preferences"
         },
         "network": {
           "title": "Network",
@@ -855,9 +856,31 @@
         },
         "language-time": {
           "title": "Language & time",
-          "description": "Used by the hub for the Schedule, time variables and every timestamp you see."
+          "description": "Language for this browser; hub clock and scheduling time."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot preferences and conversations."
         }
       }
+    },
+    "panels": {
+      "theme": "Theme",
+      "browserTheme": "For this browser only.",
+      "motionScope": "Motion preferences apply to everyone on this hub."
+    },
+    "fiestabot": {
+      "title": "Changes, drawer and history",
+      "scope": "Approval mode in the drawer applies to everyone on this hub.",
+      "unavailable": "Per-person approval, drawer and history preferences are not available yet. Manage conversations in the FiestaBot drawer.",
+      "open": "Open FiestaBot"
+    },
+    "addresses": {
+      "title": "Addresses",
+      "description": "How this browser reaches the hub.",
+      "browser": "This browser is using",
+      "ip": "Hub-reported IP address",
+      "hint": "The hub may report a container address. This is not a verified address for connecting another device."
     }
   },
   "offline": {

@@ -845,7 +845,8 @@
         "modelsAfterSave": "保存更改后即可从提供方的模型中选择。"
       },
       "addModel": "添加模型",
-      "refreshModels": "刷新模型"
+      "refreshModels": "刷新模型",
+      "promptDestination": "提示词发送至 {destination}"
     },
     "backup": {
       "cardTitle": "备份与恢复",
@@ -879,11 +880,11 @@
         },
         "appearance": {
           "title": "外观",
-          "description": "FiestaBoard 在此浏览器中的外观。"
+          "description": "主题仅适用于此浏览器；预览动态效果适用于此中枢上的所有人。"
         },
         "accessibility": {
           "title": "无障碍",
-          "description": "此浏览器中的动画和阅读舒适度。"
+          "description": "动作和动画偏好"
         },
         "network": {
           "title": "网络",
@@ -899,9 +900,31 @@
         },
         "language-time": {
           "title": "语言与时间",
-          "description": "中枢用于日程、时间变量和所有时间戳。"
+          "description": "此浏览器的语言；中枢的时钟和计划时间。"
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot 偏好和对话。"
         }
       }
+    },
+    "panels": {
+      "theme": "主题",
+      "browserTheme": "仅适用于此浏览器。",
+      "motionScope": "动态效果偏好适用于此中枢上的所有人。"
+    },
+    "fiestabot": {
+      "title": "更改、侧栏和历史记录",
+      "scope": "侧栏中的审批模式适用于此中枢上的所有人。",
+      "unavailable": "暂不支持个人审批、侧栏和历史记录偏好。请在 FiestaBot 侧栏中管理对话。",
+      "open": "打开 FiestaBot"
+    },
+    "addresses": {
+      "title": "地址",
+      "description": "此浏览器如何连接中枢。",
+      "browser": "此浏览器使用的地址",
+      "ip": "中枢报告的 IP 地址",
+      "hint": "中枢可能报告容器地址。此地址未经验证，不能保证可供其他设备连接。"
     }
   },
   "offline": {

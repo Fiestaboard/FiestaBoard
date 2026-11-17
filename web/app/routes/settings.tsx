@@ -16,7 +16,6 @@ import {
   PageCard,
   PageHeader,
   PageLayout,
-  PageSection,
   Skeleton,
   Stack,
   Text,
@@ -38,13 +37,16 @@ import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { AutoUpdateIntervalCard } from "@/components/settings/auto-update-interval";
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
+import { FiestaBotSettings } from "@/components/settings/fiestabot-settings";
 import { InstanceNameCard } from "@/components/settings/instance-name";
 import { LanguageSettingsCard } from "@/components/settings/language-settings";
 import { LocationSettingsCard } from "@/components/settings/location-settings";
 import { McpSettings } from "@/components/settings/mcp-settings";
 import { MqttSettingsCard } from "@/components/settings/mqtt-settings";
+import { NetworkAddresses } from "@/components/settings/network-addresses";
 import { NetworkSettings } from "@/components/settings/network-settings";
 import { ReleaseChannelCard } from "@/components/settings/release-channel";
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { SystemControls } from "@/components/settings/system-controls";
 import { SystemUpdate } from "@/components/settings/system-update";
 import { TimeAndDateCard } from "@/components/settings/time-and-date";
@@ -207,16 +209,22 @@ export default function SettingsPage() {
   const detail = (
     <Stack gap="4" aria-labelledby={detailTitleId} role="region" data-slot="settings-detail">
       <Stack gap="1">
-        <Heading level={belowRail ? 1 : 2} size={belowRail ? "2xl" : "lg"} id={detailTitleId}>
+        <Heading level={belowRail ? 1 : 2} size={belowRail ? "3xl" : "lg"} id={detailTitleId}>
           {tHub(`sections.${active}.title`)}
         </Heading>
         <Text size="sm" tone="muted">
           {tHub(`sections.${active}.description`, { name: hubName })}
         </Text>
       </Stack>
-      <PageCard>
-        <SettingsSectionBody section={active} />
-      </PageCard>
+      {active === "account" ? (
+        <PageCard>
+          <SettingsSectionBody section={active} />
+        </PageCard>
+      ) : (
+        <Stack gap="4">
+          <SettingsSectionBody section={active} />
+        </Stack>
+      )}
     </Stack>
   );
 
@@ -251,7 +259,7 @@ export default function SettingsPage() {
         <Grid
           cols="1"
           gap="6"
-          className="md:@xl:grid-cols-[minmax(0,17.5rem)_minmax(0,1fr)] md:@4xl:grid-cols-[minmax(0,22.5rem)_minmax(0,1fr)] md:@xl:items-start"
+          className="md:@xl:grid-cols-[minmax(0,17.5rem)_minmax(0,1fr)] md:@4xl:grid-cols-[minmax(0,23.75rem)_minmax(0,1fr)] md:@xl:items-start"
         >
           {showList && list}
           {showDetail && detail}
@@ -331,11 +339,14 @@ function SettingsSectionBody({ section }: { section: SettingsSectionId }) {
           <AnimationSettings />
         </>
       );
+    case "fiestabot":
+      return <FiestaBotSettings />;
     case "accessibility":
       return <AccessibilitySettings />;
     case "network":
       return (
         <>
+          <NetworkAddresses />
           {wifiCapability?.available && <NetworkSettings />}
           <MqttSettingsCard />
         </>
@@ -373,13 +384,13 @@ function SettingsSectionBody({ section }: { section: SettingsSectionId }) {
           <DebugSettings />
           {/* The About box's only home on a phone (the rail keeps it in the
               account menu too). Same dialog, not a second About card. */}
-          <PageSection>
+          <SettingsPanel>
             <Button variant="outline" onClick={() => setAboutOpen(true)} className="gap-2">
               <Info className="h-4 w-4" aria-hidden="true" />
               {tMenu("about")}
             </Button>
             <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
-          </PageSection>
+          </SettingsPanel>
         </>
       );
     case "language-time":

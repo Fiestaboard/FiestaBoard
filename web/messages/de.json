@@ -845,7 +845,8 @@
         "modelsAfterSave": "Speichere die Änderungen, um aus den Modellen des Anbieters zu wählen."
       },
       "addModel": "Modell hinzufügen",
-      "refreshModels": "Modelle aktualisieren"
+      "refreshModels": "Modelle aktualisieren",
+      "promptDestination": "Prompts werden an {destination} gesendet"
     },
     "backup": {
       "cardTitle": "Sicherung & Wiederherstellung",
@@ -879,11 +880,11 @@
         },
         "appearance": {
           "title": "Darstellung",
-          "description": "Wie FiestaBoard in diesem Browser aussieht."
+          "description": "Design für diesen Browser; Vorschaubewegungen für alle an diesem Hub."
         },
         "accessibility": {
           "title": "Barrierefreiheit",
-          "description": "Bewegung und Lesekomfort in diesem Browser."
+          "description": "Einstellungen für Bewegung und Animationen"
         },
         "network": {
           "title": "Netzwerk",
@@ -899,9 +900,31 @@
         },
         "language-time": {
           "title": "Sprache & Zeit",
-          "description": "Vom Hub für den Zeitplan, Zeitvariablen und jeden Zeitstempel genutzt."
+          "description": "Sprache für diesen Browser; Hub-Uhr und Zeitplanung."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot-Einstellungen und Unterhaltungen."
         }
       }
+    },
+    "panels": {
+      "theme": "Design",
+      "browserTheme": "Nur für diesen Browser.",
+      "motionScope": "Bewegungseinstellungen gelten für alle an diesem Hub."
+    },
+    "fiestabot": {
+      "title": "Änderungen, Seitenleiste und Verlauf",
+      "scope": "Der Genehmigungsmodus in der Seitenleiste gilt für alle an diesem Hub.",
+      "unavailable": "Persönliche Einstellungen für Genehmigungen, Seitenleiste und Verlauf sind noch nicht verfügbar. Verwalte Unterhaltungen in der FiestaBot-Seitenleiste.",
+      "open": "FiestaBot öffnen"
+    },
+    "addresses": {
+      "title": "Adressen",
+      "description": "So erreicht dieser Browser den Hub.",
+      "browser": "Dieser Browser verwendet",
+      "ip": "Vom Hub gemeldete IP-Adresse",
+      "hint": "Der Hub kann eine Containeradresse melden. Dies ist keine geprüfte Adresse für die Verbindung eines anderen Geräts."
     }
   },
   "offline": {

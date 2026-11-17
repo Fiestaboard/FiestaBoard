@@ -845,7 +845,8 @@
         "modelsAfterSave": "Guarda los cambios para elegir entre los modelos del proveedor."
       },
       "addModel": "Añadir un modelo",
-      "refreshModels": "Actualizar modelos"
+      "refreshModels": "Actualizar modelos",
+      "promptDestination": "Las instrucciones se envían a {destination}"
     },
     "backup": {
       "cardTitle": "Copia de seguridad y restauración",
@@ -879,11 +880,11 @@
         },
         "appearance": {
           "title": "Apariencia",
-          "description": "Cómo se ve FiestaBoard en este navegador."
+          "description": "Tema para este navegador; movimiento de vistas previas para todos en este hub."
         },
         "accessibility": {
           "title": "Accesibilidad",
-          "description": "Movimiento y comodidad de lectura en este navegador."
+          "description": "Preferencias de movimiento y animación"
         },
         "network": {
           "title": "Red",
@@ -899,9 +900,31 @@
         },
         "language-time": {
           "title": "Idioma y hora",
-          "description": "El hub lo usa para el Horario, las variables de hora y cada marca de tiempo."
+          "description": "Idioma para este navegador; reloj y horarios del hub."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "Preferencias y conversaciones de FiestaBot."
         }
       }
+    },
+    "panels": {
+      "theme": "Tema",
+      "browserTheme": "Solo para este navegador.",
+      "motionScope": "Las preferencias de movimiento se aplican a todos en este hub."
+    },
+    "fiestabot": {
+      "title": "Cambios, panel e historial",
+      "scope": "El modo de aprobación del panel se aplica a todos en este hub.",
+      "unavailable": "Aún no hay preferencias personales de aprobación, panel e historial. Gestiona las conversaciones en el panel de FiestaBot.",
+      "open": "Abrir FiestaBot"
+    },
+    "addresses": {
+      "title": "Direcciones",
+      "description": "Cómo llega este navegador al hub.",
+      "browser": "Este navegador usa",
+      "ip": "Dirección IP indicada por el hub",
+      "hint": "El hub puede indicar una dirección de contenedor. No es una dirección verificada para conectar otro dispositivo."
     }
   },
   "offline": {

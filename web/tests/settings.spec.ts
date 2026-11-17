@@ -32,7 +32,9 @@ test.describe("Settings Page", () => {
     // and the hub's ("Hub · <name>"); boards moved to Displays (plan D21).
     const you = page.getByRole("list", { name: "You" });
     const hub = page.getByRole("list", { name: /^Hub · / });
-    await expect(you.getByRole("link")).toHaveText(["Account", "Appearance", "Accessibility"], { timeout: 15_000 });
+    await expect(you.getByRole("link")).toHaveText(["Account", "Appearance", "Accessibility", "FiestaBot"], {
+      timeout: 15_000,
+    });
     await expect(hub.getByRole("link")).toHaveText(["Network", "AI provider", "System & backups", "Language & time"]);
     // Scheduling now belongs to display Playback; there is no Hardware,
     // Behavior or Integrations section, and no tab strip at all.
