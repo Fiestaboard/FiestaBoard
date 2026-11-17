@@ -32,7 +32,8 @@ from src.plugins.registry import get_plugin_registry
 from src.settings.service import get_settings_service
 from src.text_to_board import text_to_board_array
 
-from .diagnostics import RenderReport
+from .debug import RenderDebug
+from .diagnostics import LineReport, RenderReport
 from .engine import get_template_engine
 from .expressions import function_signatures
 from .filters import TEMPLATE_FILTERS
@@ -248,6 +249,13 @@ async def render_template(request: TemplateRenderRequest):
 
     dims = board_context_for(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall, grid_rows, grid_cols)
     num_rows = dims.rows
+    if request.debug is not None and dims.rows * dims.cols > 4096:
+        raise HTTPException(status_code=422, detail="Debug allows at most 4096 board cells")
+    inspection = (
+        RenderDebug(trace=request.debug.trace, source_map=request.debug.source_map)
+        if request.debug is not None
+        else None
+    )
 
     if request.canvases and request.preview is not None:
         raise HTTPException(
@@ -264,13 +272,32 @@ async def render_template(request: TemplateRenderRequest):
     )
     if isinstance(template, list):
         if not template or all(not line.strip() for line in template):
+            if inspection is not None:
+                inspection.finish("", rows=num_rows, cols=dims.cols, extended_markup=True)
+                empty_report = RenderReport(
+                    lines=[
+                        LineReport(
+                            line=i + 1,
+                            first_row=i + 1 if i < num_rows else None,
+                            rows_wanted=1,
+                            rows_shown=1 if i < num_rows else 0,
+                            clip=None if i < num_rows else "beyond_board",
+                        )
+                        for i in range(len(template))
+                    ]
+                )
+                return TemplateRenderCheckedResponse(
+                    **blank.model_dump(exclude_unset=True),
+                    diagnostics=empty_report.to_json(),
+                    debug=inspection.to_json(),
+                )
             return blank
     elif isinstance(template, str) and not template.strip():
         return blank
 
     template_engine = get_template_engine()
     line_metadata = request.line_metadata
-    report = RenderReport() if request.diagnostics else None
+    report = RenderReport() if request.diagnostics or inspection is not None else None
     preview = _preview(request.preview)
 
     try:
@@ -290,6 +317,7 @@ async def render_template(request: TemplateRenderRequest):
                 grid_cols=grid_cols,
                 report=report,
                 preview=preview,
+                debug=inspection,
                 **check.lines_kw,
             )
         else:
@@ -305,6 +333,7 @@ async def render_template(request: TemplateRenderRequest):
             line_count=len(lines),
             **check.result(rendered),
             **_diagnostics(report),
+            **({"debug": inspection.to_json()} if inspection is not None else {}),
             **({"sources": preview.sources} if preview is not None else {}),
         )
     except PreviewError as e:

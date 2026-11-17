@@ -48,6 +48,7 @@ from src.text_utils import extract_alignment_from_line
 
 from .colors import COLOR_CODES
 from .colors import is_color_code as _is_color_code
+from .debug import RenderDebug, active_debug, authored
 from .diagnostics import FormulaReport, LineReport, RenderReport
 from .expressions import (
     MAX_STRING_LENGTH,
@@ -60,6 +61,7 @@ from .expressions import (
 )
 from .filters import FILTER_NAMES
 from .preview import Preview
+from .source_map import concat, mapped_like, sub
 
 logger = logging.getLogger(__name__)
 
@@ -337,7 +339,7 @@ class TemplateEngine:
         # when render_lines (or any outer caller) already pinned it.
         context = ensure_render_clock(context)
 
-        if report is not None:
+        if report is not None and active_debug() is None:
             self._report_formulas(template.split("\n"), context, report, limit=REPORT_VALUE_LIMIT)
             report.lines = None
         return _unprotect(self._render(template, context, extended_markup, 0))
@@ -405,7 +407,8 @@ class TemplateEngine:
         # the result is plain text (possibly containing color tile markers
         # like ``{67}`` from ``COLOR()``) which then flows through the
         # remaining passes unchanged.
-        result = render_expressions(result, context)
+        inspection = active_debug()
+        result = inspection.expand(result) if inspection is not None else render_expressions(result, context)
 
         # Process variables
         result = self._render_variables(result, context)
@@ -515,7 +518,7 @@ class TemplateEngine:
             tile_count += 1
             i += 1
 
-        return "".join(result)
+        return concat(result)
 
     def render_lines(
         self,
@@ -533,6 +536,7 @@ class TemplateEngine:
         free_spans: Sequence[Sequence[tuple[int, int]]] | None = None,
         report: RenderReport | None = None,
         preview: Preview | None = None,
+        debug: RenderDebug | None = None,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -606,12 +610,36 @@ class TemplateEngine:
         # row 6 can never disagree about what time it is.
         context = ensure_render_clock(context)
 
+        if debug is not None:
+            with debug.activate():
+                return self.render_lines(
+                    template_lines,
+                    context,
+                    line_metadata,
+                    device_type,
+                    notes_wide,
+                    notes_tall,
+                    grid_rows,
+                    grid_cols,
+                    extended_markup=extended_markup,
+                    display=display,
+                    free_spans=free_spans,
+                    report=report if report is not None else RenderReport(),
+                    preview=None,
+                )
+
         num_rows = dims.rows
         board_width = dims.cols
         # With extended_markup, every width below (alignment, padding,
         # truncation, fill_space, wrap) is measured in the tiles the board
         # draws: a span or block by its cells, an icon as one tile. Off, each
         # helper takes its unchanged split-flap path.
+
+        inspection = active_debug()
+        if inspection is not None:
+            template_lines = inspection.prepare(
+                template_lines, context, report, max(REPORT_VALUE_LIMIT, num_rows * (board_width + 1))
+            )
 
         # Pad to num_rows lines
         lines = list(template_lines[:num_rows])
@@ -679,7 +707,7 @@ class TemplateEngine:
             list(free_spans[r] if r < len(free_spans) else [(0, board_width)]) != [(0, board_width)]
             for r in range(num_rows)
         )
-        if report is not None:
+        if report is not None and inspection is None:
             # A value as long as the board could ever show, or 4 KB on a small one.
             limit = max(REPORT_VALUE_LIMIT, num_rows * (board_width + 1))
             self._report_formulas(list(template_lines), context, report, limit=limit)
@@ -837,7 +865,10 @@ class TemplateEngine:
                 )
                 for index, entry in enumerate(line_reports)
             ]
-        return "\n".join(rendered)
+        result = concat(part for i, row in enumerate(rendered) for part in (("\n", row) if i else (row,)))
+        if inspection is not None:
+            inspection.finish(result, rows=num_rows, cols=board_width, extended_markup=extended_markup)
+        return result
 
     def _render_flow(
         self,
@@ -1082,7 +1113,7 @@ class TemplateEngine:
             # Apply any other filters (except wrap)
             for f in other_filters:
                 value = self._apply_filter(value, f)
-            value = self._as_data(var_part, value)
+            value = authored(self._as_data(var_part, value), template[match_start:match_end], "variable")
 
             # Get prefix and suffix around the variable
             prefix = template[:match_start]
@@ -1110,7 +1141,7 @@ class TemplateEngine:
             result = []
             for idx, wrapped_line in enumerate(wrapped):
                 if idx == 0:
-                    result.append(f"{prefix}{wrapped_line}{suffix}")
+                    result.append(concat((prefix, wrapped_line, suffix)))
                 else:
                     result.append(wrapped_line)
 
@@ -1155,12 +1186,14 @@ class TemplateEngine:
         if needs_extended_markup(text, extended_markup):
             return self._word_wrap_tiles(text, first_width, subsequent_width, max_lines, extended_markup=True)
 
-        words = text.split()
+        matches = list(re.finditer(r"\S+", text))
+        words = [text[m.start() : m.end()] for m in matches]
+        separators = [mapped_like(" ", text, matches[i - 1].end()) if i else "" for i in range(len(matches))]
         lines = []
         current_line = ""
         current_width = first_width
 
-        for word in words:
+        for word_index, word in enumerate(words):
             if not current_line:
                 # First word on line
                 if len(word) <= current_width:
@@ -1170,7 +1203,7 @@ class TemplateEngine:
                     current_line = word[:current_width]
             elif len(current_line) + 1 + len(word) <= current_width:
                 # Word fits on current line
-                current_line += " " + word
+                current_line = concat((current_line, separators[word_index], word))
             else:
                 # Start new line
                 lines.append(current_line)
@@ -1266,10 +1299,15 @@ class TemplateEngine:
         # Split into words, preserving color markers
         # We'll split on spaces but keep color markers with adjacent text
         words = []
+        separators = []
+        next_separator = ""
+        current_separator = ""
         current_word = ""
         i = 0
 
         while i < len(text):
+            if not current_word:
+                current_separator = next_separator
             if text[i] == "{":
                 # Found a potential color marker
                 closing_brace = text.find("}", i)
@@ -1289,20 +1327,25 @@ class TemplateEngine:
             if text[i].isspace():
                 if current_word:
                     words.append(current_word)
+                    separators.append(current_separator)
                     current_word = ""
+                    next_separator = ""
+                if not next_separator:
+                    next_separator = mapped_like(" ", text, i)
             else:
                 current_word += text[i]
             i += 1
 
         if current_word:
             words.append(current_word)
+            separators.append(current_separator)
 
         # Now wrap using tile counts
         lines = []
         current_line = ""
         current_width = first_width
 
-        for word in words:
+        for word_index, word in enumerate(words):
             word_tiles = self._count_tiles(word, extended_markup=False)
             current_line_tiles = self._count_tiles(current_line, extended_markup=False) if current_line else 0
 
@@ -1327,8 +1370,8 @@ class TemplateEngine:
                             tokens_to_take += 1
 
                         if tokens_to_take > 0:
-                            current_line = "".join(tokens[:tokens_to_take])
-                            remaining_word = "".join(tokens[tokens_to_take:])
+                            current_line = concat(tokens[:tokens_to_take])
+                            remaining_word = concat(tokens[tokens_to_take:])
                             lines.append(current_line)
                             if len(lines) >= max_lines:
                                 break
@@ -1339,7 +1382,7 @@ class TemplateEngine:
                             # Force at least one token to prevent infinite loop
                             if tokens:
                                 current_line = tokens[0]
-                                remaining_word = "".join(tokens[1:])
+                                remaining_word = concat(tokens[1:])
                                 lines.append(current_line)
                                 if len(lines) >= max_lines:
                                     break
@@ -1350,7 +1393,7 @@ class TemplateEngine:
                     current_line = remaining_word if remaining_word else ""
             elif current_line_tiles + 1 + word_tiles <= current_width:
                 # Word fits on current line
-                current_line += " " + word
+                current_line = concat((current_line, separators[word_index] or " ", word))
             else:
                 # Start new line
                 lines.append(current_line)
@@ -1378,8 +1421,8 @@ class TemplateEngine:
                             tokens_to_take += 1
 
                         if tokens_to_take > 0:
-                            current_line = "".join(tokens[:tokens_to_take])
-                            remaining_word = "".join(tokens[tokens_to_take:])
+                            current_line = concat(tokens[:tokens_to_take])
+                            remaining_word = concat(tokens[tokens_to_take:])
                             lines.append(current_line)
                             if len(lines) >= max_lines:
                                 break
@@ -1388,7 +1431,7 @@ class TemplateEngine:
                             # Can't fit even one token - force at least one to prevent infinite loop
                             if tokens:
                                 current_line = tokens[0]
-                                remaining_word = "".join(tokens[1:])
+                                remaining_word = concat(tokens[1:])
                                 lines.append(current_line)
                                 if len(lines) >= max_lines:
                                     break
@@ -1510,7 +1553,15 @@ class TemplateEngine:
             color_prefix = self._get_color_for_value(expr, context)
             return f"{color_prefix}{value}" if color_prefix else value
 
-        return VAR_PATTERN.sub(replace_var, template)
+        return sub(
+            VAR_PATTERN,
+            lambda m: authored(
+                replace_var(m),
+                template[m.start() : m.end()],
+                "fill" if m.group(1).strip().startswith(("fill_space", "filled:")) else "variable",
+            ),
+            template,
+        )
 
     def _as_data(self, expr: str, value: Any) -> Any:
         """A substituted value as *data* (plan D19): neutralise any brace that
@@ -1567,7 +1618,7 @@ class TemplateEngine:
             at = template.find("{{", i)
             if at == -1:
                 out.append(template[i:])
-                return "".join(out)
+                return concat(out)
             head = EXTENDED_HEAD_PATTERN.match(template, at)
             end = _matching_double_brace(template, at, matches) if head else -1
             if end == -1:
@@ -1576,10 +1627,19 @@ class TemplateEngine:
                 continue
             out.append(template[i:at])
             if depth >= MAX_TEMPLATE_SPAN_DEPTH:
-                out.append(template[at : end + 1].translate(_PROTECT))
+                kept = template[at : end + 1]
+                inspection = active_debug()
+                if inspection is not None:
+                    kept = inspection.restore_protected(kept)
+                out.append(kept.translate(_PROTECT))
             else:
                 body = template[head.end() : end - 1]
-                out.append("{" + head.group(1) + ":" + body_of(body, depth + 1) + "}")
+                rewritten = concat(("{", head.group(1), ":", body_of(body, depth + 1), "}"))
+                out.append(
+                    authored(rewritten, template[at : end + 1], "markup")
+                    if head.group(1).lower() == "icon"
+                    else rewritten
+                )
             i = end + 1
 
     def _get_configured_color_rules(self, plugin_id: str, base_plugin_id: str, field: str) -> list:
@@ -2012,7 +2072,9 @@ class TemplateEngine:
                     return "{icon:" + icon + "}"
             return SYMBOL_CHARS.get(symbol, match.group(0))
 
-        return SYMBOL_PATTERN.sub(replace_symbol, template)
+        return sub(
+            SYMBOL_PATTERN, lambda m: authored(replace_symbol(m), template[m.start() : m.end()], "markup"), template
+        )
 
     def _normalize_colors(self, template: str) -> str:
         """Normalize color markers to consistent format.
@@ -2030,14 +2092,19 @@ class TemplateEngine:
                 return f"{{{code}}}"
             return match.group(0)
 
-        return COLOR_PATTERN.sub(replace_color, template)
+        return sub(
+            COLOR_PATTERN, lambda m: authored(replace_color(m), template[m.start() : m.end()], "markup"), template
+        )
 
     def _extract_alignment(self, line: str) -> tuple:
         """Extract alignment and wrap directives from a line.
 
         Delegates to the shared ``extract_alignment_from_line`` utility.
         """
-        return extract_alignment_from_line(line)
+        alignment, wrap, content = extract_alignment_from_line(line)
+        if content and len(content) <= len(line):
+            content = line[len(line) - len(content) :]
+        return alignment, wrap, content
 
     def _apply_alignment(
         self, text: str, alignment: str, width: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
@@ -2113,7 +2180,7 @@ class TemplateEngine:
             return text
 
         # Calculate text width without fill_space markers
-        text_without_fills = fill_pattern.sub("", text)
+        text_without_fills = sub(fill_pattern, lambda m: "", text)
         tile_count = self._count_tiles(text_without_fills, extended_markup=extended_markup)
 
         if tile_count >= width:
@@ -2151,7 +2218,9 @@ class TemplateEngine:
                     fill_content = " " * fill_width
 
             # Replace this specific match with the repeated pattern
-            result = result.replace(match.group(0), fill_content, 1)
+            result = result.replace(
+                match.group(0), authored(fill_content, text[match.start() : match.end()], "fill"), 1
+            )
 
         return result
 

@@ -121,3 +121,12 @@ FOREACH spill/footer clipping, blank boards, unknown selection and concurrency.
 Update OpenAPI models/generated reference, real-response contract fixtures,
 and add a minor changeset. Run full pytest and ruff, then independent exact-head
 Astra review and CI. No UI, release, merge or publishing changes are in scope.
+
+Implementation refinement: Jev chose per-request formula placeholders with
+probability 0.90 (confidence 0.88). Evaluate each authored occurrence once in
+H5's existing template order, then insert its cached result at the existing
+expression phase. This keeps source identity independent of provenance-cap
+exhaustion and prevents earlier normalization passes from interpreting formula
+output. Hidden formulas retain H5 coverage. Debug also caps formula count at
+64, bounding cached formula text to at most 4 MiB under S1 and H5 report values
+to about 256 KiB (plus source/error metadata). These are per-request limits.

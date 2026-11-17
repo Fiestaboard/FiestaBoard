@@ -17,7 +17,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.canvas.models import Canvas, validate_page_canvases
 from src.canvas.schemas import CanvasIssueModel, CanvasLayerModel
@@ -29,7 +29,7 @@ from src.devices import (
     MAX_NOTES_PER_AXIS,
     DeviceType,
 )
-from src.templates.expressions import MAX_STRING_LENGTH
+from src.templates.expressions import MAX_STRING_LENGTH, find_formulas
 
 
 class TemplateVariablesResponse(BaseModel):
@@ -246,6 +246,22 @@ class TemplateValidationResponse(BaseModel):
     cols: int = Field(description="The board width, in tiles, every line was measured against.")
 
 
+class FormulaTraceSelection(BaseModel):
+    """One formula's H5 location, in Unicode code points."""
+
+    model_config = ConfigDict(extra="forbid")
+    line: int = Field(ge=1, description="1-based template line.")
+    start: int = Field(ge=0, description="0-based opening-brace offset, in Unicode code points.")
+
+
+class RenderDebugRequest(BaseModel):
+    """Bounded, read-only editor inspection (H7)."""
+
+    model_config = ConfigDict(extra="forbid")
+    trace: FormulaTraceSelection | None = None
+    source_map: bool = False
+
+
 class TemplateRenderRequest(TemplateTarget):
     """``POST /templates/render`` request body.
 
@@ -279,9 +295,39 @@ class TemplateRenderRequest(TemplateTarget):
     #: Also report what each formula evaluated to and what each template line
     #: produced (``diagnostics`` in the response). Off by default.
     diagnostics: bool = False
+    debug: RenderDebugRequest | None = Field(
+        default=None,
+        description="H7: selected formula execution trace and/or per-cell authored source map. Implies diagnostics; preview render only.",
+    )
     #: Sample data, missing data, a clock or cached data for this render only
     #: (H6). Refused by ``/templates/render/live``, which writes the board.
     preview: RenderPreview | None = None
+
+    @model_validator(mode="after")
+    def _debug_bounded(self) -> TemplateRenderRequest:
+        if self.debug is None:
+            return self
+        if not isinstance(self.template, list):
+            raise ValueError("Debug requires a list template")
+        if self.canvases is not None:
+            raise ValueError("Debug is not available for pixel canvas layouts")
+        if len(self.template) > 64 or sum(map(len, self.template)) > 16384:
+            raise ValueError("Debug allows at most 64 lines and 16384 template code points")
+        formulas = [
+            (line, start, body)
+            for line, text in enumerate(self.template, 1)
+            for start, _end, body in find_formulas(text)
+        ]
+        if len(formulas) > 64:
+            raise ValueError("Debug allows at most 64 formulas")
+        selected = self.debug.trace
+        if selected is not None:
+            matches = [body for line, start, body in formulas if line == selected.line and start == selected.start]
+            if not matches:
+                raise ValueError("Debug trace must select an existing formula at its H5 line/start")
+            if len(matches[0]) > 4096:
+                raise ValueError("Debug trace formula exceeds 4096 code points")
+        return self
 
     @field_validator("canvases")
     @classmethod
@@ -377,6 +423,47 @@ class CharsetIssue(BaseModel):
     fallback: dict[str, Any]
 
 
+class FormulaTraceEvent(BaseModel):
+    """One actual AST evaluation; spans are relative to the stripped formula body."""
+
+    id: int
+    parent: int | None
+    kind: Literal["literal", "variable", "unary", "binary", "call"]
+    label: str
+    start: int
+    end: int
+    value: str
+    value_truncated: bool
+    error: str | None
+
+
+class FormulaTraceDiagnostic(FormulaDiagnostic):
+    events: list[FormulaTraceEvent] = Field(description="At most 256 actual node executions; parents precede children.")
+    truncated: bool = Field(description="True when executions were omitted; independent of value_truncated.")
+
+
+class CellSource(BaseModel):
+    line: int = Field(description="1-based authored template line.")
+    start: int = Field(description="0-based authored Unicode code-point offset.")
+    end: int = Field(description="Half-open authored code-point end offset.")
+    kind: Literal["literal", "variable", "formula", "fill", "markup"]
+
+
+class CellSourceMap(BaseModel):
+    rows: int
+    cols: int
+    sources: list[CellSource]
+    cells: list[list[int | None]] = Field(
+        description="Row-major source-table indices; null is generated layout padding."
+    )
+
+
+class RenderDebugResponse(BaseModel):
+    trace: FormulaTraceDiagnostic | None = None
+    source_map: CellSourceMap | None = None
+    source_map_status: Literal["complete", "limit", "not_requested"]
+
+
 class TemplateRenderCheckedResponse(TemplateRenderResponse):
     """``POST /templates/render``, as the editor's warnings read it.
 
@@ -398,6 +485,7 @@ class TemplateRenderCheckedResponse(TemplateRenderResponse):
     #: Present only when the request asked (``diagnostics: true``); null for
     #: a page with pixel canvases (not reported yet).
     diagnostics: RenderDiagnostics | None = None
+    debug: RenderDebugResponse | None = None
     #: Present only with ``preview``: the hub's own data per plugin the render
     #: used, sampled or marked missing.
     sources: dict[str, PreviewSource] | None = None
@@ -413,6 +501,8 @@ class TemplateRenderLiveRequest(TemplateRenderRequest):
 
     @model_validator(mode="after")
     def _no_preview_on_a_board(self) -> TemplateRenderLiveRequest:
+        if self.debug is not None:
+            raise ValueError("Debug is never sent to a board; use POST /templates/render")
         if self.preview is not None:
             raise ValueError(
                 "A preview with sample data, missing data or another time is never sent to a board; "

@@ -1,4 +1,5 @@
 """H7 editor contract: actual formula traces and authored cell origins."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -75,7 +76,7 @@ def test_fill_cells_point_to_fill_directive(client):
     for col in range(1, 21):
         source = origin(body, 0, col)
         assert source["kind"] == "fill"
-        assert line[source["start"]:source["end"]] == "{{fill_space_repeat:-}}"
+        assert line[source["start"] : source["end"]] == "{{fill_space_repeat:-}}"
 
 
 def test_nested_rich_markup_retains_inner_literal_and_variable_origins(client):
@@ -118,8 +119,12 @@ def test_blank_template_returns_requested_board_map(client, template):
 
 def test_preview_trace_uses_sample_missing_and_pinned_clock(client):
     line = '{{= DEFAULT(missing.value, "OK") & ":" & demo.word & ":" & YEAR(NOW()) }}'
-    body = render(client, [line], {"trace": {"line": 1, "start": 0}, "source_map": True},
-                  preview={"values": {"demo.word": "S"}, "missing": ["missing"], "at": f"{datetime.now().year}-01-02T03:04:00"})
+    body = render(
+        client,
+        [line],
+        {"trace": {"line": 1, "start": 0}, "source_map": True},
+        preview={"values": {"demo.word": "S"}, "missing": ["missing"], "at": f"{datetime.now().year}-01-02T03:04:00"},
+    )
     expected = f"OK:S:{datetime.now().year}"
     assert body["debug"]["trace"]["value"] == expected
     assert body["lines"][0].strip() == expected
@@ -153,18 +158,27 @@ def test_syntax_error_trace_keeps_position_message_and_empty_events(client):
     assert trace["events"] == []
 
 
-@pytest.mark.parametrize("payload", [
-    {"template": "ABC", "debug": {"source_map": True}},
-    {"template": ["ABC"], "debug": {"trace": {"line": 1, "start": 0}}},
-    {"template": ["{{= 1 }}"], "debug": {"trace": {"line": 0, "start": 0}}},
-    {"template": ["{{= 1 }}"], "debug": {"trace": {"line": 1, "start": -1}}},
-    {"template": ["ABC"], "debug": {"unknown": True}},
-    {"template": ["A"] * 65, "debug": {"source_map": True}},
-    {"template": ["A" * 16385], "debug": {"source_map": True}},
-    {"template": ["A"], "device_type": "panel", "grid_rows": 96, "grid_cols": 128, "debug": {"source_map": True}},
-    {"template": ["{{= " + "1+" * 2100 + "1 }}"], "debug": {"trace": {"line": 1, "start": 0}}},
-    {"template": ["ABC"], "debug": {"source_map": True}, "canvases": [{"id": "test", "area": {"row": 1, "col": 1, "rows": 1, "cols": 2}, "content": {"background": "#ff0000"}}]},
-])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"template": "ABC", "debug": {"source_map": True}},
+        {"template": ["ABC"], "debug": {"trace": {"line": 1, "start": 0}}},
+        {"template": ["{{= 1 }}"], "debug": {"trace": {"line": 0, "start": 0}}},
+        {"template": ["{{= 1 }}"], "debug": {"trace": {"line": 1, "start": -1}}},
+        {"template": ["ABC"], "debug": {"unknown": True}},
+        {"template": ["A"] * 65, "debug": {"source_map": True}},
+        {"template": ["A" * 16385], "debug": {"source_map": True}},
+        {"template": ["A"], "device_type": "panel", "grid_rows": 96, "grid_cols": 128, "debug": {"source_map": True}},
+        {"template": ["{{= " + "1+" * 2100 + "1 }}"], "debug": {"trace": {"line": 1, "start": 0}}},
+        {
+            "template": ["ABC"],
+            "debug": {"source_map": True},
+            "canvases": [
+                {"id": "test", "area": {"row": 1, "col": 1, "rows": 1, "cols": 2}, "content": {"background": "#ff0000"}}
+            ],
+        },
+    ],
+)
 def test_invalid_or_oversized_debug_rejected_before_context_fetch(client, monkeypatch, payload):
     def forbidden(*args, **kwargs):
         pytest.fail("Invalid debug request fetched context")
@@ -177,3 +191,83 @@ def test_invalid_or_oversized_debug_rejected_before_context_fetch(client, monkey
 def test_live_render_rejects_debug_before_sending(client):
     response = client.post("/templates/render/live", json={"template": ["ABC"], "debug": {"source_map": True}})
     assert response.status_code == 422, response.text
+
+
+def test_provenance_budget_exhaustion_keeps_trace_and_render_consistent(client, monkeypatch):
+    from src.templates import debug
+    from src.templates.source_map import SourceTracker
+
+    monkeypatch.setattr(debug, "SourceTracker", lambda: SourceTracker(limit=8))
+    body = render(
+        client,
+        ['{{= REPT("A", 30) }}'],
+        {"source_map": True, "trace": {"line": 1, "start": 0}},
+        line_metadata=[{"wrap": True}],
+    )
+    assert body["debug"]["source_map"] is None
+    assert body["debug"]["source_map_status"] == "limit"
+    assert body["debug"]["trace"]["value"] == "A" * 30
+    assert body["lines"][:2] == ["A" * 22, "A" * 8 + " " * 14]
+
+
+def test_standalone_raw_markup_cells_point_to_entire_atom(client):
+    body = render(client, ["{66}{icon:sun}"], {"source_map": True})
+    assert origin(body, 0, 0) == {"line": 1, "start": 0, "end": 4, "kind": "markup"}
+    assert origin(body, 0, 1) == {"line": 1, "start": 4, "end": 14, "kind": "markup"}
+
+
+def test_debug_preserves_protected_ninth_level_formula_as_literal(client):
+    line = "{{red:" * 9 + "{{= 1+2 }}" + "}}" * 9
+    expected = render(client, [line])["rendered"]
+    body = render(client, [line], {"source_map": True})
+    assert body["rendered"] == expected
+    assert "H7:" not in body["rendered"]
+
+
+def test_formula_output_is_inserted_after_color_normalization(client):
+    line = '{{= "{{red}}" }}'
+    assert render(client, [line], {"source_map": True})["rendered"] == render(client, [line])["rendered"]
+
+
+def test_debug_caps_formula_count_before_fetch(client, monkeypatch):
+    def forbidden(*args, **kwargs):
+        pytest.fail("Oversized formula request fetched context")
+
+    monkeypatch.setattr(TemplateEngine, "_build_context", forbidden)
+    response = client.post("/templates/render", json={"template": ["{{= 1 }}" * 65], "debug": {"source_map": True}})
+    assert response.status_code == 422, response.text
+
+
+def test_render_debug_matches_native_contract_fixture(client):
+    import json
+    import os
+    from pathlib import Path
+
+    request = {
+        "template": ["SUM {{= 2+3 }}"],
+        "device_type": "note",
+        "debug": {"trace": {"line": 1, "start": 4}, "source_map": True},
+    }
+    response = client.post("/templates/render", json=request)
+    assert response.status_code == 200, response.text
+    path = Path(__file__).parent / "fixtures" / "render-debug-v1.json"
+    if os.environ.get("H7_RECORD_FIXTURE") == "1":
+        path.write_text(json.dumps({"request": request, "response": response.json()}, indent=2) + "\n")
+    fixture = json.loads(path.read_text())
+    assert fixture["request"] == request
+    assert response.json() == fixture["response"]
+
+
+def test_debug_session_starts_after_plugin_context_is_built(client, monkeypatch):
+    observed = []
+
+    def build(engine, *args, **kwargs):
+        # A plugin may render a helper string while building its own data.
+        value = engine.render("{{= 1+2 }}", context={})
+        observed.append(value)
+        return {"demo": {"word": value}}
+
+    monkeypatch.setattr(TemplateEngine, "_build_context", build)
+    body = render(client, ["{{demo.word}}"], {"source_map": True})
+    assert observed == ["3"]
+    assert body["lines"][0].strip() == "3"
