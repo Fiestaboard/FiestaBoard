@@ -959,6 +959,10 @@
         "language-time": {
           "title": "Dil ve saat",
           "description": "Hub tarafından Program, saat değişkenleri ve her zaman damgası için kullanılır."
+        },
+        "notifications": {
+          "title": "Bildirimler",
+          "description": "Hesabınızın ve bu tarayıcının hub’ınızdan uyarı alıp alamayacağını seçin."
         }
       }
     }
@@ -3520,5 +3524,55 @@
     "success": "Tüm tarayıcıların, TV’lerin ve telefonların oturumu kapatıldı. Yeni parolanızla oturum açın.",
     "signIn": "Oturum aç",
     "tokenUnchanged": "MCP/API belirteci değişmez. Açığa çıktığını düşünüyorsanız Ayarlar’dan yenileyin."
+  },
+  "notifications": {
+    "privacy": "Hub’ınız uyarı metnini tarayıcınızın anlık bildirim hizmeti üzerinden gönderir. Ekran içeriği ve hesap kimlik bilgileri gönderilmez.",
+    "account": "Hesabım için bildirimlere izin ver",
+    "accountHint": "Bildirimler hem hesabınızda hem de her tarayıcıda etkinleştirilmelidir.",
+    "device": "Bu tarayıcıda etkinleştir",
+    "deviceHint": "Test bildirimlerini yalnızca oturum açılmış bu tarayıcı alır.",
+    "categories": "Otomatik uyarılar",
+    "unavailable": "Otomatik uyarılar henüz kullanılamıyor. Bu tarayıcıyı etkinleştirip bir test gönderebilirsiniz.",
+    "offline": "Bir ekran çevrimdışı olur",
+    "offlineHint": "Bir ekranın bağlantısı kesildiğinde",
+    "override": "Geçici bir değişiklik sona erer",
+    "overrideHint": "Zamanlama Modu devam ettiğinde",
+    "update": "Güncelleme mevcut",
+    "updateHint": "FiestaBoard ve eklenti güncellemeleri",
+    "silence": "Sessizlik Zamanlaması bir mesajı bekletti",
+    "silenceHint": "Şimdi göster seçeneğini kullanabilmeniz için",
+    "permissionGranted": "Bu tarayıcı tarafından izin verildi",
+    "permissionDefault": "Henüz izin istenmedi",
+    "permissionDenied": "Bildirimler tarayıcı tarafından engellendi",
+    "deniedHelp": "Tarayıcı ayarlarında bu site için bildirimlere izin verin, ardından buraya dönüp bu tarayıcıyı etkinleştirin.",
+    "insecureTitle": "HTTPS gerekli",
+    "insecureHelp": "Anlık bildirimler güvenli bir adres gerektirir. Hub’ınızı HTTPS üzerinden açın, ardından bu tarayıcıyı etkinleştirin.",
+    "httpsHelp": "HTTPS nasıl kurulur?",
+    "embeddedTitle": "Hub’ınızı doğrudan açın",
+    "embeddedHelp": "Gömülü bir Home Assistant sayfasında bildirimler etkinleştirilemez. Hub’ı bir tarayıcı sekmesinde doğrudan HTTPS üzerinden açın.",
+    "installTitle": "FiestaBoard’u Ana Ekranınıza ekleyin",
+    "installHelp": "iPhone veya iPad’de bildirimleri etkinleştirmek için Ana Ekrana yüklenen uygulamayı açın.",
+    "unsupportedTitle": "Bildirimler kullanılamıyor",
+    "unsupportedHelp": "Bu tarayıcı web anlık bildirimlerini desteklemiyor. Bildirim desteği olan bir tarayıcı deneyin.",
+    "signInTitle": "Bildirimleri etkinleştirmek için oturum açın",
+    "signInHelp": "Hub’da oturum açma kapalı olsa bile bildirimler için tarayıcıda oturum açılmış olması gerekir.",
+    "loadError": "Bildirim ayarları yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.",
+    "retry": "Tekrar dene",
+    "working": "Bildirimler güncelleniyor…",
+    "actionError": "Bildirimler güncellenemedi. Bağlantınızı kontrol edip tekrar deneyin.",
+    "dismissed": "İzin verilmedi. Hazır olduğunuzda bu tarayıcıyı etkinleştirin.",
+    "reconnect": "Bu tarayıcının yeniden etkinleştirilmesi gerekiyor.",
+    "senderUnavailable": "Test gönderimi kullanılamıyor. Test göndermeden önce hub’ın anlık bildirim iletişim bilgisi yapılandırılmalıdır.",
+    "sendTest": "Test gönder",
+    "sending": "Gönderiliyor…",
+    "testSent": "Anlık bildirim hizmeti testi kabul etti. Bildirimin bu tarayıcıya gelip gelmediğini kontrol edin.",
+    "notSent": "Test gönderilmedi. Daha sonra tekrar deneyin.",
+    "testExpired": "Bu aboneliğin süresi doldu. Bu tarayıcıyı yeniden etkinleştirin.",
+    "cooldown": "Başka bir test göndermeden önce bir dakika bekleyin.",
+    "testError": "Anlık bildirim hizmeti testi kabul edemedi. Daha sonra tekrar deneyin.",
+    "blockedLabel": "tarayıcı tarafından engellendi",
+    "httpsLabel": "HTTPS gerekiyor",
+    "notAvailableLabel": "henüz kullanılamıyor",
+    "loading": "Bildirim ayarları yükleniyor…"
   }
 }

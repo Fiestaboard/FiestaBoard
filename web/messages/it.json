@@ -959,6 +959,10 @@
         "language-time": {
           "title": "Lingua e ora",
           "description": "Usati dall’hub per la Programmazione, le variabili orarie e ogni orario mostrato."
+        },
+        "notifications": {
+          "title": "Notifiche",
+          "description": "Scegli se il tuo account e questo browser possono ricevere avvisi dal tuo hub."
         }
       }
     }
@@ -3520,5 +3524,55 @@
     "success": "Tutti i browser, le TV e i telefoni sono stati disconnessi. Accedi con la nuova password.",
     "signIn": "Accedi",
     "tokenUnchanged": "Il token MCP/API rimane invariato. Ruotalo nelle impostazioni se pensi che sia stato esposto."
+  },
+  "notifications": {
+    "privacy": "Il tuo hub invia il testo degli avvisi tramite il servizio di notifiche push del browser. Il contenuto dello schermo e le credenziali dell’account non sono inclusi.",
+    "account": "Consenti le notifiche per il mio account",
+    "accountHint": "Le notifiche devono essere attivate sia per il tuo account sia per ogni browser.",
+    "device": "Attiva in questo browser",
+    "deviceHint": "Solo questo browser con accesso effettuato riceverà le notifiche di prova.",
+    "categories": "Avvisi automatici",
+    "unavailable": "Gli avvisi automatici non sono ancora disponibili. Puoi attivare questo browser e inviare una prova.",
+    "offline": "Uno schermo va offline",
+    "offlineHint": "Quando uno schermo perde la connessione",
+    "override": "Termina una modifica temporanea",
+    "overrideHint": "Quando riprende la Modalità programmazione",
+    "update": "Aggiornamento disponibile",
+    "updateHint": "Aggiornamenti di FiestaBoard e dei plugin",
+    "silence": "La Programmazione silenzio ha trattenuto un messaggio",
+    "silenceHint": "Per consentirti di scegliere Mostra ora",
+    "permissionGranted": "Consentite da questo browser",
+    "permissionDefault": "Autorizzazione non richiesta",
+    "permissionDenied": "Notifiche bloccate dal browser",
+    "deniedHelp": "Consenti le notifiche per questo sito nelle impostazioni del browser, poi torna qui e attiva questo browser.",
+    "insecureTitle": "Richiede HTTPS",
+    "insecureHelp": "Le notifiche push richiedono un indirizzo sicuro. Apri il tuo hub tramite HTTPS, poi attiva questo browser.",
+    "httpsHelp": "Come configurare HTTPS",
+    "embeddedTitle": "Apri il tuo hub direttamente",
+    "embeddedHelp": "Non è possibile attivare le notifiche all’interno di una pagina incorporata di Home Assistant. Apri l’hub direttamente tramite HTTPS in una scheda del browser.",
+    "installTitle": "Aggiungi FiestaBoard alla schermata Home",
+    "installHelp": "Su iPhone o iPad, apri l’app installata nella schermata Home per attivare le notifiche.",
+    "unsupportedTitle": "Notifiche non disponibili",
+    "unsupportedHelp": "Questo browser non supporta le notifiche push web. Prova un browser che supporti le notifiche.",
+    "signInTitle": "Accedi per attivare le notifiche",
+    "signInHelp": "Le notifiche richiedono una sessione del browser con accesso effettuato, anche quando l’accesso all’hub è disattivato.",
+    "loadError": "Impossibile caricare le impostazioni delle notifiche. Controlla la connessione e riprova.",
+    "retry": "Riprova",
+    "working": "Aggiornamento delle notifiche…",
+    "actionError": "Impossibile aggiornare le notifiche. Controlla la connessione e riprova.",
+    "dismissed": "L’autorizzazione non è stata concessa. Attiva questo browser quando vuoi.",
+    "reconnect": "Questo browser deve essere attivato di nuovo.",
+    "senderUnavailable": "L’invio di prove non è disponibile. Il contatto push dell’hub deve essere configurato prima di inviare prove.",
+    "sendTest": "Invia una prova",
+    "sending": "Invio…",
+    "testSent": "Il servizio di notifiche push ha accettato la prova. Controlla se la notifica appare in questo browser.",
+    "notSent": "La prova non è stata inviata. Riprova più tardi.",
+    "testExpired": "Questa sottoscrizione è scaduta. Attiva di nuovo questo browser.",
+    "cooldown": "Attendi un minuto prima di inviare un’altra prova.",
+    "testError": "Il servizio di notifiche push non ha potuto accettare la prova. Riprova più tardi.",
+    "blockedLabel": "bloccate dal browser",
+    "httpsLabel": "richiede HTTPS",
+    "notAvailableLabel": "non ancora disponibili",
+    "loading": "Caricamento delle impostazioni delle notifiche…"
   }
 }

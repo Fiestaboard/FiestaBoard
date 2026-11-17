@@ -110,7 +110,7 @@ afterEach(() => {
 });
 
 describe("Settings index", () => {
-  it("lists the You group: Account, Appearance, Accessibility", async () => {
+  it("lists the You group including Notifications", async () => {
     renderAt("/settings");
     const you = await screen.findByRole("list", { name: "You" });
     await waitFor(() =>
@@ -118,7 +118,7 @@ describe("Settings index", () => {
         within(you)
           .getAllByRole("link")
           .map((link) => link.textContent),
-      ).toEqual(["Account", "Appearance", "Accessibility"]),
+      ).toEqual(["Account", "Appearance", "Accessibility", "Notifications"]),
     );
   });
 

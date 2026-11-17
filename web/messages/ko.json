@@ -959,6 +959,10 @@
         "language-time": {
           "title": "언어 및 시간",
           "description": "허브가 일정, 시간 변수, 모든 타임스탬프에 사용합니다."
+        },
+        "notifications": {
+          "title": "알림",
+          "description": "계정과 이 브라우저에서 허브의 알림을 받을지 선택합니다."
         }
       }
     }
@@ -3520,5 +3524,55 @@
     "success": "모든 브라우저, TV, 휴대전화에서 로그아웃되었습니다. 새 비밀번호로 로그인하세요.",
     "signIn": "로그인",
     "tokenUnchanged": "MCP/API 토큰은 변경되지 않습니다. 노출되었다고 생각되면 설정에서 교체하세요."
+  },
+  "notifications": {
+    "privacy": "허브는 브라우저의 푸시 서비스를 통해 알림 내용을 전송합니다. 디스플레이 콘텐츠와 계정 인증 정보는 포함되지 않습니다.",
+    "account": "내 계정에 알림 허용",
+    "accountHint": "계정과 각 브라우저에서 모두 알림을 활성화해야 합니다.",
+    "device": "이 브라우저에서 활성화",
+    "deviceHint": "로그인된 이 브라우저에서만 테스트 알림을 받습니다.",
+    "categories": "자동 알림",
+    "unavailable": "자동 알림은 아직 사용할 수 없습니다. 이 브라우저를 활성화하고 테스트를 보낼 수 있습니다.",
+    "offline": "디스플레이가 오프라인 상태가 됨",
+    "offlineHint": "디스플레이의 연결이 끊어질 때",
+    "override": "임시 변경이 종료됨",
+    "overrideHint": "스케줄 모드가 다시 시작될 때",
+    "update": "업데이트 있음",
+    "updateHint": "FiestaBoard 및 플러그인 업데이트",
+    "silence": "무음 스케줄이 메시지를 보류함",
+    "silenceHint": "지금 표시를 선택할 수 있도록 알림",
+    "permissionGranted": "이 브라우저에서 허용됨",
+    "permissionDefault": "권한을 아직 요청하지 않음",
+    "permissionDenied": "브라우저에서 알림을 차단함",
+    "deniedHelp": "브라우저 설정에서 이 사이트의 알림을 허용한 다음, 여기로 돌아와 이 브라우저를 활성화하세요.",
+    "insecureTitle": "HTTPS 필요",
+    "insecureHelp": "푸시 알림에는 보안 주소가 필요합니다. HTTPS로 허브를 연 다음 이 브라우저를 활성화하세요.",
+    "httpsHelp": "HTTPS 설정 방법",
+    "embeddedTitle": "허브를 직접 여세요",
+    "embeddedHelp": "Home Assistant에 삽입된 페이지에서는 알림을 활성화할 수 없습니다. 브라우저 탭에서 HTTPS로 허브를 직접 여세요.",
+    "installTitle": "홈 화면에 FiestaBoard 추가",
+    "installHelp": "iPhone 또는 iPad에서는 홈 화면에 설치된 앱을 열어 알림을 활성화하세요.",
+    "unsupportedTitle": "알림을 사용할 수 없음",
+    "unsupportedHelp": "이 브라우저는 웹 푸시를 지원하지 않습니다. 알림을 지원하는 브라우저를 사용해 보세요.",
+    "signInTitle": "로그인하여 알림 활성화",
+    "signInHelp": "허브 로그인이 꺼져 있어도 알림을 사용하려면 브라우저에 로그인되어 있어야 합니다.",
+    "loadError": "알림 설정을 불러오지 못했습니다. 연결을 확인하고 다시 시도하세요.",
+    "retry": "다시 시도",
+    "working": "알림 업데이트 중…",
+    "actionError": "알림을 업데이트하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
+    "dismissed": "권한이 허용되지 않았습니다. 준비가 되면 이 브라우저를 활성화하세요.",
+    "reconnect": "이 브라우저를 다시 활성화해야 합니다.",
+    "senderUnavailable": "테스트를 보낼 수 없습니다. 테스트를 보내려면 허브의 푸시 연락처를 설정해야 합니다.",
+    "sendTest": "테스트 보내기",
+    "sending": "전송 중…",
+    "testSent": "푸시 서비스가 테스트를 수락했습니다. 이 브라우저에 알림이 도착했는지 확인하세요.",
+    "notSent": "테스트가 전송되지 않았습니다. 나중에 다시 시도하세요.",
+    "testExpired": "이 구독이 만료되었습니다. 이 브라우저를 다시 활성화하세요.",
+    "cooldown": "다른 테스트를 보내기 전에 1분 정도 기다려 주세요.",
+    "testError": "푸시 서비스가 테스트를 수락하지 못했습니다. 나중에 다시 시도하세요.",
+    "blockedLabel": "브라우저에서 차단됨",
+    "httpsLabel": "HTTPS 필요",
+    "notAvailableLabel": "아직 사용할 수 없음",
+    "loading": "알림 설정 불러오는 중…"
   }
 }
