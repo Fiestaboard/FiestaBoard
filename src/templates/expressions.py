@@ -39,6 +39,7 @@ import regex as _regex
 
 from .colors import COLOR_CODES as _COLOR_CODES
 from .colors import is_color_code as _is_color_code
+from .trace import FormulaTrace
 
 # --------------------------------------------------------------------------- #
 # Error model
@@ -276,6 +277,7 @@ class Token:
     kind: str
     value: Any
     pos: int
+    end: int
 
 
 # Multi-character operators must be matched before single-character ones.
@@ -332,7 +334,7 @@ def _tokenize(source: str) -> list[Token]:
                 value = float(text) if "." in text else int(text)
             except ValueError as exc:  # pragma: no cover - lexer invariant
                 raise FormulaError("#SYNTAX", f"Bad number: {text}", pos=start) from exc
-            tokens.append(Token(_T_NUMBER, value, start))
+            tokens.append(Token(_T_NUMBER, value, start, i))
             continue
 
         # String literal: "..." with backslash escapes
@@ -351,7 +353,7 @@ def _tokenize(source: str) -> list[Token]:
             if i >= n:
                 raise FormulaError("#SYNTAX", "Unterminated string literal", pos=start)
             i += 1  # closing quote
-            tokens.append(Token(_T_STRING, "".join(buf), start))
+            tokens.append(Token(_T_STRING, "".join(buf), start, i))
             continue
 
         # Identifier / keyword: letters, digits, underscore, ':' (plugin instance),
@@ -383,20 +385,20 @@ def _tokenize(source: str) -> list[Token]:
             # it would produce a misleading "Unknown source" error.
             if text.endswith("."):
                 raise FormulaError("#SYNTAX", f"Trailing dot in identifier: {text}", pos=start)
-            tokens.append(Token(_T_IDENT, text, start))
+            tokens.append(Token(_T_IDENT, text, start, i))
             continue
 
         # Punctuation
         if ch == "(":
-            tokens.append(Token(_T_LPAREN, ch, i))
+            tokens.append(Token(_T_LPAREN, ch, i, i + 1))
             i += 1
             continue
         if ch == ")":
-            tokens.append(Token(_T_RPAREN, ch, i))
+            tokens.append(Token(_T_RPAREN, ch, i, i + 1))
             i += 1
             continue
         if ch == ",":
-            tokens.append(Token(_T_COMMA, ch, i))
+            tokens.append(Token(_T_COMMA, ch, i, i + 1))
             i += 1
             continue
 
@@ -404,7 +406,7 @@ def _tokenize(source: str) -> list[Token]:
         matched = False
         for op in _OPERATORS:
             if source.startswith(op, i):
-                tokens.append(Token(_T_OP, op, i))
+                tokens.append(Token(_T_OP, op, i, i + len(op)))
                 i += len(op)
                 matched = True
                 break
@@ -413,7 +415,7 @@ def _tokenize(source: str) -> list[Token]:
 
         raise FormulaError("#SYNTAX", f"Unexpected character {ch!r} at position {i}", pos=i)
 
-    tokens.append(Token(_T_EOF, None, n))
+    tokens.append(Token(_T_EOF, None, n, n))
     return tokens
 
 
@@ -422,8 +424,11 @@ def _tokenize(source: str) -> list[Token]:
 # --------------------------------------------------------------------------- #
 
 
+@dataclass(kw_only=True, slots=True)
 class _Node:
-    __slots__ = ()
+    # Half-open Unicode code-point offsets in the source passed to the parser.
+    start: int = 0
+    end: int = 0
 
 
 @dataclass
@@ -532,7 +537,7 @@ class _Parser:
         while True:
             if self._accept_kw("OR") or self._accept_op("||"):
                 right = self._parse_and()
-                left = _Binary("OR", left, right)
+                left = _Binary("OR", left, right, start=left.start, end=right.end)
             else:
                 break
         return left
@@ -542,14 +547,16 @@ class _Parser:
         while True:
             if self._accept_kw("AND") or self._accept_op("&&"):
                 right = self._parse_not()
-                left = _Binary("AND", left, right)
+                left = _Binary("AND", left, right, start=left.start, end=right.end)
             else:
                 break
         return left
 
     def _parse_not(self) -> _Node:
+        start = self._peek().pos
         if self._accept_kw("NOT") or self._accept_op("!"):
-            return _Unary("NOT", self._parse_not())
+            operand = self._parse_not()
+            return _Unary("NOT", operand, start=start, end=operand.end)
         return self._parse_cmp()
 
     def _parse_cmp(self) -> _Node:
@@ -563,14 +570,14 @@ class _Parser:
             elif op == "<>":
                 op = "!="
             right = self._parse_concat()
-            left = _Binary(op, left, right)
+            left = _Binary(op, left, right, start=left.start, end=right.end)
         return left
 
     def _parse_concat(self) -> _Node:
         left = self._parse_add()
         while self._accept_op("&"):
             right = self._parse_add()
-            left = _Binary("&", left, right)
+            left = _Binary("&", left, right, start=left.start, end=right.end)
         return left
 
     def _parse_add(self) -> _Node:
@@ -580,7 +587,7 @@ class _Parser:
             if op is None:
                 break
             right = self._parse_mul()
-            left = _Binary(op, left, right)
+            left = _Binary(op, left, right, start=left.start, end=right.end)
         return left
 
     def _parse_mul(self) -> _Node:
@@ -590,13 +597,15 @@ class _Parser:
             if op is None:
                 break
             right = self._parse_unary()
-            left = _Binary(op, left, right)
+            left = _Binary(op, left, right, start=left.start, end=right.end)
         return left
 
     def _parse_unary(self) -> _Node:
+        start = self._peek().pos
         op = self._accept_op("+", "-")
         if op is not None:
-            return _Unary(op, self._parse_unary())
+            operand = self._parse_unary()
+            return _Unary(op, operand, start=start, end=operand.end)
         return self._parse_primary()
 
     def _parse_primary(self) -> _Node:
@@ -604,11 +613,11 @@ class _Parser:
 
         if tok.kind == _T_NUMBER:
             self._advance()
-            return _Literal(tok.value)
+            return _Literal(tok.value, start=tok.pos, end=tok.end)
 
         if tok.kind == _T_STRING:
             self._advance()
-            return _Literal(tok.value)
+            return _Literal(tok.value, start=tok.pos, end=tok.end)
 
         if tok.kind == _T_LPAREN:
             self._advance()
@@ -616,6 +625,7 @@ class _Parser:
             close = self._advance()
             if close.kind != _T_RPAREN:
                 raise FormulaError("#SYNTAX", "Missing closing ')'", pos=close.pos)
+            node.start, node.end = tok.pos, close.end
             return node
 
         if tok.kind == _T_IDENT:
@@ -625,11 +635,11 @@ class _Parser:
 
             # Constants
             if upper == "TRUE":
-                return _Literal(True)
+                return _Literal(True, start=tok.pos, end=tok.end)
             if upper == "FALSE":
-                return _Literal(False)
+                return _Literal(False, start=tok.pos, end=tok.end)
             if upper == "NULL":
-                return _Literal(None)
+                return _Literal(None, start=tok.pos, end=tok.end)
 
             # Function call?
             if self._peek().kind == _T_LPAREN:
@@ -643,10 +653,10 @@ class _Parser:
                 close = self._advance()
                 if close.kind != _T_RPAREN:
                     raise FormulaError("#SYNTAX", f"Missing ')' in call to {name}", pos=close.pos)
-                return _Call(upper, args)
+                return _Call(upper, args, start=tok.pos, end=close.end)
 
             # Variable reference
-            return _Var(name)
+            return _Var(name, start=tok.pos, end=tok.end)
 
         raise FormulaError(
             "#SYNTAX",
@@ -2262,6 +2272,23 @@ def _traverse(value: Any, parts: list[str]) -> Any:
 # --- Tree walker ----------------------------------------------------------- #
 
 
+_ACTIVE_TRACE: ContextVar[FormulaTrace | None] = ContextVar("formula_trace", default=None)
+
+
+def _trace_enter(trace: FormulaTrace, node: _Node) -> int | None:
+    if isinstance(node, _Literal):
+        kind, label = "literal", None
+    elif isinstance(node, _Var):
+        kind, label = "variable", node.path
+    elif isinstance(node, _Unary):
+        kind, label = "unary", node.op
+    elif isinstance(node, _Binary):
+        kind, label = "binary", node.op
+    else:
+        kind, label = "call", node.name
+    return trace._enter(kind, label, node.start, node.end)
+
+
 def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
     """Evaluate *node*. The one choke point every result passes: text longer
     than :data:`MAX_STRING_LENGTH` is ``#VALUE`` (``&`` and any function
@@ -2277,7 +2304,16 @@ def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
         if render is not None:
             # Each formula's start reads the render's deadline (W2b), with
             # the clock reading its own budget just took.
-            _check_render_deadline(render, formula.started)
+            try:
+                _check_render_deadline(render, formula.started)
+            except FormulaError as exc:
+                # A render can expire before this formula's first node. It
+                # still has one failed root, but never a duplicate root from
+                # the recursive budget bootstrap below.
+                trace = _ACTIVE_TRACE.get()
+                if trace is not None and not trace.truncated:
+                    trace._finish(_trace_enter(trace, node), None, _to_string, error=exc.code)
+                raise
         token = _ACTIVE_BUDGET.set((formula, render))
         try:
             return _eval_node(node, context)
@@ -2286,21 +2322,37 @@ def _eval_node(node: _Node, context: dict[str, Any]) -> Any:
         finally:
             _ACTIVE_BUDGET.reset(token)
     formula, _render = active
-    _charge(1)
-    if formula.depth >= MAX_EVAL_DEPTH:
-        raise _Exhausted("#SYNTAX", f"formula nests more than {MAX_EVAL_DEPTH} levels deep")
-    formula.depth += 1
+    trace = _ACTIVE_TRACE.get()
+    event = _trace_enter(trace, node) if trace is not None and not trace.truncated else None
+    result = None
+    error = None
     try:
-        result = _eval_node_unbounded(node, context)
+        _charge(1)
+        if formula.depth >= MAX_EVAL_DEPTH:
+            raise _Exhausted("#SYNTAX", f"formula nests more than {MAX_EVAL_DEPTH} levels deep")
+        formula.depth += 1
+        try:
+            result = _eval_node_unbounded(node, context)
+        finally:
+            formula.depth -= 1
+        if isinstance(result, str):
+            _check_length(len(result))
+        # What it built counts too: a long string or list is that much work.
+        weight = _size(result) // STEP_WEIGHT_CHARS
+        if weight:
+            _charge(weight)
+        if _is_error(result):
+            error = result.code
+        return result
+    except FormulaError as exc:
+        error = exc.code
+        raise
+    except RecursionError:
+        error = "#SYNTAX"  # converted at the outermost budget scope above
+        raise
     finally:
-        formula.depth -= 1
-    if isinstance(result, str):
-        _check_length(len(result))
-    # What it built counts too: a long string or list is that much work.
-    weight = _size(result) // STEP_WEIGHT_CHARS
-    if weight:
-        _charge(weight)
-    return result
+        if event is not None:
+            trace._finish(event, result, _to_string, error=error)
 
 
 def count_steps(expression: str, context: dict[str, Any] | None = None) -> int:
@@ -2488,24 +2540,35 @@ def _first_missing_path(tree: _Node, context: dict[str, Any]) -> str | None:
     return None
 
 
-def evaluate_detailed(expression: str, context: dict[str, Any] | None = None) -> Evaluation:
+def evaluate_detailed(
+    expression: str, context: dict[str, Any] | None = None, *, trace: FormulaTrace | None = None
+) -> Evaluation:
     """:func:`evaluate`, with the error kept apart from the text (the editor's
-    per-formula value, H5). The one implementation both share."""
+    per-formula value, H5). The one implementation both share. An optional
+    H7 recorder observes this evaluation without evaluating any node twice."""
     ctx = context or {}
+    if trace is not None:
+        trace._start(expression)
+    token = _ACTIVE_TRACE.set(trace)
     try:
-        tokens = _tokenize(expression)
-        tree = _Parser(tokens).parse()
-        result = _eval_node(tree, ctx)
-    except FormulaError as exc:
-        return _failed(exc)
-    if _is_error(result):
-        missing = _first_missing_path(tree, ctx) if result.code == "#REF" else None
-        return Evaluation(value=result.code, error=result.code, message=f"No value at {missing}" if missing else None)
-    try:
-        return Evaluation(value=_to_string(result))
-    except FormulaError as exc:
-        # An expression whose *result* is an array (``{{= plugin.games }}``).
-        return _failed(exc)
+        try:
+            tokens = _tokenize(expression)
+            tree = _Parser(tokens).parse()
+            result = _eval_node(tree, ctx)
+        except FormulaError as exc:
+            return _failed(exc)
+        if _is_error(result):
+            missing = _first_missing_path(tree, ctx) if result.code == "#REF" else None
+            return Evaluation(
+                value=result.code, error=result.code, message=f"No value at {missing}" if missing else None
+            )
+        try:
+            return Evaluation(value=_to_string(result))
+        except FormulaError as exc:
+            # An expression whose *result* is an array (``{{= plugin.games }}``).
+            return _failed(exc)
+    finally:
+        _ACTIVE_TRACE.reset(token)
 
 
 def expression_plugin_ids(expression: str) -> set[str] | None:

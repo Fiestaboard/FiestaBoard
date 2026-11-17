@@ -108,14 +108,28 @@ test.describe("regression: schedule.calendar", () => {
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
     await page.getByRole("radio", { name: "Week", exact: true }).click();
     await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
-    // Find the zoom slider (Radix Slider exposes role="slider")
-    const slider = page.locator(".schedule-calendar-container").getByRole("slider").first();
+    const wrapper = page.locator(".schedule-calendar-wrapper");
+    const slider = wrapper.getByRole("slider");
     await expect(slider).toBeVisible();
     await slider.focus();
+    await page.keyboard.press("Home");
+    await expect(slider).toHaveAttribute("aria-valuenow", "0");
+    const initialHourHeight = await wrapper
+      .locator(".schedule-calendar-container")
+      .evaluate((element) => getComputedStyle(element).getPropertyValue("--rbc-hour-height"));
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("ArrowRight");
-    const stored = await page.evaluate(() => localStorage.getItem("schedule-calendar-zoom"));
-    expect(stored).not.toBeNull();
+    await expect(slider).toHaveAttribute("aria-valuenow", "2");
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("schedule-calendar-zoom"))).toBe("2");
+    const hourHeight = await wrapper
+      .locator(".schedule-calendar-container")
+      .evaluate((element) => getComputedStyle(element).getPropertyValue("--rbc-hour-height"));
+    expect(hourHeight).not.toBe(initialHourHeight);
+    await page.reload();
+    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
+    await expect(slider).toHaveAttribute("aria-valuenow", "2");
+    await expect(wrapper.locator(".schedule-calendar-container")).toHaveCSS("--rbc-hour-height", hourHeight);
   });
 
   /**

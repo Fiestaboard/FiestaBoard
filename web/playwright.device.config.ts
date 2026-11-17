@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
-  testMatch: "device-sign-in.spec.ts",
+  testMatch: ["device-sign-in.spec.ts", "setup-pairing.spec.ts"],
   workers: 1,
   fullyParallel: false,
   timeout: 30000,

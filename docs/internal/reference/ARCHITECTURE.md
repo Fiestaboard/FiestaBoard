@@ -42,7 +42,7 @@ in `tests/layering_manifest.json`, and only those**:
 | A router may not hold domain logic | `router_no_domain_logic` | A **size proxy**: every module-level function in a transport module stays within 15 body statements and cyclomatic complexity 8 |
 
 Enforced today: **`auth`, `backup`, `config_api`, `mqtt`, `network`, `oauth`,
-`outputs`, `schedules`, `system`, `triggers`**. Everything else —
+`outputs`, `push`, `schedules`, `system`, `triggers`**. Everything else —
 including `pages`, `collections`, `panels`, `settings`, `board_api` — is
 **unenforced**, and most of it does not currently comply: the 2026-09 audit
 counted ~1,600 lines of domain logic living in thirteen routers. A domain

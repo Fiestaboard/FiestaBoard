@@ -71,6 +71,20 @@ class MessageFormatter:
     def _wrap_line(self, line: str) -> list[str]:
         """Greedy word-wrap one over-wide line into board-width rows."""
         words = line.split()
+        # The rich-markup fallback passes its mapped source here. Keep a
+        # separator's first source position when whitespace is collapsed.
+        separators: list[str] | None = None
+        if type(line) is not str:
+            import re
+
+            from src.templates.source_map import MappedText, mapped_like
+
+            if isinstance(line, MappedText):
+                separators = []
+                previous = 0
+                for match in re.finditer(r"\S+", line):
+                    separators.append(mapped_like(" ", line, previous) if match.start() > previous else " ")
+                    previous = match.end()
         if not words:
             # Whitespace-only line: keep the blank row instead of returning
             # nothing and silently shifting everything below it up.
@@ -80,10 +94,15 @@ class MessageFormatter:
         current = ""
         current_tiles = 0
 
-        for word in words:
+        for index, word in enumerate(words):
             word_tiles = count_tiles(word, extended_markup=False)
             if current and current_tiles + 1 + word_tiles <= self._cols:
-                current = f"{current} {word}"
+                if separators is None:
+                    current = f"{current} {word}"
+                else:
+                    from src.templates.source_map import concat
+
+                    current = concat((current, separators[index], word))
                 current_tiles += 1 + word_tiles
                 continue
             if current:

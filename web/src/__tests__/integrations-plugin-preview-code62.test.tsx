@@ -19,7 +19,7 @@ import { delay, http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CurrentBoardProvider } from "@/components/current-board-context";
-import type { Code62Glyph } from "@/lib/api";
+import type { Code62Glyph, RegistryEntry } from "@/lib/api";
 
 import IntegrationsPage from "../../app/routes/integrations._index";
 import PluginDetailPage from "../../app/routes/integrations.$pluginId";
@@ -72,7 +72,7 @@ function mockWeatherRegistry(
   {
     installed = false,
     previews = [{ device_type: "flagship", rows: [teaser] }],
-  }: { installed?: boolean; previews?: Array<{ device_type: string; rows: string[] }> } = {},
+  }: { installed?: boolean; previews?: RegistryEntry["previews"] } = {},
 ) {
   const plugin = {
     id: "weather",
@@ -176,8 +176,18 @@ describe("Integrations plugin previews — code-62 flap", () => {
 
     // Blank tiles draw nothing, so the board's text is the glyphs with the
     // padding squeezed out.
-    const board = await screen.findByRole("img", { name: /split-flap board/i });
+    const board = await screen.findByRole("img", { name: /Board display:/i });
     expect(board).toHaveTextContent("52♥FCLEAR");
+  });
+
+  it("gives an installed sample a named Actual size viewport instead of an unreachable centered board", async () => {
+    mockBoard("heart");
+    mockWeatherRegistry("52 °F CLEAR", { installed: true });
+    renderWithQueryClient(<PluginDetailPage />);
+
+    const preview = await screen.findByRole("group", { name: "Weather displayed on a split-flap board" });
+    expect(preview.closest('[data-slot="board-viewport"]')).toHaveAttribute("data-mode", "actual");
+    expect(within(preview).getByRole("img")).toHaveTextContent("52♥FCLEAR");
   });
 
   it("keeps the degree in the plugin detail showcase for a board saved before the setting", async () => {
@@ -185,7 +195,7 @@ describe("Integrations plugin previews — code-62 flap", () => {
     mockWeatherRegistry();
     renderWithQueryClient(<PluginDetailPage />);
 
-    const board = await screen.findByRole("img", { name: /split-flap board/i });
+    const board = await screen.findByRole("img", { name: /Board display:/i });
     expect(board).toHaveTextContent("52°FCLEAR");
   });
 });
@@ -213,7 +223,7 @@ describe("Integrations plugin previews — extended markup on a split-flap board
     mockWeatherRegistry("{red:52} °F {icon:sun}");
     renderWithQueryClient(<PluginDetailPage />);
 
-    const board = await screen.findByRole("img", { name: /split-flap board/i });
+    const board = await screen.findByRole("img", { name: /Board display:/i });
     expect(board).toHaveTextContent("52♥F");
     expect(board).not.toHaveTextContent(/RED|ICON/);
   });
@@ -221,10 +231,26 @@ describe("Integrations plugin previews — extended markup on a split-flap board
 
 afterEach(() => {
   localStorage.removeItem("fiestaboard_current_board");
+  sessionStorage.removeItem("fiestaboard:boardPreviewMode");
   vi.unstubAllGlobals();
 });
 
 describe("Installed integration board previews", () => {
+  it("retains every note-array tile and the user's session Fit choice", async () => {
+    sessionStorage.setItem("fiestaboard:boardPreviewMode", "fit");
+    mockBoard("heart");
+    mockWeatherRegistry("ARRAY", {
+      installed: true,
+      previews: [{ device_type: "note_array", notes_wide: 2, notes_tall: 1, rows: ["LEFT", "MIDDLE", "RIGHT"] }],
+    });
+    renderWithQueryClient(<PluginDetailPage />);
+
+    const board = await screen.findByRole("img", { name: /Board display:/i });
+    expect(board).toHaveTextContent("LEFTMIDDLERIGHT");
+    expect(board.querySelectorAll("[data-note-tile]")).toHaveLength(90);
+    expect(board.closest('[data-slot="board-viewport"]')).toHaveAttribute("data-mode", "fit");
+  });
+
   it("keeps the installed sample available in the selected desktop detail pane", async () => {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: query === "(min-width: 768px)",
@@ -238,7 +264,7 @@ describe("Installed integration board previews", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /^Weather/ }));
     const detail = screen.getByRole("complementary", { name: "Integration settings" });
-    const board = await within(detail).findByRole("img", { name: /split-flap board/i });
+    const board = await within(detail).findByRole("img", { name: /Board display:/i });
     expect(board).toHaveTextContent("52♥FCLEAR");
     expect(within(detail).getByRole("group", { name: "Board color" })).toBeInTheDocument();
   });
@@ -284,7 +310,7 @@ describe("Installed integration board previews", () => {
         <PluginDetailPage />
       </CurrentBoardProvider>,
     );
-    const board = await screen.findByRole("img", { name: /split-flap board/i });
+    const board = await screen.findByRole("img", { name: /Board display:/i });
     await waitFor(() => expect(board).toHaveTextContent("52♥FCLEAR"));
     const colors = screen.getByRole("group", { name: "Board color" });
     await waitFor(() =>
@@ -295,7 +321,7 @@ describe("Installed integration board previews", () => {
     expect(within(colors).getByRole("button", { name: "Black Board" })).toHaveAttribute("aria-pressed", "true");
     const shapes = screen.getByRole("tablist", { name: "Board shape" });
     await user.click(within(shapes).getByRole("tab", { name: /Note/ }));
-    expect(await screen.findByRole("img", { name: /split-flap board/i })).toHaveTextContent("NOTEFORECAST");
+    expect(await screen.findByRole("img", { name: /Board display:/i })).toHaveTextContent("NOTEFORECAST");
     expect(screen.getByRole("tab", { name: "Settings" })).toBeInTheDocument();
   });
 
@@ -303,7 +329,7 @@ describe("Installed integration board previews", () => {
     mockBoard();
     mockWeatherRegistry("52 °F CLEAR", { installed: true });
     renderWithQueryClient(<PluginDetailPage />);
-    expect(await screen.findByRole("img", { name: /split-flap board/i })).toHaveTextContent("52°FCLEAR");
+    expect(await screen.findByRole("img", { name: /Board display:/i })).toHaveTextContent("52°FCLEAR");
   });
 
   it("does not invent a showcase when an installed registry entry has no previews", async () => {

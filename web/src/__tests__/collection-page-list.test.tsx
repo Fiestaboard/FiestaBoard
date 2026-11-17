@@ -212,7 +212,7 @@ describe("CollectionPageList, time mode", () => {
     render(<Harness />);
     expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute(
       "data-size",
-      "icon-lg",
+      "icon-touch",
     );
   });
 
@@ -221,7 +221,7 @@ describe("CollectionPageList, time mode", () => {
     render(<Harness />);
     expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute(
       "data-size",
-      "icon-sm",
+      "icon-lg",
     );
   });
 
@@ -248,8 +248,8 @@ describe("CollectionPageList, random and variable modes", () => {
     expect(document.querySelector('[data-slot="sortable-list"]')).toBeNull();
     expect(document.querySelector('[data-slot="sortable-list-handle"]')).toBeNull();
     const group = screen.getByRole("list");
-    expect(group).toHaveAttribute("data-slot", "list-row-group");
-    expect(group).toHaveAttribute("data-variant", "inset");
+    expect(group.className).not.toMatch(/divide-y/);
+    expect(within(group).getByText("Flagship")).toHaveClass("text-xs");
     expect(within(group).getAllByRole("listitem")).toHaveLength(4);
     act(() => screen.getByRole("button", { name: "Remove Weather + surf" }).click());
     expect(onRemove).toHaveBeenCalledWith(2);
@@ -263,7 +263,7 @@ describe("CollectionPageList, random list on touch", () => {
     for (const row of within(screen.getByRole("list")).getAllByRole("listitem")) {
       expect(row).toHaveAttribute("data-size", "touch");
     }
-    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "icon-lg");
+    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "icon-touch");
   });
 
   it("keeps compact rows and × for a fine pointer", () => {
@@ -272,7 +272,7 @@ describe("CollectionPageList, random list on touch", () => {
     for (const row of within(screen.getByRole("list")).getAllByRole("listitem")) {
       expect(row).toHaveAttribute("data-size", "default");
     }
-    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "icon-sm");
+    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "icon-lg");
   });
 });
 
@@ -281,5 +281,19 @@ describe("CollectionPageList, missing pages", () => {
     render(<CollectionPageList pageIds={["gone"]} pages={pages} mode="time" onMove={vi.fn()} onRemove={vi.fn()} />);
     expect(rowOf("gone")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More actions for gone" })).toBeInTheDocument();
+  });
+  it("marks the evaluated random member without claiming physical display state", () => {
+    render(
+      <CollectionPageList
+        pageIds={["p1", "p2"]}
+        pages={pages}
+        mode="random"
+        evaluatedPageId="p2"
+        onMove={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Selected")).toBeInTheDocument();
+    expect(screen.queryByText("Showing now")).not.toBeInTheDocument();
   });
 });

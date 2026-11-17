@@ -92,7 +92,7 @@ def _settings_service(boards, *, paused=(), schedule_off=(), manual=None, overri
     # test sets one later), so ``consume_temporary_override.return_value = x``
     # still works for single-board tests.
     svc.consume_temporary_override.return_value = None
-    svc.consume_temporary_override.side_effect = lambda board_id=None: (
+    svc.consume_temporary_override.side_effect = lambda board_id=None, at=None: (
         per_board[board_id or primary] if per_board.get(board_id or primary) is not None else DEFAULT
     )
     svc.should_send_to_board.return_value = send_to_board
@@ -1085,7 +1085,7 @@ class TestSendStatusReporting:
         svc, _clients = _service_with_runtimes(boards)
         override = SimpleNamespace(
             is_inline=True,
-            is_expired=lambda: False,
+            is_expired=lambda at=None: False,
             template=["ONE OFF"],
             line_metadata=None,
             device_type="flagship",

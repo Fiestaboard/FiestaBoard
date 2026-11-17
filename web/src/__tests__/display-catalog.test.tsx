@@ -40,8 +40,8 @@ function Chooser() {
     </>
   );
 }
-function setup(status = "available") {
-  server.use(http.get("/api/outputs/catalog", () => HttpResponse.json({ outputs, registry_status: status })));
+function setup(status = "available", offered = outputs) {
+  server.use(http.get("/api/outputs/catalog", () => HttpResponse.json({ outputs: offered, registry_status: status })));
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <Chooser />
@@ -50,6 +50,12 @@ function setup(status = "available") {
 }
 
 describe("display catalog", () => {
+  it("shows every choice directly for a compact catalog matching the drawn layout", async () => {
+    setup("available", outputs.slice(0, 5));
+    expect(await screen.findAllByRole("radio")).toHaveLength(5);
+    expect(screen.queryByRole("searchbox", { name: "Search displays" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next results" })).not.toBeInTheDocument();
+  });
   it("finds a product by manufacturer and model beyond the first page", async () => {
     setup();
     const search = await screen.findByRole("searchbox", { name: "Search displays" });

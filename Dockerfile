@@ -93,6 +93,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gosu \
     network-manager \
     nginx \
+    openssl \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
@@ -181,8 +182,8 @@ RUN useradd -m -u 1000 appuser && \
 # even when the container is run without an explicit -v mount.
 VOLUME /app/data
 
-# Expose single port
-EXPOSE 3000
+# HTTP plus the optional built-in TLS listener (disabled by default).
+EXPOSE 3000 3443
 
 # Health check via nginx -> API
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \

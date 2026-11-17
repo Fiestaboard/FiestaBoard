@@ -80,15 +80,25 @@ test.describe("FiestaPanel settings flow", () => {
     await page.getByRole("radio", { name: /FiestaPanel/ }).click();
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await page.getByLabel("TV name").fill("E2E Wall TV");
-    await page.getByLabel(/Screen size/).fill("55");
-    await page.getByRole("button", { name: "Create TV board" }).click();
+    await page.getByRole("combobox", { name: /Screen size/ }).click();
+    await page.getByRole("option", { name: "55-inch TV · automatic board size", exact: true }).click();
+    const created = page.waitForResponse(
+      (response) => response.url().endsWith("/api/panels") && response.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "Add display", exact: true }).click();
+    const response = await created;
+    expect(response.status()).toBe(201);
+    const panel = (await response.json()) as PanelListEntry;
 
     // Creation opens the new display; its Settings tab contains immediate
     // panel controls, rather than the old virtual board/pencil editor card.
-    await expect(page).toHaveURL(/\/displays\/[^/?]+$/, { timeout: 15_000 });
-    await page.getByRole("tab", { name: "Settings", exact: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname === `/displays/${panel.board_id}`, { timeout: 15_000 });
     const settings = page.getByTestId("display-panel-settings");
+    // The URL can change before the outlet replaces the previous embedded
+    // display. Wait for this panel's mounted content before using its tabs.
     await expect(settings.getByTestId("board-name-input")).toHaveValue("E2E Wall TV (Panel)", { timeout: 10_000 });
+    await page.getByRole("tab", { name: "Settings", exact: true }).click();
+    await expect(settings.getByTestId("board-name-input")).toBeVisible();
     await expect(settings.getByRole("heading", { name: "FiestaPanel", exact: true })).toBeVisible();
     await expect(settings.getByLabel("Panel URL")).toHaveValue(/\/p\/\d+$/);
     await expect(settings.getByRole("radiogroup", { name: "TV size" })).toBeVisible();

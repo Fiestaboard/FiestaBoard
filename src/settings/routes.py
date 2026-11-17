@@ -856,6 +856,10 @@ async def get_temporary_override(board_id: str | None = None):
     A read, so an unknown ``board_id`` falls back to "no override" rather than
     404 (API_CONVENTIONS: writes 404, reads fall back): a poll racing a
     display's deletion gets the correct answer for a display that is gone.
+
+    An expired override reports ``active: false`` and null ``started_at`` /
+    ``expires_at`` even while its revert is pending. Polling never consumes
+    that pending revert; the display engine handles it for this board.
     """
     settings_service = get_settings_service()
     board = _known_board(settings_service, board_id)
@@ -866,7 +870,11 @@ async def get_temporary_override(board_id: str | None = None):
 
 @router.get("/settings/temporary-overrides", response_model=TemporaryOverrideList)
 async def list_temporary_overrides():
-    """Every display's live temporary override, one entry per display that has one (H1)."""
+    """Every display's live temporary override, one entry per display that has one (H1).
+
+    Expired overrides are omitted without consuming their pending reverts.
+    Polling this list does not prevent the display engine from handling them.
+    """
     settings_service = get_settings_service()
     return TemporaryOverrideList(
         overrides=[

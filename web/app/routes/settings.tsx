@@ -52,6 +52,7 @@ import { SystemUpdate } from "@/components/settings/system-update";
 import { TimeAndDateCard } from "@/components/settings/time-and-date";
 import Link from "@/components/smart-link";
 import { ViewTransitionLink } from "@/components/view-transition-link";
+import { isUntouchedPlaceholder } from "@/components/wizard/default-board";
 import { useWizard } from "@/components/wizard-provider";
 import { RAIL_BREAKPOINT, useBelowRail } from "@/hooks/use-below-rail";
 import { useHubIdentity } from "@/hooks/use-hub-identity";
@@ -317,6 +318,7 @@ function SettingsSectionBody({ section }: { section: SettingsSectionId }) {
   const t = useTranslations("settings");
   const tMenu = useTranslations("settingsMenu");
   const { triggerWizard } = useWizard();
+  const { boards, isLoading: boardsLoading } = useCurrentBoard();
   const [aboutOpen, setAboutOpen] = useState(false);
 
   // The Wi-Fi card needs nmcli and a D-Bus mount on the hub (a FiestaPi);
@@ -366,21 +368,23 @@ function SettingsSectionBody({ section }: { section: SettingsSectionId }) {
           <AutoUpdateIntervalCard />
           <ReleaseChannelCard />
           <BackupSettings />
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Wand2 className="h-4 w-4" />
-                {t("setupWizardTitle")}
-              </CardTitle>
-              <CardDescription>{t("setupWizardDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="brand" onClick={triggerWizard} className="gap-2 btn-lift">
-                <Wand2 className="h-4 w-4" />
-                {t("runSetupWizard")}
-              </Button>
-            </CardContent>
-          </Card>
+          {!boardsLoading && boards.every(isUntouchedPlaceholder) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Wand2 className="h-4 w-4" />
+                  {t("setupWizardTitle")}
+                </CardTitle>
+                <CardDescription>{t("setupWizardDescription")}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="brand" onClick={triggerWizard} className="gap-2 btn-lift">
+                  <Wand2 className="h-4 w-4" />
+                  {t("runSetupWizard")}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
           <DebugSettings />
           {/* The About box's only home on a phone (the rail keeps it in the
               account menu too). Same dialog, not a second About card. */}

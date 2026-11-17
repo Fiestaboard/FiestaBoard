@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -50,6 +50,9 @@ describe("Collection routes", () => {
     localStorage.clear();
     sessionStorage.clear();
     server.use(
+      http.post("/api/collections/:id/dry-run", () =>
+        HttpResponse.json({ page_id: null, rules: [], at: "2026-01-01T00:00:00Z" }),
+      ),
       http.get("/api/v1/collections", () => HttpResponse.json({ collections: [collection] })),
       http.get("/api/v1/pages", () =>
         HttpResponse.json({ pages: [{ id: "p1", name: "First", device_type: "flagship" }] }),
@@ -68,7 +71,7 @@ describe("Collection routes", () => {
     );
     const router = renderRoute("/collections/collection%3Arotation");
     expect(await screen.findByLabelText("Custom duration")).toHaveValue(90);
-    await user.click(screen.getByRole("button", { name: "Update Collection" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/collections"));
     expect(body).toEqual(expect.objectContaining({ time: { interval_seconds: 5400 }, page_ids: ["p1"] }));
   });
@@ -82,9 +85,9 @@ describe("Collection routes", () => {
       }),
     );
     const router = renderRoute("/collections/new");
-    await user.type(await screen.findByLabelText("Name"), "New rotation");
-    await user.click(screen.getByRole("combobox", { name: "Add a page..." }));
-    await user.click(await screen.findByRole("option", { name: "First" }));
+    await user.type(await screen.findByLabelText("Collection name"), "New rotation");
+    await user.click(screen.getByRole("button", { name: "Add page" }));
+    await user.click(await screen.findByRole("menuitem", { name: "First" }));
     await user.click(screen.getByRole("button", { name: "Create Collection" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/collections"));
     expect(body).toEqual(expect.objectContaining({ name: "New rotation", page_ids: ["p1"] }));
@@ -97,10 +100,10 @@ describe("Collection routes", () => {
       ),
     );
     const router = renderRoute("/collections/collection%3Arotation");
-    const name = await screen.findByLabelText("Name");
+    const name = await screen.findByLabelText("Collection name");
     await user.clear(name);
     await user.type(name, "Keep this draft");
-    await user.click(screen.getByRole("button", { name: "Update Collection" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Save failed");
     expect(name).toHaveValue("Keep this draft");
     expect(router.state.location.pathname).toBe("/collections/collection%3Arotation");
@@ -126,7 +129,7 @@ describe("Collection routes", () => {
       }),
     );
     const router = renderRoute("/collections/collection%3Arotation");
-    const name = await screen.findByLabelText("Name");
+    const name = await screen.findByLabelText("Collection name");
     await user.clear(name);
     await user.type(name, "My draft");
     await act(async () => {
@@ -141,7 +144,7 @@ describe("Collection routes", () => {
         ],
       });
     });
-    await user.click(screen.getByRole("button", { name: "Update Collection" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Collection changed");
     expect(body).toEqual(expect.objectContaining({ name: "My draft", expected_revision: "original" }));
     expect(name).toHaveValue("My draft");
@@ -149,13 +152,13 @@ describe("Collection routes", () => {
   it("guards history back and preserves edits when Keep editing is chosen", async () => {
     const user = userEvent.setup();
     const router = renderRoute("/collections/collection%3Arotation");
-    await user.type(await screen.findByLabelText("Name"), " changed");
+    await user.type(await screen.findByLabelText("Collection name"), " changed");
     await act(async () => {
       await router.navigate(-1);
     });
     expect(await screen.findByRole("alertdialog", { name: "Discard unsaved changes?" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
-    expect(screen.getByLabelText("Name")).toHaveValue("Rotation changed");
+    expect(screen.getByLabelText("Collection name")).toHaveValue("Rotation changed");
     await act(async () => {
       await router.navigate(-1);
     });
@@ -172,15 +175,42 @@ describe("Collection routes", () => {
       }),
     );
     const router = renderRoute("/collections/collection%3Arotation");
-    await user.click(await screen.findByRole("button", { name: "Delete" }));
+    await user.click(await screen.findByRole("button", { name: "Delete…" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
     expect(deleted).toEqual([]);
-    expect(screen.getByLabelText("Name")).toHaveValue("Rotation");
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(screen.getByLabelText("Collection name")).toHaveValue("Rotation");
+    await user.click(screen.getByRole("button", { name: "Delete…" }));
     const dialog = screen.getByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/collections"));
     expect(deleted).toEqual(["collection:rotation"]);
+  });
+  it("tests the saved Collection at a chosen instant without writing it", async () => {
+    const user = userEvent.setup();
+    const requests: unknown[] = [];
+    server.use(
+      http.get("/api/v1/collections", () =>
+        HttpResponse.json({
+          collections: [
+            {
+              ...collection,
+              selection_mode: "variable",
+              variable: { rules: [], default_page_id: "p1", poll_seconds: 10 },
+            },
+          ],
+        }),
+      ),
+      http.post("/api/collections/:id/dry-run", async ({ request }) => {
+        requests.push(await request.json());
+        return HttpResponse.json({ page_id: null, rules: [], at: "2026-01-01T00:00:00Z" });
+      }),
+    );
+    renderRoute("/collections/collection%3Arotation");
+    await user.click(await screen.findByRole("button", { name: "Test at a time…" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Test at a time…"), { target: { value: "2026-01-01T09:30" } });
+    await user.click(within(dialog).getByRole("button", { name: "Preview" }));
+    await waitFor(() => expect(requests).toContainEqual({ at: new Date("2026-01-01T09:30").toISOString() }));
   });
 });

@@ -110,6 +110,33 @@ beforeEach(() => {
 });
 
 describe("Integrations review: supported detail flows", () => {
+  it("lets keyboard users reach the environment table in the selected detail pane", async () => {
+    navigation.desktop = true;
+    server.use(
+      http.get("/api/v1/plugins/calendar", () =>
+        HttpResponse.json({
+          ...plugin,
+          config: { stop: "Central" },
+          settings_schema: { type: "object", properties: { stop: { type: "string", title: "Stop" } } },
+          variables: {},
+          env_vars: [
+            { name: "CALENDAR_EVENT_NAME", description: "Name of the calendar event to display", required: false },
+          ],
+          has_demo: false,
+        }),
+      ),
+    );
+    renderView(<IntegrationsPage />);
+    const user = userEvent.setup();
+    const stop = await screen.findByLabelText("Stop");
+    await user.click(stop);
+    await user.tab();
+    const table = screen.getByRole("table");
+    expect(table).toHaveFocus();
+    expect(table).toHaveAccessibleName("Environment Variables");
+    expect(within(table).getByText("CALENDAR_EVENT_NAME")).toBeInTheDocument();
+  });
+
   it("opens installed detail absent from registry with Back and a factual reconnect consequence", async () => {
     renderView(
       <IntegrationsSection>

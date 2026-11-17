@@ -1,0 +1,191 @@
+{
+  "request": {
+    "template": [
+      "SUM {{= 2+3 }}"
+    ],
+    "device_type": "note",
+    "debug": {
+      "trace": {
+        "line": 1,
+        "start": 4
+      },
+      "source_map": true
+    }
+  },
+  "response": {
+    "rendered": "SUM 5          \n               \n               ",
+    "lines": [
+      "SUM 5          ",
+      "               ",
+      "               "
+    ],
+    "line_count": 3,
+    "diagnostics": {
+      "formulas": [
+        {
+          "line": 1,
+          "start": 4,
+          "end": 14,
+          "source": "2+3",
+          "value": "5",
+          "error": null,
+          "error_at": null,
+          "message": null,
+          "value_truncated": false
+        }
+      ],
+      "lines": [
+        {
+          "line": 1,
+          "first_row": 1,
+          "rows_wanted": 1,
+          "rows_shown": 1,
+          "clip": null,
+          "clip_line": null,
+          "widest": 5,
+          "cut": false,
+          "hidden": []
+        }
+      ]
+    },
+    "debug": {
+      "trace": {
+        "line": 1,
+        "start": 4,
+        "end": 14,
+        "source": "2+3",
+        "value": "5",
+        "error": null,
+        "error_at": null,
+        "message": null,
+        "value_truncated": false,
+        "events": [
+          {
+            "id": 0,
+            "parent": null,
+            "kind": "binary",
+            "label": "+",
+            "start": 0,
+            "end": 3,
+            "value": "5",
+            "value_truncated": false,
+            "error": null
+          },
+          {
+            "id": 1,
+            "parent": 0,
+            "kind": "literal",
+            "label": "2",
+            "start": 0,
+            "end": 1,
+            "value": "2",
+            "value_truncated": false,
+            "error": null
+          },
+          {
+            "id": 2,
+            "parent": 0,
+            "kind": "literal",
+            "label": "3",
+            "start": 2,
+            "end": 3,
+            "value": "3",
+            "value_truncated": false,
+            "error": null
+          }
+        ],
+        "truncated": false
+      },
+      "source_map": {
+        "rows": 3,
+        "cols": 15,
+        "sources": [
+          {
+            "line": 1,
+            "start": 0,
+            "end": 1,
+            "kind": "literal"
+          },
+          {
+            "line": 1,
+            "start": 1,
+            "end": 2,
+            "kind": "literal"
+          },
+          {
+            "line": 1,
+            "start": 2,
+            "end": 3,
+            "kind": "literal"
+          },
+          {
+            "line": 1,
+            "start": 3,
+            "end": 4,
+            "kind": "literal"
+          },
+          {
+            "line": 1,
+            "start": 4,
+            "end": 14,
+            "kind": "formula"
+          }
+        ],
+        "cells": [
+          [
+            0,
+            1,
+            2,
+            3,
+            4,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        ]
+      },
+      "source_map_status": "complete"
+    }
+  }
+}

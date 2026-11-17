@@ -25,7 +25,7 @@ test.beforeEach(async ({ page }) => {
 // Helper: ensure at least one page exists for schedule references
 // ---------------------------------------------------------------------------
 
-async function ensurePage(): Promise<string> {
+async function ensurePage(): Promise<{ id: string; name: string }> {
   const pagesRes = await fetch(`${API()}/pages`);
   const pagesData = await pagesRes.json();
   // The primary board is a flagship (configureBoard) and since #1245 the
@@ -35,7 +35,7 @@ async function ensurePage(): Promise<string> {
     (p: { device_type?: string }) => (p.device_type || "flagship") === "flagship",
   );
   if (flagshipPage) {
-    return flagshipPage.id;
+    return flagshipPage;
   }
   const createRes = await fetch(`${API()}/pages`, {
     method: "POST",
@@ -47,7 +47,7 @@ async function ensurePage(): Promise<string> {
     }),
   });
   const created = await createRes.json();
-  return created.id;
+  return { id: created.id, name: "Schedule Helper Page" };
 }
 
 // ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ async function ensurePage(): Promise<string> {
 
 test.describe("Schedule CRUD", () => {
   test("can create a schedule and see it listed", async ({ page }) => {
-    const pageId = await ensurePage();
+    const { id: pageId, name: pageName } = await ensurePage();
 
     // Create a schedule via API
     const createRes = await fetch(`${API()}/schedules`, {
@@ -75,12 +75,17 @@ test.describe("Schedule CRUD", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Verify the schedule entry is visible (shows the full time range)
-    await expect(page.getByText("10:00 - 14:00").first()).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("radio", { name: "List", exact: true }).click();
+    const row = page
+      .getByRole("button")
+      .filter({ hasText: pageName })
+      .filter({ hasText: /10:00\s*AM – 2:00\s*PM/ })
+      .first();
+    await expect(row).toBeVisible({ timeout: 10_000 });
   });
 
   test("can delete a schedule", async ({ page }) => {
-    const pageId = await ensurePage();
+    const { id: pageId } = await ensurePage();
 
     // Create a schedule via API
     const createRes = await fetch(`${API()}/schedules`, {

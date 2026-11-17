@@ -5,7 +5,13 @@ import {
   Box,
   Button,
   Code,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   Flex,
+  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -14,7 +20,18 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { AlertCircle, Check, GripVertical, HelpCircle, Pencil, Sparkles, Trash2, X } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Ellipsis,
+  HelpCircle,
+  Pencil,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { useDepsChanged } from "@/hooks/use-deps-changed";
@@ -39,16 +56,20 @@ interface VariableRuleRowProps {
   pages: Array<{ id: string; name: string }>;
   selectablePageIds: string[];
   isEditing: boolean;
-  isDragging: boolean;
+  isLifted: boolean;
+  actionsDisabled?: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onKeyDown: React.KeyboardEventHandler<HTMLDivElement>;
+  result?: { value: string; error: string | null; message: string | null; matched: boolean };
   /** Returns true if the editor opened; false if blocked (e.g. dirty confirm cancelled). */
   onRequestEdit: () => boolean;
   onSave: (next: VariableRule) => void;
   onCancelEdit: () => void;
   onRemove: () => void;
   onDirtyChange: (dirty: boolean) => void;
-  onDragStart: () => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDragEnd: () => void;
   /** Translations passed in to avoid re-fetching the namespace per row. */
   t: (key: string, params?: Record<string, string | number>) => string;
 }
@@ -63,15 +84,19 @@ export function VariableRuleRow({
   pages,
   selectablePageIds,
   isEditing,
-  isDragging,
+  isLifted,
+  actionsDisabled = false,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  onKeyDown,
+  result,
   onRequestEdit,
   onSave,
   onCancelEdit,
   onRemove,
   onDirtyChange,
-  onDragStart,
-  onDragOver,
-  onDragEnd,
   t,
 }: VariableRuleRowProps) {
   const [draft, setDraft] = useState<VariableRule>(rule);
@@ -118,15 +143,15 @@ export function VariableRuleRow({
 
   return (
     <Box
-      draggable={!isEditing}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragEnd={onDragEnd}
+      id={`collection-rule-${index}`}
+      tabIndex={isEditing ? undefined : 0}
+      aria-label={t("ruleLabel", { number: index + 1 })}
+      aria-describedby={!isEditing ? "collection-rule-instructions" : undefined}
+      onKeyDown={onKeyDown}
       className={cn(
-        "rounded-lg border bg-background",
-        isEditing ? "p-3 space-y-2" : "p-2.5",
-        !isEditing && "cursor-grab active:cursor-grabbing",
-        isDragging && "opacity-50",
+        "rounded-xl border bg-card p-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        isEditing && "space-y-2",
+        isLifted && "ring-2 ring-primary bg-accent",
       )}
     >
       {isEditing ? (
@@ -158,6 +183,7 @@ export function VariableRuleRow({
                 variant="default"
                 size="sm"
                 className="h-7 px-2"
+                aria-label={`${t("variableRuleSave")} ${t("ruleLabel", { number: index + 1 })}`}
                 disabled={!canSave}
                 onClick={() => onSave(draft)}
               >
@@ -196,14 +222,16 @@ export function VariableRuleRow({
                 </Text>
                 <Flex gap="1.5" className="flex-wrap">
                   {EXAMPLE_EXPRESSIONS.map((ex) => (
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       key={ex}
                       onClick={() => insertExpressionAtCursor(ex)}
-                      className="rounded border bg-background px-1.5 py-0.5 font-mono text-[10px] hover:bg-accent"
+                      className="font-mono"
                     >
                       {ex}
-                    </button>
+                    </Button>
                   ))}
                 </Flex>
               </Box>
@@ -245,8 +273,12 @@ export function VariableRuleRow({
             </Flex>
           )}
           <Select value={draft.page_id} onValueChange={(v) => setDraft((d) => ({ ...d, page_id: v }))}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("variableRuleTargetPlaceholder")} />
+            <SelectTrigger
+              aria-label={`${t("ruleLabel", { number: index + 1 })} · ${t("variableRuleTargetPlaceholder")}`}
+            >
+              <SelectValue placeholder={t("variableRuleTargetPlaceholder")}>
+                {draft.page_id ? pageName(draft.page_id) : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {selectablePageIds.map((pid) => (
@@ -258,40 +290,68 @@ export function VariableRuleRow({
           </Select>
         </>
       ) : (
-        <Flex align="center" gap="2">
-          <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden />
-          <Badge variant="outline" className="text-xs tabular-nums flex-shrink-0">
-            {index + 1}
-          </Badge>
-          <Box className="flex-1 min-w-0">
-            <Text size="xs" className="font-mono truncate">
-              {summaryExpression}
+        <Stack gap="2">
+          <Flex align="center" gap="2" wrap>
+            <Badge variant="outline">{t("ruleLabel", { number: index + 1 })}</Badge>
+            <Text size="sm" tone="muted">
+              {t("ruleWhen")}
             </Text>
-            <Text size="xs" tone="muted" className="truncate">
-              {t("variableRuleSummaryArrow", { target: summaryTarget })}
+            <Input
+              disabled={actionsDisabled}
+              readOnly
+              value={summaryExpression}
+              aria-label={t("variableExpressionAriaLabel", { index: index + 1 })}
+              onClick={() => onRequestEdit()}
+              className="min-w-32 flex-[1_1_10rem]"
+            />
+            <Text size="sm" tone="muted">
+              {t("ruleShow")}
             </Text>
-          </Box>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 flex-shrink-0"
-            onClick={() => onRequestEdit()}
-            aria-label={t("variableRuleEdit", { index: index + 1 })}
-          >
-            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 flex-shrink-0"
-            onClick={onRemove}
-            aria-label={t("variableRemoveRule")}
-          >
-            <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-          </Button>
-        </Flex>
+            <Text size="sm" className="min-w-24 flex-1">
+              {summaryTarget}
+            </Text>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={actionsDisabled}
+                  aria-label={t("ruleActions", { number: index + 1 })}
+                >
+                  <Ellipsis aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onRequestEdit()}>
+                  <Pencil aria-hidden="true" />
+                  {t("variableRuleEdit", { index: index + 1 })}
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={!canMoveUp} onClick={onMoveUp}>
+                  <ArrowUp aria-hidden="true" />
+                  {t("moveRuleUp", { number: index + 1 })}
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={!canMoveDown} onClick={onMoveDown}>
+                  <ArrowDown aria-hidden="true" />
+                  {t("moveRuleDown", { number: index + 1 })}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={onRemove}>
+                  <Trash2 aria-hidden="true" />
+                  {t("variableRemoveRule")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Flex>
+          {result && (
+            <Flex gap="2" align="center">
+              <Badge variant={result.error ? "destructive" : "formula"}>{result.value}</Badge>
+              <Text size="xs" tone={result.error ? "destructive" : "muted"}>
+                {result.message || t("savedRuleResult")}
+              </Text>
+            </Flex>
+          )}
+        </Stack>
       )}
     </Box>
   );

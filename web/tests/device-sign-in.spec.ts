@@ -42,14 +42,14 @@ for (const prefix of ["", "/test-prefix"]) {
         await page.getByLabel("Username").fill(credentials.username);
         await page.getByLabel("Password", { exact: true }).fill(credentials.password);
         await page.getByRole("button", { name: "Sign in", exact: true }).click();
-        await expect(page.getByRole("heading", { name: "Acceptance TV", exact: true })).toBeFocused();
+        await expect(page.getByRole("heading", { name: "Allow this TV?", exact: true })).toBeFocused();
         // Scanning and login never authorize on their own.
         const pending = await tv.post(`${api}/auth/device/token`, {
           data: { device_code: challenge.device_code, client_id: "fiestaboard-tvos" },
         });
         expect((await pending.json()).error).toBe("authorization_pending");
         await page.getByRole("button", { name: "Allow this TV" }).click();
-        await expect(page.getByText("TV approved. Return to your TV to finish signing in.")).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Acceptance TV is signed in" })).toBeVisible();
         await page.waitForTimeout(challenge.interval * 1000 + 100);
         const redeemed = await tv.post(`${api}/auth/device/token`, {
           data: { device_code: challenge.device_code, client_id: "fiestaboard-tvos" },
@@ -107,9 +107,9 @@ for (const prefix of ["", "/test-prefix"]) {
         await page.goto(`${prefix}/activate`);
         await page.getByLabel("TV code").fill(challenge.user_code.toLowerCase().replace("-", " "));
         await page.getByRole("button", { name: "Continue", exact: true }).click();
-        await expect(page.getByRole("heading", { name: "Manual TV", exact: true })).toBeFocused();
+        await expect(page.getByRole("heading", { name: "Allow this TV?", exact: true })).toBeFocused();
         await page.getByRole("button", { name: "Deny", exact: true }).click();
-        await expect(page.getByText("The request was denied.")).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Not allowed" })).toBeVisible();
         const denied = await tv.post(`${api}/auth/device/token`, {
           data: { device_code: challenge.device_code, client_id: "fiestaboard-androidtv" },
         });

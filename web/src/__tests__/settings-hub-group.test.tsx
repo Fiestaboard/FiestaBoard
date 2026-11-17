@@ -410,3 +410,17 @@ describe("Old ?section= links", () => {
     expect(await screen.findByText("Choose a display")).toBeInTheDocument();
   });
 });
+
+describe("setup entry availability", () => {
+  it("does not offer a setup action the provider refuses on an installed hub", async () => {
+    Object.assign(boardContext.boards[0], { output_config: { host: "192.0.2.60", local_api_key: "***" } });
+    renderAt("/settings/system");
+    await waitFor(() => expect(anchor("settings.general")).not.toBeNull());
+    expect(screen.queryByRole("button", { name: /run setup wizard/i })).not.toBeInTheDocument();
+  });
+  it("keeps setup available on a hub without displays", async () => {
+    boardContext.boards = [];
+    renderAt("/settings/system");
+    expect(await screen.findByRole("button", { name: /run setup wizard/i })).toBeEnabled();
+  });
+});

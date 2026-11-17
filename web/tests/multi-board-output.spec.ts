@@ -427,13 +427,15 @@ test.describe("Multi-board UI clarity when switching boards", () => {
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // The selector must make the current board unambiguous by NAME.
+    await page.getByRole("radio", { name: "List", exact: true }).click();
+
     const boardSelector = boardSwitcher(page);
     await expect(boardSelector).toBeVisible({ timeout: 15_000 });
     await expect(boardSelector).toContainText("Kitchen");
 
     // Kitchen's schedule is shown; Office's is NOT mixed in.
-    await expect(page.getByText("07:00").first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("20:00")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Kitchen Page/ }).first()).toContainText(/7:00\s*AM – 9:00\s*AM/);
+    await expect(page.getByRole("button", { name: /Office Page/ })).toHaveCount(0);
 
     // Switch to Office.
     await boardSelector.click();
@@ -441,8 +443,8 @@ test.describe("Multi-board UI clarity when switching boards", () => {
 
     // Selector reflects the switch and the view swaps completely.
     await expect(boardSelector).toContainText("Office");
-    await expect(page.getByText("20:00").first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("07:00")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Office Page/ }).first()).toContainText(/8:00\s*PM – 10:00\s*PM/);
+    await expect(page.getByRole("button", { name: /Kitchen Page/ })).toHaveCount(0);
   });
 
   test("per-board schedule-enabled toggle follows the selected board", async ({ page }) => {

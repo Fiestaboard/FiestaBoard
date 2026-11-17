@@ -73,7 +73,7 @@ describe("Collections library", () => {
     second.focus();
     await user.keyboard(" {ArrowUp} ");
     expect(screen.getByRole("status")).toHaveTextContent("Second dropped · position 1 of 2");
-    await user.click(screen.getByRole("button", { name: "Update Collection" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(
         expect.objectContaining({ page_ids: ["p2", "p1"], time: { interval_seconds: 5400 } }),
@@ -86,7 +86,7 @@ describe("Collections library", () => {
     render(<CollectionForm collection={collection} pages={pages} onSubmit={onSubmit} onCancel={vi.fn()} />);
     const second = screen.getAllByRole("listitem").find((row) => row.textContent?.includes("Second"))!;
     await user.click(within(second).getByRole("button", { name: "Move up" }));
-    await user.click(screen.getByRole("button", { name: "Update Collection" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ page_ids: ["p2", "p1"] })));
   });
   it("saves a non-adjacent pointer drop in the new order", async () => {
@@ -111,7 +111,7 @@ describe("Collections library", () => {
     fireEvent.pointerDown(handle, { button: 0, pointerId: 1, clientY: 276 });
     fireEvent.pointerMove(handle, { pointerId: 1, clientY: 110 });
     fireEvent.pointerUp(handle, { pointerId: 1, clientY: 110 });
-    await user.click(screen.getByRole("button", { name: "Update Collection" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ page_ids: ["p3", "p1", "p2"] })),
     );
