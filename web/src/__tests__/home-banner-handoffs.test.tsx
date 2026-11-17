@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -313,3 +313,112 @@ it.each(["before", "during"])(
     info.mockRestore();
   },
 );
+
+describe("Cancel override Undo lifetime", () => {
+  function arrangeOverride() {
+    server.use(
+      http.get("/api/schedules/active/page", () =>
+        HttpResponse.json({
+          schedule_enabled: true,
+          page_id: "page-1",
+          temporary_override: {
+            active: true,
+            page_id: "page-2",
+            expires_at: new Date(Date.now() + 3600000).toISOString(),
+            revert_mode: "schedule",
+          },
+        }),
+      ),
+      http.delete("/api/settings/temporary-override", () => HttpResponse.json({ revert_mode: "schedule" })),
+    );
+  }
+
+  it.each(["before", "during"])("retires Undo when Home unmounts %s its status read", async (when) => {
+    const { toast } = await import("sonner");
+    const info = vi.spyOn(toast, "info");
+    const dismiss = vi.spyOn(toast, "dismiss");
+    arrangeOverride();
+    let reads = 0;
+    let writes = 0;
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get("/api/settings/temporary-override", async () => {
+        reads++;
+        if (when === "during") await pending;
+        return HttpResponse.json({ active: false });
+      }),
+      http.post("/api/settings/temporary-override", () => {
+        writes++;
+        return HttpResponse.json({ active: true });
+      }),
+    );
+    try {
+      const view = render(<ActivePageDisplay />, { wrapper: Wrapper });
+      fireEvent.click(await screen.findByRole("button", { name: "Cancel override" }));
+      await waitFor(() => expect(info).toHaveBeenCalledWith("Override canceled", expect.anything()));
+      const options = info.mock.calls.find((args) => args[0] === "Override canceled")![1]!;
+      const undo = (options.action as unknown as { onClick: () => Promise<void> }).onClick;
+      const undoing = when === "during" ? undo() : null;
+      if (undoing) await waitFor(() => expect(reads).toBe(1));
+      dismiss.mockClear();
+      view.unmount();
+      connection.deviceOnline = false;
+      release();
+      if (undoing) await undoing;
+      else await undo();
+      expect(writes).toBe(0);
+      expect(reads).toBe(when === "during" ? 1 : 0);
+      expect(dismiss).toHaveBeenCalledWith(options.id);
+    } finally {
+      release();
+      info.mockRestore();
+      dismiss.mockRestore();
+    }
+  });
+
+  it("does not offer Undo when cancel finishes after Home unmounts", async () => {
+    const { toast } = await import("sonner");
+    const info = vi.spyOn(toast, "info");
+    arrangeOverride();
+    let deleting = false;
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.delete("/api/settings/temporary-override", async () => {
+        deleting = true;
+        await pending;
+        return HttpResponse.json({ revert_mode: "schedule" });
+      }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    try {
+      const view = render(
+        <QueryClientProvider client={client}>
+          <ConfigOverridesProvider>
+            <ThemeProvider defaultTheme="light">
+              <CurrentBoardProvider>
+                <ActivePageDisplay />
+              </CurrentBoardProvider>
+            </ThemeProvider>
+          </ConfigOverridesProvider>
+        </QueryClientProvider>,
+      );
+      fireEvent.click(await screen.findByRole("button", { name: "Cancel override" }));
+      await waitFor(() => expect(deleting).toBe(true));
+      view.unmount();
+      await act(async () => {
+        release();
+        await waitFor(() => expect(client.isMutating()).toBe(0));
+      });
+      expect(info).not.toHaveBeenCalledWith("Override canceled", expect.anything());
+    } finally {
+      release();
+      info.mockRestore();
+    }
+  });
+});

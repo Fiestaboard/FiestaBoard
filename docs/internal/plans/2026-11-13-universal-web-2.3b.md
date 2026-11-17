@@ -25,3 +25,10 @@ Files: board-out-of-sync-banner.tsx; silence-imminent-banner.tsx; status-banner-
 ## Review focus / preflight ledger
 
 Task1's connection state must guard Task2 recovery and held discard as well as visible send buttons. Mid-dialog hub failure must preserve text. Unknown health stays unknown; explicit H12 unreachable only marks Offline. Existing cached data persists from shared queries. No silent queue. Held author/release API absent: omit author and hide early-release action. All tablet/dark states without references derive existing kit tokens/layout. Remote simultaneous mutation revision guarantees remain a hub API gap inherited from 2.2b.
+
+## Final review continuation (2026-11-17)
+
+- Retire Cancel override Undo when Home unmounts, including a pending read or a late Cancel response. Three regressions observed RED before the guard; all 70 tests across the five affected Home/override files pass afterward.
+- Ruling: preserve Undo's captured original display while Home remains mounted. The existing 2.2 plan and pending-DELETE regression require it; selection changes alone do not freeze the shared connectivity ref. Jev `home_lifetime` p=0.95, confidence=0.94. Retiring on every selection change would remove that established behavior. Each mount owns its emitted toast IDs and dismisses them on cleanup.
+- The d6 hosted run was green with one retry: a banner capture axe scan reported pale foreground colors across the animated main region. The common route entrance fades opacity over 0.4 s; visibility alone does not establish settled contrast. Jev `wait_fade` p=0.78, confidence=0.74 selected waiting for computed ancestor opacity before the unchanged axe scan. Failure-time opacity was not captured, so the cause remains a supported hypothesis rather than a reproduced diagnosis. No palette, contrast threshold or axe exclusion changed.
+- Live read-only Figma comparison of held desktop/phone confirms a brand mono eyebrow and semibold message. Adopt existing kit typography/color utilities; preserve all recorded API and layout deltas.

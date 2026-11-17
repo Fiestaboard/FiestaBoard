@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { getViolations, injectAxe } from "axe-playwright";
 
 import {
@@ -12,6 +13,21 @@ import {
   suppressWizard,
   test,
 } from "../helpers";
+
+// Visibility can pass partway through the route's entrance fade. Axe must
+// sample settled ancestor opacity, not the lighter colors during that fade.
+async function waitForHomeEntrance(page: Page) {
+  await expect
+    .poll(() =>
+      page.getByTestId("now-showing").evaluate((card) => {
+        for (let element: Element | null = card; element; element = element.parentElement) {
+          if (getComputedStyle(element).opacity !== "1") return false;
+        }
+        return true;
+      }),
+    )
+    .toBe(true);
+}
 
 test("Home pauses sends on hub loss, retains Compose, and distinguishes an offline display", async ({
   page,
@@ -83,6 +99,7 @@ test("Home pauses sends on hub loss, retains Compose, and distinguishes an offli
       await page.evaluate((value) => localStorage.setItem("theme", value), theme);
       await page.reload();
       await expect(page.getByTestId("now-showing").getByText("Offline", { exact: true })).toBeVisible();
+      await waitForHomeEntrance(page);
       await injectAxe(page);
       expect(
         await getViolations(page, undefined, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }),
@@ -173,6 +190,7 @@ test("Home's held, silence-soon, out-of-sync and unreachable-hub states use one 
               .first(),
           ).toHaveCSS("opacity", "0.5");
         }
+        await waitForHomeEntrance(page);
         await injectAxe(page);
         expect(
           await getViolations(page, undefined, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }),
