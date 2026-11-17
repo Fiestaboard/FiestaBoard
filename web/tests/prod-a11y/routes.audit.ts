@@ -224,7 +224,17 @@ for (const scenario of routes) {
     expect(observed["/api/settings/ai"].enabled, "This bounded shell fixture has no enabled assistant").toBe(false);
     const plugins = observed["/api/plugins"].plugins;
     expect(Array.isArray(plugins), "Plugin state must finish loading").toBe(true);
-    for (const plugin of plugins as unknown[]) expect(jsonObject(plugin, "plugin").enabled).toBe(false);
+    const pluginStates = (plugins as unknown[]).map((value) => {
+      const plugin = jsonObject(value, "plugin");
+      const type = plugin.plugin_type ?? "data";
+      expect(["data", "output", "transition"]).toContain(type);
+      expect(typeof plugin.id).toBe("string");
+      expect(typeof plugin.enabled).toBe("boolean");
+      // Only data plugins can contribute to the navigation attention badge.
+      // Outputs and transitions have no enable toggle or pending setup badge.
+      if (type === "data") expect(plugin.enabled, "Data integrations must be disabled in this shell fixture").toBe(false);
+      return { id: plugin.id, type, enabled: plugin.enabled };
+    });
     const general = jsonObject(observed["/api/settings/all"].general, "general settings");
     expect(
       observed["/api/settings/restore-notice"].notice,
@@ -256,8 +266,8 @@ for (const scenario of routes) {
       shell: {
         boards: (boards as Record<string, unknown>[]).map(({ id, name }) => ({ id, name })),
         aiEnabled: false,
-        pluginCount: (plugins as unknown[]).length,
-        enabledPlugins: 0,
+        plugins: pluginStates,
+        enabledDataPlugins: 0,
         restoreNotice: null,
         timeFormat: general.time_format,
         dateFormat: general.date_format,
