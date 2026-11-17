@@ -22,9 +22,10 @@ import {
   ToolbarDropdown,
 } from "@fiestaboard/ui";
 import { Ellipsis, Palette, Sigma, Type, Variable } from "lucide-react";
-import { lazy, type ReactElement, type ReactNode, Suspense, useId, useState } from "react";
+import { lazy, type ReactElement, type ReactNode, Suspense, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { EditorAnchoredTool } from "@/components/editor-tablet-tools";
 import { useEditorToolbarPortal } from "@/hooks/use-editor-toolbar-portal";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useVisualViewportBottom } from "@/hooks/use-visual-viewport-bottom";
@@ -51,12 +52,21 @@ export function PlainTemplateVariablePicker({
   onInsert: (text: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const inserted = useRef(false);
+  const onOpenChange = (next: boolean) => {
+    if (next) inserted.current = false;
+    setOpen(next);
+  };
+  // Successful insertion owns the caret; ordinary dismissal returns to the opener.
+  const finalFocus = () => (inserted.current ? false : triggerRef.current);
   const sheet = useMediaQuery("(max-width: 639px)");
   const t = useTranslations("templateEditor");
   const content = (
     <Suspense fallback={null}>
       <VariablePickerContent
         onInsert={(text) => {
+          inserted.current = true;
           setOpen(false);
           onInsert(text);
         }}
@@ -65,9 +75,11 @@ export function PlainTemplateVariablePicker({
   );
   if (sheet)
     return (
-      <Sheet open={open} onOpenChange={setOpen} modal={false}>
-        <SheetTrigger asChild>{trigger}</SheetTrigger>
-        <SheetContent side="bottom" grabber scrim={false} detents={["half", "full"]} finalFocus={false}>
+      <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+        <SheetTrigger asChild ref={triggerRef}>
+          {trigger}
+        </SheetTrigger>
+        <SheetContent side="bottom" grabber scrim={false} detents={["half", "full"]} finalFocus={finalFocus}>
           <SheetHeader>
             <SheetTitle>{t("variables")}</SheetTitle>
           </SheetHeader>
@@ -76,9 +88,11 @@ export function PlainTemplateVariablePicker({
       </Sheet>
     );
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent label={t("variables")} finalFocus={false} className="max-h-[60dvh] overflow-y-auto p-3">
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild ref={triggerRef}>
+        {trigger}
+      </PopoverTrigger>
+      <PopoverContent label={t("variables")} finalFocus={finalFocus} className="max-h-[60dvh] overflow-y-auto p-3">
         {content}
       </PopoverContent>
     </Popover>
@@ -101,23 +115,17 @@ export function PlainTemplateToolbar({
   const bottom = useVisualViewportBottom();
   const reasonId = useId();
   const [formulaOpen, setFormulaOpen] = useState(false);
-  const tool = (label: string, icon: ReactNode, disabled = false, onClick?: () => void) =>
+  const formulaTriggerRef = useRef<HTMLButtonElement>(null);
+  const insertedFormula = useRef(false);
+  const openFormula = () => {
+    insertedFormula.current = false;
+    setFormulaOpen(true);
+  };
+  const tool = (label: string, icon: ReactNode, disabled = false) =>
     touch ? (
-      <EditorTool
-        label={label}
-        icon={icon}
-        disabled={disabled}
-        aria-describedby={disabled ? reasonId : undefined}
-        onClick={onClick}
-      />
+      <EditorTool label={label} icon={icon} disabled={disabled} aria-describedby={disabled ? reasonId : undefined} />
     ) : (
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={disabled}
-        aria-describedby={disabled ? reasonId : undefined}
-        onClick={onClick}
-      >
+      <Button size="sm" variant="ghost" disabled={disabled} aria-describedby={disabled ? reasonId : undefined}>
         {icon}
         {label}
       </Button>
@@ -140,15 +148,23 @@ export function PlainTemplateToolbar({
       <PlainTemplateVariablePicker trigger={tool(t("variables"), <Variable />)} onInsert={onInsert} />
       {tool(t("colors"), <Palette />, true)}
       {tool(t("formatting"), <Type />, true)}
-      {tool(t("formula"), <Sigma />, false, () => setFormulaOpen(true))}
-      <ToolbarDropdown
-        label={t("more")}
-        icon={<Ellipsis />}
-        size={touch ? "touch" : "default"}
-        presentation={sheets ? "sheet" : "popover"}
-      >
-        {moreContent}
-      </ToolbarDropdown>
+      {touch ? (
+        <EditorTool ref={formulaTriggerRef} label={t("formula")} icon={<Sigma />} onClick={openFormula} />
+      ) : (
+        <Button ref={formulaTriggerRef} size="sm" variant="ghost" onClick={openFormula}>
+          <Sigma />
+          {t("formula")}
+        </Button>
+      )}
+      {sheets ? (
+        <ToolbarDropdown label={t("more")} icon={<Ellipsis />} size={touch ? "touch" : "default"} presentation="sheet">
+          {moreContent}
+        </ToolbarDropdown>
+      ) : (
+        <EditorAnchoredTool label={t("more")} icon={<Ellipsis />}>
+          {() => moreContent}
+        </EditorAnchoredTool>
+      )}
       <Text id={reasonId} size="xs" tone="muted" className={touch ? "sr-only" : undefined}>
         {tTouch("displayToolsUnavailable")}
       </Text>
@@ -158,7 +174,10 @@ export function PlainTemplateToolbar({
     <>
       {touch ? portal && createPortal(toolbar, portal) : toolbar}
       <Dialog open={formulaOpen} onOpenChange={setFormulaOpen}>
-        <DialogContent finalFocus={false} className="max-h-[90dvh] overflow-y-auto">
+        <DialogContent
+          finalFocus={() => (insertedFormula.current ? false : formulaTriggerRef.current)}
+          className="max-h-[90dvh] overflow-y-auto"
+        >
           <DialogHeader>
             <DialogTitle>{t("formula")}</DialogTitle>
           </DialogHeader>
@@ -167,6 +186,7 @@ export function PlainTemplateToolbar({
               <FormulaEditorPanel
                 mode="create"
                 onConfirm={(expression) => {
+                  insertedFormula.current = true;
                   setFormulaOpen(false);
                   onInsert(`{{= ${expression} }}`);
                 }}

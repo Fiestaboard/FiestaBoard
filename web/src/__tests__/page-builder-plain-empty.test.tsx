@@ -31,12 +31,13 @@ function Wrapper({ children }: { children: ReactNode }) {
   );
 }
 
-function viewport(width: number) {
+function viewport(width: number, coarse = false) {
   vi.spyOn(window, "matchMedia").mockImplementation(
     (query) =>
       ({
         matches:
           (width < 1024 && query === "(max-width: 1023px)") ||
+          (coarse && query.includes("pointer: coarse")) ||
           (width < 768 && query.includes("767px")) ||
           (width < 640 && query.includes("639px")),
         media: query,
@@ -127,6 +128,11 @@ it("inserts an H3 variable at the textarea selection", async () => {
   expect(input).toHaveValue("Open {{weather.temperature}} today");
   await waitFor(() => expect(input).toHaveFocus());
   expect(ref.current?.hasUnsavedChanges()).toBe(true);
+  const trigger = screen.getByRole("button", { name: "Variables" });
+  await user.click(trigger);
+  await user.click(await screen.findByRole("textbox", { name: /search variables/i }));
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(trigger).toHaveFocus());
 });
 
 it("inserts a validated H3 formula at the textarea selection", async () => {
@@ -149,6 +155,11 @@ it("inserts a validated H3 formula at the textarea selection", async () => {
   expect(input).toHaveValue("Open {{= 1 + 1 }} today");
   await waitFor(() => expect(input).toHaveFocus());
   expect(input.selectionStart).toBe(17);
+  const trigger = screen.getByRole("button", { name: "Formula" });
+  await user.click(trigger);
+  await user.click(await within(await screen.findByRole("dialog", { name: "Formula" })).findByRole("textbox"));
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(trigger).toHaveFocus());
 });
 
 // The start actions are useful only before content exists; inserting through
@@ -168,6 +179,7 @@ it.each([390, 1440])("starts an empty new page with a prompt and working variabl
   expect(screen.queryByRole("button", { name: "Insert a variable" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Browse Staff Picks" })).not.toBeInTheDocument();
   expect(ref.current?.hasUnsavedChanges()).toBe(true);
+  await waitFor(() => expect(screen.getByRole("textbox", { name: "Template editor" })).toHaveFocus());
 });
 
 it("does not show new-page starter actions for a saved page", async () => {
@@ -185,4 +197,74 @@ it("keeps leading whitespace when the new page receives its first plain-text edi
   fireEvent.change(input, { target: { value: " " } });
   expect(input).toHaveValue(" ");
   expect(screen.queryByRole("button", { name: "Insert a variable" })).not.toBeInTheDocument();
+});
+
+it("preserves an authored blank first line before typing plain text", async () => {
+  const user = userEvent.setup();
+  const ref = createRef<PageBuilderHandle>();
+  render(<PageBuilder ref={ref} onClose={vi.fn()} />, { wrapper: Wrapper });
+  await user.click(await screen.findByRole("button", { name: "Plain Text" }));
+  const input = screen.getByRole("textbox", { name: /template/i });
+  await user.type(input, "{Enter}");
+  expect(input).toHaveValue("\n");
+  await user.type(input, "Hello");
+  expect(input).toHaveValue("\nHello");
+  await waitFor(() => expect(ref.current?.getCurrentPage()?.template).toEqual(["", "Hello"]));
+  expect(screen.queryByRole("button", { name: "Insert a variable" })).not.toBeInTheDocument();
+});
+
+it.each([390, 1440])("returns focus to Variables when its picker is dismissed with Escape at %ipx", async (width) => {
+  viewport(width);
+  baseline();
+  const user = userEvent.setup();
+  render(<PageBuilder onClose={vi.fn()} />, { wrapper: Wrapper });
+  await screen.findByText("Can’t tell what this display draws");
+  const trigger = await screen.findByRole("button", { name: "Variables" });
+  await user.click(trigger);
+  await user.click(await screen.findByRole("textbox", { name: /search variables/i }));
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(trigger).toHaveFocus());
+});
+
+it("returns focus to the new-page starter when its variable sheet is closed", async () => {
+  viewport(390);
+  const user = userEvent.setup();
+  render(<PageBuilder onClose={vi.fn()} />, { wrapper: Wrapper });
+  const trigger = await screen.findByRole("button", { name: "Insert a variable" });
+  await user.click(trigger);
+  await screen.findByRole("textbox", { name: /search variables/i });
+  await user.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(trigger).toHaveFocus());
+});
+
+it.each(["Escape", "Close"])("returns focus to Formula when its dialog is dismissed with %s", async (dismiss) => {
+  baseline();
+  const user = userEvent.setup();
+  render(<PageBuilder onClose={vi.fn()} />, { wrapper: Wrapper });
+  await screen.findByText("Can’t tell what this display draws");
+  const trigger = await screen.findByRole("button", { name: "Formula" });
+  await user.click(trigger);
+  const dialog = await screen.findByRole("dialog", { name: "Formula" });
+  await user.click(await within(dialog).findByRole("textbox"));
+  if (dismiss === "Escape") await user.keyboard("{Escape}");
+  else await user.click(within(dialog).getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(trigger).toHaveFocus());
+});
+
+it.each([
+  { width: 640, coarse: false },
+  { width: 767, coarse: false },
+  { width: 1180, coarse: true },
+])("anchors H3 More above the touch toolbar at $width px (coarse $coarse)", async ({ width, coarse }) => {
+  viewport(width, coarse);
+  baseline();
+  const user = userEvent.setup();
+  render(<PageBuilder onClose={vi.fn()} />, { wrapper: Wrapper });
+  await screen.findByText("Can’t tell what this display draws");
+  await user.click(await screen.findByRole("button", { name: "More" }));
+  const panel = await screen.findByTestId("toolbar-dropdown-panel");
+  expect(panel).toHaveAttribute("data-slot", "popover-content");
+  expect(panel).toHaveAttribute("data-side", "top");
+  expect(panel.closest('[data-slot="editor-toolbar"]')).toBeNull();
+  expect(await within(panel).findByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
 });
