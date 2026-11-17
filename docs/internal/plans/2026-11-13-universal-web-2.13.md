@@ -7,12 +7,12 @@
 **Architecture:** A browser-only push API uses the existing session CSRF context and base-path helpers. A browser controller manages permission/subscription; a FiestaUI notification settings section renders server/browser state. Extend the 2.8 classic SW through a separate imported push handler. Sign-out clears subscriptions and badges without trapping logout.
 
 **Tech stack:** React, TypeScript, React Query, FiestaUI 8.17.0-alpha.2 (current base pin), Vitest, Playwright. Classic JavaScript SW.
-**Spec:** program/briefs/WEB-SLICE-BRIEF.md, task web213, docs/development/web-push.md; live Figma working file ZQ8RMELCO6qEOFZUnQu36e nodes 59:13890, 329:48335, 337:60272, 337:61267.
+**Spec:** program/briefs/WEB-SLICE-BRIEF.md, task web213, docs/development/web-push.md; live Figma working file `ZQ8RMELCO6qEOFZUnQu36e` nodes 59:13890, 329:48335, 337:60272, 337:61267.
 
 ## Constraints and decisions
 
 - v11 only; no publishing, merges, PR comments, VRT approval or Figma writes. Minor changeset; prescribed Claude trailer/footer.
-- Reuse shared containers only; one heavy process at a time, Vitest <=2 workers and Playwright 1 worker/spec. Check program/codex/WRAPUP before each step.
+- Reuse shared containers only; one heavy process at a time, Vitest <=2 workers and Playwright 1 worker/spec. Check `program/codex/WRAPUP` before each step.
 - Both account and browser consent start off. Request permission only during explicit browser-enable activation; HTTPS/localhost, iOS installation, iframe/HA ingress and unsupported browsers need truthful states.
 - H15 event_sources is empty: keep drawn categories disabled with unavailable copy (Jev disabled_categories p=0.75), never fake delivery or category persistence. Test counts distinguish sent/failed/skipped/expired; sent is provider acceptance only.
 - Scope all APIs, SW lookup and notification click URLs to the runtime app base. No subscription secrets in localStorage/logs.
