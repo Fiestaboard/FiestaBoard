@@ -662,7 +662,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       />
 
       <Box
-        className="grid min-w-0 gap-4 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_274px] items-start"
+        className="grid grid-cols-1 min-w-0 gap-4 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_274px] items-start"
         data-testid="home-columns"
       >
         <NowShowingCard
@@ -673,7 +673,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
               <BoardActionsMenu actions={boardActions} />
             </Text>
           }
-          className="group/home-card"
+          className="group/home-card min-w-0"
           title={title}
           headingLevel={2}
           mode={sendsDisabled || displayOffline || silence.active ? undefined : mode}

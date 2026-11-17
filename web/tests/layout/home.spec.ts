@@ -18,6 +18,11 @@ const boards = [
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/**", async (route) => {
     const url = new URL(route.request().url());
+    // Vite also serves modules under /src/lib/api/: leave those script requests untouched.
+    if (!url.pathname.startsWith("/api/")) {
+      await route.continue();
+      return;
+    }
     let result: unknown = {};
     if (url.pathname.endsWith("/settings/board")) result = { boards, devices: ["flagship"], board_type: "black" };
     if (url.pathname.endsWith("/config/validate")) result = { valid: true, is_first_run: false, errors: [] };

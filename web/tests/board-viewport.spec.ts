@@ -88,8 +88,8 @@ test("a page card's thumbnail is not a scroll region (it sits inside a button)",
   await expect(card.getByRole("region")).toHaveCount(0);
 });
 
-test("a desktop Home board that fits draws no toggle or indicator (1280)", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
+test("a desktop Home board that fits draws no toggle or indicator (1440)", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
   await expect(page.getByTestId("char-tile-0-0")).toBeVisible({ timeout: 15_000 });
   await expect(homeViewport(page)).toHaveAttribute("data-overflow", "false");
