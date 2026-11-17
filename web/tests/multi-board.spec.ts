@@ -17,12 +17,15 @@ import {
   configureBoard,
   createPage,
   deleteAllPages,
+  deletePage,
   deletePagesByDevice,
   displayCard,
   expect,
   openDisplay,
   openDisplays,
   resetToSingleBoard,
+  setActivePage,
+  setScheduleEnabled,
   suppressWizard,
   test,
   waitForFirstRun,
@@ -52,36 +55,73 @@ test.describe("Displays – Display Card", () => {
   });
 
   test("display row reports Online when the configured output connects", async ({ page }) => {
-    // resetBackend blanks the mock hardware, while the hub can retain its
-    // last-sent frame. Restore it before asking for Online: a reachable board
-    // with different observed content correctly reports Out of sync instead.
-    const restored = await fetch(`${API_URL}/v1/boards/primary/restore`, {
-      method: "POST",
-      headers: authHeaders(),
-    });
-    expect(restored.ok).toBe(true);
-    const { board_id: boardId, sent } = await restored.json();
-    expect(sent).toBe(true);
-    await expect
-      .poll(async () => {
-        const response = await fetch(`${API_URL}/board/current-message?board_id=${boardId}&force=true`, {
-          headers: authHeaders(),
+    const outputBefore = await fetch(`${API_URL}/settings/output`, { headers: authHeaders() });
+    expect(outputBefore.ok).toBe(true);
+    const { target: previousTarget } = await outputBefore.json();
+    let fixturePageId: string | undefined;
+    try {
+      // Credentials alone do not guarantee a send: restore honors the output
+      // target and current selection. Give this test its own static page in
+      // manual mode instead of depending on an earlier spec's playback state.
+      const output = await fetch(`${API_URL}/settings/output`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ target: "board" }),
+      });
+      expect(output.ok).toBe(true);
+      expect(await output.json()).toMatchObject({ target: "board" });
+      await setScheduleEnabled(false);
+      fixturePageId = await createPage(`Online display fixture ${Date.now()}`, ["ONLINE FIXTURE", "", "", "", "", ""]);
+      await setActivePage(fixturePageId);
+      const selected = await fetch(`${API_URL}/v1/boards/primary`, { headers: authHeaders() });
+      expect(selected.ok).toBe(true);
+      const board = await selected.json();
+      expect(board).toMatchObject({ active_page_id: fixturePageId, schedule_enabled: false, rows: 6, cols: 22 });
+
+      // resetBackend blanks the hardware while the hub can retain its frame.
+      // A reachable board with different content correctly says Out of sync.
+      const restored = await fetch(`${API_URL}/v1/boards/${board.id}/restore`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const restoration = await restored.json();
+      const diagnostics = JSON.stringify({ status: restored.status, restoration, selected: board });
+      expect(restored.ok, diagnostics).toBe(true);
+      expect(restoration.sent, diagnostics).toBe(true);
+      await expect
+        .poll(async () => {
+          const response = await fetch(`${API_URL}/board/current-message?board_id=${board.id}&force=true`, {
+            headers: authHeaders(),
+          });
+          expect(response.ok).toBe(true);
+          const state = await response.json();
+          return {
+            observed: state.characters != null,
+            matches: JSON.stringify(state.characters) === JSON.stringify(state.expected_characters),
+            overwritten: Boolean(state.overwritten_at),
+          };
+        })
+        .toEqual({ observed: true, matches: true, overwritten: false });
+
+      await openDisplays(page);
+
+      await expect(displayCard(page, "My Board").getByText("Online", { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+    } finally {
+      // The group's afterEach resets per-board playback. Remove only our page
+      // and always restore the install-wide target, even if page cleanup fails.
+      try {
+        if (fixturePageId) await deletePage(fixturePageId);
+      } finally {
+        const output = await fetch(`${API_URL}/settings/output`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({ target: previousTarget }),
         });
-        expect(response.ok).toBe(true);
-        const state = await response.json();
-        return {
-          observed: state.characters != null,
-          matches: JSON.stringify(state.characters) === JSON.stringify(state.expected_characters),
-          overwritten: Boolean(state.overwritten_at),
-        };
-      })
-      .toEqual({ observed: true, matches: true, overwritten: false });
-
-    await openDisplays(page);
-
-    await expect(displayCard(page, "My Board").getByText("Online", { exact: true })).toBeVisible({
-      timeout: 10_000,
-    });
+        expect(output.ok).toBe(true);
+      }
+    }
   });
 
   test("board card shows Not configured badge when credentials are missing", async ({ page }) => {
