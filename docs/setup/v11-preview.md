@@ -14,7 +14,7 @@ For everyday use, stay on Stable. To explore the preview, use a separate test in
 
 - **Navigation that adapts to the screen.** Home, Pages, Schedule and Displays use bottom navigation on a phone and a navigation rail on wider screens. More contains destinations such as Integrations and Settings; Collections live under Pages.
 - **A clearer Home screen.** Compose writes a message; Change Page selects a saved page. Temporary overrides have a duration and countdown. Check the selected display before sending anything.
-- **Readable board previews.** Actual size is the default. A wide board scrolls horizontally instead of shrinking its tiles to fit. Use Overview when you want to see the whole board at once.
+- **Readable board previews.** Actual size is the default. A wide board scrolls horizontally instead of shrinking its tiles to fit. Use **Fit** for an overview of the whole board.
 - **Collection ordering and editor shortcuts.** Reorder a Collection's pages with its sortable list. Press `?` outside a text field in the page editor to see its keyboard shortcuts.
 - **Clearer connection state.** Home reports display health and silence. The installable web app can show a last-known board when the hub is unreachable; that is cached information, not confirmation of what is showing now. Signing out clears its private offline data. Installation support depends on the browser and a secure connection.
 - **Explicit release channels.** The v11 preview has a Stable / Beta / Alpha chooser. Returning to an older channel can discard changes made after the recovery snapshot. Read [Release Channels](/docs/features/release-channels) before switching.

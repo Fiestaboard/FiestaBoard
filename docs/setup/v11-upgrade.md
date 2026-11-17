@@ -57,13 +57,15 @@ An import restores included stores in sequence, not as one transaction. Missing/
 
 Use this manual route for a controlled preview test when the installed 10.x build has no Alpha chooser. It needs the completed preparation above and does not depend on #2492 being published.
 
-1. Leave the hub stopped. In the existing Compose file, change **only the FiestaBoard service image** to the chosen preview, preserving its data mounts, ports, environment and service configuration:
+1. **Keep FiestaUpdater inactive for this manual preview.** After saving the original environment and Compose configuration, stop the updater if installed: `docker compose -f docker-compose.hub.yml stop fiestaupdater`. Remove `fiestaupdater` from `COMPOSE_PROFILES` in the live `.env` and any shell/service override, preserving other profile names and the token. Do not explicitly start that service. This also prevents the normal FiestaPi boot command from starting it again. Verify it stays stopped. The saved channel choice can otherwise make the hub automatically replace your chosen image, especially on a Beta installation. Preserve `.system-update.json` and its snapshot pointers; do not delete or hand-edit them.
+
+2. Leave the hub stopped. In the existing Compose file, change the FiestaBoard service image to the chosen preview, preserving its data mounts, ports and remaining configuration:
 
    ```yaml
    image: fiestaboard/fiestaboard:v11-alpha-11.0.0-alpha.3
    ```
 
-2. Pull that service, then recreate it from the same install directory and project:
+3. Pull that service, then recreate it from the same install directory and project:
 
    ```bash
    cd ~/fiestaboard
@@ -72,7 +74,7 @@ Use this manual route for a controlled preview test when the installed 10.x buil
    docker compose -f docker-compose.hub.yml logs --tail=100 fiestaboard
    ```
 
-3. Sign in again and perform the [verification checks](#verify-the-result). Keep the 10.x copy unchanged. Avoid editing valuable data until the checks finish.
+4. Sign in again and perform the [verification checks](#verify-the-result). Keep the 10.x copy unchanged. Avoid editing valuable data until the checks finish. Leave the updater disabled throughout this manual preview, including restarts; in-app updating and channel switching will be unavailable. Use manual pinned-image updates with a new compatible backup, or the manual return below. Do not enable the updater on a preview whose saved choice still names a different channel.
 
 An ordinary image change keeps the same mounted data and normally retains valid sessions; this procedure deliberately revoked them to prepare a safer full-directory recovery baseline. Stock 10.3.3 and the listed Beta already have the session registry; they do not need its first-adoption logout again. A manual swap does not record a chooser join or guarantee that **Return to Stable/Beta** has the right snapshot. On a Pi, ensure the actual boot Compose configuration names the intended image; startup can reapply a saved channel choice. Verify again after a restart.
 
@@ -100,10 +102,11 @@ The system rollback API can restore a selected settings snapshot and request its
 
 ### Manual recovery to your known-good 10.x installation
 
-1. Keep other users and devices away from the hub during recovery. While the newer hub is still usable, use **Sign out everywhere** again, then stop the service. Do not create another session before stopping. If the UI cannot run, keep access restricted and require fresh revocation after recovery before allowing clients back.
-2. Move the failed live data and plugin directories aside; do not extract the baseline on top of them. Restore the complete stopped copy to the original mount paths with their permissions. Restore the matching environment/Compose configuration and any other copied mounts. Use the **signed-out baseline** prepared above, not an arbitrary older authentication backup.
+1. Keep other users and devices away from the hub during recovery. Stop FiestaUpdater if it is running and keep its Compose profile disabled as described in the manual swap procedure. While the newer hub is still usable, use **Sign out everywhere** again, then stop the service. Do not create another session before stopping. If the UI cannot run, keep access restricted and require fresh revocation after recovery before allowing clients back.
+2. Move the failed live data and plugin directories aside; do not extract the baseline on top of them. Restore the complete stopped copy to the original mount paths with their permissions. Restore the matching environment/Compose configuration and any other copied mounts, but keep the updater profile disabled in the recovered live configuration until verification is complete. The saved `.env` may have enabled it. Use the **signed-out baseline** prepared above, not an arbitrary older authentication backup.
 3. Set the Compose image to the recorded known-good immutable tag or digest. Restore its matching channel state from that baseline too; retaining the Alpha channel choice can cause startup to switch images again. Keep a copy of all current configuration before replacing it. Do not delete Docker volumes or run `down -v`.
-4. Start the service from the original directory/project. Sign in with the restored account credentials, then use **Sign out everywhere** on the recovered installation before restoring general access. Sign in afresh and complete the checks below. This second revocation is especially important if the saved session state is uncertain. Users and TVs may need to sign in or pair again.
+4. Start only the FiestaBoard service from the original directory/project. Sign in with the restored account credentials, then use **Sign out everywhere** on the recovered installation before restoring general access. Sign in afresh and complete the checks below. This second revocation is especially important if the saved session state is uncertain. Users and TVs may need to sign in or pair again.
+5. Re-enable the updater only after the recovered image, Compose image and baseline's saved channel agree. Inspect the baseline's `.system-update.json` locally without sharing its contents: if `channel` is present, it must match the running channel. No saved channel is valid for a stock installation that never opted in. If you cannot establish agreement, leave the updater disabled and update manually. To re-enable it after agreement, restore its profile setting, start the `fiestaupdater` service, and repeat the image/channel verification after a hub restart.
 
 For the standard layout, after stopping and moving the live directories aside, the restore uses `sudo cp -a ../fiestaboard-before-v11/data ./data` and the same operation for `external_plugins` when it was saved. Confirm the destination directories do not already exist before copying, or you could create a nested or mixed restore. Then use `docker compose -f docker-compose.hub.yml up -d fiestaboard` with the recovered configuration and pinned image.
 
