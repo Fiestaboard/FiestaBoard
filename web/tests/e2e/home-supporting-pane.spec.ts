@@ -29,8 +29,14 @@ test("Home Manual Mode switch resumes this display's Schedule and offers Undo", 
   await expect(pane.getByText("Schedule Mode is off")).toHaveCount(0);
   const toast = page.locator("[data-sonner-toast]").filter({ hasText: "Back on Schedule Mode" });
   await expect(toast).toBeVisible();
+  await expect(toast).toHaveCSS("opacity", "1");
+  await injectAxe(page);
+  expect(
+    await getViolations(page, undefined, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }),
+  ).toEqual([]);
   await toast.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(pane.getByRole("switch", { name: "Schedule Mode" })).not.toBeChecked();
+  await expect(toast).toHaveCount(0);
   await injectAxe(page);
   const violations = await getViolations(page, undefined, {
     runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
