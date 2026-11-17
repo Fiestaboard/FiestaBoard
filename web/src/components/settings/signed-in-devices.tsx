@@ -28,6 +28,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { api } from "@/lib/api";
 import { SessionApiError, type SessionList, sessionsApi, type SessionSummary } from "@/lib/api/sessions";
 import { sessionDisplayName } from "@/lib/session-display-name";
 
@@ -37,6 +38,7 @@ export function SignedInDevices() {
   const t = useTranslations("signedInDevices");
   const router = useRouter();
   const [data, setData] = useState<SessionList | null>(null);
+  const [panelNames, setPanelNames] = useState<Record<string, string>>({});
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +68,18 @@ export function SignedInDevices() {
       active = false;
     };
   }, [t, retryAttempt]);
+  useEffect(() => {
+    let active = true;
+    void api
+      .listPanels()
+      .then(({ panels }) => {
+        if (active) setPanelNames(Object.fromEntries(panels.map((panel) => [panel.id, panel.name])));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [retryAttempt]);
   async function action(work: () => Promise<unknown>, signOut = false) {
     setBusy(true);
     setError(null);
@@ -80,7 +94,20 @@ export function SignedInDevices() {
       await load();
     } catch (err) {
       if (err instanceof SessionApiError && err.status === 401) router.replace("/login");
-      else setError(t("error"));
+      else {
+        let message = t("error");
+        if (phone && cascade) {
+          try {
+            const fresh = await sessionsApi.listSessions();
+            setData(fresh);
+            const pending = approved.filter((tv) => fresh.sessions.some((row) => row.id === tv.id));
+            if (pending.length) message = t("partial", { names: pending.map((tv) => tv.device_name).join(", ") });
+          } catch {
+            /* Keep the confirmation retryable if refreshing also fails. */
+          }
+        }
+        setError(message);
+      }
     } finally {
       setBusy(false);
     }
@@ -92,7 +119,10 @@ export function SignedInDevices() {
   const date = (value: string) => new Date(value).toLocaleString();
   function lastShown(session: SessionSummary) {
     return session.last_shown_at
-      ? t("lastShown", { panel: session.shown_panels?.[0]?.panel_id ?? t("panel"), date: date(session.last_shown_at) })
+      ? t("lastShown", {
+          panel: panelNames[session.shown_panels?.[0]?.panel_id ?? ""] ?? t("panel"),
+          date: date(session.last_shown_at),
+        })
       : t("nothingShown");
   }
   const groups = [
@@ -112,7 +142,7 @@ export function SignedInDevices() {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error && (
+        {error && !confirm && (
           <Text role="alert" tone="destructive">
             {error}
           </Text>
@@ -147,7 +177,7 @@ export function SignedInDevices() {
               .filter((group) => group.rows.length)
               .map((group) => (
                 <Stack key={group.key} gap="2">
-                  <Heading level={3} size="sm" className="text-muted-foreground uppercase tracking-wide">
+                  <Heading level={3} size="sm" className="text-xs text-muted-foreground uppercase tracking-wide">
                     {t(group.key)}
                   </Heading>
                   <List className="rounded-xl border p-1">
@@ -259,18 +289,20 @@ export function SignedInDevices() {
             </Stack>
           </>
         )}
-        {pairing && <ConnectPhone
-          open={pairing}
-          onClose={() => setPairing(false)}
-          onChanged={() => void load().catch(() => setError(t("error")))}
-        />}
+        {pairing && (
+          <ConnectPhone
+            open={pairing}
+            onClose={() => setPairing(false)}
+            onChanged={() => void load().catch(() => setError(t("error")))}
+          />
+        )}
         <AlertDialog
           open={confirm !== null}
           onOpenChange={(open) => {
             if (!open && !busy) setConfirm(null);
           }}
         >
-          <AlertDialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[560px]">
+          <AlertDialogContent className="max-h-[90dvh] overflow-y-auto md:max-w-[560px] max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:w-full max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-b-none">
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {phone ? t("phoneTitle", { name: phone.device_name }) : t(confirm === "all" ? "all" : "others")}
@@ -279,6 +311,11 @@ export function SignedInDevices() {
                 {phone ? t("phoneRevokeHint") : t(confirm === "all" ? "confirmAll" : "confirmOthers")}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {error && (
+              <Text role="alert" tone="destructive">
+                {error}
+              </Text>
+            )}
             {phone && (
               <Stack gap="3">
                 <Flex gap="2" align="start">
@@ -305,7 +342,7 @@ export function SignedInDevices() {
                 </Text>
               </Stack>
             )}
-            <AlertDialogFooter className="flex-col-reverse sm:flex-row">
+            <AlertDialogFooter className="flex-col-reverse md:flex-row [&_button]:max-md:min-h-touch [&_button]:max-md:w-full">
               <Button variant="outline" disabled={busy} onClick={() => setConfirm(null)}>
                 {t("cancel")}
               </Button>
@@ -320,13 +357,9 @@ export function SignedInDevices() {
                       const failed = approved.filter(
                         (tv) => wanted.includes(tv.id) && !result.also_signed_out?.includes(tv.id),
                       );
+                      if (failed.length) throw new Error("partial_sign_out");
                       setNotice(
-                        failed.length
-                          ? t("partial", { names: failed.map((tv) => tv.device_name).join(", ") })
-                          : t("signedOutPhone", {
-                              name: phone.device_name,
-                              count: result.also_signed_out?.length ?? 0,
-                            }),
+                        t("signedOutPhone", { name: phone.device_name, count: result.also_signed_out?.length ?? 0 }),
                       );
                     });
                   else void action(() => sessionsApi.revokeSessions(confirm === "all"), confirm === "all");

@@ -37,6 +37,7 @@ const eslintConfig = [
     ignores: [
       "node_modules/**",
       ".react-router/**",
+      ".vite-layout/**",
       "build/**",
       "dist/**",
       "out/**",

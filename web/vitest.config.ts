@@ -57,6 +57,10 @@ export default defineConfig({
         "src/components/editor-shortcut-list.tsx",
         "src/components/install-prompt.tsx",
         "src/components/pwa/**",
+        "src/components/settings/signed-in-devices.tsx",
+        "src/components/settings/connect-phone.tsx",
+        "src/components/wizard/**",
+        "src/components/displays/add-display-dialog.tsx",
         "src/i18n/config.ts",
         // Slice 2.3: status banners.
         "src/components/status-banners/**",

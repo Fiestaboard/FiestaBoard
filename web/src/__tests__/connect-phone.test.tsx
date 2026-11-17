@@ -74,7 +74,7 @@ it("cancels an in-flight creation before a reopened dialog makes its code", asyn
 it("retries a failed creation without rendering a stale QR", async () => {
   server.use(http.post("/api/auth/pairing", () => HttpResponse.json({ detail: "Unavailable" }, { status: 503 })));
   render(<ConnectPhone open onClose={vi.fn()} onChanged={vi.fn()} />);
-  await screen.findByRole("alert");
+  await screen.findByText(/Couldn’t make a safe QR code/);
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
   server.use(http.post("/api/auth/pairing", () => HttpResponse.json(offer)));
   await userEvent.click(screen.getByRole("button", { name: "Make a new code" }));
@@ -117,6 +117,20 @@ it.each([
     ),
   );
   render(<ConnectPhone open onClose={vi.fn()} onChanged={vi.fn()} />);
-  await screen.findByRole("alert");
+  await screen.findByText(/Couldn’t make a safe QR code/);
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
+});
+
+it("checks server truth after the local countdown reaches zero so a last-second claim is not missed", async () => {
+  server.use(
+    http.post("/api/auth/pairing", () => HttpResponse.json({ ...offer, expires_in: 1 })),
+    http.get("/api/auth/pairing/offer", () =>
+      HttpResponse.json({ state: "claimed", session_id: "phone", device_name: "Just connected" }),
+    ),
+  );
+  render(<ConnectPhone open onClose={vi.fn()} onChanged={vi.fn()} />);
+  await screen.findByRole("img", { name: "Scan with the FiestaBoard app" });
+  await screen.findByText("This code expired");
+  expect(screen.queryByText("Nothing was connected.")).not.toBeInTheDocument();
+  await screen.findByText("Just connected is connected");
 });

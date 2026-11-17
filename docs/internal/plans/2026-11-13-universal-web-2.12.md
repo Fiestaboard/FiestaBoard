@@ -6,6 +6,7 @@
 **Tech stack:** React Router, React, FiestaUI alpha.2, i18next, Vitest, Playwright.
 
 ## Constraints
+
 - Work only in dedicated cx- worktrees, target v11; never merge or post comments.
 - 07e and 07d are web canon; native page 05 is reference only.
 - In-app QR scanning, no loopback payloads; server-issued codes work once.
@@ -13,6 +14,7 @@
 - Preserve CSRF, authorization, explicit confirmation and error recovery.
 
 ## Tasks
+
 - [ ] Setup builder: inspect wizard + add-display; write failing flow tests, observe red, implement Welcome/progress/connection/review and responsive kit composition; preserve no-starter-pages behavior and existing-board recognition. Test Home no-displays entry and two-step add-display.
 - [ ] Auth builder: write failing activate state tests and reset-password tests, observe red; implement Figma consent/results and H17 reset flow; preserve sign-in redirects and focus behavior.
 - [ ] Primary: write failing sessions and QR tests, observe red; add mobile/approver fields, grouped rows, cascade confirmation, pairing create/poll/cancel, loopback warning, address select, connected/revoke and expiration states.
@@ -21,6 +23,7 @@
 - [ ] Open PR into v11, get Astra review (maximum three rounds), fix findings and confirm READY at exact head. Poll CI to green unless WRAPUP arrives.
 
 ## Review focus
+
 - Pending async creation/polls after closing must not leave a usable hidden offer.
 - Renewing codes must discard old requests/countdowns; failed requests are retryable.
 - A phone revoke names its outcome and preserves TVs when cascade is unchecked.

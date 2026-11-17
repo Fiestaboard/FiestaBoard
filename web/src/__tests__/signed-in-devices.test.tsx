@@ -25,6 +25,7 @@ beforeEach(() => {
     expires_at: "2027-10-18T00:00:00Z",
   }));
   server.use(
+    http.get("/api/panels", () => HttpResponse.json({ panels: [], total: 0 })),
     http.get("/api/auth/sessions", () => HttpResponse.json({ sessions, current_session_id: "browser" })),
     http.get("/api/auth/sessions/context", () => HttpResponse.json({ csrf_token: "nonce", expires_in: 600 })),
     http.get("/api/auth/device/settings", () => HttpResponse.json({ enabled: false })),
@@ -218,6 +219,43 @@ it("refuses a loopback hub in a pairing payload", async () => {
   );
   render(<SignedInDevices />);
   await userEvent.click(await screen.findByRole("button", { name: "Connect a phone" }));
-  await screen.findByRole("alert");
+  await screen.findByText(/Couldn’t make a safe QR code/);
   expect(screen.queryByRole("img", { name: "Scan with the FiestaBoard app" })).not.toBeInTheDocument();
+});
+
+it("resolves last-shown panel names without confusing them with last-connected time", async () => {
+  sessions[1].last_shown_at = "2026-10-17T10:00:00Z";
+  sessions[1].shown_panels = [{ panel_id: "panel-id", last_shown_at: "2026-10-17T10:00:00Z" }];
+  server.use(
+    http.get("/api/panels", () => HttpResponse.json({ panels: [{ id: "panel-id", name: "Kitchen panel" }], total: 1 })),
+  );
+  render(<SignedInDevices />);
+  const row = await screen.findByRole("listitem", { name: "Living room" });
+  await within(row).findByText(/Last shown: Kitchen panel/);
+  expect(within(row).getByText(/Last connected/)).toBeInTheDocument();
+  expect(within(row).queryByText(/panel-id/)).not.toBeInTheDocument();
+});
+
+it("names the remaining TV after a partial phone sign-out and keeps the same cascade retry available", async () => {
+  sessions.push({ ...sessions[1], id: "phone", kind: "mobile", device_name: "Pixel", method: "pairing" });
+  sessions[1].approved_by = { session_id: "phone", kind: "mobile", label: "Pixel", signed_in: true };
+  let attempts = 0;
+  server.use(
+    http.delete("/api/auth/sessions/:id", () => {
+      attempts++;
+      sessions = sessions.filter((row) => row.id !== "phone");
+      if (attempts === 1) return HttpResponse.json({ detail: "Storage unavailable" }, { status: 503 });
+      sessions = sessions.filter((row) => row.id !== "tv");
+      return HttpResponse.json({ status: "ok", also_signed_out: ["tv"] });
+    }),
+  );
+  render(<SignedInDevices />);
+  await userEvent.click(await screen.findByRole("button", { name: "Revoke Pixel" }));
+  await userEvent.click(screen.getByRole("button", { name: "Sign out phone and 1 TVs" }));
+  await screen.findByText(/Living room didn’t respond/);
+  expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Sign out phone and 1 TVs" }));
+  await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+  expect(screen.queryByText("Living room")).not.toBeInTheDocument();
+  expect(attempts).toBe(2);
 });

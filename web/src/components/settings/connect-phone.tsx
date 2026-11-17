@@ -23,7 +23,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { Clock, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
+import { ArrowLeft, Clock, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -34,7 +34,10 @@ import { type PairingOffer, type PairingState, sessionsApi } from "@/lib/api/ses
 function reachable(address: string): boolean {
   try {
     const url = new URL(address);
-    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+    const host = url.hostname
+      .toLowerCase()
+      .replace(/^\[|\]$/g, "")
+      .replace(/\.$/, "");
     return (
       ["http:", "https:"].includes(url.protocol) &&
       !url.username &&
@@ -111,12 +114,16 @@ export function ConnectPhone({
     },
     [t],
   );
-  const invalidate = useCallback(() => { generation.current++; }, []);
+  const invalidate = useCallback(() => {
+    generation.current++;
+  }, []);
   useEffect(() => {
     if (!open) return;
     let mounted = true;
     active.current = true;
-    queueMicrotask(() => { if (mounted) void create(); });
+    queueMicrotask(() => {
+      if (mounted) void create();
+    });
     return () => {
       mounted = false;
       active.current = false;
@@ -132,7 +139,8 @@ export function ConnectPhone({
     const tick = setInterval(() => {
       const left = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000));
       setRemaining(left);
-      if (!left) setState({ state: "expired" });
+      // Hide a locally expired QR, but keep polling: the phone may have
+      // claimed it just before the deadline. Only the server knows that.
     }, 1000);
     const poll = async () => {
       try {
@@ -156,7 +164,7 @@ export function ConnectPhone({
     };
   }, [open, offer, state.state, t]);
   const claimed = state.state === "claimed";
-  const expired = state.state === "expired" || state.state === "cancelled";
+  const expired = state.state === "expired" || state.state === "cancelled" || (!!offer && remaining === 0);
   const title = claimed
     ? t("connected", { name: state.device_name ?? t("phone") })
     : expired
@@ -189,12 +197,18 @@ export function ConnectPhone({
       <DialogContent
         className={
           phone
-            ? "h-dvh max-h-dvh w-full max-w-none rounded-none overflow-y-auto"
-            : "sm:max-w-[560px] max-h-[90dvh] overflow-y-auto"
+            ? "h-dvh max-h-dvh w-full max-w-none rounded-none overflow-y-auto content-start"
+            : "sm:max-w-[560px] sm:rounded-xl max-h-[90dvh] overflow-y-auto"
         }
       >
+        {phone && (
+          <Button variant="ghost" className="justify-self-start min-h-touch" onClick={onClose}>
+            <ArrowLeft className="size-4" />
+            {t("back")}
+          </Button>
+        )}
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="text-2xl md:text-xl">{title}</DialogTitle>
           <DialogDescription>
             {t(claimed ? "connectedHint" : expired ? "expiredHint" : "description")}
           </DialogDescription>
@@ -207,7 +221,7 @@ export function ConnectPhone({
           </Alert>
         )}
         {local && !claimed && !expired && (
-          <Alert variant="warning">
+          <Alert variant="warning" politeness="polite">
             <AlertTitle>{t("localhostTitle")}</AlertTitle>
             <AlertDescription>{t("localhostHint")}</AlertDescription>
           </Alert>
@@ -220,7 +234,7 @@ export function ConnectPhone({
         {busy && !offer && <Text role="status">{t("loading")}</Text>}
         {claimed ? (
           <Stack gap="4">
-            <Card>
+            <Card className="py-0">
               <CardContent className="p-4">
                 <Text weight="semibold">{state.device_name ?? t("phone")}</Text>
                 <Text size="sm" tone="muted">
@@ -232,14 +246,14 @@ export function ConnectPhone({
           </Stack>
         ) : expired ? (
           <Alert>
-            <AlertTitle>{t("nothingConnected")}</AlertTitle>
+            <AlertTitle>{t(state.state === "pending" ? "pollError" : "nothingConnected")}</AlertTitle>
             <AlertDescription>{t("expiredBody")}</AlertDescription>
           </Alert>
         ) : (
           offer && (
             <Stack gap="4">
               <Flex className="flex-col md:flex-row" gap="6" align="center">
-                <Card className="w-full md:w-[242px] shrink-0">
+                <Card className="w-full md:w-[242px] shrink-0 py-0">
                   <CardContent className="p-4 flex flex-col items-center gap-2.5">
                     <Box className="bg-white p-0 shrink-0">
                       <QRCodeSVG
@@ -318,9 +332,11 @@ export function ConnectPhone({
               {t("newCode")}
             </Button>
           )}
-          <Button variant={claimed ? "default" : "outline"} onClick={onClose}>
-            {t(phone ? "back" : "done")}
-          </Button>
+          {!phone && (
+            <Button variant={claimed ? "default" : "outline"} onClick={onClose}>
+              {t("done")}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
