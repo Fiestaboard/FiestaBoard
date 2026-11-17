@@ -27,7 +27,7 @@ import Link from "@/components/smart-link";
 import { resolveCode62Glyph, useBoardCurrentMessage, useStatus } from "@/hooks/use-board";
 import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useLocale, useTranslations } from "@/i18n/translations";
-import { api, type BoardDetail, type BoardInstance } from "@/lib/api";
+import { api, isCollectionId, type BoardDetail, type BoardInstance } from "@/lib/api";
 import { resolveBoardModel } from "@/lib/device-preview";
 import { isDisplayOffline } from "@/lib/status-banners";
 
@@ -196,6 +196,7 @@ export function HomeSupportingPane({
 
 function OtherDisplayRow({ board, nameOf }: { board: BoardInstance; nameOf: HomeSupportingPaneProps["nameOf"] }) {
   const t = useTranslations("home.supporting");
+  const td = useTranslations("activeDisplay");
   const { setCurrentBoardId } = useCurrentBoard();
   const { data: state } = useBoardCurrentMessage(board.id, { poll: !board.paused });
   const { data: status } = useStatus();
@@ -207,11 +208,13 @@ function OtherDisplayRow({ board, nameOf }: { board: BoardInstance; nameOf: Home
   const offline = isDisplayOffline(status?.boards?.[board.id]?.health);
   const mode = active?.temporary_override?.active
     ? t("overrideMode")
-    : active?.schedule_enabled === true
-      ? t("scheduleMode")
-      : active?.schedule_enabled === false
-        ? t("manualMode")
-        : t("unknown");
+    : active?.page_id && isCollectionId(active.page_id)
+      ? td("collectionBadge")
+      : active?.schedule_enabled === true
+        ? t("scheduleMode")
+        : active?.schedule_enabled === false
+          ? t("manualMode")
+          : t("unknown");
   const title = nameOf(active?.temporary_override?.active ? active.temporary_override.page_id : active?.page_id);
   return (
     <Button
