@@ -4,12 +4,13 @@
  * Comprehensive coverage of the per-board configuration model:
  *  - Displays (/displays): display card (name, type, dimensions, connection badge)
  *  - A display's page and Add a display: board CRUD (add, change type/color, delete)
- *  - Setup Wizard: board type picker, color swatches, BoardInstance creation
+ *  - Setup Wizard: board type, masked draft credentials, BoardInstance creation
  *  - Cross-feature: board config changes affect pages list tabs
  */
 import {
   addVestaboardDisplay,
   API_URL,
+  authHeaders,
   BOARD_HOST,
   chooseVestaboardInWizard,
   clearBoardConfig,
@@ -361,177 +362,112 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await resetToSingleBoard();
   });
 
-  test("wizard shows Board Type picker with Flagship and Note pills", async ({ page }) => {
+  async function start(page: import("@playwright/test").Page) {
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
+      localStorage.removeItem("fiestaboard_wizard_progress");
     });
-
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
     await chooseVestaboardInWizard(page);
+  }
 
-    await expect(page.getByText("Board Type", { exact: true })).toBeVisible({ timeout: 5_000 });
-    // Target the tiles by role + accessible name, not by bare text. The step's
-    // help copy also mentions "Flagship" and the dimensions read as plain text,
-    // so `getByText("Flagship")` matched the tile AND the help paragraph and
-    // failed strict mode (issue #1657). The accessible name is the tile's label
-    // plus its dimension caption, so this asserts both in one locator. The pair
-    // is a radiogroup, so the role is `radio` rather than `button`.
-    await expect(page.getByRole("radio", { name: "Flagship 22 × 6 characters" })).toBeVisible();
-    await expect(page.getByRole("radio", { name: "Note 15 × 3 characters" })).toBeVisible();
+  async function fillConnection(page: import("@playwright/test").Page) {
+    await page.getByLabel("Address", { exact: true }).fill(BOARD_HOST);
+    await page.getByLabel("Local API key", { exact: true }).fill("test-key");
+  }
+
+  async function savedBoards() {
+    const response = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
+    expect(response.ok).toBe(true);
+    return (await response.json()).boards;
+  }
+
+  async function finish(page: import("@playwright/test").Page) {
+    await expect(page.getByRole("heading", { name: "Add data sources", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Ready to go", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Finish setup", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
+  }
+
+  test("wizard offers Flagship and Note in the labelled board-type select", async ({ page }) => {
+    await start(page);
+    const picker = page.getByRole("combobox", { name: "Board type", exact: true });
+    await expect(picker).toContainText("Flagship · 22 × 6");
+    await picker.click();
+    await expect(page.getByRole("option", { name: "Flagship · 22 × 6", exact: true })).toBeVisible();
+    await page.getByRole("option", { name: "Note · 15 × 3", exact: true }).click();
+    await expect(picker).toContainText("Note · 15 × 3");
   });
 
-  test("wizard shows Board Color swatches with Black and White options", async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.removeItem("fiestaboard_wizard_complete");
-    });
-
-    await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
-    await chooseVestaboardInWizard(page);
-
-    await expect(page.getByText("Board Color")).toBeVisible({
-      timeout: 5_000,
-    });
-    await expect(page.getByRole("button", { name: "Black" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "White" })).toBeVisible();
+  test("wizard masks its draft key and testing leaves saved settings unchanged", async ({ page }) => {
+    await start(page);
+    await fillConnection(page);
+    const key = page.getByLabel("Local API key", { exact: true });
+    await expect(key).toHaveAttribute("type", "password");
+    await page.getByRole("button", { name: "Show API key", exact: true }).click();
+    await expect(key).toHaveAttribute("type", "text");
+    await page.getByRole("button", { name: "Hide API key", exact: true }).click();
+    await expect(key).toHaveAttribute("type", "password");
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("fiestaboard_wizard_progress") ?? "")).not.toContain("test-key");
+    const before = await savedBoards();
+    await page.getByRole("button", { name: "Test connection", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: /Connected · \d+ ms/ })).toBeVisible({ timeout: 15_000 });
+    expect(await savedBoards()).toEqual(before);
   });
 
-  test("wizard creates BoardInstance with correct name, type, color, and credentials", async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.removeItem("fiestaboard_wizard_complete");
-    });
-
-    await page.goto("/");
-    await chooseVestaboardInWizard(page);
-    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
-
-    // Fill Local API credentials first
-    await page.getByRole("radio", { name: /Local API/ }).click();
-    await page.getByLabel("Board IP Address").fill(BOARD_HOST);
-    await page.getByLabel("Local API Key").fill("test-key");
-
-    // Select Note type and White color LAST (right before Test Connection)
-    // so these are the most recent React state changes in the closure
-    const noteTypeBtn = page.locator("button", {
-      hasText: "15 × 3 characters",
-    });
-    await noteTypeBtn.scrollIntoViewIfNeeded();
-    await expect(noteTypeBtn).toBeVisible({ timeout: 5_000 });
-    await noteTypeBtn.click();
-    await expect(noteTypeBtn).toHaveClass(/border-primary/, {
-      timeout: 2_000,
-    });
-
-    const whiteBtn = page.getByRole("button", { name: "White" });
-    await whiteBtn.click();
-    await expect(whiteBtn).toHaveClass(/ring-2/, { timeout: 2_000 });
-
-    // Allow React to fully settle all state updates
-    await page.waitForTimeout(500);
-
-    // Click Test Connection
-    const testConnBtn = page.getByRole("button", {
-      name: "Test Connection",
-    });
-    await testConnBtn.scrollIntoViewIfNeeded();
-    await testConnBtn.click();
-    await expect(page.getByText("Connected!")).toBeVisible({
-      timeout: 15_000,
-    });
-
-    // Verify the board instance was saved via API
-    const res = await fetch(`${API_URL}/settings/board`);
-    const data = await res.json();
-    expect(data.boards.length).toBe(1);
-
-    const board = data.boards[0];
-    expect(board.name).toBe("My Board");
-    expect(board.device_type).toBe("note");
-    expect(board.board_color).toBe("white");
-    expect(board.api_mode).toBe("local");
-    expect(board.host).toBe(BOARD_HOST);
-    expect(board.enabled).toBe(true);
+  test("Continue saves name, Note geometry and credentials; color is editable in display settings", async ({ page }) => {
+    await start(page);
+    await fillConnection(page);
+    await page.getByLabel("Display name", { exact: true }).fill("E2E Note");
+    await page.getByRole("combobox", { name: "Board type", exact: true }).click();
+    await page.getByRole("option", { name: "Note · 15 × 3", exact: true }).click();
+    // First-run setup permits saving an untested connection. The mock hardware
+    // is a Flagship, so do not claim its test verified this Note geometry.
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Add data sources", exact: true })).toBeVisible();
+    const boards = await savedBoards();
+    expect(boards).toHaveLength(1);
+    expect(boards[0]).toMatchObject({ name: "E2E Note", device_type: "note", board_color: "black", enabled: true });
+    expect(boards[0].output_config).toMatchObject({ api_mode: "local", host: BOARD_HOST, local_api_key: "***" });
+    await finish(page);
+    const card = await openDisplay(page, "E2E Note");
+    await expect(card).toContainText("15 × 3");
+    await card.getByRole("button", { name: "White", exact: true }).click();
+    await expect.poll(async () => (await savedBoards())[0].board_color).toBe("white");
   });
 
-  test("wizard defaults to Flagship and Black when no selection is made", async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.removeItem("fiestaboard_wizard_complete");
-    });
-
-    await page.goto("/");
-    await chooseVestaboardInWizard(page);
-    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
-
-    // Don't change type or color — use defaults
-    await page.getByRole("radio", { name: /Local API/ }).click();
-    await page.getByLabel("Board IP Address").fill(BOARD_HOST);
-    await page.getByLabel("Local API Key").fill("test-key");
-
-    await page.getByRole("button", { name: "Test Connection" }).click();
-    await expect(page.getByText("Connected!")).toBeVisible({
-      timeout: 15_000,
-    });
-
-    const res = await fetch(`${API_URL}/settings/board`);
-    const data = await res.json();
-    expect(data.boards[0].device_type).toBe("flagship");
-    expect(data.boards[0].board_color).toBe("black");
+  test("wizard saves detected Flagship with Black defaults after a connection test", async ({ page }) => {
+    await start(page);
+    await fillConnection(page);
+    await page.getByRole("button", { name: "Test connection", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: /Connected · \d+ ms/ })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Add data sources", exact: true })).toBeVisible();
+    const boards = await savedBoards();
+    expect(boards).toHaveLength(1);
+    expect(boards[0]).toMatchObject({ name: "My board", device_type: "flagship", board_color: "black" });
   });
 
-  test("wizard-created board shows correctly on Displays", async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.removeItem("fiestaboard_wizard_complete");
-    });
-
-    await page.goto("/");
-    await chooseVestaboardInWizard(page);
-    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
-
-    // Select Note type first — scroll to Board Type section
-    const noteTypeBtn = page.locator("button", {
-      hasText: "15 × 3 characters",
-    });
-    await noteTypeBtn.scrollIntoViewIfNeeded();
-    await expect(noteTypeBtn).toBeVisible({ timeout: 5_000 });
-    await noteTypeBtn.click();
-    await expect(noteTypeBtn).toHaveClass(/border-primary/, {
-      timeout: 2_000,
-    });
-
-    // Select White color
-    const whiteBtn = page.getByRole("button", { name: "White" });
-    await whiteBtn.click();
-    await expect(whiteBtn).toHaveClass(/ring-2/, { timeout: 2_000 });
-
-    // Fill Local API credentials (scrolls up)
-    await page.getByRole("radio", { name: /Local API/ }).click();
-    await page.getByLabel("Board IP Address").fill(BOARD_HOST);
-    await page.getByLabel("Local API Key").fill("test-key");
-
-    // Click Test Connection
-    await page.getByRole("button", { name: "Test Connection" }).click();
-    await expect(page.getByText("Connected!")).toBeVisible({
-      timeout: 15_000,
-    });
-
-    // Proceed through wizard steps
-    await page.getByRole("button", { name: "Next", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Add Data Sources" })).toBeVisible();
-    await page.getByRole("button", { name: "Next", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Ready for your first page" })).toBeVisible();
-
-    await page.getByRole("button", { name: "Save & go to dashboard" }).click();
-
-    // Navigate to Displays
+  test("revisiting the saved connection keeps the board instead of duplicating it", async ({ page }) => {
+    await start(page);
+    await fillConnection(page);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Add data sources", exact: true })).toBeVisible();
+    const before = await savedBoards();
+    expect(before).toHaveLength(1);
+    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await expect(page.getByText("This board is already connected", { exact: true })).toBeVisible();
+    await expect(page.getByRole("radio", { name: /Keep My board/ })).toBeChecked();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Add data sources", exact: true })).toBeVisible();
+    expect(await savedBoards()).toEqual(before);
+    await finish(page);
     await openDisplays(page);
-
-    // Verify the display card shows correct info
-    await expect(page.getByText("My Board").first()).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByText("15 × 3").first()).toBeVisible();
-    await expect(page.getByText("Connected").first()).toBeVisible();
+    const card = page.getByTestId("display-card").filter({ hasText: "My board" });
+    await expect(card).toHaveCount(1);
+    await expect(card).toContainText("22 × 6");
+    await expect(card).toContainText("Connected");
   });
 });
 
