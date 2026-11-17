@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from uuid import uuid4
 
 from .diagnostics import FormulaReport, RenderReport
@@ -39,6 +39,52 @@ def authored(value: str, original: str, kind: str) -> str:
     return current.tracker.mapped(value, first)
 
 
+@dataclass(frozen=True)
+class _LayoutPart:
+    start: int
+    original: str
+    prepared: str
+    source: Source | None = None
+
+
+class LayoutProjection:
+    """Original syntax for layout scans, with cached atoms kept for rendering.
+
+    A legacy wrap match may end inside a formula's quoted braces. Such an
+    endpoint has no corresponding offset inside its opaque marker: retain
+    the exact original fragment, but keep every whole formula as a marker.
+    Geometry uses plain offsets and survives provenance-budget exhaustion.
+    """
+
+    def __init__(self, parts: list[_LayoutPart], tracker: SourceTracker):
+        self.parts = parts
+        self.tracker = tracker
+        self.text = "".join(str(part.original) for part in parts)
+
+    def _slice(self, start: int, end: int, *, authored: bool) -> str:
+        chunks = []
+        for part in self.parts:
+            left = max(start - part.start, 0)
+            right = min(end - part.start, len(part.original))
+            if left >= right:
+                continue
+            whole = left == 0 and right == len(part.original)
+            if part.source is not None and (authored or not whole):
+                chunk = part.original[left:right]
+                if authored:
+                    chunk = self.tracker.mapped(str(chunk), part.source)
+            else:
+                chunk = part.prepared if whole else part.prepared[left:right]
+            chunks.append(chunk)
+        return concat(chunks)
+
+    def prepared_slice(self, start: int, end: int) -> str:
+        return self._slice(start, end, authored=False)
+
+    def authored_slice(self, start: int, end: int) -> str:
+        return self._slice(start, end, authored=True)
+
+
 class RenderDebug:
     """One render only; never stored on the shared TemplateEngine singleton."""
 
@@ -50,6 +96,7 @@ class RenderDebug:
         self.source_map = None
         self._values: dict[str, str] = {}
         self._original: dict[str, str] = {}
+        self._origins: dict[str, Source] = {}
         self._pattern = None
         self._prepared = False
 
@@ -83,8 +130,10 @@ class RenderDebug:
 
                 def mark(match, tracked=tracked):
                     atom = tracked[match.start() : match.end()]
-                    if match.group().lower().startswith("{icon:") and resolve_icon_name(match.group()[6:-1]) is None:
-                        return atom
+                    if match.group().lower().startswith("{icon:"):
+                        name = match.group()[6:-1].lower()
+                        if name != "heart" and resolve_icon_name(name) is None:
+                            return atom
                     return authored(str(atom), atom, "markup")
 
                 tracked = sub(_STANDALONE_MARKUP, mark, tracked)
@@ -110,6 +159,7 @@ class RenderDebug:
                 marker = f"\x00H7:{nonce}:{len(self._values)}\x00"
                 self._original[marker] = tracked[start:end]
                 source = Source(number, start, end, "formula")
+                self._origins[marker] = source
                 self._values[marker] = self.tracker.mapped(result.value, source) if self.want_map else result.value
                 parts.extend((tracked[cursor:start], marker))
                 cursor = end
@@ -118,6 +168,21 @@ class RenderDebug:
         if self._values:
             self._pattern = re.compile(r"\x00H7:" + re.escape(nonce) + r":\d+\x00")
         return prepared
+
+    def layout_projection(self, text: str) -> LayoutProjection:
+        parts = []
+        cursor = position = 0
+        for match in self._pattern.finditer(text) if self._pattern is not None else ():
+            literal = text[cursor : match.start()]
+            parts.append(_LayoutPart(position, literal, literal))
+            position += len(literal)
+            marker = match.group()
+            original = self._original[marker]
+            parts.append(_LayoutPart(position, original, text[match.start() : match.end()], self._origins[marker]))
+            position += len(original)
+            cursor = match.end()
+        parts.append(_LayoutPart(position, text[cursor:], text[cursor:]))
+        return LayoutProjection(parts, self.tracker)
 
     def expand(self, text: str) -> str:
         if self._pattern is None:

@@ -130,3 +130,11 @@ exhaustion and prevents earlier normalization passes from interpreting formula
 output. Hidden formulas retain H5 coverage. Debug also caps formula count at
 64, bounding cached formula text to at most 4 MiB under S1 and H5 report values
 to about 256 KiB (plus source/error metadata). These are per-request limits.
+
+Review refinement: layout scans use the original authored syntax, while
+rendering retains cached formula markers. A wrap match ending inside quoted
+braces keeps the exact original fragment; whole formula slices keep their
+cached outcomes. This preserves existing wrap selection and overflow rules,
+including their handling of quoted pipe filters. Jev selected this projection
+with probability 0.99 (confidence 0.99) over changing default semantics or
+rejecting otherwise valid templates.

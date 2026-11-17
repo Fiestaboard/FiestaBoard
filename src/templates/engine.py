@@ -665,6 +665,8 @@ class TemplateEngine:
                 wraps.append(wrap_enabled)
                 contents.append(content)
 
+        layout_contents = [inspection.layout_projection(text).text for text in contents] if inspection else contents
+
         # Process lines, handling |wrap specially
         rendered = [""] * num_rows
         skip_until = -1  # Track lines filled by wrap overflow
@@ -694,7 +696,7 @@ class TemplateEngine:
                 if contents[j].strip() == "":
                     available += 1
                     continue
-                if wraps[j] or "|wrap}}" in contents[j] or "|wrap|" in contents[j]:
+                if wraps[j] or "|wrap}}" in layout_contents[j] or "|wrap|" in layout_contents[j]:
                     available += 1
                     continue
                 if _render_cached(j).strip() == "":
@@ -778,7 +780,7 @@ class TemplateEngine:
             wrap_enabled = wraps[i]
             content = contents[i]
 
-            has_wrap = wrap_enabled or "|wrap}}" in content or "|wrap|" in content
+            has_wrap = wrap_enabled or "|wrap}}" in layout_contents[i] or "|wrap|" in layout_contents[i]
 
             if has_wrap:
                 budget = _overflow_budget(i)
@@ -1096,7 +1098,9 @@ class TemplateEngine:
             List of rendered lines (up to max_lines)
         """
         # First, check if there's a variable with |wrap filter (variable-level wrap)
-        wrap_match = self._find_wrap_expression(template)
+        inspection = active_debug()
+        projection = inspection.layout_projection(template) if inspection else None
+        wrap_match = self._find_wrap_expression(projection.text if projection else template)
 
         if wrap_match:
             # Variable-level wrap: wrap only the variable with |wrap filter
@@ -1113,11 +1117,14 @@ class TemplateEngine:
             # Apply any other filters (except wrap)
             for f in other_filters:
                 value = self._apply_filter(value, f)
-            value = authored(self._as_data(var_part, value), template[match_start:match_end], "variable")
+            original = (
+                projection.authored_slice(match_start, match_end) if projection else template[match_start:match_end]
+            )
+            value = authored(self._as_data(var_part, value), original, "variable")
 
             # Get prefix and suffix around the variable
-            prefix = template[:match_start]
-            suffix = template[match_end:]
+            prefix = projection.prepared_slice(0, match_start) if projection else template[:match_start]
+            suffix = projection.prepared_slice(match_end, len(projection.text)) if projection else template[match_end:]
 
             # Render prefix and suffix (they may have other variables)
             prefix = self.render(prefix, context, extended_markup=extended_markup)
@@ -1558,7 +1565,7 @@ class TemplateEngine:
             lambda m: authored(
                 replace_var(m),
                 template[m.start() : m.end()],
-                "fill" if m.group(1).strip().startswith(("fill_space", "filled:")) else "variable",
+                "fill" if m.group(1).strip().lower().startswith(("fill_space", "filled:")) else "variable",
             ),
             template,
         )

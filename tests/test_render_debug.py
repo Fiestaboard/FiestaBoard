@@ -271,3 +271,37 @@ def test_debug_session_starts_after_plugin_context_is_built(client, monkeypatch)
     body = render(client, ["{{demo.word}}"], {"source_map": True})
     assert observed == ["3"]
     assert body["lines"][0].strip() == "3"
+
+
+@pytest.mark.parametrize("atom", ["{{FILL_SPACE}}", "{{FILLED:-}}", "{{FILL_SPACE_REPEAT:-}}"])
+def test_case_insensitive_fill_origins_use_fill_kind(client, atom):
+    body = render(client, ["A" + atom + "B"], {"source_map": True})
+    assert origin(body, 0, 1) == {"line": 1, "start": 1, "end": 1 + len(atom), "kind": "fill"}
+
+
+@pytest.mark.parametrize("atom", ["{icon:SUN}", "{icon:heart}", "{ICON:HEART}"])
+def test_standalone_icon_origins_follow_renderer_name_rules(client, atom):
+    body = render(client, [atom], {"source_map": True})
+    assert origin(body, 0, 0) == {"line": 1, "start": 0, "end": len(atom), "kind": "markup"}
+
+
+@pytest.mark.parametrize(
+    "template",
+    [
+        ['{{= "A|wrap|B" }}'],
+        ['{{= "A|wrap|B}}TAIL" }}'],
+        ['{{red:{{= "A|wrap|B" }}}}'],
+        ["L {{= 1+1 }} {{demo.words|wrap}} {{= 2+2 }} R"],
+        ['{{= REPT("A", 30) }}', '{{= "A|wrap|B" }}', "END"],
+    ],
+)
+@pytest.mark.parametrize("tracking_limit", [8, 262144])
+def test_formula_with_quoted_wrap_filter_keeps_default_output(client, monkeypatch, template, tracking_limit):
+    from src.templates import debug as debug_module
+    from src.templates.source_map import SourceTracker
+
+    monkeypatch.setattr(debug_module, "SourceTracker", lambda: SourceTracker(limit=tracking_limit))
+    baseline = render(client, template)
+    debug = render(client, template, {"source_map": True})
+    assert debug["rendered"] == baseline["rendered"]
+    assert debug["lines"] == baseline["lines"]
