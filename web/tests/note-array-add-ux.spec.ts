@@ -51,10 +51,13 @@ test.describe("Add Note Array board", () => {
     await arrayChoice.hover();
     await page.waitForTimeout(700);
     await arrayChoice.click();
-    await page.getByRole("tab", { name: "Settings", exact: true }).click();
 
     // The new board's page opens: a 2×1 note array (3 rows × 30 cols).
+    // Wait for its mounted settings before clicking a tab: the previous
+    // embedded display can remain visible while creation navigation settles.
     const card = page.getByTestId("board-card").filter({ hasText: "My Board 2" });
+    await expect(card.getByTestId("board-name-input")).toHaveValue("My Board 2", { timeout: 10_000 });
+    await page.getByRole("tab", { name: "Settings", exact: true }).click();
     await expect(card).toBeVisible({ timeout: 10_000 });
     await expect(card).toContainText("30 × 3");
     await expect(card).toContainText("2 side-by-side");
