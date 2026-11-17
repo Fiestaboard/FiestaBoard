@@ -2,4 +2,4 @@
 "fiestaboard": patch
 ---
 
-Keep private settings consistent across configuration readbacks, edits, and assistant exports.
+Keep private settings consistent across configuration responses, edits, and assistant exports.

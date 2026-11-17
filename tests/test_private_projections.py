@@ -281,3 +281,23 @@ def test_assistant_backup_withholds_unsupported_secret_schema(registry, monkeypa
     result = _mcp_export()
     assert result["data"]["config"]["plugins"]["fixture"] == {}
     assert "FAKE-" not in json.dumps(result)
+
+
+def test_assistant_backup_withholds_contains_schema_secrets(registry, monkeypatch, tmp_path):
+    from src.backup.service import BackupService
+
+    registry._manifests["fixture"].settings_schema = {
+        "type": "object",
+        "properties": {
+            "entries": {
+                "type": "array",
+                "contains": {"type": "object", "properties": {"credential": {"secret": True}}},
+            }
+        },
+    }
+    snapshot = {"plugins": {"fixture": {"entries": [{"credential": "FAKE-contains"}]}}}
+    (tmp_path / "config.json").write_text(json.dumps(snapshot))
+    monkeypatch.setattr("src.backup.get_backup_service", lambda: BackupService(tmp_path))
+    result = _mcp_export()
+    assert result["data"]["config"]["plugins"]["fixture"] == {}
+    assert "FAKE-contains" not in json.dumps(result)

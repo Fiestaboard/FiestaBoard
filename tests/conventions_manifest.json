@@ -338,11 +338,6 @@
       "reason": "No failure path: clearing an empty trigger set is a successful no-op, and there is no id or body that could be wrong."
     },
     {
-      "route": "PUT /settings/ai",
-      "rule": "declared_errors",
-      "reason": "Its only failure is request-body validation. It used to declare 422 by hand, which is worse than declaring nothing: a hand-written 422 entry REPLACES the HTTPValidationError body FastAPI publishes automatically, so the schema announced a 422 with an empty body. The entry is gone and FastAPI's own 422 is published instead. The handler persists a validated model and raises no HTTPException of its own, so there is no other status it deliberately returns."
-    },
-    {
       "route": "PUT /settings/mqtt",
       "rule": "declared_errors",
       "reason": "Its only failure is request-body validation. It used to declare 422 by hand, which is worse than declaring nothing: a hand-written 422 entry REPLACES the HTTPValidationError body FastAPI publishes automatically, so the schema announced a 422 with an empty body. The entry is gone and FastAPI's own 422 is published instead. The handler persists a validated model and raises no HTTPException of its own, so there is no other status it deliberately returns."

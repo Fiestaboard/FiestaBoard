@@ -206,29 +206,47 @@ def _backup_schema_supported(schema: Any) -> bool:
         return True
     if not isinstance(schema, dict):
         return False
-    unsupported = {
-        "$ref",
-        "$dynamicRef",
-        "$recursiveRef",
-        "$defs",
-        "definitions",
-        "allOf",
-        "anyOf",
-        "oneOf",
-        "not",
-        "if",
-        "then",
-        "else",
-        "patternProperties",
-        "dependencies",
-        "dependentSchemas",
-        "prefixItems",
-        "additionalItems",
-        "unevaluatedProperties",
-        "unevaluatedItems",
-        "contentSchema",
+    # Only properties/items introduce schema branches the shared masker
+    # understands. Unknown keywords fail closed, including future schema
+    # applicators; UI annotations and ordinary value constraints do not.
+    supported = {
+        "$schema",
+        "$id",
+        "$anchor",
+        "$comment",
+        "title",
+        "description",
+        "type",
+        "default",
+        "examples",
+        "enum",
+        "const",
+        "required",
+        "readOnly",
+        "writeOnly",
+        "deprecated",
+        "format",
+        "pattern",
+        "minLength",
+        "maxLength",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+        "minItems",
+        "maxItems",
+        "uniqueItems",
+        "minProperties",
+        "maxProperties",
+        "properties",
+        "items",
+        "additionalProperties",
+        "secret",
     }
-    if unsupported.intersection(schema) or isinstance(schema.get("additionalProperties"), dict):
+    if any(key not in supported and not key.startswith("ui:") for key in schema):
+        return False
+    if "additionalProperties" in schema and not isinstance(schema["additionalProperties"], bool):
         return False
     properties = schema.get("properties", {})
     if not isinstance(properties, dict) or not all(_backup_schema_supported(value) for value in properties.values()):
