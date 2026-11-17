@@ -262,7 +262,8 @@ app asks for the account password and sends it to `POST /auth/device/elevate`.
 
 - A correct password lets **this phone** do step-up actions for **10 minutes**.
   Other phones, TVs and browsers don't get it.
-- Wrong passwords count toward the same lockout as signing in.
+- Wrong passwords count toward the same lockout as signing in. Each phone can also try
+  at most 10 times a minute.
 - The step-up is never a new credential. It ends when the 10 minutes are up, when the
   app ends it (`DELETE /auth/device/elevate`), or when this phone is signed out.
 - `GET /auth/device/elevate` says whether the phone is stepped up, and for how long.

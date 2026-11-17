@@ -1256,7 +1256,7 @@ async def get_board_settings():
     responses={**ERROR_400},
     dependencies=[flat_board_fields_notice()],
 )
-async def update_board_settings(request: BoardSettingsUpdate, http_request: Request):
+async def update_board_settings(request: BoardSettingsUpdate, http_request: Request = None):
     """
     Update board settings.
 
