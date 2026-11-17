@@ -7,18 +7,19 @@ image, a docs snapshot on fiestaboard.app, and a Docker Hub description update.
 Nothing is published to npm. The root `package.json` is private and only carries
 the version.
 
-There are two update channels and a manually installed v11 preview lane:
+There are three explicitly selected update channels:
 
-| Branch  | Versions        | Docker tags                   | GitHub Release | Who gets it                    |
-| ------- | --------------- | ----------------------------- | -------------- | ------------------------------ |
-| `main`  | `10.4.0`        | `:10.4.0`, `:latest`          | latest         | every install on stable        |
-| `alpha` | `10.4.0-beta.2` | `:10.4.0-beta.2`, `:beta`     | prerelease     | installs on the beta channel   |
-| `v11` | `11.0.0-alpha.N` | `:v11-alpha-11.0.0-alpha.N`, `:v11-alpha` | git tag only | isolated manual preview installs |
+| Branch  | Versions         | Docker tags                               | GitHub Release | Who gets it                        |
+| ------- | ---------------- | ----------------------------------------- | -------------- | ---------------------------------- |
+| `main`  | `10.4.0`         | `:10.4.0`, `:latest`                      | latest         | every install on stable            |
+| `alpha` | `10.4.0-beta.2`  | `:10.4.0-beta.2`, `:beta`                 | prerelease     | installs on the beta channel       |
+| `v11`   | `11.0.0-alpha.N` | `:v11-alpha-11.0.0-alpha.N`, `:v11-alpha` | git tag only   | installs opting into Alpha preview |
 
 The update checker (`src/system/update_service.py`) reads both Docker Hub tags
 and GitHub Releases. Stable installs never see a prerelease, because it carries a
-`-` and is excluded from `/releases/latest`. Beta installs see both kinds and
-compare them by semver, so `10.4.0` is newer than every `10.4.0-beta.N`.
+`-` and is excluded from `/releases/latest`. Beta installs compare stable and beta versions below major 11 by semver, so
+`10.4.0` is newer than every `10.4.0-beta.N`. They never automatically see the
+v11 preview. Alpha discovers only prefixed `v11-alpha-11.0.0-alpha.N` Docker tags.
 
 ## Day to day
 
@@ -86,20 +87,27 @@ The image has two tags in `fiestaboard/fiestaboard`:
 - `v11-alpha-11.0.0-alpha.N` pins a specific preview.
 
 There is deliberately no numeric Docker tag and no public GitHub Release for
-v11. Already-deployed beta clients discover *all* numeric prerelease Docker tags
-and *all* GitHub prereleases. Publishing either would offer v11 to those clients,
+v11. Already-deployed beta clients discover _all_ numeric prerelease Docker tags
+and _all_ GitHub prereleases. Publishing either would offer v11 to those clients,
 even without moving `:beta`. A `v11.0.0-alpha.N` **git tag only** records successful
 publication after both image architectures are verified. Retry planning checks
 that tag; main and alpha continue checking GitHub Releases as before.
 
-Install v11 into an isolated test instance with its own data volume and the
-explicit `fiestaboard/fiestaboard:v11-alpha` image. Update it by pulling that image
-and recreating the container, or pin a prefixed immutable tag. Do not use the
-existing beta/stable channel controls: this preview lane is not an in-app update
-channel. In-app update checks, Update Now and channel switching are disabled for
-these builds; old stored channel preferences cannot change the image on restart. Back up data before testing; do not reuse a preview data volume with an
-older release. The lane produces no FiestaPi image, docs snapshot, Docker Hub
-description update, `:beta`, or `:latest` tag.
+Choose Alpha preview in Settings → System → Release channel, or install an
+isolated test instance with its own data volume and the explicit
+`fiestaboard/fiestaboard:v11-alpha` image. The chooser shows each channel's
+newest version and the running channel. A newer major requires explicit
+confirmation and a successful automatic backup before the image is changed.
+Keep a downloaded backup as well: preview builds can migrate data that older
+builds cannot read.
+
+On Alpha, Update Now pulls only `:v11-alpha`. Switching to Beta or Stable uses
+the leave flow, restoring the corresponding pre-preview snapshot before the
+older image starts. Changes made since that snapshot are lost. If no compatible
+snapshot exists, the response warns that a manual backup restore may be needed.
+Home Assistant installations continue to use the Supervisor's add-on store.
+The lane produces no FiestaPi image, docs snapshot, Docker Hub description
+update, `:beta`, or `:latest` tag.
 
 To promote, exit Changesets pre mode before merging to main. The v11 workflow
 stops while promotion is in progress; main's Version PR produces the stable

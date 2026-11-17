@@ -2791,7 +2791,20 @@
     "leaveCta": "退出测试版",
     "leaveConfirmTitle": "退出测试版通道？",
     "leaveConfirmBody": "这会让你回到当前的稳定版本，它比你正在运行的测试版更旧。你的设置和页面将回滚到加入时创建的备份——测试期间所做的任何更改都会丢失。FiestaBoard 将以稳定版本重新启动。如果你希望保留更改，请改为等待：当下一个稳定版本超过你的测试版时，“立即更新”会带你过去且不丢失任何内容。",
-    "leaveConfirmCta": "退出测试版"
+    "leaveConfirmCta": "退出测试版",
+    "chooserDescription": "选择此安装使用的发布渠道。",
+    "channelAlpha": "Alpha 预览版",
+    "currentBadge": "当前",
+    "stableDescription": "经过测试，适合日常使用的版本。",
+    "betaDescription": "提前体验修复和新功能的后续版本。",
+    "alphaDescription": "FiestaBoard 11 预览版；可能包含不兼容的更改。",
+    "versionUnavailable": "版本信息不可用",
+    "switchUnavailable": "此安装无法切换发布渠道。",
+    "switchTitle": "切换到{channel}？",
+    "switchCta": "切换渠道",
+    "alphaConfirmBody": "Alpha 是 FiestaBoard 11 的早期预览版。切换可能将设置和页面迁移为旧版本无法读取的格式。安装新的主版本前，自动备份必须成功；如果备份失败，切换将停止。请另外下载并保存备份。返回 Beta 或稳定版时会恢复加入预览版前的备份，Alpha 中所做的更改将丢失。FiestaBoard 将重新启动。",
+    "downgradeConfirmBody": "您将切换到较旧的发布渠道。FiestaBoard 会恢复加入预览版前的备份，此后所做的更改将丢失。如果没有兼容的备份，请在“设置 → 系统 → 备份”中恢复已下载的备份。旧版本可能无法读取迁移后的数据。FiestaBoard 将重新启动。",
+    "betaConfirmBody": "Beta 版本可能迁移设置和页面。切换前会创建备份。升级到新的主版本要求自动备份成功。返回稳定版可能需要恢复加入预览版前的备份，并丢失此后所做的更改。FiestaBoard 将重新启动。"
   },
   "aiApprovalCard": {
     "heading": "需要你的批准",

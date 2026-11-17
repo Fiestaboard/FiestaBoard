@@ -154,49 +154,69 @@ def test_v11_workflow_never_creates_public_release():
 
 
 @pytest.mark.asyncio
-async def test_v11_update_now_refuses_before_sidecar_or_snapshot(monkeypatch):
+@pytest.mark.parametrize("discovered", ["11.0.0-alpha.2", "12.0.0", "10.4.0-beta.1", None])
+async def test_v11_update_now_installs_only_alpha_lane(monkeypatch, discovered):
+    from unittest.mock import Mock
+
     from src.system import update_service as service
 
     monkeypatch.setenv("VERSION", "11.0.0-alpha.0")
-    monkeypatch.setattr(service, "_updater_token", lambda: pytest.fail("sidecar access"))
-    with pytest.raises(service.SidecarError, match="manually"):
-        await service.apply_update()
+    monkeypatch.setattr(service, "_updater_token", lambda: "token")
+    monkeypatch.setattr(service, "_updater_version", lambda: {"image": "fiestaboard/fiestaboard:v11-alpha"})
+    monkeypatch.setattr(service, "_take_settings_snapshot", lambda *args: {"name": "saved.json"})
+    monkeypatch.setattr(service, "_system_update_state_update", lambda **kwargs: None)
+    calls = []
+
+    def post(endpoint, payload):
+        calls.append((endpoint, payload))
+        return Mock(status_code=202, json=dict)
+
+    async def latest(channel):
+        assert channel == "alpha"
+        return discovered
+
+    monkeypatch.setattr(service, "_updater_post", post)
+    monkeypatch.setattr(service, "_latest_for_channel", latest)
+    result = await service.apply_update()
+    assert result.status == "queued"
+    assert calls == [("/install", {"image": "fiestaboard/fiestaboard", "tag": "v11-alpha"})]
 
 
-def test_v11_channel_switch_refuses_before_sidecar(monkeypatch):
+def test_v11_channel_switch_is_available_with_sidecar(monkeypatch):
     from src.system import update_service as service
 
     monkeypatch.setenv("VERSION", "11.0.0-alpha.0")
-    monkeypatch.setattr(service, "_updater_version", lambda: pytest.fail("sidecar access"))
-    for channel in ("stable", "beta"):
-        with pytest.raises(service.SidecarError, match="manually"):
-            service.switch_channel(channel)
+    monkeypatch.setattr(service, "_managed_externally", lambda: False)
+    monkeypatch.setattr(service, "_updater_token", lambda: "token")
+    monkeypatch.setattr(service, "_updater_probe", lambda: True)
+    assert service.channel_switch_blocker() is None
 
 
-@pytest.mark.parametrize("wanted", ["stable", "beta"])
-def test_v11_restart_ignores_old_channel_preference(monkeypatch, wanted):
+@pytest.mark.parametrize("wanted", ["stable", "beta", "alpha"])
+def test_v11_restart_reasserts_explicit_channel_preference(monkeypatch, wanted):
     from src.system import update_service as service
 
     monkeypatch.setenv("VERSION", "11.0.0-alpha.0")
     monkeypatch.setattr(service, "_system_update_state_load", lambda: {"channel": wanted})
-    monkeypatch.setattr(service, "_managed_externally", lambda: pytest.fail("must stop before sidecar probing"))
+    monkeypatch.setattr(service, "channel_switch_blocker", lambda: None)
     calls = []
     monkeypatch.setattr(service, "switch_channel", lambda channel: calls.append(channel))
     service.reassert_release_channel()
-    assert calls == []
-    assert "manually" in service.channel_switch_blocker()
+    assert calls == ([] if wanted == "alpha" else [wanted])
 
 
 @pytest.mark.asyncio
-async def test_v11_update_check_does_not_discover_other_channels(monkeypatch):
+async def test_v11_update_check_discovers_only_alpha(monkeypatch):
     from src.system import update_service as service
 
     monkeypatch.setenv("VERSION", "11.0.0-alpha.0")
 
-    async def fail(channel):
-        pytest.fail("v11 must not discover beta or stable updates")
+    async def latest(channel):
+        assert channel == "alpha"
+        return "11.0.0-alpha.2"
 
-    monkeypatch.setattr(service, "_latest_for_channel", fail)
+    monkeypatch.setattr(service, "_latest_for_channel", latest)
+    monkeypatch.setattr(service, "_system_update_state_update", lambda **kwargs: None)
     result = await service._perform_update_check()
-    assert not result.update_available
-    assert "manually" in result.error
+    assert result.update_available
+    assert result.latest_version == "11.0.0-alpha.2"
