@@ -136,12 +136,16 @@ export function SignedInDevices() {
     },
   ];
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Stack gap="4" className="text-foreground">
+      <Stack gap="1">
+        <Heading level={3} size="xl">
+          {t("title")}
+        </Heading>
+        <Text size="sm" tone="muted">
+          {t("description")}
+        </Text>
+      </Stack>
+      <Stack gap="4">
         {error && !confirm && (
           <Text role="alert" tone="destructive">
             {error}
@@ -371,7 +375,7 @@ export function SignedInDevices() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </CardContent>
-    </Card>
+      </Stack>
+    </Stack>
   );
 }

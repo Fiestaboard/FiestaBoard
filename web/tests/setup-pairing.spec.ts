@@ -86,11 +86,17 @@ for (const prefix of ["", "/test-prefix"]) {
       await expect(confirmation).toContainText("Phone-approved TV");
       await confirmation.getByRole("checkbox").uncheck();
       await confirmation.getByRole("button", { name: "Sign out phone", exact: true }).click();
+      await expect(confirmation).toHaveCount(0);
       await expect(page.getByRole("listitem", { name: "Acceptance phone", exact: true })).toHaveCount(0);
       expect((await mobile.get(`${api}/auth/device/tvs`, { headers: phoneHeaders })).status()).toBe(401);
       expect((await tv.get(`${api}/panels`, { headers: tvHeaders })).ok()).toBe(true);
       expect((await page.request.get(`${api}/auth/sessions`)).ok()).toBe(true);
+      const revokedTv = page.waitForResponse(
+        (response) =>
+          response.request().method() === "DELETE" && new URL(response.url()).pathname.includes("/auth/sessions/"),
+      );
       await page.getByRole("button", { name: "Revoke Phone-approved TV", exact: true }).click();
+      expect((await revokedTv).ok()).toBe(true);
       await expect(page.getByRole("listitem", { name: "Phone-approved TV", exact: true })).toHaveCount(0);
       expect((await tv.get(`${api}/panels`, { headers: tvHeaders })).status()).toBe(401);
     } finally {

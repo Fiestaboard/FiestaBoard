@@ -4,6 +4,13 @@
 @import "@fiestaboard/ui/editor.css";
 @source "../node_modules/@fiestaboard/ui/dist";
 
+/* FiestaUI alpha.2 places Select below modal dialogs. Share the existing
+   popover layer so Select/Combobox/TimezonePicker remain clickable in modals.
+   Remove when the kit publishes the corrected --z-select token. */
+:root {
+  --z-select: var(--z-popover);
+}
+
 /* AI sparkle icon — big star gets the sweeping gradient, small elements pulse independently */
 @keyframes ai-sparkle-flow {
   0% {

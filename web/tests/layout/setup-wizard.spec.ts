@@ -1,11 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { checkA11y, injectAxe } from "axe-playwright";
+import { injectAxe } from "axe-playwright";
+
+import { checkSetupA11y } from "./setup-a11y";
 
 const shots = process.env.WEB212_SHOTS ?? "test-results/web212-shots";
 for (const width of [390, 768, 1280]) {
   for (const theme of ["light", "dark"]) {
     test(`first-run welcome, output, connection and review ${width} ${theme}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 1000 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
       let passed = false;
       let known = false;
       const writes: string[] = [];
@@ -19,6 +22,7 @@ for (const width of [390, 768, 1280]) {
       };
       await page.route("**/api/**", async (route) => {
         const path = new URL(route.request().url()).pathname;
+        if (!path.startsWith("/api/")) return route.fallback();
         if (path === "/api/config/board/existing")
           await route.fulfill({
             json: {
@@ -77,17 +81,15 @@ for (const width of [390, 768, 1280]) {
         else if (path === "/api/settings/board/add") {
           writes.push(path);
           await route.fulfill({ json: { boards: [board], active_board_id: "kitchen" } });
-        } else if (path === "/api/settings/wizard") await route.fulfill({ json: { state: "completed" } });
+        } else if (path === "/api/settings/wizard")
+          await route.fulfill({ json: { state: route.request().method() === "GET" ? null : "completed" } });
         else if (path === "/api/plugins") await route.fulfill({ json: { plugins: [] } });
         else await route.fulfill({ json: {} });
       });
       await page.goto(`/tests/layout/setup.html?mode=wizard&theme=${theme}`);
       await expect(page.getByLabel("Name this hub")).toHaveValue("Example FiestaPi");
       await injectAxe(page);
-      const axe = async () =>
-        checkA11y(page, undefined, {
-          axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
-        });
+      const axe = async () => checkSetupA11y(page);
       const shot = async (state: string) => {
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await axe();

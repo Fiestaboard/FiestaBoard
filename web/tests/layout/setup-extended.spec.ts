@@ -1,7 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
-import { checkA11y, injectAxe } from "axe-playwright";
+import { injectAxe } from "axe-playwright";
 
 import firstPartyOutputs from "../../src/__tests__/mocks/first-party-outputs.json" with { type: "json" };
+import { checkSetupA11y } from "./setup-a11y";
 
 const shots = process.env.WEB212_SHOTS ?? "test-results/web212-shots";
 // This API-contract fixture is rendered by the real output-schema form; it
@@ -47,10 +48,8 @@ const catalog = [...firstPartyOutputs, led].map((output) => ({
 async function shot(page: Page, state: string, width: number, theme: string) {
   await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await checkA11y(page, undefined, {
-    axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
-  });
-  await page.screenshot({ path: `${shots}/impl-${state}-${width}-${theme}.png`, fullPage: true });
+  await checkSetupA11y(page);
+  await page.screenshot({ path: `${shots}/impl-${state}-${width}-${theme}.png`, fullPage: false });
 }
 async function setup(page: Page, width: number) {
   await page.setViewportSize({ width, height: 1000 });
@@ -58,9 +57,11 @@ async function setup(page: Page, width: number) {
   const unexpected: string[] = [];
   await page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
+    if (!path.startsWith("/api/")) return route.fallback();
     let json: unknown;
     if (path === "/api/config/board/existing") json = { existing: [] };
     else if (path === "/api/config/validate") json = { valid: true, is_first_run: false, missing_fields: [] };
+    else if (path === "/api/settings/wizard") json = { state: null };
     else if (path === "/api/settings/board") json = { boards: [], active_board_id: "" };
     else if (path === "/api/config/general") json = { instance_name: "Example FiestaPi", timezone: "UTC" };
     else if (path === "/api/outputs/catalog") json = { outputs: catalog, registry_status: "available" };
@@ -103,12 +104,39 @@ for (const width of [390, 768, 1280]) {
       await shot(page, "add-display-type", width, theme);
       await dialog.getByRole("radio", { name: /Vestaboard/ }).click();
       await dialog.getByRole("button", { name: "Next", exact: true }).click();
+      await dialog.getByLabel("Board type", { exact: true }).click();
+      await page.getByRole("option", { name: "Note Array", exact: true }).click();
+      await expect(dialog.getByLabel("Notes wide", { exact: true })).toBeVisible();
+      await dialog.getByLabel("Board type", { exact: true }).click();
+      await page.getByRole("option", { name: "Flagship · 22 × 6", exact: true }).click();
+      await dialog.getByRole("radio", { name: "Local API", exact: true }).click();
       await dialog.getByLabel("Display name", { exact: true }).fill("Hall board");
       await dialog.getByLabel("Address", { exact: true }).fill("192.0.2.60");
       await dialog.getByLabel("Local API key", { exact: true }).fill("test_key");
       await dialog.getByRole("button", { name: "Test connection", exact: true }).click();
       await expect(dialog.getByRole("button", { name: "Add display", exact: true })).toBeEnabled();
       await shot(page, "add-display-connect", width, theme);
+      expect(unexpected).toEqual([]);
+    });
+    test(`Add community display explicit untested choice ${width} ${theme}`, async ({ page }) => {
+      const unexpected = await setup(page, width);
+      await page.goto(`/tests/layout/setup-extended.html?mode=home&theme=${theme}`);
+      await page.getByRole("button", { name: "Add display", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByRole("radio", { name: /LED display/ }).click();
+      await dialog.getByRole("button", { name: "Next", exact: true }).click();
+      await dialog.getByRole("textbox", { name: "Address *", exact: true }).fill("192.0.2.70");
+      const add = dialog.getByRole("button", { name: "Add display", exact: true });
+      await expect(add).toBeDisabled();
+      await dialog
+        .getByRole("checkbox", {
+          name: "Skip the connection test and add this community display untested",
+          exact: true,
+        })
+        .check();
+      await expect(add).toBeEnabled();
+      await injectAxe(page);
+      await shot(page, "add-community-untested", width, theme);
       expect(unexpected).toEqual([]);
     });
     test(`wizard TV connection ${width} ${theme}`, async ({ page }) => {
@@ -130,7 +158,7 @@ for (const width of [390, 768, 1280]) {
           exact: true,
         }),
       ).toBeVisible();
-      await page.getByLabel("Address", { exact: true }).fill("192.0.2.70");
+      await page.getByRole("textbox", { name: "Address *", exact: true }).fill("192.0.2.70");
       await page.getByRole("button", { name: "Test connection", exact: true }).click();
       await expect(page.getByText("Connection verified", { exact: true })).toBeVisible();
       await injectAxe(page);
@@ -142,6 +170,7 @@ for (const width of [390, 768, 1280]) {
       let state = "pending";
       await page.route("**/api/auth/**", async (route) => {
         const path = new URL(route.request().url()).pathname;
+        if (!path.startsWith("/api/")) return route.fallback();
         if (path === "/api/auth/sessions/context")
           await route.fulfill({ json: { csrf_token: "test_nonce", expires_in: 600 } });
         else if (path === "/api/auth/pairing" && route.request().method() === "POST") {

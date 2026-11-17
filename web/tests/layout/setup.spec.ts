@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { checkA11y, injectAxe } from "axe-playwright";
+import { injectAxe } from "axe-playwright";
+
+import { checkSetupA11y } from "./setup-a11y";
 
 const stamp = "2026-11-05T17:39:00Z";
 const sessions = [
@@ -22,6 +24,7 @@ for (const width of [390, 768, 1280]) {
   for (const theme of ["light", "dark"]) {
     test(`sessions and QR pairing ${width} ${theme}`, async ({ page, baseURL }) => {
       await page.setViewportSize({ width, height: 1000 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
       // Serve the same fixture under a network origin so the normal live
       // state is distinct from the separately covered localhost warning.
       await page.route("http://fiestapi.test/**", async (route) => {
@@ -69,36 +72,33 @@ for (const width of [390, 768, 1280]) {
       await page.goto(`http://fiestapi.test/tests/layout/setup.html?theme=${theme}`);
       await expect(page.getByRole("heading", { name: "Phones", exact: true })).toBeVisible();
       await injectAxe(page);
-      await checkA11y(page, undefined, {
-        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
-      });
+      await checkSetupA11y(page);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      if (shots) await page.screenshot({ path: `${shots}/impl-sessions-${width}-${theme}.png`, fullPage: true });
+      if (shots) await page.screenshot({ path: `${shots}/impl-sessions-${width}-${theme}.png`, fullPage: false });
       await page.getByRole("button", { name: "Connect a phone", exact: true }).click();
       await expect(page.getByRole("img", { name: "Scan with the FiestaBoard app" })).toBeVisible();
-      await checkA11y(page, undefined, {
-        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
-      });
+      if (width === 390) {
+        const bounds = await page.getByRole("dialog").boundingBox();
+        expect(Math.round(bounds!.x)).toBe(0);
+        expect(Math.round(bounds!.width)).toBe(390);
+      }
+      await checkSetupA11y(page);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      if (shots) await page.screenshot({ path: `${shots}/impl-qr-live-${width}-${theme}.png`, fullPage: true });
+      if (shots) await page.screenshot({ path: `${shots}/impl-qr-live-${width}-${theme}.png`, fullPage: false });
       expect(createBodies).toEqual([{}]);
       state = "claimed";
       await expect(page.getByText("Example phone is connected", { exact: true })).toBeVisible();
       await expect(page.getByRole("img", { name: "Scan with the FiestaBoard app" })).toHaveCount(0);
-      await checkA11y(page, undefined, {
-        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
-      });
-      if (shots) await page.screenshot({ path: `${shots}/impl-qr-connected-${width}-${theme}.png`, fullPage: true });
+      await checkSetupA11y(page);
+      if (shots) await page.screenshot({ path: `${shots}/impl-qr-connected-${width}-${theme}.png`, fullPage: false });
       await page.getByRole("button", { name: "Sign it out", exact: true }).click();
       await expect(page.getByRole("dialog")).toHaveCount(0);
       expect(revoked).toEqual(["new-phone"]);
       await expect.poll(() => cancellations).toBe(1);
       await page.getByRole("button", { name: "Revoke Example phone", exact: true }).click();
       await expect(page.getByRole("checkbox")).toBeChecked();
-      await checkA11y(page, undefined, {
-        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
-      });
-      if (shots) await page.screenshot({ path: `${shots}/impl-revoke-${width}-${theme}.png`, fullPage: true });
+      await checkSetupA11y(page);
+      if (shots) await page.screenshot({ path: `${shots}/impl-revoke-${width}-${theme}.png`, fullPage: false });
       await page.getByRole("checkbox").uncheck();
       await page.getByRole("button", { name: "Sign out phone", exact: true }).click();
       await expect(page.getByRole("listitem", { name: "Example phone", exact: true })).toHaveCount(0);

@@ -210,7 +210,7 @@ export function ConnectPhone({
       <DialogContent
         className={
           phone
-            ? "h-dvh max-h-dvh w-full max-w-none rounded-none overflow-y-auto content-start"
+            ? "left-0 top-0 h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 border-0 rounded-none overflow-y-auto content-start p-4"
             : "sm:max-w-[560px] sm:rounded-xl max-h-[90dvh] overflow-y-auto"
         }
       >
@@ -266,7 +266,7 @@ export function ConnectPhone({
           offer && (
             <Stack gap="4">
               <Flex className="flex-col md:flex-row" gap="6" align="center">
-                <Card className="w-full md:w-[242px] shrink-0 py-0">
+                <Card className="w-full md:w-[242px] shrink-0 py-0 shadow-none">
                   <CardContent className="p-4 flex flex-col items-center gap-2.5">
                     <Box className="bg-white p-0 shrink-0">
                       <QRCodeSVG
@@ -291,7 +291,7 @@ export function ConnectPhone({
                     </Text>
                     <Box className="h-1 w-[208px] rounded-full bg-muted overflow-hidden" aria-hidden="true">
                       <Box
-                        className="h-full rounded-full bg-hue-orange"
+                        className="h-full rounded-full bg-primary"
                         style={{ width: `${Math.max(0, Math.min(100, (remaining / offer.expires_in) * 100))}%` }}
                       />
                     </Box>

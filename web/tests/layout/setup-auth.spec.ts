@@ -1,11 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { checkA11y, injectAxe } from "axe-playwright";
+import { injectAxe } from "axe-playwright";
+
+import { checkSetupA11y } from "./setup-a11y";
 
 const shots = process.env.WEB212_SHOTS ?? "test-results/web212-shots";
 for (const width of [390, 768, 1280]) {
   for (const theme of ["light", "dark"]) {
     test(`TV consent and password recovery ${width} ${theme}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 1000 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
       await page.route("**/api/auth/**", async (route) => {
         const path = new URL(route.request().url()).pathname;
         if (path === "/api/auth/status")
@@ -39,10 +42,7 @@ for (const width of [390, 768, 1280]) {
       await page.goto(`/tests/layout/setup.html?mode=activate&theme=${theme}`);
       await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeDisabled();
       await injectAxe(page);
-      const axe = async () =>
-        checkA11y(page, undefined, {
-          axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
-        });
+      const axe = async () => checkSetupA11y(page);
       await axe();
       await page.screenshot({ path: `${shots}/impl-activate-entry-${width}-${theme}.png`, fullPage: true });
       await page.getByLabel("TV code", { exact: true }).fill("bcdf-7kqm");
@@ -71,6 +71,7 @@ for (const width of [390, 768, 1280]) {
     for (const result of ["expired", "unavailable", "denied"] as const) {
       test(`TV ${result} recovery ${width} ${theme}`, async ({ page }) => {
         await page.setViewportSize({ width, height: 1000 });
+        await page.emulateMedia({ reducedMotion: "reduce" });
         await page.route("**/api/auth/**", async (route) => {
           const path = new URL(route.request().url()).pathname;
           if (path === "/api/auth/status")
@@ -114,9 +115,7 @@ for (const width of [390, 768, 1280]) {
               : "Not allowed";
         await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
         await injectAxe(page);
-        await checkA11y(page, undefined, {
-          axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } },
-        });
+        await checkSetupA11y(page);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({ path: `${shots}/impl-activate-${result}-${width}-${theme}.png`, fullPage: true });
       });
