@@ -43,14 +43,36 @@ test.describe("plain http: honest about install and offline (2.8)", () => {
   });
 
   test("Settings says Requires HTTPS, with how to fix it", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/settings");
-    await expect(page.getByText("Requires HTTPS")).toBeVisible({ timeout: 15_000 });
+    const notice = page.getByText("Requires HTTPS");
+    await expect(notice).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("link", { name: "How to set up HTTPS" })).toHaveAttribute(
       "href",
       /fiestaboard\.app\/docs\/deployment\/production/,
     );
-    // Let the route's entrance fade finish: axe reads mid-fade text as low contrast.
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+    // Loading elements can unmount and cancel their animations while the route
+    // settles. Audit the rendered notice after its entrance fade has finished.
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await Promise.all(
+        document
+          .getAnimations()
+          .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime))
+          .map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
+    await expect
+      .poll(() =>
+        notice.evaluate((element) => {
+          let opacity = 1;
+          for (let node: Element | null = element; node; node = node.parentElement) {
+            opacity *= Number(getComputedStyle(node).opacity);
+          }
+          return opacity;
+        }),
+      )
+      .toBe(1);
     await injectAxe(page);
     const violations = (await getViolations(page)).filter((v) => v.impact === "serious" || v.impact === "critical");
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
