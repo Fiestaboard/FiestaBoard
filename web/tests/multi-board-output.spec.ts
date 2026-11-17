@@ -219,6 +219,8 @@ test.describe("Multi-board output isolation", () => {
   });
 
   test("mixed mode: board 1 shows its manual page while board 2 shows scheduled content", async () => {
+    // Establish manual mode before a matching schedule can legitimately send.
+    await setScheduleEnabled(false, board1Id);
     const tokenManual = uniq("MANUAL");
     const tokenSched1 = uniq("IGNORED");
     const token2 = uniq("ACTIVE");
@@ -228,8 +230,7 @@ test.describe("Multi-board output isolation", () => {
     await createSchedule(pageSched1, "00:00", "23:59", "all", board1Id);
     await createSchedule(page2, "00:00", "23:59", "all", board2Id);
 
-    // Board 1 → manual mode with an explicit manual page; board 2 → schedule mode.
-    await setScheduleEnabled(false, board1Id);
+    // Pin board 1's manual page; board 2 stays in schedule mode.
     await setScheduleEnabled(true, board2Id);
     const res = await fetch(`${API_URL}/settings/active-page`, {
       method: "PUT",
