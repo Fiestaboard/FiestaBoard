@@ -75,10 +75,17 @@ class OverrideMutationMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive, send):
+        path = scope.get("path", "")
+        root = scope.get("root_path", "").rstrip("/")
+        if root and (path == root or path.startswith(root + "/")):
+            path = path[len(root) :] or "/"
+        # CONTROL also supports the explicit nginx /api double form.
+        if path == "/api" or path.startswith("/api/"):
+            path = path[len("/api") :] or "/"
         if (
             scope["type"] != "http"
             or scope.get("method") not in {"POST", "PUT", "PATCH", "DELETE"}
-            or not _MANUAL.fullmatch(scope.get("path", ""))
+            or not _MANUAL.fullmatch(path)
         ):
             return await self.app(scope, receive, send)
         # Registered inside AuthMiddleware: rejected credentials never arrive.

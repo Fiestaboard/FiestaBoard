@@ -139,6 +139,7 @@ class CommandHandler:
             return bool(result[0])
         return bool(result)
 
+    @manual_mutation
     def _force_send_active_page(self, board_id: str | None) -> None:
         """Invalidate dedupe state and immediately push the active page.
 

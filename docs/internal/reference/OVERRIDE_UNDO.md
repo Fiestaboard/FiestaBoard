@@ -37,12 +37,17 @@ uncertain writes invalidate authority. Native/MCP active-page and refresh
 operations carry manual intent into the existing send pool. Each queued manual
 or trigger job retains separate authority until terminal worker completion,
 including fire-and-forget submission, timeouts, adoption by a newer pending job,
-and worker stop. Trigger/held-message delivery joins that barrier without
+and worker stop. The send pool also owns the underlying concurrent future,
+so cancelling an HTTP/SSE await cannot end authority while a hardware thread
+continues. Root-path and explicit `/api` route forms are normalized. MQTT
+immediate active-page delivery and output/identify actions carry the same
+manual intent. Trigger/held-message delivery joins that barrier without
 changing its delivery, silence or queue semantics. Unauthenticated
 HTTP attempts never reach it; previews do not enter it.
 
 Invalidation is intentionally conservative: changes to another display,
-unrelated settings/config/content saves, same-value saves and uncertain hardware
+unrelated settings/config/content saves, same-value saves, admitted output actions (which declare no read-only effect
+metadata), and uncertain hardware
 outcomes can refuse Undo. Cold template-engine initialization can persist plugin
 defaults, so the first preview may refuse a receipt because of that actual config
 save. Once initialized, read-only previews and validation refusals leave receipts
