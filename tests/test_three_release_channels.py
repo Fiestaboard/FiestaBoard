@@ -1,5 +1,6 @@
 """Three-channel discovery and fail-closed major-preview transitions."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -49,20 +50,107 @@ def test_running_alpha_channel(monkeypatch):
     assert us.CHANNEL_TAGS["alpha"] == "v11-alpha"
 
 
-def test_channel_endpoint_reports_versions_and_running_channel():
+def test_channel_endpoint_reports_local_state_without_discovery():
+    with (
+        patch.object(us, "channel_switch_blocker", return_value=None),
+        patch.object(us, "current_channel", return_value="beta"),
+        patch.object(us, "running_version", return_value="10.4.0-beta.2"),
+        patch.object(us, "_latest_for_channel", new=AsyncMock()) as latest,
+    ):
+        response = TestClient(app).get("/system/channel")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["channel_versions"] == {}
+    assert body["running_channel"] == "beta"
+    assert body["running_version"] == "10.4.0-beta.2"
+    assert body["can_switch"] is True
+    latest.assert_not_awaited()
+
+
+@pytest.fixture
+def discovery_cache(monkeypatch):
+    # Each case owns the process-local cache and clock; no real registry calls.
+    monkeypatch.setattr(us, "_channel_version_cache", {})
+    monkeypatch.setattr(us, "_channel_version_inflight", {})
+    now = [0.0]
+    monkeypatch.setattr(us, "monotonic", lambda: now[0])
+    return now
+
+
+def test_channel_versions_endpoint_reports_discovered_versions(discovery_cache):
     versions = {"stable": "10.3.3", "beta": "10.4.0-beta.2", "alpha": "11.0.0-alpha.12"}
 
     async def latest(channel):
         return versions[channel]
 
-    with (
-        patch.object(us, "channel_switch_blocker", return_value=None),
-        patch.object(us, "current_channel", return_value="beta"),
-        patch.object(us, "_latest_for_channel", side_effect=latest),
-    ):
-        body = TestClient(app).get("/system/channel").json()
-    assert body["channel_versions"] == versions
-    assert body["running_channel"] == "beta"
+    with patch.object(us, "_latest_for_channel", side_effect=latest):
+        response = TestClient(app).get("/system/channel/versions")
+    assert response.status_code == 200
+    assert response.json() == {"channel_versions": versions}
+
+
+@pytest.mark.asyncio
+async def test_discovery_cache_expires_success_and_unavailable_results(discovery_cache):
+    async def latest(channel):
+        return "10.3.3" if channel == "stable" else None
+
+    with patch.object(us, "_latest_for_channel", side_effect=latest) as discover:
+        first = await us.release_channel_versions()
+        assert first == {"stable": "10.3.3", "beta": None, "alpha": None}
+        assert await us.release_channel_versions() == first
+        assert discover.await_count == 3
+        discovery_cache[0] = us.CHANNEL_DISCOVERY_TTL_SECONDS + 1
+        assert await us.release_channel_versions() == first
+        assert discover.await_count == 6
+
+
+@pytest.mark.asyncio
+async def test_discovery_coalesces_concurrent_readers_and_survives_cancelled_reader(discovery_cache):
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def latest(channel):
+        entered.set()
+        await release.wait()
+        return "11.0.0-alpha.12" if channel == "alpha" else None
+
+    with patch.object(us, "_latest_for_channel", side_effect=latest) as discover:
+        first = asyncio.create_task(us.release_channel_versions())
+        await entered.wait()
+        second = asyncio.create_task(us.release_channel_versions())
+        # A cancelled subscriber must not cancel discovery shared with another.
+        await asyncio.sleep(0)
+        second.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await second
+        release.set()
+        result = await first
+        assert result["alpha"] == "11.0.0-alpha.12"
+        assert await us.release_channel_versions() == result
+        assert discover.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_discovery_timeout_and_offline_failure_are_bounded_and_cached(discovery_cache, monkeypatch):
+    cancelled = asyncio.Event()
+    monkeypatch.setattr(us, "CHANNEL_DISCOVERY_TIMEOUT_SECONDS", 0.01)
+
+    async def latest(channel):
+        if channel == "stable":
+            return "10.3.3"
+        if channel == "beta":
+            raise OSError("offline")
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    with patch.object(us, "_latest_for_channel", side_effect=latest) as discover:
+        result = await asyncio.wait_for(us.release_channel_versions(), timeout=1)
+        assert result == {"stable": "10.3.3", "beta": None, "alpha": None}
+        assert cancelled.is_set()
+        assert await us.release_channel_versions() == result
+        assert discover.await_count == 3
 
 
 @pytest.mark.parametrize(
