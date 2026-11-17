@@ -10,7 +10,9 @@ services:
       target: runtime-dev
     container_name: fiestaboard-dev
     env_file:
-      - .env
+      # Optional: a fresh install with no .env still starts (Compose 2.24+).
+      - path: .env
+        required: false
     restart: unless-stopped
     ports:
       - "4420:3000"

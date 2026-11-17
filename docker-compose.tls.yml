@@ -1,0 +1,10 @@
+# Optional HTTPS port. Use alongside a production compose file and set
+# FIESTABOARD_TLS_MODE in .env; the default remains off.
+# HTTP on 4420:3000 remains available for healthchecks and ingress.
+# This overlay needs no certificate bind mount in self-signed mode.
+# For custom certificates and the FiestaUpdater limitation, see
+# docs/deployment/production.md#built-in-https.
+services:
+  fiestaboard:
+    ports:
+      - "${FIESTABOARD_TLS_PORT:-4443}:3443"

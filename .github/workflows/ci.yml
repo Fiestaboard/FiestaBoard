@@ -247,6 +247,11 @@ jobs:
         # after the tests re-checksums and diffs.
         find data -type f 2>/dev/null | sort | xargs -r shasum > /tmp/data-before.txt || true
 
+    - name: Install TLS handshake test dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends nginx openssl
+
     - name: Run platform tests with coverage
       run: |
         # Exclude integration tests (network-dependent, run in a separate step).
@@ -370,6 +375,15 @@ jobs:
     - name: Browser layout regressions
       working-directory: web
       run: npx playwright test --config tests/layout/playwright.config.ts
+
+    - name: Upload setup parity screenshots
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: web212-parity-shots
+        path: web/test-results/web212-shots/
+        if-no-files-found: ignore
+        retention-days: 7
 
     - name: Write coverage summary
       if: always()
@@ -1122,6 +1136,55 @@ jobs:
         if: ${{ !cancelled() && steps.device_tests.outcome != 'skipped' }}
         with:
           name: playwright-device-results
+          path: |
+            web/playwright-device-test-results/
+            web/playwright-device-report.json
+          retention-days: 7
+
+      - name: Start isolated phone pairing backend
+        id: pairing_start
+        if: ${{ !cancelled() && steps.image.outcome == 'success' }}
+        timeout-minutes: 2
+        run: |
+          docker run -d --name cx-web212-pairing-auth \
+            -p 127.0.0.1:4429:3000 \
+            -e PRODUCTION=false \
+            -e FIESTABOARD_AUTH_ENABLED=true \
+            -e FIESTABOARD_CORS_ORIGINS=http://127.0.0.1:4430 \
+            fiestaboard:ci
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 5 http://127.0.0.1:4429/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs cx-web212-pairing-auth | tail -50
+          exit 1
+
+      - name: Run phone pairing and selective sign-out E2E tests
+        id: pairing_tests
+        if: ${{ !cancelled() && steps.pairing_start.outcome == 'success' }}
+        working-directory: web
+        timeout-minutes: 5
+        run: npx playwright test setup-pairing.spec.ts --config playwright.device.config.ts --workers=1
+        env:
+          CI: true
+          BASE_URL: http://127.0.0.1:4430
+          DEVICE_API_BASE_URL: http://127.0.0.1:4429/api
+
+      - name: Dump phone pairing logs on failure
+        if: failure() && steps.pairing_start.outcome != 'skipped'
+        run: docker logs cx-web212-pairing-auth | tail -100
+
+      - name: Stop phone pairing backend
+        if: always()
+        run: docker rm -fv cx-web212-pairing-auth 2>/dev/null || true
+
+      - name: Upload phone pairing results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.pairing_tests.outcome != 'skipped' }}
+        with:
+          name: playwright-web212-pairing-results
           path: |
             web/playwright-device-test-results/
             web/playwright-device-report.json

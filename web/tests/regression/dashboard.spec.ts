@@ -9,7 +9,16 @@
  * Auth pattern: this dev container has auth enabled. Every test must run
  * after ensureAuthForFetch + loginIfNeeded so cookies/headers are valid.
  */
-import { API_URL, authHeaders, configureBoard, ensureAuthForFetch, expect, loginIfNeeded, test } from "../helpers";
+import {
+  API_URL,
+  authHeaders,
+  chooseVestaboardInWizard,
+  configureBoard,
+  ensureAuthForFetch,
+  expect,
+  loginIfNeeded,
+  test,
+} from "../helpers";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -252,47 +261,18 @@ test.describe("regression: dashboard", () => {
     await expect(page.getByText("No board configured")).toHaveCount(0);
   });
 
-  /**
-   * UX node: dashboard.home.board-not-configured
-   * Route: /
-   * Preconditions: board:not-configured
-   * Interactions: click:run-setup-wizard
-   * Expected (missing from current coverage):
-   *   - 'No board configured' Alert title asserted exactly (not regex)
-   *   - 'Run setup wizard' brand button click → wizard launches
-   * See also: web/tests/error-recovery.spec.ts:27,109
-   * Source refs: web/src/app/page.tsx
-   * Coverage status: partial
-   */
-  test("dashboard.home.board-not-configured — Alert title and Run Setup Wizard CTA", async ({ page }) => {
-    // Mock the setup-status endpoint to report invalid config without
-    // touching the real board config on disk (per task safety guardrails).
-    await page.route("**/api/config/validate", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          valid: false,
-          is_first_run: false,
-          errors: ["Board host required"],
-          warnings: [],
-        }),
-      });
-    });
-
+  /** Empty hubs offer the two-step Add dialog and an explicit setup re-run. */
+  test("dashboard.home.no-displays — Add display and the supported empty-hub rerun", async ({ page }) => {
+    await mockEmptyHub(page, false);
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    // Exact alert title
-    await expect(page.getByText("No board configured", { exact: true })).toBeVisible({ timeout: 10_000 });
-
-    // CTA present
-    const cta = page.getByRole("button", { name: "Run Setup Wizard" });
-    await expect(cta).toBeVisible();
-
-    // Click triggers the wizard → "Welcome to FiestaBoard" heading appears
-    await cta.click();
-    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "No displays yet", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Add display", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Add a display", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Run setup again", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard", exact: true })).toBeVisible();
   });
 
   /**
@@ -558,92 +538,91 @@ test.describe("regression: dashboard", () => {
     }
   });
 
-  /**
-   * UX node: dashboard.wizard.welcome
-   * Route: / (wizard overlay)
-   * Preconditions: wizard:not-complete
-   * Interactions: click:next, click:skip
-   * Expected (missing from current coverage):
-   *   - 'Welcome to FiestaBoard' heading visible but Skip path not tested
-   *   - Next button advance asserted explicitly (not implicit via later step)
-   * See also: web/tests/multi-board.spec.ts:422,441,464,524,552
-   * Source refs: web/src/components/wizard/*
-   * Coverage status: partial
-   */
-  test("dashboard.wizard.welcome — wizard surface renders under first-run mock", async ({ page }) => {
-    await page.route("**/api/config/validate", async (route) => {
-      await route.fulfill({
+  /** A first-run wizard requires an empty fleet as well as first-run validation. */
+  async function mockEmptyHub(page: import("@playwright/test").Page, firstRun: boolean) {
+    await page.route("**/api/config/validate", (route) =>
+      route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ valid: false, is_first_run: true, errors: [], warnings: [] }),
-      });
+        body: JSON.stringify({ valid: false, is_first_run: firstRun, errors: [], warnings: [] }),
+      }),
+    );
+    await page.route("**/api/settings/board", async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      const response = await route.fetch();
+      const settings = await response.json();
+      await route.fulfill({ response, json: { ...settings, boards: [] } });
     });
+  }
+
+  test("dashboard.wizard.welcome — Get started advances to Choose output", async ({ page }) => {
+    await mockEmptyHub(page, true);
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
       localStorage.removeItem("fiestaboard_wizard_progress");
     });
     await page.goto("/");
-    await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    // Dashboard mounts; wizard rendering itself is gated by complex preconditions
-    // that vary between dev and CI. Stable signal: URL settles.
-    await expect(page).toHaveURL(/\/(login|pages|$)/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Name this hub", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Restore from a backup…", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Get started", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "What will FiestaBoard drive?", exact: true })).toBeVisible();
+    await expect(page.getByRole("radio", { name: /Vestaboard/ })).toBeVisible();
   });
 
-  /**
-   * UX node: dashboard.wizard.board-setup
-   * Route: / (wizard step: board)
-   * Preconditions: wizard:at-board-step
-   * Interactions: leave:token-empty → submit; click:back
-   * Expected (missing from current coverage):
-   *   - inline validation errors when token/host missing
-   *   - Back to welcome step works
-   * See also: web/tests/multi-board.spec.ts:464,524
-   * Source refs: web/src/components/wizard/*
-   * Coverage status: partial
-   */
-  test("dashboard.wizard.board-setup — root route mounts under board-setup mock", async ({ page }) => {
-    await page.route("**/api/config/validate", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ valid: false, is_first_run: true, errors: [], warnings: [] }),
-      });
-    });
+  test("dashboard.wizard.board-setup — missing credentials block Continue and Back returns to outputs", async ({
+    page,
+  }) => {
+    await mockEmptyHub(page, true);
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
       localStorage.removeItem("fiestaboard_wizard_progress");
     });
     await page.goto("/");
-    await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    await expect(page).toHaveURL(/\/(login|pages|$)/, { timeout: 15_000 });
+    await chooseVestaboardInWizard(page);
+    await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Test connection", exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Address", { exact: true })).toHaveValue("");
+    await expect(page.getByLabel("Local API key", { exact: true })).toHaveAttribute("type", "password");
+    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "What will FiestaBoard drive?", exact: true })).toBeVisible();
   });
 
-  /**
-   * UX node: dashboard.wizard.easy-plugins
-   * Route: / (wizard step: easy plugins)
-   * Preconditions: wizard:at-plugins-step
-   * Interactions: toggle:plugin, click:next
-   * Expected:
-   *   - Easy-plugins step lists default plugin chips
-   *   - Toggle on/off updates selection
-   *   - Next persists selections and advances wizard
-   * Source refs: web/src/components/wizard/*
-   * Coverage status: uncovered
-   */
-  test("dashboard.wizard.easy-plugins — wizard surface mounts under first-run mock", async ({ page }) => {
-    await page.route("**/api/config/validate", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ valid: false, is_first_run: true, errors: [], warnings: [] }),
-      });
-    });
+  test("dashboard.wizard.easy-plugins — optional selections update the review without installing", async ({ page }) => {
+    await mockEmptyHub(page, true);
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
-      localStorage.removeItem("fiestaboard_wizard_progress");
+      localStorage.setItem(
+        "fiestaboard_wizard_progress",
+        JSON.stringify({
+          currentStep: 3,
+          outputId: "vestaboard",
+          outputName: "Vestaboard",
+          boardConfig: { device_type: "flagship", board_color: "black", output_config: { api_mode: "local" } },
+          plugins: { date_time: { enabled: false, timezone: "UTC" }, registry_selected: [] },
+        }),
+      );
+    });
+    const installs: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && /\/plugins\/.*\/(install|enable)/.test(request.url()))
+        installs.push(request.url());
     });
     await page.goto("/");
-    await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    await expect(page).toHaveURL(/\/(login|pages|$)/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Add data sources", exact: true })).toBeVisible();
+    const weather = page.getByRole("button", { name: /Weather/ });
+    await expect(weather).toHaveAttribute("aria-pressed", "false");
+    await weather.click();
+    await expect(weather).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("1 selected", { exact: true })).toBeVisible();
+    await weather.click();
+    await expect(weather).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByText("0 selected", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Calendar/ }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Ready to go", exact: true })).toBeVisible();
+    await expect(page.locator("dl")).toContainText("Calendar Sub");
+    expect(installs).toEqual([]);
+    await expect(page.getByRole("button", { name: "Finish setup", exact: true })).toBeVisible();
   });
 });

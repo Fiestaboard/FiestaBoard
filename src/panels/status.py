@@ -36,11 +36,10 @@ logger = logging.getLogger(__name__)
 def _override_for(board_id: str):
     """The live override driving *board_id*, or ``None``.
 
-    Reads through :meth:`SettingsService.peek_temporary_override`, never
-    ``get_temporary_override()``: that one clears and saves an *expired*
-    override, and the display loop needs to find the expired override to
-    apply its ``revert_mode`` (``blank`` / ``page``). A TV polls this every
-    10 s, so it would almost always get there first.
+    Filters a non-consuming peek so TV polling leaves an expired override
+    available for the display engine's pending revert. The settings
+    service's active-only ``get_temporary_override()`` now preserves that
+    same read-only contract (H22).
     """
     settings_service = get_settings_service()
     override = settings_service.peek_temporary_override(board_id)

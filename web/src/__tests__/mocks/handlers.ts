@@ -1227,6 +1227,8 @@ export const handlers = [
     }),
   ),
 
+  http.post(`${API_BASE}/config/board/existing`, () => HttpResponse.json({ existing: [] })),
+
   // Board settings endpoints
   // `PATCH /v1/boards/{board}` — where pausing, schedule mode and the
   // schedule's fallback page moved (was POST /settings/board/{id}/pause,

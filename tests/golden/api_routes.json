@@ -1428,6 +1428,46 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/push/preferences",
+      "methods": [
+        "PUT"
+      ],
+      "name": "push_preferences",
+      "kind": "PrivatePushRoute"
+    },
+    {
+      "path": "/push/status",
+      "methods": [
+        "GET"
+      ],
+      "name": "push_status",
+      "kind": "PrivatePushRoute"
+    },
+    {
+      "path": "/push/subscription",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "push_unsubscribe",
+      "kind": "PrivatePushRoute"
+    },
+    {
+      "path": "/push/subscription",
+      "methods": [
+        "PUT"
+      ],
+      "name": "push_subscribe",
+      "kind": "PrivatePushRoute"
+    },
+    {
+      "path": "/push/test",
+      "methods": [
+        "POST"
+      ],
+      "name": "push_test",
+      "kind": "PrivatePushRoute"
+    },
+    {
       "path": "/redoc",
       "methods": [
         "GET",
@@ -2386,6 +2426,14 @@
         "POST"
       ],
       "name": "render_template",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/v1/render-assets",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_render_assets",
       "kind": "APIRoute"
     },
     {

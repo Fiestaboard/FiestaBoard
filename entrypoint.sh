@@ -219,6 +219,15 @@ NGINX
 configure_frame_headers
 configure_ingress_path_rewrite
 
+# Prepare optional TLS as nginx's runtime user. Invalid enabled configuration
+# aborts startup (set -e), before any server can accept plaintext traffic.
+# HTTP 3000 remains available alongside the separate TLS listener when enabled.
+if [ "$(id -u)" = "0" ]; then
+    gosu appuser python -m src.system.tls
+else
+    python -m src.system.tls
+fi
+
 # ---------------------------------------------------------------------------
 # If the container is already running as a non-root user (e.g. Docker
 # rootless mode, --user flag, or Kubernetes security contexts), skip all

@@ -352,6 +352,25 @@ unknown board over HTTP today** (every route reaching them validates first
 or 404s on its own path parameter); the raise is defense in depth so a
 future caller cannot recreate the phantom write.
 
+## Temporary override expiry: status and pending reverts
+
+After an override expires, `GET /settings/temporary-override` reports
+`active: false` with null `started_at` and `expires_at`;
+`GET /settings/temporary-overrides` omits it; and `GET /v1/boards/{board}`
+reports null `override_started_at` and `override_expires_at`. These reads
+leave the expired record available for the display engine's pending
+`schedule`, `page`, or `blank` revert. Repeated polling never consumes it.
+
+The display engine consumes and cleans up each expired override once, scoped
+to its board. Consumption and the engine's expiry decision use the same
+instant, so crossing expiry during a tick cannot apply an unclaimed revert.
+This is an in-process consumption guarantee: it does not promise immediate
+physical repaint or crash-safe exactly-once delivery to the board.
+
+Explicit cancellation or a new override may discard an expired pending
+record without applying its revert. Restart still drops expired records.
+These cancellation, replacement, and restart semantics are unchanged.
+
 ## Zero-regression mechanics (how a conventions pass lands)
 
 1. Record the domain's **response-shape golden** from current behavior

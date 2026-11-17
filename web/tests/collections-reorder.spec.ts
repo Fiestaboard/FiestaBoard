@@ -62,7 +62,7 @@ async function openSeededCollection(page: Page): Promise<{ id: string; pageIds: 
 }
 
 async function saveAndReopen(page: Page, collectionId: string) {
-  await page.getByRole("button", { name: "Update Collection" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
   await expect(page).toHaveURL(/\/collections\/?$/, { timeout: 15_000 });
   await page.goto(`/collections/${encodeURIComponent(collectionId)}`);
   await page.reload();
