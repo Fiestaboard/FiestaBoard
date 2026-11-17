@@ -281,15 +281,6 @@ jobs:
           exit 1
         fi
 
-    - name: Upload layout test evidence
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: web-layout-evidence
-        path: web/test-results/
-        retention-days: 7
-        if-no-files-found: ignore
-
     - name: Write coverage summary
       if: always()
       run: |
@@ -375,6 +366,15 @@ jobs:
     - name: Browser layout regressions
       working-directory: web
       run: npx playwright test --config tests/layout/playwright.config.ts
+
+    - name: Upload layout test evidence
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: web-layout-evidence
+        path: web/test-results/
+        retention-days: 7
+        if-no-files-found: ignore
 
     - name: Upload setup parity screenshots
       if: always()
