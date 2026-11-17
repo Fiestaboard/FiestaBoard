@@ -177,7 +177,9 @@ def _enqueue(request, board_id, service, rt, ledger, expected_held):
             if refuse_before_send():
                 return False
         try:
-            outcome = WriteResult.of(rt.client.render(characters, device_type=request.geometry.device_type, **rich))
+            outcome = WriteResult.of(
+                rt.client.render(characters, device_type=request.geometry.device_type, with_outcome=True, **rich)
+            )
         except Exception:
             logger.exception("Compose driver did not return an authoritative outcome")
             finish("unknown", sent=None, reason="The display outcome is unknown; this request will not be replayed")
@@ -235,6 +237,7 @@ def _enqueue(request, board_id, service, rt, ledger, expected_held):
                 rt.last_active_page_content = content
                 rt.last_active_page_id = "__adhoc__"
                 rt.content_delivered()
+                rt.snoozing_message_sent = False
 
             if not silence_queue.commit_if_matches(board_id, expected_held, commit):
                 finish("superseded", sent=outcome.was_sent, reason="A newer held intent replaced this content")

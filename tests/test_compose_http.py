@@ -581,3 +581,87 @@ def test_replaced_held_uuid_no_longer_claims_pending_delivery(client, hardware, 
     assert response.json()["sent"] is False
     assert silence_queue.peek(board).payload["request_id"] == second["request_id"]
     drivers[board].render.assert_not_called()
+
+
+def test_compose_schema_preserves_existing_page_metadata_component_name():
+    schemas = api_server.app.openapi()["components"]["schemas"]
+    assert "LineMetadata" in schemas
+    assert "alignment" in schemas["LineMetadata"]["properties"]
+
+
+def test_real_driver_throttle_cannot_become_unchanged_or_arm_an_override(client, hardware):
+    from tests.test_send_outcome import throttled_cloud_client
+
+    service, _, (board, _) = hardware
+    driver = throttled_cloud_client({"t": 1000.0}, elapsed=5)
+    service.runtimes[board].client = driver
+    body = request()
+    response = client.post(f"/v1/boards/{board}/compose", json=body)
+    assert response.status_code == 429, response.text
+    assert response.headers["retry-after"] == "10"
+    assert response.json()["detail"]["status"] == "not_sent"
+    assert get_settings_service().get_temporary_override(board) is None
+    assert client.post(f"/v1/boards/{board}/compose", json=body).json() == response.json()
+
+
+def test_real_driver_partial_result_retains_failed_regions(client, hardware, monkeypatch):
+    from src.send_outcome import FrameRegion
+    from tests.first_party_drivers import local_driver
+
+    service, _, (board, _) = hardware
+    driver = local_driver(board_id=board)
+    region = FrameRegion(0, 0, 3, 15)
+    monkeypatch.setattr(
+        driver.plugin, "write", lambda *args, **kwargs: SendOutcome(False, True, partial=True, failed_regions=(region,))
+    )
+    service.runtimes[board].client = driver
+    response = client.post(f"/v1/boards/{board}/compose", json=request())
+    assert response.status_code == 502, response.text
+    assert response.json()["detail"]["status"] == "partial"
+    assert response.json()["detail"]["failed_regions"] == [region.as_dict()]
+    assert get_settings_service().get_temporary_override(board) is None
+
+
+@pytest.mark.parametrize("indicator", ["", "SILENT"])
+def test_compose_override_refreshes_and_expires_after_an_already_latched_silence(
+    client, hardware, monkeypatch, indicator
+):
+    from src.board_chars import characters_to_message
+    from src.pages.models import PageCreate
+    from src.pages.service import get_page_service
+
+    service, drivers, (board, _) = hardware
+    settings = get_settings_service()
+    page = get_page_service().create_page(PageCreate(name="Fallback", type="template", template=["NORMAL"]))
+    settings.set_schedule_enabled(False, board_id=board)
+    settings.set_active_page_id(page.id, board_id=board)
+    silence(monkeypatch)
+    config = {
+        **Config.silence_config_for(board),
+        "mode": "indicator",
+        "indicator_text": indicator,
+        "indicator_position": "center",
+    }
+    monkeypatch.setattr(Config, "silence_config_for", lambda board_id=None: config)
+    rt = service.runtimes[board]
+    rt.last_silence_mode_active = True
+    rt.snoozing_message_sent = True
+    rt.last_active_page_content = "snoozing"
+    rt.last_active_page_id = "__silence__"
+    response = client.post(f"/v1/boards/{board}/compose", json=request(template=["FIRST"], silence="override"))
+    assert response.status_code == 200, response.text
+    drivers[board].render.return_value = (True, True)
+    rt.last_active_page_content = None
+    service.check_and_send_for_board(board, rt, is_primary=True, wait=True)
+    assert drivers[board].render.call_count == 2, "The active Compose override never reached the engine refresh path"
+    override = settings.get_temporary_override(board)
+    override.expires_at = (datetime.now(UTC) - timedelta(seconds=1)).isoformat()
+    service.check_and_send_for_board(board, rt, is_primary=True, wait=True)
+    assert drivers[board].render.call_count == 3
+    final = drivers[board].render.call_args.args[0]
+    if indicator:
+        assert indicator in characters_to_message(final)
+    else:
+        assert final == [[0] * 22 for _ in range(6)]
+    assert settings.get_temporary_override(board) is None
+    assert rt.last_active_page_id == "__silence__"

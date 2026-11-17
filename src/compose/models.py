@@ -72,7 +72,7 @@ class ComposeGeometry(StrictModel):
         return self
 
 
-class LineMetadata(StrictModel):
+class ComposeLineMetadata(StrictModel):
     alignment: Literal["left", "center", "right"] = "left"
     wrap: StrictBool = False
 
@@ -89,7 +89,7 @@ class ComposeRequest(StrictModel):
         return value
 
     template: list[StrictStr] = Field(min_length=1, max_length=512)
-    line_metadata: list[LineMetadata] | None = None
+    line_metadata: list[ComposeLineMetadata] | None = None
     geometry: ComposeGeometry
     duration: Annotated[MinuteDuration | EndDuration | IndefiniteDuration, Field(discriminator="kind")]
     silence: Literal["hold", "override"]
