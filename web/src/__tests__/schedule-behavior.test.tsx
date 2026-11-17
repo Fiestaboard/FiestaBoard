@@ -32,9 +32,15 @@ describe("ScheduleBehavior per board", () => {
 
   it("reflects the explicitly targeted board and switches targets", () => {
     const view = render(<ScheduleBehavior board={boardA} />, { wrapper: TestWrapper });
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("switch", { name: "Wait for the next scheduled change" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
     view.rerender(<ScheduleBehavior board={boardB} />);
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("switch", { name: "Wait for the next scheduled change" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 
   it("persists behavior only for the selected board", async () => {
@@ -46,16 +52,19 @@ describe("ScheduleBehavior per board", () => {
       }),
     );
     render(<ScheduleBehavior board={boardA} />, { wrapper: TestWrapper });
-    await userEvent.click(screen.getByRole("switch"));
+    await userEvent.click(screen.getByRole("switch", { name: "Wait for the next scheduled change" }));
     await waitFor(() => expect(sent).toEqual({ board_id: "a", defer_on_reenable: true }));
   });
 
   it("rolls the switch back after a rejected save", async () => {
     server.use(http.put("/api/schedules/settings", () => HttpResponse.json({ detail: "nope" }, { status: 500 })));
     render(<ScheduleBehavior board={boardA} />, { wrapper: TestWrapper });
-    await userEvent.click(screen.getByRole("switch"));
+    await userEvent.click(screen.getByRole("switch", { name: "Wait for the next scheduled change" }));
     await waitFor(() => expect(toastMock.error).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("switch", { name: "Wait for the next scheduled change" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
   });
 
   it("does not let a failed save for A change B after navigation", async () => {
@@ -69,11 +78,14 @@ describe("ScheduleBehavior per board", () => {
       }),
     );
     const view = render(<ScheduleBehavior board={boardA} />, { wrapper: TestWrapper });
-    await userEvent.click(screen.getByRole("switch"));
+    await userEvent.click(screen.getByRole("switch", { name: "Wait for the next scheduled change" }));
     await waitFor(() => expect(finish).toBeDefined());
     view.rerender(<ScheduleBehavior board={boardB} />);
     finish!();
     await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("switch", { name: "Wait for the next scheduled change" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 });

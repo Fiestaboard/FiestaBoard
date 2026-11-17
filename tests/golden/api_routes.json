@@ -1909,6 +1909,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/settings/temporary-override/undo",
+      "methods": [
+        "POST"
+      ],
+      "name": "undo_temporary_override",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/settings/temporary-overrides",
       "methods": [
         "GET"

@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DisplaysSection } from "../../app/routes/displays";
 import DisplaysPage from "../../app/routes/displays._index";
@@ -18,6 +18,7 @@ import { server } from "./mocks/server";
 
 const push = vi.fn();
 const params: { boardId?: string } = {};
+const originalMatchMedia = window.matchMedia;
 
 vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({ push, replace: vi.fn(), back: vi.fn(), forward: vi.fn() }),
@@ -82,7 +83,7 @@ const PIXOO_OUTPUT = {
 };
 
 function setup(boards: Record<string, unknown>[], status: Record<string, unknown> = {}) {
-  const calls = { put: [] as { boards: Record<string, unknown>[] }[], pause: [] as unknown[] };
+  const calls = { put: [] as { boards: Record<string, unknown>[] }[], pause: [] as unknown[], removed: [] as string[] };
   let stored = boards;
   server.use(
     http.get(`${API}/settings/board`, () => HttpResponse.json({ board_type: "black", boards: stored, devices: [] })),
@@ -91,6 +92,10 @@ function setup(boards: Record<string, unknown>[], status: Record<string, unknown
       calls.put.push(body);
       stored = body.boards;
       return HttpResponse.json({ board_type: "black", boards: stored, devices: [] });
+    }),
+    http.delete(`${API}/settings/board/:board`, ({ params: p }) => {
+      calls.removed.push(String(p.board));
+      return HttpResponse.json({});
     }),
     http.get(`${API}/outputs`, () => HttpResponse.json([...mockOutputs, PIXOO_OUTPUT])),
     http.get(`${API}/v1/status`, () => HttpResponse.json({ ...mockStatus, boards: status })),
@@ -155,7 +160,123 @@ beforeEach(() => {
   delete params.boardId;
 });
 
+afterEach(() => {
+  window.matchMedia = originalMatchMedia;
+});
+
 describe("/displays", () => {
+  it.each([390, 768, 900])(
+    "keeps the %ipx fleet concise without dropping accessible hardware or override timing",
+    async (width) => {
+      const media = originalMatchMedia("");
+      window.matchMedia = vi.fn((query) => ({
+        ...media,
+        media: query,
+        matches: query === "(max-width: 1023.98px)" || (query === "(max-width: 767.98px)" && width < 768),
+      }));
+      setup([KITCHEN, DESK], {
+        kitchen: { configured: true, health: { reachable: true, breaker_open: false } },
+        desk: { configured: true, health: { reachable: true, breaker_open: false } },
+      });
+      server.use(
+        http.get(`${API}/v1/pages`, () =>
+          HttpResponse.json({ pages: [{ id: "night", name: "Good night" }], total: 1 }),
+        ),
+        http.get(`${API}/v1/boards/:board`, ({ params: p }) =>
+          HttpResponse.json({
+            id: p.board,
+            schedule_enabled: true,
+            next_change_at: new Date(2099, 10, 17, 22).toISOString(),
+            next_page_id: "night",
+            override_expires_at: p.board === "desk" ? new Date(2099, 10, 17, 21).toISOString() : null,
+          }),
+        ),
+      );
+      renderWith(<DisplaysPage />);
+      const cards = await screen.findAllByTestId("display-card");
+      expect(await within(cards[0]).findByText("Then Good night", { exact: true })).toBeInTheDocument();
+      expect(cards[0]).toHaveAttribute("data-layout", "inline");
+      expect(within(cards[0]).getByRole("img", { name: "22 columns by 6 rows" })).toBeInTheDocument();
+      expect(within(cards[0]).getByTestId("display-output").parentElement).toHaveClass("sr-only");
+      const override = await within(cards[1]).findByText("Override", { exact: true });
+      expect(override).toHaveAccessibleName(/^Override · until /);
+      expect(within(cards[1]).getByText("Online", { exact: true })).toHaveClass("sr-only");
+      expect(within(cards[1]).getByText("Holds until 9:00 PM, then Schedule resumes.", { exact: true })).toBeVisible();
+    },
+  );
+
+  it("groups unreachable displays before healthy displays using words as well as dots", async () => {
+    setup([KITCHEN, DESK], {
+      kitchen: {
+        configured: true,
+        paused: false,
+        active_page_id: null,
+        health: { reachable: true, breaker_open: false },
+      },
+      desk: {
+        configured: true,
+        paused: false,
+        active_page_id: null,
+        health: { reachable: false, breaker_open: false },
+      },
+    });
+    renderWith(<DisplaysPage />);
+    const problems = await screen.findByRole("list", { name: "Needs a look" });
+    expect(within(problems).getByText("Desk Pixoo")).toBeInTheDocument();
+    expect(Array.from(problems.children).every((element) => element.tagName === "LI")).toBe(true);
+    expect(within(problems).getByText("Can't reach")).toBeInTheDocument();
+    const online = screen.getByRole("list", { name: "Online" });
+    expect(within(online).getByText("Kitchen")).toBeInTheDocument();
+    expect(problems.compareDocumentPosition(online) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("uses readable status text with a warning dot for a panel without a viewer", async () => {
+    setup([TV]);
+    server.use(http.get(`${API}/auth/sessions`, () => HttpResponse.json({ sessions: [], total: 0 })));
+    renderWith(<DisplaysPage />);
+    const group = await screen.findByRole("list", { name: "Needs a look" });
+    expect(within(group).getByText("No viewer", { exact: true })).toHaveClass("text-foreground");
+    expect(group.querySelector('[data-slot="status-dot"]')).toHaveAttribute("data-status", "warning");
+  });
+
+  it("does not claim an unknown display is online", async () => {
+    setup([KITCHEN]);
+    renderWith(<DisplaysPage />);
+    const list = await screen.findByRole("list", { name: "Other displays" });
+    expect(within(list).getByText("Status unavailable")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Online" })).not.toBeInTheDocument();
+  });
+
+  it("keeps unknown and no-viewer states explicit in compact rows even with an override", async () => {
+    const media = originalMatchMedia("");
+    window.matchMedia = vi.fn((query) => ({
+      ...media,
+      media: query,
+      matches: query === "(max-width: 1023.98px)" || query === "(max-width: 767.98px)",
+    }));
+    setup([KITCHEN, TV]);
+    server.use(
+      http.get(`${API}/auth/sessions`, () => HttpResponse.json({ sessions: [], total: 0 })),
+      http.get(`${API}/v1/boards/:board`, ({ params: p }) =>
+        HttpResponse.json({
+          id: p.board,
+          schedule_enabled: false,
+          override_expires_at: new Date(2099, 10, 17, 21).toISOString(),
+        }),
+      ),
+    );
+    renderWith(<DisplaysPage />);
+    await waitFor(() => expect(screen.getAllByText("Override", { exact: true })).toHaveLength(2));
+    const unknown = screen.getByText("Status unavailable", { exact: true });
+    const noViewer = screen.getByText("No viewer", { exact: true });
+    expect(unknown).not.toHaveClass("sr-only");
+    expect(noViewer).not.toHaveClass("sr-only");
+    expect(screen.getByText("No signed-in TV is showing this display", { exact: true })).toBeInTheDocument();
+    expect(screen.getAllByText("Override · until 9:00 PM", { exact: true })).toHaveLength(2);
+    expect(screen.queryByText(/then Schedule resumes/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Online" })).not.toBeInTheDocument();
+  });
+
   it("lists every display with its name, output and a way into its settings", async () => {
     setup([KITCHEN, DESK]);
     renderWith(<DisplaysPage />);
@@ -164,10 +285,9 @@ describe("/displays", () => {
     expect(within(cards[0]).getByText("Kitchen")).toBeInTheDocument();
     await waitFor(() => expect(within(cards[0]).getByTestId("display-output")).toHaveTextContent("Vestaboard"));
     expect(within(cards[1]).getByTestId("display-output")).toHaveTextContent("Divoom Pixoo");
-    expect(within(cards[1]).getByRole("link", { name: "Open settings for Desk Pixoo" })).toHaveAttribute(
-      "href",
-      "/displays/desk",
-    );
+    expect(within(cards[0]).getByRole("img", { name: "22 columns by 6 rows" })).toHaveTextContent("22 × 6");
+    expect(within(cards[1]).getByRole("img", { name: "10 columns by 8 rows, Panel" })).toHaveTextContent("10 × 8");
+    expect(cards[1]).toHaveAttribute("href", "/displays/desk");
   });
 
   it("shows each display's status from the status poll", async () => {
@@ -187,32 +307,113 @@ describe("/displays", () => {
     });
     renderWith(<DisplaysPage />);
     const cards = await screen.findAllByTestId("display-card");
-    expect(await within(cards[0]).findByTestId("board-status-badge")).toHaveTextContent("Connected");
-    expect(await within(cards[1]).findByTestId("board-status-badge")).toHaveTextContent("Not configured");
+    expect(await screen.findByRole("list", { name: "Needs a look" })).toHaveTextContent("Not configured");
+    expect(await screen.findByRole("list", { name: "Online" })).toHaveTextContent("Online");
   });
 
   it("draws an LED display as its LED matrix and a split-flap one as flaps", async () => {
     setup([KITCHEN, DESK]);
     renderWith(<DisplaysPage />);
     const cards = await screen.findAllByTestId("display-card");
+    await userEvent.click(cards[1]);
+    const pane = screen.getByTestId("display-detail-pane");
     await waitFor(() =>
-      expect(cards[1].querySelector("[data-slot='display-preview']")).toHaveAttribute("data-model", "divoom_pixoo64"),
+      expect(pane.querySelector("[data-slot='display-preview']")).toHaveAttribute("data-model", "divoom_pixoo64"),
     );
-    expect(cards[0].querySelector("[data-slot='display-preview']")).toBeNull();
+    expect(push).not.toHaveBeenCalled();
   });
 
-  it("pauses a display from its card", async () => {
+  it("pauses the selected display from its overview", async () => {
     const calls = setup([KITCHEN]);
     renderWith(<DisplaysPage />);
-    await userEvent.click(await screen.findByRole("button", { name: "Pause Kitchen" }));
+    await userEvent.click(await screen.findByRole("switch", { name: "Pause display" }));
     await waitFor(() => expect(calls.pause).toEqual([{ board: "kitchen", paused: true }]));
+  });
+
+  it("shows the current page and health separately from the next change", async () => {
+    setup([KITCHEN], {
+      kitchen: {
+        configured: true,
+        paused: false,
+        active_page_id: "current",
+        health: { reachable: true, breaker_open: false, latency_ms: 42, last_connected_at: "2026-11-16T09:41:00Z" },
+      },
+    });
+    server.use(
+      http.get(`${API}/v1/pages`, () =>
+        HttpResponse.json({ pages: [{ id: "current", name: "Evening commute" }], total: 1 }),
+      ),
+      http.get(`${API}/v1/boards/kitchen`, () =>
+        HttpResponse.json({ id: "kitchen", resolved_page_id: "current", schedule_enabled: true }),
+      ),
+    );
+    renderWith(<DisplaysPage />);
+    const pane = await screen.findByTestId("display-detail-pane");
+    expect(await within(pane).findByText("Now showing · Evening commute")).toBeInTheDocument();
+    expect(within(pane).getByTestId("display-health-summary")).toHaveTextContent("42 ms");
+  });
+
+  it("compares actual and expected frames in Diagnostics when readback exists", async () => {
+    setup([KITCHEN]);
+    server.use(
+      http.get(`${API}/board/current-message`, () =>
+        HttpResponse.json({
+          characters: [[1]],
+          expected_characters: [[2]],
+          message: "A",
+          api_mode: "local",
+          rows: 6,
+          cols: 22,
+        }),
+      ),
+    );
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Diagnostics" }));
+    const comparison = await screen.findByTestId("display-frame-comparison");
+    expect(within(comparison).getByText("What the board shows")).toBeInTheDocument();
+    expect(within(comparison).getByText("What FiestaBoard sent")).toBeInTheDocument();
+    expect(within(comparison).getAllByRole("img")).toHaveLength(2);
+    expect(screen.getByTestId("display-diagnostics")).toHaveTextContent("Last error");
+  });
+
+  it("opens full-width diagnostics for the selected display", async () => {
+    setup([KITCHEN]);
+    renderWith(<DisplaysPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Diagnostics" }));
+    expect(push).toHaveBeenCalledWith("/displays/kitchen?section=diagnostics");
+  });
+
+  it("opens diagnostics with this display's health evidence", async () => {
+    setup([KITCHEN], {
+      kitchen: {
+        configured: true,
+        paused: false,
+        active_page_id: null,
+        health: {
+          reachable: false,
+          breaker_open: false,
+          latency_ms: 42,
+          last_connected_at: null,
+          last_update_at: null,
+          last_error: "timeout",
+        },
+      },
+    });
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Diagnostics" }));
+    const diagnostics = await screen.findByTestId("display-diagnostics");
+    expect(diagnostics).toHaveTextContent("42 ms");
+    expect(diagnostics).toHaveTextContent("Can't reach");
+    expect(diagnostics).toHaveTextContent("Last error");
   });
 
   it("offers Resume on a paused display", async () => {
     setup([{ ...KITCHEN, paused: true }]);
     renderWith(<DisplaysPage />);
-    expect(await screen.findByRole("button", { name: "Resume Kitchen" })).toBeInTheDocument();
-    expect(screen.getByTestId("board-paused-badge")).toBeInTheDocument();
+    expect(await screen.findByRole("switch", { name: "Pause display" })).toBeChecked();
+    expect(await screen.findByRole("list", { name: "Other displays" })).toHaveTextContent("Paused");
   });
 
   it("Add a display opens the output-first flow", async () => {
@@ -334,6 +535,42 @@ describe("/displays/:boardId", () => {
     expect(await screen.findByRole("switch", { name: "Silence Schedule" })).toBeInTheDocument();
     // Base UI finishes hiding the previous kept-mounted panel after the tab switch.
     await waitFor(() => expect(screen.getByTestId("board-card")).not.toBeVisible());
+  });
+
+  it("confirms display removal and lets Cancel leave it unchanged", async () => {
+    const calls = setup([KITCHEN, DESK]);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Remove Board" }));
+    const confirmation = await screen.findByRole("alertdialog", { name: "Remove Kitchen?" });
+    expect(calls.removed).toHaveLength(0);
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+    expect(calls.removed).toHaveLength(0);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("removes only the route display after confirmation", async () => {
+    const calls = setup([KITCHEN, DESK]);
+    params.boardId = "desk";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Remove Board" }));
+    const confirmation = await screen.findByRole("alertdialog", { name: "Remove Desk Pixoo?" });
+    expect(calls.removed).toHaveLength(0);
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Remove Board" }));
+    await waitFor(() => expect(calls.removed).toEqual(["desk"]));
+    expect(push).toHaveBeenCalledWith("/displays");
+  });
+
+  it("groups playback controls in a named region for the route display", async () => {
+    setup([KITCHEN, DESK]);
+    params.boardId = "desk";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
+    const playback = await screen.findByRole("region", { name: "Playback" });
+    expect(await within(playback).findByRole("switch", { name: "Silence Schedule" })).toBeInTheDocument();
+    expect(within(playback).getByTestId("display-transition")).toBeInTheDocument();
   });
 
   it("shows that display's settings, preview and transition", async () => {
@@ -550,14 +787,34 @@ describe("/displays/:boardId", () => {
     expect(await screen.findByRole("option", { name: "Flip" })).toBeInTheDocument();
   });
 
+  it("keeps the panel's display name in its inline card and advanced board controls collapsed", async () => {
+    const calls = setup([KITCHEN, TV]);
+    params.boardId = "tv";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
+    const panel = await screen.findByTestId("display-panel-settings");
+    const name = await within(panel).findByTestId("board-name-input");
+    expect(name).toHaveValue("Living Room (Panel)");
+    expect(screen.queryByRole("button", { name: "Remove Board" })).not.toBeInTheDocument();
+    await userEvent.clear(name);
+    await userEvent.type(name, "TV only");
+    await userEvent.tab();
+    await waitFor(() => expect(calls.put).toHaveLength(1));
+    expect(calls.put[0].boards.find((item) => item.id === "tv")?.name).toBe("TV only");
+    expect(calls.put[0].boards.find((item) => item.id === "kitchen")?.name).toBe("Kitchen");
+    await userEvent.click(within(panel).getByRole("button", { name: "Advanced display settings" }));
+    expect(await within(panel).findByTestId("board-pause-switch")).toBeVisible();
+    expect(within(panel).getAllByTestId("board-name-input")).toHaveLength(1);
+  });
+
   it("a FiestaPanel's page carries its panel's controls, and only its panel", async () => {
     setup([KITCHEN, TV]);
     params.boardId = "tv";
     renderWith(<DisplayPage />);
     await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
     const panel = await screen.findByTestId("display-panel-settings");
-    expect(await within(panel).findByText("Living Room")).toBeInTheDocument();
-    expect(within(panel).queryByText("Bedroom")).not.toBeInTheDocument();
+    expect(((await within(panel).findByLabelText("Panel URL")) as HTMLInputElement).value).toContain("/p/1");
+    expect(within(panel).queryByDisplayValue("Bedroom")).not.toBeInTheDocument();
     // New panels come from Add a display, not from a panel's page.
     expect(within(panel).queryByRole("button", { name: "Create panel" })).not.toBeInTheDocument();
   });

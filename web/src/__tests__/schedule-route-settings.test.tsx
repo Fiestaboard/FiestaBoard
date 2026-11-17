@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +8,9 @@ import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridg
 
 import SchedulePage from "../../app/routes/schedule";
 import { server } from "./mocks/server";
+
+const scheduleToasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("sonner", () => ({ toast: scheduleToasts }));
 
 const boardContext = vi.hoisted(() => ({
   currentBoardId: "board-1",
@@ -64,6 +67,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   localStorage.setItem("schedule-view-mode", "list");
   boardContext.currentBoardId = "board-1";
   boardContext.boards = [
@@ -78,18 +82,18 @@ describe("Schedule settings presentation", () => {
     settings({ by_board: { "board-1": { start_time: "06:00+00:00" }, "board-2": { start_time: "08:00+00:00" } } });
     const view = renderPage();
     expect(
-      await screen.findByRole("button", { name: "Silence schedule, 6:00 AM – 3:00 PM, opens settings" }),
+      (await screen.findAllByRole("button", { name: "Silence schedule, 6:00 AM – 3:00 PM, opens settings" }))[0],
     ).toBeInTheDocument();
     view.switchBoard();
     expect(
-      await screen.findByRole("button", { name: "Silence schedule, 8:00 AM – 3:00 PM, opens settings" }),
+      (await screen.findAllByRole("button", { name: "Silence schedule, 8:00 AM – 3:00 PM, opens settings" }))[0],
     ).toBeInTheDocument();
   });
 
   it("hides silence when the selected board explicitly disables global quiet hours", async () => {
     settings({ by_board: { "board-2": { enabled: false } } });
     const view = renderPage();
-    await screen.findByRole("button", { name: /Silence schedule, 4:00 AM/ });
+    await screen.findAllByRole("button", { name: /Silence schedule, 4:00 AM/ });
     view.switchBoard();
     await waitFor(() => expect(screen.queryByRole("button", { name: /Silence schedule,/ })).not.toBeInTheDocument());
   });
@@ -98,7 +102,7 @@ describe("Schedule settings presentation", () => {
     settings();
     renderPage();
     expect(
-      await screen.findByRole("button", { name: "Silence schedule, 4:00 AM – 3:00 PM, opens settings" }),
+      (await screen.findAllByRole("button", { name: "Silence schedule, 4:00 AM – 3:00 PM, opens settings" }))[0],
     ).toBeInTheDocument();
   });
 
@@ -107,7 +111,7 @@ describe("Schedule settings presentation", () => {
     settings({ by_board: { "board-1": { start_time: "09:00+00:00" } } });
     renderPage();
     expect(
-      await screen.findByRole("button", { name: "Silence schedule, 9:00 AM – 3:00 PM, opens settings" }),
+      (await screen.findAllByRole("button", { name: "Silence schedule, 9:00 AM – 3:00 PM, opens settings" }))[0],
     ).toBeInTheDocument();
   });
 
@@ -116,7 +120,136 @@ describe("Schedule settings presentation", () => {
     renderPage();
     expect(await screen.findByText("Automate page rotation by time and day · Asia/Tokyo")).toBeInTheDocument();
     expect(
-      await screen.findByRole("button", { name: "Silence schedule, 1:00 PM – 12:00 AM, opens settings" }),
+      (await screen.findAllByRole("button", { name: "Silence schedule, 1:00 PM – 12:00 AM, opens settings" }))[0],
     ).toBeInTheDocument();
   });
+});
+
+it("uses the shared three-view Schedule selector", async () => {
+  settings();
+  renderPage();
+  expect(await screen.findByRole("radiogroup", { name: "Schedule view" })).toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: "Day" })).toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: "Week" })).toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: "List" })).toBeInTheDocument();
+});
+
+it("updates the default view across breakpoints until the reader chooses a view", async () => {
+  localStorage.removeItem("schedule-view-mode");
+  const original = window.innerWidth;
+  Object.defineProperty(window, "innerWidth", { value: 390, configurable: true, writable: true });
+  settings();
+  renderPage();
+  expect(await screen.findByRole("radio", { name: "Day" })).toHaveAttribute("aria-checked", "true");
+  fireEvent(window, new Event("resize"));
+  Object.defineProperty(window, "innerWidth", { value: 900, configurable: true, writable: true });
+  fireEvent(window, new Event("resize"));
+  expect(screen.getByRole("radio", { name: "List" })).toHaveAttribute("aria-checked", "true");
+  fireEvent.click(screen.getByRole("radio", { name: "Day" }));
+  Object.defineProperty(window, "innerWidth", { value: 1280, configurable: true, writable: true });
+  fireEvent(window, new Event("resize"));
+  expect(screen.getByRole("radio", { name: "Day" })).toHaveAttribute("aria-checked", "true");
+  Object.defineProperty(window, "innerWidth", { value: original, configurable: true, writable: true });
+});
+
+it("waits for the hub timezone before initializing the lookup wall clock", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.use(
+    http.get("/api/settings/all", async () => {
+      await gate;
+      return HttpResponse.json({ general: { timezone: "UTC" }, silence_schedule: { config: { enabled: false } } });
+    }),
+  );
+  renderPage();
+  await screen.findByRole("heading", { name: "Schedule" });
+  expect(screen.queryByLabelText("Instant")).not.toBeInTheDocument();
+  release();
+  fireEvent.click(await screen.findByRole("button", { name: "Which page at…" }));
+  const instant = await screen.findByLabelText("Instant");
+  expect((instant as HTMLInputElement).value.slice(11, 13)).toBe(String(new Date().getUTCHours()).padStart(2, "0"));
+});
+
+it("opens the phone entry form with the kit grabber and independently scrolling body", async () => {
+  const matchMedia = window.matchMedia;
+  window.matchMedia = vi.fn((query: string) => ({
+    matches: query === "(max-width: 767.98px)",
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+  try {
+    settings();
+    renderPage();
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add Schedule" }))[0]);
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.querySelector('[data-slot="sheet-grabber"]')).toBeInTheDocument();
+    expect(dialog.querySelector('[data-slot="sheet-head"]')).toHaveTextContent("Add Schedule");
+    expect(dialog.querySelector('[data-slot="sheet-body"]')).toContainElement(screen.getByLabelText("Start Time"));
+  } finally {
+    window.matchMedia = matchMedia;
+  }
+});
+
+it("repairs a supported weekly conflict and undoes with the returned revision on the same non-primary board", async () => {
+  settings({ enabled: false });
+  boardContext.currentBoardId = "board-2";
+  boardContext.currentBoard = boardContext.boards[1];
+  localStorage.setItem("schedule-view-mode", "calendar");
+  const entry = {
+    id: "repair-entry",
+    page_id: "repair-page",
+    board_id: "board-2",
+    start_time: "12:00",
+    end_time: "15:00",
+    day_pattern: "all",
+    recurrence_type: "weekly",
+    enabled: true,
+    revision: "before",
+    edit_protocol: "schedule-revision-v1",
+  };
+  const other = { ...entry, id: "other-entry", page_id: "other-page", start_time: "10:00", end_time: "13:00" };
+  const writes: Record<string, unknown>[] = [];
+  server.use(
+    http.get("/api/v1/schedules", () =>
+      HttpResponse.json({ schedules: [entry, other], enabled: true, default_page_id: null }),
+    ),
+    http.get("/api/v1/pages", () =>
+      HttpResponse.json({
+        pages: [
+          { id: "repair-page", name: "Repair target", device_type: "flagship" },
+          { id: "other-page", name: "Other page", device_type: "flagship" },
+        ],
+      }),
+    ),
+    http.post("/api/schedules/validate", () =>
+      HttpResponse.json({
+        overlaps: [{ schedule1_id: entry.id, schedule2_id: other.id, conflict_description: "Weekly overlap" }],
+        gaps: [],
+      }),
+    ),
+    http.put("/api/v1/schedules/repair-entry", async ({ request }) => {
+      const body = (await request.json()) as Record<string, unknown>;
+      writes.push(body);
+      return HttpResponse.json({ ...entry, ...body, revision: "after", warnings: [] });
+    }),
+  );
+  renderPage();
+  fireEvent.click((await screen.findAllByRole("button", { name: /Repair target/ }))[0]);
+  fireEvent.click(await screen.findByRole("button", { name: "Start at 1:00 PM instead" }));
+  await waitFor(() =>
+    expect(writes[0]).toMatchObject({ board_id: "board-2", start_time: "13:00", expected_revision: "before" }),
+  );
+  const savedToast = scheduleToasts.success.mock.calls.find((call) => call[0] === "Entry start updated");
+  expect(savedToast).toBeDefined();
+  await savedToast![1].action.onClick();
+  await waitFor(() =>
+    expect(writes[1]).toMatchObject({ board_id: "board-2", start_time: "12:00", expected_revision: "after" }),
+  );
 });
