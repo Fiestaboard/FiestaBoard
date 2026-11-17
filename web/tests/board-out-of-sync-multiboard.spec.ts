@@ -179,7 +179,9 @@ test("another app writes board 2 → its banner, its geometry, and a Restore of 
   const restored = page.waitForResponse(
     (r) => r.url().includes(`/api/v1/boards/${board2Id}/restore`) && r.request().method() === "POST",
   );
-  await banner(page).getByRole("button", { name: "Restore" }).click();
+  await banner(page)
+    .getByRole("button", { name: /^Show .+ again$/ })
+    .click();
   const response = await restored;
   expect(response.status()).toBe(200);
   expect(await response.json()).toMatchObject({ board_id: board2Id, sent: true });

@@ -51,7 +51,7 @@ describe("Home banner hand-offs", () => {
     await screen.findByTestId("now-showing");
     expect(screen.getByRole("button", { name: "Change Page" })).toBeDisabled();
     expect(screen.getByText("Last known")).toBeInTheDocument();
-    expect(screen.getByTestId("home-board-state")).toHaveClass("opacity-50");
+    expect(screen.getByTestId("home-board-state")).toHaveClass("[&_[data-slot=board-viewport-bezel]]:opacity-50");
     fireEvent.keyDown(window, { key: "c" });
     fireEvent.keyDown(window, { key: "p" });
     expect(compose).not.toHaveBeenCalled();
@@ -69,7 +69,7 @@ describe("Home banner hand-offs", () => {
     );
     render(<ActivePageDisplay />, { wrapper: Wrapper });
     await waitFor(() => expect(screen.getByText("Offline")).toBeInTheDocument());
-    expect(screen.getByTestId("home-board-state")).toHaveClass("opacity-60");
+    expect(screen.getByTestId("home-board-state")).toHaveClass("[&_[data-slot=board-viewport-bezel]]:opacity-60");
     expect(screen.getByRole("button", { name: "Change Page" })).toBeEnabled();
   });
   it("removes the standing silence notice while keeping a held message and Discard", async () => {

@@ -47,10 +47,16 @@ test("Home pauses sends on hub loss, retains Compose, and distinguishes an offli
   await context.setOffline(true);
   await expect(page.getByRole("button", { name: "Compose a message", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Change Page", exact: true })).toBeDisabled();
-  await expect(page.getByTestId("home-board-state")).toHaveCSS("opacity", "0.5");
+  await expect(
+    page
+      .getByTestId("home-board-state")
+      .locator("[data-slot=board-viewport-bezel], [data-slot=led-matrix-display]")
+      .first(),
+  ).toHaveCSS("opacity", "0.5");
   await page.keyboard.press("c");
   await page.keyboard.press("p");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByTestId("home-board-state")).toHaveCSS("opacity", "1");
   await context.setOffline(false);
   await expect(page.getByRole("button", { name: "Change Page", exact: true })).toBeEnabled({ timeout: 30000 });
   expect(sends).toEqual([]);
@@ -65,7 +71,12 @@ test("Home pauses sends on hub loss, retains Compose, and distinguishes an offli
   await page.reload();
   await expect(page.getByTestId("now-showing").getByText("Offline", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Change Page", exact: true })).toBeEnabled();
-  await expect(page.getByTestId("home-board-state")).toHaveCSS("opacity", "0.6");
+  await expect(
+    page
+      .getByTestId("home-board-state")
+      .locator("[data-slot=board-viewport-bezel], [data-slot=led-matrix-display]")
+      .first(),
+  ).toHaveCSS("opacity", "0.6");
   for (const width of [390, 768, 1280]) {
     for (const theme of ["light", "dark"]) {
       await page.setViewportSize({ width, height: 1000 });
@@ -154,7 +165,12 @@ test("Home's held, silence-soon, out-of-sync and unreachable-hub states use one 
           await expect(page.getByRole("button", { name: "Compose a message", exact: true })).toBeDisabled({
             timeout: 30000,
           });
-          await expect(page.getByTestId("home-board-state")).toHaveCSS("opacity", "0.5");
+          await expect(
+            page
+              .getByTestId("home-board-state")
+              .locator("[data-slot=board-viewport-bezel], [data-slot=led-matrix-display]")
+              .first(),
+          ).toHaveCSS("opacity", "0.5");
         }
         await injectAxe(page);
         expect(

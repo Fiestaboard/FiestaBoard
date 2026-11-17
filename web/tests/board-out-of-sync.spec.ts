@@ -472,6 +472,7 @@ test.describe("Board changed by another app", () => {
 
       // 2.2: the card's ⋮ menu became the board menu (07a §6), with the
       // same actions plus Compose, Edit page, Copy as text and Refresh.
+      await page.goto("/");
       await page.getByRole("button", { name: /^Actions for / }).click();
       const items = page.getByRole("menuitem");
       await expect(items.first()).toHaveText(/Change Page…/);

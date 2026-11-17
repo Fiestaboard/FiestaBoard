@@ -685,15 +685,16 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           data-testid="now-showing"
           board={
             <BoardContextMenu actions={boardActions}>
-              {/* contain isolates the tile grid from ancestor layout changes. */}
+              {/* TODO(FiestaUI G4): add a board-only last-known state. Dim the hardware
+                  picture, keeping viewport controls and scroll instructions at full contrast. */}
               <Flex
                 justify="center"
                 data-testid="home-board-state"
                 className={
                   sendsDisabled
-                    ? "overflow-x-hidden opacity-50"
+                    ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-50 [&_[data-slot=led-matrix-display]]:opacity-50"
                     : displayOffline
-                      ? "overflow-x-hidden opacity-60"
+                      ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-60 [&_[data-slot=led-matrix-display]]:opacity-60"
                       : "overflow-x-hidden"
                 }
                 style={{ contain: "layout style paint" }}
