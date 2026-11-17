@@ -21,6 +21,17 @@ from pathlib import Path
 
 from src.paths import get_data_dir
 
+# Mozilla intermediate v5.7 OpenSSL cipher list (TLS 1.2 only):
+# https://ssl-config.mozilla.org/guidelines/5.7.json
+# TLS 1.3 uses the library defaults. DHE suites remain inactive unless nginx
+# has DH parameters configured; ECDHE needs no additional parameter file.
+TLS12_CIPHERS = (
+    "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
+    "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:"
+    "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:"
+    "DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305"
+)
+
 
 def _openssl(*args: str) -> str:
     """Run bounded, noninteractive OpenSSL without shell/config interpolation."""
@@ -134,7 +145,7 @@ def _self_signed(data_dir: Path, hosts: list[tuple[str, str]]) -> tuple[Path, Pa
                 str(temporary_cert),
             )
             temporary_key.chmod(0o600)
-            temporary_cert.chmod(0o600)
+            temporary_cert.chmod(0o644)
             _validate_pair(temporary_cert, temporary_key)
             temporary.rename(directory)
         finally:
@@ -147,6 +158,10 @@ def _self_signed(data_dir: Path, hosts: list[tuple[str, str]]) -> tuple[Path, Pa
         # on supported OpenSSL versions, so check the documented result text.
         if "does match certificate" not in output:
             raise ValueError("TLS certificate does not cover FIESTABOARD_TLS_HOSTS; deliberately rotate the identity")
+    # Upgrade persisted H16 certificates too, without changing the identity
+    # or relaxing the private directory/key permissions. Custom inputs are
+    # never changed by this self-signed-only path.
+    cert.chmod(0o644)
     return cert, key
 
 
@@ -174,7 +189,7 @@ def configure_tls(environ: Mapping[str, str], data_dir: Path, snippet_dir: Path)
         "# Generated at startup; HTTP and HA ingress remain available.\n"
         "listen 3443 ssl;\nlisten [::]:3443 ssl;\n"
         f"ssl_certificate {_config_path(cert)};\nssl_certificate_key {_config_path(key)};\n"
-        "ssl_protocols TLSv1.2 TLSv1.3;\nssl_ciphers HIGH:!aNULL:!MD5;\n"
+        f"ssl_protocols TLSv1.2 TLSv1.3;\nssl_ciphers {TLS12_CIPHERS};\n"
         "ssl_session_tickets off;\n"
     )
     temporary = None
@@ -195,6 +210,17 @@ def main() -> int:
         configure_tls(os.environ, get_data_dir(), Path("/etc/nginx/fiestaboard"))
     except (ValueError, OSError) as exc:
         print(f"[tls] {exc}", file=sys.stderr)
+        return 1
+    try:
+        # Check the complete active config as nginx's runtime user, after all
+        # snippets are written/removed and before entrypoint starts services.
+        subprocess.run(
+            ["nginx", "-t"], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30, check=True
+        )
+    except (OSError, subprocess.SubprocessError):
+        # nginx diagnostics may contain operator-supplied paths or directives.
+        # Operators can run nginx -t directly to inspect those privately.
+        print("[tls] nginx configuration validation failed; refusing to start services", file=sys.stderr)
         return 1
     return 0
 
