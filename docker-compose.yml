@@ -12,7 +12,9 @@ services:
       target: runtime
     container_name: fiestaboard
     env_file:
-      - .env
+      # Optional: a fresh install with no .env still starts (Compose 2.24+).
+      - path: .env
+        required: false
     environment:
       - PRODUCTION=true
     restart: unless-stopped
@@ -72,7 +74,7 @@ services:
     profiles: ["fiestaupdater"]
     restart: unless-stopped
     environment:
-      - FIESTAUPDATER_TOKEN=${FIESTAUPDATER_TOKEN}
+      - FIESTAUPDATER_TOKEN=${FIESTAUPDATER_TOKEN:-}
       - FIESTAUPDATER_SERVICE=fiestaboard
       - FIESTAUPDATER_COMPOSE_FILE=/compose/docker-compose.yml
       - COMPOSE_PROJECT_NAME=fiestaboard

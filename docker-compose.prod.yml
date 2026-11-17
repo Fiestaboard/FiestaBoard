@@ -7,7 +7,9 @@ services:
       dockerfile: Dockerfile
     container_name: fiestaboard
     env_file:
-      - .env
+      # Optional: a fresh install with no .env still starts (Compose 2.24+).
+      - path: .env
+        required: false
     environment:
       - PRODUCTION=true
     restart: unless-stopped
