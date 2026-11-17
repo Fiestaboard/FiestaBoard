@@ -574,7 +574,7 @@ def _tool_backend():
     },
     summary="Stream a multi-turn AI chat as Server-Sent Events",
 )
-async def chat_ai_page(request: AIChatRequest, http_request: Request) -> StreamingResponse:
+async def chat_ai_page(request: AIChatRequest, http_request: Request = None) -> StreamingResponse:
     """Run one turn of the AI chat and stream it as Server-Sent Events.
 
     A turn may span several model calls and tool executions
