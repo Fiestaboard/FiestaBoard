@@ -96,6 +96,22 @@ for (const width of [390, 768, 1280]) {
           await expect(detail.getByText("85%", { exact: true })).toBeVisible();
           await expect(detail.getByText("Internet reachable", { exact: true })).toBeVisible();
           await expect(detail.getByRole("button", { name: "Rescan", exact: true })).toBeEnabled();
+        } else if (section === "system") {
+          // The desktop Settings index can leave a narrow detail pane even
+          // above the viewport's sm breakpoint. Both backup actions must fit
+          // their content row without consuming the card's inset.
+          for (const name of ["Export backup", "Import backup…"]) {
+            const action = detail.getByRole("button", { name, exact: true });
+            await expect(action).toBeVisible();
+            expect(
+              await action.evaluate((button) => {
+                const bounds = button.getBoundingClientRect();
+                const content = button.parentElement!.getBoundingClientRect();
+                return bounds.left >= content.left - 1 && bounds.right <= content.right + 1;
+              }),
+              `${name} stays inside its padded content row`,
+            ).toBe(true);
+          }
         } else if (section === "ai-provider") {
           captureState = "ai-provider-configured";
           const ollamaToggle = detail.getByRole("button", { name: /^Ollama\b/ });
@@ -132,6 +148,16 @@ for (const width of [390, 768, 1280]) {
             .getAnimations()
             .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity));
           await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => {})));
+          // Expanding and testing a provider scrolls its controls into view.
+          // Restore the origin so fixed chrome belongs at the image's top.
+          document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+          for (const element of document.querySelectorAll<HTMLElement>("*")) {
+            if (!element.checkVisibility()) continue;
+            const style = getComputedStyle(element);
+            if (/(auto|scroll)/.test(`${style.overflowX} ${style.overflowY}`))
+              element.scrollTo({ top: 0, left: 0, behavior: "instant" });
+          }
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         });
         await expect
           .poll(() =>

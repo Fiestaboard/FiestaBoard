@@ -133,7 +133,7 @@ export function BackupSettings() {
         description={t("cardDescription")}
         contentClassName="space-y-6"
       >
-        <Flex direction="col" gap="3" className="sm:flex-row">
+        <Flex direction="col" gap="3" wrap className="sm:flex-row">
           <Button variant="default" className="gap-2" onClick={handleExport} disabled={importMutation.isPending}>
             <Download className="h-4 w-4" />
             {t("exportButton")}
