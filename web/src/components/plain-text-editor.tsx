@@ -9,6 +9,19 @@ import { cn } from "@/lib/utils";
 export interface PlainTextEditorHandle {
   /** Insert literal template syntax at the current selection and return focus. */
   insert: (text: string) => void;
+  undo: () => void;
+  redo: () => void;
+}
+
+export interface PlainTextHistoryState {
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
+interface TextSnapshot {
+  value: string;
+  start: number;
+  end: number;
 }
 
 interface PlainTextEditorProps {
@@ -17,6 +30,7 @@ interface PlainTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   onFocus?: () => void;
+  onHistoryChange?: (state: PlainTextHistoryState) => void;
   placeholder?: string;
   className?: string;
   boardLines?: number;
@@ -46,6 +60,7 @@ export const PlainTextEditor = forwardRef<PlainTextEditorHandle, PlainTextEditor
     value,
     onChange,
     onFocus,
+    onHistoryChange,
     placeholder,
     className,
     boardLines = 6,
@@ -63,6 +78,127 @@ export const PlainTextEditor = forwardRef<PlainTextEditorHandle, PlainTextEditor
   const mirrorRef = useRef<HTMLDivElement>(null);
   const effectivePlaceholder = placeholder ?? t("placeholder");
   const [lineHeights, setLineHeights] = useState<number[]>([]);
+  const history = useRef({
+    value,
+    undo: [] as TextSnapshot[],
+    redo: [] as TextSnapshot[],
+    selection: { start: 0, end: 0 },
+    before: null as TextSnapshot | null,
+    composition: null as TextSnapshot | null,
+    frame: null as number | null,
+    availability: { canUndo: false, canRedo: false },
+  });
+  const snapshot = useCallback(
+    (): TextSnapshot => ({
+      value: history.current.value,
+      start: textareaRef.current?.selectionStart ?? history.current.selection.start,
+      end: textareaRef.current?.selectionEnd ?? history.current.selection.end,
+    }),
+    [],
+  );
+  const restoreSelection = useCallback((next: TextSnapshot) => {
+    const state = history.current;
+    if (state.frame !== null) cancelAnimationFrame(state.frame);
+    state.selection = { start: next.start, end: next.end };
+    state.frame = requestAnimationFrame(() => {
+      state.frame = null;
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(next.start, next.end);
+    });
+  }, []);
+  const reportHistory = useCallback(() => {
+    const state = history.current;
+    const canUndo = state.undo.length > 0;
+    const canRedo = state.redo.length > 0;
+    if (state.availability.canUndo !== canUndo || state.availability.canRedo !== canRedo) {
+      state.availability = { canUndo, canRedo };
+    }
+    onHistoryChange?.(state.availability);
+  }, [onHistoryChange]);
+  const commit = useCallback(
+    (next: string, before?: TextSnapshot) => {
+      const state = history.current;
+      const previous = before ?? state.before ?? { value: state.value, ...state.selection };
+      if (previous.value !== next) {
+        state.undo.push(previous);
+        if (state.undo.length > 100) state.undo.shift();
+        state.redo = [];
+      }
+      state.value = next;
+      state.before = null;
+      state.selection = {
+        start: textareaRef.current?.selectionStart ?? next.length,
+        end: textareaRef.current?.selectionEnd ?? next.length,
+      };
+      onChange(next);
+      reportHistory();
+    },
+    [onChange, reportHistory],
+  );
+  const travel = useCallback(
+    (direction: "undo" | "redo") => {
+      const state = history.current;
+      if (state.composition) return;
+      const next = state[direction].pop();
+      if (!next) return;
+      state[direction === "undo" ? "redo" : "undo"].push(state.before ?? snapshot());
+      state.value = next.value;
+      state.before = null;
+      onChange(next.value);
+      restoreSelection(next);
+      reportHistory();
+    },
+    [onChange, reportHistory, restoreSelection, snapshot],
+  );
+
+  useEffect(() => {
+    reportHistory();
+  }, [reportHistory]);
+
+  useEffect(() => {
+    const state = history.current;
+    if (state.value === value) return;
+    // A different controlled document starts a new history; never undo into a
+    // prior page, restored draft or external assistant replacement.
+    if (state.frame !== null) cancelAnimationFrame(state.frame);
+    state.frame = null;
+    state.value = value;
+    state.undo = [];
+    state.redo = [];
+    state.before = null;
+    state.composition = null;
+    state.selection = { start: 0, end: 0 };
+    reportHistory();
+  }, [reportHistory, value]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    // React's normalized before-input event does not consistently expose the
+    // native history input types, including browser menu undo/redo.
+    const beforeInput = (event: InputEvent) => {
+      if (event.inputType === "historyUndo" || event.inputType === "historyRedo") {
+        if (history.current.composition) return;
+        if (!event.cancelable) {
+          // The browser will mutate the DOM and dispatch input; handle the
+          // controlled travel once there, retaining the pre-mutation caret.
+          history.current.before = snapshot();
+          return;
+        }
+        event.preventDefault();
+        travel(event.inputType === "historyUndo" ? "undo" : "redo");
+      } else history.current.before = snapshot();
+    };
+    textarea.addEventListener("beforeinput", beforeInput);
+    return () => textarea.removeEventListener("beforeinput", beforeInput);
+  }, [snapshot, travel]);
+
+  useEffect(
+    () => () => {
+      if (history.current.frame !== null) cancelAnimationFrame(history.current.frame);
+    },
+    [],
+  );
 
   useImperativeHandle(
     ref,
@@ -72,14 +208,14 @@ export const PlainTextEditor = forwardRef<PlainTextEditorHandle, PlainTextEditor
         if (!textarea) return;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        onChange(value.slice(0, start) + text + value.slice(end));
-        requestAnimationFrame(() => {
-          textarea.focus();
-          textarea.setSelectionRange(start + text.length, start + text.length);
-        });
+        const next = history.current.value.slice(0, start) + text + history.current.value.slice(end);
+        commit(next, snapshot());
+        restoreSelection({ value: next, start: start + text.length, end: start + text.length });
       },
+      undo: () => travel("undo"),
+      redo: () => travel("redo"),
     }),
-    [onChange, value],
+    [commit, restoreSelection, snapshot, travel],
   );
 
   const computeLineHeights = useCallback(() => {
@@ -135,7 +271,13 @@ export const PlainTextEditor = forwardRef<PlainTextEditorHandle, PlainTextEditor
   }, [computeLineHeights]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange(e.target.value);
+    const inputType = (e.nativeEvent as InputEvent).inputType;
+    if (inputType === "historyUndo" || inputType === "historyRedo") {
+      travel(inputType === "historyUndo" ? "undo" : "redo");
+    } else if (history.current.composition) {
+      history.current.value = e.target.value;
+      onChange(e.target.value);
+    } else commit(e.target.value);
   };
 
   const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
@@ -222,6 +364,27 @@ export const PlainTextEditor = forwardRef<PlainTextEditorHandle, PlainTextEditor
           ref={textareaRef}
           value={value}
           onChange={handleChange}
+          onSelect={() => {
+            history.current.selection = {
+              start: textareaRef.current?.selectionStart ?? 0,
+              end: textareaRef.current?.selectionEnd ?? 0,
+            };
+          }}
+          onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing || history.current.composition) return;
+            if ((event.ctrlKey || event.metaKey) && !event.altKey && ["z", "y"].includes(event.key.toLowerCase())) {
+              event.preventDefault();
+              travel(event.key.toLowerCase() === "y" || event.shiftKey ? "redo" : "undo");
+            } else history.current.before = snapshot();
+          }}
+          onCompositionStart={() => {
+            history.current.composition = snapshot();
+          }}
+          onCompositionEnd={() => {
+            const before = history.current.composition;
+            history.current.composition = null;
+            if (before && textareaRef.current) commit(textareaRef.current.value, before);
+          }}
           onFocus={onFocus}
           onScroll={handleScroll}
           placeholder={effectivePlaceholder}

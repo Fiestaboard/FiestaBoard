@@ -21,7 +21,7 @@ import {
   Text,
   ToolbarDropdown,
 } from "@fiestaboard/ui";
-import { Ellipsis, Palette, Sigma, Type, Variable } from "lucide-react";
+import { Ellipsis, Palette, Redo2, Sigma, Type, Undo2, Variable } from "lucide-react";
 import { lazy, type ReactElement, type ReactNode, Suspense, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -103,9 +103,17 @@ export function PlainTemplateVariablePicker({
 export function PlainTemplateToolbar({
   onInsert,
   moreContent,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
 }: {
   onInsert: (text: string) => void;
   moreContent: ReactNode;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }) {
   const t = useTranslations("templateEditor");
   const tTouch = useTranslations("editorTouch");
@@ -135,7 +143,7 @@ export function PlainTemplateToolbar({
       role="group"
       aria-label={tTouch("editorTools")}
       align="center"
-      gap="1"
+      gap={touch ? "0" : "1"}
       data-slot="editor-toolbar"
       data-size={touch ? "touch" : "default"}
       data-capabilities="plain-text"
@@ -155,6 +163,23 @@ export function PlainTemplateToolbar({
           <Sigma />
           {t("formula")}
         </Button>
+      )}
+      {touch ? (
+        <>
+          <EditorTool label={t("undoAriaLabel")} icon={<Undo2 />} disabled={!canUndo} onClick={onUndo} />
+          <EditorTool label={t("redoAriaLabel")} icon={<Redo2 />} disabled={!canRedo} onClick={onRedo} />
+        </>
+      ) : (
+        <>
+          <Button size="sm" variant="ghost" disabled={!canUndo} onClick={onUndo}>
+            <Undo2 />
+            {t("undoAriaLabel")}
+          </Button>
+          <Button size="sm" variant="ghost" disabled={!canRedo} onClick={onRedo}>
+            <Redo2 />
+            {t("redoAriaLabel")}
+          </Button>
+        </>
       )}
       {sheets ? (
         <ToolbarDropdown label={t("more")} icon={<Ellipsis />} size={touch ? "touch" : "default"} presentation="sheet">
