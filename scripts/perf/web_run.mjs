@@ -2,11 +2,100 @@ import http from "node:http";
 import https from "node:https";
 import { lstat, readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { redact, validateBatchTiming, validateDocumentObservation, validateSessionBatch, validateSessionCookieHeaders } from "./web_protocol.mjs";
 
 // Browser runner entry point. No side effects on import; root owns execution.
+export async function launchOwnedChromium({ chromium, executablePath, display, privateDirectoryParent = os.tmpdir(), startupTimeoutMs = 15000, shutdownTimeoutMs = 3000, spawnBrowser = spawn, onRecord = () => {} }) {
+  if (!display || !path.isAbsolute(executablePath) || !Number.isFinite(startupTimeoutMs) || startupTimeoutMs <= 0 || !Number.isFinite(shutdownTimeoutMs) || shutdownTimeoutMs <= 0) throw new Error("Pinned headed browser executable/display/deadlines are required");
+  const profilePath = fs.mkdtempSync(path.join(privateDirectoryParent, "fb-perf-chrome-"));
+  fs.chmodSync(profilePath, 0o700);
+  let child;
+  let browser;
+  let closePromise;
+  let processError;
+  let closed;
+  const bounded = async (promise, milliseconds) => {
+    let timer;
+    try { return await Promise.race([promise, new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new Error("Chromium startup/shutdown deadline exceeded")), milliseconds); })]); }
+    finally { clearTimeout(timer); }
+  };
+  const close = () => closePromise ??= (async () => {
+    if (browser) await bounded(browser.close(), shutdownTimeoutMs).catch(() => {});
+    if (child && child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGTERM");
+      try { await bounded(closed, shutdownTimeoutMs); }
+      catch { child.kill("SIGKILL"); await closed; }
+    }
+    fs.rmSync(profilePath, { recursive: true, force: true });
+  })();
+  try {
+    const args = ["--no-sandbox", "--no-first-run", "--no-default-browser-check", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", `--user-data-dir=${profilePath}`, "about:blank"];
+    child = spawnBrowser(executablePath, args, { stdio: ["ignore", "ignore", "pipe"], env: { ...process.env, DISPLAY: display } });
+    child.once("error", (error) => { processError = error; });
+    child.stderr.on("data", () => {});
+    closed = new Promise((resolve) => child.once("close", resolve));
+    const started = performance.now();
+    const activePort = path.join(profilePath, "DevToolsActivePort");
+    while (!fs.existsSync(activePort)) {
+      if (processError || child.exitCode !== null || child.signalCode !== null) throw new Error("Owned Chromium exited before startup handshake");
+      if (performance.now() - started >= startupTimeoutMs) throw new Error("Owned Chromium startup deadline exceeded");
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    const port = Number(fs.readFileSync(activePort, "utf8").split("\n")[0]);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Invalid owned Chromium CDP port");
+    browser = await bounded(chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true }), Math.max(1, startupTimeoutMs - (performance.now() - started)));
+    const contexts = browser.contexts();
+    if (contexts.length !== 1) throw new Error("Owned Chromium must expose exactly its existing default context");
+    onRecord({ record_type: "browser_process", stage: "ready", pid: child.pid, executable: executablePath, chromium_version: browser.version(), headless: false, display, connection: "public-CDP-noDefaults", private_profile: true, launch_arguments: args });
+    return { browser, context: contexts[0], profilePath, pid: child.pid, close };
+  } catch (error) {
+    await close();
+    throw error;
+  }
+}
+
+export async function applyBrowserProfile({ context, page, plan, userAgent }) {
+  if (!userAgent?.startsWith("Mozilla/")) throw new Error("Explicit pinned browser User-Agent required");
+  const client = await context.newCDPSession(page);
+  await client.send("Network.enable");
+  await client.send("Network.setUserAgentOverride", { userAgent, acceptLanguage: plan.browserPreferences.locale, platform: "Linux" });
+  await client.send("Emulation.setDeviceMetricsOverride", { ...plan.profile.viewport, deviceScaleFactor: plan.profile.deviceScaleFactor, mobile: plan.profile.isMobile, screenWidth: plan.profile.viewport.width, screenHeight: plan.profile.viewport.height });
+  await client.send("Emulation.setTouchEmulationEnabled", plan.profile.hasTouch ? { enabled: true, maxTouchPoints: 1 } : { enabled: false });
+  await client.send("Emulation.setCPUThrottlingRate", { rate: plan.profile.cpuThrottlingRate });
+  await client.send("Network.emulateNetworkConditions", plan.profile.network);
+  await client.send("Emulation.setLocaleOverride", { locale: plan.browserPreferences.locale });
+  await client.send("Emulation.setTimezoneOverride", { timezoneId: plan.browserPreferences.timezone });
+  await client.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "no-preference" }, { name: "prefers-color-scheme", value: "light" }] });
+  return client;
+}
+
+export function createObservationWriter({ path: filePath, runId, secrets = [] }) {
+  const descriptor = fs.openSync(filePath, "ax", 0o600);
+  const values = new Set(secrets);
+  const started = performance.now();
+  let closed = false;
+  return {
+    addSecrets: (items) => { for (const item of items) if (typeof item === "string" && item) values.add(item); },
+    write: (record) => {
+      if (closed) throw new Error("Observation writer is closed");
+      const saved = { ...redact(record, [...values]), schema_version: 1, run_id: runId, utc: new Date().toISOString(), monotonic_elapsed_seconds: (performance.now() - started) / 1000 };
+      const bytes = Buffer.from(`${JSON.stringify(saved)}\n`);
+      let offset = 0;
+      while (offset < bytes.length) {
+        const count = fs.writeSync(descriptor, bytes, offset, bytes.length - offset, null);
+        if (count === 0) throw new Error("Observation write made no progress");
+        offset += count;
+      }
+    },
+    close: () => { if (!closed) { closed = true; fs.fsyncSync(descriptor); fs.closeSync(descriptor); } },
+  };
+}
+
 export async function readPrivateCredentials(path) {
   const info = await lstat(path);
   if (!info.isFile() || info.isSymbolicLink()) throw new Error("Private credentials must be a regular file, never a symlink");

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
-import { chmod, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { chmod, lstat, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -9,8 +9,8 @@ import { gzipSync } from "node:zlib";
 import { test } from "node:test";
 import vm from "node:vm";
 
-import { buildCollectorInitScript, collectorMetadataFromProvenance, createRelay, installBrowserCollector, planBrowserBatch, profileFor, redact, relayLocation, relayRequestHeaders, summarizeMetrics, validateDocumentObservation, validateRunEvidence, validateSessionBatch, validateSessionCookieHeaders, verifyCollector } from "./web_protocol.mjs";
-import { collectBatchSamples, createBatchSession, loadRunConfig, readPrivateCredentials, runBrowserBatch, verifyFixtureThroughSession } from "./web_run.mjs";
+import { buildCollectorInitScript, collectorMetadataFromProvenance, createRelay, installBrowserCollector, planBrowserBatch, profileFor, redact, relayLocation, relayRequestHeaders, summarizeMetrics, validateDocumentObservation, validateEffectiveBrowser, validateRunEvidence, validateRuntimeBinding, validateSessionBatch, validateSessionCookieHeaders, verifyCollector } from "./web_protocol.mjs";
+import { applyBrowserProfile, collectBatchSamples, createBatchSession, createObservationWriter, launchOwnedChromium, loadRunConfig, readPrivateCredentials, runBrowserBatch, verifyFixtureThroughSession } from "./web_run.mjs";
 
 // These controlled loopback servers run only when root executes this test in
 // its serialized shared role. They never start the app or contact a live hub.
@@ -283,12 +283,14 @@ test("host-only session cookies can be reused in memory while explicit Domain co
 // Boundary harness for our initialization/serialization/lifecycle code, not a
 // browser simulation or proof of web-vitals correctness. Real visibility,
 // trusted events and callback drain still require root's Chromium trace.
-function collectorRealm({ wrappedSource, theme = "light" } = {}) {
+function collectorRealm({ wrappedSource, theme = "light", observerTypes = [], idleTimedOut = false } = {}) {
   const events = [];
   const listeners = new Map();
   const registrations = {};
   const local = new Map();
   const session = new Map();
+  const observerCallbacks = new Map();
+  const scheduling = { frames: 0, idle: 0 };
   const realm = {
     location: { protocol: "http:", href: "http://127.0.0.1:1234/pages" },
     document: { visibilityState: "visible" }, isSecureContext: true,
@@ -297,7 +299,17 @@ function collectorRealm({ wrappedSource, theme = "light" } = {}) {
     localStorage: { setItem: (key, value) => local.set(key, value) },
     sessionStorage: { setItem: (key, value) => session.set(key, value) },
     addEventListener: (type, callback) => listeners.set(type, [...(listeners.get(type) ?? []), callback]),
-    PerformanceObserver: class { static supportedEntryTypes = []; },
+    setTimeout, clearTimeout,
+    requestAnimationFrame: (callback) => { scheduling.frames += 1; return setImmediate(() => callback(25)); },
+    cancelAnimationFrame: clearImmediate,
+    requestIdleCallback: (callback) => { scheduling.idle += 1; return setImmediate(() => callback({ didTimeout: idleTimedOut, timeRemaining: () => 20 })); },
+    cancelIdleCallback: clearImmediate,
+    PerformanceObserver: class {
+      static supportedEntryTypes = observerTypes;
+      constructor(callback) { this.callback = callback; }
+      observe({ type }) { observerCallbacks.set(type, this.callback); }
+      takeRecords() { return []; }
+    },
     webVitals: {
       onLCP: (callback, options) => { registrations.LCP = { callback, options }; },
       onINP: (callback, options) => { registrations.INP = { callback, options }; },
@@ -320,7 +332,8 @@ function collectorRealm({ wrappedSource, theme = "light" } = {}) {
   assert.ok(api && typeof api.state === "function", "bootstrap returns the lifecycle controller");
   assert.ok(registrations.LCP && registrations.INP, "both official metric registrations exist");
   const fire = (type, properties) => { for (const listener of listeners.get(type) ?? []) listener(properties); };
-  return { api, realm, events, registrations, fire, local, session };
+  const deliver = (type, entries) => { const callback = observerCallbacks.get(type); assert.ok(callback, `observer exists for ${type}`); callback({ getEntries: () => entries }); };
+  return { api, realm, events, registrations, fire, local, session, deliver, scheduling };
 }
 
 test("bootstrap configures official final-only callbacks and initializes independent browser preferences", async () => {
@@ -832,6 +845,8 @@ function documentObservation(documentId = "doc-one", { controlled = false } = {}
       { record_type: "browser_lifecycle", event: "trusted_input", document_id: documentId, document_ms: 1100, input_type: "click" },
       { record_type: "browser_lifecycle", event: "trusted_input", document_id: documentId, document_ms: 1150, input_type: "keydown" },
       { record_type: "browser_lifecycle", event: "trusted_input", document_id: documentId, document_ms: 1200, input_type: "click" },
+      { record_type: "browser_diagnostic", diagnostic_type: "first-input", document_id: documentId, document_ms: 1210, entry: { entryType: "first-input", startTime: 1100, duration: 0, processingStart: 1100, processingEnd: 1100 } },
+      { record_type: "browser_lifecycle", event: "post_action_settled", document_id: documentId, document_ms: 1250, frame_count: 2, idle_did_timeout: false },
       { record_type: "browser_lifecycle", event: "visibility", document_id: documentId, document_ms: 1300, visibility: "hidden", controlled: true },
       { record_type: "browser_metric", document_id: documentId, document_ms: 1101, name: "LCP", id: `lcp-${documentId}`, value: 250, final: true },
       { record_type: "browser_metric", document_id: documentId, document_ms: 1301, name: "INP", id: `inp-${documentId}`, value: 24, final: true },
@@ -944,4 +959,120 @@ test("failed terminal fixture verification cannot leave a successful browser bat
   const summaries = records.filter((record) => record.record_type === "browser_batch_summary");
   assert.equal(summaries.length, 1);
   assert.equal(summaries[0].complete, false);
+});
+
+test("foreground settling waits for native frame/idle turns and raw first-input proof without manufacturing final INP", async () => {
+  const c = collectorRealm({ observerTypes: ["first-input"] });
+  c.fire("click", { isTrusted: true });
+  c.deliver("first-input", [{ entryType: "first-input", startTime: 25, duration: 0, processingStart: 25, processingEnd: 25 }]);
+  await c.api.settleAfterActions({ timeoutMs: 1000 });
+  await c.api.drain();
+  assert.equal(c.scheduling.frames, 2);
+  assert.equal(c.scheduling.idle, 1);
+  const settled = c.events.find((event) => event.event === "post_action_settled");
+  assert.ok(settled);
+  assert.equal(settled.idle_did_timeout, false);
+  assert.equal(c.events.some((event) => event.name === "INP"), false);
+});
+
+test("timed-out idle or missing first-input proof cannot be treated as a settled document", async () => {
+  const idle = collectorRealm({ observerTypes: ["first-input"], idleTimedOut: true });
+  idle.fire("click", { isTrusted: true });
+  idle.deliver("first-input", [{ entryType: "first-input", startTime: 25, duration: 0 }]);
+  await assert.rejects(idle.api.settleAfterActions({ timeoutMs: 1000 }), /idle|settle/i);
+  const missing = collectorRealm();
+  missing.fire("click", { isTrusted: true });
+  await assert.rejects(missing.api.settleAfterActions({ timeoutMs: 1000 }), /first.input|settle/i);
+});
+
+test("a final callback without an observed pre-hide frame/idle settle mark is incomplete", () => {
+  const plan = planBrowserBatch(routeConfig, routeManifest);
+  const observation = documentObservation();
+  observation.events = observation.events.filter((event) => event.event !== "post_action_settled");
+  assert.throws(() => validateDocumentObservation(plan, observation), /settle|idle/i);
+});
+
+test("public CDP profile payloads preserve exact throttles and omit invalid desktop maxTouchPoints0", async () => {
+  for (const profile of ["desktop", "phone"]) {
+    const calls = [];
+    const client = { send: async (method, payload) => { if (payload?.maxTouchPoints === 0) throw new Error("CDP rejects maxTouchPoints0"); calls.push({ method, payload }); } };
+    const context = { newCDPSession: async () => client };
+    const plan = planBrowserBatch({ ...routeConfig, profile }, routeManifest);
+    const result = await applyBrowserProfile({ context, page: {}, plan, userAgent: "Mozilla/5.0 pinned" });
+    assert.ok(result);
+    assert.deepEqual(calls.find((call) => call.method === "Emulation.setTouchEmulationEnabled").payload, profile === "phone" ? { enabled: true, maxTouchPoints: 1 } : { enabled: false });
+    assert.deepEqual(calls.find((call) => call.method === "Network.emulateNetworkConditions").payload, profile === "phone"
+      ? { offline: false, latency: 150, downloadThroughput: 200000, uploadThroughput: 93750 }
+      : { offline: false, latency: 20, downloadThroughput: 2500000, uploadThroughput: 1250000 });
+    assert.equal(calls.some((call) => call.method === "Emulation.setFocusEmulationEnabled"), false);
+  }
+});
+
+test("effective browser facts must match explicit locale/theme/geometry/reduced-motion and pinned UA before timing", () => {
+  const plan = planBrowserBatch(routeConfig, routeManifest);
+  const observed = { user_agent: "Mozilla/5.0 pinned", width: 1440, height: 900, dpr: 1, language: "en-US", timezone: "UTC", theme: "light", resolved_dark: false, reduced_motion: false, cookie_locale: "en", touch_points: 0, visibility: "visible", secure_context: true };
+  assert.equal(validateEffectiveBrowser(plan, observed, "Mozilla/5.0 pinned"), true);
+  for (const patch of [{ language: "en-GB" }, { theme: "system" }, { reduced_motion: true }, { width: 1280 }, { secure_context: false }]) {
+    assert.throws(() => validateEffectiveBrowser(plan, { ...observed, ...patch }, "Mozilla/5.0 pinned"), /browser|preference|profile|context/i);
+  }
+});
+
+test("persistent relay/session injection is bound to the same measured origin, seed, ownership and profile", () => {
+  const evidence = validateRunEvidence(evidenceFixture());
+  const plan = planBrowserBatch(routeConfig, routeManifest);
+  const binding = { origin: "http://127.0.0.1:1234", target_origin: "http://hub:3000", seed_id: "seed-one", ownership_sha256: evidence.context.ownership_sha256, profile: "desktop" };
+  const runtime = { relay: { origin: "http://127.0.0.1:1234", targetOrigin: "http://hub:3000" }, session: { binding: () => binding } };
+  assert.equal(validateRuntimeBinding(runtime, evidence, plan), true);
+  for (const patch of [{ origin: "http://127.0.0.1:5678" }, { seed_id: "other" }, { ownership_sha256: "other" }, { profile: "phone" }]) {
+    assert.throws(() => validateRuntimeBinding({ ...runtime, session: { binding: () => ({ ...binding, ...patch }) } }, evidence, plan), /bind|origin|ownership|profile|seed/i);
+  }
+});
+
+test("observation writer preserves partial records privately, redacts secrets and cannot overwrite an existing run", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const file = path.join(directory, "events.jsonl");
+  const writer = createObservationWriter({ path: file, runId: "actual-run", secrets: ["password-secret", "cookie-secret"] });
+  assert.ok(writer && typeof writer.write === "function");
+  writer.write({ schema_version: 99, run_id: "forged", record_type: "browser_error", error: "password-secret cookie-secret", headers: { Cookie: "cookie-secret" } });
+  writer.close();
+  const saved = JSON.parse((await readFile(file, "utf8")).trim());
+  assert.equal(saved.schema_version, 1);
+  assert.equal(saved.run_id, "actual-run");
+  assert.equal(saved.error, "[REDACTED] [REDACTED]");
+  assert.equal(saved.headers.Cookie, "[REDACTED]");
+  assert.equal((await lstat(file)).mode & 0o777, 0o600);
+  assert.throws(() => createObservationWriter({ path: file, runId: "other" }), /exist|EEXIST/i);
+});
+
+async function fakeChromeBinary(t, { publishPort = true } = {}) {
+  const directory = await temporaryDirectory(t);
+  const script = path.join(directory, "fake-chrome.mjs");
+  await writeFile(script, `import fs from 'node:fs';import path from 'node:path';\nconst args=process.argv.slice(2);const profile=args.find(x=>x.startsWith('--user-data-dir=')).slice(16);\n${publishPort ? "fs.writeFileSync(path.join(profile,'DevToolsActivePort'),'9222\\n/devtools/browser/test\\n');" : ""}\nsetInterval(()=>{},1000);`);
+  const seen = [];
+  const spawnBrowser = (_binary, args, options) => { seen.push(args); return spawn(process.execPath, [script, ...args], options); };
+  return { directory, seen, spawnBrowser };
+}
+
+test("owned Chromium startup attaches public noDefaults default context and removes only its private profile on close", { timeout: 5000 }, async (t) => {
+  const fake = await fakeChromeBinary(t);
+  const context = {};
+  let attached;
+  const chromium = { connectOverCDP: async (endpoint, options) => { attached = { endpoint, options }; return { contexts: () => [context], version: () => "156.0.fake", close: async () => {} }; } };
+  const owner = await launchOwnedChromium({ chromium, executablePath: "/pinned/chromium", display: ":99", privateDirectoryParent: fake.directory, startupTimeoutMs: 1000, shutdownTimeoutMs: 500, spawnBrowser: fake.spawnBrowser });
+  assert.ok(owner && owner.context);
+  assert.equal(owner.context, context);
+  assert.deepEqual(attached, { endpoint: "http://127.0.0.1:9222", options: { noDefaults: true } });
+  assert.equal((await lstat(owner.profilePath)).mode & 0o777, 0o700);
+  assert.equal(fake.seen[0].some((arg) => arg.startsWith("--headless")), false);
+  await owner.close();
+  await assert.rejects(lstat(owner.profilePath), /ENOENT/);
+  assert.throws(() => process.kill(owner.pid, 0), /ESRCH/);
+});
+
+test("failed Chromium startup is bounded and cleans its owned process/profile before any sample can start", { timeout: 5000 }, async (t) => {
+  const fake = await fakeChromeBinary(t, { publishPort: false });
+  await assert.rejects(launchOwnedChromium({ chromium: { connectOverCDP: async () => { throw new Error("must not attach"); } }, executablePath: "/pinned/chromium", display: ":99", privateDirectoryParent: fake.directory, startupTimeoutMs: 250, shutdownTimeoutMs: 500, spawnBrowser: fake.spawnBrowser }), /startup|deadline|timeout/i);
+  const profile = fake.seen[0]?.find((arg) => arg.startsWith("--user-data-dir="))?.slice(16);
+  assert.ok(profile);
+  await assert.rejects(lstat(profile), /ENOENT/);
 });

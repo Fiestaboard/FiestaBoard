@@ -227,6 +227,9 @@ export function validateDocumentObservation(plan, observation) {
   if (!lifecycle || lifecycle.hiddenObserved !== true || lifecycle.invalidReason !== null || lifecycle.sinkFailed !== false) throw new Error("Document lifecycle/hidden/sink evidence is incomplete");
   const hidden = events.filter((event) => event.event === "visibility" && event.visibility === "hidden" && event.controlled === true);
   if (hidden.length !== 1 || !Number.isFinite(hidden[0].document_ms)) throw new Error("Exactly one actual controlled hidden lifecycle event is required");
+  const settled = events.filter((event) => event.event === "post_action_settled");
+  if (settled.length !== 1 || settled[0].frame_count !== 2 || settled[0].idle_did_timeout !== false || !Number.isFinite(settled[0].document_ms) || settled[0].document_ms >= hidden[0].document_ms) throw new Error("Observed native frame/idle settle before hidden is required");
+  if (!events.some((event) => event.diagnostic_type === "first-input" && event.entry?.entryType === "first-input")) throw new Error("Actual raw first-input proof is missing from settle evidence");
   const inputs = events.filter((event) => event.event === "trusted_input");
   if (!inputs.length || inputs.length !== lifecycle.trustedInputCount || inputs.some((event) => !Number.isFinite(event.document_ms))) throw new Error("Actual trusted input records are missing or inconsistent");
   const firstInput = Math.min(...inputs.map((event) => event.document_ms));
@@ -250,12 +253,30 @@ export function validateDocumentObservation(plan, observation) {
   return { complete: true, document_id: observation.document_id, ready_ms: observation.ready_ms, metrics: metrics.metrics, action_count: required.length, cache: plan.cache };
 }
 
+export function validateRuntimeBinding(runtime, evidence, plan) {
+  if (!runtime?.relay || typeof runtime.session?.binding !== "function") throw new Error("Paired owned relay/session binding required");
+  const binding = runtime.session.binding();
+  if (new URL(runtime.relay.origin).hostname !== "127.0.0.1" || runtime.relay.targetOrigin !== evidence.context.target_origin || binding.origin !== runtime.relay.origin || binding.target_origin !== evidence.context.target_origin) throw new Error("Runtime origin/relay binding mismatch");
+  if (binding.seed_id !== evidence.manifest.seed_id || binding.ownership_sha256 !== evidence.context.ownership_sha256 || binding.profile !== plan.profileName) throw new Error("Runtime seed/ownership/profile binding mismatch");
+  return true;
+}
+
+export function validateEffectiveBrowser(plan, observed, userAgent) {
+  const expected = {
+    user_agent: userAgent, width: plan.profile.viewport.width, height: plan.profile.viewport.height, dpr: plan.profile.deviceScaleFactor,
+    language: plan.browserPreferences.locale, timezone: plan.browserPreferences.timezone, theme: "light", resolved_dark: false,
+    reduced_motion: false, cookie_locale: plan.browserPreferences.next_locale, touch_points: plan.profile.hasTouch ? 1 : 0, visibility: "visible", secure_context: true,
+  };
+  if (!Object.entries(expected).every(([key, value]) => observed?.[key] === value)) throw new Error("Effective browser/profile/context preferences mismatch");
+  return true;
+}
+
 // Serialized into the measured document; no module closures may be referenced.
 export function installBrowserCollector(preferences) {
   if (window.top !== window || !["http:", "https:"].includes(window.location.protocol)) return null;
   if (window.__perfBrowser) throw new Error("Collector already installed in this document");
   const documentId = window.crypto.randomUUID();
-  const state = { documentId, trustedInputCount: 0, hiddenObserved: false, invalidReason: null, sinkFailed: false };
+  const state = { documentId, trustedInputCount: 0, hiddenObserved: false, invalidReason: null, sinkFailed: false, firstInputCount: 0, lastEventStart: null, postActionSettled: false };
   const pending = new Set();
   const observers = [];
   let hideArmed = false;
@@ -283,6 +304,11 @@ export function installBrowserCollector(preferences) {
     }).finally(() => pending.delete(completed));
     pending.add(completed);
   };
+  const diagnostic = (entry, type) => {
+    if (type === "first-input") state.firstInputCount += 1;
+    if (type === "event" && Number.isFinite(entry.startTime)) state.lastEventStart = Math.max(state.lastEventStart ?? -Infinity, entry.startTime);
+    emit({ record_type: "browser_diagnostic", diagnostic_type: type, entry: serializeEntry(entry) });
+  };
   if (window.document.visibilityState !== "visible") invalidate("document_not_foreground");
   if (preferences.theme !== "light") invalidate("preference_pin_mismatch");
   try {
@@ -295,6 +321,55 @@ export function installBrowserCollector(preferences) {
   }
   const api = {
     state: () => ({ ...state }),
+    settleAfterActions: async ({ timeoutMs = 10000 } = {}) => {
+      if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || state.invalidReason || state.trustedInputCount < 1 || window.document.visibilityState !== "visible") throw new Error("Foreground trusted-input lifecycle required for settle");
+      if (typeof window.requestAnimationFrame !== "function" || typeof window.requestIdleCallback !== "function") throw new Error("Native frame/idle APIs unavailable for settle");
+      let timer;
+      let frameHandle;
+      let idleHandle;
+      let cancelled = false;
+      let frames = 0;
+      const frame = () => new Promise((resolve) => {
+        frameHandle = window.requestAnimationFrame(() => { if (!cancelled) { frames += 1; resolve(); } });
+      });
+      const work = async () => {
+        await frame();
+        await frame();
+        await new Promise((resolve, reject) => {
+          idleHandle = window.requestIdleCallback((deadline) => {
+            if (cancelled) return;
+            if (deadline.didTimeout) reject(new Error("Native idle callback timed out; document not settled"));
+            else resolve();
+          }, { timeout: timeoutMs });
+        });
+        if (cancelled || state.invalidReason || window.document.visibilityState !== "visible") throw new Error("Lifecycle changed during foreground settle");
+        for (const { observer, type } of observers) for (const entry of observer.takeRecords()) diagnostic(entry, type);
+        await api.drain();
+        if (state.firstInputCount < 1) throw new Error("Raw first-input proof missing at settle");
+        if (state.invalidReason) throw new Error("Sink/lifecycle failed during settle");
+        state.postActionSettled = true;
+        emit({ record_type: "browser_lifecycle", event: "post_action_settled", frame_count: frames, idle_did_timeout: false, first_input_count: state.firstInputCount, last_event_start_ms: state.lastEventStart });
+        await api.drain();
+        if (state.invalidReason) throw new Error("Sink/lifecycle failed after settle acknowledgement");
+        return { ...state };
+      };
+      const timeout = new Promise((_resolve, reject) => {
+        timer = window.setTimeout(() => { cancelled = true; reject(new Error("Foreground settle deadline exceeded")); }, timeoutMs);
+      });
+      try {
+        return await Promise.race([work(), timeout]);
+      } catch (error) {
+        cancelled = true;
+        state.postActionSettled = false;
+        invalidate("post_action_settle_failed");
+        emit({ record_type: "browser_lifecycle", event: "post_action_settle_failed" });
+        throw error;
+      } finally {
+        window.clearTimeout(timer);
+        if (frameHandle !== undefined) window.cancelAnimationFrame(frameHandle);
+        if (idleHandle !== undefined) window.cancelIdleCallback(idleHandle);
+      }
+    },
     beforeHide: () => {
       if (window.document.visibilityState !== "visible" || state.hiddenObserved) invalidate("unexpected_hidden");
       hideArmed = true;
@@ -326,7 +401,7 @@ export function installBrowserCollector(preferences) {
       if (!hideArmed || state.hiddenObserved) invalidate("unexpected_hidden");
       if (hideArmed) state.hiddenObserved = true;
       for (const { observer, type } of observers) {
-        for (const entry of observer.takeRecords()) emit({ record_type: "browser_diagnostic", diagnostic_type: type, entry: serializeEntry(entry) });
+        for (const entry of observer.takeRecords()) diagnostic(entry, type);
       }
     } else if (state.hiddenObserved) invalidate("visible_after_final_flush");
     emit({ record_type: "browser_lifecycle", event: "visibility", visibility, controlled: hideArmed });
@@ -351,11 +426,11 @@ export function installBrowserCollector(preferences) {
   window.webVitals.onLCP(report, { reportAllChanges: false });
   window.webVitals.onINP(report, { reportAllChanges: false, durationThreshold: 16 });
   const supported = window.PerformanceObserver?.supportedEntryTypes ?? [];
-  for (const type of ["largest-contentful-paint", "event"]) {
+  for (const type of ["largest-contentful-paint", "event", "first-input"]) {
     if (!supported.includes(type)) continue;
     try {
       const observer = new window.PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) emit({ record_type: "browser_diagnostic", diagnostic_type: type, entry: serializeEntry(entry) });
+        for (const entry of list.getEntries()) diagnostic(entry, type);
       });
       observer.observe({ type, buffered: true, ...(type === "event" ? { durationThreshold: 16 } : {}) });
       observers.push({ observer, type });
