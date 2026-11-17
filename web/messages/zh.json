@@ -3779,7 +3779,6 @@
     "signInHelp": "即使中枢已关闭登录要求，通知仍需要浏览器处于已登录状态。",
     "loadError": "无法加载通知设置。请检查连接后重试。",
     "retry": "重试",
-    "working": "正在更新通知…",
     "actionError": "无法更新通知。请检查连接后重试。",
     "dismissed": "未获得权限。你可以在准备好后启用此浏览器。",
     "reconnect": "需要重新启用此浏览器。",
@@ -3787,13 +3786,13 @@
     "sendTest": "发送测试",
     "sending": "正在发送…",
     "testSent": "推送服务已接受测试。请查看此浏览器是否收到通知。",
+    "testFailed": "测试通知发送失败。请稍后重试。",
     "notSent": "测试未发送。请稍后重试。",
     "testExpired": "此订阅已过期。请重新启用此浏览器。",
     "cooldown": "请等待一分钟后再发送测试。",
     "testError": "推送服务无法接受测试。请稍后重试。",
     "blockedLabel": "已被浏览器拦截",
     "httpsLabel": "需要 HTTPS",
-    "notAvailableLabel": "暂不可用",
     "loading": "正在加载通知设置…"
   }
 }

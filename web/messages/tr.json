@@ -3779,7 +3779,6 @@
     "signInHelp": "Hub’da oturum açma kapalı olsa bile bildirimler için tarayıcıda oturum açılmış olması gerekir.",
     "loadError": "Bildirim ayarları yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.",
     "retry": "Tekrar dene",
-    "working": "Bildirimler güncelleniyor…",
     "actionError": "Bildirimler güncellenemedi. Bağlantınızı kontrol edip tekrar deneyin.",
     "dismissed": "İzin verilmedi. Hazır olduğunuzda bu tarayıcıyı etkinleştirin.",
     "reconnect": "Bu tarayıcının yeniden etkinleştirilmesi gerekiyor.",
@@ -3787,13 +3786,13 @@
     "sendTest": "Test gönder",
     "sending": "Gönderiliyor…",
     "testSent": "Anlık bildirim hizmeti testi kabul etti. Bildirimin bu tarayıcıya gelip gelmediğini kontrol edin.",
+    "testFailed": "Test bildirimi gönderilemedi. Daha sonra tekrar deneyin.",
     "notSent": "Test gönderilmedi. Daha sonra tekrar deneyin.",
     "testExpired": "Bu aboneliğin süresi doldu. Bu tarayıcıyı yeniden etkinleştirin.",
     "cooldown": "Başka bir test göndermeden önce bir dakika bekleyin.",
     "testError": "Anlık bildirim hizmeti testi kabul edemedi. Daha sonra tekrar deneyin.",
     "blockedLabel": "tarayıcı tarafından engellendi",
     "httpsLabel": "HTTPS gerekiyor",
-    "notAvailableLabel": "henüz kullanılamıyor",
     "loading": "Bildirim ayarları yükleniyor…"
   }
 }

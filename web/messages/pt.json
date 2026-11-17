@@ -3779,7 +3779,6 @@
     "signInHelp": "As notificações precisam de uma sessão iniciada no navegador, mesmo quando o início de sessão no hub está desativado.",
     "loadError": "Não foi possível carregar as definições de notificações. Verifique a ligação e tente novamente.",
     "retry": "Tentar novamente",
-    "working": "A atualizar notificações…",
     "actionError": "Não foi possível atualizar as notificações. Verifique a ligação e tente novamente.",
     "dismissed": "A permissão não foi concedida. Ative este navegador quando quiser.",
     "reconnect": "É necessário ativar este navegador novamente.",
@@ -3787,13 +3786,13 @@
     "sendTest": "Enviar um teste",
     "sending": "A enviar…",
     "testSent": "O serviço de notificações push aceitou o teste. Verifique se a notificação aparece neste navegador.",
+    "testFailed": "Falha ao enviar a notificação de teste. Tente novamente mais tarde.",
     "notSent": "O teste não foi enviado. Tente novamente mais tarde.",
     "testExpired": "Esta subscrição expirou. Ative este navegador novamente.",
     "cooldown": "Aguarde um minuto antes de enviar outro teste.",
     "testError": "O serviço de notificações push não conseguiu aceitar o teste. Tente novamente mais tarde.",
     "blockedLabel": "bloqueadas pelo navegador",
     "httpsLabel": "requer HTTPS",
-    "notAvailableLabel": "ainda indisponíveis",
     "loading": "A carregar definições de notificações…"
   }
 }
