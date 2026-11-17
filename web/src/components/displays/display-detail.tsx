@@ -123,10 +123,12 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
             </Box>
             {/* Keep the inherited offline wrapper's preview slot inside this
                 pane; otherwise its intrinsic board width hides viewport controls.
-                Shared LastKnownBoard containment belongs to the status-banner slice. */}
+                Dim the viewport's board only so its controls and indicator retain
+                contrast. Non-viewport previews retain the wrapper's offline dim.
+                Shared LastKnownBoard behavior belongs to the status-banner slice. */}
             <Flex
               justify="center"
-              className="w-full min-w-0 overflow-x-hidden px-2 [&_[data-slot=last-known-board-preview]]:w-full [&_[data-slot=last-known-board-preview]]:min-w-0"
+              className="w-full min-w-0 overflow-x-hidden px-2 [&_[data-slot=last-known-board-preview]]:w-full [&_[data-slot=last-known-board-preview]]:min-w-0 [&_[data-slot=last-known-board-preview]:has([data-slot=board-viewport])]:opacity-100 [&_[data-slot=last-known-board-preview]_[data-slot=board-viewport-bezel]]:opacity-60"
               style={{ contain: "layout style paint" }}
             >
               <LastKnownBoard boardId={board.id}>

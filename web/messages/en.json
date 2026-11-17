@@ -1469,6 +1469,7 @@
       "lastUpdate": "Last update {time}",
       "noViewerHint": "No signed-in TV is showing this display",
       "nextChange": "Until {time} · then {page}",
+      "nextCompact": "Then {page}",
       "overrideUntil": "Override · until {time}",
       "pauseDisplay": "Pause display",
       "pauseHint": "The board keeps what it shows; the Schedule keeps running on the hub.",

@@ -1542,6 +1542,7 @@
       "lastUpdate": "Laatste update: {time}",
       "noViewerHint": "Geen aangemelde tv toont dit scherm",
       "nextChange": "Tot {time} · daarna {page}",
+      "nextCompact": "Daarna {page}",
       "overrideUntil": "Handmatig · tot {time}",
       "pauseDisplay": "Scherm pauzeren",
       "pauseHint": "Het bord blijft de huidige inhoud tonen; het schema blijft op de hub doorlopen.",

@@ -71,6 +71,7 @@ const boards = [
     output: "divoom_pixoo",
     device_model: "divoom_pixoo64",
     paused: false,
+    schedule_enabled: true,
   },
 ];
 const health = (reachable: boolean) => ({
@@ -153,7 +154,7 @@ window.fetch = async (input, init) => {
     value = {
       ...board,
       resolved_page_id: "evening",
-      next_change_at: "2026-11-17T05:00:00Z",
+      next_change_at: board?.id === "desk" ? "2026-11-17T06:00:00Z" : "2026-11-17T05:00:00Z",
       next_change_reason: "schedule",
       next_page_id: "night",
       ...(board?.id === "desk" ? { override_expires_at: "2026-11-17T05:00:00Z" } : {}),

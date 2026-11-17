@@ -1542,6 +1542,7 @@
       "lastUpdate": "Última atualização: {time}",
       "noViewerHint": "Nenhuma televisão com sessão iniciada está a mostrar este ecrã",
       "nextChange": "Até {time} · depois {page}",
+      "nextCompact": "Depois, {page}",
       "overrideUntil": "Manual · até {time}",
       "pauseDisplay": "Pausar ecrã",
       "pauseHint": "O painel mantém o que está a mostrar; a programação continua a ser executada no hub.",
