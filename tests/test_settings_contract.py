@@ -346,6 +346,7 @@ class TestTemporaryOverride:
         from src.settings.service import get_settings_service
 
         assert body.pop("board_id") == get_settings_service().get_primary_board_id()
+        assert body.pop("undo_supported") is True
         assert body == {
             "active": False,
             "page_id": None,
