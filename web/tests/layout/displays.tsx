@@ -124,7 +124,14 @@ window.fetch = async (input, init) => {
     };
   else if (path.startsWith("/silence")) value = { active: false, enabled: false };
   else if (path.endsWith("/current-message"))
-    value = { message: "GOOD EVENING\n64 CLEAR", characters: [[1]], expected_characters: [[1]], rows: 6, cols: 22 };
+    value = {
+      message: url.searchParams.get("board_id") === "fridge" ? "EXTERNAL MESSAGE" : "GOOD EVENING\n64 CLEAR",
+      characters: url.searchParams.get("board_id") === "fridge" ? [[1]] : [[2]],
+      expected_characters: [[2]],
+      api_mode: "local",
+      rows: 6,
+      cols: 22,
+    };
   else if (path.startsWith("/v1/boards/")) {
     const board = boards.find((item) => item.id === path.split("/")[3]);
     if (board && init?.method === "PATCH") Object.assign(board, JSON.parse(String(init.body)));
