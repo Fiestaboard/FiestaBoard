@@ -18,10 +18,19 @@
 import {
   Alert,
   AlertDescription,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertTitle,
   Badge as BadgeUI,
   Box,
   Button,
+  Card,
   Flex,
   Input,
   Select,
@@ -84,7 +93,15 @@ const CODE62_CHOICES: ReadonlyArray<{ value: Code62Glyph; glyph: string; labelKe
  * So: local draft state for typing, re-synced whenever the server's name
  * changes underneath it.
  */
-function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (name: string) => void }) {
+export function BoardNameField({
+  board,
+  onRename,
+  disabled = false,
+}: {
+  board: BoardInstance;
+  onRename: (name: string) => void;
+  disabled?: boolean;
+}) {
   const t = useTranslations("displaySettings");
   const storedName = board.name ?? "";
   const [draft, setDraft] = useState(storedName);
@@ -121,7 +138,7 @@ function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (
         onChange={(e) => setDraft(e.target.value)}
         onBlur={handleBlur}
         placeholder={t("boardNamePlaceholder")}
-        className="h-8 px-2 text-xs bg-background shadow-none"
+        disabled={disabled}
         data-testid="board-name-input"
       />
     </Stack>
@@ -365,13 +382,18 @@ export function BoardEditor({
   board,
   displays,
   onRemoved,
+  hideName = false,
 }: {
   board: BoardInstance;
+  hideName?: boolean;
   displays: DisplayBoards;
   /** The board is gone (the page it was on should go too). */
   onRemoved?: () => void;
 }) {
   const t = useTranslations("displaySettings");
+  const tf = useTranslations("displays.fleet");
+  const tc = useTranslations("common");
+  const [confirmRemove, setConfirmRemove] = useState(false);
   // The note-array selector's custom inputs and their range error.
   const [customOpen, setCustomOpen] = useState(false);
   const [dimError, setDimError] = useState<string | undefined>(undefined);
@@ -485,7 +507,7 @@ export function BoardEditor({
 
       {/* Board name (issue #1792). Trimmed on save; clearing it saves "" and
           the backend restores its default name. */}
-      <BoardNameField board={board} onRename={(name) => update({ name })} />
+      {!hideName && <BoardNameField board={board} onRename={(name) => update({ name })} />}
 
       {/* Pause / Resume row (issue #970) */}
       <Flex
@@ -721,12 +743,11 @@ export function BoardEditor({
       {/* Remove board - bottom. A virtual board still referenced by a panel is
           removed by deleting the panel, not here — pulling it out from under a
           live panel blanks the TV. */}
-      <Box className="border-t pt-2">
+      <Card className="gap-3 p-4">
         <Button
-          variant="ghost"
-          size="sm"
-          className="text-[11px] text-muted-foreground hover:text-destructive h-7 px-2"
-          onClick={() => void handleRemove()}
+          variant="destructive"
+          size="touch"
+          onClick={() => setConfirmRemove(true)}
           disabled={boards.length <= 1 || (isVirtual && panelName !== undefined)}
           title={isVirtual && panelName !== undefined ? t("virtualRemoveHint") : undefined}
         >
@@ -738,7 +759,19 @@ export function BoardEditor({
             {t("virtualRemoveHint")}
           </Text>
         )}
-      </Box>
+      </Card>
+      <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tf("removeConfirmTitle", { name: board.name || t("unnamedBoard") })}</AlertDialogTitle>
+            <AlertDialogDescription>{tf("removeConfirmBody")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleRemove()}>{t("removeBoard")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Stack>
   );
 }

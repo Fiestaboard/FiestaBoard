@@ -107,7 +107,8 @@ describe("Apply a formula (Mod+Enter)", () => {
     await waitFor(() => expect(done).toBeEnabled(), { timeout: 3000 });
     const content = screen.getByRole("textbox", { name: "Formula expression" });
     expect(content).toHaveFocus();
-    fireEvent.keyDown(content, { key: "Enter", ctrlKey: true });
+    const user = userEvent.setup();
+    await user.keyboard("{Control>}{Enter}{/Control}");
     expect(onConfirm).toHaveBeenCalledWith("1 + 1");
   });
 

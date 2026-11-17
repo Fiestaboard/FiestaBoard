@@ -3,7 +3,9 @@
 
 import { type BoardDetail, boardPathSegment } from "./boards";
 import { fetchApi } from "./core";
+import type { Page } from "./pages";
 import type { LineMetadata } from "./shared";
+import type { TemplateRenderResponse } from "./templates";
 
 export interface SilenceStatus {
   enabled: boolean;
@@ -191,6 +193,9 @@ export type SetTemporaryOverrideRequest = {
 );
 
 export interface ActiveScheduleResponse {
+  /** H8 read-only instant and quiet-hours answer from the hub. */
+  at?: string | null;
+  silenced?: boolean;
   page_id: string | null;
   // When page_id is a collection, the member page the collection is currently
   // rendering on the board (issue #1513). Equals page_id for plain pages.
@@ -306,10 +311,36 @@ export const schedulesApi = {
       },
     ),
 
-  getActiveSchedule: (boardId?: string) =>
-    fetchApi<ActiveScheduleResponse>(
-      boardId ? `/schedules/active/page?board_id=${encodeURIComponent(boardId)}` : "/schedules/active/page",
-    ),
+  /** H6 preview used by H8: renders cached data at the requested clock, never sends. */
+  previewSchedulePage: (
+    page: Page,
+    at: string,
+    boardId?: string,
+    values?: Record<string, unknown>,
+    missing?: string[],
+  ) =>
+    fetchApi<TemplateRenderResponse>("/templates/render", {
+      method: "POST",
+      body: JSON.stringify({
+        template: page.template,
+        line_metadata: page.line_metadata,
+        device_type: page.device_type,
+        notes_wide: page.notes_wide,
+        notes_tall: page.notes_tall,
+        grid_rows: page.grid_rows,
+        grid_cols: page.grid_cols,
+        canvases: page.canvases,
+        board_id: boardId,
+        preview: { at, data: "cached", ...(values ? { values } : {}), ...(missing ? { missing } : {}) },
+      }),
+    }),
+
+  getActiveSchedule: (boardId?: string, at?: string) => {
+    const query = new URLSearchParams();
+    if (typeof boardId === "string" && boardId) query.set("board_id", boardId);
+    if (at) query.set("at", at);
+    return fetchApi<ActiveScheduleResponse>(`/schedules/active/page${query.size ? `?${query}` : ""}`);
+  },
 
   validateSchedules: (boardId?: string) =>
     fetchApi<ScheduleValidationResult>("/schedules/validate", {

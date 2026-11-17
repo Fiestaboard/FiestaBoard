@@ -24,6 +24,7 @@ import {
   ensureAuthForFetch,
   expect,
   loginIfNeeded,
+  resetToSingleBoard,
   slowRoute,
   test,
 } from "../helpers";
@@ -32,6 +33,8 @@ test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
   await loginIfNeeded(context);
   await configureBoard();
+  await deleteAllSchedules();
+  await page.addInitScript(() => localStorage.setItem("schedule-view-mode", "list"));
   await page.addInitScript(() => {
     localStorage.setItem("fiestaboard_wizard_complete", "true");
   });
@@ -72,11 +75,13 @@ test.describe("regression: schedule.form", () => {
     await page.addInitScript(() => {
       localStorage.setItem("schedule-view-mode", "calendar");
     });
+    const pageId = await createPage("Calendar grid target");
+    await createSchedule(pageId, "09:00", "10:00");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
     // The calendar grid renders — react-big-calendar slot drag is too fragile
     // to drive deterministically; we assert the grid surface is reachable.
-    await expect(page.locator(".rbc-calendar").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-slot="week-calendar"]')).toBeVisible({ timeout: 15_000 });
   });
 
   /**
@@ -97,6 +102,7 @@ test.describe("regression: schedule.form", () => {
   test("schedule.form.sun-start — sunrise/sunset start type swaps to offset input with resolved time hint", async ({
     page,
   }) => {
+    await resetToSingleBoard();
     await createPage("Sun Start Page");
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
@@ -107,30 +113,66 @@ test.describe("regression: schedule.form", () => {
     await expect(sheet).toBeVisible({ timeout: 15_000 });
 
     // Baseline: with default "Fixed Time" start type, the start-time picker is visible.
-    await expect(sheet.locator("#start-time")).toBeVisible();
-    const offsetInput = sheet.getByLabel("Offset (minutes)").first();
+    await expect(sheet.getByLabel("Start Time", { exact: true })).toBeVisible();
+    const offsetInput = sheet.getByRole("combobox", { name: "Offset (minutes)", exact: true }).first();
     await expect(offsetInput).toHaveCount(0);
 
     // Switch start type to Sunrise.
-    await sheet.getByLabel("Start time type").click();
-    await page.getByRole("option", { name: /Sunrise/ }).click();
+    await sheet
+      .getByRole("radiogroup", { name: "Start time type", exact: true })
+      .getByRole("radio", { name: "Sunrise", exact: true })
+      .click();
 
-    // Fixed-time picker should be gone; numeric offset Input + hint replace it.
-    await expect(sheet.locator("#start-time")).toHaveCount(0);
+    // Solar mode exposes a labeled offset selector; the valid cached fallback is preserved.
+    await expect(sheet.getByLabel("Start Time", { exact: true })).toHaveCount(0);
     await expect(offsetInput).toBeVisible({ timeout: 5_000 });
-    await expect(offsetInput).toHaveAttribute("type", "number");
-    // Hint text: en.json `sunOffsetHint` ("minutes (+ after, − before)").
-    await expect(sheet.getByText(/after.*before/i).first()).toBeVisible();
+    await expect(offsetInput).toContainText("Sunrise +0");
 
     // Negative values are accepted.
-    await offsetInput.fill("-30");
-    await expect(offsetInput).toHaveValue("-30");
+    await offsetInput.click();
+    await page.getByRole("option", { name: "Sunrise -30", exact: true }).click();
+    await expect(offsetInput).toContainText("Sunrise -30");
 
     // Switching back to Fixed Time restores the time picker.
-    await sheet.getByLabel("Start time type").click();
-    await page.getByRole("option", { name: /Fixed Time/ }).click();
-    await expect(sheet.locator("#start-time")).toBeVisible({ timeout: 5_000 });
-    await expect(sheet.getByLabel("Offset (minutes)").first()).toHaveCount(0);
+    await sheet
+      .getByRole("radiogroup", { name: "Start time type", exact: true })
+      .getByRole("radio", { name: "Fixed Time", exact: true })
+      .click();
+    await expect(sheet.getByLabel("Start Time", { exact: true })).toBeVisible({ timeout: 5_000 });
+    await expect(sheet.getByRole("combobox", { name: "Offset (minutes)", exact: true }).first()).toHaveCount(0);
+    await sheet
+      .getByRole("radiogroup", { name: "Start time type", exact: true })
+      .getByRole("radio", { name: "Sunrise", exact: true })
+      .click();
+    await sheet.getByRole("combobox", { name: "Offset (minutes)", exact: true }).click();
+    await page.getByRole("option", { name: "Sunrise -30", exact: true }).click();
+    await sheet.getByRole("combobox", { name: /^Page or Collection/ }).click();
+    await page.getByRole("option", { name: "Sun Start Page", exact: true }).click();
+    const created = page.waitForResponse(
+      (r) => r.url().endsWith("/api/v1/schedules") && r.request().method() === "POST",
+    );
+    await sheet.getByRole("button", { name: "Save", exact: true }).click();
+    const response = await created;
+    expect(response.ok()).toBe(true);
+    expect(response.request().postDataJSON()).toMatchObject({
+      start_type: "sunrise",
+      start_sun_offset: -30,
+    });
+    expect(response.request().postDataJSON()).not.toHaveProperty("board_id");
+    const saved = await response.json();
+    expect(saved.board_id).toBe("");
+    const boards = await fetch(`${API_URL}/v1/boards`, { headers: authHeaders() });
+    expect(boards.ok).toBe(true);
+    const boardId = (await boards.json()).boards[0].id;
+    const persisted = await fetch(`${API_URL}/v1/schedules?board_id=${encodeURIComponent(boardId)}`, {
+      headers: authHeaders(),
+    });
+    expect(persisted.ok).toBe(true);
+    expect((await persisted.json()).schedules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: saved.id, board_id: "", start_type: "sunrise", start_sun_offset: -30 }),
+      ]),
+    );
   });
 
   /**
@@ -149,6 +191,7 @@ test.describe("regression: schedule.form", () => {
   test("schedule.form.sun-end — sunrise/sunset end type swaps to offset input mirroring start behavior", async ({
     page,
   }) => {
+    await resetToSingleBoard();
     await createPage("Sun End Page");
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
@@ -157,21 +200,58 @@ test.describe("regression: schedule.form", () => {
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
 
-    await expect(sheet.locator("#end-time")).toBeVisible();
+    await expect(sheet.getByLabel("End Time", { exact: true })).toBeVisible();
 
     // Switch end-time type to Sunset.
-    await sheet.getByLabel("End time type").click();
-    await page.getByRole("option", { name: /Sunset/ }).click();
+    await sheet
+      .getByRole("radiogroup", { name: "End time type", exact: true })
+      .getByRole("radio", { name: "Sunset", exact: true })
+      .click();
 
     // Fixed-time picker should be gone; offset input replaces it.
-    await expect(sheet.locator("#end-time")).toHaveCount(0);
-    const offsetInputs = sheet.getByLabel("Offset (minutes)");
+    await expect(sheet.getByLabel("End Time", { exact: true })).toHaveCount(0);
+    const offsetInputs = sheet.getByRole("combobox", { name: "Offset (minutes)", exact: true });
     await expect(offsetInputs.last()).toBeVisible({ timeout: 5_000 });
 
     // Switch back to Fixed Time restores picker.
-    await sheet.getByLabel("End time type").click();
-    await page.getByRole("option", { name: /Fixed Time/ }).click();
-    await expect(sheet.locator("#end-time")).toBeVisible({ timeout: 5_000 });
+    await sheet
+      .getByRole("radiogroup", { name: "End time type", exact: true })
+      .getByRole("radio", { name: "Fixed Time", exact: true })
+      .click();
+    await expect(sheet.getByLabel("End Time", { exact: true })).toBeVisible({ timeout: 5_000 });
+    await sheet
+      .getByRole("radiogroup", { name: "End time type", exact: true })
+      .getByRole("radio", { name: "Sunset", exact: true })
+      .click();
+    await sheet.getByRole("combobox", { name: "Offset (minutes)", exact: true }).click();
+    await page.getByRole("option", { name: "Sunset +15", exact: true }).click();
+    await sheet.getByRole("combobox", { name: /^Page or Collection/ }).click();
+    await page.getByRole("option", { name: "Sun End Page", exact: true }).click();
+    const created = page.waitForResponse(
+      (r) => r.url().endsWith("/api/v1/schedules") && r.request().method() === "POST",
+    );
+    await sheet.getByRole("button", { name: "Save", exact: true }).click();
+    const response = await created;
+    expect(response.ok()).toBe(true);
+    expect(response.request().postDataJSON()).toMatchObject({
+      end_type: "sunset",
+      end_sun_offset: 15,
+    });
+    expect(response.request().postDataJSON()).not.toHaveProperty("board_id");
+    const saved = await response.json();
+    expect(saved.board_id).toBe("");
+    const boards = await fetch(`${API_URL}/v1/boards`, { headers: authHeaders() });
+    expect(boards.ok).toBe(true);
+    const boardId = (await boards.json()).boards[0].id;
+    const persisted = await fetch(`${API_URL}/v1/schedules?board_id=${encodeURIComponent(boardId)}`, {
+      headers: authHeaders(),
+    });
+    expect(persisted.ok).toBe(true);
+    expect((await persisted.json()).schedules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: saved.id, board_id: "", end_type: "sunset", end_sun_offset: 15 }),
+      ]),
+    );
   });
 
   /**
@@ -199,26 +279,29 @@ test.describe("regression: schedule.form", () => {
     await expect(sheet).toBeVisible({ timeout: 15_000 });
 
     // Pick the page so the form becomes valid.
-    await sheet.locator("#page").click();
+    await sheet.getByRole("combobox", { name: /^Page or Collection/ }).click();
     await page.getByRole("option", { name: pageName }).click();
 
     // Baseline: end-time field is visible while hasEndTime=true.
-    await expect(sheet.locator("#end-time")).toBeVisible();
+    await expect(sheet.getByLabel("End Time", { exact: true })).toBeVisible();
     const openHint = sheet.getByText("Runs until next schedule or end of day");
     await expect(openHint).toHaveCount(0);
 
     // Toggle the Switch off.
-    await sheet.getByLabel("Set end time").click();
+    await sheet
+      .getByRole("radiogroup", { name: "End time type", exact: true })
+      .getByRole("radio", { name: "Open-ended", exact: true })
+      .click();
 
     // End-time field hidden, open-ended hint surfaces.
-    await expect(sheet.locator("#end-time")).toHaveCount(0);
+    await expect(sheet.getByLabel("End Time", { exact: true })).toHaveCount(0);
     await expect(openHint).toBeVisible({ timeout: 5_000 });
 
     // Capture the create payload to assert end_time: null on the wire.
     const createResponse = page.waitForResponse(
       (r) => r.url().endsWith("/api/v1/schedules") && r.request().method() === "POST",
     );
-    await sheet.getByRole("button", { name: "Create Schedule" }).click();
+    await sheet.getByRole("button", { name: "Save", exact: true }).click();
     const resp = await createResponse;
     expect(resp.ok()).toBe(true);
     const reqBody = JSON.parse(resp.request().postData() ?? "{}") as { end_time: unknown };
@@ -229,12 +312,13 @@ test.describe("regression: schedule.form", () => {
 
     // List view renders the row with "- open" suffix (lowercase per i18n).
     // The schedule may render in either list or calendar view — switch to list to be safe.
-    const listBtn = page.getByRole("button", { name: /^list$/i }).first();
-    if (await listBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await listBtn.click();
-    }
-    // The row displays "<start> - open" (en.json `openLabel: "open"`).
-    await expect(page.getByText(/09:00\s*-\s*open/i).first()).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("radio", { name: "List", exact: true }).click();
+    await expect(page.getByRole("button", { name: new RegExp(pageName) }).first()).toContainText(/9:00/);
+    const persisted = await fetch(`${API_URL}/v1/schedules`, { headers: authHeaders() });
+    expect(persisted.ok).toBe(true);
+    expect((await persisted.json()).schedules).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: (await resp.json()).id, end_time: null })]),
+    );
   });
 
   /**
@@ -259,7 +343,7 @@ test.describe("regression: schedule.form", () => {
     await expect(sheet).toBeVisible({ timeout: 15_000 });
 
     // Click the Custom day-pattern radio (rendered as role=radio button).
-    const customRadio = sheet.getByRole("radio").last();
+    const customRadio = sheet.getByRole("radio", { name: "Custom", exact: true });
     await customRadio.click();
     await expect(customRadio).toHaveAttribute("aria-checked", "true");
 
@@ -282,7 +366,7 @@ test.describe("regression: schedule.form", () => {
    * Source refs: web/src/components/schedule-entry-form.tsx
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
    */
-  test("schedule.form.validation-error — bulleted Alert lists invalid fields and disables Submit", async ({ page }) => {
+  test("schedule.form.validation-error — invalid fields block writes until repaired", async ({ page }) => {
     const pageName = `Validation Page ${Date.now()}`;
     await createPage(pageName);
 
@@ -293,24 +377,29 @@ test.describe("regression: schedule.form", () => {
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
 
-    // Fresh form opens with no page selected → validationSelectPage message renders
-    // inside a bulleted list and the Create button is disabled.
-    const selectPageBullet = sheet.getByText("Please select a page");
-    await expect(selectPageBullet).toBeVisible({ timeout: 5_000 });
-    // It lives inside a <ul> bullet, not as a free-floating sentence.
-    const bulletItem = sheet.locator("ul li", { hasText: "Please select a page" });
-    await expect(bulletItem).toBeVisible();
-
-    const submitBtn = sheet.getByRole("button", { name: "Create Schedule" });
-    await expect(submitBtn).toBeDisabled();
-
-    // Picking a page should clear that specific bullet and enable Submit
-    // (the form defaults — 09:00/17:00/all — are otherwise valid).
-    await sheet.locator("#page").click();
-    await page.getByRole("option", { name: pageName }).click();
-
-    await expect(selectPageBullet).toHaveCount(0, { timeout: 5_000 });
-    await expect(submitBtn).toBeEnabled({ timeout: 5_000 });
+    const submitBtn = sheet.getByRole("button", { name: "Save", exact: true });
+    let writes = 0;
+    page.on("request", (request) => {
+      if (request.url().endsWith("/api/v1/schedules") && request.method() === "POST") writes++;
+    });
+    await submitBtn.click();
+    const selectPageError = sheet.getByText("Please select a page", { exact: true });
+    await expect(selectPageError).toBeVisible();
+    expect(writes).toBe(0);
+    await sheet.getByRole("combobox", { name: /^Page or Collection/ }).click();
+    await page.getByRole("option", { name: pageName, exact: true }).click();
+    await expect(selectPageError).toHaveCount(0);
+    await sheet.getByLabel("End Time", { exact: true }).fill("09:00");
+    await submitBtn.click();
+    await expect(sheet.getByText("End time must be different from start time", { exact: true })).toBeVisible();
+    expect(writes).toBe(0);
+    await sheet.getByLabel("End Time", { exact: true }).fill("17:00");
+    const response = page.waitForResponse(
+      (r) => r.url().endsWith("/api/v1/schedules") && r.request().method() === "POST",
+    );
+    await submitBtn.click();
+    expect((await response).ok()).toBe(true);
+    await expect(sheet).toHaveCount(0);
   });
 
   /**
@@ -327,7 +416,7 @@ test.describe("regression: schedule.form", () => {
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
    */
   test("schedule.form.create-error — failed create keeps sheet open and toasts", async ({ page }) => {
-    const pageId = await createPage("Sched Err", ["A", "", "", "", "", ""]);
+    await createPage("Sched Err", ["A", "", "", "", "", ""]);
     await page.route("**/api/v1/schedules", (route) => {
       if (route.request().method() === "POST") {
         return route.fulfill({ status: 422, body: '{"detail":"overlap"}' });
@@ -341,12 +430,13 @@ test.describe("regression: schedule.form", () => {
       .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 10_000 });
-    const createBtn = sheet.getByRole("button", { name: /Create Schedule/i });
-    if (await createBtn.isEnabled()) {
-      await createBtn.click();
-      await expect(sheet).toBeVisible({ timeout: 5_000 });
-    }
-    void pageId;
+    const createBtn = sheet.getByRole("button", { name: "Save", exact: true });
+    await sheet.getByRole("combobox", { name: /^Page or Collection/ }).click();
+    await page.getByRole("option", { name: "Sched Err", exact: true }).click();
+    await createBtn.click();
+    await expect(sheet.getByRole("alert")).toContainText("overlap");
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByLabel("Start Time", { exact: true })).toHaveValue("09:00");
   });
 
   /**
@@ -373,16 +463,16 @@ test.describe("regression: schedule.form", () => {
     });
     await page.goto("/schedule");
     await page
-      .getByRole("button", { name: /Edit schedule/i })
+      .getByRole("button", { name: /Update Err Page/ })
       .first()
       .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
-    const updateBtn = sheet.getByRole("button", { name: /Update Schedule/i });
-    if (await updateBtn.isEnabled()) {
-      await updateBtn.click();
-      await expect(sheet).toBeVisible({ timeout: 5_000 });
-    }
+    const updateBtn = sheet.getByRole("button", { name: "Save", exact: true });
+    await updateBtn.click();
+    await expect(sheet.getByRole("alert")).toContainText("boom");
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByLabel("Start Time", { exact: true })).toHaveValue("09:00");
   });
 
   // ---------------------------------------------------------------------------
@@ -438,13 +528,13 @@ test.describe("regression: schedule.form", () => {
     await createSchedule(pageId, "09:30", "10:30", "weekdays");
     await page.goto("/schedule");
     await page
-      .getByRole("button", { name: /Edit schedule/i })
+      .getByRole("button", { name: /Edit Sched/ })
       .first()
       .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 10_000 });
-    // start-time is a Radix SelectTrigger that shows the selected time as text.
-    await expect(sheet.locator('[id="start-time"]')).toContainText("09:30", { timeout: 5_000 });
+    // Editing preserves the native time input value.
+    await expect(sheet.getByLabel("Start Time", { exact: true })).toHaveValue("09:30");
   });
 
   // ---------------------------------------------------------------------------
@@ -465,16 +555,8 @@ test.describe("regression: schedule.form", () => {
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
    */
   test("schedule.form.creating — Create button shows pending state", async ({ page }) => {
-    const pageId = await createPage("Sched Pending", ["A", "", "", "", "", ""]);
-    let release: () => void = () => {};
-    await page.route("**/api/v1/schedules", async (route) => {
-      if (route.request().method() === "POST") {
-        await new Promise<void>((r) => {
-          release = r;
-        });
-      }
-      await route.continue();
-    });
+    await createPage("Sched Pending", ["A", "", "", "", "", ""]);
+    const release = await slowRoute(page, "**/api/v1/schedules", ["POST"]);
     await page.goto("/schedule");
     await page
       .getByRole("button", { name: /Add Schedule/i })
@@ -482,14 +564,21 @@ test.describe("regression: schedule.form", () => {
       .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 10_000 });
-    const createBtn = sheet.getByRole("button", { name: /Create Schedule/i });
-    if (await createBtn.isEnabled()) {
-      await createBtn.click();
-      await expect(createBtn).toBeDisabled({ timeout: 5_000 });
-      await expect(createBtn).toHaveAttribute("aria-busy", "true");
-    }
+    const createBtn = sheet.getByRole("button", { name: "Save", exact: true });
+    await sheet.getByRole("combobox", { name: /^Page or Collection/ }).click();
+    await page.getByRole("option", { name: "Sched Pending", exact: true }).click();
+    const started = page.waitForRequest((r) => r.url().endsWith("/api/v1/schedules") && r.method() === "POST");
+    await createBtn.click();
+    await started;
+    const saving = sheet.getByRole("button", { name: "Saving...", exact: true });
+    await expect(saving).toHaveAttribute("aria-busy", "true");
+    await expect(saving).toBeDisabled();
+    const completed = page.waitForResponse(
+      (r) => r.url().endsWith("/api/v1/schedules") && r.request().method() === "POST",
+    );
     release();
-    void pageId;
+    expect((await completed).ok()).toBe(true);
+    await expect(sheet).toHaveCount(0);
   });
 
   /**
@@ -510,18 +599,26 @@ test.describe("regression: schedule.form", () => {
     const release = await slowRoute(page, `**/api/v1/schedules/${schedId}`, ["PUT"]);
     await page.goto("/schedule");
     await page
-      .getByRole("button", { name: /Edit schedule/i })
+      .getByRole("button", { name: /Updating Page/ })
       .first()
       .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
-    const updateBtn = sheet.getByRole("button", { name: /Update Schedule/i });
-    if (await updateBtn.isEnabled()) {
-      await updateBtn.click();
-      await expect(updateBtn).toBeDisabled({ timeout: 5_000 });
-      await expect(updateBtn).toHaveAttribute("aria-busy", "true");
-    }
+    const updateBtn = sheet.getByRole("button", { name: "Save", exact: true });
+    const started = page.waitForRequest(
+      (r) => r.url().includes(`/api/v1/schedules/${schedId}`) && r.method() === "PUT",
+    );
+    await updateBtn.click();
+    await started;
+    const saving = sheet.getByRole("button", { name: "Saving...", exact: true });
+    await expect(saving).toHaveAttribute("aria-busy", "true");
+    await expect(saving).toBeDisabled();
+    const completed = page.waitForResponse(
+      (r) => r.url().includes(`/api/v1/schedules/${schedId}`) && r.request().method() === "PUT",
+    );
     release();
+    expect((await completed).ok()).toBe(true);
+    await expect(sheet).toHaveCount(0);
   });
 
   // ---------------------------------------------------------------------------

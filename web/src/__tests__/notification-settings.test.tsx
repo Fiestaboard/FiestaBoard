@@ -195,6 +195,67 @@ describe("notification settings", () => {
     expect(screen.queryByText(/push service accepted/)).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["failed", { sent: 0, failed: 1, skipped: 0, expired: 0 }],
+    ["failed with skips", { sent: 0, failed: 2, skipped: 1, expired: 0 }],
+  ])("reports %s HTTP 200 counts as a failed test", async (_name, result) => {
+    server.use(http.post("/api/push/test", () => HttpResponse.json(result)));
+    await enrolled();
+    await userEvent.click(screen.getByRole("button", { name: "Send a test" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Sending the test notification failed. Try again later.",
+    );
+    expect(screen.queryByText("The test was not sent. Try again later.")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send a test" })).toBeEnabled());
+    expect(screen.getByRole("switch", { name: "Enable on this browser" })).toBeChecked();
+  });
+
+  it.each([
+    ["empty counts", { sent: 0, failed: 0, skipped: 0, expired: 0 }, "The test was not sent. Try again later."],
+    [
+      "accepted counts take precedence",
+      { sent: 1, failed: 1, skipped: 1, expired: 1 },
+      "The push service accepted the test. Check this browser for the notification.",
+    ],
+    [
+      "expired counts take precedence over failure",
+      { sent: 0, failed: 1, skipped: 1, expired: 1 },
+      "This subscription expired. Enable this browser again.",
+    ],
+  ])("preserves feedback for %s", async (_name, result, message) => {
+    server.use(http.post("/api/push/test", () => HttpResponse.json(result)));
+    await enrolled();
+    await userEvent.click(screen.getByRole("button", { name: "Send a test" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(message);
+  });
+
+  it("refreshes enrollment after an expired test subscription", async () => {
+    server.use(
+      http.post("/api/push/test", () => {
+        status = { ...status, device_enabled: false, subscribed: false, test_available: false };
+        return HttpResponse.json({ sent: 0, failed: 0, skipped: 0, expired: 1 });
+      }),
+    );
+    await enrolled();
+    await userEvent.click(screen.getByRole("button", { name: "Send a test" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "This subscription expired. Enable this browser again.",
+    );
+    await waitFor(() => expect(screen.getByRole("switch", { name: "Enable on this browser" })).not.toBeChecked());
+    expect(screen.getByRole("button", { name: "Send a test" })).toBeDisabled();
+  });
+
+  it.each([
+    [429, "Please wait a minute before sending another test."],
+    [503, "The push service could not accept the test. Try again later."],
+  ])("preserves HTTP %s test feedback", async (code, message) => {
+    server.use(http.post("/api/push/test", () => HttpResponse.json({}, { status: code })));
+    await enrolled();
+    await userEvent.click(screen.getByRole("button", { name: "Send a test" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(message);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send a test" })).toBeEnabled());
+  });
+
   it("describes accepted tests as provider acceptance, not guaranteed display", async () => {
     server.use(http.post("/api/push/test", () => HttpResponse.json({ sent: 1, failed: 0, skipped: 0, expired: 0 })));
     await enrolled();

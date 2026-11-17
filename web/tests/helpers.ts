@@ -861,9 +861,8 @@ export async function chooseVestaboardInWizard(page: Page) {
 }
 
 /**
- * Open Displays (plan D21; was Settings → Hardware): one card per display
- * (`display-card`) with its live preview, output, state and a link to its
- * page, and "Add a display".
+ * Open Displays: grouped whole-row display links (`display-card`) and the
+ * selected display's detail pane on larger screens, plus "Add a display".
  */
 export async function openDisplays(page: Page) {
   await page.goto("/displays");
@@ -876,17 +875,20 @@ export function displayCard(page: Page, name: string): Locator {
 }
 
 /**
- * Open display *name*'s page from /displays and return its settings card
- * (`board-card`: name, pause, type, colour, connection, Remove Board) —
- * what each collapsible board card on Settings → Hardware used to hold.
+ * Select display *name* by its whole row, then open Settings. Desktop rows
+ * select the detail pane first; Settings navigates to the display's page.
+ * Return virtual inline panel settings or the nonvirtual board settings card.
  */
 export async function openDisplay(page: Page, name: string): Promise<Locator> {
   await openDisplays(page);
-  await page.getByRole("link", { name: `Open settings for ${name}`, exact: true }).click();
+  await displayCard(page, name).click();
   await page.getByRole("tab", { name: "Settings", exact: true }).click();
-  const card = page.getByTestId("board-card");
-  await expect(card).toBeVisible({ timeout: 15_000 });
-  return card;
+  await expect(page).toHaveURL(
+    (url) => /\/displays\/[^/]+$/.test(url.pathname) && url.searchParams.get("section") === "settings",
+  );
+  const settings = page.getByTestId("display-panel-settings").or(page.getByTestId("board-card"));
+  await expect(settings).toBeVisible({ timeout: 15_000 });
+  return settings;
 }
 
 /** Add a distinct mock-backed Vestaboard through the two-step connection dialog. */
@@ -950,6 +952,9 @@ export async function addVestaboardDisplay(page: Page, shape: "Flagship" | "Note
     expect(board).toBeDefined();
     await expect(dialog).toHaveCount(0);
     await expect(page).toHaveURL(new RegExp(`/displays/${encodeURIComponent(board.id)}$`));
+    // The URL can update while the previous display's tabs are still mounted.
+    // Await this board's content before callers interact with its Settings tab.
+    await expect(page.getByTestId("board-card").getByTestId("board-name-input")).toHaveValue(name);
     return board.id;
   } finally {
     await page.unroute(draftRoute, handleDraft);

@@ -59,6 +59,7 @@ from dataclasses import asdict
 from typing import Any
 
 from src.output_allowlist import flush_refusal_summary
+from src.override_undo import manual_mutation
 
 from .client_hint import HINT_SOURCE_BROWSER, HINT_SOURCE_CLIENT, HINT_SOURCE_NONE
 from .errors import BoardNotFoundError, InvalidActionInputError, InvalidOutputConfigError, OutputNotInstalledError
@@ -302,6 +303,7 @@ def _execute_sync(
         lent.close()
 
 
+@manual_mutation
 async def execute_action(
     definition: OutputDefinition,
     action: str,

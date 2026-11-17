@@ -6,11 +6,13 @@
  */
 import {
   API_URL,
+  authHeaders,
   configureBoard,
   createPage,
   deleteAllPages,
   deletePage,
   expect,
+  resetToSingleBoard,
   setActivePage,
   setScheduleEnabled,
   suppressWizard,
@@ -136,8 +138,26 @@ test.describe("Page Builder", () => {
   });
 
   test("shows empty state when no pages exist", async ({ page }) => {
+    await resetToSingleBoard();
+    await setScheduleEnabled(false);
+    const anchorId = await createPage(`Empty-state Flagship anchor ${Date.now()}`);
+    await setActivePage(anchorId);
+    const selected = await fetch(`${API_URL}/v1/boards/primary`, { headers: authHeaders() });
+    expect(selected.ok).toBe(true);
+    expect(await selected.json()).toMatchObject({
+      device_type: "flagship",
+      rows: 6,
+      cols: 22,
+      schedule_enabled: false,
+      active_page_id: anchorId,
+    });
+
     // Earlier specs on this backend may leave scheduled pages. Unlink all
     // boards first; a rejected delete is a setup error, not a timing retry.
+    // The pinned anchor guarantees a compatible page for the sole Flagship.
+    // If cleanup deletes it early, the service selects another compatible
+    // page or creates a Flagship Welcome, which is outside this delete list.
+    // Thus the last deleted page cannot create a second, custom-size Welcome.
     await deleteAllPages({ strict: true, deleteSchedules: true });
 
     await page.goto("/pages");
@@ -145,6 +165,7 @@ test.describe("Page Builder", () => {
 
     const res = await fetch(`${API_URL}/pages`);
     const data = await res.json();
+    expect(data.pages.some((item: { id: string }) => item.id === anchorId)).toBe(false);
     expect(data.total).toBeLessThanOrEqual(1);
   });
 

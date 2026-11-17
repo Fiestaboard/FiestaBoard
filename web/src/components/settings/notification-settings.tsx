@@ -107,7 +107,15 @@ export function NotificationSettings() {
     try {
       const result = await pushApi.sendTest();
       if (!sameSession()) return;
-      setFeedback(result.sent > 0 ? "testSent" : result.expired > 0 ? "testExpired" : "notSent");
+      setFeedback(
+        result.sent > 0
+          ? "testSent"
+          : result.expired > 0
+            ? "testExpired"
+            : result.failed > 0
+              ? "testFailed"
+              : "notSent",
+      );
       // A provider expiry removes the server registration; do not leave the toggle stale.
       await status.refetch();
       await browser.refetch();
