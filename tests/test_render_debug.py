@@ -273,7 +273,17 @@ def test_debug_session_starts_after_plugin_context_is_built(client, monkeypatch)
     assert body["lines"][0].strip() == "3"
 
 
-@pytest.mark.parametrize("atom", ["{{FILL_SPACE}}", "{{FILLED:-}}", "{{FILL_SPACE_REPEAT:-}}"])
+@pytest.mark.parametrize(
+    "atom",
+    [
+        "{{FILL_SPACE}}",
+        "{{FILLED:-}}",
+        "{{FILL_SPACE_REPEAT:-}}",
+        "{{FILL_SPACE|wrap}}",
+        "{{FILLED:-|wrap}}",
+        "{{FILL_SPACE|upper}}",
+    ],
+)
 def test_case_insensitive_fill_origins_use_fill_kind(client, atom):
     body = render(client, ["A" + atom + "B"], {"source_map": True})
     assert origin(body, 0, 1) == {"line": 1, "start": 1, "end": 1 + len(atom), "kind": "fill"}
@@ -305,3 +315,11 @@ def test_formula_with_quoted_wrap_filter_keeps_default_output(client, monkeypatc
     debug = render(client, template, {"source_map": True})
     assert debug["rendered"] == baseline["rendered"]
     assert debug["lines"] == baseline["lines"]
+
+
+@pytest.mark.parametrize("source", ["fill_space_demo", "fill_space_repeat_demo", "fill_space", "filled"])
+def test_variable_names_resembling_fill_directives_remain_variables(client, source):
+    atom = "{{" + source + ".word}}"
+    body = render(client, [atom], {"source_map": True}, preview={"values": {source + ".word": "A"}})
+    assert body["lines"][0].strip() == "A"
+    assert origin(body, 0, 0) == {"line": 1, "start": 0, "end": len(atom), "kind": "variable"}

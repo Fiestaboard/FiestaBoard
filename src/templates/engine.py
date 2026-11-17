@@ -65,6 +65,13 @@ from .source_map import concat, mapped_like, sub
 
 logger = logging.getLogger(__name__)
 
+
+def _variable_source_kind(expression: str) -> str:
+    """Recognize only the special fill grammar, before any filter chain."""
+    variable = expression.split("|", 1)[0].strip().lower()
+    return "fill" if variable == "fill_space" or variable.startswith(("filled:", "fill_space_repeat:")) else "variable"
+
+
 # Symbol shortcut -> legacy ASCII stand-in. This is what `{sun}` renders as
 # with extended markup off (today, on every board). With extended markup on,
 # a shortcut is an alias of the icon registry instead (plan D16): `{sun}` is
@@ -1120,7 +1127,7 @@ class TemplateEngine:
             original = (
                 projection.authored_slice(match_start, match_end) if projection else template[match_start:match_end]
             )
-            value = authored(self._as_data(var_part, value), original, "variable")
+            value = authored(self._as_data(var_part, value), original, _variable_source_kind(var_part))
 
             # Get prefix and suffix around the variable
             prefix = projection.prepared_slice(0, match_start) if projection else template[:match_start]
@@ -1565,7 +1572,7 @@ class TemplateEngine:
             lambda m: authored(
                 replace_var(m),
                 template[m.start() : m.end()],
-                "fill" if m.group(1).strip().lower().startswith(("fill_space", "filled:")) else "variable",
+                _variable_source_kind(m.group(1)),
             ),
             template,
         )
