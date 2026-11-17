@@ -125,4 +125,41 @@ describe("Collection editor layout", () => {
       }),
     );
   });
+  it("locks rule mutations and mode changes until a lifted rule is dropped or canceled", async () => {
+    const user = userEvent.setup();
+    const { container } = renderForm("variable");
+    container.querySelector<HTMLElement>("#collection-rule-0")!.focus();
+    await user.keyboard(" ");
+    expect(screen.getByRole("button", { name: "More actions for rule 1" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "More actions for rule 2" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add Rule" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Random selection" })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "More actions for rule 1" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+  it("keeps phone settings collapsible without losing name edits", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(max-width: 767.98px)" || query === "(pointer: coarse)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    try {
+      const user = userEvent.setup();
+      const { onSubmit } = renderForm();
+      expect(screen.getByLabelText("Collection name")).not.toBeVisible();
+      await user.click(screen.getByRole("button", { name: "Collection settings" }));
+      const name = screen.getByLabelText("Collection name");
+      expect(name).toBeVisible();
+      await user.clear(name);
+      await user.type(name, "Changed on phone");
+      await user.click(screen.getByRole("button", { name: "Collection settings" }));
+      expect(name).not.toBeVisible();
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: "Changed on phone" }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

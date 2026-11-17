@@ -57,6 +57,7 @@ interface VariableRuleRowProps {
   selectablePageIds: string[];
   isEditing: boolean;
   isLifted: boolean;
+  actionsDisabled?: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onMoveUp: () => void;
@@ -84,6 +85,7 @@ export function VariableRuleRow({
   selectablePageIds,
   isEditing,
   isLifted,
+  actionsDisabled = false,
   canMoveUp,
   canMoveDown,
   onMoveUp,
@@ -289,6 +291,7 @@ export function VariableRuleRow({
               {t("ruleWhen")}
             </Text>
             <Input
+              disabled={actionsDisabled}
               readOnly
               value={summaryExpression}
               aria-label={t("variableExpressionAriaLabel", { index: index + 1 })}
@@ -303,7 +306,13 @@ export function VariableRuleRow({
             </Text>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="icon" aria-label={t("ruleActions", { number: index + 1 })}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={actionsDisabled}
+                  aria-label={t("ruleActions", { number: index + 1 })}
+                >
                   <Ellipsis aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>

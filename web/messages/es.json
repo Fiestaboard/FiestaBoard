@@ -416,7 +416,7 @@
     "discardAndLeave": "Descartar y salir",
     "retryButton": "Reintentar",
     "editorNameLabel": "Nombre de la colección",
-    "editorMeta": "Colección · {count} páginas",
+    "editorMeta": "Colección · {count, plural, one {# página} other {# páginas}}",
     "ruleCount": "{count} reglas + predeterminada",
     "randomEvery": "Aleatorio cada {duration}",
     "rotationTotal": "{duration} · se repite",
@@ -444,7 +444,12 @@
     "testSavedDescription": "Evalúa la colección guardada con datos en caché. Esto no cambia ninguna pantalla.",
     "evaluatedPage": "Seleccionada: {name}",
     "evaluationDefault": "Página predeterminada · ninguna regla coincidió",
-    "evaluationRule": "Se cumplió la regla {number}"
+    "evaluationRule": "Se cumplió la regla {number}",
+    "safetyLoading": "Cargando el estado de la pantalla…",
+    "safetyUnavailable": "No se pudo cargar el estado de la pantalla. Inténtalo de nuevo antes de mostrar esta colección.",
+    "selectedBadge": "Seleccionada",
+    "defaultHint": "Si ninguna regla coincide, mostrar",
+    "collectionSettings": "Configuración de la colección"
   },
   "schedule": {
     "title": "Horario",

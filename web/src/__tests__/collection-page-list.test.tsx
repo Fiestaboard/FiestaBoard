@@ -279,4 +279,18 @@ describe("CollectionPageList, missing pages", () => {
     expect(rowOf("gone")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More actions for gone" })).toBeInTheDocument();
   });
+  it("marks the evaluated random member without claiming physical display state", () => {
+    render(
+      <CollectionPageList
+        pageIds={["p1", "p2"]}
+        pages={pages}
+        mode="random"
+        evaluatedPageId="p2"
+        onMove={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Selected")).toBeInTheDocument();
+    expect(screen.queryByText("Showing now")).not.toBeInTheDocument();
+  });
 });

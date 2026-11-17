@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Card,
   DropdownMenu,
@@ -37,6 +38,8 @@ export interface CollectionPageListProps {
   /** Move the member at `from` to `to` (SortableList's controlled `onMove`). */
   onMove: (from: number, to: number) => void;
   onRemove: (index: number) => void;
+  disabled?: boolean;
+  evaluatedPageId?: string | null;
 }
 
 interface Member {
@@ -73,7 +76,15 @@ function shapeLabel(page: Page | undefined, t: Translate): string | null {
  * variable lists have no order, so they are one inset group with an × per
  * page and no handles (07c `312:76483`).
  */
-export function CollectionPageList({ pageIds, pages, mode, onMove, onRemove }: CollectionPageListProps) {
+export function CollectionPageList({
+  pageIds,
+  pages,
+  mode,
+  onMove,
+  onRemove,
+  disabled = false,
+  evaluatedPageId,
+}: CollectionPageListProps) {
   const t = useTranslations("collections");
   const coarse = useCoarsePointer();
   const size = coarse ? "touch" : "default";
@@ -103,7 +114,7 @@ export function CollectionPageList({ pageIds, pages, mode, onMove, onRemove }: C
 
   if (mode !== "time") {
     return (
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden p-0 gap-0">
         <List gap="0" role="list">
           {members.map((member, index) => (
             <ListRow
@@ -112,17 +123,21 @@ export function CollectionPageList({ pageIds, pages, mode, onMove, onRemove }: C
               size={size}
               title={member.name}
               meta={
-                member.shape ? (
-                  <Text as="span" size="xs" tone="muted">
-                    {member.shape}
-                  </Text>
-                ) : null
+                <Flex gap="3" align="center" wrap>
+                  {member.id === evaluatedPageId && <Badge variant="success">{t("selectedBadge")}</Badge>}
+                  {member.shape && (
+                    <Text as="span" size="xs" tone="muted">
+                      {member.shape}
+                    </Text>
+                  )}
+                </Flex>
               }
               trailing={
                 <Button
                   type="button"
                   variant="ghost"
                   size={coarse ? "touch" : "icon-lg"}
+                  disabled={disabled}
                   aria-label={t("removePage", { name: member.name })}
                   onClick={() => onRemove(index)}
                 >

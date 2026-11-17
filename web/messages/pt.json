@@ -416,7 +416,7 @@
     "discardAndLeave": "Descartar e sair",
     "retryButton": "Tentar novamente",
     "editorNameLabel": "Nome da coleção",
-    "editorMeta": "Coleção · {count} páginas",
+    "editorMeta": "Coleção · {count, plural, one {# página} other {# páginas}}",
     "ruleCount": "{count} regras + padrão",
     "randomEvery": "Aleatório a cada {duration}",
     "rotationTotal": "{duration} · repete",
@@ -444,7 +444,12 @@
     "testSavedDescription": "Avalie a coleção salva usando dados em cache. Isso não altera nenhuma tela.",
     "evaluatedPage": "Selecionada: {name}",
     "evaluationDefault": "Página padrão · nenhuma regra correspondeu",
-    "evaluationRule": "A regra {number} correspondeu"
+    "evaluationRule": "A regra {number} correspondeu",
+    "safetyLoading": "Carregando o estado da tela…",
+    "safetyUnavailable": "Não foi possível carregar o estado da tela. Tente novamente antes de mostrar esta coleção.",
+    "selectedBadge": "Selecionada",
+    "defaultHint": "Se nenhuma regra corresponder, mostrar",
+    "collectionSettings": "Configurações da coleção"
   },
   "schedule": {
     "title": "Agenda",

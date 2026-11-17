@@ -416,7 +416,7 @@
     "discardAndLeave": "Verwerfen und verlassen",
     "retryButton": "Erneut versuchen",
     "editorNameLabel": "Name der Sammlung",
-    "editorMeta": "Sammlung · {count} Seiten",
+    "editorMeta": "Sammlung · {count, plural, one {# Seite} other {# Seiten}}",
     "ruleCount": "{count} Regeln + Standardseite",
     "randomEvery": "Zufällig alle {duration}",
     "rotationTotal": "{duration} · wiederholt sich",
@@ -444,7 +444,12 @@
     "testSavedDescription": "Werte die gespeicherte Sammlung mit zwischengespeicherten Daten aus. Die Anzeige auf den Geräten bleibt unverändert.",
     "evaluatedPage": "Ausgewählt: {name}",
     "evaluationDefault": "Standardseite · keine Regel traf zu",
-    "evaluationRule": "Regel {number} traf zu"
+    "evaluationRule": "Regel {number} traf zu",
+    "safetyLoading": "Anzeigestatus wird geladen…",
+    "safetyUnavailable": "Der Anzeigestatus konnte nicht geladen werden. Versuche es erneut, bevor du diese Sammlung anzeigst.",
+    "selectedBadge": "Ausgewählt",
+    "defaultHint": "Wenn keine Regel zutrifft, zeige",
+    "collectionSettings": "Sammlungseinstellungen"
   },
   "schedule": {
     "title": "Zeitplan",

@@ -416,7 +416,7 @@
     "discardAndLeave": "破棄して終了",
     "retryButton": "再試行",
     "editorNameLabel": "コレクション名",
-    "editorMeta": "コレクション · {count}ページ",
+    "editorMeta": "コレクション · {count, plural, one {# ページ} other {# ページ}}",
     "ruleCount": "{count}件のルール + デフォルト",
     "randomEvery": "{duration}ごとにランダム選択",
     "rotationTotal": "{duration} · 繰り返し",
@@ -444,7 +444,12 @@
     "testSavedDescription": "キャッシュデータを使用して保存済みコレクションを評価します。ディスプレイの表示は変更されません。",
     "evaluatedPage": "選択されたページ：{name}",
     "evaluationDefault": "デフォルトページ · 一致するルールなし",
-    "evaluationRule": "ルール{number}に一致"
+    "evaluationRule": "ルール{number}に一致",
+    "safetyLoading": "ディスプレイの状態を読み込み中…",
+    "safetyUnavailable": "ディスプレイの状態を読み込めませんでした。このコレクションを表示する前に、もう一度お試しください。",
+    "selectedBadge": "選択中",
+    "defaultHint": "どのルールにも一致しない場合の表示",
+    "collectionSettings": "コレクション設定"
   },
   "schedule": {
     "title": "スケジュール",

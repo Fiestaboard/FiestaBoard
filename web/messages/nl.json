@@ -416,7 +416,7 @@
     "discardAndLeave": "Verwerpen en verlaten",
     "retryButton": "Opnieuw proberen",
     "editorNameLabel": "Naam van de collectie",
-    "editorMeta": "Collectie · {count} pagina’s",
+    "editorMeta": "Collectie · {count, plural, one {# pagina} other {# pagina's}}",
     "ruleCount": "{count} regels + standaardpagina",
     "randomEvery": "Willekeurig elke {duration}",
     "rotationTotal": "{duration} · herhaalt zich",
@@ -444,7 +444,12 @@
     "testSavedDescription": "Evalueer de opgeslagen collectie met gegevens uit de cache. Dit verandert geen enkel scherm.",
     "evaluatedPage": "Geselecteerd: {name}",
     "evaluationDefault": "Standaardpagina · geen regel kwam overeen",
-    "evaluationRule": "Regel {number} kwam overeen"
+    "evaluationRule": "Regel {number} kwam overeen",
+    "safetyLoading": "Schermstatus laden…",
+    "safetyUnavailable": "De schermstatus kon niet worden geladen. Probeer het opnieuw voordat je deze collectie toont.",
+    "selectedBadge": "Geselecteerd",
+    "defaultHint": "Als geen regel overeenkomt, toon",
+    "collectionSettings": "Collectie-instellingen"
   },
   "schedule": {
     "title": "Planning",

@@ -1,4 +1,4 @@
-import { Card, Stack, StaticBoardDisplay, Text } from "@fiestaboard/ui";
+import { Box, Card, Flex, Stack, StaticBoardDisplay, Text } from "@fiestaboard/ui";
 
 import { BoardViewport } from "@/components/board-viewport";
 import { usePagePreview } from "@/hooks/use-board";
@@ -12,10 +12,19 @@ export interface CollectionPreviewProps {
   dirty: boolean;
   loading: boolean;
   failed: boolean;
+  historical?: boolean;
 }
 
 /** A saved-state evaluation, never physical board readback or a guess at a draft. */
-export function CollectionPreview({ evaluation, pages, mode, dirty, loading, failed }: CollectionPreviewProps) {
+export function CollectionPreview({
+  evaluation,
+  pages,
+  mode,
+  dirty,
+  loading,
+  failed,
+  historical = false,
+}: CollectionPreviewProps) {
   const t = useTranslations("collections");
   const tb = useTranslations("boardDisplay");
   const locale = useLocale();
@@ -33,9 +42,13 @@ export function CollectionPreview({ evaluation, pages, mode, dirty, loading, fai
   const time = evaluation?.at ? new Date(evaluation.at) : null;
   const formattedTime = time && Number.isFinite(time.getTime()) ? time.toLocaleString(locale) : "";
   return (
-    <Card className="p-4 min-w-0">
+    <Card
+      role="region"
+      aria-label={t(historical ? "testAtTime" : "nowInCollection")}
+      className="p-4 md:p-3 lg:p-4 min-w-0"
+    >
       <Stack gap="3">
-        <Text size="sm" weight="semibold">
+        <Text size="sm" weight="semibold" className="md:hidden lg:block">
           {t("nowInCollection")}
         </Text>
         {dirty ? (
@@ -55,42 +68,51 @@ export function CollectionPreview({ evaluation, pages, mode, dirty, loading, fai
             {t("evaluationEmpty")}
           </Text>
         ) : (
-          <>
-            {preview.isError ? (
-              <Text size="sm" tone="muted">
-                {t("evaluationUnavailable")}
+          <Flex direction="col" gap="4" className="min-w-0 md:flex-row lg:flex-col">
+            <Box
+              data-testid="collection-preview-board"
+              aria-busy={preview.isFetching}
+              className="min-w-0 md:w-[373px] md:shrink-0 lg:w-auto"
+            >
+              {preview.isError ? (
+                <Text size="sm" tone="muted">
+                  {t("evaluationUnavailable")}
+                </Text>
+              ) : mode === "random" ? (
+                <BoardViewport
+                  {...geometry}
+                  message={preview.data?.message ?? null}
+                  isLoading={preview.isLoading}
+                  size="sm"
+                />
+              ) : (
+                <Box role="region" tabIndex={0} aria-label={tb("preview")} className="overflow-x-auto">
+                  <StaticBoardDisplay
+                    {...geometry}
+                    message={preview.data?.message ?? null}
+                    size="sm"
+                    emptyLabel={tb("empty")}
+                    messageLabel={(message) => tb("withMessage", { message })}
+                  />
+                </Box>
+              )}
+            </Box>
+            <Stack gap="2" className="min-w-0 md:flex-1 md:justify-center">
+              <Text size="xs" weight="medium">
+                {t("evaluatedPage", { name: selected.name })}
               </Text>
-            ) : mode === "random" ? (
-              <BoardViewport
-                {...geometry}
-                message={preview.data?.message ?? null}
-                isLoading={preview.isLoading}
-                size="sm"
-              />
-            ) : (
-              <StaticBoardDisplay
-                {...geometry}
-                message={preview.data?.message ?? null}
-                size="sm"
-                className="max-w-full"
-                emptyLabel={tb("empty")}
-                messageLabel={(message) => tb("withMessage", { message })}
-              />
-            )}
-            <Text size="xs" weight="medium">
-              {t("evaluatedPage", { name: selected.name })}
-            </Text>
-            {mode === "variable" && (
+              {mode === "variable" && (
+                <Text size="xs" tone="muted">
+                  {evaluation?.matched_rule == null
+                    ? t("evaluationDefault")
+                    : t("evaluationRule", { number: evaluation.matched_rule + 1 })}
+                </Text>
+              )}
               <Text size="xs" tone="muted">
-                {evaluation?.matched_rule == null
-                  ? t("evaluationDefault")
-                  : t("evaluationRule", { number: evaluation.matched_rule + 1 })}
+                {t("savedEvaluation", { time: formattedTime })}
               </Text>
-            )}
-            <Text size="xs" tone="muted">
-              {t("savedEvaluation", { time: formattedTime })}
-            </Text>
-          </>
+            </Stack>
+          </Flex>
         )}
       </Stack>
     </Card>

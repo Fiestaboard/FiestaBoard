@@ -416,7 +416,7 @@
     "discardAndLeave": "버리고 나가기",
     "retryButton": "다시 시도",
     "editorNameLabel": "컬렉션 이름",
-    "editorMeta": "컬렉션 · 페이지 {count}개",
+    "editorMeta": "컬렉션 · {count, plural, one {# 페이지} other {# 페이지}}",
     "ruleCount": "규칙 {count}개 + 기본 페이지",
     "randomEvery": "{duration}마다 무작위 선택",
     "rotationTotal": "{duration} · 반복",
@@ -444,7 +444,12 @@
     "testSavedDescription": "캐시된 데이터로 저장된 컬렉션을 평가합니다. 디스플레이의 표시는 변경되지 않습니다.",
     "evaluatedPage": "선택됨: {name}",
     "evaluationDefault": "기본 페이지 · 일치하는 규칙 없음",
-    "evaluationRule": "규칙 {number} 일치"
+    "evaluationRule": "규칙 {number} 일치",
+    "safetyLoading": "디스플레이 상태 불러오는 중…",
+    "safetyUnavailable": "디스플레이 상태를 불러오지 못했습니다. 이 컬렉션을 표시하기 전에 다시 시도하세요.",
+    "selectedBadge": "선택됨",
+    "defaultHint": "일치하는 규칙이 없으면 표시",
+    "collectionSettings": "컬렉션 설정"
   },
   "schedule": {
     "title": "스케줄",

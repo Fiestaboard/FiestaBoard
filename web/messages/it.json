@@ -416,7 +416,7 @@
     "discardAndLeave": "Ignora ed esci",
     "retryButton": "Riprova",
     "editorNameLabel": "Nome della raccolta",
-    "editorMeta": "Raccolta · {count} pagine",
+    "editorMeta": "Raccolta · {count, plural, one {# pagina} other {# pagine}}",
     "ruleCount": "{count} regole + predefinita",
     "randomEvery": "Casuale ogni {duration}",
     "rotationTotal": "{duration} · si ripete",
@@ -444,7 +444,12 @@
     "testSavedDescription": "Valuta la raccolta salvata usando i dati nella cache. Nessun display verrà modificato.",
     "evaluatedPage": "Selezionata: {name}",
     "evaluationDefault": "Pagina predefinita · nessuna regola corrispondente",
-    "evaluationRule": "La regola {number} corrisponde"
+    "evaluationRule": "La regola {number} corrisponde",
+    "safetyLoading": "Caricamento dello stato del display…",
+    "safetyUnavailable": "Impossibile caricare lo stato del display. Riprova prima di mostrare questa raccolta.",
+    "selectedBadge": "Selezionata",
+    "defaultHint": "Se nessuna regola corrisponde, mostra",
+    "collectionSettings": "Impostazioni della raccolta"
   },
   "schedule": {
     "title": "Programmazione",

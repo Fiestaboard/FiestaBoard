@@ -416,7 +416,7 @@
     "discardAndLeave": "Odrzuć i wyjdź",
     "retryButton": "Spróbuj ponownie",
     "editorNameLabel": "Nazwa kolekcji",
-    "editorMeta": "Kolekcja · {count} str.",
+    "editorMeta": "Kolekcja · {count, plural, one {# strona} few {# strony} many {# stron} other {# stron}}",
     "ruleCount": "Reguły: {count} + domyślna",
     "randomEvery": "Losowo co {duration}",
     "rotationTotal": "{duration} · powtarzanie",
@@ -444,7 +444,12 @@
     "testSavedDescription": "Sprawdź zapisaną kolekcję na podstawie danych z pamięci podręcznej. Nie zmieni to zawartości żadnego wyświetlacza.",
     "evaluatedPage": "Wybrano: {name}",
     "evaluationDefault": "Strona domyślna · żadna reguła nie pasuje",
-    "evaluationRule": "Reguła {number} pasuje"
+    "evaluationRule": "Reguła {number} pasuje",
+    "safetyLoading": "Wczytywanie stanu wyświetlacza…",
+    "safetyUnavailable": "Nie udało się wczytać stanu wyświetlacza. Spróbuj ponownie przed wyświetleniem tej kolekcji.",
+    "selectedBadge": "Wybrano",
+    "defaultHint": "Jeśli żadna reguła nie pasuje, pokaż",
+    "collectionSettings": "Ustawienia kolekcji"
   },
   "schedule": {
     "title": "Harmonogram",

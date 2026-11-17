@@ -60,6 +60,7 @@ test("mode chips save random selection without an invented no-repeat flag", asyn
 test("07c parity evidence at three widths in both themes and every mode", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   const { ids, collection } = await seed();
+  const cdp = await page.context().newCDPSession(page);
   for (const mode of ["time", "random", "variable"] as const) {
     const response = await fetch(`${API_URL}/v1/collections/${encodeURIComponent(collection.id)}`, {
       method: "PUT",
@@ -81,8 +82,9 @@ test("07c parity evidence at three widths in both themes and every mode", async 
       }),
     });
     expect(response.ok).toBe(true);
-    for (const width of [390, 768, 1280]) {
+    for (const width of [390, 768, 900, 1280]) {
       await page.setViewportSize({ width, height: 1000 });
+      await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: width === 390, maxTouchPoints: 1 });
       for (const theme of ["light", "dark"]) {
         await page.addInitScript((value) => {
           localStorage.setItem("theme", value);
@@ -91,12 +93,25 @@ test("07c parity evidence at three widths in both themes and every mode", async 
         await page.goto(`/collections/${encodeURIComponent(collection.id)}`);
         await page.reload();
         await expect(page.getByRole("button", { name: "Save", exact: true })).toBeVisible();
-        await expect(page.getByText(/Saved Collection · cached data/)).toBeVisible();
+        if (width === 390) {
+          await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+          await expect(page.getByText(/Saved Collection · cached data/)).toBeAttached();
+          await expect(page.getByRole("button", { name: "Collection settings", exact: true })).toBeVisible();
+        } else await expect(page.getByText(/Saved Collection · cached data/)).toBeVisible();
+        await expect(page.getByTestId("collection-preview-board")).toHaveAttribute("aria-busy", "false");
         await page.evaluate((value) => {
           document.documentElement.classList.toggle("dark", value === "dark");
           document.documentElement.classList.add("reduce-motion");
         }, theme);
         await expect(page.locator("form")).toBeVisible();
+        if ((width === 768 || width === 900) && mode === "time") {
+          const preview = page.getByRole("region", { name: "Now in this Collection", exact: true });
+          const board = await preview.getByRole("img").boundingBox();
+          const caption = await preview.getByText(/^Selected:/).boundingBox();
+          expect(board).not.toBeNull();
+          expect(caption).not.toBeNull();
+          expect(caption!.x).toBeGreaterThan(board!.x + board!.width);
+        }
         const overflowing = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
         expect(overflowing).toBe(false);
         if (width === 1280) {
@@ -111,6 +126,15 @@ test("07c parity evidence at three widths in both themes and every mode", async 
         const path = testInfo.outputPath(name);
         await page.screenshot({ path, fullPage: true, animations: "disabled" });
         await testInfo.attach(name, { path, contentType: "image/png" });
+        if (width === 390 && theme === "light") {
+          await page.getByRole("button", { name: "Collection settings", exact: true }).click();
+          await expect(page.getByLabel("Collection name")).toBeVisible();
+          await page.getByRole("button", { name: "Now in this Collection", exact: true }).click();
+          await expect(page.getByText(/Saved Collection · cached data/)).toBeVisible();
+          const expanded = testInfo.outputPath(`impl-390-light-${mode}-expanded.png`);
+          await page.screenshot({ path: expanded, fullPage: true, animations: "disabled" });
+          await testInfo.attach(`impl-390-light-${mode}-expanded.png`, { path: expanded, contentType: "image/png" });
+        }
       }
     }
   }

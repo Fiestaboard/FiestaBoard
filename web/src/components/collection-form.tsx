@@ -38,6 +38,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useSt
 import { toast } from "sonner";
 
 import { CollectionPageList } from "@/components/collection-page-list";
+import { useMediaQuery } from "@/components/home/use-media-query";
 import { VariableRuleRow } from "@/components/variable-rule-row";
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useLocale, useTranslations } from "@/i18n/translations";
@@ -155,6 +156,7 @@ interface CollectionFormProps {
   onShowNow?: () => void;
   onTestAtTime?: () => void;
   preview?: (dirty: boolean) => ReactNode;
+  evaluatedPageId?: string | null;
   ruleResults?: Array<{ index: number; value: string; error: string | null; message: string | null; matched: boolean }>;
 }
 
@@ -169,6 +171,7 @@ export function CollectionForm({
   onTestAtTime,
   preview,
   ruleResults,
+  evaluatedPageId,
 }: CollectionFormProps) {
   const t = useTranslations("collections");
   const tc = useTranslations("common");
@@ -180,6 +183,9 @@ export function CollectionForm({
     );
   };
   const isEdit = Boolean(collection);
+  const phone = useMediaQuery("(max-width: 767.98px)");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const [name, setName] = useState(collection?.name || "");
   const [selectedPageIds, setSelectedPageIds] = useState<string[]>(collection?.page_ids || []);
@@ -231,7 +237,7 @@ export function CollectionForm({
     pollSeconds,
   });
   const [initialSnapshot] = useState(snapshot);
-  const dirty = snapshot !== initialSnapshot || editingRuleDirty || newRuleIndex !== null;
+  const dirty = snapshot !== initialSnapshot || editingRuleDirty || newRuleIndex !== null || liftedRule !== null;
   useEffect(() => {
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
@@ -484,16 +490,16 @@ export function CollectionForm({
 
   return (
     <Box as="form" onSubmit={handleSubmit} className="space-y-5 min-w-0">
-      <Flex align="center" gap="3" wrap>
+      <Flex align="center" gap="3" wrap className="max-md:flex-col max-md:items-start">
         <Button type="button" variant="ghost" size={coarsePointer ? "touch" : "default"} onClick={onCancel}>
           <ChevronLeft aria-hidden="true" />
           {t("title")}
         </Button>
-        <Stack gap="0.5" className="flex-1 min-w-40">
+        <Stack gap="0.5" className="flex-1 min-w-40 max-md:flex-none max-md:w-full">
           <Heading level={1} size="2xl">
             {name || t(isEdit ? "editCollection" : "newCollection")}
           </Heading>
-          <Text size="xs" tone="muted" className="font-mono uppercase">
+          <Text size="xs" tone="muted" className="font-mono uppercase max-md:hidden">
             {t("editorMeta", { count: selectedPageIds.length })} ·{" "}
             {selectionMode === "variable"
               ? t("ruleCount", { count: rules.length })
@@ -507,7 +513,7 @@ export function CollectionForm({
         </Stack>
         <Flex gap="2" wrap>
           {isEdit && onDelete && (
-            <Button type="button" variant="ghost" onClick={onDelete} disabled={isSubmitting}>
+            <Button type="button" variant="ghost" onClick={onDelete} disabled={isSubmitting || liftedRule !== null}>
               <Trash2 aria-hidden="true" />
               {t("deleteAction")}
             </Button>
@@ -523,111 +529,163 @@ export function CollectionForm({
           </Button>
         </Flex>
       </Flex>
-      <Box className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,405px)]">
-        {preview && <Box className="min-w-0 lg:col-start-2 lg:row-start-1">{preview(dirty)}</Box>}
-        <Card className="min-w-0 p-4 md:p-6 lg:col-start-1 lg:row-start-1">
-          <Stack gap="5">
-            {/* Name */}
-            <Stack gap="2">
-              <Label htmlFor="collection-name">{t("editorNameLabel")}</Label>
-              <Input
-                className="max-w-[260px]"
-                id="collection-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("namePlaceholder")}
-                maxLength={100}
-              />
-            </Stack>
-
-            {/* Selection mode */}
-            <Stack gap="2">
-              <Label id="collection-mode-label">{t("selectionModeLabel")}</Label>
-              <SegmentedControl
-                aria-labelledby="collection-mode-label"
-                value={selectionMode}
-                onValueChange={(v) => {
-                  if (v) setSelectionMode(v as CollectionSelectionMode);
-                }}
-                wrap
-                className="max-w-full"
-                size={coarsePointer ? "touch" : "md"}
-              >
-                <SegmentedControlItem value="time">{t("modeTimeLabel")}</SegmentedControlItem>
-                <SegmentedControlItem value="random">{t("modeRandomLabel")}</SegmentedControlItem>
-                <SegmentedControlItem value="variable">{t("modeVariableLabel")}</SegmentedControlItem>
-              </SegmentedControl>
-            </Stack>
-
-            {/* Page-duration controls (time + random modes) */}
-            {(selectionMode === "time" || selectionMode === "random") && (
-              <Stack gap="2">
-                <Label htmlFor="collection-interval">
-                  {t(selectionMode === "random" ? "changeEvery" : "pageDurationLabel")}
-                </Label>
-                <Text size="xs" tone="muted">
-                  {selectionMode === "random" ? t("randomDurationDescription") : t("pageDurationDescription")}
+      <Box className="relative min-w-0 lg:pe-[429px]">
+        <Box className="relative min-w-0">
+          <Card aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block" />
+          <Stack gap="5" className="relative lg:p-6">
+            {phone && (
+              <Flex gap="2" align="center" wrap>
+                <Badge variant="outline">
+                  {t(
+                    selectionMode === "time"
+                      ? "modeTimeLabel"
+                      : selectionMode === "random"
+                        ? "modeRandomLabel"
+                        : "modeVariableLabel",
+                  )}
+                </Badge>
+                <Text size="sm" tone="muted">
+                  {tc("pageCount", { count: selectedPageIds.length })}
                 </Text>
-                <Select
-                  value={isCustomInterval ? CUSTOM_INTERVAL : String(intervalSeconds)}
-                  onValueChange={handleIntervalChange}
-                >
-                  <SelectTrigger id="collection-interval">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INTERVAL_PRESETS.map((p) => (
-                      <SelectItem key={p.value} value={String(p.value)}>
-                        {t(p.labelKey)}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value={CUSTOM_INTERVAL}>{t("intervalCustom")}</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {isCustomInterval && (
-                  <Flex gap="2" align="end" className="flex-wrap">
-                    <Stack gap="1" className="flex-1 min-w-[7rem]">
-                      <Label htmlFor="collection-interval-amount">{t("customDurationLabel")}</Label>
-                      <Input
-                        id="collection-interval-amount"
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        value={customAmount}
-                        onChange={(e) => setCustomAmount(e.target.value)}
-                        aria-invalid={customIntervalInvalid || undefined}
-                        aria-describedby={customIntervalInvalid ? "collection-interval-error" : undefined}
-                      />
-                    </Stack>
-                    <Stack gap="1" className="w-40">
-                      <Label htmlFor="collection-interval-unit">{t("customDurationUnitLabel")}</Label>
-                      <Select value={customUnit} onValueChange={(v) => v && setCustomUnit(v as IntervalUnit)}>
-                        <SelectTrigger id="collection-interval-unit">
+              </Flex>
+            )}
+            <Collapsible open={!phone || settingsOpen} onOpenChange={setSettingsOpen}>
+              {phone && (
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="outline" disabled={liftedRule !== null}>
+                    {t("collectionSettings")}
+                  </Button>
+                </CollapsibleTrigger>
+              )}
+              <CollapsibleContent keepMounted>
+                <Stack gap="5">
+                  {" "}
+                  {/* Name */}
+                  <Stack gap="2">
+                    <Label htmlFor="collection-name">{t("editorNameLabel")}</Label>
+                    <Input
+                      className="max-w-[260px]"
+                      disabled={liftedRule !== null}
+                      id="collection-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={t("namePlaceholder")}
+                      maxLength={100}
+                    />
+                  </Stack>
+                  {/* Selection mode */}
+                  <Stack gap="2">
+                    <Label id="collection-mode-label">{t("selectionModeLabel")}</Label>
+                    <SegmentedControl
+                      disabled={liftedRule !== null}
+                      aria-labelledby="collection-mode-label"
+                      value={selectionMode}
+                      onValueChange={(v) => {
+                        if (v) setSelectionMode(v as CollectionSelectionMode);
+                      }}
+                      wrap
+                      className="max-w-full"
+                      size={coarsePointer ? "touch" : "md"}
+                    >
+                      <SegmentedControlItem value="time">{t("modeTimeLabel")}</SegmentedControlItem>
+                      <SegmentedControlItem value="random">{t("modeRandomLabel")}</SegmentedControlItem>
+                      <SegmentedControlItem value="variable">{t("modeVariableLabel")}</SegmentedControlItem>
+                    </SegmentedControl>
+                  </Stack>
+                  {/* Page-duration controls (time + random modes) */}
+                  {(selectionMode === "time" || selectionMode === "random") && (
+                    <Stack
+                      gap="2"
+                      className={selectionMode === "random" ? "flex-row flex-wrap items-center" : undefined}
+                    >
+                      <Label htmlFor="collection-interval">
+                        {t(selectionMode === "random" ? "changeEvery" : "pageDurationLabel")}
+                      </Label>
+                      {selectionMode === "time" && (
+                        <Text size="xs" tone="muted">
+                          {t("pageDurationDescription")}
+                        </Text>
+                      )}
+                      <Select
+                        value={isCustomInterval ? CUSTOM_INTERVAL : String(intervalSeconds)}
+                        onValueChange={handleIntervalChange}
+                      >
+                        <SelectTrigger
+                          id="collection-interval"
+                          className={selectionMode === "random" ? "w-[110px]" : undefined}
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {UNIT_OPTIONS.map((u) => (
-                            <SelectItem key={u.value} value={u.value}>
-                              {t(u.labelKey)}
+                          {INTERVAL_PRESETS.map((p) => (
+                            <SelectItem key={p.value} value={String(p.value)}>
+                              {t(p.labelKey)}
                             </SelectItem>
                           ))}
+                          <SelectItem value={CUSTOM_INTERVAL}>{t("intervalCustom")}</SelectItem>
                         </SelectContent>
                       </Select>
+
+                      {isCustomInterval && (
+                        <Flex gap="2" align="end" className="flex-wrap">
+                          <Stack gap="1" className="flex-1 min-w-[7rem]">
+                            <Label htmlFor="collection-interval-amount">{t("customDurationLabel")}</Label>
+                            <Input
+                              id="collection-interval-amount"
+                              type="number"
+                              inputMode="numeric"
+                              min={1}
+                              value={customAmount}
+                              onChange={(e) => setCustomAmount(e.target.value)}
+                              aria-invalid={customIntervalInvalid || undefined}
+                              aria-describedby={customIntervalInvalid ? "collection-interval-error" : undefined}
+                            />
+                          </Stack>
+                          <Stack gap="1" className="w-40">
+                            <Label htmlFor="collection-interval-unit">{t("customDurationUnitLabel")}</Label>
+                            <Select value={customUnit} onValueChange={(v) => v && setCustomUnit(v as IntervalUnit)}>
+                              <SelectTrigger id="collection-interval-unit">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {UNIT_OPTIONS.map((u) => (
+                                  <SelectItem key={u.value} value={u.value}>
+                                    {t(u.labelKey)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </Stack>
+                        </Flex>
+                      )}
+                      {isCustomInterval &&
+                        (customIntervalInvalid ? (
+                          <Text id="collection-interval-error" size="xs" tone="destructive" role="alert">
+                            {t("customDurationError")}
+                          </Text>
+                        ) : (
+                          <Text size="xs" tone="muted">
+                            {t("customDurationResolved", { duration: formatInterval(customIntervalSeconds ?? 0) })}
+                          </Text>
+                        ))}
                     </Stack>
-                  </Flex>
-                )}
-                {isCustomInterval &&
-                  (customIntervalInvalid ? (
-                    <Text id="collection-interval-error" size="xs" tone="destructive" role="alert">
-                      {t("customDurationError")}
-                    </Text>
-                  ) : (
-                    <Text size="xs" tone="muted">
-                      {t("customDurationResolved", { duration: formatInterval(customIntervalSeconds ?? 0) })}
-                    </Text>
-                  ))}
-              </Stack>
+                  )}
+                </Stack>
+              </CollapsibleContent>
+            </Collapsible>
+            {preview && (
+              <Box className="min-w-0 lg:absolute lg:top-0 lg:-end-[429px] lg:w-[405px]">
+                <Collapsible open={!phone || previewOpen} onOpenChange={setPreviewOpen}>
+                  {phone && (
+                    <CollapsibleTrigger asChild>
+                      <Button type="button" variant="outline">
+                        {t("nowInCollection")}
+                      </Button>
+                    </CollapsibleTrigger>
+                  )}
+                  <CollapsibleContent keepMounted>{preview(dirty)}</CollapsibleContent>
+                </Collapsible>
+              </Box>
             )}
 
             {selectionMode !== "variable" && (
@@ -655,14 +713,16 @@ export function CollectionForm({
                       pages={pages}
                       mode={selectionMode}
                       onMove={handleMovePage}
+                      evaluatedPageId={!dirty ? evaluatedPageId : null}
                       onRemove={handleRemovePage}
+                      disabled={liftedRule !== null}
                     />
                   )}
 
                   {availablePages.length > 0 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="outline" className="self-start">
+                        <Button type="button" variant="outline" className="self-start" disabled={liftedRule !== null}>
                           <Plus aria-hidden="true" />
                           {t("addPageAction")}
                         </Button>
@@ -711,6 +771,7 @@ export function CollectionForm({
                           selectablePageIds={selectedPageIds}
                           isEditing={editingRuleIndex === index}
                           isLifted={liftedRule === index}
+                          actionsDisabled={liftedRule !== null}
                           onRequestEdit={() => handleRequestEditRule(index)}
                           onSave={(next) => handleSaveRule(index, next)}
                           onCancelEdit={handleCancelEditRule}
@@ -743,6 +804,9 @@ export function CollectionForm({
                               event.preventDefault();
                               if (event.key === "Escape") {
                                 setRules(ruleOrderBeforeLift);
+                                document
+                                  .getElementById(`collection-rule-${ruleOrderBeforeLift.indexOf(rule)}`)
+                                  ?.focus();
                                 setLiftedRule(null);
                                 setRuleAnnouncement(t("ruleMoveCancelled"));
                               } else if (event.key === " ") {
@@ -767,17 +831,20 @@ export function CollectionForm({
                     </Stack>
                   )}
 
-                  <Stack gap="2" className="rounded-xl bg-muted p-3.5">
-                    <Label htmlFor="collection-default">{t("variableDefaultLabel")}</Label>
+                  <Flex gap="2" align="center" wrap className="rounded-xl bg-muted p-3.5">
+                    <Badge variant="outline">{t("variableDefaultLabel")}</Badge>
+                    <Label htmlFor="collection-default" className="sr-only">
+                      {t("variableDefaultLabel")}
+                    </Label>
                     <Text size="xs" tone="muted">
-                      {t("variableDefaultDescription")}
+                      {t("defaultHint")}
                     </Text>
                     <Select
                       value={defaultPageId}
                       onValueChange={setDefaultPageId}
-                      disabled={selectedPageIds.length === 0}
+                      disabled={selectedPageIds.length === 0 || liftedRule !== null}
                     >
-                      <SelectTrigger id="collection-default">
+                      <SelectTrigger id="collection-default" className="w-[200px] max-w-full">
                         <SelectValue placeholder={t("variableDefaultPlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -791,32 +858,36 @@ export function CollectionForm({
                         })}
                       </SelectContent>
                     </Select>
-                  </Stack>
+                    {!dirty && evaluatedPageId && evaluatedPageId === defaultPageId && (
+                      <Badge variant="success">{t("selectedBadge")}</Badge>
+                    )}
+                  </Flex>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAddRule}
-                    disabled={selectedPageIds.length === 0}
-                    className="mt-2"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    {t("variableAddRule")}
-                  </Button>
-                  {onTestAtTime && (
+                  <Flex gap="2" align="center" wrap>
                     <Button
                       type="button"
-                      variant="ghost"
-                      className="self-start"
-                      onClick={onTestAtTime}
-                      disabled={dirty}
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddRule}
+                      disabled={selectedPageIds.length === 0 || liftedRule !== null}
+                      className="mt-2"
                     >
-                      <Clock aria-hidden="true" />
-                      {t("testAtTime")}
+                      <Plus className="h-4 w-4 mr-1" />
+                      {t("variableAddRule")}
                     </Button>
-                  )}
-
+                    {onTestAtTime && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="self-start"
+                        onClick={onTestAtTime}
+                        disabled={dirty}
+                      >
+                        <Clock aria-hidden="true" />
+                        {t("testAtTime")}
+                      </Button>
+                    )}
+                  </Flex>
                   <AlertDialog
                     open={pendingSwitchIndex !== null}
                     onOpenChange={(open) => !open && handleCancelDiscardSwitch()}
@@ -841,24 +912,37 @@ export function CollectionForm({
                   )}
                 </Stack>
 
-                <Stack gap="2">
-                  <Label htmlFor="collection-poll">{t("variablePollLabel")}</Label>
-                  <Text size="xs" tone="muted">
-                    {t("variablePollDescription")}
-                  </Text>
-                  <Select value={String(pollSeconds)} onValueChange={(v) => setPollSeconds(Number(v))}>
-                    <SelectTrigger id="collection-poll">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {POLL_PRESETS.map((p) => (
-                        <SelectItem key={p.value} value={String(p.value)}>
-                          {t(p.labelKey)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Stack>
+                <Collapsible>
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="ghost" disabled={liftedRule !== null}>
+                      {t("variablePollLabel")}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    {" "}
+                    <Stack gap="2">
+                      <Label htmlFor="collection-poll">{t("variablePollLabel")}</Label>
+                      <Text size="xs" tone="muted">
+                        {t("variablePollDescription")}
+                      </Text>
+                      <Select value={String(pollSeconds)} onValueChange={(v) => setPollSeconds(Number(v))}>
+                        <SelectTrigger id="collection-poll">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {POLL_PRESETS.map((p) => (
+                            <SelectItem key={p.value} value={String(p.value)}>
+                              {t(p.labelKey)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Stack>
+                    <Text size="xs" tone="muted">
+                      {t("variableModeBetaNote")}
+                    </Text>
+                  </CollapsibleContent>
+                </Collapsible>
               </Stack>
             )}
             {selectionMode === "variable" && (
@@ -889,14 +973,16 @@ export function CollectionForm({
                         pages={pages}
                         mode={selectionMode}
                         onMove={handleMovePage}
+                        evaluatedPageId={!dirty ? evaluatedPageId : null}
                         onRemove={handleRemovePage}
+                        disabled={liftedRule !== null}
                       />
                     )}
 
                     {availablePages.length > 0 && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button type="button" variant="outline" className="self-start">
+                          <Button type="button" variant="outline" className="self-start" disabled={liftedRule !== null}>
                             <Plus aria-hidden="true" />
                             {t("addPageAction")}
                           </Button>
@@ -915,7 +1001,7 @@ export function CollectionForm({
               </Collapsible>
             )}
           </Stack>
-        </Card>
+        </Box>
       </Box>
     </Box>
   );

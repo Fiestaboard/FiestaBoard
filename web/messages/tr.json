@@ -416,7 +416,7 @@
     "discardAndLeave": "Değişiklikleri sil ve çık",
     "retryButton": "Tekrar dene",
     "editorNameLabel": "Koleksiyon adı",
-    "editorMeta": "Koleksiyon · {count} sayfa",
+    "editorMeta": "Koleksiyon · {count, plural, one {# sayfa} other {# sayfa}}",
     "ruleCount": "{count} kural + varsayılan",
     "randomEvery": "Her {duration} rastgele",
     "rotationTotal": "{duration} · tekrar eder",
@@ -444,7 +444,12 @@
     "testSavedDescription": "Kaydedilmiş koleksiyonu önbellekteki verilerle değerlendirin. Hiçbir ekranın içeriği değişmez.",
     "evaluatedPage": "Seçilen: {name}",
     "evaluationDefault": "Varsayılan sayfa · eşleşen kural yok",
-    "evaluationRule": "Kural {number} eşleşti"
+    "evaluationRule": "Kural {number} eşleşti",
+    "safetyLoading": "Ekran durumu yükleniyor…",
+    "safetyUnavailable": "Ekran durumu yüklenemedi. Bu koleksiyonu göstermeden önce tekrar deneyin.",
+    "selectedBadge": "Seçildi",
+    "defaultHint": "Hiçbir kural eşleşmezse göster",
+    "collectionSettings": "Koleksiyon ayarları"
   },
   "schedule": {
     "title": "Zamanlama",

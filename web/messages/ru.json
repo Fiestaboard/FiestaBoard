@@ -416,7 +416,7 @@
     "discardAndLeave": "Отменить и выйти",
     "retryButton": "Повторить",
     "editorNameLabel": "Название коллекции",
-    "editorMeta": "Коллекция · {count} стр.",
+    "editorMeta": "Коллекция · {count, plural, one {# страница} few {# страницы} many {# страниц} other {# страниц}}",
     "ruleCount": "Правила: {count} + страница по умолчанию",
     "randomEvery": "Случайно каждые {duration}",
     "rotationTotal": "{duration} · повторяется",
@@ -444,7 +444,12 @@
     "testSavedDescription": "Проверьте сохранённую коллекцию с использованием кешированных данных. Содержимое дисплеев не изменится.",
     "evaluatedPage": "Выбрано: {name}",
     "evaluationDefault": "Страница по умолчанию · ни одно правило не сработало",
-    "evaluationRule": "Сработало правило {number}"
+    "evaluationRule": "Сработало правило {number}",
+    "safetyLoading": "Загрузка состояния дисплея…",
+    "safetyUnavailable": "Не удалось загрузить состояние дисплея. Повторите попытку, прежде чем показывать эту коллекцию.",
+    "selectedBadge": "Выбрано",
+    "defaultHint": "Если ни одно правило не сработало, показать",
+    "collectionSettings": "Настройки коллекции"
   },
   "schedule": {
     "title": "Расписание",

@@ -146,6 +146,7 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
             onDirtyChange={onDirtyChange}
             onShowNow={collection ? () => setShowNowOpen(true) : undefined}
             onTestAtTime={collection ? () => setTestOpen(true) : undefined}
+            evaluatedPageId={sameSavedGeneration && !evaluation.isError ? evaluation.data?.page_id : null}
             ruleResults={sameSavedGeneration && !evaluation.isError ? (evaluation.data?.rules ?? undefined) : undefined}
             preview={
               collection
@@ -157,6 +158,7 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
                       dirty={dirty}
                       loading={evaluation.isLoading}
                       failed={evaluation.isError || !sameSavedGeneration}
+                      historical={!!testAt}
                     />
                   )
                 : undefined

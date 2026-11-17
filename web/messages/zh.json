@@ -416,7 +416,7 @@
     "discardAndLeave": "放弃并离开",
     "retryButton": "重试",
     "editorNameLabel": "合集名称",
-    "editorMeta": "合集 · {count} 个页面",
+    "editorMeta": "合集 · {count, plural, one {# 个页面} other {# 个页面}}",
     "ruleCount": "{count} 条规则 + 默认页面",
     "randomEvery": "每 {duration} 随机选择",
     "rotationTotal": "{duration} · 循环",
@@ -444,7 +444,12 @@
     "testSavedDescription": "使用缓存数据评估已保存的合集。此操作不会更改任何显示屏的内容。",
     "evaluatedPage": "已选择：{name}",
     "evaluationDefault": "默认页面 · 没有匹配的规则",
-    "evaluationRule": "规则 {number} 匹配"
+    "evaluationRule": "规则 {number} 匹配",
+    "safetyLoading": "正在加载显示屏状态…",
+    "safetyUnavailable": "无法加载显示屏状态。请重试后再显示此合集。",
+    "selectedBadge": "已选择",
+    "defaultHint": "如果没有匹配的规则，则显示",
+    "collectionSettings": "合集设置"
   },
   "schedule": {
     "title": "日程",

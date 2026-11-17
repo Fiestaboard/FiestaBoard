@@ -372,7 +372,7 @@
     "discardAndLeave": "Discard and leave",
     "retryButton": "Try again",
     "editorNameLabel": "Collection name",
-    "editorMeta": "Collection · {count} pages",
+    "editorMeta": "Collection · {count, plural, one {# page} other {# pages}}",
     "ruleCount": "{count} rules + default",
     "randomEvery": "Random every {duration}",
     "rotationTotal": "{duration} · repeats",
@@ -400,7 +400,12 @@
     "testSavedDescription": "Evaluate the saved Collection using cached data. This does not change any display.",
     "evaluatedPage": "Selected: {name}",
     "evaluationDefault": "Default page · no rule matched",
-    "evaluationRule": "Rule {number} matched"
+    "evaluationRule": "Rule {number} matched",
+    "safetyLoading": "Loading display state…",
+    "safetyUnavailable": "Display state could not be loaded. Try again before showing this Collection.",
+    "selectedBadge": "Selected",
+    "defaultHint": "If no rule matches, show",
+    "collectionSettings": "Collection settings"
   },
   "schedule": {
     "title": "Schedule",

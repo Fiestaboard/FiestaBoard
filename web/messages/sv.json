@@ -416,7 +416,7 @@
     "discardAndLeave": "Kasta och lämna",
     "retryButton": "Försök igen",
     "editorNameLabel": "Samlingens namn",
-    "editorMeta": "Samling · {count} sidor",
+    "editorMeta": "Samling · {count, plural, one {# sida} other {# sidor}}",
     "ruleCount": "{count} regler + standardsida",
     "randomEvery": "Slumpmässigt var {duration}",
     "rotationTotal": "{duration} · upprepas",
@@ -444,7 +444,12 @@
     "testSavedDescription": "Utvärdera den sparade samlingen med cachelagrade data. Innehållet på skärmarna ändras inte.",
     "evaluatedPage": "Vald: {name}",
     "evaluationDefault": "Standardsida · ingen regel matchade",
-    "evaluationRule": "Regel {number} matchade"
+    "evaluationRule": "Regel {number} matchade",
+    "safetyLoading": "Läser in skärmens status…",
+    "safetyUnavailable": "Det gick inte att läsa in skärmens status. Försök igen innan du visar den här samlingen.",
+    "selectedBadge": "Vald",
+    "defaultHint": "Om ingen regel matchar, visa",
+    "collectionSettings": "Samlingsinställningar"
   },
   "schedule": {
     "title": "Schema",
