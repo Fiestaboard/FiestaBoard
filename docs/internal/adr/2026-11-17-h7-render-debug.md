@@ -31,12 +31,15 @@ Empty list templates return an all-padding map when requested.
 
 The trace is collected from the selected formula's actual evaluation, never
 by re-evaluating its nodes. The trace object contains the selected `line`,
-`start`, `end`, its `source`, final `value`, `error`, and `events`, plus
-`truncated`. Existing H5 result limits apply to the final value.
+`start`, `end`, its `source`, final `value`, `value_truncated`, `error`,
+`error_at`, `message`, and `events`, plus `truncated`. Existing H5 result limits
+apply to the final value. `truncated` means event omission only;
+`value_truncated` describes the final value independently.
 
 Each event has `id`, nullable `parent`, `kind` (literal, variable, unary,
 binary, call), `label`, `start`, `end`, `value`, `value_truncated`, and nullable
-`error`. Event spans refer to the stripped `source` body. IDs are allocated
+`error`. Event `value` is always a string: scalars use bounded display text,
+collections use `list(N)` / `dict(N)` without inspecting items. Event spans refer to the stripped `source` body. IDs are allocated
 on entry in execution order, with results filled on exit. Parentheses may
 be included in a node span. Repeated loop evaluations get distinct IDs but
 share source spans. Skipped short-circuit operands produce no event. Eager
@@ -63,7 +66,10 @@ Every row has exactly `cols` entries and there are exactly `rows` rows.
 Each source is `{line,start,end,kind}` with half-open authored template offsets;
 kind is literal, variable, formula, fill, or markup. A substituted value,
 including filters and automatic color tiles, points to its entire authored
-atom. Literal text points to its authored span. Extended markup preserves its
+atom. Each literal cell points to its individual authored code-point span.
+A nested color/block span retains its inner literal/variable/formula origins;
+standalone markup tiles/icons use kind `markup` and their full authored atom.
+Extended markup preserves its
 source through wrapping, splitting, clipping and span serialization. Formula
 output points to its formula atom, including each FOREACH output row; clients
 can then request that formula's trace. Layout padding has no authored source.
@@ -81,8 +87,10 @@ Debug requests are capped at 64 template lines, 16,384 total template code
 points and 4,096 board cells. Reject over-budget requests with 422 before
 context fetch/evaluation. Trace input is additionally capped at 4,096 formula
 body code points. Per-render provenance work has a fixed 262,144-character
-intermediate tracking budget; on exhaustion return `source_map: null` and a
-`source_map_status: "limit"` rather than guessing origins or failing an
+cumulative intermediate tracking budget. Charge before copying/tokenizing or
+materializing runs; repeated operations consume this same request budget. On
+exhaustion return `source_map: null` and a
+`source_map_status: "limit"` inside `debug`, rather than guessing origins or failing an
 otherwise valid render. Otherwise status is `complete` or `not_requested`.
 No context dumps or repeated source/value text appear in cell records.
 
