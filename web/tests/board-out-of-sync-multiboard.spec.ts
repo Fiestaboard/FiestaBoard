@@ -158,7 +158,7 @@ test("another app writes board 2 → its banner, its geometry, and a Restore of 
 
   // Board 1 (the primary) shows nothing, on Home or on its display page.
   await page.goto(`/displays/${board1Id}`);
-  await expect(page.getByText("Now showing")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Now showing", exact: true })).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(2_000);
   await expect(banner(page)).toHaveCount(0);
   await page.goto("/");
