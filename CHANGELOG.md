@@ -1,5 +1,11 @@
 # fiestaboard
 
+## 11.0.0-alpha.7
+
+### Patch Changes
+
+- [#2522](https://github.com/Fiestaboard/FiestaBoard/pull/2522) [`e5194ec`](https://github.com/Fiestaboard/FiestaBoard/commit/e5194ec28324e0b892203edec25ff879a378ea2b) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Correct localized Collection rule counts and place the tablet preview immediately after the selection-mode chips.
+
 ## 11.0.0-alpha.6
 
 ### Minor Changes
