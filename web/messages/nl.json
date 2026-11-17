@@ -2826,7 +2826,12 @@
     "geometryLoading": "Schermgeometrie berekenen…",
     "draftContentPending": "Het inhoudsvoorbeeld wordt bijgewerkt na het opslaan en ontvangen van een passend frame.",
     "geometryUnsupported": "Dit LED-raster kan niet worden weergegeven. Bewerk dit paneel en kies Aanpassen aan schermvorm om een ondersteund raster te gebruiken.",
-    "legacyGridHint": "Dit paneel behoudt het bestaande tekenraster. Kies Aanpassen aan schermvorm om de indeling te wijzigen."
+    "legacyGridHint": "Dit paneel behoudt het bestaande tekenraster. Kies Aanpassen aan schermvorm om de indeling te wijzigen.",
+    "displaySettings": "Display",
+    "previewAt": "Voorbeeld op {inches}″",
+    "removeDisplayTitle": "Display verwijderen",
+    "removeDisplay": "Display verwijderen…",
+    "advancedSettings": "Geavanceerde paneelinstellingen"
   },
   "releaseChannel": {
     "title": "Releasekanaal",

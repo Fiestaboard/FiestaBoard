@@ -2826,7 +2826,12 @@
     "geometryLoading": "画面の形状を計算中…",
     "draftContentPending": "保存して対応するフレームを受信すると、コンテンツのプレビューが更新されます。",
     "geometryUnsupported": "この LED グリッドは表示できません。パネルを編集し「画面の形状に合わせる」を選択して、対応するグリッドを使用してください。",
-    "legacyGridHint": "このパネルは現在の文字グリッドを維持します。レイアウトを変更するには「画面の形状に合わせる」を選択してください。"
+    "legacyGridHint": "このパネルは現在の文字グリッドを維持します。レイアウトを変更するには「画面の形状に合わせる」を選択してください。",
+    "displaySettings": "ディスプレイ",
+    "previewAt": "{inches}インチでのプレビュー",
+    "removeDisplayTitle": "ディスプレイを削除",
+    "removeDisplay": "ディスプレイを削除…",
+    "advancedSettings": "パネルの詳細設定"
   },
   "releaseChannel": {
     "title": "リリースチャンネル",

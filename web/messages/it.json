@@ -2826,7 +2826,12 @@
     "geometryLoading": "Calcolo della geometria dello schermo…",
     "draftContentPending": "L’anteprima del contenuto si aggiornerà dopo il salvataggio e la ricezione di un fotogramma compatibile.",
     "geometryUnsupported": "Questa griglia LED non può essere visualizzata. Modifica il pannello e scegli Adatta alla forma dello schermo per usare una griglia supportata.",
-    "legacyGridHint": "Questo pannello mantiene la griglia di caratteri attuale. Scegli Adatta alla forma dello schermo per cambiarne il layout."
+    "legacyGridHint": "Questo pannello mantiene la griglia di caratteri attuale. Scegli Adatta alla forma dello schermo per cambiarne il layout.",
+    "displaySettings": "Display",
+    "previewAt": "Anteprima a {inches}″",
+    "removeDisplayTitle": "Rimuovi display",
+    "removeDisplay": "Rimuovi display…",
+    "advancedSettings": "Impostazioni avanzate del pannello"
   },
   "releaseChannel": {
     "title": "Canale di rilascio",

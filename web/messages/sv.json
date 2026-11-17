@@ -2826,7 +2826,12 @@
     "geometryLoading": "Beräknar skärmens geometri…",
     "draftContentPending": "Innehållsförhandsvisningen uppdateras när du har sparat och en matchande bildruta har tagits emot.",
     "geometryUnsupported": "Det här LED-rutnätet kan inte visas. Redigera panelen och välj Anpassa till skärmens form för att använda ett rutnät som stöds.",
-    "legacyGridHint": "Panelen behåller sitt befintliga teckenrutnät. Välj Anpassa till skärmens form för att ändra layouten."
+    "legacyGridHint": "Panelen behåller sitt befintliga teckenrutnät. Välj Anpassa till skärmens form för att ändra layouten.",
+    "displaySettings": "Display",
+    "previewAt": "Förhandsvisning vid {inches}″",
+    "removeDisplayTitle": "Ta bort display",
+    "removeDisplay": "Ta bort display…",
+    "advancedSettings": "Avancerade panelinställningar"
   },
   "releaseChannel": {
     "title": "Versionskanal",

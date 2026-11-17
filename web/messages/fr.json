@@ -2826,7 +2826,12 @@
     "geometryLoading": "Calcul de la géométrie de l’écran…",
     "draftContentPending": "L’aperçu du contenu sera actualisé après l’enregistrement et la réception d’une image compatible.",
     "geometryUnsupported": "Cette grille LED ne peut pas être affichée. Modifiez ce panneau et choisissez Adapter à la forme de l’écran pour utiliser une grille compatible.",
-    "legacyGridHint": "Ce panneau conserve sa grille de caractères actuelle. Choisissez Adapter à la forme de l’écran pour changer sa disposition."
+    "legacyGridHint": "Ce panneau conserve sa grille de caractères actuelle. Choisissez Adapter à la forme de l’écran pour changer sa disposition.",
+    "displaySettings": "Écran",
+    "previewAt": "Aperçu à {inches}″",
+    "removeDisplayTitle": "Supprimer l’écran",
+    "removeDisplay": "Supprimer l’écran…",
+    "advancedSettings": "Réglages avancés du panneau"
   },
   "releaseChannel": {
     "title": "Canal de versions",

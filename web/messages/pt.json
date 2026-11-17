@@ -2826,7 +2826,12 @@
     "geometryLoading": "Calculando a geometria da tela…",
     "draftContentPending": "A prévia do conteúdo será atualizada após salvar e receber um quadro compatível.",
     "geometryUnsupported": "Esta grade LED não pode ser exibida. Edite este painel e escolha Ajustar ao formato da tela para usar uma grade compatível.",
-    "legacyGridHint": "Este painel mantém a grade de caracteres atual. Escolha Ajustar ao formato da tela para alterar o layout."
+    "legacyGridHint": "Este painel mantém a grade de caracteres atual. Escolha Ajustar ao formato da tela para alterar o layout.",
+    "displaySettings": "Tela",
+    "previewAt": "Prévia em {inches}″",
+    "removeDisplayTitle": "Remover tela",
+    "removeDisplay": "Remover tela…",
+    "advancedSettings": "Configurações avançadas do painel"
   },
   "releaseChannel": {
     "title": "Canal de versões",

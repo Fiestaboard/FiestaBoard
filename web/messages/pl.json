@@ -2826,7 +2826,12 @@
     "geometryLoading": "Obliczanie geometrii ekranu…",
     "draftContentPending": "Podgląd zawartości zaktualizuje się po zapisaniu i otrzymaniu pasującej klatki.",
     "geometryUnsupported": "Nie można wyświetlić tej siatki LED. Edytuj panel i wybierz Dopasuj do kształtu ekranu, aby użyć obsługiwanej siatki.",
-    "legacyGridHint": "Ten panel zachowuje obecną siatkę znaków. Wybierz Dopasuj do kształtu ekranu, aby zmienić układ."
+    "legacyGridHint": "Ten panel zachowuje obecną siatkę znaków. Wybierz Dopasuj do kształtu ekranu, aby zmienić układ.",
+    "displaySettings": "Wyświetlacz",
+    "previewAt": "Podgląd przy {inches}″",
+    "removeDisplayTitle": "Usuń wyświetlacz",
+    "removeDisplay": "Usuń wyświetlacz…",
+    "advancedSettings": "Zaawansowane ustawienia panelu"
   },
   "releaseChannel": {
     "title": "Kanał wydań",

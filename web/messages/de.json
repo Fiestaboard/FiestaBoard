@@ -2826,7 +2826,12 @@
     "geometryLoading": "Bildschirmgeometrie wird berechnet…",
     "draftContentPending": "Die Inhaltsvorschau wird nach dem Speichern und dem Empfang eines passenden Bildes aktualisiert.",
     "geometryUnsupported": "Dieses LED-Raster kann nicht angezeigt werden. Bearbeite das Panel und wähle An Bildschirmform anpassen, um ein unterstütztes Raster zu verwenden.",
-    "legacyGridHint": "Dieses Panel behält sein bestehendes Zeichenraster. Wähle An Bildschirmform anpassen, um das Layout zu ändern."
+    "legacyGridHint": "Dieses Panel behält sein bestehendes Zeichenraster. Wähle An Bildschirmform anpassen, um das Layout zu ändern.",
+    "displaySettings": "Display",
+    "previewAt": "Vorschau bei {inches}″",
+    "removeDisplayTitle": "Display entfernen",
+    "removeDisplay": "Display entfernen…",
+    "advancedSettings": "Erweiterte Panel-Einstellungen"
   },
   "releaseChannel": {
     "title": "Veröffentlichungskanal",
