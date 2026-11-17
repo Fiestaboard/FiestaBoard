@@ -2290,7 +2290,23 @@
     "fillSpaceTooltip": "Fill space - expands to fill remaining line width",
     "fillSpaceRepeatTooltip": "Fill space repeating: {char}",
     "variableFilterTooltip": "Filter: {filter}",
-    "variableMaxLengthTooltip": "Max length: {maxLength} characters"
+    "variableMaxLengthTooltip": "Max length: {maxLength} characters",
+    "tools": "Editor tools",
+    "formula": "Formula",
+    "more": "More",
+    "textColor": "Text color",
+    "icon": "Icon",
+    "size": "Size",
+    "brush": "Brush",
+    "drawDone": "Done",
+    "align": "Align",
+    "alignLeftShort": "Left",
+    "alignCenterShort": "Center",
+    "alignRightShort": "Right",
+    "wrapLine": "Wrap this line",
+    "clipboard": "Clipboard",
+    "colorsHint": "Tap a color to insert a tile at the cursor. The sheet stays open so you can add several; swipe down, tap ✕ or press Esc to close.",
+    "formattingHint": "Fill space pushes the rest of the line to the right edge; Wrap lets a long value continue on the next line. Applies at the cursor."
   },
   "variablePicker": {
     "noVariablesAvailable": "No variables available",
@@ -3260,5 +3276,20 @@
       "body": "Install and offline need a secure address. You’re on http://{host}. Open FiestaBoard at its https address, or set up HTTPS for your hub.",
       "help": "How to set up HTTPS"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Live preview",
+    "mirror": "Mirror to board while editing",
+    "mirroring": "Mirroring",
+    "mirrorHint": "Sends after each pause in typing. Stops when you leave the editor.",
+    "savedToPages": "Saved to Pages",
+    "addToSchedule": "Add to Schedule",
+    "showNow": "Show now",
+    "saved": "Saved",
+    "unsaved": "Unsaved",
+    "unknownDisplay": "Can’t tell what this display draws",
+    "plainTextOnly": "Plain text is available. Colors and display-specific tools are unavailable.",
+    "targetUnavailable": "This display is unavailable for mirroring.",
+    "nameRequired": "Name this page"
   }
 }

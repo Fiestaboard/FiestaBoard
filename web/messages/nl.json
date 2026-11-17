@@ -2363,7 +2363,23 @@
     "fillSpaceTooltip": "Vulruimte - vult de resterende regelbreedte",
     "fillSpaceRepeatTooltip": "Vulruimte herhaalt: {char}",
     "variableFilterTooltip": "Filter: {filter}",
-    "variableMaxLengthTooltip": "Maximale lengte: {maxLength} tekens"
+    "variableMaxLengthTooltip": "Maximale lengte: {maxLength} tekens",
+    "tools": "Editorhulpmiddelen",
+    "formula": "Formule",
+    "more": "Meer",
+    "textColor": "Tekstkleur",
+    "icon": "Pictogram",
+    "size": "Grootte",
+    "brush": "Penseel",
+    "drawDone": "Gereed",
+    "align": "Uitlijnen",
+    "alignLeftShort": "Links",
+    "alignCenterShort": "Midden",
+    "alignRightShort": "Rechts",
+    "wrapLine": "Deze regel laten doorlopen",
+    "clipboard": "Klembord",
+    "colorsHint": "Tik op een kleur om een tegel bij de cursor in te voegen. Het paneel blijft open om meerdere tegels toe te voegen; veeg omlaag, tik op ✕ of druk op Esc om te sluiten.",
+    "formattingHint": "Ruimte vullen duwt de rest van de regel naar de rechterrand; tekstterugloop laat een lange waarde op de volgende regel doorgaan. Geldt bij de cursor."
   },
   "variablePicker": {
     "noVariablesAvailable": "Geen variabelen beschikbaar",
@@ -3260,5 +3276,20 @@
       "body": "Installeren en offline gebruik vragen een beveiligd adres. Je zit op http://{host}. Open FiestaBoard via het https-adres of stel HTTPS in voor je hub.",
       "help": "HTTPS instellen"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Livevoorbeeld",
+    "mirror": "Tijdens het bewerken op het bord weergeven",
+    "mirroring": "Weergave actief",
+    "mirrorHint": "Verstuurt na elke typepauze. Stopt wanneer je de editor verlaat.",
+    "savedToPages": "Opgeslagen in Pagina’s",
+    "addToSchedule": "Toevoegen aan planning",
+    "showNow": "Nu weergeven",
+    "saved": "Opgeslagen",
+    "unsaved": "Niet opgeslagen",
+    "unknownDisplay": "Onbekend wat dit scherm kan weergeven",
+    "plainTextOnly": "Platte tekst is beschikbaar. Kleuren en schermspecifieke hulpmiddelen zijn niet beschikbaar.",
+    "targetUnavailable": "Dit scherm is niet beschikbaar voor liveweergave.",
+    "nameRequired": "Geef deze pagina een naam"
   }
 }

@@ -5,20 +5,16 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TemplateEditorToolbar } from "@/components/tiptap-template-editor/components/TemplateEditorToolbar";
-import { insertTemplateContent } from "@/components/tiptap-template-editor/utils/insertion";
 import { parseLineContent } from "@/components/tiptap-template-editor/utils/serialization";
 import type { HomeAssistantEntity } from "@/lib/api";
 
 import { mockTemplateVariables } from "./mocks/handlers";
 import { server } from "./mocks/server";
 
-// The insertion helper is the seam between the toolbar and TipTap: spying on it
-// lets us assert the exact template string without standing up a real editor.
-vi.mock("@/components/tiptap-template-editor/utils/insertion", () => ({
-  insertTemplateContent: vi.fn(),
-}));
-
-const insertSpy = vi.mocked(insertTemplateContent);
+// Observe the TipTap chain after the real kit parser has transformed markup.
+// This verifies the inserted nodes rather than mocking a retired local seam.
+const insertSpy = vi.fn<(content: ReturnType<typeof parseLineContent>) => void>();
+const focusSpy = vi.fn();
 
 const API_BASE = "/api";
 
@@ -71,7 +67,20 @@ function renderToolbar(props: Record<string, unknown> = {}) {
 
 /** Minimal editor stand-in: enough surface for the toolbar's effects. */
 function makeFakeEditor() {
+  const chain = {
+    focus: () => {
+      focusSpy();
+      return chain;
+    },
+    insertContent: (content: ReturnType<typeof parseLineContent>) => {
+      insertSpy(content);
+      return chain;
+    },
+    run: vi.fn(),
+  };
   return {
+    chain: () => chain,
+    commands: { setTextSelection: vi.fn() },
     can: () => ({ undo: () => false, redo: () => false }),
     state: { selection: { from: 0, to: 0 }, doc: { textBetween: () => "" } },
     on: vi.fn(),
@@ -94,6 +103,7 @@ async function chooseTemperatureState(user: ReturnType<typeof userEvent.setup>) 
 describe("TemplateEditorToolbar Home Assistant entity picker", () => {
   beforeEach(() => {
     insertSpy.mockReset();
+    focusSpy.mockReset();
   });
 
   it("renders the Home Assistant entity button when template variables include home_assistant", async () => {
@@ -147,7 +157,7 @@ describe("TemplateEditorToolbar Home Assistant entity picker", () => {
     await user.click(screen.getByRole("button", { name: "Insert" }));
 
     await waitFor(() => expect(insertSpy).toHaveBeenCalledTimes(1));
-    expect(insertSpy.mock.calls[0][1]).toBe("{{home_assistant.sensor_temperature.state}}");
+    expect(insertSpy.mock.calls[0][0]).toEqual(parseLineContent("{{home_assistant.sensor_temperature.state}}"));
   });
 
   it("inserts the attribute the user picked rather than always defaulting to state", async () => {
@@ -163,7 +173,9 @@ describe("TemplateEditorToolbar Home Assistant entity picker", () => {
     await user.click(screen.getByRole("button", { name: "Insert" }));
 
     await waitFor(() => expect(insertSpy).toHaveBeenCalledTimes(1));
-    expect(insertSpy.mock.calls[0][1]).toBe("{{home_assistant.sensor_temperature.unit_of_measurement}}");
+    expect(insertSpy.mock.calls[0][0]).toEqual(
+      parseLineContent("{{home_assistant.sensor_temperature.unit_of_measurement}}"),
+    );
   });
 
   it("closes the dialog after inserting, and stays closed when onClose fires twice", async () => {
@@ -209,7 +221,7 @@ describe("TemplateEditorToolbar Home Assistant entity picker", () => {
     const editorSurface = document.createElement("div");
     editorSurface.tabIndex = -1;
     document.body.appendChild(editorSurface);
-    insertSpy.mockImplementation(() => editorSurface.focus());
+    focusSpy.mockImplementation(() => editorSurface.focus());
 
     try {
       renderToolbar({ editor: makeFakeEditor() });
@@ -227,7 +239,7 @@ describe("TemplateEditorToolbar Home Assistant entity picker", () => {
     }
   });
 
-  it("emits a string the editor's parser turns into a single home_assistant variable node", async () => {
+  it("inserts a single home_assistant variable node through the real kit parser", async () => {
     const user = userEvent.setup();
     useHomeAssistantVariables();
     useEntities([sensorTemperature]);
@@ -237,9 +249,8 @@ describe("TemplateEditorToolbar Home Assistant entity picker", () => {
     await user.click(screen.getByRole("button", { name: "Insert" }));
     await waitFor(() => expect(insertSpy).toHaveBeenCalledTimes(1));
 
-    // No bespoke TipTap node is needed: the existing parser splits on the first
-    // dot, so the emitted string must round-trip as a plain variable pill.
-    const variableNodes = parseLineContent(insertSpy.mock.calls[0][1]).filter((node) => node.type === "variable");
+    // The real kit serializer must produce one variable pill with its full field.
+    const variableNodes = insertSpy.mock.calls[0][0].filter((node) => node.type === "variable");
     expect(variableNodes).toHaveLength(1);
     expect(variableNodes[0].attrs).toMatchObject({ pluginId: "home_assistant", field: "sensor_temperature.state" });
   });

@@ -30,9 +30,10 @@ import {
   type ToolbarTemplateVariables,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { forwardRef, lazy, Suspense, useMemo } from "react";
+import { forwardRef, lazy, type ReactNode, Suspense, useMemo } from "react";
 
 import { HomeAssistantEntityPicker } from "@/components/home-assistant-entity-picker";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import type { Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -76,9 +77,26 @@ const TOOLBAR_STRING_KEYS = [
   "alignRight",
   "syncFromBoard",
   "syncFromBoardTooltip",
+  "tools",
+  "formula",
+  "more",
+  "textColor",
+  "icon",
+  "size",
+  "brush",
+  "drawDone",
+  "align",
+  "alignLeftShort",
+  "alignCenterShort",
+  "alignRightShort",
+  "wrapLine",
+  "clipboard",
+  "colorsHint",
+  "formattingHint",
 ] as const satisfies readonly (keyof TemplateEditorToolbarLabels)[];
 
 export interface CharsetTemplateEditorProps {
+  moreContent?: ReactNode;
   canvasRegions?: readonly TemplateCanvasRegion[];
   onCanvasActivate?: (id: string) => void;
   /** The target board's character set (resolved; an output plugin's own set included). */
@@ -101,6 +119,7 @@ export interface CharsetTemplateEditorProps {
 export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTemplateEditorProps>(
   function CharsetTemplateEditor(
     {
+      moreContent,
       canvasRegions,
       onCanvasActivate,
       charset,
@@ -120,6 +139,8 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
     },
     ref,
   ) {
+    const touch = useMediaQuery("(max-width: 767px), (pointer: coarse)");
+    const sheets = useMediaQuery("(max-width: 639px)");
     const t = useTranslations("templateEditor");
     const tCanvas = useTranslations("canvasEditor");
     const { data: templateVars, isLoading } = useQuery({
@@ -215,6 +236,10 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
         syncFromBoardPending={syncFromBoardPending}
         labels={labels}
         toolbarProps={{
+          size: touch ? "touch" : "default",
+          layout: touch ? "docked" : "row",
+          pickerPresentation: sheets ? "sheet" : "popover",
+          moreContent,
           templateVariables: templateVars as ToolbarTemplateVariables | undefined,
           isLoadingVariables: isLoading,
           renderVariablePicker: ({ onInsert }) => (

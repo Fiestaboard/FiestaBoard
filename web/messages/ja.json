@@ -2363,7 +2363,23 @@
     "fillSpaceTooltip": "スペース埋め — 行の残りの幅いっぱいに広がります",
     "fillSpaceRepeatTooltip": "スペースを繰り返して埋める: {char}",
     "variableFilterTooltip": "フィルター: {filter}",
-    "variableMaxLengthTooltip": "最大長: {maxLength} 文字"
+    "variableMaxLengthTooltip": "最大長: {maxLength} 文字",
+    "tools": "編集ツール",
+    "formula": "数式",
+    "more": "その他",
+    "textColor": "文字色",
+    "icon": "アイコン",
+    "size": "サイズ",
+    "brush": "ブラシ",
+    "drawDone": "完了",
+    "align": "配置",
+    "alignLeftShort": "左",
+    "alignCenterShort": "中央",
+    "alignRightShort": "右",
+    "wrapLine": "この行を折り返す",
+    "clipboard": "クリップボード",
+    "colorsHint": "色をタップするとカーソル位置にタイルが挿入されます。複数追加できるようパネルは開いたままになります。下にスワイプ、✕ をタップ、または Esc キーで閉じます。",
+    "formattingHint": "空白を埋めると、行の残りが右端に移動します。折り返しを使うと、長い値が次の行に続きます。カーソル位置に適用されます。"
   },
   "variablePicker": {
     "noVariablesAvailable": "利用可能な変数がありません",
@@ -3260,5 +3276,20 @@
       "body": "インストールとオフライン利用には安全なアドレスが必要です。現在は http://{host} です。https のアドレスで FiestaBoard を開くか、ハブに HTTPS を設定してください。",
       "help": "HTTPS の設定方法"
     }
+  },
+  "editorTouch": {
+    "livePreview": "ライブプレビュー",
+    "mirror": "編集中にボードへミラーリング",
+    "mirroring": "ミラーリング中",
+    "mirrorHint": "入力が一時停止するたびに送信します。エディターを離れると停止します。",
+    "savedToPages": "ページに保存しました",
+    "addToSchedule": "スケジュールに追加",
+    "showNow": "今すぐ表示",
+    "saved": "保存済み",
+    "unsaved": "未保存",
+    "unknownDisplay": "このディスプレイが表示できる内容を判別できません",
+    "plainTextOnly": "プレーンテキストは使用できます。色やディスプレイ専用のツールは使用できません。",
+    "targetUnavailable": "このディスプレイはミラーリングに使用できません。",
+    "nameRequired": "このページに名前を付けてください"
   }
 }

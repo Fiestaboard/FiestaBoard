@@ -19,7 +19,7 @@ export default function NewPage() {
       targetBoardId={targetBoardId}
       skipDraft={skipDraft}
       onClose={back}
-      onSave={back}
+      onSave={() => {}}
     />
   );
 }

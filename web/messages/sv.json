@@ -2363,7 +2363,23 @@
     "fillSpaceTooltip": "Fyllutrymme - expanderar för att fylla resten av radens bredd",
     "fillSpaceRepeatTooltip": "Fyllutrymme upprepar: {char}",
     "variableFilterTooltip": "Filter: {filter}",
-    "variableMaxLengthTooltip": "Maxlängd: {maxLength} tecken"
+    "variableMaxLengthTooltip": "Maxlängd: {maxLength} tecken",
+    "tools": "Redigeringsverktyg",
+    "formula": "Formel",
+    "more": "Mer",
+    "textColor": "Textfärg",
+    "icon": "Ikon",
+    "size": "Storlek",
+    "brush": "Pensel",
+    "drawDone": "Klar",
+    "align": "Justera",
+    "alignLeftShort": "Vänster",
+    "alignCenterShort": "Mitten",
+    "alignRightShort": "Höger",
+    "wrapLine": "Radbryt den här raden",
+    "clipboard": "Urklipp",
+    "colorsHint": "Tryck på en färg för att infoga en ruta vid markören. Panelen förblir öppen så att du kan lägga till flera; svep nedåt, tryck på ✕ eller på Esc för att stänga.",
+    "formattingHint": "Fyll utrymme skjuter resten av raden till högerkanten; radbrytning låter ett långt värde fortsätta på nästa rad. Gäller vid markören."
   },
   "variablePicker": {
     "noVariablesAvailable": "Inga variabler tillgängliga",
@@ -3260,5 +3276,20 @@
       "body": "Installation och offlineläge kräver en säker adress. Du är på http://{host}. Öppna FiestaBoard på dess https-adress eller konfigurera HTTPS för din hubb.",
       "help": "Så konfigurerar du HTTPS"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Förhandsvisning i realtid",
+    "mirror": "Spegla på tavlan under redigering",
+    "mirroring": "Spegling pågår",
+    "mirrorHint": "Skickar efter varje skrivpaus. Avslutas när du lämnar redigeraren.",
+    "savedToPages": "Sparad i Sidor",
+    "addToSchedule": "Lägg till i schema",
+    "showNow": "Visa nu",
+    "saved": "Sparad",
+    "unsaved": "Osparad",
+    "unknownDisplay": "Det går inte att avgöra vad den här skärmen kan visa",
+    "plainTextOnly": "Oformaterad text är tillgänglig. Färger och skärmspecifika verktyg är inte tillgängliga.",
+    "targetUnavailable": "Den här skärmen är inte tillgänglig för spegling.",
+    "nameRequired": "Namnge den här sidan"
   }
 }

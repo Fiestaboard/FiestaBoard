@@ -48,16 +48,13 @@ export function PageEditorShell({
   const builderRef = useRef<PageBuilderHandle>(null);
   const { register, unregister } = usePageEditorBridge();
   const t = useTranslations("pageBuilder");
-  const shouldBlock = useCallback<BlockerFunction>(
-    ({ currentLocation, nextLocation }) => {
-      // Query/hash updates within this editor do not discard its form state.
-      const staysOnPage =
-        currentLocation.pathname === nextLocation.pathname &&
-        new URLSearchParams(currentLocation.search).get("id") === new URLSearchParams(nextLocation.search).get("id");
-      return !staysOnPage && !!pageId && (builderRef.current?.hasUnsavedChanges() ?? false);
-    },
-    [pageId],
-  );
+  const shouldBlock = useCallback<BlockerFunction>(({ currentLocation, nextLocation }) => {
+    // Query/hash updates within this editor do not discard its form state.
+    const staysOnPage =
+      currentLocation.pathname === nextLocation.pathname &&
+      new URLSearchParams(currentLocation.search).get("id") === new URLSearchParams(nextLocation.search).get("id");
+    return !staysOnPage && (builderRef.current?.hasUnsavedChanges() ?? false);
+  }, []);
   const blocker = useBlocker(shouldBlock);
 
   const call = <K extends keyof PageBuilderHandle>(key: K): PageBuilderHandle[K] | undefined =>
@@ -95,6 +92,7 @@ export function PageEditorShell({
           <AlertDialogFooter>
             <AlertDialogCancel>{t("keepEditing")}</AlertDialogCancel>
             <Button
+              variant="destructive"
               onClick={() => {
                 // Let the router close/unmount the dialog; resetting it here can
                 // cancel a history POP that is still proceeding.

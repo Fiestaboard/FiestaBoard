@@ -147,7 +147,7 @@ describe("Live Output Mode", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Live Output")).toBeInTheDocument();
+      expect(screen.getByText("Mirror to board while editing")).toBeInTheDocument();
     });
   });
 
@@ -155,7 +155,7 @@ describe("Live Output Mode", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+      const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
       expect(toggle).toBeInTheDocument();
     });
   });
@@ -164,7 +164,7 @@ describe("Live Output Mode", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+      const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
       expect(toggle).toHaveAttribute("aria-checked", "false");
     });
   });
@@ -174,10 +174,10 @@ describe("Live Output Mode", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
     });
 
-    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
     await user.click(toggle);
 
     await waitFor(() => {
@@ -190,10 +190,10 @@ describe("Live Output Mode", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
     });
 
-    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
 
     await user.click(toggle);
     await waitFor(() => {
@@ -211,10 +211,10 @@ describe("Live Output Mode", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
     });
 
-    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
 
     // Turn on live output
     await user.click(toggle);
@@ -240,7 +240,7 @@ describe("Live Output Mode", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Live Output")).toBeInTheDocument();
+      expect(screen.getByText("Mirror to board while editing")).toBeInTheDocument();
     });
 
     expect(screen.queryByRole("combobox", { name: /select board/i })).not.toBeInTheDocument();
@@ -260,7 +260,7 @@ describe("Live Output Mode", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Live Output")).toBeInTheDocument();
+      expect(screen.getByText("Mirror to board while editing")).toBeInTheDocument();
     });
 
     // Wait a bit for any debounced calls
@@ -273,8 +273,8 @@ describe("Live Output Mode", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Preview")).toBeInTheDocument();
-      expect(screen.getByText("Live Output")).toBeInTheDocument();
+      expect(screen.getByText("Live preview")).toBeInTheDocument();
+      expect(screen.getByText("Mirror to board while editing")).toBeInTheDocument();
     });
   });
 
@@ -355,14 +355,15 @@ describe("Live Output - Board Selector Interaction", () => {
     });
   });
 
-  it("live output controls are within a bordered container", async () => {
+  it("mirroring controls belong to the live preview region", async () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      const liveLabel = screen.getByText("Live Output");
+      const liveLabel = screen.getByText("Mirror to board while editing");
       expect(liveLabel).toBeInTheDocument();
-      const container = liveLabel.closest("div.rounded-lg");
-      expect(container).toBeInTheDocument();
+      const preview = screen.getByRole("region", { name: "Live preview" });
+      expect(preview).toContainElement(liveLabel);
+      expect(preview).toContainElement(screen.getByRole("switch", { name: "Mirror to board while editing" }));
     });
   });
 });
@@ -425,10 +426,10 @@ describe("Live Output - Auto-timeout", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
     });
 
-    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
     await user.click(toggle);
 
     await waitFor(() => {
@@ -451,10 +452,10 @@ describe("Live Output - Auto-timeout", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
     });
 
-    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
     await user.click(toggle);
 
     await waitFor(() => {
@@ -478,10 +479,10 @@ describe("Live Output - Auto-timeout", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
     });
 
-    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
     await user.click(toggle);
 
     await waitFor(() => {
@@ -542,10 +543,10 @@ describe("Live Output - Cleanup on unmount", () => {
     const { unmount } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
     });
 
-    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
     await user.click(toggle);
 
     await waitFor(() => {
@@ -559,7 +560,7 @@ describe("Live Output - Cleanup on unmount", () => {
 
     await waitFor(
       () => {
-        const newToggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+        const newToggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
         expect(newToggle).toHaveAttribute("aria-checked", "false");
       },
       { timeout: 10000 },
@@ -575,10 +576,10 @@ describe("Live Output - Cleanup on unmount", () => {
     const { unmount } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
     });
 
-    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
     await user.click(toggle);
 
     await waitFor(() => {
@@ -598,7 +599,7 @@ describe("Live Output - Cleanup on unmount", () => {
     const { unmount } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
     });
 
     unmount();
@@ -611,10 +612,10 @@ describe("Live Output - Cleanup on unmount", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
     });
 
-    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
     await user.click(toggle);
 
     await waitFor(() => {

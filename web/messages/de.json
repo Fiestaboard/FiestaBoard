@@ -2363,7 +2363,23 @@
     "fillSpaceTooltip": "Füllbereich - dehnt sich auf die restliche Zeilenbreite aus",
     "fillSpaceRepeatTooltip": "Füllbereich wiederholt: {char}",
     "variableFilterTooltip": "Filter: {filter}",
-    "variableMaxLengthTooltip": "Maximale Länge: {maxLength} Zeichen"
+    "variableMaxLengthTooltip": "Maximale Länge: {maxLength} Zeichen",
+    "tools": "Editor-Werkzeuge",
+    "formula": "Formel",
+    "more": "Mehr",
+    "textColor": "Textfarbe",
+    "icon": "Symbol",
+    "size": "Größe",
+    "brush": "Pinsel",
+    "drawDone": "Fertig",
+    "align": "Ausrichten",
+    "alignLeftShort": "Links",
+    "alignCenterShort": "Mitte",
+    "alignRightShort": "Rechts",
+    "wrapLine": "Diese Zeile umbrechen",
+    "clipboard": "Zwischenablage",
+    "colorsHint": "Tippe auf eine Farbe, um am Cursor eine Kachel einzufügen. Das Fenster bleibt für weitere Kacheln geöffnet. Zum Schließen nach unten wischen, auf ✕ tippen oder Esc drücken.",
+    "formattingHint": "Leerraum füllen schiebt den Rest der Zeile an den rechten Rand; Zeilenumbruch setzt lange Werte in der nächsten Zeile fort. Gilt an der Cursorposition."
   },
   "variablePicker": {
     "noVariablesAvailable": "Keine Variablen verfügbar",
@@ -3260,5 +3276,20 @@
       "body": "Installieren und Offline-Nutzung brauchen eine sichere Adresse. Du bist auf http://{host}. Öffne FiestaBoard unter seiner https-Adresse oder richte HTTPS für deinen Hub ein.",
       "help": "So richtest du HTTPS ein"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Live-Vorschau",
+    "mirror": "Beim Bearbeiten auf dem Board anzeigen",
+    "mirroring": "Spiegelung aktiv",
+    "mirrorHint": "Sendet nach jeder Tipp-Pause. Endet beim Verlassen des Editors.",
+    "savedToPages": "In Seiten gespeichert",
+    "addToSchedule": "Zum Zeitplan hinzufügen",
+    "showNow": "Jetzt anzeigen",
+    "saved": "Gespeichert",
+    "unsaved": "Nicht gespeichert",
+    "unknownDisplay": "Der Zeichensatz dieses Displays ist unbekannt",
+    "plainTextOnly": "Einfacher Text ist verfügbar. Farben und displayspezifische Werkzeuge sind nicht verfügbar.",
+    "targetUnavailable": "Dieses Display ist für die Spiegelung nicht verfügbar.",
+    "nameRequired": "Diese Seite benennen"
   }
 }

@@ -105,10 +105,13 @@ it("leaves an unchanged page without prompting", async () => {
   expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 });
 
-it("leaves after a successful save without prompting", async () => {
+it("stays after Save, then leaves without prompting", async () => {
   const { user } = setup();
   await user.type(await screen.findByDisplayValue("Weather Page"), " changed");
   await user.click(screen.getByRole("button", { name: "Save Page" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled());
+  expect(screen.getByDisplayValue("Weather Page changed")).toBeInTheDocument();
+  await user.click(screen.getByRole("link", { name: "Pages breadcrumb" }));
   expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
   expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 });

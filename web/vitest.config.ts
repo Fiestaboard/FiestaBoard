@@ -53,6 +53,7 @@ export default defineConfig({
         "src/components/notification-display.tsx",
         "src/components/language-selector.tsx",
         "src/components/editor-shortcut-list.tsx",
+        "src/components/editor-tablet-tools.tsx",
         "src/components/install-prompt.tsx",
         "src/components/pwa/**",
         "src/i18n/config.ts",

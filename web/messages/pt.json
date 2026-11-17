@@ -2363,7 +2363,23 @@
     "fillSpaceTooltip": "Preencher espaço - expande-se para ocupar a largura restante da linha",
     "fillSpaceRepeatTooltip": "Preencher espaço repetindo: {char}",
     "variableFilterTooltip": "Filtro: {filter}",
-    "variableMaxLengthTooltip": "Comprimento máximo: {maxLength} caracteres"
+    "variableMaxLengthTooltip": "Comprimento máximo: {maxLength} caracteres",
+    "tools": "Ferramentas do editor",
+    "formula": "Fórmula",
+    "more": "Mais",
+    "textColor": "Cor do texto",
+    "icon": "Ícone",
+    "size": "Tamanho",
+    "brush": "Pincel",
+    "drawDone": "Concluído",
+    "align": "Alinhar",
+    "alignLeftShort": "Esquerda",
+    "alignCenterShort": "Centro",
+    "alignRightShort": "Direita",
+    "wrapLine": "Quebrar esta linha",
+    "clipboard": "Área de transferência",
+    "colorsHint": "Toque em uma cor para inserir um bloco no cursor. O painel permanece aberto para adicionar vários; deslize para baixo, toque em ✕ ou pressione Esc para fechar.",
+    "formattingHint": "Preencher espaço empurra o restante da linha para a borda direita; a quebra de linha permite que um valor longo continue na próxima linha. Aplica-se na posição do cursor."
   },
   "variablePicker": {
     "noVariablesAvailable": "Nenhuma variável disponível",
@@ -3260,5 +3276,20 @@
       "body": "Instalar e usar offline exigem um endereço seguro. Você está em http://{host}. Abra o FiestaBoard no endereço https ou configure HTTPS para o seu hub.",
       "help": "Como configurar HTTPS"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Pré-visualização em tempo real",
+    "mirror": "Espelhar no painel durante a edição",
+    "mirroring": "Espelhando",
+    "mirrorHint": "Envia após cada pausa na digitação. Para ao sair do editor.",
+    "savedToPages": "Salvo em Páginas",
+    "addToSchedule": "Adicionar à agenda",
+    "showNow": "Mostrar agora",
+    "saved": "Salvo",
+    "unsaved": "Não salvo",
+    "unknownDisplay": "Não é possível determinar o que esta tela pode exibir",
+    "plainTextOnly": "O texto simples está disponível. As cores e as ferramentas específicas da tela não estão disponíveis.",
+    "targetUnavailable": "Esta tela não está disponível para espelhamento.",
+    "nameRequired": "Dê um nome a esta página"
   }
 }

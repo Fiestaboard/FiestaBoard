@@ -12,6 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  type BoardPreviewMode,
+  BoardPreviewModeToggle,
   Box,
   Button,
   Card,
@@ -19,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
   CopyButton,
+  DEFAULT_EDITOR_PREVIEW_LABELS,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -31,7 +34,10 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  EditorPreview,
   Flex,
+  Input,
+  readStoredBoardPreviewMode,
   Select,
   SelectContent,
   SelectGroup,
@@ -44,13 +50,15 @@ import {
   Switch,
   Text,
   Textarea,
+  ToolbarDropdown,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  writeStoredBoardPreviewMode,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Radio, Save, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload } from "lucide-react";
 import {
   forwardRef,
   lazy,
@@ -71,6 +79,9 @@ import { DevicePreview } from "@/components/device-preview";
 import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
 import { EditorShortcutList, useEditorShortcutList } from "@/components/editor-shortcut-list";
+import { ChangePageDialog } from "@/components/home/change-page-dialog";
+import { scheduleNextChange } from "@/components/home/home-status";
+import { useBoardDetail } from "@/components/home/use-home-data";
 import { LiveOutputSilenceStrip } from "@/components/live-output-silence-strip";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { PlainTextEditor } from "@/components/plain-text-editor";
@@ -92,6 +103,7 @@ import {
   queryKeys,
   resolveCode62Glyph,
   useBoardSettings,
+  useStatus,
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -120,6 +132,7 @@ import type {
   TemplateRenderResponse,
 } from "@/lib/api";
 import { api } from "@/lib/api";
+import { appUrl } from "@/lib/base-path";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
 import { charsetTokenText } from "@/lib/charset-issues";
@@ -135,6 +148,7 @@ import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-ou
 import { getDraftKey } from "@/lib/page-draft";
 import { panelsFittingGrid, targetValue } from "@/lib/panel-page-fit";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
+import { isDisplayOffline } from "@/lib/status-banners";
 import { cn } from "@/lib/utils";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
@@ -290,7 +304,7 @@ interface DraftData {
 
 export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(function PageBuilder(
   {
-    pageId,
+    pageId: initialPageId,
     deviceType: deviceTypeProp,
     targetBoardId: targetBoardIdProp,
     skipDraft = false,
@@ -300,6 +314,22 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   },
   ref,
 ) {
+  const [createdPageId, setCreatedPageId] = useState<string>();
+  const pageId = initialPageId ?? createdPageId;
+  const [toolbarContainer, setToolbarContainer] = useState<Element | null>(null);
+  const tTouch = useTranslations("editorTouch");
+  const tToolbar = useTranslations("templateEditor");
+  const tBoardDisplay = useTranslations("boardDisplay");
+  const dockedPreview = useMediaQuery("(max-width: 1023px)");
+  const sheetPickers = useMediaQuery("(max-width: 639px)");
+  const [previewMode, setPreviewMode] = useState<BoardPreviewMode>(() => readStoredBoardPreviewMode() ?? "actual");
+  const changePreviewMode = (mode: BoardPreviewMode) => {
+    setPreviewMode(mode);
+    writeStoredBoardPreviewMode(mode);
+  };
+  const [showPageId, setShowPageId] = useState<string | null>(null);
+  const showAfterSaveRef = useRef(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
   const tCanvas = useTranslations("canvasEditor");
@@ -312,6 +342,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
+  const { data: status } = useStatus();
   const { currentBoardId, currentBoard } = useCurrentBoard();
 
   // Device type: from prop (new pages), the requested or sidebar board (a new
@@ -436,7 +467,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
   const [editingSurface, setEditingSurface] = useState<"text" | "canvases">("text");
-  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(true);
 
   // Per-page transition override. `null` means "inherit the display's transition"
   // — the backend clears a stored override only when it is sent an explicit
@@ -599,7 +629,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, [panelGrid]);
 
   const hasUnsavedChanges = useMemo(() => {
-    if (!savedSnapshot) return !pageId;
+    if (!savedSnapshot)
+      return (
+        !pageId &&
+        (name.trim().length > 0 || templateLines.some((line) => line.trim().length > 0) || canvases.length > 0)
+      );
     return (
       name !== savedSnapshot.name ||
       deviceType !== savedSnapshot.deviceType ||
@@ -936,6 +970,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // and sidebar context without first selecting the primary board.
   const selectedBoardId = chosenLiveBoardId || previewBoardId || "";
   const liveTargetPaused = boardSettings?.boards?.find((board) => board.id === selectedBoardId)?.paused === true;
+  const { data: targetDetail } = useBoardDetail(selectedBoardId || undefined);
+  const baselineDisplay = targetDetail?.drawing?.source === "baseline";
+  const mirrorDisabled = !selectedBoardId || liveTargetPaused || targetDetail?.paused === true;
   const previewModel = useMemo(() => resolveBoardModel(previewBoard), [previewBoard]);
   // An LED target's character set: the rich editor then reads and offers that
   // set's extended markup and keeps its case. null for a split-flap target.
@@ -943,8 +980,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // The preview board as a pixel matrix (its size and face), when it is one:
   // only then are the page's canvases drawn, and so edited.
   const pixelBoard = useMemo(
-    () => pixelBoardOf(previewModel, previewBoard?.led_layout),
-    [previewModel, previewBoard?.led_layout],
+    () => (baselineDisplay ? null : pixelBoardOf(previewModel, previewBoard?.led_layout)),
+    [previewModel, previewBoard?.led_layout, baselineDisplay],
   );
   // Cells of the last render that board's character set draws differently
   // (POST /templates/render with board_id); [] when none or no board.
@@ -964,6 +1001,33 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Silence (#1943): live renders leave a silenced board alone unless the
   // user explicitly chose "Send to board anyway" for this Live Output session.
   const liveSilence = useSilence(selectedBoardId || undefined);
+  const mirrorUnavailable =
+    mirrorDisabled ||
+    liveSilence.active ||
+    previewBoard?.enabled === false ||
+    isDisplayOffline(status?.boards?.[selectedBoardId]?.health);
+  const changeMirroring = (enabled: boolean) => {
+    if (enabled && mirrorUnavailable) return;
+    if (enabled) setChosenLiveBoardId(selectedBoardId);
+    setLiveOutputEnabled(enabled);
+  };
+  const mirrorMoreContent = (
+    <Stack gap="2">
+      <Flex align="center" justify="between" gap="3">
+        <label htmlFor="editor-more-mirror">{tTouch("mirror") || DEFAULT_EDITOR_PREVIEW_LABELS.liveLabel}</label>
+        <Switch
+          id="editor-more-mirror"
+          checked={liveOutputEnabled}
+          disabled={mirrorUnavailable && !liveOutputEnabled}
+          onCheckedChange={changeMirroring}
+          aria-describedby="editor-more-mirror-hint"
+        />
+      </Flex>
+      <Text id="editor-more-mirror-hint" size="xs" tone="muted">
+        {mirrorUnavailable ? tTouch("targetUnavailable") : tTouch("mirrorHint")}
+      </Text>
+    </Stack>
+  );
   const [liveOverrideSilence, setLiveOverrideSilence] = useState(false);
   // The last live render came back `silenced: true` (the board was left alone).
   const [liveSilenced, setLiveSilenced] = useState(false);
@@ -1604,9 +1668,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       // Invalidate pages list with active refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
 
-      // Invalidate the specific page and its preview to bust the cache
+      // The mutation response is authoritative for the editor. Refetching its
+      // detail here can race the committed snapshot with an older response.
       if (targetPageId) {
-        queryClient.invalidateQueries({ queryKey: ["page", targetPageId], refetchType: "active" });
         queryClient.invalidateQueries({ queryKey: queryKeys.pagePreview(targetPageId), refetchType: "active" });
       }
 
@@ -1617,7 +1681,45 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
 
-      toast.success(pageId ? t("toastPageUpdated") : t("toastPageCreated"));
+      if (!pageId) {
+        toast.success(tTouch("savedToPages"), {
+          duration: 6000,
+          position: dockedPreview ? "bottom-center" : "top-right",
+          style: dockedPreview ? { bottom: "calc(64px + env(safe-area-inset-bottom))" } : { width: "380px" },
+          action: { label: tTouch("showNow"), onClick: () => setShowPageId(data.page.id) },
+          cancel: {
+            label: tTouch("addToSchedule"),
+            onClick: () => {
+              window.location.assign(appUrl(`/schedule?prefill_page_id=${encodeURIComponent(data.page.id)}`));
+            },
+          },
+        });
+      }
+      seededRevisionRef.current = data.page.revision;
+      seededProtocolsRef.current = {
+        edit_protocol: data.page.edit_protocol,
+        document_protocol: data.page.document_protocol,
+      };
+      queryClient.setQueryData(["page", data.page.id], data.page);
+      if (!pageId) {
+        seededPageIdRef.current = data.page.id;
+        setCreatedPageId(data.page.id);
+      }
+      setSavedAt(new Date());
+      setSavedSnapshot({
+        name,
+        deviceType,
+        geometry: JSON.stringify(geometryFields(deviceType, notesWide, notesTall, panelGrid)),
+        templateLines: [...templateLines],
+        lineAlignments: [...lineAlignments],
+        lineWrapEnabled: [...lineWrapEnabled],
+        transitionStrategy,
+        canvases: [...canvases],
+      });
+      if (showAfterSaveRef.current) {
+        showAfterSaveRef.current = false;
+        setShowPageId(data.page.id);
+      }
 
       // Stale-reference warning after a device/size retarget (issue #1250):
       // list the schedules / active pages now pointing this page at a board
@@ -1637,12 +1739,40 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       // Navigation runs synchronously, before a dirty-state effect can update.
       hasUnsavedChangesRef.current = false;
       onSave?.();
-      onClose();
     },
     onError: (error: Error) => {
+      showAfterSaveRef.current = false;
       toast.error(error.message);
     },
   });
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (hasUnsavedChangesRef.current) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (!name.trim()) {
+          document.getElementById("page-name")?.focus();
+          return;
+        }
+        if (!saveMutation.isPending && !stagingActive) {
+          if (isShrinkingRetarget) setConfirmRetargetOpen(true);
+          else saveMutation.mutate();
+        }
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [name, saveMutation, stagingActive, isShrinkingRetarget]);
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -2003,7 +2133,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         // Remember the rendered content even during silence, so deleting
         // the final content can still render an explicitly empty page.
         lastLiveSentPreview.current = data.rendered;
-        setLiveSilenced(data.silenced === true);
+        setLiveSilenced((previous) => data.silenced === true || (liveOverrideSilence && previous));
         if (data.sent_to_board) {
           // Broadcast to the Home page (same tab and other tabs) so navigating
           // there shows this content — only a frame the board really shows.
@@ -2255,7 +2385,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             embedded && "rounded-none border-0 bg-transparent shadow-none",
           )}
         >
-          <CardHeader className="sticky top-0 z-10 bg-background/95 pb-2 flex-shrink-0 px-4 sm:px-6">
+          <CardHeader className="sticky top-0 z-20 bg-background pb-2 flex-shrink-0 px-2 lg:px-4">
             <Flex align="center" justify="between" className="flex-wrap gap-2">
               <Flex align="center" gap="2" className="min-w-0">
                 {!embedded && (
@@ -2272,14 +2402,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 {/* Embedded, the page's name is the section's h2 just above; this
                     row is the editor's own label, so it steps down to a quiet
                     caption instead of reading as a second heading of equal rank. */}
-                <CardTitle
-                  className={cn(
-                    "text-base sm:text-lg truncate",
-                    embedded && "text-sm font-medium text-muted-foreground sm:text-sm",
-                  )}
-                >
-                  {pageId ? t("editPage") : t("createPage")}
+                <CardTitle className={cn("text-base lg:text-2xl truncate")}>
+                  {name || (pageId ? t("editPage") : t("createPage"))}
                 </CardTitle>
+                <Text size="xs" tone="muted">
+                  {hasUnsavedChanges
+                    ? tTouch("unsaved")
+                    : savedAt
+                      ? `${tTouch("saved")} ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+                      : ""}
+                </Text>
               </Flex>
               {/* `skipDelayDuration={0}` disables Radix's "skip the
                *  hover delay when moving between tooltips" behavior.
@@ -2419,11 +2551,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        variant="brand"
-                        size="sm"
-                        className="h-8 gap-1.5 px-3 text-xs"
+                        variant="secondary"
+                        size={dockedPreview ? "touch" : "sm"}
+                        className="gap-1.5"
                         {...anchorProps("page-editor.save")}
                         onClick={() => {
+                          if (!name.trim()) {
+                            document.getElementById("page-name")?.focus();
+                            return;
+                          }
                           // A shrinking retarget loses content — confirm first.
                           if (isShrinkingRetarget) {
                             setConfirmRetargetOpen(true);
@@ -2431,7 +2567,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             saveMutation.mutate();
                           }
                         }}
-                        disabled={!name.trim() || saveMutation.isPending || stagingActive}
+                        disabled={saveMutation.isPending || stagingActive}
                         aria-label={t("savePageAriaLabel")}
                       >
                         <Save className="h-3.5 w-3.5" />
@@ -2442,6 +2578,25 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <Text>{t("savePageTooltip")}</Text>
                     </TooltipContent>
                   </Tooltip>
+                  <Button
+                    variant="brand"
+                    size={dockedPreview ? "touch" : "sm"}
+                    disabled={saveMutation.isPending || stagingActive || !selectedBoardId}
+                    onClick={() => {
+                      if (!name.trim()) {
+                        document.getElementById("page-name")?.focus();
+                        return;
+                      }
+                      if (hasUnsavedChanges || !pageId) {
+                        showAfterSaveRef.current = true;
+                        if (isShrinkingRetarget) setConfirmRetargetOpen(true);
+                        else saveMutation.mutate();
+                      } else setShowPageId(pageId);
+                    }}
+                  >
+                    <Send className="size-4" />
+                    {tTouch("showNow")}
+                  </Button>
                   {/* Export button — only on existing pages */}
                   {pageId && (
                     <Tooltip>
@@ -2476,7 +2631,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             </Flex>
           </CardHeader>
 
-          <CardContent className="flex flex-col flex-1 min-h-0 px-3 sm:px-4 md:px-6 pt-2">
+          <CardContent className="flex flex-col flex-1 min-h-0 px-2 lg:px-4 pt-2 pb-20">
             <Box className="space-y-4">
               {/* Draft restored notification */}
               {draftRestored && (
@@ -2490,7 +2645,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 <label htmlFor="page-name" className="text-xs sm:text-sm font-medium">
                   {t("pageNameLabel")}
                 </label>
-                <input
+                <Input
                   id="page-name"
                   type="text"
                   value={name}
@@ -2521,16 +2676,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Button>
                   </Flex>
                 )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="lg:hidden"
-                  aria-expanded={mobilePreviewOpen}
-                  aria-controls="page-editor-preview"
-                  onClick={() => setMobilePreviewOpen((open) => !open)}
-                >
-                  {t(mobilePreviewOpen ? "hidePreview" : "showPreview")}
-                </Button>
                 {/* At tablet widths or without a web toolbar, the hint sits above
                     the template instead of wrapping onto its own toolbar line (DD-W59). */}
                 {!hintOnToolbar && (
@@ -2540,12 +2685,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 )}
               </Flex>
 
-              <Box className="grid min-w-0 grid-cols-1 items-start gap-5">
+              <Box ref={setToolbarContainer} className="min-w-0" />
+              <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-6">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
                 <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0">
                   <Stack gap="3" className="min-w-0">
                     <Flex ref={templateHeadingRef} align="center" justify="between">
-                      <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
+                      <label htmlFor="page-template-plain" className="text-xs sm:text-sm font-medium">
+                        {t("templateLabel")}
+                      </label>
                       <Flex
                         align="center"
                         role="group"
@@ -2558,7 +2706,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           onClick={() => handleEditorModeChange("rich")}
                           className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                           aria-label={t("richEditorAriaLabel")}
-                          aria-pressed={editorMode === "rich"}
+                          disabled={baselineDisplay}
+                          aria-pressed={!baselineDisplay && editorMode === "rich"}
                         >
                           {t("richEditor")}
                         </Button>
@@ -2568,13 +2717,21 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           onClick={() => handleEditorModeChange("plain")}
                           className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                           aria-label={t("plainTextAriaLabel")}
-                          aria-pressed={editorMode === "plain"}
+                          aria-pressed={baselineDisplay || editorMode === "plain"}
                         >
                           {t("plainEditor")}
                         </Button>
                       </Flex>
                     </Flex>
-                    {editorMode === "rich" ? (
+                    {baselineDisplay && (
+                      <Alert>
+                        <AlertDescription>
+                          <Text weight="semibold">{tTouch("unknownDisplay")}</Text>
+                          <Text>{tTouch("plainTextOnly")}</Text>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {editorMode === "rich" && !baselineDisplay ? (
                       <Box {...anchorProps("page-editor.template")}>
                         {/* Template editor with device-specific dimensions */}
                         <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
@@ -2588,6 +2745,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 setEditingSurface("canvases");
                                 canvasesPanelRef.current?.activateCanvas(id);
                               }}
+                              moreContent={mirrorMoreContent}
                               charset={editorCharset}
                               value={templateLines.join("\n")}
                               onChange={handleRichEditorChange}
@@ -2650,6 +2808,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               drawBrush={drawBrush}
                               onDrawBrushChange={setDrawBrush}
                               onDrawHistoryEvent={handleDrawHistoryEvent}
+                              toolbarContainer={toolbarContainer}
+                              toolbarMoreContent={mirrorMoreContent}
                               toolbarTrailing={
                                 hintOnToolbar ? <EditorShortcutList variant="hint" {...shortcutListProps} /> : undefined
                               }
@@ -2660,6 +2820,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     ) : (
                       <Box {...anchorProps("page-editor.template")}>
                         <PlainTextEditor
+                          id="page-template-plain"
                           lineMarkers={pixelBoard ? canvasMarkers(canvases, numLines) : undefined}
                           lineMarkerTitle={tCanvas("markerTitle")}
                           value={templateLines.join("\n")}
@@ -2740,214 +2901,262 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   </Stack>
                 </Box>
 
-                {/* Preview is shared by both modes; phones can collapse it into the main scroll. */}
-                <Box
+                {/* Preview is shared by both modes; the dock stays visible below 1024 px. */}
+                <EditorPreview
                   id="page-editor-preview"
-                  className={cn("order-2 min-w-0 rounded-lg border p-3", !mobilePreviewOpen && "hidden lg:block")}
+                  variant={dockedPreview ? "docked" : "pane"}
+                  className="order-first lg:order-2 min-w-0 top-16"
+                  title={tTouch("livePreview")}
+                  boardName={previewBoard?.name}
+                  live={liveOutputEnabled}
+                  onLiveChange={changeMirroring}
+                  liveDisabled={mirrorUnavailable && !liveOutputEnabled}
+                  liveLabel={tTouch("mirror")}
+                  mirroringLabel={tTouch("mirroring")}
+                  statusLine={
+                    mirrorUnavailable
+                      ? tTouch("targetUnavailable")
+                      : liveOutputEnabled
+                        ? tTouch("mirrorHint")
+                        : undefined
+                  }
+                  headerAction={
+                    <Flex align="center" gap="1">
+                      <BoardPreviewModeToggle
+                        mode={previewMode}
+                        onModeChange={changePreviewMode}
+                        size={dockedPreview ? "touch" : "default"}
+                        labels={{
+                          previewSize: tBoardDisplay("previewSizeLabel"),
+                          fit: tBoardDisplay("fitMode"),
+                          actual: tBoardDisplay("actualMode"),
+                        }}
+                      />
+                      {dockedPreview && (editorMode === "plain" || baselineDisplay) && (
+                        <ToolbarDropdown
+                          label={tToolbar("more")}
+                          icon={<Ellipsis />}
+                          size="touch"
+                          presentation={sheetPickers ? "sheet" : "popover"}
+                        >
+                          {mirrorMoreContent}
+                        </ToolbarDropdown>
+                      )}
+                    </Flex>
+                  }
                 >
-                  <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
-                    <Flex align="center" gap="2" className="flex-wrap">
-                      <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
-                      <BoardSizeIndicator
-                        deviceType={deviceType}
-                        notesWide={notesWide}
-                        notesTall={notesTall}
-                        gridRows={gridRows}
-                        gridCols={gridCols}
-                        className="ml-1"
-                      />
-                      <PanelFitNote
-                        deviceType={deviceType}
-                        notesWide={notesWide}
-                        notesTall={notesTall}
-                        gridRows={gridRows}
-                        gridCols={gridCols}
-                      />
-                      {/* Device/size retarget (issue #1250): both new AND saved
+                  <Box className={dockedPreview ? "hidden" : undefined}>
+                    <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
+                      <Flex align="center" gap="2" className="flex-wrap">
+                        <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
+                        <BoardSizeIndicator
+                          deviceType={deviceType}
+                          notesWide={notesWide}
+                          notesTall={notesTall}
+                          gridRows={gridRows}
+                          gridCols={gridCols}
+                          className="ml-1"
+                        />
+                        <PanelFitNote
+                          deviceType={deviceType}
+                          notesWide={notesWide}
+                          notesTall={notesTall}
+                          gridRows={gridRows}
+                          gridCols={gridCols}
+                        />
+                        {/* Device/size retarget (issue #1250): both new AND saved
                           pages can change board size. Converting a saved page is
                           lossy (shrinks truncate), so saving a shrinking retarget
                           asks for confirmation first. */}
-                      <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
-                        <SelectTrigger
-                          {...anchorProps("page-editor.device")}
-                          className="h-7 w-auto gap-1 px-2 text-xs"
-                          aria-label={t("deviceTypeSwitcherAriaLabel")}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {/* FiestaPanels first: a panel's grid is auto-fit from
+                        <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
+                          <SelectTrigger
+                            {...anchorProps("page-editor.device")}
+                            className="h-7 w-auto gap-1 px-2 text-xs"
+                            aria-label={t("deviceTypeSwitcherAriaLabel")}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {/* FiestaPanels first: a panel's grid is auto-fit from
                               its TV size, so nobody can pick it out of the
                               generic Notes-wide/tall selects below. Absent on an
                               install with no panels, leaving the picker exactly
                               the three sizes it has always been. */}
-                          {fiestaPanelTargets.length > 0 && (
-                            <SelectGroup>
-                              <SelectLabel>{tPanels("yourPanelsGroupLabel")}</SelectLabel>
-                              {fiestaPanelTargets.map((panel) => (
-                                <SelectItem key={panel.id} value={targetValue(panel)} className="text-xs">
-                                  {tPanels("panelSizeOption", {
-                                    name: panel.name,
-                                    cols: panel.cols,
-                                    rows: panel.rows,
-                                  })}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          )}
-                          {/* Every other display with a custom grid — an output
+                            {fiestaPanelTargets.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel>{tPanels("yourPanelsGroupLabel")}</SelectLabel>
+                                {fiestaPanelTargets.map((panel) => (
+                                  <SelectItem key={panel.id} value={targetValue(panel)} className="text-xs">
+                                    {tPanels("panelSizeOption", {
+                                      name: panel.name,
+                                      cols: panel.cols,
+                                      rows: panel.rows,
+                                    })}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            )}
+                            {/* Every other display with a custom grid — an output
                               plugin's board, such as an LED matrix — named for
                               its board and model, so a page can be authored
                               for it. Driven by the board list alone. */}
-                          {otherDisplayTargets.length > 0 && (
-                            <SelectGroup>
-                              <SelectLabel>{tPanels("yourDisplaysGroupLabel")}</SelectLabel>
-                              {otherDisplayTargets.map((display) => (
-                                <SelectItem key={display.id} value={targetValue(display)} className="text-xs">
-                                  {tPanels(
-                                    display.modelLabel
-                                      ? display.led
-                                        ? "displaySizeOptionLed"
-                                        : "displaySizeOption"
-                                      : "panelSizeOption",
-                                    {
-                                      name: display.name,
-                                      model: display.modelLabel ?? "",
-                                      cols: display.cols,
-                                      rows: display.rows,
-                                    },
-                                  )}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          )}
-                          <SelectItem value="flagship" className="text-xs">
-                            {tDisplaySettings("flagshipLabel")}
-                          </SelectItem>
-                          <SelectItem value="note" className="text-xs">
-                            {tDisplaySettings("noteLabel")}
-                          </SelectItem>
-                          <SelectItem value="note_array" className="text-xs">
-                            {tDisplaySettings("noteArrayLabel")}
-                          </SelectItem>
-                          {/* A panel page no listed panel matches: still named,
-                              at its own grid, so the trigger never goes blank. */}
-                          {sizeSelectValue === "panel" && (
-                            <SelectItem value="panel" className="text-xs">
-                              {tPanels("panelGridOption", { cols: dims.cols, rows: dims.rows })}
+                            {otherDisplayTargets.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel>{tPanels("yourDisplaysGroupLabel")}</SelectLabel>
+                                {otherDisplayTargets.map((display) => (
+                                  <SelectItem key={display.id} value={targetValue(display)} className="text-xs">
+                                    {tPanels(
+                                      display.modelLabel
+                                        ? display.led
+                                          ? "displaySizeOptionLed"
+                                          : "displaySizeOption"
+                                        : "panelSizeOption",
+                                      {
+                                        name: display.name,
+                                        model: display.modelLabel ?? "",
+                                        cols: display.cols,
+                                        rows: display.rows,
+                                      },
+                                    )}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            )}
+                            <SelectItem value="flagship" className="text-xs">
+                              {tDisplaySettings("flagshipLabel")}
                             </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {deviceType === "note_array" && (
-                        <>
-                          <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
-                            <SelectTrigger
-                              className="h-7 w-auto gap-1 px-2 text-xs"
-                              aria-label={tDisplaySettings("notesWideLabel")}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {NOTE_AXIS_OPTIONS.map((n) => (
-                                <SelectItem key={`w-${n}`} value={String(n)} className="text-xs">
-                                  {t("notesWideOption", { count: n })}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
-                            <SelectTrigger
-                              className="h-7 w-auto gap-1 px-2 text-xs"
-                              aria-label={tDisplaySettings("notesTallLabel")}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {NOTE_AXIS_OPTIONS.map((n) => (
-                                <SelectItem key={`t-${n}`} value={String(n)} className="text-xs">
-                                  {t("notesTallOption", { count: n })}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </>
-                      )}
-                    </Flex>
-                    <Flex align="center" gap="1.5" className="shrink-0">
-                      <Text as="span" size="xs" tone="muted" className="mr-0.5">
-                        {t("boardColorLabel")}
-                      </Text>
-                      <button
-                        onClick={() => setPreviewBoardColor("black")}
-                        aria-label={t("previewAsBlack")}
-                        aria-pressed={effectiveBoardColor === "black"}
-                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                          effectiveBoardColor === "black"
-                            ? "border-primary ring-1 ring-primary/30"
-                            : "border-border hover:border-muted-foreground"
-                        }`}
-                      />
-                      <button
-                        onClick={() => setPreviewBoardColor("white")}
-                        aria-label={t("previewAsWhite")}
-                        aria-pressed={effectiveBoardColor === "white"}
-                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                          effectiveBoardColor === "white"
-                            ? "border-primary ring-1 ring-primary/30"
-                            : "border-border hover:border-muted-foreground"
-                        }`}
-                      />
-                    </Flex>
-                  </Flex>
-                  <Flex justify="center">
-                    <DrawableBoardPreview
-                      active={drawMode}
-                      onStrokePreview={setStrokePreviewCells}
-                      onStrokeCommit={handleStrokeCommit}
-                    >
-                      {/* An LED target board previews as its LED matrix; draw
-                          mode hit-tests flap tiles, so it stays on the flaps. */}
-                      <DevicePreview
-                        model={drawMode ? null : previewModel}
-                        ledLayout={previewBoard?.led_layout}
-                        layers={drawMode ? undefined : previewLayers}
-                        message={editorPreviewMessage}
-                        size="md"
-                      >
-                        <ScaledBoardDisplay
-                          message={editorPreviewMessage}
-                          isLoading={
-                            drawMode
-                              ? false
-                              : (() => {
-                                  const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                                  const isPending = previewMutation.isPending;
-                                  const shouldIgnore = shouldIgnoreNextResponse.current;
-
-                                  if (isTransitioning) return true;
-                                  if (preview !== null) return false;
-                                  if (!hasContent) return false;
-                                  if (shouldIgnore) return false;
-                                  return isPending && hasContent;
-                                })()
-                          }
-                          isStatic={drawMode}
-                          size="md"
-                          boardType={effectiveBoardColor}
-                          deviceType={deviceType}
-                          code62Glyph={effectiveCode62Glyph}
-                          notesWide={notesWide}
-                          notesTall={notesTall}
-                          gridRows={panelGrid?.rows}
-                          gridCols={panelGrid?.cols}
-                          // DrawableBoardPreview hit-tests strokes through the
-                          // tiles' data-row/data-col attributes; only this
-                          // editor preview opts into emitting them.
-                          emitCellMetadata
+                            <SelectItem value="note" className="text-xs">
+                              {tDisplaySettings("noteLabel")}
+                            </SelectItem>
+                            <SelectItem value="note_array" className="text-xs">
+                              {tDisplaySettings("noteArrayLabel")}
+                            </SelectItem>
+                            {/* A panel page no listed panel matches: still named,
+                              at its own grid, so the trigger never goes blank. */}
+                            {sizeSelectValue === "panel" && (
+                              <SelectItem value="panel" className="text-xs">
+                                {tPanels("panelGridOption", { cols: dims.cols, rows: dims.rows })}
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {deviceType === "note_array" && (
+                          <>
+                            <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
+                              <SelectTrigger
+                                className="h-7 w-auto gap-1 px-2 text-xs"
+                                aria-label={tDisplaySettings("notesWideLabel")}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {NOTE_AXIS_OPTIONS.map((n) => (
+                                  <SelectItem key={`w-${n}`} value={String(n)} className="text-xs">
+                                    {t("notesWideOption", { count: n })}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
+                              <SelectTrigger
+                                className="h-7 w-auto gap-1 px-2 text-xs"
+                                aria-label={tDisplaySettings("notesTallLabel")}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {NOTE_AXIS_OPTIONS.map((n) => (
+                                  <SelectItem key={`t-${n}`} value={String(n)} className="text-xs">
+                                    {t("notesTallOption", { count: n })}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </>
+                        )}
+                      </Flex>
+                      <Flex align="center" gap="1.5" className="shrink-0">
+                        <Text as="span" size="xs" tone="muted" className="mr-0.5">
+                          {t("boardColorLabel")}
+                        </Text>
+                        <button
+                          onClick={() => setPreviewBoardColor("black")}
+                          aria-label={t("previewAsBlack")}
+                          aria-pressed={effectiveBoardColor === "black"}
+                          className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                            effectiveBoardColor === "black"
+                              ? "border-primary ring-1 ring-primary/30"
+                              : "border-border hover:border-muted-foreground"
+                          }`}
                         />
-                      </DevicePreview>
-                    </DrawableBoardPreview>
+                        <button
+                          onClick={() => setPreviewBoardColor("white")}
+                          aria-label={t("previewAsWhite")}
+                          aria-pressed={effectiveBoardColor === "white"}
+                          className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                            effectiveBoardColor === "white"
+                              ? "border-primary ring-1 ring-primary/30"
+                              : "border-border hover:border-muted-foreground"
+                          }`}
+                        />
+                      </Flex>
+                    </Flex>
+                  </Box>
+                  <Flex justify="center">
+                    {baselineDisplay ? (
+                      <Text className="w-full whitespace-pre-wrap font-mono">{editorPreviewMessage}</Text>
+                    ) : (
+                      <DrawableBoardPreview
+                        active={drawMode}
+                        onStrokePreview={setStrokePreviewCells}
+                        onStrokeCommit={handleStrokeCommit}
+                      >
+                        {/* An LED target board previews as its LED matrix; draw
+                          mode hit-tests flap tiles, so it stays on the flaps. */}
+                        <DevicePreview
+                          model={drawMode ? null : previewModel}
+                          ledLayout={previewBoard?.led_layout}
+                          layers={drawMode ? undefined : previewLayers}
+                          message={editorPreviewMessage}
+                          size={dockedPreview ? "sm" : "md"}
+                        >
+                          <ScaledBoardDisplay
+                            message={editorPreviewMessage}
+                            isLoading={
+                              drawMode
+                                ? false
+                                : (() => {
+                                    const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                                    const isPending = previewMutation.isPending;
+                                    const shouldIgnore = shouldIgnoreNextResponse.current;
+
+                                    if (isTransitioning) return true;
+                                    if (preview !== null) return false;
+                                    if (!hasContent) return false;
+                                    if (shouldIgnore) return false;
+                                    return isPending && hasContent;
+                                  })()
+                            }
+                            isStatic={drawMode}
+                            size={dockedPreview ? "sm" : "md"}
+                            mode={previewMode}
+                            onModeChange={changePreviewMode}
+                            showModeToggle={false}
+                            boardType={effectiveBoardColor}
+                            deviceType={deviceType}
+                            code62Glyph={effectiveCode62Glyph}
+                            notesWide={notesWide}
+                            notesTall={notesTall}
+                            gridRows={panelGrid?.rows}
+                            gridCols={panelGrid?.cols}
+                            // DrawableBoardPreview hit-tests strokes through the
+                            // tiles' data-row/data-col attributes; only this
+                            // editor preview opts into emitting them.
+                            emitCellMetadata
+                          />
+                        </DevicePreview>
+                      </DrawableBoardPreview>
+                    )}
                   </Flex>
                   {drawMode && (
                     <Text tone="muted" size="xs" className="mt-1 text-center">
@@ -2955,53 +3164,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Text>
                   )}
 
-                  {/* Live output controls */}
-                  <Flex align="center" justify="between" gap="3" className="mt-3 flex-wrap rounded-lg border px-3 py-2">
-                    <Flex align="center" gap="2">
-                      <Switch
-                        id="live-output-toggle"
-                        checked={liveOutputEnabled}
-                        disabled={!selectedBoardId}
-                        aria-describedby={liveTargetPaused ? "live-output-paused-notice" : undefined}
-                        onCheckedChange={(enabled) => {
-                          // Starting live output commits the displayed target;
-                          // later preview/context changes must not redirect it.
-                          if (enabled) setChosenLiveBoardId(selectedBoardId);
-                          setLiveOutputEnabled(enabled);
-                        }}
-                        aria-label={t("liveOutputAriaLabel")}
-                      />
-                      <label
-                        htmlFor="live-output-toggle"
-                        className="flex items-center gap-1.5 text-xs sm:text-sm font-medium cursor-pointer select-none"
-                      >
-                        <Radio
-                          className={`h-3.5 w-3.5 ${liveOutputEnabled ? "text-destructive animate-pulse" : "text-muted-foreground"}`}
-                        />
-                        {t("liveOutput")}
-                      </label>
-                      {liveSendMutation.isPending && (
-                        <Text as="span" size="xs" tone="muted">
-                          {tCommon("sending")}
-                        </Text>
-                      )}
-                    </Flex>
-
-                    {boardSettings?.boards && boardSettings.boards.length > 1 && (
-                      <Select value={selectedBoardId} onValueChange={setChosenLiveBoardId}>
-                        <SelectTrigger className="h-7 w-[140px] text-xs" aria-label={t("selectBoardAriaLabel")}>
-                          <SelectValue placeholder={t("selectBoardPlaceholder")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {boardSettings.boards.map((board: BoardInstance) => (
-                            <SelectItem key={board.id} value={board.id} className="text-xs">
-                              {board.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </Flex>
+                  {boardSettings?.boards && boardSettings.boards.length > 1 && (
+                    <Select value={selectedBoardId} onValueChange={setChosenLiveBoardId}>
+                      <SelectTrigger aria-label={t("selectBoardAriaLabel")}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {boardSettings.boards.map((board) => (
+                          <SelectItem key={board.id} value={board.id}>
+                            {board.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   {liveTargetPaused && (
                     <Alert id="live-output-paused-notice" className="mt-2">
                       <AlertDescription>{t("livePausedNotice")}</AlertDescription>
@@ -3010,13 +3186,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <LiveOutputSilenceStrip
                     liveOutputEnabled={liveOutputEnabled}
                     lastSilenced={liveSilenced}
-                    silenceActive={liveSilence.active}
+                    silenceActive={liveSilence.active || liveSilenced}
                     overriding={liveOverrideSilence}
                     until={liveSilence.until}
                     onSendAnyway={() => setLiveOverrideSilence(true)}
                     onStopOverriding={() => setLiveOverrideSilence(false)}
                   />
-                </Box>
+                </EditorPreview>
 
                 {/* Pixel canvases: edited for an LED pixel board; on any other
                     board a page that has them says why their areas are blank. */}
@@ -3046,6 +3222,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         </Card>
       </Box>
 
+      <ChangePageDialog
+        open={showPageId !== null}
+        onOpenChange={(open) => {
+          if (!open) setShowPageId(null);
+        }}
+        initialPageId={showPageId}
+        board={previewBoard ?? undefined}
+        isPrimary={boardSettings?.boards?.[0]?.id === selectedBoardId}
+        scheduleEnabled={targetDetail?.schedule_enabled ?? previewBoard?.schedule_enabled ?? false}
+        nextChange={scheduleNextChange(targetDetail, new Date())}
+        silence={liveSilence.active ? { until: liveSilence.until } : null}
+      />
       {/* Export dialog */}
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
         <DialogContent className="sm:max-w-md">

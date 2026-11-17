@@ -2363,7 +2363,23 @@
     "fillSpaceTooltip": "Boşluğu doldur - satırın kalan genişliğini dolduracak şekilde genişler",
     "fillSpaceRepeatTooltip": "Boşluğu doldur, tekrarlanan: {char}",
     "variableFilterTooltip": "Filtre: {filter}",
-    "variableMaxLengthTooltip": "Maksimum uzunluk: {maxLength} karakter"
+    "variableMaxLengthTooltip": "Maksimum uzunluk: {maxLength} karakter",
+    "tools": "Düzenleyici araçları",
+    "formula": "Formül",
+    "more": "Diğer",
+    "textColor": "Metin rengi",
+    "icon": "Simge",
+    "size": "Boyut",
+    "brush": "Fırça",
+    "drawDone": "Bitti",
+    "align": "Hizala",
+    "alignLeftShort": "Sol",
+    "alignCenterShort": "Orta",
+    "alignRightShort": "Sağ",
+    "wrapLine": "Bu satırı kaydır",
+    "clipboard": "Pano",
+    "colorsHint": "İmlece bir karo eklemek için bir renge dokunun. Birden fazla ekleyebilmeniz için panel açık kalır; kapatmak için aşağı kaydırın, ✕ simgesine dokunun veya Esc tuşuna basın.",
+    "formattingHint": "Boşluğu doldur, satırın kalanını sağ kenara iter; satır kaydırma, uzun bir değerin sonraki satırda devam etmesini sağlar. İmleç konumunda uygulanır."
   },
   "variablePicker": {
     "noVariablesAvailable": "Kullanılabilir değişken yok",
@@ -3260,5 +3276,20 @@
       "body": "Yükleme ve çevrimdışı kullanım güvenli bir adres gerektirir. Şu anda http://{host} adresindesiniz. FiestaBoard’u https adresinden açın veya hub’ınız için HTTPS kurun.",
       "help": "HTTPS nasıl kurulur"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Canlı önizleme",
+    "mirror": "Düzenlerken panoya yansıt",
+    "mirroring": "Yansıtılıyor",
+    "mirrorHint": "Yazmaya her ara verdiğinizde gönderir. Düzenleyiciden çıkınca durur.",
+    "savedToPages": "Sayfalara kaydedildi",
+    "addToSchedule": "Zamanlamaya ekle",
+    "showNow": "Şimdi göster",
+    "saved": "Kaydedildi",
+    "unsaved": "Kaydedilmedi",
+    "unknownDisplay": "Bu ekranın neleri gösterebildiği belirlenemiyor",
+    "plainTextOnly": "Düz metin kullanılabilir. Renkler ve ekrana özel araçlar kullanılamaz.",
+    "targetUnavailable": "Bu ekran yansıtma için kullanılamıyor.",
+    "nameRequired": "Bu sayfayı adlandırın"
   }
 }

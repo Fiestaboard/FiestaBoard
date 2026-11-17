@@ -31,9 +31,7 @@ export default function EditPage() {
     push("/pages");
   };
 
-  const handleSave = () => {
-    push("/pages");
-  };
+  const handleSave = () => {};
 
   if (!pageId) {
     return (

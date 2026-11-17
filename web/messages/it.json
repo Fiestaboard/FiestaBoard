@@ -2363,7 +2363,23 @@
     "fillSpaceTooltip": "Spazio di riempimento - si espande per occupare la larghezza rimanente della riga",
     "fillSpaceRepeatTooltip": "Riempimento ripetendo: {char}",
     "variableFilterTooltip": "Filtro: {filter}",
-    "variableMaxLengthTooltip": "Lunghezza massima: {maxLength} caratteri"
+    "variableMaxLengthTooltip": "Lunghezza massima: {maxLength} caratteri",
+    "tools": "Strumenti dell’editor",
+    "formula": "Formula",
+    "more": "Altro",
+    "textColor": "Colore del testo",
+    "icon": "Icona",
+    "size": "Dimensione",
+    "brush": "Pennello",
+    "drawDone": "Fine",
+    "align": "Allinea",
+    "alignLeftShort": "Sinistra",
+    "alignCenterShort": "Centro",
+    "alignRightShort": "Destra",
+    "wrapLine": "A capo su questa riga",
+    "clipboard": "Appunti",
+    "colorsHint": "Tocca un colore per inserire una tessera al cursore. Il pannello rimane aperto per aggiungerne altre; scorri verso il basso, tocca ✕ o premi Esc per chiuderlo.",
+    "formattingHint": "Riempi spazio sposta il resto della riga al bordo destro; A capo permette a un valore lungo di continuare sulla riga successiva. Si applica al cursore."
   },
   "variablePicker": {
     "noVariablesAvailable": "Nessuna variabile disponibile",
@@ -3260,5 +3276,20 @@
       "body": "Installazione e uso offline richiedono un indirizzo sicuro. Sei su http://{host}. Apri FiestaBoard al suo indirizzo https oppure configura HTTPS per il tuo hub.",
       "help": "Come configurare HTTPS"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Anteprima in tempo reale",
+    "mirror": "Riproduci sulla lavagna durante la modifica",
+    "mirroring": "Riproduzione in corso",
+    "mirrorHint": "Invia dopo ogni pausa nella digitazione. Si interrompe quando esci dall’editor.",
+    "savedToPages": "Salvato in Pagine",
+    "addToSchedule": "Aggiungi alla programmazione",
+    "showNow": "Mostra ora",
+    "saved": "Salvato",
+    "unsaved": "Non salvato",
+    "unknownDisplay": "Impossibile determinare cosa può visualizzare questo display",
+    "plainTextOnly": "Il testo semplice è disponibile. I colori e gli strumenti specifici del display non sono disponibili.",
+    "targetUnavailable": "Questo display non è disponibile per la riproduzione in tempo reale.",
+    "nameRequired": "Assegna un nome a questa pagina"
   }
 }

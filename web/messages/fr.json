@@ -2363,7 +2363,23 @@
     "fillSpaceTooltip": "Espace de remplissage - s'étend pour occuper la largeur restante de la ligne",
     "fillSpaceRepeatTooltip": "Remplissage en répétant : {char}",
     "variableFilterTooltip": "Filtre : {filter}",
-    "variableMaxLengthTooltip": "Longueur maximale : {maxLength} caractères"
+    "variableMaxLengthTooltip": "Longueur maximale : {maxLength} caractères",
+    "tools": "Outils de l’éditeur",
+    "formula": "Formule",
+    "more": "Plus",
+    "textColor": "Couleur du texte",
+    "icon": "Icône",
+    "size": "Taille",
+    "brush": "Pinceau",
+    "drawDone": "Terminé",
+    "align": "Aligner",
+    "alignLeftShort": "Gauche",
+    "alignCenterShort": "Centre",
+    "alignRightShort": "Droite",
+    "wrapLine": "Renvoyer cette ligne à la ligne",
+    "clipboard": "Presse-papiers",
+    "colorsHint": "Touchez une couleur pour insérer une tuile au curseur. Le panneau reste ouvert pour en ajouter plusieurs ; balayez vers le bas, touchez ✕ ou appuyez sur Échap pour le fermer.",
+    "formattingHint": "Remplir l’espace pousse le reste de la ligne vers le bord droit ; le renvoi à la ligne permet à une valeur longue de continuer sur la ligne suivante. S’applique au curseur."
   },
   "variablePicker": {
     "noVariablesAvailable": "Aucune variable disponible",
@@ -3260,5 +3276,20 @@
       "body": "L’installation et l’usage hors ligne nécessitent une adresse sécurisée. Vous êtes sur http://{host}. Ouvrez FiestaBoard à son adresse https, ou configurez HTTPS pour votre hub.",
       "help": "Comment configurer HTTPS"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Aperçu en direct",
+    "mirror": "Reproduire sur le tableau pendant la modification",
+    "mirroring": "Reproduction en cours",
+    "mirrorHint": "Envoie après chaque pause de saisie. S’arrête lorsque vous quittez l’éditeur.",
+    "savedToPages": "Enregistré dans Pages",
+    "addToSchedule": "Ajouter à la planification",
+    "showNow": "Afficher maintenant",
+    "saved": "Enregistré",
+    "unsaved": "Non enregistré",
+    "unknownDisplay": "Impossible de déterminer ce que cet écran peut afficher",
+    "plainTextOnly": "Le texte brut est disponible. Les couleurs et les outils propres à l’écran sont indisponibles.",
+    "targetUnavailable": "Cet écran est indisponible pour la reproduction en direct.",
+    "nameRequired": "Nommer cette page"
   }
 }
