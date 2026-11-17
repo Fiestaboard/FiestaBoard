@@ -18,7 +18,7 @@ test.beforeAll(async () => {
       res.end("signed in");
       return;
     }
-    if (path === `${scope}sw.js` || path === `${scope}sw-shell-policy.js`) {
+    if (["sw.js", "sw-shell-policy.js", "sw-push.js"].some((script) => path === `${scope}${script}`)) {
       res.setHeader("Content-Type", "application/javascript");
       res.end(readFileSync(`public/${path.split("/").pop()}`));
       return;

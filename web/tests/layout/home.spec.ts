@@ -11,7 +11,9 @@ const boards = [
     board_color: "black",
     enabled: true,
     output: "vestaboard",
-    output_config: { host: "192.0.2.40", local_api_key: "test_key" },
+    // Saved connection data distinguishes configured displays from the
+    // untouched placeholders that correctly show Home's no-display state.
+    output_config: { api_mode: "local", host: "192.0.2.10", local_api_key: "layout-test-key" },
   },
   {
     id: "board-2",
@@ -20,6 +22,7 @@ const boards = [
     board_color: "black",
     enabled: true,
     device_model: "divoom_pixoo64",
+    output_config: { api_mode: "local", host: "192.0.2.11", local_api_key: "layout-test-key" },
   },
 ];
 

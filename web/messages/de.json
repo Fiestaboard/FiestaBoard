@@ -985,6 +985,10 @@
         "language-time": {
           "title": "Sprache & Zeit",
           "description": "Vom Hub für den Zeitplan, Zeitvariablen und jeden Zeitstempel genutzt."
+        },
+        "notifications": {
+          "title": "Benachrichtigungen",
+          "description": "Legen Sie fest, ob Ihr Konto und dieser Browser Warnmeldungen von Ihrem Hub erhalten dürfen."
         }
       }
     }
@@ -3546,5 +3550,55 @@
     "success": "Alle Browser, TVs und Smartphones wurden abgemeldet. Melde dich mit deinem neuen Passwort an.",
     "signIn": "Anmelden",
     "tokenUnchanged": "Das MCP/API-Token bleibt unverändert. Erneuere es in den Einstellungen, wenn es offengelegt worden sein könnte."
+  },
+  "notifications": {
+    "privacy": "Ihr Hub sendet den Text von Warnmeldungen über den Push-Dienst Ihres Browsers. Anzeigeinhalte und Zugangsdaten werden nicht übermittelt.",
+    "account": "Benachrichtigungen für mein Konto zulassen",
+    "accountHint": "Benachrichtigungen müssen sowohl für Ihr Konto als auch für jeden Browser aktiviert sein.",
+    "device": "In diesem Browser aktivieren",
+    "deviceHint": "Nur dieser angemeldete Browser erhält Testbenachrichtigungen.",
+    "categories": "Automatische Warnmeldungen",
+    "unavailable": "Automatische Warnmeldungen sind noch nicht verfügbar. Sie können diesen Browser aktivieren und einen Test senden.",
+    "offline": "Eine Anzeige geht offline",
+    "offlineHint": "Wenn eine Anzeige die Verbindung verliert",
+    "override": "Eine vorübergehende Änderung endet",
+    "overrideHint": "Wenn der Zeitplanmodus fortgesetzt wird",
+    "update": "Update verfügbar",
+    "updateHint": "Updates für FiestaBoard und Plugins",
+    "silence": "Der Ruheplan hat eine Nachricht zurückgehalten",
+    "silenceHint": "Damit Sie „Jetzt anzeigen“ wählen können",
+    "permissionGranted": "Von diesem Browser zugelassen",
+    "permissionDefault": "Berechtigung noch nicht angefordert",
+    "permissionDenied": "Benachrichtigungen vom Browser blockiert",
+    "deniedHelp": "Erlauben Sie Benachrichtigungen für diese Website in den Browsereinstellungen. Kehren Sie dann hierher zurück und aktivieren Sie diesen Browser.",
+    "insecureTitle": "HTTPS erforderlich",
+    "insecureHelp": "Push-Benachrichtigungen benötigen eine sichere Adresse. Öffnen Sie Ihren Hub über HTTPS und aktivieren Sie dann diesen Browser.",
+    "httpsHelp": "HTTPS einrichten",
+    "embeddedTitle": "Hub direkt öffnen",
+    "embeddedHelp": "Benachrichtigungen können innerhalb einer eingebetteten Home Assistant-Seite nicht aktiviert werden. Öffnen Sie den Hub direkt über HTTPS in einem Browser-Tab.",
+    "installTitle": "FiestaBoard zum Home-Bildschirm hinzufügen",
+    "installHelp": "Öffnen Sie auf dem iPhone oder iPad die installierte App auf dem Home-Bildschirm, um Benachrichtigungen zu aktivieren.",
+    "unsupportedTitle": "Benachrichtigungen nicht verfügbar",
+    "unsupportedHelp": "Dieser Browser unterstützt keine Web-Push-Benachrichtigungen. Versuchen Sie es mit einem Browser, der Benachrichtigungen unterstützt.",
+    "signInTitle": "Anmelden, um Benachrichtigungen zu aktivieren",
+    "signInHelp": "Benachrichtigungen erfordern eine angemeldete Browsersitzung, auch wenn die Anmeldung am Hub deaktiviert ist.",
+    "loadError": "Die Benachrichtigungseinstellungen konnten nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "retry": "Erneut versuchen",
+    "working": "Benachrichtigungen werden aktualisiert…",
+    "actionError": "Benachrichtigungen konnten nicht aktualisiert werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "dismissed": "Die Berechtigung wurde nicht erteilt. Aktivieren Sie diesen Browser, wenn Sie bereit sind.",
+    "reconnect": "Dieser Browser muss erneut aktiviert werden.",
+    "senderUnavailable": "Der Testversand ist nicht verfügbar. Die Push-Kontaktadresse des Hubs muss vor dem Senden von Tests eingerichtet werden.",
+    "sendTest": "Test senden",
+    "sending": "Wird gesendet…",
+    "testSent": "Der Push-Dienst hat den Test angenommen. Prüfen Sie, ob die Benachrichtigung in diesem Browser erscheint.",
+    "notSent": "Der Test wurde nicht gesendet. Versuchen Sie es später erneut.",
+    "testExpired": "Dieses Abonnement ist abgelaufen. Aktivieren Sie diesen Browser erneut.",
+    "cooldown": "Warten Sie bitte eine Minute, bevor Sie einen weiteren Test senden.",
+    "testError": "Der Push-Dienst konnte den Test nicht annehmen. Versuchen Sie es später erneut.",
+    "blockedLabel": "vom Browser blockiert",
+    "httpsLabel": "benötigt HTTPS",
+    "notAvailableLabel": "noch nicht verfügbar",
+    "loading": "Benachrichtigungseinstellungen werden geladen…"
   }
 }

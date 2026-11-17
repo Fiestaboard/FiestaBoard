@@ -985,6 +985,10 @@
         "language-time": {
           "title": "Język i czas",
           "description": "Używane przez hub w Harmonogramie, zmiennych czasu i każdym znaczniku czasu."
+        },
+        "notifications": {
+          "title": "Powiadomienia",
+          "description": "Wybierz, czy Twoje konto i ta przeglądarka mogą otrzymywać alerty z centrum."
         }
       }
     }
@@ -3546,5 +3550,55 @@
     "success": "Wylogowano wszystkie przeglądarki, telewizory i telefony. Zaloguj się nowym hasłem.",
     "signIn": "Zaloguj się",
     "tokenUnchanged": "Token MCP/API pozostaje bez zmian. Wymień go w ustawieniach, jeśli podejrzewasz jego ujawnienie."
+  },
+  "notifications": {
+    "privacy": "Centrum wysyła treść alertów za pośrednictwem usługi powiadomień push przeglądarki. Zawartość wyświetlacza i dane logowania do konta nie są przesyłane.",
+    "account": "Zezwól na powiadomienia dla mojego konta",
+    "accountHint": "Powiadomienia muszą być włączone zarówno dla konta, jak i dla każdej przeglądarki.",
+    "device": "Włącz w tej przeglądarce",
+    "deviceHint": "Tylko ta przeglądarka z aktywną sesją logowania będzie otrzymywać powiadomienia testowe.",
+    "categories": "Automatyczne alerty",
+    "unavailable": "Automatyczne alerty nie są jeszcze dostępne. Możesz włączyć tę przeglądarkę i wysłać test.",
+    "offline": "Wyświetlacz przechodzi w tryb offline",
+    "offlineHint": "Gdy wyświetlacz traci połączenie",
+    "override": "Kończy się tymczasowa zmiana",
+    "overrideHint": "Gdy wznawiany jest Tryb harmonogramu",
+    "update": "Dostępna aktualizacja",
+    "updateHint": "Aktualizacje FiestaBoard i wtyczek",
+    "silence": "Harmonogram ciszy wstrzymał wiadomość",
+    "silenceHint": "Aby można było wybrać Pokaż teraz",
+    "permissionGranted": "Dozwolone przez tę przeglądarkę",
+    "permissionDefault": "Nie poproszono o uprawnienie",
+    "permissionDenied": "Powiadomienia zablokowane przez przeglądarkę",
+    "deniedHelp": "Zezwól na powiadomienia dla tej witryny w ustawieniach przeglądarki, a następnie wróć tutaj i włącz tę przeglądarkę.",
+    "insecureTitle": "Wymaga HTTPS",
+    "insecureHelp": "Powiadomienia push wymagają bezpiecznego adresu. Otwórz centrum przez HTTPS, a następnie włącz tę przeglądarkę.",
+    "httpsHelp": "Jak skonfigurować HTTPS",
+    "embeddedTitle": "Otwórz centrum bezpośrednio",
+    "embeddedHelp": "Nie można włączyć powiadomień na osadzonej stronie Home Assistant. Otwórz centrum bezpośrednio przez HTTPS w karcie przeglądarki.",
+    "installTitle": "Dodaj FiestaBoard do ekranu początkowego",
+    "installHelp": "Na iPhonie lub iPadzie otwórz aplikację zainstalowaną na ekranie początkowym, aby włączyć powiadomienia.",
+    "unsupportedTitle": "Powiadomienia niedostępne",
+    "unsupportedHelp": "Ta przeglądarka nie obsługuje powiadomień push w sieci. Wypróbuj przeglądarkę obsługującą powiadomienia.",
+    "signInTitle": "Zaloguj się, aby włączyć powiadomienia",
+    "signInHelp": "Powiadomienia wymagają aktywnej sesji logowania w przeglądarce, nawet jeśli logowanie do centrum jest wyłączone.",
+    "loadError": "Nie udało się wczytać ustawień powiadomień. Sprawdź połączenie i spróbuj ponownie.",
+    "retry": "Spróbuj ponownie",
+    "working": "Aktualizowanie powiadomień…",
+    "actionError": "Nie udało się zaktualizować powiadomień. Sprawdź połączenie i spróbuj ponownie.",
+    "dismissed": "Nie udzielono uprawnienia. Włącz tę przeglądarkę, gdy zechcesz.",
+    "reconnect": "Trzeba ponownie włączyć tę przeglądarkę.",
+    "senderUnavailable": "Wysyłanie testów jest niedostępne. Przed wysłaniem testu należy skonfigurować kontakt do powiadomień push w centrum.",
+    "sendTest": "Wyślij test",
+    "sending": "Wysyłanie…",
+    "testSent": "Usługa powiadomień push przyjęła test. Sprawdź, czy powiadomienie pojawiło się w tej przeglądarce.",
+    "notSent": "Test nie został wysłany. Spróbuj ponownie później.",
+    "testExpired": "Ta subskrypcja wygasła. Włącz tę przeglądarkę ponownie.",
+    "cooldown": "Odczekaj minutę przed wysłaniem kolejnego testu.",
+    "testError": "Usługa powiadomień push nie mogła przyjąć testu. Spróbuj ponownie później.",
+    "blockedLabel": "zablokowane przez przeglądarkę",
+    "httpsLabel": "wymaga HTTPS",
+    "notAvailableLabel": "jeszcze niedostępne",
+    "loading": "Wczytywanie ustawień powiadomień…"
   }
 }
