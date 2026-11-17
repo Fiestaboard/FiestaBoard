@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "baseline": "published-v11-alpha3.json",
+  "rationale": "Each raw-byte ceiling is 110% of the observed published artifact value, rounded up to 1024 bytes. This is a reviewable code-growth allowance, not a latency/SLO or statistically calibrated runtime budget. Gzip estimates do not gate.",
+  "limits": {
+    "javascript_bytes": 7064576,
+    "css_bytes": 281600,
+    "font_bytes": 152576,
+    "largest_javascript_bytes": 634880
+  }
+}
