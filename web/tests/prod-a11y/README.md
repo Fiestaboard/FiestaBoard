@@ -31,6 +31,8 @@ The fixture contains one synthetic FiestaPanel output with no physical board con
 
 Run these focused checks sequentially inside the approved containers, with the complete task checkout mounted:
 
+The Python suite also requires the repository's locked first-party output seed through `FIESTABOARD_OUTPUT_SEED_DIR` or the image's `/opt/fiestaboard/seed/outputs`. Use a seed built from this checkout's `outputs.lock.json`; `tests/conftest.py` validates it before collection and does not fetch missing outputs. Provisioning that test dependency is separate from creating the synthetic hub dataset.
+
 ```sh
 # Repository root, approved Python container
 python -m pytest tests/test_prod_a11y_seed.py -n 2 -q --no-cov
