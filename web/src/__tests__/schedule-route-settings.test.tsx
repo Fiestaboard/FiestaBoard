@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -78,18 +78,18 @@ describe("Schedule settings presentation", () => {
     settings({ by_board: { "board-1": { start_time: "06:00+00:00" }, "board-2": { start_time: "08:00+00:00" } } });
     const view = renderPage();
     expect(
-      await screen.findByRole("button", { name: "Silence schedule, 6:00 AM – 3:00 PM, opens settings" }),
+      (await screen.findAllByRole("button", { name: "Silence schedule, 6:00 AM – 3:00 PM, opens settings" }))[0],
     ).toBeInTheDocument();
     view.switchBoard();
     expect(
-      await screen.findByRole("button", { name: "Silence schedule, 8:00 AM – 3:00 PM, opens settings" }),
+      (await screen.findAllByRole("button", { name: "Silence schedule, 8:00 AM – 3:00 PM, opens settings" }))[0],
     ).toBeInTheDocument();
   });
 
   it("hides silence when the selected board explicitly disables global quiet hours", async () => {
     settings({ by_board: { "board-2": { enabled: false } } });
     const view = renderPage();
-    await screen.findByRole("button", { name: /Silence schedule, 4:00 AM/ });
+    await screen.findAllByRole("button", { name: /Silence schedule, 4:00 AM/ });
     view.switchBoard();
     await waitFor(() => expect(screen.queryByRole("button", { name: /Silence schedule,/ })).not.toBeInTheDocument());
   });
@@ -98,7 +98,7 @@ describe("Schedule settings presentation", () => {
     settings();
     renderPage();
     expect(
-      await screen.findByRole("button", { name: "Silence schedule, 4:00 AM – 3:00 PM, opens settings" }),
+      (await screen.findAllByRole("button", { name: "Silence schedule, 4:00 AM – 3:00 PM, opens settings" }))[0],
     ).toBeInTheDocument();
   });
 
@@ -107,7 +107,7 @@ describe("Schedule settings presentation", () => {
     settings({ by_board: { "board-1": { start_time: "09:00+00:00" } } });
     renderPage();
     expect(
-      await screen.findByRole("button", { name: "Silence schedule, 9:00 AM – 3:00 PM, opens settings" }),
+      (await screen.findAllByRole("button", { name: "Silence schedule, 9:00 AM – 3:00 PM, opens settings" }))[0],
     ).toBeInTheDocument();
   });
 
@@ -116,7 +116,34 @@ describe("Schedule settings presentation", () => {
     renderPage();
     expect(await screen.findByText("Automate page rotation by time and day · Asia/Tokyo")).toBeInTheDocument();
     expect(
-      await screen.findByRole("button", { name: "Silence schedule, 1:00 PM – 12:00 AM, opens settings" }),
+      (await screen.findAllByRole("button", { name: "Silence schedule, 1:00 PM – 12:00 AM, opens settings" }))[0],
     ).toBeInTheDocument();
   });
+});
+
+it("uses the shared three-view Schedule selector", async () => {
+  settings();
+  renderPage();
+  expect(await screen.findByRole("radiogroup", { name: "Schedule view" })).toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: "Day" })).toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: "Week" })).toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: "List" })).toBeInTheDocument();
+});
+
+it("updates the default view across breakpoints until the reader chooses a view", async () => {
+  localStorage.removeItem("schedule-view-mode");
+  const original = window.innerWidth;
+  Object.defineProperty(window, "innerWidth", { value: 390, configurable: true, writable: true });
+  settings();
+  renderPage();
+  expect(await screen.findByRole("radio", { name: "Day" })).toHaveAttribute("aria-checked", "true");
+  fireEvent(window, new Event("resize"));
+  Object.defineProperty(window, "innerWidth", { value: 900, configurable: true, writable: true });
+  fireEvent(window, new Event("resize"));
+  expect(screen.getByRole("radio", { name: "List" })).toHaveAttribute("aria-checked", "true");
+  fireEvent.click(screen.getByRole("radio", { name: "Day" }));
+  Object.defineProperty(window, "innerWidth", { value: 1280, configurable: true, writable: true });
+  fireEvent(window, new Event("resize"));
+  expect(screen.getByRole("radio", { name: "Day" })).toHaveAttribute("aria-checked", "true");
+  Object.defineProperty(window, "innerWidth", { value: original, configurable: true, writable: true });
 });

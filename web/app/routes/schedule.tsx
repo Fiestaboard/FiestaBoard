@@ -10,7 +10,6 @@ import {
   BoardIcon,
   Box,
   Button,
-  CardTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -18,11 +17,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Flex,
+  Label,
   PageCard,
   PageHeader,
   PageLayout,
-  PageSection,
   PageToolbar,
+  SegmentedControl,
+  SegmentedControlItem,
   Select,
   SelectContent,
   SelectItem,
@@ -35,6 +36,7 @@ import {
   SheetTitle,
   Skeleton,
   Stack,
+  Switch,
   Text,
   Tooltip,
   TooltipContent,
@@ -42,25 +44,17 @@ import {
   TooltipTrigger,
 } from "@fiestaboard/ui";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AlertCircle,
-  AlertTriangle,
-  Calendar as CalendarIcon,
-  CalendarDays,
-  List,
-  MapPin,
-  Plus,
-  Power,
-} from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, AlertTriangle, Calendar as CalendarIcon, MapPin, Plus } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
 import { useCurrentBoard } from "@/components/current-board-context";
-import { ScheduleListView } from "@/components/schedule";
+import { defaultScheduleView, type ScheduleView } from "@/components/schedule/schedule-agenda";
+import { ScheduleWorkspace } from "@/components/schedule/schedule-workspace";
 import { type ScheduleFormHandle, useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import Link from "@/components/smart-link";
-import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
+import { RAIL_BREAKPOINT, useBelowRail } from "@/hooks/use-below-rail";
 import { queryKeys } from "@/hooks/use-board";
 import { useCollections } from "@/hooks/use-board";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
@@ -98,7 +92,15 @@ function ScheduleCalendarView(props: React.ComponentProps<typeof ScheduleCalenda
   );
 }
 
-type ViewMode = "list" | "calendar";
+type ViewMode = ScheduleView;
+
+function subscribeScheduleWidth(onChange: () => void) {
+  window.addEventListener("resize", onChange);
+  return () => window.removeEventListener("resize", onChange);
+}
+function scheduleWidth() {
+  return window.innerWidth;
+}
 
 const SCHEDULE_VIEW_MODE_KEY = "schedule-view-mode";
 
@@ -141,23 +143,21 @@ const NO_DEFAULT_PAGE = "__none__";
 export default function SchedulePage() {
   const t = useTranslations("schedule");
   const tCommon = useTranslations("common");
+  const tAgenda = useTranslations("schedule.agenda");
+  const belowRail = useBelowRail();
   const queryClient = useQueryClient();
 
-  // Initialize viewMode from localStorage if available
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(SCHEDULE_VIEW_MODE_KEY);
-      if (saved === "list" || saved === "calendar") {
-        return saved;
-      }
-    }
-    return "list";
+  // The breakpoint chooses a default until the reader explicitly chooses a view.
+  const [preferredView, setPreferredView] = useState<ViewMode | null>(() => {
+    const saved = typeof window === "undefined" ? null : localStorage.getItem(SCHEDULE_VIEW_MODE_KEY);
+    return saved === "list" || saved === "calendar" || saved === "day" ? saved : null;
   });
-
-  // Persist viewMode to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem(SCHEDULE_VIEW_MODE_KEY, viewMode);
-  }, [viewMode]);
+  const width = useSyncExternalStore(subscribeScheduleWidth, scheduleWidth, () => 900);
+  const viewMode = preferredView ?? defaultScheduleView(width);
+  const setViewMode = (value: ViewMode) => {
+    setPreferredView(value);
+    localStorage.setItem(SCHEDULE_VIEW_MODE_KEY, value);
+  };
   // Handle URL params set by the AI drawer when navigating from outside. Read
   // once, in a state initializer rather than a mount effect: the effect version
   // rendered the page without the form and then popped it open
@@ -538,8 +538,8 @@ export default function SchedulePage() {
   const issueCount = hasOverlaps ? (validation?.overlaps?.length ?? 0) : (validation?.gaps?.length ?? 0);
 
   return (
-    <PageLayout railBreakpoint={RAIL_BREAKPOINT} fillHeight={isCalendarMode}>
-      <PageCard fillHeight={isCalendarMode}>
+    <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
+      <Box>
         {/* ── Page header ── */}
         <PageHeader
           icon={CalendarIcon}
@@ -558,27 +558,17 @@ export default function SchedulePage() {
           <PageToolbar
             className="flex-shrink-0"
             left={
-              /* View toggle */
-              <Flex align="center" gap="1" className="bg-muted p-1 rounded-md">
-                <Button
-                  variant={viewMode === "list" ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  className="px-3"
-                >
-                  <List className="h-4 w-4 mr-1.5" />
-                  {t("listView")}
-                </Button>
-                <Button
-                  variant={viewMode === "calendar" ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("calendar")}
-                  className="px-3"
-                >
-                  <CalendarDays className="h-4 w-4 mr-1.5" />
-                  {t("calendarView")}
-                </Button>
-              </Flex>
+              <SegmentedControl
+                aria-label={tAgenda("view")}
+                value={viewMode}
+                onValueChange={(value) => {
+                  if (value === "day" || value === "list" || value === "calendar") setViewMode(value);
+                }}
+              >
+                <SegmentedControlItem value="day">{tAgenda("day")}</SegmentedControlItem>
+                <SegmentedControlItem value="calendar">{tAgenda("week")}</SegmentedControlItem>
+                <SegmentedControlItem value="list">{tAgenda("list")}</SegmentedControlItem>
+              </SegmentedControl>
             }
             right={
               <Flex align="center" justify="end" gap="2" wrap>
@@ -598,49 +588,18 @@ export default function SchedulePage() {
                   </Flex>
                 )}
 
-                {/* Schedule on/off toggle */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      data-testid="schedule-enabled-toggle"
-                      role="switch"
-                      aria-checked={scheduleEnabled}
-                      {...anchorProps("schedule.mode")}
-                      aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
-                      disabled={toggleSchedule.isPending}
-                      onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}
-                      className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer bg-transparent text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <Power
-                        className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`}
-                      />
-                      <Text as="span" size="xs" weight="medium">
-                        {scheduleEnabled ? tCommon("on") : tCommon("off")}
-                      </Text>
-                      <Flex
-                        aria-hidden="true"
-                        align="center"
-                        inline
-                        className={cn(
-                          "h-[1.15rem] w-8 shrink-0 rounded-full border border-transparent transition-all",
-                          scheduleEnabled ? "bg-primary" : "bg-input/80 dark:bg-input/80",
-                          "scale-75",
-                        )}
-                      >
-                        <Box
-                          className={cn(
-                            "pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform",
-                            scheduleEnabled ? "translate-x-[calc(100%-3px)]" : "translate-x-px",
-                          )}
-                        />
-                      </Flex>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    {scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
-                  </TooltipContent>
-                </Tooltip>
+                <Flex align="center" gap="2">
+                  <Label htmlFor="schedule-mode">{tAgenda("mode")}</Label>
+                  <Switch
+                    id="schedule-mode"
+                    data-testid="schedule-enabled-toggle"
+                    checked={scheduleEnabled}
+                    disabled={toggleSchedule.isPending}
+                    onCheckedChange={(enabled) => toggleSchedule.mutate(enabled)}
+                    aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
+                    {...anchorProps("schedule.mode")}
+                  />
+                </Flex>
 
                 {/* Default page for gaps */}
                 <Select
@@ -801,32 +760,27 @@ export default function SchedulePage() {
           </Flex>
         )}
 
-        {/* ── Schedule View ── */}
-        <PageSection fill={isCalendarMode} scrollLabel={t("scheduleCalendar")} {...anchorProps("schedule.root")}>
-          {viewMode === "list" ? (
-            <ScheduleListView
-              schedules={schedules}
-              pages={pages}
-              collections={collectionsData?.collections}
-              silenceSchedule={resolvedSilenceSchedule}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onToggleEnabled={handleToggleEnabled}
-              onSilenceClick={handleSilenceClick}
-            />
-          ) : (
-            /* Calendar: grows to fill remaining space in the pinned layout. The
-           border is gone — the page card is the surface now — but the flex
-           sizing is unchanged, and it is still the thing that scrolls.
-           `sm:h-full` because PageSection's scroller is not a flex
-           container, so `flex-1` alone left the height unbounded: the grid
-           grew to all 24 hours and the whole card scrolled, taking the day
-           headers with it, instead of the hours scrolling under them. */
-            <Box className="flex flex-col overflow-hidden sm:flex-1 sm:min-h-0 sm:h-full">
-              <CardTitle size="base" className="flex-shrink-0 pb-3 hidden sm:block">
-                {t("scheduleCalendar")}
-              </CardTitle>
-              <Box className="overflow-hidden -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-1 sm:min-h-0">
+        <Box className="mt-5" {...anchorProps("schedule.root")}>
+          <ScheduleWorkspace
+            key={effectiveBoardId ?? "default"}
+            view={viewMode}
+            schedules={schedules}
+            pages={pages}
+            collections={collectionsData?.collections ?? []}
+            boardId={effectiveBoardId}
+            boardName={currentBoard?.name}
+            timezone={timezone}
+            defaultPageId={defaultPageId}
+            gaps={validation?.gaps}
+            overlaps={validation?.overlaps}
+            silenceSchedule={resolvedSilenceSchedule}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onToggleEnabled={handleToggleEnabled}
+            onSilenceClick={handleSilenceClick}
+            onCreate={handleSlotSelect}
+            legacyCalendar={
+              <Box className="h-[36rem]">
                 <ScheduleCalendarView
                   schedules={schedules}
                   pages={pages}
@@ -839,10 +793,10 @@ export default function SchedulePage() {
                   onSilenceClick={handleSilenceClick}
                 />
               </Box>
-            </Box>
-          )}
-        </PageSection>
-      </PageCard>
+            }
+          />
+        </Box>
+      </Box>
 
       {/* Form Tray */}
       <Sheet
@@ -851,7 +805,11 @@ export default function SchedulePage() {
           if (!open) handleCloseForm();
         }}
       >
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto" {...anchorProps("schedule.form")}>
+        <SheetContent
+          side={belowRail ? "bottom" : "right"}
+          className="w-full sm:max-w-xl max-h-[90dvh] overflow-y-auto"
+          {...anchorProps("schedule.form")}
+        >
           <SheetHeader>
             <SheetTitle>{editingSchedule ? t("editScheduleTitle") : t("addScheduleTitle")}</SheetTitle>
             <SheetDescription>

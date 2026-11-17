@@ -74,6 +74,39 @@ export interface CollectionDeleteResponse {
   id: string;
 }
 
+/** H8: read-only evaluation; no collection cursor is advanced or stored. */
+export interface CollectionDryRunRequest {
+  at?: string;
+  data?: "live" | "cached";
+  values?: Record<string, unknown>;
+  missing?: string[];
+  window_seconds?: number;
+  step_seconds?: number;
+}
+export interface CollectionDryRunResponse {
+  collection_id: string;
+  selection_mode: string;
+  at: string;
+  page_id: string | null;
+  rules:
+    | {
+        index: number;
+        expression: string;
+        page_id: string;
+        value: string;
+        error: string | null;
+        message: string | null;
+        matched: boolean;
+      }[]
+    | null;
+  matched_rule: number | null;
+  timeline: { from: string; until: string; page_id: string | null }[];
+  truncated: boolean;
+  truncated_reason?: "segments" | "budget" | null;
+  shown_on: string[];
+  sources: Record<string, unknown>;
+}
+
 // Create / update / delete return bare bodies, not `{status, collection}`
 // envelopes — see docs/internal/reference/API_CONVENTIONS.md. Create answers
 // 201; `fetchApi` already treats any 2xx as success.
@@ -82,6 +115,12 @@ export interface CollectionDeleteResponse {
 // same handlers `/collections*` does, so the models and status codes are
 // identical and only the path moved.
 export const collectionsApi = {
+  dryRunCollection: (collectionId: string, request: CollectionDryRunRequest) =>
+    fetchApi<CollectionDryRunResponse>(`/collections/${encodeURIComponent(collectionId)}/dry-run`, {
+      method: "POST",
+      body: JSON.stringify({ data: "cached", ...request }),
+    }),
+
   // Collection endpoints
   getCollections: () => fetchApi<CollectionsResponse>("/v1/collections"),
 
