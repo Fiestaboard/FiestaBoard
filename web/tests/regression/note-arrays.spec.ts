@@ -93,7 +93,7 @@ test.describe("regression: note-arrays — presets", () => {
       await page.waitForTimeout(1_500);
 
       // Board-card size indicator updates to the char dimensions.
-      await expect(page.getByText(preset.charLabel).first()).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByTestId("board-card")).toContainText(preset.charLabel, { timeout: 5_000 });
 
       // Persisted via the API.
       const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
@@ -303,7 +303,7 @@ test.describe("regression: note-arrays — auto-detect", () => {
     await page.getByRole("button", { name: "Auto-detect from board" }).first().click();
 
     // Header now shows flagship dimensions (22 × 6) and persists flagship.
-    await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("board-card")).toContainText("22 × 6", { timeout: 10_000 });
     // The Cloud API Token field is hidden once the board is no longer a note array.
     await expect(page.getByLabel(/Cloud API Token/)).toHaveCount(0, { timeout: 5_000 });
 

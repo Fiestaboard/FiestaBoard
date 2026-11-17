@@ -45,10 +45,9 @@ test.describe("Displays – Display Card", () => {
   test("board card header shows name, device type, and dimensions", async ({ page }) => {
     await openDisplays(page);
 
-    await expect(page.getByText("My Board").first()).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByText("22 × 6").first()).toBeVisible();
+    const row = displayCard(page, "My Board");
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    await expect(row).toContainText("22 × 6");
   });
 
   test("display row reports Online when the configured output connects", async ({ page }) => {
@@ -69,9 +68,9 @@ test.describe("Displays – Display Card", () => {
 
     await openDisplays(page);
 
-    await expect(page.getByText("Not configured").first()).toBeVisible({
-      timeout: 10_000,
-    });
+    const row = displayCard(page, "My Board 2");
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    await expect(row.getByText("Not configured", { exact: true })).toBeVisible();
   });
 
   test("Flagship and Note boards show correct dimensions", async ({ page }) => {
@@ -83,10 +82,12 @@ test.describe("Displays – Display Card", () => {
 
     await openDisplays(page);
 
-    await expect(page.getByText("22 × 6").first()).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByText("15 × 3").first()).toBeVisible();
+    const flagship = displayCard(page, "My Board");
+    const note = displayCard(page, "My Board 2");
+    await expect(flagship).toBeVisible({ timeout: 10_000 });
+    await expect(note).toBeVisible({ timeout: 10_000 });
+    await expect(flagship).toContainText("22 × 6");
+    await expect(note).toContainText("15 × 3");
   });
 });
 
@@ -111,9 +112,8 @@ test.describe("Displays – Board Instance CRUD", () => {
     await page.getByRole("tab", { name: "Settings", exact: true }).click();
 
     // Verify Note dimensions appear
-    await expect(page.getByText("15 × 3").first()).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.getByTestId("board-card")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("board-card")).toContainText("15 × 3");
 
     // Verify via API
     const res = await fetch(`${API_URL}/settings/board`);
@@ -153,9 +153,7 @@ test.describe("Displays – Board Instance CRUD", () => {
     await page.waitForTimeout(1_500);
 
     // Header should now show 15 × 3 dimensions
-    await expect(page.getByText("15 × 3").first()).toBeVisible({
-      timeout: 5_000,
-    });
+    await expect(page.getByTestId("board-card")).toContainText("15 × 3", { timeout: 5_000 });
 
     const res = await fetch(`${API_URL}/settings/board`);
     const data = await res.json();
@@ -176,7 +174,7 @@ test.describe("Displays – Board Instance CRUD", () => {
     await page.waitForTimeout(1_500);
 
     // 4×1 notes → 60 × 3 characters
-    await expect(page.getByText("60 × 3").first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId("board-card")).toContainText("60 × 3", { timeout: 5_000 });
 
     let res = await fetch(`${API_URL}/settings/board`);
     let data = await res.json();
@@ -194,7 +192,7 @@ test.describe("Displays – Board Instance CRUD", () => {
     // Reload and confirm the selection + token persisted (token masked as "***").
     await page.reload();
     await expect(page.getByTestId("board-card")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("60 × 3").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("board-card")).toContainText("60 × 3", { timeout: 10_000 });
 
     res = await fetch(`${API_URL}/settings/board`);
     data = await res.json();
@@ -236,7 +234,7 @@ test.describe("Displays – Board Instance CRUD", () => {
     await detectBtn.click();
 
     // The selector lands on the 2×2 grid preset → 30 × 6 characters.
-    await expect(page.getByText("30 × 6").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("board-card")).toContainText("30 × 6", { timeout: 10_000 });
 
     const res = await fetch(`${API_URL}/settings/board`);
     const data = await res.json();
@@ -531,10 +529,9 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await openDisplays(page);
 
     // Verify the display card shows correct info
-    await expect(page.getByText("My Board").first()).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByText("15 × 3").first()).toBeVisible();
+    const row = displayCard(page, "My Board");
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    await expect(row).toContainText("15 × 3");
     await expect(displayCard(page, "My Board").getByText("Online", { exact: true })).toBeVisible();
   });
 });

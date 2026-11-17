@@ -168,8 +168,10 @@ test.describe("Settings – Full Coverage", () => {
 
     // Silence Schedule lives under the display Playback tab
 
-    const silenceSection = page.getByText(/silence/i).first();
-    await expect(silenceSection).toBeVisible({ timeout: 10_000 });
+    const playback = page.getByRole("region", { name: "Playback", exact: true });
+    await expect(playback).toBeVisible({ timeout: 10_000 });
+    await expect(playback.getByRole("heading", { name: "Silence Schedule", exact: true })).toBeVisible();
+    await expect(playback.getByRole("switch", { name: "Silence Schedule", exact: true })).toBeVisible();
 
     // Verify silence-status endpoint returns expected structure
     const statusRes = await fetch(`${API_URL}/silence-status`);
@@ -194,7 +196,8 @@ test.describe("Settings – Full Coverage", () => {
 
     // Silence toggle lives under the display Playback tab
 
-    const silenceToggle = page.locator("#silence-enabled");
+    const playback = page.getByRole("region", { name: "Playback", exact: true });
+    const silenceToggle = playback.getByRole("switch", { name: "Silence Schedule", exact: true });
     await expect(silenceToggle).toBeVisible({ timeout: 10_000 });
 
     // Wait for the debounced PUT triggered by the toggle. The regression
