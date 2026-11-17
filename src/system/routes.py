@@ -351,7 +351,7 @@ async def get_release_channel():
     )
 
 
-@router.get("/system/channel/versions", response_model=ReleaseChannelVersionsResponse)
+@router.get("/system/channel/versions", response_model=ReleaseChannelVersionsResponse, responses=errors(500))
 async def get_release_channel_versions():
     """Published versions with bounded discovery and a short process-local cache."""
     return ReleaseChannelVersionsResponse(channel_versions=await update_service.release_channel_versions())
