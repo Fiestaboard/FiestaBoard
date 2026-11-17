@@ -59,7 +59,7 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
     setSection(resolvedSection);
   }
   const changeSection = (next: string) => {
-    if (embedded && (next === "settings" || next === "playback")) {
+    if (embedded && next !== "overview") {
       router.push(`/displays/${encodeURIComponent(boardId)}?section=${next}`);
       return;
     }

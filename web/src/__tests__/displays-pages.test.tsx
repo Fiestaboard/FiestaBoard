@@ -299,6 +299,14 @@ describe("/displays", () => {
     expect(within(comparison).getByText("What the board shows")).toBeInTheDocument();
     expect(within(comparison).getByText("What FiestaBoard sent")).toBeInTheDocument();
     expect(within(comparison).getAllByRole("img")).toHaveLength(2);
+    expect(screen.getByTestId("display-diagnostics")).toHaveTextContent("Last error");
+  });
+
+  it("opens full-width diagnostics for the selected display", async () => {
+    setup([KITCHEN]);
+    renderWith(<DisplaysPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Diagnostics" }));
+    expect(push).toHaveBeenCalledWith("/displays/kitchen?section=diagnostics");
   });
 
   it("opens diagnostics with this display's health evidence", async () => {
@@ -317,7 +325,8 @@ describe("/displays", () => {
         },
       },
     });
-    renderWith(<DisplaysPage />);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
     await userEvent.click(await screen.findByRole("button", { name: "Diagnostics" }));
     const diagnostics = await screen.findByTestId("display-diagnostics");
     expect(diagnostics).toHaveTextContent("42 ms");

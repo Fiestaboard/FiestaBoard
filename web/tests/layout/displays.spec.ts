@@ -50,6 +50,7 @@ for (const width of [390, 768, 1280]) {
       await pause.click();
       await expect(pause).toBeChecked();
       await page.getByRole("button", { name: "Diagnostics", exact: true }).click();
+      await expect(page.getByTestId("display-detail-pane")).toHaveCount(0);
       await expect(page.getByTestId("display-diagnostics")).toContainText("Response timed out");
       await checkA11y(page, undefined, {
         detailedReport: true,
@@ -69,12 +70,10 @@ for (const width of [390, 768, 1280]) {
       await page.getByRole("link", { name: "Back to Displays" }).click();
       await page.getByTestId("display-card").filter({ hasText: "Fridge note" }).click();
       await page.getByRole("button", { name: "Diagnostics", exact: true }).click();
+      await expect(page.getByTestId("display-detail-pane")).toHaveCount(0);
       await expect(page.getByTestId("display-frame-comparison").getByRole("img")).toHaveCount(2);
       await shot("comparison");
-      if (width >= 768) {
-        await page.getByRole("tab", { name: "Settings", exact: true }).click();
-        await page.getByRole("link", { name: "Back to Displays" }).click();
-      } else await page.getByRole("link", { name: "Back to Displays" }).click();
+      await page.getByRole("link", { name: "Back to Displays" }).click();
       await page.getByTestId("display-card").filter({ hasText: "Living room TV" }).click();
       await page.getByRole("tab", { name: "Settings", exact: true }).click();
       await expect(page.getByTestId("display-panel-settings")).toBeVisible();
