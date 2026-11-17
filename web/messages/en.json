@@ -253,6 +253,8 @@
       "outTitle": "{board} is out of sync",
       "outDetail": "It’s showing something other than {page}. Another app may have changed it.",
       "showAgain": "Show {page} again",
+      "outHoldPaused": "This display is paused. Resume it to show {page} again.",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule starts at {time}",
       "silenceSoonPage": "{board} goes quiet in {minutes} min and holds {page}.",
       "silenceSoonOther": "{board} goes quiet in {minutes} min. New messages wait until Silence Schedule ends.",

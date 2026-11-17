@@ -297,6 +297,8 @@
       "outTitle": "{board} eşitlenmemiş",
       "outDetail": "{page} dışında bir içerik gösteriliyor. Başka bir uygulama değiştirmiş olabilir.",
       "showAgain": "{page} yeniden göster",
+      "outHoldPaused": "Bu ekran duraklatıldı. {page} sayfasını yeniden göstermek için sürdürün.",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule {time} saatinde başlar",
       "silenceSoonPage": "{board} {minutes} dk içinde sessizleşir ve {page} ekranda kalır.",
       "silenceSoonOther": "{board} {minutes} dk içinde sessizleşir. Yeni mesajlar Silence Schedule bitene kadar bekler.",

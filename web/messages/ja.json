@@ -297,6 +297,8 @@
       "outTitle": "{board} が同期していません",
       "outDetail": "{page} とは異なる内容が表示されています。別のアプリが変更した可能性があります。",
       "showAgain": "{page} を再表示",
+      "outHoldPaused": "このディスプレイは一時停止中です。{page} を再表示するには再開してください。",
+      "heldPreview": "「{preview}」",
       "silenceSoonTitle": "Silence Schedule は {time} に開始します",
       "silenceSoonPage": "{board} は {minutes} 分後に静音状態になり、{page} の表示を保持します。",
       "silenceSoonOther": "{board} は {minutes} 分後に静音状態になります。新しいメッセージは Silence Schedule が終了するまで待機します。",

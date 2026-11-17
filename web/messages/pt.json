@@ -297,6 +297,8 @@
       "outTitle": "{board} está dessincronizado",
       "outDetail": "Está a mostrar algo diferente de {page}. Outra aplicação pode ter alterado o conteúdo.",
       "showAgain": "Mostrar {page} novamente",
+      "outHoldPaused": "Esta exibição está pausada. Retome-a para mostrar {page} novamente.",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule começa às {time}",
       "silenceSoonPage": "{board} entra em silêncio daqui a {minutes} min e mantém {page}.",
       "silenceSoonOther": "{board} entra em silêncio daqui a {minutes} min. As novas mensagens aguardam o fim de Silence Schedule.",

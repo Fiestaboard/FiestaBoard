@@ -297,6 +297,8 @@
       "outTitle": "{board} 不同步",
       "outDetail": "显示的内容与 {page} 不同。可能已被其他应用更改。",
       "showAgain": "再次显示 {page}",
+      "outHoldPaused": "此显示设备已暂停。恢复后才能再次显示 {page}。",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule 将于 {time} 开始",
       "silenceSoonPage": "{board} 将在 {minutes} 分钟后静音，并保持显示 {page}。",
       "silenceSoonOther": "{board} 将在 {minutes} 分钟后静音。新消息将等待 Silence Schedule 结束后再显示。",

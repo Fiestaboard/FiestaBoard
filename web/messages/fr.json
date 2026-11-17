@@ -297,6 +297,8 @@
       "outTitle": "{board} est désynchronisé",
       "outDetail": "Il affiche autre chose que {page}. Une autre application a peut-être modifié son contenu.",
       "showAgain": "Afficher à nouveau {page}",
+      "outHoldPaused": "Cet affichage est en pause. Reprenez-le pour afficher à nouveau {page}.",
+      "heldPreview": "« {preview} »",
       "silenceSoonTitle": "Silence Schedule commence à {time}",
       "silenceSoonPage": "{board} passe en silence dans {minutes} min et garde {page} affichée.",
       "silenceSoonOther": "{board} passe en silence dans {minutes} min. Les nouveaux messages attendent la fin de Silence Schedule.",

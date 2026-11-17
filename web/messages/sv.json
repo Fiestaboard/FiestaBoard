@@ -297,6 +297,8 @@
       "outTitle": "{board} är inte synkroniserad",
       "outDetail": "Den visar något annat än {page}. En annan app kan ha ändrat innehållet.",
       "showAgain": "Visa {page} igen",
+      "outHoldPaused": "Den här skärmen är pausad. Återuppta den för att visa {page} igen.",
+      "heldPreview": "”{preview}”",
       "silenceSoonTitle": "Silence Schedule börjar {time}",
       "silenceSoonPage": "{board} blir tyst om {minutes} min och behåller {page}.",
       "silenceSoonOther": "{board} blir tyst om {minutes} min. Nya meddelanden väntar tills Silence Schedule slutar.",
