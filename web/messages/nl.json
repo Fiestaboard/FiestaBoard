@@ -257,6 +257,30 @@
       "toastCopyFailed": "Bord kopiëren mislukt",
       "toastRefreshed": "Pagina opnieuw naar {board} gestuurd",
       "toastRefreshFailed": "{board} vernieuwen mislukt"
+    },
+    "supporting": {
+      "upNext": "Hierna",
+      "upNextDisplay": "Hierna · {display}",
+      "resumes": "Planning wordt hervat",
+      "silenceStarts": "Silence Schedule begint",
+      "silenceEnds": "Silence Schedule eindigt",
+      "changes": "Planning verandert",
+      "empty": "De hub heeft geen komende wijziging gemeld.",
+      "viewSchedule": "Planning bekijken",
+      "manualTitle": "Planningsmodus staat uit",
+      "manualBody": "Niets verandert vanzelf. {page} blijft staan totdat je Pagina wisselen of Bericht opstellen kiest, of de planningsmodus weer inschakelt.",
+      "manualEmpty": "Niets verandert vanzelf. Kies Pagina wisselen of Bericht opstellen, of schakel de planningsmodus weer in.",
+      "scheduleMode": "Planningsmodus",
+      "manualMode": "Handmatige modus",
+      "overrideMode": "Override",
+      "unknown": "Status onbekend",
+      "enabled": "Planningsmodus weer ingeschakeld",
+      "undo": "Ongedaan maken",
+      "failed": "Kan de planningsmodus niet wijzigen. Probeer het opnieuw.",
+      "otherDisplays": "Andere schermen",
+      "allDisplays": "Alle schermen",
+      "selectDisplay": "{display} beheren",
+      "offline": "Offline"
     }
   },
   "pages": {

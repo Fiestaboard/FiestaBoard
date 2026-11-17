@@ -257,6 +257,30 @@
       "toastCopyFailed": "ボードをコピーできませんでした",
       "toastRefreshed": "{board} にページを再送信しました",
       "toastRefreshFailed": "{board} を更新できませんでした"
+    },
+    "supporting": {
+      "upNext": "次の予定",
+      "upNextDisplay": "次の予定 · {display}",
+      "resumes": "スケジュールが再開",
+      "silenceStarts": "Silence Schedule が開始",
+      "silenceEnds": "Silence Schedule が終了",
+      "changes": "スケジュールが変更",
+      "empty": "ハブから次の変更は報告されていません。",
+      "viewSchedule": "スケジュールを表示",
+      "manualTitle": "スケジュールモードはオフです",
+      "manualBody": "自動では変更されません。「ページを変更」か「メッセージを作成」を選択するか、スケジュールモードを再びオンにするまで、{page} が表示されます。",
+      "manualEmpty": "自動では変更されません。「ページを変更」か「メッセージを作成」を選択するか、スケジュールモードを再びオンにしてください。",
+      "scheduleMode": "スケジュールモード",
+      "manualMode": "手動モード",
+      "overrideMode": "上書き",
+      "unknown": "ステータス不明",
+      "enabled": "スケジュールモードを再びオンにしました",
+      "undo": "元に戻す",
+      "failed": "スケジュールモードを変更できませんでした。もう一度お試しください。",
+      "otherDisplays": "他のディスプレイ",
+      "allDisplays": "すべてのディスプレイ",
+      "selectDisplay": "{display} を管理",
+      "offline": "オフライン"
     }
   },
   "pages": {

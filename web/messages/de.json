@@ -257,6 +257,30 @@
       "toastCopyFailed": "Board konnte nicht kopiert werden",
       "toastRefreshed": "Seite erneut an {board} gesendet",
       "toastRefreshFailed": "{board} konnte nicht aktualisiert werden"
+    },
+    "supporting": {
+      "upNext": "Als Nächstes",
+      "upNextDisplay": "Als Nächstes · {display}",
+      "resumes": "Zeitplan wird fortgesetzt",
+      "silenceStarts": "Silence Schedule beginnt",
+      "silenceEnds": "Silence Schedule endet",
+      "changes": "Zeitplan ändert sich",
+      "empty": "Der Hub hat keine bevorstehende Änderung gemeldet.",
+      "viewSchedule": "Zeitplan ansehen",
+      "manualTitle": "Zeitplanmodus ist aus",
+      "manualBody": "Nichts ändert sich automatisch. {page} bleibt angezeigt, bis Sie „Seite wechseln“ oder „Nachricht verfassen“ wählen oder den Zeitplanmodus wieder einschalten.",
+      "manualEmpty": "Nichts ändert sich automatisch. Wählen Sie „Seite wechseln“ oder „Nachricht verfassen“ oder schalten Sie den Zeitplanmodus wieder ein.",
+      "scheduleMode": "Zeitplanmodus",
+      "manualMode": "Manueller Modus",
+      "overrideMode": "Übersteuerung",
+      "unknown": "Status unbekannt",
+      "enabled": "Zeitplanmodus wieder eingeschaltet",
+      "undo": "Rückgängig",
+      "failed": "Zeitplanmodus konnte nicht geändert werden. Versuchen Sie es erneut.",
+      "otherDisplays": "Andere Anzeigen",
+      "allDisplays": "Alle Anzeigen",
+      "selectDisplay": "{display} verwalten",
+      "offline": "Offline"
     }
   },
   "pages": {
