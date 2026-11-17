@@ -188,7 +188,13 @@ export function FiestaPanelSettings({
   boardId,
   onDeleted,
   preview,
-}: { boardId?: string; onDeleted?: () => void; preview?: ReactNode } = {}) {
+  displayNameField,
+}: {
+  boardId?: string;
+  onDeleted?: () => void;
+  preview?: ReactNode;
+  displayNameField?: (pending: boolean) => ReactNode;
+} = {}) {
   const t = useTranslations("fiestaPanels");
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -453,6 +459,7 @@ export function FiestaPanelSettings({
                 panel={panel}
                 url={panelViewerUrl(panel)}
                 preview={preview}
+                nameField={displayNameField?.(inlineMutation.isPending || deleteMutation.isPending)}
                 renderStyles={RENDER_STYLES}
                 pending={
                   (inlineMutation.isPending && inlineMutation.variables?.panel.id === panel.id) ||

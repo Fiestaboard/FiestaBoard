@@ -669,13 +669,33 @@ describe("/displays/:boardId", () => {
     expect(await screen.findByRole("option", { name: "Flip" })).toBeInTheDocument();
   });
 
+  it("keeps the panel's display name in its inline card and advanced board controls collapsed", async () => {
+    const calls = setup([KITCHEN, TV]);
+    params.boardId = "tv";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
+    const panel = await screen.findByTestId("display-panel-settings");
+    const name = await within(panel).findByTestId("board-name-input");
+    expect(name).toHaveValue("Living Room (Panel)");
+    expect(screen.queryByRole("button", { name: "Remove Board" })).not.toBeInTheDocument();
+    await userEvent.clear(name);
+    await userEvent.type(name, "TV only");
+    await userEvent.tab();
+    await waitFor(() => expect(calls.put).toHaveLength(1));
+    expect(calls.put[0].boards.find((item) => item.id === "tv")?.name).toBe("TV only");
+    expect(calls.put[0].boards.find((item) => item.id === "kitchen")?.name).toBe("Kitchen");
+    await userEvent.click(within(panel).getByRole("button", { name: "Advanced display settings" }));
+    expect(await within(panel).findByTestId("board-pause-switch")).toBeVisible();
+    expect(within(panel).getAllByTestId("board-name-input")).toHaveLength(1);
+  });
+
   it("a FiestaPanel's page carries its panel's controls, and only its panel", async () => {
     setup([KITCHEN, TV]);
     params.boardId = "tv";
     renderWith(<DisplayPage />);
     await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
     const panel = await screen.findByTestId("display-panel-settings");
-    expect(await within(panel).findByLabelText("Panel name")).toHaveValue("Living Room");
+    expect(((await within(panel).findByLabelText("Panel URL")) as HTMLInputElement).value).toContain("/p/1");
     expect(within(panel).queryByDisplayValue("Bedroom")).not.toBeInTheDocument();
     // New panels come from Add a display, not from a panel's page.
     expect(within(panel).queryByRole("button", { name: "Create panel" })).not.toBeInTheDocument();

@@ -1465,7 +1465,8 @@
       "removeConfirmTitle": "Usunąć {name}?",
       "removeConfirmBody": "Spowoduje to usunięcie wyświetlacza z tego huba.",
       "expected": "Co wysłał FiestaBoard",
-      "readbackUnavailable": "Ten wyświetlacz nie udostępnia odczytu bieżącego obrazu."
+      "readbackUnavailable": "Ten wyświetlacz nie udostępnia odczytu bieżącego obrazu.",
+      "advanced": "Zaawansowane ustawienia wyświetlacza"
     },
     "title": "Wyświetlacze",
     "description": "Wszystkie tablice i ekrany, na których wyświetla FiestaBoard. Otwórz jeden, aby zmienić jego ustawienia.",

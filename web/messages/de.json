@@ -1465,7 +1465,8 @@
       "removeConfirmTitle": "{name} entfernen?",
       "removeConfirmBody": "Dadurch wird das Display von diesem Hub entfernt.",
       "expected": "Was FiestaBoard gesendet hat",
-      "readbackUnavailable": "Dieses Display liefert kein lesbares aktuelles Bild."
+      "readbackUnavailable": "Dieses Display liefert kein lesbares aktuelles Bild.",
+      "advanced": "Erweiterte Displayeinstellungen"
     },
     "title": "Anzeigen",
     "description": "Alle Boards und Bildschirme, auf denen FiestaBoard anzeigt. Öffne eine Anzeige, um ihre Einstellungen zu ändern.",

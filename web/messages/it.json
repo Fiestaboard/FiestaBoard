@@ -1465,7 +1465,8 @@
       "removeConfirmTitle": "Rimuovere {name}?",
       "removeConfirmBody": "Il display verrà rimosso da questo hub.",
       "expected": "Cosa ha inviato FiestaBoard",
-      "readbackUnavailable": "Questo display non fornisce un’immagine attuale leggibile."
+      "readbackUnavailable": "Questo display non fornisce un’immagine attuale leggibile.",
+      "advanced": "Impostazioni avanzate del display"
     },
     "title": "Schermi",
     "description": "Tutte le bacheche e gli schermi su cui FiestaBoard mostra contenuti. Aprine uno per modificarne le impostazioni.",

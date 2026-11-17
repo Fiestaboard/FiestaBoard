@@ -93,7 +93,15 @@ const CODE62_CHOICES: ReadonlyArray<{ value: Code62Glyph; glyph: string; labelKe
  * So: local draft state for typing, re-synced whenever the server's name
  * changes underneath it.
  */
-function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (name: string) => void }) {
+export function BoardNameField({
+  board,
+  onRename,
+  disabled = false,
+}: {
+  board: BoardInstance;
+  onRename: (name: string) => void;
+  disabled?: boolean;
+}) {
   const t = useTranslations("displaySettings");
   const storedName = board.name ?? "";
   const [draft, setDraft] = useState(storedName);
@@ -130,7 +138,7 @@ function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (
         onChange={(e) => setDraft(e.target.value)}
         onBlur={handleBlur}
         placeholder={t("boardNamePlaceholder")}
-        className="h-8 px-2 text-xs bg-background shadow-none"
+        disabled={disabled}
         data-testid="board-name-input"
       />
     </Stack>
@@ -374,8 +382,10 @@ export function BoardEditor({
   board,
   displays,
   onRemoved,
+  hideName = false,
 }: {
   board: BoardInstance;
+  hideName?: boolean;
   displays: DisplayBoards;
   /** The board is gone (the page it was on should go too). */
   onRemoved?: () => void;
@@ -497,7 +507,7 @@ export function BoardEditor({
 
       {/* Board name (issue #1792). Trimmed on save; clearing it saves "" and
           the backend restores its default name. */}
-      <BoardNameField board={board} onRename={(name) => update({ name })} />
+      {!hideName && <BoardNameField board={board} onRename={(name) => update({ name })} />}
 
       {/* Pause / Resume row (issue #970) */}
       <Flex

@@ -1465,7 +1465,8 @@
       "removeConfirmTitle": "Remover {name}?",
       "removeConfirmBody": "Isto remove o ecrã deste hub.",
       "expected": "O que o FiestaBoard enviou",
-      "readbackUnavailable": "Este ecrã não fornece uma imagem atual legível."
+      "readbackUnavailable": "Este ecrã não fornece uma imagem atual legível.",
+      "advanced": "Definições avançadas do ecrã"
     },
     "title": "Ecrãs",
     "description": "Todos os painéis e ecrãs em que o FiestaBoard mostra conteúdo. Abra um para alterar as configurações.",

@@ -1465,7 +1465,8 @@
       "removeConfirmTitle": "{name} を削除しますか？",
       "removeConfirmBody": "このハブからディスプレイを削除します。",
       "expected": "FiestaBoard が送信した内容",
-      "readbackUnavailable": "このディスプレイから現在の表示内容を読み取ることはできません。"
+      "readbackUnavailable": "このディスプレイから現在の表示内容を読み取ることはできません。",
+      "advanced": "ディスプレイの詳細設定"
     },
     "title": "ディスプレイ",
     "description": "FiestaBoard が表示するすべてのボードと画面です。設定を変えるには開いてください。",

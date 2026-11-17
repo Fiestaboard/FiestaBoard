@@ -1465,7 +1465,8 @@
       "removeConfirmTitle": "{name} verwijderen?",
       "removeConfirmBody": "Hiermee verwijder je het scherm van deze hub.",
       "expected": "Wat FiestaBoard heeft verzonden",
-      "readbackUnavailable": "Dit scherm biedt geen leesbaar huidig beeld."
+      "readbackUnavailable": "Dit scherm biedt geen leesbaar huidig beeld.",
+      "advanced": "Geavanceerde scherminstellingen"
     },
     "title": "Schermen",
     "description": "Elk bord en scherm waarop FiestaBoard toont. Open er een om de instellingen te wijzigen.",

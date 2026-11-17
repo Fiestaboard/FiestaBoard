@@ -1465,7 +1465,8 @@
       "removeConfirmTitle": "{name} kaldırılsın mı?",
       "removeConfirmBody": "Bu işlem ekranı bu hub’dan kaldırır.",
       "expected": "FiestaBoard’un gönderdiği içerik",
-      "readbackUnavailable": "Bu ekran okunabilir bir güncel görüntü sunmuyor."
+      "readbackUnavailable": "Bu ekran okunabilir bir güncel görüntü sunmuyor.",
+      "advanced": "Gelişmiş ekran ayarları"
     },
     "title": "Ekranlar",
     "description": "FiestaBoard'un gösterim yaptığı tüm panolar ve ekranlar. Ayarlarını değiştirmek için birini açın.",

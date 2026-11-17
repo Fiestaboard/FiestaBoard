@@ -1465,7 +1465,8 @@
       "removeConfirmTitle": "Ta bort {name}?",
       "removeConfirmBody": "Detta tar bort skärmen från denna hubb.",
       "expected": "Det som FiestaBoard skickade",
-      "readbackUnavailable": "Denna skärm tillhandahåller ingen läsbar aktuell bild."
+      "readbackUnavailable": "Denna skärm tillhandahåller ingen läsbar aktuell bild.",
+      "advanced": "Avancerade skärminställningar"
     },
     "title": "Skärmar",
     "description": "Alla tavlor och skärmar som FiestaBoard visar på. Öppna en för att ändra dess inställningar.",

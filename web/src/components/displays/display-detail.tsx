@@ -2,6 +2,9 @@ import {
   Box,
   Button,
   Card,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Flex,
   Grid,
   PageSection,
@@ -11,7 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@fiestaboard/ui";
-import { Eye } from "lucide-react";
+import { ChevronDown, Eye } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { BoardOutOfSyncBanner } from "@/components/board-out-of-sync-banner";
@@ -20,7 +23,7 @@ import { DisplayEditor } from "@/components/displays/display-editor";
 import { DisplayLivePreview } from "@/components/displays/display-live-preview";
 import { DisplayOverview } from "@/components/displays/display-overview";
 import { DisplayTransition } from "@/components/displays/display-transition";
-import { useDisplayBoards } from "@/components/settings/display-settings";
+import { BoardEditor, BoardNameField, useDisplayBoards } from "@/components/settings/display-settings";
 import { FiestaPanelSettings } from "@/components/settings/fiestapanel-settings";
 import { isVirtualBoard } from "@/components/settings/output-boards";
 import { ScheduleBehavior } from "@/components/settings/schedule-behavior";
@@ -146,17 +149,37 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
         <DisplayDiagnostics board={board} />
       </TabsContent>
       <TabsContent keepMounted value="settings" className="mt-0">
-        <DisplayEditor boardId={boardId} onRemoved={backToList} />
+        {!isVirtualBoard(board) && <DisplayEditor boardId={boardId} onRemoved={backToList} />}
 
         {/* A FiestaPanel's own controls: TV size and fit, viewer URL / QR,
           live TV preview, the FiestaPi HDMI kiosk. */}
         {board && isVirtualBoard(board) && (
-          <Box data-testid="display-panel-settings">
+          <Box data-testid="display-panel-settings" className="p-4">
             <FiestaPanelSettings
               boardId={board.id}
               onDeleted={backToList}
               preview={<DisplayLivePreview board={board} size="md" />}
+              displayNameField={(pending) => (
+                <BoardNameField
+                  board={board}
+                  disabled={pending || displays.saving}
+                  onRename={(name) => displays.updateBoard(board.id, { name })}
+                />
+              )}
             />
+            <Card className="mt-5 gap-0 p-4">
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="touch" className="w-full justify-between">
+                    {tf("advanced")}
+                    <ChevronDown className="size-4" aria-hidden="true" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4">
+                  <BoardEditor board={board} displays={displays} hideName onRemoved={backToList} />
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
           </Box>
         )}
       </TabsContent>

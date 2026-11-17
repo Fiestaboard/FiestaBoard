@@ -1465,7 +1465,8 @@
       "removeConfirmTitle": "¿Eliminar {name}?",
       "removeConfirmBody": "Esto elimina la pantalla de este hub.",
       "expected": "Lo que envió FiestaBoard",
-      "readbackUnavailable": "Esta pantalla no ofrece una imagen actual que se pueda leer."
+      "readbackUnavailable": "Esta pantalla no ofrece una imagen actual que se pueda leer.",
+      "advanced": "Ajustes avanzados de la pantalla"
     },
     "title": "Pantallas",
     "description": "Todos los tableros y pantallas en los que muestra FiestaBoard. Abre uno para cambiar su configuración.",

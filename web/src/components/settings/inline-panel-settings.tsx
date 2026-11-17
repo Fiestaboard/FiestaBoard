@@ -30,6 +30,7 @@ interface InlinePanelSettingsProps {
   pending: boolean;
   error: Error | null;
   preview?: ReactNode;
+  nameField?: ReactNode;
   renderStyles: ReadonlyArray<{ value: PanelRenderStyle; labelKey: "renderStyleSplitFlap" | "renderStyleLed" }>;
   onPatch: (changes: PanelUpdateRequest) => void;
   onAdvanced: () => void;
@@ -43,6 +44,7 @@ export function InlinePanelSettings({
   pending,
   error,
   preview,
+  nameField,
   renderStyles,
   onPatch,
   onAdvanced,
@@ -62,25 +64,27 @@ export function InlinePanelSettings({
       <Stack gap="5">
         <PageCard>
           <PageSection title={t("displaySettings")}>
-            <Stack gap="2">
-              <Label htmlFor={`inline-name-${panel.id}`}>{t("panelName")}</Label>
-              <Input
-                key={panel.name}
-                id={`inline-name-${panel.id}`}
-                defaultValue={panel.name}
-                required
-                disabled={pending}
-                aria-invalid={invalidName}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") event.currentTarget.blur();
-                }}
-                onBlur={(event) => {
-                  const name = event.currentTarget.value.trim();
-                  setInvalidName(!name);
-                  if (name && name !== panel.name) onPatch({ name });
-                }}
-              />
-            </Stack>
+            {nameField ?? (
+              <Stack gap="2">
+                <Label htmlFor={`inline-name-${panel.id}`}>{t("panelName")}</Label>
+                <Input
+                  key={panel.name}
+                  id={`inline-name-${panel.id}`}
+                  defaultValue={panel.name}
+                  required
+                  disabled={pending}
+                  aria-invalid={invalidName}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                  }}
+                  onBlur={(event) => {
+                    const name = event.currentTarget.value.trim();
+                    setInvalidName(!name);
+                    if (name && name !== panel.name) onPatch({ name });
+                  }}
+                />
+              </Stack>
+            )}
             <Flex align="center" justify="between" gap="3" className="mt-4">
               <Text size="sm">{tCommon("type")}</Text>
               <Text size="sm" tone="muted">
