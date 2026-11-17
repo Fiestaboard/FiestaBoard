@@ -203,4 +203,4 @@ needed for any test in this suite.
 
 ### Universal Integrations (2.14)
 
-`e2e/integrations-canonical.spec.ts` covers Needs attention actions, the shared schema save at 390/768/1280 in light/dark, compact Marketplace results, axe and attached screenshots.
+`e2e/integrations-canonical.spec.ts` covers Needs attention actions, whole-row navigation, full phone detail/reconnect and same-tab OAuth, schema save, Settings/Variables/README and Prose/About, plus compact Marketplace results at 390/768/1280 in light/dark with all-WCAG axe and four screenshot states.

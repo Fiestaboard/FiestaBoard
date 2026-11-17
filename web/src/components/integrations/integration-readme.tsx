@@ -25,7 +25,7 @@ export function IntegrationReadme({
 }) {
   const t = useTranslations("integrations");
   const { data: remote, isLoading } = useQuery({
-    queryKey: ["plugin-remote-readme", pluginId, branch],
+    queryKey: ["plugin-remote-readme", pluginId, repository, branch],
     queryFn: () => fetchPluginReadme(repository, branch),
     enabled: !!repository && !documentation,
     staleTime: 10 * 60 * 1000,
