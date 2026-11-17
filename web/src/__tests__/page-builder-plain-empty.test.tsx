@@ -128,6 +128,13 @@ it("inserts an H3 variable at the textarea selection", async () => {
   expect(input).toHaveValue("Open {{weather.temperature}} today");
   await waitFor(() => expect(input).toHaveFocus());
   expect(ref.current?.hasUnsavedChanges()).toBe(true);
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  expect(input).toHaveValue("Open HERE today");
+  await waitFor(() => expect(input).toHaveFocus());
+  expect([input.selectionStart, input.selectionEnd]).toEqual([5, 9]);
+  await user.click(screen.getByRole("button", { name: "Redo" }));
+  expect(input).toHaveValue("Open {{weather.temperature}} today");
+  await waitFor(() => expect(input).toHaveFocus());
   const trigger = screen.getByRole("button", { name: "Variables" });
   await user.click(trigger);
   await user.click(await screen.findByRole("textbox", { name: /search variables/i }));
@@ -152,6 +159,12 @@ it("inserts a validated H3 formula at the textarea selection", async () => {
   const insert = within(dialog).getByRole("button", { name: /^Insert/ });
   await waitFor(() => expect(insert).toBeEnabled());
   await user.click(insert);
+  expect(input).toHaveValue("Open {{= 1 + 1 }} today");
+  await waitFor(() => expect(input).toHaveFocus());
+  expect(input.selectionStart).toBe(17);
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  expect(input).toHaveValue("Open HERE today");
+  await user.click(screen.getByRole("button", { name: "Redo" }));
   expect(input).toHaveValue("Open {{= 1 + 1 }} today");
   await waitFor(() => expect(input).toHaveFocus());
   expect(input.selectionStart).toBe(17);

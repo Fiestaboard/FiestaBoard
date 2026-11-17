@@ -110,6 +110,7 @@ import {
   useStatus,
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useEditorViewportDock } from "@/hooks/use-editor-viewport-dock";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useDisplayTargets } from "@/hooks/use-panel-targets";
 import { usePluginSettings } from "@/hooks/use-plugin-settings";
@@ -329,6 +330,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const dockedPreview = useMediaQuery("(max-width: 1023px)");
   const sheetPickers = useMediaQuery("(max-width: 639px)");
   const useTouchToolbar = useMediaQuery("(max-width: 767px), (pointer: coarse)");
+  const editorContentRef = useRef<HTMLDivElement>(null);
+  const dockPreviewRef = useRef<HTMLElement>(null);
+  const viewportBottom = useEditorViewportDock(dockedPreview && useTouchToolbar, editorContentRef, dockPreviewRef);
   const [previewMode, setPreviewMode] = useState<BoardPreviewMode>(() => readStoredBoardPreviewMode() ?? "actual");
   const changePreviewMode = (mode: BoardPreviewMode) => {
     setPreviewMode(mode);
@@ -556,6 +560,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, [panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols, targetBoardId, currentBoardId]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
   const plainTextRef = useRef<PlainTextEditorHandle>(null);
+  const [plainHistory, setPlainHistory] = useState({ canUndo: false, canRedo: false });
   const richTemplateContainerRef = useRef<HTMLDivElement>(null);
   // Metadata history keyed to stroke boundaries: done/undone mirror the
   // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
@@ -2601,7 +2606,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   return (
     <>
-      <Box className="min-w-0 w-full max-w-full overflow-x-clip">
+      <Box
+        ref={editorContentRef}
+        className="min-w-0 w-full max-w-full overflow-x-clip"
+        style={viewportBottom > 0 ? { paddingBottom: viewportBottom, flexShrink: 0 } : undefined}
+      >
         {/* Main Editor */}
         <Card
           className={cn(
@@ -2749,6 +2758,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               {!useTouchToolbar && <Box ref={setToolbarContainer} className="min-w-0" />}
               {baselineDisplay && (
                 <PlainTemplateToolbar
+                  canUndo={plainHistory.canUndo}
+                  canRedo={plainHistory.canRedo}
+                  onUndo={() => plainTextRef.current?.undo()}
+                  onRedo={() => plainTextRef.current?.redo()}
                   onInsert={(text) => plainTextRef.current?.insert(text)}
                   moreContent={mirrorMoreContent}
                 />
@@ -2896,6 +2909,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <Box {...anchorProps("page-editor.template")}>
                         <PlainTextEditor
                           ref={plainTextRef}
+                          onHistoryChange={setPlainHistory}
                           id="page-template-plain"
                           lineMarkers={pixelBoard ? canvasMarkers(canvases, numLines) : undefined}
                           lineMarkerTitle={tCanvas("markerTitle")}
@@ -2950,7 +2964,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             }}
                           />
                           <Button asChild variant="outline" size={dockedPreview ? "touch" : "sm"}>
-                            <TextLink href={appUrl("/picks")} className="no-underline">
+                            <TextLink href={appUrl("/picks")} className="text-foreground no-underline">
                               <Sparkles />
                               {tTouch("browseStaffPicks")}
                             </TextLink>
@@ -3028,9 +3042,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
                 {/* Preview is shared by both modes; the dock stays visible below 1024 px. */}
                 <EditorPreview
+                  ref={dockPreviewRef}
                   id="page-editor-preview"
                   variant={dockedPreview ? "docked" : "pane"}
-                  className={cn("order-first lg:order-2 min-w-0 top-16", dockedPreview && "px-0")}
+                  className={cn("order-first lg:order-2 min-w-0 top-16 scroll-mt-16", dockedPreview && "px-0")}
                   title={baselineDisplay ? tTouch("plainText") : tTouch("livePreview")}
                   dotStatus={baselineDisplay ? "warning" : "success"}
                   boardName={previewBoard?.name}

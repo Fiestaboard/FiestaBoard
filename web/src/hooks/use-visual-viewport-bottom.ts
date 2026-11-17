@@ -15,7 +15,11 @@ function bottomInset() {
   return viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
 }
 
+function unzoomedBottomInset() {
+  return window.visualViewport?.scale === 1 ? bottomInset() : 0;
+}
+
 /** Shared placement for body-portaled tools above the visible viewport edge. */
-export function useVisualViewportBottom() {
-  return useSyncExternalStore(subscribeViewport, bottomInset, () => 0);
+export function useVisualViewportBottom(unzoomedOnly = false) {
+  return useSyncExternalStore(subscribeViewport, unzoomedOnly ? unzoomedBottomInset : bottomInset, () => 0);
 }
