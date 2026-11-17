@@ -301,8 +301,10 @@ A phone can chat with FiestaBot (`POST /pages/ai/chat`) and run its operations
   changes.
 - Everything else is blocked: installing from a Git URL, importing pages, adding or
   changing displays, debug tools, and any tool the hub doesn't list for phones.
-  Through FiestaBot, a phone can change only general, display, schedule and location
-  settings.
+  Through FiestaBot's settings tool, a phone can change only the active page and the
+  general, display, transition, output, polling, location, silence and schedule
+  settings. MQTT, AI, update channel and automatic-update settings stay in the web app,
+  or, for AI, on the phone's AI provider screen.
 
 The hub checks every call when it runs, including one approved from an earlier
 message. What the app sends can't widen this.
