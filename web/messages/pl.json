@@ -1562,6 +1562,7 @@
       "lastUpdate": "Ostatnia aktualizacja: {time}",
       "noViewerHint": "Żaden zalogowany telewizor nie pokazuje tego wyświetlacza",
       "nextChange": "Do {time} · potem {page}",
+      "nextCompact": "Następnie {page}",
       "overrideUntil": "Ręcznie · do {time}",
       "pauseDisplay": "Wstrzymaj wyświetlacz",
       "pauseHint": "Tablica zachowuje wyświetlaną treść; harmonogram nadal działa na hubie.",

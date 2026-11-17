@@ -167,8 +167,34 @@ it("waits for the hub timezone before initializing the lookup wall clock", async
   await screen.findByRole("heading", { name: "Schedule" });
   expect(screen.queryByLabelText("Instant")).not.toBeInTheDocument();
   release();
+  fireEvent.click(await screen.findByRole("button", { name: "Which page at…" }));
   const instant = await screen.findByLabelText("Instant");
   expect((instant as HTMLInputElement).value.slice(11, 13)).toBe(String(new Date().getUTCHours()).padStart(2, "0"));
+});
+
+it("opens the phone entry form with the kit grabber and independently scrolling body", async () => {
+  const matchMedia = window.matchMedia;
+  window.matchMedia = vi.fn((query: string) => ({
+    matches: query === "(max-width: 767.98px)",
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+  try {
+    settings();
+    renderPage();
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add Schedule" }))[0]);
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.querySelector('[data-slot="sheet-grabber"]')).toBeInTheDocument();
+    expect(dialog.querySelector('[data-slot="sheet-head"]')).toHaveTextContent("Add Schedule");
+    expect(dialog.querySelector('[data-slot="sheet-body"]')).toContainElement(screen.getByLabelText("Start Time"));
+  } finally {
+    window.matchMedia = matchMedia;
+  }
 });
 
 it("repairs a supported weekly conflict and undoes with the returned revision on the same non-primary board", async () => {

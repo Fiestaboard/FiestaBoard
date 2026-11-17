@@ -1562,6 +1562,7 @@
       "lastUpdate": "Son güncelleme: {time}",
       "noViewerHint": "Oturum açmış hiçbir TV bu ekranı göstermiyor",
       "nextChange": "{time} saatine kadar · ardından {page}",
+      "nextCompact": "Sonra {page}",
       "overrideUntil": "Manuel · {time} saatine kadar",
       "pauseDisplay": "Ekranı duraklat",
       "pauseHint": "Pano mevcut içeriği göstermeye devam eder; zamanlama hub üzerinde çalışmayı sürdürür.",

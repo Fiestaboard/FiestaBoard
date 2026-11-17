@@ -13,7 +13,7 @@ import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridg
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
 import { ThemeProvider } from "@/hooks/use-theme";
 import i18n from "@/i18n/i18next";
-import type { ScheduleEntry } from "@/lib/api";
+import type { ActiveScheduleResponse, ScheduleEntry } from "@/lib/api";
 
 import SchedulePage from "../../app/routes/schedule";
 
@@ -209,7 +209,8 @@ window.fetch = async (input, init) => {
     value = {
       page_id: "morning",
       resolved_page_id: "morning",
-      source: "default",
+      resolved_next_check_seconds: null,
+      source: "schedule",
       schedule_enabled: true,
       current_day: "monday",
       current_time: "18:18",
@@ -224,7 +225,7 @@ window.fetch = async (input, init) => {
         revert_mode: null,
         revert_page_id: null,
       },
-    };
+    } satisfies ActiveScheduleResponse;
   else if (path === "/collections/collection:rules/dry-run")
     value = {
       collection_id: "collection:rules",

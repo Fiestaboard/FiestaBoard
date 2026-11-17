@@ -59,6 +59,11 @@ describe("Schedule evidence separation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Run collection dry run" }));
     const simulated = await screen.findByRole("region", { name: "Collection dry run" });
     expect(await within(simulated).findByText("B")).toBeInTheDocument();
+    const actualCard = actual.closest('[data-slot="card"]');
+    const simulatedCard = simulated.closest('[data-slot="card"]');
+    expect(actualCard).not.toBe(simulatedCard);
+    expect(actualCard?.parentElement).toBe(simulatedCard?.parentElement);
+    expect(actualCard).not.toContainElement(screen.getByRole("slider", { name: "Time of day" }));
     expect(within(actual).getByText("A")).toBeInTheDocument();
     expect(within(actual).queryByText("B")).not.toBeInTheDocument();
     expect(
@@ -148,6 +153,7 @@ it("offers quick moments and sends simulated missing paths only with the collect
   expect(value.slice(11)).toBe("15:00");
   fireEvent.click(screen.getByRole("button", { name: "Check instant" }));
   await screen.findByText("A");
+  fireEvent.click(screen.getByRole("button", { name: "Treat as missing (one variable path per line)" }));
   fireEvent.change(screen.getByLabelText("Treat as missing (one variable path per line)"), {
     target: { value: "weather.temp\ntransit" },
   });

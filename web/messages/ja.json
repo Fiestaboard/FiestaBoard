@@ -1562,6 +1562,7 @@
       "lastUpdate": "最終更新：{time}",
       "noViewerHint": "このディスプレイを表示しているサインイン済みのテレビはありません",
       "nextChange": "{time}まで · 次は{page}",
+      "nextCompact": "次は{page}",
       "overrideUntil": "手動表示 · {time}まで",
       "pauseDisplay": "ディスプレイを一時停止",
       "pauseHint": "ボードの表示内容はそのまま維持され、ハブではスケジュールが引き続き実行されます。",
