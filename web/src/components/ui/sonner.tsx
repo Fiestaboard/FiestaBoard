@@ -1,9 +1,10 @@
 "use client";
 
-import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
-import { CircleCheckIcon, InfoIcon, OctagonXIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  Toaster as KitToaster,
+  type ToasterProps as KitToasterProps,
+} from "@fiestaboard/ui/components/feedback/toaster";
 import { useSyncExternalStore } from "react";
-import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 import { useOptionalSpotlight } from "@/components/ai-spotlight/spotlight-provider";
 import { useOptionalGlobalAiPanel } from "@/components/global-ai-panel-context";
@@ -35,14 +36,19 @@ function useMatchesDesktop(): boolean {
   return useSyncExternalStore(subscribeToDesktop, isDesktopNow, () => false);
 }
 
+/** Public kit props, plus the existing app live-region label alias.
+ * General Sonner presentation props are owned by the kit rather than this host.
+ */
+type ToasterProps = KitToasterProps & { containerAriaLabel?: string };
+
 /**
- * App-wide Sonner wrapper.
+ * App-wide kit toast host.
  *
  * Sonner renders a single `<section aria-live="polite" aria-label="…">`
  * for all toast announcements. By default that label is the English string
  * "Notifications", which screen readers then announce verbatim under any
  * `<html lang>` (Spanish, Japanese, etc.). Forward the translated label
- * through `containerAriaLabel` so the region announcement matches the
+ * through the kit labels so the region announcement matches the
  * active locale.
  *
  * Accessibility:
@@ -52,12 +58,13 @@ function useMatchesDesktop(): boolean {
  *   universal notation and is left as-is.
  *
  * Callers may still override `containerAriaLabel` via props if they need a
- * more specific label for a particular Toaster instance.
+ * more specific label for a particular Toaster instance. The kit labels
+ * API also remains available; the legacy alias takes precedence.
  */
-const Toaster = ({ containerAriaLabel, ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+const Toaster = ({ containerAriaLabel, labels, ...props }: ToasterProps) => {
+  const { resolvedTheme } = useTheme();
   const t = useTranslations("common");
-  const ariaLabel = containerAriaLabel ?? t("notificationsRegionLabel");
+  const ariaLabel = containerAriaLabel ?? labels?.container ?? t("notificationsRegionLabel");
 
   // Toasts and the FiestaBot drawer both live in the bottom-right corner,
   // so a "Schedule created · Undo" landed on top of the composer the user
@@ -76,38 +83,23 @@ const Toaster = ({ containerAriaLabel, ...props }: ToasterProps) => {
   const walkthroughOnScreen = useOptionalSpotlight()?.active ?? false;
 
   const position: ToasterProps["position"] =
-    walkthroughOnScreen || aiPanel?.isMinimized || (drawerOpen && !isDesktop)
-      ? "top-center"
-      : (props.position ?? "bottom-right");
+    props.position ??
+    (walkthroughOnScreen || aiPanel?.isMinimized || (drawerOpen && !isDesktop) ? "top-center" : "bottom-right");
   // The drawer's live width plus its inset and a gap of the same size.
   const offset =
-    drawerOpen && isDesktop && !walkthroughOnScreen
+    props.offset ??
+    (drawerOpen && isDesktop && !walkthroughOnScreen
       ? { right: "calc(var(--ai-drawer-width, 384px) + 1.5rem)" }
-      : props.offset;
+      : undefined);
 
   return (
-    <Sonner
-      theme={theme as ToasterProps["theme"]}
-      className="toaster group"
-      containerAriaLabel={ariaLabel}
+    <KitToaster
+      variant="snackbar"
+      {...props}
+      theme={props.theme ?? resolvedTheme}
+      labels={{ close: t("close"), ...labels, container: ariaLabel }}
       position={position}
       offset={offset}
-      icons={{
-        success: <CircleCheckIcon className="size-4" />,
-        info: <InfoIcon className="size-4" />,
-        warning: <TriangleAlertIcon className="size-4" />,
-        error: <OctagonXIcon className="size-4" />,
-        loading: <Spinner label={null} />,
-      }}
-      style={
-        {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
-        } as React.CSSProperties
-      }
-      {...props}
     />
   );
 };
