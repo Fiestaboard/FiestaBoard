@@ -45,6 +45,7 @@ import logging
 from typing import Any
 
 from src.outputs.breaker import write_failure_reason
+from src.override_undo import manual_mutation
 from src.pages.storage import PageRevisionConflict
 from src.plugins.errors import PluginError
 from src.request_trace import trace_phase
@@ -676,6 +677,7 @@ def delete_page(page_id: str, *, expected_revision: str | None = None) -> dict[s
         return err(f"Error deleting page '{page_id}': {exc}")
 
 
+@manual_mutation
 async def set_active_page(
     page_id: str, board_id: str | None = None, *, override_silence: bool = False
 ) -> dict[str, Any]:
@@ -1009,6 +1011,7 @@ def _after_send(target: _SendTarget) -> None:
             logger.debug("Board refresh after send failed: %s", exc)
 
 
+@manual_mutation
 def send_message(
     text: str,
     board_id: str | None = None,
@@ -1099,6 +1102,7 @@ def _discard_held_after_override(target: _SendTarget, result: dict[str, Any], ov
     silence_queue.discard(target.board_id if target.board_id is not None else target.primary_id)
 
 
+@manual_mutation
 def send_characters(
     characters: list[list[int]],
     board_id: str | None = None,
@@ -2040,6 +2044,7 @@ async def cancel_temporary_override(board_id: str | None = None) -> dict[str, An
     return ok(f"Temporary override cancelled (revert mode: {revert_mode}).", was_active=True, revert_mode=revert_mode)
 
 
+@manual_mutation
 async def force_refresh() -> dict[str, Any]:
     """Resend the active content to every board, ignoring the unchanged-content caches.
 
@@ -2594,6 +2599,7 @@ async def shutdown_system() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+@manual_mutation
 def _send_grid_out_of_band(
     board_id: str | None,
     build_grid: Any,

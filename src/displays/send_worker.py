@@ -64,7 +64,9 @@ class SendJob:
         run: Callable[[], bool],
         sink: list | None = None,
         board_id=None,
+        on_settled: Callable[[], None] | None = None,
     ):
+        self._on_settled = on_settled
         self.key = key
         self._run = run
         self.sink = sink
@@ -93,6 +95,12 @@ class SendJob:
             self.fail_reason = reason
             if self.sink is not None:
                 self.sink.append((self.board_id, reason))
+        callback, self._on_settled = self._on_settled, None
+        if callback is not None:
+            try:
+                callback()
+            except Exception:
+                logger.exception("Board send terminal callback failed")
         self.return_value = value
         self._done.set()
         for job in self._absorbed:
@@ -129,19 +137,17 @@ class BoardSendWorker:
     def submit(self, job: SendJob) -> SendJob:
         """Enqueue ``job``, replacing any still-pending one (latest-wins)."""
         with self._cond:
-            if self._stopped:
-                job._finish(False, reason="Board send worker is stopped; the send was not queued")
-                return job
-            if self._pending is not None:
-                job.adopt(self._pending)
-            self._pending = job
-            if not self._draining:
-                # _draining flips False only under this lock, right before the
-                # drain thread exits, so a stale-but-alive thread can never
-                # strand a freshly submitted job.
-                self._draining = True
-                self._thread = threading.Thread(target=self._drain, daemon=True, name=f"board-send-{self._name}")
-                self._thread.start()
+            stopped = self._stopped
+            if not stopped:
+                if self._pending is not None:
+                    job.adopt(self._pending)
+                self._pending = job
+                if not self._draining:
+                    self._draining = True
+                    self._thread = threading.Thread(target=self._drain, daemon=True, name=f"board-send-{self._name}")
+                    self._thread.start()
+        if stopped:
+            job._finish(False, reason="Board send worker is stopped; the send was not queued")
         return job
 
     def active_keys(self) -> set[tuple]:
@@ -190,10 +196,14 @@ class BoardSendWorker:
                 if job is None or self._stopped:
                     self._draining = False
                     self._cond.notify_all()
-                    if job is not None:
-                        job._finish(False, reason="Board send worker stopped before this send ran")
-                    return
-                self._current = job
+                    stopped = True
+                else:
+                    stopped = False
+                    self._current = job
+            if stopped:
+                if job is not None:
+                    job._finish(False, reason="Board send worker stopped before this send ran")
+                return
             try:
                 job.execute()
             except Exception:  # execute() must not raise; survive anyway
