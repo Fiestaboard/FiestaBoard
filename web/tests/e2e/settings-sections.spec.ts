@@ -18,6 +18,7 @@ for (const width of [390, 768, 1280]) {
       test.setTimeout(120_000);
       await configureBoard();
       await suppressWizard(page);
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
       await page.setViewportSize({ width, height: 900 });
       await page.addInitScript((value) => localStorage.setItem("theme", value), theme);
       for (const [section, title] of sections) {
@@ -25,6 +26,29 @@ for (const width of [390, 768, 1280]) {
         const detail = page.getByRole("region", { name: title, exact: true });
         await expect(detail).toBeVisible();
         await expect(detail.locator('[data-slot="skeleton"]')).toHaveCount(0);
+        await expect
+          .poll(() => page.locator("html").evaluate((html) => html.classList.contains("dark")))
+          .toBe(theme === "dark");
+        // Visibility can precede the kit's header and outlet entrance fades.
+        // Audit final colors and capture the settled shell at each destination.
+        await page.evaluate(async () => {
+          await document.fonts.ready;
+          const finiteAnimations = document
+            .getAnimations()
+            .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity));
+          await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => {})));
+        });
+        await expect
+          .poll(() =>
+            detail.evaluate((element) => {
+              let opacity = 1;
+              for (let node: Element | null = element; node; node = node.parentElement) {
+                opacity *= Number(getComputedStyle(node).opacity);
+              }
+              return opacity;
+            }),
+          )
+          .toBe(1);
         if (width < 768) {
           await expect(page.getByRole("link", { name: "Settings", exact: true })).toHaveAttribute("href", "/settings");
           await expect(page.locator('[data-slot="settings-index"]')).toHaveCount(0);
@@ -48,10 +72,14 @@ for (const width of [390, 768, 1280]) {
           // axe disables this WCAG 2.2 AA rule by default; browser layout is available here.
           rules: { "target-size": { enabled: true } },
         });
-        expect(violations).toEqual([]);
+        expect(
+          violations,
+          `Settings ${section} ${width} ${theme} violations:\n${JSON.stringify(violations, null, 2)}`,
+        ).toEqual([]);
         await page.screenshot({
           path: testInfo.outputPath(`impl-settings-${section}-${width}-${theme}.png`),
           fullPage: true,
+          animations: "disabled",
         });
       }
     });
