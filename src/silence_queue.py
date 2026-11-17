@@ -26,6 +26,7 @@ it holds, so ``''`` never appears as a key.
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
@@ -38,8 +39,8 @@ from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
-HeldKind = Literal["text", "lines", "grid", "page", "display"]
-_KINDS: tuple[str, ...] = ("text", "lines", "grid", "page", "display")
+HeldKind = Literal["text", "lines", "grid", "page", "display", "compose"]
+_KINDS: tuple[str, ...] = ("text", "lines", "grid", "page", "display", "compose")
 
 #: A held send older than this is stale and never delivered.
 HELD_TTL_SECONDS = 24 * 3600
@@ -92,6 +93,14 @@ class HeldSend:
     def display(cls, display_type: str, *, board_id: str) -> HeldSend:
         """A plugin display, fetched fresh when silence ends."""
         return cls("display", str(display_type), board_id, time.time())
+
+    @classmethod
+    def compose(cls, intent: dict, *, board_id: str) -> HeldSend:
+        """Original, server-validated Compose intent, never flattened to a grid."""
+        from src.compose.models import ComposeRequest
+
+        validated = ComposeRequest.model_validate(intent).model_dump(mode="json")
+        return cls("compose", copy.deepcopy(validated), board_id, time.time())
 
     def is_stale(self, now: float | None = None) -> bool:
         return ((now if now is not None else time.time()) - self.queued_at) > HELD_TTL_SECONDS
@@ -209,6 +218,17 @@ def _reset_for_tests() -> None:
     global _held
     with _lock:
         _held = None
+
+
+def discard_if_current(send: HeldSend) -> bool:
+    """Consume exactly a captured queue entry; a newer intent always survives."""
+    with _lock:
+        held = _load_locked()
+        if held.get(send.board_id) != send:
+            return False
+        del held[send.board_id]
+        _save_locked()
+        return True
 
 
 def _page_name(page_id: str) -> str:
