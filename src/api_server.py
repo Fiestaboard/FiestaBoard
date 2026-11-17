@@ -781,6 +781,9 @@ app.mount("/mcp", _mcp_mount)
 # /panel/ (singular) is the FiestaPanel viewer surface: read-only endpoints a
 # TV browser must reach with no session cookie. The /panels CRUD surface
 # (plural) stays behind auth like everything else.
+from .override_undo import OverrideMutationMiddleware  # noqa: E402
+
+app.add_middleware(OverrideMutationMiddleware)
 app.add_middleware(RequestTraceMiddleware)
 app.add_middleware(AuthMiddleware, extra_public_paths=("/panel/",))
 app.include_router(auth_router)

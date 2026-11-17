@@ -274,6 +274,8 @@ class SetActivePageResponse(BaseModel):
 class TemporaryOverrideResponse(BaseModel):
     """The active temporary override, or every field nulled when there is none."""
 
+    undo_supported: bool = Field(default=True, description="Supports opt-in cancel receipts and atomic Undo v1.")
+
     active: bool
     page_id: str | None = None
     expires_at: str | None = None
@@ -326,6 +328,14 @@ class ClearTemporaryOverrideResponse(BaseModel):
     """What the cancelled override was going to revert to."""
 
     revert_mode: str | None = None
+    undo_token: str | None = None
+    undo_expires_at: str | None = None
+
+
+class UndoTemporaryOverrideRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    board_id: str = Field(min_length=1)
+    undo_token: str = Field(min_length=1, max_length=128)
 
 
 # ---------------------------------------------------------------------------

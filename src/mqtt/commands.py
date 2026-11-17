@@ -6,6 +6,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from src.override_undo import manual_mutation
+
 if TYPE_CHECKING:
     from .client import MQTTClient
 
@@ -384,6 +386,7 @@ class CommandHandler:
             return
         get_settings_service().update_transition_settings(strategy=payload)
 
+    @manual_mutation
     def _handle_refresh_display(self, payload: str = "") -> None:
         from src.api_server import get_service
 
@@ -432,6 +435,7 @@ class CommandHandler:
         except Exception as e:
             logger.debug("Board content invalidation failed: %s", e)
 
+    @manual_mutation
     def _handle_blank_board(self, payload: str = "") -> None:
         # JSON payloads may target a specific board (issue #1244); the
         # default resolves the primary board's client via the legacy path.
@@ -481,6 +485,7 @@ class CommandHandler:
         self._mark_display_updated()
         self._publish_event("display_updated", "board_blanked")
 
+    @manual_mutation
     def _handle_send_message(self, payload: str) -> None:
         if not payload:
             return

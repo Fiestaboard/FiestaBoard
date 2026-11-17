@@ -1,28 +1,42 @@
 """Atomic cancel authority never becomes an unconditional override write."""
+
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-import json
 from unittest.mock import patch
 
 import pytest
 
 from src.auth.scopes import CONTROL, TV_PANELS, permits
 from src.settings.service import SettingsService, TemporaryOverride
+from tests.test_auth_mobile_control_scope import auth, phone, tv  # noqa: F401 - fixtures
 
 
 @pytest.fixture
 def store(tmp_path):
     path = tmp_path / "settings.json"
-    path.write_text(json.dumps({"board": {"boards": [
-        {"id": "a", "name": "A", "device_type": "flagship"},
-        {"id": "b", "name": "B", "device_type": "flagship"},
-    ]}}))
+    path.write_text(
+        json.dumps(
+            {
+                "board": {
+                    "boards": [
+                        {"id": "a", "name": "A", "device_type": "flagship"},
+                        {"id": "b", "name": "B", "device_type": "flagship"},
+                    ]
+                }
+            }
+        )
+    )
     return SettingsService(str(path))
 
 
 def start(store, **kwargs):
-    value = TemporaryOverride(template=["HELLO"], line_metadata=[{"align": "center"}],
-        expires_at=(datetime.now(UTC) + timedelta(minutes=5)).isoformat(), **kwargs)
+    value = TemporaryOverride(
+        template=["HELLO"],
+        line_metadata=[{"align": "center"}],
+        expires_at=(datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
+        **kwargs,
+    )
     store.set_temporary_override(value, "a")
     return value.to_dict()
 
@@ -98,12 +112,14 @@ def test_cancel_applies_page_revert_before_issuing_receipt(store):
 def test_concurrent_restores_have_one_winner(store):
     start(store)
     _, token, _ = cancel(store)
+
     def attempt(_):
         try:
             restore(store, token)
             return True
         except ValueError:
             return False
+
     with ThreadPoolExecutor(max_workers=8) as pool:
         assert sum(pool.map(attempt, range(16))) == 1
 
@@ -150,3 +166,167 @@ def test_exact_mobile_scope_addition_does_not_grant_admin_or_tv_access():
     assert not permits(CONTROL, "PUT", "/settings/temporary-override/undo")
     assert not permits(TV_PANELS, "POST", "/settings/temporary-override/undo")
     assert not permits(CONTROL, "POST", "/settings/reload")
+
+
+@pytest.fixture
+def http(store, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    import src.settings.service as services
+    from src import api_server
+    from src.settings import routes
+
+    monkeypatch.setattr(services, "get_settings_service", lambda: store)
+    monkeypatch.setattr(api_server, "get_settings_service", lambda: store)
+    monkeypatch.setattr(routes, "_drop_board_cache", lambda board: None)
+    return TestClient(api_server.app)
+
+
+def test_http_opt_in_receipt_and_one_use_restore(http, store):
+    original = start(store)
+    result = http.delete("/settings/temporary-override?board_id=a&undo=true")
+    assert result.status_code == 200, result.text
+    assert result.headers["cache-control"] == "no-store"
+    token = result.json()["undo_token"]
+    assert token
+    result = http.post("/settings/temporary-override/undo", json={"board_id": "a", "undo_token": token})
+    assert result.status_code == 200, result.text
+    assert result.json()["expires_at"] == original["expires_at"]
+    assert (
+        http.post("/settings/temporary-override/undo", json={"board_id": "a", "undo_token": token}).status_code == 409
+    )
+
+
+def test_legacy_cancel_never_issues_receipt(http, store):
+    start(store)
+    assert http.delete("/settings/temporary-override?board_id=a").json().get("undo_token") is None
+
+
+def test_internal_page_save_invalidates_http_receipt(http, store):
+    from src.pages.service import get_page_service
+
+    start(store)
+    token = http.delete("/settings/temporary-override?board_id=a&undo=true").json()["undo_token"]
+    # Simulates an internal/SSE/background writer after its HTTP response.
+    pages = get_page_service().storage
+    with pages.lock:
+        pages._save()
+    result = http.post("/settings/temporary-override/undo", json={"board_id": "a", "undo_token": token})
+    assert result.status_code == 409
+
+
+def test_preview_and_failed_mutation_do_not_invalidate_receipt(http, store):
+    # The production engine is ordinarily initialized at startup; its first
+    # registry bootstrap can persist plugin defaults, an actual config change.
+    assert http.post("/templates/validate", json={"template": ["HELLO"]}).status_code == 200
+    start(store)
+    token = http.delete("/settings/temporary-override?board_id=a&undo=true").json()["undo_token"]
+    assert http.post("/templates/validate", json={"template": ["HELLO"]}).status_code == 200
+    assert http.put("/pages/missing-page", json={"name": "X"}).status_code >= 400
+    assert (
+        http.post("/settings/temporary-override/undo", json={"board_id": "a", "undo_token": token}).status_code == 200
+    )
+
+
+def test_restore_rejects_unknown_display_and_client_payload(http, store):
+    start(store)
+    token = http.delete("/settings/temporary-override?board_id=a&undo=true").json()["undo_token"]
+    assert (
+        http.post("/settings/temporary-override/undo", json={"board_id": "gone", "undo_token": token}).status_code
+        == 404
+    )
+    assert (
+        http.post(
+            "/settings/temporary-override/undo", json={"board_id": "a", "undo_token": token, "expires_at": "2099-01-01"}
+        ).status_code
+        == 422
+    )
+
+
+def test_native_receipt_bound_to_issuing_session_and_tv_denied(http, store, phone, tv):  # noqa: F811
+    from tests.test_auth_mobile_control_scope import IOS, bearer_client, sign_in
+
+    first, _ = phone
+    television, _ = tv
+    second = bearer_client(sign_in(IOS)["access_token"])
+    start(store)
+    token = first.delete("/settings/temporary-override?board_id=a&undo=true").json()["undo_token"]
+    body = {"board_id": "a", "undo_token": token}
+    assert television.post("/settings/temporary-override/undo", json=body).status_code == 403
+    assert second.post("/settings/temporary-override/undo", json=body).status_code == 409
+    assert first.post("/settings/temporary-override/undo", json=body).status_code == 200
+
+
+def test_unauthenticated_send_does_not_invalidate_native_receipt(http, store, phone):  # noqa: F811
+    first, _ = phone
+    start(store)
+    token = first.delete("/settings/temporary-override?board_id=a&undo=true").json()["undo_token"]
+    assert http.post("/send-message", json={"text": "NO"}).status_code == 401
+    assert (
+        first.post("/settings/temporary-override/undo", json={"board_id": "a", "undo_token": token}).status_code == 200
+    )
+
+
+def test_internal_manual_writer_blocks_undo_during_run_and_invalidates_after(store, monkeypatch):
+    import src.settings.service as services
+    from src.override_undo import manual_mutation
+
+    monkeypatch.setattr(services, "get_settings_service", lambda: store)
+    start(store)
+    _, token, _ = cancel(store)
+
+    @manual_mutation
+    def writer():
+        with pytest.raises(ValueError, match="in progress"):
+            restore(store, token)
+        return {"status": "success"}
+
+    writer()
+    with pytest.raises(ValueError):
+        restore(store, token)
+
+
+def test_no_authority_or_content_is_written_to_disk_by_cancellation(store):
+    start(store)
+    _, token, _ = cancel(store)
+    persisted = store.settings_file.read_text()
+    assert token not in persisted
+    assert "HELLO" not in persisted
+
+
+def test_content_generation_mismatch_prevents_restore(store):
+    start(store)
+    _, token, _ = store.cancel_temporary_override("a", actor="phone-1", undo=True, content_revision=("before",))
+    with pytest.raises(ValueError):
+        store.undo_temporary_override("a", token, actor="phone-1", content_revision=("after",))
+
+
+def test_capability_is_explicit_on_override_status(http):
+    assert http.get("/settings/temporary-override?board_id=a").json()["undo_supported"] is True
+
+
+def test_receipt_deadline_never_exceeds_original_expiry(store):
+    original = TemporaryOverride(page_id="short", expires_at=(datetime.now(UTC) + timedelta(seconds=2)).isoformat())
+    store.set_temporary_override(original, "a")
+    _, _, deadline = cancel(store)
+    assert datetime.fromisoformat(deadline) <= datetime.fromisoformat(original.expires_at)
+
+
+def test_non_ascii_token_is_a_refusal_not_a_server_error(store):
+    start(store)
+    cancel(store)
+    with pytest.raises(ValueError):
+        restore(store, "é")
+
+
+def test_cold_preview_config_bootstrap_conservatively_refuses_receipt(http, store):
+    start(store)
+    token = http.delete("/settings/temporary-override?board_id=a&undo=true").json()["undo_token"]
+    from src.config_manager import get_config_manager
+
+    before = get_config_manager().config_generation
+    assert http.post("/templates/validate", json={"template": ["HELLO"]}).status_code == 200
+    assert get_config_manager().config_generation > before
+    assert (
+        http.post("/settings/temporary-override/undo", json={"board_id": "a", "undo_token": token}).status_code == 409
+    )

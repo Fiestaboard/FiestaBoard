@@ -35,7 +35,7 @@ import logging
 from datetime import UTC
 
 import requests
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from src.api_deprecation import deprecation_notice, flat_board_fields_notice
 from src.api_errors import errors
@@ -102,6 +102,7 @@ from .models import (
     TransitionSettings,
     TransitionSettingsResponse,
     TransitionSettingsUpdate,
+    UndoTemporaryOverrideRequest,
     WizardStateBody,
 )
 from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, page_transition
@@ -1066,23 +1067,62 @@ async def set_temporary_override(request: TemporaryOverrideRequest):
     return _temporary_override_payload(override, board)
 
 
-@router.delete("/settings/temporary-override", response_model=ClearTemporaryOverrideResponse, responses={**ERROR_404})
-async def clear_temporary_override(board_id: str | None = None):
-    """Cancel one display's temporary override (``board_id``; omit for the primary) and refresh it now."""
+@router.delete(
+    "/settings/temporary-override",
+    response_model=ClearTemporaryOverrideResponse,
+    response_model_exclude_unset=True,
+    responses={**ERROR_404},
+)
+async def clear_temporary_override(
+    board_id: str | None = None, undo: bool = False, raw_request: Request = None, response: Response = None
+):
+    """Cancel atomically. Opt into a one-use, actor/display-bound 30s Undo receipt."""
+    from contextlib import nullcontext
+
+    from src.override_undo import actor_identity, content_owners
+
     settings_service = get_settings_service()
-    board = _override_board(settings_service, board_id)
-    override = settings_service.get_temporary_override(board)
-    revert_mode = override.revert_mode if override else None
-    settings_service.clear_temporary_override(board)
-
-    # Apply revert side-effects server-side (same logic as expiry in the display loop)
-    if override and override.revert_mode == "page" and override.revert_page_id:
-        settings_service.set_active_page_id(override.revert_page_id, board_id=board)
-
-    # Force an immediate re-render so that display shows the reverted state
+    with content_owners(settings_service) if undo else nullcontext(()) as revision:
+        board = _override_board(settings_service, board_id)
+        override, token, deadline = settings_service.cancel_temporary_override(
+            board, actor=actor_identity(raw_request), undo=undo, content_revision=revision
+        )
     _drop_board_cache(board)
+    if response is not None:
+        response.headers["Cache-Control"] = "no-store"
+    result = {"revert_mode": override.revert_mode if override else None}
+    if undo:
+        result.update(undo_token=token, undo_expires_at=deadline)
+    return result
 
-    return {"revert_mode": revert_mode}
+
+@router.post(
+    "/settings/temporary-override/undo",
+    response_model=TemporaryOverrideResponse,
+    responses=errors(404, 409),
+)
+async def undo_temporary_override(request: UndoTemporaryOverrideRequest, raw_request: Request, response: Response):
+    """Consume server authority once; never accept a client payload or extend expiry.
+
+    A stale/expired/used receipt or a mutation in progress returns409. Refresh
+    state after failure; automatic mutation retries are not supported.
+    """
+    from src.override_undo import actor_identity, content_owners
+
+    settings_service = get_settings_service()
+    with content_owners(settings_service) as revision:
+        board = _override_board(settings_service, request.board_id)
+        try:
+            override = settings_service.undo_temporary_override(
+                board, request.undo_token, actor=actor_identity(raw_request), content_revision=revision
+            )
+        except ValueError as exc:
+            logger.info("Temporary override Undo refused")
+            raise HTTPException(status_code=409, detail=str(exc)) from None
+    _drop_board_cache(board)
+    response.headers["Cache-Control"] = "no-store"
+    logger.info("Temporary override Undo restored")
+    return _temporary_override_payload(override, board)
 
 
 # ---------------------------------------------------------------------------

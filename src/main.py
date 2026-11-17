@@ -34,6 +34,7 @@ from .outputs.hooks import DevicePoll
 from .outputs.native_playlist import NativePageSelection, NativePlaylist, NativePlaylistEntry
 from .outputs.plugin_registration import release_driver
 from .outputs.registry import resolve_output_id
+from .override_undo import manual_mutation
 from .pages.models import LineMetadata, Page
 from .pages.sends import record_send
 from .pages.service import (
@@ -3458,6 +3459,7 @@ class DisplayService:
         rt.silence_queued_shown = content
         return self._send_trigger_content(content, rt, wait=wait, on_success=lambda: silence_queue.discard(board_id))
 
+    @manual_mutation
     def _send_trigger_content(
         self,
         content: str,

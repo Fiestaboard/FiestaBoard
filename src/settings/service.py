@@ -4,16 +4,19 @@ This service allows runtime modification of settings like transition
 animations and output targets, which can be controlled from the UI.
 """
 
+import copy
 import functools
 import json
 import logging
 import os
+import secrets
 import shutil
 import threading
+import time
 import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal, Optional, TypeVar, get_args
 
@@ -1650,6 +1653,8 @@ class SettingsService:
     def reload(self) -> None:
         """Reload this live owner after restore without changing its lock."""
         self.runtime_revision = str(uuid.uuid4())
+        self._override_undo_receipts = {}
+        self._override_mutations_pending = 0
         self._needs_seed_save = False
         # Run ordered schema migrations on the raw settings file BEFORE any
         # subsystem reads, so every _load_* sees fully migrated values. This
@@ -3035,6 +3040,96 @@ class SettingsService:
             del self._temporary_overrides[key]
             self._persist_override_gc()
         return raw
+
+    @_locked
+    def begin_override_mutation(self) -> None:
+        """Block Undo while a relevant manual mutation is in flight."""
+        self._override_mutations_pending += 1
+
+    @_locked
+    def finish_override_mutation(self, *, success: bool) -> None:
+        self._override_mutations_pending = max(0, self._override_mutations_pending - 1)
+        if success:
+            self._override_undo_receipts.clear()
+
+    @_locked
+    def invalidate_override_undo(self) -> None:
+        """Internal manual writers invalidate authority before dispatch."""
+        self._override_undo_receipts.clear()
+
+    @_locked
+    def cancel_temporary_override(
+        self, board_id: str, *, actor: str | None = None, undo: bool = False, content_revision: tuple = ()
+    ) -> tuple[TemporaryOverride | None, str | None, str | None]:
+        """Cancel and apply revert atomically; optionally issue bounded authority.
+
+        Runtime only: restart/reload discards receipts. One receipt per display
+        bounds memory. All fields are copied from the server, never the client.
+        """
+        key = self._override_key(board_id)
+        # Evict expired, removed-display and superseded generations before
+        # admitting another payload; no unbounded history of removed boards.
+        self._override_undo_receipts = {
+            k: value
+            for k, value in self._override_undo_receipts.items()
+            if value[3] > time.monotonic() and value[4] == self.runtime_revision
+        }
+        self._override_undo_receipts.pop(key, None)
+        override = self.get_temporary_override(key)
+        original = copy.deepcopy(override)
+        self.clear_temporary_override(key)
+        if override and override.revert_mode == "page" and override.revert_page_id:
+            self.set_active_page_id(override.revert_page_id, board_id=key)
+        if original is None or not undo or actor is None or original.is_expired():
+            return original, None, None
+        now = datetime.now(UTC)
+        expires = now + timedelta(seconds=30)
+        if original.expires_at is not None:
+            original_expiry = datetime.fromisoformat(original.expires_at)
+            if original_expiry.tzinfo is None:
+                original_expiry = original_expiry.replace(tzinfo=UTC)
+            expires = min(expires, original_expiry)
+        lifetime = max(0.0, (expires - now).total_seconds())
+        token = secrets.token_urlsafe(32)
+        deadline = expires.isoformat()
+        self._override_undo_receipts[key] = (
+            token,
+            actor,
+            original,
+            time.monotonic() + lifetime,
+            self.runtime_revision,
+            content_revision,
+        )
+        return original, token, deadline
+
+    @_locked
+    def undo_temporary_override(
+        self, board_id: str, token: str, *, actor: str, content_revision: tuple = ()
+    ) -> TemporaryOverride:
+        """Consume matching one-use authority and restore the exact original run.
+
+        No automatic retry: even persistence failure consumes authority. The
+        caller holds content-owner locks when supplying content_revision.
+        """
+        key = self._override_key(board_id)
+        receipt = self._override_undo_receipts.get(key)
+        if receipt is None or not secrets.compare_digest(receipt[0].encode(), token.encode()) or receipt[1] != actor:
+            raise ValueError("Override Undo is unavailable")
+        if self._override_mutations_pending:
+            raise ValueError("A display mutation is still in progress")
+        self._override_undo_receipts.pop(key)
+        _, _, original, deadline, revision, content = receipt
+        if (
+            time.monotonic() >= deadline
+            or original.is_expired()
+            or self.runtime_revision != revision
+            or content_revision != content
+            or key in self._temporary_overrides
+        ):
+            raise ValueError("Override Undo is unavailable")
+        self._temporary_overrides[key] = copy.deepcopy(original)
+        self._save_to_file()
+        return self._temporary_overrides[key]
 
     @_locked
     def set_temporary_override(self, override: TemporaryOverride, board_id: str | None = None) -> TemporaryOverride:

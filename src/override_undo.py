@@ -1,0 +1,114 @@
+"""Short-lived override authority and existing content-owner coordination.
+
+No payload/credential is logged. The deployment is the existing single process;
+restart loses authority safely. These locks match content deletion/resize order.
+"""
+
+import hashlib
+import re
+from contextlib import ExitStack, contextmanager
+from functools import wraps
+
+from starlette.types import ASGIApp, Scope
+
+
+def actor_identity(request) -> str:
+    from src.auth.service import SESSION_COOKIE_NAME
+
+    if request is None:
+        return "internal"
+    scope = request.scope
+    session = scope.get("auth_session_id")
+    if session:
+        return f"native:{scope.get('auth_user', '')}:{session}"
+    cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    if cookie:
+        digest = hashlib.sha256(cookie.encode()).hexdigest()
+        return f"browser:{scope.get('auth_user', '')}:{digest}"
+    return "local:" + scope.get("auth_user", "anonymous")
+
+
+@contextmanager
+def content_owners(settings):
+    from src.collections.service import get_collection_service
+    from src.config_manager import get_config_manager
+    from src.pages.service import get_page_service
+    from src.schedules.service import get_schedule_service
+
+    config = get_config_manager()
+    stores = (get_page_service().storage, get_collection_service().storage, get_schedule_service().storage)
+    with ExitStack() as locks:
+        for lock in (settings.lock, config.lock, *(store.lock for store in stores)):
+            locks.enter_context(lock)
+        yield (id(config), config.config_generation, *((id(store), store._store.runtime_revision) for store in stores))
+
+
+# Only physical-write front doors need an admission barrier. Content/settings
+# writes are coordinated by owner locks and generations, including writers
+# continuing after an SSE response. Read-only POST previews never enter here.
+_MANUAL = re.compile(
+    r"/(?:send-message|send-welcome-message|refresh|templates/render/live|"
+    r"displays/[^/]+/send|v1/boards/[^/]+/(?:message|restore)|board/external-frame|"
+    r"debug/(?:blank|fill|info|test-connection|clear-cache)|force-refresh|clear-cache)"
+)
+
+
+class OverrideMutationMiddleware:
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive, send):
+        if (
+            scope["type"] != "http"
+            or scope.get("method") not in {"POST", "PUT", "PATCH", "DELETE"}
+            or not _MANUAL.fullmatch(scope.get("path", ""))
+        ):
+            return await self.app(scope, receive, send)
+        # Registered inside AuthMiddleware: rejected credentials never arrive.
+        from src.settings.service import get_settings_service
+
+        settings = get_settings_service()
+        settings.begin_override_mutation()
+        # A server exception/5xx can follow a partially applied board write.
+        success = True
+
+        async def observe(message):
+            nonlocal success
+            if message["type"] == "http.response.start":
+                success = 200 <= message["status"] < 300 or message["status"] >= 500
+            await send(message)
+
+        try:
+            await self.app(scope, receive, observe)
+        finally:
+            settings.finish_override_mutation(success=success)
+
+
+def manual_mutation(function):
+    """Cover internal/MCP manual executors for their entire synchronous run."""
+
+    @wraps(function)
+    def guarded(*args, **kwargs):
+        from src.settings.service import get_settings_service
+
+        settings = get_settings_service()
+        settings.begin_override_mutation()
+        success = True
+        try:
+            result = function(*args, **kwargs)
+            if isinstance(result, dict):
+                success = bool(
+                    result.get("partial")
+                    or result.get("held")
+                    or (result.get("status") == "success" and not result.get("skipped"))
+                )
+            elif isinstance(result, bool):
+                success = result
+            # Void-return legacy MQTT handlers cannot establish non-mutation;
+            # conservatively invalidate after a completed command.
+
+            return result
+        finally:
+            settings.finish_override_mutation(success=success)
+
+    return guarded
