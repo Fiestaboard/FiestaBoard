@@ -55,7 +55,7 @@ def test_channel_endpoint_reports_local_state_without_discovery():
         patch.object(us, "channel_switch_blocker", return_value=None),
         patch.object(us, "current_channel", return_value="beta"),
         patch.object(us, "running_version", return_value="10.4.0-beta.2"),
-        patch.object(us, "_latest_for_channel", new=AsyncMock()) as latest,
+        patch.object(us, "_latest_for_channel", new=AsyncMock(return_value=None)) as latest,
     ):
         response = TestClient(app).get("/system/channel")
     assert response.status_code == 200
@@ -118,6 +118,7 @@ async def test_discovery_coalesces_concurrent_readers_and_survives_cancelled_rea
         first = asyncio.create_task(us.release_channel_versions())
         await entered.wait()
         second = asyncio.create_task(us.release_channel_versions())
+        third = asyncio.create_task(us.release_channel_versions())
         # A cancelled subscriber must not cancel discovery shared with another.
         await asyncio.sleep(0)
         second.cancel()
@@ -125,6 +126,7 @@ async def test_discovery_coalesces_concurrent_readers_and_survives_cancelled_rea
             await second
         release.set()
         result = await first
+        assert await third == result
         assert result["alpha"] == "11.0.0-alpha.12"
         assert await us.release_channel_versions() == result
         assert discover.await_count == 3

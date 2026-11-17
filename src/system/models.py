@@ -173,10 +173,18 @@ class ReleaseChannelResponse(BaseModel):
     channel: str
     available_channels: list[str]
     running_channel: str
-    channel_versions: dict[str, str | None]
+    running_version: str
+    # Kept as an empty compatibility field; remote discovery has its own route.
+    channel_versions: dict[str, str | None] = {}
     can_switch: bool
     #: Why switching is unavailable, when it is. None when it is available.
     reason: str | None = None
+
+
+class ReleaseChannelVersionsResponse(BaseModel):
+    """Best-effort published versions, independent of local channel state."""
+
+    channel_versions: dict[str, str | None]
 
 
 class ReleaseChannelSwitchResponse(BaseModel):

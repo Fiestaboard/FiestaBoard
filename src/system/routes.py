@@ -46,6 +46,7 @@ from .models import (
     ReleaseChannelRequest,
     ReleaseChannelResponse,
     ReleaseChannelSwitchResponse,
+    ReleaseChannelVersionsResponse,
     RollbackRequest,
     RollbackResponse,
     SystemActionResponse,
@@ -339,22 +340,21 @@ async def system_markup_compat():
 async def get_release_channel():
     """Which release channel this install is on, and whether it can change."""
     blocker = await asyncio.to_thread(update_service.channel_switch_blocker)
+    current = update_service.current_channel()
     return ReleaseChannelResponse(
-        channel=update_service.current_channel(),
-        running_channel=update_service.current_channel(),
-        channel_versions=dict(
-            zip(
-                update_service.CHANNEL_TAGS,
-                await asyncio.gather(
-                    *(update_service._latest_for_channel(channel) for channel in update_service.CHANNEL_TAGS)
-                ),
-                strict=True,
-            )
-        ),
+        channel=current,
+        running_channel=current,
+        running_version=update_service.running_version(),
         available_channels=sorted(update_service.CHANNEL_TAGS),
         can_switch=blocker is None,
         reason=blocker,
     )
+
+
+@router.get("/system/channel/versions", response_model=ReleaseChannelVersionsResponse)
+async def get_release_channel_versions():
+    """Published versions with bounded discovery and a short process-local cache."""
+    return ReleaseChannelVersionsResponse(channel_versions=await update_service.release_channel_versions())
 
 
 @router.post(
