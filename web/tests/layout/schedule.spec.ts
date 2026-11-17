@@ -1,9 +1,76 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { checkA11y, injectAxe } from "axe-playwright";
+
+async function expectOpaque(target: Locator) {
+  await expect(target).toBeVisible();
+  await expect
+    .poll(() =>
+      target.evaluate((element) => {
+        let opacity = 1;
+        for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+          opacity *= Number(getComputedStyle(ancestor).opacity);
+        }
+        return opacity;
+      }),
+    )
+    .toBe(1);
+}
+
+async function expectScheduleReady(page: Page, width: number, theme: "light" | "dark", empty = false) {
+  await expect
+    .poll(() => page.locator("html").evaluate((element) => (element.classList.contains("dark") ? "dark" : "light")))
+    .toBe(theme);
+  const board = page.getByRole("combobox", { name: "Select board to manage", exact: true }).filter({ visible: true });
+  await expect(board).toContainText("Kitchen board");
+  await expect(page.getByTestId("active-board-indicator")).toHaveText("Kitchen board");
+  await expect(page.getByTestId("gap-default-select")).toContainText("Breakfast specials");
+  await expect(
+    page.getByRole("button", { name: empty ? "1 schedule gap" : "1 schedule conflict", exact: true }),
+  ).toBeVisible();
+  if (!empty) {
+    const conflicts =
+      width >= 1024
+        ? page.locator('[data-slot="week-calendar-entry"][data-conflict]')
+        : page.locator('[data-kind="conflict"]');
+    const occurrences = width < 768 ? 1 : 7;
+    await expect(conflicts.filter({ hasText: "Breakfast specials" })).toHaveCount(occurrences);
+    await expect(conflicts.filter({ hasText: "Lunch menu" })).toHaveCount(occurrences);
+    await expect(page.locator('[data-kind="gap"]').filter({ hasText: "Breakfast specials" })).toHaveCount(occurrences);
+  }
+  const toolbar = page.locator('[data-slot="page-toolbar"]');
+  await expectOpaque(board);
+  await expectOpaque(toolbar);
+  await expectOpaque(toolbar.getByRole("button", { name: "Add Schedule", exact: true }));
+}
+
+async function settleCapture(page: Page, resetScroll = true) {
+  await page.evaluate(async (origin) => {
+    await document.fonts.ready;
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime))
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+    // Full-page shots include sticky chrome, so focused H8 controls must not
+    // leave the document or a visible overflow region scrolled mid-capture.
+    // Viewport-only entry shots retain their deliberate Save-button scroll.
+    if (origin) {
+      document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      for (const element of document.querySelectorAll<HTMLElement>("*")) {
+        if (!element.checkVisibility()) continue;
+        const style = getComputedStyle(element);
+        if (/(auto|scroll)/.test(`${style.overflowX} ${style.overflowY}`))
+          element.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      }
+    }
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  }, resetScroll);
+}
 
 test.use({ timezoneId: "UTC", reducedMotion: "reduce" });
 for (const width of [390, 768, 1280]) {
-  for (const theme of ["light", "dark"]) {
+  for (const theme of ["light", "dark"] as const) {
     test(`Schedule agenda, entry and H8 ${width} ${theme}`, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
       await page.clock.install({ time: new Date("2026-11-17T02:18:00Z") });
@@ -14,7 +81,9 @@ for (const width of [390, 768, 1280]) {
       await expect(
         page.getByRole("radio", { name: width < 768 ? "Day" : width < 1024 ? "List" : "Week", exact: true }),
       ).toHaveAttribute("aria-checked", "true");
+      await expectScheduleReady(page, width, theme);
       const shot = async (state: string, fullPage = true) => {
+        await settleCapture(page, fullPage);
         const path = testInfo.outputPath(`impl-schedule-${state}-${width}-${theme}.png`);
         await page.screenshot({ path, fullPage, animations: "disabled" });
         await testInfo.attach(`schedule-${state}-${width}-${theme}`, { path, contentType: "image/png" });
@@ -68,6 +137,7 @@ for (const width of [390, 768, 1280]) {
       );
       await expect(actual.locator('[data-slot="board-display"]')).toHaveAttribute("aria-label", /BREAKFAST SPECIALS/);
       await expect(page.getByText("First winning rule", { exact: true })).toBeVisible();
+      await settleCapture(page);
       if (width >= 1024) {
         const actualCard = await actual.boundingBox();
         const simulatedCard = await simulated.locator("xpath=ancestor::*[@data-slot='card'][1]").boundingBox();
@@ -99,6 +169,8 @@ for (const width of [390, 1280]) {
       "true",
     );
     await expect(page.getByText("No schedules created yet", { exact: true })).toBeVisible();
+    await expectScheduleReady(page, width, "light", true);
+    await settleCapture(page);
     const empty = page.getByRole("region", { name: "No schedules created yet", exact: true });
     const preview = empty.locator('[data-slot="board-viewport"]');
     await expect(preview.locator('[data-slot="board-display"]')).toHaveAttribute("aria-label", /BREAKFAST SPECIALS/);
@@ -111,12 +183,14 @@ for (const width of [390, 1280]) {
     }
     if (width >= 1024) expect(bounds!.width).toBeGreaterThan(850);
     const path = testInfo.outputPath(`impl-schedule-empty-${width}.png`);
+    await settleCapture(page);
     await page.screenshot({ path, fullPage: true, animations: "disabled" });
     await testInfo.attach(`schedule-empty-${width}`, { path, contentType: "image/png" });
     if (width < 768) {
       await preview.getByRole("button", { name: "Fit", exact: true }).click();
       await expect(preview).toHaveAttribute("data-mode", "fit");
       const fitPath = testInfo.outputPath(`impl-schedule-empty-fit-${width}.png`);
+      await settleCapture(page);
       await page.screenshot({ path: fitPath, fullPage: true, animations: "disabled" });
       await testInfo.attach(`schedule-empty-fit-${width}`, { path: fitPath, contentType: "image/png" });
     }

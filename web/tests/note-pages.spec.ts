@@ -255,14 +255,26 @@ test.describe("Note pages – Send to Board", () => {
     const sendData = await sendRes.json();
     expect(sendData.sent_to_board).toBe(true);
 
-    // Check mock board received a 3x15 array
-    const state = await getMockBoardState();
+    // A background Flagship update can follow this send. Correlate by the
+    // left-aligned HELLO content (H=8, E=5, L=12, O=15), never by dimensions:
+    // an incorrectly sized HELLO payload must still fail the shape assertions.
+    const isHello = (message: { characters?: number[][] }) =>
+      message.characters?.[0]?.slice(0, 5).join(",") === "8,5,12,12,15";
+    let state = await getMockBoardState();
+    await expect
+      .poll(async () => {
+        state = await getMockBoardState();
+        return (state.history ?? []).some(isHello);
+      })
+      .toBe(true);
     expect(state.message_count).toBeGreaterThanOrEqual(1);
 
-    const lastMessage = lastMockMessage(state);
-    expect(lastMessage.dimensions).toEqual([3, 15]);
-    expect(lastMessage.characters).toHaveLength(3);
-    for (const row of lastMessage.characters) {
+    const sentMessage = (state.history ?? []).find(isHello);
+    expect(sentMessage).toBeDefined();
+    if (!sentMessage?.characters) throw new Error("HELLO payload missing from mock history");
+    expect(sentMessage.dimensions).toEqual([3, 15]);
+    expect(sentMessage.characters).toHaveLength(3);
+    for (const row of sentMessage.characters) {
       expect(row).toHaveLength(15);
     }
   });
