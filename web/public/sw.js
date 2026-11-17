@@ -15,6 +15,7 @@
  * - On activate it deletes the caches of older FiestaBoard workers.
  */
 importScripts('./sw-shell-policy.js');
+importScripts('./sw-push.js');
 
 var P = self.fbShellPolicy;
 

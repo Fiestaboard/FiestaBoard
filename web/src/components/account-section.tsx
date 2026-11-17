@@ -100,7 +100,7 @@ export function AccountSection() {
       return;
     }
     // The last-known board frames belong to this account: wipe them (2.8).
-    await clearAccountDataOnDevice();
+    await clearAccountDataOnDevice(queryClient);
     queryClient.removeQueries({ queryKey: ["auth-status"] });
     router.replace("/login");
   };

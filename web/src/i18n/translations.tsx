@@ -32,7 +32,7 @@ function getNestedRaw(obj: unknown, path: string): unknown {
   return current;
 }
 
-function interpolatePlural(input: string, params?: Record<string, unknown>): string {
+function interpolatePlural(input: string, language: string, params?: Record<string, unknown>): string {
   if (!params) return input;
   // ICU plural: {name, plural, one {...} other {...} =0 {...}}
   let out = input.replace(
@@ -45,9 +45,8 @@ function interpolatePlural(input: string, params?: Record<string, unknown>): str
       while ((m = branchRe.exec(branches)) !== null) {
         branchMap[m[1]] = m[2];
       }
-      let chosen = branchMap.other ?? "";
-      if (`=${value}` in branchMap) chosen = branchMap[`=${value}`];
-      else if (value === 1 && branchMap.one) chosen = branchMap.one;
+      const category = new Intl.PluralRules(language).select(value);
+      const chosen = branchMap[`=${value}`] ?? branchMap[category] ?? branchMap.other ?? "";
       return chosen.replace(/#/g, String(value));
     },
   );
@@ -90,7 +89,7 @@ export function useTranslations(namespace?: string): TFn {
     const resources = (i18n.getResourceBundle(language, "translation") ?? {}) as Record<string, unknown>;
     const ns = namespace ? getNestedRaw(resources, namespace) : resources;
 
-    const lookup = (key: string): unknown => {
+    const lookup = (key: string): { value: unknown; language: string } => {
       const v = getNestedRaw(ns, key);
       if (v === undefined && language !== "en") {
         // Fall back to English if the active locale is missing the key,
@@ -98,19 +97,21 @@ export function useTranslations(namespace?: string): TFn {
         const en = i18n.getResourceBundle("en", "translation") as Record<string, unknown> | undefined;
         const enNs = namespace ? getNestedRaw(en, namespace) : en;
         const enV = getNestedRaw(enNs, key);
-        if (enV !== undefined) return enV;
+        if (enV !== undefined) return { value: enV, language: "en" };
       }
-      return v === undefined ? (namespace ? `${namespace}.${key}` : key) : v;
+      return { value: v === undefined ? (namespace ? `${namespace}.${key}` : key) : v, language };
     };
 
     const t = ((key: string, params?: Record<string, unknown>) => {
       const raw = lookup(key);
-      const rawStr = typeof raw === "string" ? raw : namespace ? `${namespace}.${key}` : key;
-      return interpolatePlural(rawStr, params);
+      const rawStr = typeof raw.value === "string" ? raw.value : namespace ? `${namespace}.${key}` : key;
+      // English fallback messages need English categories, even when the
+      // active locale has different rules (for example, Russian at 21).
+      return interpolatePlural(rawStr, raw.language, params);
     }) as TFn;
 
     t.rich = (key: string, values?: Record<string, RichTranslationValue>) => {
-      const rawVal = lookup(key);
+      const rawVal = lookup(key).value;
       const raw = typeof rawVal === "string" ? rawVal : key;
       if (!values) return raw;
       const parts: React.ReactNode[] = [];

@@ -29,9 +29,11 @@ import { Check, ChevronLeft, ChevronRight, FileText, GalleryHorizontalEnd } from
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { HomeConnectionNotice } from "@/components/home/connection-notice";
 import { SilenceNotice } from "@/components/silence-notice";
 import { useCollections, usePagePreview, usePages } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useLocale, useTranslations } from "@/i18n/translations";
 import type { BoardInstance, Collection, Page, SetTemporaryOverrideRequest } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
@@ -101,6 +103,8 @@ export function ChangePageDialog({
   now = () => new Date(),
 }: ChangePageDialogProps) {
   const t = useTranslations("changePage");
+  const connection = useHubConnection();
+  const sendsDisabled = !connection.deviceOnline || !connection.hubReachable;
   const isPhone = useMediaQuery(PHONE_QUERY);
   const refresh = useRefreshHomeStatus();
   const displayName = board?.name ?? boardName ?? "";
@@ -345,8 +349,10 @@ export function ChangePageDialog({
 
   const showNow = (
     <Button
-      onClick={() => selected && submit.mutate(selected)}
-      disabled={!selected || submit.isPending}
+      onClick={() => {
+        if (selected && !sendsDisabled) submit.mutate(selected);
+      }}
+      disabled={sendsDisabled || !selected || submit.isPending}
       size={isPhone ? "lg" : "default"}
       className={isPhone ? "w-full" : undefined}
     >
@@ -365,6 +371,7 @@ export function ChangePageDialog({
                 <SheetDescription>{t("stepOne", { board: displayName })}</SheetDescription>
               </SheetHeader>
               <Stack gap="3" className="pb-4">
+                <HomeConnectionNotice />
                 {search}
                 <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
                   {t("forBoard", { board: displayName })}
@@ -392,6 +399,7 @@ export function ChangePageDialog({
                 </Flex>
               </SheetHeader>
               <Stack gap="4" className="pb-4">
+                <HomeConnectionNotice />
                 {durationAndPreview}
                 {silenceNotice}
               </Stack>
@@ -411,6 +419,7 @@ export function ChangePageDialog({
           <DialogDescription>{t("description", { board: displayName })}</DialogDescription>
         </DialogHeader>
         <Stack gap="4" className="min-h-0 overflow-y-auto">
+          <HomeConnectionNotice />
           {search}
           <Box className="max-h-64 overflow-y-auto">{rows}</Box>
           {durationAndPreview}

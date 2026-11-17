@@ -1,4 +1,4 @@
-import { Accessibility, Palette, User } from "lucide-react";
+import { Accessibility, Bell, Palette, User } from "lucide-react";
 
 import { HUB_SETTINGS_LINKS, type HubSettingsLink } from "@/lib/nav-items";
 
@@ -13,7 +13,7 @@ import { HUB_SETTINGS_LINKS, type HubSettingsLink } from "@/lib/nav-items";
  */
 
 export type HubSettingsSectionId = HubSettingsLink["section"];
-export type YouSettingsSectionId = "account" | "appearance" | "accessibility";
+export type YouSettingsSectionId = "account" | "appearance" | "accessibility" | "notifications";
 export type SettingsSectionId = YouSettingsSectionId | HubSettingsSectionId;
 export type SettingsGroup = "you" | "hub";
 
@@ -27,6 +27,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
   { id: "account", group: "you", icon: User },
   { id: "appearance", group: "you", icon: Palette },
   { id: "accessibility", group: "you", icon: Accessibility },
+  { id: "notifications", group: "you", icon: Bell },
   ...HUB_SETTINGS_LINKS.map((link) => ({ id: link.section, group: "hub" as const, icon: link.icon })),
 ];
 
@@ -51,6 +52,7 @@ export function settingsSectionHref(id: SettingsSectionId): string {
 export const LEGACY_SECTIONS: Readonly<Record<string, SettingsSectionId>> = {
   general: "appearance",
   account: "account",
+  notifications: "notifications",
   network: "network",
   ai: "ai-provider",
   integrations: "ai-provider",
