@@ -106,7 +106,9 @@ describe("Apply a formula (Mod+Enter)", () => {
     const done = await screen.findByRole("button", { name: /Done/ }, { timeout: 5000 });
     await waitFor(() => expect(done).toBeEnabled(), { timeout: 3000 });
     const content = container.querySelector(".cm-content") as HTMLElement;
-    fireEvent.keyDown(content, { key: "Enter", ctrlKey: true });
+    const user = userEvent.setup();
+    await user.click(content);
+    await user.keyboard("{Control>}{Enter}{/Control}");
     expect(onConfirm).toHaveBeenCalledWith("1 + 1");
   });
 

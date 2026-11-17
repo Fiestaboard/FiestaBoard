@@ -185,6 +185,15 @@ describe("/displays", () => {
     expect(problems.compareDocumentPosition(online) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("uses readable status text with a warning dot for a panel without a viewer", async () => {
+    setup([TV]);
+    server.use(http.get(`${API}/auth/sessions`, () => HttpResponse.json({ sessions: [], total: 0 })));
+    renderWith(<DisplaysPage />);
+    const group = await screen.findByRole("list", { name: "Needs a look" });
+    expect(within(group).getByText("No viewer", { exact: true })).toHaveClass("text-foreground");
+    expect(group.querySelector('[data-slot="status-dot"]')).toHaveAttribute("data-status", "warning");
+  });
+
   it("does not claim an unknown display is online", async () => {
     setup([KITCHEN]);
     renderWith(<DisplaysPage />);
@@ -201,6 +210,8 @@ describe("/displays", () => {
     expect(within(cards[0]).getByText("Kitchen")).toBeInTheDocument();
     await waitFor(() => expect(within(cards[0]).getByTestId("display-output")).toHaveTextContent("Vestaboard"));
     expect(within(cards[1]).getByTestId("display-output")).toHaveTextContent("Divoom Pixoo");
+    expect(within(cards[0]).getByRole("img", { name: "22 columns by 6 rows" })).toHaveTextContent("22 × 6");
+    expect(within(cards[1]).getByRole("img", { name: "10 columns by 8 rows, Panel" })).toHaveTextContent("10 × 8");
     expect(cards[1]).toHaveAttribute("href", "/displays/desk");
   });
 
