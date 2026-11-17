@@ -312,7 +312,13 @@ export const schedulesApi = {
     ),
 
   /** H6 preview used by H8: renders cached data at the requested clock, never sends. */
-  previewSchedulePage: (page: Page, at: string, boardId?: string, values?: Record<string, unknown>) =>
+  previewSchedulePage: (
+    page: Page,
+    at: string,
+    boardId?: string,
+    values?: Record<string, unknown>,
+    missing?: string[],
+  ) =>
     fetchApi<TemplateRenderResponse>("/templates/render", {
       method: "POST",
       body: JSON.stringify({
@@ -325,7 +331,7 @@ export const schedulesApi = {
         grid_cols: page.grid_cols,
         canvases: page.canvases,
         board_id: boardId,
-        preview: { at, data: "cached", ...(values ? { values } : {}) },
+        preview: { at, data: "cached", ...(values ? { values } : {}), ...(missing ? { missing } : {}) },
       }),
     }),
 

@@ -573,7 +573,32 @@
         "schedule": "Programmazione",
         "manual": "Manuale",
         "none": "Nessuna selezione"
-      }
+      },
+      "timezoneFallback": "Fuso orario dell’hub assente o non valido; viene usato UTC.",
+      "quickMoments": "Momenti rapidi",
+      "quickNow": "Ora",
+      "quickTonight": "Stasera 21:00",
+      "quickTomorrow": "Domani 15:00",
+      "quickSaturday": "Sab 12:30",
+      "missing": "Considera mancante (un percorso di variabile per riga)",
+      "winningRule": "Prima regola vincente",
+      "sourceFreshness": "Aggiornamento delle fonti",
+      "sourceState": {
+        "fresh": "Aggiornato",
+        "stale": "Obsoleto",
+        "live": "Dal vivo",
+        "none": "Nessun dato",
+        "unknown": "Sconosciuto"
+      },
+      "actualPreview": "Pagina attiva all’istante · Pagina",
+      "simulatedPreview": "Simulazione raccolta · Pagina",
+      "whatIf": "E se",
+      "addValue": "Aggiungi un valore…",
+      "samplePath": "Percorso variabile",
+      "sampleValue": "Valore (testo o JSON)",
+      "confirmValue": "Aggiungi valore",
+      "removeValue": "Rimuovi {path}",
+      "editValuesJson": "Modifica valori JSON"
     },
     "agenda": {
       "empty": "Nessuna voce per questo giorno",
@@ -602,7 +627,35 @@
       "repeat": "Ripeti",
       "legacy": "Sposta o ridimensiona le voci",
       "calendar": "Calendario settimanale",
-      "sunUnavailable": "Orari solari non disponibili. Vengono usati gli orari alternativi salvati."
+      "sunUnavailable": "Orari solari non disponibili. Vengono usati gli orari alternativi salvati.",
+      "datedGapsUnavailable": "La verifica settimanale esclude le eccezioni datate e usa gli orari solari di oggi. Controlla un istante per conoscere la pagina effettiva.",
+      "repairStart": "Inizia invece alle {time}",
+      "repairRepeats": "Modifica questa voce settimanale in tutti i giorni di ripetizione.",
+      "repaired": "Inizio aggiornato",
+      "undo": "Annulla",
+      "repairFailed": "Impossibile aggiornare la voce."
+    },
+    "adapter": {
+      "display": "Display",
+      "startFallback": "Ora iniziale alternativa",
+      "endFallback": "Ora finale alternativa",
+      "fallbackHint": "Usata se non è possibile calcolare gli orari solari.",
+      "invalidTime": "Inserisci un orario valido.",
+      "delete": "Elimina voce…",
+      "required": "(obbligatorio)",
+      "allShort": "Tutti",
+      "weekdaysShort": "Lun–Ven",
+      "weekendsShort": "Sab–Dom",
+      "customShort": "Altri",
+      "openEnded": "Aperto"
+    },
+    "copy": {
+      "open": "Copia da un altro display…",
+      "description": "Copia tutte le voci solo se le pagine sono compatibili. Le nuove copie vengono rimosse se una copia successiva fallisce.",
+      "source": "Display di origine",
+      "run": "Copia voci",
+      "incompatible": "Nessuna copia: una o più pagine non sono compatibili.",
+      "partial": "Impossibile rimuovere le nuove copie: {ids}"
     }
   },
   "integrations": {

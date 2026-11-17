@@ -10,6 +10,16 @@ export type ScheduleView = "day" | "list" | "calendar";
 export function defaultScheduleView(width: number): ScheduleView {
   return width < 768 ? "day" : width < 1024 ? "list" : "calendar";
 }
+/** Validation is weekly and uses today's solar times, not an ordered dated playback answer. */
+export function supportsDatedGaps(schedules: ScheduleEntry[]): boolean {
+  return !schedules.some(
+    (entry) =>
+      entry.enabled &&
+      ((entry.recurrence_type && entry.recurrence_type !== "weekly") ||
+        (entry.start_type && entry.start_type !== "fixed") ||
+        (entry.end_type && entry.end_type !== "fixed")),
+  );
+}
 interface ScheduleAgendaProps {
   schedules: ScheduleEntry[];
   pages: Page[];
@@ -52,7 +62,9 @@ export function ScheduleAgenda({
     .filter((event) => isSameDay(event.start, date))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
   const dayName = date.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
-  const dayGaps = gaps.filter((gap) => gap.days.some((day) => day.toLowerCase().slice(0, 3) === dayName.slice(0, 3)));
+  const dayGaps = (supportsDatedGaps(schedules) ? gaps : []).filter((gap) =>
+    gap.days.some((day) => day.toLowerCase().slice(0, 3) === dayName.slice(0, 3)),
+  );
   const fallback =
     pages.find((page) => page.id === defaultPageId)?.name ??
     collections.find((collection) => collection.id === defaultPageId)?.name ??
@@ -143,7 +155,7 @@ export function ScheduleAgenda({
         <Box className="rounded-xl border bg-card p-5">
           <Text size="sm">{t("empty")}</Text>
           <Text size="sm" tone="muted">
-            {t("gapUses", { name: fallback })}
+            {supportsDatedGaps(schedules) ? t("gapUses", { name: fallback }) : t("datedGapsUnavailable")}
           </Text>
         </Box>
       )}

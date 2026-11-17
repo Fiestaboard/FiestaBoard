@@ -573,7 +573,32 @@
         "schedule": "Programação",
         "manual": "Manual",
         "none": "Sem seleção"
-      }
+      },
+      "timezoneFallback": "Fuso horário do hub ausente ou inválido; usando UTC.",
+      "quickMoments": "Momentos rápidos",
+      "quickNow": "Agora",
+      "quickTonight": "Hoje às 21:00",
+      "quickTomorrow": "Amanhã às 15:00",
+      "quickSaturday": "Sáb 12:30",
+      "missing": "Tratar como ausente (um caminho de variável por linha)",
+      "winningRule": "Primeira regra vencedora",
+      "sourceFreshness": "Atualidade das fontes",
+      "sourceState": {
+        "fresh": "Atual",
+        "stale": "Desatualizado",
+        "live": "Ao vivo",
+        "none": "Sem dados",
+        "unknown": "Desconhecido"
+      },
+      "actualPreview": "Página ativa no instante · Página",
+      "simulatedPreview": "Simulação de coleção · Página",
+      "whatIf": "E se",
+      "addValue": "Adicionar um valor…",
+      "samplePath": "Caminho da variável",
+      "sampleValue": "Valor (texto ou JSON)",
+      "confirmValue": "Adicionar valor",
+      "removeValue": "Remover {path}",
+      "editValuesJson": "Editar valores JSON"
     },
     "agenda": {
       "empty": "Nenhuma entrada neste dia",
@@ -602,7 +627,35 @@
       "repeat": "Repetir",
       "legacy": "Mover ou redimensionar entradas",
       "calendar": "Calendário semanal",
-      "sunUnavailable": "Horários solares indisponíveis. São usados os horários alternativos salvos."
+      "sunUnavailable": "Horários solares indisponíveis. São usados os horários alternativos salvos.",
+      "datedGapsUnavailable": "A verificação semanal exclui exceções por data e usa os horários solares de hoje. Consulte um instante para saber a página real.",
+      "repairStart": "Começar às {time}",
+      "repairRepeats": "Altera esta entrada semanal em todos os dias de repetição.",
+      "repaired": "Início atualizado",
+      "undo": "Desfazer",
+      "repairFailed": "Não foi possível atualizar a entrada."
+    },
+    "adapter": {
+      "display": "Tela",
+      "startFallback": "Horário inicial alternativo",
+      "endFallback": "Horário final alternativo",
+      "fallbackHint": "Usado quando os horários solares não podem ser calculados.",
+      "invalidTime": "Insira um horário válido.",
+      "delete": "Excluir entrada…",
+      "required": "(obrigatório)",
+      "allShort": "Todos",
+      "weekdaysShort": "Seg–Sex",
+      "weekendsShort": "Sáb–Dom",
+      "customShort": "Outros",
+      "openEnded": "Sem fim"
+    },
+    "copy": {
+      "open": "Copiar de outra tela…",
+      "description": "Copie apenas quando todas as páginas forem compatíveis. As novas cópias são removidas se uma cópia posterior falhar.",
+      "source": "Tela de origem",
+      "run": "Copiar entradas",
+      "incompatible": "Nada foi copiado: uma ou mais páginas não são compatíveis.",
+      "partial": "Não foi possível remover as novas cópias: {ids}"
     }
   },
   "integrations": {

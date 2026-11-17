@@ -61,3 +61,33 @@ it("interleaves hub gaps between entries in chronological reading order", () => 
   expect(rows[1]).toHaveTextContent("Gap · Fallback page");
   expect(rows[2]).toHaveTextContent("Fallback page");
 });
+
+it("does not turn a weekly validation gap into a dated default-page claim beside a one-off", () => {
+  render(
+    <ScheduleAgenda
+      date={new Date(2026, 10, 16)}
+      schedules={[{ ...entry, recurrence_type: "one_off_date", one_off_date: "2026-11-16" }]}
+      pages={pages}
+      defaultPageId="fallback"
+      gaps={[{ start_time: "00:00", end_time: "23:59", days: ["monday"] }]}
+      onEdit={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("Morning page")).toBeInTheDocument();
+  expect(screen.queryByText("Gap · Fallback page")).not.toBeInTheDocument();
+});
+it("withholds weekly solar validation gaps for a selected date's different sun times", () => {
+  render(
+    <ScheduleAgenda
+      date={new Date(2026, 10, 16)}
+      schedules={[{ ...entry, start_type: "sunrise", resolved_start_time: "07:00" }]}
+      pages={pages}
+      defaultPageId="fallback"
+      gaps={[{ start_time: "00:00", end_time: "07:00", days: ["monday"] }]}
+      sunTimesMap={{ "2026-11-16": { sunrise: "08:00", sunset: "18:00" } }}
+      onEdit={vi.fn()}
+    />,
+  );
+  expect(screen.queryByText("Gap · Fallback page")).not.toBeInTheDocument();
+  expect(screen.getByText(/8:00 AM/)).toBeInTheDocument();
+});

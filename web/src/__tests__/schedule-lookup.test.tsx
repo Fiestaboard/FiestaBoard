@@ -90,6 +90,7 @@ it("rejects sample arrays without contacting the dry-run endpoint", async () => 
   setup();
   fireEvent.click(screen.getByRole("button", { name: "Check instant" }));
   await screen.findByText("Hub chosen page");
+  fireEvent.click(screen.getByRole("button", { name: "Edit JSON values" }));
   fireEvent.change(screen.getByLabelText("Sample values (JSON object of variable paths)"), { target: { value: "[]" } });
   fireEvent.click(screen.getByRole("button", { name: "Run collection dry run" }));
   expect(screen.getByRole("alert")).toHaveTextContent("Enter a JSON object");

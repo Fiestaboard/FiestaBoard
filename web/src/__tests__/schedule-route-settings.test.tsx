@@ -9,6 +9,9 @@ import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridg
 import SchedulePage from "../../app/routes/schedule";
 import { server } from "./mocks/server";
 
+const scheduleToasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("sonner", () => ({ toast: scheduleToasts }));
+
 const boardContext = vi.hoisted(() => ({
   currentBoardId: "board-1",
   currentBoard: { id: "board-1", name: "First", device_type: "flagship", board_color: "black" },
@@ -64,6 +67,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   localStorage.setItem("schedule-view-mode", "list");
   boardContext.currentBoardId = "board-1";
   boardContext.boards = [
@@ -146,4 +150,80 @@ it("updates the default view across breakpoints until the reader chooses a view"
   fireEvent(window, new Event("resize"));
   expect(screen.getByRole("radio", { name: "Day" })).toHaveAttribute("aria-checked", "true");
   Object.defineProperty(window, "innerWidth", { value: original, configurable: true, writable: true });
+});
+
+it("waits for the hub timezone before initializing the lookup wall clock", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.use(
+    http.get("/api/settings/all", async () => {
+      await gate;
+      return HttpResponse.json({ general: { timezone: "UTC" }, silence_schedule: { config: { enabled: false } } });
+    }),
+  );
+  renderPage();
+  await screen.findByRole("heading", { name: "Schedule" });
+  expect(screen.queryByLabelText("Instant")).not.toBeInTheDocument();
+  release();
+  const instant = await screen.findByLabelText("Instant");
+  expect((instant as HTMLInputElement).value.slice(11, 13)).toBe(String(new Date().getUTCHours()).padStart(2, "0"));
+});
+
+it("repairs a supported weekly conflict and undoes with the returned revision on the same non-primary board", async () => {
+  settings({ enabled: false });
+  boardContext.currentBoardId = "board-2";
+  boardContext.currentBoard = boardContext.boards[1];
+  localStorage.setItem("schedule-view-mode", "calendar");
+  const entry = {
+    id: "repair-entry",
+    page_id: "repair-page",
+    board_id: "board-2",
+    start_time: "12:00",
+    end_time: "15:00",
+    day_pattern: "all",
+    recurrence_type: "weekly",
+    enabled: true,
+    revision: "before",
+    edit_protocol: "schedule-revision-v1",
+  };
+  const other = { ...entry, id: "other-entry", page_id: "other-page", start_time: "10:00", end_time: "13:00" };
+  const writes: Record<string, unknown>[] = [];
+  server.use(
+    http.get("/api/v1/schedules", () =>
+      HttpResponse.json({ schedules: [entry, other], enabled: true, default_page_id: null }),
+    ),
+    http.get("/api/v1/pages", () =>
+      HttpResponse.json({
+        pages: [
+          { id: "repair-page", name: "Repair target", device_type: "flagship" },
+          { id: "other-page", name: "Other page", device_type: "flagship" },
+        ],
+      }),
+    ),
+    http.post("/api/schedules/validate", () =>
+      HttpResponse.json({
+        overlaps: [{ schedule1_id: entry.id, schedule2_id: other.id, conflict_description: "Weekly overlap" }],
+        gaps: [],
+      }),
+    ),
+    http.put("/api/v1/schedules/repair-entry", async ({ request }) => {
+      const body = (await request.json()) as Record<string, unknown>;
+      writes.push(body);
+      return HttpResponse.json({ ...entry, ...body, revision: "after", warnings: [] });
+    }),
+  );
+  renderPage();
+  fireEvent.click((await screen.findAllByRole("button", { name: /Repair target/ }))[0]);
+  fireEvent.click(await screen.findByRole("button", { name: "Start at 1:00 PM instead" }));
+  await waitFor(() =>
+    expect(writes[0]).toMatchObject({ board_id: "board-2", start_time: "13:00", expected_revision: "before" }),
+  );
+  const savedToast = scheduleToasts.success.mock.calls.find((call) => call[0] === "Entry start updated");
+  expect(savedToast).toBeDefined();
+  await savedToast![1].action.onClick();
+  await waitFor(() =>
+    expect(writes[1]).toMatchObject({ board_id: "board-2", start_time: "12:00", expected_revision: "after" }),
+  );
 });

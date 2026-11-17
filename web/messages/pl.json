@@ -573,7 +573,32 @@
         "schedule": "Harmonogram",
         "manual": "Ręcznie",
         "none": "Brak wyboru"
-      }
+      },
+      "timezoneFallback": "Strefa czasowa huba jest niedostępna lub nieprawidłowa; używany jest UTC.",
+      "quickMoments": "Szybkie chwile",
+      "quickNow": "Teraz",
+      "quickTonight": "Dziś 21:00",
+      "quickTomorrow": "Jutro 15:00",
+      "quickSaturday": "Sob 12:30",
+      "missing": "Traktuj jako brak (jedna ścieżka zmiennej w wierszu)",
+      "winningRule": "Pierwsza zwycięska reguła",
+      "sourceFreshness": "Aktualność źródeł",
+      "sourceState": {
+        "fresh": "Aktualne",
+        "stale": "Nieaktualne",
+        "live": "Na żywo",
+        "none": "Brak danych",
+        "unknown": "Nieznane"
+      },
+      "actualPreview": "Aktywna strona w danej chwili · Strona",
+      "simulatedPreview": "Symulacja kolekcji · Strona",
+      "whatIf": "Co jeśli",
+      "addValue": "Dodaj wartość…",
+      "samplePath": "Ścieżka zmiennej",
+      "sampleValue": "Wartość (tekst lub JSON)",
+      "confirmValue": "Dodaj wartość",
+      "removeValue": "Usuń {path}",
+      "editValuesJson": "Edytuj wartości JSON"
     },
     "agenda": {
       "empty": "Brak wpisów tego dnia",
@@ -602,7 +627,35 @@
       "repeat": "Powtarzanie",
       "legacy": "Przenieś lub zmień długość wpisów",
       "calendar": "Kalendarz tygodniowy",
-      "sunUnavailable": "Godziny słoneczne są niedostępne. Używane są zapisane godziny zastępcze."
+      "sunUnavailable": "Godziny słoneczne są niedostępne. Używane są zapisane godziny zastępcze.",
+      "datedGapsUnavailable": "Kontrola tygodniowa pomija wyjątki datowane i używa dzisiejszych godzin słonecznych. Sprawdź konkretną chwilę, aby poznać rzeczywistą stronę.",
+      "repairStart": "Zacznij o {time}",
+      "repairRepeats": "Zmienia wpis tygodniowy we wszystkie dni powtarzania.",
+      "repaired": "Zmieniono czas rozpoczęcia",
+      "undo": "Cofnij",
+      "repairFailed": "Nie można zaktualizować wpisu."
+    },
+    "adapter": {
+      "display": "Wyświetlacz",
+      "startFallback": "Zastępczy czas rozpoczęcia",
+      "endFallback": "Zastępczy czas zakończenia",
+      "fallbackHint": "Używany, gdy nie można obliczyć godzin słonecznych.",
+      "invalidTime": "Podaj prawidłową godzinę.",
+      "delete": "Usuń wpis…",
+      "required": "(wymagane)",
+      "allShort": "Wszystkie",
+      "weekdaysShort": "Pn–Pt",
+      "weekendsShort": "Sob–Nd",
+      "customShort": "Własne",
+      "openEnded": "Bez końca"
+    },
+    "copy": {
+      "open": "Kopiuj z innego wyświetlacza…",
+      "description": "Kopiuj tylko wtedy, gdy wszystkie strony pasują. Nowe kopie są usuwane, jeśli kolejna kopia się nie powiedzie.",
+      "source": "Wyświetlacz źródłowy",
+      "run": "Kopiuj wpisy",
+      "incompatible": "Nic nie skopiowano: co najmniej jedna strona nie pasuje.",
+      "partial": "Nie można usunąć nowych kopii: {ids}"
     }
   },
   "integrations": {

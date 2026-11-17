@@ -573,7 +573,32 @@
         "schedule": "Zeitplan",
         "manual": "Manuell",
         "none": "Keine Auswahl"
-      }
+      },
+      "timezoneFallback": "Hub-Zeitzone fehlt oder ist ungültig; UTC wird verwendet.",
+      "quickMoments": "Zeitpunkte",
+      "quickNow": "Jetzt",
+      "quickTonight": "Heute 21:00",
+      "quickTomorrow": "Morgen 15:00",
+      "quickSaturday": "Sa 12:30",
+      "missing": "Als fehlend behandeln (ein Variablenpfad pro Zeile)",
+      "winningRule": "Erste gewinnende Regel",
+      "sourceFreshness": "Aktualität der Quellen",
+      "sourceState": {
+        "fresh": "Aktuell",
+        "stale": "Veraltet",
+        "live": "Live",
+        "none": "Keine Daten",
+        "unknown": "Unbekannt"
+      },
+      "actualPreview": "Aktive Seite zum Zeitpunkt · Seite",
+      "simulatedPreview": "Sammlung testen · Seite",
+      "whatIf": "Was wenn",
+      "addValue": "Wert hinzufügen…",
+      "samplePath": "Variablenpfad",
+      "sampleValue": "Wert (Text oder JSON)",
+      "confirmValue": "Wert hinzufügen",
+      "removeValue": "{path} entfernen",
+      "editValuesJson": "JSON-Werte bearbeiten"
     },
     "agenda": {
       "empty": "Keine Einträge an diesem Tag",
@@ -602,7 +627,35 @@
       "repeat": "Wiederholung",
       "legacy": "Einträge verschieben oder skalieren",
       "calendar": "Wochenkalender",
-      "sunUnavailable": "Sonnenzeiten nicht verfügbar. Gespeicherte Ersatzzeiten werden verwendet."
+      "sunUnavailable": "Sonnenzeiten nicht verfügbar. Gespeicherte Ersatzzeiten werden verwendet.",
+      "datedGapsUnavailable": "Wöchentliche Lückenprüfungen ignorieren Datumsregeln und nutzen heutige Sonnenzeiten. Prüfen Sie einen Zeitpunkt für die tatsächliche Seite.",
+      "repairStart": "Stattdessen um {time} beginnen",
+      "repairRepeats": "Ändert diesen wöchentlichen Eintrag an allen Wiederholungstagen.",
+      "repaired": "Beginn aktualisiert",
+      "undo": "Rückgängig",
+      "repairFailed": "Eintrag konnte nicht geändert werden."
+    },
+    "adapter": {
+      "display": "Display",
+      "startFallback": "Ersatzzeit für Start",
+      "endFallback": "Ersatzzeit für Ende",
+      "fallbackHint": "Wird verwendet, wenn Sonnenzeiten nicht berechnet werden können.",
+      "invalidTime": "Geben Sie eine gültige Zeit ein.",
+      "delete": "Eintrag löschen…",
+      "required": "(erforderlich)",
+      "allShort": "Alle",
+      "weekdaysShort": "Mo–Fr",
+      "weekendsShort": "Sa–So",
+      "customShort": "Eigene",
+      "openEnded": "Offen"
+    },
+    "copy": {
+      "open": "Von anderem Display kopieren…",
+      "description": "Alle Einträge werden nur kopiert, wenn ihre Seiten passen. Bei einem Fehler werden neue Kopien entfernt.",
+      "source": "Quelldisplay",
+      "run": "Einträge kopieren",
+      "incompatible": "Nichts kopiert: Mindestens eine Seite passt nicht auf dieses Display.",
+      "partial": "Neue Kopien konnten nicht entfernt werden: {ids}"
     }
   },
   "integrations": {
