@@ -322,3 +322,37 @@ it("opens Add to Schedule in the editor's display context after a first save", a
   expect(localStorage.getItem("fiestaboard_current_board")).toBe(board.id);
   kitToast.dismiss();
 });
+
+it("keeps Show now intent after confirming a shrinking page retarget", async () => {
+  const note = { ...board, id: "desk", name: "Desk", device_type: "note" };
+  let saved: Record<string, unknown> | undefined;
+  server.use(
+    http.get("/api/settings/board", () =>
+      HttpResponse.json({ boards: [board, note], devices: ["flagship", "note"], board_type: "black" }),
+    ),
+    http.put("/api/v1/pages/page-1", async ({ request }) => {
+      saved = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json({ page: { ...saved, id: "page-1", revision: 2 }, incompatible_references: [] });
+    }),
+    http.get("/api/v1/pages", () =>
+      HttpResponse.json({
+        pages: [
+          saved
+            ? { ...saved, id: "page-1", revision: 2 }
+            : { id: "page-1", name: "Weather Page", device_type: "flagship", template: ["HELLO"] },
+        ],
+      }),
+    ),
+  );
+  const user = userEvent.setup();
+  render(<PageBuilder pageId="page-1" onClose={vi.fn()} />, { wrapper: Wrapper });
+  await screen.findByDisplayValue("Weather Page");
+  await user.click(screen.getByRole("combobox", { name: "Change board size" }));
+  await user.click(await screen.findByRole("option", { name: "Note" }));
+  await user.click(screen.getByRole("button", { name: "Show now" }));
+  const { within } = await import("@testing-library/react");
+  const guard = await screen.findByRole("alertdialog", { name: "Change board size?" });
+  await user.click(within(guard).getByRole("button", { name: "Resize and save" }));
+  await waitFor(() => expect(saved?.device_type).toBe("note"));
+  expect(await screen.findByRole("dialog", { name: "Change Page" })).toBeInTheDocument();
+});

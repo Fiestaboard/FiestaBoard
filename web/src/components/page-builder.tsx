@@ -1630,9 +1630,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // at 201. Both are normalized to PageUpdateResponse here so `onSuccess`
     // reads one shape — a create simply reports no stale references, which is
     // true: a brand-new page cannot have any.
-    mutationFn: async (): Promise<PageUpdateResponse & { submitted: SubmittedForm; showRequested: boolean }> => {
+    mutationFn: async (
+      intent: { showRequested: boolean } | void,
+    ): Promise<PageUpdateResponse & { submitted: SubmittedForm; showRequested: boolean }> => {
       const submitted = snapshotForm();
-      const showRequested = showAfterSaveRef.current;
+      const showRequested = intent?.showRequested ?? false;
       showAfterSaveRef.current = false;
       const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
@@ -1769,7 +1771,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (hasUnsavedChangesRef.current || !(pageId ?? savedId)) {
       showAfterSaveRef.current = true;
       if (isShrinkingRetarget) setConfirmRetargetOpen(true);
-      else saveMutation.mutate();
+      else saveMutation.mutate({ showRequested: true });
     } else setShowPageId(pageId ?? savedId ?? null);
   };
 
@@ -3303,7 +3305,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             <AlertDialogAction
               onClick={() => {
                 setConfirmRetargetOpen(false);
-                saveMutation.mutate();
+                saveMutation.mutate({ showRequested: showAfterSaveRef.current });
               }}
             >
               {t("retargetConfirmAction")}
