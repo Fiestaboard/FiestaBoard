@@ -3807,7 +3807,6 @@
     "signInHelp": "Meldingen vereisen een aangemelde browsersessie, ook als aanmelden bij de hub is uitgeschakeld.",
     "loadError": "De meldingsinstellingen konden niet worden geladen. Controleer je verbinding en probeer het opnieuw.",
     "retry": "Opnieuw proberen",
-    "working": "Meldingen bijwerken…",
     "actionError": "Meldingen konden niet worden bijgewerkt. Controleer je verbinding en probeer het opnieuw.",
     "dismissed": "Er is geen toestemming gegeven. Schakel deze browser in wanneer je zover bent.",
     "reconnect": "Deze browser moet opnieuw worden ingeschakeld.",
@@ -3815,13 +3814,13 @@
     "sendTest": "Test versturen",
     "sending": "Versturen…",
     "testSent": "De pushdienst heeft de test geaccepteerd. Controleer of de melding in deze browser verschijnt.",
+    "testFailed": "Het verzenden van de testmelding is mislukt. Probeer het later opnieuw.",
     "notSent": "De test is niet verstuurd. Probeer het later opnieuw.",
     "testExpired": "Dit abonnement is verlopen. Schakel deze browser opnieuw in.",
     "cooldown": "Wacht een minuut voordat je nog een test verstuurt.",
     "testError": "De pushdienst kon de test niet accepteren. Probeer het later opnieuw.",
     "blockedLabel": "geblokkeerd door de browser",
     "httpsLabel": "heeft HTTPS nodig",
-    "notAvailableLabel": "nog niet beschikbaar",
     "loading": "Meldingsinstellingen laden…"
   }
 }

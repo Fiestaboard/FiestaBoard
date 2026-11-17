@@ -3807,7 +3807,6 @@
     "signInHelp": "Benachrichtigungen erfordern eine angemeldete Browsersitzung, auch wenn die Anmeldung am Hub deaktiviert ist.",
     "loadError": "Die Benachrichtigungseinstellungen konnten nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "retry": "Erneut versuchen",
-    "working": "Benachrichtigungen werden aktualisiert…",
     "actionError": "Benachrichtigungen konnten nicht aktualisiert werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "dismissed": "Die Berechtigung wurde nicht erteilt. Aktivieren Sie diesen Browser, wenn Sie bereit sind.",
     "reconnect": "Dieser Browser muss erneut aktiviert werden.",
@@ -3815,13 +3814,13 @@
     "sendTest": "Test senden",
     "sending": "Wird gesendet…",
     "testSent": "Der Push-Dienst hat den Test angenommen. Prüfen Sie, ob die Benachrichtigung in diesem Browser erscheint.",
+    "testFailed": "Die Testbenachrichtigung konnte nicht gesendet werden. Versuche es später erneut.",
     "notSent": "Der Test wurde nicht gesendet. Versuchen Sie es später erneut.",
     "testExpired": "Dieses Abonnement ist abgelaufen. Aktivieren Sie diesen Browser erneut.",
     "cooldown": "Warten Sie bitte eine Minute, bevor Sie einen weiteren Test senden.",
     "testError": "Der Push-Dienst konnte den Test nicht annehmen. Versuchen Sie es später erneut.",
     "blockedLabel": "vom Browser blockiert",
     "httpsLabel": "benötigt HTTPS",
-    "notAvailableLabel": "noch nicht verfügbar",
     "loading": "Benachrichtigungseinstellungen werden geladen…"
   }
 }

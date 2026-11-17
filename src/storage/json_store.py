@@ -47,6 +47,7 @@ import json
 import logging
 import shutil
 import threading
+import uuid
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
@@ -119,6 +120,7 @@ class JsonStore:
         self._migrations = list(migrations)
         self._label = label or path.stem
         self._lock = threading.RLock()
+        self.runtime_revision = str(uuid.uuid4())
         self._data: Any = None
         #: True when the most recent ``load()`` applied migrations; the caller
         #: should persist (``mutate()`` does so automatically).
@@ -154,6 +156,7 @@ class JsonStore:
         written back here (see module docstring).
         """
         with self._lock:
+            self.runtime_revision = str(uuid.uuid4())
             self.migrated = False
             if not self._path.exists():
                 self._data = None
@@ -184,6 +187,8 @@ class JsonStore:
         store's own view never depends on whether the disk needed touching.
         """
         with self._lock:
+            # In-memory state can already differ even when persistence fails.
+            self.runtime_revision = str(uuid.uuid4())
             if self._refused_future_schema:
                 # The load refused this file; writing now would stamp our
                 # lower schema_version onto newer content.

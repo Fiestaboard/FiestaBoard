@@ -3807,7 +3807,6 @@
     "signInHelp": "Notifications need a signed-in browser session, even when hub sign-in is turned off.",
     "loadError": "Could not load notification settings. Check your connection and try again.",
     "retry": "Try again",
-    "working": "Updating notifications…",
     "actionError": "Could not update notifications. Check your connection and try again.",
     "dismissed": "Permission was not granted. Enable this browser when you are ready.",
     "reconnect": "This browser needs to be enabled again.",
@@ -3815,13 +3814,13 @@
     "sendTest": "Send a test",
     "sending": "Sending…",
     "testSent": "The push service accepted the test. Check this browser for the notification.",
+    "testFailed": "Sending the test notification failed. Try again later.",
     "notSent": "The test was not sent. Try again later.",
     "testExpired": "This subscription expired. Enable this browser again.",
     "cooldown": "Please wait a minute before sending another test.",
     "testError": "The push service could not accept the test. Try again later.",
     "blockedLabel": "blocked by the browser",
     "httpsLabel": "needs HTTPS",
-    "notAvailableLabel": "not available yet",
     "loading": "Loading notification settings…"
   }
 }

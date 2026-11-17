@@ -38,6 +38,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, TypeVar
 
+from src.override_undo import track_send_job
 from src.request_trace import trace_phase
 
 T = TypeVar("T")
@@ -73,9 +74,11 @@ class _BoundedPool:
         pool. ``wait=False`` so a wedged board cannot stall shutdown.
         """
         with self._lock:
-            if self._executor is not None:
-                self._executor.shutdown(wait=False, cancel_futures=True)
-                self._executor = None
+            executor, self._executor = self._executor, None
+        # Cancelling queued futures runs terminal callbacks synchronously;
+        # never enter settings owners while holding the pool lifecycle lock.
+        if executor is not None:
+            executor.shutdown(wait=False, cancel_futures=True)
 
     async def run(self, func: Callable[..., T], /, *args: Any, **kwargs: Any) -> T:
         """``asyncio.to_thread`` for this pool, context propagation included.
@@ -99,7 +102,19 @@ class _BoundedPool:
             return result
 
         trace_phase("worker_queued")
-        result = await loop.run_in_executor(self._get(), ctx.run, work)
+        settled = track_send_job(("manual-pool",))
+        try:
+            future = self._get().submit(ctx.run, work)
+        except BaseException:
+            if settled is not None:
+                settled()
+            raise
+        if settled is not None:
+            # asyncio cancellation can precede the hardware thread's actual
+            # completion. The concurrent future settles only when the thread
+            # finishes or a queued job is successfully cancelled before entry.
+            future.add_done_callback(lambda _future: settled())
+        result = await asyncio.wrap_future(future, loop=loop)
         trace_phase("await_returned")
         return result
 
