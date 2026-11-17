@@ -168,7 +168,7 @@ test.describe("Board changed by another app", () => {
     await writeFromAnotherApp();
     await primeBoardRead();
 
-    await page.goto("/");
+    await page.goto(`/displays/${await primaryBoardId()}`);
     const alert = page.locator('[data-testid="board-out-of-sync"][data-face="out-of-sync"]');
     await expect(alert).toBeVisible({ timeout: 15_000 });
     await expect(alert).toContainText("Another app changed this board");
@@ -208,7 +208,9 @@ test.describe("Board changed by another app", () => {
     const restored = page.waitForResponse(
       (r) => r.url().includes("/api/v1/boards/primary/restore") && r.request().method() === "POST",
     );
-    await banner(page).getByRole("button", { name: "Restore" }).click();
+    await banner(page)
+      .getByRole("button", { name: /^Show .+ again$/ })
+      .click();
     const response = await restored;
     expect(response.status()).toBe(200);
     expect((await response.json()).sent).toBe(true);
@@ -244,7 +246,7 @@ test.describe("Board changed by another app", () => {
       await setPaused(boardId, true);
       const before = (await getMockBoardState()).history?.length ?? 0;
 
-      await page.goto("/");
+      await page.goto(`/displays/${await primaryBoardId()}`);
       await expect(banner(page)).toBeVisible({ timeout: 15_000 });
       await expect(banner(page)).toContainText(
         "This display is paused, so Restore won't send anything until you resume it.",
@@ -270,7 +272,9 @@ test.describe("Board changed by another app", () => {
       await primeBoardRead();
 
       await page.goto("/");
-      await expect(page.getByTestId("silence-alert")).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId("status-banners").filter({ hasText: "Silence Schedule until" })).toBeVisible({
+        timeout: 15_000,
+      });
       await expect(banner(page)).toHaveCount(0);
     });
   });
@@ -453,7 +457,7 @@ test.describe("Board changed by another app", () => {
       await writeFromAnotherApp();
       await primeBoardRead();
 
-      await page.goto("/");
+      await page.goto(`/displays/${await primaryBoardId()}`);
       const alert = banner(page);
       await expect(alert).toBeVisible({ timeout: 15_000 });
       const title = await alert.getByText("Another app changed this board").boundingBox();

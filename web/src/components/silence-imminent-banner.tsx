@@ -1,141 +1,87 @@
 "use client";
 
 import { StatusBanner, StatusBannerAction } from "@fiestaboard/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import { useCurrentBoard } from "@/components/current-board-context";
-import { queryKeys, useActivePage, usePages } from "@/hooks/use-board";
-import { useTranslations } from "@/i18n/translations";
-import type { ActiveScheduleResponse, SilenceStatus } from "@/lib/api";
+import { formatClock } from "@/components/home/home-status";
+import Link from "@/components/smart-link";
+import { queryKeys, usePages } from "@/hooks/use-board";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
-// Show the banner when silence is imminent within this many seconds.
-const IMMINENT_THRESHOLD_SECONDS = 2 * 60;
+// 07a includes a 12 min warning. Jev all_modes_15min p=0.94: read the hub boundary for every silence mode.
+const IMMINENT_THRESHOLD_SECONDS = 15 * 60;
 
 export function SilenceImminentBanner() {
-  const t = useTranslations("home");
-  const queryClient = useQueryClient();
-
-  // Track which upcoming boundary the user dismissed, so dismiss applies only
-  // to the current "about to start" window and re-appears for tomorrow.
-  const [dismissedFor, setDismissedFor] = useState<string | null>(null);
-
-  // Local 1s ticker so the countdown decrements between server polls.
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Silence windows are per board (issue #1788). Scope only in multi-board
-  // installs so single-board behavior is completely unchanged.
-  const { currentBoardId, boards } = useCurrentBoard();
+  const t = useTranslations("home.banners");
+  const ts = useTranslations("statusBanners");
+  const locale = useLocale();
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
   const scopedBoardId = boards.length > 1 && currentBoardId ? currentBoardId : undefined;
-
-  const { data: silenceStatus } = useQuery<SilenceStatus>({
+  const { data: status } = useQuery({
     queryKey: queryKeys.silenceStatus(scopedBoardId),
     queryFn: () => api.getSilenceStatus(scopedBoardId),
-    refetchInterval: 30_000,
+    refetchInterval: 30000,
   });
-
   const { data: pagesData } = usePages();
-
-  // Reuse the queries ActivePageDisplay already populates so we don't double-fetch.
-  const { data: activeScheduleData } = useQuery<ActiveScheduleResponse>({
-    queryKey: ["schedules", "active"],
-    queryFn: () => api.getActiveSchedule(),
-    refetchInterval: 60_000,
-  });
-  const { data: manualActivePage } = useActivePage();
-  const scheduleEnabled = activeScheduleData?.schedule_enabled ?? false;
-  const activePageId = scheduleEnabled ? (activeScheduleData?.page_id ?? null) : (manualActivePage?.page_id ?? null);
-
-  const switchNowMutation = useMutation({
-    mutationFn: (vars: { pageId: string; durationMinutes: number }) =>
-      api.setTemporaryOverride({
-        page_id: vars.pageId,
-        duration_minutes: vars.durationMinutes,
-        revert_mode: "schedule",
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
-      queryClient.invalidateQueries({ queryKey: ["board-current-message"] });
-      api.forceRefresh().catch(() => {});
-      toast.success(t("silenceImminentSwitchSuccess"));
-    },
-    onError: () => {
-      toast.error(t("silenceImminentSwitchFailed"));
-    },
-  });
-
-  // Compute remaining seconds locally, anchored to the server's reading at
-  // fetch time. This keeps the countdown smooth without spamming /silence-status.
-  // useMemo (rather than useEffect+setState) keeps the anchor in sync with the
-  // server snapshot without a cascading re-render.
-  const anchor = useMemo<{ seconds: number; receivedAt: number } | null>(() => {
-    const s = silenceStatus?.seconds_until_next_change;
-    if (typeof s !== "number") return null;
-    return { seconds: s, receivedAt: Date.now() };
-  }, [silenceStatus]);
-
-  if (!silenceStatus?.enabled) return null;
-  if (silenceStatus.active) return null;
-  if (silenceStatus.mode !== "page") return null;
-  const silencePageId = silenceStatus.page_id;
-  if (!silencePageId) return null;
-  if (activePageId === silencePageId) return null;
-
-  if (!anchor) return null;
-  const elapsed = Math.floor((Date.now() - anchor.receivedAt) / 1000);
-  const remaining = anchor.seconds - elapsed;
-  void tick; // keep dependency on the local ticker
-
-  if (remaining <= 0) return null;
-  if (remaining > IMMINENT_THRESHOLD_SECONDS) return null;
-
-  const boundaryKey = silenceStatus.next_change_utc;
-  if (dismissedFor === boundaryKey) return null;
-
-  const silencePage = pagesData?.pages?.find((p) => p.id === silencePageId) ?? null;
-  const minutes = Math.max(0, Math.ceil(remaining / 60));
-
-  const handleSwitchNow = () => {
-    // Override duration must be ≥1 minute and long enough to bridge the gap
-    // until silence naturally starts. Once silence starts, the regular silence
-    // flow takes over (overriding the override) — so we don't need exact
-    // duration math, just enough to span the wait.
-    const durationMinutes = Math.max(1, Math.ceil(remaining / 60) + 1);
-    switchNowMutation.mutate({ pageId: silencePageId, durationMinutes });
-  };
-
-  // A `StatusBanner kind="silence-soon"` (07a `298:2280`). Its two actions
-  // stay: the ghost one dismisses this window only, the outline one switches
-  // to the silence page now.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const anchor = useMemo(
+    () =>
+      typeof status?.seconds_until_next_change === "number"
+        ? { seconds: status.seconds_until_next_change, receivedAt: Date.now() }
+        : null,
+    [status],
+  );
+  void tick;
+  if (!status?.enabled || status.active || !anchor) return null;
+  const remaining = anchor.seconds - Math.floor((Date.now() - anchor.receivedAt) / 1000);
+  if (remaining <= 0 || remaining > IMMINENT_THRESHOLD_SECONDS) return null;
+  // Formatting the server's boundary is not a client-side Schedule prediction.
+  const startsAt = new Date(anchor.receivedAt + anchor.seconds * 1000);
+  const page = status.mode === "page" ? pagesData?.pages?.find((p) => p.id === status.page_id) : null;
+  const board = currentBoard?.name ?? ts("unnamedBoard");
+  const end = /^(\d{2}):(\d{2})/.exec(status.end_time_utc ?? "");
+  const endTime =
+    end && Number(end[1]) < 24 && Number(end[2]) < 60
+      ? formatClock(new Date(Date.UTC(2000, 0, 1, Number(end[1]), Number(end[2]))), locale)
+      : null;
   return (
     <StatusBanner
       kind="silence-soon"
       data-testid="silence-imminent-banner"
-      title={t("silenceImminentTitle", { minutes })}
+      title={t("silenceSoonTitle", { time: formatClock(startsAt, locale) })}
       description={
-        silencePage
-          ? t("silenceImminentDescription", { pageName: silencePage.name })
-          : t("silenceImminentDescriptionUnnamed")
+        page
+          ? t(endTime ? "silenceSoonPageUntil" : "silenceSoonPage", {
+              board,
+              minutes: Math.ceil(remaining / 60),
+              page: page.name,
+              time: endTime ?? "",
+            })
+          : t(endTime ? "silenceSoonOtherUntil" : "silenceSoonOther", {
+              board,
+              minutes: Math.ceil(remaining / 60),
+              time: endTime ?? "",
+            })
       }
       action={
-        <>
-          <StatusBannerAction
-            variant="ghost"
-            onClick={() => setDismissedFor(boundaryKey)}
-            disabled={switchNowMutation.isPending}
+        <StatusBannerAction variant="ghost" asChild>
+          <Link
+            href={
+              currentBoardId
+                ? `/displays/${encodeURIComponent(currentBoardId)}?section=playback#silence-schedule`
+                : "/schedule"
+            }
           >
-            {t("silenceImminentDismiss")}
-          </StatusBannerAction>
-          <StatusBannerAction onClick={handleSwitchNow} disabled={switchNowMutation.isPending}>
-            {t("silenceImminentSwitchNow")}
-          </StatusBannerAction>
-        </>
+            {t("editSilence")}
+          </Link>
+        </StatusBannerAction>
       }
     />
   );

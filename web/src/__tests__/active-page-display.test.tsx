@@ -332,7 +332,7 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Silence mode active")).toBeInTheDocument();
+      expect(screen.getByText("Silenced")).toBeInTheDocument();
     });
   });
 
@@ -388,8 +388,8 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Another app changed this board")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Restore/i })).toBeInTheDocument();
+      expect(screen.getByText("Flagship is out of sync")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Show .+ again/i })).toBeInTheDocument();
     });
   });
 
@@ -418,10 +418,10 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Restore/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Show .+ again/i })).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: /Restore/i }));
+    await user.click(screen.getByRole("button", { name: /Show .+ again/i }));
 
     await waitFor(() => {
       expect(toastSpy).toHaveBeenCalledWith("Board restored");
@@ -453,13 +453,13 @@ describe("ActivePageDisplay", () => {
     const user = userEvent.setup();
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await user.click(await screen.findByRole("button", { name: /Restore/i }));
+    await user.click(await screen.findByRole("button", { name: /Show .+ again/i }));
 
     await waitFor(() => {
       expect(warningSpy).toHaveBeenCalledWith("Nothing was sent to the display");
     });
     expect(successSpy).not.toHaveBeenCalledWith("Board restored");
-    expect(screen.getByText("Another app changed this board")).toBeInTheDocument();
+    expect(screen.getByText("Flagship is out of sync")).toBeInTheDocument();
 
     successSpy.mockRestore();
     warningSpy.mockRestore();
@@ -477,7 +477,8 @@ describe("ActivePageDisplay", () => {
     server.use(
       http.get(`${API_BASE}/board/current-message`, () =>
         HttpResponse.json({
-          characters: externalChars,
+          characters: expectedChars,
+          external_characters: externalChars,
           message: "",
           rows: 6,
           cols: 22,
@@ -520,7 +521,8 @@ describe("ActivePageDisplay", () => {
     server.use(
       http.get(`${API_BASE}/board/current-message`, () =>
         HttpResponse.json({
-          characters: Array.from({ length: 6 }, () => Array(22).fill(1)),
+          characters: Array.from({ length: 6 }, () => Array(22).fill(2)),
+          external_characters: Array.from({ length: 6 }, () => Array(22).fill(1)),
           message: "",
           rows: 6,
           cols: 22,

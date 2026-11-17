@@ -15,7 +15,7 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Monitor } from "lucide-react";
-import { useEffect, useId, useRef } from "react";
+import { type ReactNode, useEffect, useId, useRef } from "react";
 import { toast } from "sonner";
 
 import { useCurrentBoard } from "@/components/current-board-context";
@@ -25,6 +25,7 @@ import { nudgeDisplay } from "@/components/home/use-home-data";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import { resolveCode62Glyph, useBoardCurrentMessage, useStatus } from "@/hooks/use-board";
+import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { api, type BoardDetail, type BoardInstance } from "@/lib/api";
 import { resolveBoardModel } from "@/lib/device-preview";
@@ -37,6 +38,7 @@ export interface HomeSupportingPaneProps {
   pageName: string | null;
   nameOf: (id: string | null | undefined) => string | null;
   refresh: () => void;
+  leading?: ReactNode;
 }
 
 /** DD-W50: the hub owns all event prediction. Never sort recurrence rules into a web schedule. */
@@ -47,9 +49,16 @@ export function HomeSupportingPane({
   pageName,
   nameOf,
   refresh,
+  leading,
 }: HomeSupportingPaneProps) {
   const t = useTranslations("home.supporting");
   const locale = useLocale();
+  const connection = useHubConnection();
+  const sendsDisabled = !connection.deviceOnline || !connection.hubReachable;
+  const undoBlocked = useRef(sendsDisabled);
+  useEffect(() => {
+    undoBlocked.current = sendsDisabled;
+  }, [sendsDisabled]);
   const switchId = useId();
   const undoOwner = useRef<{ id: string } | null>(null);
   useEffect(() => {
@@ -86,8 +95,9 @@ export function HomeSupportingPane({
           label: t("undo"),
           onClick: async () => {
             try {
+              if (undoBlocked.current || undoOwner.current !== owner) return;
               const current = await api.getBoardDetail(id);
-              if (!current.schedule_enabled || undoOwner.current !== owner) return;
+              if (!current.schedule_enabled || undoBlocked.current || undoOwner.current !== owner) return;
               await api.setScheduleEnabled(false, id);
               refresh();
               nudgeDisplay(id);
@@ -103,6 +113,7 @@ export function HomeSupportingPane({
   const others = boards.filter((b) => b.id !== (board?.id ?? currentBoardId));
   return (
     <Box data-testid="home-supporting-pane" className="grid min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-1 content-start">
+      {leading}
       <Card className="gap-3 p-4 md:p-5 min-w-0">
         {scheduleEnabled === false ? (
           <>
@@ -116,9 +127,9 @@ export function HomeSupportingPane({
                 id={switchId}
                 size="touch"
                 checked={false}
-                disabled={!board || toggle.isPending}
+                disabled={sendsDisabled || !board || toggle.isPending}
                 onCheckedChange={() => {
-                  if (board) toggle.mutate({ id: board.id, owner: undoOwner.current });
+                  if (board && !sendsDisabled) toggle.mutate({ id: board.id, owner: undoOwner.current });
                 }}
               />
             </Flex>
