@@ -230,6 +230,14 @@ CONTROL_RULES = (
         ("GET", "/settings/ai"),
         ("GET", "/settings/ai/providers/{}/models"),
         ("POST", "/settings/ai/test"),
+        # H21b: FiestaBot. Every tool and op the chat runs for a phone goes through
+        # the default-deny table in src/ai/phone_tools.py, checked when it runs.
+        ("POST", "/pages/ai/chat"),
+        ("POST", "/pages/ai/generate"),
+        ("POST", "/ai/operations"),
+        ("GET,DELETE", "/ai/conversations"),
+        ("GET,PUT,PATCH,DELETE", "/ai/conversations/{}"),
+        ("GET", "/ai/conversations/{}/export"),
     ),
 )
 

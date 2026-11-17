@@ -42,6 +42,14 @@ def is_phone(request: Any) -> bool:
     return getattr(request, "scope", {}).get("auth_scope") == CONTROL
 
 
+def session_is_elevated(session_id: str | None) -> bool:
+    """Whether the phone session *session_id* is stepped up right now (H21s)."""
+    from .service import get_auth_service
+    from .step_up import is_elevated
+
+    return is_elevated(get_auth_service(), session_id)
+
+
 def key_required_body(detail: str) -> dict[str, str]:
     """The ``400`` body that asks for a key to be typed again."""
     return {"error": KEY_REQUIRED, "code": KEY_REQUIRED, "detail": detail}

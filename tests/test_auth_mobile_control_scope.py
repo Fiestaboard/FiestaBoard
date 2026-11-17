@@ -254,8 +254,7 @@ CONTROL_DENIED = [
     ("GET", "/config/full", None),
     ("GET", "/config/board", None),
     ("POST", "/generic-data/test-fetch", {}),
-    ("POST", "/ai/operations", {}),
-    ("POST", "/pages/ai/chat", {}),
+    ("GET", "/pages/ai/context", None),
     ("POST", "/debug/fill", {}),
     ("POST", "/debug/blank", {}),
     # Near-misses of allowed paths.
