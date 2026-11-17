@@ -130,7 +130,7 @@ test.describe("Schedule Management", () => {
 
   test("can delete a schedule from the edit modal", async ({ page }) => {
     const pageId = await createPage("Edit-Delete Schedule Page");
-    await createSchedule(pageId, "10:00", "15:00");
+    const scheduleId = await createSchedule(pageId, "10:00", "15:00");
 
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
@@ -141,15 +141,20 @@ test.describe("Schedule Management", () => {
       .click();
     const dialog = page.getByRole("dialog", { name: "Edit Schedule", exact: true });
     await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: "Delete entry", exact: true }).click();
+    await dialog.getByRole("button", { name: "Delete entry…", exact: true }).click();
 
     // Confirm deletion in the alert dialog (scoped to the alertdialog role)
     const confirmBtn = page.getByRole("alertdialog").getByRole("button", { name: "Delete" });
     await expect(confirmBtn).toBeVisible({ timeout: 3_000 });
+    const deleted = page.waitForResponse(
+      (response) =>
+        response.url().includes(`/api/v1/schedules/${scheduleId}`) && response.request().method() === "DELETE",
+    );
     await confirmBtn.click();
+    expect((await deleted).ok()).toBe(true);
+    await expect(page.getByRole("button", { name: /Edit-Delete Schedule Page/ })).toHaveCount(0);
 
     // Verify schedule was deleted via API
-    await page.waitForTimeout(1_000);
     const res = await fetch(`${API_URL}/schedules`);
     const data = await res.json();
     expect(data.total).toBe(0);
@@ -157,7 +162,7 @@ test.describe("Schedule Management", () => {
 
   test("can delete a schedule with confirmation", async ({ page }) => {
     const pageId = await createPage("Delete Schedule Page");
-    await createSchedule(pageId, "14:00", "18:00");
+    const scheduleId = await createSchedule(pageId, "14:00", "18:00");
 
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
@@ -170,16 +175,21 @@ test.describe("Schedule Management", () => {
       .click();
     await page
       .getByRole("dialog", { name: "Edit Schedule", exact: true })
-      .getByRole("button", { name: "Delete entry", exact: true })
+      .getByRole("button", { name: "Delete entry…", exact: true })
       .click();
 
     // Confirm deletion (scoped to the alertdialog to avoid matching row buttons)
     const confirmBtn = page.getByRole("alertdialog").getByRole("button", { name: "Delete" });
     await expect(confirmBtn).toBeVisible({ timeout: 3_000 });
+    const deleted = page.waitForResponse(
+      (response) =>
+        response.url().includes(`/api/v1/schedules/${scheduleId}`) && response.request().method() === "DELETE",
+    );
     await confirmBtn.click();
+    expect((await deleted).ok()).toBe(true);
+    await expect(page.getByRole("button", { name: /Delete Schedule Page/ })).toHaveCount(0);
 
     // Verify via API
-    await page.waitForTimeout(1_000);
     const res = await fetch(`${API_URL}/schedules`);
     const data = await res.json();
     expect(data.total).toBe(0);

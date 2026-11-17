@@ -11,6 +11,7 @@ import {
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await configureBoard();
   await suppressWizard(page);
   await deleteAllSchedules();
@@ -141,13 +142,20 @@ for (const width of [390, 768, 1280]) {
         localStorage.setItem("theme", value);
         localStorage.removeItem("schedule-view-mode");
       }, theme);
-      await page.emulateMedia({ colorScheme: theme });
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
       await page.goto("/schedule");
       await expect(page.getByRole("radiogroup", { name: "Schedule view" })).toBeVisible();
       await expect(
         page.getByRole("radio", { name: width < 768 ? "Day" : width < 1024 ? "List" : "Week", exact: true }),
       ).toHaveAttribute("aria-checked", "true");
       if (width < 768) await expect(page.getByRole("radiogroup", { name: "Choose a day" })).toBeVisible();
+      // PageToolbar fades in independently of the view controls. Scan settled ink.
+      if (theme === "dark") await expect(page.locator("html")).toHaveClass(/dark/);
+      else await expect(page.locator("html")).not.toHaveClass(/dark/);
+      await expect(page.locator('[data-slot="page-toolbar"]')).toHaveCSS("opacity", "1");
+      await expect(
+        page.locator('[data-slot="page-toolbar"]').getByRole("button", { name: "Add Schedule", exact: true }),
+      ).toHaveCSS("opacity", "1");
       await injectAxe(page);
       const violations = await getViolations(page, "main", {
         runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
