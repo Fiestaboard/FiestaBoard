@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "hub_commit": "093c30fa898f6655093e547c322dd4f0cf64204b",
+  "capture": "FastAPI TestClient with real middleware, synthetic mobile/TV sessions and vendored assets",
+  "recorder": "scripts/record_render_assets.py",
+  "source_files_sha256": {
+    "src/v1/render_assets.py": "ff8c47f73ded5b250cf1f31bf1ba68630f3501eb8519ba034f067541456a7d11",
+    "src/v1/routes_render_assets.py": "17a294fdac58dff3cebc9a80f06723257ec105c4bdbe0fc8881f9e81395bda8b",
+    "src/v1/__init__.py": "53d8c3c7b5cc5bdbc433a676184972ae0c443cb3fbc25a1d658df752693933e4",
+    "src/fiestaui/led-fonts.json": "975e1ee0eb0eea1e0138d1eeb3217eb3f4d9b610c55cfd66d6a7f65ecb02446d",
+    "src/fiestaui/character-sets.json": "3f5705bb7746f817e91fc685e65616bb4470aa1496068bf72db994c3de5b6e91",
+    "src/fiestaui/provenance.json": "3f8f627962d0ee09a3d16847eb9100aedac2fbe1d96295f82c08a73e33ef32bb",
+    "src/auth/middleware.py": "5279db0abd8dd15883b6dba621938fa82ba748714c5ee39e68b074bea91ad6b0",
+    "src/auth/scopes.py": "41567e9dbd325b251214f0f049da27ccfe9ab63124341c7950ca0968e680b0a4",
+    "scripts/record_render_assets.py": "abb2a46f366d8b309287868aea700bd4f1575042ac69b892faadff6d5ecf5dc8",
+    "tests/test_render_assets_contract.py": "126e99597fdeb8ab5657af4d54bf1d6f48f32b04846eb57d9b46e9bd54a0bcb1"
+  },
+  "responses": [
+    {
+      "id": "ios-catalog",
+      "request": {
+        "method": "GET",
+        "path": "/v1/render-assets",
+        "credential_kind": "ios",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "etag": "\"f53e9aafb670f2e0c09f52933d8e2404a8a770bc4738f0957f51229a00e132b8\"",
+        "cache-control": "private, no-cache",
+        "content-type": "application/json"
+      },
+      "body": "ios-catalog.json",
+      "sha256": "f53e9aafb670f2e0c09f52933d8e2404a8a770bc4738f0957f51229a00e132b8"
+    },
+    {
+      "id": "android-catalog",
+      "request": {
+        "method": "GET",
+        "path": "/v1/render-assets",
+        "credential_kind": "android",
+        "headers": {}
+      },
+      "status": 200,
+      "headers": {
+        "etag": "\"f53e9aafb670f2e0c09f52933d8e2404a8a770bc4738f0957f51229a00e132b8\"",
+        "cache-control": "private, no-cache",
+        "content-type": "application/json"
+      },
+      "body": "android-catalog.json",
+      "sha256": "f53e9aafb670f2e0c09f52933d8e2404a8a770bc4738f0957f51229a00e132b8"
+    },
+    {
+      "id": "not-modified",
+      "request": {
+        "method": "GET",
+        "path": "/v1/render-assets",
+        "credential_kind": "ios",
+        "headers": {
+          "If-None-Match": "\"f53e9aafb670f2e0c09f52933d8e2404a8a770bc4738f0957f51229a00e132b8\""
+        }
+      },
+      "status": 304,
+      "headers": {
+        "etag": "\"f53e9aafb670f2e0c09f52933d8e2404a8a770bc4738f0957f51229a00e132b8\"",
+        "cache-control": "private, no-cache"
+      },
+      "body": "not-modified.body",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "unauthenticated",
+      "request": {
+        "method": "GET",
+        "path": "/v1/render-assets",
+        "credential_kind": null,
+        "headers": {
+          "If-None-Match": "\"f53e9aafb670f2e0c09f52933d8e2404a8a770bc4738f0957f51229a00e132b8\""
+        }
+      },
+      "status": 401,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": "unauthenticated.json",
+      "sha256": "cfec9feffbcc0dabaa0f92491e3609eeb1e9bc8d17625cd7f043be03b609c812"
+    },
+    {
+      "id": "tv-forbidden",
+      "request": {
+        "method": "GET",
+        "path": "/v1/render-assets",
+        "credential_kind": "tv",
+        "headers": {
+          "If-None-Match": "\"f53e9aafb670f2e0c09f52933d8e2404a8a770bc4738f0957f51229a00e132b8\""
+        }
+      },
+      "status": 403,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": "tv-forbidden.json",
+      "sha256": "7a613e9536331580857df5f5069bc7b3edffd8d9191262c03387efeb3db5a35e"
+    }
+  ]
+}

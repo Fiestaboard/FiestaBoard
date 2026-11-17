@@ -29,11 +29,11 @@
 
 Files: new `src/v1/render_assets.py`, `src/v1/routes_render_assets.py`, `tests/test_render_assets_contract.py`; additive `src/v1/__init__.py`, `tests/test_v1_contract.py`; generated `tests/golden/api_routes.json`, `docs/reference/api-endpoints.md`; new native documentation, fixtures/recorder and `.changeset/h14-render-assets.md`.
 
-- [ ] Write endpoint tests asserting 200 envelope and exact original maps, stable revision/ETag, 304/header behavior, source metadata, strict schema and auth boundaries.
-- [ ] Run tests in Docker and observe intended 404 failures before adding production code.
-- [ ] Add typed source/font/charset/envelope models and deterministic serialization; mount GET handler with header/error/OpenAPI declarations.
-- [ ] Run focused endpoint, v1, auth, conventions, vendored-data tests and prove content mutations alter validators.
-- [ ] Record real TestClient API responses and verify native fixture body/hash/header provenance; generate route inventory and OpenAPI reference.
+- [x] Write endpoint tests asserting 200 envelope and exact original maps, stable revision/ETag, 304/header behavior, source metadata, strict schema and auth boundaries.
+- [x] Run tests in Docker and observe intended 404 failures before adding production code.
+- [x] Add typed source/font/charset/envelope models and deterministic serialization; mount GET handler with header/error/OpenAPI declarations.
+- [x] Run focused endpoint, v1, auth, conventions, vendored-data tests and prove content mutations alter validators.
+- [x] Record real TestClient API responses and verify native fixture body/hash/header provenance; generate route inventory and OpenAPI reference.
 - [ ] Run full pytest, ruff check/format and documentation checks; fix observed failures with test evidence.
 - [ ] Commit, push normally, create PR into v11, have separate astra reviewer assess exact head; address up to three rounds, await green CI.
 - [ ] Update program status and WORKTREES row with actual results and outstanding limits. Never claim native apps have switched from bundled assets.
