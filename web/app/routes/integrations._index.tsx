@@ -2563,52 +2563,20 @@ export default function IntegrationsPage() {
           {/* ── Installed Tab ── */}
           <TabsContent value="installed" className="mt-0">
             {isLoading ? (
-              <Card className="overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b bg-muted/40">
-                      <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs h-auto">
-                        {t("nameColumn")}
-                      </TableHead>
-                      <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell h-auto">
-                        {t("categoryColumn")}
-                      </TableHead>
-                      <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden md:table-cell h-auto">
-                        {t("statusColumn")}
-                      </TableHead>
-                      <TableHead className="px-4 py-2.5 w-32 h-auto" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[...Array(5)].map((_, i) => (
-                      <TableRow key={i} className="border-b last:border-b-0">
-                        <TableCell className="px-4 py-2.5">
-                          <Flex align="center" gap="3">
-                            <Skeleton className="h-7 w-7 rounded-md shrink-0" />
-                            <Flex align="center" gap="2">
-                              <Skeleton className="h-4 w-32" />
-                              <Skeleton className="h-4 w-10" />
-                            </Flex>
-                          </Flex>
-                        </TableCell>
-                        <TableCell className="px-4 py-2.5 hidden sm:table-cell">
-                          <Skeleton className="h-4 w-20" />
-                        </TableCell>
-                        <TableCell className="px-4 py-2.5 hidden md:table-cell">
-                          <Skeleton className="h-5 w-24 rounded-full" />
-                        </TableCell>
-                        <TableCell className="px-4 py-2.5">
-                          <Flex align="center" justify="end" gap="1">
-                            <Skeleton className="h-5 w-9 rounded-full" />
-                            <Skeleton className="h-7 w-7 rounded" />
-                            <Skeleton className="h-7 w-7 rounded" />
-                          </Flex>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Card>
+              <Box role="status" aria-label={tCommon("loading")} aria-busy="true">
+                <Text className="sr-only">{tCommon("loading")}</Text>
+                <ListRowGroup size="touch" aria-hidden="true">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <ListItem key={i}>
+                      <ListRow
+                        leading={<Skeleton className="h-8 w-8 rounded-md" />}
+                        title={<Skeleton className="h-4 w-32 max-w-full" />}
+                        description={<Skeleton className="h-3 w-20 max-w-full" />}
+                      />
+                    </ListItem>
+                  ))}
+                </ListRowGroup>
+              </Box>
             ) : error ? (
               <Card className="border-destructive">
                 <CardContent className="flex items-center gap-3 py-6">

@@ -94,6 +94,15 @@ function renderPage() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Integrations canonical groups", () => {
+  it("announces loading without exposing a decorative table to keyboard users", async () => {
+    renderPage();
+    const loading = screen.getByRole("status", { name: "Loading..." });
+    expect(loading).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    await screen.findByRole("list", { name: "Needs attention" });
+    expect(screen.queryByRole("status", { name: "Loading..." })).not.toBeInTheDocument();
+  });
+
   it("floats reconnect and setup fixes into Needs attention, leaving disabled plugins Installed", async () => {
     renderPage();
     const attention = await screen.findByRole("list", { name: "Needs attention" });
