@@ -14,7 +14,7 @@ import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { ArrowRight } from "lucide-react";
 import { useEffect } from "react";
 
-import { CatalogAvailability, useDisplayCatalog } from "@/components/displays/display-catalog";
+import { CatalogAvailability, DisplayCatalogBrowser, useDisplayCatalog } from "@/components/displays/display-catalog";
 import { OutputIcon } from "@/components/settings/output-boards";
 import { useTranslations } from "@/i18n/translations";
 import type { AvailableOutput } from "@/lib/api";
@@ -41,6 +41,47 @@ export function StepChooseOutput({ value, onChange, onSkip, onValidChange, inclu
   useEffect(() => {
     onValidChange(chosen !== null);
   }, [chosen, onValidChange]);
+
+  // 07d draws five directly visible choices. Larger plugin catalogs keep
+  // the existing searchable, categorized and paginated discovery workflow.
+  const choices = (shown: AvailableOutput[]) => (
+    <ToggleCardGroup
+      columns="2"
+      className="p-0.5 sm:grid-cols-1 md:grid-cols-2"
+      value={value ?? ""}
+      onValueChange={(id) => {
+        const output = outputs.find((o) => o.id === id);
+        if (output) onChange(output);
+      }}
+      aria-label={t("optionsLabel")}
+      data-testid="wizard-output-choices"
+    >
+      {shown.map((output) => (
+        <ToggleCard
+          key={output.id}
+          value={output.id}
+          icon={<OutputIcon name={output.icon} className="h-5 w-5" />}
+          title={output.name}
+          description={output.description}
+          data-testid={`wizard-output-${output.id}`}
+        >
+          {output.display?.manufacturer || output.display?.models?.length ? (
+            <Text as="span" size="xs" tone="muted" className="block">
+              {[output.display?.manufacturer, ...(output.display?.models ?? []).slice(0, 3)]
+                .filter(Boolean)
+                .join(" · ")}
+            </Text>
+          ) : null}
+          {/* Spans: the card is a <button>, which may hold phrasing content only. */}
+          {output.needs_network ? (
+            <Text as="span" size="xs" tone="muted" className="block">
+              {t("downloads")}
+            </Text>
+          ) : null}
+        </ToggleCard>
+      ))}
+    </ToggleCardGroup>
+  );
 
   return (
     <Stack gap="4">
@@ -74,46 +115,14 @@ export function StepChooseOutput({ value, onChange, onSkip, onValidChange, inclu
         retry={() => void refetch()}
         busy={isFetching}
       />
-      {outputs.length > 0 && (
-        <>
-          <ToggleCardGroup
-            columns="2"
-            className="p-0.5 sm:grid-cols-1 md:grid-cols-2"
-            value={value ?? ""}
-            onValueChange={(id) => {
-              const output = outputs.find((o) => o.id === id);
-              if (output) onChange(output);
-            }}
-            aria-label={t("optionsLabel")}
-            data-testid="wizard-output-choices"
-          >
-            {outputs.map((output) => (
-              <ToggleCard
-                key={output.id}
-                value={output.id}
-                icon={<OutputIcon name={output.icon} className="h-5 w-5" />}
-                title={output.name}
-                description={output.description}
-                data-testid={`wizard-output-${output.id}`}
-              >
-                {output.display?.manufacturer || output.display?.models?.length ? (
-                  <Text as="span" size="xs" tone="muted" className="block">
-                    {[output.display?.manufacturer, ...(output.display?.models ?? []).slice(0, 3)]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </Text>
-                ) : null}
-                {/* Spans: the card is a <button>, which may hold phrasing content only. */}
-                {output.needs_network ? (
-                  <Text as="span" size="xs" tone="muted" className="block">
-                    {t("downloads")}
-                  </Text>
-                ) : null}
-              </ToggleCard>
-            ))}
-          </ToggleCardGroup>
-        </>
-      )}
+      {outputs.length > 0 &&
+        (outputs.length > 5 ? (
+          <DisplayCatalogBrowser outputs={outputs} selectedId={value}>
+            {choices}
+          </DisplayCatalogBrowser>
+        ) : (
+          choices(outputs)
+        ))}
 
       {onSkip && (
         <Stack gap="1" className="border-t pt-4">

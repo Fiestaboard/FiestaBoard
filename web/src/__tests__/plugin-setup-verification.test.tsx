@@ -93,13 +93,17 @@ describe("plugin connection verification", () => {
         );
       }),
     );
-    await userEvent.click(await screen.findByRole("button", { name: "Add board" }));
+    expect(await screen.findByRole("button", { name: "Add board" })).toBeDisabled();
+    await userEvent.click(screen.getByLabelText("Skip the connection test and add this community display untested"));
+    await userEvent.click(screen.getByRole("button", { name: "Add board" }));
     await screen.findByTestId("wizard-output-create-error");
     expect(writes).toBe(1);
   });
   it("saves a plugin without test support without claiming a verified connection", async () => {
     setup(false);
     expect(await screen.findByText(/does not provide a connection test/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add board" })).toBeDisabled();
+    await userEvent.click(screen.getByLabelText("Skip the connection test and add this community display untested"));
     await userEvent.click(screen.getByRole("button", { name: "Add board" }));
     expect(await screen.findByTestId("wizard-output-created")).toHaveTextContent("Connection has not been verified");
   });
@@ -169,6 +173,8 @@ describe("plugin-owned setup requirements", () => {
     await userEvent.type(rows, "8");
     await userEvent.clear(cols);
     await userEvent.type(cols, colLabel === "Notes wide" ? "2" : "32");
+    expect(screen.getByRole("button", { name: "Add board" })).toBeDisabled();
+    await userEvent.click(screen.getByLabelText("Skip the connection test and add this community display untested"));
     await userEvent.click(screen.getByRole("button", { name: "Add board" }));
     await screen.findByTestId("wizard-output-created");
     expect(bodies).toEqual([{ name: "My Sign", device_model: "custom", output_config: {}, geometry: expected }]);
@@ -216,6 +222,8 @@ describe("plugin-owned setup requirements", () => {
     await userEvent.click(screen.getByRole("combobox"));
     await userEvent.click(await screen.findByRole("option", { name: "Fixed display" }));
     expect(screen.queryByLabelText("Rows")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add board" })).toBeDisabled();
+    await userEvent.click(screen.getByLabelText("Skip the connection test and add this community display untested"));
     const bodies: unknown[] = [];
     server.use(
       http.post("/api/outputs/my_sign/boards", async ({ request }) => {
