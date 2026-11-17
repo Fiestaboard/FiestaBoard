@@ -10,6 +10,7 @@ const boards = [
     device_type: "flagship",
     board_color: "black",
     enabled: true,
+    output: "vestaboard",
     // Saved connection data distinguishes configured displays from the
     // untouched placeholders that correctly show Home's no-display state.
     output_config: { api_mode: "local", host: "192.0.2.10", local_api_key: "layout-test-key" },
@@ -75,6 +76,18 @@ for (const width of [390, 768, 1280]) {
       if (width < 768) await expect(other).toBeHidden();
       else await expect(other).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      // The standalone fixture's main element also has an entrance animation.
+      // Keep contrast checks unchanged and wait for its actual settled opacity.
+      await expect
+        .poll(() =>
+          page.getByTestId("now-showing").evaluate((card) => {
+            for (let element: Element | null = card; element; element = element.parentElement) {
+              if (getComputedStyle(element).opacity !== "1") return false;
+            }
+            return true;
+          }),
+        )
+        .toBe(true);
       await injectAxe(page);
       expect(
         await getViolations(page, undefined, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }),

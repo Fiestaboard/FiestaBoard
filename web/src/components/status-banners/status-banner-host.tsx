@@ -70,6 +70,7 @@ function isPhone(): boolean {
  */
 export function StatusBannerHost({ boardId, exclude = [], fleet = false, className }: StatusBannerHostProps) {
   const t = useTranslations("statusBanners");
+  const tb = useTranslations("home.banners");
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const queryClient = useQueryClient();
@@ -167,6 +168,14 @@ export function StatusBannerHost({ boardId, exclude = [], fleet = false, classNa
           opensInNewTab={tCommon("opensInNewTab")}
           locale={locale}
           activePageName={pageName(boardStatus?.active_page_id)}
+          heldDetail={
+            silenceStatus?.held && silenceUntil
+              ? tb("silencedHeld", {
+                  boardName: instance?.name ?? t("unnamedBoard"),
+                  time: timeLabel(silenceUntil) ?? "",
+                })
+              : null
+          }
           onRetry={connection.retry}
           onResume={(id) => resume.mutate(id)}
           resuming={resume.isPending}
@@ -188,6 +197,7 @@ function Banner({
   opensInNewTab,
   locale,
   activePageName,
+  heldDetail,
   onRetry,
   onResume,
   resuming,
@@ -198,6 +208,7 @@ function Banner({
   opensInNewTab: string;
   locale: string;
   activePageName: string | null;
+  heldDetail: string | null;
   onRetry: () => void;
   onResume: (boardId: string) => void;
   resuming: boolean;
@@ -306,11 +317,12 @@ function Banner({
           kind="silenced"
           title={time ? t("silencedTitle", { time }) : t("silencedTitleNoTime")}
           description={
-            page && time
+            heldDetail ??
+            (page && time
               ? t("silencedDetailPage", { boardName: name, pageName: page, time })
               : time
                 ? t("silencedDetail", { boardName: name, time })
-                : t("silencedDetailNoTime", { boardName: name })
+                : t("silencedDetailNoTime", { boardName: name }))
           }
         />
       );

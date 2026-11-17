@@ -1,5 +1,23 @@
 # fiestaboard
 
+## 11.0.0-alpha.7
+
+### Patch Changes
+
+- [#2522](https://github.com/Fiestaboard/FiestaBoard/pull/2522) [`e5194ec`](https://github.com/Fiestaboard/FiestaBoard/commit/e5194ec28324e0b892203edec25ff879a378ea2b) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Correct localized Collection rule counts and place the tablet preview immediately after the selection-mode chips.
+
+## 11.0.0-alpha.6
+
+### Minor Changes
+
+- [#2524](https://github.com/Fiestaboard/FiestaBoard/pull/2524) [`b5cad79`](https://github.com/Fiestaboard/FiestaBoard/commit/b5cad79d2685cd940ab402a15638d205ed893e1a) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Add opt-in browser push settings, safe notification routing, sign-out cleanup and feature-detected app attention badges. Clearly distinguish account consent, browser permission and enrollment, and keep automatic alert categories unavailable until hub event sources are implemented.
+
+### Patch Changes
+
+- [#2498](https://github.com/Fiestaboard/FiestaBoard/pull/2498) [`2e072a2`](https://github.com/Fiestaboard/FiestaBoard/commit/2e072a22261c4d212f38a367a41939f5585230dc) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Restore Home's supporting pane with the hub's next change, other displays, and a Schedule Mode switch with Undo.
+
+- [#2523](https://github.com/Fiestaboard/FiestaBoard/pull/2523) [`484854f`](https://github.com/Fiestaboard/FiestaBoard/commit/484854f9db581a696e2bb5dd87abc6021ba117f4) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Refresh the v11 preview guides to the published alpha.5 image and clarify built-in HTTPS and web push availability.
+
 ## 11.0.0-alpha.5
 
 ### Minor Changes

@@ -45,6 +45,7 @@ export default defineConfig({
         "src/components/settings/schedule-behavior.tsx",
         "src/components/settings/inline-panel-settings.tsx",
         "src/components/settings/release-channel.tsx",
+        "src/components/settings/notification-settings.tsx",
         "src/components/settings/silence-schedule.tsx",
         "src/components/sidebar-settings-menu.tsx",
         "src/components/about-dialog.tsx",
@@ -77,6 +78,7 @@ export default defineConfig({
         "src/components/wizard/**",
         "src/components/displays/add-display-dialog.tsx",
         "src/i18n/config.ts",
+        "src/i18n/translations.tsx",
         // Slice 2.3: status banners.
         "src/components/status-banners/**",
         "src/components/board-init-error-banner.tsx",

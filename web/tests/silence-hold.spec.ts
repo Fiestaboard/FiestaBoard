@@ -94,7 +94,9 @@ test.describe("Silence holds manual page changes", () => {
       .toBe(true);
 
     await page.goto("/");
-    await expect(page.getByTestId("silence-alert")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("status-banners").filter({ hasText: "Silence Schedule until" })).toBeVisible({
+      timeout: 15_000,
+    });
 
     await page.waitForTimeout(2_000);
 

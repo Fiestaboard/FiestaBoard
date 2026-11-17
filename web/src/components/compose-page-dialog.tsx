@@ -27,6 +27,7 @@ import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { DevicePreview } from "@/components/device-preview";
+import { HomeConnectionNotice } from "@/components/home/connection-notice";
 import { defaultDurationChoice, DurationStep } from "@/components/home/duration-step";
 import { type DurationChoice, durationMinutes, type ScheduleNextChange } from "@/components/home/home-status";
 import { dismissOverrideUndo, nudgeDisplay, useRefreshHomeStatus } from "@/components/home/use-home-data";
@@ -36,6 +37,7 @@ import { SilenceNotice } from "@/components/silence-notice";
 import Link from "@/components/smart-link";
 import { queryKeys } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardLedLayout, DeviceType, PageCreate, SetTemporaryOverrideRequest } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -129,6 +131,9 @@ export function ComposePageDialog({
   silence = null,
 }: ComposePageDialogProps) {
   const t = useTranslations("composeDialog");
+  const tb = useTranslations("home.banners");
+  const connection = useHubConnection();
+  const sendsDisabled = !connection.deviceOnline || !connection.hubReachable;
   const queryClient = useQueryClient();
   const messageId = useId();
   const pageNameId = useId();
@@ -255,7 +260,7 @@ export function ComposePageDialog({
   });
 
   const handleSend = useCallback(() => {
-    if (!canSend) return;
+    if (!canSend || sendsDisabled) return;
     // The shared duration step: a timed chip holds it that long, "Until I
     // cancel" sends no duration_minutes, so it stays until it is cancelled.
     const minutes = durationMinutes(effectiveChoice, nextChange, new Date());
@@ -269,12 +274,23 @@ export function ComposePageDialog({
         ...geometryFields,
       },
     });
-  }, [canSend, lines, deviceType, geometryFields, sendMutation, effectiveChoice, nextChange, sendBoardId, boardLabel]);
+  }, [
+    canSend,
+    sendsDisabled,
+    lines,
+    deviceType,
+    geometryFields,
+    sendMutation,
+    effectiveChoice,
+    nextChange,
+    sendBoardId,
+    boardLabel,
+  ]);
 
   const handleHold = useCallback(() => {
-    if (!canSend) return;
+    if (!canSend || sendsDisabled) return;
     holdMutation.mutate(lines);
-  }, [canSend, lines, holdMutation]);
+  }, [canSend, sendsDisabled, lines, holdMutation]);
 
   const handleSave = useCallback(() => {
     if (isEmpty || pageName.trim() === "") return;
@@ -298,6 +314,7 @@ export function ComposePageDialog({
         </DialogHeader>
 
         <Stack gap="4" className="min-h-0 overflow-y-auto py-2">
+          <HomeConnectionNotice composing />
           {showOn && (
             <Stack gap="2">
               <Label htmlFor={showOnId}>{t("showOn")}</Label>
@@ -427,6 +444,11 @@ export function ComposePageDialog({
           )}
         </Stack>
 
+        {sendsDisabled && (
+          <Text size="sm" tone="muted">
+            {tb("sendReason")}
+          </Text>
+        )}
         <DialogFooter className="shrink-0 flex-wrap pt-2">
           <Button
             variant="ghost"
@@ -446,7 +468,7 @@ export function ComposePageDialog({
           <Button
             variant={silence?.holds ? "outline" : "default"}
             onClick={handleSend}
-            disabled={!canSend || sendMutation.isPending || holdMutation.isPending}
+            disabled={sendsDisabled || !canSend || sendMutation.isPending || holdMutation.isPending}
             data-testid={silence ? "compose-send-anyway" : undefined}
           >
             {sendMutation.isPending ? t("sending") : t("send")}
@@ -454,7 +476,7 @@ export function ComposePageDialog({
           {silence?.holds && (
             <Button
               onClick={handleHold}
-              disabled={!canSend || holdMutation.isPending || sendMutation.isPending}
+              disabled={sendsDisabled || !canSend || holdMutation.isPending || sendMutation.isPending}
               data-testid="compose-hold"
             >
               <Clock className="mr-1.5 h-4 w-4" />
