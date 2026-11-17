@@ -213,3 +213,32 @@ it("keeps a retired Undo inert after A → B → A, including an in-flight statu
   await undo();
   expect(writes).toBe(1);
 });
+
+it("names another display's Collection rather than mislabeling it Schedule Mode", async () => {
+  server.use(
+    http.get("/api/settings/board", () =>
+      HttpResponse.json({ boards: [board, { ...board, id: "board-3", name: "Desk" }] }),
+    ),
+    http.get("/api/schedules/active/page", () =>
+      HttpResponse.json({ schedule_enabled: true, page_id: "collection:agenda" }),
+    ),
+  );
+  const { CurrentBoardProvider } = await import("@/components/current-board-context");
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <CurrentBoardProvider>
+        <HomeSupportingPane
+          board={board}
+          scheduleEnabled
+          detail={detail()}
+          pageName="Evening"
+          nameOf={() => "Desk agenda"}
+          refresh={refresh}
+        />
+      </CurrentBoardProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Manage Desk" })).toHaveTextContent("Collection · Desk agenda"),
+  );
+});
