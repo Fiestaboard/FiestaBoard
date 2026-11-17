@@ -32,8 +32,8 @@ from . import (  # noqa: E402,F401  (re-export)
 )
 from .api_deprecation import deprecation_notice  # noqa: E402
 from .auth import is_auth_enabled  # noqa: E402
-from .auth.middleware import AuthMiddleware  # noqa: E402
-from .auth.request_boundary import RequestBoundaryMiddleware, configured_origins  # noqa: E402
+from .auth.middleware import AuthMiddleware, RequestBoundaryMiddleware  # noqa: E402
+from .auth.request_boundary import configured_origins  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
 
 # Re-export: src/mcp_server.py imports this name from here, and

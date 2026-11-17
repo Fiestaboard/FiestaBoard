@@ -8,9 +8,6 @@ import re
 import socket
 from urllib.parse import urlsplit
 
-from starlette.responses import JSONResponse
-from starlette.types import ASGIApp, Receive, Scope, Send
-
 _FIND_ORIGIN = "https://fiestaboard.app"
 _HOST_LABELS = re.compile(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\Z", re.ASCII)
 
@@ -89,51 +86,3 @@ def _trusted_host(host: str, origins: set[tuple[str, str, int]]) -> bool:
         if parsed is not None:
             known.add(parsed[1])
     return host in known
-
-
-class RequestBoundaryMiddleware:
-    """Reject untrusted addresses before any API handler or mounted transport."""
-
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] not in {"http", "websocket"}:
-            await self.app(scope, receive, send)
-            return
-        hosts = [v.decode("latin-1") for k, v in scope["headers"] if k.lower() == b"host"]
-        origins = [v.decode("latin-1") for k, v in scope["headers"] if k.lower() == b"origin"]
-        scheme = {"ws": "http", "wss": "https"}.get(scope["scheme"], scope["scheme"])
-        address = _origin(f"{scheme}://{hosts[0]}") if len(hosts) == 1 and "/" not in hosts[0] else None
-        allowed = _trusted_origins()
-        status = 0
-        if address is None or not _trusted_host(address[1], allowed):
-            status = 400
-        elif origins:
-            origin = _origin(origins[0]) if len(origins) == 1 else None
-            discovery = (
-                scope["type"] == "http"
-                and scope["method"] == "GET"
-                and scope["path"] in {"/discover", "/api/discover"}
-                and origins == [_FIND_ORIGIN]
-            )
-            if not discovery and (origin is None or origin not in allowed | {address}):
-                status = 403
-        elif any(k.lower() == b"sec-fetch-site" and v == b"cross-site" for k, v in scope["headers"]):
-            # The OAuth relay returns by cross-site navigation. Its handler
-            # authenticates the signed, single-use state; Host is still checked.
-            callback = (
-                scope["type"] == "http"
-                and scope["method"] == "GET"
-                and scope["path"] in {"/oauth/callback", "/api/oauth/callback"}
-            )
-            if not callback:
-                status = 403
-        if status:
-            if scope["type"] == "websocket":
-                await send({"type": "websocket.close", "code": 1008})
-            else:
-                response = JSONResponse({"detail": "Request address is not allowed."}, status_code=status)
-                await response(scope, receive, send)
-            return
-        await self.app(scope, receive, send)

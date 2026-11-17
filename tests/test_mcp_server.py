@@ -1522,7 +1522,7 @@ class TestProtocolIsError:
     def _run_rpc_client(cls, app, mp):
         from fastapi.testclient import TestClient
 
-        with TestClient(app) as client:
+        with TestClient(app, base_url="http://localhost") as client:
             init = client.post(
                 "/api/mcp/",
                 json={

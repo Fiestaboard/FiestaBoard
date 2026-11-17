@@ -85,7 +85,7 @@ def test_first_request_activates_a_working_mcp_server(tmp_path):
         "from fastapi.testclient import TestClient\n"
         "from src.api_server import app\n"
         "assert 'mcp' not in sys.modules\n"
-        "with TestClient(app) as client:\n"
+        "with TestClient(app, base_url='http://localhost') as client:\n"
         "    r = client.post(\n"
         "        '/api/mcp/',\n"
         "        json={'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {\n"
