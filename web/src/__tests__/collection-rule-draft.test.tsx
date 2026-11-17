@@ -188,4 +188,11 @@ describe("Collection rule drafts", () => {
       }),
     );
   });
+  it("names the rule's target-page selector while editing", async () => {
+    renderForm();
+    await ruleAction(1, "Edit rule 1");
+    expect(
+      screen.getByRole("combobox", { name: "Rule 1 · Show this page when the expression is true" }),
+    ).toHaveTextContent("Page One");
+  });
 });

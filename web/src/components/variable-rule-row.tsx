@@ -273,8 +273,12 @@ export function VariableRuleRow({
             </Flex>
           )}
           <Select value={draft.page_id} onValueChange={(v) => setDraft((d) => ({ ...d, page_id: v }))}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("variableRuleTargetPlaceholder")} />
+            <SelectTrigger
+              aria-label={`${t("ruleLabel", { number: index + 1 })} · ${t("variableRuleTargetPlaceholder")}`}
+            >
+              <SelectValue placeholder={t("variableRuleTargetPlaceholder")}>
+                {draft.page_id ? pageName(draft.page_id) : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {selectablePageIds.map((pid) => (
