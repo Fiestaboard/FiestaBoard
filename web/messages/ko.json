@@ -961,29 +961,29 @@
     "welcomeTitle": "FiestaBoard에 오신 것을 환영합니다",
     "welcomeSubtitle": "몇 가지 간단한 단계로 설정을 완료하세요",
     "progressConnect": "연결",
-    "progressCustomize": "사용자 지정",
-    "progressFinish": "완료",
+    "progressCustomize": "데이터 소스",
+    "progressFinish": "검토",
     "progressLabel": "설정 진행 상황",
     "stepOf": "단계 {current} / {total}",
     "skipForNow": "지금은 건너뛰기",
     "stepTitles": {
-      "connectBoard": "보드 연결",
+      "connectBoard": "Vestaboard 연결",
       "addDataSources": "데이터 소스 추가",
       "allSet": "모든 설정이 완료되었습니다!",
-      "chooseOutput": "FiestaBoard를 어디에 표시할까요?",
-      "setUpTv": "TV 설정",
+      "chooseOutput": "FiestaBoard로 어떤 디스플레이를 제어할까요?",
+      "setUpTv": "FiestaPanel TV 설정",
       "setUpOutput": "{name} 설정",
-      "review": "Review & Finish"
+      "review": "시작할 준비 완료"
     },
     "stepDescriptions": {
-      "enterCredentials": "보드 자격 증명을 입력하여 시작하세요",
+      "enterCredentials": "로컬 API를 사용하면 클라우드를 거치지 않고 허브가 네트워크 내 보드와 통신합니다.",
       "enableFeatures": "바로 사용할 수 있는 선택 기능을 활성화하세요",
       "sendTestMessage": "보드에 테스트 메시지를 보내보세요",
-      "chooseOutput": "가지고 있는 디스플레이를 선택하세요. 나중에 설정에서 더 추가할 수 있습니다.",
-      "setUpTv": "TV 이름과 화면 크기를 알려 주세요",
-      "setUpOutput": "연결하고 테스트한 뒤 보드로 저장하세요",
+      "chooseOutput": "첫 번째 디스플레이를 선택하세요. 나중에 디스플레이에서 더 추가할 수 있습니다.",
+      "setUpTv": "TV에서는 FiestaBoard TV 앱이나 웹 브라우저로 보드를 전체 화면에 표시합니다.",
+      "setUpOutput": "허브가 네트워크를 통해 디스플레이에 업데이트를 보냅니다.",
       "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
-      "review": "Save your choices, try an optional test message, then create your first page."
+      "review": "다음 내용이 저장됩니다. 나중에 설정과 디스플레이에서 모두 변경할 수 있습니다."
     },
     "boardSetup": {
       "boardType": "보드 유형",
@@ -1057,13 +1057,30 @@
         "spacecraft_launches": {
           "name": "Spacecraft Launches",
           "description": "Track upcoming launch countdowns and statuses."
+        },
+        "calendar_sub": {
+          "name": "캘린더",
+          "description": "Google 또는 iCal 일정"
+        },
+        "muni": {
+          "name": "대중교통",
+          "description": "근처의 다음 출발 정보"
+        },
+        "home_assistant": {
+          "name": "Home Assistant",
+          "description": "집 안의 센서와 상태"
+        },
+        "later": {
+          "name": "기타",
+          "description": "나중에 연동 둘러보기"
         }
       },
       "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
       "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
       "readyBadge": "Ready to use",
       "configureBadge": "Configure after setup",
-      "toggleLabel": "Select {name}"
+      "toggleLabel": "Select {name}",
+      "selectedCount": "{count}개 선택됨"
     },
     "welcome": {
       "setupComplete": "설정 완료!",
@@ -1093,7 +1110,7 @@
       "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
       "nextTitle": "Next: make it yours",
       "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
-      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "scheduleHint": "완료하면 홈이 열립니다. 스케줄은 비어 있는 상태로 시작합니다. 준비가 되면 페이지를 추가하고 표시할 시간을 선택하세요.",
       "saveFailed": "Some integrations still need attention",
       "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
       "continueToIntegrations": "Continue and configure integrations later",
@@ -1101,7 +1118,7 @@
       "createFirstPage": "Save & create my first page",
       "saveGoToDashboard": "Save & go to dashboard"
     },
-    "progressDisplay": "디스플레이",
+    "progressDisplay": "출력",
     "chooseOutput": {
       "loading": "디스플레이를 찾는 중…",
       "loadFailed": "디스플레이 목록을 불러오지 못했습니다.",
@@ -1134,7 +1151,11 @@
       "notesTall": "Notes tall",
       "notesWide": "Notes wide",
       "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
-      "sizeRange": "Whole number from {min} to {max}"
+      "sizeRange": "Whole number from {min} to {max}",
+      "community": "커뮤니티 출력",
+      "communityHint": "커뮤니티에서 제작했습니다. 해당 연동 페이지에서 문제를 신고하세요.",
+      "tc001Untested": "커뮤니티 · TC001은 실제 하드웨어에서 테스트되지 않았습니다. 해당 연동 페이지에서 문제를 신고하세요.",
+      "skipTest": "연결 테스트를 건너뛰고 이 커뮤니티 디스플레이를 테스트 없이 추가"
     },
     "panelSetup": {
       "nameLabel": "TV 이름",
@@ -1146,9 +1167,77 @@
       "created": "{name} 준비 완료",
       "openOnTv": "TV 브라우저에서 이 주소를 여세요:",
       "failed": "TV 보드를 만들지 못했습니다",
-      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address.",
+      "autoSize": "{inches}인치 TV · 자동 보드 크기",
+      "autoSizeHint": "허브가 TV 크기에 맞게 보드를 조정합니다. 나중에 디스플레이에서 변경할 수 있습니다.",
+      "howConnects": "TV 연결 방법",
+      "tvApp": "Apple TV 또는 Google TV 앱",
+      "tvAppHint": "TV에서 FiestaBoard를 열고 로그인을 선택하세요. 다음 주소에서 코드를 승인하세요:",
+      "browser": "TV의 모든 브라우저",
+      "browserHint": "설정 후 TV에서 이 디스플레이의 뷰어 주소를 열고 한 번 로그인하세요.",
+      "waiting": "TV 대기 중 · 설정을 완료하고 나중에 연결해도 됩니다."
     },
-    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser.",
+    "continue": "계속",
+    "intro": {
+      "defaultName": "내 FiestaPi",
+      "description": "허브에 무언가를 표시해 봅시다. 약 5분이 걸리며 나중에 설정에서 모두 변경할 수 있습니다.",
+      "name": "이 허브의 이름 지정",
+      "nameHint": "휴대폰, TV, QR 화면에 이 이름이 표시됩니다.",
+      "timezone": "시간대",
+      "timezoneHint": "이 브라우저에서 감지했습니다. 스케줄에 사용됩니다.",
+      "restore": "백업에서 복원…",
+      "start": "시작하기",
+      "saveFailed": "허브 설정을 저장하지 못했습니다. 다시 시도하세요.",
+      "hub": "허브"
+    },
+    "connection": {
+      "defaultName": "내 보드",
+      "name": "디스플레이 이름",
+      "connection": "연결",
+      "local": "로컬 API",
+      "cloud": "클라우드(읽기/쓰기 키)",
+      "address": "주소",
+      "addressHint": "Vestaboard 앱에 표시된 주소를 입력하세요. 연결 테스트에서 이 주소를 확인합니다.",
+      "localKey": "로컬 API 키",
+      "cloudKey": "클라우드 읽기/쓰기 키",
+      "keyHint": "Vestaboard 앱 › 설정 › 개발자 › 로컬 API에서 확인하세요.",
+      "cloudHint": "Vestaboard 계정에 있는 이 보드의 읽기/쓰기 키를 사용하세요.",
+      "showKey": "API 키 표시",
+      "hideKey": "API 키 숨기기",
+      "boardType": "보드 종류",
+      "test": "연결 테스트",
+      "testAgain": "다시 테스트",
+      "passed": "연결됨 · {ms}밀리초",
+      "failed": "보드에 연결하지 못했습니다",
+      "unchanged": "보드에서 변경된 내용은 없습니다.",
+      "tryThis": "다음을 시도하세요",
+      "checkPower": "보드가 켜져 있고 표시등이 깜박이지 않고 켜져 있는지 확인하세요.",
+      "checkNetwork": "허브와 같은 Wi-Fi에 연결되어 있는지 확인하세요.",
+      "checkKey": "Vestaboard 앱에서 로컬 API를 켜고 키를 다시 복사하세요.",
+      "useCloud": "클라우드 키 사용",
+      "knownTitle": "이 보드는 이미 연결되어 있습니다",
+      "knownDescription": "{host}의 {name}은 이미 이 허브에 있습니다. 다시 추가하면 두 디스플레이가 하나의 보드를 제어하려고 충돌합니다.",
+      "keep": "{name} 유지",
+      "keepHint": "이 단계를 건너뜁니다. 변경되는 내용은 없습니다.",
+      "update": "연결 업데이트",
+      "updateHint": "이 디스플레이의 주소와 키를 교체합니다.",
+      "saveFailed": "디스플레이를 저장하지 못했습니다. 다시 시도하세요.",
+      "typeFlagship": "Flagship · 22 × 6",
+      "typeNote": "Note · 15 × 3"
+    },
+    "review": {
+      "display": "디스플레이",
+      "connection": "연결",
+      "sources": "데이터 소스",
+      "finish": "설정 완료"
+    },
+    "noDisplays": {
+      "title": "아직 디스플레이가 없습니다",
+      "description": "첫 번째 디스플레이를 추가해 페이지 표시를 시작하세요. 페이지, 스케줄, 연동은 언제든 사용할 수 있습니다.",
+      "add": "디스플레이 추가",
+      "rerun": "설정 다시 실행"
+    }
   },
   "activeDisplay": {
     "collectionBadge": "캐러셀",
@@ -1508,10 +1597,13 @@
       "findMoreEmpty": "레지스트리에 다른 디스플레이가 아직 없습니다.",
       "byAuthor": "제작: {author}",
       "vestaboardTitle": "Vestaboard 추가",
-      "vestaboardDescription": "형태를 고르세요. 연결은 다음에 해당 페이지에서 합니다.",
+      "vestaboardDescription": "디스플레이를 추가하기 전에 연결 정보를 입력하고 테스트하세요.",
       "panelTitle": "TV 또는 브라우저 추가",
       "outputTitle": "{name} 추가",
-      "setupDescription": "설정한 다음 추가하세요."
+      "setupDescription": "이 디스플레이를 연결합니다. 추가해도 페이지가 생성되거나 스케줄이 변경되지 않습니다.",
+      "step": "2단계 중 {current}단계",
+      "confirm": "디스플레이 추가",
+      "added": "{name} 추가됨 · 페이지 표시"
     },
     "marketplace": {
       "searchLabel": "디스플레이 검색",
@@ -2226,7 +2318,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "설정 마법사 로드 중...",
-    "loading": "로드 중..."
+    "loading": "로드 중...",
+    "eligibilityFailed": "디스플레이를 확인할 수 없습니다. 연결을 확인하고 설정을 다시 시도하세요."
   },
   "schemaForm": {
     "geoErrorGeneric": "위치를 가져오지 못했습니다. 시스템 설정 → 개인 정보 보호 및 보안 → 위치 서비스에서 위치 서비스가 활성화되어 있고 Safari에 위치 접근 권한이 있는지 확인하세요.",
@@ -3172,7 +3265,7 @@
     "untilTitleNoTime": "보드가 무음 상태입니다"
   },
   "deviceSignIn": {
-    "title": "TV 연결",
+    "title": "TV 허용",
     "server": "FiestaBoard: {address}",
     "loading": "로그인 확인 중…",
     "code": "TV 코드",
@@ -3198,11 +3291,35 @@
       "rate_limited": "시도 횟수가 너무 많습니다. 잠시 후 다시 시도하세요.",
       "network": "FiestaBoard에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요."
     },
-    "retry": "다시 시도"
+    "retry": "다시 시도",
+    "entryDescription": "TV에 표시된 코드를 입력하세요. {username} 계정으로 로그인되어 있으므로 TV는 {address}에 로그인합니다.",
+    "codeHint": "모음을 제외한 영문자와 숫자만 사용하므로 O/0 또는 I/1을 혼동할 일이 없습니다.",
+    "noCode": "코드가 없나요? TV에서 FiestaBoard를 열고 로그인을 선택하세요.",
+    "consentTitle": "이 TV를 허용할까요?",
+    "consentDescription": "지금 눈앞에서 확인할 수 있는 TV만 허용하세요.",
+    "displayCode": "코드 {code}",
+    "countdown": "코드 만료까지 {time} · 한 번만 사용 가능",
+    "approvedTitle": "{device} 로그인 완료",
+    "approvedBody": "몇 초 후 패널이 표시됩니다. 선택하라는 메시지가 나오면 TV에서 패널을 선택하세요.",
+    "approvedMeta": "이 브라우저에서 허용됨 · {time}",
+    "deniedTitle": "허용되지 않음",
+    "deniedBody": "“{device}” 기기는 이 코드로 로그인할 수 없습니다. TV에 “허용되지 않음”이 표시됩니다.",
+    "deniedMeta": "이 브라우저에서 거부됨 · {time}. 실수였다면 TV에서 새 코드를 받으세요.",
+    "expiredTitle": "이 코드는 만료되었습니다",
+    "expiredBody": "코드는 10분 동안 유효합니다. 로그인된 기기는 없습니다.",
+    "expiredHint": "TV에서 새 코드 받기를 선택한 다음 새 코드를 여기에 입력하세요.",
+    "unavailableTitle": "이 코드는 더 이상 사용할 수 없습니다",
+    "unavailableBody": "이 코드는 유효하지 않거나, 이미 사용되었거나, 취소되었습니다. 코드는 한 번만 사용할 수 있습니다.",
+    "unavailableHint": "이 TV를 허용하거나 거부한 적이 없다면 로그인된 기기를 확인하고 알 수 없는 TV를 로그아웃하세요.",
+    "unknownTV": "이 TV",
+    "done": "완료",
+    "seeDevices": "로그인된 기기 보기",
+    "newCode": "새 코드 입력",
+    "differentCode": "다른 코드 입력"
   },
   "signedInDevices": {
     "title": "로그인한 기기",
-    "description": "이 계정에 로그인한 브라우저와 TV를 관리합니다. 마지막 활동 시간은 대략적인 값이며 온라인 상태를 나타내지 않습니다.",
+    "description": "이 계정에 로그인한 브라우저, 휴대폰, TV를 관리합니다.",
     "loading": "기기 불러오는 중…",
     "error": "기기를 업데이트할 수 없습니다. 연결을 확인하고 다시 시도하세요.",
     "enrollment": "기기 로그인",
@@ -3227,7 +3344,33 @@
     "cancel": "취소",
     "confirm": "확인",
     "revokeDevice": "{name} 접근 취소",
-    "retry": "다시 시도"
+    "retry": "다시 시도",
+    "connectPhone": "휴대폰 연결",
+    "clocksLegend": "마지막 연결 = 허브와 마지막으로 통신한 시점 · 마지막 표시 = TV에 마지막으로 표시된 패널",
+    "browsers": "브라우저",
+    "phones": "휴대폰",
+    "codeTvs": "TV · 코드 또는 TV 앱으로 로그인",
+    "passwordTvs": "TV · 비밀번호로 로그인(이전 TV 앱)",
+    "phone": "휴대폰 · FiestaBoard 앱",
+    "tv": "TV",
+    "passwordSignIn": "비밀번호 로그인",
+    "phoneConnected": "QR 코드로 연결됨 · {date} · TV {count}대 승인",
+    "approvedBy": "승인한 기기: {name} · {date}",
+    "passwordHint": "비밀번호로 로그인됨 · 휴대폰에서 이 TV를 확인하거나 로그아웃할 수 없습니다",
+    "lastConnected": "마지막 연결: {date}",
+    "lastShown": "마지막 표시: {panel} · {date}",
+    "nothingShown": "마지막 표시: 아직 없음(TV에서 패널을 선택하세요)",
+    "panel": "패널",
+    "signOut": "로그아웃",
+    "signOutMore": "로그아웃…",
+    "phoneTitle": "{name}에서 로그아웃할까요?",
+    "phoneRevokeHint": "이 휴대폰의 FiestaBoard 앱이 즉시 작동을 멈춥니다. 다시 사용하려면 새 QR 코드로 연결하세요.",
+    "alsoTvs": "이 휴대폰에서 승인한 TV {count}대에서도 로그아웃",
+    "keepTvsHint": "이 TV들이 계속 패널을 표시하도록 하려면 선택을 해제하세요. 비밀번호로 로그인한 기기는 로그인 상태를 유지합니다.",
+    "signOutPhone": "휴대폰에서 로그아웃",
+    "signOutCascade": "휴대폰과 TV {count}대에서 로그아웃",
+    "signedOutPhone": "{name} 및 TV {count}대에서 로그아웃됨",
+    "partial": "{names}에서 응답이 없습니다. 연결된 TV의 로그아웃을 완료하려면 이 휴대폰에서 다시 로그아웃해 보세요."
   },
   "plugins": {
     "communityBadge": "커뮤니티",
@@ -3295,5 +3438,63 @@
       "body": "설치와 오프라인 사용에는 보안 주소가 필요합니다. 현재 http://{host}에 있습니다. https 주소로 FiestaBoard를 열거나 허브에 HTTPS를 설정하세요.",
       "help": "HTTPS 설정 방법"
     }
+  },
+  "phonePairing": {
+    "title": "휴대폰 연결",
+    "description": "FiestaBoard 앱으로 스캔하세요. 코드는 한 번만 사용할 수 있으며 5분 후에 만료됩니다.",
+    "qrLabel": "FiestaBoard 앱으로 스캔",
+    "connectsTo": "{host}에 연결",
+    "countdown": "{time} 후 만료 · 일회용",
+    "step1": "휴대폰에서 FiestaBoard 앱을 여세요.",
+    "step2": "허브 연결을 누른 다음 QR 코드 스캔을 누르세요.",
+    "step3": "카메라를 이 코드에 맞추고 {host}에 연결을 누르세요.",
+    "warning": "앞으로 몇 분 안에 이 코드를 스캔하는 사람은 누구나 디스플레이를 제어할 수 있습니다. 본인 소유의 휴대폰에만 보여 주세요.",
+    "newCode": "새 코드 만들기",
+    "done": "완료",
+    "back": "계정",
+    "loading": "일회용 코드 만드는 중…",
+    "samePhoneTitle": "연결하려는 휴대폰을 사용 중인가요?",
+    "samePhoneHint": "FiestaBoard 앱을 열고 내 네트워크에서 허브 찾기를 누르세요. 이 QR 코드는 다른 휴대폰으로 스캔하기 위한 것입니다.",
+    "localhostTitle": "localhost 대신 허브 주소를 사용하세요",
+    "localhostHint": "이 브라우저는 허브 자체에서만 작동하는 주소를 사용합니다. QR 코드는 휴대폰에서 접근할 수 있는 네트워크 주소를 사용합니다.",
+    "address": "이 코드의 주소",
+    "addressHint": "네트워크 주소만 제공됩니다. localhost는 코드에 포함되지 않습니다.",
+    "connected": "{name} 연결됨",
+    "connectedHint": "이미 사용된 코드이며 다시 사용할 수 없습니다.",
+    "connectedRow": "QR 코드로 연결됨 · 이제 로그인한 기기에 표시됨",
+    "notYou": "본인이 아닌가요? 지금 해당 기기에서 로그아웃하세요. 계정의 다른 항목은 변경되지 않았습니다.",
+    "signOut": "해당 기기에서 로그아웃",
+    "phone": "내 휴대폰",
+    "expired": "이 코드는 만료되었습니다",
+    "expiredHint": "코드는 5분 동안 유효하며 한 번만 사용할 수 있습니다. 휴대폰이 준비되면 새 코드를 만드세요.",
+    "nothingConnected": "연결된 기기가 없습니다.",
+    "expiredBody": "만료된 코드는 이미 읽은 휴대폰에서도 스캔하거나 다시 사용할 수 없습니다.",
+    "error": "안전한 QR 코드를 만들지 못했습니다. 허브의 네트워크 주소로 FiestaBoard를 열고 다시 시도하세요.",
+    "pollError": "코드를 확인하지 못했습니다. 곧 다시 확인합니다. 휴대폰이 연결되었다고 가정하지 마세요.",
+    "revokeError": "휴대폰에서 로그아웃하지 못했습니다. 다시 시도하거나 로그인한 기기를 여세요."
+  },
+  "passwordReset": {
+    "title": "비밀번호 재설정",
+    "description": "일회용 코드로 이 허브의 계정을 복구합니다. 허브의 터미널에 접근할 수 있어야 합니다.",
+    "commandHint": "재설정 코드를 받으려면 허브의 컨테이너 안에서 다음 명령을 실행하세요.",
+    "expiry": "가장 최근 코드만 15분 동안 한 번 사용할 수 있습니다. 아래에 붙여넣고 다른 사람에게 공개하지 마세요.",
+    "code": "재설정 코드",
+    "password": "새 비밀번호",
+    "confirm": "새 비밀번호 확인",
+    "passwordHint": "8자 이상을 사용하세요.",
+    "show": "표시",
+    "hide": "숨기기",
+    "warning": "재설정하면 모든 브라우저, TV, 휴대전화에서 로그아웃됩니다. 새 비밀번호로 다시 로그인하세요.",
+    "submit": "비밀번호 재설정",
+    "resetting": "재설정 중…",
+    "back": "로그인으로 돌아가기",
+    "mismatch": "비밀번호가 일치하지 않습니다. 확인란을 점검한 후 다시 시도하세요.",
+    "invalid": "이 재설정 코드는 유효하지 않거나 만료되었습니다. 재설정 명령을 다시 실행하세요.",
+    "rateLimited": "시도 횟수가 너무 많습니다. 잠시 기다린 후 다시 시도하세요.",
+    "network": "비밀번호를 재설정할 수 없습니다. 연결을 확인하고 다시 시도하세요.",
+    "successTitle": "비밀번호 재설정 완료",
+    "success": "모든 브라우저, TV, 휴대전화에서 로그아웃되었습니다. 새 비밀번호로 로그인하세요.",
+    "signIn": "로그인",
+    "tokenUnchanged": "MCP/API 토큰은 변경되지 않습니다. 노출되었다고 생각되면 설정에서 교체하세요."
   }
 }

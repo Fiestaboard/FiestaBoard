@@ -961,29 +961,29 @@
     "welcomeTitle": "FiestaBoard へようこそ",
     "welcomeSubtitle": "簡単なステップでセットアップを完了しましょう",
     "progressConnect": "接続",
-    "progressCustomize": "カスタマイズ",
-    "progressFinish": "完了",
+    "progressCustomize": "データソース",
+    "progressFinish": "確認",
     "progressLabel": "セットアップの進行状況",
     "stepOf": "ステップ {current} / {total}",
     "skipForNow": "今はスキップ",
     "stepTitles": {
-      "connectBoard": "ボードを接続",
+      "connectBoard": "Vestaboardを接続",
       "addDataSources": "データソースを追加",
       "allSet": "準備完了です！",
-      "chooseOutput": "FiestaBoard を何に表示しますか？",
-      "setUpTv": "テレビを設定",
+      "chooseOutput": "FiestaBoardでどのディスプレイを操作しますか？",
+      "setUpTv": "FiestaPanelテレビを設定",
       "setUpOutput": "{name} を設定",
-      "review": "Review & Finish"
+      "review": "準備完了"
     },
     "stepDescriptions": {
-      "enterCredentials": "ボードの認証情報を入力して開始します",
+      "enterCredentials": "ローカルAPIを使うと、クラウドを介さずにハブとボードがネットワーク内で通信します。",
       "enableFeatures": "すぐに使えるオプション機能を有効化します",
       "sendTestMessage": "ボードにテストメッセージを送信します",
-      "chooseOutput": "お持ちのディスプレイを選んでください。あとから設定で追加できます。",
-      "setUpTv": "テレビの名前と画面サイズを入力してください",
-      "setUpOutput": "接続してテストし、ボードとして保存します",
+      "chooseOutput": "最初のディスプレイを選択してください。後から「ディスプレイ」で追加できます。",
+      "setUpTv": "テレビでは、FiestaBoardのテレビアプリまたは任意のウェブブラウザーでボードを全画面表示できます。",
+      "setUpOutput": "ハブはネットワーク経由でディスプレイに更新を送信します。",
       "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
-      "review": "Save your choices, try an optional test message, then create your first page."
+      "review": "以下の内容が保存されます。後から「設定」と「ディスプレイ」で変更できます。"
     },
     "boardSetup": {
       "boardType": "ボードタイプ",
@@ -1057,13 +1057,30 @@
         "spacecraft_launches": {
           "name": "Spacecraft Launches",
           "description": "Track upcoming launch countdowns and statuses."
+        },
+        "calendar_sub": {
+          "name": "カレンダー",
+          "description": "GoogleまたはiCalの予定"
+        },
+        "muni": {
+          "name": "公共交通",
+          "description": "近くの次の出発便"
+        },
+        "home_assistant": {
+          "name": "Home Assistant",
+          "description": "自宅のセンサーと状態"
+        },
+        "later": {
+          "name": "その他",
+          "description": "後から連携を探す"
         }
       },
       "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
       "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
       "readyBadge": "Ready to use",
       "configureBadge": "Configure after setup",
-      "toggleLabel": "Select {name}"
+      "toggleLabel": "Select {name}",
+      "selectedCount": "{count}件選択済み"
     },
     "welcome": {
       "setupComplete": "セットアップ完了！",
@@ -1093,7 +1110,7 @@
       "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
       "nextTitle": "Next: make it yours",
       "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
-      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "scheduleHint": "完了するとホームが開きます。スケジュールは空の状態で始まります。準備ができたらページを追加し、表示する時間を設定してください。",
       "saveFailed": "Some integrations still need attention",
       "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
       "continueToIntegrations": "Continue and configure integrations later",
@@ -1101,7 +1118,7 @@
       "createFirstPage": "Save & create my first page",
       "saveGoToDashboard": "Save & go to dashboard"
     },
-    "progressDisplay": "ディスプレイ",
+    "progressDisplay": "出力",
     "chooseOutput": {
       "loading": "ディスプレイを探しています…",
       "loadFailed": "ディスプレイの一覧を読み込めませんでした。",
@@ -1134,7 +1151,11 @@
       "notesTall": "Notes tall",
       "notesWide": "Notes wide",
       "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
-      "sizeRange": "Whole number from {min} to {max}"
+      "sizeRange": "Whole number from {min} to {max}",
+      "community": "コミュニティ製の出力",
+      "communityHint": "コミュニティが開発しています。問題はその連携ページで報告してください。",
+      "tc001Untested": "コミュニティ製 · TC001は実機未検証です。問題はその連携ページで報告してください。",
+      "skipTest": "接続テストをスキップして、このコミュニティ製ディスプレイを未検証のまま追加する"
     },
     "panelSetup": {
       "nameLabel": "テレビの名前",
@@ -1146,9 +1167,77 @@
       "created": "{name} の準備ができました",
       "openOnTv": "テレビのブラウザでこのアドレスを開いてください：",
       "failed": "テレビのボードを作成できませんでした",
-      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address.",
+      "autoSize": "{inches}インチのテレビ · ボードサイズ自動調整",
+      "autoSizeHint": "ハブがテレビのサイズに合わせてボードを調整します。後から「ディスプレイ」で変更できます。",
+      "howConnects": "テレビの接続方法",
+      "tvApp": "Apple TVまたはGoogle TVアプリ",
+      "tvAppHint": "テレビでFiestaBoardを開き、「ログイン」を選択してください。コードの承認先：",
+      "browser": "テレビ上の任意のブラウザー",
+      "browserHint": "設定後、テレビでこのディスプレイの表示用アドレスを開き、一度ログインしてください。",
+      "waiting": "テレビを待機中 · 設定を完了して後から接続することもできます。"
     },
-    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser.",
+    "continue": "続ける",
+    "intro": {
+      "defaultName": "マイFiestaPi",
+      "description": "ハブに何か表示してみましょう。約5分で完了します。後から「設定」ですべて変更できます。",
+      "name": "このハブに名前を付ける",
+      "nameHint": "スマートフォン、テレビ、QR画面にこの名前が表示されます。",
+      "timezone": "タイムゾーン",
+      "timezoneHint": "このブラウザーから検出しました。スケジュールで使用します。",
+      "restore": "バックアップから復元…",
+      "start": "始める",
+      "saveFailed": "ハブの設定を保存できませんでした。再試行してください。",
+      "hub": "ハブ"
+    },
+    "connection": {
+      "defaultName": "マイボード",
+      "name": "ディスプレイ名",
+      "connection": "接続",
+      "local": "ローカルAPI",
+      "cloud": "クラウド（読み取り/書き込みキー）",
+      "address": "アドレス",
+      "addressHint": "Vestaboardアプリに表示されるアドレスを入力してください。接続テストで確認されます。",
+      "localKey": "ローカルAPIキー",
+      "cloudKey": "クラウドの読み取り/書き込みキー",
+      "keyHint": "Vestaboardアプリの「設定」›「開発者」›「ローカルAPI」から取得します。",
+      "cloudHint": "Vestaboardアカウントにある、このボードの読み取り/書き込みキーを使用してください。",
+      "showKey": "APIキーを表示",
+      "hideKey": "APIキーを非表示",
+      "boardType": "ボードの種類",
+      "test": "接続をテスト",
+      "testAgain": "再テスト",
+      "passed": "接続済み · {ms}ミリ秒",
+      "failed": "ボードに接続できませんでした",
+      "unchanged": "ボードには何も変更を加えていません。",
+      "tryThis": "次をお試しください",
+      "checkPower": "ボードの電源が入っていて、ランプが点灯していることを確認してください。",
+      "checkNetwork": "ハブと同じWi-Fiに接続されていることを確認してください。",
+      "checkKey": "VestaboardアプリでローカルAPIを有効にし、キーを再度コピーしてください。",
+      "useCloud": "クラウドキーを使用",
+      "knownTitle": "このボードはすでに接続されています",
+      "knownDescription": "{host} の {name} はこのハブにすでに登録されています。再度追加すると、2つのディスプレイが1つのボードを同時に制御しようとして競合します。",
+      "keep": "{name} をそのまま使用",
+      "keepHint": "この手順をスキップします。変更はありません。",
+      "update": "接続を更新",
+      "updateHint": "このディスプレイのアドレスとキーを置き換えます。",
+      "saveFailed": "ディスプレイを保存できませんでした。再試行してください。",
+      "typeFlagship": "Flagship · 22 × 6",
+      "typeNote": "Note · 15 × 3"
+    },
+    "review": {
+      "display": "ディスプレイ",
+      "connection": "接続",
+      "sources": "データソース",
+      "finish": "設定を完了"
+    },
+    "noDisplays": {
+      "title": "ディスプレイはまだありません",
+      "description": "最初のディスプレイを追加してページの表示を始めましょう。「ページ」「スケジュール」「連携」はいつでも利用できます。",
+      "add": "ディスプレイを追加",
+      "rerun": "設定をやり直す"
+    }
   },
   "activeDisplay": {
     "collectionBadge": "カルーセル",
@@ -1508,10 +1597,13 @@
       "findMoreEmpty": "レジストリにはまだほかのディスプレイがありません。",
       "byAuthor": "作者: {author}",
       "vestaboardTitle": "Vestaboard を追加",
-      "vestaboardDescription": "形を選んでください。接続は次にそのページで行います。",
+      "vestaboardDescription": "接続情報を入力し、接続テストを行ってからディスプレイを追加してください。",
       "panelTitle": "テレビまたはブラウザを追加",
       "outputTitle": "{name} を追加",
-      "setupDescription": "設定してから追加してください。"
+      "setupDescription": "このディスプレイを接続します。追加してもページの作成やスケジュールの変更は行われません。",
+      "step": "手順 {current} / 2",
+      "confirm": "ディスプレイを追加",
+      "added": "{name} を追加しました · ページを表示"
     },
     "marketplace": {
       "searchLabel": "ディスプレイを検索",
@@ -2226,7 +2318,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "セットアップウィザードを読み込み中...",
-    "loading": "読み込み中..."
+    "loading": "読み込み中...",
+    "eligibilityFailed": "ディスプレイを確認できませんでした。接続を確認して、セットアップをもう一度お試しください。"
   },
   "schemaForm": {
     "geoErrorGeneric": "位置情報の取得に失敗しました。システム設定 → プライバシーとセキュリティ → 位置情報サービスで位置情報サービスが有効になっており、Safari に位置情報へのアクセス許可があることを確認してください。",
@@ -3172,7 +3265,7 @@
     "untilTitleNoTime": "ボードはサイレント中です"
   },
   "deviceSignIn": {
-    "title": "テレビを接続",
+    "title": "テレビを許可",
     "server": "FiestaBoard: {address}",
     "loading": "ログインを確認中…",
     "code": "テレビのコード",
@@ -3198,11 +3291,35 @@
       "rate_limited": "試行回数が多すぎます。少し待ってから再試行してください。",
       "network": "FiestaBoardに接続できません。接続を確認して再試行してください。"
     },
-    "retry": "再試行"
+    "retry": "再試行",
+    "entryDescription": "テレビに表示されているコードを入力してください。{username} としてログインしているため、テレビは {address} にログインします。",
+    "codeHint": "母音を除く英数字のみを使用するため、O/0 や I/1 を取り違える心配はありません。",
+    "noCode": "コードがありませんか？テレビで FiestaBoard を開き、「ログイン」を選んでください。",
+    "consentTitle": "このテレビを許可しますか？",
+    "consentDescription": "今、目の前で確認できるテレビだけを許可してください。",
+    "displayCode": "コード {code}",
+    "countdown": "コードの有効期限まで {time} · 1 回限り",
+    "approvedTitle": "{device} がログインしました",
+    "approvedBody": "数秒後にパネルが表示されます。選択を求められた場合は、テレビでパネルを選んでください。",
+    "approvedMeta": "このブラウザーで許可 · {time}",
+    "deniedTitle": "許可されませんでした",
+    "deniedBody": "「{device}」はこのコードではログインできません。テレビに「許可されませんでした」と表示されます。",
+    "deniedMeta": "このブラウザーで拒否 · {time}。間違えた場合は、テレビで新しいコードを取得してください。",
+    "expiredTitle": "このコードは期限切れです",
+    "expiredBody": "コードは 10 分間有効です。ログインした機器はありません。",
+    "expiredHint": "テレビで「新しいコードを取得」を選び、新しいコードをここに入力してください。",
+    "unavailableTitle": "このコードは使用できません",
+    "unavailableBody": "このコードは無効、使用済み、またはキャンセルされています。コードは 1 回のみ使用できます。",
+    "unavailableHint": "許可または拒否した覚えがない場合は、「ログイン中のデバイス」を確認し、心当たりのないテレビをログアウトしてください。",
+    "unknownTV": "このテレビ",
+    "done": "完了",
+    "seeDevices": "ログイン中のデバイスを確認",
+    "newCode": "新しいコードを入力",
+    "differentCode": "別のコードを入力"
   },
   "signedInDevices": {
     "title": "ログイン中のデバイス",
-    "description": "このアカウントにログインしているブラウザーとテレビを管理します。最終アクティブ時刻はおおよその値で、オンライン状態を示すものではありません。",
+    "description": "このアカウントにログインしているブラウザー、スマートフォン、テレビを管理します。",
     "loading": "デバイスを読み込み中…",
     "error": "デバイスを更新できません。接続を確認して再試行してください。",
     "enrollment": "デバイスのログイン",
@@ -3227,7 +3344,33 @@
     "cancel": "キャンセル",
     "confirm": "確認",
     "revokeDevice": "{name} のアクセスを取り消す",
-    "retry": "再試行"
+    "retry": "再試行",
+    "connectPhone": "スマートフォンを接続",
+    "clocksLegend": "最終接続 = ハブと最後に通信した日時 · 最終表示 = テレビが最後に表示したパネル",
+    "browsers": "ブラウザー",
+    "phones": "スマートフォン",
+    "codeTvs": "テレビ · コードまたはテレビアプリでログイン",
+    "passwordTvs": "テレビ · パスワードでログイン（旧テレビアプリ）",
+    "phone": "スマートフォン · FiestaBoardアプリ",
+    "tv": "テレビ",
+    "passwordSignIn": "パスワードでログイン",
+    "phoneConnected": "QRコードで接続 · {date} · 承認したテレビ：{count}台",
+    "approvedBy": "承認元：{name} · {date}",
+    "passwordHint": "パスワードでログイン · スマートフォンからこのテレビの確認やログアウトはできません",
+    "lastConnected": "最終接続：{date}",
+    "lastShown": "最終表示：{panel} · {date}",
+    "nothingShown": "最終表示：まだありません（テレビでパネルを選択してください）",
+    "panel": "パネル",
+    "signOut": "ログアウト",
+    "signOutMore": "ログアウト…",
+    "phoneTitle": "{name} からログアウトしますか？",
+    "phoneRevokeHint": "このスマートフォンのFiestaBoardアプリはすぐに使えなくなります。再び使用するには、新しいQRコードで接続してください。",
+    "alsoTvs": "このスマートフォンが承認したテレビ{count}台からもログアウトする",
+    "keepTvsHint": "チェックを外すと、これらのテレビはパネルの表示を続けます。パスワードでログインしたデバイスはログイン状態のままです。",
+    "signOutPhone": "スマートフォンからログアウト",
+    "signOutCascade": "スマートフォンとテレビ{count}台からログアウト",
+    "signedOutPhone": "{name} とテレビ{count}台からログアウトしました",
+    "partial": "{names} から応答がありませんでした。このスマートフォンから再度ログアウトして、関連するテレビのログアウトを完了してください。"
   },
   "plugins": {
     "communityBadge": "コミュニティ",
@@ -3295,5 +3438,63 @@
       "body": "インストールとオフライン利用には安全なアドレスが必要です。現在は http://{host} です。https のアドレスで FiestaBoard を開くか、ハブに HTTPS を設定してください。",
       "help": "HTTPS の設定方法"
     }
+  },
+  "phonePairing": {
+    "title": "スマートフォンを接続",
+    "description": "FiestaBoardアプリでスキャンしてください。コードは1回のみ使用でき、5分で有効期限が切れます。",
+    "qrLabel": "FiestaBoardアプリでスキャン",
+    "connectsTo": "接続先：{host}",
+    "countdown": "有効期限まで {time} · 1回のみ使用可能",
+    "step1": "スマートフォンでFiestaBoardアプリを開きます。",
+    "step2": "「ハブを接続」、次に「QRコードをスキャン」をタップします。",
+    "step3": "カメラをこのコードに向け、「{host} に接続」をタップします。",
+    "warning": "今後数分間にこのコードをスキャンした人は、誰でもディスプレイを操作できます。ご自身のスマートフォンにだけ表示してください。",
+    "newCode": "新しいコードを作成",
+    "done": "完了",
+    "back": "アカウント",
+    "loading": "1回限りのコードを作成中…",
+    "samePhoneTitle": "接続したいスマートフォンで開いていますか？",
+    "samePhoneHint": "FiestaBoardアプリを開いて「ネットワーク内のハブを探す」をタップしてください。このQRコードは、別のスマートフォンでスキャンするためのものです。",
+    "localhostTitle": "localhostではなくハブのアドレスを使用してください",
+    "localhostHint": "このブラウザーはハブ自体でしか使えないアドレスを使用しています。QRコードにはスマートフォンからアクセスできるネットワークアドレスが使われます。",
+    "address": "このコードのアドレス",
+    "addressHint": "ネットワークアドレスのみが候補になります。localhostがコードに含まれることはありません。",
+    "connected": "{name} が接続されました",
+    "connectedHint": "このコードは使用済みのため、再使用できません。",
+    "connectedRow": "QRコードで接続 · 「ログイン中のデバイス」に追加されました",
+    "notYou": "心当たりがありませんか？今すぐこのデバイスからログアウトしてください。アカウントの他の設定は変更されていません。",
+    "signOut": "このデバイスからログアウト",
+    "phone": "あなたのスマートフォン",
+    "expired": "このコードは有効期限が切れています",
+    "expiredHint": "コードの有効期間は5分で、1回のみ使用できます。スマートフォンの準備ができたら、新しいコードを作成してください。",
+    "nothingConnected": "接続されたデバイスはありません。",
+    "expiredBody": "有効期限が切れたコードは、すでに読み取ったスマートフォンでもスキャンや再使用はできません。",
+    "error": "安全なQRコードを作成できませんでした。ハブのネットワークアドレスでFiestaBoardを開いて再試行してください。",
+    "pollError": "コードを確認できませんでした。まもなく再確認します。スマートフォンが接続済みとは判断しないでください。",
+    "revokeError": "スマートフォンからログアウトできませんでした。再試行するか、「ログイン中のデバイス」を開いてください。"
+  },
+  "passwordReset": {
+    "title": "パスワードをリセット",
+    "description": "ワンタイムコードで、このハブのアカウントを復旧します。ハブのターミナルへのアクセスが必要です。",
+    "commandHint": "ハブのコンテナー内で次のコマンドを実行して、リセットコードを取得してください。",
+    "expiry": "最新のコードのみが 15 分間、1 回だけ使用できます。下に貼り付け、他の人には知らせないでください。",
+    "code": "リセットコード",
+    "password": "新しいパスワード",
+    "confirm": "新しいパスワードを確認",
+    "passwordHint": "8 文字以上で入力してください。",
+    "show": "表示",
+    "hide": "非表示",
+    "warning": "リセットすると、すべてのブラウザー、テレビ、スマートフォンがログアウトされます。新しいパスワードで再度ログインしてください。",
+    "submit": "パスワードをリセット",
+    "resetting": "リセット中…",
+    "back": "ログインに戻る",
+    "mismatch": "パスワードが一致しません。確認欄を見直して、もう一度お試しください。",
+    "invalid": "このリセットコードは無効、または期限切れです。リセットコマンドをもう一度実行してください。",
+    "rateLimited": "試行回数が多すぎます。しばらく待ってから、もう一度お試しください。",
+    "network": "パスワードをリセットできません。接続を確認して、もう一度お試しください。",
+    "successTitle": "パスワードをリセットしました",
+    "success": "すべてのブラウザー、テレビ、スマートフォンがログアウトされました。新しいパスワードでログインしてください。",
+    "signIn": "ログイン",
+    "tokenUnchanged": "MCP/API トークンは変更されません。漏えいした可能性がある場合は、設定で更新してください。"
   }
 }

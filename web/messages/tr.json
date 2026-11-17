@@ -961,29 +961,29 @@
     "welcomeTitle": "FiestaBoard'a Hoş Geldiniz",
     "welcomeSubtitle": "Birkaç adımda kurulumunuzu tamamlayalım",
     "progressConnect": "Bağlan",
-    "progressCustomize": "Özelleştir",
-    "progressFinish": "Bitir",
+    "progressCustomize": "Veri kaynakları",
+    "progressFinish": "Gözden geçir",
     "progressLabel": "Kurulum ilerlemesi",
     "stepOf": "Adım {current} / {total}",
     "skipForNow": "Şimdilik atla",
     "stepTitles": {
-      "connectBoard": "Panonuzu Bağlayın",
-      "addDataSources": "Veri Kaynakları Ekleyin",
+      "connectBoard": "Vestaboard’unuzu bağlayın",
+      "addDataSources": "Veri kaynakları ekle",
       "allSet": "Her Şey Hazır!",
-      "chooseOutput": "FiestaBoard'u nerede göstermek istiyorsunuz?",
-      "setUpTv": "Televizyonunuzu kurun",
+      "chooseOutput": "FiestaBoard hangi ekranı kontrol edecek?",
+      "setUpTv": "FiestaPanel TV kur",
       "setUpOutput": "{name} kurulumu",
-      "review": "Review & Finish"
+      "review": "Başlamaya hazır"
     },
     "stepDescriptions": {
-      "enterCredentials": "Başlamak için pano kimlik bilgilerinizi girin",
+      "enterCredentials": "Hub’ın arada bulut olmadan ağınızdaki panoyla iletişim kurması için yerel API’yi kullanın.",
       "enableFeatures": "Hemen çalışan isteğe bağlı özellikleri etkinleştirin",
       "sendTestMessage": "Panonuza bir test mesajı gönderin",
-      "chooseOutput": "Sahip olduğunuz ekranı seçin. Daha fazlasını sonra Ayarlar'dan ekleyebilirsiniz.",
-      "setUpTv": "Televizyonunuza bir ad verin ve ekran boyutunu belirtin",
-      "setUpOutput": "Bağlayın, test edin ve pano olarak kaydedin",
+      "chooseOutput": "İlk ekranı seçin. Daha sonra Ekranlar bölümünden başka ekranlar ekleyebilirsiniz.",
+      "setUpTv": "TV, FiestaBoard TV uygulaması veya herhangi bir web tarayıcısı üzerinden panonuzu tam ekran gösterir.",
+      "setUpOutput": "Hub, güncellemeleri ağınız üzerinden ekrana gönderir.",
       "optionalIntegrations": "Optional: choose live data to use in your pages. You can do this later.",
-      "review": "Save your choices, try an optional test message, then create your first page."
+      "review": "Kaydedilecek ayarlar bunlar. Daha sonra Ayarlar ve Ekranlar bölümlerinden hepsini değiştirebilirsiniz."
     },
     "boardSetup": {
       "boardType": "Pano Türü",
@@ -1057,13 +1057,30 @@
         "spacecraft_launches": {
           "name": "Spacecraft Launches",
           "description": "Track upcoming launch countdowns and statuses."
+        },
+        "calendar_sub": {
+          "name": "Takvim",
+          "description": "Google veya iCal etkinlikleri"
+        },
+        "muni": {
+          "name": "Toplu taşıma",
+          "description": "Yakınınızdaki sonraki seferler"
+        },
+        "home_assistant": {
+          "name": "Home Assistant",
+          "description": "Evinizdeki sensörler ve durumlar"
+        },
+        "later": {
+          "name": "Başka bir şey",
+          "description": "Entegrasyonlara daha sonra göz atın"
         }
       },
       "optionalDescription": "Integrations provide live information you can place on a page. Start with Date & Time, or choose more below. Selecting an integration does not add it to a page yet.",
       "configureLaterHint": "All choices are optional. Finish configuration or add more later in Integrations.",
       "readyBadge": "Ready to use",
       "configureBadge": "Configure after setup",
-      "toggleLabel": "Select {name}"
+      "toggleLabel": "Select {name}",
+      "selectedCount": "{count} seçildi"
     },
     "welcome": {
       "setupComplete": "Kurulum Tamamlandı!",
@@ -1093,7 +1110,7 @@
       "messageBlocked": "Message not sent: the display is paused or in quiet hours. You can finish setup now, or try again when it is available.",
       "nextTitle": "Next: make it yours",
       "nextDescription": "Create a page with a message, or add information from your integrations. Preview it in the editor before sending it to your display.",
-      "scheduleHint": "Later, use Schedule to choose when pages appear. Manage connections in Displays and live data in Integrations.",
+      "scheduleHint": "Bitir, Ana Sayfa’yı açar. Programınız başlangıçta boştur; hazır olduğunuzda sayfalar ekleyip ne zaman gösterileceklerini seçin.",
       "saveFailed": "Some integrations still need attention",
       "saveRetryHint": "Your display and successful saves are kept. Try finishing again to retry, or continue to Integrations to complete the remaining setup.",
       "continueToIntegrations": "Continue and configure integrations later",
@@ -1101,7 +1118,7 @@
       "createFirstPage": "Save & create my first page",
       "saveGoToDashboard": "Save & go to dashboard"
     },
-    "progressDisplay": "Ekran",
+    "progressDisplay": "Çıkış",
     "chooseOutput": {
       "loading": "Ekranlar aranıyor…",
       "loadFailed": "Ekran listesi yüklenemedi.",
@@ -1134,7 +1151,11 @@
       "notesTall": "Notes tall",
       "notesWide": "Notes wide",
       "sizeHelp": "Set the display’s character grid or use the plugin’s size detection. For Note arrays, enter the number of Notes in each direction.",
-      "sizeRange": "Whole number from {min} to {max}"
+      "sizeRange": "Whole number from {min} to {max}",
+      "community": "Topluluk çıkışı",
+      "communityHint": "Topluluk tarafından geliştirildi. Sorunları ilgili Entegrasyonlar sayfasında bildirin.",
+      "tc001Untested": "Topluluk · TC001 donanım üzerinde test edilmedi. Sorunları ilgili Entegrasyonlar sayfasında bildirin.",
+      "skipTest": "Bağlantı testini atla ve bu topluluk ekranını test etmeden ekle"
     },
     "panelSetup": {
       "nameLabel": "Televizyon adı",
@@ -1146,9 +1167,77 @@
       "created": "{name} hazır",
       "openOnTv": "Bu adresi televizyonun tarayıcısında açın:",
       "failed": "TV panosu oluşturulamadı",
-      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address."
+      "viewerHint": "This opens the display in a new tab. On your TV, use the same address on the same network and leave the browser open. If it contains localhost, replace localhost with this FiestaBoard server’s network address.",
+      "autoSize": "{inches} inç TV · otomatik pano boyutu",
+      "autoSizeHint": "Hub, panoyu TV boyutuna uyarlar. Daha sonra Ekranlar bölümünden ayarlayabilirsiniz.",
+      "howConnects": "TV nasıl bağlanır?",
+      "tvApp": "Apple TV veya Google TV uygulaması",
+      "tvAppHint": "TV’de FiestaBoard’u açın ve Oturum aç’ı seçin. Kodu şu adreste onaylayın:",
+      "browser": "TV’deki herhangi bir tarayıcı",
+      "browserHint": "Kurulumdan sonra bu ekranın görüntüleyici adresini TV’de açın ve bir kez oturum açın.",
+      "waiting": "TV bekleniyor · kurulumu bitirip daha sonra bağlayabilirsiniz."
     },
-    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser."
+    "introSubtitle": "Turn your information into pages for a physical display or a screen with a browser.",
+    "continue": "Devam et",
+    "intro": {
+      "defaultName": "FiestaPi’m",
+      "description": "Hub’ınızın bir şeyler göstermesini sağlayalım. Yaklaşık 5 dakika sürer; her şeyi daha sonra Ayarlar’dan değiştirebilirsiniz.",
+      "name": "Bu hub’a bir ad verin",
+      "nameHint": "Telefonlar, TV’ler ve QR ekranı bu adı gösterir.",
+      "timezone": "Saat dilimi",
+      "timezoneHint": "Bu tarayıcıdan algılandı. Program tarafından kullanılır.",
+      "restore": "Yedekten geri yükle…",
+      "start": "Başlayın",
+      "saveFailed": "Hub ayarları kaydedilemedi. Tekrar deneyin.",
+      "hub": "Hub"
+    },
+    "connection": {
+      "defaultName": "Panom",
+      "name": "Ekran adı",
+      "connection": "Bağlantı",
+      "local": "Yerel API",
+      "cloud": "Bulut (okuma/yazma anahtarı)",
+      "address": "Adres",
+      "addressHint": "Vestaboard uygulamasında gösterilen adresi girin. Bağlantı testi bu adresi kontrol eder.",
+      "localKey": "Yerel API anahtarı",
+      "cloudKey": "Bulut okuma/yazma anahtarı",
+      "keyHint": "Vestaboard uygulaması › Ayarlar › Geliştirici › Yerel API bölümünden.",
+      "cloudHint": "Vestaboard hesabınızdaki bu panonun okuma/yazma anahtarını kullanın.",
+      "showKey": "API anahtarını göster",
+      "hideKey": "API anahtarını gizle",
+      "boardType": "Pano türü",
+      "test": "Bağlantıyı test et",
+      "testAgain": "Yeniden test et",
+      "passed": "Bağlandı · {ms} ms",
+      "failed": "Panoya ulaşılamadı",
+      "unchanged": "Panoda hiçbir şey değiştirilmedi.",
+      "tryThis": "Şunları deneyin",
+      "checkPower": "Panonun açık ve ışığının sabit olduğundan emin olun.",
+      "checkNetwork": "Hub ile aynı Wi-Fi ağında olduğundan emin olun.",
+      "checkKey": "Vestaboard uygulamasında yerel API’yi açın ve anahtarı tekrar kopyalayın.",
+      "useCloud": "Bulut anahtarını kullan",
+      "knownTitle": "Bu pano zaten bağlı",
+      "knownDescription": "{host} adresindeki {name} zaten bu hub’da. Tekrar eklemek, iki ekranın aynı panonun kontrolü için çakışmasına neden olur.",
+      "keep": "{name} cihazını koru",
+      "keepHint": "Bu adımı atla. Hiçbir şey değişmez.",
+      "update": "Bağlantısını güncelle",
+      "updateHint": "Bu ekranın adresini ve anahtarını değiştirin.",
+      "saveFailed": "Ekran kaydedilemedi. Tekrar deneyin.",
+      "typeFlagship": "Flagship · 22 × 6",
+      "typeNote": "Note · 15 × 3"
+    },
+    "review": {
+      "display": "Ekran",
+      "connection": "Bağlantı",
+      "sources": "Veri kaynakları",
+      "finish": "Kurulumu bitir"
+    },
+    "noDisplays": {
+      "title": "Henüz ekran yok",
+      "description": "Sayfaları göstermeye başlamak için ilk ekranınızı ekleyin. Sayfalar, Program ve Entegrasyonlar siz hazır olduğunuzda hazır.",
+      "add": "Ekran ekle",
+      "rerun": "Kurulumu yeniden çalıştır"
+    }
   },
   "activeDisplay": {
     "collectionBadge": "Döngü",
@@ -1508,10 +1597,13 @@
       "findMoreEmpty": "Kayıt defterinde henüz başka ekran yok.",
       "byAuthor": "geliştirici: {author}",
       "vestaboardTitle": "Vestaboard ekle",
-      "vestaboardDescription": "Şeklini seçin. Bağlantıyı ardından kendi sayfasında yapacaksınız.",
+      "vestaboardDescription": "Ekranı eklemeden önce bağlantı bilgilerini girip test edin.",
       "panelTitle": "TV veya tarayıcı ekle",
       "outputTitle": "{name} ekle",
-      "setupDescription": "Ayarlayın, sonra ekleyin."
+      "setupDescription": "Bu ekranı bağlayın. Eklemek sayfa oluşturmaz veya Program’ı değiştirmez.",
+      "step": "Adım {current} / 2",
+      "confirm": "Ekran ekle",
+      "added": "{name} eklendi · Bir sayfa göster"
     },
     "marketplace": {
       "searchLabel": "Ekranlarda ara",
@@ -2226,7 +2318,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "Kurulum sihirbazı yükleniyor...",
-    "loading": "Yükleniyor..."
+    "loading": "Yükleniyor...",
+    "eligibilityFailed": "Ekranlarınız kontrol edilemedi. Bağlantınızı kontrol edip kurulumu yeniden deneyin."
   },
   "schemaForm": {
     "geoErrorGeneric": "Konumunuz alınamadı. Sistem Ayarları → Gizlilik ve Güvenlik → Konum Servisleri'nde Konum Servisleri'nin etkin olduğundan ve Safari'nin konumunuza erişim izninin olduğundan emin olun.",
@@ -3172,7 +3265,7 @@
     "untilTitleNoTime": "Pano sessizde"
   },
   "deviceSignIn": {
-    "title": "TV’nizi bağlayın",
+    "title": "Bir TV’ye izin ver",
     "server": "FiestaBoard: {address}",
     "loading": "Oturum kontrol ediliyor…",
     "code": "TV kodu",
@@ -3198,11 +3291,35 @@
       "rate_limited": "Çok fazla deneme. Biraz bekleyip tekrar deneyin.",
       "network": "FiestaBoard’a ulaşılamıyor. Bağlantınızı kontrol edip tekrar deneyin."
     },
-    "retry": "Tekrar dene"
+    "retry": "Tekrar dene",
+    "entryDescription": "TV’nizde görünen kodu yazın. {username} olarak oturum açtınız; TV, {address} üzerinde oturum açacak.",
+    "codeHint": "Yalnızca harf ve rakam; O/0 veya I/1 karışıklığını önlemek için sesli harf kullanılmaz.",
+    "noCode": "Kod yok mu? TV’de FiestaBoard’u açıp Oturum aç’ı seçin.",
+    "consentTitle": "Bu TV’ye izin verilsin mi?",
+    "consentDescription": "Yalnızca şu anda önünüzde görebildiğiniz bir TV’ye izin verin.",
+    "displayCode": "Kod {code}",
+    "countdown": "Kodun süresi {time} sonra dolacak · tek kullanımlık",
+    "approvedTitle": "{device} oturum açtı",
+    "approvedBody": "Paneli birkaç saniye içinde gösterecek. İstenirse TV’de bir panel seçin.",
+    "approvedMeta": "Bu tarayıcıdan onaylandı · {time}",
+    "deniedTitle": "İzin verilmedi",
+    "deniedBody": "“{device}” bu kodla oturum açamaz. TV’de “İzin verilmedi” görünür.",
+    "deniedMeta": "Bu tarayıcıdan reddedildi · {time}. Yanlışlık olduysa TV’den yeni bir kod alın.",
+    "expiredTitle": "Bu kodun süresi doldu",
+    "expiredBody": "Kodlar 10 dakika geçerlidir. Hiçbir cihazda oturum açılmadı.",
+    "expiredHint": "TV’de Yeni kod al’ı seçin, ardından yeni kodu buraya yazın.",
+    "unavailableTitle": "Bu kod artık kullanılamıyor",
+    "unavailableBody": "Bu kod geçersiz, kullanılmış veya iptal edilmiş. Kodlar yalnızca bir kez çalışır.",
+    "unavailableHint": "Bu TV’yi onaylamadıysanız veya reddetmediyseniz oturum açmış cihazları kontrol edin ve tanımadığınız TV’lerin oturumunu kapatın.",
+    "unknownTV": "Bu TV",
+    "done": "Bitti",
+    "seeDevices": "Oturum açmış cihazları gör",
+    "newCode": "Yeni bir kod gir",
+    "differentCode": "Farklı bir kod gir"
   },
   "signedInDevices": {
     "title": "Oturum açmış cihazlar",
-    "description": "Bu hesapta oturum açmış tarayıcıları ve TV’leri yönetin. Son etkinlik yaklaşık bir değerdir; cihazın çevrimiçi olduğunu göstermez.",
+    "description": "Bu hesapta oturum açmış tarayıcıları, telefonları ve TV’leri yönetin.",
     "loading": "Cihazlar yükleniyor…",
     "error": "Cihazlar güncellenemedi. Bağlantınızı kontrol edip tekrar deneyin.",
     "enrollment": "Cihaz oturum açma",
@@ -3227,7 +3344,33 @@
     "cancel": "Vazgeç",
     "confirm": "Onayla",
     "revokeDevice": "{name} erişimini iptal et",
-    "retry": "Tekrar dene"
+    "retry": "Tekrar dene",
+    "connectPhone": "Telefon bağla",
+    "clocksLegend": "Son bağlantı = hub ile son iletişim · Son gösterilen = TV’nin son gösterdiği panel",
+    "browsers": "Tarayıcılar",
+    "phones": "Telefonlar",
+    "codeTvs": "TV’ler · Kodla veya TV uygulamasıyla oturum açmış",
+    "passwordTvs": "TV’ler · Parolayla oturum açmış (eski TV uygulaması)",
+    "phone": "Telefon · FiestaBoard uygulaması",
+    "tv": "TV",
+    "passwordSignIn": "Parolayla oturum açma",
+    "phoneConnected": "QR koduyla bağlandı · {date} · {count} TV onayladı",
+    "approvedBy": "{name} tarafından onaylandı · {date}",
+    "passwordHint": "Parolayla oturum açmış · telefonlar bu TV’yi göremez veya TV’den çıkış yapamaz",
+    "lastConnected": "Son bağlantı: {date}",
+    "lastShown": "Son gösterilen: {panel} · {date}",
+    "nothingShown": "Son gösterilen: henüz yok (TV’de bir panel seçin)",
+    "panel": "Panel",
+    "signOut": "Çıkış yap",
+    "signOutMore": "Çıkış yap…",
+    "phoneTitle": "{name} cihazından çıkış yapılsın mı?",
+    "phoneRevokeHint": "Bu telefondaki FiestaBoard uygulaması hemen çalışmayı durdurur. Tekrar kullanmak için telefonu yeni bir QR koduyla bağlayın.",
+    "alsoTvs": "Bu telefonun onayladığı {count} TV’den de çıkış yap",
+    "keepTvsHint": "Bu TV’lerin panellerini göstermeye devam etmesi için işareti kaldırın. Parolayla açılan oturumlar açık kalır.",
+    "signOutPhone": "Telefondan çıkış yap",
+    "signOutCascade": "Telefondan ve {count} TV’den çıkış yap",
+    "signedOutPhone": "{name} cihazından ve {count} TV’den çıkış yapıldı",
+    "partial": "{names} yanıt vermedi. TV’lerinden çıkışı tamamlamak için bu telefondan tekrar çıkış yapmayı deneyin."
   },
   "plugins": {
     "communityBadge": "Topluluk",
@@ -3295,5 +3438,63 @@
       "body": "Yükleme ve çevrimdışı kullanım güvenli bir adres gerektirir. Şu anda http://{host} adresindesiniz. FiestaBoard’u https adresinden açın veya hub’ınız için HTTPS kurun.",
       "help": "HTTPS nasıl kurulur"
     }
+  },
+  "phonePairing": {
+    "title": "Telefon bağla",
+    "description": "Bunu FiestaBoard uygulamasıyla tarayın. Kod tek kullanımlıktır ve 5 dakika içinde sona erer.",
+    "qrLabel": "FiestaBoard uygulamasıyla tara",
+    "connectsTo": "{host} adresine bağlanır",
+    "countdown": "{time} sonra sona erer · tek kullanımlık",
+    "step1": "Telefonunuzda FiestaBoard uygulamasını açın.",
+    "step2": "Hub bağla seçeneğine, ardından QR kodu tara seçeneğine dokunun.",
+    "step3": "Kamerayı bu koda doğrultun ve {host} adresine bağlan seçeneğine dokunun.",
+    "warning": "Önümüzdeki birkaç dakika içinde bunu tarayan herkes ekranlarınızı kontrol edebilir. Yalnızca size ait bir telefona gösterin.",
+    "newCode": "Yeni kod oluştur",
+    "done": "Bitti",
+    "back": "Hesap",
+    "loading": "Tek kullanımlık kod oluşturuluyor…",
+    "samePhoneTitle": "Bağlamak istediğiniz telefonu mu kullanıyorsunuz?",
+    "samePhoneHint": "Bunun yerine FiestaBoard uygulamasını açın ve Ağımdaki hub’ları bul seçeneğine dokunun. Bu QR kodu ikinci bir telefonla taranmak içindir.",
+    "localhostTitle": "localhost yerine hub’ınızın adresini kullanın",
+    "localhostHint": "Bu tarayıcı yalnızca hub’ın kendisinde çalışan bir adres kullanıyor. QR kodu, telefonunuzun erişebileceği bir ağ adresi kullanır.",
+    "address": "Bu koddaki adres",
+    "addressHint": "Yalnızca ağ adresleri sunulur. localhost asla koda eklenmez.",
+    "connected": "{name} bağlandı",
+    "connectedHint": "Kod kullanıldı ve tekrar kullanılamaz.",
+    "connectedRow": "QR koduyla bağlandı · artık Oturum açmış cihazlar bölümünde listeleniyor",
+    "notYou": "Siz değil miydiniz? Hemen cihazdan çıkış yapın. Hesabınızda başka hiçbir şey değişmedi.",
+    "signOut": "Cihazdan çıkış yap",
+    "phone": "Telefonunuz",
+    "expired": "Bu kodun süresi doldu",
+    "expiredHint": "Kodlar 5 dakika geçerlidir ve tek kullanımlıktır. Telefonunuz hazır olduğunda yeni bir kod oluşturun.",
+    "nothingConnected": "Hiçbir cihaz bağlanmadı.",
+    "expiredBody": "Süresi dolmuş bir kod, daha önce okumuş bir telefon tarafından bile taranamaz veya tekrar kullanılamaz.",
+    "error": "Güvenli bir QR kodu oluşturulamadı. FiestaBoard’u hub’ınızın ağ adresinde açıp tekrar deneyin.",
+    "pollError": "Kod kontrol edilemedi. Kısa süre içinde yeniden kontrol edilecek; telefonun bağlı olduğunu varsaymayın.",
+    "revokeError": "Telefondan çıkış yapılamadı. Tekrar deneyin veya Oturum açmış cihazlar bölümünü açın."
+  },
+  "passwordReset": {
+    "title": "Parolayı sıfırla",
+    "description": "Bu hub’daki hesabı tek kullanımlık bir kodla kurtarın. Hub’ın terminaline erişmeniz gerekir.",
+    "commandHint": "Sıfırlama kodu almak için bu komutu hub’ın konteynerinde çalıştırın:",
+    "expiry": "Yalnızca en yeni kod bir kez ve 15 dakika boyunca çalışır. Aşağıya yapıştırın ve gizli tutun.",
+    "code": "Sıfırlama kodu",
+    "password": "Yeni parola",
+    "confirm": "Yeni parolayı doğrula",
+    "passwordHint": "En az 8 karakter kullanın.",
+    "show": "Göster",
+    "hide": "Gizle",
+    "warning": "Sıfırlama, tüm tarayıcıların, TV’lerin ve telefonların oturumunu kapatır. Yeni parolayla tekrar oturum açın.",
+    "submit": "Parolayı sıfırla",
+    "resetting": "Sıfırlanıyor…",
+    "back": "Oturum açmaya dön",
+    "mismatch": "Parolalar eşleşmiyor. Doğrulamayı kontrol edip tekrar deneyin.",
+    "invalid": "Bu sıfırlama kodu geçersiz veya süresi dolmuş. Sıfırlama komutunu tekrar çalıştırın.",
+    "rateLimited": "Çok fazla deneme yapıldı. Tekrar denemeden önce biraz bekleyin.",
+    "network": "Parola sıfırlanamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+    "successTitle": "Parola sıfırlandı",
+    "success": "Tüm tarayıcıların, TV’lerin ve telefonların oturumu kapatıldı. Yeni parolanızla oturum açın.",
+    "signIn": "Oturum aç",
+    "tokenUnchanged": "MCP/API belirteci değişmez. Açığa çıktığını düşünüyorsanız Ayarlar’dan yenileyin."
   }
 }

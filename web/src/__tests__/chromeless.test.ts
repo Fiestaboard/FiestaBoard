@@ -43,3 +43,7 @@ describe("isChromelessPath", () => {
 it("activation owns authentication without setup-wizard takeover", () => {
   expect(isChromelessPath("/activate?user_code=WDJB-MJHT")).toBe(true);
 });
+
+it("lets the owner recover a password without login or setup takeover", () => {
+  expect(isChromelessPath("/reset-password")).toBe(true);
+});
