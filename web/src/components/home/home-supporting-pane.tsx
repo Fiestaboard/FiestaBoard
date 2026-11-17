@@ -26,7 +26,7 @@ import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import { resolveCode62Glyph, useBoardCurrentMessage, useStatus } from "@/hooks/use-board";
 import { useLocale, useTranslations } from "@/i18n/translations";
-import { api, type BoardDetail, type BoardInstance,isCollectionId } from "@/lib/api";
+import { api, type BoardDetail, type BoardInstance, isCollectionId } from "@/lib/api";
 import { resolveBoardModel } from "@/lib/device-preview";
 import { isDisplayOffline } from "@/lib/status-banners";
 
