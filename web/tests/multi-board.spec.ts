@@ -52,6 +52,31 @@ test.describe("Displays – Display Card", () => {
   });
 
   test("display row reports Online when the configured output connects", async ({ page }) => {
+    // resetBackend blanks the mock hardware, while the hub can retain its
+    // last-sent frame. Restore it before asking for Online: a reachable board
+    // with different observed content correctly reports Out of sync instead.
+    const restored = await fetch(`${API_URL}/v1/boards/primary/restore`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    expect(restored.ok).toBe(true);
+    const { board_id: boardId, sent } = await restored.json();
+    expect(sent).toBe(true);
+    await expect
+      .poll(async () => {
+        const response = await fetch(`${API_URL}/board/current-message?board_id=${boardId}&force=true`, {
+          headers: authHeaders(),
+        });
+        expect(response.ok).toBe(true);
+        const state = await response.json();
+        return {
+          observed: state.characters != null,
+          matches: JSON.stringify(state.characters) === JSON.stringify(state.expected_characters),
+          overwritten: Boolean(state.overwritten_at),
+        };
+      })
+      .toEqual({ observed: true, matches: true, overwritten: false });
+
     await openDisplays(page);
 
     await expect(displayCard(page, "My Board").getByText("Online", { exact: true })).toBeVisible({

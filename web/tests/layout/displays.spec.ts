@@ -1,7 +1,76 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { checkA11y, injectAxe } from "axe-playwright";
 
 test.use({ timezoneId: "America/Los_Angeles" });
+
+async function settleCapture(page: Page) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime))
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+    // Full-page captures must start at the document origin. Actions above can
+    // scroll focused controls into view, leaving sticky chrome mid-capture.
+    document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    for (const element of document.querySelectorAll<HTMLElement>("*")) {
+      if (!element.checkVisibility()) continue;
+      const style = getComputedStyle(element);
+      if (/(auto|scroll)/.test(`${style.overflowX} ${style.overflowY}`))
+        element.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+    // Let ResizeObserver's scheduled measurements and React's resulting
+    // layout paint after reveal/scroll, without an elapsed-time sleep.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
+}
+
+async function expectPanelFit(page: Page) {
+  const panel = page.getByTestId("display-panel-settings");
+  const viewport = panel.locator('[data-slot="board-viewport"]');
+  await expect(viewport).toHaveAttribute("data-mode", "fit");
+  await expect
+    .poll(async () =>
+      viewport.evaluate((root) => {
+        const scroller = root.querySelector<HTMLElement>('[data-slot="board-viewport-scroller"]');
+        const board = root.querySelector<HTMLElement>('[data-slot="board-display"]');
+        if (!scroller || !board) return ["Missing board or viewport"];
+        const issues: string[] = [];
+        const clip = scroller.getBoundingClientRect();
+        const bounds = board.getBoundingClientRect();
+        const style = getComputedStyle(scroller);
+        const available = scroller.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        const fittedWidth = Math.min(available, board.offsetWidth);
+        if (fittedWidth <= 0 || Math.abs(bounds.width - fittedWidth) > 1)
+          issues.push(`Fit width ${bounds.width}, expected ${fittedWidth}`);
+        const contains = (outer: DOMRect, inner: DOMRect) =>
+          inner.width > 0 &&
+          inner.height > 0 &&
+          inner.left >= outer.left - 1 &&
+          inner.top >= outer.top - 1 &&
+          inner.right <= outer.right + 1 &&
+          inner.bottom <= outer.bottom + 1;
+        if (!contains(clip, bounds)) issues.push("Full board extends beyond viewport");
+        if (Math.abs(bounds.left + bounds.width / 2 - (clip.left + clip.width / 2)) > 1)
+          issues.push("Fit board is displaced from viewport center");
+        const rows = Array.from(board.querySelectorAll<HTMLElement>("[data-note-row]"));
+        if (rows.length !== 12) issues.push(`Expected 12 rows, got ${rows.length}`);
+        rows.forEach((row, rowIndex) => {
+          const tiles = Array.from(row.querySelectorAll<HTMLElement>("[data-note-tile]"));
+          if (tiles.length !== 29) issues.push(`Row ${rowIndex}: expected 29 columns, got ${tiles.length}`);
+          tiles.forEach((tile, colIndex) => {
+            const tileBounds = tile.getBoundingClientRect();
+            if (!contains(bounds, tileBounds) || !contains(clip, tileBounds))
+              issues.push(`Tile ${rowIndex},${colIndex} is clipped or empty`);
+          });
+        });
+        return issues;
+      }),
+    )
+    .toEqual([]);
+}
 
 for (const width of [390, 768, 900, 1280]) {
   for (const theme of ["light", "dark"]) {
@@ -50,6 +119,7 @@ for (const width of [390, 768, 900, 1280]) {
         }
       }
       await expect(page.getByTestId("display-detail-pane")).toHaveCount(width < 768 ? 0 : 1);
+      await settleCapture(page);
       await page.screenshot({ path: testInfo.outputPath(`impl-displays-${width}-${theme}.png`), fullPage: true });
       await injectAxe(page);
       await checkA11y(page, undefined, {
@@ -58,6 +128,7 @@ for (const width of [390, 768, 900, 1280]) {
         axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } },
       });
       const shot = async (state: string) => {
+        await settleCapture(page);
         await page.screenshot({
           path: testInfo.outputPath(`impl-displays-${state}-${width}-${theme}.png`),
           fullPage: true,
@@ -158,7 +229,17 @@ for (const width of [390, 768, 900, 1280]) {
       await page.getByTestId("display-card").filter({ hasText: "Living room TV" }).click();
       await page.getByRole("tab", { name: "Settings", exact: true }).click();
       await expect(page.getByTestId("display-panel-settings")).toBeVisible();
+      await settleCapture(page);
+      // The fixture is a 29×12 panel. A Fit caption alone does not prove its
+      // hidden-tab measurements have caught up or that every tile is visible.
+      await expectPanelFit(page);
       await shot("panel-settings");
+      // Keep a truthful preview capture alongside the long page: fixed mobile
+      // navigation can overlap the bottom of a full-page browser screenshot.
+      await page
+        .getByTestId("display-panel-settings")
+        .locator('[data-slot="board-viewport"]')
+        .screenshot({ path: testInfo.outputPath(`impl-displays-panel-preview-${width}-${theme}.png`) });
       await checkA11y(page, undefined, {
         detailedReport: true,
         detailedReportOptions: { html: true },
