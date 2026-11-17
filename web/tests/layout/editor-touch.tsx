@@ -26,6 +26,9 @@ createRoot(document.getElementById("root")!).render(
           <ThemeProvider defaultTheme={theme}>
             <CurrentBoardProvider>
               <main className="content-root min-h-screen bg-background text-foreground">
+                {/* Mirror the route shell headings above the embedded editor title. */}
+                <h1 className="sr-only">Pages</h1>
+                <h2 className="sr-only">Kitchen morning</h2>
                 <div className="mx-auto max-w-screen-xl p-0 lg:p-6">
                   <PageBuilder pageId="kitchen-morning" embedded onClose={() => {}} />
                 </div>

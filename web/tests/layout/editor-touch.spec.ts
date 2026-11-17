@@ -425,7 +425,13 @@ for (const { width, coarse } of [
       await expect(mirror).not.toBeChecked();
       await mirror.click();
       await expect(mirror).toBeChecked();
-      await expect(page.getByText("Mirroring", { exact: true })).toBeVisible();
+      if (width < 1024) await expect(page.getByText("Mirroring", { exact: true })).toBeVisible();
+      else
+        await expect(
+          page
+            .locator('[data-slot="editor-preview-live"]')
+            .getByRole("switch", { name: "Mirror to board while editing" }),
+        ).toBeChecked();
       await page.evaluate(() => document.fonts.ready);
       await injectAxe(page);
       // The body-level toolbar and popup must be included in the scan.
