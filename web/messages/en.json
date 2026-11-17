@@ -2210,7 +2210,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "Loading setup wizard...",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "eligibilityFailed": "Couldn’t check your displays. Check your connection and try setup again."
   },
   "schemaForm": {
     "geoErrorGeneric": "Failed to get your location. Please check that Location Services are enabled in System Settings → Privacy & Security → Location Services, and that Safari has permission to access your location.",

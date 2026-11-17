@@ -2283,7 +2283,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "Ładowanie kreatora konfiguracji...",
-    "loading": "Ładowanie..."
+    "loading": "Ładowanie...",
+    "eligibilityFailed": "Nie udało się sprawdzić wyświetlaczy. Sprawdź połączenie i ponów konfigurację."
   },
   "schemaForm": {
     "geoErrorGeneric": "Nie udało się uzyskać twojej lokalizacji. Sprawdź, czy usługi lokalizacji są włączone w Ustawienia systemu → Prywatność i bezpieczeństwo → Usługi lokalizacji oraz czy Safari ma uprawnienia do dostępu do twojej lokalizacji.",

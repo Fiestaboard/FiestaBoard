@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { toast, Toaster } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { server } from "./mocks/server";
@@ -174,4 +175,26 @@ describe("WizardProvider", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Run setup again" }));
     expect(await screen.findByTestId("wizard")).toBeInTheDocument();
   });
+});
+
+it("shows a retryable error if a manual setup eligibility check cannot reach the hub", async () => {
+  server.use(
+    http.get("/api/config/validate", () =>
+      HttpResponse.json({ valid: true, is_first_run: false, errors: [], missing_fields: [] }),
+    ),
+    http.get("/api/settings/board", () => HttpResponse.json({ detail: "Unavailable" }, { status: 503 })),
+  );
+  render(
+    <WizardProvider>
+      <Probe />
+      <Toaster />
+    </WizardProvider>,
+  );
+  await userEvent.click(await screen.findByRole("button", { name: "Run setup again" }));
+  await screen.findByText("Couldn’t check your displays. Check your connection and try setup again.");
+  expect(screen.queryByTestId("wizard")).not.toBeInTheDocument();
+  server.use(http.get("/api/settings/board", () => HttpResponse.json({ boards: [] })));
+  await userEvent.click(screen.getByRole("button", { name: "Run setup again" }));
+  await screen.findByTestId("wizard");
+  toast.dismiss();
 });

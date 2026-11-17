@@ -2283,7 +2283,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "Einrichtungsassistent wird geladen...",
-    "loading": "Wird geladen..."
+    "loading": "Wird geladen...",
+    "eligibilityFailed": "Deine Displays konnten nicht geprüft werden. Prüfe deine Verbindung und starte die Einrichtung erneut."
   },
   "schemaForm": {
     "geoErrorGeneric": "Standort konnte nicht ermittelt werden. Bitte stellen Sie sicher, dass die Ortungsdienste aktiviert sind (Systemeinstellungen → Datenschutz & Sicherheit → Ortungsdienste) und Safari Zugriff auf Ihren Standort hat.",

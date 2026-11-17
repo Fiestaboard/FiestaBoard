@@ -2283,7 +2283,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "Kurulum sihirbazı yükleniyor...",
-    "loading": "Yükleniyor..."
+    "loading": "Yükleniyor...",
+    "eligibilityFailed": "Ekranlarınız kontrol edilemedi. Bağlantınızı kontrol edip kurulumu yeniden deneyin."
   },
   "schemaForm": {
     "geoErrorGeneric": "Konumunuz alınamadı. Sistem Ayarları → Gizlilik ve Güvenlik → Konum Servisleri'nde Konum Servisleri'nin etkin olduğundan ve Safari'nin konumunuza erişim izninin olduğundan emin olun.",

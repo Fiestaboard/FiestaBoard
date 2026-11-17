@@ -2283,7 +2283,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "加载设置向导中...",
-    "loading": "加载中..."
+    "loading": "加载中...",
+    "eligibilityFailed": "无法检查显示屏。请检查连接，然后重试设置。"
   },
   "schemaForm": {
     "geoErrorGeneric": "获取位置失败。请检查系统设置 → 隐私与安全 → 位置服务中已启用位置服务,且 Safari 有访问您位置的权限。",

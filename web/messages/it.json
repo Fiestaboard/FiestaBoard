@@ -2283,7 +2283,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "Caricamento procedura guidata...",
-    "loading": "Caricamento..."
+    "loading": "Caricamento...",
+    "eligibilityFailed": "Impossibile verificare i display. Controlla la connessione e riprova la configurazione."
   },
   "schemaForm": {
     "geoErrorGeneric": "Impossibile ottenere la tua posizione. Verifica che i Servizi di localizzazione siano attivi in Impostazioni di Sistema → Privacy e Sicurezza → Servizi di localizzazione, e che Safari abbia il permesso di accedere alla tua posizione.",

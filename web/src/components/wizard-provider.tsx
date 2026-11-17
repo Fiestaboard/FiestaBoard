@@ -4,6 +4,7 @@ import { Box, Flex, Text } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import type { ReactNode } from "react";
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -120,8 +121,11 @@ export function WizardProvider({ children }: WizardProviderProps) {
         clearWizardCompletion();
         setIsWizardActive(true);
       })
-      .catch((error) => console.error("Failed to check displays before setup:", error));
-  }, [isOnAuthScreen]);
+      .catch((error) => {
+        console.error("Failed to check displays before setup:", error);
+        if (request === rerunRequest.current) toast.error(t("eligibilityFailed"));
+      });
+  }, [isOnAuthScreen, t]);
 
   const handleComplete = useCallback(() => {
     rerunRequest.current++;

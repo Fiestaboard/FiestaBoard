@@ -2283,7 +2283,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "Chargement de l'assistant de configuration...",
-    "loading": "Chargement..."
+    "loading": "Chargement...",
+    "eligibilityFailed": "Impossible de vérifier vos écrans. Vérifiez votre connexion et relancez la configuration."
   },
   "schemaForm": {
     "geoErrorGeneric": "Impossible d'obtenir votre position. Vérifiez que les services de localisation sont activés dans Réglages Système → Confidentialité et sécurité → Service de localisation, et que Safari a l'autorisation d'accéder à votre position.",

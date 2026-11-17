@@ -2283,7 +2283,8 @@
   },
   "wizardProvider": {
     "loadingSetupWizard": "Installatiewizard laden...",
-    "loading": "Laden..."
+    "loading": "Laden...",
+    "eligibilityFailed": "Je displays konden niet worden gecontroleerd. Controleer je verbinding en probeer de configuratie opnieuw."
   },
   "schemaForm": {
     "geoErrorGeneric": "Locatie ophalen mislukt. Controleer of Locatievoorzieningen zijn ingeschakeld in Systeeminstellingen → Privacy & Beveiliging → Locatievoorzieningen, en dat Safari toestemming heeft om je locatie te gebruiken.",
