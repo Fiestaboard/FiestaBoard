@@ -132,6 +132,18 @@ def report_records(records, *, errors=()):
                 or not started <= ended <= 6600 or started < previous_end):
             requests_valid = False
         previous_end = ended
+    drain_timing_valid = True
+    previous_end = 6600.0
+    for request in (r for r in requests if r.get("phase") == "drain"):
+        deadline, started, ended = (request.get(key) for key in ("scheduled_elapsed_s", "started_elapsed_s", "monotonic_elapsed_s"))
+        if not all(finite(value) for value in (deadline, started, ended)):
+            drain_timing_valid = False
+            continue
+        if (not 6600 <= deadline < 7200 or not deadline <= started <= deadline + 0.05 + 1e-9
+                or not started <= ended <= 7200 or started < previous_end):
+            drain_timing_valid = False
+        previous_end = ended
+    requests_valid = requests_valid and drain_timing_valid
     transitions_valid = len(activity_transitions) == 12 and len(drain_transitions) == 12
     for transitions, base in ((activity_transitions, 600), (drain_transitions, 6600)):
         targets = []
@@ -194,6 +206,7 @@ def report_records(records, *, errors=()):
                                          if active_minutes else None for slot in range(10)},
             "actual_rotation_event_count": None, "rotation_observability": "Configured cadence is not observed worker events; periodic board samples may alias a complete rotation",
             "resource_blocks": blocks, "transitions_valid": transitions_valid, "protocol_valid": protocol_valid,
+            "drain_timing_valid": drain_timing_valid,
             "resource_samples": len(resources), "gaps": len(gaps), "parse_errors": list(errors),
             "one_run": one_run, "requests_valid": requests_valid, "resources_valid": resources_valid,
             "actual_phase_observation_intervals": {phase: actual_phases[(phase, "end")] - actual_phases[(phase, "start")]

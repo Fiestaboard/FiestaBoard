@@ -196,6 +196,23 @@ class RuntimeReportTests(unittest.TestCase):
         self.assertEqual([b["delta_rss_bytes"] for b in blocks], [20000, 0])
         self.assertEqual([b["start_time_ticks"] for b in blocks], [100, 200])
 
+    def test_restore_timing_rejects_bursts_overlap_and_missing_actual_clocks(self):
+        # Declared1s deadlines do not prove that the twelve restores actually respected those arrivals.
+        for defect in ("burst", "overlap", "missing_clock"):
+            with self.subTest(defect=defect):
+                records = continuous_records()
+                restores = [r for r in records if r.get("phase") == "drain" and r.get("activity_kind") == "transition"]
+                if defect == "burst":
+                    for record in restores:
+                        record["started_elapsed_s"] = 6600
+                        record["monotonic_elapsed_s"] = 6600.1
+                elif defect == "overlap":
+                    restores[0]["monotonic_elapsed_s"] = 6601.5
+                    restores[0]["elapsed_ms"] = 1500
+                else:
+                    restores[4]["started_elapsed_s"] = None
+                self.assertFalse(report_records(records)["complete"])
+
 
 if __name__ == "__main__":
     unittest.main()

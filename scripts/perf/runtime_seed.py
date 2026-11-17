@@ -230,7 +230,8 @@ def validate_ownership(client, ownership, *, for_setup=True):
             or not isinstance(names, list) or not 1 <= len(names) <= 3):
         raise ProtocolError("Run context does not establish serialized PROD exclusion within three containers")
     lease = exclusion.get("browser_lease_owner")
-    if lease is not None and lease != task_id and not (isinstance(lease, str) and lease.startswith(task_id + "-")):
+    if lease is not None and lease != task_id and not (isinstance(lease, str) and lease.startswith(task_id + "-")
+                                                     and len(lease) > len(task_id) + 1):
         raise ProtocolError("Browser lease belongs to another task")
     if "fb-dev-hub" not in names or not container.get("image_id"):
         raise ProtocolError("Run context does not identify the single published-image hub")

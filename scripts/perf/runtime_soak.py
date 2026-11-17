@@ -419,6 +419,8 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
                  monotonic_elapsed_s=clock() - measurement_start)
     attempted, missed, successful, aborted = 0, 0, 0, False
     idle, ordinary, transition = 0, 0, 0
+    transition_indices = []
+    transition_first_started = transition_last_completed = recovery_first_started = None
     def required(index):
         return critical_slots(index) if callable(critical_slots) else index in critical_slots
     initial = True
@@ -488,13 +490,21 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
         attempted += 1
         transition += int(operation.kind == "transition")
         ordinary += int(operation.kind == "ordinary")
+        completed = clock()
+        if operation.kind == "transition":
+            transition_indices.append(index)
+            if transition_first_started is None:
+                transition_first_started = started
+            transition_last_completed = completed
+        elif phase == "drain" and transition_indices and recovery_first_started is None:
+            recovery_first_started = started
         successful += int(semantic_success)
         writer.write("request", phase=phase, operation=operation.name, geometry=operation.geometry, cache=operation.cache,
                      auth="browser-cookie", cycle=index // 10, cycle_slot=index % 10, batch=1,
                      activity_kind=operation.kind, transition_index=operation.transition_index, transition_target=operation.transition_target,
                      scheduled_elapsed_s=arrival["deadline"] - measurement_start, started_elapsed_s=started - measurement_start,
                      dispatch_lateness_ms=max(0, started - arrival["deadline"]) * 1000, dispatch_grace_seconds=dispatch_grace_seconds,
-                     monotonic_elapsed_s=clock() - measurement_start, elapsed_ms=result.elapsed_ms,
+                     monotonic_elapsed_s=completed - measurement_start, elapsed_ms=result.elapsed_ms,
                      http_status=result.status, bytes=result.body_bytes, semantic_success=semantic_success,
                      error=error, timed_out=result.timed_out, timeout_seconds=client.timeout,
                      request={"method": operation.method, "path": operation.path, "body": payload},
@@ -512,7 +522,10 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
     writer.write("phase", phase=phase, event="end", scheduled_elapsed_s=start + duration - measurement_start,
                  monotonic_elapsed_s=ended - measurement_start)
     return {"attempted": attempted, "missed": missed, "successful": successful, "aborted": aborted,
-            "actual_seconds": ended - start, "idle": idle, "ordinary": ordinary, "transition": transition}
+            "actual_seconds": ended - start, "idle": idle, "ordinary": ordinary, "transition": transition,
+            "transition_slot_window_seconds": (max(transition_indices) - min(transition_indices) + 1) * slot_seconds if transition_indices else None,
+            "transition_requests_observed_span_seconds": transition_last_completed - transition_first_started if transition_first_started is not None else None,
+            "readonly_recovery_observed_seconds": ended - recovery_first_started if recovery_first_started is not None else None}
 
 
 def soak_operations(manifest, geometry, ring_index, cycle):
@@ -553,10 +566,6 @@ def soak_operations(manifest, geometry, ring_index, cycle):
             operation("render_diagnostics"), operation("collection_dry_run"), operation("schedule_at_manual"), save, send, history]
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
-
-
 class SlotPacer:
     def __init__(self, start, duration, slot_seconds=1.0):
         if not all(math.isfinite(n) for n in (start, duration, slot_seconds)) or duration <= 0 or slot_seconds <= 0:
@@ -576,3 +585,7 @@ class SlotPacer:
             return {"slot": None, "deadline": None, "missed": missed}
         self.index = next_due + 1
         return {"slot": next_due, "deadline": self.start + next_due * self.slot_seconds, "missed": missed}
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

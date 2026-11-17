@@ -920,6 +920,21 @@ class RuntimeContractTests(unittest.TestCase):
         with self.assertRaises(ProtocolError):
             verify_manifest(JsonClient(data["base_url"], {}, transport=transport), data)
 
+    def test_browser_lease_prefix_requires_nonempty_owned_suffix(self):
+        # A bare task-id plus '-' is not a unique owned lease token.
+        for lease in ("prod-test", "prod-test-owned", "prod-test-"):
+            with self.subTest(lease=lease):
+                context = run_context()
+                context["exclusion"]["browser_lease_owner"] = lease
+                transport = MemoryTransport({("GET", "/api/auth/status"): HttpResult(
+                    200, {"enabled": True, "mode": "enabled", "setup_required": False})})
+                client = JsonClient("http://hub.invalid:3000", {}, transport=transport, run_context=context)
+                with tempfile.TemporaryDirectory() as directory:
+                    with self.assertRaises(ProtocolError):
+                        seed(client, ownership(), Path(directory))
+                expected = [] if lease == "prod-test-" else [("GET", "/api/auth/status")]
+                self.assertEqual([item[:2] for item in transport.exchanges], expected)
+
 
 if __name__ == "__main__":
     unittest.main()

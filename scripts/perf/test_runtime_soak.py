@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from contextlib import redirect_stderr
 import io
 import hashlib
+import runpy
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
@@ -529,6 +530,67 @@ class SoakContractTests(unittest.TestCase):
                     "--manifest", str(root / "manifest.json"), "--anchor", str(root / "anchor.json"),
                     "--collector-ready", str(root / "ready.json"), "--out-dir", str(root / "out")])
         self.assertEqual(code, 2)
+
+    def test_transition_span_and_readonly_recovery_are_actual_separate_durations(self):
+        # Twelve reserved control seconds are not twelve seconds of completed request span or readonly recovery.
+        clock = ManualClock()
+        def transport(*args):
+            clock.now += 0.1
+            return HttpResult(200, {}, elapsed_ms=100)
+        client = JsonClient("http://hub.invalid:3000", {}, transport=transport)
+        status = ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", None, lambda body: None)
+        transition = ApiOperation("cadence_restore", "all", "control", "PUT", "/api/v1/collections/c", {}, lambda body: None,
+                                  kind="transition", abort_on_failure=True)
+        def transform(operation, index, deadline):
+            return transition if index < 12 else status if (index - 12) % 5 == 0 else None
+        with tempfile.TemporaryDirectory() as directory:
+            writer = JsonlWriter(Path(directory) / "run.jsonl", "unit-run")
+            try:
+                report = run_phase(client, [status] * 10, writer, phase="drain", start=100, duration=20,
+                    slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100, slot_transform=transform,
+                    critical_slots=range(12))
+            finally:
+                writer.close()
+        self.assertEqual(report.get("transition_slot_window_seconds"), 12)
+        self.assertAlmostEqual(report.get("transition_requests_observed_span_seconds", -1), 11.1)
+        self.assertAlmostEqual(report.get("readonly_recovery_observed_seconds", -1), 8)
+
+    def test_actual_direct_script_entry_runs_bounded_readonly_diagnostic(self):
+        # Import-based tests missed an entrypoint above SlotPacer's definition.
+        clock = ManualClock()
+        data, transport = fixture(), fixture_transport(fixture())
+        transport.responses[("POST", "/api/auth/login")] = HttpResult(200, {"status": "ok", "username": "perf"})
+        context = run_context()
+        context["run_id"] = "unit-run"
+        client = JsonClient(data["base_url"], {"username": "perf", "password": "password-secret"},
+                            transport=transport, run_context=context)
+        anchor = {"schema_version": 1, "run_id": "unit-run", "boot_id": "boot-a", "pid_namespace": "pid:[100]", "start_monotonic": 100}
+        ready = {**anchor, "api_cmdline": "uvicorn src.api_server:app", "api_pid": 42, "api_start_time_ticks": 123}
+        original_read = Path.read_text
+        def read_text(path, *args, **kwargs):
+            if str(path) == "/proc/sys/kernel/random/boot_id":
+                return "boot-a\n"
+            return original_read(path, *args, **kwargs)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "anchor.json").write_text(json.dumps(anchor))
+            (root / "ready.json").write_text(json.dumps(ready))
+            script = Path(__file__).with_name("runtime_soak.py")
+            argv = [str(script), "--base-url", data["base_url"], "--credentials", str(root / "credentials.json"),
+                    "--ownership", str(root / "owner.json"), "--run-context", str(root / "context.json"),
+                    "--manifest", str(root / "manifest.json"), "--anchor", str(root / "anchor.json"),
+                    "--collector-ready", str(root / "ready.json"), "--out-dir", str(root / "out"),
+                    "--diagnostic-phase-seconds", "1", "10", "1", "--diagnostic-only"]
+            with patch("runtime_seed.load_inputs", return_value=(client, ownership(), data)), patch("sys.argv", argv), \
+                 patch("time.monotonic", clock), patch("time.sleep", clock.sleep), patch.object(Path, "read_text", read_text), \
+                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as exited:
+                    runpy.run_path(str(script), run_name="__main__")
+            self.assertEqual(exited.exception.code, 0)
+            report = json.loads((root / "out/driver-summary.json").read_text())
+        self.assertTrue(report["diagnostic"])
+        self.assertFalse(report["complete"])
+        self.assertEqual(report["activity_requests"], 10)
 
 
 if __name__ == "__main__":
