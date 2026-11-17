@@ -50,9 +50,9 @@ import { toast } from "sonner";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { defaultScheduleView, type ScheduleView } from "@/components/schedule/schedule-agenda";
+import { ScheduleEntryAdapter as ScheduleEntryForm } from "@/components/schedule/schedule-entry-adapter";
 import { ScheduleWorkspace } from "@/components/schedule/schedule-workspace";
 import { type ScheduleFormHandle, useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
-import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import Link from "@/components/smart-link";
 import { RAIL_BREAKPOINT, useBelowRail } from "@/hooks/use-below-rail";
 import { queryKeys } from "@/hooks/use-board";
@@ -70,6 +70,7 @@ import {
   type SilenceMode,
 } from "@/lib/api";
 import { extractTimeFromDate, getDayNameFromDate, type ResolvedSilenceSchedule } from "@/lib/schedule-calendar";
+import { scheduleTimezone } from "@/lib/schedule-timezone";
 import { resolveSilenceConfig } from "@/lib/silence-config";
 import { utcToLocalTime } from "@/lib/timezone-utils";
 import { cn } from "@/lib/utils";
@@ -270,7 +271,8 @@ export default function SchedulePage() {
     queryFn: api.getAllSettings,
   });
 
-  const timezone = allSettings?.general?.timezone ?? "America/Los_Angeles";
+  const timezoneInfo = scheduleTimezone(allSettings?.general?.timezone);
+  const timezone = timezoneInfo.zone;
   const resolvedSilenceSchedule = useMemo<ResolvedSilenceSchedule | null>(() => {
     // Silence settings are board-scoped even for single-board installs.
     const config = resolveSilenceConfig(allSettings?.silence_schedule?.config, currentBoardId || undefined);
@@ -399,6 +401,46 @@ export default function SchedulePage() {
       });
     } else {
       await createSchedule.mutateAsync(data as ScheduleCreate);
+    }
+  };
+
+  const handleRepair = async (entry: ScheduleEntry, startTime: string) => {
+    const boardId = entry.board_id || currentBoardId || undefined;
+    const invalidate = () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage() });
+    };
+    try {
+      const changed = await api.updateSchedule(entry.id, {
+        start_time: startTime,
+        board_id: boardId,
+        ...(entry.edit_protocol === "schedule-revision-v1" && entry.revision
+          ? { expected_revision: entry.revision }
+          : {}),
+      });
+      invalidate();
+      toast.success(tAgenda("repaired"), {
+        duration: 6000,
+        action: {
+          label: tAgenda("undo"),
+          onClick: async () => {
+            try {
+              await api.updateSchedule(entry.id, {
+                start_time: entry.start_time,
+                board_id: boardId,
+                ...(changed.edit_protocol === "schedule-revision-v1" && changed.revision
+                  ? { expected_revision: changed.revision }
+                  : {}),
+              });
+              invalidate();
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : tAgenda("repairFailed"));
+            }
+          },
+        },
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : tAgenda("repairFailed"));
     }
   };
 
@@ -761,40 +803,52 @@ export default function SchedulePage() {
         )}
 
         <Box className="mt-5" {...anchorProps("schedule.root")}>
-          <ScheduleWorkspace
-            key={effectiveBoardId ?? "default"}
-            view={viewMode}
-            schedules={schedules}
-            pages={pages}
-            collections={collectionsData?.collections ?? []}
-            boardId={effectiveBoardId}
-            boardName={currentBoard?.name}
-            timezone={timezone}
-            defaultPageId={defaultPageId}
-            gaps={validation?.gaps}
-            overlaps={validation?.overlaps}
-            silenceSchedule={resolvedSilenceSchedule}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onToggleEnabled={handleToggleEnabled}
-            onSilenceClick={handleSilenceClick}
-            onCreate={handleSlotSelect}
-            legacyCalendar={
-              <Box className="h-[36rem]">
-                <ScheduleCalendarView
-                  schedules={schedules}
-                  pages={pages}
-                  collections={collectionsData?.collections}
-                  overlaps={validation?.overlaps}
-                  silenceSchedule={resolvedSilenceSchedule}
-                  onEventClick={handleEventClick}
-                  onSlotSelect={handleSlotSelect}
-                  onEventTimeChange={handleEventTimeChange}
-                  onSilenceClick={handleSilenceClick}
-                />
-              </Box>
-            }
-          />
+          {allSettings ? (
+            <>
+              {timezoneInfo.fallback && (
+                <Text role="status" size="sm" tone="muted">
+                  {t("lookup.timezoneFallback")}
+                </Text>
+              )}
+              <ScheduleWorkspace
+                key={`${effectiveBoardId ?? "default"}:${timezone}`}
+                view={viewMode}
+                schedules={schedules}
+                pages={pages}
+                collections={collectionsData?.collections ?? []}
+                boardId={effectiveBoardId}
+                boardName={currentBoard?.name}
+                timezone={timezone}
+                defaultPageId={defaultPageId}
+                gaps={validation?.gaps}
+                overlaps={validation?.overlaps}
+                silenceSchedule={resolvedSilenceSchedule}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onToggleEnabled={handleToggleEnabled}
+                onRepair={handleRepair}
+                onSilenceClick={handleSilenceClick}
+                onCreate={handleSlotSelect}
+                legacyCalendar={
+                  <Box className="h-[36rem]">
+                    <ScheduleCalendarView
+                      schedules={schedules}
+                      pages={pages}
+                      collections={collectionsData?.collections}
+                      overlaps={validation?.overlaps}
+                      silenceSchedule={resolvedSilenceSchedule}
+                      onEventClick={handleEventClick}
+                      onSlotSelect={handleSlotSelect}
+                      onEventTimeChange={handleEventTimeChange}
+                      onSilenceClick={handleSilenceClick}
+                    />
+                  </Box>
+                }
+              />
+            </>
+          ) : (
+            <Skeleton className="h-64 w-full" />
+          )}
         </Box>
       </Box>
 

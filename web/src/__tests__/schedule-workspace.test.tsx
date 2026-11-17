@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 
@@ -76,21 +76,35 @@ describe("Schedule workspace", () => {
       ),
     );
     setup([{ ...entry, start_time: "00:00", end_time: "23:59" }], { view: "day" });
-    expect(await screen.findByText("Now")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { current: "time" })).toHaveTextContent("Now");
   });
 });
 
 it("navigates weeks and day chips without rewriting the stored recurrence", () => {
   setup([entry], { view: "day" });
-  const today = screen.getByRole("radio", { checked: true }).textContent;
+  const today = within(screen.getByRole("radiogroup", { name: "Choose a day" })).getByRole("radio", {
+    checked: true,
+  }).textContent;
   fireEvent.click(screen.getByRole("button", { name: "Next week" }));
-  expect(screen.getByRole("radio", { checked: true }).textContent).not.toBe(today);
+  expect(
+    within(screen.getByRole("radiogroup", { name: "Choose a day" })).getByRole("radio", { checked: true }).textContent,
+  ).not.toBe(today);
   fireEvent.click(screen.getByRole("button", { name: "Previous week" }));
-  expect(screen.getByRole("radio", { checked: true }).textContent).toBe(today);
-  fireEvent.click(screen.getAllByRole("radio").find((radio) => radio.getAttribute("aria-checked") === "false")!);
-  expect(screen.getByRole("radio", { checked: true }).textContent).not.toBe(today);
+  expect(
+    within(screen.getByRole("radiogroup", { name: "Choose a day" })).getByRole("radio", { checked: true }).textContent,
+  ).toBe(today);
+  fireEvent.click(
+    within(screen.getByRole("radiogroup", { name: "Choose a day" }))
+      .getAllByRole("radio")
+      .find((radio) => radio.getAttribute("aria-checked") === "false")!,
+  );
+  expect(
+    within(screen.getByRole("radiogroup", { name: "Choose a day" })).getByRole("radio", { checked: true }).textContent,
+  ).not.toBe(today);
   fireEvent.click(screen.getByRole("button", { name: "Today" }));
-  expect(screen.getByRole("radio", { checked: true }).textContent).toBe(today);
+  expect(
+    within(screen.getByRole("radiogroup", { name: "Choose a day" })).getByRole("radio", { checked: true }).textContent,
+  ).toBe(today);
 });
 it("shows hub conflict words and retains the quiet-hours action and default gaps", () => {
   const props = setup([entry], {

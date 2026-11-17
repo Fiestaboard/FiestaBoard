@@ -18,6 +18,22 @@ import DisplaysPage from "../../app/routes/displays._index";
 import DisplayPage from "../../app/routes/displays.$boardId";
 import outputs from "../../src/__tests__/mocks/first-party-outputs.json";
 
+const panel = {
+  id: "p1",
+  name: "Living room TV",
+  short_code: 1,
+  board_id: "tv",
+  screen_diagonal_inches: 55,
+  screen_aspect_w: 16,
+  screen_aspect_h: 9,
+  calibration_scale: 1,
+  animations_enabled: false,
+  is_display: false,
+  render_style: "split_flap",
+  auto_dim: { enabled: false, start: "22:00", end: "07:00" },
+  rows: 12,
+  cols: 29,
+};
 const boards = [
   {
     id: "kitchen",
@@ -34,6 +50,16 @@ const boards = [
     device_type: "flagship",
     board_color: "black",
     output: "vestaboard",
+    paused: false,
+  },
+  { id: "fridge", name: "Fridge note", device_type: "note", board_color: "black", output: "vestaboard", paused: false },
+  {
+    id: "tv",
+    name: "Living room TV",
+    device_type: "panel",
+    grid_rows: 12,
+    grid_cols: 29,
+    output: "fiestapanel",
     paused: false,
   },
   {
@@ -76,7 +102,7 @@ window.fetch = async (input, init) => {
     };
   else if (path === "/outputs") value = outputs;
   else if (path === "/outputs/available") value = [];
-  else if (path === "/pages")
+  else if (path === "/v1/pages")
     value = {
       pages: [
         { id: "evening", name: "Evening commute" },
@@ -84,21 +110,53 @@ window.fetch = async (input, init) => {
       ],
       total: 2,
     };
-  else if (path === "/panels") value = { panels: [], total: 0 };
+  else if (path === "/panels") value = { panels: [panel], total: 1 };
+  else if (path === "/panels/p1") {
+    if (init?.method === "PATCH") Object.assign(panel, JSON.parse(String(init.body)));
+    value = { ...panel, incompatible_references: null };
+  } else if (path === "/auth/sessions") value = { sessions: [], total: 0 };
   else if (path === "/plugins") value = { plugins: [], total: 0 };
-  else if (path === "/settings/all") value = { display: {}, general: {} };
+  else if (path === "/settings/all")
+    value = {
+      display: {},
+      general: { timezone: "America/Los_Angeles" },
+      silence_schedule: { config: { enabled: true, start_time: "06:00", end_time: "15:00", mode: "indicator" } },
+    };
   else if (path.startsWith("/silence")) value = { active: false, enabled: false };
-  else if (path.endsWith("/current-message"))
-    value = { message: "GOOD EVENING\n64 CLEAR", characters: [[1]], expected_characters: [[1]], rows: 6, cols: 22 };
-  else if (path.startsWith("/v1/boards/")) {
+  else if (path.endsWith("/current-message")) {
+    const id = url.searchParams.get("board_id");
+    const board = boards.find((item) => item.id === id);
+    const rows = board?.grid_rows ?? (board?.device_type === "note" ? 3 : 6);
+    const cols = board?.grid_cols ?? (board?.device_type === "note" ? 15 : 22);
+    const expected = id === "fridge" ? "EVENING COMMUTE" : "GOOD EVENING\nCLEAR";
+    const actual = id === "fridge" ? "HELLO FRIDGE" : expected;
+    const encode = (text: string) => {
+      const lines = text.split("\n");
+      return Array.from({ length: rows }, (_, row) =>
+        Array.from({ length: cols }, (_, col) => {
+          const code = (lines[row]?.[col]?.charCodeAt(0) ?? 64) - 64;
+          return code >= 1 && code <= 26 ? code : 0;
+        }),
+      );
+    };
+    value = {
+      message: actual,
+      characters: encode(actual),
+      expected_characters: encode(expected),
+      api_mode: "local",
+      rows,
+      cols,
+    };
+  } else if (path.startsWith("/v1/boards/")) {
     const board = boards.find((item) => item.id === path.split("/")[3]);
     if (board && init?.method === "PATCH") Object.assign(board, JSON.parse(String(init.body)));
     value = {
       ...board,
       resolved_page_id: "evening",
-      next_change_at: "2026-11-16T21:00:00Z",
+      next_change_at: "2026-11-17T05:00:00Z",
       next_change_reason: "schedule",
       next_page_id: "night",
+      ...(board?.id === "desk" ? { override_expires_at: "2026-11-17T05:00:00Z" } : {}),
     };
   }
   return Response.json(value);

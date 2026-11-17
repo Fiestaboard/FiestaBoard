@@ -50,12 +50,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
   Skeleton,
   Stack,
   Switch,
@@ -116,6 +110,7 @@ import {
   Check,
   CheckCircle,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ChevronsUp,
   ChevronUp,
@@ -278,6 +273,8 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
+import { IntegrationBoardPreview } from "@/components/integrations/integration-board-preview";
+import { IntegrationReadme } from "@/components/integrations/integration-readme";
 import { GitInstallFields, useGitPluginInstall } from "@/components/plugin-git-install";
 import { PluginProvenance } from "@/components/plugin-provenance";
 import {
@@ -1027,8 +1024,8 @@ interface InstalledPluginRowProps {
   onUpdate?: (pluginId: string) => void;
   isUninstalling?: boolean;
   isUpdating?: boolean;
-  /** Open the settings sheet on mount: the row an OAuth sign-in just returned to. */
-  initiallyOpen?: boolean;
+  fullPage?: boolean;
+  registryEntry?: RegistryEntry;
   connection?: OAuthConnection;
   desktop?: boolean;
   selected?: boolean;
@@ -1090,7 +1087,7 @@ function SortHeaderButton({
   );
 }
 
-function InstalledPluginRow({
+export function InstalledPluginRow({
   plugin,
   onToggle,
   isToggling,
@@ -1099,18 +1096,25 @@ function InstalledPluginRow({
   onUpdate,
   isUninstalling,
   isUpdating,
-  initiallyOpen = false,
+  fullPage = false,
+  registryEntry,
   connection,
   desktop = false,
   selected = false,
   onSelect,
   detailTarget,
 }: InstalledPluginRowProps) {
-  const [sheetOpen, setSheetOpen] = useState(initiallyOpen);
-  const isConfigOpen = desktop ? selected : sheetOpen;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [detailTab, setDetailTab] = useState(() => {
+    if (!fullPage) return "settings";
+    const tab = searchParams.get("tab");
+    return tab === "variables" || tab === "readme" ? tab : "settings";
+  });
+  const isConfigOpen = fullPage || (desktop && selected);
   const setIsConfigOpen = (open: boolean) => {
-    if (desktop) onSelect?.(open ? plugin.id : "");
-    else setSheetOpen(open);
+    if (fullPage && !open) router.push("/integrations?tab=installed");
+    else onSelect?.(open ? plugin.id : "");
   };
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -1378,6 +1382,7 @@ function InstalledPluginRow({
       await api.deletePluginInstance(baseId, label);
       toast.success(`Instance "${label}" deleted`);
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      if (fullPage) router.push("/integrations?tab=installed");
     } catch (err) {
       toast.error(`Failed to delete instance: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
@@ -1385,8 +1390,8 @@ function InstalledPluginRow({
     }
   }
 
-  // One settings body: the same queries, schema, OAuth, variables and color
-  // rules live in a desktop detail panel or a narrow-screen sheet.
+  // One supported detail body: the same schema, OAuth, variables, colors and
+  // mutation state serve the selected desktop pane and installed detail route.
   const configContent = (
     <>
       <Flex gap="2" align="center" wrap className="mt-3">
@@ -1402,179 +1407,232 @@ function InstalledPluginRow({
           )}
         </Badge>
       </Flex>
-      <Stack gap="6" className="py-6">
-        {isLoadingDetails ? (
-          <Stack gap="4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </Stack>
-        ) : (
-          <>
-            {/* Demo Page Section */}
-            {pluginDetails?.has_demo && (
-              <Stack gap="3" className="rounded-lg border bg-muted/30 p-4">
-                <Flex align="center" justify="between">
-                  <Box>
-                    <Heading level={4} size="sm" className="font-medium">
-                      {t("demoPage.title")}
-                    </Heading>
-                    <Text size="xs" tone="muted" className="mt-0.5">
-                      {pluginDetails.demo_page_id ? t("demoPage.alreadyExists") : t("demoPage.createDescription")}
-                    </Text>
-                  </Box>
-                  {pluginDetails.demo_page_id ? (
-                    <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={!areDemoRequirementsMet() || isCreatingDemo}>
-                          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                          {t("demoPage.recreateButton")}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
-                          <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                          <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
-                            {tCommon("cancel")}
-                          </Button>
-                          <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
-                            {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  ) : (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleCreateDemoPage}
-                      disabled={!areDemoRequirementsMet() || isCreatingDemo}
-                    >
-                      <Play className="h-3.5 w-3.5 mr-1.5" />
-                      {isCreatingDemo ? t("demoPage.creating") : t("demoPage.createAction")}
-                    </Button>
-                  )}
-                </Flex>
-                {!areDemoRequirementsMet() && (
-                  <Text size="xs" tone="warning">
-                    {t("demoPage.requirementsWarning")}
-                  </Text>
-                )}
-              </Stack>
-            )}
-
-            {/* Renders nothing unless the plugin's manifest declares OAuth. */}
-            <OAuthConnectionSection
-              pluginId={plugin.id}
-              appFields={{
-                values: configValues,
-                onChange: (key, value) => setConfigValues((current) => ({ ...current, [key]: value })),
-                save: saveConfigForSignIn,
-                setupGuideUrl,
-              }}
-            />
-
-            {/* Settings Section */}
-            {Object.keys(formSchema.properties).length > 0 && (
+      <Tabs
+        value={detailTab}
+        onValueChange={(value) => {
+          if (!fullPage && value === "readme") {
+            router.push(`/integrations/${encodeURIComponent(plugin.id)}?from=installed&tab=readme`);
+            return;
+          }
+          setDetailTab(value);
+          if (fullPage)
+            router.replace(`/integrations/${encodeURIComponent(plugin.id)}?from=installed&tab=${value}`, {
+              scroll: false,
+            });
+        }}
+      >
+        <TabsList aria-label={t("detailTabs")} className="mt-4 max-w-full">
+          <TabsTrigger value="settings">{t("settingsSection")}</TabsTrigger>
+          <TabsTrigger value="variables">{t("variablesTab")}</TabsTrigger>
+          <TabsTrigger value="readme">{t("readmeTab")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="settings">
+          {fullPage && <IntegrationBoardPreview entry={registryEntry} />}
+          <Stack gap="6" className="py-6">
+            {isLoadingDetails ? (
               <Stack gap="4">
-                <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                  {t("settingsSection")}
-                </Heading>
-                <SchemaForm
-                  schema={formSchema}
-                  values={configValues}
-                  onChange={setConfigValues}
-                  disabled={isSaving}
-                  // Lets `remote-options` fields ask this plugin — and only
-                  // this plugin — for their catalogs.
-                  pluginId={plugin.id}
-                />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
               </Stack>
-            )}
+            ) : (
+              <>
+                {/* Demo Page Section */}
+                {pluginDetails?.has_demo && (
+                  <Stack gap="3" className="rounded-lg border bg-muted/30 p-4">
+                    <Flex align="center" justify="between">
+                      <Box>
+                        <Heading level={4} size="sm" className="font-medium">
+                          {t("demoPage.title")}
+                        </Heading>
+                        <Text size="xs" tone="muted" className="mt-0.5">
+                          {pluginDetails.demo_page_id ? t("demoPage.alreadyExists") : t("demoPage.createDescription")}
+                        </Text>
+                      </Box>
+                      {pluginDetails.demo_page_id ? (
+                        <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" disabled={!areDemoRequirementsMet() || isCreatingDemo}>
+                              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                              {t("demoPage.recreateButton")}
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
+                              <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
+                                {tCommon("cancel")}
+                              </Button>
+                              <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
+                                {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      ) : (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleCreateDemoPage}
+                          disabled={!areDemoRequirementsMet() || isCreatingDemo}
+                        >
+                          <Play className="h-3.5 w-3.5 mr-1.5" />
+                          {isCreatingDemo ? t("demoPage.creating") : t("demoPage.createAction")}
+                        </Button>
+                      )}
+                    </Flex>
+                    {!areDemoRequirementsMet() && (
+                      <Text size="xs" tone="warning">
+                        {t("demoPage.requirementsWarning")}
+                      </Text>
+                    )}
+                  </Stack>
+                )}
 
-            {/* Template Variables Section */}
-            {variableRows.length > 0 && (
-              <TooltipProvider delayDuration={200}>
-                <Stack gap="3">
-                  <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                    {t("templateVariablesSection")}
-                    <Text as="span" size="xs" tone="muted" className="ml-2">
-                      ({t("templateVariablesClickToCopy")})
-                    </Text>
-                  </Heading>
-                  {!plugin.enabled && (
-                    <Text size="xs" tone="muted" className="italic">
-                      {t("enablePluginForLiveValues")}
-                    </Text>
-                  )}
-                  {plugin.enabled && pluginData && pluginData.available === false && (
-                    <Text size="xs" tone="warning">
-                      {pluginData.error
-                        ? t("liveValuesUnavailableWithError", { error: pluginData.error })
-                        : t("liveValuesUnavailable")}
-                    </Text>
-                  )}
-                  <Box className="rounded-md border overflow-hidden">
-                    <Table className="text-xs">
-                      <TableHeader className="bg-muted/50">
-                        <TableRow>
-                          <TableHead className="text-left px-3 py-2 font-medium h-auto">
-                            {t("variableColumn")}
-                          </TableHead>
-                          <TableHead className="text-left px-3 py-2 font-medium h-auto">
-                            {t("descriptionColumn")}
-                          </TableHead>
-                          <TableHead className="text-left px-3 py-2 font-medium h-auto">
-                            {t("currentValueColumn")}
-                            {plugin.enabled && isFetchingPluginData && !isLoadingPluginData && (
-                              <Text as="span" size="xs" tone="muted" className="ml-1.5 text-[10px] font-normal">
-                                ({t("refreshingValues")})
-                              </Text>
-                            )}
-                          </TableHead>
-                          <TableHead className="text-center px-3 py-2 font-medium h-auto">{t("maxColumn")}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody className="divide-y">
-                        {hasVariableGroups
-                          ? groupVariableRows(variableRows, variableGroups, "General").map((section) => (
-                              <Fragment key={section.groupId ?? "__general__"}>
-                                <TableRow className="bg-muted/40">
-                                  <TableHead
-                                    scope="colgroup"
-                                    colSpan={4}
-                                    className="text-left px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground h-auto"
-                                  >
-                                    {section.label}
-                                  </TableHead>
-                                </TableRow>
-                                {section.rows.map(renderVariableRow)}
-                              </Fragment>
-                            ))
-                          : variableRows.map(renderVariableRow)}
-                      </TableBody>
-                    </Table>
-                  </Box>
-                  <Text size="xs" tone="muted">
-                    {t.rich("useInTemplates", {
-                      example: () => (
-                        <CodeChip className="bg-muted px-1 py-0 rounded">{`{{${plugin.id}.variable}}`}</CodeChip>
-                      ),
-                    })}
-                  </Text>
-                </Stack>
-              </TooltipProvider>
-            )}
+                {/* Renders nothing unless the plugin's manifest declares OAuth. */}
+                <OAuthConnectionSection
+                  pluginId={plugin.id}
+                  appFields={{
+                    values: configValues,
+                    onChange: (key, value) => setConfigValues((current) => ({ ...current, [key]: value })),
+                    save: saveConfigForSignIn,
+                    setupGuideUrl,
+                  }}
+                />
 
-            {/* Environment Variables Section */}
-            {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
+                {/* Settings Section */}
+                {Object.keys(formSchema.properties).length > 0 && (
+                  <Stack gap="4">
+                    <Heading level={4} size="sm" className="font-medium text-muted-foreground">
+                      {t("settingsSection")}
+                    </Heading>
+                    <SchemaForm
+                      schema={formSchema}
+                      values={configValues}
+                      onChange={setConfigValues}
+                      disabled={isSaving}
+                      // Lets `remote-options` fields ask this plugin — and only
+                      // this plugin — for their catalogs.
+                      pluginId={plugin.id}
+                    />
+                  </Stack>
+                )}
+
+                {/* Environment Variables Section */}
+                {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
+                  <Stack gap="3">
+                    <Heading level={4} size="sm" className="font-medium text-muted-foreground">
+                      {t("environmentVariablesSection")}
+                    </Heading>
+                    <Box className="rounded-md border overflow-hidden">
+                      <Table className="text-xs">
+                        <TableHeader className="bg-muted/50">
+                          <TableRow>
+                            <TableHead className="text-left px-3 py-2 font-medium h-auto">
+                              {t("variableColumn")}
+                            </TableHead>
+                            <TableHead className="text-left px-3 py-2 font-medium h-auto">
+                              {t("descriptionColumn")}
+                            </TableHead>
+                            <TableHead className="text-center px-3 py-2 font-medium h-auto">
+                              {t("requiredBadge")}
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody className="divide-y">
+                          {pluginDetails.env_vars.map((envVar) => (
+                            <TableRow key={envVar.name} className="hover:bg-muted/30">
+                              <TableCell className="px-3 py-2">
+                                <CodeChip>{envVar.name}</CodeChip>
+                              </TableCell>
+                              <TableCell className="px-3 py-2 text-muted-foreground">{envVar.description}</TableCell>
+                              <TableCell className="px-3 py-2 text-center">
+                                {envVar.required ? (
+                                  <Badge variant="destructive" className="text-[10px]">
+                                    {t("requiredBadge")}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {t("optionalBadge")}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Box>
+                  </Stack>
+                )}
+
+                {/* Color Rules Section */}
+                <ColorRulesEditor
+                  pluginId={plugin.id}
+                  colorRules={(configValues.color_rules as ColorRulesConfig) || {}}
+                  onChange={(newRules) => {
+                    setConfigValues((prev) => ({ ...prev, color_rules: newRules }));
+                  }}
+                  onVarCopied={handleVarCopied}
+                />
+
+                {/* No config message */}
+                {(!pluginDetails?.settings_schema ||
+                  Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
+                  variableRows.length === 0 && <Text tone="muted">{t("noConfigOptions")}</Text>}
+              </>
+            )}
+          </Stack>
+          <Flex gap="2" wrap className="justify-end">
+            {canUninstall && onUninstall && (
+              <Button
+                variant="destructive"
+                className="sm:mr-auto"
+                size="sm"
+                onClick={() => {
+                  setIsConfigOpen(false);
+                  onUninstall(plugin.id);
+                }}
+                disabled={isUninstalling}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                {isUninstalling ? "Uninstalling..." : "Uninstall"}
+              </Button>
+            )}
+            <Button variant="outline" disabled={isSaving} onClick={() => setIsConfigOpen(false)}>
+              {tCommon("cancel")}
+            </Button>
+            <Button onClick={handleSaveConfig} disabled={isSaving || isLoadingDetails}>
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+          </Flex>
+        </TabsContent>
+        <TabsContent value="variables" className="py-4 min-w-0 overflow-x-auto">
+          {isLoadingDetails && <Skeleton className="h-24 w-full" />}
+          {/* Template Variables Section */}
+          {variableRows.length > 0 && (
+            <TooltipProvider delayDuration={200}>
               <Stack gap="3">
                 <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                  {t("environmentVariablesSection")}
+                  {t("templateVariablesSection")}
+                  <Text as="span" size="xs" tone="muted" className="ml-2">
+                    ({t("templateVariablesClickToCopy")})
+                  </Text>
                 </Heading>
+                {!plugin.enabled && (
+                  <Text size="xs" tone="muted" className="italic">
+                    {t("enablePluginForLiveValues")}
+                  </Text>
+                )}
+                {plugin.enabled && pluginData && pluginData.available === false && (
+                  <Text size="xs" tone="warning">
+                    {pluginData.error
+                      ? t("liveValuesUnavailableWithError", { error: pluginData.error })
+                      : t("liveValuesUnavailable")}
+                  </Text>
+                )}
                 <Box className="rounded-md border overflow-hidden">
                   <Table className="text-xs">
                     <TableHeader className="bg-muted/50">
@@ -1583,129 +1641,246 @@ function InstalledPluginRow({
                         <TableHead className="text-left px-3 py-2 font-medium h-auto">
                           {t("descriptionColumn")}
                         </TableHead>
-                        <TableHead className="text-center px-3 py-2 font-medium h-auto">{t("requiredBadge")}</TableHead>
+                        <TableHead className="text-left px-3 py-2 font-medium h-auto">
+                          {t("currentValueColumn")}
+                          {plugin.enabled && isFetchingPluginData && !isLoadingPluginData && (
+                            <Text as="span" size="xs" tone="muted" className="ml-1.5 text-[10px] font-normal">
+                              ({t("refreshingValues")})
+                            </Text>
+                          )}
+                        </TableHead>
+                        <TableHead className="text-center px-3 py-2 font-medium h-auto">{t("maxColumn")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody className="divide-y">
-                      {pluginDetails.env_vars.map((envVar) => (
-                        <TableRow key={envVar.name} className="hover:bg-muted/30">
-                          <TableCell className="px-3 py-2">
-                            <CodeChip>{envVar.name}</CodeChip>
-                          </TableCell>
-                          <TableCell className="px-3 py-2 text-muted-foreground">{envVar.description}</TableCell>
-                          <TableCell className="px-3 py-2 text-center">
-                            {envVar.required ? (
-                              <Badge variant="destructive" className="text-[10px]">
-                                {t("requiredBadge")}
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[10px]">
-                                {t("optionalBadge")}
-                              </Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {hasVariableGroups
+                        ? groupVariableRows(variableRows, variableGroups, "General").map((section) => (
+                            <Fragment key={section.groupId ?? "__general__"}>
+                              <TableRow className="bg-muted/40">
+                                <TableHead
+                                  scope="colgroup"
+                                  colSpan={4}
+                                  className="text-left px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground h-auto"
+                                >
+                                  {section.label}
+                                </TableHead>
+                              </TableRow>
+                              {section.rows.map(renderVariableRow)}
+                            </Fragment>
+                          ))
+                        : variableRows.map(renderVariableRow)}
                     </TableBody>
                   </Table>
                 </Box>
+                <Text size="xs" tone="muted">
+                  {t.rich("useInTemplates", {
+                    example: () => (
+                      <CodeChip className="bg-muted px-1 py-0 rounded">{`{{${plugin.id}.variable}}`}</CodeChip>
+                    ),
+                  })}
+                </Text>
               </Stack>
-            )}
+            </TooltipProvider>
+          )}
 
-            {/* Color Rules Section */}
-            <ColorRulesEditor
-              pluginId={plugin.id}
-              colorRules={(configValues.color_rules as ColorRulesConfig) || {}}
-              onChange={(newRules) => {
-                setConfigValues((prev) => ({ ...prev, color_rules: newRules }));
-              }}
-              onVarCopied={handleVarCopied}
-            />
-
-            {/* No config message */}
-            {(!pluginDetails?.settings_schema ||
-              Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
-              variableRows.length === 0 && <Text tone="muted">{t("noConfigOptions")}</Text>}
-          </>
-        )}
-      </Stack>
-      <Flex gap="2" wrap className="justify-end">
-        {canUninstall && onUninstall && (
-          <Button
-            variant="destructive"
-            className="sm:mr-auto"
-            size="sm"
-            onClick={() => {
-              setIsConfigOpen(false);
-              onUninstall(plugin.id);
-            }}
-            disabled={isUninstalling}
-          >
-            <Trash2 className="h-3.5 w-3.5 mr-1" />
-            {isUninstalling ? "Uninstalling..." : "Uninstall"}
-          </Button>
-        )}
-        <Button variant="outline" disabled={isSaving} onClick={() => setIsConfigOpen(false)}>
-          {tCommon("cancel")}
-        </Button>
-        <Button onClick={handleSaveConfig} disabled={isSaving || isLoadingDetails}>
-          {isSaving ? "Saving..." : "Save Changes"}
-        </Button>
-      </Flex>
+          {!isLoadingDetails && variableRows.length === 0 && <Text tone="muted">{t("noVariables")}</Text>}
+        </TabsContent>
+        <TabsContent value="readme" className="py-4">
+          <IntegrationReadme
+            pluginId={plugin.id}
+            repository={repositoryUrl}
+            branch={registryEntry?.branch}
+            documentation={pluginDetails?.documentation}
+            version={plugin.version}
+            author={pluginDetails?.author || plugin.author}
+          />
+        </TabsContent>
+      </Tabs>
     </>
   );
-  const configSheet = desktop ? (
-    isConfigOpen && detailTarget ? (
-      createPortal(
-        <Card className="p-5 min-w-0 overflow-x-auto">
-          <Heading level={2} size="xl">
-            {plugin.name}
-          </Heading>
-          <Text tone="muted">{t("configureDescription")}</Text>
-          {configContent}
-        </Card>,
-        detailTarget,
-      )
-    ) : null
-  ) : (
-    <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="hidden xl:inline-flex" aria-label={t("configureButton")}>
-          <Settings className="h-4 w-4" />
+  const detailContent = (
+    <Stack gap="4" className="min-w-0">
+      {fullPage && (
+        <Button variant="ghost" className="w-fit min-h-11" asChild>
+          <Link href="/integrations?tab=installed">
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            {t("backToIntegrations")}
+          </Link>
         </Button>
-      </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Icon className="h-5 w-5" />
-            {plugin.name}
-          </SheetTitle>
-          <SheetDescription>{t("configureDescription")}</SheetDescription>
-        </SheetHeader>
+      )}
+      {(needsReconnect || needsSetup) && (
+        <Alert variant="warning" data-testid="integration-attention-banner">
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>
+            {needsReconnect ? t("reconnectTitle", { name: plugin.name }) : t("setupRequiredBadge")}
+          </AlertTitle>
+          <AlertDescription>{needsReconnect ? t("reconnectConsequence") : t("setupConsequence")}</AlertDescription>
+        </Alert>
+      )}
+      <Card
+        className={cn(
+          "min-w-0 overflow-x-auto",
+          detailTab === "readme" ? "border-0 bg-transparent shadow-none p-0" : "p-5",
+        )}
+      >
+        <Flex justify="between" align="center" gap="3" wrap>
+          {!fullPage && (
+            <Heading level={2} size="xl">
+              {plugin.name}
+            </Heading>
+          )}
+          <Flex align="center" justify="end" gap="0.5">
+            {!hasNoToggle && (
+              <Switch
+                checked={plugin.enabled}
+                onCheckedChange={(checked) => onToggle(plugin.id, checked)}
+                disabled={isToggling}
+                aria-label={t("toggleAriaLabel", { pluginName: plugin.name })}
+              />
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("moreOptionsAriaLabel")}>
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setDetailTab("settings")}>
+                  <Settings className="h-3.5 w-3.5 mr-2" />
+                  {t("configureButton")}
+                </DropdownMenuItem>
+                {!isInstance && (
+                  <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
+                    <CopyPlus className="h-3.5 w-3.5 mr-2" />
+                    {t("addInstanceAction")}
+                  </DropdownMenuItem>
+                )}
+                {!hasNoToggle && (
+                  <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
+                    {plugin.enabled ? (
+                      <XCircle className="h-3.5 w-3.5 mr-2" />
+                    ) : (
+                      <CheckCircle className="h-3.5 w-3.5 mr-2" />
+                    )}
+                    {plugin.enabled ? "Disable" : "Enable"}
+                  </DropdownMenuItem>
+                )}
+                {hasUpdate && onUpdate && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onUpdate(plugin.id)} disabled={isUpdating}>
+                      {isUpdating ? (
+                        <Spinner size="sm" className="mr-2" label={null} />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                      )}
+                      {isUpdating ? "Updating..." : "Update"}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {isInstance && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                      {tCommon("delete")}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {canUninstall && onUninstall && !isInstance && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={isUninstalling}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                      {isUninstalling ? "Uninstalling..." : "Delete"}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Flex>
+        </Flex>
+        {showAddInstance && (
+          <Box role="group" aria-label={t("addInstanceAction")} className="rounded-lg border p-4">
+            <Box>
+              <Flex align="center" gap="3" className="max-w-md">
+                <Label htmlFor={`instance-label-${plugin.id}`} className="text-sm whitespace-nowrap">
+                  {t("instanceNameInlineLabel")}
+                </Label>
+                <Input
+                  id={`instance-label-${plugin.id}`}
+                  placeholder="e.g. sf, prod, api-2"
+                  value={instanceLabel}
+                  onChange={(e) => setInstanceLabel(e.target.value)}
+                  className="h-8 text-sm"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && instanceLabel.trim()) {
+                      handleCreateInstance();
+                    }
+                    if (e.key === "Escape") {
+                      setShowAddInstance(false);
+                      setInstanceLabel("");
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  className="h-8"
+                  disabled={!instanceLabel.trim() || isCreatingInstance}
+                  onClick={handleCreateInstance}
+                >
+                  {isCreatingInstance ? "Creating..." : "Create"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8"
+                  onClick={() => {
+                    setShowAddInstance(false);
+                    setInstanceLabel("");
+                  }}
+                >
+                  {tCommon("cancel")}
+                </Button>
+              </Flex>
+              <Text size="xs" tone="muted" className="mt-1.5">
+                {t("addInstanceInlineHelp")}
+              </Text>
+            </Box>
+          </Box>
+        )}
         {configContent}
-      </SheetContent>
-    </Sheet>
+      </Card>
+    </Stack>
   );
-
-  const rows = (
-    <>
+  const configPanel = isConfigOpen && detailTarget ? createPortal(detailContent, detailTarget) : null;
+  const row = (
+    <ListItem>
       <ListRow
         {...anchorProps(`plugin.${plugin.id}`)}
+        data-section-item={plugin.id}
         selected={desktop && selected}
+        render={
+          desktop ? (
+            <button type="button" onClick={() => setIsConfigOpen(true)} />
+          ) : (
+            <Link href={`/integrations/${encodeURIComponent(plugin.id)}?from=installed`} />
+          )
+        }
         leading={
           <IconTile size="sm" tone="muted">
             <Icon className="h-4 w-4" />
           </IconTile>
         }
-        title={
-          <Button
-            variant="ghost"
-            className="h-auto min-h-6 p-0 justify-start whitespace-normal text-left"
-            onClick={() => setIsConfigOpen(true)}
-          >
-            {plugin.name}
-          </Button>
-        }
+        title={plugin.name}
         description={
           <>
             {isTransition ? (
@@ -1713,7 +1888,7 @@ function InstalledPluginRow({
                 <Text as="span">{t("transitionBadge")}</Text> · <DeprecatedBadge label={t("deprecatedBadge")} />
               </>
             ) : isOutput ? (
-              <Text as="span">{t("outputBadge")}</Text>
+              t("outputBadge")
             ) : needsReconnect ? (
               t("oauth.statusReconnect")
             ) : !plugin.enabled ? (
@@ -1734,162 +1909,17 @@ function InstalledPluginRow({
           </>
         }
         trailing={
-          <Flex align="center" gap="1">
+          <>
             {(needsReconnect || needsSetup) && (
-              <Button variant="ghost" className="text-brand" onClick={() => setIsConfigOpen(true)}>
+              <Text as="span" className="text-brand">
                 {needsReconnect ? t("oauth.reconnectButton") : t("setUpAction")}
-              </Button>
+              </Text>
             )}
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            <Flex
-              align="center"
-              justify="end"
-              gap="0.5"
-              className="[&_[data-slot=switch]]:hidden xl:[&_[data-slot=switch]]:inline-flex"
-            >
-              {!hasNoToggle && (
-                <Switch
-                  checked={plugin.enabled}
-                  onCheckedChange={(checked) => onToggle(plugin.id, checked)}
-                  disabled={isToggling}
-                  aria-label={t("toggleAriaLabel", { pluginName: plugin.name })}
-                />
-              )}
-              {desktop ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hidden xl:inline-flex"
-                  aria-label={t("configureButton")}
-                  onClick={() => setIsConfigOpen(true)}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              ) : (
-                configSheet
-              )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("moreOptionsAriaLabel")}>
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setIsConfigOpen(true)}>
-                    <Settings className="h-3.5 w-3.5 mr-2" />
-                    {t("configureButton")}
-                  </DropdownMenuItem>
-                  {!isInstance && (
-                    <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
-                      <CopyPlus className="h-3.5 w-3.5 mr-2" />
-                      {t("addInstanceAction")}
-                    </DropdownMenuItem>
-                  )}
-                  {!hasNoToggle && (
-                    <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
-                      {plugin.enabled ? (
-                        <XCircle className="h-3.5 w-3.5 mr-2" />
-                      ) : (
-                        <CheckCircle className="h-3.5 w-3.5 mr-2" />
-                      )}
-                      {plugin.enabled ? "Disable" : "Enable"}
-                    </DropdownMenuItem>
-                  )}
-                  {hasUpdate && onUpdate && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => onUpdate(plugin.id)} disabled={isUpdating}>
-                        {isUpdating ? (
-                          <Spinner size="sm" className="mr-2" label={null} />
-                        ) : (
-                          <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                        )}
-                        {isUpdating ? "Updating..." : "Update"}
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {isInstance && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-2" />
-                        {tCommon("delete")}
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {canUninstall && onUninstall && !isInstance && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => setShowDeleteConfirm(true)}
-                        disabled={isUninstalling}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-2" />
-                        {isUninstalling ? "Uninstalling..." : "Delete"}
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </Flex>
-          </Flex>
+          </>
         }
       />
-      {showAddInstance && (
-        <ListItem className="p-4">
-          <Box>
-            <Flex align="center" gap="3" className="max-w-md">
-              <Label htmlFor={`instance-label-${plugin.id}`} className="text-sm whitespace-nowrap">
-                {t("instanceNameInlineLabel")}
-              </Label>
-              <Input
-                id={`instance-label-${plugin.id}`}
-                placeholder="e.g. sf, prod, api-2"
-                value={instanceLabel}
-                onChange={(e) => setInstanceLabel(e.target.value)}
-                className="h-8 text-sm"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && instanceLabel.trim()) {
-                    handleCreateInstance();
-                  }
-                  if (e.key === "Escape") {
-                    setShowAddInstance(false);
-                    setInstanceLabel("");
-                  }
-                }}
-              />
-              <Button
-                size="sm"
-                className="h-8"
-                disabled={!instanceLabel.trim() || isCreatingInstance}
-                onClick={handleCreateInstance}
-              >
-                {isCreatingInstance ? "Creating..." : "Create"}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8"
-                onClick={() => {
-                  setShowAddInstance(false);
-                  setInstanceLabel("");
-                }}
-              >
-                {tCommon("cancel")}
-              </Button>
-            </Flex>
-            <Text size="xs" tone="muted" className="mt-1.5">
-              {t("addInstanceInlineHelp")}
-            </Text>
-          </Box>
-        </ListItem>
-      )}
-    </>
+    </ListItem>
   );
 
   // Delete / uninstall confirmation dialog
@@ -1928,8 +1958,14 @@ function InstalledPluginRow({
 
   return (
     <>
-      {rows}
-      {desktop && configSheet}
+      {fullPage ? (
+        detailContent
+      ) : (
+        <>
+          {row}
+          {configPanel}
+        </>
+      )}
       {deleteConfirmDialog}
     </>
   );
@@ -2038,76 +2074,13 @@ function RegistryPluginCard({
   );
 }
 
-export default function IntegrationsPage() {
+export function useInstalledPluginActions() {
   const t = useTranslations("integrations");
   const tCommon = useTranslations("common");
-  const categoryLabels = useCategoryLabels();
   const queryClient = useQueryClient();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const tOAuth = useTranslations("integrations.oauth");
-  // An OAuth sign-in lands back here with its outcome in the query string
-  // (src/oauth/routes.py). Read once, report it, then clean the URL so a
-  // reload does not report it again.
-  const [oauthReturn] = useState(() => readOAuthReturn(searchParams));
-  const oauthReturnReported = useRef(false);
-  useEffect(() => {
-    if (!oauthReturn || oauthReturnReported.current) return;
-    oauthReturnReported.current = true;
-    if (oauthReturn.outcome === "connected") {
-      toast.success(tOAuth("toastConnected"));
-    } else {
-      toast.error(tOAuth(oauthReturnErrorKey(oauthReturn.reason)));
-    }
-    router.replace("/integrations?tab=installed", { scroll: false });
-  }, [oauthReturn, router, tOAuth]);
-  const [activeTab, setActiveTab] = useState(() => {
-    const tab = searchParams.get("tab");
-    return tab === "marketplace" || tab === "installed" ? tab : "installed";
-  });
-  const [marketplaceView, setMarketplaceView] = useState<"card" | "list">("card");
-  const [marketplaceSort, setMarketplaceSort] = useState<{
-    key: "name" | "category" | "author" | "added";
-    dir: "asc" | "desc";
-  }>({
-    key: "name",
-    dir: "asc",
-  });
-  const [installedSort, setInstalledSort] = useState<{ key: "name" | "category" | "status"; dir: "asc" | "desc" }>({
-    key: "name",
-    dir: "asc",
-  });
-  const [installingId, setInstallingId] = useState<string | null>(null);
+  const data = queryClient.getQueryData<import("@/lib/api").PluginsListResponse>(["plugins"]);
   const [uninstallingId, setUninstallingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [isUpdatingAll, setIsUpdatingAll] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [marketplacePage, setMarketplacePage] = useState(0);
-  const [gitDialogOpen, setGitDialogOpen] = useState(false);
-  const gitInstall = useGitPluginInstall();
-  const desktop = useMediaQuery("(min-width: 768px)");
-  const phone = useMediaQuery("(max-width: 767px)");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detailTarget, setDetailTarget] = useState<HTMLElement | null>(null);
-  const { data: connections } = useQuery({
-    queryKey: OAUTH_CONNECTIONS_QUERY_KEY,
-    queryFn: api.listOAuthConnections,
-  });
-
-  // Fetch installed plugins list
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["plugins"],
-    queryFn: api.listPlugins,
-  });
-
-  // Fetch registry (available but not necessarily installed)
-  const { data: registryData } = useQuery({
-    queryKey: ["plugin-registry"],
-    queryFn: api.listRegistryPlugins,
-    staleTime: 5 * 60 * 1000,
-  });
-
   // Toggle plugin mutation
   const toggleMutation = useMutation({
     mutationFn: async ({ pluginId, enabled }: { pluginId: string; enabled: boolean }) => {
@@ -2154,6 +2127,124 @@ export default function IntegrationsPage() {
     toggleMutation.mutate({ pluginId, enabled });
   };
 
+  const handleUninstall = async (pluginId: string) => {
+    setUninstallingId(pluginId);
+    try {
+      await api.uninstallPlugin(pluginId);
+      toast.success(t("toastUninstalled", { pluginId }));
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
+      return true;
+    } catch (err) {
+      toast.error(
+        t("toastUninstallFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }),
+      );
+      return false;
+    } finally {
+      setUninstallingId(null);
+    }
+  };
+
+  const handleUpdate = async (pluginId: string) => {
+    setUpdatingId(pluginId);
+    try {
+      await api.updatePlugin(pluginId);
+      toast.success(t("toastUpdated", { pluginId }));
+      queryClient.invalidateQueries({ queryKey: ["plugin", pluginId] });
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
+    } catch (err) {
+      toast.error(t("toastUpdateFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  return { toggleMutation, handleToggle, handleUninstall, handleUpdate, uninstallingId, updatingId };
+}
+
+export default function IntegrationsPage() {
+  const t = useTranslations("integrations");
+  const tCommon = useTranslations("common");
+  const categoryLabels = useCategoryLabels();
+  const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tOAuth = useTranslations("integrations.oauth");
+  // An OAuth sign-in lands back here with its outcome in the query string
+  // (src/oauth/routes.py). Read once, report it, then clean the URL so a
+  // reload does not report it again.
+  const [oauthReturn] = useState(() => readOAuthReturn(searchParams));
+  const oauthReturnReported = useRef(false);
+  useEffect(() => {
+    if (!oauthReturn || oauthReturnReported.current) return;
+    oauthReturnReported.current = true;
+    if (oauthReturn.outcome === "connected") {
+      toast.success(tOAuth("toastConnected"));
+    } else {
+      toast.error(tOAuth(oauthReturnErrorKey(oauthReturn.reason)));
+    }
+    router.replace(
+      oauthReturn.pluginId
+        ? `/integrations/${encodeURIComponent(oauthReturn.pluginId)}?from=installed`
+        : "/integrations?tab=installed",
+      { scroll: false },
+    );
+  }, [oauthReturn, router, tOAuth]);
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get("tab");
+    return tab === "marketplace" || tab === "installed" ? tab : "installed";
+  });
+  const [marketplaceView, setMarketplaceView] = useState<"card" | "list">("card");
+  const [marketplaceSort, setMarketplaceSort] = useState<{
+    key: "name" | "category" | "author" | "added";
+    dir: "asc" | "desc";
+  }>({
+    key: "name",
+    dir: "asc",
+  });
+  const [installedSort, setInstalledSort] = useState<{ key: "name" | "category" | "status"; dir: "asc" | "desc" }>({
+    key: "name",
+    dir: "asc",
+  });
+  const [installingId, setInstallingId] = useState<string | null>(null);
+  const [isUpdatingAll, setIsUpdatingAll] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [marketplacePage, setMarketplacePage] = useState(0);
+  const [gitDialogOpen, setGitDialogOpen] = useState(false);
+  const gitInstall = useGitPluginInstall();
+  const desktop = useMediaQuery("(min-width: 768px)");
+  const phone = useMediaQuery("(max-width: 767px)");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailTarget, setDetailTarget] = useState<HTMLElement | null>(null);
+  const { data: connections } = useQuery({
+    queryKey: OAUTH_CONNECTIONS_QUERY_KEY,
+    queryFn: api.listOAuthConnections,
+  });
+
+  // Fetch installed plugins list
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["plugins"],
+    queryFn: api.listPlugins,
+  });
+
+  // Fetch registry (available but not necessarily installed)
+  const { data: registryData } = useQuery({
+    queryKey: ["plugin-registry"],
+    queryFn: api.listRegistryPlugins,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { toggleMutation, handleToggle, handleUninstall, handleUpdate, uninstallingId, updatingId } =
+    useInstalledPluginActions();
+
   const handleInstall = async (pluginId: string) => {
     setInstallingId(pluginId);
     try {
@@ -2170,42 +2261,6 @@ export default function IntegrationsPage() {
       toast.error(t("toastInstallFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
     } finally {
       setInstallingId(null);
-    }
-  };
-
-  const handleUninstall = async (pluginId: string) => {
-    setUninstallingId(pluginId);
-    try {
-      await api.uninstallPlugin(pluginId);
-      toast.success(t("toastUninstalled", { pluginId }));
-      queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
-      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
-      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
-      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
-    } catch (err) {
-      toast.error(
-        t("toastUninstallFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }),
-      );
-    } finally {
-      setUninstallingId(null);
-    }
-  };
-
-  const handleUpdate = async (pluginId: string) => {
-    setUpdatingId(pluginId);
-    try {
-      await api.updatePlugin(pluginId);
-      toast.success(t("toastUpdated", { pluginId }));
-      queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      queryClient.invalidateQueries({ queryKey: ["plugin-registry"] });
-      queryClient.invalidateQueries({ queryKey: ["template-variables"] });
-      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
-      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
-    } catch (err) {
-      toast.error(t("toastUpdateFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
-    } finally {
-      setUpdatingId(null);
     }
   };
 
@@ -2648,7 +2703,9 @@ export default function IntegrationsPage() {
                                 onUpdate={handleUpdate}
                                 isUninstalling={uninstallingId === plugin.id}
                                 isUpdating={updatingId === plugin.id}
-                                initiallyOpen={oauthReturn?.pluginId === plugin.id}
+                                registryEntry={registryData?.entries.find(
+                                  (entry) => entry.id === (plugin.base_plugin_id || plugin.id),
+                                )}
                               />
                             ))}
                           </ListRowGroup>

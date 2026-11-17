@@ -5,6 +5,8 @@
  * Priority cluster #5 from the auditor: plugin lifecycle (toggle/install/
  * uninstall/update) is under-tested and ranks high-value. Fill these early.
  */
+import type { Page } from "@playwright/test";
+
 import {
   API_URL,
   authHeaders,
@@ -35,6 +37,10 @@ async function getPluginEnabled(id: string): Promise<boolean> {
 async function restorePluginEnabled(id: string, enabled: boolean): Promise<void> {
   if (enabled) await enablePlugin(id).catch(() => {});
   else await disablePlugin(id).catch(() => {});
+}
+
+async function selectInstalled(page: Page, name = STABLE_PLUGIN_NAME) {
+  await page.getByRole("button", { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) }).click();
 }
 
 test.beforeEach(async ({ context, page }) => {
@@ -79,6 +85,7 @@ test.describe("regression: integrations.installed", () => {
     release!();
     await nav;
     // Loading finished → real toggle rendered.
+    await selectInstalled(page);
     await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 15_000 });
   });
 
@@ -158,6 +165,7 @@ test.describe("regression: integrations.installed", () => {
    */
   test("integrations.installed.empty-search — 'no results' state when search misses", async ({ page }) => {
     await page.goto("/integrations");
+    await selectInstalled(page);
     await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 15_000 });
 
     const search = page.getByPlaceholder(/Search installed plugins/i);
@@ -185,6 +193,7 @@ test.describe("regression: integrations.installed", () => {
    */
   test("integrations.installed.list — column sort, overflow menu, search input", async ({ page }) => {
     await page.goto("/integrations");
+    await selectInstalled(page);
     await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 15_000 });
 
     // -- Column sort: clicking the Name header should flip chevron direction.
@@ -199,9 +208,7 @@ test.describe("regression: integrations.installed", () => {
     await expect(nameHeaderTh.locator("svg")).toBeVisible();
 
     // -- Overflow menu: opens the DropdownMenu with action items.
-    const row = page.locator('[data-slot="list-row"]').filter({
-      has: page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` }),
-    });
+    const row = page.getByRole("complementary", { name: "Integration settings" });
     await row.getByRole("button", { name: "More options" }).click();
     await expect(page.getByRole("menuitem", { name: /Configure/i })).toBeVisible({
       timeout: 5_000,
@@ -214,6 +221,7 @@ test.describe("regression: integrations.installed", () => {
     await search.fill("countdown");
     await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toHaveCount(0);
     await search.fill("");
+    await selectInstalled(page);
     await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 10_000 });
   });
 
@@ -333,6 +341,7 @@ test.describe("regression: integrations.installed", () => {
 
       await page.goto("/integrations");
       const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
+      await selectInstalled(page);
       await expect(sw).toBeVisible({ timeout: 15_000 });
       await expect(sw).toBeChecked();
 
@@ -373,6 +382,7 @@ test.describe("regression: integrations.installed", () => {
 
       await page.goto("/integrations");
       const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
+      await selectInstalled(page);
       await expect(sw).toBeVisible({ timeout: 15_000 });
       await expect(sw).toBeChecked();
       await sw.click();
@@ -401,9 +411,10 @@ test.describe("regression: integrations.installed", () => {
   test("integrations.installed.overflow-menu — row three-dot opens action menu", async ({ page }) => {
     await page.goto("/integrations");
     const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
+    await selectInstalled(page);
     await expect(sw).toBeVisible({ timeout: 15_000 });
 
-    const row = page.locator('[data-slot="list-row"]').filter({ has: sw });
+    const row = page.getByRole("complementary", { name: "Integration settings" });
     await row.getByRole("button", { name: "More options" }).click();
 
     // Configure + Add Instance + Enable/Disable are guaranteed for any installed
@@ -427,9 +438,10 @@ test.describe("regression: integrations.installed", () => {
   test("integrations.installed.add-instance-row — Add instance row affordance", async ({ page }) => {
     await page.goto("/integrations");
     const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
+    await selectInstalled(page);
     await expect(sw).toBeVisible({ timeout: 15_000 });
 
-    const row = page.locator('[data-slot="list-row"]').filter({ has: sw });
+    const row = page.getByRole("complementary", { name: "Integration settings" });
     await row.getByRole("button", { name: "More options" }).click();
     await page.getByRole("menuitem", { name: /Add Instance/i }).click();
 
@@ -440,8 +452,7 @@ test.describe("regression: integrations.installed", () => {
 
     // Cancel without submitting — we DO NOT actually create an instance.
     await page
-      .getByRole("listitem")
-      .filter({ hasText: "Instance name:" })
+      .getByRole("group", { name: "Add Instance" })
       .getByRole("button", { name: /^Cancel$/ })
       .click();
     await expect(page.getByText(/Instance name:/i)).toHaveCount(0);
@@ -470,8 +481,9 @@ test.describe("regression: integrations.installed", () => {
 
     await page.goto("/integrations");
     const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
+    await selectInstalled(page);
     await expect(sw).toBeVisible({ timeout: 15_000 });
-    const row = page.locator('[data-slot="list-row"]').filter({ has: sw });
+    const row = page.getByRole("complementary", { name: "Integration settings" });
     await row.getByRole("button", { name: "More options" }).click();
     await page.getByRole("menuitem", { name: /Add Instance/i }).click();
 
@@ -526,8 +538,9 @@ test.describe("regression: integrations.installed", () => {
 
     await page.goto("/integrations");
     const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
+    await selectInstalled(page);
     await expect(sw).toBeVisible({ timeout: 15_000 });
-    const row = page.locator('[data-slot="list-row"]').filter({ has: sw });
+    const row = page.getByRole("complementary", { name: "Integration settings" });
     await row.getByRole("button", { name: "More options" }).click();
 
     const updateItem = page.getByRole("menuitem", { name: /^Update$/ });
@@ -589,8 +602,9 @@ test.describe("regression: integrations.installed", () => {
     });
     await page.goto("/integrations");
     const toggle = page.getByRole("switch", { name: "Toggle Uninstall Test Plugin" });
+    await selectInstalled(page, "Uninstall Test Plugin");
     await expect(toggle).toBeVisible({ timeout: 15_000 });
-    const row = page.locator('[data-slot="list-row"]').filter({ has: toggle });
+    const row = page.getByRole("complementary", { name: "Integration settings" });
     await row.getByRole("button", { name: "More options" }).click();
     await page.getByRole("menuitem", { name: /^Delete$/ }).click();
     // The new alert-dialog-cancel testid lets us assert the confirm dialog

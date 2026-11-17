@@ -573,7 +573,32 @@
         "schedule": "日程",
         "manual": "手动",
         "none": "未选择"
-      }
+      },
+      "timezoneFallback": "中枢时区不可用或无效，使用UTC。",
+      "quickMoments": "快捷时刻",
+      "quickNow": "现在",
+      "quickTonight": "今晚21:00",
+      "quickTomorrow": "明天15:00",
+      "quickSaturday": "周六12:30",
+      "missing": "视为缺失（每行一个变量路径）",
+      "winningRule": "首个获胜规则",
+      "sourceFreshness": "来源新鲜度",
+      "sourceState": {
+        "fresh": "新鲜",
+        "stale": "过期",
+        "live": "实时",
+        "none": "无数据",
+        "unknown": "未知"
+      },
+      "actualPreview": "该时刻的页面 · 页面",
+      "simulatedPreview": "集合试运行 · 页面",
+      "whatIf": "假设",
+      "addValue": "添加数值…",
+      "samplePath": "变量路径",
+      "sampleValue": "数值（文本或JSON）",
+      "confirmValue": "添加数值",
+      "removeValue": "移除{path}",
+      "editValuesJson": "编辑JSON数值"
     },
     "agenda": {
       "empty": "当天没有日程",
@@ -602,10 +627,51 @@
       "repeat": "重复",
       "legacy": "移动或调整日程时长",
       "calendar": "周历",
-      "sunUnavailable": "无法获取日出日落时间。使用已保存的备用时间。"
+      "sunUnavailable": "无法获取日出日落时间。使用已保存的备用时间。",
+      "datedGapsUnavailable": "每周空档检查不包含指定日期的例外，并使用今天的日出日落时间。请检查具体时刻以了解实际页面。",
+      "repairStart": "改为{time}开始",
+      "repairRepeats": "更改此每周日程的所有重复日期。",
+      "repaired": "已更新开始时间",
+      "undo": "撤销",
+      "repairFailed": "无法更新日程。"
+    },
+    "adapter": {
+      "display": "显示屏",
+      "startFallback": "开始备用时间",
+      "endFallback": "结束备用时间",
+      "fallbackHint": "无法计算日出日落时使用。",
+      "invalidTime": "请输入有效时间。",
+      "delete": "删除日程…",
+      "required": "（必填）",
+      "allShort": "每天",
+      "weekdaysShort": "工作日",
+      "weekendsShort": "周末",
+      "customShort": "自定",
+      "openEnded": "无结束"
+    },
+    "copy": {
+      "open": "从其他显示屏复制…",
+      "description": "仅在所有页面均适配时复制。后续复制失败时将删除本次新增日程。",
+      "source": "来源显示屏",
+      "run": "复制日程",
+      "incompatible": "未复制：部分页面不适配此显示屏。",
+      "partial": "无法删除新增日程：{ids}"
     }
   },
   "integrations": {
+    "detailTabs": "集成详情",
+    "variablesTab": "变量",
+    "readmeTab": "README",
+    "readmeUnavailable": "文档不可用。",
+    "about": "关于",
+    "versionLabel": "版本",
+    "authorLabel": "作者",
+    "sourceLabel": "来源",
+    "backToIntegrations": "返回集成",
+    "reconnectTitle": "重新连接 {name}",
+    "reconnectConsequence": "重新连接之前，使用此集成的页面数据可能不可用或已过时。",
+    "setupConsequence": "请完成设置，以便页面使用此集成的数据。",
+    "noVariables": "此集成不提供模板变量。",
     "needsAttention": "需要处理",
     "setUpAction": "设置",
     "integrationSettings": "集成设置",
@@ -1558,7 +1624,10 @@
         "read_failed": "无法读取显示设备"
       },
       "removeConfirmTitle": "移除 {name}？",
-      "removeConfirmBody": "这会从此中心移除显示设备。"
+      "removeConfirmBody": "这会从此中心移除显示设备。",
+      "expected": "FiestaBoard 发送的内容",
+      "readbackUnavailable": "此显示设备不支持读取当前画面。",
+      "advanced": "显示设备高级设置"
     },
     "title": "显示设备",
     "description": "FiestaBoard 进行显示的所有看板和屏幕。打开其中一个即可更改其设置。",
@@ -1868,7 +1937,10 @@
     "updateIntervalsTitle": "更新间隔",
     "updateIntervalsDescription": "看板查询新内容和重新读取当前状态的频率",
     "silenceShowHeldLabel": "静默结束时显示暂存的消息",
-    "silenceShowHeldHelp": "静默期间发送到此看板的消息会被暂存，并在静默结束的那一刻显示。关闭时则会被拒绝。页面更改始终会被保存，不需要此选项。"
+    "silenceShowHeldHelp": "静默期间发送到此看板的消息会被暂存，并在静默结束的那一刻显示。关闭时则会被拒绝。页面更改始终会被保存，不需要此选项。",
+    "silenceModeIndicatorShort": "指示文字",
+    "silenceModeFreezeShort": "冻结",
+    "silenceModePageShort": "显示页面"
   },
   "serviceControls": {
     "title": "服务控制",
@@ -2916,7 +2988,12 @@
     "geometryLoading": "正在计算屏幕布局…",
     "draftContentPending": "保存并收到匹配的帧后，内容预览将更新。",
     "geometryUnsupported": "无法显示此 LED 网格。请编辑此面板并选择“适应屏幕形状”，以使用受支持的网格。",
-    "legacyGridHint": "此面板保留现有字符网格。选择“适应屏幕形状”可更改其布局。"
+    "legacyGridHint": "此面板保留现有字符网格。选择“适应屏幕形状”可更改其布局。",
+    "displaySettings": "显示屏",
+    "previewAt": "{inches} 英寸预览",
+    "removeDisplayTitle": "移除显示屏",
+    "removeDisplay": "移除显示屏…",
+    "advancedSettings": "面板高级设置"
   },
   "releaseChannel": {
     "title": "发布通道",

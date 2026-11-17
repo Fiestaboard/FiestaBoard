@@ -10,6 +10,7 @@ import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import IntegrationsPage from "../../app/routes/integrations._index";
+import { integrationDesktop, openIntegration } from "./integrations-test-helpers";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -112,13 +113,14 @@ async function openSettings() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 60_000 }, mutations: { retry: false } },
   });
+  integrationDesktop();
   render(
     <QueryClientProvider client={queryClient}>
       <IntegrationsPage />
     </QueryClientProvider>,
   );
   const user = userEvent.setup();
-  await user.click((await screen.findAllByRole("button", { name: /configure/i }))[0]);
+  await openIntegration(user);
   await screen.findByTestId("oauth-connection");
   return user;
 }

@@ -199,8 +199,12 @@ needed for any test in this suite.
 
 ### Universal Displays (2.14)
 
-`layout/displays.spec.ts` exercises the real Displays routes with deterministic API fixtures at 390/768/1280 in light/dark: health grouping, selection versus phone navigation, selected-display pause, diagnostics, overflow and axe. Screenshots attach to each layout test result.
+`layout/displays.spec.ts` exercises the real Displays routes with deterministic API fixtures at 390/768/1280 in light/dark: health grouping, selection versus phone navigation, selected-display pause, inline FiestaPanel settings, Playback, actual-versus-expected Diagnostics, overflow and axe. Screenshots attach to each layout test result.
+
+### Universal Schedule (2.14)
+
+`layout/schedule.spec.ts` covers responsive agenda views, entry editing, actual H8 lookup versus collection dry run, stale-result clearing, hub timezone initialization, empty state and copy with deterministic API fixtures. `schedule-universal.spec.ts` retains the container-backed flow. Captures and axe checks cover 390/768/1280 in light/dark.
 
 ### Universal Integrations (2.14)
 
-`e2e/integrations-canonical.spec.ts` covers Needs attention actions, the shared schema save at 390/768/1280 in light/dark, compact Marketplace results, axe and attached screenshots.
+`e2e/integrations-canonical.spec.ts` covers Needs attention actions, whole-row navigation, full phone detail/reconnect and same-tab OAuth, schema save, Settings/Variables/README and Prose/About, plus compact Marketplace results at 390/768/1280 in light/dark with all-WCAG axe and four screenshot states.

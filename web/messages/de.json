@@ -573,7 +573,32 @@
         "schedule": "Zeitplan",
         "manual": "Manuell",
         "none": "Keine Auswahl"
-      }
+      },
+      "timezoneFallback": "Hub-Zeitzone fehlt oder ist ungültig; UTC wird verwendet.",
+      "quickMoments": "Zeitpunkte",
+      "quickNow": "Jetzt",
+      "quickTonight": "Heute 21:00",
+      "quickTomorrow": "Morgen 15:00",
+      "quickSaturday": "Sa 12:30",
+      "missing": "Als fehlend behandeln (ein Variablenpfad pro Zeile)",
+      "winningRule": "Erste gewinnende Regel",
+      "sourceFreshness": "Aktualität der Quellen",
+      "sourceState": {
+        "fresh": "Aktuell",
+        "stale": "Veraltet",
+        "live": "Live",
+        "none": "Keine Daten",
+        "unknown": "Unbekannt"
+      },
+      "actualPreview": "Aktive Seite zum Zeitpunkt · Seite",
+      "simulatedPreview": "Sammlung testen · Seite",
+      "whatIf": "Was wenn",
+      "addValue": "Wert hinzufügen…",
+      "samplePath": "Variablenpfad",
+      "sampleValue": "Wert (Text oder JSON)",
+      "confirmValue": "Wert hinzufügen",
+      "removeValue": "{path} entfernen",
+      "editValuesJson": "JSON-Werte bearbeiten"
     },
     "agenda": {
       "empty": "Keine Einträge an diesem Tag",
@@ -602,10 +627,51 @@
       "repeat": "Wiederholung",
       "legacy": "Einträge verschieben oder skalieren",
       "calendar": "Wochenkalender",
-      "sunUnavailable": "Sonnenzeiten nicht verfügbar. Gespeicherte Ersatzzeiten werden verwendet."
+      "sunUnavailable": "Sonnenzeiten nicht verfügbar. Gespeicherte Ersatzzeiten werden verwendet.",
+      "datedGapsUnavailable": "Wöchentliche Lückenprüfungen ignorieren Datumsregeln und nutzen heutige Sonnenzeiten. Prüfen Sie einen Zeitpunkt für die tatsächliche Seite.",
+      "repairStart": "Stattdessen um {time} beginnen",
+      "repairRepeats": "Ändert diesen wöchentlichen Eintrag an allen Wiederholungstagen.",
+      "repaired": "Beginn aktualisiert",
+      "undo": "Rückgängig",
+      "repairFailed": "Eintrag konnte nicht geändert werden."
+    },
+    "adapter": {
+      "display": "Display",
+      "startFallback": "Ersatzzeit für Start",
+      "endFallback": "Ersatzzeit für Ende",
+      "fallbackHint": "Wird verwendet, wenn Sonnenzeiten nicht berechnet werden können.",
+      "invalidTime": "Geben Sie eine gültige Zeit ein.",
+      "delete": "Eintrag löschen…",
+      "required": "(erforderlich)",
+      "allShort": "Alle",
+      "weekdaysShort": "Mo–Fr",
+      "weekendsShort": "Sa–So",
+      "customShort": "Eigene",
+      "openEnded": "Offen"
+    },
+    "copy": {
+      "open": "Von anderem Display kopieren…",
+      "description": "Alle Einträge werden nur kopiert, wenn ihre Seiten passen. Bei einem Fehler werden neue Kopien entfernt.",
+      "source": "Quelldisplay",
+      "run": "Einträge kopieren",
+      "incompatible": "Nichts kopiert: Mindestens eine Seite passt nicht auf dieses Display.",
+      "partial": "Neue Kopien konnten nicht entfernt werden: {ids}"
     }
   },
   "integrations": {
+    "detailTabs": "Integrationsdetails",
+    "variablesTab": "Variablen",
+    "readmeTab": "README",
+    "readmeUnavailable": "Dokumentation ist nicht verfügbar.",
+    "about": "Über",
+    "versionLabel": "Version",
+    "authorLabel": "Autor",
+    "sourceLabel": "Quelle",
+    "backToIntegrations": "Zurück zu Integrationen",
+    "reconnectTitle": "{name} erneut verbinden",
+    "reconnectConsequence": "Daten für Seiten mit dieser Integration können fehlen oder veraltet sein, bis Sie die Verbindung wiederherstellen.",
+    "setupConsequence": "Vervollständigen Sie die Einstellungen, damit Seiten die Daten dieser Integration nutzen können.",
+    "noVariables": "Diese Integration stellt keine Vorlagenvariablen bereit.",
     "needsAttention": "Handlungsbedarf",
     "setUpAction": "Einrichten",
     "integrationSettings": "Integrationseinstellungen",
@@ -1558,7 +1624,10 @@
         "read_failed": "Display konnte nicht gelesen werden"
       },
       "removeConfirmTitle": "{name} entfernen?",
-      "removeConfirmBody": "Dadurch wird das Display von diesem Hub entfernt."
+      "removeConfirmBody": "Dadurch wird das Display von diesem Hub entfernt.",
+      "expected": "Was FiestaBoard gesendet hat",
+      "readbackUnavailable": "Dieses Display liefert kein lesbares aktuelles Bild.",
+      "advanced": "Erweiterte Displayeinstellungen"
     },
     "title": "Anzeigen",
     "description": "Alle Boards und Bildschirme, auf denen FiestaBoard anzeigt. Öffne eine Anzeige, um ihre Einstellungen zu ändern.",
@@ -1868,7 +1937,10 @@
     "updateIntervalsTitle": "Aktualisierungsintervalle",
     "updateIntervalsDescription": "Wie oft das Board nach neuen Inhalten sucht und seinen aktuellen Zustand erneut liest",
     "silenceShowHeldLabel": "Zurückgehaltene Nachrichten nach dem Ruhemodus anzeigen",
-    "silenceShowHeldHelp": "Eine Nachricht, die während des Ruhemodus an dieses Board gesendet wird, wird zurückgehalten und angezeigt, sobald der Ruhemodus endet. Ist dies aus, wird sie stattdessen abgelehnt. Seitenwechsel werden immer gespeichert und brauchen das nicht."
+    "silenceShowHeldHelp": "Eine Nachricht, die während des Ruhemodus an dieses Board gesendet wird, wird zurückgehalten und angezeigt, sobald der Ruhemodus endet. Ist dies aus, wird sie stattdessen abgelehnt. Seitenwechsel werden immer gespeichert und brauchen das nicht.",
+    "silenceModeIndicatorShort": "Hinweis",
+    "silenceModeFreezeShort": "Einfrieren",
+    "silenceModePageShort": "Seite zeigen"
   },
   "serviceControls": {
     "title": "Dienststeuerung",
@@ -2916,7 +2988,12 @@
     "geometryLoading": "Bildschirmgeometrie wird berechnet…",
     "draftContentPending": "Die Inhaltsvorschau wird nach dem Speichern und dem Empfang eines passenden Bildes aktualisiert.",
     "geometryUnsupported": "Dieses LED-Raster kann nicht angezeigt werden. Bearbeite das Panel und wähle An Bildschirmform anpassen, um ein unterstütztes Raster zu verwenden.",
-    "legacyGridHint": "Dieses Panel behält sein bestehendes Zeichenraster. Wähle An Bildschirmform anpassen, um das Layout zu ändern."
+    "legacyGridHint": "Dieses Panel behält sein bestehendes Zeichenraster. Wähle An Bildschirmform anpassen, um das Layout zu ändern.",
+    "displaySettings": "Display",
+    "previewAt": "Vorschau bei {inches}″",
+    "removeDisplayTitle": "Display entfernen",
+    "removeDisplay": "Display entfernen…",
+    "advancedSettings": "Erweiterte Panel-Einstellungen"
   },
   "releaseChannel": {
     "title": "Veröffentlichungskanal",

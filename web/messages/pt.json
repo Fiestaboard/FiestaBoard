@@ -573,7 +573,32 @@
         "schedule": "Programação",
         "manual": "Manual",
         "none": "Sem seleção"
-      }
+      },
+      "timezoneFallback": "Fuso horário do hub ausente ou inválido; usando UTC.",
+      "quickMoments": "Momentos rápidos",
+      "quickNow": "Agora",
+      "quickTonight": "Hoje às 21:00",
+      "quickTomorrow": "Amanhã às 15:00",
+      "quickSaturday": "Sáb 12:30",
+      "missing": "Tratar como ausente (um caminho de variável por linha)",
+      "winningRule": "Primeira regra vencedora",
+      "sourceFreshness": "Atualidade das fontes",
+      "sourceState": {
+        "fresh": "Atual",
+        "stale": "Desatualizado",
+        "live": "Ao vivo",
+        "none": "Sem dados",
+        "unknown": "Desconhecido"
+      },
+      "actualPreview": "Página ativa no instante · Página",
+      "simulatedPreview": "Simulação de coleção · Página",
+      "whatIf": "E se",
+      "addValue": "Adicionar um valor…",
+      "samplePath": "Caminho da variável",
+      "sampleValue": "Valor (texto ou JSON)",
+      "confirmValue": "Adicionar valor",
+      "removeValue": "Remover {path}",
+      "editValuesJson": "Editar valores JSON"
     },
     "agenda": {
       "empty": "Nenhuma entrada neste dia",
@@ -602,10 +627,51 @@
       "repeat": "Repetir",
       "legacy": "Mover ou redimensionar entradas",
       "calendar": "Calendário semanal",
-      "sunUnavailable": "Horários solares indisponíveis. São usados os horários alternativos salvos."
+      "sunUnavailable": "Horários solares indisponíveis. São usados os horários alternativos salvos.",
+      "datedGapsUnavailable": "A verificação semanal exclui exceções por data e usa os horários solares de hoje. Consulte um instante para saber a página real.",
+      "repairStart": "Começar às {time}",
+      "repairRepeats": "Altera esta entrada semanal em todos os dias de repetição.",
+      "repaired": "Início atualizado",
+      "undo": "Desfazer",
+      "repairFailed": "Não foi possível atualizar a entrada."
+    },
+    "adapter": {
+      "display": "Tela",
+      "startFallback": "Horário inicial alternativo",
+      "endFallback": "Horário final alternativo",
+      "fallbackHint": "Usado quando os horários solares não podem ser calculados.",
+      "invalidTime": "Insira um horário válido.",
+      "delete": "Excluir entrada…",
+      "required": "(obrigatório)",
+      "allShort": "Todos",
+      "weekdaysShort": "Seg–Sex",
+      "weekendsShort": "Sáb–Dom",
+      "customShort": "Outros",
+      "openEnded": "Sem fim"
+    },
+    "copy": {
+      "open": "Copiar de outra tela…",
+      "description": "Copie apenas quando todas as páginas forem compatíveis. As novas cópias são removidas se uma cópia posterior falhar.",
+      "source": "Tela de origem",
+      "run": "Copiar entradas",
+      "incompatible": "Nada foi copiado: uma ou mais páginas não são compatíveis.",
+      "partial": "Não foi possível remover as novas cópias: {ids}"
     }
   },
   "integrations": {
+    "detailTabs": "Detalhes da integração",
+    "variablesTab": "Variáveis",
+    "readmeTab": "README",
+    "readmeUnavailable": "A documentação não está disponível.",
+    "about": "Sobre",
+    "versionLabel": "Versão",
+    "authorLabel": "Autor",
+    "sourceLabel": "Origem",
+    "backToIntegrations": "Voltar às integrações",
+    "reconnectTitle": "Voltar a ligar {name}",
+    "reconnectConsequence": "Os dados das páginas que usam esta integração podem estar indisponíveis ou desatualizados até voltar a ligar.",
+    "setupConsequence": "Conclua as definições para que as páginas possam usar os dados desta integração.",
+    "noVariables": "Esta integração não fornece variáveis de modelo.",
     "needsAttention": "Requer atenção",
     "setUpAction": "Configurar",
     "integrationSettings": "Definições da integração",
@@ -1558,7 +1624,10 @@
         "read_failed": "Não foi possível ler o ecrã"
       },
       "removeConfirmTitle": "Remover {name}?",
-      "removeConfirmBody": "Isto remove o ecrã deste hub."
+      "removeConfirmBody": "Isto remove o ecrã deste hub.",
+      "expected": "O que o FiestaBoard enviou",
+      "readbackUnavailable": "Este ecrã não fornece uma imagem atual legível.",
+      "advanced": "Definições avançadas do ecrã"
     },
     "title": "Ecrãs",
     "description": "Todos os painéis e ecrãs em que o FiestaBoard mostra conteúdo. Abra um para alterar as configurações.",
@@ -1868,7 +1937,10 @@
     "updateIntervalsTitle": "Intervalos de atualização",
     "updateIntervalsDescription": "Com que frequência o quadro busca novo conteúdo e relê seu estado atual",
     "silenceShowHeldLabel": "Mostrar mensagens retidas quando o silêncio terminar",
-    "silenceShowHeldHelp": "Uma mensagem enviada a este quadro durante o silêncio é retida e exibida no momento em que o silêncio termina. Desativado, ela é recusada. Mudanças de página são sempre mantidas e não precisam disso."
+    "silenceShowHeldHelp": "Uma mensagem enviada a este quadro durante o silêncio é retida e exibida no momento em que o silêncio termina. Desativado, ela é recusada. Mudanças de página são sempre mantidas e não precisam disso.",
+    "silenceModeIndicatorShort": "Indicador",
+    "silenceModeFreezeShort": "Congelar",
+    "silenceModePageShort": "Mostrar página"
   },
   "serviceControls": {
     "title": "Controle do Serviço",
@@ -2916,7 +2988,12 @@
     "geometryLoading": "Calculando a geometria da tela…",
     "draftContentPending": "A prévia do conteúdo será atualizada após salvar e receber um quadro compatível.",
     "geometryUnsupported": "Esta grade LED não pode ser exibida. Edite este painel e escolha Ajustar ao formato da tela para usar uma grade compatível.",
-    "legacyGridHint": "Este painel mantém a grade de caracteres atual. Escolha Ajustar ao formato da tela para alterar o layout."
+    "legacyGridHint": "Este painel mantém a grade de caracteres atual. Escolha Ajustar ao formato da tela para alterar o layout.",
+    "displaySettings": "Tela",
+    "previewAt": "Prévia em {inches}″",
+    "removeDisplayTitle": "Remover tela",
+    "removeDisplay": "Remover tela…",
+    "advancedSettings": "Configurações avançadas do painel"
   },
   "releaseChannel": {
     "title": "Canal de versões",

@@ -16,7 +16,7 @@ import {
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { addDays, format, isSameDay, startOfDay, startOfWeek } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
@@ -27,9 +27,12 @@ import {
   schedulesToCalendarEvents,
   silenceToCalendarEvents,
 } from "@/lib/schedule-calendar";
+import { weeklyConflictRepair } from "@/lib/schedule-conflict-repair";
 
-import { ScheduleAgenda, type ScheduleView } from "./schedule-agenda";
+import { ScheduleAgenda, type ScheduleView, supportsDatedGaps } from "./schedule-agenda";
+import { ScheduleCopy } from "./schedule-copy";
 import { ScheduleLookup } from "./schedule-lookup";
+import { SchedulePagePreview } from "./schedule-page-preview";
 
 interface Props {
   view: ScheduleView;
@@ -48,6 +51,7 @@ interface Props {
   onToggleEnabled: (entry: ScheduleEntry, enabled: boolean) => void;
   onCreate: (start: Date, end: Date) => void;
   onSilenceClick: () => void;
+  onRepair?: (entry: ScheduleEntry, startTime: string) => Promise<void>;
   legacyCalendar?: React.ReactNode;
 }
 export function ScheduleWorkspace({
@@ -67,6 +71,7 @@ export function ScheduleWorkspace({
   onToggleEnabled,
   onCreate,
   onSilenceClick,
+  onRepair,
   legacyCalendar,
 }: Props) {
   const t = useTranslations("schedule.agenda");
@@ -74,6 +79,7 @@ export function ScheduleWorkspace({
   const locale = useLocale();
   const [date, setDate] = useState(() => startOfDay(toZonedTime(new Date(), timezone)));
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [repairing, setRepairing] = useState(false);
   const [legacy, setLegacy] = useState(false);
   const weekStart = startOfWeek(date);
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
@@ -109,7 +115,7 @@ export function ScheduleWorkspace({
     end: minute(event.end, event.start),
     title: event.title,
     meta: isCollectionId(event.resource.pageId) ? t("collection") : t("page"),
-    conflict: overlaps.some(
+    conflict: (supportsDatedGaps(schedules) ? overlaps : []).some(
       (overlap) =>
         overlap.schedule1_id === event.resource.scheduleId || overlap.schedule2_id === event.resource.scheduleId,
     ),
@@ -131,7 +137,7 @@ export function ScheduleWorkspace({
     t("noDefault");
   for (const [index, day] of days.entries()) {
     const dayName = day.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
-    for (const [gapIndex, gap] of gaps.entries()) {
+    for (const [gapIndex, gap] of (supportsDatedGaps(schedules) ? gaps : []).entries()) {
       if (!gap.days.some((name) => name.toLowerCase().slice(0, 3) === dayName.slice(0, 3))) continue;
       const toMinute = (value: string) => {
         const [hour, minutes] = value.split(":").map(Number);
@@ -153,8 +159,12 @@ export function ScheduleWorkspace({
   const selected = events.find((event) => event.id === selectedId);
   const selectedEntry = selected?.resource.originalSchedule;
   const conflict = selectedEntry
-    ? overlaps.find((overlap) => overlap.schedule1_id === selectedEntry.id || overlap.schedule2_id === selectedEntry.id)
+    ? (supportsDatedGaps(schedules) ? overlaps : []).find(
+        (overlap) => overlap.schedule1_id === selectedEntry.id || overlap.schedule2_id === selectedEntry.id,
+      )
     : undefined;
+  const repairStart =
+    selectedEntry && supportsDatedGaps(schedules) ? weeklyConflictRepair(selectedEntry, schedules, overlaps) : null;
   const today = toZonedTime(new Date(), timezone);
   return (
     <Stack gap="4">
@@ -191,6 +201,11 @@ export function ScheduleWorkspace({
           ))}
         </WeekStrip>
       )}
+      {!supportsDatedGaps(schedules) && (gaps.length > 0 || overlaps.length > 0) && (
+        <Text role="status" size="sm" tone="muted">
+          {t("datedGapsUnavailable")}
+        </Text>
+      )}
       {needsSun && (sun.isError || (sun.data && !sun.data.location_configured)) && (
         <Text role="status" size="sm" tone="muted">
           {t("sunUnavailable")}
@@ -204,17 +219,27 @@ export function ScheduleWorkspace({
               title={tSchedule("noSchedulesCreated")}
               description={t("gapUses", { name: fallback })}
               action={
-                <Button
-                  onClick={() => {
-                    const start = new Date(date);
-                    start.setHours(9, 0, 0, 0);
-                    const end = new Date(date);
-                    end.setHours(13, 0, 0, 0);
-                    onCreate(start, end);
-                  }}
-                >
-                  {tSchedule("addSchedule")}
-                </Button>
+                <Stack gap="3">
+                  <SchedulePagePreview
+                    pageId={defaultPageId}
+                    pages={pages}
+                    at={new Date().toISOString()}
+                    boardId={boardId}
+                    label={t("default")}
+                  />
+                  <Button
+                    onClick={() => {
+                      const start = new Date(date);
+                      start.setHours(9, 0, 0, 0);
+                      const end = new Date(date);
+                      end.setHours(13, 0, 0, 0);
+                      onCreate(start, end);
+                    }}
+                  >
+                    {tSchedule("addSchedule")}
+                  </Button>
+                  <ScheduleCopy boardId={boardId} pages={pages} collections={collections} />
+                </Stack>
               }
               className="rounded-xl border bg-card py-10"
             />
@@ -272,7 +297,7 @@ export function ScheduleWorkspace({
                 pages={pages}
                 collections={collections}
                 gaps={gaps}
-                overlaps={overlaps}
+                overlaps={supportsDatedGaps(schedules) ? overlaps : []}
                 defaultPageId={defaultPageId}
                 silenceSchedule={silenceSchedule}
                 sunTimesMap={sunTimesMap}
@@ -294,6 +319,40 @@ export function ScheduleWorkspace({
               title={selected!.title}
               description={`${time(minute(selected!.start, selected!.start))} – ${time(minute(selected!.end, selected!.start))} · ${boardName ?? ""}`}
               conflict={conflict?.conflict_description}
+              conflictActions={
+                repairStart && onRepair ? (
+                  <Stack gap="2">
+                    <Button
+                      variant="outline"
+                      disabled={repairing}
+                      onClick={async () => {
+                        setRepairing(true);
+                        try {
+                          await onRepair(selectedEntry, repairStart);
+                        } finally {
+                          setRepairing(false);
+                        }
+                      }}
+                    >
+                      {t("repairStart", {
+                        time: time(Number(repairStart.slice(0, 2)) * 60 + Number(repairStart.slice(3))),
+                      })}
+                    </Button>
+                    <Text size="xs" tone="muted">
+                      {t("repairRepeats")}
+                    </Text>
+                  </Stack>
+                ) : undefined
+              }
+              preview={
+                <SchedulePagePreview
+                  pageId={selectedEntry.page_id}
+                  pages={pages}
+                  at={fromZonedTime(selected!.start, timezone).toISOString()}
+                  boardId={boardId}
+                  label={t("page")}
+                />
+              }
               actions={
                 <Flex gap="2">
                   <Button variant="outline" onClick={() => onEdit(selectedEntry)}>
@@ -306,6 +365,7 @@ export function ScheduleWorkspace({
               }
             >
               <ListRowGroup>
+                <ListRow title={t("page")} meta={selected!.title} />
                 <ListRow title={t("display")} meta={boardName} />
                 <ListRow
                   title={t("repeat")}

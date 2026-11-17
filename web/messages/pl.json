@@ -573,7 +573,32 @@
         "schedule": "Harmonogram",
         "manual": "Ręcznie",
         "none": "Brak wyboru"
-      }
+      },
+      "timezoneFallback": "Strefa czasowa huba jest niedostępna lub nieprawidłowa; używany jest UTC.",
+      "quickMoments": "Szybkie chwile",
+      "quickNow": "Teraz",
+      "quickTonight": "Dziś 21:00",
+      "quickTomorrow": "Jutro 15:00",
+      "quickSaturday": "Sob 12:30",
+      "missing": "Traktuj jako brak (jedna ścieżka zmiennej w wierszu)",
+      "winningRule": "Pierwsza zwycięska reguła",
+      "sourceFreshness": "Aktualność źródeł",
+      "sourceState": {
+        "fresh": "Aktualne",
+        "stale": "Nieaktualne",
+        "live": "Na żywo",
+        "none": "Brak danych",
+        "unknown": "Nieznane"
+      },
+      "actualPreview": "Aktywna strona w danej chwili · Strona",
+      "simulatedPreview": "Symulacja kolekcji · Strona",
+      "whatIf": "Co jeśli",
+      "addValue": "Dodaj wartość…",
+      "samplePath": "Ścieżka zmiennej",
+      "sampleValue": "Wartość (tekst lub JSON)",
+      "confirmValue": "Dodaj wartość",
+      "removeValue": "Usuń {path}",
+      "editValuesJson": "Edytuj wartości JSON"
     },
     "agenda": {
       "empty": "Brak wpisów tego dnia",
@@ -602,10 +627,51 @@
       "repeat": "Powtarzanie",
       "legacy": "Przenieś lub zmień długość wpisów",
       "calendar": "Kalendarz tygodniowy",
-      "sunUnavailable": "Godziny słoneczne są niedostępne. Używane są zapisane godziny zastępcze."
+      "sunUnavailable": "Godziny słoneczne są niedostępne. Używane są zapisane godziny zastępcze.",
+      "datedGapsUnavailable": "Kontrola tygodniowa pomija wyjątki datowane i używa dzisiejszych godzin słonecznych. Sprawdź konkretną chwilę, aby poznać rzeczywistą stronę.",
+      "repairStart": "Zacznij o {time}",
+      "repairRepeats": "Zmienia wpis tygodniowy we wszystkie dni powtarzania.",
+      "repaired": "Zmieniono czas rozpoczęcia",
+      "undo": "Cofnij",
+      "repairFailed": "Nie można zaktualizować wpisu."
+    },
+    "adapter": {
+      "display": "Wyświetlacz",
+      "startFallback": "Zastępczy czas rozpoczęcia",
+      "endFallback": "Zastępczy czas zakończenia",
+      "fallbackHint": "Używany, gdy nie można obliczyć godzin słonecznych.",
+      "invalidTime": "Podaj prawidłową godzinę.",
+      "delete": "Usuń wpis…",
+      "required": "(wymagane)",
+      "allShort": "Wszystkie",
+      "weekdaysShort": "Pn–Pt",
+      "weekendsShort": "Sob–Nd",
+      "customShort": "Własne",
+      "openEnded": "Bez końca"
+    },
+    "copy": {
+      "open": "Kopiuj z innego wyświetlacza…",
+      "description": "Kopiuj tylko wtedy, gdy wszystkie strony pasują. Nowe kopie są usuwane, jeśli kolejna kopia się nie powiedzie.",
+      "source": "Wyświetlacz źródłowy",
+      "run": "Kopiuj wpisy",
+      "incompatible": "Nic nie skopiowano: co najmniej jedna strona nie pasuje.",
+      "partial": "Nie można usunąć nowych kopii: {ids}"
     }
   },
   "integrations": {
+    "detailTabs": "Szczegóły integracji",
+    "variablesTab": "Zmienne",
+    "readmeTab": "README",
+    "readmeUnavailable": "Dokumentacja jest niedostępna.",
+    "about": "Informacje",
+    "versionLabel": "Wersja",
+    "authorLabel": "Autor",
+    "sourceLabel": "Źródło",
+    "backToIntegrations": "Wróć do integracji",
+    "reconnectTitle": "Połącz ponownie {name}",
+    "reconnectConsequence": "Dane stron korzystających z tej integracji mogą być niedostępne lub nieaktualne do czasu ponownego połączenia.",
+    "setupConsequence": "Uzupełnij ustawienia, aby strony mogły korzystać z danych tej integracji.",
+    "noVariables": "Ta integracja nie udostępnia zmiennych szablonu.",
     "needsAttention": "Wymaga uwagi",
     "setUpAction": "Skonfiguruj",
     "integrationSettings": "Ustawienia integracji",
@@ -1558,7 +1624,10 @@
         "read_failed": "Nie udało się odczytać wyświetlacza"
       },
       "removeConfirmTitle": "Usunąć {name}?",
-      "removeConfirmBody": "Spowoduje to usunięcie wyświetlacza z tego huba."
+      "removeConfirmBody": "Spowoduje to usunięcie wyświetlacza z tego huba.",
+      "expected": "Co wysłał FiestaBoard",
+      "readbackUnavailable": "Ten wyświetlacz nie udostępnia odczytu bieżącego obrazu.",
+      "advanced": "Zaawansowane ustawienia wyświetlacza"
     },
     "title": "Wyświetlacze",
     "description": "Wszystkie tablice i ekrany, na których wyświetla FiestaBoard. Otwórz jeden, aby zmienić jego ustawienia.",
@@ -1868,7 +1937,10 @@
     "updateIntervalsTitle": "Interwały aktualizacji",
     "updateIntervalsDescription": "Jak często tablica sprawdza nową treść i ponownie odczytuje swój aktualny stan",
     "silenceShowHeldLabel": "Pokazuj wstrzymane wiadomości po zakończeniu ciszy",
-    "silenceShowHeldHelp": "Wiadomość wysłana na tę tablicę w czasie ciszy jest wstrzymywana i pokazywana w chwili, gdy cisza się kończy. Gdy ta opcja jest wyłączona, wiadomość jest odrzucana. Zmiany strony są zawsze zapisywane i jej nie potrzebują."
+    "silenceShowHeldHelp": "Wiadomość wysłana na tę tablicę w czasie ciszy jest wstrzymywana i pokazywana w chwili, gdy cisza się kończy. Gdy ta opcja jest wyłączona, wiadomość jest odrzucana. Zmiany strony są zawsze zapisywane i jej nie potrzebują.",
+    "silenceModeIndicatorShort": "Wskaźnik",
+    "silenceModeFreezeShort": "Zatrzymaj",
+    "silenceModePageShort": "Pokaż stronę"
   },
   "serviceControls": {
     "title": "Kontrola usługi",
@@ -2916,7 +2988,12 @@
     "geometryLoading": "Obliczanie geometrii ekranu…",
     "draftContentPending": "Podgląd zawartości zaktualizuje się po zapisaniu i otrzymaniu pasującej klatki.",
     "geometryUnsupported": "Nie można wyświetlić tej siatki LED. Edytuj panel i wybierz Dopasuj do kształtu ekranu, aby użyć obsługiwanej siatki.",
-    "legacyGridHint": "Ten panel zachowuje obecną siatkę znaków. Wybierz Dopasuj do kształtu ekranu, aby zmienić układ."
+    "legacyGridHint": "Ten panel zachowuje obecną siatkę znaków. Wybierz Dopasuj do kształtu ekranu, aby zmienić układ.",
+    "displaySettings": "Wyświetlacz",
+    "previewAt": "Podgląd przy {inches}″",
+    "removeDisplayTitle": "Usuń wyświetlacz",
+    "removeDisplay": "Usuń wyświetlacz…",
+    "advancedSettings": "Zaawansowane ustawienia panelu"
   },
   "releaseChannel": {
     "title": "Kanał wydań",
