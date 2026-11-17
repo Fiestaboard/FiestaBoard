@@ -80,7 +80,9 @@ def moves_a_stored_secret(incoming: dict[str, Any], stored: dict[str, Any], sent
         return False
     raw_before = _connection(board_view(stored))
     raw_after = _connection(board_view(after))
-    sent = json.dumps(incoming if sent is None else sent, default=str)
+    # Exact leaf values the phone typed, whatever their type: a secret the
+    # request carries anywhere is one the user re-entered.
+    typed = {_hashable(v) for _p, v in _leaves(incoming if sent is None else sent)}
     for path, value in _leaves(masked_before):
         if value != MASK:
             continue
@@ -88,9 +90,17 @@ def moves_a_stored_secret(incoming: dict[str, Any], stored: dict[str, Any], sent
         if secret in (None, "", MASK):
             continue
         survived = any(v == secret for _p, v in _leaves(raw_after))
-        if survived and json.dumps(secret)[1:-1] not in sent:
+        if survived and _hashable(secret) not in typed:
             return True
     return False
+
+
+def _hashable(value: Any) -> Any:
+    try:
+        hash(value)
+    except TypeError:
+        return json.dumps(value, sort_keys=True, default=str)
+    return value
 
 
 def first_board_needing_key(boards: list[Any], stored_boards: list[dict[str, Any]]) -> str | None:

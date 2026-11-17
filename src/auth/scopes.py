@@ -122,7 +122,7 @@ CONTROL_RULES = (
         # H21a tier 1: add, change and remove displays (every display type, MQTT
         # included), detect a board's size, and display settings. Changing a
         # display's connection while echoing a masked key is refused
-        # (src/auth/phone_policy.py). Installing outputs stays browser-only.
+        # (src/settings/phone_displays.py). Installing outputs stays browser-only.
         ("GET,PUT", "/settings/board"),
         ("POST", "/settings/board/add"),
         ("DELETE", "/settings/board/{}"),

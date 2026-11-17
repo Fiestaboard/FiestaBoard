@@ -258,6 +258,20 @@ def test_browser_action_is_unchanged(auth, boards, actions):
     assert response.status_code == 200 and len(actions) == 1
 
 
+def test_a_non_string_secret_is_compared_exactly():
+    from src.settings.phone_displays import moves_a_stored_secret
+
+    stored = {**KITCHEN, "local_api_key": "1234567"}
+    # Moving the host with a key that merely contains the stored digits is still a move.
+    edit = {**stored, "host": "203.0.113.50", "local_api_key": "***"}
+    assert moves_a_stored_secret(edit, stored)
+    retyped = {**stored, "host": "203.0.113.50", "local_api_key": "1234567"}
+    assert not moves_a_stored_secret(retyped, stored)
+    # A secret-shaped value elsewhere in the body does not count as re-entry.
+    decoy = {**stored, "host": "203.0.113.50", "local_api_key": "***", "name": "key 1234567 x"}
+    assert moves_a_stored_secret(decoy, stored)
+
+
 # --- The tables ----------------------------------------------------------------------------
 
 
