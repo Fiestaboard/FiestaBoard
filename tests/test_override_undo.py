@@ -485,3 +485,92 @@ def test_stopped_worker_retires_manual_authority_without_leaking_pending_count(s
     assert store._override_mutations_pending == 0
     with pytest.raises(ValueError):
         restore(store, token)
+
+
+def test_root_path_double_form_tracks_the_actual_routed_write(store, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from src.override_undo import OverrideMutationMiddleware
+    import src.settings.service as services
+    monkeypatch.setattr(services, "get_settings_service", lambda: store)
+    app = FastAPI(root_path="/api")
+    app.add_middleware(OverrideMutationMiddleware)
+    @app.post("/pages/{page_id}/send")
+    async def send(page_id: str):
+        return {"pending": store._override_mutations_pending}
+    result = TestClient(app).post("/api/pages/p/send")
+    assert result.status_code == 200
+    assert result.json()["pending"] > 0
+
+
+def test_mqtt_active_page_physical_phase_has_manual_authority(store, monkeypatch):
+    from types import SimpleNamespace
+    from src.mqtt.commands import CommandHandler
+    import src.settings.service as services
+    monkeypatch.setattr(services, "get_settings_service", lambda: store)
+    observed = []
+    handler = CommandHandler(SimpleNamespace())
+    monkeypatch.setattr(handler, "_display_service", lambda: SimpleNamespace(
+        check_and_send_active_page=lambda: observed.append(store._override_mutations_pending)))
+    monkeypatch.setattr(handler, "_invalidate_board_content", lambda board: None)
+    handler._force_send_active_page(None)
+    assert observed and observed[0] > 0
+
+
+def test_output_action_hardware_phase_blocks_undo(store, monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+    from src.outputs.actions import execute_action
+    import src.settings.service as services
+    monkeypatch.setattr(services, "get_settings_service", lambda: store)
+    start(store)
+    _, token, _ = cancel(store)
+    class Output:
+        @staticmethod
+        def handle_action(context):
+            with pytest.raises(ValueError, match="in progress"):
+                restore(store, token)
+            return {"status": "ok"}
+    asyncio.run(execute_action(SimpleNamespace(plugin_class=Output, id="test"), "identify",
+        board={"id": "a"}, board_id="a", inputs={}))
+    with pytest.raises(ValueError):
+        restore(store, token)
+
+
+def test_cancelling_await_does_not_end_a_running_hardware_thread_barrier(store, monkeypatch):
+    import asyncio
+    import threading
+    from src.board_send_executor import run_board_send
+    from src.override_undo import manual_mutation
+    import src.settings.service as services
+    monkeypatch.setattr(services, "get_settings_service", lambda: store)
+    entered, release, finished = threading.Event(), threading.Event(), threading.Event()
+    def hardware():
+        entered.set()
+        try:
+            assert release.wait(5)
+        finally:
+            finished.set()
+    @manual_mutation
+    async def request():
+        await run_board_send(hardware)
+    async def exercise():
+        task = asyncio.create_task(request())
+        try:
+            assert await asyncio.to_thread(entered.wait, 2)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            start(store)
+            _, token, _ = cancel(store)
+            with pytest.raises(ValueError, match="in progress"):
+                restore(store, token)
+        finally:
+            release.set()
+            assert await asyncio.to_thread(finished.wait, 2)
+            for _ in range(100):
+                if store._override_mutations_pending == 0:
+                    break
+                await asyncio.sleep(0.01)
+        assert store._override_mutations_pending == 0
+    asyncio.run(exercise())
