@@ -7,6 +7,8 @@ import {
   Input,
   Label,
   PageSection,
+  SegmentedControl,
+  SegmentedControlItem,
   Select,
   SelectContent,
   SelectItem,
@@ -36,6 +38,13 @@ import { localTimeToUTC, utcToLocalTime } from "@/lib/timezone-utils";
 type SilenceMode = "indicator" | "freeze" | "page";
 
 export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
+  const { currentBoardId, isLoading } = useCurrentBoard();
+  const scopedBoardId = boardId ?? (currentBoardId || undefined);
+  if (isLoading) return <Skeleton className="h-24 w-full" />;
+  return <BoardSilenceSchedule key={scopedBoardId ?? "global"} boardId={scopedBoardId} />;
+}
+
+function BoardSilenceSchedule({ boardId }: { boardId?: string }) {
   const t = useTranslations("generalSettings");
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
@@ -53,6 +62,7 @@ export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
   const scopedBoardId = boardId ?? (currentBoardId || undefined);
   const scopedBoard = boardId ? boards.find((board) => board.id === boardId) : currentBoard;
 
+  const [lastSaved, setLastSaved] = useState<Parameters<typeof api.updateSilenceSchedule>[0] | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [silenceEnabled, setSilenceEnabled] = useState(false);
   const [silenceStartTime, setSilenceStartTime] = useState("20:00");
@@ -105,6 +115,16 @@ export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
       setSilenceIndicatorPosition(((config.indicator_position as string) ?? "") || "center");
       setShowHeldOnExit(config.show_queued_on_exit === true);
 
+      setLastSaved({
+        enabled: (config.enabled as boolean) ?? false,
+        start_time: startUtc,
+        end_time: endUtc,
+        mode: rawMode === "freeze" || rawMode === "page" ? rawMode : "indicator",
+        page_id: (config.page_id as string | null) ?? null,
+        indicator_text: (config.indicator_text as string | null) ?? "SNOOZING",
+        indicator_position: (config.indicator_position as string | null) ?? "center",
+        show_queued_on_exit: config.show_queued_on_exit === true,
+      });
       setHasChanges(false);
       setInitializedFor(seedKey);
     }
@@ -112,7 +132,9 @@ export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
 
   const updateSilenceMutation = useMutation({
     mutationFn: (data: Parameters<typeof api.updateSilenceSchedule>[0]) => api.updateSilenceSchedule(data),
-    onSuccess: () => {
+    onSuccess: (_result, saved) => {
+      setLastSaved(saved);
+      setHasChanges(false);
       queryClient.invalidateQueries({ queryKey: ["all-settings"], refetchType: "active" });
       // Unscoped key = prefix match, so every board-scoped variant refetches
       // too. This used to invalidate ["silence-status"] (hyphenated) while the
@@ -122,6 +144,18 @@ export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
       toast.success(t("toastSettingsSaved"));
     },
     onError: (error: Error) => {
+      if (lastSaved) {
+        const timezone = generalConfig?.timezone ?? "America/Los_Angeles";
+        setSilenceEnabled(lastSaved.enabled);
+        setSilenceStartTime(utcToLocalTime(lastSaved.start_time, timezone));
+        setSilenceEndTime(utcToLocalTime(lastSaved.end_time, timezone));
+        setSilenceMode(lastSaved.mode ?? "indicator");
+        setSilencePageId(lastSaved.page_id ?? "");
+        setSilenceIndicatorText(lastSaved.indicator_text ?? "SNOOZING");
+        setSilenceIndicatorPosition(lastSaved.indicator_position ?? "center");
+        setShowHeldOnExit(lastSaved.show_queued_on_exit ?? false);
+      }
+      setHasChanges(false);
       toast.error(t("toastSilenceSaveFailed", { error: error.message }));
     },
   });
@@ -175,7 +209,7 @@ export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
     setHasChanges(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const timezone = generalConfig?.timezone ?? "America/Los_Angeles";
     const startUtc = localTimeToUTC(silenceStartTime, timezone);
     const endUtc = localTimeToUTC(silenceEndTime, timezone);
@@ -184,7 +218,7 @@ export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
     if (silenceMode === "page" && !silencePageId) return;
 
     if (startUtc && endUtc) {
-      await updateSilenceMutation.mutateAsync({
+      updateSilenceMutation.mutate({
         enabled: silenceEnabled,
         start_time: startUtc,
         end_time: endUtc,
@@ -201,7 +235,6 @@ export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
         ...(scopedBoardId ? { board_id: scopedBoardId } : {}),
       });
     }
-    setHasChanges(false);
   };
 
   useEffect(() => {
@@ -285,23 +318,31 @@ export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
               </Grid>
 
               <Stack gap="2">
-                <Label htmlFor="silence-mode" className="text-sm font-medium">
+                <Label id="silence-mode-label" className="text-sm font-medium">
                   {t("silenceModeLabel")}
                 </Label>
-                <Select
+                <SegmentedControl
+                  aria-labelledby="silence-mode-label"
                   value={silenceMode}
-                  onValueChange={(val) => handleSilenceModeChange(val as SilenceMode)}
+                  onValueChange={(value) => {
+                    if (value === "indicator" || value === "freeze" || value === "page") handleSilenceModeChange(value);
+                  }}
                   disabled={isSaving}
+                  layout="grid"
+                  columns="3"
+                  className="w-full"
+                  size="touch"
                 >
-                  <SelectTrigger id="silence-mode" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="indicator">{t("silenceModeIndicator")}</SelectItem>
-                    <SelectItem value="freeze">{t("silenceModeFreeze")}</SelectItem>
-                    <SelectItem value="page">{t("silenceModePage")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <SegmentedControlItem className="whitespace-normal text-center" value="indicator">
+                    {t("silenceModeIndicatorShort")}
+                  </SegmentedControlItem>
+                  <SegmentedControlItem className="whitespace-normal text-center" value="freeze">
+                    {t("silenceModeFreezeShort")}
+                  </SegmentedControlItem>
+                  <SegmentedControlItem className="whitespace-normal text-center" value="page">
+                    {t("silenceModePageShort")}
+                  </SegmentedControlItem>
+                </SegmentedControl>
                 <Text size="xs" tone="muted">
                   {silenceMode === "indicator" && t("silenceModeIndicatorHelp")}
                   {silenceMode === "freeze" && t("silenceModeFreezeHelp")}

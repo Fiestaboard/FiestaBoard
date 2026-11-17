@@ -1775,7 +1775,10 @@
     "updateIntervalsTitle": "更新间隔",
     "updateIntervalsDescription": "看板查询新内容和重新读取当前状态的频率",
     "silenceShowHeldLabel": "静默结束时显示暂存的消息",
-    "silenceShowHeldHelp": "静默期间发送到此看板的消息会被暂存，并在静默结束的那一刻显示。关闭时则会被拒绝。页面更改始终会被保存，不需要此选项。"
+    "silenceShowHeldHelp": "静默期间发送到此看板的消息会被暂存，并在静默结束的那一刻显示。关闭时则会被拒绝。页面更改始终会被保存，不需要此选项。",
+    "silenceModeIndicatorShort": "指示文字",
+    "silenceModeFreezeShort": "冻结",
+    "silenceModePageShort": "显示页面"
   },
   "serviceControls": {
     "title": "服务控制",

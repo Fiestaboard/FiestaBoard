@@ -1775,7 +1775,10 @@
     "updateIntervalsTitle": "Intervalos de atualização",
     "updateIntervalsDescription": "Com que frequência o quadro busca novo conteúdo e relê seu estado atual",
     "silenceShowHeldLabel": "Mostrar mensagens retidas quando o silêncio terminar",
-    "silenceShowHeldHelp": "Uma mensagem enviada a este quadro durante o silêncio é retida e exibida no momento em que o silêncio termina. Desativado, ela é recusada. Mudanças de página são sempre mantidas e não precisam disso."
+    "silenceShowHeldHelp": "Uma mensagem enviada a este quadro durante o silêncio é retida e exibida no momento em que o silêncio termina. Desativado, ela é recusada. Mudanças de página são sempre mantidas e não precisam disso.",
+    "silenceModeIndicatorShort": "Indicador",
+    "silenceModeFreezeShort": "Congelar",
+    "silenceModePageShort": "Mostrar página"
   },
   "serviceControls": {
     "title": "Controle do Serviço",

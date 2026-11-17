@@ -1775,7 +1775,10 @@
     "updateIntervalsTitle": "更新間隔",
     "updateIntervalsDescription": "ボードが新しいコンテンツを取得し、現在の状態を再読み込みする頻度",
     "silenceShowHeldLabel": "サイレント終了時に保留中のメッセージを表示",
-    "silenceShowHeldHelp": "サイレント中にこのボードへ送られたメッセージは保留され、サイレントが終わった瞬間に表示されます。オフの場合は拒否されます。ページの変更は常に保存されるため、この設定は不要です。"
+    "silenceShowHeldHelp": "サイレント中にこのボードへ送られたメッセージは保留され、サイレントが終わった瞬間に表示されます。オフの場合は拒否されます。ページの変更は常に保存されるため、この設定は不要です。",
+    "silenceModeIndicatorShort": "表示灯",
+    "silenceModeFreezeShort": "固定",
+    "silenceModePageShort": "ページ表示"
   },
   "serviceControls": {
     "title": "サービス制御",

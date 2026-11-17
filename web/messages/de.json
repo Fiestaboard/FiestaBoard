@@ -1775,7 +1775,10 @@
     "updateIntervalsTitle": "Aktualisierungsintervalle",
     "updateIntervalsDescription": "Wie oft das Board nach neuen Inhalten sucht und seinen aktuellen Zustand erneut liest",
     "silenceShowHeldLabel": "Zurückgehaltene Nachrichten nach dem Ruhemodus anzeigen",
-    "silenceShowHeldHelp": "Eine Nachricht, die während des Ruhemodus an dieses Board gesendet wird, wird zurückgehalten und angezeigt, sobald der Ruhemodus endet. Ist dies aus, wird sie stattdessen abgelehnt. Seitenwechsel werden immer gespeichert und brauchen das nicht."
+    "silenceShowHeldHelp": "Eine Nachricht, die während des Ruhemodus an dieses Board gesendet wird, wird zurückgehalten und angezeigt, sobald der Ruhemodus endet. Ist dies aus, wird sie stattdessen abgelehnt. Seitenwechsel werden immer gespeichert und brauchen das nicht.",
+    "silenceModeIndicatorShort": "Hinweis",
+    "silenceModeFreezeShort": "Einfrieren",
+    "silenceModePageShort": "Seite zeigen"
   },
   "serviceControls": {
     "title": "Dienststeuerung",
