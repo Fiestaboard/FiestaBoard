@@ -1,5 +1,15 @@
 # fiestaboard
 
+## 11.0.0-alpha.2
+
+### Minor Changes
+
+- [#2493](https://github.com/Fiestaboard/FiestaBoard/pull/2493) [`3f0a6da`](https://github.com/Fiestaboard/FiestaBoard/commit/3f0a6da0d411f8c556dabad66ddc6011192daaf6) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Choose Stable, Beta, or the isolated FiestaBoard 11 Alpha preview from Settings, with available versions, explicit migration confirmation, and automatic recovery backups. Enable channel switching and isolated in-app updates on v11 previews.
+
+### Patch Changes
+
+- [#2494](https://github.com/Fiestaboard/FiestaBoard/pull/2494) [`8eb393b`](https://github.com/Fiestaboard/FiestaBoard/commit/8eb393b33946613895ab3d8f3efa11a896ff32c4) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Make the slow-plugin circuit-breaker regression deterministic under parallel test load while retaining late-data delivery and quarantine assertions.
+
 ## 11.0.0-alpha.1
 
 ### Minor Changes
