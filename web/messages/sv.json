@@ -3137,7 +3137,7 @@
     "untilTitleNoTime": "Tavlan är tystad"
   },
   "deviceSignIn": {
-    "title": "Anslut din TV",
+    "title": "Tillåt en TV",
     "server": "FiestaBoard: {address}",
     "loading": "Kontrollerar inloggning…",
     "code": "TV-kod",
@@ -3163,7 +3163,31 @@
       "rate_limited": "För många försök. Vänta en stund och försök igen.",
       "network": "Kan inte nå FiestaBoard. Kontrollera anslutningen och försök igen."
     },
-    "retry": "Försök igen"
+    "retry": "Försök igen",
+    "entryDescription": "Skriv koden som visas på din TV. Du är inloggad som {username}, så TV:n loggar in på {address}.",
+    "codeHint": "Endast bokstäver och siffror, utan vokaler, så att O/0 och I/1 inte blandas ihop.",
+    "noCode": "Ingen kod? Öppna FiestaBoard på TV:n och välj Logga in.",
+    "consentTitle": "Tillåta den här TV:n?",
+    "consentDescription": "Tillåt bara en TV som du kan se framför dig just nu.",
+    "displayCode": "Kod {code}",
+    "countdown": "Koden går ut om {time} · engångskod",
+    "approvedTitle": "{device} är inloggad",
+    "approvedBody": "Panelen visas om några sekunder. Välj en panel på TV:n om du blir tillfrågad.",
+    "approvedMeta": "Tillåten i den här webbläsaren · {time}",
+    "deniedTitle": "Inte tillåten",
+    "deniedBody": "”{device}” kan inte logga in med den här koden. TV:n visar ”Inte tillåten”.",
+    "deniedMeta": "Nekad i den här webbläsaren · {time}. Om det var ett misstag, hämta en ny kod på TV:n.",
+    "expiredTitle": "Den här koden har gått ut",
+    "expiredBody": "Koder gäller i 10 minuter. Ingen enhet loggades in.",
+    "expiredHint": "Välj Hämta en ny kod på TV:n och skriv sedan den nya koden här.",
+    "unavailableTitle": "Den här koden är inte längre tillgänglig",
+    "unavailableBody": "Den här koden är ogiltig, redan använd eller avbruten. Koder fungerar bara en gång.",
+    "unavailableHint": "Om du varken tillät eller nekade TV:n, kontrollera inloggade enheter och logga ut TV-apparater som du inte känner igen.",
+    "unknownTV": "Den här TV:n",
+    "done": "Klart",
+    "seeDevices": "Visa inloggade enheter",
+    "newCode": "Ange en ny kod",
+    "differentCode": "Ange en annan kod"
   },
   "signedInDevices": {
     "title": "Inloggade enheter",
@@ -3320,5 +3344,29 @@
     "error": "Kunde inte skapa en säker QR-kod. Öppna FiestaBoard på hubbens nätverksadress och försök igen.",
     "pollError": "Kunde inte kontrollera koden. En ny kontroll görs snart; utgå inte från att telefonen är ansluten.",
     "revokeError": "Kunde inte logga ut telefonen. Försök igen eller öppna Inloggade enheter."
+  },
+  "passwordReset": {
+    "title": "Återställ lösenord",
+    "description": "Återställ kontot på den här hubben med en engångskod. Du behöver åtkomst till hubbens terminal.",
+    "commandHint": "Kör det här kommandot i hubbens container för att få en återställningskod:",
+    "expiry": "Bara den senaste koden fungerar, en gång och i 15 minuter. Klistra in den nedan och håll den hemlig.",
+    "code": "Återställningskod",
+    "password": "Nytt lösenord",
+    "confirm": "Bekräfta nytt lösenord",
+    "passwordHint": "Använd minst 8 tecken.",
+    "show": "Visa",
+    "hide": "Dölj",
+    "warning": "Återställningen loggar ut alla webbläsare, TV-apparater och telefoner. Logga sedan in med det nya lösenordet.",
+    "submit": "Återställ lösenord",
+    "resetting": "Återställer…",
+    "back": "Tillbaka till inloggning",
+    "mismatch": "Lösenorden matchar inte. Kontrollera bekräftelsen och försök igen.",
+    "invalid": "Återställningskoden är ogiltig eller har gått ut. Kör återställningskommandot igen.",
+    "rateLimited": "För många försök. Vänta en stund innan du försöker igen.",
+    "network": "Det gick inte att återställa lösenordet. Kontrollera anslutningen och försök igen.",
+    "successTitle": "Lösenordet har återställts",
+    "success": "Alla webbläsare, TV-apparater och telefoner har loggats ut. Logga in med ditt nya lösenord.",
+    "signIn": "Logga in",
+    "tokenUnchanged": "MCP/API-token är oförändrad. Byt den i Inställningar om du tror att den har röjts."
   }
 }

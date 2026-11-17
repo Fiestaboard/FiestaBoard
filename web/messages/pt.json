@@ -3137,7 +3137,7 @@
     "untilTitleNoTime": "O quadro está em silêncio"
   },
   "deviceSignIn": {
-    "title": "Conecte sua TV",
+    "title": "Permitir uma TV",
     "server": "FiestaBoard: {address}",
     "loading": "Verificando o acesso…",
     "code": "Código da TV",
@@ -3163,7 +3163,31 @@
       "rate_limited": "Muitas tentativas. Aguarde um momento e tente novamente.",
       "network": "Não foi possível acessar o FiestaBoard. Verifique a conexão e tente novamente."
     },
-    "retry": "Tentar novamente"
+    "retry": "Tentar novamente",
+    "entryDescription": "Digite o código exibido na TV. Você está conectado como {username}, então a TV entrará em {address}.",
+    "codeHint": "Apenas letras e números, sem vogais, para evitar confusão entre O/0 ou I/1.",
+    "noCode": "Sem código? Abra o FiestaBoard na TV e escolha Entrar.",
+    "consentTitle": "Permitir esta TV?",
+    "consentDescription": "Permita apenas uma TV que você possa ver à sua frente neste momento.",
+    "displayCode": "Código {code}",
+    "countdown": "O código expira em {time} · uso único",
+    "approvedTitle": "{device} está conectada",
+    "approvedBody": "O painel aparecerá em alguns segundos. Se solicitado, escolha um painel na TV.",
+    "approvedMeta": "Permitida por este navegador · {time}",
+    "deniedTitle": "Não permitida",
+    "deniedBody": "“{device}” não pode entrar com este código. A TV mostra “Não permitida”.",
+    "deniedMeta": "Negada por este navegador · {time}. Se foi um engano, obtenha um novo código na TV.",
+    "expiredTitle": "Este código expirou",
+    "expiredBody": "Os códigos duram 10 minutos. Nenhum dispositivo foi conectado.",
+    "expiredHint": "Na TV, escolha Obter novo código e digite o novo código aqui.",
+    "unavailableTitle": "Este código não está mais disponível",
+    "unavailableBody": "Este código é inválido, já foi usado ou foi cancelado. Os códigos funcionam uma única vez.",
+    "unavailableHint": "Se você não permitiu nem negou a TV, verifique os dispositivos conectados e desconecte as TVs que não reconhecer.",
+    "unknownTV": "Esta TV",
+    "done": "Concluído",
+    "seeDevices": "Ver dispositivos conectados",
+    "newCode": "Inserir novo código",
+    "differentCode": "Inserir outro código"
   },
   "signedInDevices": {
     "title": "Dispositivos conectados",
@@ -3320,5 +3344,29 @@
     "error": "Não foi possível criar um código QR seguro. Abra o FiestaBoard no endereço de rede do seu hub e tente novamente.",
     "pollError": "Não foi possível verificar o código. Uma nova verificação será feita em breve; não presuma que o celular esteja conectado.",
     "revokeError": "Não foi possível encerrar a sessão do celular. Tente novamente ou abra Dispositivos conectados."
+  },
+  "passwordReset": {
+    "title": "Redefinir senha",
+    "description": "Recupere a conta deste hub com um código de uso único. Você precisa de acesso ao terminal do hub.",
+    "commandHint": "Execute este comando no contêiner do hub para obter um código de redefinição:",
+    "expiry": "Somente o código mais recente funciona, uma vez e por 15 minutos. Cole-o abaixo e mantenha-o em sigilo.",
+    "code": "Código de redefinição",
+    "password": "Nova senha",
+    "confirm": "Confirmar nova senha",
+    "passwordHint": "Use pelo menos 8 caracteres.",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "warning": "A redefinição desconecta todos os navegadores, TVs e celulares. Entre novamente com a nova senha.",
+    "submit": "Redefinir senha",
+    "resetting": "Redefinindo…",
+    "back": "Voltar para entrar",
+    "mismatch": "As senhas não coincidem. Verifique a confirmação e tente novamente.",
+    "invalid": "Este código de redefinição é inválido ou expirou. Execute o comando de redefinição novamente.",
+    "rateLimited": "Muitas tentativas. Aguarde um momento antes de tentar novamente.",
+    "network": "Não foi possível redefinir a senha. Verifique sua conexão e tente novamente.",
+    "successTitle": "Senha redefinida",
+    "success": "Todos os navegadores, TVs e celulares foram desconectados. Entre com a nova senha.",
+    "signIn": "Entrar",
+    "tokenUnchanged": "O token MCP/API não muda. Renove-o nas configurações se achar que ele foi exposto."
   }
 }

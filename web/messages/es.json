@@ -3137,7 +3137,7 @@
     "untilTitleNoTime": "El tablero está en silencio"
   },
   "deviceSignIn": {
-    "title": "Conecta tu TV",
+    "title": "Autorizar un TV",
     "server": "FiestaBoard: {address}",
     "loading": "Comprobando sesión…",
     "code": "Código del TV",
@@ -3163,7 +3163,31 @@
       "rate_limited": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
       "network": "No se puede conectar con FiestaBoard. Comprueba la conexión y vuelve a intentarlo."
     },
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "entryDescription": "Escribe el código que muestra tu TV. Has iniciado sesión como {username}, así que el TV iniciará sesión en {address}.",
+    "codeHint": "Solo letras y números, sin vocales, para evitar confusiones entre O/0 o I/1.",
+    "noCode": "¿No tienes código? Abre FiestaBoard en el TV y elige Iniciar sesión.",
+    "consentTitle": "¿Autorizar este TV?",
+    "consentDescription": "Autoriza solo un TV que puedas ver delante de ti en este momento.",
+    "displayCode": "Código {code}",
+    "countdown": "El código caduca en {time} · un solo uso",
+    "approvedTitle": "{device} ha iniciado sesión",
+    "approvedBody": "Mostrará su panel en unos segundos. Si lo pide, elige un panel en el TV.",
+    "approvedMeta": "Autorizado desde este navegador · {time}",
+    "deniedTitle": "No autorizado",
+    "deniedBody": "«{device}» no puede iniciar sesión con este código. El TV muestra «No autorizado».",
+    "deniedMeta": "Rechazado desde este navegador · {time}. Si fue un error, obtén un código nuevo en el TV.",
+    "expiredTitle": "Este código ha caducado",
+    "expiredBody": "Los códigos duran 10 minutos. No se inició ninguna sesión.",
+    "expiredHint": "En el TV, elige Obtener un código nuevo y escríbelo aquí.",
+    "unavailableTitle": "Este código ya no está disponible",
+    "unavailableBody": "Este código no es válido, ya se usó o se canceló. Los códigos funcionan una sola vez.",
+    "unavailableHint": "Si no lo autorizaste ni rechazaste, revisa Dispositivos con sesión iniciada y cierra la sesión de los TV que no reconozcas.",
+    "unknownTV": "Este TV",
+    "done": "Listo",
+    "seeDevices": "Ver dispositivos con sesión iniciada",
+    "newCode": "Introducir un código nuevo",
+    "differentCode": "Introducir otro código"
   },
   "signedInDevices": {
     "title": "Dispositivos con sesión iniciada",
@@ -3320,5 +3344,29 @@
     "error": "No se pudo crear un código QR seguro. Abre FiestaBoard en la dirección de red de tu hub y vuelve a intentarlo.",
     "pollError": "No se pudo comprobar el código. Se comprobará de nuevo en breve; no des por hecho que el teléfono está conectado.",
     "revokeError": "No se pudo cerrar la sesión del teléfono. Vuelve a intentarlo o abre Dispositivos con sesión iniciada."
+  },
+  "passwordReset": {
+    "title": "Restablecer contraseña",
+    "description": "Recupera la cuenta de este hub con un código de un solo uso. Necesitas acceso al terminal del hub.",
+    "commandHint": "Ejecuta este comando dentro del contenedor del hub para obtener un código de restablecimiento:",
+    "expiry": "Solo funciona el código más reciente, una vez y durante 15 minutos. Pégalo abajo y mantenlo en privado.",
+    "code": "Código de restablecimiento",
+    "password": "Contraseña nueva",
+    "confirm": "Confirmar contraseña nueva",
+    "passwordHint": "Usa al menos 8 caracteres.",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "warning": "El restablecimiento cierra la sesión de todos los navegadores, TV y teléfonos. Vuelve a iniciar sesión con la contraseña nueva.",
+    "submit": "Restablecer contraseña",
+    "resetting": "Restableciendo…",
+    "back": "Volver al inicio de sesión",
+    "mismatch": "Las contraseñas no coinciden. Revisa la confirmación e inténtalo de nuevo.",
+    "invalid": "El código de restablecimiento no es válido o ha caducado. Vuelve a ejecutar el comando de restablecimiento.",
+    "rateLimited": "Demasiados intentos. Espera un momento antes de volver a intentarlo.",
+    "network": "No se pudo restablecer la contraseña. Comprueba la conexión e inténtalo de nuevo.",
+    "successTitle": "Contraseña restablecida",
+    "success": "Se ha cerrado la sesión de todos los navegadores, TV y teléfonos. Inicia sesión con la contraseña nueva.",
+    "signIn": "Iniciar sesión",
+    "tokenUnchanged": "El token MCP/API no cambia. Rótalo en Ajustes si crees que quedó expuesto."
   }
 }

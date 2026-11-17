@@ -3137,7 +3137,7 @@
     "untilTitleNoTime": "Het bord is stil"
   },
   "deviceSignIn": {
-    "title": "Verbind je tv",
+    "title": "Een tv toestaan",
     "server": "FiestaBoard: {address}",
     "loading": "Aanmelding controleren…",
     "code": "Tv-code",
@@ -3163,7 +3163,31 @@
       "rate_limited": "Te veel pogingen. Wacht even en probeer opnieuw.",
       "network": "FiestaBoard is niet bereikbaar. Controleer je verbinding en probeer opnieuw."
     },
-    "retry": "Opnieuw proberen"
+    "retry": "Opnieuw proberen",
+    "entryDescription": "Typ de code die je tv toont. Je bent aangemeld als {username}, dus de tv meldt zich aan bij {address}.",
+    "codeHint": "Alleen letters en cijfers, zonder klinkers, zodat O/0 en I/1 niet worden verward.",
+    "noCode": "Geen code? Open FiestaBoard op de tv en kies Aanmelden.",
+    "consentTitle": "Deze tv toestaan?",
+    "consentDescription": "Sta alleen een tv toe die je nu voor je kunt zien.",
+    "displayCode": "Code {code}",
+    "countdown": "Code verloopt over {time} · eenmalig",
+    "approvedTitle": "{device} is aangemeld",
+    "approvedBody": "Het paneel verschijnt over enkele seconden. Kies een paneel op de tv als daarom wordt gevraagd.",
+    "approvedMeta": "Toegestaan via deze browser · {time}",
+    "deniedTitle": "Niet toegestaan",
+    "deniedBody": "‘{device}’ kan zich niet aanmelden met deze code. De tv toont ‘Niet toegestaan’.",
+    "deniedMeta": "Geweigerd via deze browser · {time}. Was dat een vergissing? Vraag een nieuwe code aan op de tv.",
+    "expiredTitle": "Deze code is verlopen",
+    "expiredBody": "Codes zijn 10 minuten geldig. Er is niets aangemeld.",
+    "expiredHint": "Kies op de tv Nieuwe code aanvragen en typ de nieuwe code hier.",
+    "unavailableTitle": "Deze code is niet meer beschikbaar",
+    "unavailableBody": "Deze code is ongeldig, al gebruikt of geannuleerd. Codes werken maar één keer.",
+    "unavailableHint": "Heb je deze tv niet toegestaan of geweigerd? Controleer de aangemelde apparaten en meld onbekende tv’s af.",
+    "unknownTV": "Deze tv",
+    "done": "Gereed",
+    "seeDevices": "Aangemelde apparaten bekijken",
+    "newCode": "Nieuwe code invoeren",
+    "differentCode": "Andere code invoeren"
   },
   "signedInDevices": {
     "title": "Aangemelde apparaten",
@@ -3320,5 +3344,29 @@
     "error": "Er kon geen veilige QR-code worden gemaakt. Open FiestaBoard op het netwerkadres van je hub en probeer het opnieuw.",
     "pollError": "De code kon niet worden gecontroleerd. Er volgt binnenkort een nieuwe controle; ga er niet van uit dat de telefoon verbonden is.",
     "revokeError": "De telefoon kon niet worden afgemeld. Probeer het opnieuw of open Aangemelde apparaten."
+  },
+  "passwordReset": {
+    "title": "Wachtwoord opnieuw instellen",
+    "description": "Herstel het account op deze hub met een eenmalige code. Je hebt toegang tot de terminal van de hub nodig.",
+    "commandHint": "Voer deze opdracht uit in de container van de hub om een herstelcode te krijgen:",
+    "expiry": "Alleen de nieuwste code werkt, één keer en gedurende 15 minuten. Plak hem hieronder en houd hem geheim.",
+    "code": "Herstelcode",
+    "password": "Nieuw wachtwoord",
+    "confirm": "Nieuw wachtwoord bevestigen",
+    "passwordHint": "Gebruik minimaal 8 tekens.",
+    "show": "Tonen",
+    "hide": "Verbergen",
+    "warning": "Opnieuw instellen meldt alle browsers, tv’s en telefoons af. Meld je daarna aan met het nieuwe wachtwoord.",
+    "submit": "Wachtwoord opnieuw instellen",
+    "resetting": "Bezig met opnieuw instellen…",
+    "back": "Terug naar aanmelden",
+    "mismatch": "De wachtwoorden komen niet overeen. Controleer de bevestiging en probeer het opnieuw.",
+    "invalid": "Deze herstelcode is ongeldig of verlopen. Voer de herstelopdracht opnieuw uit.",
+    "rateLimited": "Te veel pogingen. Wacht even voordat je het opnieuw probeert.",
+    "network": "Het wachtwoord kon niet opnieuw worden ingesteld. Controleer je verbinding en probeer het opnieuw.",
+    "successTitle": "Wachtwoord opnieuw ingesteld",
+    "success": "Alle browsers, tv’s en telefoons zijn afgemeld. Meld je aan met je nieuwe wachtwoord.",
+    "signIn": "Aanmelden",
+    "tokenUnchanged": "Het MCP/API-token blijft ongewijzigd. Vernieuw het in Instellingen als je denkt dat het is uitgelekt."
   }
 }

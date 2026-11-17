@@ -3137,7 +3137,7 @@
     "untilTitleNoTime": "Das Board ist im Ruhemodus"
   },
   "deviceSignIn": {
-    "title": "TV verbinden",
+    "title": "Einen TV zulassen",
     "server": "FiestaBoard: {address}",
     "loading": "Anmeldung wird geprüft…",
     "code": "TV-Code",
@@ -3163,7 +3163,31 @@
       "rate_limited": "Zu viele Versuche. Warte kurz und versuche es erneut.",
       "network": "FiestaBoard ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut."
     },
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "entryDescription": "Gib den Code ein, der auf deinem TV angezeigt wird. Du bist als {username} angemeldet; der TV meldet sich bei {address} an.",
+    "codeHint": "Nur Buchstaben und Zahlen, keine Vokale – so gibt es keine Verwechslung zwischen O/0 oder I/1.",
+    "noCode": "Kein Code? Öffne FiestaBoard auf dem TV und wähle „Anmelden“.",
+    "consentTitle": "Diesen TV zulassen?",
+    "consentDescription": "Lasse nur einen TV zu, den du gerade vor dir sehen kannst.",
+    "displayCode": "Code {code}",
+    "countdown": "Code läuft in {time} ab · einmal verwendbar",
+    "approvedTitle": "{device} ist angemeldet",
+    "approvedBody": "Das Panel erscheint in wenigen Sekunden. Wähle bei Aufforderung ein Panel auf dem TV aus.",
+    "approvedMeta": "In diesem Browser zugelassen · {time}",
+    "deniedTitle": "Nicht zugelassen",
+    "deniedBody": "„{device}“ kann sich mit diesem Code nicht anmelden. Auf dem TV steht „Nicht zugelassen“.",
+    "deniedMeta": "In diesem Browser abgelehnt · {time}. War das ein Versehen, fordere auf dem TV einen neuen Code an.",
+    "expiredTitle": "Dieser Code ist abgelaufen",
+    "expiredBody": "Codes gelten 10 Minuten. Es wurde kein Gerät angemeldet.",
+    "expiredHint": "Wähle auf dem TV „Neuen Code anfordern“ und gib den neuen Code hier ein.",
+    "unavailableTitle": "Dieser Code ist nicht mehr verfügbar",
+    "unavailableBody": "Dieser Code ist ungültig, bereits verwendet oder abgebrochen. Codes funktionieren nur einmal.",
+    "unavailableHint": "Wenn du den TV nicht zugelassen oder abgelehnt hast, prüfe „Angemeldete Geräte“ und melde unbekannte TVs ab.",
+    "unknownTV": "Dieser TV",
+    "done": "Fertig",
+    "seeDevices": "Angemeldete Geräte ansehen",
+    "newCode": "Neuen Code eingeben",
+    "differentCode": "Anderen Code eingeben"
   },
   "signedInDevices": {
     "title": "Angemeldete Geräte",
@@ -3320,5 +3344,29 @@
     "error": "Es konnte kein sicherer QR-Code erstellt werden. Öffne FiestaBoard unter der Netzwerkadresse deines Hubs und versuche es erneut.",
     "pollError": "Der Code konnte nicht überprüft werden. Die Prüfung wird in Kürze wiederholt; gehe nicht davon aus, dass das Smartphone verbunden ist.",
     "revokeError": "Das Smartphone konnte nicht abgemeldet werden. Versuche es erneut oder öffne Angemeldete Geräte."
+  },
+  "passwordReset": {
+    "title": "Passwort zurücksetzen",
+    "description": "Stelle das Konto auf diesem Hub mit einem einmaligen Code wieder her. Du brauchst Zugriff auf das Terminal des Hubs.",
+    "commandHint": "Führe diesen Befehl im Container des Hubs aus, um einen Rücksetzcode zu erhalten:",
+    "expiry": "Nur der neueste Code funktioniert, einmalig und 15 Minuten lang. Füge ihn unten ein und halte ihn geheim.",
+    "code": "Rücksetzcode",
+    "password": "Neues Passwort",
+    "confirm": "Neues Passwort bestätigen",
+    "passwordHint": "Verwende mindestens 8 Zeichen.",
+    "show": "Anzeigen",
+    "hide": "Verbergen",
+    "warning": "Das Zurücksetzen meldet alle Browser, TVs und Smartphones ab. Melde dich danach mit dem neuen Passwort an.",
+    "submit": "Passwort zurücksetzen",
+    "resetting": "Wird zurückgesetzt…",
+    "back": "Zurück zur Anmeldung",
+    "mismatch": "Die Passwörter stimmen nicht überein. Prüfe die Bestätigung und versuche es erneut.",
+    "invalid": "Dieser Rücksetzcode ist ungültig oder abgelaufen. Führe den Rücksetzbefehl erneut aus.",
+    "rateLimited": "Zu viele Versuche. Warte kurz, bevor du es erneut versuchst.",
+    "network": "Das Passwort konnte nicht zurückgesetzt werden. Prüfe deine Verbindung und versuche es erneut.",
+    "successTitle": "Passwort zurückgesetzt",
+    "success": "Alle Browser, TVs und Smartphones wurden abgemeldet. Melde dich mit deinem neuen Passwort an.",
+    "signIn": "Anmelden",
+    "tokenUnchanged": "Das MCP/API-Token bleibt unverändert. Erneuere es in den Einstellungen, wenn es offengelegt worden sein könnte."
   }
 }

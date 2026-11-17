@@ -3137,7 +3137,7 @@
     "untilTitleNoTime": "Le tableau est en silence"
   },
   "deviceSignIn": {
-    "title": "Connecter votre TV",
+    "title": "Autoriser un téléviseur",
     "server": "FiestaBoard : {address}",
     "loading": "Vérification de la connexion…",
     "code": "Code du téléviseur",
@@ -3163,7 +3163,31 @@
       "rate_limited": "Trop de tentatives. Patientez puis réessayez.",
       "network": "Impossible de joindre FiestaBoard. Vérifiez votre connexion et réessayez."
     },
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "entryDescription": "Saisissez le code affiché sur votre téléviseur. Vous êtes connecté en tant que {username} ; le téléviseur se connectera à {address}.",
+    "codeHint": "Lettres et chiffres uniquement, sans voyelles, pour éviter toute confusion entre O/0 ou I/1.",
+    "noCode": "Pas de code ? Ouvrez FiestaBoard sur le téléviseur et choisissez Se connecter.",
+    "consentTitle": "Autoriser ce téléviseur ?",
+    "consentDescription": "Autorisez uniquement un téléviseur que vous voyez devant vous en ce moment.",
+    "displayCode": "Code {code}",
+    "countdown": "Le code expire dans {time} · usage unique",
+    "approvedTitle": "{device} est connecté",
+    "approvedBody": "Son panneau s’affichera dans quelques secondes. Si nécessaire, choisissez un panneau sur le téléviseur.",
+    "approvedMeta": "Autorisé depuis ce navigateur · {time}",
+    "deniedTitle": "Non autorisé",
+    "deniedBody": "« {device} » ne peut pas se connecter avec ce code. Le téléviseur affiche « Non autorisé ».",
+    "deniedMeta": "Refusé depuis ce navigateur · {time}. En cas d’erreur, demandez un nouveau code sur le téléviseur.",
+    "expiredTitle": "Ce code a expiré",
+    "expiredBody": "Les codes sont valables 10 minutes. Aucun appareil n’a été connecté.",
+    "expiredHint": "Sur le téléviseur, choisissez Obtenir un nouveau code, puis saisissez-le ici.",
+    "unavailableTitle": "Ce code n’est plus disponible",
+    "unavailableBody": "Ce code est invalide, déjà utilisé ou annulé. Les codes ne fonctionnent qu’une fois.",
+    "unavailableHint": "Si vous ne l’avez ni autorisé ni refusé, consultez les appareils connectés et déconnectez les téléviseurs inconnus.",
+    "unknownTV": "Ce téléviseur",
+    "done": "Terminé",
+    "seeDevices": "Voir les appareils connectés",
+    "newCode": "Saisir un nouveau code",
+    "differentCode": "Saisir un autre code"
   },
   "signedInDevices": {
     "title": "Appareils connectés",
@@ -3320,5 +3344,29 @@
     "error": "Impossible de créer un code QR sécurisé. Ouvrez FiestaBoard à l’adresse réseau de votre hub et réessayez.",
     "pollError": "Impossible de vérifier le code. Nouvelle vérification sous peu ; ne supposez pas que le téléphone est connecté.",
     "revokeError": "Impossible de déconnecter le téléphone. Réessayez ou ouvrez Appareils connectés."
+  },
+  "passwordReset": {
+    "title": "Réinitialiser le mot de passe",
+    "description": "Récupérez le compte de ce hub avec un code à usage unique. Vous devez avoir accès au terminal du hub.",
+    "commandHint": "Exécutez cette commande dans le conteneur du hub pour obtenir un code de réinitialisation :",
+    "expiry": "Seul le dernier code fonctionne, une fois et pendant 15 minutes. Collez-le ci-dessous et gardez-le secret.",
+    "code": "Code de réinitialisation",
+    "password": "Nouveau mot de passe",
+    "confirm": "Confirmer le nouveau mot de passe",
+    "passwordHint": "Utilisez au moins 8 caractères.",
+    "show": "Afficher",
+    "hide": "Masquer",
+    "warning": "La réinitialisation déconnecte tous les navigateurs, téléviseurs et téléphones. Reconnectez-vous avec le nouveau mot de passe.",
+    "submit": "Réinitialiser le mot de passe",
+    "resetting": "Réinitialisation…",
+    "back": "Retour à la connexion",
+    "mismatch": "Les mots de passe ne correspondent pas. Vérifiez la confirmation et réessayez.",
+    "invalid": "Ce code de réinitialisation est invalide ou a expiré. Exécutez à nouveau la commande de réinitialisation.",
+    "rateLimited": "Trop de tentatives. Patientez un instant avant de réessayer.",
+    "network": "Impossible de réinitialiser le mot de passe. Vérifiez votre connexion et réessayez.",
+    "successTitle": "Mot de passe réinitialisé",
+    "success": "Tous les navigateurs, téléviseurs et téléphones ont été déconnectés. Connectez-vous avec votre nouveau mot de passe.",
+    "signIn": "Se connecter",
+    "tokenUnchanged": "Le jeton MCP/API reste inchangé. Renouvelez-le dans les paramètres si vous pensez qu’il a été divulgué."
   }
 }

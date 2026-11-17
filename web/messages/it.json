@@ -3137,7 +3137,7 @@
     "untilTitleNoTime": "Il tabellone è in silenzio"
   },
   "deviceSignIn": {
-    "title": "Collega la TV",
+    "title": "Autorizza una TV",
     "server": "FiestaBoard: {address}",
     "loading": "Verifica dell’accesso…",
     "code": "Codice TV",
@@ -3163,7 +3163,31 @@
       "rate_limited": "Troppi tentativi. Attendi e riprova.",
       "network": "Impossibile contattare FiestaBoard. Controlla la connessione e riprova."
     },
-    "retry": "Riprova"
+    "retry": "Riprova",
+    "entryDescription": "Digita il codice mostrato sulla TV. Hai effettuato l’accesso come {username}, quindi la TV accederà a {address}.",
+    "codeHint": "Solo lettere e numeri, senza vocali, per evitare confusione tra O/0 o I/1.",
+    "noCode": "Non hai un codice? Apri FiestaBoard sulla TV e scegli Accedi.",
+    "consentTitle": "Autorizzare questa TV?",
+    "consentDescription": "Autorizza solo una TV che puoi vedere davanti a te in questo momento.",
+    "displayCode": "Codice {code}",
+    "countdown": "Il codice scade tra {time} · monouso",
+    "approvedTitle": "{device} ha effettuato l’accesso",
+    "approvedBody": "Il pannello apparirà tra pochi secondi. Se richiesto, scegli un pannello sulla TV.",
+    "approvedMeta": "Autorizzata da questo browser · {time}",
+    "deniedTitle": "Non autorizzata",
+    "deniedBody": "“{device}” non può accedere con questo codice. Sulla TV appare “Non autorizzata”.",
+    "deniedMeta": "Rifiutata da questo browser · {time}. Se è stato un errore, richiedi un nuovo codice sulla TV.",
+    "expiredTitle": "Questo codice è scaduto",
+    "expiredBody": "I codici durano 10 minuti. Nessun dispositivo ha effettuato l’accesso.",
+    "expiredHint": "Sulla TV, scegli Ottieni un nuovo codice, poi inseriscilo qui.",
+    "unavailableTitle": "Questo codice non è più disponibile",
+    "unavailableBody": "Questo codice non è valido, è già stato usato o è stato annullato. I codici funzionano una sola volta.",
+    "unavailableHint": "Se non hai autorizzato o rifiutato la TV, controlla i dispositivi connessi e disconnetti le TV che non riconosci.",
+    "unknownTV": "Questa TV",
+    "done": "Fine",
+    "seeDevices": "Vedi dispositivi connessi",
+    "newCode": "Inserisci un nuovo codice",
+    "differentCode": "Inserisci un altro codice"
   },
   "signedInDevices": {
     "title": "Dispositivi connessi",
@@ -3320,5 +3344,29 @@
     "error": "Impossibile creare un codice QR sicuro. Apri FiestaBoard all’indirizzo di rete del tuo hub e riprova.",
     "pollError": "Impossibile verificare il codice. La verifica verrà ripetuta a breve; non dare per scontato che il telefono sia collegato.",
     "revokeError": "Impossibile disconnettere il telefono. Riprova o apri Dispositivi connessi."
+  },
+  "passwordReset": {
+    "title": "Reimposta password",
+    "description": "Recupera l’account di questo hub con un codice monouso. Devi poter accedere al terminale dell’hub.",
+    "commandHint": "Esegui questo comando nel contenitore dell’hub per ottenere un codice di reimpostazione:",
+    "expiry": "Funziona solo il codice più recente, una volta e per 15 minuti. Incollalo qui sotto e mantienilo segreto.",
+    "code": "Codice di reimpostazione",
+    "password": "Nuova password",
+    "confirm": "Conferma nuova password",
+    "passwordHint": "Usa almeno 8 caratteri.",
+    "show": "Mostra",
+    "hide": "Nascondi",
+    "warning": "La reimpostazione disconnette tutti i browser, le TV e i telefoni. Accedi di nuovo con la nuova password.",
+    "submit": "Reimposta password",
+    "resetting": "Reimpostazione…",
+    "back": "Torna all’accesso",
+    "mismatch": "Le password non corrispondono. Controlla la conferma e riprova.",
+    "invalid": "Il codice di reimpostazione non è valido o è scaduto. Esegui di nuovo il comando di reimpostazione.",
+    "rateLimited": "Troppi tentativi. Attendi un momento prima di riprovare.",
+    "network": "Impossibile reimpostare la password. Controlla la connessione e riprova.",
+    "successTitle": "Password reimpostata",
+    "success": "Tutti i browser, le TV e i telefoni sono stati disconnessi. Accedi con la nuova password.",
+    "signIn": "Accedi",
+    "tokenUnchanged": "Il token MCP/API rimane invariato. Ruotalo nelle impostazioni se pensi che sia stato esposto."
   }
 }

@@ -3137,7 +3137,7 @@
     "untilTitleNoTime": "看板处于静默中"
   },
   "deviceSignIn": {
-    "title": "连接电视",
+    "title": "允许电视登录",
     "server": "FiestaBoard：{address}",
     "loading": "正在检查登录…",
     "code": "电视代码",
@@ -3163,7 +3163,31 @@
       "rate_limited": "尝试次数过多。请稍候重试。",
       "network": "无法连接 FiestaBoard。请检查连接后重试。"
     },
-    "retry": "重试"
+    "retry": "重试",
+    "entryDescription": "输入电视上显示的代码。你已以 {username} 身份登录，因此电视将登录到 {address}。",
+    "codeHint": "仅含字母和数字，不含元音字母，避免混淆 O/0 或 I/1。",
+    "noCode": "没有代码？在电视上打开 FiestaBoard，然后选择“登录”。",
+    "consentTitle": "允许这台电视登录？",
+    "consentDescription": "只允许你此刻能在面前看到的电视登录。",
+    "displayCode": "代码 {code}",
+    "countdown": "代码将在 {time} 后过期 · 仅限使用一次",
+    "approvedTitle": "{device} 已登录",
+    "approvedBody": "几秒后将显示面板。如果出现提示，请在电视上选择一个面板。",
+    "approvedMeta": "已通过此浏览器批准 · {time}",
+    "deniedTitle": "未获允许",
+    "deniedBody": "“{device}”无法使用此代码登录。电视上会显示“未获允许”。",
+    "deniedMeta": "已通过此浏览器拒绝 · {time}。如果操作有误，请在电视上获取新代码。",
+    "expiredTitle": "此代码已过期",
+    "expiredBody": "代码有效期为 10 分钟。没有设备登录。",
+    "expiredHint": "在电视上选择“获取新代码”，然后在此输入新代码。",
+    "unavailableTitle": "此代码已不可用",
+    "unavailableBody": "此代码无效、已使用或已取消。代码只能使用一次。",
+    "unavailableHint": "如果你没有批准或拒绝这台电视，请检查“已登录的设备”，并退出任何不认识的电视。",
+    "unknownTV": "这台电视",
+    "done": "完成",
+    "seeDevices": "查看已登录的设备",
+    "newCode": "输入新代码",
+    "differentCode": "输入其他代码"
   },
   "signedInDevices": {
     "title": "已登录的设备",
@@ -3320,5 +3344,29 @@
     "error": "无法生成安全的二维码。请通过中枢的网络地址打开 FiestaBoard，然后重试。",
     "pollError": "无法检查此码。稍后将再次检查；请勿认为手机已连接。",
     "revokeError": "无法退出该手机。请重试或打开“已登录的设备”。"
+  },
+  "passwordReset": {
+    "title": "重置密码",
+    "description": "使用一次性代码恢复此中枢上的账户。你需要能够访问中枢的终端。",
+    "commandHint": "在中枢的容器中运行以下命令，获取重置代码：",
+    "expiry": "只有最新代码有效，可在 15 分钟内使用一次。将其粘贴到下方，并妥善保密。",
+    "code": "重置代码",
+    "password": "新密码",
+    "confirm": "确认新密码",
+    "passwordHint": "请使用至少 8 个字符。",
+    "show": "显示",
+    "hide": "隐藏",
+    "warning": "重置会让所有浏览器、电视和手机退出登录。请使用新密码重新登录。",
+    "submit": "重置密码",
+    "resetting": "正在重置…",
+    "back": "返回登录",
+    "mismatch": "两次输入的密码不一致。请检查确认密码后重试。",
+    "invalid": "此重置代码无效或已过期。请重新运行重置命令。",
+    "rateLimited": "尝试次数过多。请稍等片刻后重试。",
+    "network": "无法重置密码。请检查网络连接后重试。",
+    "successTitle": "密码已重置",
+    "success": "所有浏览器、电视和手机均已退出登录。请使用新密码登录。",
+    "signIn": "登录",
+    "tokenUnchanged": "MCP/API 令牌保持不变。如果你认为令牌已泄露，请在设置中更换。"
   }
 }
