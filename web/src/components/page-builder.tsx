@@ -59,7 +59,7 @@ import {
   writeStoredBoardPreviewMode,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload, Zap } from "lucide-react";
 import {
   forwardRef,
   lazy,
@@ -323,6 +323,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const tTouch = useTranslations("editorTouch");
   const tToolbar = useTranslations("templateEditor");
   const tBoardDisplay = useTranslations("boardDisplay");
+  const tShortcuts = useTranslations("editorShortcuts");
   const dockedPreview = useMediaQuery("(max-width: 1023px)");
   const sheetPickers = useMediaQuery("(max-width: 639px)");
   const useTouchToolbar = useMediaQuery("(max-width: 767px), (pointer: coarse)");
@@ -2506,8 +2507,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             </AlertDialogContent>
           </AlertDialog>
         )}
-        {/* 07 `57:28576`: the secondary "Shortcuts" button, left of Save. */}
-        <EditorShortcutList variant="header" {...shortcutListProps} />
+        {dockedPreview && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-8 gap-1.5 px-3 text-xs"
+            aria-keyshortcuts="?"
+            onClick={() => shortcutList.setOpenFrom("header")}
+          >
+            <Zap className="h-3.5 w-3.5" aria-hidden />
+            {tShortcuts("button")}
+          </Button>
+        )}
         {/* Export button — only on existing pages */}
         {pageId && (
           <Tooltip>
@@ -2628,6 +2639,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   {secondaryActions}
                 </Flex>
               )}
+              {/* Keep the header popup mounted while compact More is closed.
+                  Only its trigger hides; the kit portals the single controlled
+                  popup and anchors it to the template for hardware `?`. */}
+              <Box hidden={dockedPreview} className={dockedPreview ? "hidden" : "contents"}>
+                <EditorShortcutList variant="header" {...shortcutListProps} />
+              </Box>
               <TooltipProvider skipDelayDuration={0}>
                 <Flex align="center" gap="1.5" className="shrink-0 flex-nowrap">
                   {/* Save button */}

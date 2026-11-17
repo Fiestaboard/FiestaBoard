@@ -28,6 +28,9 @@ test.beforeEach(async ({ page }) => {
 
 test.describe("Editor keyboard shortcuts (desktop)", () => {
   test("? opens the list in the template column, listing the editor's real shortcuts", async ({ page }) => {
+    // Give the Figma column placement room below its anchor. At a shorter
+    // height the kit may flip the popup to keep the whole list on screen.
+    await page.setViewportSize({ width: 1280, height: 900 });
     await openEditor(page);
     await page.locator("body").press("?");
     const list = page.getByRole("dialog", LIST);
@@ -52,6 +55,19 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
     expect(Math.abs(listBox!.x - templateBox!.x)).toBeLessThanOrEqual(2);
     expect(listBox!.y).toBeGreaterThanOrEqual(0);
     expect(listBox!.y + listBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect
+      .poll(async () => {
+        const bounds = await list.boundingBox();
+        return (
+          !!bounds &&
+          bounds.x >= 0 &&
+          bounds.y >= 0 &&
+          bounds.x + bounds.width <= 1280 &&
+          bounds.y + bounds.height <= 720
+        );
+      })
+      .toBe(true);
 
     await page.keyboard.press("Escape");
     await expect(list).toBeHidden();
@@ -141,21 +157,29 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
   });
 
   for (const width of [768, 1024]) {
-    test(`at ${width}px the hint stays above the toolbar without adding a toolbar line`, async ({ page }) => {
+    test(`at ${width}px shortcut access follows the compact editor layout`, async ({ page }) => {
       await page.setViewportSize({ width, height: 1024 });
       await openEditor(page);
       const hint = page.getByRole("button", { name: /All shortcuts/ });
-      await expect(hint).toHaveCount(1);
       const formula = page.getByRole("button", { name: "Insert formula" });
-      const [hintBox, toolBox] = await Promise.all([hint.boundingBox(), formula.boundingBox()]);
-      expect(hintBox && toolBox).toBeTruthy();
-      expect(hintBox!.y + hintBox!.height).toBeLessThanOrEqual(toolBox!.y);
       const preview = page.locator('[data-slot="editor-preview"]');
       await expect(preview).toBeVisible();
       await expect(preview).toHaveAttribute("data-variant", width < 1024 ? "docked" : "pane");
       await expect(page.getByRole("button", { name: /show preview|hide preview/i })).toHaveCount(0);
-      await hint.click();
+      if (width < 1024) {
+        await expect(hint).toHaveCount(0);
+        await preview.getByRole("button", { name: "More", exact: true }).click();
+        await page.getByRole("button", { name: "Shortcuts", exact: true }).click();
+      } else {
+        await expect(hint).toHaveCount(1);
+        const [hintBox, toolBox] = await Promise.all([hint.boundingBox(), formula.boundingBox()]);
+        expect(hintBox && toolBox).toBeTruthy();
+        expect(hintBox!.y + hintBox!.height).toBeLessThanOrEqual(toolBox!.y);
+        await hint.click();
+      }
       await expect(page.getByRole("dialog", LIST)).toBeVisible();
+      await page.keyboard.press("Escape");
+      // Close More too, if its nested shortcut popup was opened from there.
       await page.keyboard.press("Escape");
 
       // Crossing the desktop boundary moves the single hint into the toolbar.
@@ -213,5 +237,20 @@ test.describe("Editor keyboard shortcuts (touch, no fine pointer)", () => {
     const box = await list.boundingBox();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    await page.keyboard.press("Escape");
+    // More owns the touch sheet; its shortcut action opens the one stable
+    // popup, which must receive and retain keyboard focus outside that sheet.
+    await page
+      .locator('[data-slot="editor-toolbar"][data-size="touch"]')
+      .getByRole("button", { name: "More", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Shortcuts", exact: true }).click();
+    await expect(list).toHaveCount(1);
+    await expect(list).toBeVisible();
+    await expect.poll(() => list.evaluate((popup) => popup.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press("Tab");
+    await expect.poll(() => list.evaluate((popup) => popup.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(list).toBeHidden();
   });
 });
