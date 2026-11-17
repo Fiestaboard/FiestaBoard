@@ -3108,7 +3108,7 @@
     "untilTitleNoTime": "The board is silenced"
   },
   "deviceSignIn": {
-    "title": "Connect your TV",
+    "title": "Allow a TV",
     "server": "FiestaBoard: {address}",
     "loading": "Checking sign-in…",
     "code": "TV code",
@@ -3134,7 +3134,31 @@
       "rate_limited": "Too many attempts. Wait a moment and try again.",
       "network": "Unable to reach FiestaBoard. Check your connection and try again."
     },
-    "retry": "Retry"
+    "retry": "Retry",
+    "entryDescription": "Type the code your TV is showing. You're signed in as {username}, so the TV will sign in to {address}.",
+    "codeHint": "Letters and numbers only; no vowels, so there is no O/0 or I/1 mix-up.",
+    "noCode": "No code? Open FiestaBoard on the TV and choose Sign in.",
+    "consentTitle": "Allow this TV?",
+    "consentDescription": "Only allow a TV you can see in front of you right now.",
+    "displayCode": "Code {code}",
+    "countdown": "Code expires in {time} · works once",
+    "approvedTitle": "{device} is signed in",
+    "approvedBody": "It will show its panel in a few seconds. If it asks, pick a panel on the TV.",
+    "approvedMeta": "Approved by this browser · {time}",
+    "deniedTitle": "Not allowed",
+    "deniedBody": "“{device}” can’t sign in with this code. The TV shows “Not allowed”.",
+    "deniedMeta": "Denied by this browser · {time}. If that was a mistake, get a new code on the TV.",
+    "expiredTitle": "This code expired",
+    "expiredBody": "Codes last 10 minutes. Nothing was signed in.",
+    "expiredHint": "On the TV, choose Get a new code, then type the new one here.",
+    "unavailableTitle": "This code is no longer available",
+    "unavailableBody": "This code is invalid, already used, or cancelled. Codes work once.",
+    "unavailableHint": "If you didn’t allow or deny it, check Signed-in devices and sign out any TV you don’t recognize.",
+    "unknownTV": "This TV",
+    "done": "Done",
+    "seeDevices": "See signed-in devices",
+    "newCode": "Enter a new code",
+    "differentCode": "Enter a different code"
   },
   "signedInDevices": {
     "title": "Signed-in devices",
@@ -3320,5 +3344,29 @@
     "error": "Couldn’t make a safe QR code. Open FiestaBoard at the network address of your hub and try again.",
     "pollError": "Couldn’t check the code. Checking again shortly; do not assume the phone is connected.",
     "revokeError": "Couldn’t sign out the phone. Try again or open Signed-in devices."
+  },
+  "passwordReset": {
+    "title": "Reset password",
+    "description": "Recover the account on this hub with a one-time code. You need access to the hub’s terminal.",
+    "commandHint": "Run this command inside the hub’s container to get a reset code:",
+    "expiry": "Only the newest code works, once, for 15 minutes. Paste it below; keep it private.",
+    "code": "Reset code",
+    "password": "New password",
+    "confirm": "Confirm new password",
+    "passwordHint": "Use at least 8 characters.",
+    "show": "Show",
+    "hide": "Hide",
+    "warning": "Resetting signs out every browser, TV and phone. You will sign in again with the new password.",
+    "submit": "Reset password",
+    "resetting": "Resetting…",
+    "back": "Back to sign in",
+    "mismatch": "Passwords do not match. Check the confirmation and try again.",
+    "invalid": "That reset code is invalid or has expired. Run the reset command again.",
+    "rateLimited": "Too many attempts. Wait a moment before trying again.",
+    "network": "Unable to reset the password. Check your connection and try again.",
+    "successTitle": "Password reset",
+    "success": "Every browser, TV and phone has been signed out. Sign in with your new password.",
+    "signIn": "Sign in",
+    "tokenUnchanged": "The MCP/API token is unchanged. Rotate it in Settings if you think it was exposed."
   }
 }

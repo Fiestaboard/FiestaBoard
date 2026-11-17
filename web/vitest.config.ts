@@ -25,6 +25,8 @@ export default defineConfig({
       provider: "v8",
       include: [
         "src/lib/**",
+        "app/routes/activate.tsx",
+        "app/routes/reset-password.tsx",
         "src/hooks/**",
         "src/components/board-display.tsx",
         "src/components/board-size-indicator.tsx",
