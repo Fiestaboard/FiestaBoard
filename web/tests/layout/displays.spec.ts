@@ -43,8 +43,14 @@ for (const width of [390, 768, 1280]) {
       await shot("overview");
       // Actual size remains the established default. Capture the user's Fit
       // overview separately for the fitted board drawn in the reference.
-      await page.getByRole("button", { name: "Fit", exact: true }).click();
-      await expect(page.getByRole("button", { name: "Fit", exact: true })).toHaveAttribute("aria-pressed", "true");
+      const fit = page.getByRole("button", { name: "Fit", exact: true });
+      await expect(fit).toBeVisible({ timeout: 10_000 });
+      const fitBounds = await fit.boundingBox();
+      expect(fitBounds).not.toBeNull();
+      expect(fitBounds!.x).toBeGreaterThanOrEqual(0);
+      expect(fitBounds!.x + fitBounds!.width).toBeLessThanOrEqual(width);
+      await fit.click();
+      await expect(fit).toHaveAttribute("aria-pressed", "true");
       await shot("overview-fit");
       const pause = page.getByRole("switch", { name: "Pause display", exact: true });
       await pause.click();
