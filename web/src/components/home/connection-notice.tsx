@@ -17,6 +17,8 @@ export function HomeConnectionNotice({ composing = false }: { composing?: boolea
   if (connection.deviceOnline && connection.hubReachable) return null;
   return (
     <StatusBanner
+      layout="stacked"
+      touch
       kind={connection.deviceOnline ? "hub-unreachable" : "device-offline"}
       title={t(connection.deviceOnline ? "composeUnreachable" : "composeOffline", { host: browserHostname() })}
       description={t(

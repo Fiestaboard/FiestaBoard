@@ -39,6 +39,7 @@ test("Home pauses sends on hub loss, retains Compose, and distinguishes an offli
   await expect(dialog.getByRole("button", { name: "Show now", exact: true })).toBeDisabled();
   await expect(dialog.getByRole("textbox", { name: "Message", exact: true })).toHaveValue("GOOD LUCK");
   await expect(dialog.getByText("Show now comes back when the hub answers.")).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("impl-compose-interrupted.png"), fullPage: true });
   await context.setOffline(false);
   await expect(dialog.getByRole("button", { name: "Show now", exact: true })).toBeEnabled({ timeout: 30000 });
   await expect(dialog.getByRole("textbox", { name: "Message", exact: true })).toHaveValue("GOOD LUCK");

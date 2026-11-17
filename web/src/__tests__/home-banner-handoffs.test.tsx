@@ -103,6 +103,9 @@ it("keeps a typed Compose message when the hub drops, then permits retry after r
   view.rerender(<ComposePageDialog {...props} />);
   expect(screen.getByRole("button", { name: "Show now" })).toBeDisabled();
   expect(editor).toHaveValue("GOOD LUCK");
+  const notice = screen.getByText(/Can’t reach your hub at/).closest("[data-slot='status-banner']");
+  expect(notice).toHaveAttribute("data-layout", "stacked");
+  expect(notice).toHaveAttribute("data-touch", "");
   expect(screen.getByText("Show now comes back when the hub answers.")).toBeInTheDocument();
   connection.hubReachable = true;
   view.rerender(<ComposePageDialog {...props} />);
