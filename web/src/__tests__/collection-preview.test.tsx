@@ -62,7 +62,7 @@ describe("saved Collection preview", () => {
     expect(screen.getByText("No page was selected.")).toBeInTheDocument();
   });
   it("labels a result as saved cached data rather than physical display state", async () => {
-    server.use(http.get("/api/pages/p1/preview", () => HttpResponse.json({ message: "HELLO" })));
+    server.use(http.post("/api/pages/p1/preview", () => HttpResponse.json({ message: "HELLO" })));
     view();
     expect(screen.getByText("Selected: Morning")).toBeInTheDocument();
     expect(screen.getByText(/Saved Collection · cached data/)).toBeInTheDocument();

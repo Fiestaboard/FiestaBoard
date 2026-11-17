@@ -40,7 +40,9 @@ function renderForm(mode: Collection["selection_mode"] = "time") {
   // The reusable form must also render without a query provider; live preview
   // belongs to the route's optional preview slot.
   const view = render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><CollectionForm collection={makeCollection(mode)} pages={pages} onSubmit={onSubmit} onCancel={vi.fn()} /></QueryClientProvider>,
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <CollectionForm collection={makeCollection(mode)} pages={pages} onSubmit={onSubmit} onCancel={vi.fn()} />
+    </QueryClientProvider>,
   );
   return { ...view, onSubmit };
 }
@@ -101,5 +103,26 @@ describe("Collection editor layout", () => {
     expect(container.querySelector("[draggable]")).toBeNull();
     await user.click(screen.getByRole("menuitem", { name: "Edit rule 1" }));
     expect(screen.getByRole("textbox", { name: "Expression for rule 1" })).toHaveValue("1 == 1");
+  });
+  it("reorders rules by Space and arrows and restores them on Escape", async () => {
+    const user = userEvent.setup();
+    const { container, onSubmit } = renderForm("variable");
+    const first = container.querySelector<HTMLElement>("#collection-rule-0")!;
+    first.focus();
+    await user.keyboard(" {ArrowDown}{Escape}");
+    expect(screen.getByRole("textbox", { name: "Expression for rule 1" })).toHaveValue("1 == 1");
+    container.querySelector<HTMLElement>("#collection-rule-0")!.focus();
+    await user.keyboard(" {ArrowDown} ");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variable: expect.objectContaining({
+          rules: [
+            { expression: "2 == 2", page_id: "page-1" },
+            { expression: "1 == 1", page_id: "page-1" },
+          ],
+        }),
+      }),
+    );
   });
 });

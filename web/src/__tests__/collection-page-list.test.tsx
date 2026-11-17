@@ -210,10 +210,7 @@ describe("CollectionPageList, time mode", () => {
   it("gives a coarse pointer the larger ••• button", () => {
     stubCoarsePointer(true);
     render(<Harness />);
-    expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute(
-      "data-size",
-      "icon-lg",
-    );
+    expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute("data-size", "touch");
   });
 
   it("keeps the compact ••• button for a fine pointer", () => {
@@ -221,7 +218,7 @@ describe("CollectionPageList, time mode", () => {
     render(<Harness />);
     expect(screen.getByRole("button", { name: "More actions for Market open" })).toHaveAttribute(
       "data-size",
-      "icon-sm",
+      "icon-lg",
     );
   });
 
@@ -248,8 +245,8 @@ describe("CollectionPageList, random and variable modes", () => {
     expect(document.querySelector('[data-slot="sortable-list"]')).toBeNull();
     expect(document.querySelector('[data-slot="sortable-list-handle"]')).toBeNull();
     const group = screen.getByRole("list");
-    expect(group).toHaveAttribute("data-slot", "list-row-group");
-    expect(group).toHaveAttribute("data-variant", "inset");
+    expect(group.className).not.toMatch(/divide-y/);
+    expect(within(group).getByText("Flagship")).toHaveClass("text-xs");
     expect(within(group).getAllByRole("listitem")).toHaveLength(4);
     act(() => screen.getByRole("button", { name: "Remove Weather + surf" }).click());
     expect(onRemove).toHaveBeenCalledWith(2);
@@ -263,7 +260,7 @@ describe("CollectionPageList, random list on touch", () => {
     for (const row of within(screen.getByRole("list")).getAllByRole("listitem")) {
       expect(row).toHaveAttribute("data-size", "touch");
     }
-    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "icon-lg");
+    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "touch");
   });
 
   it("keeps compact rows and × for a fine pointer", () => {
@@ -272,7 +269,7 @@ describe("CollectionPageList, random list on touch", () => {
     for (const row of within(screen.getByRole("list")).getAllByRole("listitem")) {
       expect(row).toHaveAttribute("data-size", "default");
     }
-    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "icon-sm");
+    expect(screen.getByRole("button", { name: "Remove Market open" })).toHaveAttribute("data-size", "icon-lg");
   });
 });
 

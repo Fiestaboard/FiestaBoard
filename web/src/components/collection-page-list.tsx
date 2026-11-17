@@ -1,5 +1,6 @@
 import {
   Button,
+  Card,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -7,8 +8,9 @@ import {
   DropdownMenuTrigger,
   Flex,
   Kbd,
+  List,
+  ListItem,
   ListRow,
-  ListRowGroup,
   SortableList,
   SortableListHandle,
   type SortableListLabels,
@@ -101,27 +103,36 @@ export function CollectionPageList({ pageIds, pages, mode, onMove, onRemove }: C
 
   if (mode !== "time") {
     return (
-      <ListRowGroup variant="inset" size={size}>
-        {members.map((member, index) => (
-          <ListRow
-            key={member.id}
-            title={member.name}
-            meta={member.shape}
-            trailing={
-              // TODO(#385): Button size="touch" for the 44px target once FiestaUI #385 is on alpha.
-              <Button
-                type="button"
-                variant="ghost"
-                size={coarse ? "icon-lg" : "icon-sm"}
-                aria-label={t("removePage", { name: member.name })}
-                onClick={() => onRemove(index)}
-              >
-                <X aria-hidden="true" />
-              </Button>
-            }
-          />
-        ))}
-      </ListRowGroup>
+      <Card className="overflow-hidden">
+        <List gap="0" role="list">
+          {members.map((member, index) => (
+            <ListRow
+              key={member.id}
+              render={<ListItem />}
+              size={size}
+              title={member.name}
+              meta={
+                member.shape ? (
+                  <Text as="span" size="xs" tone="muted">
+                    {member.shape}
+                  </Text>
+                ) : null
+              }
+              trailing={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size={coarse ? "touch" : "icon-lg"}
+                  aria-label={t("removePage", { name: member.name })}
+                  onClick={() => onRemove(index)}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              }
+            />
+          ))}
+        </List>
+      </Card>
     );
   }
 
@@ -198,11 +209,10 @@ function SortableRow({
           <SortableListMoveButtons className="max-md:hidden" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              {/* TODO(#385): Button size="touch" for the 44px target once FiestaUI #385 is on alpha. */}
               <Button
                 type="button"
                 variant="ghost"
-                size={size === "touch" ? "icon-lg" : "icon-sm"}
+                size={size === "touch" ? "touch" : "icon-lg"}
                 aria-label={t("pageActions", { name: member.name })}
               >
                 <Ellipsis aria-hidden="true" />

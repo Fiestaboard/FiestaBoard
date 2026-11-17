@@ -7,17 +7,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
   PageSection,
   Skeleton,
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
 import { toast } from "sonner";
 
 import { CollectionForm } from "@/components/collection-form";
+import { CollectionPreview } from "@/components/collection-preview";
+import { CollectionShowNow } from "@/components/collection-show-now";
 import { queryKeys, useCollections, usePages } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useTranslations } from "@/i18n/translations";
@@ -44,6 +54,19 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
   const leavingAfterSave = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [showNowOpen, setShowNowOpen] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
+  const [testInput, setTestInput] = useState("");
+  const [testAt, setTestAt] = useState<string | undefined>();
+  const sameSavedGeneration = JSON.stringify(collection) === JSON.stringify(loadedCollection);
+  const evaluation = useQuery({
+    queryKey: ["collectionEvaluation", collectionId, loadedCollection?.revision, loadedCollection?.updated_at, testAt],
+    queryFn: () => api.evaluateCollection(collectionId!, testAt),
+    enabled: !!collectionId && !!collection,
+    retry: false,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
   const onDirtyChange = useCallback((value: boolean) => {
     dirty.current = value;
   }, []);
@@ -107,7 +130,7 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
           </Button>
         </Stack>
       ) : (
-        <Stack gap="4" className="max-w-3xl mx-auto w-full min-w-0">
+        <Stack gap="4" className="w-full min-w-0">
           {error && (
             <Text
               role="alert"
@@ -121,6 +144,23 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
             collection={collection}
             pages={pagesData?.pages ?? []}
             onDirtyChange={onDirtyChange}
+            onShowNow={collection ? () => setShowNowOpen(true) : undefined}
+            onTestAtTime={collection ? () => setTestOpen(true) : undefined}
+            ruleResults={sameSavedGeneration && !evaluation.isError ? (evaluation.data?.rules ?? undefined) : undefined}
+            preview={
+              collection
+                ? (dirty) => (
+                    <CollectionPreview
+                      evaluation={evaluation.data}
+                      pages={pagesData?.pages ?? []}
+                      mode={collection.selection_mode}
+                      dirty={dirty}
+                      loading={evaluation.isLoading}
+                      failed={evaluation.isError || !sameSavedGeneration}
+                    />
+                  )
+                : undefined
+            }
             onSubmit={async (value) => {
               setError(null);
               await save.mutateAsync(value);
@@ -137,6 +177,42 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
           />
         </Stack>
       )}
+      <Dialog open={testOpen} onOpenChange={setTestOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("testAtTime")}</DialogTitle>
+            <DialogDescription>{t("testSavedDescription")}</DialogDescription>
+          </DialogHeader>
+          <Label htmlFor="collection-test-at">{t("testAtTime")}</Label>
+          <Input
+            id="collection-test-at"
+            type="datetime-local"
+            value={testInput}
+            onChange={(event) => setTestInput(event.target.value)}
+          />
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setTestAt(undefined);
+                setTestOpen(false);
+              }}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              disabled={!testInput || !Number.isFinite(new Date(testInput).getTime())}
+              onClick={() => {
+                setTestAt(new Date(testInput).toISOString());
+                setTestOpen(false);
+              }}
+            >
+              {tc("preview")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {showNowOpen && collection && <CollectionShowNow collection={collection} onClose={() => setShowNowOpen(false)} />}
       <AlertDialog
         open={deleteOpen}
         onOpenChange={(open) => {

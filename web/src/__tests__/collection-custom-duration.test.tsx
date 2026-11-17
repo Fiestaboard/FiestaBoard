@@ -139,7 +139,7 @@ describe("CollectionForm page duration", () => {
     await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
     await user.click(screen.getByRole("option", { name: "Hours" }));
 
-    await user.click(screen.getByRole("button", { name: "Update Collection" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     expect(onSubmit.mock.calls[0][0].time).toEqual({ interval_seconds: 10800 });
@@ -162,7 +162,7 @@ describe("CollectionForm page duration", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent("Enter a whole number between 5 seconds and 24 hours."),
     );
-    expect(screen.getByRole("button", { name: "Update Collection" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -181,7 +181,7 @@ describe("CollectionForm page duration", () => {
     await user.click(screen.getByRole("option", { name: "Seconds" }));
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Update Collection" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("opens in custom mode for a collection whose interval is not a preset", async () => {
@@ -204,7 +204,7 @@ describe("CollectionForm page duration", () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     renderForm(makeCollection(5400), onSubmit);
 
-    await user.click(screen.getByRole("button", { name: "Update Collection" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     expect(onSubmit.mock.calls[0][0].time).toEqual({ interval_seconds: 5400 });
