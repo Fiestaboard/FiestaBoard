@@ -74,10 +74,14 @@ export function IntegrationReadme({
                     {children}
                   </Heading>
                 ),
+                /* Kit Heading stops at h4. Prose styles these deeper native
+                   headings while retaining the document's accessible outline. */
+                /* eslint-disable react/forbid-elements */
                 h3: ({ children }) => <h5>{children}</h5>,
                 h4: ({ children }) => <h6>{children}</h6>,
                 h5: ({ children }) => <h6>{children}</h6>,
                 h6: ({ children }) => <h6>{children}</h6>,
+                /* eslint-enable react/forbid-elements */
               }}
             >
               {readme}
