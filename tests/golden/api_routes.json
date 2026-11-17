@@ -1997,6 +1997,14 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/system/channel/versions",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_release_channel_versions",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/system/markup-compat",
       "methods": [
         "GET"

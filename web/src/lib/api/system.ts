@@ -264,6 +264,7 @@ export type ReleaseChannel = "stable" | "beta" | "alpha";
 export interface ReleaseChannelResponse {
   channel: ReleaseChannel;
   running_channel: ReleaseChannel;
+  running_version: string;
   channel_versions: Partial<Record<ReleaseChannel, string | null>>;
   available_channels: string[];
   can_switch: boolean;
@@ -405,6 +406,9 @@ export const systemApi = {
   // Release channel (#1955). Opting in lives on stable; this build carries
   // both directions because the API takes the target channel either way.
   getReleaseChannel: () => fetchApi<ReleaseChannelResponse>("/system/channel"),
+
+  getReleaseChannelVersions: () =>
+    fetchApi<{ channel_versions: Partial<Record<ReleaseChannel, string | null>> }>("/system/channel/versions"),
 
   setReleaseChannel: (channel: ReleaseChannel, confirmMajorUpgrade = false) =>
     fetchApi<ReleaseChannelSwitchResponse>("/system/channel", {

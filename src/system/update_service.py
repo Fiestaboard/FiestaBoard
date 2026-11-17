@@ -33,8 +33,10 @@ import logging
 import os
 import re
 import threading
+from concurrent.futures import Future
 from datetime import UTC, datetime
 from pathlib import Path
+from time import monotonic
 from typing import Any
 
 import requests
@@ -1523,6 +1525,59 @@ async def rollback(req: RollbackRequest) -> RollbackResponse:
 
 #: Docker tag per channel.
 CHANNEL_TAGS = {"stable": "latest", "beta": "beta", "alpha": "v11-alpha"}
+
+
+CHANNEL_DISCOVERY_TTL_SECONDS = 60.0
+CHANNEL_DISCOVERY_TIMEOUT_SECONDS = 2.0
+# A concurrent Future keeps singleflight independent of any request's event
+# loop, including requests served from separate TestClient/ASGI loops.
+_channel_version_cache: dict[str, tuple[float, str | None]] = {}
+_channel_version_inflight: dict[str, Future[str | None]] = {}
+_channel_version_lock = threading.Lock()
+
+
+async def _cached_channel_version(channel: str) -> str | None:
+    with _channel_version_lock:
+        cached = _channel_version_cache.get(channel)
+        if cached is not None and monotonic() < cached[0]:
+            return cached[1]
+        shared = _channel_version_inflight.get(channel)
+        owner = shared is None
+        if shared is None:
+            shared = Future()
+            _channel_version_inflight[channel] = shared
+    if not owner:
+        # Cancelling one HTTP reader must not cancel another reader's lookup.
+        return await asyncio.shield(asyncio.wrap_future(shared))
+
+    try:
+        try:
+            version = await asyncio.wait_for(_latest_for_channel(channel), timeout=CHANNEL_DISCOVERY_TIMEOUT_SECONDS)
+        except Exception as exc:
+            logger.debug("Channel %s discovery unavailable: %s", channel, exc)
+            version = None
+    except asyncio.CancelledError:
+        # The owner disappeared; release existing waiters and allow a later
+        # request to retry. Do not leave an inflight entry stuck forever.
+        with _channel_version_lock:
+            _channel_version_inflight.pop(channel, None)
+            shared.set_result(None)
+        raise
+
+    with _channel_version_lock:
+        # Cache unavailable results too, so an offline install cannot launch
+        # another burst of registry calls on each Settings visit. The blocking
+        # source requests retain their own 4s timeout after our 2s budget ends.
+        _channel_version_cache[channel] = (monotonic() + CHANNEL_DISCOVERY_TTL_SECONDS, version)
+        _channel_version_inflight.pop(channel, None)
+        shared.set_result(version)
+    return version
+
+
+async def release_channel_versions() -> dict[str, str | None]:
+    """Discover each lane without delaying the local release-channel response."""
+    versions = await asyncio.gather(*(_cached_channel_version(channel) for channel in CHANNEL_TAGS))
+    return dict(zip(CHANNEL_TAGS, versions, strict=True))
 
 
 def current_channel() -> str:
