@@ -5,12 +5,138 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import json
+import argparse
+import sys
 from pathlib import Path
+from urllib.parse import urlencode
 
-from runtime_common import AMD64_MANIFEST, SOURCE_COMMIT, JsonlWriter, ProtocolError, require_ok, utc_now, validate_preview
+from runtime_common import AMD64_MANIFEST, SOURCE_COMMIT, JsonClient, JsonlWriter, ProtocolError, require_ok, utc_now, validate_preview
 
 ARM64_MANIFEST = "sha256:e0127d1f0eed00e13cd394f098580c2b96579b458731b6dc5d7ee842c7645886"
 GEOMETRIES = {"flagship": ("flagship", 6, 22), "note": ("note", 3, 15), "array": ("note_array", 6, 30)}
+
+
+def verify_semantics(client, manifest):
+    """Untimed H6/H8 contract smoke against the isolated fixture, with restoration."""
+    if abs((datetime.now(timezone.utc) - datetime(2026, 11, 17, tzinfo=timezone.utc)).days) > 365:
+        raise ProtocolError("Fixed H8 manifest dates are outside the source-defined query horizon")
+    for geometry, board in manifest["boards"].items():
+        bid = board["id"]
+        payload = {"board_id": bid, "device_type": board["device_type"], "template": ["PERF",
+                   '{{= SUM(1,2) }} {{= UPPER("a") }}', '{{= DEFAULT(countdown.days,"N/A") }} {{= 4*5 }}'],
+                   "diagnostics": True, "preview": {"data": "cached", "at": "2026-11-17T12:00:00+00:00",
+                   "values": {"date_time.hour": 12}, "missing": ["countdown.days"]}}
+        if geometry == "array":
+            payload.update(notes_wide=2, notes_tall=2)
+        if geometry == "panel":
+            payload.update(grid_rows=board["rows"], grid_cols=board["cols"])
+        answer = require_ok(client.request("POST", "/api/templates/render", payload))
+        formulas = (answer.get("diagnostics") or {}).get("formulas", [])
+        if ([f.get("value") for f in formulas] != ["3", "A", "N/A", "20"]
+                or any(f.get("error") is not None for f in formulas)
+                or len(answer.get("lines", [])) != board["rows"]
+                or any(not isinstance(line, str) or len(line) > board["cols"] for line in answer.get("lines", []))):
+            raise ProtocolError("H6 deterministic formula/geometry contract failed")
+        variable = next(c for c in manifest["collections"] if c["geometry"] == geometry and c["mode"] == "variable")
+        for hour, expected, matched in ((12, variable["page_ids"][0], 0), (11, variable["page_ids"][1], None)):
+            dryrun = require_ok(client.request("POST", f"/api/collections/{variable['id']}/dry-run", {
+                "at": "2026-11-17T12:00:00+00:00", "data": "cached", "values": {"date_time.hour": hour},
+                "window_seconds": 3600, "step_seconds": 300}))
+            if (dryrun.get("page_id") != expected or dryrun.get("matched_rule") != matched
+                    or dryrun.get("truncated") is not False or dryrun.get("truncated_reason") is not None
+                    or not dryrun.get("rules") or any(r.get("error") is not None for r in dryrun["rules"])):
+                raise ProtocolError("H8 variable match/fallback contract failed")
+        time_collection = next(c for c in manifest["collections"] if c["geometry"] == geometry and c["mode"] == "time")
+        cases = [("2026-11-17", "05:59", None), ("2026-11-17", "06:00", 0), ("2026-11-17", "07:00", None),
+                 ("2026-11-17", "10:00", 5), ("2026-11-17", "10:30", 6), ("2026-11-17", "10:45", 5),
+                 ("2026-11-17", "11:00", None), ("2026-11-17", "12:00", "collection"),
+                 ("2026-11-17", "13:00", None), ("2026-11-17", "20:00", 4), ("2026-11-17", "23:00", 3),
+                 ("2026-11-18", "00:59", 3), ("2026-11-18", "01:00", None),
+                 ("2026-11-22", "07:00", 1), ("2026-11-18", "08:00", 2)]
+        try:
+            enabled = require_ok(client.request("PUT", "/api/schedules/enabled", {"board_id": bid, "enabled": True}))
+            if enabled.get("enabled") is not True:
+                raise ProtocolError("H8 requires schedule mode enabled")
+            for date, hhmm, index in cases:
+                instant = f"{date}T{hhmm}:00+00:00"
+                query = urlencode({"board_id": bid, "at": instant})
+                answer = require_ok(client.request("GET", f"/api/schedules/active/page?{query}"))
+                expected = time_collection["id"] if index == "collection" else board["page_ids"][index] if index is not None else None
+                resolved = time_collection["page_ids"][0] if index == "collection" else expected
+                if (answer.get("page_id") != expected or answer.get("resolved_page_id") != resolved
+                        or answer.get("schedule_enabled") is not True or answer.get("at") != instant
+                        or answer.get("source") != ("schedule" if expected else "none")
+                        or answer.get("silenced") is not False or answer.get("temporary_override", {}).get("active") is not False):
+                    raise ProtocolError("H8 calendar priority/boundary/collection contract failed")
+        finally:
+            restored = require_ok(client.request("PUT", "/api/schedules/enabled", {"board_id": bid, "enabled": False}))
+            if restored.get("enabled") is not False:
+                raise ProtocolError("Could not restore manual schedule state after H8 smoke")
+    return {"h6_formula": True, "h8_boundaries": True, "variable_rules": True}
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Explicit fresh-store seed or read-only fixture verification")
+    parser.add_argument("command", choices=("seed", "verify"))
+    add_input_arguments(parser)
+    args = parser.parse_args(argv)
+    try:
+        client, ownership, manifest = load_inputs(args, for_setup=args.command == "seed")
+        if args.command == "seed":
+            seed(client, ownership, args.out_dir)
+            print(json.dumps({"verified": True, "manifest_path": str(Path(args.out_dir) / "manifest.json")}))
+        else:
+            writer = JsonlWriter(Path(args.out_dir) / "verification-events.jsonl", client.run_context["run_id"], secrets=client.secrets)
+            client.observer = lambda method, path, payload, result: writer.write(
+                "verification_request", method=method, path=path, request=payload, response=result)
+            try:
+                session = client.login(min_valid_seconds=7800)
+                verification = verify_manifest(client, manifest)
+                writer.write("verification", verification=verification, session=session)
+                print(json.dumps({"verified": True, "verification": verification}))
+            finally:
+                client.observer = None
+                writer.close()
+        return 0
+    except (OSError, ProtocolError, ValueError, KeyError, TypeError) as exc:
+        print(f"Runtime seed/verify refused: {type(exc).__name__}", file=sys.stderr)
+        return 2
+
+
+def add_input_arguments(parser):
+    parser.add_argument("--base-url", required=True)
+    parser.add_argument("--credentials", type=Path, required=True)
+    parser.add_argument("--ownership", type=Path, required=True)
+    parser.add_argument("--run-context", type=Path, required=True)
+    parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--out-dir", type=Path, required=True)
+    parser.add_argument("--timeout", type=float, default=30.0)
+
+
+def load_inputs(args, *, for_setup=False):
+    """Verify original operator-file hashes before parsing owner/manifest or doing HTTP."""
+    from runtime_common import read_credentials
+
+    context = json.loads(args.run_context.read_bytes())
+    owner_raw = args.ownership.read_bytes()
+    if hashlib.sha256(owner_raw).hexdigest() != context.get("ownership_sha256"):
+        raise ProtocolError("Ownership file bytes differ from independent run context")
+    ownership = json.loads(owner_raw)
+    manifest = None
+    if not for_setup:
+        if args.manifest is None:
+            raise ProtocolError("A public verified manifest is required")
+        manifest_raw = args.manifest.read_bytes()
+        if hashlib.sha256(manifest_raw).hexdigest() != context.get("manifest_sha256"):
+            raise ProtocolError("Manifest file bytes differ from independent run context")
+        manifest = json.loads(manifest_raw)
+        if manifest.get("seed_id") != ownership.get("seed_id") or manifest.get("base_url") != args.base_url.rstrip("/"):
+            raise ProtocolError("Manifest belongs to a different seed/origin")
+    elif context.get("manifest_sha256") is not None:
+        raise ProtocolError("Fresh seed context must not refer to an existing manifest")
+    client = JsonClient(args.base_url, read_credentials(args.credentials), run_context=context, timeout=args.timeout)
+    validate_ownership(client, ownership, for_setup=for_setup)
+    return client, ownership, manifest
 
 
 def page_definitions(boards):
@@ -250,7 +376,8 @@ def seed(client, ownership, out_dir):
                 if any(len(preview["previews"][pid]["lines"]) != board["rows"] for pid in ids):
                     raise ProtocolError("Preview rows differ from page geometry")
         call("PUT", "/api/settings/wizard", {"state": "completed"})
-        manifest["verification"] = verify_manifest(client, manifest)
+        semantic_verification = verify_semantics(client, manifest)
+        manifest["verification"] = {**verify_manifest(client, manifest), **semantic_verification}
         canonical = json.dumps(manifest, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
         manifest["manifest_sha256"] = hashlib.sha256(canonical).hexdigest()
         with (out_dir / "manifest.json").open("x", encoding="utf-8") as output:
@@ -394,3 +521,7 @@ def verify_manifest(client, manifest):
         if silence.get("board_id") != bid or silence.get("enabled") is not False or silence.get("active") is not False or silence.get("held"):
             raise ProtocolError("Silence/held state contaminates manual baseline")
     return {"exact_counts": True, "exact_ids": True, "geometry": True, "read_back": True, "runtime_manual_state": True}
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

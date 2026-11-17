@@ -1,6 +1,7 @@
 """Offline reducer tests: retain partial evidence and reject false completeness."""
 
 import json
+import copy
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,22 @@ def phase_records():
             for phase, event, elapsed in [("warmup", "start", 0), ("warmup", "end", 600),
                                           ("activity", "start", 600), ("activity", "end", 6600),
                                           ("drain", "start", 6600), ("drain", "end", 7200)]]
+
+
+def continuous_records():
+    records = [{"record_type": "metadata", "run_id": "run-1", "source_commit": "83236253aa8103db856b7efa456e088b9c9ec548",
+                "planned_phase_seconds": [600, 6000, 600], "collector_interval_seconds": 5}]
+    records.extend({**record, "run_id": "run-1"} for record in phase_records())
+    for slot in range(6000):
+        records.append({"record_type": "request", "run_id": "run-1", "phase": "activity", "cycle": slot // 10,
+                        "cycle_slot": slot % 10, "operation": f"slot{slot % 10}", "geometry": "note", "cache": "mixed",
+                        "auth": "browser-cookie", "batch": 1, "elapsed_ms": 100, "http_status": 200,
+                        "semantic_success": True, "timed_out": False, "scheduled_elapsed_s": 600 + slot,
+                        "started_elapsed_s": 600 + slot, "monotonic_elapsed_s": 600 + slot + 0.1})
+    records.extend({"record_type": "resource", "run_id": "run-1", "monotonic_elapsed_s": second,
+                    "processes": [{"role": "api", "pid": 42, "start_time_ticks": 100, "rss_bytes": 100000}]}
+                   for second in range(0, 7201, 5))
+    return records
 
 
 class RuntimeReportTests(unittest.TestCase):
@@ -60,6 +77,34 @@ class RuntimeReportTests(unittest.TestCase):
         failure = next(s for s in report["strata"] if s["cache"] == "forced")
         self.assertFalse(failure["valid"])
         self.assertIsNone(failure["latency_ms"]["p95"])
+
+    def test_complete_requires_one_continuous_valid_run_with_covered_telemetry(self):
+        # Structural counters plus one empty resource record cannot establish a two-hour continuous run.
+        self.assertTrue(report_records(continuous_records())["complete"])
+        for defect in ("empty_resource", "mixed_run", "outside_window", "http_failure", "timeout", "sparse_telemetry", "missing_identity"):
+            with self.subTest(defect=defect):
+                records = continuous_records()
+                request = next(r for r in records if r["record_type"] == "request")
+                if defect == "empty_resource":
+                    records = [r for r in records if r["record_type"] != "resource"]
+                    records.append({"record_type": "resource", "run_id": "run-1", "monotonic_elapsed_s": 0, "processes": []})
+                elif defect == "mixed_run":
+                    request["run_id"] = "other-run"
+                elif defect == "outside_window":
+                    request["monotonic_elapsed_s"] = 599
+                elif defect == "http_failure":
+                    request["http_status"] = 401
+                elif defect == "timeout":
+                    request["timed_out"] = True
+                elif defect == "sparse_telemetry":
+                    records = [r for r in records if r["record_type"] != "resource" or r["monotonic_elapsed_s"] in (0, 7200)]
+                else:
+                    next(r for r in records if r["record_type"] == "resource")["processes"][0]["start_time_ticks"] = None
+                self.assertFalse(report_records(records)["complete"])
+
+    def test_parse_errors_are_part_of_completion_verdict(self):
+        # A caller may not discard read_jsonl.errors while accepting otherwise complete counters.
+        self.assertFalse(report_records(continuous_records(), errors=[{"line": 100, "error": "partial"}])["complete"])
 
 
 if __name__ == "__main__":

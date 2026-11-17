@@ -8,6 +8,11 @@ import copy
 import json
 import tempfile
 import unittest
+import hashlib
+import io
+from contextlib import redirect_stderr, redirect_stdout
+from unittest.mock import patch
+from email.message import Message
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
@@ -25,7 +30,8 @@ from runtime_common import (
     summarize_requests,
     validate_preview,
 )
-from runtime_seed import page_definitions, seed, verify_manifest
+from runtime_seed import main as seed_main
+from runtime_seed import page_definitions, seed, verify_manifest, verify_semantics
 
 
 def ownership():
@@ -166,6 +172,57 @@ def fixture_transport(manifest):
     return MemoryTransport(responses)
 
 
+class SemanticTransport:
+    """Published endpoint boundary fixtures, including stateful schedule-enable behavior."""
+
+    def __init__(self, manifest, *, fail_formula=False, fail_boundary=False):
+        self.manifest = manifest
+        self.enabled = {b["id"]: False for b in manifest["boards"].values()}
+        self.fail_formula, self.fail_boundary = fail_formula, fail_boundary
+        self.exchanges = []
+
+    def __call__(self, method, url, payload, headers, timeout):
+        path, query = urlsplit(url).path, parse_qs(urlsplit(url).query)
+        self.exchanges.append((method, url, payload))
+        if method == "POST" and path == "/api/templates/render":
+            rows = {"flagship": 6, "note": 3, "note_array": 6, "panel": 8}[payload["device_type"]]
+            values = ["3", "A", "N/A", "20"] if not self.fail_formula else ["3", "A", "#REF", "20"]
+            lines = ["PERF", "3 A", values[2] + " 20"] + [""] * (rows - 3)
+            return HttpResult(200, {"rendered": "\n".join(lines), "lines": lines, "line_count": rows,
+                "diagnostics": {"formulas": [{"value": value, "error": "#REF" if value == "#REF" else None} for value in values]}})
+        if method == "POST" and path.endswith("/dry-run"):
+            cid = path.split("/")[3]
+            collection = next(c for c in self.manifest["collections"] if c["id"] == cid)
+            matched = payload["values"]["date_time.hour"] >= 12
+            pid = collection["page_ids"][0 if matched else 1]
+            return HttpResult(200, {"collection_id": cid, "selection_mode": "variable", "page_id": pid,
+                "matched_rule": 0 if matched else None, "rules": [{"matched": matched, "error": None}],
+                "timeline": [], "truncated": False, "truncated_reason": None})
+        if method == "PUT" and path == "/api/schedules/enabled":
+            self.enabled[payload["board_id"]] = payload["enabled"]
+            return HttpResult(200, {"enabled": payload["enabled"]})
+        if method == "GET" and path == "/api/schedules/active/page":
+            bid, instant = query["board_id"][0], query["at"][0]
+            board = next(b for b in self.manifest["boards"].values() if b["id"] == bid)
+            at = datetime.fromisoformat(instant)
+            hhmm = at.strftime("%H:%M")
+            mapping = {"05:59": None, "06:00": 0, "07:00": None, "10:00": 5, "10:30": 6, "10:45": 5,
+                       "11:00": None, "13:00": None, "20:00": 4, "23:00": 3, "00:59": 3, "01:00": None, "08:00": 2}
+            index = 1 if at.date().isoformat() == "2026-11-22" else mapping.get(hhmm)
+            ref = board["page_ids"][index] if index is not None else None
+            if hhmm == "12:00":
+                ref = next(c["id"] for c in self.manifest["collections"] if c["geometry"] == next(
+                    key for key, value in self.manifest["boards"].items() if value["id"] == bid) and c["mode"] == "time")
+            if self.fail_boundary and hhmm == "10:45":
+                ref = board["page_ids"][6]
+            if not self.enabled[bid]:
+                ref = board["page_ids"][0]
+            return HttpResult(200, {"page_id": ref, "resolved_page_id": board["page_ids"][0] if ref and ref.startswith("collection:") else ref,
+                "source": "schedule" if ref else "none", "schedule_enabled": self.enabled[bid],
+                "at": instant, "silenced": False, "temporary_override": {"active": False}})
+        raise AssertionError(f"Unexpected semantic HTTP exchange: {method} {path}")
+
+
 class SeedTransport:
     """In-memory HTTP boundary for seed orchestration, with generated server IDs."""
 
@@ -178,6 +235,7 @@ class SeedTransport:
         self.config = {}
         self.active = {}
         self.refuse_send = refuse_send
+        self.semantic = None
         if unexpected_page:
             self.groups["pages"] = [{"id": "unexpected", "name": "Owner Content", "type": "template"}]
 
@@ -208,6 +266,22 @@ class SeedTransport:
                                 "grid_rows": 8, "grid_cols": 40, "api_mode": "virtual", "output": "fiestapanel",
                                 "enabled": True, "paused": False, "schedule_enabled": False})
             return HttpResult(201, panel)
+        if (path == "/api/templates/render" or path.endswith("/dry-run")
+                or path in {"/api/schedules/enabled", "/api/schedules/active/page"}):
+            if self.semantic is None:
+                boards = {}
+                for key, board in zip(("flagship", "note", "array", "panel"), self.boards):
+                    rows, cols = {"flagship": (6, 22), "note": (3, 15), "note_array": (6, 30), "panel": (8, 40)}[board["device_type"]]
+                    boards[key] = {**board, "rows": rows, "cols": cols, "page_ids": [p["id"] for p in self.groups["pages"]
+                                                                                      if p["device_type"] == board["device_type"]]}
+                collections = [{**collection, "mode": collection["selection_mode"], "geometry": next(
+                    key for key, board in boards.items() if collection["page_ids"][0] in board["page_ids"])}
+                    for collection in self.groups["collections"]]
+                self.semantic = SemanticTransport({"boards": boards, "collections": collections})
+            answer = self.semantic(method, url, payload, headers, timeout)
+            if path == "/api/schedules/enabled":
+                next(b for b in self.boards if b["id"] == payload["board_id"])["schedule_enabled"] = payload["enabled"]
+            return answer
         for group in ("pages", "collections", "schedules", "panels"):
             prefix = "/api/panels" if group == "panels" else f"/api/v1/{group}"
             if path == prefix:
@@ -500,6 +574,8 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertEqual(manifest["boards"]["panel"]["id"], "generated-panel-board")
             self.assertEqual((manifest["boards"]["panel"]["rows"], manifest["boards"]["panel"]["cols"]), (8, 40))
             self.assertTrue(manifest["verification"]["exact_ids"])
+            self.assertTrue(manifest["verification"].get("h6_formula"))
+            self.assertTrue(manifest["verification"].get("h8_boundaries"))
             for artifact in Path(directory).iterdir():
                 raw = artifact.read_text()
                 self.assertNotIn("password-secret", raw)
@@ -644,6 +720,137 @@ class RuntimeContractTests(unittest.TestCase):
                     transport.responses[("GET", "/api/v1/status")].body["initialized"] = False
                 with self.assertRaises(ProtocolError):
                     verify_manifest(JsonClient(data["base_url"], {}, transport=transport), data)
+
+    def test_h6_h8_smoke_verifies_values_boundaries_and_restores_schedule_state(self):
+        # HTTP200 alone cannot prove sampled formulas, calendar priorities or the end-exclusive boundary.
+        data = fixture()
+        transport = SemanticTransport(data)
+        report = verify_semantics(JsonClient(data["base_url"], {}, transport=transport), data)
+        self.assertEqual(report, {"h6_formula": True, "h8_boundaries": True, "variable_rules": True})
+        self.assertTrue(all(enabled is False for enabled in transport.enabled.values()))
+
+    def test_wrong_formula_or_boundary_fails_and_restores_schedule_state(self):
+        # A failing boundary query must not leave scheduling enabled and contaminate later browser runs.
+        for kwargs in ({"fail_formula": True}, {"fail_boundary": True}):
+            with self.subTest(kwargs=kwargs):
+                data = fixture()
+                transport = SemanticTransport(data, **kwargs)
+                with self.assertRaises(ProtocolError):
+                    verify_semantics(JsonClient(data["base_url"], {}, transport=transport), data)
+                self.assertTrue(all(enabled is False for enabled in transport.enabled.values()))
+
+    def test_cli_hash_mismatch_prevents_any_network_request(self):
+        # Comparing parsed owner contents to themselves does not bind the original operator file bytes.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            marker = ownership()
+            context = run_context()
+            context["ownership_sha256"] = "f" * 64
+            for filename, value in (("owner.json", marker), ("context.json", context),
+                                    ("credentials.json", {"username": "perf", "password": "password-secret"})):
+                file = root / filename
+                file.write_text(json.dumps(value))
+                file.chmod(0o600)
+            transport = MemoryTransport({})
+            client = JsonClient(marker["base_url"], {"username": "perf", "password": "password-secret"}, transport=transport)
+            with patch("runtime_seed.JsonClient", return_value=client), redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()):
+                code = seed_main(["seed", "--base-url", marker["base_url"], "--ownership", str(root / "owner.json"),
+                    "--run-context", str(root / "context.json"), "--credentials", str(root / "credentials.json"),
+                    "--out-dir", str(root / "out")])
+            self.assertEqual(code, 2)
+            self.assertEqual(transport.exchanges, [])
+
+    def test_real_default_preview_validator_accepts_only_complete_success(self):
+        # A missing import inside the generated lambda escaped operation-definition-only tests.
+        operation = next(op for op in api_operations(fixture()) if op.name == "preview_batch_forced")
+        ids = operation.payload["page_ids"]
+        body = {"total": 12, "successful": 12, "previews": {pid: {"page_id": pid, "available": True,
+                "lines": ["PERF"]} for pid in ids}}
+        self.assertIsNone(operation.validate(body))
+        body["previews"][ids[-1]]["available"] = False
+        with self.assertRaises(ProtocolError):
+            operation.validate(body)
+
+    def test_default_send_401_aborts_before_cleanup_and_retains_summary(self):
+        # Cleanup must not issue a mutation after the immediate auth-abort boundary.
+        data = fixture()
+        operation = next(op for op in api_operations(data) if op.name == "send" and op.geometry == "note")
+        transport = fixture_transport(data)
+        transport.responses[("POST", operation.path)] = HttpResult(401, {"detail": "unauthorized"})
+        client = JsonClient(data["base_url"], {}, transport=transport)
+        with tempfile.TemporaryDirectory() as directory:
+            report = sample_api(client, data, Path(directory), batches=1, samples=2, warmups=0, operations=[operation])
+            saved = json.loads((Path(directory) / "summary.json").read_text())
+        self.assertTrue(report["aborted"])
+        self.assertFalse(report["valid"])
+        self.assertTrue(saved["aborted"])
+        self.assertEqual([x for x in transport.exchanges if x[0] == "PUT"], [])
+
+    def test_real_transport_reuses_connection_and_carries_real_server_cookie(self):
+        # urllib's default Connection:close would change the agreed steady latency profile.
+        class Response:
+            status = 200
+            will_close = False
+
+            def __init__(self):
+                self.headers = Message()
+                self.headers["Set-Cookie"] = "fiestaboard_session=server-cookie; Path=/; HttpOnly; SameSite=Lax"
+
+            def read(self, limit):
+                return b'{"status":"ok"}'
+
+            def close(self):
+                pass
+
+        class Connection:
+            sock = None
+
+            def __init__(self):
+                self.requests = []
+
+            def request(self, method, target, body, headers):
+                self.sock = object()
+                self.requests.append((method, target, headers))
+
+            def getresponse(self):
+                return Response()
+
+            def close(self):
+                self.sock = None
+
+        connection = Connection()
+        client = JsonClient("http://hub.invalid:3000", {}, connection_factory=lambda: connection)
+        first = client.request("GET", "/api/auth/status")
+        second = client.request("GET", "/api/v1/health")
+        self.assertEqual(first.status, 200)
+        self.assertFalse(first.connection_reused)
+        self.assertTrue(second.connection_reused)
+        self.assertEqual({key.lower(): value for key, value in connection.requests[1][2].items()}["cookie"],
+                         "fiestaboard_session=server-cookie")
+        self.assertNotIn("server-cookie", json.dumps(client.safe_result(first)))
+
+    def test_metadata_redirect_is_not_followed_even_to_same_origin(self):
+        # Redirect-following changes the measured path and can leak cookies across origins.
+        class Connection:
+            sock = None
+
+            def __init__(self):
+                self.requests = []
+
+            def request(self, method, target, body, headers):
+                self.requests.append(target)
+
+            def getresponse(self):
+                response = type("Response", (), {"status": 302, "will_close": False,
+                    "read": lambda self, limit: b"{}", "close": lambda self: None})()
+                response.headers = Message()
+                response.headers["Location"] = "http://other.invalid/api/v1/health"
+                return response
+
+        connection = Connection()
+        result = JsonClient("http://hub.invalid:3000", {}, connection_factory=lambda: connection).request("GET", "/api/v1/health")
+        self.assertEqual(result.status, 302)
+        self.assertEqual(connection.requests, ["/api/v1/health"])
 
 
 if __name__ == "__main__":

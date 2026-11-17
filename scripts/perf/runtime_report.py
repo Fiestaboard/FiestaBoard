@@ -2,9 +2,10 @@
 
 from collections import defaultdict
 import json
+import math
 from pathlib import Path
 
-from runtime_common import summarize_requests
+from runtime_common import AMD64_MANIFEST, SOURCE_COMMIT, summarize_requests
 
 
 def read_jsonl(path):
@@ -21,7 +22,7 @@ def read_jsonl(path):
     return {"records": records, "errors": errors}
 
 
-def report_records(records):
+def report_records(records, *, errors=()):
     phases = {}
     duplicate_phase = False
     resources, requests, gaps = [], [], []
@@ -65,9 +66,56 @@ def report_records(records):
         summaries.append({**dict(zip(fields, key)), **summarize_requests(observations)})
     activity = [r for r in requests if r.get("phase") == "activity"]
     complete_cycles = sum(slots == set(range(10)) for cycle, slots in cycles.items() if cycle is not None)
-    complete = (window_complete and not gaps and not restarts and len(activity) == 6000 and complete_cycles == 600
-                and all(r.get("semantic_success") is True for r in activity) and bool(resources))
+    run_ids = {r.get("run_id") for r in records}
+    one_run = len(run_ids) == 1 and all(isinstance(value, str) and value for value in run_ids)
+    metadata = [r for r in records if r.get("record_type") == "metadata"]
+    declared_window = len(metadata) == 1 and metadata[0].get("planned_phase_seconds") == [600, 6000, 600]
+    if declared_window:
+        declared_window = metadata[0].get("source_commit") == SOURCE_COMMIT
+
+    def finite(value):
+        return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+    # Request completion timestamps alone cannot establish deadline arrivals or
+    # one-in-flight behavior; require all three recorded clock points.
+    requests_valid = len(activity) == 6000 and all(summary["valid"] for summary in summaries)
+    previous_end = 600.0
+    for request in activity:
+        cycle, slot = request.get("cycle"), request.get("cycle_slot")
+        deadline, started, ended = (request.get(key) for key in ("scheduled_elapsed_s", "started_elapsed_s", "monotonic_elapsed_s"))
+        valid_indices = isinstance(cycle, int) and 0 <= cycle < 600 and isinstance(slot, int) and 0 <= slot < 10
+        valid_times = all(finite(value) for value in (deadline, started, ended))
+        if not valid_indices or not valid_times:
+            requests_valid = False
+            continue
+        if (deadline != 600 + cycle * 10 + slot or not deadline <= started < deadline + 1
+                or not started <= ended <= 6600 or started < previous_end):
+            requests_valid = False
+        previous_end = ended
+    resource_times = [r.get("monotonic_elapsed_s") for r in resources]
+    resources_valid = bool(resources) and all(finite(value) for value in resource_times)
+    if resources_valid:
+        resources_valid = (resource_times == sorted(resource_times) and resource_times[0] <= 5 and resource_times[-1] >= 7195
+                           and all(0 < later - earlier <= 7.5 for earlier, later in zip(resource_times, resource_times[1:])))
+    expected_roles = None
+    for resource in resources:
+        processes = resource.get("processes", [])
+        roles = [p.get("role") for p in processes]
+        if not processes or "api" not in roles or len(set(roles)) != len(roles):
+            resources_valid = False
+        if expected_roles is None:
+            expected_roles = set(roles)
+        elif set(roles) != expected_roles:
+            resources_valid = False
+        for process in processes:
+            if (not isinstance(process.get("pid"), int) or process["pid"] <= 0
+                    or not isinstance(process.get("start_time_ticks"), int) or process["start_time_ticks"] <= 0
+                    or not finite(process.get("rss_bytes")) or process["rss_bytes"] < 0):
+                resources_valid = False
+    complete = (window_complete and one_run and declared_window and not errors and not gaps and not restarts
+                and requests_valid and complete_cycles == 600 and resources_valid)
     return {"window_complete": window_complete, "complete": complete, "process_restarts": restarts, "strata": summaries,
             "activity_requests": len(activity), "completed_cycles": complete_cycles, "realized_activity_factor": complete_cycles / 100,
-            "resource_samples": len(resources), "gaps": len(gaps),
+            "resource_samples": len(resources), "gaps": len(gaps), "parse_errors": list(errors),
+            "one_run": one_run, "requests_valid": requests_valid, "resources_valid": resources_valid,
             "python_heap": {"available": False}, "queues": {"available": False}}

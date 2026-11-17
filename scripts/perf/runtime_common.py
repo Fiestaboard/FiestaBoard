@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import json
 import http.cookiejar
+import http.client
 import socket
 import stat
 import time
@@ -33,10 +34,11 @@ class HttpResult:
     body_bytes: int = 0
     error: str | None = None
     timed_out: bool = False
+    connection_reused: bool | None = None
 
 
 class JsonClient:
-    def __init__(self, base_url, credentials, *, transport=None, timeout=30.0, run_context=None):
+    def __init__(self, base_url, credentials, *, transport=None, timeout=30.0, run_context=None, connection_factory=None):
         parsed = urlsplit(base_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
             raise ProtocolError("Use an explicit HTTP(S) origin without credentials")
@@ -49,12 +51,11 @@ class JsonClient:
         self.transport = transport
         self.timeout = timeout
         self.run_context = run_context
+        self.connection_factory = connection_factory
         self.secrets = [credentials.get("password", "")]
         self.observer = None
         self.cookies = http.cookiejar.CookieJar()
-        self.opener = urllib.request.build_opener(
-            urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(self.cookies), _NoRedirect()
-        )
+        self._connection = None
 
     def request(self, method, path, payload=None):
         if not path.startswith("/api/") or path.startswith("//") or urlsplit(path).netloc or urlsplit(path).fragment:
@@ -69,9 +70,11 @@ class JsonClient:
             exchange = self.transport or self._exchange
             result = exchange(method, self.base_url + path, payload, headers, self.timeout)
         except (TimeoutError, socket.timeout):
+            self.close()
             result = HttpResult(0, None, elapsed_ms=(time.monotonic() - started) * 1000,
                                 error="Request timed out", timed_out=True)
-        except (OSError, urllib.error.URLError, ValueError) as exc:
+        except (OSError, urllib.error.URLError, http.client.HTTPException, ValueError) as exc:
+            self.close()
             # Do not retain exception text: third-party errors can echo credentials/headers.
             timed_out = isinstance(getattr(exc, "reason", None), (TimeoutError, socket.timeout))
             result = HttpResult(0, None, elapsed_ms=(time.monotonic() - started) * 1000,
@@ -92,22 +95,44 @@ class JsonClient:
     def _exchange(self, method, url, payload, headers, timeout):
         body = json.dumps(payload, separators=(",", ":")).encode() if payload is not None else None
         request = urllib.request.Request(url, data=body, headers=headers, method=method)
+        self.cookies.add_cookie_header(request)
+        parsed = urlsplit(url)
+        if self._connection is None:
+            if self.connection_factory is not None:
+                self._connection = self.connection_factory()
+            else:
+                factory = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+                self._connection = factory(parsed.hostname, parsed.port, timeout=timeout)
+        reused = self._connection.sock is not None
         started = time.monotonic()
+        response = None
         try:
-            response = self.opener.open(request, timeout=timeout)
-        except urllib.error.HTTPError as exc:
-            response = exc
-        with response:
+            target = parsed.path + ("?" + parsed.query if parsed.query else "")
+            self._connection.request(method, target, body=body, headers=dict(request.header_items()))
+            response = self._connection.getresponse()
             raw = response.read(4 * 1024 * 1024 + 1)
             elapsed = (time.monotonic() - started) * 1000
             if len(raw) > 4 * 1024 * 1024:
                 raise ProtocolError("Response exceeded bounded 4 MiB body")
+            self.cookies.extract_cookies(_CookieResponse(response.headers), request)
             try:
                 decoded = json.loads(raw)
                 error = None
             except (ValueError, UnicodeDecodeError):
                 decoded, error = None, "Response was not JSON"
-            return HttpResult(response.code, decoded, dict(response.headers.items()), elapsed, len(raw), error)
+            result = HttpResult(response.status, decoded, dict(response.headers.items()), elapsed, len(raw), error,
+                                connection_reused=reused)
+            if response.will_close:
+                self.close()
+            return result
+        finally:
+            if response is not None:
+                response.close()
+
+    def close(self):
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
 
     def login(self, *, min_valid_seconds=600):
         body = require_ok(self.request("POST", "/api/auth/login", {
@@ -140,10 +165,12 @@ class JsonClient:
         return redact(result.__dict__, self.secrets)
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, request, response, code, message, headers, new_url):
-        # Redirects may leak credentials to a different origin and alter the serving path.
-        return None
+class _CookieResponse:
+    def __init__(self, headers):
+        self.headers = headers
+
+    def info(self):
+        return self.headers
 
 
 def utc_now():

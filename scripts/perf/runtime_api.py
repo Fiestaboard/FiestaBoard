@@ -7,7 +7,7 @@ import uuid
 import re
 from urllib.parse import urlencode
 
-from runtime_common import JsonlWriter, ProtocolError, require_ok, summarize_requests
+from runtime_common import JsonlWriter, ProtocolError, require_ok, summarize_requests, validate_preview
 from runtime_seed import verify_manifest
 
 
@@ -186,7 +186,7 @@ def sample_api(client, manifest, out_dir, batches=3, samples=200, warmups=20, *,
                 summary["valid"] = summary["valid"] and len(records) == samples and warmup_ok
                 report["strata"].append(summary)
                 report["valid"] = report["valid"] and summary["valid"]
-                if operation.cleanup:
+                if operation.cleanup and not report["aborted"]:
                     path, payload = operation.cleanup
                     cleanup = client.request("PUT", path, payload)
                     writer.write("cleanup", operation=operation.name, response=client.safe_result(cleanup), path=path)
