@@ -36,7 +36,9 @@ export interface WizardProgress {
     local_api_key?: string;
     cloud_key?: string;
     host?: string;
-    device_type?: "flagship" | "note";
+    device_type?: "flagship" | "note" | "note_array";
+    notes_wide?: number;
+    notes_tall?: number;
     board_color?: "black" | "white";
     /** Which flap this Flagship's code-62 slot carries (issue #1657). */
     code62_glyph?: Code62Glyph;

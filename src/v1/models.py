@@ -141,7 +141,10 @@ class BoardDetail(BoardSummary):
     )
     override_expires_at: str | None = Field(
         default=None,
-        description="When this board's active timed message expires (ISO 8601), or null if none is running.",
+        description=(
+            "When this board's active timed message expires (ISO 8601), or null if none is running. "
+            "Null after expiry even while the display engine still has a pending revert."
+        ),
     )
     next_change_at: str | None = Field(
         default=None,
@@ -166,7 +169,8 @@ class BoardDetail(BoardSummary):
         default=None,
         description=(
             "When this board's active override began (ISO 8601), or null if none is running. A replaced "
-            "override has a new value, so it identifies one run (for a Live Activity or Live Update)."
+            "override has a new value, so it identifies one run (for a Live Activity or Live Update). "
+            "Null after expiry even while the display engine still has a pending revert."
         ),
     )
     health: HealthSummary = Field(

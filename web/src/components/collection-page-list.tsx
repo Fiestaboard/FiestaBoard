@@ -1,5 +1,7 @@
 import {
+  Badge,
   Button,
+  Card,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -7,8 +9,9 @@ import {
   DropdownMenuTrigger,
   Flex,
   Kbd,
+  List,
+  ListItem,
   ListRow,
-  ListRowGroup,
   SortableList,
   SortableListHandle,
   type SortableListLabels,
@@ -35,6 +38,8 @@ export interface CollectionPageListProps {
   /** Move the member at `from` to `to` (SortableList's controlled `onMove`). */
   onMove: (from: number, to: number) => void;
   onRemove: (index: number) => void;
+  disabled?: boolean;
+  evaluatedPageId?: string | null;
 }
 
 interface Member {
@@ -71,7 +76,15 @@ function shapeLabel(page: Page | undefined, t: Translate): string | null {
  * variable lists have no order, so they are one inset group with an × per
  * page and no handles (07c `312:76483`).
  */
-export function CollectionPageList({ pageIds, pages, mode, onMove, onRemove }: CollectionPageListProps) {
+export function CollectionPageList({
+  pageIds,
+  pages,
+  mode,
+  onMove,
+  onRemove,
+  disabled = false,
+  evaluatedPageId,
+}: CollectionPageListProps) {
   const t = useTranslations("collections");
   const coarse = useCoarsePointer();
   const size = coarse ? "touch" : "default";
@@ -101,27 +114,44 @@ export function CollectionPageList({ pageIds, pages, mode, onMove, onRemove }: C
 
   if (mode !== "time") {
     return (
-      <ListRowGroup variant="inset" size={size}>
-        {members.map((member, index) => (
-          <ListRow
-            key={member.id}
-            title={member.name}
-            meta={member.shape}
-            trailing={
-              // TODO(#385): Button size="touch" for the 44px target once FiestaUI #385 is on alpha.
-              <Button
-                type="button"
-                variant="ghost"
-                size={coarse ? "icon-lg" : "icon-sm"}
-                aria-label={t("removePage", { name: member.name })}
-                onClick={() => onRemove(index)}
-              >
-                <X aria-hidden="true" />
-              </Button>
-            }
-          />
-        ))}
-      </ListRowGroup>
+      <Card className="overflow-hidden p-0 gap-0">
+        <List gap="0" role="list">
+          {members.map((member, index) => (
+            <ListRow
+              key={member.id}
+              render={<ListItem />}
+              size={size}
+              title={
+                <Text as="span" size="sm" weight="semibold">
+                  {member.name}
+                </Text>
+              }
+              meta={
+                <Flex gap="3" align="center" wrap>
+                  {member.id === evaluatedPageId && <Badge variant="success">{t("selectedBadge")}</Badge>}
+                  {member.shape && (
+                    <Text as="span" size="xs" tone="muted">
+                      {member.shape}
+                    </Text>
+                  )}
+                </Flex>
+              }
+              trailing={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size={coarse ? "icon-touch" : "icon-lg"}
+                  disabled={disabled}
+                  aria-label={t("removePage", { name: member.name })}
+                  onClick={() => onRemove(index)}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              }
+            />
+          ))}
+        </List>
+      </Card>
     );
   }
 
@@ -198,11 +228,10 @@ function SortableRow({
           <SortableListMoveButtons className="max-md:hidden" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              {/* TODO(#385): Button size="touch" for the 44px target once FiestaUI #385 is on alpha. */}
               <Button
                 type="button"
                 variant="ghost"
-                size={size === "touch" ? "icon-lg" : "icon-sm"}
+                size={size === "touch" ? "icon-touch" : "icon-lg"}
                 aria-label={t("pageActions", { name: member.name })}
               >
                 <Ellipsis aria-hidden="true" />
