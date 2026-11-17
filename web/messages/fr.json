@@ -1773,7 +1773,10 @@
     "updateIntervalsTitle": "Intervalles de mise à jour",
     "updateIntervalsDescription": "À quelle fréquence le tableau récupère le nouveau contenu et relit son état actuel",
     "silenceShowHeldLabel": "Afficher les messages en attente à la fin du silence",
-    "silenceShowHeldHelp": "Un message envoyé à ce tableau pendant le silence est mis en attente et affiché dès la fin du silence. Désactivé, il est refusé. Les changements de page sont toujours conservés et n'en ont pas besoin."
+    "silenceShowHeldHelp": "Un message envoyé à ce tableau pendant le silence est mis en attente et affiché dès la fin du silence. Désactivé, il est refusé. Les changements de page sont toujours conservés et n'en ont pas besoin.",
+    "silenceModeIndicatorShort": "Indicateur",
+    "silenceModeFreezeShort": "Figer",
+    "silenceModePageShort": "Afficher page"
   },
   "serviceControls": {
     "title": "Contrôle du service",

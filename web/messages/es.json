@@ -1773,7 +1773,10 @@
     "updateIntervalsTitle": "Intervalos de actualización",
     "updateIntervalsDescription": "Con qué frecuencia el tablero consulta nuevo contenido y vuelve a leer su estado actual",
     "silenceShowHeldLabel": "Mostrar mensajes retenidos al terminar el silencio",
-    "silenceShowHeldHelp": "Un mensaje enviado a este tablero durante el silencio se retiene y se muestra en cuanto termina el silencio. Si está desactivado, se rechaza. Los cambios de página siempre se guardan y no lo necesitan."
+    "silenceShowHeldHelp": "Un mensaje enviado a este tablero durante el silencio se retiene y se muestra en cuanto termina el silencio. Si está desactivado, se rechaza. Los cambios de página siempre se guardan y no lo necesitan.",
+    "silenceModeIndicatorShort": "Indicador",
+    "silenceModeFreezeShort": "Congelar",
+    "silenceModePageShort": "Mostrar página"
   },
   "serviceControls": {
     "title": "Control del servicio",

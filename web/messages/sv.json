@@ -1773,7 +1773,10 @@
     "updateIntervalsTitle": "Uppdateringsintervall",
     "updateIntervalsDescription": "Hur ofta tavlan söker efter nytt innehåll och läser om sitt aktuella tillstånd",
     "silenceShowHeldLabel": "Visa väntande meddelanden när tystnaden tar slut",
-    "silenceShowHeldHelp": "Ett meddelande som skickas till den här tavlan under tystnaden får vänta och visas så fort tystnaden tar slut. När det är av avvisas det i stället. Sidbyten sparas alltid och behöver inte detta."
+    "silenceShowHeldHelp": "Ett meddelande som skickas till den här tavlan under tystnaden får vänta och visas så fort tystnaden tar slut. När det är av avvisas det i stället. Sidbyten sparas alltid och behöver inte detta.",
+    "silenceModeIndicatorShort": "Indikator",
+    "silenceModeFreezeShort": "Frys",
+    "silenceModePageShort": "Visa sida"
   },
   "serviceControls": {
     "title": "Tjänststyrning",

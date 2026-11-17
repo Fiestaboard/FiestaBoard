@@ -1700,7 +1700,10 @@
     "toastDisplaySaved": "Display settings saved",
     "toastDisplaySaveFailed": "Failed to save display settings: {error}",
     "silenceShowHeldLabel": "Show held messages when silence ends",
-    "silenceShowHeldHelp": "A message sent to this board during silence is held and shown the moment silence ends. When off, it is refused instead. Page changes are always kept and never need this."
+    "silenceShowHeldHelp": "A message sent to this board during silence is held and shown the moment silence ends. When off, it is refused instead. Page changes are always kept and never need this.",
+    "silenceModeIndicatorShort": "Indicator",
+    "silenceModeFreezeShort": "Freeze",
+    "silenceModePageShort": "Show a page"
   },
   "serviceControls": {
     "title": "Service Control",

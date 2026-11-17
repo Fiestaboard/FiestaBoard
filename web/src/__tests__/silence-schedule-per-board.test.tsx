@@ -278,3 +278,34 @@ describe("SilenceSchedule - cache invalidation", () => {
     );
   });
 });
+
+describe("SilenceSchedule Playback mode segments", () => {
+  it("uses a three-option radiogroup and saves freeze only for the explicit route display", async () => {
+    const writes: Record<string, unknown>[] = [];
+    stub({ boards: [FLAGSHIP, NOTE], onPut: (body) => writes.push(body as Record<string, unknown>) });
+    const { Wrapper } = makeWrapper();
+    render(<SilenceSchedule boardId="note-1" />, { wrapper: Wrapper });
+    expect(await screen.findByRole("radiogroup", { name: /While Silenced/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: "Freeze" }));
+    await waitFor(() => expect(writes[0]).toMatchObject({ board_id: "note-1", mode: "freeze" }), { timeout: 5000 });
+    expect(screen.queryByLabelText(/message text/i)).not.toBeInTheDocument();
+  });
+  it("rolls a rejected mode write back to the saved mode without an unhandled rejection", async () => {
+    let rejected = false;
+    stub({ boards: [FLAGSHIP, NOTE] });
+    server.use(
+      http.put(`${API_BASE}/settings/silence-schedule`, () => {
+        rejected = true;
+        return HttpResponse.json({ detail: "rejected" }, { status: 500 });
+      }),
+    );
+    const { Wrapper } = makeWrapper();
+    render(<SilenceSchedule boardId="note-1" />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByRole("radio", { name: "Freeze" }));
+    await waitFor(() => expect(rejected).toBe(true), { timeout: 5000 });
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "Indicator" })).toHaveAttribute("aria-checked", "true"),
+    );
+    expect(screen.getByLabelText(/message text/i)).toBeInTheDocument();
+  });
+});

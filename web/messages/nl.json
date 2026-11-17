@@ -1773,7 +1773,10 @@
     "updateIntervalsTitle": "Update-intervallen",
     "updateIntervalsDescription": "Hoe vaak het bord nieuwe inhoud ophaalt en zijn huidige status opnieuw leest",
     "silenceShowHeldLabel": "Vastgehouden berichten tonen als de stilte eindigt",
-    "silenceShowHeldHelp": "Een bericht dat tijdens de stilte naar dit bord wordt gestuurd, wordt vastgehouden en getoond zodra de stilte eindigt. Staat dit uit, dan wordt het geweigerd. Paginawijzigingen blijven altijd bewaard en hebben dit niet nodig."
+    "silenceShowHeldHelp": "Een bericht dat tijdens de stilte naar dit bord wordt gestuurd, wordt vastgehouden en getoond zodra de stilte eindigt. Staat dit uit, dan wordt het geweigerd. Paginawijzigingen blijven altijd bewaard en hebben dit niet nodig.",
+    "silenceModeIndicatorShort": "Indicator",
+    "silenceModeFreezeShort": "Bevriezen",
+    "silenceModePageShort": "Pagina tonen"
   },
   "serviceControls": {
     "title": "Servicebeheer",

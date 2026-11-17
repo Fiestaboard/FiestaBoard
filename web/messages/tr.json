@@ -1773,7 +1773,10 @@
     "updateIntervalsTitle": "Güncelleme Aralıkları",
     "updateIntervalsDescription": "Panonun yeni içerik için ne sıklıkla sorgulama yaptığı ve mevcut durumunu yeniden okuduğu",
     "silenceShowHeldLabel": "Sessizlik bittiğinde bekletilen mesajları göster",
-    "silenceShowHeldHelp": "Sessizlik sırasında bu panoya gönderilen bir mesaj bekletilir ve sessizlik biter bitmez gösterilir. Kapalıyken bunun yerine reddedilir. Sayfa değişiklikleri her zaman korunur ve buna ihtiyaç duymaz."
+    "silenceShowHeldHelp": "Sessizlik sırasında bu panoya gönderilen bir mesaj bekletilir ve sessizlik biter bitmez gösterilir. Kapalıyken bunun yerine reddedilir. Sayfa değişiklikleri her zaman korunur ve buna ihtiyaç duymaz.",
+    "silenceModeIndicatorShort": "Gösterge",
+    "silenceModeFreezeShort": "Dondur",
+    "silenceModePageShort": "Sayfa göster"
   },
   "serviceControls": {
     "title": "Hizmet Kontrolü",

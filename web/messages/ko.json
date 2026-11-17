@@ -1773,7 +1773,10 @@
     "updateIntervalsTitle": "업데이트 간격",
     "updateIntervalsDescription": "보드가 새 콘텐츠를 가져오고 현재 상태를 다시 읽는 빈도",
     "silenceShowHeldLabel": "무음이 끝나면 보류된 메시지 표시",
-    "silenceShowHeldHelp": "무음 중에 이 보드로 보낸 메시지는 보류되었다가 무음이 끝나는 즉시 표시됩니다. 끄면 대신 거부됩니다. 페이지 변경은 항상 저장되므로 이 설정이 필요하지 않습니다."
+    "silenceShowHeldHelp": "무음 중에 이 보드로 보낸 메시지는 보류되었다가 무음이 끝나는 즉시 표시됩니다. 끄면 대신 거부됩니다. 페이지 변경은 항상 저장되므로 이 설정이 필요하지 않습니다.",
+    "silenceModeIndicatorShort": "표시기",
+    "silenceModeFreezeShort": "고정",
+    "silenceModePageShort": "페이지 표시"
   },
   "serviceControls": {
     "title": "서비스 제어",

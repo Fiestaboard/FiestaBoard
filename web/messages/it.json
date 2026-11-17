@@ -1773,7 +1773,10 @@
     "updateIntervalsTitle": "Intervalli di aggiornamento",
     "updateIntervalsDescription": "Con quale frequenza la board recupera nuovi contenuti e rilegge il proprio stato",
     "silenceShowHeldLabel": "Mostra i messaggi in attesa al termine del silenzio",
-    "silenceShowHeldHelp": "Un messaggio inviato a questo tabellone durante il silenzio viene messo in attesa e mostrato appena il silenzio termina. Se disattivato, viene rifiutato. I cambi di pagina vengono sempre conservati e non ne hanno bisogno."
+    "silenceShowHeldHelp": "Un messaggio inviato a questo tabellone durante il silenzio viene messo in attesa e mostrato appena il silenzio termina. Se disattivato, viene rifiutato. I cambi di pagina vengono sempre conservati e non ne hanno bisogno.",
+    "silenceModeIndicatorShort": "Indicatore",
+    "silenceModeFreezeShort": "Blocca",
+    "silenceModePageShort": "Mostra pagina"
   },
   "serviceControls": {
     "title": "Controllo servizio",
