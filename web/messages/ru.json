@@ -417,7 +417,7 @@
     "retryButton": "Повторить",
     "editorNameLabel": "Название коллекции",
     "editorMeta": "Коллекция · {count, plural, one {# страница} few {# страницы} many {# страниц} other {# страниц}}",
-    "ruleCount": "Правила: {count} + страница по умолчанию",
+    "ruleCount": "{count, plural, one {# правило} few {# правила} many {# правил} other {# правила}} + страница по умолчанию",
     "randomEvery": "Случайно каждые {duration}",
     "rotationTotal": "{duration} · повторяется",
     "deleteAction": "Удалить…",

@@ -16,6 +16,9 @@ import {
   test,
 } from "./helpers";
 
+// Audit settled states, including the save/reload flow outside the capture matrix.
+test.use({ reducedMotion: "reduce" });
+
 const names = ["Morning commute", "Market open", "Weather and surf", "Good morning"];
 async function seed() {
   const ids = [];
@@ -118,6 +121,22 @@ test("07c parity evidence at four widths in both themes and every mode", async (
             await expect(capture.getByRole("button", { name: "Collection settings", exact: true })).toBeVisible();
             if (mode === "time") await expect(capture.getByText(/Drag the handle, or use/)).toBeVisible();
           } else await expect(capture.getByText(/Saved Collection · cached data/)).toBeVisible();
+          if (width === 768 || width === 900) {
+            const modes = await capture.getByRole("radiogroup", { name: "Selection Mode" }).boundingBox();
+            const preview = await capture
+              .getByRole("region", { name: "Now in this Collection", exact: true })
+              .boundingBox();
+            expect(modes).not.toBeNull();
+            expect(preview).not.toBeNull();
+            expect(preview!.y).toBeGreaterThanOrEqual(modes!.y + modes!.height);
+            if (mode !== "variable") {
+              const duration = await capture
+                .getByLabel(mode === "time" ? "Page Duration" : "Change every", { exact: true })
+                .boundingBox();
+              expect(duration).not.toBeNull();
+              expect(duration!.y).toBeGreaterThanOrEqual(preview!.y + preview!.height);
+            }
+          }
           if ((width === 768 || width === 900) && mode === "time") {
             const preview = capture.getByRole("region", { name: "Now in this Collection", exact: true });
             const board = await preview.getByRole("img").boundingBox();

@@ -417,7 +417,7 @@
     "retryButton": "再試行",
     "editorNameLabel": "コレクション名",
     "editorMeta": "コレクション · {count, plural, one {# ページ} other {# ページ}}",
-    "ruleCount": "{count}件のルール + デフォルト",
+    "ruleCount": "{count, plural, other {#件のルール}} + デフォルト",
     "randomEvery": "{duration}ごとにランダム選択",
     "rotationTotal": "{duration} · 繰り返し",
     "deleteAction": "削除…",

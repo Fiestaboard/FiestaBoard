@@ -1,3 +1,4 @@
+import { Text } from "@fiestaboard/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -35,19 +36,60 @@ function makeCollection(mode: Collection["selection_mode"] = "time"): Collection
   };
 }
 
-function renderForm(mode: Collection["selection_mode"] = "time") {
+function renderForm(mode: Collection["selection_mode"] = "time", withPreview = false) {
   const onSubmit = vi.fn().mockResolvedValue(undefined);
   // The reusable form must also render without a query provider; live preview
   // belongs to the route's optional preview slot.
   const view = render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <CollectionForm collection={makeCollection(mode)} pages={pages} onSubmit={onSubmit} onCancel={vi.fn()} />
+      <CollectionForm
+        collection={makeCollection(mode)}
+        pages={pages}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+        preview={
+          withPreview ? (dirty) => <Text>{dirty ? "Preview has unsaved changes" : "Saved preview"}</Text> : undefined
+        }
+      />
     </QueryClientProvider>,
   );
   return { ...view, onSubmit };
 }
 
 describe("Collection editor layout", () => {
+  it.each(["time", "random"] as const)("places the %s preview between mode chips and duration controls", (mode) => {
+    renderForm(mode, true);
+    const modes = screen.getByRole("radiogroup");
+    const preview = screen.getByText("Saved preview");
+    const duration = screen.getByLabelText(mode === "time" ? "Page Duration" : "Change every", { exact: true });
+    expect(modes.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(preview.compareDocumentPosition(duration) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByText("Saved preview")).toHaveLength(1);
+  });
+
+  it("opens the phone preview independently of settings and updates its dirty state", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(max-width: 767.98px)" || query === "(pointer: coarse)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    try {
+      const user = userEvent.setup();
+      renderForm("time", true);
+      await user.click(screen.getByRole("button", { name: "Now in this Collection" }));
+      expect(screen.getByText("Saved preview")).toBeVisible();
+      expect(screen.getByLabelText("Collection name")).not.toBeVisible();
+      await user.click(screen.getByRole("button", { name: "Collection settings" }));
+      await user.type(screen.getByLabelText("Collection name"), " edited");
+      await user.click(screen.getByRole("button", { name: "Collection settings" }));
+      expect(screen.getByText("Preview has unsaved changes")).toBeVisible();
+      expect(screen.getByLabelText("Collection name")).not.toBeVisible();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("submits an edit from the header Save button", async () => {
     const user = userEvent.setup();
     const { onSubmit } = renderForm();

@@ -592,6 +592,9 @@ export function CollectionForm({
                       <SegmentedControlItem value="variable">{t("modeVariableLabel")}</SegmentedControlItem>
                     </SegmentedControl>
                   </Stack>
+                  {preview && !phone && (
+                    <Box className="min-w-0 lg:absolute lg:top-0 lg:-end-[429px] lg:w-[405px]">{preview(dirty)}</Box>
+                  )}
                   {/* Page-duration controls (time + random modes) */}
                   {(selectionMode === "time" || selectionMode === "random") && (
                     <Stack
@@ -673,7 +676,7 @@ export function CollectionForm({
                 </Stack>
               </CollapsibleContent>
             </Collapsible>
-            {preview && (
+            {preview && phone && (
               <Box className="min-w-0 lg:absolute lg:top-0 lg:-end-[429px] lg:w-[405px]">
                 <Collapsible open={!phone || previewOpen} onOpenChange={setPreviewOpen}>
                   {phone && (

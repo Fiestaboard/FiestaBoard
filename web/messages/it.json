@@ -417,7 +417,7 @@
     "retryButton": "Riprova",
     "editorNameLabel": "Nome della raccolta",
     "editorMeta": "Raccolta · {count, plural, one {# pagina} other {# pagine}}",
-    "ruleCount": "{count} regole + predefinita",
+    "ruleCount": "{count, plural, one {# regola} other {# regole}} + predefinita",
     "randomEvery": "Casuale ogni {duration}",
     "rotationTotal": "{duration} · si ripete",
     "deleteAction": "Elimina…",
