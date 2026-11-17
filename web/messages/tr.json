@@ -257,6 +257,30 @@
       "toastCopyFailed": "Pano kopyalanamadı",
       "toastRefreshed": "Sayfa {board} cihazına yeniden gönderildi",
       "toastRefreshFailed": "{board} yenilenemedi"
+    },
+    "supporting": {
+      "upNext": "Sıradaki",
+      "upNextDisplay": "Sıradaki · {display}",
+      "resumes": "Zamanlama devam eder",
+      "silenceStarts": "Silence Schedule başlar",
+      "silenceEnds": "Silence Schedule biter",
+      "changes": "Zamanlama değişir",
+      "empty": "Merkez yaklaşan bir değişiklik bildirmedi.",
+      "viewSchedule": "Zamanlamayı görüntüle",
+      "manualTitle": "Zamanlama Modu kapalı",
+      "manualBody": "Hiçbir şey kendiliğinden değişmez. Sayfa Değiştir veya Mesaj yaz seçeneğini kullanana ya da Zamanlama Modunu yeniden açana kadar {page} ekranda kalır.",
+      "manualEmpty": "Hiçbir şey kendiliğinden değişmez. Sayfa Değiştir veya Mesaj yaz seçeneğini kullanın ya da Zamanlama Modunu yeniden açın.",
+      "scheduleMode": "Zamanlama Modu",
+      "manualMode": "Manuel Mod",
+      "overrideMode": "Geçersiz kılma",
+      "unknown": "Durum bilinmiyor",
+      "enabled": "Zamanlama Modu yeniden açıldı",
+      "undo": "Geri al",
+      "failed": "Zamanlama Modu değiştirilemedi. Tekrar deneyin.",
+      "otherDisplays": "Diğer ekranlar",
+      "allDisplays": "Tüm ekranlar",
+      "selectDisplay": "{display} yönet",
+      "offline": "Çevrimdışı"
     }
   },
   "pages": {

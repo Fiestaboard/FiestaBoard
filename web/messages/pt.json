@@ -257,6 +257,30 @@
       "toastCopyFailed": "Não foi possível copiar o quadro",
       "toastRefreshed": "Página enviada de novo para {board}",
       "toastRefreshFailed": "Não foi possível atualizar {board}"
+    },
+    "supporting": {
+      "upNext": "A seguir",
+      "upNextDisplay": "A seguir · {display}",
+      "resumes": "A agenda é retomada",
+      "silenceStarts": "Silence Schedule começa",
+      "silenceEnds": "Silence Schedule termina",
+      "changes": "A agenda muda",
+      "empty": "O hub não comunicou nenhuma alteração futura.",
+      "viewSchedule": "Ver agenda",
+      "manualTitle": "O Modo de Agenda está desativado",
+      "manualBody": "Nada muda automaticamente. {page} mantém-se no ecrã até escolheres Trocar página, Escrever uma mensagem ou voltares a ativar o Modo de Agenda.",
+      "manualEmpty": "Nada muda automaticamente. Escolhe Trocar página, Escrever uma mensagem ou volta a ativar o Modo de Agenda.",
+      "scheduleMode": "Modo de Agenda",
+      "manualMode": "Modo manual",
+      "overrideMode": "Substituição",
+      "unknown": "Estado desconhecido",
+      "enabled": "Modo de Agenda reativado",
+      "undo": "Anular",
+      "failed": "Não foi possível alterar o Modo de Agenda. Tenta novamente.",
+      "otherDisplays": "Outros ecrãs",
+      "allDisplays": "Todos os ecrãs",
+      "selectDisplay": "Gerir {display}",
+      "offline": "Offline"
     }
   },
   "pages": {
