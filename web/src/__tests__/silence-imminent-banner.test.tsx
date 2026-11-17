@@ -1,185 +1,63 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { SilenceImminentBanner } from "@/components/silence-imminent-banner";
 
 import { server } from "./mocks/server";
 
-const API_BASE = "/api";
-
-function silenceStatus(overrides: Record<string, unknown> = {}) {
-  return {
-    enabled: true,
-    active: false,
-    start_time_utc: "04:00+00:00",
-    end_time_utc: "15:00+00:00",
-    current_time_utc: "2025-12-26T03:58:30+00:00",
-    next_change_utc: "04:00+00:00",
-    seconds_until_next_change: 90,
-    mode: "page",
-    page_id: "page-quiet",
-    indicator_text: "SNOOZING",
-    indicator_position: "center",
-    ...overrides,
-  };
-}
-
-function setupHandlers(opts: {
-  silence?: Record<string, unknown>;
-  schedulePageId?: string | null;
-  scheduleEnabled?: boolean;
-  manualPageId?: string | null;
-  pages?: Array<{ id: string; name: string }>;
-  onOverride?: (body: unknown) => void;
-}) {
+vi.mock("@/components/smart-link", () => ({
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
+}));
+function draw(extra: Record<string, unknown> = {}) {
   server.use(
-    http.get(`${API_BASE}/silence-status`, () => HttpResponse.json(silenceStatus(opts.silence))),
-    http.get(`${API_BASE}/schedules/active/page`, () =>
+    http.get("/api/silence-status", () =>
       HttpResponse.json({
-        page_id: opts.schedulePageId ?? null,
-        source: opts.scheduleEnabled ? "schedule" : "manual",
-        schedule_enabled: opts.scheduleEnabled ?? false,
-        temporary_override: {
-          active: false,
-          page_id: null,
-          expires_at: null,
-          remaining_seconds: null,
-          revert_mode: null,
-          revert_page_id: null,
-        },
+        enabled: true,
+        active: false,
+        mode: "page",
+        page_id: "page-2",
+        seconds_until_next_change: 720,
+        ...extra,
       }),
     ),
-    http.get(`${API_BASE}/settings/active-page`, () => HttpResponse.json({ page_id: opts.manualPageId ?? null })),
-    http.get(`${API_BASE}/v1/pages`, () =>
-      HttpResponse.json({
-        pages: opts.pages ?? [{ id: "page-quiet", name: "Quiet" }],
-        total: (opts.pages ?? [{ id: "page-quiet", name: "Quiet" }]).length,
-      }),
-    ),
-    http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
-      const body = await request.json();
-      opts.onOverride?.(body);
-      return HttpResponse.json({
-        active: true,
-        page_id: (body as { page_id: string }).page_id,
-        expires_at: null,
-        remaining_seconds: 90,
-        revert_mode: "schedule",
-        revert_page_id: null,
-      });
-    }),
-    http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ message: "Refreshed", sent: true })),
   );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <SilenceImminentBanner />
+    </QueryClientProvider>,
+  );
+  return client;
 }
-
-function TestWrapper({ children }: { children: React.ReactNode }) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
+describe("Silence Schedule starts soon", () => {
+  it("shows the drawn 12 min warning and only Edit Silence Schedule", async () => {
+    draw();
+    const banner = await screen.findByTestId("silence-imminent-banner");
+    await waitFor(() => expect(banner).toHaveTextContent(/12 min/));
+    expect(banner).toHaveTextContent(/Silence Schedule starts at/);
+    await waitFor(() => expect(banner).toHaveTextContent(/holds Custom Template/));
+    expect(screen.getByRole("link", { name: "Edit Silence Schedule" })).toHaveAttribute("href", "/schedule");
+    expect(screen.queryByRole("button", { name: /Dismiss|Switch now/ })).not.toBeInTheDocument();
   });
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
-}
-
-describe("SilenceImminentBanner", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it.each(["freeze", "indicator"])("warns for %s without claiming a page switch", async (mode) => {
+    draw({ mode });
+    const banner = await screen.findByTestId("silence-imminent-banner");
+    expect(banner).toHaveTextContent(/New messages wait/);
+    expect(banner).not.toHaveTextContent(/holds Custom/);
   });
-
-  it("shows when silence is starting within 2 minutes and the silence page isn't active", async () => {
-    setupHandlers({ manualPageId: "page-home" });
-    render(<SilenceImminentBanner />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("silence-imminent-banner")).toBeInTheDocument();
-    });
-    expect(screen.getByText(/Silence starts in/)).toBeInTheDocument();
-    expect(screen.getByText(/Quiet/)).toBeInTheDocument();
-  });
-
-  it("does not render when silence is disabled", async () => {
-    setupHandlers({ silence: { enabled: false }, manualPageId: "page-home" });
-    const { container } = render(<SilenceImminentBanner />, { wrapper: TestWrapper });
-    await new Promise((r) => setTimeout(r, 50));
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("does not render when mode is not 'page'", async () => {
-    setupHandlers({
-      silence: { mode: "freeze", page_id: null },
-      manualPageId: "page-home",
-    });
-    const { container } = render(<SilenceImminentBanner />, { wrapper: TestWrapper });
-    await new Promise((r) => setTimeout(r, 50));
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("does not render when silence is already active", async () => {
-    setupHandlers({
-      silence: { active: true, seconds_until_next_change: 600 },
-      manualPageId: "page-home",
-    });
-    const { container } = render(<SilenceImminentBanner />, { wrapper: TestWrapper });
-    await new Promise((r) => setTimeout(r, 50));
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("does not render when the silence page is already showing", async () => {
-    setupHandlers({ manualPageId: "page-quiet" });
-    const { container } = render(<SilenceImminentBanner />, { wrapper: TestWrapper });
-    await new Promise((r) => setTimeout(r, 50));
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("does not render when silence is far away", async () => {
-    setupHandlers({
-      silence: { seconds_until_next_change: 30 * 60 },
-      manualPageId: "page-home",
-    });
-    const { container } = render(<SilenceImminentBanner />, { wrapper: TestWrapper });
-    await new Promise((r) => setTimeout(r, 50));
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("dismiss hides the banner", async () => {
-    setupHandlers({ manualPageId: "page-home" });
-    const user = userEvent.setup();
-    render(<SilenceImminentBanner />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("silence-imminent-banner")).toBeInTheDocument();
-    });
-    await user.click(screen.getByRole("button", { name: /Dismiss/i }));
-    expect(screen.queryByTestId("silence-imminent-banner")).not.toBeInTheDocument();
-  });
-
-  it("Switch now calls temporary-override with the silence page id", async () => {
-    const captured: { body?: unknown } = {};
-    setupHandlers({
-      manualPageId: "page-home",
-      onOverride: (body) => {
-        captured.body = body;
-      },
-    });
-    const user = userEvent.setup();
-    render(<SilenceImminentBanner />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("silence-imminent-banner")).toBeInTheDocument();
-    });
-    await user.click(screen.getByRole("button", { name: /Switch now/i }));
-
-    await waitFor(() => {
-      expect(captured.body).toBeDefined();
-    });
-    expect(captured.body).toMatchObject({
-      page_id: "page-quiet",
-      revert_mode: "schedule",
-    });
-    expect((captured.body as { duration_minutes: number }).duration_minutes).toBeGreaterThanOrEqual(1);
+  it.each([
+    { enabled: false },
+    { active: true },
+    { seconds_until_next_change: 901 },
+    { seconds_until_next_change: 0 },
+    { seconds_until_next_change: -1 },
+    { seconds_until_next_change: null },
+  ])("does not invent an imminent event for %j", async (extra) => {
+    const client = draw(extra);
+    await waitFor(() => expect(client.getQueryData(["silenceStatus"])).toBeDefined());
+    // Settle the real query; absence alone before it completes is not a test.
+    await waitFor(() => expect(screen.queryByTestId("silence-imminent-banner")).not.toBeInTheDocument());
   });
 });

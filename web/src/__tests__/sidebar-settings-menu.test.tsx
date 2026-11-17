@@ -8,6 +8,7 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CurrentBoardProvider } from "@/components/current-board-context";
+import { useAppBadge } from "@/hooks/use-app-badge";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { readLastKnownBoard } from "@/lib/pwa/last-known-board";
 
@@ -76,6 +77,27 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("SidebarSettingsMenu trigger", () => {
+  it("allows new attention to badge after a desktop item closes More", async () => {
+    const setBadge = vi.fn().mockResolvedValue(undefined);
+    const clearBadge = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "setAppBadge", { configurable: true, value: setBadge });
+    Object.defineProperty(navigator, "clearAppBadge", { configurable: true, value: clearBadge });
+    function Menu({ attention }: { attention: string }) {
+      useAppBadge(attention);
+      return <SidebarSettingsMenu />;
+    }
+    mockAuth(SIGNED_IN);
+    const user = userEvent.setup();
+    const view = render(<Menu attention="update-1" />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+    await waitFor(() => expect(setBadge).toHaveBeenCalledOnce());
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("button", { name: "Settings" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Account menu" })).not.toBeInTheDocument());
+    view.rerender(<Menu attention="update-2" />);
+    await waitFor(() => expect(setBadge).toHaveBeenCalledTimes(2));
+  });
+
   beforeEach(() => {
     pushMock.mockReset();
     replaceMock.mockReset();

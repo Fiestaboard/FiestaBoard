@@ -5,7 +5,7 @@
  * verifying that UI text updates correctly across navigation items,
  * page headings, and that the selected locale persists.
  */
-import { configureBoard, expect, suppressWizard, test } from "./helpers";
+import { API_URL, authHeaders, configureBoard, expect, suppressWizard, test } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
@@ -261,6 +261,11 @@ test.describe("Localization", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "de", { timeout: 15_000 });
 
     const banner = page.getByTestId("board-out-of-sync");
+    await expect(banner).toContainText("ist nicht synchron", { timeout: 10_000 });
+    await expect(banner.getByRole("button", { name: /erneut anzeigen$/ })).toBeVisible();
+    // Saving the live external frame remains on the display page; Home has one re-send action.
+    const settings = await (await fetch(`${API_URL}/settings/board`, { headers: authHeaders() })).json();
+    await page.goto(`/displays/${settings.boards[0].id}`);
     await expect(banner).toContainText("Eine andere App hat dieses Board geändert", { timeout: 10_000 });
     await expect(banner.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 
