@@ -11,7 +11,7 @@
 import type { Page } from "@playwright/test";
 import { getViolations, injectAxe } from "axe-playwright";
 
-import { configureBoard, expect, suppressWizard, test } from "./helpers";
+import { API_URL, authHeaders, configureBoard, deletePage, expect, suppressWizard, test } from "./helpers";
 
 const LIST = { name: "Keyboard shortcuts" } as const;
 
@@ -57,22 +57,48 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
     await expect(list).toBeHidden();
   });
 
-  test("the listed preview keys scroll the converted editor viewport and toggle Fit", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await openEditor(page);
-    const viewport = page.locator("[data-slot=board-viewport]").first();
-    const scroller = viewport.locator("[data-slot=board-viewport-scroller]");
-    await expect(viewport).toHaveAttribute("data-mode", "actual");
-    await expect(viewport).toHaveAttribute("data-overflow", "true");
-    await scroller.focus();
-    await page.keyboard.press("End");
-    await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
-    await page.keyboard.press("Home");
-    await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBe(0);
-    await page.keyboard.press("f");
-    await expect(viewport).toHaveAttribute("data-mode", "fit");
-    await page.keyboard.press("f");
-    await expect(viewport).toHaveAttribute("data-mode", "actual");
+  test("the listed preview keys scroll an overflowing Note array and toggle Fit", async ({ page }) => {
+    const response = await fetch(`${API_URL}/v1/pages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        name: "Keyboard viewport array",
+        type: "template",
+        device_type: "note_array",
+        notes_wide: 3,
+        notes_tall: 1,
+        template: ["SCROLL THIS ARRAY", "", ""],
+      }),
+    });
+    expect(response.ok).toBe(true);
+    const { id } = await response.json();
+    try {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.addInitScript(() => localStorage.setItem("fiestaboard:boardPreviewMode", "actual"));
+      await page.goto(`/pages/edit/${id}`);
+      await expect(page.getByPlaceholder("My Custom Page")).toHaveValue("Keyboard viewport array");
+      const viewport = page.locator("[data-slot=board-viewport]").first();
+      const scroller = viewport.locator("[data-slot=board-viewport-scroller]");
+      await expect(viewport).toHaveAttribute("data-mode", "actual");
+      await expect(viewport).toHaveAttribute("data-overflow", "true");
+      await scroller.focus();
+      await page.keyboard.press("End");
+      await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+      await page.keyboard.press("Home");
+      await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBe(0);
+      await page.keyboard.press("f");
+      await expect(viewport).toHaveAttribute("data-mode", "fit");
+      await expect(page.getByRole("group", { name: "Preview size" })).toHaveCount(1);
+      await expect(page.getByRole("button", { name: "Fit", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await page.keyboard.press("f");
+      await expect(viewport).toHaveAttribute("data-mode", "actual");
+      await expect(page.getByRole("button", { name: "Actual size", exact: true })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+    } finally {
+      await deletePage(id);
+    }
   });
 
   test("? stays a typed character in the page name and in the template", async ({ page }) => {
@@ -124,13 +150,10 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
       const [hintBox, toolBox] = await Promise.all([hint.boundingBox(), formula.boundingBox()]);
       expect(hintBox && toolBox).toBeTruthy();
       expect(hintBox!.y + hintBox!.height).toBeLessThanOrEqual(toolBox!.y);
-      if (width === 768) {
-        const previewBox = await page.getByRole("button", { name: "Hide preview and live output" }).boundingBox();
-        expect(previewBox).toBeTruthy();
-        expect(
-          Math.abs(hintBox!.y + hintBox!.height / 2 - (previewBox!.y + previewBox!.height / 2)),
-        ).toBeLessThanOrEqual(4);
-      }
+      const preview = page.locator('[data-slot="editor-preview"]');
+      await expect(preview).toBeVisible();
+      await expect(preview).toHaveAttribute("data-variant", width < 1024 ? "docked" : "pane");
+      await expect(page.getByRole("button", { name: /show preview|hide preview/i })).toHaveCount(0);
       await hint.click();
       await expect(page.getByRole("dialog", LIST)).toBeVisible();
       await page.keyboard.press("Escape");

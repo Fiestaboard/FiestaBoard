@@ -133,13 +133,18 @@ test.describe("regression: pages.edit", () => {
   });
 
   /** UX node: pages.edit.save-success */
-  test("pages.edit.save-success — successful save clears dirty and toasts", async ({ page }) => {
+  test("pages.edit.save-success — successful save clears dirty and updates the header", async ({ page }) => {
     const id = await createPage("Save Ok", ["A", "", "", "", "", ""]);
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
     await page.locator("textarea").first().fill("SAVED\n\n\n\n\n");
     await page.getByRole("button", { name: "Save Page" }).click();
-    await expect(page.locator("[data-sonner-toast]").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/^Saved \d/)).toBeVisible({ timeout: 10_000 });
+    await expect(page).toHaveURL(new RegExp(`/pages/edit/${id}$`));
+    await expect(page.getByRole("button", { name: "Export Page", exact: true })).toBeEnabled();
+    const stored = await page.request.get(`/api/v1/pages/${id}`);
+    expect(stored.ok()).toBe(true);
+    expect((await stored.json()).template).toContain("SAVED");
   });
 
   /** UX node: pages.edit.delete-confirm */
@@ -238,7 +243,7 @@ test.describe("regression: pages.edit", () => {
   test("pages.edit.live-output-on — live output toggle on edit page is wired", async ({ page }) => {
     const id = await createPage("Live Output Edit", ["A", "", "", "", "", ""]);
     await page.goto(`/pages/edit/${id}`);
-    const toggle = page.locator("#live-output-toggle");
+    const toggle = page.getByRole("switch", { name: "Mirror to board while editing", exact: true });
     await expect(toggle).toBeVisible({ timeout: 10_000 });
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "true");
@@ -248,7 +253,7 @@ test.describe("regression: pages.edit", () => {
   test("pages.edit.live-output-inactivity-off — toggling off via click works", async ({ page }) => {
     const id = await createPage("Live Output Off", ["A", "", "", "", "", ""]);
     await page.goto(`/pages/edit/${id}`);
-    const toggle = page.locator("#live-output-toggle");
+    const toggle = page.getByRole("switch", { name: "Mirror to board while editing", exact: true });
     await expect(toggle).toBeVisible({ timeout: 10_000 });
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "true");

@@ -93,7 +93,7 @@ test.describe("regression: pages.new", () => {
   /** UX node: pages.new.live-output-on */
   test("pages.new.live-output-on — live output toggle enables and shows preview", async ({ page }) => {
     await page.goto("/pages/new");
-    const toggle = page.locator("#live-output-toggle");
+    const toggle = page.getByRole("switch", { name: "Mirror to board while editing", exact: true });
     await expect(toggle).toBeVisible();
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "true");
@@ -102,7 +102,7 @@ test.describe("regression: pages.new", () => {
   /** UX node: pages.new.live-output-error */
   test("pages.new.live-output-error — live output toggle is interactable", async ({ page }) => {
     await page.goto("/pages/new");
-    const toggle = page.locator("#live-output-toggle");
+    const toggle = page.getByRole("switch", { name: "Mirror to board while editing", exact: true });
     await expect(toggle).toBeVisible();
     await toggle.click();
     // After clicking, toggle reflects new state — error-path UI is downstream
