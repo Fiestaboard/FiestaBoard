@@ -99,8 +99,8 @@ describe("Integrations canonical groups", () => {
     const attention = await screen.findByRole("list", { name: "Needs attention" });
     expect(within(attention).getByText("Calendar")).toBeInTheDocument();
     expect(within(attention).getByText("Transit")).toBeInTheDocument();
-    expect(within(attention).getByRole("button", { name: "Reconnect" })).toBeInTheDocument();
-    expect(within(attention).getByRole("button", { name: "Set up" })).toBeInTheDocument();
+    expect(within(attention).getByText("Reconnect")).toBeInTheDocument();
+    expect(within(attention).getByText("Set up")).toBeInTheDocument();
     expect(within(attention).queryByText("Music")).not.toBeInTheDocument();
     const installed = screen.getByRole("list", { name: "Installed" });
     expect(within(installed).getByText("Disabled")).toBeInTheDocument();
@@ -109,13 +109,12 @@ describe("Integrations canonical groups", () => {
     expect(attention.querySelector('[data-slot="icon-tile"]')).toHaveClass("bg-muted");
   });
 
-  it("opens the existing schema configuration from the Set up action", async () => {
+  it("links the Set up row to the full installed detail route", async () => {
     renderPage();
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Set up" }));
-    const dialog = screen.getByRole("dialog");
-    expect(await within(dialog).findByLabelText("Stop")).toHaveValue("Central");
-    expect(within(dialog).getByRole("button", { name: "Save Changes" })).toBeInTheDocument();
+    const row = await screen.findByRole("link", { name: /^Transit/ });
+    expect(row).toHaveAttribute("href", "/integrations/Transit?from=installed");
+    expect(within(row).getByText("Set up")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("reuses the schema form in the selected desktop detail pane", async () => {
@@ -130,11 +129,11 @@ describe("Integrations canonical groups", () => {
     }));
     renderPage();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Set up" }));
+    await user.click(await screen.findByRole("button", { name: /^Transit/ }));
     const detail = screen.getByRole("complementary", { name: "Integration settings" });
     expect(await within(detail).findByLabelText("Stop")).toHaveValue("Central");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Weather" }));
+    await user.click(screen.getByRole("button", { name: /^Weather/ }));
     expect(within(detail).getByRole("heading", { name: "Weather" })).toBeInTheDocument();
   });
 

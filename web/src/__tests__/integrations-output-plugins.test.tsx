@@ -20,6 +20,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import IntegrationsPage from "../../app/routes/integrations._index";
 import { PluginAutoUpdateSwitch } from "../components/plugin-updates-control";
+import { integrationDesktop } from "./integrations-test-helpers";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -58,11 +59,14 @@ function mockInstalled(plugin_type: "data" | "output", extra: Record<string, unk
 
 function renderWithQuery(ui: ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  integrationDesktop();
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 async function rowFor(name: string): Promise<HTMLElement> {
-  const row = (await screen.findByText(name)).closest('[data-slot="list-row"], [data-slot="plugin-card"]');
+  const row = (await screen.findAllByText(name))
+    .find((node) => node.closest('[data-slot="list-row"], [data-slot="plugin-card"]'))!
+    .closest('[data-slot="list-row"], [data-slot="plugin-card"]');
   if (!row) throw new Error(`No table row for ${name}`);
   return row as HTMLElement;
 }
@@ -75,6 +79,9 @@ describe("Integrations page — output plugins", () => {
     const row = await rowFor("Acme Sign");
     expect(within(row).getByText("Output")).toBeInTheDocument();
     expect(within(row).queryByRole("switch")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("complementary", { name: "Integration settings" })).queryByRole("switch"),
+    ).not.toBeInTheDocument();
     expect(within(row).queryByText("Disabled")).not.toBeInTheDocument();
   });
 
@@ -91,7 +98,9 @@ describe("Integrations page — output plugins", () => {
     renderWithQuery(<IntegrationsPage />);
 
     const row = await rowFor("Acme Sign");
-    expect(within(row).getByRole("switch")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("complementary", { name: "Integration settings" })).getByRole("switch"),
+    ).toBeInTheDocument();
     expect(within(row).queryByText("Output")).not.toBeInTheDocument();
   });
 
@@ -147,7 +156,7 @@ describe("Integrations page — uninstalling an output plugin a board uses", () 
     const user = userEvent.setup();
 
     const row = await rowFor("Acme Sign");
-    await user.click(within(row).getByRole("button", { name: "More options" }));
+    await user.click(screen.getByRole("button", { name: "More options" }));
     await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
     await user.click(await screen.findByRole("button", { name: /delete/i }));
 
@@ -164,7 +173,7 @@ describe("Integrations page — a first-party output (required)", () => {
 
     const row = await rowFor("Acme Sign");
     expect(within(row).getByText("Update")).toBeInTheDocument();
-    await user.click(within(row).getByRole("button", { name: "More options" }));
+    await user.click(screen.getByRole("button", { name: "More options" }));
     expect(await screen.findByRole("menu")).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /delete/i })).not.toBeInTheDocument();
   });
@@ -175,7 +184,7 @@ describe("Integrations page — a first-party output (required)", () => {
     const user = userEvent.setup();
 
     const row = await rowFor("Acme Sign");
-    await user.click(within(row).getByRole("button", { name: "More options" }));
+    await user.click(screen.getByRole("button", { name: "More options" }));
     expect(await screen.findByRole("menuitem", { name: /delete/i })).toBeInTheDocument();
   });
 });

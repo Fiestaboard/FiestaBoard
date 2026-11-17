@@ -16,6 +16,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
 import IntegrationsPage from "../../app/routes/integrations._index";
+import { integrationDesktop } from "./integrations-test-helpers";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -99,6 +100,7 @@ function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  integrationDesktop();
   return render(
     <QueryClientProvider client={queryClient}>
       <IntegrationsPage />
@@ -108,7 +110,9 @@ function renderPage() {
 
 /** The installed-table row whose Name cell holds `name`. */
 async function rowFor(name: string): Promise<HTMLElement> {
-  const cell = await screen.findByText(name);
+  const cell = (await screen.findAllByText(name)).find((node) =>
+    node.closest('[data-slot="list-row"], [data-slot="plugin-card"]'),
+  )!;
   const row = cell.closest('[data-slot="list-row"], [data-slot="plugin-card"]');
   if (!row) throw new Error(`No table row found for plugin "${name}"`);
   return row as HTMLElement;
@@ -121,6 +125,9 @@ describe("Integrations page — transition plugins", () => {
 
     const row = await rowFor("Typewriter");
     expect(within(row).queryByRole("switch")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("complementary", { name: "Integration settings" })).queryByRole("switch"),
+    ).not.toBeInTheDocument();
   });
 
   it("badges a transition plugin as a Transition", async () => {
@@ -171,7 +178,9 @@ describe("Integrations page — transition plugins", () => {
     renderPage();
 
     const row = await rowFor("Weather");
-    expect(within(row).getByRole("switch")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("complementary", { name: "Integration settings" })).getByRole("switch"),
+    ).toBeInTheDocument();
     expect(within(row).queryByText("Transition")).not.toBeInTheDocument();
     expect(within(row).queryByText("Deprecated")).not.toBeInTheDocument();
   });
@@ -181,7 +190,9 @@ describe("Integrations page — transition plugins", () => {
     renderPage();
 
     const row = await rowFor("Weather");
-    expect(within(row).getByRole("switch")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("complementary", { name: "Integration settings" })).getByRole("switch"),
+    ).toBeInTheDocument();
   });
 
   it("keeps the Configure action available on a transition plugin", async () => {
@@ -190,7 +201,7 @@ describe("Integrations page — transition plugins", () => {
 
     const row = await rowFor("Typewriter");
     await waitFor(() => {
-      expect(within(row).getByRole("button", { name: /more options/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /more options/i })).toBeInTheDocument();
     });
   });
 });
