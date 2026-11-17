@@ -128,15 +128,9 @@ test.describe("Schedule — Midnight Rollover", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Switch to calendar view if possible
-    const calendarViewBtn = page
-      .getByRole("button", { name: /calendar/i })
-      .or(page.getByTitle(/calendar/i))
-      .first();
-
-    if (await calendarViewBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await calendarViewBtn.click();
-    }
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
+    await expect(page.locator(".rbc-calendar")).toBeVisible();
 
     // Page should not show error state
     await expect(page.getByText(/error|crash|unhandled/i)).not.toBeVisible({

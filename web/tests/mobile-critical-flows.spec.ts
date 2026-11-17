@@ -205,7 +205,10 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
     await createPage(LONG_NAME);
 
     await page.goto("/schedule");
-    await page.getByRole("button", { name: /add schedule/i }).click();
+    await page
+      .getByRole("button", { name: /add schedule/i })
+      .first()
+      .click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
@@ -226,8 +229,7 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
 
     // Day-pattern chip rows (All Days / Weekdays / Weekends) must wrap
     // rather than clip their trailing chips at phone width.
-    const chipRows = await page.evaluate((vw) => {
-      const rows = document.querySelectorAll('[role="dialog"] [data-testid="day-pattern-chips"]');
+    const chipRows = await dialog.getByRole("radiogroup", { name: "Days", exact: true }).evaluateAll((rows, vw) => {
       return {
         count: rows.length,
         overflowing: [...rows].filter((el) => el.getBoundingClientRect().right > vw + 2).length,
@@ -247,18 +249,19 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
 
     try {
       await page.goto("/schedule");
-      await expect(page.getByTestId("schedule-list-row").first()).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("radio", { name: "List", exact: true }).click();
+      const rows = page.getByRole("button", { name: /School Departure Countdown/ });
+      await expect(rows.first()).toBeVisible({ timeout: 15_000 });
 
       // The row is overflow:visible, so a too-wide row never widens
       // document.body — the Edit/Delete buttons simply render past the
       // right edge. Measure the row's own content box instead.
-      const geometry = await page.evaluate((vw) => {
-        const rows = [...document.querySelectorAll('[data-testid="schedule-list-row"]')];
+      const geometry = await rows.evaluateAll((rows, vw) => {
         return {
           count: rows.length,
           overflowingRows: rows.filter((r) => r.scrollWidth > r.clientWidth + 1).length,
           offscreenButtons: rows
-            .flatMap((r) => [...r.querySelectorAll("button")])
+            .flatMap((r) => [r, ...r.querySelectorAll("button")])
             .filter((b) => b.getBoundingClientRect().right > vw + 1).length,
         };
       }, MOBILE_VIEWPORT.width);
@@ -294,10 +297,13 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
   });
 
   test("schedule calendar zoom control stays on screen", async ({ page }) => {
+    const pageId = await createPage("Phone calendar zoom target");
+    await createSchedule(pageId, "09:00", "10:00");
     await page.goto("/schedule");
-    await page.getByRole("button", { name: /calendar/i }).click();
+    await page.getByRole("radio", { name: "Week", exact: true }).click();
+    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
 
-    const zoomControls = page.locator(".ml-auto.flex.items-center").first();
+    const zoomControls = page.locator(".schedule-calendar-container .ml-auto.flex.items-center").first();
     await expect(zoomControls).toBeVisible({ timeout: 10_000 });
 
     const box = await zoomControls.boundingBox();

@@ -14,14 +14,13 @@
  * NOTE: Tests run sequentially. The wizard test runs first and configures
  * the board so subsequent tests have a working backend.
  */
-import type { Locator } from "@playwright/test";
-
 import {
   API_URL,
   BOARD_HOST,
   chooseVestaboardInWizard,
   clearBoardConfig,
   configureBoard,
+  createPage,
   expect,
   getMockBoardState,
   mockBoardGrid,
@@ -206,59 +205,35 @@ test.describe("Schedule Management", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Click "Add Schedule" button
-    await page.getByRole("button", { name: "Add Schedule" }).first().click();
-
-    // Wait for the schedule form dialog — title is "Add Schedule" in the dialog
-    await expect(page.getByText("Add Schedule").first()).toBeVisible({ timeout: 10_000 });
-
-    // Select a page (the first available one) via the select trigger.
-    // The popup mounts asynchronously, so wait for the option rather than
-    // an instant isVisible() check (its timeout option is ignored).
-    const becomesVisible = (locator: Locator, timeout = 3_000) =>
-      locator.waitFor({ state: "visible", timeout }).then(
-        () => true,
-        () => false,
-      );
-    const pageSelect = page.locator("#page");
-    if (await pageSelect.isVisible().catch(() => false)) {
-      await pageSelect.click();
-      // Click first available option
-      const firstOption = page.getByRole("option").first();
-      if (await becomesVisible(firstOption)) {
-        await firstOption.click();
-      }
-    }
-
-    // Set start time
-    const startTime = page.locator("#start-time");
-    if (await startTime.isVisible().catch(() => false)) {
-      await startTime.click();
-      const option0900 = page.getByRole("option", { name: "09:00" });
-      if (await becomesVisible(option0900)) {
-        await option0900.click();
-      }
-    }
-
-    // Set end time
-    const endTime = page.locator("#end-time");
-    if (await endTime.isVisible().catch(() => false)) {
-      await endTime.click();
-      const option1700 = page.getByRole("option", { name: "17:00" });
-      if (await becomesVisible(option1700)) {
-        await option1700.click();
-      }
-    }
-
-    // Submit the schedule
-    const submitButton = page.getByRole("button", {
-      name: "Create Schedule",
-    });
-    if (await submitButton.isEnabled({ timeout: 3_000 }).catch(() => false)) {
-      await submitButton.click();
-    }
-
-    // Verify the schedule page is still showing (no crash)
-    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 10_000 });
+    const targetName = `Integration schedule ${Date.now()}`;
+    const pageId = await createPage(targetName);
+    // Reload the page list after creating the independent compatible target.
+    await page.reload();
+    await page.getByRole("button", { name: "Add Schedule", exact: true }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Add Schedule", exact: true });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("combobox", { name: /^Page or Collection/ }).click();
+    const target = page.getByRole("option", { name: targetName, exact: true });
+    await target.click();
+    await dialog.getByLabel("Start Time", { exact: true }).fill("09:00");
+    await dialog.getByLabel("End Time", { exact: true }).fill("17:00");
+    const createdResponse = page.waitForResponse(
+      (response) => response.url().includes("/api/v1/schedules") && response.request().method() === "POST",
+    );
+    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    const response = await createdResponse;
+    expect(response.ok()).toBe(true);
+    const created = await response.json();
+    expect(created).toMatchObject({ page_id: pageId, start_time: "09:00", end_time: "17:00", enabled: true });
+    expect(created.id).toEqual(expect.any(String));
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible();
+    const persisted = await page.request.get(`${API_URL}/v1/schedules`);
+    expect(persisted.ok()).toBe(true);
+    expect((await persisted.json()).schedules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: created.id, page_id: pageId, start_time: "09:00", end_time: "17:00" }),
+      ]),
+    );
   });
 });
