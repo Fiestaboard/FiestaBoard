@@ -257,6 +257,30 @@
       "toastCopyFailed": "Impossibile copiare il tabellone",
       "toastRefreshed": "Pagina inviata di nuovo a {board}",
       "toastRefreshFailed": "Impossibile aggiornare {board}"
+    },
+    "supporting": {
+      "upNext": "In arrivo",
+      "upNextDisplay": "In arrivo · {display}",
+      "resumes": "La programmazione riprende",
+      "silenceStarts": "Inizia Silence Schedule",
+      "silenceEnds": "Termina Silence Schedule",
+      "changes": "La programmazione cambia",
+      "empty": "L’hub non ha segnalato modifiche in arrivo.",
+      "viewSchedule": "Vedi programmazione",
+      "manualTitle": "La modalità programmazione è disattivata",
+      "manualBody": "Nulla cambia automaticamente. {page} resta visualizzata finché non scegli Cambia pagina, Scrivi un messaggio o riattivi la modalità programmazione.",
+      "manualEmpty": "Nulla cambia automaticamente. Scegli Cambia pagina, Scrivi un messaggio o riattiva la modalità programmazione.",
+      "scheduleMode": "Modalità programmazione",
+      "manualMode": "Modalità manuale",
+      "overrideMode": "Sostituzione",
+      "unknown": "Stato sconosciuto",
+      "enabled": "Modalità programmazione riattivata",
+      "undo": "Annulla",
+      "failed": "Impossibile cambiare la modalità programmazione. Riprova.",
+      "otherDisplays": "Altri schermi",
+      "allDisplays": "Tutti gli schermi",
+      "selectDisplay": "Gestisci {display}",
+      "offline": "Offline"
     }
   },
   "pages": {

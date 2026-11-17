@@ -257,6 +257,30 @@
       "toastCopyFailed": "无法复制看板",
       "toastRefreshed": "已重新向 {board} 发送页面",
       "toastRefreshFailed": "无法刷新 {board}"
+    },
+    "supporting": {
+      "upNext": "接下来",
+      "upNextDisplay": "接下来 · {display}",
+      "resumes": "日程恢复",
+      "silenceStarts": "Silence Schedule 开始",
+      "silenceEnds": "Silence Schedule 结束",
+      "changes": "日程变更",
+      "empty": "中枢未报告即将发生的变更。",
+      "viewSchedule": "查看日程",
+      "manualTitle": "日程模式已关闭",
+      "manualBody": "内容不会自动更改。{page} 将一直显示，直到你选择“更换页面”、“撰写消息”或重新开启日程模式。",
+      "manualEmpty": "内容不会自动更改。请选择“更换页面”、“撰写消息”或重新开启日程模式。",
+      "scheduleMode": "日程模式",
+      "manualMode": "手动模式",
+      "overrideMode": "覆盖",
+      "unknown": "状态未知",
+      "enabled": "已重新开启日程模式",
+      "undo": "撤销",
+      "failed": "无法更改日程模式。请重试。",
+      "otherDisplays": "其他显示设备",
+      "allDisplays": "所有显示设备",
+      "selectDisplay": "管理 {display}",
+      "offline": "离线"
     }
   },
   "pages": {

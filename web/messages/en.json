@@ -213,6 +213,30 @@
       "toastCopyFailed": "Couldn’t copy the board",
       "toastRefreshed": "Sent {board} its page again",
       "toastRefreshFailed": "Couldn’t refresh {board}"
+    },
+    "supporting": {
+      "upNext": "Up next",
+      "upNextDisplay": "Up next · {display}",
+      "resumes": "Schedule resumes",
+      "silenceStarts": "Silence Schedule starts",
+      "silenceEnds": "Silence Schedule ends",
+      "changes": "Schedule changes",
+      "empty": "No upcoming change reported by the hub.",
+      "viewSchedule": "View Schedule",
+      "manualTitle": "Schedule Mode is off",
+      "manualBody": "Nothing changes on its own. {page} stays up until you Change Page, Compose a message, or turn Schedule Mode back on.",
+      "manualEmpty": "Nothing changes on its own. Change Page, Compose a message, or turn Schedule Mode back on.",
+      "scheduleMode": "Schedule Mode",
+      "manualMode": "Manual Mode",
+      "overrideMode": "Override",
+      "unknown": "Status unknown",
+      "enabled": "Back on Schedule Mode",
+      "undo": "Undo",
+      "failed": "Could not change Schedule Mode. Try again.",
+      "otherDisplays": "Other displays",
+      "allDisplays": "All displays",
+      "selectDisplay": "Manage {display}",
+      "offline": "Offline"
     }
   },
   "pages": {

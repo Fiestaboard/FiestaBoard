@@ -257,6 +257,30 @@
       "toastCopyFailed": "Nie udało się skopiować tablicy",
       "toastRefreshed": "Ponownie wysłano stronę na {board}",
       "toastRefreshFailed": "Nie udało się odświeżyć: {board}"
+    },
+    "supporting": {
+      "upNext": "Wkrótce",
+      "upNextDisplay": "Wkrótce · {display}",
+      "resumes": "Harmonogram zostanie wznowiony",
+      "silenceStarts": "Silence Schedule rozpocznie się",
+      "silenceEnds": "Silence Schedule zakończy się",
+      "changes": "Harmonogram się zmieni",
+      "empty": "Centrum nie zgłosiło żadnych nadchodzących zmian.",
+      "viewSchedule": "Zobacz harmonogram",
+      "manualTitle": "Tryb harmonogramu jest wyłączony",
+      "manualBody": "Nic nie zmienia się automatycznie. {page} pozostanie na ekranie, dopóki nie wybierzesz Zmień stronę, Napisz wiadomość lub ponownie nie włączysz trybu harmonogramu.",
+      "manualEmpty": "Nic nie zmienia się automatycznie. Wybierz Zmień stronę, Napisz wiadomość lub ponownie włącz tryb harmonogramu.",
+      "scheduleMode": "Tryb harmonogramu",
+      "manualMode": "Tryb ręczny",
+      "overrideMode": "Nadpisanie",
+      "unknown": "Stan nieznany",
+      "enabled": "Tryb harmonogramu ponownie włączony",
+      "undo": "Cofnij",
+      "failed": "Nie udało się zmienić trybu harmonogramu. Spróbuj ponownie.",
+      "otherDisplays": "Inne wyświetlacze",
+      "allDisplays": "Wszystkie wyświetlacze",
+      "selectDisplay": "Zarządzaj {display}",
+      "offline": "Offline"
     }
   },
   "pages": {
