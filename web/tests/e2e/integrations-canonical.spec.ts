@@ -4,22 +4,27 @@ import { getViolations, injectAxe } from "axe-playwright";
 
 import { configureBoard, expect, suppressWizard, test } from "../helpers";
 
-async function expectAccessible(page: Page) {
+async function expectAccessible(page: Page, theme: "light" | "dark") {
+  await expect
+    .poll(() => page.locator("html").evaluate((html) => html.classList.contains("dark")))
+    .toBe(theme === "dark");
+  // Visibility can become true partway through the kit's header/outlet fades.
+  // Audit the settled colors, including on navigation and after opening a dialog.
+  await page.evaluate(async () => {
+    const finiteAnimations = document
+      .getAnimations()
+      .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity));
+    await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => {})));
+  });
   await injectAxe(page);
   const violations = await getViolations(page, undefined, {
     runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
   });
-  expect(
-    violations.map((violation) => ({
-      id: violation.id,
-      impact: violation.impact,
-      targets: violation.nodes.map((node) => node.target),
-    })),
-  ).toEqual([]);
+  expect(violations, `Integrations a11y violations:\n${JSON.stringify(violations, null, 2)}`).toEqual([]);
 }
 async function capture(page: Page, state: string, width: number, theme: string) {
   await test.info().attach(`integrations-${state}-${width}-${theme}.png`, {
-    body: await page.screenshot({ fullPage: true }),
+    body: await page.screenshot({ fullPage: true, animations: "disabled" }),
     contentType: "image/png",
   });
 }
@@ -27,7 +32,7 @@ async function capture(page: Page, state: string, width: number, theme: string) 
 for (const width of [390, 768, 1280]) {
   for (const colorScheme of ["light", "dark"] as const) {
     test.describe(`Integrations canonical ${width} ${colorScheme}`, () => {
-      test.use({ viewport: { width, height: 900 }, colorScheme });
+      test.use({ viewport: { width, height: 900 }, colorScheme, reducedMotion: "reduce" });
       test("opens whole rows, reconnects in the same tab, saves settings and reads Variables/README", async ({
         page,
       }) => {
@@ -176,7 +181,7 @@ for (const width of [390, 768, 1280]) {
         const attention = page.getByRole("list", { name: "Needs attention" });
         await expect(attention.getByText("CX Calendar", { exact: true })).toBeVisible();
         await expect(attention.getByText("Reconnect", { exact: true })).toBeVisible();
-        await expectAccessible(page);
+        await expectAccessible(page, colorScheme);
         await capture(page, "installed", width, colorScheme);
 
         // The icon is part of the one primary row target, rather than a small title button.
@@ -196,7 +201,7 @@ for (const width of [390, 768, 1280]) {
         await expect(settings.getByTestId("integration-attention-banner")).toContainText(
           "Data for pages using this integration may be unavailable or out of date until you reconnect.",
         );
-        await expectAccessible(page);
+        await expectAccessible(page, colorScheme);
         await capture(page, "detail-reconnect", width, colorScheme);
         const pageCount = page.context().pages().length;
         await settings.getByTestId("oauth-connection").getByRole("button", { name: "Reconnect", exact: true }).click();
@@ -215,7 +220,7 @@ for (const width of [390, 768, 1280]) {
         await preview.getByRole("tab", { name: /Note/ }).click();
         await expect(preview.getByRole("img", { name: /split-flap board/i })).toContainText("NOTEFORECAST");
         expect(boardWrites).toBe(0);
-        await expectAccessible(page);
+        await expectAccessible(page, colorScheme);
         await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();
 
         if (width >= 768) {
@@ -224,7 +229,7 @@ for (const width of [390, 768, 1280]) {
             .getByRole("button", { name: /^CX Calendar/ })
             .click();
           await expect(settings.locator('[data-slot="board-showcase"]')).toBeVisible();
-          await expectAccessible(page);
+          await expectAccessible(page, colorScheme);
           await capture(page, "connected-pane", width, colorScheme);
         }
 
@@ -239,7 +244,7 @@ for (const width of [390, 768, 1280]) {
           await page.goto("/integrations/cx-transit?from=installed");
           await expect(page.getByLabel("Stop", { exact: true })).toHaveValue("Central");
           await expect(page.getByTestId("integration-attention-banner")).toBeVisible();
-          await expectAccessible(page);
+          await expectAccessible(page, colorScheme);
           await capture(page, "full-detail-setup", width, colorScheme);
           await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();
           await page
@@ -272,7 +277,7 @@ for (const width of [390, 768, 1280]) {
           "href",
           "https://github.com/example/cx-integrations/blob/main/docs/SETUP.md",
         );
-        await expectAccessible(page);
+        await expectAccessible(page, colorScheme);
         await capture(page, "detail-readme", width, colorScheme);
         await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();
         await page.getByRole("tab", { name: /Marketplace/ }).click();
@@ -281,13 +286,13 @@ for (const width of [390, 768, 1280]) {
           .locator('[data-slot="plugin-card"][data-variant="compact"]')
           .filter({ hasText: "CX Arrivals" });
         await expect(card.getByRole("button", { name: "Install", exact: true })).toBeVisible();
-        await expectAccessible(page);
+        await expectAccessible(page, colorScheme);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await capture(page, "marketplace", width, colorScheme);
         await page.getByRole("button", { name: "More options", exact: true }).click();
         await page.getByRole("menuitem", { name: "Add from Git", exact: true }).click();
         await expect(page.getByRole("dialog", { name: "Install Plugin from Git", exact: true })).toBeVisible();
-        await expectAccessible(page);
+        await expectAccessible(page, colorScheme);
         await capture(page, "git-install", width, colorScheme);
       });
     });
