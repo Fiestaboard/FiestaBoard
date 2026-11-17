@@ -36,6 +36,7 @@ from datetime import UTC
 
 import requests
 from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 
 from src.api_deprecation import deprecation_notice, flat_board_fields_notice
 from src.api_errors import errors
@@ -105,6 +106,8 @@ from .models import (
     UndoTemporaryOverrideRequest,
     WizardStateBody,
 )
+from src.auth import phone_policy
+
 from .service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, page_transition
 from .service import temporary_override_payload as _temporary_override_payload
 
@@ -226,14 +229,20 @@ async def update_mqtt_settings(request: MqttSettingsUpdate):
 
 
 @router.get("/settings/ai", response_model=AiProvidersResponse)
-async def get_ai_settings():
-    """Return AI provider configuration with each provider's api_key masked."""
+async def get_ai_settings(request: Request):
+    """Return AI provider configuration with each provider's api_key masked.
+
+    A phone also reads every custom header value masked (H21d).
+    """
     cm = get_config_manager()
-    return {**cm.get_ai_providers_masked(), "tv_chat_supported": True}
+    block = cm.get_ai_providers_masked()
+    if phone_policy.is_phone(request):
+        block = phone_policy.mask_provider_headers(block)
+    return {**block, "tv_chat_supported": True}
 
 
 @router.put("/settings/ai", response_model=AiProvidersResponse)
-async def update_ai_settings(request: AiProvidersUpdate):
+async def update_ai_settings(request: AiProvidersUpdate, http_request: Request):
     """Update AI provider configuration.
 
     Body may include any of:
@@ -249,7 +258,18 @@ async def update_ai_settings(request: AiProvidersUpdate):
     """
     cm = get_config_manager()
     before = cm.get_ai_providers()
-    updated = cm.set_ai_providers(request.model_dump(exclude_unset=True))
+    changes = request.model_dump(exclude_unset=True)
+    if phone_policy.is_phone(http_request) and isinstance(changes.get("providers"), list):
+        # H21d: a phone that moves a provider to another endpoint types its key again.
+        needs_key = phone_policy.prepare_provider_update(changes["providers"], before.get("providers") or [])
+        if needs_key is not None:
+            return JSONResponse(
+                phone_policy.key_required_body(
+                    f"Enter the API key for {needs_key!r} again: its address or protocol changed."
+                ),
+                status_code=400,
+            )
+    updated = cm.set_ai_providers(changes)
     # A provider that was signed in and is now gone (or back on an API key)
     # leaves no tokens behind.
     from src.ai.sign_in import forget_removed_providers
@@ -289,7 +309,7 @@ async def list_ai_provider_models(provider_id: str):
     response_model=AiTestResponse,
     responses={**ERROR_400, **ERROR_404},
 )
-async def test_ai_provider(request: AiTestRequest):
+async def test_ai_provider(request: AiTestRequest, http_request: Request):
     """Send a tiny smoke-test request to a configured provider.
 
     Body: ``{provider_id?: str, model?: str, provider?: dict}``. When
@@ -303,6 +323,13 @@ async def test_ai_provider(request: AiTestRequest):
     draft = request.provider
 
     cm = get_config_manager()
+
+    if isinstance(draft, dict) and phone_policy.is_phone(http_request) and phone_policy.draft_needs_key(draft):
+        # H21d: a phone tests an unsaved draft only with its own key typed in,
+        # so no stored key or header is ever sent to the draft's endpoint.
+        return JSONResponse(
+            phone_policy.key_required_body("Enter the API key to test an unsaved provider."), status_code=400
+        )
 
     if isinstance(draft, dict):
         provider = dict(draft)
