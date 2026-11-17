@@ -41,7 +41,7 @@ partial/refused driver output is 502. Unknown or unavailable durable state is
 
 `GET /v1/boards/{board}/compose/{request_id}` returns this authenticated
 session's recorded receipt without issuing a mutation. Other sessions cannot
-read or reuse its UUID authority. Active override readback on board detail
+read or reuse its UUID authority. Active override information on board detail
 includes nonsecret Compose UUID, exact duration and acceptance timestamps.
 The worker owns terminal authority after HTTP timeout or cancellation; an
 older pending worker cannot inherit the success of its replacement.
