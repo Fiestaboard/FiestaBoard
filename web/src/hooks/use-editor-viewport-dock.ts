@@ -14,6 +14,7 @@ export function useEditorViewportDock(
   const viewport = typeof window === "undefined" ? null : window.visualViewport;
 
   const previousHeight = useRef(viewport?.height ?? 0);
+  const pendingContraction = useRef(false);
 
   // Run after React commits the padding returned below. Scheduling directly
   // from the native resize listener can scroll against the old document height.
@@ -21,17 +22,28 @@ export function useEditorViewportDock(
     const height = viewport?.height ?? 0;
     const contracted = height < previousHeight.current;
     previousHeight.current = height;
-    if (!enabled || !viewport || bottom <= 0 || !contracted || viewport.scale !== 1) return;
+    if (!enabled || !viewport || bottom <= 0 || viewport.scale !== 1) {
+      pendingContraction.current = false;
+      return;
+    }
     const templateHasFocus = () => {
       const active = document.activeElement;
       return (
         active !== null && contentRef.current?.contains(active) && active.matches('textarea, [contenteditable="true"]')
       );
     };
-    if (!templateHasFocus()) return;
+    if (!templateHasFocus()) {
+      pendingContraction.current = false;
+      return;
+    }
+    if (contracted) pendingContraction.current = true;
+    if (!pendingContraction.current) return;
+    // A pan can change the inset before these frames run. Preserve only the
+    // outstanding contraction so that new committed space gets another turn.
     let scrollFrame = 0;
     const layoutFrame = requestAnimationFrame(() => {
       scrollFrame = requestAnimationFrame(() => {
+        pendingContraction.current = false;
         if (templateHasFocus()) previewRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
       });
     });

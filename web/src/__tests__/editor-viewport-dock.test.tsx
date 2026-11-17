@@ -112,6 +112,26 @@ it("clears reserved space when zoom changes even if the numeric bottom inset sta
   expect(scrollIntoView).not.toHaveBeenCalled();
 });
 
+it("finishes a pending contraction after a viewport pan without scrolling again for later pans", () => {
+  render(<Editor />);
+  screen.getByRole("textbox", { name: "Template" }).focus();
+  resize(520);
+  act(() => vi.advanceTimersByTime(16));
+  act(() => {
+    viewport.offsetTop = 10;
+    viewport.dispatchEvent(new Event("scroll"));
+  });
+  expect(screen.getByTestId("editor")).toHaveStyle({ paddingBottom: "370px" });
+  act(() => vi.advanceTimersByTime(32));
+  expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  act(() => {
+    viewport.offsetTop = 20;
+    viewport.dispatchEvent(new Event("scroll"));
+    vi.advanceTimersByTime(32);
+  });
+  expect(scrollIntoView).toHaveBeenCalledTimes(1);
+});
+
 it("leaves a desktop pane unchanged and tolerates a missing VisualViewport", () => {
   const { unmount } = render(<Editor enabled={false} />);
   screen.getByRole("textbox", { name: "Template" }).focus();
