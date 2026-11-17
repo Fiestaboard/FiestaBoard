@@ -107,7 +107,10 @@ def fixture():
             pages.append(page)
         for i, mode in enumerate(("time", "random", "variable")):
             collections.append({"id": f"collection:{key}-{mode}", "name": f"PERF {key} {mode}", "geometry": key,
-                                "mode": mode, "selection_mode": mode, "page_ids": ids[i * 8:(i + 1) * 8]})
+                                "mode": mode, "selection_mode": mode, "page_ids": ids[i * 8:(i + 1) * 8],
+                                "revision": f"rev-{key}-{mode}", mode: {"interval_seconds": 30} if mode != "variable" else {
+                                    "rules": [{"expression": "date_time.hour >= 12", "page_id": ids[16]}],
+                                    "default_page_id": ids[17], "poll_seconds": 10}})
         for i in range(8):
             schedules.append({"id": f"schedule-{key}-{i}", "board_id": f"board-{key}", "page_id": ids[i],
                               "start_time": "06:00", "end_time": "07:00", "day_pattern": "weekdays",

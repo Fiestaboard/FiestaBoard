@@ -28,11 +28,23 @@ def continuous_records():
                         "cycle_slot": slot % 10, "operation": f"slot{slot % 10}", "geometry": "note", "cache": "mixed",
                         "auth": "browser-cookie", "batch": 1, "elapsed_ms": 100, "http_status": 200,
                         "semantic_success": True, "timed_out": False, "scheduled_elapsed_s": 600 + slot,
-                        "started_elapsed_s": 600 + slot, "monotonic_elapsed_s": 600 + slot + 0.1})
+                        "started_elapsed_s": 600 + slot, "monotonic_elapsed_s": 600 + slot + 0.1,
+                        "activity_kind": "transition" if slot < 12 else "ordinary",
+                        "transition_index": slot if slot < 12 else None,
+                        "transition_target": f"collection-{slot}" if slot < 12 else None})
+    records.extend({"record_type": "request", "run_id": "run-1", "phase": "drain", "cycle": slot // 10,
+        "cycle_slot": slot % 10, "operation": "cadence_restore", "geometry": "all", "cache": "control",
+        "auth": "browser-cookie", "batch": 1, "elapsed_ms": 100, "http_status": 200, "semantic_success": True,
+        "timed_out": False, "scheduled_elapsed_s": 6600 + slot, "started_elapsed_s": 6600 + slot,
+        "monotonic_elapsed_s": 6600 + slot + 0.1, "activity_kind": "transition", "transition_index": slot,
+        "transition_target": f"collection-{slot}"} for slot in range(12))
     records.extend({"record_type": "resource", "run_id": "run-1", "monotonic_elapsed_s": second,
                     "boot_id": "boot-a", "pid_namespace": "pid:[100]",
                     "processes": [{"role": "api", "pid": 42, "start_time_ticks": 100, "rss_bytes": 100000}]}
                    for second in range(0, 7201, 5))
+    records.append({"record_type": "driver_summary", "run_id": "run-1", "monotonic_elapsed_s": 7200.2,
+                    "subscenarios_verified": True, "selection_verified": True, "final_state_verified": True,
+                    "warmup_controls_completed_elapsed_s": 240, "steady_settling_seconds": 360})
     return records
 
 
@@ -144,6 +156,45 @@ class RuntimeReportTests(unittest.TestCase):
         request["started_elapsed_s"] += 0.06
         request["monotonic_elapsed_s"] += 0.06
         self.assertFalse(report_records(records)["complete"])
+
+    def test_controls_selection_and_final_recovery_are_full_protocol_gates(self):
+        # A valid cyclewindow is narrower than expiry/quiet/selection/recovery proof.
+        for defect in ("subscenario", "selection", "final_state", "late_controls", "missing_summary", "lost_restore"):
+            with self.subTest(defect=defect):
+                records = continuous_records()
+                summary = next(r for r in records if r["record_type"] == "driver_summary")
+                if defect in {"subscenario", "selection", "final_state"}:
+                    summary[{"subscenario": "subscenarios_verified", "selection": "selection_verified",
+                             "final_state": "final_state_verified"}[defect]] = False
+                elif defect == "late_controls":
+                    summary["warmup_controls_completed_elapsed_s"] = 301
+                    summary["steady_settling_seconds"] = 299
+                elif defect == "missing_summary":
+                    records.remove(summary)
+                else:
+                    records.remove(next(r for r in records if r.get("phase") == "drain" and r.get("transition_index") == 3))
+                self.assertFalse(report_records(records)["complete"])
+
+    def test_control_slots_are_not_counted_as_complete_normal_api_cycles(self):
+        # Twelve required control slots leave5988 ordinary requests and598 complete ordinary cycles, not600.
+        report = report_records(continuous_records())
+        self.assertEqual(report["activity_requests"], 6000)
+        self.assertEqual(report.get("ordinary_activity_requests"), 5988)
+        self.assertEqual(report.get("activity_transition_requests"), 12)
+        self.assertEqual(report["completed_cycles"], 598)
+        self.assertAlmostEqual(report["realized_activity_factor"], 5.98)
+        self.assertIsNone(report.get("actual_rotation_event_count"))
+
+    def test_resource_growth_blocks_never_splice_restarted_process_identity(self):
+        # A restart's lowRSS must not cancel a prior process's growth in one curve.
+        records = [{"record_type": "resource", "run_id": "run-1", "monotonic_elapsed_s": index * 5,
+                    "processes": [{"role": "api", "pid": 42, "start_time_ticks": start, "rss_bytes": rss}]}
+                   for index, (start, rss) in enumerate([(100, 100000), (100, 120000), (200, 90000)])]
+        report = report_records(records)
+        blocks = report.get("resource_blocks", [])
+        self.assertEqual(len(blocks), 2)
+        self.assertEqual([b["delta_rss_bytes"] for b in blocks], [20000, 0])
+        self.assertEqual([b["start_time_ticks"] for b in blocks], [100, 200])
 
 
 if __name__ == "__main__":

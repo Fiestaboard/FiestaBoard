@@ -46,6 +46,9 @@ class ApiOperation:
     cleanup: object = None
     expected_status: int = 200
     abort_on_failure: bool = False
+    kind: str = "ordinary"
+    transition_index: object = None
+    transition_target: object = None
 
 
 def api_operations(manifest):
@@ -118,9 +121,14 @@ def api_operations(manifest):
                 body.get("matched_rule") == 0 and all(r.get("error") is None for r in body.get("rules", [])),
                 "Variable dry-run selected wrong page or truncated/errored")))
         query = urlencode({"board_id": bid, "at": "2026-11-17T12:00:00+00:00"})
+        def schedule_checked(body, key=geometry, b=board):
+            selected = manifest.get("soak_active_refs", {}).get(key, b["page_ids"][0])
+            members = next((c["page_ids"] for c in manifest["collections"] if c["id"] == selected), [selected])
+            check(body.get("schedule_enabled") is False and body.get("source") == "manual"
+                  and body.get("page_id") == selected and body.get("resolved_page_id") in members,
+                  "Declared manual/collection schedule-at selection differs")
         operations.append(ApiOperation("schedule_at_manual", geometry, "n/a", "GET", f"/api/schedules/active/page?{query}", None,
-            lambda body, pid=board["page_ids"][0]: check(body.get("schedule_enabled") is False and body.get("source") == "manual"
-                and body.get("page_id") == pid and body.get("resolved_page_id") == pid, "Manual schedule-at result differs")))
+            schedule_checked))
         page = pages_by_id[board["page_ids"][1]]
         save_state = {"counter": 0, "last_template": None, "page": page}
 

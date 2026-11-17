@@ -7,13 +7,18 @@ import json
 
 from runtime_collect import collect_snapshot, validate_collector_anchor
 from runtime_collect import main as collector_main
-from runtime_soak import SlotPacer, run_phase, soak_operations, run_soak, WarmupScenarios
+from runtime_soak import SlotPacer, run_phase, soak_operations, run_soak, WarmupScenarios, CollectionProfile
+from runtime_soak import main as soak_main
 from runtime_common import HttpResult, JsonClient, JsonlWriter, ProtocolError
 from runtime_api import ApiOperation
 from test_runtime_api import fixture, fixture_transport, run_context
+from test_runtime_api import ownership
 from datetime import datetime, timedelta, timezone
 from contextlib import redirect_stderr
 import io
+import hashlib
+from contextlib import redirect_stdout
+from unittest.mock import patch
 
 
 class ManualClock:
@@ -129,6 +134,7 @@ class SoakContractTests(unittest.TestCase):
             page_id = save.path.rsplit("/", 1)[1]
             touched.add(page_id)
             self.assertEqual(send.payload["page_id"], page_id)
+            self.assertIs(send.payload.get("force"), True)
             self.assertEqual(send.path, f"/api/v1/boards/{data['boards'][geometry]['id']}/message")
             self.assertIn("-variable/", dryrun.path)
             self.assertEqual((dryrun.payload["window_seconds"], dryrun.payload["step_seconds"]), (3600, 300))
@@ -405,6 +411,124 @@ class SoakContractTests(unittest.TestCase):
             records = [json.loads(line) for line in (Path(directory) / "soak.jsonl").read_text().splitlines()]
         self.assertLessEqual(clock(), 400.001)
         self.assertFalse(any(r["record_type"] == "phase" and r["phase"] == "activity" for r in records))
+
+    def test_collection_selection_and_acceleration_restore_actual_revisions(self):
+        # Inactive cadence changes do not exercise rotation, and stale revisions cannot restore exact baseline config.
+        data = fixture()
+        profile = CollectionProfile(data)
+        chosen = {"flagship": "time", "note": "random", "array": "variable", "panel": "time"}
+        for index, (geometry, mode) in enumerate(chosen.items()):
+            board = data["boards"][geometry]
+            collection = next(c for c in data["collections"] if c["geometry"] == geometry and c["mode"] == mode)
+            pin = profile.next_activation(index * 12)
+            self.assertIsNotNone(pin)
+            self.assertEqual(pin.payload, {"page_id": collection["id"]})
+            pin.validate({"board_id": board["id"], "page_id": collection["id"], "sent": False, "error": None, "warnings": []})
+            frame = [[0] * board["cols"] for _ in range(board["rows"])]
+            profile.next_activation(index * 12 + 6).validate({"id": board["id"], "active_page_id": collection["id"],
+                "resolved_page_id": collection["page_ids"][0], "source": "manual", "rows": board["rows"], "cols": board["cols"],
+                "characters": frame, "expected_characters": frame})
+        self.assertTrue(profile.verification()["activated"])
+        self.assertEqual(set(profile.active_refs), set(data["boards"]))
+        accelerate = profile.transitions(True)
+        self.assertEqual(len(accelerate), 12)
+        for index, operation in enumerate(accelerate):
+            collection = data["collections"][index]
+            mode = collection["mode"]
+            self.assertEqual(operation.kind, "transition")
+            self.assertTrue(operation.abort_on_failure)
+            key, target = ("poll_seconds", 2) if mode == "variable" else ("interval_seconds", 5)
+            self.assertEqual(operation.payload[mode][key], target)
+            operation.validate({**collection, mode: operation.payload[mode], "revision": f"accelerated-{index}"})
+        restore = profile.transitions(False)
+        for index, operation in enumerate(restore):
+            collection = data["collections"][index]
+            mode = collection["mode"]
+            key, target = ("poll_seconds", 10) if mode == "variable" else ("interval_seconds", 30)
+            self.assertEqual(operation.payload["expected_revision"], f"accelerated-{index}")
+            self.assertEqual(operation.payload[mode][key], target)
+
+    def test_expected_held_202_is_valid_but_failed_critical_control_aborts(self):
+        # A declared held response is distinct from send:true, and malformed control200/202 cannot be retried as normal traffic.
+        for held in (True, False):
+            with self.subTest(held=held):
+                clock = ManualClock()
+                client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: HttpResult(202, {"held": held}))
+                def validate(body):
+                    if body.get("held") is not True:
+                        raise ProtocolError("Expected held result")
+                op = ApiOperation("held", "flagship", "control", "POST", "/api/v1/boards/board-flagship/message", {},
+                                  validate, expected_status=202, abort_on_failure=True)
+                with tempfile.TemporaryDirectory() as directory:
+                    writer = JsonlWriter(Path(directory) / "run.jsonl", "unit-run")
+                    try:
+                        result = run_phase(client, [op] * 10, writer, phase="warmup", start=100, duration=1,
+                            slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100)
+                    finally:
+                        writer.close()
+                self.assertEqual(result["successful"], 1 if held else 0)
+                self.assertEqual(result["aborted"], not held)
+
+    def test_transition_slots_and_readonly_drain_idle_slots_are_explicit(self):
+        # Control writes must displace ordinary arrivals; idle drain seconds are neither fake requests nor missed arrivals.
+        clock, calls = ManualClock(), []
+        client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: calls.append(clock()) or HttpResult(200, {}))
+        ordinary = ApiOperation("status", "all", "n/a", "GET", "/api/v1/status", None, lambda body: None)
+        transition = ApiOperation("cadence_restore", "all", "control", "PUT", "/api/v1/collections/c", {}, lambda body: None,
+                                  kind="transition", abort_on_failure=True)
+        def transform(op, index, deadline):
+            return transition if index < 12 else ordinary if (index - 12) % 5 == 0 else None
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "run.jsonl"
+            writer = JsonlWriter(path, "unit-run")
+            try:
+                result = run_phase(client, [ordinary] * 10, writer, phase="drain", start=100, duration=20,
+                    slot_seconds=1, clock=clock, sleep=clock.sleep, measurement_start=100, slot_transform=transform,
+                    critical_slots=range(12))
+            finally:
+                writer.close()
+            records = list(map(json.loads, path.read_text().splitlines()))
+        self.assertEqual(calls, list(range(100, 113)) + [117])
+        self.assertEqual(result["missed"], 0)
+        self.assertEqual(result["idle"], 6)
+        self.assertEqual(sum(r.get("activity_kind") == "transition" for r in records), 12)
+
+    def test_missed_transition_aborts_without_late_control_burst(self):
+        # Skipping a required cadence write and continuing could leave a mixed, falsely labeled profile.
+        clock = ManualClock()
+        clock.now = 100.06
+        calls = []
+        client = JsonClient("http://hub.invalid:3000", {}, transport=lambda *args: calls.append(args) or HttpResult(200, {}))
+        op = ApiOperation("cadence_accelerate", "all", "control", "PUT", "/api/v1/collections/c", {}, lambda body: None,
+                          kind="transition", abort_on_failure=True)
+        with tempfile.TemporaryDirectory() as directory:
+            writer = JsonlWriter(Path(directory) / "run.jsonl", "unit-run")
+            try:
+                with self.assertRaises(ProtocolError):
+                    run_phase(client, [op] * 10, writer, phase="activity", start=100, duration=20, slot_seconds=1,
+                        clock=clock, sleep=clock.sleep, measurement_start=100, critical_slots=range(12))
+            finally:
+                writer.close()
+        self.assertEqual(calls, [])
+
+    def test_soak_cli_rejects_operator_hash_before_login(self):
+        # The final executable entrypoint must not bypass the same private-input ownership binding.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            marker, context = ownership(), run_context()
+            context["ownership_sha256"] = "f" * 64
+            for name, value in (("owner.json", marker), ("context.json", context),
+                ("credentials.json", {"username": "perf", "password": "password-secret"})):
+                path = root / name
+                path.write_text(json.dumps(value))
+                path.chmod(0o600)
+            client = JsonClient(marker["base_url"], {}, transport=lambda *args: self.fail("No network before ownership validation"))
+            with patch("runtime_seed.JsonClient", return_value=client), redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()):
+                code = soak_main(["--base-url", marker["base_url"], "--credentials", str(root / "credentials.json"),
+                    "--ownership", str(root / "owner.json"), "--run-context", str(root / "context.json"),
+                    "--manifest", str(root / "manifest.json"), "--anchor", str(root / "anchor.json"),
+                    "--collector-ready", str(root / "ready.json"), "--out-dir", str(root / "out")])
+        self.assertEqual(code, 2)
 
 
 if __name__ == "__main__":

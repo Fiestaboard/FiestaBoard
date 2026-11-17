@@ -51,6 +51,7 @@ def report_records(records, *, errors=()):
     strata = defaultdict(list)
     identities, restarts = {}, []
     cycles = defaultdict(set)
+    resource_blocks = {}
     for record in records:
         kind = record.get("record_type")
         if kind == "phase":
@@ -62,7 +63,8 @@ def report_records(records, *, errors=()):
             requests.append(record)
             key = tuple(record.get(field) for field in ("run_id", "batch", "operation", "geometry", "cache", "auth", "phase"))
             strata[key].append(record)
-            if record.get("phase") == "activity" and record.get("semantic_success") is True:
+            if (record.get("phase") == "activity" and record.get("semantic_success") is True
+                    and record.get("activity_kind", "ordinary") == "ordinary"):
                 cycles[record.get("cycle")].add(record.get("cycle_slot"))
         elif kind == "resource":
             resources.append(record)
@@ -72,6 +74,14 @@ def report_records(records, *, errors=()):
                 if previous is not None and previous != (pid, start):
                     restarts.append({"role": role, "pid": pid, "from_start": previous[1], "to_start": start})
                 identities[role] = pid, start
+                rss = process.get("rss_bytes")
+                if isinstance(rss, (int, float)) and math.isfinite(rss):
+                    identity = role, pid, start
+                    block = resource_blocks.setdefault(identity, {"role": role, "pid": pid, "start_time_ticks": start,
+                        "first_rss_bytes": rss, "last_rss_bytes": rss, "max_rss_bytes": rss, "samples": 0})
+                    block["last_rss_bytes"] = rss
+                    block["max_rss_bytes"] = max(block["max_rss_bytes"], rss)
+                    block["samples"] += 1
         elif kind in {"gap", "missed_slot", "interrupted", "error"}:
             gaps.append(record)
     expected = {("warmup", "start"): 0, ("warmup", "end"): 600, ("activity", "start"): 600,
@@ -89,6 +99,9 @@ def report_records(records, *, errors=()):
     for key, observations in sorted(strata.items(), key=lambda item: repr(item[0])):
         summaries.append({**dict(zip(fields, key)), **summarize_requests(observations)})
     activity = [r for r in requests if r.get("phase") == "activity"]
+    ordinary_activity = [r for r in activity if r.get("activity_kind", "ordinary") == "ordinary"]
+    activity_transitions = [r for r in activity if r.get("activity_kind") == "transition"]
+    drain_transitions = [r for r in requests if r.get("phase") == "drain" and r.get("activity_kind") == "transition"]
     complete_cycles = sum(slots == set(range(10)) for cycle, slots in cycles.items() if cycle is not None)
     run_ids = {r.get("run_id") for r in records}
     one_run = len(run_ids) == 1 and all(isinstance(value, str) and value for value in run_ids)
@@ -119,6 +132,22 @@ def report_records(records, *, errors=()):
                 or not started <= ended <= 6600 or started < previous_end):
             requests_valid = False
         previous_end = ended
+    transitions_valid = len(activity_transitions) == 12 and len(drain_transitions) == 12
+    for transitions, base in ((activity_transitions, 600), (drain_transitions, 6600)):
+        targets = []
+        for index, request in enumerate(transitions):
+            if (request.get("transition_index") != index or request.get("scheduled_elapsed_s") != base + index
+                    or not request.get("transition_target") or request.get("semantic_success") is not True
+                    or request.get("http_status") != 200 or request.get("timed_out")):
+                transitions_valid = False
+            targets.append(request.get("transition_target"))
+        if len(set(targets)) != 12:
+            transitions_valid = False
+    if {r.get("transition_target") for r in activity_transitions} != {r.get("transition_target") for r in drain_transitions}:
+        transitions_valid = False
+    for request in ordinary_activity:
+        if request.get("scheduled_elapsed_s", 0) < 612:
+            transitions_valid = False
     resource_times = [r.get("monotonic_elapsed_s") for r in resources]
     resources_valid = bool(resources) and all(finite(value) for value in resource_times)
     if resources_valid:
@@ -142,10 +171,29 @@ def report_records(records, *, errors=()):
                     or not isinstance(process.get("start_time_ticks"), int) or process["start_time_ticks"] <= 0
                     or not finite(process.get("rss_bytes")) or process["rss_bytes"] < 0):
                 resources_valid = False
+    driver_summaries = [r for r in records if r.get("record_type") == "driver_summary"]
+    protocol_valid = len(driver_summaries) == 1
+    if protocol_valid:
+        driver = driver_summaries[0]
+        protocol_valid = (driver.get("subscenarios_verified") is True and driver.get("selection_verified") is True
+                          and driver.get("final_state_verified") is True
+                          and finite(driver.get("warmup_controls_completed_elapsed_s"))
+                          and driver["warmup_controls_completed_elapsed_s"] <= 300
+                          and finite(driver.get("steady_settling_seconds")) and driver["steady_settling_seconds"] >= 300)
     complete = (window_complete and one_run and declared_window and not errors and not gaps and not restarts
-                and requests_valid and complete_cycles == 600 and resources_valid)
+                and requests_valid and transitions_valid and protocol_valid and complete_cycles == 598 and resources_valid)
+    active_seconds = phases.get(("activity", "end"), 0) - phases.get(("activity", "start"), 0)
+    active_minutes = active_seconds / 60 if active_seconds > 0 else None
+    blocks = [{**block, "delta_rss_bytes": block["last_rss_bytes"] - block["first_rss_bytes"]} for block in resource_blocks.values()]
     return {"window_complete": window_complete, "complete": complete, "process_restarts": restarts, "strata": summaries,
-            "activity_requests": len(activity), "completed_cycles": complete_cycles, "realized_activity_factor": complete_cycles / 100,
+            "activity_requests": len(activity), "ordinary_activity_requests": len(ordinary_activity),
+            "activity_transition_requests": len(activity_transitions), "drain_transition_requests": len(drain_transitions),
+            "completed_cycles": complete_cycles, "realized_activity_factor": complete_cycles / active_minutes if active_minutes else None,
+            "ordinary_request_factor": len(ordinary_activity) / (active_minutes * 10) if active_minutes else None,
+            "per_slot_activity_factor": {str(slot): sum(r.get("cycle_slot") == slot for r in ordinary_activity) / active_minutes
+                                         if active_minutes else None for slot in range(10)},
+            "actual_rotation_event_count": None, "rotation_observability": "Configured cadence is not observed worker events; periodic board samples may alias a complete rotation",
+            "resource_blocks": blocks, "transitions_valid": transitions_valid, "protocol_valid": protocol_valid,
             "resource_samples": len(resources), "gaps": len(gaps), "parse_errors": list(errors),
             "one_run": one_run, "requests_valid": requests_valid, "resources_valid": resources_valid,
             "actual_phase_observation_intervals": {phase: actual_phases[(phase, "end")] - actual_phases[(phase, "start")]

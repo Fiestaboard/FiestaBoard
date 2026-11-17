@@ -3,6 +3,9 @@
 import math
 import time
 import json
+import copy
+import argparse
+import sys
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -10,7 +13,113 @@ from runtime_common import JsonlWriter, ProtocolError, SOURCE_COMMIT
 from runtime_common import require_ok
 from runtime_api import ApiOperation, api_operations
 from runtime_collect import validate_collector_anchor
-from runtime_seed import verify_manifest
+from runtime_seed import add_input_arguments, load_inputs, verify_manifest
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Explicit anchored soak; partial/diagnostic results never imply protocol completion")
+    add_input_arguments(parser)
+    parser.add_argument("--anchor", type=Path, required=True)
+    parser.add_argument("--collector-ready", type=Path, required=True)
+    parser.add_argument("--diagnostic-phase-seconds", nargs=3, type=float)
+    parser.add_argument("--diagnostic-only", action="store_true", help="Short read-only clock/transport check, no control/rotation coverage")
+    args = parser.parse_args(argv)
+    client = None
+    try:
+        client, _, manifest = load_inputs(args)
+        anchor = json.loads(args.anchor.read_text())
+        ready = json.loads(args.collector_ready.read_text())
+        if anchor.get("run_id") != client.run_context["run_id"]:
+            raise ProtocolError("Anchor belongs to a different operator run")
+        validate_collector_anchor(anchor, boot_id=ready.get("boot_id"), pid_namespace=ready.get("pid_namespace"), api_cmdline=ready.get("api_cmdline", ""))
+        phases = tuple(args.diagnostic_phase_seconds) if args.diagnostic_phase_seconds else (600, 6000, 600)
+        if args.diagnostic_only and phases == (600, 6000, 600):
+            raise ProtocolError("Diagnostic-only mode needs explicitly short diagnostic phase durations")
+        client.login(min_valid_seconds=sum(phases) + 600)
+        factory = None
+        if args.diagnostic_only:
+            status = next(op for op in api_operations(manifest) if op.name == "status")
+            factory = lambda cycle: [status] * 10
+        report = run_soak(client, manifest, args.out_dir, anchor, ready, phase_seconds=phases, operation_factory=factory)
+        # Resource merge and independent acceptance are separate offline steps.
+        return 2 if report.get("aborted") else 0
+    except (OSError, ProtocolError, ValueError, KeyError, TypeError) as exc:
+        print(f"Soak refused/incomplete: {type(exc).__name__}", file=sys.stderr)
+        return 2
+    finally:
+        if client is not None:
+            client.close()
+
+
+class CollectionProfile:
+    def __init__(self, manifest, *, elapsed_clock=None):
+        self.manifest = manifest
+        self.elapsed_clock = elapsed_clock
+        modes = {"flagship": "time", "note": "random", "array": "variable", "panel": "time"}
+        self.selected = {geometry: next(c for c in manifest["collections"] if c["geometry"] == geometry and c["mode"] == mode)
+                         for geometry, mode in modes.items()}
+        self.active_refs = {geometry: collection["id"] for geometry, collection in self.selected.items()}
+        self.original = {c["id"]: copy.deepcopy(c[c["mode"]]) for c in manifest["collections"]}
+        self.activation_index = 0
+        self.completed_elapsed = None
+        self.accelerated = set()
+        self.restored = set()
+
+    def next_activation(self, elapsed):
+        if self.activation_index >= 8:
+            return None
+        if elapsed >= 300:
+            raise ProtocolError("Collection selection/readback incomplete by300s")
+        geometry = tuple(self.selected)[self.activation_index // 2]
+        board, collection = self.manifest["boards"][geometry], self.selected[geometry]
+        pinning = self.activation_index % 2 == 0
+        def verified(body):
+            if pinning:
+                valid = (body.get("board_id") == board["id"] and body.get("page_id") == collection["id"]
+                         and isinstance(body.get("sent"), bool) and not body.get("error") and body.get("warnings") == [])
+            else:
+                frame = body.get("characters")
+                valid = (body.get("id") == board["id"] and body.get("active_page_id") == collection["id"]
+                    and body.get("resolved_page_id") in collection["page_ids"] and body.get("source") == "manual"
+                    and (body.get("rows"), body.get("cols")) == (board["rows"], board["cols"])
+                    and isinstance(frame, list) and len(frame) == board["rows"]
+                    and all(isinstance(row, list) and len(row) == board["cols"] for row in frame)
+                    and body.get("expected_characters") == frame)
+            if not valid:
+                raise ProtocolError("Collection selection/readback did not confirm compatible virtual state")
+            self.activation_index += 1
+            if self.activation_index == 8:
+                self.completed_elapsed = self.elapsed_clock() if self.elapsed_clock else elapsed
+                self.manifest["soak_active_refs"] = dict(self.active_refs)
+        return ApiOperation("collection_select" if pinning else "collection_selection_readback", geometry, "warmup-control",
+            "PUT" if pinning else "GET", f"/api/v1/boards/{board['id']}" + ("/active-page" if pinning else ""),
+            {"page_id": collection["id"]} if pinning else None, verified, abort_on_failure=True, kind="warmup-control")
+
+    def transitions(self, accelerated):
+        operations = []
+        for index, collection in enumerate(self.manifest["collections"]):
+            mode = collection["mode"]
+            config = copy.deepcopy(self.original[collection["id"]])
+            if accelerated:
+                config["poll_seconds" if mode == "variable" else "interval_seconds"] = 2 if mode == "variable" else 5
+            payload = {"expected_revision": collection["revision"], mode: config}
+            def verified(body, item=collection, key=mode, expected=config, old=collection["revision"]):
+                if (body.get("id") != item["id"] or body.get("selection_mode") != item["selection_mode"]
+                        or body.get("page_ids") != item["page_ids"] or body.get(key) != expected
+                        or not body.get("revision") or body["revision"] == old):
+                    raise ProtocolError("Cadence transition failed exact config/revision/member assertion")
+                item[key] = copy.deepcopy(expected)
+                item["revision"] = body["revision"]
+                (self.accelerated if accelerated else self.restored).add(item["id"])
+            operations.append(ApiOperation("cadence_accelerate" if accelerated else "cadence_restore", collection["geometry"],
+                "control", "PUT", f"/api/v1/collections/{collection['id']}", payload, verified, abort_on_failure=True,
+                kind="transition", transition_index=index, transition_target=collection["id"]))
+        return operations
+
+    def verification(self):
+        return {"activated": self.activation_index == 8, "active_refs": dict(self.active_refs),
+                "completed_elapsed_s": self.completed_elapsed, "accelerated": len(self.accelerated) == 12,
+                "restored": len(self.restored) == 12}
 
 
 class WarmupScenarios:
@@ -191,6 +300,7 @@ def run_soak(client, manifest, out_dir, anchor, collector_ready, *, phase_second
     controls = scenarios
     if controls is None and operation_factory is None:
         controls = WarmupScenarios(manifest, elapsed_clock=lambda: clock() - start)
+    profile = CollectionProfile(manifest, elapsed_clock=lambda: clock() - start) if operation_factory is None else None
     status_operation = next(op for op in api_operations(manifest) if op.name == "status")
 
     def warmup_slot(operation, index, deadline):
@@ -203,6 +313,11 @@ def run_soak(client, manifest, out_dir, anchor, collector_ready, *, phase_second
                 if selected is None:
                     raise ProtocolError("Warmup control state is incomplete without a next operation")
                 return selected
+        if profile is not None and not profile.verification()["activated"]:
+            selected = profile.next_activation(clock() - start)
+            if selected is None:
+                raise ProtocolError("Collection selection remains incomplete")
+            return selected
         # Settling keeps the verified baseline frame rather than continually
         # replacing it with save/send work before the activity phase.
         return status_operation if operation.name in {"save", "send"} else operation
@@ -224,24 +339,63 @@ def run_soak(client, manifest, out_dir, anchor, collector_ready, *, phase_second
                 operations = lambda cycle: factory(cycle + 600)
             else:
                 operations = factory
+            transform = warmup_slot if phase == "warmup" else None
+            critical = ()
+            if phase == "warmup" and controls is not None:
+                critical = lambda index: not controls.verification().get("complete") or bool(profile and not profile.verification()["activated"])
+            if profile is not None and phase in {"activity", "drain"}:
+                transitions = profile.transitions(phase == "activity")
+                if duration < 12:
+                    raise ProtocolError("Cadence transition needs twelve immutable arrival slots")
+                if phase == "activity":
+                    transform = lambda operation, index, deadline: transitions[index] if index < 12 else operation
+                else:
+                    cadence = 1
+                    transform = lambda operation, index, deadline: transitions[index] if index < 12 else status_operation if (index - 12) % 5 == 0 else None
+                critical = range(12)
             result = run_phase(client, operations, writer, phase=phase, start=phase_start, duration=duration,
                                slot_seconds=cadence, clock=clock, sleep=sleep, measurement_start=start,
-                               slot_transform=warmup_slot if phase == "warmup" else None)
+                               slot_transform=transform, critical_slots=critical)
             results[phase] = result
             phase_offset += duration
             if result["aborted"]:
                 break
             if phase == "warmup" and controls is not None:
                 verified = controls.verification()
-                if (not verified.get("complete") or verified.get("completed_elapsed_s", float("inf")) > 300
-                        or (tuple(phase_seconds) == (600, 6000, 600) and phase_start + duration - start - verified["completed_elapsed_s"] < 300)):
+                completed = max(verified.get("completed_elapsed_s") or float("inf"),
+                                profile.verification().get("completed_elapsed_s") or 0 if profile else 0)
+                if (not verified.get("complete") or completed > 300
+                        or (tuple(phase_seconds) == (600, 6000, 600) and phase_start + duration - start - completed < 300)):
                     raise ProtocolError("Warmup controls/restoration and300-second settling contract incomplete")
                 writer.write("warmup_controls", verification=verified, monotonic_elapsed_s=clock() - start)
+        measured_end = clock()
+        final_verified = False
+        if len(results) == 3 and not any(result["aborted"] for result in results.values()) and not client.auth_aborted:
+            for board in manifest["boards"].values():
+                result = client.request("PUT", f"/api/v1/boards/{board['id']}/active-page", {"page_id": board["page_ids"][0]}) if profile else None
+                if result is not None:
+                    writer.write("postrun_restore", board_id=board["id"], response=client.safe_result(result), monotonic_elapsed_s=clock() - start)
+                    body = require_ok(result)
+                    if body.get("page_id") != board["page_ids"][0] or body.get("error"):
+                        raise ProtocolError("Post-window manual selection restoration failed")
+            manifest.pop("soak_active_refs", None)
+            verify_manifest(client, manifest)
+            final_verified = True
+        finished_controls = None
+        if controls and controls.verification().get("complete"):
+            finished_controls = max(controls.verification().get("completed_elapsed_s") or 0,
+                                    profile.verification().get("completed_elapsed_s") or 0 if profile else 0)
         report = {"complete": False, "requires_resource_merge": True, "diagnostic": diagnostic,
-                  "measured_seconds": clock() - start, "activity_requests": results.get("activity", {}).get("attempted", 0),
+                  "measured_seconds": measured_end - start, "postrun_seconds": clock() - measured_end,
+                  "activity_requests": results.get("activity", {}).get("attempted", 0),
                   "whole_window_requests": sum(result["attempted"] for result in results.values()),
                   "phases": results, "subscenarios_verified": bool(controls and controls.verification().get("complete")),
-                  "warmup_controls": controls.verification() if controls is not None else None}
+                  "selection_verified": bool(profile and profile.verification()["activated"]), "final_state_verified": final_verified,
+                  "warmup_controls_completed_elapsed_s": finished_controls,
+                  "steady_settling_seconds": phase_seconds[0] - finished_controls if finished_controls is not None else None,
+                  "warmup_controls": controls.verification() if controls is not None else None,
+                  "collection_profile": profile.verification() if profile is not None else None,
+                  "aborted": any(result["aborted"] for result in results.values())}
         writer.write("driver_summary", monotonic_elapsed_s=clock() - start, **report)
         (out_dir / "driver-summary.json").write_text(json.dumps(report, indent=2) + "\n")
         return report
@@ -253,7 +407,7 @@ def run_soak(client, manifest, out_dir, anchor, collector_ready, *, phase_second
 
 
 def run_phase(client, operations, writer, *, phase, start, duration, slot_seconds, clock, sleep, measurement_start,
-              dispatch_grace_seconds=0.05, slot_transform=None):
+              dispatch_grace_seconds=0.05, slot_transform=None, critical_slots=()):
     if not callable(operations) and len(operations) != 10:
         raise ProtocolError("A phase cycle needs exactly ten declared slots")
     factory = operations if callable(operations) else lambda cycle: operations
@@ -264,6 +418,9 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
     writer.write("phase", phase=phase, event="start", scheduled_elapsed_s=start - measurement_start,
                  monotonic_elapsed_s=clock() - measurement_start)
     attempted, missed, successful, aborted = 0, 0, 0, False
+    idle, ordinary, transition = 0, 0, 0
+    def required(index):
+        return critical_slots(index) if callable(critical_slots) else index in critical_slots
     initial = True
     while True:
         now = clock()
@@ -278,6 +435,8 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
                          reason="Unreserved deadline passed",
                          scheduled_elapsed_s=start + index * slot_seconds - measurement_start,
                          monotonic_elapsed_s=clock() - measurement_start)
+            if required(index):
+                raise ProtocolError("Required control arrival missed; no late control burst")
         if arrival["slot"] is None:
             break
         wait = arrival["deadline"] - clock()
@@ -291,6 +450,8 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
                          reason="Reserved wake exceeded dispatch grace", dispatch_lateness_ms=lateness * 1000,
                          scheduled_elapsed_s=arrival["deadline"] - measurement_start,
                          monotonic_elapsed_s=clock() - measurement_start)
+            if required(index):
+                raise ProtocolError("Required control wake exceeded dispatch grace")
             continue
         cycle = index // 10
         if cycle not in cycles:
@@ -300,6 +461,11 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
         operation = cycles[cycle][index % 10]
         if slot_transform is not None:
             operation = slot_transform(operation, index, arrival["deadline"])
+        if operation is None:
+            idle += 1
+            writer.write("idle_slot", phase=phase, slot=index, scheduled_elapsed_s=arrival["deadline"] - measurement_start,
+                         monotonic_elapsed_s=clock() - measurement_start)
+            continue
         payload = operation.payload() if callable(operation.payload) else operation.payload
         started = clock()
         if started - arrival["deadline"] > dispatch_grace_seconds + 1e-9:
@@ -308,6 +474,8 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
                          reason="Preparation exceeded dispatch grace", dispatch_lateness_ms=(started - arrival["deadline"]) * 1000,
                          scheduled_elapsed_s=arrival["deadline"] - measurement_start,
                          monotonic_elapsed_s=started - measurement_start)
+            if required(index):
+                raise ProtocolError("Required control preparation exceeded dispatch grace")
             continue
         result = client.request(operation.method, operation.path, payload)
         semantic_success, error = False, result.error
@@ -318,9 +486,12 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
         except (ProtocolError, ValueError, KeyError, TypeError):
             error = error or "HTTP or response-semantic assertion failed"
         attempted += 1
+        transition += int(operation.kind == "transition")
+        ordinary += int(operation.kind == "ordinary")
         successful += int(semantic_success)
         writer.write("request", phase=phase, operation=operation.name, geometry=operation.geometry, cache=operation.cache,
                      auth="browser-cookie", cycle=index // 10, cycle_slot=index % 10, batch=1,
+                     activity_kind=operation.kind, transition_index=operation.transition_index, transition_target=operation.transition_target,
                      scheduled_elapsed_s=arrival["deadline"] - measurement_start, started_elapsed_s=started - measurement_start,
                      dispatch_lateness_ms=max(0, started - arrival["deadline"]) * 1000, dispatch_grace_seconds=dispatch_grace_seconds,
                      monotonic_elapsed_s=clock() - measurement_start, elapsed_ms=result.elapsed_ms,
@@ -341,7 +512,7 @@ def run_phase(client, operations, writer, *, phase, start, duration, slot_second
     writer.write("phase", phase=phase, event="end", scheduled_elapsed_s=start + duration - measurement_start,
                  monotonic_elapsed_s=ended - measurement_start)
     return {"attempted": attempted, "missed": missed, "successful": successful, "aborted": aborted,
-            "actual_seconds": ended - start}
+            "actual_seconds": ended - start, "idle": idle, "ordinary": ordinary, "transition": transition}
 
 
 def soak_operations(manifest, geometry, ring_index, cycle):
@@ -369,7 +540,8 @@ def soak_operations(manifest, geometry, ring_index, cycle):
 
     save.payload = changed_save
     send = operation("send")
-    send.payload = {"page_id": ring_page}
+    send.payload = {"page_id": ring_page, "force": True}
+    send.cache = "forced-virtual-page-send"
     send.cleanup = None
     preview = operation("preview_batch_prefilled")
     preview.cache = "steady-preview-mixed"
@@ -379,6 +551,10 @@ def soak_operations(manifest, geometry, ring_index, cycle):
                                ProtocolError("Revision history list missing")))
     return [operation("boards", "all"), operation("board_detail"), operation(listed, "all"), preview,
             operation("render_diagnostics"), operation("collection_dry_run"), operation("schedule_at_manual"), save, send, history]
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
 
 
 class SlotPacer:
