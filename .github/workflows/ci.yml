@@ -179,7 +179,9 @@ jobs:
       && (needs.detect-changes.outputs.api == 'true'
           || needs.detect-changes.outputs.shared == 'true'
           || needs.detect-changes.outputs.e2e_wiring == 'true')
-    timeout-minutes: 15
+    # Full coverage plus output/plugin contracts reaches fifteen minutes;
+    # retain headroom for coverage upload and runner cleanup.
+    timeout-minutes: 20
     
     steps:
     - uses: actions/checkout@v7
@@ -329,9 +331,9 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (needs.detect-changes.outputs.ui == 'true'
           || needs.detect-changes.outputs.shared == 'true')
-    # Coverage takes about nine minutes on hosted runners; allow time for
-    # browser installation, layout regressions, and coverage upload as well.
-    timeout-minutes: 15
+    # Coverage takes about ten minutes on hosted runners. The full serial
+    # layout suite now exceeds 120 cases; leave time for it and uploads too.
+    timeout-minutes: 25
 
     steps:
     - uses: actions/checkout@v7
