@@ -24,6 +24,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: [
+        "app/routes/integrations._index.tsx",
         "src/lib/**",
         "src/hooks/**",
         "src/components/board-display.tsx",
