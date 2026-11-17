@@ -269,6 +269,11 @@ def test_scope_rows():
         assert not scopes.permits(scopes.CONTROL, method, path), path
 
 
+@pytest.mark.parametrize("category", ["display", "transitions", "polling", "location"])
+def test_fiestabot_reaches_the_display_settings_a_phone_reaches(category):
+    assert tier_for("update_setting", {"category": category, "values": {}}) == "step_up"
+
+
 def test_fiestabot_display_tools():
     assert tier_for("add_board", {"device_type": "flagship"}) == ALLOWED
     assert tier_for("remove_board", {"board_id": "b"}) == ALLOWED

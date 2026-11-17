@@ -41,7 +41,7 @@ IOS = {"client_id": "fiestaboard-ios", "device_name": "Maya's iPhone", "app_vers
 
 
 def _mcp_tool_names() -> set[str]:
-    pytest.importorskip("mcp", reason="mcp package not installed")
+    # No importorskip: this is a guard test, so a missing mcp package must fail it.
     from src.mcp_server import mcp_server
 
     return {tool.name for tool in asyncio.run(mcp_server.list_tools())}
@@ -68,6 +68,8 @@ MUST_DENY = {
     "configure_display",
     # Until the output side of the H10 F5 host guard ships.
     "run_display_action",
+    "list_staff_picks",
+    "force_refresh",
 }
 MUST_STEP_UP = {
     "install_plugin",
@@ -122,7 +124,10 @@ def test_git_install_is_denied(args):
     assert tier_for("install_plugin", {"plugin_id": "weather"}) == STEP_UP
 
 
-@pytest.mark.parametrize("category", ["mqtt", "ai", "release_channel", "auto_update", "beta", "hdmi_kiosk", None])
+@pytest.mark.parametrize(
+    "category",
+    ["mqtt", "ai", "release_channel", "auto_update", "beta", "hdmi_kiosk", "output", "plugins", None],
+)
 def test_update_setting_categories_outside_the_phone_list_are_denied(category):
     assert tier_for("update_setting", {"category": category, "values": {}}) == DENIED
 
