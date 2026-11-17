@@ -3558,7 +3558,6 @@
     "signInHelp": "Le notifiche richiedono una sessione del browser con accesso effettuato, anche quando l’accesso all’hub è disattivato.",
     "loadError": "Impossibile caricare le impostazioni delle notifiche. Controlla la connessione e riprova.",
     "retry": "Riprova",
-    "working": "Aggiornamento delle notifiche…",
     "actionError": "Impossibile aggiornare le notifiche. Controlla la connessione e riprova.",
     "dismissed": "L’autorizzazione non è stata concessa. Attiva questo browser quando vuoi.",
     "reconnect": "Questo browser deve essere attivato di nuovo.",
@@ -3566,13 +3565,13 @@
     "sendTest": "Invia una prova",
     "sending": "Invio…",
     "testSent": "Il servizio di notifiche push ha accettato la prova. Controlla se la notifica appare in questo browser.",
+    "testFailed": "Invio della notifica di prova non riuscito. Riprova più tardi.",
     "notSent": "La prova non è stata inviata. Riprova più tardi.",
     "testExpired": "Questa sottoscrizione è scaduta. Attiva di nuovo questo browser.",
     "cooldown": "Attendi un minuto prima di inviare un’altra prova.",
     "testError": "Il servizio di notifiche push non ha potuto accettare la prova. Riprova più tardi.",
     "blockedLabel": "bloccate dal browser",
     "httpsLabel": "richiede HTTPS",
-    "notAvailableLabel": "non ancora disponibili",
     "loading": "Caricamento delle impostazioni delle notifiche…"
   }
 }
