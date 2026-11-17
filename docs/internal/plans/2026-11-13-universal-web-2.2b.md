@@ -21,7 +21,7 @@ Files: new web/src/components/home/home-supporting-pane.tsx; new web/src/**tests
 2. Run focused vitest to observe missing feature failure.
 3. Build kit cards and integrate grid around main card; banners remain above grid pending 2.3b. Schedule enable captured board ID; await setting then refresh and per-display nudge; Undo disabled if state changed since.
 4. Run focused and relevant Home tests, full coverage, typecheck/lint/format/build. Add e2e responsive pane/switch/selection plus axe; screenshot 390/768/1280 light/dark.
-5. Changeset, commit with required trailer, push and PR into v11. Astra review at exact head max 3 rounds; CI green before completion or WRAPUP stop.
+5. Changeset, commit with required trailer, push and PR into v11. Astra review at exact head max 3 rounds; CI green before completion or the wrap-up stop flag.
 
 ## Task 2: Banner stack
 
