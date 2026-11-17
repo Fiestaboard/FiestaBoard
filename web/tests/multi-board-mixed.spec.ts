@@ -122,6 +122,8 @@ test.describe("Mixed-device fleet: flagship + note", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
+    await page.getByRole("radio", { name: "List", exact: true }).click();
+
     const boardSelector = page
       .getByTestId("board-selector")
       .or(page.getByRole("combobox", { name: "Select board to manage" }))
@@ -129,21 +131,22 @@ test.describe("Mixed-device fleet: flagship + note", () => {
       .first();
     await expect(boardSelector).toBeVisible({ timeout: 15_000 });
     await expect(boardSelector).toContainText("Living Room");
-    await expect(page.getByText("07:00").first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("20:00")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Flagship Sched/ }).first()).toContainText(/7:00\s*AM – 9:00\s*AM/);
+    await expect(page.getByRole("button", { name: /Note Sched/ })).toHaveCount(0);
 
     // Switch to the NOTE board — the view must swap completely, exactly as it
     // does between two flagship boards.
     await boardSelector.click();
     await page.getByRole("option", { name: "Desk Note" }).click();
     await expect(boardSelector).toContainText("Desk Note");
-    await expect(page.getByText("20:00").first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("07:00")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Note Sched/ }).first()).toContainText(/8:00\s*PM – 10:00\s*PM/);
+    await expect(page.getByRole("button", { name: /Flagship Sched/ })).toHaveCount(0);
 
     // And back.
     await boardSelector.click();
     await page.getByRole("option", { name: "Living Room" }).click();
     await expect(boardSelector).toContainText("Living Room");
-    await expect(page.getByText("07:00").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /Flagship Sched/ }).first()).toContainText(/7:00\s*AM – 9:00\s*AM/);
+    await expect(page.getByRole("button", { name: /Note Sched/ })).toHaveCount(0);
   });
 });

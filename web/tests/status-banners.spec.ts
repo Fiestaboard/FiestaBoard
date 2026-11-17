@@ -205,7 +205,10 @@ test.describe("Status banners", () => {
     const lastKnown = page.locator('[data-slot="last-known-board"]');
     await expect(lastKnown).toBeVisible({ timeout: 15_000 });
     await expect(lastKnown.getByText("Offline", { exact: true })).toBeVisible();
-    await expect(lastKnown.locator('[data-slot="last-known-board-preview"]')).toHaveCSS("opacity", "0.6");
+    // Dim the board imagery, keeping viewport controls and the size label
+    // opaque so the offline treatment does not reduce their text contrast.
+    await expect(lastKnown.locator('[data-slot="board-viewport-bezel"]')).toHaveCSS("opacity", "0.6");
+    await expect(lastKnown.locator('[data-slot="last-known-board-preview"]')).toHaveCSS("opacity", "1");
   });
 
   test("the hub line reads 'host · Online' on a LAN address", async ({ page }) => {

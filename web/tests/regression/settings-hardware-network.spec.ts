@@ -82,12 +82,15 @@ test.describe("regression: settings.hardware", () => {
     // Open the Note board's (15 × 3) page to access its Remove button
     const noteCard = page.getByTestId("display-card").filter({ hasText: "15 × 3" });
     await expect(noteCard).toBeVisible({ timeout: 10_000 });
-    await noteCard.getByRole("link", { name: /^Open settings for / }).click();
+    await noteCard.click();
     await page.getByRole("tab", { name: "Settings", exact: true }).click();
 
     const removeBtn = page.getByRole("button", { name: /Remove Board/i }).first();
     await expect(removeBtn).toBeEnabled({ timeout: 10_000 });
     await removeBtn.click();
+    const confirmation = page.getByRole("alertdialog");
+    await expect(confirmation).toBeVisible();
+    await confirmation.getByRole("button", { name: "Remove Board", exact: true }).click();
 
     // Success toast text (i18n: displaySettings.boardRemoved = "Board removed")
     await expect(page.getByText("Board removed").first()).toBeVisible({

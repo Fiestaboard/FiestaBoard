@@ -17,7 +17,14 @@ const search = { value: "section=playback" };
 const replace = vi.fn();
 const board = { id: "route-board", name: "Desk", device_type: "note", board_color: "black", output: "vestaboard" };
 vi.mock("@/components/settings/display-settings", () => ({
-  useDisplayBoards: () => ({ boards: [board], saving: false, updateBoard: vi.fn() }),
+  useDisplayBoards: () => ({
+    boards: [board],
+    saving: false,
+    updateBoard: vi.fn(),
+    statusFor: () => undefined,
+    setPaused: vi.fn(),
+    pausePending: false,
+  }),
 }));
 vi.mock("@/components/displays/display-editor", () => ({
   DisplayEditor: () => <div data-ai-anchor="settings.board.route-board" />,
