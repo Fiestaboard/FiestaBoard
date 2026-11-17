@@ -25,7 +25,7 @@ const kitchenMorning = {
   line_metadata: Array.from({ length: 6 }, () => ({ alignment: "center", wrap: false })),
 };
 
-async function mockEditorApi(page: Page) {
+async function mockEditorApi(page: Page, drawingSource: "profile" | "baseline" = "profile") {
   // Match backend URLs only: Vite also loads source modules under /src/lib/api/.
   await page.route(
     (url) => url.pathname.startsWith("/api/"),
@@ -42,7 +42,7 @@ async function mockEditorApi(page: Page) {
           is_primary: true,
           paused: false,
           schedule_enabled: false,
-          drawing: { source: "profile", features: {} },
+          drawing: { source: drawingSource, features: {} },
           next_change_at: null,
           next_page_id: null,
           active_page_id: kitchenMorning.id,
@@ -373,3 +373,78 @@ test.describe("900px fine-pointer nested More actions", () => {
     await expect(confirmed).toBeHidden();
   });
 });
+
+for (const { width, coarse } of [
+  { width: 640, coarse: false },
+  { width: 767, coarse: false },
+  { width: 1180, coarse: true },
+]) {
+  test.describe(`H3 More at ${width}px ${coarse ? "coarse" : "fine"} pointer`, () => {
+    test.use({ hasTouch: coarse });
+    test("opens above the toolbar within the viewport and preserves mirroring and dismissal focus", async ({
+      page,
+    }, testInfo) => {
+      const height = 900;
+      await page.setViewportSize({ width, height });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await mockEditorApi(page, "baseline");
+      await page.goto("/tests/layout/editor-touch.html?theme=light");
+      await expect(page.getByRole("textbox", { name: /page name/i })).toHaveValue("Kitchen morning");
+      await expect(page.getByText("Can’t tell what this display draws", { exact: true })).toBeVisible();
+      await expect(page.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(0);
+      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(coarse);
+
+      const toolbar = page.locator('[data-slot="editor-toolbar"][data-size="touch"][data-capabilities="plain-text"]');
+      await expect(toolbar).toBeVisible();
+      await expect(toolbar.getByRole("button", { name: "Colors", exact: true })).toBeDisabled();
+      await expect(toolbar.getByRole("button", { name: "Formatting", exact: true })).toBeDisabled();
+      const trigger = toolbar.getByRole("button", { name: "More", exact: true });
+      await trigger.click();
+      const popup = page.getByTestId("toolbar-dropdown-panel");
+      await expect(popup).toBeVisible();
+      await expect(popup).toHaveAttribute("data-slot", "popover-content");
+      await expect(popup).toHaveAttribute("data-side", "top");
+      expect(await popup.evaluate((element) => element.closest('[data-slot="editor-toolbar"]') === null)).toBe(true);
+
+      await expect
+        .poll(async () => {
+          const popupBounds = await popup.boundingBox();
+          const toolbarBounds = await toolbar.boundingBox();
+          return !!popupBounds && !!toolbarBounds && popupBounds.y + popupBounds.height <= toolbarBounds.y + 1;
+        })
+        .toBe(true);
+      const popupBounds = await popup.boundingBox();
+      expect(popupBounds!.x).toBeGreaterThanOrEqual(0);
+      expect(popupBounds!.y).toBeGreaterThanOrEqual(0);
+      expect(popupBounds!.x + popupBounds!.width).toBeLessThanOrEqual(width);
+      expect(popupBounds!.y + popupBounds!.height).toBeLessThanOrEqual(height);
+      expect(await popup.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+      const mirror = popup.getByRole("switch", { name: "Mirror to board while editing", exact: true });
+      await expect(mirror).not.toBeChecked();
+      await mirror.click();
+      await expect(mirror).toBeChecked();
+      await expect(page.getByText("Mirroring", { exact: true })).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      await injectAxe(page);
+      // The body-level toolbar and popup must be included in the scan.
+      await checkA11y(page);
+      const shots = process.env.EDITOR_TOUCH_SHOTS || testInfo.outputPath("editor-touch-shots");
+      await mkdir(shots, { recursive: true });
+      await page.screenshot({ path: path.join(shots, `impl-h3-${width}-${coarse ? "coarse" : "fine"}-more.png`) });
+
+      await mirror.press("Escape");
+      await expect(popup).toBeHidden();
+      await expect(trigger).toBeFocused();
+      await trigger.click();
+      await expect(popup).toBeVisible();
+      await expect(popup.getByRole("switch", { name: "Mirror to board while editing", exact: true })).toBeChecked();
+      await popup.getByRole("switch", { name: "Mirror to board while editing", exact: true }).click();
+      await expect(popup.getByRole("switch", { name: "Mirror to board while editing", exact: true })).not.toBeChecked();
+      await page.keyboard.press("Escape");
+      await expect(trigger).toBeFocused();
+      await checkA11y(page);
+    });
+  });
+}
