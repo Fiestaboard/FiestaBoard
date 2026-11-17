@@ -81,7 +81,7 @@ The Update Now button will appear in Settings → System once the sidecar is hea
 
 If you prefer not to use the Docker socket at all, leave the `fiestaupdater` profile off and update manually instead.
 
-## Updating manually
+## Updating manually {#updating-manually-always-works}
 
 The Update Now button is a convenience shortcut. You can always update from the terminal:
 
@@ -102,7 +102,7 @@ docker compose pull && docker compose up -d
 The compose file uses a relative bind mount (`./data:/app/data`), so persistence depends on your current shell directory. If you run `docker compose pull && up -d` from a different folder than your original install, FiestaBoard will come up with empty settings — your data isn't deleted, but Docker is mounting a different (empty) folder. See [Troubleshooting → Settings or board credentials are gone after an update](/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update) if this has happened.
 :::
 
-## Stable, Beta and Alpha
+## Stable, Beta and Alpha {#the-beta-channel}
 
 See [Release Channels](/docs/features/release-channels) for the published versions,
 image tags and controls available in each release. The branch named `alpha`
