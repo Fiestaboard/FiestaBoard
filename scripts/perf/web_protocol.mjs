@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import http from "node:http";
 import https from "node:https";
+import { isDeepStrictEqual } from "node:util";
 
 // No network, browser, or filesystem side effects occur on import.
 export function profileFor(name) {
@@ -23,10 +24,14 @@ export function profileFor(name) {
 
 export function summarizeMetrics(records, { documentId, hiddenObserved, inputVerified }) {
   const metrics = { LCP: null, INP: null };
+  const ids = { LCP: new Set(), INP: new Set() };
+  const invalid = { LCP: false, INP: false };
   for (const record of records) {
     if (record.document_id !== documentId || record.final !== true || !Object.hasOwn(metrics, record.name)) continue;
-    if (typeof record.id !== "string" || !record.id || typeof record.value !== "number" || !Number.isFinite(record.value) || record.value < 0) continue;
-    metrics[record.name] = { id: record.id, value: record.value };
+    if (typeof record.id !== "string" || !record.id || typeof record.value !== "number" || !Number.isFinite(record.value) || record.value < 0) invalid[record.name] = true;
+    ids[record.name].add(record.id);
+    if (ids[record.name].size !== 1) invalid[record.name] = true;
+    metrics[record.name] = invalid[record.name] ? null : { id: record.id, value: record.value };
   }
   const missing = Object.keys(metrics).filter((name) => metrics[name] === null);
   return { complete: missing.length === 0 && hiddenObserved === true && inputVerified === true, metrics, missing };
@@ -179,8 +184,11 @@ export function collectorMetadataFromProvenance(provenance) {
   return { version: "5.1.0", attribution: true, format: "iife", license: "Apache-2.0", package_integrity: integrity, sha256 };
 }
 
+const approvedBrowserPreferences = { theme: "light", locale: "en-US", next_locale: "en", timezone: "UTC", display: { reduce_motion: false, board_animations: "on", site_animations: "on", board_flap_speed: "standard" } };
+
 export function planBrowserBatch(config, manifest) {
   const profile = profileFor(config.profile);
+  if (!isDeepStrictEqual(manifest.browser_preferences, approvedBrowserPreferences)) throw new Error("Manifest browser preference/animation stratum must match the approved explicit pin");
   if (!["flagship", "note", "array", "panel"].includes(config.geometry) || !manifest.boards?.[config.geometry]) throw new Error("Unknown fixture geometry");
   const board = manifest.boards[config.geometry];
   const page = manifest.pages?.find((item) => item.id === board.page_ids?.[0] && item.geometry === config.geometry && item.kind === "literal");
@@ -195,7 +203,7 @@ export function planBrowserBatch(config, manifest) {
   const filter = config.library_filter ?? "all";
   if (!["all", "selected-board"].includes(filter)) throw new Error("Unknown library filter case");
   return {
-    profileName: config.profile, profile, geometry: config.geometry, route: config.route, cache: config.cache,
+    profileName: config.profile, profile, browserPreferences: structuredClone(manifest.browser_preferences), geometry: config.geometry, route: config.route, cache: config.cache,
     batch: config.batch, samples: config.samples, warmups, diagnostic: config.diagnostic === true,
     board, page, path: paths[config.route], preferences: { boardId: board.id, libraryFilter: filter === "all" ? "all" : board.id },
     expectedLibraryCount: filter === "all" ? 96 : 24,
@@ -204,6 +212,42 @@ export function planBrowserBatch(config, manifest) {
 
 export function buildCollectorInitScript(source, preferences) {
   return `${source.toString()}\n;window.webVitals = webVitals;\n;(${installBrowserCollector.toString()})(${JSON.stringify(preferences)});\n`;
+}
+
+export function validateDocumentObservation(plan, observation) {
+  if (typeof observation?.document_id !== "string" || !observation.document_id || !Number.isFinite(observation.ready_ms) || observation.ready_ms < 0) throw new Error("Document identity and actual route-ready timing are required");
+  const events = observation.events;
+  if (!Array.isArray(events) || events.some((event) => event.document_id !== observation.document_id)) throw new Error("Document events must be scoped to the current document");
+  const ready = events.filter((event) => event.event === "collector_ready");
+  if (ready.length !== 1 || ready[0].secure_context !== true || ready[0].initial_visibility !== "visible" || ready[0].event_timing_supported !== true) throw new Error("Secure foreground collector/Event Timing readiness is incomplete");
+  if (ready[0].service_worker_supported !== true) throw new Error("Service worker eligibility is unavailable");
+  if (plan.cache === "cold-browser" && (observation.fresh_context !== true || ready[0].service_worker_controlled !== false)) throw new Error("Cold-browser sample lacks fresh uncontrolled context evidence");
+  if (plan.cache === "warm-pwa" && (ready[0].service_worker_controlled !== true || observation.warm_cache_verified !== true)) throw new Error("Warm-PWA controller/cache evidence is missing");
+  const lifecycle = observation.lifecycle;
+  if (!lifecycle || lifecycle.hiddenObserved !== true || lifecycle.invalidReason !== null || lifecycle.sinkFailed !== false) throw new Error("Document lifecycle/hidden/sink evidence is incomplete");
+  const hidden = events.filter((event) => event.event === "visibility" && event.visibility === "hidden" && event.controlled === true);
+  if (hidden.length !== 1 || !Number.isFinite(hidden[0].document_ms)) throw new Error("Exactly one actual controlled hidden lifecycle event is required");
+  const inputs = events.filter((event) => event.event === "trusted_input");
+  if (!inputs.length || inputs.length !== lifecycle.trustedInputCount || inputs.some((event) => !Number.isFinite(event.document_ms))) throw new Error("Actual trusted input records are missing or inconsistent");
+  const firstInput = Math.min(...inputs.map((event) => event.document_ms));
+  if (firstInput - observation.ready_ms < 1000) throw new Error("First trusted input preceded the fixed post-ready observation window");
+  const scripts = {
+    home: ["compose-open", "compose-type", "compose-cancel"], pages: ["page-open"],
+    editor: ["editor-focus", "editor-type", "editor-undo"], schedule: ["schedule-open", "schedule-cancel"],
+    integrations: ["integration-configure", "integration-cancel"], appearance: ["theme-change", "theme-restore"],
+  };
+  const required = [...scripts[plan.route], ...(plan.profileName === "phone" ? ["more-open", "more-close"] : [])];
+  if (!Array.isArray(observation.actions) || observation.actions.length !== required.length || observation.actions.some((action, index) => action.id !== required[index] || action.verified !== true || action.trusted !== true) || inputs.length < required.length) throw new Error("Mandatory trusted action script is missing, reordered or unverified");
+  if (observation.persisted_unchanged !== true) throw new Error("Persisted fixture state changed or was not verified");
+  if (!Array.isArray(observation.unexpected_api_writes) || observation.unexpected_api_writes.length) throw new Error("Unexpected API write/mutation invalidates the document");
+  if (!Array.isArray(observation.network_errors) || observation.network_errors.length) throw new Error("Network/authentication errors (including401) invalidate the document");
+  const metrics = summarizeMetrics(events.filter((event) => event.record_type === "browser_metric"), { documentId: observation.document_id, hiddenObserved: true, inputVerified: true });
+  if (!metrics.complete) throw new Error(`Final document metric callbacks missing/invalid: ${metrics.missing.join(",")}`);
+  for (const metric of events.filter((event) => event.record_type === "browser_metric" && event.final === true)) {
+    const boundary = metric.name === "INP" ? hidden[0].document_ms : firstInput;
+    if (!Number.isFinite(metric.document_ms) || metric.document_ms < boundary) throw new Error("Final metric callback preceded its actual lifecycle boundary");
+  }
+  return { complete: true, document_id: observation.document_id, ready_ms: observation.ready_ms, metrics: metrics.metrics, action_count: required.length, cache: plan.cache };
 }
 
 // Serialized into the measured document; no module closures may be referenced.
@@ -240,7 +284,9 @@ export function installBrowserCollector(preferences) {
     pending.add(completed);
   };
   if (window.document.visibilityState !== "visible") invalidate("document_not_foreground");
+  if (preferences.theme !== "light") invalidate("preference_pin_mismatch");
   try {
+    if (preferences.theme === "light") window.localStorage.setItem("theme", "light");
     window.localStorage.setItem("fiestaboard_current_board", preferences.boardId);
     window.localStorage.setItem("fiestaboard_pages_view_mode", "grid");
     window.sessionStorage.setItem("fiestaboard_pages_display_filter", preferences.libraryFilter);
@@ -321,6 +367,7 @@ export function installBrowserCollector(preferences) {
     record_type: "browser_lifecycle", event: "collector_ready", secure_context: window.isSecureContext === true,
     time_origin: window.performance.timeOrigin, initial_visibility: window.document.visibilityState,
     event_timing_supported: Boolean(window.PerformanceEventTiming && "interactionId" in window.PerformanceEventTiming.prototype),
+    service_worker_supported: Boolean(window.navigator?.serviceWorker), service_worker_controlled: Boolean(window.navigator?.serviceWorker?.controller),
   });
   return api;
 }

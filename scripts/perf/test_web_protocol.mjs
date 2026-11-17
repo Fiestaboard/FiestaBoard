@@ -9,8 +9,8 @@ import { gzipSync } from "node:zlib";
 import { test } from "node:test";
 import vm from "node:vm";
 
-import { buildCollectorInitScript, collectorMetadataFromProvenance, createRelay, installBrowserCollector, planBrowserBatch, profileFor, redact, relayLocation, relayRequestHeaders, summarizeMetrics, validateRunEvidence, validateSessionBatch, validateSessionCookieHeaders, verifyCollector } from "./web_protocol.mjs";
-import { createBatchSession, loadRunConfig, readPrivateCredentials, runBrowserBatch, verifyFixtureThroughSession } from "./web_run.mjs";
+import { buildCollectorInitScript, collectorMetadataFromProvenance, createRelay, installBrowserCollector, planBrowserBatch, profileFor, redact, relayLocation, relayRequestHeaders, summarizeMetrics, validateDocumentObservation, validateRunEvidence, validateSessionBatch, validateSessionCookieHeaders, verifyCollector } from "./web_protocol.mjs";
+import { collectBatchSamples, createBatchSession, loadRunConfig, readPrivateCredentials, runBrowserBatch, verifyFixtureThroughSession } from "./web_run.mjs";
 
 // These controlled loopback servers run only when root executes this test in
 // its serialized shared role. They never start the app or contact a live hub.
@@ -283,7 +283,7 @@ test("host-only session cookies can be reused in memory while explicit Domain co
 // Boundary harness for our initialization/serialization/lifecycle code, not a
 // browser simulation or proof of web-vitals correctness. Real visibility,
 // trusted events and callback drain still require root's Chromium trace.
-function collectorRealm({ wrappedSource } = {}) {
+function collectorRealm({ wrappedSource, theme = "light" } = {}) {
   const events = [];
   const listeners = new Map();
   const registrations = {};
@@ -306,11 +306,11 @@ function collectorRealm({ wrappedSource } = {}) {
   };
   realm.window = realm;
   realm.top = realm;
-  let source = `(${installBrowserCollector.toString()})({boardId:"perf-n",libraryFilter:"all"})`;
+  let source = `(${installBrowserCollector.toString()})(${JSON.stringify({ boardId: "perf-n", libraryFilter: "all", theme })})`;
   if (wrappedSource) {
     realm.__fixtureCollector = realm.webVitals;
     delete realm.webVitals;
-    source = buildCollectorInitScript(wrappedSource, { boardId: "perf-n", libraryFilter: "all" });
+    source = buildCollectorInitScript(wrappedSource, { boardId: "perf-n", libraryFilter: "all", theme });
     assert.equal(typeof source, "string", "the complete same-script collector wrapper exists");
     source = `(function(){\n${source}\n})()`;
   }
@@ -590,7 +590,9 @@ test("an unverified package, mutable version or changed packaged collector canno
   assert.throws(() => collectorMetadataFromProvenance(changed), /digest|pin/i);
 });
 
+const browserPreferences = { theme: "light", locale: "en-US", next_locale: "en", timezone: "UTC", display: { reduce_motion: false, board_animations: "on", site_animations: "on", board_flap_speed: "standard" } };
 const routeManifest = {
+  browser_preferences: browserPreferences,
   boards: {
     flagship: { id: "perf-f", name: "PERF Flagship", device_type: "flagship", rows: 6, cols: 22, page_ids: ["seed/page-one"] },
     note: { id: "perf-n", name: "PERF Note", device_type: "note", rows: 3, cols: 15, page_ids: ["note-one"] },
@@ -689,12 +691,12 @@ class JsonClient:
   return directory;
 }
 
-const verificationFlags = { exact_counts: true, exact_ids: true, geometry: true, read_back: true, runtime_manual_state: true };
+const verificationFlags = { exact_counts: true, exact_ids: true, geometry: true, read_back: true, runtime_manual_state: true, browser_preferences: true };
 
 test("the real Python bridge reuses the Node cookie session for serial public GET verification without another login", { timeout: 5000 }, async (t) => {
   const { origin, observed } = await authUpstream(t);
   const batch = await createBatchSession({ origin, credentials: { username: "perf_alpha3", password: "password-secret" }, userAgent: "Mozilla/5.0 test-browser", ...batchTiming, timeoutMs: 1000 });
-  const harness = await verifierHarness(t, 'answer = client.request("GET", "/api/v1/pages")\nif answer.status != 200 or answer.body != {"pages": [], "total": 0}:\n    raise ValueError("read failed")\nreturn {"exact_counts": True, "exact_ids": True, "geometry": True, "read_back": True, "runtime_manual_state": True}');
+  const harness = await verifierHarness(t, 'answer = client.request("GET", "/api/v1/pages")\nif answer.status != 200 or answer.body != {"pages": [], "total": 0}:\n    raise ValueError("read failed")\nreturn {"exact_counts": True, "exact_ids": True, "geometry": True, "read_back": True, "runtime_manual_state": True, "browser_preferences": True}');
   const result = await verifyFixtureThroughSession({ manifest: { seed_id: "seed-one" }, origin, session: batch, apiHarnessDir: harness, timeoutMs: 2000, maxRequests: 10 });
   assert.deepEqual(result, verificationFlags);
   assert.equal(observed.logins, 1);
@@ -782,4 +784,164 @@ test("invalid batch timing is refused before creating a login/session row", { ti
   const { origin, observed } = await authUpstream(t);
   await assert.rejects(createBatchSession({ origin, credentials: { username: "perf_alpha3", password: "password-secret" }, userAgent: "Mozilla/5.0 test-browser", ...batchTiming, batchSeconds: 0, timeoutMs: 1000 }), /time|batch/i);
   assert.equal(observed.logins, 0);
+});
+
+test("legacy five-flag fixture verification cannot bypass the shared browser-preference readback", { timeout: 5000 }, async (t) => {
+  const harness = await verifierHarness(t, 'client.request("GET", "/api/read")\nreturn {"exact_counts": True, "exact_ids": True, "geometry": True, "read_back": True, "runtime_manual_state": True}');
+  await assert.rejects(verifyFixtureThroughSession({ manifest: {}, origin: "http://hub:3000", session: { getJson: async () => ({}) }, apiHarnessDir: harness, timeoutMs: 2000, maxRequests: 1 }), /preference|incomplete|verif/i);
+});
+
+test("browser planning requires the exact shared preference stratum rather than silently selecting system/profile defaults", () => {
+  const plan = planBrowserBatch(routeConfig, routeManifest);
+  assert.deepEqual(plan.browserPreferences, browserPreferences);
+  for (const preferences of [undefined, { ...browserPreferences, theme: "system" }, { ...browserPreferences, display: { ...browserPreferences.display, board_animations: "desktop" } }]) {
+    assert.throws(() => planBrowserBatch(routeConfig, { ...routeManifest, browser_preferences: preferences }), /preference|stratum|animation/i);
+  }
+});
+
+test("bootstrap applies the declared theme before app scripts and exposes actual service-worker eligibility/control", () => {
+  const c = collectorRealm();
+  assert.equal(c.local.get("theme"), "light");
+  const ready = c.events.find((event) => event.event === "collector_ready");
+  assert.equal(ready.service_worker_supported, false);
+  assert.equal(ready.service_worker_controlled, false);
+  const unpinned = collectorRealm({ theme: "system" });
+  assert.equal(unpinned.api.state().invalidReason, "preference_pin_mismatch");
+});
+
+test("a malformed latest final or multiple metric IDs cannot fall back to an older faster valid metric", () => {
+  for (const tail of [
+    { document_id: "d", name: "LCP", id: "l", value: NaN, final: true },
+    { document_id: "d", name: "LCP", id: "other-lcp", value: 1, final: true },
+  ]) {
+    const result = summarizeMetrics([
+      { document_id: "d", name: "LCP", id: "l", value: 200, final: true },
+      { document_id: "d", name: "INP", id: "i", value: 24, final: true }, tail,
+    ], { documentId: "d", hiddenObserved: true, inputVerified: true });
+    assert.equal(result.complete, false);
+    assert.equal(result.metrics.LCP, null);
+    assert.deepEqual(result.missing, ["LCP"]);
+  }
+});
+
+function documentObservation(documentId = "doc-one", { controlled = false } = {}) {
+  return {
+    document_id: documentId, ready_ms: 100, fresh_context: true, warm_cache_verified: controlled,
+    events: [
+      { record_type: "browser_lifecycle", event: "collector_ready", document_id: documentId, secure_context: true, initial_visibility: "visible", event_timing_supported: true, service_worker_supported: true, service_worker_controlled: controlled },
+      { record_type: "browser_lifecycle", event: "trusted_input", document_id: documentId, document_ms: 1100, input_type: "click" },
+      { record_type: "browser_lifecycle", event: "trusted_input", document_id: documentId, document_ms: 1150, input_type: "keydown" },
+      { record_type: "browser_lifecycle", event: "trusted_input", document_id: documentId, document_ms: 1200, input_type: "click" },
+      { record_type: "browser_lifecycle", event: "visibility", document_id: documentId, document_ms: 1300, visibility: "hidden", controlled: true },
+      { record_type: "browser_metric", document_id: documentId, document_ms: 1101, name: "LCP", id: `lcp-${documentId}`, value: 250, final: true },
+      { record_type: "browser_metric", document_id: documentId, document_ms: 1301, name: "INP", id: `inp-${documentId}`, value: 24, final: true },
+    ],
+    lifecycle: { hiddenObserved: true, trustedInputCount: 3, invalidReason: null, sinkFailed: false },
+    actions: ["compose-open", "compose-type", "compose-cancel"].map((id) => ({ id, verified: true, trusted: true })),
+    persisted_unchanged: true, network_errors: [], unexpected_api_writes: [],
+  };
+}
+
+test("document validation derives metric completeness from actual callback/lifecycle/action records rather than a caller complete flag", () => {
+  const plan = planBrowserBatch(routeConfig, routeManifest);
+  const result = validateDocumentObservation(plan, documentObservation());
+  assert.ok(result);
+  assert.equal(result.complete, true);
+  assert.equal(result.metrics.LCP.value, 250);
+  assert.equal(result.metrics.INP.value, 24);
+  const missing = documentObservation();
+  missing.complete = true;
+  missing.events = missing.events.filter((event) => event.name !== "INP");
+  assert.throws(() => validateDocumentObservation(plan, missing), /INP|metric/i);
+});
+
+test("missing mandatory input, early first input, unexpected hide or sink failure invalidates a document", () => {
+  const plan = planBrowserBatch(routeConfig, routeManifest);
+  const absentAction = documentObservation();
+  absentAction.actions = absentAction.actions.filter((action) => action.id !== "compose-type");
+  assert.throws(() => validateDocumentObservation(plan, absentAction), /action|input/i);
+  const early = documentObservation();
+  early.events.find((event) => event.event === "trusted_input").document_ms = 1099;
+  assert.throws(() => validateDocumentObservation(plan, early), /ready|window/i);
+  for (const lifecycle of [{ hiddenObserved: false }, { invalidReason: "unexpected_hidden" }, { sinkFailed: true }]) {
+    const invalid = documentObservation();
+    Object.assign(invalid.lifecycle, lifecycle);
+    assert.throws(() => validateDocumentObservation(plan, invalid), /lifecycle|hidden|sink/i);
+  }
+});
+
+test("cold and warm-PWA cache evidence cannot be relabeled when the controller/fresh-context requirement is missing", () => {
+  const cold = planBrowserBatch(routeConfig, routeManifest);
+  const notFresh = documentObservation();
+  notFresh.fresh_context = false;
+  assert.throws(() => validateDocumentObservation(cold, notFresh), /fresh|context|cold/i);
+  const warm = planBrowserBatch({ ...routeConfig, cache: "warm-pwa" }, routeManifest);
+  assert.throws(() => validateDocumentObservation(warm, documentObservation()), /worker|controller|warm|cache/i);
+  assert.equal(validateDocumentObservation(warm, documentObservation("warm", { controlled: true })).complete, true);
+});
+
+test("fast unauthorized responses, saved-state drift and a config write remain failed semantic samples", () => {
+  const plan = planBrowserBatch(routeConfig, routeManifest);
+  const unauthorized = documentObservation();
+  unauthorized.network_errors.push({ status: 401, elapsed_ms: 1 });
+  assert.throws(() => validateDocumentObservation(plan, unauthorized), /401|network|auth/i);
+  const changed = documentObservation();
+  changed.persisted_unchanged = false;
+  assert.throws(() => validateDocumentObservation(plan, changed), /persist|fixture|state/i);
+  const wrote = documentObservation();
+  wrote.unexpected_api_writes.push({ method: "PUT", path: "/api/plugins/date_time/config" });
+  assert.throws(() => validateDocumentObservation(plan, wrote), /write|mutat/i);
+});
+
+test("batch sampling is serial, keeps warmup separate, and verifies the same session outside document work", async () => {
+  const plan = planBrowserBatch({ ...routeConfig, samples: 2, warmups: 1 }, routeManifest);
+  let active = 0;
+  let maximum = 0;
+  let calls = 0;
+  let verifications = 0;
+  const records = [];
+  const summary = await collectBatchSamples({ plan,
+    verifySession: async () => { assert.equal(active, 0); verifications += 1; },
+    verifyFixtureAfter: async () => verificationFlags,
+    measureDocument: async () => { active += 1; maximum = Math.max(maximum, active); calls += 1; await new Promise(setImmediate); active -= 1; return documentObservation(`doc-${calls}`); },
+    onRecord: (record) => records.push(record),
+  });
+  assert.ok(summary);
+  assert.equal(summary.complete, true);
+  assert.equal(summary.baseline_eligible, false);
+  assert.equal(summary.samples, 2);
+  assert.equal(summary.warmups, 1);
+  assert.equal(maximum, 1);
+  assert.equal(calls, 3);
+  assert.equal(verifications, 6);
+  assert.equal(records.filter((record) => record.record_type === "browser_warmup").length, 1);
+  assert.equal(records.filter((record) => record.record_type === "browser_sample").length, 2);
+});
+
+test("a missing second sample metric preserves partial failure evidence and cannot become a complete batch", async () => {
+  const plan = planBrowserBatch({ ...routeConfig, samples: 3 }, routeManifest);
+  const records = [];
+  let calls = 0;
+  await assert.rejects(collectBatchSamples({ plan, verifySession: async () => {}, verifyFixtureAfter: async () => verificationFlags,
+    measureDocument: async () => { calls += 1; const observation = documentObservation(`doc-${calls}`); if (calls === 2) observation.events = observation.events.filter((event) => event.name !== "INP"); return observation; },
+    onRecord: (record) => records.push(record),
+  }), /incomplete|INP|metric/i);
+  assert.equal(calls, 2);
+  assert.equal(records.filter((record) => record.record_type === "browser_sample").length, 1);
+  assert.equal(records.filter((record) => record.record_type === "browser_failure").length, 1);
+  assert.equal(records.find((record) => record.record_type === "browser_batch_summary").complete, false);
+});
+
+test("reusing a warmup or earlier document ID cannot fill another planned full-document sample", async () => {
+  const plan = planBrowserBatch({ ...routeConfig, samples: 2 }, routeManifest);
+  await assert.rejects(collectBatchSamples({ plan, verifySession: async () => {}, verifyFixtureAfter: async () => verificationFlags, measureDocument: async () => documentObservation("same-document"), onRecord: () => {} }), /document|duplicate|incomplete/i);
+});
+
+test("failed terminal fixture verification cannot leave a successful browser batch footer", async () => {
+  const plan = planBrowserBatch(routeConfig, routeManifest);
+  const records = [];
+  await assert.rejects(collectBatchSamples({ plan, verifySession: async () => {}, verifyFixtureAfter: async () => { throw new Error("fixture changed after actions"); }, measureDocument: async () => documentObservation(), onRecord: (record) => records.push(record) }), /fixture|incomplete/i);
+  const summaries = records.filter((record) => record.record_type === "browser_batch_summary");
+  assert.equal(summaries.length, 1);
+  assert.equal(summaries[0].complete, false);
 });

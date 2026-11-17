@@ -4,7 +4,7 @@ import { lstat, readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { redact, validateBatchTiming, validateSessionBatch, validateSessionCookieHeaders } from "./web_protocol.mjs";
+import { redact, validateBatchTiming, validateDocumentObservation, validateSessionBatch, validateSessionCookieHeaders } from "./web_protocol.mjs";
 
 // Browser runner entry point. No side effects on import; root owns execution.
 export async function readPrivateCredentials(path) {
@@ -32,9 +32,52 @@ export async function loadRunConfig(path) {
   return value;
 }
 
+export async function collectBatchSamples({ plan, verifySession, verifyFixtureAfter, measureDocument, onRecord }) {
+  const seen = new Set();
+  let samples = 0;
+  let warmups = 0;
+  let observation;
+  let phase;
+  let index;
+  const summary = (complete, failed) => ({
+    record_type: "browser_batch_summary", complete, failed, diagnostic: plan.diagnostic, baseline_eligible: false,
+    profile: plan.profileName, route: plan.route, geometry: plan.geometry, cache: plan.cache, batch: plan.batch,
+    planned_samples: plan.samples, samples, warmups,
+  });
+  try {
+    if (typeof verifyFixtureAfter !== "function") throw new Error("Terminal fixture verification is required");
+    for (const group of [{ phase: "warmup", count: plan.warmups }, { phase: plan.diagnostic ? "diagnostic" : "measurement", count: plan.samples }]) {
+      phase = group.phase;
+      for (index = 1; index <= group.count; index += 1) {
+        observation = null;
+        await verifySession();
+        observation = await measureDocument({ phase, index });
+        const result = validateDocumentObservation(plan, observation);
+        if (seen.has(result.document_id)) throw new Error("Duplicate full-document sample identity");
+        seen.add(result.document_id);
+        await verifySession();
+        if (phase === "warmup") warmups += 1;
+        else samples += 1;
+        onRecord({ ...result, record_type: phase === "warmup" ? "browser_warmup" : "browser_sample", phase, sample_index: index, observation });
+      }
+    }
+    observation = null;
+    const finalFixture = await verifyFixtureAfter();
+    if (!["exact_counts", "exact_ids", "geometry", "read_back", "runtime_manual_state", "browser_preferences"].every((key) => finalFixture?.[key] === true)) throw new Error("Terminal fixture verification is incomplete");
+    if (samples !== plan.samples || warmups !== plan.warmups) throw new Error("Planned browser document count is incomplete");
+    const result = summary(true, 0);
+    onRecord(result);
+    return result;
+  } catch (error) {
+    onRecord({ record_type: "browser_failure", phase: phase ?? "preflight", sample_index: index ?? null, observation, error: String(error), complete: false });
+    onRecord(summary(false, 1));
+    throw new Error(`Browser batch incomplete: ${error.message}`);
+  }
+}
+
 export async function verifyFixtureThroughSession({ manifest, origin, session, apiHarnessDir, timeoutMs = 300000, maxRequests = 200, maxFrameBytes = 4 * 1024 * 1024, pythonExecutable = "python3", onRecord = () => {} }) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || !Number.isInteger(maxRequests) || maxRequests < 1 || !Number.isInteger(maxFrameBytes) || maxFrameBytes < 256) throw new Error("Verifier request/frame/deadline bounds are required");
-  const flags = ["exact_counts", "exact_ids", "geometry", "read_back", "runtime_manual_state"];
+  const flags = ["exact_counts", "exact_ids", "geometry", "read_back", "runtime_manual_state", "browser_preferences"];
   const controller = new AbortController();
   const safeEnvironment = Object.fromEntries(["PATH", "LANG", "LC_ALL", "TZ"].filter((key) => process.env[key]).map((key) => [key, process.env[key]]));
   const child = spawn(pythonExecutable, ["-I", "-B", fileURLToPath(new URL("./web_verify_bridge.py", import.meta.url)), "--api-harness-dir", apiHarnessDir, "--max-frame-bytes", String(maxFrameBytes)], { stdio: ["pipe", "pipe", "pipe"], env: safeEnvironment });
