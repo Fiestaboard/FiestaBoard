@@ -1,7 +1,11 @@
 import { defineConfig } from "@playwright/test";
 import path from "node:path";
 
-import { campaign } from "./campaign";
+import { assertReservedRun, campaign } from "./campaign";
+
+// Configuration loads before Playwright clears outputDir or opens reporters.
+// The launcher reserves once; worker imports only verify the inherited receipt.
+assertReservedRun();
 
 const viewports = [
   { name: "desktop", width: 1280, height: 800, isMobile: false, hasTouch: false },
@@ -39,7 +43,7 @@ export default defineConfig({
     serviceWorkers: "block",
     reducedMotion: "no-preference",
     storageState: campaign.storageState,
-    trace: "retain-on-failure",
+    trace: "on",
     screenshot: "only-on-failure",
   },
   projects: viewports.flatMap(({ name, width, height, isMobile, hasTouch }) =>

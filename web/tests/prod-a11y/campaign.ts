@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 function required(name: string): string {
@@ -63,3 +64,17 @@ export function readCampaign() {
 }
 
 export const campaign = readCampaign();
+
+/** Runs in the CLI and workers without creating or clearing any directories. */
+export function assertReservedRun() {
+  const token = process.env.AUDIT_RUN_TOKEN;
+  let reservedToken: string | undefined;
+  try {
+    reservedToken = readFileSync(path.join(campaign.artifactDir, ".run-owner"), "utf8");
+  } catch {
+    // A direct Playwright invocation must fail before it clears prior output.
+  }
+  if (!token || reservedToken !== token) {
+    throw new Error("Start audits with node tests/prod-a11y/run.mjs; a fresh evidence directory is required.");
+  }
+}
