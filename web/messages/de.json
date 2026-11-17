@@ -1463,7 +1463,9 @@
         "read_failed": "Display konnte nicht gelesen werden"
       },
       "removeConfirmTitle": "{name} entfernen?",
-      "removeConfirmBody": "Dadurch wird das Display von diesem Hub entfernt."
+      "removeConfirmBody": "Dadurch wird das Display von diesem Hub entfernt.",
+      "expected": "Was FiestaBoard gesendet hat",
+      "readbackUnavailable": "Dieses Display liefert kein lesbares aktuelles Bild."
     },
     "title": "Anzeigen",
     "description": "Alle Boards und Bildschirme, auf denen FiestaBoard anzeigt. Öffne eine Anzeige, um ihre Einstellungen zu ändern.",

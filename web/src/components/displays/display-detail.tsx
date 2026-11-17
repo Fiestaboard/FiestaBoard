@@ -1,4 +1,16 @@
-import { Box, Button, Flex, PageSection, Tabs, TabsContent, TabsList, TabsTrigger } from "@fiestaboard/ui";
+import {
+  Box,
+  Button,
+  Card,
+  Flex,
+  Grid,
+  PageSection,
+  Stack,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@fiestaboard/ui";
 import { Eye } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -131,7 +143,7 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
           }}
           paused={board.paused === true}
         />
-        <DisplayDiagnostics boardId={board.id} />
+        <DisplayDiagnostics board={board} />
       </TabsContent>
       <TabsContent keepMounted value="settings" className="mt-0">
         <DisplayEditor boardId={boardId} onRemoved={backToList} />
@@ -145,17 +157,33 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
         )}
       </TabsContent>
       <TabsContent keepMounted value="playback" className="mt-0">
-        {board && (
-          <DisplayTransition
-            board={board}
-            disabled={displays.saving}
-            onChange={(updates) => displays.updateBoard(board.id, updates)}
-          />
-        )}
-
-        <SilenceSchedule key={board.id} boardId={board.id} />
-        <ScheduleBehavior key={`behavior-${board.id}`} board={board} />
-        <UpdateIntervals key={`intervals-${board.id}`} board={board} />
+        <Grid
+          role="region"
+          aria-label={t("tabPlayback")}
+          gap="5"
+          className="p-4 lg:grid-cols-[minmax(0,1.54fr)_minmax(0,1fr)]"
+        >
+          <Stack gap="5" className="min-w-0">
+            <Card className="gap-0 py-0">
+              <SilenceSchedule key={board.id} boardId={board.id} />
+            </Card>
+            <Card className="gap-0 py-0">
+              <ScheduleBehavior key={`behavior-${board.id}`} board={board} />
+            </Card>
+          </Stack>
+          <Stack gap="5" className="min-w-0">
+            <Card className="gap-0 py-0">
+              <DisplayTransition
+                board={board}
+                disabled={displays.saving}
+                onChange={(updates) => displays.updateBoard(board.id, updates)}
+              />
+            </Card>
+            <Card className="gap-0 py-0">
+              <UpdateIntervals key={`intervals-${board.id}`} board={board} />
+            </Card>
+          </Stack>
+        </Grid>
       </TabsContent>
     </Tabs>
   );

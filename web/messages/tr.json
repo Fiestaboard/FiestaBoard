@@ -1463,7 +1463,9 @@
         "read_failed": "Ekran okunamadı"
       },
       "removeConfirmTitle": "{name} kaldırılsın mı?",
-      "removeConfirmBody": "Bu işlem ekranı bu hub’dan kaldırır."
+      "removeConfirmBody": "Bu işlem ekranı bu hub’dan kaldırır.",
+      "expected": "FiestaBoard’un gönderdiği içerik",
+      "readbackUnavailable": "Bu ekran okunabilir bir güncel görüntü sunmuyor."
     },
     "title": "Ekranlar",
     "description": "FiestaBoard'un gösterim yaptığı tüm panolar ve ekranlar. Ayarlarını değiştirmek için birini açın.",

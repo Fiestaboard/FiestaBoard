@@ -1463,7 +1463,9 @@
         "read_failed": "Impossibile leggere il display"
       },
       "removeConfirmTitle": "Rimuovere {name}?",
-      "removeConfirmBody": "Il display verrà rimosso da questo hub."
+      "removeConfirmBody": "Il display verrà rimosso da questo hub.",
+      "expected": "Cosa ha inviato FiestaBoard",
+      "readbackUnavailable": "Questo display non fornisce un’immagine attuale leggibile."
     },
     "title": "Schermi",
     "description": "Tutte le bacheche e gli schermi su cui FiestaBoard mostra contenuti. Aprine uno per modificarne le impostazioni.",

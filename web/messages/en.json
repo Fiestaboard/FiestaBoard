@@ -1390,7 +1390,9 @@
         "read_failed": "Could not read display"
       },
       "removeConfirmTitle": "Remove {name}?",
-      "removeConfirmBody": "This removes the display from this hub."
+      "removeConfirmBody": "This removes the display from this hub.",
+      "expected": "What FiestaBoard sent",
+      "readbackUnavailable": "This display does not provide a readable current frame."
     },
     "title": "Displays",
     "description": "Every board and screen FiestaBoard shows on. Open one to change its settings.",

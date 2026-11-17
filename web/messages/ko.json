@@ -1463,7 +1463,9 @@
         "read_failed": "디스플레이를 읽을 수 없음"
       },
       "removeConfirmTitle": "{name}을(를) 삭제할까요?",
-      "removeConfirmBody": "이 허브에서 디스플레이가 삭제됩니다."
+      "removeConfirmBody": "이 허브에서 디스플레이가 삭제됩니다.",
+      "expected": "FiestaBoard가 전송한 내용",
+      "readbackUnavailable": "이 디스플레이에서는 현재 화면을 읽을 수 없습니다."
     },
     "title": "디스플레이",
     "description": "FiestaBoard가 표시하는 모든 보드와 화면입니다. 설정을 바꾸려면 하나를 여세요.",

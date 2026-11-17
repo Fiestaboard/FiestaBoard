@@ -1463,7 +1463,9 @@
         "read_failed": "Nie udało się odczytać wyświetlacza"
       },
       "removeConfirmTitle": "Usunąć {name}?",
-      "removeConfirmBody": "Spowoduje to usunięcie wyświetlacza z tego huba."
+      "removeConfirmBody": "Spowoduje to usunięcie wyświetlacza z tego huba.",
+      "expected": "Co wysłał FiestaBoard",
+      "readbackUnavailable": "Ten wyświetlacz nie udostępnia odczytu bieżącego obrazu."
     },
     "title": "Wyświetlacze",
     "description": "Wszystkie tablice i ekrany, na których wyświetla FiestaBoard. Otwórz jeden, aby zmienić jego ustawienia.",

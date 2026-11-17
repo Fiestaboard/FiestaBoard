@@ -1463,7 +1463,9 @@
         "read_failed": "Não foi possível ler o ecrã"
       },
       "removeConfirmTitle": "Remover {name}?",
-      "removeConfirmBody": "Isto remove o ecrã deste hub."
+      "removeConfirmBody": "Isto remove o ecrã deste hub.",
+      "expected": "O que o FiestaBoard enviou",
+      "readbackUnavailable": "Este ecrã não fornece uma imagem atual legível."
     },
     "title": "Ecrãs",
     "description": "Todos os painéis e ecrãs em que o FiestaBoard mostra conteúdo. Abra um para alterar as configurações.",

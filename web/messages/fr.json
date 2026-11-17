@@ -1463,7 +1463,9 @@
         "read_failed": "Impossible de lire l’affichage"
       },
       "removeConfirmTitle": "Supprimer {name} ?",
-      "removeConfirmBody": "Cela supprime l’affichage de ce hub."
+      "removeConfirmBody": "Cela supprime l’affichage de ce hub.",
+      "expected": "Ce que FiestaBoard a envoyé",
+      "readbackUnavailable": "Cet affichage ne fournit pas d’image actuelle lisible."
     },
     "title": "Écrans",
     "description": "Tous les tableaux et écrans sur lesquels FiestaBoard affiche. Ouvrez-en un pour modifier ses paramètres.",

@@ -178,6 +178,7 @@ describe("/displays", () => {
     renderWith(<DisplaysPage />);
     const problems = await screen.findByRole("list", { name: "Needs a look" });
     expect(within(problems).getByText("Desk Pixoo")).toBeInTheDocument();
+    expect(Array.from(problems.children).every((element) => element.tagName === "LI")).toBe(true);
     expect(within(problems).getByText("Can't reach")).toBeInTheDocument();
     const online = screen.getByRole("list", { name: "Online" });
     expect(within(online).getByText("Kitchen")).toBeInTheDocument();
@@ -241,6 +242,52 @@ describe("/displays", () => {
     renderWith(<DisplaysPage />);
     await userEvent.click(await screen.findByRole("switch", { name: "Pause display" }));
     await waitFor(() => expect(calls.pause).toEqual([{ board: "kitchen", paused: true }]));
+  });
+
+  it("shows the current page and health separately from the next change", async () => {
+    setup([KITCHEN], {
+      kitchen: {
+        configured: true,
+        paused: false,
+        active_page_id: "current",
+        health: { reachable: true, breaker_open: false, latency_ms: 42, last_connected_at: "2026-11-16T09:41:00Z" },
+      },
+    });
+    server.use(
+      http.get(`${API}/v1/pages`, () =>
+        HttpResponse.json({ pages: [{ id: "current", name: "Evening commute" }], total: 1 }),
+      ),
+      http.get(`${API}/v1/boards/kitchen`, () =>
+        HttpResponse.json({ id: "kitchen", resolved_page_id: "current", schedule_enabled: true }),
+      ),
+    );
+    renderWith(<DisplaysPage />);
+    const pane = await screen.findByTestId("display-detail-pane");
+    expect(await within(pane).findByText("Now showing · Evening commute")).toBeInTheDocument();
+    expect(within(pane).getByTestId("display-health-summary")).toHaveTextContent("42 ms");
+  });
+
+  it("compares actual and expected frames in Diagnostics when readback exists", async () => {
+    setup([KITCHEN]);
+    server.use(
+      http.get(`${API}/board/current-message`, () =>
+        HttpResponse.json({
+          characters: [[1]],
+          expected_characters: [[2]],
+          message: "A",
+          api_mode: "local",
+          rows: 6,
+          cols: 22,
+        }),
+      ),
+    );
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Diagnostics" }));
+    const comparison = await screen.findByTestId("display-frame-comparison");
+    expect(within(comparison).getByText("What the board shows")).toBeInTheDocument();
+    expect(within(comparison).getByText("What FiestaBoard sent")).toBeInTheDocument();
+    expect(within(comparison).getAllByRole("img")).toHaveLength(2);
   });
 
   it("opens diagnostics with this display's health evidence", async () => {
@@ -396,6 +443,16 @@ describe("/displays/:boardId", () => {
     await userEvent.click(within(confirmation).getByRole("button", { name: "Remove Board" }));
     await waitFor(() => expect(calls.removed).toEqual(["desk"]));
     expect(push).toHaveBeenCalledWith("/displays");
+  });
+
+  it("groups playback controls in a named region for the route display", async () => {
+    setup([KITCHEN, DESK]);
+    params.boardId = "desk";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
+    const playback = await screen.findByRole("region", { name: "Playback" });
+    expect(await within(playback).findByRole("switch", { name: "Silence Schedule" })).toBeInTheDocument();
+    expect(within(playback).getByTestId("display-transition")).toBeInTheDocument();
   });
 
   it("shows that display's settings, preview and transition", async () => {
