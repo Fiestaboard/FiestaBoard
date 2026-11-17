@@ -13,6 +13,29 @@ vi.mock("@/lib/github", () => ({
   rewriteMarkdownRepoLinks: (value: string) => value,
 }));
 
+it("nests README sections below the integration heading and clamps deeper sections at heading six", () => {
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <IntegrationReadme
+        pluginId="weather"
+        documentation={
+          "# Guide\n\nBody copy.\n\n## Setup\n\n### Details\n\n#### Advanced\n\n##### Notes\n\n###### Appendix"
+        }
+      />
+    </QueryClientProvider>,
+  );
+  for (const [name, level] of [
+    ["Guide", 3],
+    ["Setup", 4],
+    ["Details", 5],
+    ["Advanced", 6],
+    ["Notes", 6],
+    ["Appendix", 6],
+  ] as const) {
+    expect(screen.getByRole("heading", { name, level })).toBeInTheDocument();
+  }
+});
+
 it("refreshes README when an installed plugin changes repository while keeping its ID and branch", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = render(
