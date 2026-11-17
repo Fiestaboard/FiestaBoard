@@ -1,5 +1,14 @@
 """Browser request policy must reject requests before their handlers run."""
 
+import shutil
+import socket
+import subprocess
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+import httpx
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -182,8 +191,72 @@ def test_fetch_metadata_blocks_cross_site_requests_without_origin(portal):
     assert not reached
 
 
-@pytest.mark.parametrize("host", ["localhost:0", "localhost:", "localhost/", "localhost?", "localhost#", "user@localhost", "localhost:65536"])
+@pytest.mark.parametrize(
+    "host", ["localhost:0", "localhost:", "localhost/", "localhost?", "localhost#", "user@localhost", "localhost:65536"]
+)
 def test_malformed_host_never_reaches_handler(portal, host):
     factory, reached = portal
     assert factory().post("/start", headers={"Host": host}).status_code == 400
     assert not reached
+
+
+@pytest.mark.parametrize("path", ["/oauth/callback", "/api/oauth/callback"])
+def test_callback_navigation_is_narrow_and_still_checks_host(portal, path):
+    factory, reached = portal
+    headers = {"Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "navigate"}
+    client = factory()
+    assert client.get(path, headers=headers).status_code == 200
+    assert client.post(path, headers=headers).status_code == 403
+    assert client.get(path + "/extra", headers=headers).status_code == 403
+    assert client.get(path, headers={**headers, "Host": "unlisted.example"}).status_code == 400
+    assert reached == [("GET", path.lstrip("/"))]
+
+
+@pytest.mark.skipif(shutil.which("nginx") is None, reason="nginx required for proxy integration")
+def test_ingress_proxy_preserves_browser_authority(portal, tmp_path):
+    factory, reached = portal
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            response = factory().post("/start", headers=dict(self.headers))
+            self.send_response(response.status_code)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    upstream = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    worker = threading.Thread(target=upstream.serve_forever, daemon=True)
+    worker.start()
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    config = Path("infra/ha-ingress-proxy.conf").read_text()
+    config = config.replace("listen 80;", f"listen 127.0.0.1:{port};")
+    config = config.replace("http://fiestaboard:3000", f"http://127.0.0.1:{upstream.server_port}")
+    path = tmp_path / "nginx.conf"
+    path.write_text(
+        f"pid {tmp_path}/nginx.pid; error_log {tmp_path}/error.log; events {{}} http {{ access_log off; {config} }}"
+    )
+    process = subprocess.Popen(["nginx", "-c", str(path), "-p", str(tmp_path), "-g", "daemon off;"])
+    try:
+        for _ in range(100):
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+                    break
+            except OSError:
+                assert process.poll() is None
+                time.sleep(0.02)
+        origin = f"http://localhost:{port}"
+        response = httpx.post(
+            f"http://127.0.0.1:{port}/api/hassio_ingress/test-token/start",
+            headers={"Host": f"localhost:{port}", "Origin": origin},
+        )
+        assert response.status_code == 200
+        assert reached == [("POST", "start")]
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
+        upstream.shutdown()
+        upstream.server_close()
+        worker.join(timeout=5)

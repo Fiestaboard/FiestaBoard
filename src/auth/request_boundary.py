@@ -61,7 +61,7 @@ def configured_origins() -> list[str]:
 
 
 def _trusted_origins() -> set[tuple[str, str, int]]:
-    values = configured_origins() + [os.environ.get("FIESTABOARD_EXTERNAL_URL", "")]
+    values = [*configured_origins(), os.environ.get("FIESTABOARD_EXTERNAL_URL", "")]
     return {origin for value in values if (origin := _origin(value)) is not None}
 
 
@@ -104,11 +104,7 @@ class RequestBoundaryMiddleware:
         hosts = [v.decode("latin-1") for k, v in scope["headers"] if k.lower() == b"host"]
         origins = [v.decode("latin-1") for k, v in scope["headers"] if k.lower() == b"origin"]
         scheme = {"ws": "http", "wss": "https"}.get(scope["scheme"], scope["scheme"])
-        address = (
-            _origin(f"{scheme}://{hosts[0]}")
-            if len(hosts) == 1 and "/" not in hosts[0]
-            else None
-        )
+        address = _origin(f"{scheme}://{hosts[0]}") if len(hosts) == 1 and "/" not in hosts[0] else None
         allowed = _trusted_origins()
         status = 0
         if address is None or not _trusted_host(address[1], allowed):
@@ -124,7 +120,15 @@ class RequestBoundaryMiddleware:
             if not discovery and (origin is None or origin not in allowed | {address}):
                 status = 403
         elif any(k.lower() == b"sec-fetch-site" and v == b"cross-site" for k, v in scope["headers"]):
-            status = 403
+            # The OAuth relay returns by cross-site navigation. Its handler
+            # authenticates the signed, single-use state; Host is still checked.
+            callback = (
+                scope["type"] == "http"
+                and scope["method"] == "GET"
+                and scope["path"] in {"/oauth/callback", "/api/oauth/callback"}
+            )
+            if not callback:
+                status = 403
         if status:
             if scope["type"] == "websocket":
                 await send({"type": "websocket.close", "code": 1008})

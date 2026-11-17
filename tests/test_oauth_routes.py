@@ -255,11 +255,12 @@ def test_a_provider_that_fails_to_start_a_device_flow_is_a_502(client, provider)
 # ── The callback ────────────────────────────────────────────────────────────
 
 
-def test_a_valid_callback_connects_and_returns_to_the_integrations_page(client, provider, service):
+@pytest.mark.parametrize("navigation_headers", [{}, {"Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "navigate"}])
+def test_a_valid_callback_connects_and_returns_to_the_integrations_page(client, provider, service, navigation_headers):
     state = _state_from(client.post("/oauth/connections/music/authorize", json=BOARD))
     provider.replies.append((200, TOKENS))
 
-    response = client.get("/oauth/callback", params={"code": "code-1", "state": state})
+    response = client.get("/oauth/callback", params={"code": "code-1", "state": state}, headers=navigation_headers)
 
     assert response.status_code == 302
     assert response.headers["location"] == "../../integrations?tab=installed&oauth=connected&plugin=music"
