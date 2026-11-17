@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { chmod, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import http from "node:http";
+import os from "node:os";
+import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { test } from "node:test";
 import vm from "node:vm";
 
-import { collectorMetadataFromProvenance, createRelay, installBrowserCollector, profileFor, redact, relayLocation, relayRequestHeaders, summarizeMetrics, validateRunEvidence, validateSessionBatch, validateSessionCookieHeaders, verifyCollector } from "./web_protocol.mjs";
-import { createBatchSession, runBrowserBatch } from "./web_run.mjs";
+import { buildCollectorInitScript, collectorMetadataFromProvenance, createRelay, installBrowserCollector, planBrowserBatch, profileFor, redact, relayLocation, relayRequestHeaders, summarizeMetrics, validateRunEvidence, validateSessionBatch, validateSessionCookieHeaders, verifyCollector } from "./web_protocol.mjs";
+import { createBatchSession, loadRunConfig, readPrivateCredentials, runBrowserBatch, verifyFixtureThroughSession } from "./web_run.mjs";
 
 // These controlled loopback servers run only when root executes this test in
 // its serialized shared role. They never start the app or contact a live hub.
@@ -280,7 +283,7 @@ test("host-only session cookies can be reused in memory while explicit Domain co
 // Boundary harness for our initialization/serialization/lifecycle code, not a
 // browser simulation or proof of web-vitals correctness. Real visibility,
 // trusted events and callback drain still require root's Chromium trace.
-function collectorRealm() {
+function collectorRealm({ wrappedSource } = {}) {
   const events = [];
   const listeners = new Map();
   const registrations = {};
@@ -303,8 +306,17 @@ function collectorRealm() {
   };
   realm.window = realm;
   realm.top = realm;
+  let source = `(${installBrowserCollector.toString()})({boardId:"perf-n",libraryFilter:"all"})`;
+  if (wrappedSource) {
+    realm.__fixtureCollector = realm.webVitals;
+    delete realm.webVitals;
+    source = buildCollectorInitScript(wrappedSource, { boardId: "perf-n", libraryFilter: "all" });
+    assert.equal(typeof source, "string", "the complete same-script collector wrapper exists");
+    source = `(function(){\n${source}\n})()`;
+  }
   const context = vm.createContext(realm);
-  const api = vm.runInContext(`(${installBrowserCollector.toString()})({boardId:"perf-n",libraryFilter:"all"})`, context);
+  const installed = vm.runInContext(source, context);
+  const api = installed ?? realm.__perfBrowser;
   assert.ok(api && typeof api.state === "function", "bootstrap returns the lifecycle controller");
   assert.ok(registrations.LCP && registrations.INP, "both official metric registrations exist");
   const fire = (type, properties) => { for (const listener of listeners.get(type) ?? []) listener(properties); };
@@ -383,6 +395,14 @@ test("collector serialization allowlists scalar attribution and raw entry fields
   assert.deepEqual(metric.entries, [{ entryType: "largest-contentful-paint", startTime: 310, size: 1200, renderTime: 310, loadTime: 0, url: "" }]);
   assert.equal(JSON.stringify(metric).includes("private"), false);
   assert.equal(JSON.stringify(metric).includes("never-retain"), false);
+});
+
+test("the same init script exposes a lexically scoped official-IIFE var to bootstrap under Playwright's function wrapper", async () => {
+  const c = collectorRealm({ wrappedSource: "var webVitals = __fixtureCollector;" });
+  c.fire("click", { isTrusted: true });
+  c.registrations.LCP.callback({ name: "LCP", id: "wrapped-lcp", value: 45, delta: 45, entries: [] });
+  await c.api.drain();
+  assert.equal(c.events.find((event) => event.name === "LCP").value, 45);
 });
 
 const publishedSource = "83236253aa8103db856b7efa456e088b9c9ec548";
@@ -464,8 +484,12 @@ test("baseline mode fails closed when diagnostic-only relay and lifecycle calibr
   assert.throws(() => validateRunEvidence(input), /calibrat/i);
 });
 
-function authUpstream(t, { expire = "2026-11-18T10:00:00+00:00", protectedStatus = 200, setupRequired = false } = {}) {
+function authUpstream(t, { expire = "2026-11-18T10:00:00+00:00", protectedStatus = 200, setupRequired = false, holdProtected = false } = {}) {
   const observed = { logins: 0, loginPayload: null, cookies: [], records: [] };
+  let markStarted;
+  let markClosed;
+  observed.protectedStarted = new Promise((resolve) => { markStarted = resolve; });
+  observed.protectedClosed = new Promise((resolve) => { markClosed = resolve; });
   return upstream(t, (req, res) => {
     observed.cookies.push({ path: req.url, value: req.headers.cookie });
     const chunks = [];
@@ -482,6 +506,11 @@ function authUpstream(t, { expire = "2026-11-18T10:00:00+00:00", protectedStatus
       } else if (req.url === "/api/auth/sessions") {
         res.end(JSON.stringify({ sessions: [{ ...session, expires_at: expire }], current_session_id: session.id }));
       } else {
+        if (holdProtected) {
+          res.once("close", markClosed);
+          markStarted();
+          return;
+        }
         res.statusCode = protectedStatus;
         res.end(JSON.stringify(protectedStatus === 401 ? { detail: "cookie-secret password-secret" } : { pages: [], total: 0 }));
       }
@@ -559,4 +588,159 @@ test("an unverified package, mutable version or changed packaged collector canno
   const changed = officialProvenance();
   changed.members["package/dist/web-vitals.attribution.iife.js"].sha256 = "candidate-build";
   assert.throws(() => collectorMetadataFromProvenance(changed), /digest|pin/i);
+});
+
+const routeManifest = {
+  boards: {
+    flagship: { id: "perf-f", name: "PERF Flagship", device_type: "flagship", rows: 6, cols: 22, page_ids: ["seed/page-one"] },
+    note: { id: "perf-n", name: "PERF Note", device_type: "note", rows: 3, cols: 15, page_ids: ["note-one"] },
+  },
+  pages: [
+    { id: "seed/page-one", name: "PERF F 01", geometry: "flagship", kind: "literal", template: ["PERF F 01", "FIXED", "END", "", "", ""] },
+    { id: "note-one", name: "PERF N 01", geometry: "note", kind: "literal", template: ["PERF N 01", "FIXED", "END"] },
+  ],
+};
+const routeConfig = { profile: "desktop", geometry: "flagship", route: "home", cache: "cold-browser", batch: 1, samples: 1, diagnostic: true, warmups: 0 };
+
+test("editor planning uses the selected geometry's actual literal ID and independent board/filter preferences", () => {
+  const plan = planBrowserBatch({ ...routeConfig, route: "editor" }, routeManifest);
+  assert.ok(plan, "one explicit route batch is returned");
+  assert.equal(plan.path, "/pages/edit/seed%2Fpage-one");
+  assert.equal(plan.page.id, "seed/page-one");
+  assert.deepEqual(plan.preferences, { boardId: "perf-f", libraryFilter: "all" });
+  assert.equal(plan.diagnostic, true);
+});
+
+test("All pages and compatible-board library cases retain distinct declared96/24 counts and cache labels", () => {
+  const all = planBrowserBatch({ ...routeConfig, route: "pages" }, routeManifest);
+  const compatible = planBrowserBatch({ ...routeConfig, profile: "phone", geometry: "note", route: "pages", library_filter: "selected-board", cache: "warm-pwa" }, routeManifest);
+  assert.ok(all && compatible);
+  assert.equal(all.expectedLibraryCount, 96);
+  assert.equal(compatible.expectedLibraryCount, 24);
+  assert.equal(compatible.preferences.boardId, "perf-n");
+  assert.equal(compatible.preferences.libraryFilter, "perf-n");
+  assert.equal(all.cache, "cold-browser");
+  assert.equal(compatible.cache, "warm-pwa");
+});
+
+test("invalid route/geometry/cache, missing literal and undersized baseline batches fail rather than selecting a fallback", () => {
+  for (const change of [{ route: "unknown" }, { geometry: "other" }, { cache: "warm-ish" }, { samples: 0 }, { diagnostic: false, samples: 19 }]) {
+    assert.throws(() => planBrowserBatch({ ...routeConfig, ...change }, routeManifest), /route|geometry|cache|sample|baseline/i);
+  }
+  assert.throws(() => planBrowserBatch(routeConfig, { ...routeManifest, pages: [] }), /literal|page/i);
+});
+
+async function temporaryDirectory(t) {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "perf-web-test-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  return directory;
+}
+
+test("private credentials are read only from a mode0600 regular file and never from a symlink or public-readable file", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const file = path.join(directory, "credentials.json");
+  await writeFile(file, JSON.stringify({ username: "perf_alpha3", password: "password-secret" }), { mode: 0o600 });
+  assert.deepEqual(await readPrivateCredentials(file), { username: "perf_alpha3", password: "password-secret" });
+  await chmod(file, 0o644);
+  await assert.rejects(readPrivateCredentials(file), /0600|private|permission/i);
+  await chmod(file, 0o600);
+  const link = path.join(directory, "linked.json");
+  await symlink(file, link);
+  await assert.rejects(readPrivateCredentials(link), /regular|symlink/i);
+});
+
+test("invalid credential/config JSON never echoes secret-containing input into retained exceptions", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const file = path.join(directory, "invalid.json");
+  await writeFile(file, '{"password":"password-secret"', { mode: 0o600 });
+  for (const read of [readPrivateCredentials, loadRunConfig]) {
+    await assert.rejects(read(file), (error) => !String(error).includes("password-secret") && /json|config|credential/i.test(String(error)));
+  }
+});
+
+test("explicit CLI config is parsed before the missing-manifest gate and is not printed into stderr", async (t) => {
+  const directory = await temporaryDirectory(t);
+  const file = path.join(directory, "run.json");
+  await writeFile(file, JSON.stringify({ diagnostic: true, synthetic_private_marker: "password-secret" }));
+  const config = await loadRunConfig(file);
+  assert.ok(config, "explicit config was read");
+  assert.equal(config.diagnostic, true);
+  const result = spawnSync(process.execPath, [new URL("./web_run.mjs", import.meta.url).pathname, "--config", file], { encoding: "utf8", timeout: 5000 });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /manifest/i);
+  assert.equal(result.stderr.includes("password-secret"), false);
+});
+
+async function verifierHarness(t, body) {
+  const directory = await temporaryDirectory(t);
+  await writeFile(path.join(directory, "runtime_common.py"), `
+class HttpResult:
+    def __init__(self, status, body, **kwargs):
+        self.status, self.body = status, body
+class JsonClient:
+    def __init__(self, base_url, credentials, *, transport):
+        if credentials:
+            raise ValueError("credentials must never enter child")
+        self.base_url, self.transport = base_url, transport
+    def request(self, method, path, payload=None):
+        return self.transport(method, self.base_url + path, payload, {}, 1)
+`);
+  await writeFile(path.join(directory, "runtime_seed.py"), `def verify_manifest(client, manifest):\n${body.split("\n").map((line) => `    ${line}`).join("\n")}\n`);
+  return directory;
+}
+
+const verificationFlags = { exact_counts: true, exact_ids: true, geometry: true, read_back: true, runtime_manual_state: true };
+
+test("the real Python bridge reuses the Node cookie session for serial public GET verification without another login", { timeout: 5000 }, async (t) => {
+  const { origin, observed } = await authUpstream(t);
+  const batch = await createBatchSession({ origin, credentials: { username: "perf_alpha3", password: "password-secret" }, userAgent: "Mozilla/5.0 test-browser", ...batchTiming, timeoutMs: 1000 });
+  const harness = await verifierHarness(t, 'answer = client.request("GET", "/api/v1/pages")\nif answer.status != 200 or answer.body != {"pages": [], "total": 0}:\n    raise ValueError("read failed")\nreturn {"exact_counts": True, "exact_ids": True, "geometry": True, "read_back": True, "runtime_manual_state": True}');
+  const result = await verifyFixtureThroughSession({ manifest: { seed_id: "seed-one" }, origin, session: batch, apiHarnessDir: harness, timeoutMs: 2000, maxRequests: 10 });
+  assert.deepEqual(result, verificationFlags);
+  assert.equal(observed.logins, 1);
+  assert.equal(observed.cookies.find((record) => record.path === "/api/v1/pages").value, "fiestaboard_session=cookie-secret");
+});
+
+test("a verification child cannot mutate the fixture through the read-only bridge", { timeout: 5000 }, async (t) => {
+  const harness = await verifierHarness(t, 'client.request("PUT", "/api/settings/board", {"boards": []})\nreturn {"exact_counts": True}');
+  let requests = 0;
+  await assert.rejects(verifyFixtureThroughSession({ manifest: {}, origin: "http://hub:3000", session: { getJson: async () => { requests += 1; return {}; } }, apiHarnessDir: harness, timeoutMs: 2000, maxRequests: 10 }), /GET|read.only|verifier/i);
+  assert.equal(requests, 0);
+});
+
+test("an exited child or missing verification flags cannot become a successful fixture preflight", { timeout: 5000 }, async (t) => {
+  for (const source of ['raise ValueError("verification failed")', 'client.request("GET", "/api/read")\nreturn {"exact_counts": True}']) {
+    const harness = await verifierHarness(t, source);
+    await assert.rejects(verifyFixtureThroughSession({ manifest: {}, origin: "http://hub:3000", session: { getJson: async () => ({}) }, apiHarnessDir: harness, timeoutMs: 2000, maxRequests: 10 }), /verif|child|complete/i);
+  }
+});
+
+test("verification requests are capped before an unexpected extra request reaches the session", { timeout: 5000 }, async (t) => {
+  const harness = await verifierHarness(t, 'client.request("GET", "/api/first")\nclient.request("GET", "/api/second")\nreturn {"exact_counts": True, "exact_ids": True, "geometry": True, "read_back": True, "runtime_manual_state": True}');
+  let requests = 0;
+  await assert.rejects(verifyFixtureThroughSession({ manifest: {}, origin: "http://hub:3000", session: { getJson: async () => { requests += 1; return {}; } }, apiHarnessDir: harness, timeoutMs: 2000, maxRequests: 1 }), /limit|many/i);
+  assert.equal(requests, 1);
+});
+
+test("an overall verifier deadline aborts an in-flight read and terminates the child instead of hanging before timing", { timeout: 5000 }, async (t) => {
+  const harness = await verifierHarness(t, 'client.request("GET", "/api/never-finishes")\nreturn {}');
+  let sawAbort = false;
+  await assert.rejects(verifyFixtureThroughSession({ manifest: {}, origin: "http://hub:3000", session: { getJson: async (_path, { signal }) => new Promise((_resolve, reject) => signal.addEventListener("abort", () => { sawAbort = true; reject(new Error("aborted read")); }, { once: true })) }, apiHarnessDir: harness, timeoutMs: 250, maxRequests: 1 }), /deadline|timeout/i);
+  assert.equal(sawAbort, true);
+});
+
+test("oversized verifier responses fail closed instead of growing an unbounded IPC frame", { timeout: 5000 }, async (t) => {
+  const harness = await verifierHarness(t, 'client.request("GET", "/api/oversized")\nreturn {}');
+  await assert.rejects(verifyFixtureThroughSession({ manifest: {}, origin: "http://hub:3000", session: { getJson: async () => ({ content: "x".repeat(2000) }) }, apiHarnessDir: harness, timeoutMs: 2000, maxRequests: 1, maxFrameBytes: 1000 }), /large|size|limit/i);
+});
+
+test("batch API cancellation closes a real in-flight request rather than leaving preflight traffic alive", { timeout: 5000 }, async (t) => {
+  const { origin, observed } = await authUpstream(t, { holdProtected: true });
+  const batch = await createBatchSession({ origin, credentials: { username: "perf_alpha3", password: "password-secret" }, userAgent: "Mozilla/5.0 test-browser", ...batchTiming, timeoutMs: 1000 });
+  const controller = new AbortController();
+  const pending = batch.getJson("/api/pages", { signal: controller.signal });
+  await observed.protectedStarted;
+  controller.abort();
+  await assert.rejects(pending, /abort/i);
+  await observed.protectedClosed;
 });

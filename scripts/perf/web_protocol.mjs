@@ -167,6 +167,33 @@ export function collectorMetadataFromProvenance(provenance) {
   return { version: "5.1.0", attribution: true, format: "iife", license: "Apache-2.0", package_integrity: integrity, sha256 };
 }
 
+export function planBrowserBatch(config, manifest) {
+  const profile = profileFor(config.profile);
+  if (!["flagship", "note", "array", "panel"].includes(config.geometry) || !manifest.boards?.[config.geometry]) throw new Error("Unknown fixture geometry");
+  const board = manifest.boards[config.geometry];
+  const page = manifest.pages?.find((item) => item.id === board.page_ids?.[0] && item.geometry === config.geometry && item.kind === "literal");
+  if (!page) throw new Error("The geometry's first literal page is missing");
+  const paths = { home: "/", pages: "/pages", editor: `/pages/edit/${encodeURIComponent(page.id)}`, schedule: "/schedule", integrations: "/integrations", appearance: "/settings/appearance" };
+  if (!Object.hasOwn(paths, config.route)) throw new Error("Unknown browser route");
+  if (!["cold-browser", "warm-pwa"].includes(config.cache)) throw new Error("Explicit cold-browser or warm-pwa cache stratum required");
+  if (!Number.isInteger(config.samples) || config.samples < 1 || (config.diagnostic !== true && config.samples < 20)) throw new Error("Invalid sample count; baseline batches require at least20");
+  if (!Number.isInteger(config.batch) || config.batch < 1) throw new Error("Explicit positive batch number required");
+  const warmups = config.warmups ?? 1;
+  if (!Number.isInteger(warmups) || warmups < 0 || (config.diagnostic !== true && warmups < 1)) throw new Error("Invalid warmup count");
+  const filter = config.library_filter ?? "all";
+  if (!["all", "selected-board"].includes(filter)) throw new Error("Unknown library filter case");
+  return {
+    profileName: config.profile, profile, geometry: config.geometry, route: config.route, cache: config.cache,
+    batch: config.batch, samples: config.samples, warmups, diagnostic: config.diagnostic === true,
+    board, page, path: paths[config.route], preferences: { boardId: board.id, libraryFilter: filter === "all" ? "all" : board.id },
+    expectedLibraryCount: filter === "all" ? 96 : 24,
+  };
+}
+
+export function buildCollectorInitScript(source, preferences) {
+  return `${source.toString()}\n;window.webVitals = webVitals;\n;(${installBrowserCollector.toString()})(${JSON.stringify(preferences)});\n`;
+}
+
 // Serialized into the measured document; no module closures may be referenced.
 export function installBrowserCollector(preferences) {
   if (window.top !== window || !["http:", "https:"].includes(window.location.protocol)) return null;

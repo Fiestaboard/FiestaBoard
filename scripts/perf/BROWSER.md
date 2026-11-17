@@ -130,6 +130,14 @@ web-vitals 5.1.0. Its verified content SHA-256 is
 The parent holds npm integrity verification and license provenance separately;
 no package or lockfile is modified.
 
+Initialize in one script, in this order: verified IIFE bytes, explicit
+`window.webVitals = webVitals`, then the serialized bootstrap. Playwright may
+wrap init content in a function, making the IIFE's `var webVitals` lexical
+rather than a Window property. The parent's first synthetic Chromium probe
+observed this injection failure; its failed attempts and traces remain
+diagnostic evidence, not metric results. Keep the immutable artifact hash
+separate from the generated wrapper's identity.
+
 ## Bound run evidence
 
 One invocation owns one route/profile/geometry/cache/batch, with serial samples.
