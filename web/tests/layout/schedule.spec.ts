@@ -24,10 +24,15 @@ async function expectScheduleReady(page: Page, width: number, theme: "light" | "
   await expect(board).toContainText("Kitchen board");
   await expect(page.getByTestId("active-board-indicator")).toHaveText("Kitchen board");
   await expect(page.getByTestId("gap-default-select")).toContainText("Breakfast specials");
-  await expect(
-    page.getByRole("button", { name: empty ? "1 schedule gap" : "1 schedule conflict", exact: true }),
-  ).toBeVisible();
-  if (!empty) {
+  if (empty) {
+    // The route enables validation only for nonempty schedules, so this state
+    // hydrates the default-page EmptyState without a validation indicator.
+    const emptyState = page.getByRole("region", { name: "No schedules created yet", exact: true });
+    await expect(emptyState).toBeVisible();
+    await expect(emptyState).toContainText("Gaps use Breakfast specials.");
+    await expect(page.getByRole("button", { name: /^\d+ schedule (?:conflicts?|gaps?)$/ })).toHaveCount(0);
+  } else {
+    await expect(page.getByRole("button", { name: "1 schedule conflict", exact: true })).toBeVisible();
     const conflicts =
       width >= 1024
         ? page.locator('[data-slot="week-calendar-entry"][data-conflict]')
