@@ -1461,7 +1461,9 @@
         "raised": "Richiesta di uscita non riuscita",
         "bad_response": "Risposta illeggibile",
         "read_failed": "Impossibile leggere il display"
-      }
+      },
+      "removeConfirmTitle": "Rimuovere {name}?",
+      "removeConfirmBody": "Il display verrà rimosso da questo hub."
     },
     "title": "Schermi",
     "description": "Tutte le bacheche e gli schermi su cui FiestaBoard mostra contenuti. Aprine uno per modificarne le impostazioni.",

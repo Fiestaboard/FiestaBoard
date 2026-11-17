@@ -1461,7 +1461,9 @@
         "raised": "输出请求失败",
         "bad_response": "无法读取响应",
         "read_failed": "无法读取显示设备"
-      }
+      },
+      "removeConfirmTitle": "移除 {name}？",
+      "removeConfirmBody": "这会从此中心移除显示设备。"
     },
     "title": "显示设备",
     "description": "FiestaBoard 进行显示的所有看板和屏幕。打开其中一个即可更改其设置。",

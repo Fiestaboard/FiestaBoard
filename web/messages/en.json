@@ -1388,7 +1388,9 @@
         "raised": "Output request failed",
         "bad_response": "Unreadable response",
         "read_failed": "Could not read display"
-      }
+      },
+      "removeConfirmTitle": "Remove {name}?",
+      "removeConfirmBody": "This removes the display from this hub."
     },
     "title": "Displays",
     "description": "Every board and screen FiestaBoard shows on. Open one to change its settings.",

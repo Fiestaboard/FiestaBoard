@@ -1461,7 +1461,9 @@
         "raised": "Utmatningsbegäran misslyckades",
         "bad_response": "Oläsbart svar",
         "read_failed": "Kunde inte läsa skärmen"
-      }
+      },
+      "removeConfirmTitle": "Ta bort {name}?",
+      "removeConfirmBody": "Detta tar bort skärmen från denna hubb."
     },
     "title": "Skärmar",
     "description": "Alla tavlor och skärmar som FiestaBoard visar på. Öppna en för att ändra dess inställningar.",

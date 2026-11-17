@@ -1461,7 +1461,9 @@
         "raised": "Uitvoerverzoek mislukt",
         "bad_response": "Onleesbaar antwoord",
         "read_failed": "Scherm kon niet worden gelezen"
-      }
+      },
+      "removeConfirmTitle": "{name} verwijderen?",
+      "removeConfirmBody": "Hiermee verwijder je het scherm van deze hub."
     },
     "title": "Schermen",
     "description": "Elk bord en scherm waarop FiestaBoard toont. Open er een om de instellingen te wijzigen.",

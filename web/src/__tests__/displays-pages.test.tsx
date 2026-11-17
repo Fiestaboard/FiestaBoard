@@ -82,7 +82,7 @@ const PIXOO_OUTPUT = {
 };
 
 function setup(boards: Record<string, unknown>[], status: Record<string, unknown> = {}) {
-  const calls = { put: [] as { boards: Record<string, unknown>[] }[], pause: [] as unknown[] };
+  const calls = { put: [] as { boards: Record<string, unknown>[] }[], pause: [] as unknown[], removed: [] as string[] };
   let stored = boards;
   server.use(
     http.get(`${API}/settings/board`, () => HttpResponse.json({ board_type: "black", boards: stored, devices: [] })),
@@ -91,6 +91,10 @@ function setup(boards: Record<string, unknown>[], status: Record<string, unknown
       calls.put.push(body);
       stored = body.boards;
       return HttpResponse.json({ board_type: "black", boards: stored, devices: [] });
+    }),
+    http.delete(`${API}/settings/board/:board`, ({ params: p }) => {
+      calls.removed.push(String(p.board));
+      return HttpResponse.json({});
     }),
     http.get(`${API}/outputs`, () => HttpResponse.json([...mockOutputs, PIXOO_OUTPUT])),
     http.get(`${API}/v1/status`, () => HttpResponse.json({ ...mockStatus, boards: status })),
@@ -366,6 +370,32 @@ describe("/displays/:boardId", () => {
     expect(await screen.findByRole("switch", { name: "Silence Schedule" })).toBeInTheDocument();
     // Base UI finishes hiding the previous kept-mounted panel after the tab switch.
     await waitFor(() => expect(screen.getByTestId("board-card")).not.toBeVisible());
+  });
+
+  it("confirms display removal and lets Cancel leave it unchanged", async () => {
+    const calls = setup([KITCHEN, DESK]);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Remove Board" }));
+    const confirmation = await screen.findByRole("alertdialog", { name: "Remove Kitchen?" });
+    expect(calls.removed).toHaveLength(0);
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+    expect(calls.removed).toHaveLength(0);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("removes only the route display after confirmation", async () => {
+    const calls = setup([KITCHEN, DESK]);
+    params.boardId = "desk";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Remove Board" }));
+    const confirmation = await screen.findByRole("alertdialog", { name: "Remove Desk Pixoo?" });
+    expect(calls.removed).toHaveLength(0);
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Remove Board" }));
+    await waitFor(() => expect(calls.removed).toEqual(["desk"]));
+    expect(push).toHaveBeenCalledWith("/displays");
   });
 
   it("shows that display's settings, preview and transition", async () => {

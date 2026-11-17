@@ -1461,7 +1461,9 @@
         "raised": "Falló la solicitud de salida",
         "bad_response": "Respuesta ilegible",
         "read_failed": "No se pudo leer la pantalla"
-      }
+      },
+      "removeConfirmTitle": "¿Eliminar {name}?",
+      "removeConfirmBody": "Esto elimina la pantalla de este hub."
     },
     "title": "Pantallas",
     "description": "Todos los tableros y pantallas en los que muestra FiestaBoard. Abre uno para cambiar su configuración.",

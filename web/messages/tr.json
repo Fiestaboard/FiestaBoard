@@ -1461,7 +1461,9 @@
         "raised": "Çıktı isteği başarısız oldu",
         "bad_response": "Yanıt okunamıyor",
         "read_failed": "Ekran okunamadı"
-      }
+      },
+      "removeConfirmTitle": "{name} kaldırılsın mı?",
+      "removeConfirmBody": "Bu işlem ekranı bu hub’dan kaldırır."
     },
     "title": "Ekranlar",
     "description": "FiestaBoard'un gösterim yaptığı tüm panolar ve ekranlar. Ayarlarını değiştirmek için birini açın.",

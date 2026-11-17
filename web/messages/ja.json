@@ -1461,7 +1461,9 @@
         "raised": "出力リクエストに失敗しました",
         "bad_response": "応答を読み取れません",
         "read_failed": "ディスプレイを読み取れませんでした"
-      }
+      },
+      "removeConfirmTitle": "{name} を削除しますか？",
+      "removeConfirmBody": "このハブからディスプレイを削除します。"
     },
     "title": "ディスプレイ",
     "description": "FiestaBoard が表示するすべてのボードと画面です。設定を変えるには開いてください。",

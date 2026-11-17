@@ -1461,7 +1461,9 @@
         "raised": "Falha no pedido de saída",
         "bad_response": "Resposta ilegível",
         "read_failed": "Não foi possível ler o ecrã"
-      }
+      },
+      "removeConfirmTitle": "Remover {name}?",
+      "removeConfirmBody": "Isto remove o ecrã deste hub."
     },
     "title": "Ecrãs",
     "description": "Todos os painéis e ecrãs em que o FiestaBoard mostra conteúdo. Abra um para alterar as configurações.",

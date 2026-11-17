@@ -1461,7 +1461,9 @@
         "raised": "Żądanie wyjścia nie powiodło się",
         "bad_response": "Nieczytelna odpowiedź",
         "read_failed": "Nie udało się odczytać wyświetlacza"
-      }
+      },
+      "removeConfirmTitle": "Usunąć {name}?",
+      "removeConfirmBody": "Spowoduje to usunięcie wyświetlacza z tego huba."
     },
     "title": "Wyświetlacze",
     "description": "Wszystkie tablice i ekrany, na których wyświetla FiestaBoard. Otwórz jeden, aby zmienić jego ustawienia.",

@@ -33,7 +33,7 @@
 ## Review and finish
 
 - [ ] Astra reviewer independently reviews each PR exact head against brief/rulings/refs (maximum three rounds). Fix important findings test-first.
-- [ ] Poll hosted checks to green; record observed evidence and outstanding gaps in status/web-2.14.md and WORKTREES.md. Check WRAPUP before every step/PR and at least every 30 minutes.
+- [ ] Poll hosted checks to green; record observed evidence and outstanding gaps in status/web-2.14.md and WORKTREES.md. Check the wrap-up flag before every step/PR and at least every 30 minutes.
 
 ## Review focus
 
