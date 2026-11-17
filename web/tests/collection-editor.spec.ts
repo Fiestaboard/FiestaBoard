@@ -1,4 +1,5 @@
 /** Collection editor 07c: saved-state evaluation, mode changes and parity evidence. */
+import type { Page } from "@playwright/test";
 import { getViolations, injectAxe } from "axe-playwright";
 
 import {
@@ -18,6 +19,27 @@ import {
 
 // Audit settled states, including the save/reload flow outside the capture matrix.
 test.use({ reducedMotion: "reduce" });
+
+// Reduced-motion color transitions can still be pending after two animation frames.
+// Wait for their actual completion before axe reads foreground/background colors.
+async function waitForSettledStyles(page: Page) {
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .filter(
+              (animation) =>
+                animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming().endTime),
+            ).length,
+      ),
+    )
+    .toBe(0);
+}
 
 const names = ["Morning commute", "Market open", "Weather and surf", "Good morning"];
 async function seed() {
@@ -54,6 +76,7 @@ test("mode chips save random selection without an invented no-repeat flag", asyn
   await expect(page).toHaveURL(/\/collections$/);
   await page.goto(`/collections/${encodeURIComponent(collection.id)}`);
   await expect(page.getByRole("radio", { name: "Random selection", exact: true })).toBeChecked();
+  await waitForSettledStyles(page);
   await injectAxe(page);
   expect(
     await getViolations(page, undefined, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }),
@@ -160,10 +183,7 @@ test("07c parity evidence at four widths in both themes and every mode", async (
             expect(bounds?.height).toBe(44);
           }
           expect(await capture.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
-          // Let layout/style settle before measuring contrast; never audit a transition frame.
-          await capture.evaluate(
-            () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
-          );
+          await waitForSettledStyles(capture);
           await injectAxe(capture);
           expect(
             await getViolations(capture, undefined, {
@@ -178,6 +198,7 @@ test("07c parity evidence at four widths in both themes and every mode", async (
             await capture.getByRole("button", { name: "More actions for rule 1", exact: true }).click();
             await capture.getByRole("menuitem", { name: "Edit rule 1", exact: true }).click();
             await capture.getByRole("button", { name: "Show expression syntax help", exact: true }).click();
+            await waitForSettledStyles(capture);
             expect(
               await getViolations(capture, undefined, {
                 runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
