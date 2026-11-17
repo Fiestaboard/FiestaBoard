@@ -157,7 +157,7 @@ export function StepWelcome({
       <Flex
         justify="between"
         gap="2"
-        className="flex-col-reverse md:flex-row [&_button]:max-md:min-h-11 [&_button]:max-md:w-full"
+        className="flex-col-reverse md:min-h-25 md:flex-row md:items-center [&_button]:max-md:min-h-11 [&_button]:max-md:w-full"
       >
         {onBack && (
           <Button variant="outline" disabled={busy} onClick={onBack}>

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { injectAxe } from "axe-playwright";
 
 import { checkSetupA11y } from "./setup-a11y";
+import { expectSurfaceToken, expectViewportEdges } from "./setup-parity";
 
 const stamp = "2026-11-05T17:39:00Z";
 const sessions = [
@@ -71,13 +72,23 @@ for (const width of [390, 768, 1280]) {
       });
       await page.goto(`http://fiestapi.test/tests/layout/setup.html?theme=${theme}`);
       await expect(page.getByRole("heading", { name: "Phones", exact: true })).toBeVisible();
+      const initialPageWidth = await page.evaluate(() => document.documentElement.getBoundingClientRect().width);
+      await expectSurfaceToken(page.getByRole("list").first(), "card");
+      if (width >= 768) {
+        const row = page.getByRole("listitem", { name: "Example phone", exact: true });
+        const name = await row.getByText("Example phone", { exact: true }).boundingBox();
+        const action = await row.getByRole("button").boundingBox();
+        expect(Math.abs(action!.y - name!.y)).toBeLessThan(5);
+      }
       await injectAxe(page);
       await checkSetupA11y(page);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       if (shots) await page.screenshot({ path: `${shots}/impl-sessions-${width}-${theme}.png`, fullPage: false });
       await page.getByRole("button", { name: "Connect a phone", exact: true }).click();
       await expect(page.getByRole("img", { name: "Scan with the FiestaBoard app" })).toBeVisible();
+      if (width >= 768) await expectSurfaceToken(page.getByRole("dialog"), "popover");
       if (width === 390) {
+        await expectViewportEdges(page.getByRole("dialog"));
         const bounds = await page.getByRole("dialog").boundingBox();
         expect(Math.round(bounds!.x)).toBe(0);
         expect(Math.round(bounds!.width)).toBe(390);
@@ -102,14 +113,31 @@ for (const width of [390, 768, 1280]) {
       await expect(page.getByRole("dialog")).toHaveCount(0);
       expect(revoked).toEqual(["new-phone"]);
       await expect.poll(() => cancellations).toBe(1);
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.getBoundingClientRect().width))
+        .toBe(initialPageWidth);
       await page.getByRole("button", { name: "Revoke Example phone", exact: true }).click();
       await expect(page.getByRole("checkbox")).toBeChecked();
+      await expectSurfaceToken(page.getByRole("alertdialog"), "popover");
+      if (width === 390) {
+        await expectViewportEdges(page.getByRole("alertdialog"));
+        const sheet = await page.getByRole("alertdialog").boundingBox();
+        expect(Math.round(sheet!.x)).toBe(0);
+        expect(Math.round(sheet!.width)).toBe(390);
+        const cancel = await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).boundingBox();
+        const confirm = await page.getByRole("button", { name: "Sign out phone and 1 TVs" }).boundingBox();
+        expect(Math.round(cancel!.width)).toBe(348);
+        expect(Math.round(cancel!.y - confirm!.y - confirm!.height)).toBe(8);
+      }
       await checkSetupA11y(page);
       if (shots) await page.screenshot({ path: `${shots}/impl-revoke-${width}-${theme}.png`, fullPage: false });
       await page.getByRole("checkbox").uncheck();
       await page.getByRole("button", { name: "Sign out phone", exact: true }).click();
       await expect(page.getByRole("listitem", { name: "Example phone", exact: true })).toHaveCount(0);
       await expect(page.getByRole("listitem", { name: "Living room TV", exact: true })).toBeVisible();
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.getBoundingClientRect().width))
+        .toBe(initialPageWidth);
     });
   }
 }

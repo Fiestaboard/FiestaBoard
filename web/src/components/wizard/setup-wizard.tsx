@@ -180,7 +180,7 @@ export function SetupWizard({ onComplete }: { onComplete?: () => void }) {
           <Flex
             justify="between"
             gap="2"
-            className="mt-2 flex-col-reverse md:flex-row [&_button]:max-md:min-h-11 [&_button]:max-md:w-full"
+            className="flex-col-reverse md:min-h-25 md:flex-row md:items-center [&_button]:max-md:min-h-11 [&_button]:max-md:w-full"
           >
             {currentStep === 0 ? (
               <Button

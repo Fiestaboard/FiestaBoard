@@ -88,6 +88,12 @@ for (const width of [390, 768, 1280]) {
       });
       await page.goto(`/tests/layout/setup.html?mode=wizard&theme=${theme}`);
       await expect(page.getByLabel("Name this hub")).toHaveValue("Example FiestaPi");
+      expect((await page.getByTestId("setup-wizard").locator("header").boundingBox())!.height).toBe(100);
+      if (width >= 768) {
+        const card = await page.getByTestId("setup-wizard").locator('[data-slot="card"]').boundingBox();
+        const start = await page.getByRole("button", { name: "Get started", exact: true }).boundingBox();
+        expect(Math.round(card!.y + card!.height - start!.y - start!.height)).toBe(65);
+      }
       if (width === 390) {
         const card = await page.getByTestId("setup-wizard").locator('[data-slot="card"]').boundingBox();
         expect(Math.round(card!.x)).toBe(16);
@@ -99,6 +105,12 @@ for (const width of [390, 768, 1280]) {
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await axe();
         await page.screenshot({ path: `${shots}/impl-wizard-${state}-${width}-${theme}.png`, fullPage: true });
+        const stage = page.getByTestId("setup-wizard");
+        if (await stage.evaluate((element) => element.scrollHeight > element.clientHeight)) {
+          await stage.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+          await page.screenshot({ path: `${shots}/impl-wizard-${state}-scrolled-${width}-${theme}.png` });
+          await stage.evaluate((element) => element.scrollTo(0, 0));
+        }
       };
       await shot("welcome");
       await page.getByRole("button", { name: "Get started", exact: true }).click();
@@ -125,6 +137,12 @@ for (const width of [390, 768, 1280]) {
       await page.getByRole("button", { name: "Continue", exact: true }).click();
       await expect(page.getByText("Step 3 of 4", { exact: true })).toBeVisible();
       await shot("sources");
+      await page.getByRole("button", { name: /^Weather / }).click();
+      await page.getByRole("button", { name: /^Calendar / }).click();
+      await expect(page.getByText("2 selected", { exact: true })).toBeVisible();
+      await shot("sources-selected");
+      await page.getByRole("button", { name: /^Weather / }).click();
+      await page.getByRole("button", { name: /^Calendar / }).click();
       await page.getByRole("button", { name: "Continue", exact: true }).click();
       await expect(page.getByRole("button", { name: "Finish setup", exact: true })).toBeVisible();
       await shot("review");

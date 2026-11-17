@@ -45,6 +45,7 @@ for (const width of [390, 768, 1280]) {
         const card = await page.locator('[data-slot="card"]').first().boundingBox();
         expect(Math.round(card!.x)).toBe(16);
         expect(Math.round(card!.width)).toBe(358);
+        expect(Math.round(card!.y)).toBe(24);
       }
       await injectAxe(page);
       const axe = async () => checkSetupA11y(page);

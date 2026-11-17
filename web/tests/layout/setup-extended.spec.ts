@@ -3,6 +3,7 @@ import { injectAxe } from "axe-playwright";
 
 import firstPartyOutputs from "../../src/__tests__/mocks/first-party-outputs.json" with { type: "json" };
 import { checkSetupA11y } from "./setup-a11y";
+import { expectSurfaceToken, expectViewportEdges } from "./setup-parity";
 
 const shots = process.env.WEB212_SHOTS ?? "test-results/web212-shots";
 // This API-contract fixture is rendered by the real output-schema form; it
@@ -101,7 +102,16 @@ for (const width of [390, 768, 1280]) {
       await page.getByRole("button", { name: "Add display", exact: true }).click();
       const dialog = page.getByRole("dialog");
       await expect(dialog.getByRole("radio", { name: /Vestaboard/ })).toBeVisible();
-      if (width === 390) expect(Math.round((await dialog.boundingBox())!.width)).toBe(390);
+      await expectSurfaceToken(dialog, "popover");
+      if (width === 390) {
+        expect(Math.round((await dialog.boundingBox())!.width)).toBe(390);
+        await expectViewportEdges(dialog);
+      }
+      const choices = await dialog.getByRole("radio").all();
+      const first = await choices[0].boundingBox();
+      const second = await choices[1].boundingBox();
+      expect(Math.round(second!.x)).toBe(Math.round(first!.x));
+      expect(second!.y).toBeGreaterThanOrEqual(first!.y + first!.height);
       await shot(page, "add-display-type", width, theme);
       await dialog.getByRole("radio", { name: /Vestaboard/ }).click();
       await dialog.getByRole("button", { name: "Next", exact: true }).click();
@@ -117,6 +127,25 @@ for (const width of [390, 768, 1280]) {
       await dialog.getByRole("button", { name: "Test connection", exact: true }).click();
       await expect(dialog.getByRole("button", { name: "Add display", exact: true })).toBeEnabled();
       await shot(page, "add-display-connect", width, theme);
+      expect(unexpected).toEqual([]);
+    });
+    test(`Add Pixoo display after a successful test ${width} ${theme}`, async ({ page }) => {
+      const unexpected = await setup(page, width);
+      await page.goto(`/tests/layout/setup-extended.html?mode=home&theme=${theme}`);
+      await page.getByRole("button", { name: "Add display", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByRole("radio", { name: /LED display/ }).click();
+      await dialog.getByRole("button", { name: "Next", exact: true }).click();
+      await dialog.getByLabel("Device model", { exact: true }).click();
+      await page.getByRole("option", { name: "Divoom Pixoo 64", exact: true }).click();
+      await dialog.getByLabel("Board name", { exact: true }).fill("Desk Pixoo");
+      await dialog.getByRole("textbox", { name: "Address *", exact: true }).fill("192.0.2.88");
+      await expect(dialog.getByRole("button", { name: "Add display", exact: true })).toBeDisabled();
+      await dialog.getByRole("button", { name: "Test connection", exact: true }).click();
+      await expect(dialog.getByText("Connection verified", { exact: true })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "Add display", exact: true })).toBeEnabled();
+      await injectAxe(page);
+      await shot(page, "add-pixoo-passed", width, theme);
       expect(unexpected).toEqual([]);
     });
     test(`Add community display explicit untested choice ${width} ${theme}`, async ({ page }) => {

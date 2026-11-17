@@ -202,13 +202,13 @@ export default function Activate() {
     <Flex
       direction="col"
       align="center"
-      justify="center"
-      className="relative isolate min-h-svh w-screen bg-background px-4 py-6 sm:p-8"
+      justify="start"
+      className="relative isolate min-h-svh w-screen bg-background px-4 py-6 sm:justify-center sm:p-8"
     >
       <meta name="referrer" content="no-referrer" />
       <BoardBackdrop phrases={BACKDROP_PHRASES} fixed className="hidden sm:block" />
       <Card className="relative z-10 w-full max-w-[440px] gap-4 p-6 sm:p-8">
-        <Flex align="center" justify="between" gap="3" wrap className="mb-4 min-w-0">
+        <Flex align="center" justify="between" gap="3" wrap className="min-h-25 min-w-0">
           <FiestaLogo size="sm" />
           <Flex align="center" gap="1.5" className="min-w-0">
             <UserRound className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />

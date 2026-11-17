@@ -11,6 +11,16 @@
   --z-select: var(--z-popover);
 }
 
+/* FiestaUI alpha.2 reserves a root gutter even behind viewport-wide mobile
+   dialogs, clipping their right edge. Keep the page's stable gutter when the
+   modal closes and on desktop. TODO(FiestaUI): own this in the overlay scroll
+   lock; !important also overrides Base UI's temporary inline stable gutter. */
+@media (width < 48rem) {
+  html:has([data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"]) {
+    scrollbar-gutter: auto !important;
+  }
+}
+
 /* AI sparkle icon — big star gets the sweeping gradient, small elements pulse independently */
 @keyframes ai-sparkle-flow {
   0% {

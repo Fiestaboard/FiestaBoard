@@ -33,7 +33,7 @@ export function WizardFrame({
       </Box>
       <Box className="relative flex min-h-full items-start justify-center px-4 pb-6 pt-4 md:items-center md:p-8">
         <Card className="w-full max-w-[640px] gap-4 rounded-[var(--radius-card)] p-5 shadow-[var(--elevation-card)] md:gap-5 md:p-8">
-          <Box as="header" className="flex flex-wrap items-center justify-between gap-2">
+          <Box as="header" className="flex min-h-25 flex-wrap items-center justify-between gap-2">
             <FiestaLogo size="sm" />
             <Text size="xs" tone="muted" className="break-all">
               {hub}

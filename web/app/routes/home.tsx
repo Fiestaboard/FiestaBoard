@@ -2,6 +2,7 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  BoardIcon,
   Box,
   Button,
   Dialog,
@@ -10,7 +11,7 @@ import {
   PageLayout,
   Stack,
 } from "@fiestaboard/ui";
-import { Home as HomeIcon, Info, Monitor, PencilLine } from "lucide-react";
+import { Home as HomeIcon, Info, Monitor, PencilLine, Plus, RotateCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ActivePageDisplay } from "@/components/active-page-display";
@@ -70,15 +71,18 @@ export default function Home() {
         {noDisplays ? (
           <EmptyState
             icon={Monitor}
+            illustration={<BoardIcon className="size-8" />}
             title={tw("title")}
             description={tw("description")}
-            className="min-h-[319px] rounded-[var(--radius-card)] border bg-card px-5 py-10 md:min-h-[335px] md:px-6 md:py-16 [&_h3]:text-xl [&_[data-slot=empty-state-action]]:max-md:w-full"
+            className="min-h-[319px] rounded-[var(--radius-card)] border bg-card px-5 py-10 md:min-h-[335px] md:px-6 md:py-16 [&_h3]:text-xl [&_[data-slot=empty-state-media]_svg]:text-brand [&_[data-slot=empty-state-action]]:max-md:w-full"
             action={
               <Box className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:gap-2">
                 <Button onClick={() => setAddingDisplay(true)} className="max-md:min-h-11 max-md:w-full">
+                  <Plus className="size-4" aria-hidden="true" />
                   {tw("add")}
                 </Button>
                 <Button variant="outline" onClick={triggerWizard} className="max-md:min-h-11 max-md:w-full">
+                  <RotateCw className="size-4" aria-hidden="true" />
                   {tw("rerun")}
                 </Button>
               </Box>

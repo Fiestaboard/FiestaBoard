@@ -211,7 +211,7 @@ export function ConnectPhone({
         className={
           phone
             ? "left-0 top-0 h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 border-0 rounded-none overflow-y-auto content-start p-4"
-            : "sm:max-w-[560px] sm:rounded-xl max-h-[90dvh] overflow-y-auto"
+            : "sm:max-w-[560px] sm:rounded-[var(--radius-card)] bg-popover max-h-[90dvh] overflow-y-auto"
         }
       >
         {phone && (

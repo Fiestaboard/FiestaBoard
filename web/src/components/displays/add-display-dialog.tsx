@@ -68,10 +68,10 @@ export function AddDisplayDialog({
   };
   return (
     <DialogContent
-      className="max-h-[90dvh] overflow-y-auto sm:max-w-[560px] max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[92dvh] max-sm:w-screen max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-b-none"
+      className="max-h-[90dvh] overflow-y-auto bg-popover sm:rounded-[var(--radius-card)] sm:max-w-[560px] max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[92dvh] max-sm:w-screen max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-[var(--radius-chrome-mobile)] max-sm:rounded-b-none max-sm:p-5 max-sm:pb-4"
       data-testid="add-display-dialog"
     >
-      <DialogHeader>
+      <DialogHeader className={step === "choose" ? "text-left" : undefined}>
         <DialogTitle>{t("title")}</DialogTitle>
         <DialogDescription>{t(step === "choose" ? "chooseDescription" : "setupDescription")}</DialogDescription>
       </DialogHeader>
@@ -81,6 +81,7 @@ export function AddDisplayDialog({
       <Stack gap="4">
         {step === "choose" && (
           <StepChooseOutput
+            columns="1"
             value={chosen?.id ?? null}
             onChange={(output) => setChosen({ id: output.id, name: output.name })}
             onValidChange={setCanNext}

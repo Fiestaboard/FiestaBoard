@@ -183,7 +183,7 @@ export function SignedInDevices() {
                   <Heading level={3} size="sm" className="text-xs text-muted-foreground uppercase tracking-wide">
                     {t(group.key)}
                   </Heading>
-                  <List className="rounded-xl border p-1">
+                  <List className="rounded-[var(--radius-card)] border bg-card p-1">
                     {[...group.rows]
                       .sort((a, b) => b.created_at.localeCompare(a.created_at))
                       .map((session) => {
@@ -212,12 +212,14 @@ export function SignedInDevices() {
                               <IconTile tone="muted" size="sm">
                                 <Icon className="size-4" />
                               </IconTile>
-                              <Stack gap="1" className="min-w-0 flex-1 relative lg:pr-24">
+                              <Stack gap="1" className="min-w-0 flex-1 relative md:pr-24">
                                 <Flex gap="2" align="center" wrap>
                                   <Text weight="semibold" size="sm" className="break-words">
                                     {name}
                                   </Text>
-                                  <Badge variant="secondary">{kind}</Badge>
+                                  <Badge variant={current ? "default" : tv && !codeTV ? "outline" : "secondary"}>
+                                    {kind}
+                                  </Badge>
                                 </Flex>
                                 {mobile && (
                                   <Text size="xs" tone="muted">
@@ -251,7 +253,7 @@ export function SignedInDevices() {
                                 </Flex>
                                 {!current && (
                                   <Button
-                                    className="self-start min-h-touch sm:min-h-0 mt-2 lg:absolute lg:right-0 lg:top-0 lg:mt-0"
+                                    className="self-start min-h-touch sm:min-h-0 mt-2 md:absolute md:right-0 md:top-0 md:mt-0"
                                     variant="outline"
                                     aria-label={t("revokeDevice", { name })}
                                     disabled={busy}
@@ -305,8 +307,8 @@ export function SignedInDevices() {
             if (!open && !busy) setConfirm(null);
           }}
         >
-          <AlertDialogContent className="max-h-[90dvh] overflow-y-auto md:max-w-[560px] max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:w-full max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-b-none">
-            <AlertDialogHeader>
+          <AlertDialogContent className="max-h-[90dvh] overflow-y-auto bg-popover sm:rounded-[var(--radius-card)] md:max-w-[560px] max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:w-screen max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-t-[var(--radius-chrome-mobile)] max-md:rounded-b-none max-md:p-5 max-md:pb-4">
+            <AlertDialogHeader className="text-left">
               <AlertDialogTitle>
                 {phone ? t("phoneTitle", { name: phone.device_name }) : t(confirm === "all" ? "all" : "others")}
               </AlertDialogTitle>
@@ -320,7 +322,7 @@ export function SignedInDevices() {
               </Text>
             )}
             {phone && (
-              <Stack gap="3">
+              <Stack gap="3" className="rounded-md bg-muted p-3">
                 <Flex gap="2" align="start">
                   <Checkbox
                     id="revoke-approved-tvs"
@@ -345,7 +347,7 @@ export function SignedInDevices() {
                 </Text>
               </Stack>
             )}
-            <AlertDialogFooter className="flex-col-reverse md:flex-row [&_button]:max-md:min-h-touch [&_button]:max-md:w-full">
+            <AlertDialogFooter className="gap-2 flex-col-reverse md:flex-row [&_button]:max-md:min-h-touch [&_button]:max-md:w-full">
               <Button variant="outline" disabled={busy} onClick={() => setConfirm(null)}>
                 {t("cancel")}
               </Button>

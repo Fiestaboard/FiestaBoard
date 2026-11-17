@@ -30,9 +30,18 @@ interface StepChooseOutputProps {
   onValidChange: (valid: boolean) => void;
   /** Which outputs to offer (all by default). Displays → Add a display keeps registry ones for "Find more displays". */
   include?: (output: AvailableOutput) => boolean;
+  /** The compact Add display dialog uses a single list at every width. */
+  columns?: "1" | "2";
 }
 
-export function StepChooseOutput({ value, onChange, onSkip, onValidChange, include }: StepChooseOutputProps) {
+export function StepChooseOutput({
+  value,
+  onChange,
+  onSkip,
+  onValidChange,
+  include,
+  columns = "2",
+}: StepChooseOutputProps) {
   const t = useTranslations("wizard.chooseOutput");
   const { data, isLoading, isError, refetch, isFetching } = useDisplayCatalog();
   const outputs = include ? (data?.outputs ?? []).filter(include) : (data?.outputs ?? []);
@@ -46,8 +55,8 @@ export function StepChooseOutput({ value, onChange, onSkip, onValidChange, inclu
   // the existing searchable, categorized and paginated discovery workflow.
   const choices = (shown: AvailableOutput[]) => (
     <ToggleCardGroup
-      columns="2"
-      className="p-0.5 sm:grid-cols-1 md:grid-cols-2"
+      columns={columns}
+      className={columns === "1" ? "p-0.5 grid-cols-1" : "p-0.5 sm:grid-cols-1 md:grid-cols-2"}
       value={value ?? ""}
       onValueChange={(id) => {
         const output = outputs.find((o) => o.id === id);
