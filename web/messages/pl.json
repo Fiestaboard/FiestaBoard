@@ -291,6 +291,8 @@
       "heldAt": "Wstrzymana wiadomość · napisana o {time}",
       "heldBody": "Pojawi się na {board} o {time}, potem harmonogram zostanie wznowiony.",
       "heldNoTime": "Czeka do końca Silence Schedule, potem harmonogram zostanie wznowiony.",
+      "heldManualBody": "Pojawi się na {board} o {time}.",
+      "heldManualNoTime": "Czeka do końca Silence Schedule.",
       "discard": "Odrzuć",
       "composeUnreachable": "Nie można połączyć się z centrum pod adresem {host}",
       "composeOffline": "Jesteś offline",

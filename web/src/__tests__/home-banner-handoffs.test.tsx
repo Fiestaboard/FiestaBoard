@@ -92,6 +92,31 @@ describe("Home banner hand-offs", () => {
   });
 });
 
+it.each([false, undefined, true].flatMap((enabled) => [true, false].map((timed) => ({ enabled, timed }))))(
+  "held message only promises Schedule resumes when enabled ($enabled, timed=$timed)",
+  async ({ enabled, timed }) => {
+    server.use(
+      http.get("/api/schedules/active/page", () => HttpResponse.json({ page_id: "page-1", schedule_enabled: enabled })),
+      http.get("/api/silence-status", () =>
+        HttpResponse.json({
+          enabled: true,
+          active: true,
+          mode: "freeze",
+          ends_at_utc: timed ? new Date(Date.now() + 3600000).toISOString() : null,
+          held: { kind: "message", preview: "GOOD LUCK", queued_at: new Date().toISOString() },
+        }),
+      ),
+    );
+    render(<ActivePageDisplay />, { wrapper: Wrapper });
+    const card = await screen.findByTestId("home-held-message");
+    await waitFor(() =>
+      expect(card).toHaveTextContent(timed ? "Shows on Flagship at" : "Waits until Silence Schedule ends"),
+    );
+    if (enabled === true) expect(card).toHaveTextContent("then Schedule resumes");
+    else expect(card).not.toHaveTextContent("Schedule resumes");
+  },
+);
+
 it("keeps a typed Compose message when the hub drops, then permits retry after recovery", async () => {
   const { ComposePageDialog } = await import("@/components/compose-page-dialog");
   const props = { open: true, onOpenChange: vi.fn(), targetBoardLabel: "Kitchen", deviceType: "flagship" as const };

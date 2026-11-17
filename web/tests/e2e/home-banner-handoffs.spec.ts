@@ -154,6 +154,7 @@ test("Home's held, silence-soon, out-of-sync and unreachable-hub states use one 
         await page.goto("/");
         if (state === "held") {
           await expect(page.getByTestId("home-held-message")).toBeVisible();
+          await expect(page.getByTestId("home-held-message")).not.toContainText("Schedule resumes");
           await expect(page.getByTestId("status-banners")).toContainText("1 message is held");
         }
         if (state === "soon") await expect(page.getByRole("link", { name: "Edit Silence Schedule" })).toBeVisible();

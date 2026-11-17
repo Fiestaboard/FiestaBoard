@@ -291,6 +291,8 @@
       "heldAt": "보류 중인 메시지 · {time}에 작성",
       "heldBody": "{time}에 {board}에 표시된 후 스케줄이 재개됩니다.",
       "heldNoTime": "Silence Schedule이 끝날 때까지 기다린 후 스케줄이 재개됩니다.",
+      "heldManualBody": "{time}에 {board}에 표시됩니다.",
+      "heldManualNoTime": "Silence Schedule이 끝날 때까지 기다립니다.",
       "discard": "삭제",
       "composeUnreachable": "{host}의 허브에 연결할 수 없습니다",
       "composeOffline": "오프라인 상태입니다",

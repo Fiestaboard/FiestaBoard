@@ -291,6 +291,8 @@
       "heldAt": "待发送消息 · 撰写于 {time}",
       "heldBody": "将在 {time} 显示在 {board} 上，之后日程恢复。",
       "heldNoTime": "等待 Silence Schedule 结束，之后日程恢复。",
+      "heldManualBody": "将在 {time} 显示在 {board} 上。",
+      "heldManualNoTime": "等待 Silence Schedule 结束。",
       "discard": "丢弃",
       "composeUnreachable": "无法连接到 {host} 上的中枢",
       "composeOffline": "你已离线",

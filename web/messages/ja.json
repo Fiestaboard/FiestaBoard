@@ -291,6 +291,8 @@
       "heldAt": "保留中のメッセージ · {time} に作成",
       "heldBody": "{time} に {board} に表示され、その後スケジュールが再開します。",
       "heldNoTime": "Silence Schedule が終了するまで待機し、その後スケジュールが再開します。",
+      "heldManualBody": "{time} に {board} に表示されます。",
+      "heldManualNoTime": "Silence Schedule が終了するまで待機します。",
       "discard": "破棄",
       "composeUnreachable": "{host} のハブに接続できません",
       "composeOffline": "オフラインです",

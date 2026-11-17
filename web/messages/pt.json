@@ -291,6 +291,8 @@
       "heldAt": "Mensagem retida · escrita às {time}",
       "heldBody": "É mostrada em {board} às {time}; depois, a agenda é retomada.",
       "heldNoTime": "Aguarda o fim de Silence Schedule; depois, a agenda é retomada.",
+      "heldManualBody": "É mostrada em {board} às {time}.",
+      "heldManualNoTime": "Aguarda o fim de Silence Schedule.",
       "discard": "Descartar",
       "composeUnreachable": "Não é possível contactar o teu hub em {host}",
       "composeOffline": "Estás offline",

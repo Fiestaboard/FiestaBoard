@@ -291,6 +291,8 @@
       "heldAt": "Wachtend bericht · opgesteld om {time}",
       "heldBody": "Verschijnt op {board} om {time}, daarna wordt de planning hervat.",
       "heldNoTime": "Wacht tot Silence Schedule eindigt, daarna wordt de planning hervat.",
+      "heldManualBody": "Verschijnt op {board} om {time}.",
+      "heldManualNoTime": "Wacht tot Silence Schedule eindigt.",
       "discard": "Verwerpen",
       "composeUnreachable": "Je hub op {host} is niet bereikbaar",
       "composeOffline": "Je bent offline",

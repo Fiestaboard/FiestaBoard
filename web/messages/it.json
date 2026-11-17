@@ -291,6 +291,8 @@
       "heldAt": "Messaggio in attesa · scritto alle {time}",
       "heldBody": "Viene mostrato su {board} alle {time}, poi la programmazione riprende.",
       "heldNoTime": "Attende la fine di Silence Schedule, poi la programmazione riprende.",
+      "heldManualBody": "Viene mostrato su {board} alle {time}.",
+      "heldManualNoTime": "Attende la fine di Silence Schedule.",
       "discard": "Scarta",
       "composeUnreachable": "Impossibile raggiungere il tuo hub su {host}",
       "composeOffline": "Sei offline",

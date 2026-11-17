@@ -615,7 +615,9 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
         </CardTitle>
         <Text size="sm">“{silence.held.preview}”</Text>
         <Text size="sm" tone="muted">
-          {silence.until ? tb("heldBody", { board: displayName, time: silence.until }) : tb("heldNoTime")}
+          {silence.until
+            ? tb(scheduleEnabled ? "heldBody" : "heldManualBody", { board: displayName, time: silence.until })
+            : tb(scheduleEnabled ? "heldNoTime" : "heldManualNoTime")}
         </Text>
         {/* The hub has no release-held-now endpoint; hide that action, per 07a. */}
         <Button

@@ -247,6 +247,8 @@
       "heldAt": "Held message · composed at {time}",
       "heldBody": "Shows on {board} at {time}, then Schedule resumes.",
       "heldNoTime": "Waits until Silence Schedule ends, then Schedule resumes.",
+      "heldManualBody": "Shows on {board} at {time}.",
+      "heldManualNoTime": "Waits until Silence Schedule ends.",
       "discard": "Discard",
       "composeUnreachable": "Can’t reach your hub at {host}",
       "composeOffline": "You’re offline",

@@ -291,6 +291,8 @@
       "heldAt": "Bekletilen mesaj · {time} saatinde yazıldı",
       "heldBody": "{time} saatinde {board} üzerinde gösterilir, ardından Zamanlama devam eder.",
       "heldNoTime": "Silence Schedule bitene kadar bekler, ardından Zamanlama devam eder.",
+      "heldManualBody": "{time} saatinde {board} üzerinde gösterilir.",
+      "heldManualNoTime": "Silence Schedule bitene kadar bekler.",
       "discard": "Sil",
       "composeUnreachable": "{host} adresindeki merkezinize ulaşılamıyor",
       "composeOffline": "Çevrimdışısınız",

@@ -291,6 +291,8 @@
       "heldAt": "Отложенное сообщение · написано в {time}",
       "heldBody": "Появится на {board} в {time}, затем расписание возобновится.",
       "heldNoTime": "Ожидает окончания Silence Schedule, затем расписание возобновится.",
+      "heldManualBody": "Появится на {board} в {time}.",
+      "heldManualNoTime": "Ожидает окончания Silence Schedule.",
       "discard": "Удалить",
       "composeUnreachable": "Не удаётся связаться с вашим центром по адресу {host}",
       "composeOffline": "Вы не в сети",

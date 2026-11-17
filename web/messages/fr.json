@@ -291,6 +291,8 @@
       "heldAt": "Message en attente · rédigé à {time}",
       "heldBody": "S’affiche sur {board} à {time}, puis la planification reprend.",
       "heldNoTime": "Attend la fin de Silence Schedule, puis la planification reprend.",
+      "heldManualBody": "S’affiche sur {board} à {time}.",
+      "heldManualNoTime": "Attend la fin de Silence Schedule.",
       "discard": "Supprimer",
       "composeUnreachable": "Impossible de joindre votre hub à l’adresse {host}",
       "composeOffline": "Vous êtes hors ligne",

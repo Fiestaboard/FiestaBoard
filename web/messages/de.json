@@ -291,6 +291,8 @@
       "heldAt": "Zurückgehaltene Nachricht · verfasst um {time}",
       "heldBody": "Wird um {time} auf {board} angezeigt, danach übernimmt der Zeitplan wieder.",
       "heldNoTime": "Wartet, bis Silence Schedule endet, danach übernimmt der Zeitplan wieder.",
+      "heldManualBody": "Wird um {time} auf {board} angezeigt.",
+      "heldManualNoTime": "Wartet, bis Silence Schedule endet.",
       "discard": "Verwerfen",
       "composeUnreachable": "Ihr Hub unter {host} ist nicht erreichbar",
       "composeOffline": "Sie sind offline",

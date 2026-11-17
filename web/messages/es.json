@@ -291,6 +291,8 @@
       "heldAt": "Mensaje retenido · redactado a las {time}",
       "heldBody": "Se muestra en {board} a las {time}; después se reanuda el horario.",
       "heldNoTime": "Espera hasta que termine Silence Schedule; después se reanuda el horario.",
+      "heldManualBody": "Se muestra en {board} a las {time}.",
+      "heldManualNoTime": "Espera hasta que termine Silence Schedule.",
       "discard": "Descartar",
       "composeUnreachable": "No se puede contactar con tu hub en {host}",
       "composeOffline": "Estás sin conexión",
