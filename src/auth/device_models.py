@@ -228,3 +228,18 @@ class TVSignInCapability(BaseModel):
     supported: bool = True
     enabled: bool
     protocol_version: Literal[1] = 1
+
+
+class StepUpRequest(BaseModel):
+    """H21s: the account password, re-entered on the phone before a tier-2 action."""
+
+    model_config = ConfigDict(extra="forbid")
+    password: str = Field(min_length=1, max_length=1024)
+
+
+class StepUpState(BaseModel):
+    """Whether this phone sign-in is stepped up, and until when (UTC)."""
+
+    elevated: bool
+    elevated_until: str | None = None
+    expires_in: int = Field(0, description="Seconds left in the step-up window; 0 when not elevated.")

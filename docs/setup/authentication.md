@@ -252,6 +252,22 @@ A phone credential **cannot**:
 - install, update or remove plugins or outputs;
 - read stored secrets, or change AI, MQTT or display connection settings.
 
+### Step-up on the phone
+
+Some phone actions ask for your password again first. They are called **step-up**
+actions. When the hub answers one with `403` and `"error": "step_up_required"`, the
+app asks for the account password and sends it to `POST /auth/device/elevate`.
+
+- A correct password lets **this phone** do step-up actions for **10 minutes**.
+  Other phones, TVs and browsers don't get it.
+- Wrong passwords count toward the same lockout as signing in.
+- The step-up is never a new credential. It ends when the 10 minutes are up, when the
+  app ends it (`DELETE /auth/device/elevate`), or when this phone is signed out.
+- `GET /auth/device/elevate` says whether the phone is stepped up, and for how long.
+
+Step-up never opens account, password, session, pairing or API-token management to a
+phone.
+
 A phone can edit the non-secret fields of an installed integration, the same as the
 web app can. Stored secrets such as API keys stay masked, and the hub keeps the saved
 value when a form sends the mask back.

@@ -1,5 +1,7 @@
 """Native sign-in enrollment and explicit browser approval endpoints."""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Request
 
 from src.api_errors import errors
@@ -16,6 +18,8 @@ from .device_models import (
     EnrollmentSettings,
     PendingDevice,
     PhoneTVList,
+    StepUpRequest,
+    StepUpState,
     Success,
     UserCode,
 )
@@ -23,6 +27,7 @@ from .device_service import DeviceService
 from .middleware import _bearer_from
 from .routes import _check_lockout, _clear_failures, _client_ip, _record_failure
 from .service import InvalidCredentials, get_auth_service
+from .step_up import STEP_UP_SECONDS
 
 router = APIRouter(prefix="/auth/device", tags=["auth"])
 RESPONSES = errors(400, 401, 403, 409, 422, 429, 503)
@@ -160,3 +165,55 @@ def revoke_phone_tv(session_id: str, request: Request):
     phone, service = _phone(request)
     service.revoke_tv(phone, session_id)
     return Success()
+
+
+# -- H21s: step-up elevation --------------------------------------------------
+
+
+def _step_up_state(service: DeviceService, phone) -> StepUpState:
+    until = service.store.elevated_until(phone.id)
+    if until is None:
+        return StepUpState(elevated=False)
+    now = service.store.clock_ms()
+    return StepUpState(
+        elevated=True,
+        elevated_until=datetime.fromtimestamp(until / 1000, UTC).isoformat(),
+        expires_in=max(0, (until - now + 999) // 1000),
+    )
+
+
+@router.get("/elevate", response_model=StepUpState, responses=RESPONSES)
+def step_up_state(request: Request):
+    """Whether this phone sign-in is stepped up for tier-2 actions. Phone sign-in only."""
+    phone, service = _phone(request)
+    return _step_up_state(service, phone)
+
+
+@router.post("/elevate", response_model=StepUpState, responses=RESPONSES)
+def step_up(payload: StepUpRequest, request: Request):
+    """Re-enter the account password to allow tier-2 actions from this phone for 10 minutes.
+
+    Phone sign-in only. Wrong passwords count toward the same lockout as the
+    browser and phone sign-in. The step-up belongs to this sign-in and ends when
+    it is revoked or expires; it is never issued as a token.
+    """
+    phone, service = _phone(request)
+    ip = _client_ip(request)
+    _check_lockout(ip)
+    service.limit("elevate:" + phone.id, 10)
+    try:
+        service.auth.verify_credentials(phone.username, payload.password)
+    except InvalidCredentials:
+        _record_failure(ip)
+        raise AuthFlowError("invalid_credentials", "That password did not work.", 401) from None
+    _clear_failures(ip)
+    service.store.elevate(phone.id, STEP_UP_SECONDS * 1000)
+    return _step_up_state(service, phone)
+
+
+@router.delete("/elevate", response_model=StepUpState, responses=RESPONSES)
+def end_step_up(request: Request):
+    """End this phone's step-up early. Phone sign-in only."""
+    phone, service = _phone(request)
+    service.store.drop_elevation(phone.id)
+    return StepUpState(elevated=False)
