@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import logging
 
+from src.board_guards import validate_board_host, validate_board_host_is_local_network
 from src.config_manager import get_config_manager
 from src.outputs.hooks import OutputActionError
 from src.settings.service import VALID_WIZARD_STATES, get_settings_service
@@ -224,6 +225,14 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
         "host": request.host or "",
         "port": request.port,
     }
+    # The probe carries the typed key to `host`, so it must stay on this
+    # network: the same guard the enablement-token exchange applies (H10 F5).
+    # Only once the output's own refusals (missing key, then host) cannot
+    # fire first, so their recorded order is unchanged; the shape guard runs
+    # first so a malformed host keeps its own 400.
+    if request.api_mode != "cloud" and request.local_api_key and request.host:
+        validate_board_host(request.host)
+        validate_board_host_is_local_network(request.host)
     try:
         outcome = await _vestaboard_draft_action("test_connection", settings)
         verdict = dict(outcome.detail)
