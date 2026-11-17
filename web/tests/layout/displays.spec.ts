@@ -52,6 +52,11 @@ for (const width of [390, 768, 1280]) {
       await fit.click();
       await expect(fit).toHaveAttribute("aria-pressed", "true");
       await shot("overview-fit");
+      await checkA11y(page, undefined, {
+        detailedReport: true,
+        detailedReportOptions: { html: true },
+        axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } },
+      });
       const pause = page.getByRole("switch", { name: "Pause display", exact: true });
       await pause.click();
       await expect(pause).toBeChecked();
