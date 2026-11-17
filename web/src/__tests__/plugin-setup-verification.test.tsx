@@ -95,6 +95,7 @@ describe("plugin connection verification", () => {
     );
     expect(await screen.findByRole("button", { name: "Add board" })).toBeDisabled();
     await userEvent.click(screen.getByLabelText("Skip the connection test and add this community display untested"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add board" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Add board" }));
     await screen.findByTestId("wizard-output-create-error");
     expect(writes).toBe(1);
@@ -104,9 +105,46 @@ describe("plugin connection verification", () => {
     expect(await screen.findByText(/does not provide a connection test/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add board" })).toBeDisabled();
     await userEvent.click(screen.getByLabelText("Skip the connection test and add this community display untested"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add board" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Add board" }));
     expect(await screen.findByTestId("wizard-output-created")).toHaveTextContent("Connection has not been verified");
   });
+  it("keeps a plugin display matched by H19 without creating another board", async () => {
+    setup(false);
+    let writes = 0;
+    server.use(
+      http.post("/api/config/board/existing", () =>
+        HttpResponse.json({
+          existing: [{ board_id: "known-sign", name: "Existing sign", output: "my_sign", matched: "host" }],
+        }),
+      ),
+      http.get("/api/settings/board", () =>
+        HttpResponse.json({
+          boards: [
+            {
+              id: "known-sign",
+              name: "Existing sign",
+              device_type: "panel",
+              output: "my_sign",
+              output_config: { host: "sign.local" },
+            },
+          ],
+        }),
+      ),
+      http.post("/api/outputs/my_sign/boards", () => {
+        writes++;
+        return HttpResponse.json({ id: "duplicate", name: "Duplicate" });
+      }),
+    );
+    await userEvent.type(await screen.findByLabelText("Address"), "HTTP://SIGN.LOCAL./");
+    expect(await screen.findByText("This board is already connected")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Keep Existing sign/ })).toBeChecked();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add board" })).toBeEnabled());
+    await userEvent.click(screen.getByRole("button", { name: "Add board" }));
+    expect(await screen.findByTestId("wizard-output-created")).toHaveTextContent("Existing sign");
+    expect(writes).toBe(0);
+  });
+
   it("invalidates verification after editing and after a failed retest", async () => {
     setup();
     const input = await screen.findByLabelText("Address");
@@ -134,6 +172,7 @@ describe("plugin connection verification", () => {
     await waitFor(() =>
       expect(screen.getByTestId("plugin-connection-status")).toHaveTextContent("Connection verified"),
     );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add board" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Add board" }));
     expect(await screen.findByTestId("wizard-output-created")).toHaveTextContent("Connection verified");
   });
@@ -175,6 +214,7 @@ describe("plugin-owned setup requirements", () => {
     await userEvent.type(cols, colLabel === "Notes wide" ? "2" : "32");
     expect(screen.getByRole("button", { name: "Add board" })).toBeDisabled();
     await userEvent.click(screen.getByLabelText("Skip the connection test and add this community display untested"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add board" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Add board" }));
     await screen.findByTestId("wizard-output-created");
     expect(bodies).toEqual([{ name: "My Sign", device_model: "custom", output_config: {}, geometry: expected }]);
@@ -231,6 +271,7 @@ describe("plugin-owned setup requirements", () => {
         return HttpResponse.json({ id: "fixed-board", name: "My Sign" });
       }),
     );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add board" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Add board" }));
     await screen.findByTestId("wizard-output-created");
     expect(bodies).toEqual([{ name: "My Sign", device_model: "fixed", output_config: {} }]);

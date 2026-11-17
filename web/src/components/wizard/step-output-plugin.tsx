@@ -55,6 +55,12 @@ import {
 } from "@/lib/board-dimensions";
 
 import { removeUntouchedPlaceholder } from "./default-board";
+import {
+  ExistingDisplayChoice,
+  ExistingDisplayError,
+  existingDisplayQuery,
+  useExistingDisplay,
+} from "./existing-display";
 
 /** The display chosen on the wizard's first step. */
 export interface WizardOutputChoice {
@@ -265,6 +271,15 @@ function OutputBoardForm({
   const [verifiedConfig, setVerifiedConfig] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState(false);
   const [skipTest, setSkipTest] = useState(false);
+  const lookupQuery = existingDisplayQuery(output.id, config);
+  const lookup = useExistingDisplay(lookupQuery);
+  const known = lookup.existing[0];
+  const [knownSelection, setKnownSelection] = useState<{ boardId: string; value: string } | null>(null);
+  const knownChoice = knownSelection?.boardId === known?.board_id ? (knownSelection?.value ?? "keep") : "keep";
+  const setKnownChoice = (value: string) => {
+    if (known) setKnownSelection({ boardId: known.board_id, value });
+  };
+  const keep = !!known && knownChoice === "keep";
   const configKey = JSON.stringify({ config, deviceModel });
   const verified = verifiedConfig === configKey;
   const requiredValid = ((output.settings_schema.required as string[] | undefined) ?? []).every(
@@ -277,6 +292,20 @@ function OutputBoardForm({
     mutationFn: async () => {
       setIsLoading(true);
       try {
+        const matches = lookupQuery ? (await api.checkExistingBoards(lookupQuery)).existing : [];
+        if (matches.length) {
+          const fresh = await api.getBoardSettings();
+          const existing = fresh.boards.find((board) => board.id === matches[0].board_id);
+          if (!existing) throw new Error(t("createFailed"));
+          if (knownChoice === "update" && known?.board_id === existing.id && existing.output === output.id) {
+            await api.updateBoardSettings({
+              boards: fresh.boards.map((board) =>
+                board.id === existing.id ? { ...board, output_config: { ...board.output_config, ...config } } : board,
+              ),
+            });
+          }
+          return existing;
+        }
         const board = await api.createOutputBoard(output.id, {
           device_model: deviceModel,
           output_config: config,
@@ -296,14 +325,25 @@ function OutputBoardForm({
   });
 
   const fieldsValid = !!deviceModel && sizeValid && !!name.trim() && requiredValid;
-  const valid = fieldsValid && (verified || (!output.builtin && skipTest)) && !create.isPending && !actionPending;
+  const valid =
+    !lookup.pending &&
+    !lookup.error &&
+    (keep || (fieldsValid && (verified || (!output.builtin && skipTest)))) &&
+    !create.isPending &&
+    !actionPending;
   useEffect(() => {
     onValidChange(valid);
   }, [valid, onValidChange]);
   const saving = useRef(false);
   useImperativeHandle(ref, () => ({
     save: async (skip = false) => {
-      if (saving.current || create.isPending || actionPending || !fieldsValid || (!valid && !(skip && !output.builtin)))
+      if (
+        saving.current ||
+        create.isPending ||
+        actionPending ||
+        (!keep && !fieldsValid) ||
+        (!valid && !(skip && !output.builtin))
+      )
         return null;
       saving.current = true;
       try {
@@ -321,121 +361,137 @@ function OutputBoardForm({
     // Not a <form>: an action's input dialog is a form of its own, and React
     // bubbles its submit through the portal into any form around it.
     <Stack gap="4">
-      <Grid gap="1.5">
-        <Label htmlFor="wizard-output-board-name">{tbs("boardNameLabel")}</Label>
-        <Input
-          id="wizard-output-board-name"
-          value={name}
-          maxLength={MAX_BOARD_NAME_LENGTH}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={tbs("boardNamePlaceholder")}
+      {known && (
+        <ExistingDisplayChoice
+          match={known}
+          host={String(config.host ?? "")}
+          choice={knownChoice}
+          onChange={setKnownChoice}
+          output={output.id}
         />
-      </Grid>
-      {output.device_models.length > 1 && (
-        <Grid gap="1.5">
-          <Label htmlFor="wizard-output-device-model">{tbs("deviceModelLabel")}</Label>
-          <Select
-            value={deviceModel}
-            disabled={create.isPending || actionPending}
-            onValueChange={(v) => {
-              if (v) {
-                setDeviceModel(v);
-                setSize({});
-                setVerifiedConfig(null);
-                setSkipTest(false);
-              }
-            }}
-          >
-            <SelectTrigger id="wizard-output-device-model">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {output.device_models.map((model) => (
-                <SelectItem key={model.id} value={model.id}>
-                  {model.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Grid>
       )}
-      {sizeFields.length > 0 && (
-        <Stack gap="2">
-          <Text size="sm" tone="muted">
-            {t("sizeHelp")}
-          </Text>
-          <Grid cols="2" gap="3">
-            {sizeFields.map((field) => (
-              <Stack key={field.key} gap="1">
-                <Label htmlFor={`wizard-size-${field.key}`}>{field.label}</Label>
-                <Input
-                  id={`wizard-size-${field.key}`}
-                  type="number"
-                  min={field.min}
-                  max={field.max}
-                  step={1}
-                  value={size[field.key] ?? field.fallback}
-                  disabled={create.isPending || actionPending}
-                  onChange={(event) => setSize((current) => ({ ...current, [field.key]: event.target.value }))}
-                  aria-invalid={
-                    !Number.isInteger(geometry[field.key]) ||
-                    geometry[field.key] < field.min ||
-                    geometry[field.key] > field.max
-                  }
-                />
-                <Text size="xs" tone="muted">
-                  {t("sizeRange", { min: field.min, max: field.max })}
-                </Text>
-              </Stack>
-            ))}
+      {lookup.error && <ExistingDisplayError error={lookup.error} retry={lookup.retry} />}
+      {!keep && (
+        <>
+          <Grid gap="1.5">
+            <Label htmlFor="wizard-output-board-name">{tbs("boardNameLabel")}</Label>
+            <Input
+              id="wizard-output-board-name"
+              value={name}
+              maxLength={MAX_BOARD_NAME_LENGTH}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={tbs("boardNamePlaceholder")}
+            />
           </Grid>
-        </Stack>
-      )}
-      {!output.builtin && (
-        <Alert variant="info">
-          <AlertTitle>{t("community")}</AlertTitle>
-          <AlertDescription>{t(deviceModel.includes("tc001") ? "tc001Untested" : "communityHint")}</AlertDescription>
-        </Alert>
-      )}
-      <PluginBoardSettings
-        output={output}
-        values={config}
-        onChange={(values) => {
-          setConfig(values);
-          setVerifiedConfig(null);
-          setSkipTest(false);
-        }}
-        deviceModel={deviceModel}
-        facts={{ device_type: "panel", device_model: deviceModel }}
-        onGeometry={
-          sizeFields.length
-            ? (detected) => {
-                setSize(
-                  modelGeometry?.kind === "note_array"
-                    ? {
-                        notes_tall: String(detected.notes_tall ?? detected.rows / NOTE_ROWS),
-                        notes_wide: String(detected.notes_wide ?? detected.cols / NOTE_COLS),
+          {output.device_models.length > 1 && (
+            <Grid gap="1.5">
+              <Label htmlFor="wizard-output-device-model">{tbs("deviceModelLabel")}</Label>
+              <Select
+                value={deviceModel}
+                disabled={create.isPending || actionPending}
+                onValueChange={(v) => {
+                  if (v) {
+                    setDeviceModel(v);
+                    setSize({});
+                    setVerifiedConfig(null);
+                    setSkipTest(false);
+                  }
+                }}
+              >
+                <SelectTrigger id="wizard-output-device-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {output.device_models.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Grid>
+          )}
+          {sizeFields.length > 0 && (
+            <Stack gap="2">
+              <Text size="sm" tone="muted">
+                {t("sizeHelp")}
+              </Text>
+              <Grid cols="2" gap="3">
+                {sizeFields.map((field) => (
+                  <Stack key={field.key} gap="1">
+                    <Label htmlFor={`wizard-size-${field.key}`}>{field.label}</Label>
+                    <Input
+                      id={`wizard-size-${field.key}`}
+                      type="number"
+                      min={field.min}
+                      max={field.max}
+                      step={1}
+                      value={size[field.key] ?? field.fallback}
+                      disabled={create.isPending || actionPending}
+                      onChange={(event) => setSize((current) => ({ ...current, [field.key]: event.target.value }))}
+                      aria-invalid={
+                        !Number.isInteger(geometry[field.key]) ||
+                        geometry[field.key] < field.min ||
+                        geometry[field.key] > field.max
                       }
-                    : { rows: String(detected.rows), cols: String(detected.cols) },
-                );
-              }
-            : undefined
-        }
-        disabled={create.isPending}
-        onActionStateChange={(id, pending) => {
-          setActionPending(pending);
-          if (id === "test_connection" && pending) setVerifiedConfig(null);
-        }}
-        onActionResult={(id, result, tested) => {
-          if (id === "test_connection") setVerifiedConfig(result.status === "ok" ? JSON.stringify(tested) : null);
-        }}
-      />
-      <Stack gap="1" className="rounded-lg bg-muted p-3" data-testid="plugin-connection-status" role="status">
-        <Text weight="medium">{verified ? t("verified") : t("unverified")}</Text>
-        <Text size="sm" tone="muted">
-          {verified ? t("verifiedHelp") : canTest ? t("testHelp") : t("noTestHelp")}
-        </Text>
-      </Stack>
+                    />
+                    <Text size="xs" tone="muted">
+                      {t("sizeRange", { min: field.min, max: field.max })}
+                    </Text>
+                  </Stack>
+                ))}
+              </Grid>
+            </Stack>
+          )}
+          {!output.builtin && (
+            <Alert variant="info">
+              <AlertTitle>{t("community")}</AlertTitle>
+              <AlertDescription>
+                {t(deviceModel.includes("tc001") ? "tc001Untested" : "communityHint")}
+              </AlertDescription>
+            </Alert>
+          )}
+          <PluginBoardSettings
+            output={output}
+            values={config}
+            onChange={(values) => {
+              setConfig(values);
+              setVerifiedConfig(null);
+              setSkipTest(false);
+            }}
+            deviceModel={deviceModel}
+            facts={{ device_type: "panel", device_model: deviceModel }}
+            onGeometry={
+              sizeFields.length
+                ? (detected) => {
+                    setSize(
+                      modelGeometry?.kind === "note_array"
+                        ? {
+                            notes_tall: String(detected.notes_tall ?? detected.rows / NOTE_ROWS),
+                            notes_wide: String(detected.notes_wide ?? detected.cols / NOTE_COLS),
+                          }
+                        : { rows: String(detected.rows), cols: String(detected.cols) },
+                    );
+                  }
+                : undefined
+            }
+            disabled={create.isPending}
+            onActionStateChange={(id, pending) => {
+              setActionPending(pending);
+              if (id === "test_connection" && pending) setVerifiedConfig(null);
+            }}
+            onActionResult={(id, result, tested) => {
+              if (id === "test_connection") setVerifiedConfig(result.status === "ok" ? JSON.stringify(tested) : null);
+            }}
+          />
+          <Stack gap="1" className="rounded-lg bg-muted p-3" data-testid="plugin-connection-status" role="status">
+            <Text weight="medium">{verified ? t("verified") : t("unverified")}</Text>
+            <Text size="sm" tone="muted">
+              {verified ? t("verifiedHelp") : canTest ? t("testHelp") : t("noTestHelp")}
+            </Text>
+          </Stack>
+        </>
+      )}
       {create.isError && (
         <Alert variant="destructive" data-testid="wizard-output-create-error">
           <XCircle className="h-4 w-4" aria-hidden="true" />
@@ -443,27 +499,14 @@ function OutputBoardForm({
           <AlertDescription>{create.error.message}</AlertDescription>
         </Alert>
       )}
-      {!hideCreate && !output.builtin && !verified && (
+      {!keep && !hideCreate && !output.builtin && !verified && (
         <label className="flex items-center gap-2 text-sm">
           <Checkbox checked={skipTest} onChange={(event) => setSkipTest(event.target.checked)} />
           {t("skipTest")}
         </label>
       )}
       {!hideCreate && (
-        <Button
-          type="button"
-          onClick={() => create.mutate()}
-          disabled={
-            create.isPending ||
-            actionPending ||
-            !deviceModel ||
-            !sizeValid ||
-            !name.trim() ||
-            !requiredValid ||
-            (!verified && !skipTest)
-          }
-          className="w-full"
-        >
+        <Button type="button" onClick={() => create.mutate()} disabled={!valid} className="w-full">
           {create.isPending ? tbs("creating") : createLabel}
         </Button>
       )}

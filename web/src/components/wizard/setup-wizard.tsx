@@ -59,10 +59,15 @@ export function SetupWizard({ onComplete }: { onComplete?: () => void }) {
     ...saved?.plugins,
   }));
   const general = useQuery({ queryKey: ["wizard-general"], queryFn: api.getGeneralConfig });
+  const priorWizard = useQuery({ queryKey: ["wizard-state"], queryFn: api.getWizardState });
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [timezoneDraft, setTimezoneDraft] = useState<string | null>(null);
-  const hubName = nameDraft ?? general.data?.instance_name ?? t("intro.defaultName");
-  const timezone = timezoneDraft ?? general.data?.timezone ?? pluginConfig.date_time.timezone;
+  const hubName = nameDraft ?? (general.data?.instance_name?.trim() || t("intro.defaultName"));
+  const timezone =
+    timezoneDraft ??
+    saved?.plugins?.date_time?.timezone ??
+    (priorWizard.data?.state ? general.data?.timezone : undefined) ??
+    pluginConfig.date_time.timezone;
   const boardStep = useRef<BoardSetupHandle>(null);
   const panelStep = useRef<PanelSetupHandle>(null);
   const outputStep = useRef<OutputSetupHandle>(null);

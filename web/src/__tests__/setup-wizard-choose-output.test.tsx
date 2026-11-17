@@ -141,7 +141,7 @@ describe("choosing the display", () => {
     await screen.findByRole("radiogroup", { name: "Displays" });
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
     await userEvent.click(screen.getByRole("radio", { name: /Vestaboard/ }));
-    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
   });
 
   it("says which display downloads, and never asks for an opt-in", async () => {
@@ -200,6 +200,7 @@ describe("the Vestaboard path", () => {
     expect(tests).toEqual([
       { output_config: expect.objectContaining({ api_mode: "local", host: "192.0.2.60", local_api_key: "test_key" }) },
     ]);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByText("Step 3 of 4")).toBeInTheDocument();
     expect(boards).toEqual([
@@ -241,11 +242,13 @@ describe("the TV path", () => {
     await userEvent.clear(name);
     await userEvent.type(name, "Den TV");
     expect(screen.getByText("How the TV connects")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByText("Step 3 of 4")).toBeInTheDocument();
     expect(created).toEqual([{ name: "Den TV", screen_diagonal_inches: 55 }]);
     expect(removed).toHaveLength(1);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByText("Den TV")).toBeInTheDocument();
   });
@@ -291,7 +294,7 @@ describe("an output plugin", () => {
 
     expect(await screen.findByText("Step 3 of 4")).toBeInTheDocument();
     expect(boards).toEqual([{ device_model: "sign_small", output_config: { host: "192.0.2.10" }, name: "Porch sign" }]);
-    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
   });
 
   it("saves a tested Community output on Continue with no extra create step", async () => {
@@ -315,9 +318,10 @@ describe("an output plugin", () => {
     await userEvent.type(await screen.findByLabelText("Sign address"), "192.0.2.30");
     await userEvent.click(screen.getByRole("button", { name: "Test sign" }));
     expect(await screen.findByTestId("action-result")).toHaveTextContent("Sign answered");
-    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
     expect(screen.queryByRole("button", { name: "Add board" })).not.toBeInTheDocument();
     expect(writes).toEqual([]);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByText("Step 3 of 4")).toBeInTheDocument();
     expect(writes).toHaveLength(1);

@@ -21,8 +21,6 @@ import {
   SelectValue,
   Stack,
   Text,
-  ToggleCard,
-  ToggleCardGroup,
 } from "@fiestaboard/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Info } from "lucide-react";
@@ -34,6 +32,12 @@ import type { ActionResult, BoardInstance, Code62Glyph } from "@/lib/api";
 import { api } from "@/lib/api";
 
 import { removeUntouchedPlaceholder } from "./default-board";
+import {
+  ExistingDisplayChoice,
+  ExistingDisplayError,
+  existingDisplayQuery,
+  useExistingDisplay,
+} from "./existing-display";
 import type { WizardCreatedBoard } from "./step-output-plugin";
 
 export interface BoardConfig {
@@ -79,7 +83,7 @@ export function StepBoardSetup({
   const [result, setResult] = useState<ActionResult | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [knownChoice, setKnownChoice] = useState("keep");
+  const [knownSelection, setKnownSelection] = useState<{ boardId: string; value: string } | null>(null);
   const busy = useRef(false);
   const revision = useRef(0);
   const alive = useRef(true);
@@ -94,21 +98,31 @@ export function StepBoardSetup({
   const keyField = mode === "local" ? "local_api_key" : "cloud_key";
   const secret = String(config.output_config[keyField] ?? "");
   const name = config.name ?? t("defaultName");
-  const known = settings?.boards?.find(
-    (board) =>
-      (board.output ?? "vestaboard") === "vestaboard" &&
-      (board.id === createdBoardId ||
-        (mode === "local" &&
-          host.trim() &&
-          String(board.output_config?.host ?? "")
-            .trim()
-            .toLowerCase() === host.trim().toLowerCase()) ||
-        (mode === "cloud" && secret && secret !== "***" && board.output_config?.cloud_key === secret)),
+  const lookupQuery = existingDisplayQuery(
+    "vestaboard",
+    {
+      ...(mode === "local" ? { host, port: config.output_config.port } : { cloud_key: secret }),
+    },
+    createdBoardId,
   );
+  const lookup = useExistingDisplay(lookupQuery);
+  const resumed = settings?.boards.find((board) => board.id === createdBoardId);
+  const known =
+    lookup.existing[0] ??
+    (resumed
+      ? { board_id: resumed.id, name: resumed.name, output: resumed.output ?? "vestaboard", matched: "host" as const }
+      : null);
+  const knownChoice = knownSelection?.boardId === known?.board_id ? (knownSelection?.value ?? "keep") : "keep";
+  const setKnownChoice = (value: string) => {
+    if (known) setKnownSelection({ boardId: known.board_id, value });
+  };
   const keep = !!known && knownChoice === "keep";
   const fieldsValid = !!name.trim() && !!secret.trim() && (mode === "cloud" || !!host.trim());
   const failed = result?.status === "error";
-  const valid = keep || (fieldsValid && !failed && (!requireTest || config.connectionVerified));
+  const valid =
+    !lookup.pending &&
+    !lookup.error &&
+    (keep || (fieldsValid && !failed && (!requireTest || config.connectionVerified)));
 
   useEffect(() => {
     onValidChange(valid);
@@ -170,20 +184,18 @@ export function StepBoardSetup({
         // Re-read before writing: preserve the fleet, and recognize a board
         // added from another browser while this step was open.
         const fresh = await api.getBoardSettings();
-        const existing = fresh.boards.find(
-          (board) =>
-            (board.output ?? "vestaboard") === "vestaboard" &&
-            (board.id === createdBoardId ||
-              (mode === "local" &&
-                host.trim() &&
-                String(board.output_config?.host ?? "")
-                  .trim()
-                  .toLowerCase() === host.trim().toLowerCase()) ||
-              (mode === "cloud" && secret !== "***" && secret && board.output_config?.cloud_key === secret)),
-        );
+        const matches = lookupQuery ? (await api.checkExistingBoards(lookupQuery)).existing : [];
+        const existing =
+          fresh.boards.find((board) => board.id === matches[0]?.board_id) ??
+          fresh.boards.find((board) => board.id === createdBoardId);
+        if (matches.length && !existing) throw new Error(t("saveFailed"));
         let board: BoardInstance | undefined = existing;
         if (existing) {
-          if (knownChoice === "update") {
+          if (
+            knownChoice === "update" &&
+            known?.board_id === existing.id &&
+            (existing.output ?? "vestaboard") === "vestaboard"
+          ) {
             await api.updateBoardSettings({
               boards: fresh.boards.map((item) =>
                 item.id === existing.id ? { ...item, output_config: config.output_config } : item,
@@ -191,6 +203,7 @@ export function StepBoardSetup({
             });
           }
         } else {
+          if (!fieldsValid) throw new Error(t("saveFailed"));
           const saved = await api.addBoard({
             name: name.trim(),
             device_type: config.device_type,
@@ -224,18 +237,15 @@ export function StepBoardSetup({
   return (
     <Stack gap="4">
       {known && (
-        <Stack gap="3">
-          <Alert variant="info">
-            <Info aria-hidden="true" />
-            <AlertTitle>{t("knownTitle")}</AlertTitle>
-            <AlertDescription>{t("knownDescription", { name: known.name, host })}</AlertDescription>
-          </Alert>
-          <ToggleCardGroup value={knownChoice} onValueChange={setKnownChoice} columns="2" aria-label={t("knownTitle")}>
-            <ToggleCard value="keep" title={t("keep", { name: known.name })} description={t("keepHint")} />
-            <ToggleCard value="update" title={t("update")} description={t("updateHint")} />
-          </ToggleCardGroup>
-        </Stack>
+        <ExistingDisplayChoice
+          match={known}
+          host={mode === "local" ? host : t("cloud")}
+          choice={knownChoice}
+          onChange={setKnownChoice}
+          output="vestaboard"
+        />
       )}
+      {lookup.error && <ExistingDisplayError error={lookup.error} retry={lookup.retry} />}
       {!keep && (
         <>
           <Grid gap="1.5">

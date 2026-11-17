@@ -161,6 +161,7 @@ describe("Add a display", () => {
     await userEvent.click(screen.getByRole("button", { name: "Test connection" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Board answered");
     expect(calls.add).toEqual([]);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add display" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("note-1"));
     expect(calls.add).toEqual([
@@ -182,6 +183,7 @@ describe("Add a display", () => {
     await userEvent.click(
       within(dialog).getByLabelText("Skip the connection test and add this community display untested"),
     );
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Add display" })).toBeEnabled());
     await userEvent.click(within(dialog).getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("sign-1"));
     expect(calls.install).toEqual(["acme_sign"]);
@@ -221,6 +223,7 @@ describe("Add a display", () => {
     await userEvent.click(
       within(dialog).getByLabelText("Skip the connection test and add this community display untested"),
     );
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Add display" })).toBeEnabled());
     await userEvent.click(within(dialog).getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
     expect(calls.removed).toEqual([]);
@@ -240,6 +243,7 @@ describe("Add a display", () => {
     );
     await choose(/FiestaPanel/);
     expect(screen.getByRole("dialog", { name: "Add a display" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add display" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("panel-board"));
     expect(created).toHaveLength(1);
@@ -261,6 +265,7 @@ describe("Add a display", () => {
       }),
     );
     await choose(/FiestaPanel/);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add display" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("panel-board"));
     await waitFor(() => expect(client.getQueryData<{ panels: unknown[] }>(PANELS_QUERY_KEY)?.panels).toEqual([panel]));
