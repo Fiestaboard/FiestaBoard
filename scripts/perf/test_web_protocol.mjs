@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import http from "node:http";
 import { gzipSync } from "node:zlib";
 import { test } from "node:test";
 import vm from "node:vm";
 
-import { createRelay, installBrowserCollector, profileFor, redact, relayLocation, relayRequestHeaders, summarizeMetrics, validateSessionBatch, validateSessionCookieHeaders, verifyCollector } from "./web_protocol.mjs";
-import { runBrowserBatch } from "./web_run.mjs";
+import { collectorMetadataFromProvenance, createRelay, installBrowserCollector, profileFor, redact, relayLocation, relayRequestHeaders, summarizeMetrics, validateRunEvidence, validateSessionBatch, validateSessionCookieHeaders, verifyCollector } from "./web_protocol.mjs";
+import { createBatchSession, runBrowserBatch } from "./web_run.mjs";
 
 // These controlled loopback servers run only when root executes this test in
 // its serialized shared role. They never start the app or contact a live hub.
@@ -381,4 +383,180 @@ test("collector serialization allowlists scalar attribution and raw entry fields
   assert.deepEqual(metric.entries, [{ entryType: "largest-contentful-paint", startTime: 310, size: 1200, renderTime: 310, loadTime: 0, url: "" }]);
   assert.equal(JSON.stringify(metric).includes("private"), false);
   assert.equal(JSON.stringify(metric).includes("never-retain"), false);
+});
+
+const publishedSource = "83236253aa8103db856b7efa456e088b9c9ec548";
+const armManifest = "sha256:e0127d1f0eed00e13cd394f098580c2b96579b458731b6dc5d7ee842c7645886";
+const armImage = "sha256:ddf771f44a75dde50288922b9d38c75b88aad0c4449ccef2a5d896c790825cae";
+
+function evidenceFixture() {
+  const manifest = { schema_version: 1, seed_id: "seed-one", source_commit: publishedSource, base_url: "http://hub:3000", manifest_sha256: "separate-canonical-content-identity" };
+  const ownership = { source_commit: publishedSource, image_manifest: armManifest, container_id: "owned-container", base_url: "http://hub:3000", seed_id: "seed-one", data_dir: "/synthetic/seed-one", empty_before_start: true, prestart_entries: [], attested_utc: "2026-11-17T10:00:00Z" };
+  const manifestBytes = Buffer.from(`${JSON.stringify(manifest)}\n`);
+  const ownershipBytes = Buffer.from(`${JSON.stringify(ownership)}\n`);
+  return {
+    manifestBytes, ownershipBytes, nowUtc: "2026-11-17T11:00:00Z", maxAgeSeconds: 300, diagnostic: true, targetOrigin: "http://hub:3000",
+    context: {
+      schema_version: 1, run_id: "run-one", seed_id: "seed-one", source_commit: publishedSource, data_dir: "/synthetic/seed-one", captured_utc: "2026-11-17T10:59:30Z",
+      manifest_sha256: createHash("sha256").update(manifestBytes).digest("hex"), ownership_sha256: createHash("sha256").update(ownershipBytes).digest("hex"), target_origin: "http://hub:3000",
+      container: { id: "owned-container", image_id: armImage, manifest_digest: armManifest, architecture: "arm64" },
+      exclusion: { running_ids: ["prodPerf"], container_names: ["hub", "web", "api"], checked_utc: "2026-11-17T10:59:30Z", browser_lease_owner: "prodPerf" },
+      host: { os: "Linux", architecture: "arm64", cpu: null, memory: null, unavailable: ["cpu", "memory"] },
+      calibration: { relay_report_path: null, lifecycle_report_path: null },
+    },
+  };
+}
+
+test("a diagnostic accepts freshly bound original file bytes without confusing the manifest's internal canonical hash", () => {
+  const result = validateRunEvidence(evidenceFixture());
+  assert.ok(result, "bound evidence is returned");
+  assert.equal(result.manifest.seed_id, "seed-one");
+  assert.equal(result.context.container.architecture, "arm64");
+  assert.equal(result.diagnostic, true);
+});
+
+test("changing manifest whitespace or ownership content breaks the actual-file-byte binding before setup", () => {
+  const manifestChanged = evidenceFixture();
+  manifestChanged.manifestBytes = Buffer.concat([manifestChanged.manifestBytes, Buffer.from(" ")]);
+  assert.throws(() => validateRunEvidence(manifestChanged), /manifest.*hash/i);
+  const ownershipChanged = evidenceFixture();
+  ownershipChanged.ownershipBytes = Buffer.concat([ownershipChanged.ownershipBytes, Buffer.from(" ")]);
+  assert.throws(() => validateRunEvidence(ownershipChanged), /ownership.*hash/i);
+});
+
+test("an unrelated seed, container, source revision or measured origin cannot borrow a valid context", () => {
+  for (const [key, value] of [["seed_id", "other-seed"], ["source_commit", "candidate-source"], ["target_origin", "http://other:3000"], ["data_dir", "/owner/data"]]) {
+    const input = evidenceFixture();
+    input.context[key] = value;
+    assert.throws(() => validateRunEvidence(input), /bind|source|origin|seed|data/i);
+  }
+  const containerChanged = evidenceFixture();
+  containerChanged.context.container.id = "another-container";
+  assert.throws(() => validateRunEvidence(containerChanged), /container/i);
+  const architectureChanged = evidenceFixture();
+  architectureChanged.context.container.architecture = "amd64";
+  assert.throws(() => validateRunEvidence(architectureChanged), /image|manifest|architecture/i);
+});
+
+test("stale or future inventory observations cannot establish current exclusion", () => {
+  for (const captured_utc of ["2026-11-17T10:54:59Z", "2026-11-17T11:00:01Z"]) {
+    const input = evidenceFixture();
+    input.context.captured_utc = captured_utc;
+    assert.throws(() => validateRunEvidence(input), /fresh|stale|future|time/i);
+  }
+  const staleInventory = evidenceFixture();
+  staleInventory.context.exclusion.checked_utc = "2026-11-17T10:00:00Z";
+  assert.throws(() => validateRunEvidence(staleInventory), /fresh|stale|time/i);
+});
+
+test("a nonempty prestart store cannot be relabeled isolated by rehashing its ownership evidence", () => {
+  const input = evidenceFixture();
+  const owner = JSON.parse(input.ownershipBytes.toString());
+  owner.prestart_entries = ["users.json"];
+  input.ownershipBytes = Buffer.from(JSON.stringify(owner));
+  input.context.ownership_sha256 = createHash("sha256").update(input.ownershipBytes).digest("hex");
+  assert.throws(() => validateRunEvidence(input), /empty|store/i);
+});
+
+test("baseline mode fails closed when diagnostic-only relay and lifecycle calibration is absent", () => {
+  const input = evidenceFixture();
+  input.diagnostic = false;
+  assert.throws(() => validateRunEvidence(input), /calibrat/i);
+});
+
+function authUpstream(t, { expire = "2026-11-18T10:00:00+00:00", protectedStatus = 200, setupRequired = false } = {}) {
+  const observed = { logins: 0, loginPayload: null, cookies: [], records: [] };
+  return upstream(t, (req, res) => {
+    observed.cookies.push({ path: req.url, value: req.headers.cookie });
+    const chunks = [];
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", () => {
+      res.setHeader("Content-Type", "application/json");
+      if (req.url === "/api/auth/status") {
+        res.end(JSON.stringify({ enabled: true, setup_required: setupRequired, authenticated: Boolean(req.headers.cookie), auth_kind: req.headers.cookie ? "browser" : null }));
+      } else if (req.url === "/api/auth/login") {
+        observed.logins += 1;
+        observed.loginPayload = JSON.parse(Buffer.concat(chunks).toString());
+        res.setHeader("Set-Cookie", "fiestaboard_session=cookie-secret; HttpOnly; Path=/; SameSite=lax");
+        res.end(JSON.stringify({ status: "ok", username: "perf_alpha3" }));
+      } else if (req.url === "/api/auth/sessions") {
+        res.end(JSON.stringify({ sessions: [{ ...session, expires_at: expire }], current_session_id: session.id }));
+      } else {
+        res.statusCode = protectedStatus;
+        res.end(JSON.stringify(protectedStatus === 401 ? { detail: "cookie-secret password-secret" } : { pages: [], total: 0 }));
+      }
+    });
+  }).then((origin) => ({ origin, observed }));
+}
+
+test("one genuine login supplies reusable in-memory cookies and authenticated internal/v1 reads without repeated login", { timeout: 5000 }, async (t) => {
+  const { origin, observed } = await authUpstream(t);
+  const batch = await createBatchSession({ origin, credentials: { username: "perf_alpha3", password: "password-secret" }, userAgent: "Mozilla/5.0 test-browser", ...batchTiming, timeoutMs: 1000, onRecord: (record) => observed.records.push(record) });
+  assert.ok(batch && typeof batch.getJson === "function", "real batch session client is returned");
+  const first = batch.cookiesForContext();
+  const second = batch.cookiesForContext();
+  assert.equal(first[0].value, "cookie-secret");
+  assert.notEqual(first, second, "each context receives an independent in-memory cookie array");
+  await batch.getJson("/api/pages");
+  await batch.getJson("/api/v1/pages");
+  await batch.verifySession();
+  assert.equal(observed.logins, 1);
+  assert.deepEqual(observed.loginPayload, { username: "perf_alpha3", password: "password-secret", remember_me: false });
+  assert.ok(observed.cookies.filter((record) => ["/api/pages", "/api/v1/pages"].includes(record.path)).every((record) => record.value === "fiestaboard_session=cookie-secret"));
+  assert.equal(JSON.stringify(batch).includes("cookie-secret"), false);
+  assert.equal(JSON.stringify(observed.records).includes("password-secret"), false);
+});
+
+test("a protected401 aborts the batch and preserves sanitized failure evidence without relogin or retry", { timeout: 5000 }, async (t) => {
+  const { origin, observed } = await authUpstream(t, { protectedStatus: 401 });
+  const batch = await createBatchSession({ origin, credentials: { username: "perf_alpha3", password: "password-secret" }, userAgent: "Mozilla/5.0 test-browser", ...batchTiming, timeoutMs: 1000, onRecord: (record) => observed.records.push(record) });
+  assert.ok(batch && typeof batch.getJson === "function");
+  await assert.rejects(batch.getJson("/api/pages"), /401|authentication/i);
+  await assert.rejects(batch.getJson("/api/pages"), /abort/i);
+  assert.equal(observed.logins, 1);
+  assert.equal(observed.cookies.filter((record) => record.path === "/api/pages").length, 1);
+  assert.ok(observed.records.some((record) => record.status === 401));
+  assert.equal(JSON.stringify(observed.records).includes("cookie-secret"), false);
+  assert.equal(JSON.stringify(observed.records).includes("password-secret"), false);
+});
+
+test("an unprovisioned store is rejected before the batch can log in or create anything", { timeout: 5000 }, async (t) => {
+  const { origin, observed } = await authUpstream(t, { setupRequired: true });
+  await assert.rejects(createBatchSession({ origin, credentials: { username: "perf_alpha3", password: "password-secret" }, userAgent: "Mozilla/5.0 test-browser", ...batchTiming, timeoutMs: 1000 }), /provision|setup|store/i);
+  assert.equal(observed.logins, 0);
+});
+
+test("the default CLI cannot silently exit successfully without an explicit configuration", () => {
+  const result = spawnSync(process.execPath, [new URL("./web_run.mjs", import.meta.url).pathname], { encoding: "utf8", timeout: 5000 });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /config|usage/i);
+});
+
+function officialProvenance() {
+  return {
+    name: "web-vitals", version: "5.1.0", license: "Apache-2.0", verified_integrity: true,
+    registry_metadata_url: "https://registry.npmjs.org/web-vitals/5.1.0",
+    tarball_url: "https://registry.npmjs.org/web-vitals/-/web-vitals-5.1.0.tgz",
+    npm_integrity: "sha512-ArI3kx5jI0atlTtmV0fWU3fjpLmq/nD3Zr1iFFlJLaqa5wLBkUSzINwBPySCX/8jRyjlmy1Volw1kz1g9XE4Jg==",
+    tarball_sha256: "5a508f690262ddacd4937f7fcb2f15f020fa94c47aad0d47af1f716296144d61",
+    members: { "package/dist/web-vitals.attribution.iife.js": { bytes: 11582, sha256: "397a8cffdeec35be161d00e3ed1378a644223f710dafee49584d376a64d3b9a0" } },
+    official_source: "https://github.com/GoogleChrome/web-vitals/tree/v5.1.0", runtime_executed: false,
+  };
+}
+
+test("the runner derives collector byte verification from the exact root-verified official package provenance", () => {
+  assert.deepEqual(collectorMetadataFromProvenance(officialProvenance()), {
+    version: "5.1.0", attribution: true, format: "iife", license: "Apache-2.0",
+    package_integrity: "sha512-ArI3kx5jI0atlTtmV0fWU3fjpLmq/nD3Zr1iFFlJLaqa5wLBkUSzINwBPySCX/8jRyjlmy1Volw1kz1g9XE4Jg==",
+    sha256: "397a8cffdeec35be161d00e3ed1378a644223f710dafee49584d376a64d3b9a0",
+  });
+});
+
+test("an unverified package, mutable version or changed packaged collector cannot reuse the pinned provenance", () => {
+  for (const patch of [{ verified_integrity: false }, { version: "latest" }, { tarball_sha256: "other-tarball" }]) {
+    assert.throws(() => collectorMetadataFromProvenance({ ...officialProvenance(), ...patch }), /integrity|version|tarball|pin/i);
+  }
+  const changed = officialProvenance();
+  changed.members["package/dist/web-vitals.attribution.iife.js"].sha256 = "candidate-build";
+  assert.throws(() => collectorMetadataFromProvenance(changed), /digest|pin/i);
 });

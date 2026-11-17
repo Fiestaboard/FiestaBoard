@@ -117,6 +117,56 @@ export function validateSessionCookieHeaders(headers) {
   return { hostOnly: true, httpOnly: true, sameSite: "lax", secure: attributes.has("secure") };
 }
 
+const publishedSource = "83236253aa8103db856b7efa456e088b9c9ec548";
+const publishedPlatforms = {
+  arm64: { manifest: "sha256:e0127d1f0eed00e13cd394f098580c2b96579b458731b6dc5d7ee842c7645886", image: "sha256:ddf771f44a75dde50288922b9d38c75b88aad0c4449ccef2a5d896c790825cae" },
+  amd64: { manifest: "sha256:62764744c42302386ed746a93c8ca15ee7464b75a436a8cc6acb2e9be675a9e3", image: "sha256:84fce4473f73cf77a81974314ba4382043fec2d49cce955cdffdbe4b84b2a683" },
+};
+
+export function validateRunEvidence({ manifestBytes, ownershipBytes, context, targetOrigin, nowUtc, maxAgeSeconds, diagnostic }) {
+  if (createHash("sha256").update(manifestBytes).digest("hex") !== context?.manifest_sha256) throw new Error("Public manifest file hash mismatch");
+  if (createHash("sha256").update(ownershipBytes).digest("hex") !== context?.ownership_sha256) throw new Error("Ownership file hash mismatch");
+  const manifest = JSON.parse(manifestBytes.toString());
+  const ownership = JSON.parse(ownershipBytes.toString());
+  if (context.schema_version !== 1 || manifest.schema_version !== 1 || typeof context.run_id !== "string" || !context.run_id) throw new Error("Invalid run evidence schema or identity binding");
+  if ([manifest.source_commit, ownership.source_commit, context.source_commit].some((source) => source !== publishedSource)) throw new Error("Published source identity mismatch");
+  if (!manifest.seed_id || manifest.seed_id !== ownership.seed_id || manifest.seed_id !== context.seed_id) throw new Error("Seed identity binding mismatch");
+  if (!ownership.data_dir || ownership.data_dir !== context.data_dir) throw new Error("Synthetic data directory binding mismatch");
+  if (ownership.empty_before_start !== true || !Array.isArray(ownership.prestart_entries) || ownership.prestart_entries.length !== 0) throw new Error("Synthetic store was not attested empty before startup");
+  const normalizeOrigin = (value) => {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new Error("Target must be a credential-free HTTP(S) origin");
+    return url.origin;
+  };
+  const origin = normalizeOrigin(targetOrigin);
+  if ([manifest.base_url, ownership.base_url, context.target_origin].some((value) => normalizeOrigin(value) !== origin)) throw new Error("Target origin binding mismatch");
+  if (!context.container || context.container.id !== ownership.container_id) throw new Error("Container identity binding mismatch");
+  const platform = publishedPlatforms[context.container.architecture];
+  if (!platform || context.container.manifest_digest !== platform.manifest || ownership.image_manifest !== platform.manifest || context.container.image_id !== platform.image) throw new Error("Published platform image/manifest/architecture mismatch");
+  const now = Date.parse(nowUtc);
+  if (!Number.isFinite(now) || !Number.isFinite(maxAgeSeconds) || maxAgeSeconds <= 0) throw new Error("Explicit evidence freshness time and maximum age are required");
+  for (const value of [context.captured_utc, context.exclusion?.checked_utc]) {
+    const time = Date.parse(value);
+    if (!Number.isFinite(time) || time > now || now - time > maxAgeSeconds * 1000) throw new Error("Stale or future run/inventory observation; fresh evidence required");
+  }
+  if (!Array.isArray(context.exclusion.running_ids) || !context.exclusion.running_ids.includes(context.exclusion.browser_lease_owner) || !Array.isArray(context.exclusion.container_names) || context.exclusion.container_names.length > 3 || context.exclusion.container_names.length === 0) throw new Error("Missing current exclusion/lease evidence");
+  if (!context.host || !Array.isArray(context.host.unavailable)) throw new Error("Host identity or explicit unavailable fields missing");
+  if (diagnostic !== true) throw new Error("Baseline calibration evidence validation is not implemented; only explicit diagnostics are currently executable");
+  return { manifest, ownership, context, diagnostic: true };
+}
+
+export function collectorMetadataFromProvenance(provenance) {
+  const integrity = "sha512-ArI3kx5jI0atlTtmV0fWU3fjpLmq/nD3Zr1iFFlJLaqa5wLBkUSzINwBPySCX/8jRyjlmy1Volw1kz1g9XE4Jg==";
+  const sha256 = "397a8cffdeec35be161d00e3ed1378a644223f710dafee49584d376a64d3b9a0";
+  if (provenance?.version !== "5.1.0" || provenance.name !== "web-vitals") throw new Error("Collector package version/name pin mismatch");
+  if (provenance.verified_integrity !== true || provenance.npm_integrity !== integrity) throw new Error("Verified official npm integrity is required");
+  if (provenance.tarball_sha256 !== "5a508f690262ddacd4937f7fcb2f15f020fa94c47aad0d47af1f716296144d61") throw new Error("Official tarball pin mismatch");
+  const member = provenance.members?.["package/dist/web-vitals.attribution.iife.js"];
+  if (member?.sha256 !== sha256 || member.bytes !== 11582) throw new Error("Packaged collector digest/size pin mismatch");
+  if (provenance.license !== "Apache-2.0" || provenance.registry_metadata_url !== "https://registry.npmjs.org/web-vitals/5.1.0" || provenance.tarball_url !== "https://registry.npmjs.org/web-vitals/-/web-vitals-5.1.0.tgz") throw new Error("Official collector provenance mismatch");
+  return { version: "5.1.0", attribution: true, format: "iife", license: "Apache-2.0", package_integrity: integrity, sha256 };
+}
+
 // Serialized into the measured document; no module closures may be referenced.
 export function installBrowserCollector(preferences) {
   if (window.top !== window || !["http:", "https:"].includes(window.location.protocol)) return null;
