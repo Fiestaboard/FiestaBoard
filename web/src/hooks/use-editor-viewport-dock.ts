@@ -1,4 +1,4 @@
-import { type RefObject, useEffect } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 
 import { useVisualViewportBottom } from "@/hooks/use-visual-viewport-bottom";
 
@@ -13,40 +13,33 @@ export function useEditorViewportDock(
   const bottom = useVisualViewportBottom(true);
   const viewport = typeof window === "undefined" ? null : window.visualViewport;
 
+  const previousHeight = useRef(viewport?.height ?? 0);
+
+  // Run after React commits the padding returned below. Scheduling directly
+  // from the native resize listener can scroll against the old document height.
   useEffect(() => {
-    if (!enabled || !viewport) return;
-    let height = viewport.height;
-    let layoutFrame = 0;
-    let scrollFrame = 0;
-    const cancel = () => {
-      cancelAnimationFrame(layoutFrame);
-      cancelAnimationFrame(scrollFrame);
-    };
+    const height = viewport?.height ?? 0;
+    const contracted = height < previousHeight.current;
+    previousHeight.current = height;
+    if (!enabled || !viewport || bottom <= 0 || !contracted || viewport.scale !== 1) return;
     const templateHasFocus = () => {
       const active = document.activeElement;
       return (
         active !== null && contentRef.current?.contains(active) && active.matches('textarea, [contenteditable="true"]')
       );
     };
-    const resize = () => {
-      const contracted = viewport.height < height;
-      height = viewport.height;
-      cancel();
-      if (!contracted || viewport.scale !== 1 || !templateHasFocus()) return;
-      // React must commit the new scroll space, then the browser must lay it
-      // out before scrollIntoView can use it. Never move focus or the caret.
-      layoutFrame = requestAnimationFrame(() => {
-        scrollFrame = requestAnimationFrame(() => {
-          if (templateHasFocus()) previewRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
-        });
+    if (!templateHasFocus()) return;
+    let scrollFrame = 0;
+    const layoutFrame = requestAnimationFrame(() => {
+      scrollFrame = requestAnimationFrame(() => {
+        if (templateHasFocus()) previewRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
       });
-    };
-    viewport.addEventListener("resize", resize);
+    });
     return () => {
-      cancel();
-      viewport.removeEventListener("resize", resize);
+      cancelAnimationFrame(layoutFrame);
+      cancelAnimationFrame(scrollFrame);
     };
-  }, [enabled, viewport, contentRef, previewRef]);
+  }, [bottom, enabled, viewport, contentRef, previewRef]);
 
   return enabled ? bottom : 0;
 }

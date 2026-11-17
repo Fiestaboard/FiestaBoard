@@ -94,7 +94,7 @@ it("cancels pending scrolling when focus leaves or the editor unmounts", () => {
   unmount();
   act(() => vi.advanceTimersByTime(32));
   expect(scrollIntoView).not.toHaveBeenCalled();
-  expect(remove.mock.calls.filter(([event]) => event === "resize")).toHaveLength(2);
+  expect(remove.mock.calls.map(([event]) => event)).toEqual(["resize", "scroll"]);
 });
 
 it("clears reserved space when zoom changes even if the numeric bottom inset stays equal", () => {
