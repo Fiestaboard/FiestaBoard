@@ -31,7 +31,17 @@ for (const width of [390, 768, 1280]) {
         } else {
           await expect(page.getByRole("link", { name: title, exact: true })).toHaveAttribute("aria-current", "page");
         }
-        await expect(page.locator("body")).toHaveJSProperty("scrollWidth", width);
+        // Classic vertical scrollbars reduce the content viewport. Assert no
+        // horizontal overflow against that viewport rather than window width.
+        await expect
+          .poll(() =>
+            page.evaluate(
+              () =>
+                Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) -
+                document.documentElement.clientWidth,
+            ),
+          )
+          .toBeLessThanOrEqual(0);
         await injectAxe(page);
         const violations = await getViolations(page, '[data-slot="settings-detail"]', {
           runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
