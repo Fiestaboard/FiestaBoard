@@ -1,9 +1,23 @@
-import type { TemplateEditorToolbarProps } from "@fiestaboard/ui";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+  type TemplateEditorToolbarProps,
+} from "@fiestaboard/ui";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { EditorTabletTools } from "@/components/editor-tablet-tools";
+import { EditorAnchoredTool, EditorTabletTools } from "@/components/editor-tablet-tools";
 
 function commandEditor() {
   const chain = {
@@ -29,6 +43,93 @@ function commandEditor() {
 }
 
 describe("EditorTabletTools", () => {
+  it("keeps a nested portaled transition menu alive through selection", async () => {
+    const user = userEvent.setup();
+    const selected = vi.fn();
+    render(
+      <EditorTabletTools
+        editor={null}
+        moreContent={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>Choose transition</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuRadioGroup value="default" onValueChange={selected}>
+                <DropdownMenuRadioItem value="fade" closeOnClick>
+                  Fade transition
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("button", { name: "Choose transition" }));
+    await user.click(await screen.findByRole("menuitemradio", { name: "Fade transition" }));
+    expect(selected).toHaveBeenCalledWith("fade", expect.anything());
+  });
+  it("returns focus on Escape or picker selection and dismisses on an outside press", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button>Outside editor</button>
+        <EditorAnchoredTool label="Open picker" icon={<span aria-hidden="true">+</span>}>
+          {(close) => (
+            <>
+              <button>First option</button>
+              <button onClick={close}>Last option</button>
+            </>
+          )}
+        </EditorAnchoredTool>
+      </>,
+    );
+    const trigger = screen.getByRole("button", { name: "Open picker" });
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute("data-active");
+    await waitFor(() => expect(screen.getByRole("button", { name: "First option" })).toHaveFocus());
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Last option" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Open picker" })).toBeNull());
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "Last option" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Open picker" })).toBeNull());
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "Outside editor" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Open picker" })).toBeNull());
+    expect(trigger).not.toHaveAttribute("data-active");
+  });
+  it("keeps a nested portaled confirmation mounted until its action completes", async () => {
+    const user = userEvent.setup();
+    const confirmed = vi.fn();
+    render(
+      <EditorTabletTools
+        editor={null}
+        moreContent={
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button>Delete nested page</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogTitle>Delete nested page?</AlertDialogTitle>
+              <AlertDialogDescription>Confirm this page action.</AlertDialogDescription>
+              <AlertDialogAction onClick={confirmed}>Confirm nested delete</AlertDialogAction>
+            </AlertDialogContent>
+          </AlertDialog>
+        }
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("button", { name: "Delete nested page" }));
+    expect(await screen.findByRole("alertdialog", { name: "Delete nested page?" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Confirm nested delete" }));
+    expect(confirmed).toHaveBeenCalledOnce();
+  });
+
   it("keeps the dock above the visual viewport keyboard as its size changes", () => {
     const viewport = Object.assign(new EventTarget(), { height: window.innerHeight - 200, offsetTop: 10 });
     vi.stubGlobal("visualViewport", viewport);
@@ -94,7 +195,7 @@ describe("EditorTabletTools", () => {
     expect(screen.queryByRole("button", { name: "Formatting" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Size" }));
     await user.click(screen.getByRole("button", { name: "Choose size" }));
-    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("dispatches undo and formula through the editor and draw Done through the host", async () => {
@@ -151,7 +252,7 @@ describe("EditorTabletTools", () => {
         }),
       ]),
     );
-    expect(screen.queryByText("Temperature")).toBeNull();
+    await waitFor(() => expect(screen.queryByText("Temperature")).toBeNull());
     await user.click(screen.getByRole("button", { name: "Formatting" }));
     await user.click(screen.getByText("center", { exact: true }));
     expect(chain.insertContent).toHaveBeenCalledTimes(2);

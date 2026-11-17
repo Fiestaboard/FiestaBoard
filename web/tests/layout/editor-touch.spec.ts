@@ -48,7 +48,15 @@ async function mockEditorApi(page: Page) {
           active_page_id: kitchenMorning.id,
         };
       } else if (pathname === `/v1/pages/${kitchenMorning.id}`) {
-        response = kitchenMorning;
+        response =
+          route.request().method() === "DELETE"
+            ? {
+                id: kitchenMorning.id,
+                message: "Page deleted",
+                active_page_updated: false,
+                default_page_created: false,
+              }
+            : kitchenMorning;
       } else if (pathname === "/v1/pages" || pathname === "/pages") {
         response = { pages: [kitchenMorning] };
       } else if (pathname === "/v1/variables") {
@@ -265,10 +273,26 @@ for (const theme of ["light", "dark"] as const) {
               })),
             );
           expect(sheetBounds!.x).toBeGreaterThanOrEqual(0);
-          expect(sheetBounds!.x + sheetBounds!.width).toBeLessThanOrEqual(width);
+          const paintRight =
+            width < 640
+              ? width
+              : await touchToolbar.evaluate(
+                  (element) =>
+                    Math.min(element.getBoundingClientRect().right, document.body.getBoundingClientRect().right) - 8,
+                );
+          expect(sheetBounds!.x + sheetBounds!.width).toBeLessThanOrEqual(paintRight);
           expect(sheetBounds!.y).toBeGreaterThanOrEqual(0);
           expect(sheetBounds!.y + sheetBounds!.height).toBeLessThanOrEqual(900);
           expect(await sheet.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+          for (const control of await sheet.getByRole("switch").all()) {
+            expect(
+              await control.evaluate((element) => {
+                const bounds = element.getBoundingClientRect();
+                const hit = document.elementFromPoint(bounds.right - 2, bounds.y + bounds.height / 2);
+                return !!hit && element.contains(hit);
+              }),
+            ).toBe(true);
+          }
           for (const name of ["Cut", "Copy", "Paste"]) {
             const bounds = await sheet.getByRole("button", { name, exact: true }).boundingBox();
             expect(bounds!.x).toBeGreaterThanOrEqual(sheetBounds!.x);
@@ -280,3 +304,72 @@ for (const theme of ["light", "dark"] as const) {
     });
   }
 }
+
+async function openFinePointerMore(page: Page) {
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockEditorApi(page);
+  await page.goto("/tests/layout/editor-touch.html?theme=light");
+  await expect(page.getByRole("textbox", { name: /page name/i })).toHaveValue("Kitchen morning");
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  const popup = page.getByTestId("toolbar-dropdown-panel");
+  await expect(popup).toBeVisible();
+  return popup;
+}
+
+async function clickThroughMouseDown(page: Page, button: ReturnType<Page["getByRole"]>) {
+  await button.hover();
+  const bounds = await button.boundingBox();
+  await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+  await page.mouse.down();
+  // A parent outside-click handler must not unmount a nested portal at mousedown.
+  await expect(button).toBeVisible();
+  await page.mouse.up();
+}
+
+test.describe("900px fine-pointer nested More actions", () => {
+  test.use({ hasTouch: false });
+  test("selects a portaled transition without dismissing its parent before mousedown", async ({ page }) => {
+    const popup = await openFinePointerMore(page);
+    const transition = popup.getByRole("button", { name: "Page transition", exact: true });
+    await expect(transition.locator('span[aria-hidden="true"].bg-brand')).toHaveCount(0);
+    await transition.click();
+    const option = page.getByRole("menuitemradio", { name: "Wave", exact: true });
+    await expect(option).toBeVisible();
+    await clickThroughMouseDown(page, option);
+    await expect(option).toBeHidden();
+    await expect(popup).toBeVisible();
+    await expect(transition.locator('span[aria-hidden="true"].bg-brand')).toBeVisible();
+    await transition.click();
+    await expect(page.getByRole("menuitemradio", { name: "Wave", exact: true })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
+  test("keeps portaled Delete confirmation mounted through Cancel and confirmed mousedown", async ({ page }) => {
+    const deletes: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "DELETE") deletes.push(request.url());
+    });
+    const popup = await openFinePointerMore(page);
+    const openDelete = async () => {
+      await popup.getByRole("button", { name: "Delete Page", exact: true }).click();
+      const dialog = page.getByRole("alertdialog", { name: "Delete Page", exact: true });
+      await expect(dialog).toBeVisible();
+      return dialog;
+    };
+    const cancelled = await openDelete();
+    await clickThroughMouseDown(page, cancelled.getByRole("button", { name: "Cancel", exact: true }));
+    await expect(cancelled).toBeHidden();
+    expect(deletes).toHaveLength(0);
+    await expect(popup).toBeVisible();
+    const confirmed = await openDelete();
+    await clickThroughMouseDown(page, confirmed.getByRole("button", { name: "Delete", exact: true }));
+    await expect.poll(() => deletes.length).toBe(1);
+    const url = new URL(deletes[0]);
+    expect(url.pathname).toBe("/api/v1/pages/kitchen-morning");
+    expect(url.searchParams.get("expected_revision")).toBe("1");
+    await expect(confirmed).toBeHidden();
+  });
+});

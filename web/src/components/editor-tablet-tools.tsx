@@ -11,12 +11,14 @@ import {
   EditorTool,
   FormattingPickerContent,
   insertTemplateContent,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   resolveCharacterSet,
   SegmentedControl,
   SegmentedControlItem,
   Switch,
   type TemplateEditorToolbarProps,
-  ToolbarDropdown,
   VariablePickerContent,
 } from "@fiestaboard/ui";
 import {
@@ -56,6 +58,38 @@ function keyboardInset() {
   return viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
 }
 
+/** Labelled editor tool with the kit's collision and nested-portal handling. */
+export function EditorAnchoredTool({
+  label,
+  icon,
+  children,
+  disabled = false,
+}: {
+  label: string;
+  icon: ReactNode;
+  children: (close: () => void) => ReactNode;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <EditorTool label={label} icon={icon} active={open} disabled={disabled} />
+      </PopoverTrigger>
+      <PopoverContent
+        label={label}
+        side="top"
+        collisionBoundary={typeof document === "undefined" ? undefined : document.body}
+        collisionPadding={8}
+        className="max-h-[min(60dvh,var(--available-height))] overflow-y-auto p-3"
+        data-testid="toolbar-dropdown-panel"
+      >
+        {({ close }) => children(close)}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /** The kit touch bar fixes every picker to a sheet. At >=640px the web
  * design instead pairs the same kit tools with anchored kit dropdowns. */
 export function EditorTabletTools(props: TemplateEditorToolbarProps) {
@@ -92,9 +126,9 @@ export function EditorTabletTools(props: TemplateEditorToolbarProps) {
     if (history.redo) editor?.chain().focus().redo().run();
   };
   const dropdown = (label: string, icon: ReactNode, body: (close: () => void) => ReactNode, disabled = false) => (
-    <ToolbarDropdown label={label} icon={icon} size="touch" presentation="popover" disabled={disabled}>
+    <EditorAnchoredTool label={label} icon={icon} disabled={disabled}>
       {body}
-    </ToolbarDropdown>
+    </EditorAnchoredTool>
   );
   const colors = (kind: "colors" | "text" | "icon") =>
     dropdown(
@@ -170,7 +204,7 @@ export function EditorTabletTools(props: TemplateEditorToolbarProps) {
       data-capabilities={led ? "led-text" : "split-flap"}
       data-layout={props.layout ?? "docked"}
       className={cn(
-        "flex w-full items-center border-t border-border bg-card px-1 py-1 [&_[data-testid=toolbar-dropdown-panel]]:top-auto [&_[data-testid=toolbar-dropdown-panel]]:bottom-full [&_[data-testid=toolbar-dropdown-panel]]:mb-1 [&_[data-testid=toolbar-dropdown-panel]]:max-h-[60dvh] [&_[data-testid=toolbar-dropdown-panel]]:overflow-y-auto",
+        "flex w-full items-center border-t border-border bg-card px-1 py-1",
         props.layout !== "row" && "fixed inset-x-0 z-[var(--z-mobile-menu)]",
         props.className,
       )}

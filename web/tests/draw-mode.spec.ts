@@ -427,6 +427,11 @@ test.describe("Draw mode", () => {
     const pageId = (await pageRes.json()).id;
 
     await gotoEditPage(page, pageId);
+    // Paint the full array in overview: Actual preserves real tiles and scrolls.
+    await page
+      .locator('[data-slot="board-preview-mode-toggle"]')
+      .getByRole("button", { name: "Fit", exact: true })
+      .click();
     await enterDrawMode(page);
     await pickBrush(page, "blue");
 

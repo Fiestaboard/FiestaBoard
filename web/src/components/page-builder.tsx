@@ -80,6 +80,7 @@ import { DevicePreview } from "@/components/device-preview";
 import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
 import { EditorShortcutList, useEditorShortcutList } from "@/components/editor-shortcut-list";
+import { EditorAnchoredTool } from "@/components/editor-tablet-tools";
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { scheduleNextChange } from "@/components/home/home-status";
 import { useBoardDetail } from "@/components/home/use-home-data";
@@ -2964,16 +2965,22 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           }}
                         />
                       )}
-                      {dockedPreview && (editorMode === "plain" || baselineDisplay || !useTouchToolbar) && (
-                        <ToolbarDropdown
-                          label={tToolbar("more")}
-                          icon={<Ellipsis />}
-                          size="touch"
-                          presentation={sheetPickers ? "sheet" : "popover"}
-                        >
-                          {mirrorMoreContent}
-                        </ToolbarDropdown>
-                      )}
+                      {dockedPreview &&
+                        (editorMode === "plain" || baselineDisplay || !useTouchToolbar) &&
+                        (sheetPickers ? (
+                          <ToolbarDropdown
+                            label={tToolbar("more")}
+                            icon={<Ellipsis />}
+                            size="touch"
+                            presentation="sheet"
+                          >
+                            {mirrorMoreContent}
+                          </ToolbarDropdown>
+                        ) : (
+                          <EditorAnchoredTool label={tToolbar("more")} icon={<Ellipsis />}>
+                            {() => mirrorMoreContent}
+                          </EditorAnchoredTool>
+                        ))}
                     </Flex>
                   }
                 >
