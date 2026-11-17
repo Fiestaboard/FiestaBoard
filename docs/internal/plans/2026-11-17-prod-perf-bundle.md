@@ -2,20 +2,20 @@
 
 > For agentic workers: use the executing-plans and test-driven-development skills. Keep the independent source audits and final review in separate checkouts.
 
-**Goal:** Add a deterministic bundle regression gate grounded in the published v11 alpha.3 artifact while preserving the remaining production performance gates as unrun.
+**Goal:** Add a deterministic bundle regression gate grounded in the published v11 alpha.3 artifact while preserving the remaining production performance gates as not yet run.
 
 **Architecture:** A standard-library offline utility inventories a copied `web/build/client` directory, records hashes and raw/gzip sizes, and checks explicit raw-byte limits. The existing E2E job measures its already built image after the browser tests; no additional image build or runtime is needed. Existing checks and release workflows remain unchanged in meaning.
 
-**Spec:** The prodPerf handoff requires published-image API p95, bundle, desktop/phone LCP/INP, and two-hour accelerated soak evidence. This plan covers only the artifact-size part. Process inspection is denied locally, so the explicit PROD serialization rule prohibits Docker. Runtime measurements and their budgets remain deferred, not passed. Program reports retain the source-backed runtime continuation plan.
+**Spec:** The prodPerf handoff requires published-image API p95, bundle, desktop/phone LCP/INP, and two-hour accelerated soak evidence. This plan covers only the artifact-size part. Runtime measurements and their budgets remain deferred until exclusive shared-hub access is established, not passed. Program reports retain the source-backed runtime continuation plan.
 
 **Tech stack:** Python standard library (3.9+), existing GitHub Actions E2E job, public OCI metadata and verified filesystem layers.
 
 ## Constraints and decision
 
 - Only the task worktree; no primary checkout, product UI, API, release or publishing edits.
-- No Docker commands locally until `ps` verifies PROD exclusion. No host application server or dependency installation.
+- Before Docker resource use, verify PROD exclusion with a fresh dispatcher `program/codex/RUNNING` inventory and the shared container inventory. The owner's 2026-11-17 08:25 UTC ruling permits `RUNNING` instead of sandbox-denied `ps`; active PROD jobs and earlier queued predecessors still require serialized access. No host application server or dependency installation.
 - Utility scripts below are explicitly supported for local execution: they inspect files and use only the standard library.
-- Jev chose the offline bundle gate with probability 1.0 over evidence-only and an unvalidated full runtime harness. This is advice, not proof of a performance pass.
+- Jev chose the offline bundle gate with probability 1.0 over evidence-only and a full runtime harness without validation. This is advice, not proof of a performance pass.
 - Published artifact source is `83236253aa8103db856b7efa456e088b9c9ec548`; task base is `4490b28d852a5ccf77ee1de3c55c534f586eab51`. Never conflate the two.
 - One measured artifact gives deterministic size evidence, not a latency distribution. Baseline-relative headroom is a size-regression policy, not a user-experience target.
 
@@ -57,8 +57,8 @@ Files: `.github/workflows/ci.yml` (additive E2E steps only), `docs/internal/deve
 
 ## Continuation verification ledger
 
-2026-11-17: inherited WIP retained. Fresh standalone suite: 12/12 pass; Ruff lint and format pass after one SIM117 and two formatting repairs. Three independent temporary-copy mutants (allow one-byte overshoot, ignore service worker, count source maps as served JS) each fail the tests; original files retained. Published artifact remeasurement matches all four raw metrics. Original RED log is a missing-module failure; mutation evidence supplies behavioral checks. Independent artifact audit confirms all 13 layer hashes/diff IDs and 542 files. Local application suites/build/browser/axe are UNRUN because PROD exclusion is unavailable; no Docker used.
+2026-11-17: inherited WIP retained. Fresh standalone suite: 12/12 pass; Ruff lint and format pass after one SIM117 and two formatting repairs. Three independent temporary-copy mutants (allow one-byte overshoot, ignore service worker, count source maps as served JS) each fail the tests; original files retained. Published artifact remeasurement matches all four raw metrics. Original RED log is a missing-module failure; mutation evidence supplies behavioral checks. Independent artifact audit confirms all 13 layer hashes/diff IDs and 542 files. Local application suites/build/browser/axe are NOT RUN because PROD exclusion is unavailable; no Docker used.
 
 Ruling: retain the already-recorded Jev offline_bundle_gate decision (p=1.0); no new unchanged-question call. Dispatcher RUNNING also lists prodA11y, while ps remains denied. Complete this offline step and leave runtime work for serialized resumption. No product UI files changed, so this PR has no new drawn state or Figma parity claim.
 
-Review fix: Astra r1 reproduced a silently skipped unreadable subtree. Real chmod-000 regression failed first (PermissionError not raised); strict iterdir traversal now propagates read errors, and the full utility suite passes 13/13 with no skip. Lint/format pass and baseline remeasurement unchanged. Raw RED/GREEN logs retained in program evidence.
+Review fix: Astra r1 reproduced a silently skipped unreadable subtree. Real chmod-000 regression failed first (PermissionError not raised); strict `Path.iterdir` traversal now propagates read errors, and the full utility suite passes 13/13 with no skip. Lint/format pass and baseline remeasurement unchanged. Raw RED/GREEN logs retained in program evidence.
