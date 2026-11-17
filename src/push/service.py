@@ -72,7 +72,8 @@ def subscribe(session, payload):
         store = get_push_store()
         auth = get_auth_service()
         for owner in store.owners():
-            store.prune(owner, auth.sessions.list_sessions(owner) if auth.get_user(owner) else [])
+            candidates = store.cleanup_candidates(owner)
+            store.prune(candidates, auth.sessions.list_sessions(owner) if auth.get_user(owner) else [])
         store.subscribe(session, payload)
     return status(session)
 

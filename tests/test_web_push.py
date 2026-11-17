@@ -256,3 +256,25 @@ def test_redacted_validation_matches_declared_error_schema(browser, subscription
     assert response["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/ErrorResponse"}
     subscription["expirationTime"] = 1
     assert register(browser, subscription).status_code == 400
+
+
+def test_prune_cannot_delete_browser_enrolled_after_auth_snapshot(browser, auth, subscription, monkeypatch):
+    assert register(browser, subscription).status_code == 200
+    list_sessions = auth.sessions.list_sessions
+    other = []
+    interleaved = False
+
+    def enroll_after_snapshot(username):
+        nonlocal interleaved
+        snapshot = list_sessions(username)
+        if not interleaved:
+            interleaved = True
+            device = second_browser()
+            replacement = {**subscription, "endpoint": "https://fcm.googleapis.com/fcm/send/concurrent-browser"}
+            assert register(device, replacement).status_code == 200
+            other.append(device)
+        return snapshot
+
+    monkeypatch.setattr(auth.sessions, "list_sessions", enroll_after_snapshot)
+    assert register(browser, subscription).status_code == 200
+    assert other[0].get("/push/status").json()["subscribed"] is True

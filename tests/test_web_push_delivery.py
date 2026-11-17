@@ -438,3 +438,83 @@ def test_slow_transport_rechecks_consent_and_refreshes_ttl(prepared, auth, monke
     else:
         assert result.skipped == 1
         assert delivered == []
+
+
+@pytest.mark.parametrize("elapsed_ms,expected_sent,expected_ttl", [(31_000, 0, None), (1000, 1, 299)])
+def test_final_guard_refreshes_clock_after_auth_storage_wait(
+    prepared, auth, monkeypatch, elapsed_ms, expected_sent, expected_ttl
+):
+    import time
+
+    from src.push import transport
+    from src.push.notifier import PushNotifier
+
+    clock = [time.time_ns() // 1_000_000]
+    delivered = []
+
+    class Wire:
+        def settimeout(self, timeout):
+            pass
+
+        def connect(self, address):
+            pass
+
+        def close(self):
+            pass
+
+    class Accepted:
+        status = 201
+
+        def getheader(self, key):
+            return None
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo", lambda *a, **kw: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443))]
+    )
+    monkeypatch.setattr(socket, "socket", lambda *a, **kw: Wire())
+    monkeypatch.setattr(transport.ssl.SSLContext, "wrap_socket", lambda context, sock, **kw: sock)
+    monkeypatch.setattr(
+        transport.PinnedHTTPSConnection, "request", lambda self, *a, **kw: delivered.append(kw["headers"])
+    )
+    monkeypatch.setattr(transport.PinnedHTTPSConnection, "getresponse", lambda self: Accepted())
+    sender = PushNotifier(
+        prepared[0],
+        auth,
+        clock_ms=lambda: clock[0],
+        monotonic=lambda: clock[0] / 1000,
+        subject="mailto:push@example.com",
+    )
+    authorize = sender._authorized
+    calls = 0
+
+    def slow_authorize(row):
+        nonlocal calls
+        calls += 1
+        allowed = authorize(row)
+        if calls == 3:  # the final check after DNS and TLS
+            clock[0] += elapsed_ms
+        return allowed
+
+    monkeypatch.setattr(sender, "_authorized", slow_authorize)
+    result = sender.notify("admin", {"title": "Test"})
+    assert result.sent == expected_sent
+    if expected_sent:
+        assert int(delivered[0]["ttl"]) == expected_ttl
+    else:
+        assert result.skipped == 1
+        assert delivered == []
+
+
+def test_ipv6_site_local_address_is_rejected_before_socket_creation(monkeypatch):
+    from src.push.transport import PinnedHTTPSConnection, UnsafeEndpoint
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo", lambda *a, **kw: [(socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("fec0::1", 443, 0, 0))]
+    )
+
+    def internal_socket(*args, **kwargs):
+        raise AssertionError("An internal site-local address reached the socket boundary")
+
+    monkeypatch.setattr(socket, "socket", internal_socket)
+    with pytest.raises(UnsafeEndpoint):
+        PinnedHTTPSConnection("fcm.googleapis.com", timeout=5).connect()

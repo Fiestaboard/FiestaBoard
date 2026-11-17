@@ -179,14 +179,26 @@ class PushStore:
                 (session.id, session.username, session.account_generation),
             )
 
-    def prune(self, username, active_sessions):
+    def cleanup_candidates(self, username):
+        with self.transaction() as db:
+            return [
+                dict(row)
+                for row in db.execute(
+                    "SELECT session_id,generation,revision FROM subscriptions WHERE username=?", (username,)
+                )
+            ]
+
+    def prune(self, candidates, active_sessions):
         """Reclaim expired and signed-out devices before applying capacity limits."""
         live = {(s.id, s.account_generation) for s in active_sessions if s.kind == "browser"}
         with self.transaction() as db:
             db.execute("DELETE FROM subscriptions WHERE expires_ms<=?", (time.time_ns() // 1_000_000,))
-            for row in db.execute("SELECT session_id,generation FROM subscriptions WHERE username=?", (username,)):
-                if (row[0], row[1]) not in live:
-                    db.execute("DELETE FROM subscriptions WHERE session_id=?", (row[0],))
+            for row in candidates:
+                if (row["session_id"], row["generation"]) not in live:
+                    db.execute(
+                        "DELETE FROM subscriptions WHERE session_id=? AND revision=?",
+                        (row["session_id"], row["revision"]),
+                    )
 
     def owners(self):
         with self.transaction() as db:

@@ -138,12 +138,15 @@ class PushNotifier:
         return "failed"
 
     def _transport_guard(self, row, expires_ms, deadline):
+        if not self._authorized(row):
+            raise DeliveryCancelled()
+        # Session validation can wait for auth locks or SQLite. Its old clock
+        # sample must never authorize a late HTTP write or inflate provider TTL.
         now = self.clock_ms()
         if (
             now >= expires_ms
             or self.monotonic() >= deadline
             or (row["expires_ms"] is not None and row["expires_ms"] <= now)
-            or not self._authorized(row)
         ):
             raise DeliveryCancelled()
         return max(1, (expires_ms - now) // 1000)

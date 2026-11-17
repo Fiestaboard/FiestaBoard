@@ -34,7 +34,13 @@ class PinnedHTTPSConnection(http.client.HTTPSConnection):
             raise UnsafeEndpoint("Push provider address unavailable")
         for family, _, _, _, address in addresses:
             ip = ipaddress.ip_address(address[0])
-            if family not in (socket.AF_INET, socket.AF_INET6) or not ip.is_global or ip.is_multicast or ip.is_reserved:
+            if (
+                family not in (socket.AF_INET, socket.AF_INET6)
+                or not ip.is_global
+                or ip.is_multicast
+                or ip.is_reserved
+                or (isinstance(ip, ipaddress.IPv6Address) and ip.is_site_local)
+            ):
                 raise UnsafeEndpoint("Push provider address unavailable")
         if self.guard is not None:
             self.guard()
