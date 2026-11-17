@@ -51,6 +51,26 @@ for (const width of [390, 768, 1280]) {
       expect(fitBounds!.x + fitBounds!.width).toBeLessThanOrEqual(width);
       await fit.click();
       await expect(fit).toHaveAttribute("aria-pressed", "true");
+      const offlineOpacity = await page.locator('[data-slot="last-known-board"]').evaluate((root) => {
+        const effectiveOpacity = (selector: string) => {
+          let element = root.querySelector(selector);
+          if (!element) throw new Error(`Missing offline preview element: ${selector}`);
+          let opacity = 1;
+          while (element) {
+            opacity *= Number(getComputedStyle(element).opacity);
+            element = element.parentElement;
+          }
+          return opacity;
+        };
+        return {
+          board: effectiveOpacity('[data-slot="board-viewport-bezel"]'),
+          fit: effectiveOpacity('[data-slot="board-preview-mode-option"][data-value="fit"]'),
+          actual: effectiveOpacity('[data-slot="board-preview-mode-option"][data-value="actual"]'),
+          indicator: effectiveOpacity('[data-slot="board-viewport-indicator-text"]'),
+        };
+      });
+      // Offline imagery stays dim; controls and their explanation stay readable.
+      expect(offlineOpacity).toEqual({ board: 0.6, fit: 1, actual: 1, indicator: 1 });
       await shot("overview-fit");
       await checkA11y(page, undefined, {
         detailedReport: true,
