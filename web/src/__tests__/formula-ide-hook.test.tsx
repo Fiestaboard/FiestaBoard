@@ -59,10 +59,37 @@ beforeEach(() => {
   );
 });
 
-function Harness({ desktop, onOpen, empty = false }: { desktop: boolean; onOpen?: () => void; empty?: boolean }) {
+const LIVE_DIAGNOSTICS = {
+  formulas: [
+    {
+      line: 3,
+      start: 0,
+      end: 43,
+      source: 'IF(weather.temp > 80, "HOT", "NICE")',
+      value: "HOT",
+      error: null,
+      error_at: null,
+      message: null,
+    },
+  ],
+  lines: [],
+};
+
+function Harness({
+  desktop,
+  onOpen,
+  empty = false,
+  withLive = false,
+}: {
+  desktop: boolean;
+  onOpen?: () => void;
+  empty?: boolean;
+  withLive?: boolean;
+}) {
   const ide = useFormulaIde({
     target: empty ? null : target,
     available: true,
+    ...(withLive ? { live: { diagnostics: LIVE_DIAGNOSTICS, lines: ["GOOD MORNING", "72°", "HOT OUT"] } } : {}),
     desktop,
     mirroring: false,
     stopMirroring: vi.fn(),
@@ -100,11 +127,11 @@ function Chip({ onOpen }: { onOpen?: () => void }) {
   );
 }
 
-function renderHarness(desktop: boolean, onOpen?: () => void, empty = false) {
+function renderHarness(desktop: boolean, onOpen?: () => void, empty = false, withLive = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <Harness desktop={desktop} onOpen={onOpen} empty={empty} />
+      <Harness desktop={desktop} onOpen={onOpen} empty={empty} withLive={withLive} />
     </QueryClientProvider>,
   );
 }
@@ -116,6 +143,22 @@ describe("useFormulaIde", () => {
     expect(bodies[0]).toMatchObject({ template: TEMPLATE, diagnostics: true, board_id: "kitchen" });
     expect(bodies[0]).not.toHaveProperty("preview");
     expect(screen.getByTestId("override")).toHaveTextContent("ordinary");
+  });
+
+  it("reads Live values from the editor's own preview render instead of rendering again", async () => {
+    renderHarness(true, undefined, false, true);
+    expect(screen.getByTestId("hint")).toHaveTextContent('ok:{"kind":"value","text":"HOT"}');
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(bodies).toHaveLength(0);
+  });
+
+  it("still renders through the hub for Missing when the editor supplies Live values", async () => {
+    renderHarness(true, undefined, false, true);
+    const group = screen.getByRole("radiogroup", { name: "Preview data" });
+    await userEvent.click(within(group).getByRole("radio", { name: "Missing" }));
+    await waitFor(() => expect(screen.getByTestId("override")).toHaveTextContent("???°"));
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toMatchObject({ preview: { missing: ["weather"] } });
   });
 
   it("Missing marks every referenced integration missing and shows the hub's render", async () => {

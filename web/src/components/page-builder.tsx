@@ -142,6 +142,7 @@ import type {
   TemplateRenderResponse,
 } from "@/lib/api";
 import { api } from "@/lib/api";
+import type { RenderDiagnostics } from "@/lib/api/formula-debug";
 import { appUrl } from "@/lib/base-path";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
@@ -1065,6 +1066,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Cells of the last render that board's character set draws differently
   // (POST /templates/render with board_id); [] when none or no board.
   const [charsetIssues, setCharsetIssues] = useState<CharsetIssue[]>([]);
+  // H5 values from the preview render (web 2.10 formula chips and line report).
+  const [previewDiagnostics, setPreviewDiagnostics] = useState<RenderDiagnostics | null>(null);
   const lastLiveSentPreview = useRef<string | null>(null);
   // Ref-tracked copy of lastPreview so the liveOutputEnabled effect can read it
   // synchronously without a stale closure (avoids adding lastPreview as a dep).
@@ -2000,6 +2003,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           debouncedCanvases,
         );
       }
+      // Web 2.10: a page with formulas asks this render for their values (H5),
+      // so the formula chips cost no second render per edit. Other pages'
+      // requests are exactly what they always were.
+      const hasFormula = cleanedLines.some((line) => line.includes("{{="));
+      if (hasFormula) {
+        return api.renderTemplate(
+          cleanedLines,
+          metadata,
+          deviceType,
+          notesWide,
+          notesTall,
+          panelGrid,
+          previewBoardId,
+          undefined,
+          { diagnostics: true },
+        );
+      }
       return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall, panelGrid, previewBoardId);
     },
     onSuccess: (data: TemplateRenderResponse) => {
@@ -2008,6 +2028,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         return;
       }
       setCharsetIssues(data.charset_issues ?? []);
+      setPreviewDiagnostics(data.diagnostics ?? null);
       setPreviewLayers(data.layers ?? null);
       setCanvasIssues(data.canvas_issues ?? []);
       setCanvasError(null);
@@ -2047,6 +2068,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     onError: (error: Error) => {
       setPreview(null);
       setCharsetIssues([]);
+      setPreviewDiagnostics(null);
       setPreviewLayers(null);
       setCanvasIssues([]);
       // With canvases, a refusal is most likely theirs (a 422 naming the field).
@@ -2656,6 +2678,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   ]);
   const formulaIde = useFormulaIde({
     target: formulaIdeTarget,
+    live: { diagnostics: previewDiagnostics, lines: (preview ?? "").split("\n") },
     available: !baselineDisplay && debouncedCanvases.length === 0,
     desktop: !dockedPreview,
     mirroring: liveOutputEnabled,
@@ -2702,6 +2725,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Web 2.9 (04b): complex-editing lenses for big boards and note arrays on
   // the desktop pane, and the hub's real-width overflow check (H4) everywhere.
   const [previewStage, setPreviewStage] = useState<HTMLElement | null>(null);
+  // One stage element serves 2.9's lenses and 2.10's Inspect. The ref must be
+  // stable: an inline callback runs again on every commit, and its
+  // setPreviewStage(null) / (el) pair kept the whole editor re-committing.
+  const formulaBoardRef = formulaIde.boardProps.ref;
+  const setPreviewStageElement = useCallback(
+    (el: HTMLDivElement | null) => {
+      setPreviewStage(el);
+      formulaBoardRef.current = el;
+    },
+    [formulaBoardRef],
+  );
   const complexEditing = useComplexEditing({
     rows: dims.rows,
     cols: dims.cols,
@@ -3335,10 +3369,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <Flex
                     justify="center"
                     {...formulaIde.boardProps}
-                    ref={(el: HTMLDivElement | null) => {
-                      setPreviewStage(el);
-                      formulaIde.boardProps.ref.current = el;
-                    }}
+                    ref={setPreviewStageElement}
                     className={cn("relative min-w-0", formulaIde.boardProps.className)}
                   >
                     {formulaIde.boardOverlay}

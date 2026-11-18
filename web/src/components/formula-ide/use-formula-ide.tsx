@@ -11,7 +11,12 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef
 
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
-import { formulaDebugApi, type FormulaDebugRenderResponse, type RenderTarget } from "@/lib/api/formula-debug";
+import {
+  formulaDebugApi,
+  type FormulaDebugRenderResponse,
+  type RenderDiagnostics,
+  type RenderTarget,
+} from "@/lib/api/formula-debug";
 import { atIsoForTime, buildPreviewContext, referencedRoots, sampleValues } from "@/lib/formula-ide/data-source";
 import { buildHintIndex, findFormula, normalizeSource } from "@/lib/formula-ide/hints";
 import { cellOrigin, originDetail } from "@/lib/formula-ide/source-map";
@@ -55,6 +60,13 @@ export interface UseFormulaIdeOptions {
    * `target !== null`.
    */
   available?: boolean;
+  /**
+   * The editor's own preview render, with its H5 diagnostics. When given, Live
+   * at the real time reads from it and the IDE renders through the hub only
+   * for Sample, Missing, another time or Inspect, so an edit costs one render,
+   * not two.
+   */
+  live?: { diagnostics: RenderDiagnostics | null; lines: string[] };
   /** ≥1024 px: docked workbench, inspector and header controls. */
   desktop: boolean;
   mirroring: boolean;
@@ -95,6 +107,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export function useFormulaIde({
   target,
+  live,
   available = target !== null,
   desktop,
   mirroring,
@@ -137,6 +150,8 @@ export function useFormulaIde({
   );
   const wantSourceMap = desktop && inspect;
 
+  // Without the editor's own render (`live`) the IDE renders Live itself.
+  const ownRender = target !== null && (previewContext !== null || wantSourceMap || live === undefined);
   const render = useQuery<FormulaDebugRenderResponse>({
     queryKey: ["formula-ide", "render", target, previewContext, wantSourceMap],
     queryFn: ({ signal }) =>
@@ -144,12 +159,16 @@ export function useFormulaIde({
         { target: target!, preview: previewContext, debug: wantSourceMap ? { sourceMap: true } : null },
         signal,
       ),
-    enabled: target !== null,
+    enabled: ownRender,
     placeholderData: keepPreviousData,
     retry: false,
   });
-  const diagnostics = render.data?.diagnostics ?? null;
-  const sourceMap = render.data?.debug?.source_map ?? null;
+  // A kept previous result belongs to another context once the IDE stops rendering itself.
+  const own = ownRender ? render.data : undefined;
+  // In Sample/Missing/another time the Live values would mislead; elsewhere they fill the gap while loading.
+  const diagnostics =
+    previewContext !== null ? (own?.diagnostics ?? null) : (own?.diagnostics ?? live?.diagnostics ?? null);
+  const sourceMap = own?.debug?.source_map ?? null;
 
   const missingRoots = useMemo(() => (mode === "missing" ? roots : []), [mode, roots]);
   const hints = useMemo(() => buildHintIndex(diagnostics, missingRoots), [diagnostics, missingRoots]);
@@ -239,7 +258,7 @@ export function useFormulaIde({
   );
 
   const inert = target === null;
-  const previewOverride = !inert && previewContext !== null ? (render.data?.rendered ?? null) : null;
+  const previewOverride = !inert && previewContext !== null ? (own?.rendered ?? null) : null;
   const atLabel = atTime ? formatClock(atTime) : null;
 
   const controls = (size: "default" | "touch") =>
@@ -263,7 +282,7 @@ export function useFormulaIde({
       roots={roots}
       unsampled={sample.unsampled}
       formulas={diagnostics?.formulas ?? []}
-      sources={render.data?.sources ?? null}
+      sources={own?.sources ?? null}
       loading={render.isPending && previewContext !== null}
       failed={render.isError && previewContext !== null}
       onAddFallback={(line, path) =>
@@ -297,12 +316,12 @@ export function useFormulaIde({
     formula: focusFormula,
     cell: cellDetail,
     diagnostics,
-    rendered: render.data?.lines ?? [],
+    rendered: own?.lines ?? live?.lines ?? [],
     trace: trace.data ?? null,
     traceLoading: trace.isFetching,
     traceFailed: trace.isError,
-    sourceMapStatus: render.data?.debug?.source_map_status ?? null,
-    renderFailed: render.isError,
+    sourceMapStatus: own?.debug?.source_map_status ?? null,
+    renderFailed: ownRender && render.isError,
     boardCols,
     onReplaceFormula: (line: number, from: string, to: string) =>
       editTemplateLine(line - 1, (text) => text.replace(from, to)),
@@ -345,7 +364,7 @@ export function useFormulaIde({
             formula={sheetFormula}
             diagnostics={diagnostics}
             trace={trace.data ?? null}
-            loading={render.isPending || trace.isFetching}
+            loading={(ownRender && render.isPending) || trace.isFetching}
             failed={trace.isError}
             mode={mode}
             atLabel={atLabel}
