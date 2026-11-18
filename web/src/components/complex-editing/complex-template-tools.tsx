@@ -116,10 +116,17 @@ function TemplateSeamRuler({
       setMetrics((previous) => (previous.pitch === pitch && previous.left === left ? previous : { pitch, left }));
     };
     measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    if (boxRef.current) observer.observe(boxRef.current);
-    return () => observer.disconnect();
+    // The template editor mounts lazily and reflows: follow it as well.
+    const root = editorRootRef.current;
+    const mutations = new MutationObserver(measure);
+    if (root) mutations.observe(root, { childList: true, subtree: true });
+    const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    if (boxRef.current) resize?.observe(boxRef.current);
+    if (root) resize?.observe(root);
+    return () => {
+      mutations.disconnect();
+      resize?.disconnect();
+    };
   }, [editorRootRef]);
 
   const marks = useMemo(
