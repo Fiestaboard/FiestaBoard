@@ -1,8 +1,9 @@
 "use client";
 
-import { PageSection, SegmentedControl, SegmentedControlItem } from "@fiestaboard/ui";
+import { SegmentedControl, SegmentedControlItem } from "@fiestaboard/ui";
 import { Monitor, Moon, Sun } from "lucide-react";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
 
@@ -20,6 +21,7 @@ function isThemeValue(value: string): value is ThemeValue {
 
 export function AppearanceSettings() {
   const t = useTranslations("profile");
+  const tPanels = useTranslations("settings.panels");
   const { theme, setTheme } = useTheme();
   const labels: Record<ThemeValue, string> = {
     light: t("lightMode"),
@@ -28,7 +30,7 @@ export function AppearanceSettings() {
   };
 
   return (
-    <PageSection icon={<Sun />} title={t("appearanceTitle")} description={t("appearanceDescription")}>
+    <SettingsPanel icon={<Sun />} title={tPanels("theme")} description={tPanels("browserTheme")}>
       {/* One-of-three, so a radiogroup rather than three independent
           `aria-pressed` buttons: one tab stop, arrow keys move the choice,
           and the selected tile announces its position in the set. */}
@@ -42,12 +44,12 @@ export function AppearanceSettings() {
         className="max-w-sm"
       >
         {THEMES.map(({ value, Icon }) => (
-          <SegmentedControlItem key={value} value={value}>
+          <SegmentedControlItem key={value} value={value} className="min-h-12">
             <Icon className="size-4" aria-hidden="true" />
             {labels[value]}
           </SegmentedControlItem>
         ))}
       </SegmentedControl>
-    </PageSection>
+    </SettingsPanel>
   );
 }

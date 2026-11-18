@@ -297,6 +297,8 @@
       "outTitle": "{board} eşitlenmemiş",
       "outDetail": "{page} dışında bir içerik gösteriliyor. Başka bir uygulama değiştirmiş olabilir.",
       "showAgain": "{page} yeniden göster",
+      "outHoldPaused": "Bu ekran duraklatıldı. {page} sayfasını yeniden göstermek için sürdürün.",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule {time} saatinde başlar",
       "silenceSoonPage": "{board} {minutes} dk içinde sessizleşir ve {page} ekranda kalır.",
       "silenceSoonOther": "{board} {minutes} dk içinde sessizleşir. Yeni mesajlar Silence Schedule bitene kadar bekler.",
@@ -744,6 +746,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "Entegrasyon ayrıntıları",
+    "variablesTab": "Değişkenler",
+    "readmeTab": "README",
+    "readmeUnavailable": "Belgeler kullanılamıyor.",
+    "about": "Hakkında",
+    "versionLabel": "Sürüm",
+    "authorLabel": "Yazar",
+    "sourceLabel": "Kaynak",
+    "backToIntegrations": "Entegrasyonlara dön",
+    "reconnectTitle": "{name} yeniden bağla",
+    "reconnectConsequence": "Yeniden bağlanana kadar bu entegrasyonu kullanan sayfaların verileri kullanılamayabilir veya güncel olmayabilir.",
+    "setupConsequence": "Sayfaların bu entegrasyonun verilerini kullanabilmesi için ayarları tamamlayın.",
+    "noVariables": "Bu entegrasyon şablon değişkenleri sağlamaz.",
+    "needsAttention": "İlgilenilmesi gerekiyor",
+    "setUpAction": "Kur",
+    "integrationSettings": "Entegrasyon ayarları",
+    "sortInstalled": "Yüklü entegrasyonları sırala",
+    "sortMarketplace": "Pazar yeri sonuçlarını sırala",
+    "sortAscending": "artan",
+    "sortDescending": "azalan",
     "title": "Entegrasyonlar",
     "description": "FiestaBoard için veri kaynağı eklentilerini etkinleştirin ve yapılandırın",
     "totalLabel": "Toplam:",
@@ -1043,7 +1065,8 @@
         "modelsAfterSave": "Sağlayıcının modelleri arasından seçmek için değişiklikleri kaydedin."
       },
       "addModel": "Model ekle",
-      "refreshModels": "Modelleri yenile"
+      "refreshModels": "Modelleri yenile",
+      "promptDestination": "İstemler {destination} adresine gönderilir"
     },
     "backup": {
       "cardTitle": "Yedekleme ve Geri Yükleme",
@@ -1077,11 +1100,11 @@
         },
         "appearance": {
           "title": "Görünüm",
-          "description": "FiestaBoard’un bu tarayıcıdaki görünümü."
+          "description": "Tema bu tarayıcı için; önizleme hareketleri bu hub üzerindeki herkes için geçerlidir."
         },
         "accessibility": {
           "title": "Erişilebilirlik",
-          "description": "Bu tarayıcıda hareket ve okuma rahatlığı."
+          "description": "Hareket ve animasyon tercihleri"
         },
         "network": {
           "title": "Ağ",
@@ -1097,13 +1120,40 @@
         },
         "language-time": {
           "title": "Dil ve saat",
-          "description": "Hub tarafından Program, saat değişkenleri ve her zaman damgası için kullanılır."
+          "description": "Bu tarayıcının dili; hub saati ve programlama zamanı."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot tercihleri ve görüşmeleri."
         },
         "notifications": {
           "title": "Bildirimler",
           "description": "Hesabınızın ve bu tarayıcının hub’ınızdan uyarı alıp alamayacağını seçin."
         }
       }
+    },
+    "panels": {
+      "theme": "Tema",
+      "browserTheme": "Yalnızca bu tarayıcı için.",
+      "motionScope": "Hareket tercihleri bu hub üzerindeki herkes için geçerlidir."
+    },
+    "fiestabot": {
+      "title": "Değişiklikler, panel ve geçmiş",
+      "scope": "Paneldeki onay modu bu hub üzerindeki herkes için geçerlidir.",
+      "unavailable": "Kişiye özel onay, panel ve geçmiş tercihleri henüz kullanılamıyor.",
+      "open": "FiestaBot’u aç",
+      "setup": "AI sağlayıcısını ayarla",
+      "needsSetup": "FiestaBot için bu hub üzerinde AI etkin ve bir sağlayıcı yapılandırılmış olmalıdır.",
+      "checking": "FiestaBot kullanılabilirliği kontrol ediliyor…",
+      "checkFailed": "FiestaBot kullanılabilirliği kontrol edilemedi.",
+      "retry": "Yeniden dene"
+    },
+    "addresses": {
+      "title": "Adresler",
+      "description": "Bu tarayıcının hub’a erişim yolu.",
+      "browser": "Bu tarayıcının kullandığı adres",
+      "ip": "Hub’ın bildirdiği IP adresi",
+      "hint": "Hub bir kapsayıcı adresi bildirebilir. Bu, başka bir cihaz bağlamak için doğrulanmış bir adres değildir."
     }
   },
   "offline": {
@@ -2715,7 +2765,23 @@
     "fillSpaceTooltip": "Boşluğu doldur - satırın kalan genişliğini dolduracak şekilde genişler",
     "fillSpaceRepeatTooltip": "Boşluğu doldur, tekrarlanan: {char}",
     "variableFilterTooltip": "Filtre: {filter}",
-    "variableMaxLengthTooltip": "Maksimum uzunluk: {maxLength} karakter"
+    "variableMaxLengthTooltip": "Maksimum uzunluk: {maxLength} karakter",
+    "tools": "Düzenleyici araçları",
+    "formula": "Formül",
+    "more": "Diğer",
+    "textColor": "Metin rengi",
+    "icon": "Simge",
+    "size": "Boyut",
+    "brush": "Fırça",
+    "drawDone": "Bitti",
+    "align": "Hizala",
+    "alignLeftShort": "Sol",
+    "alignCenterShort": "Orta",
+    "alignRightShort": "Sağ",
+    "wrapLine": "Bu satırı kaydır",
+    "clipboard": "Pano",
+    "colorsHint": "İmlece bir karo eklemek için bir renge dokunun. Birden fazla ekleyebilmeniz için panel açık kalır; kapatmak için aşağı kaydırın, ✕ simgesine dokunun veya Esc tuşuna basın.",
+    "formattingHint": "Boşluğu doldur, satırın kalanını sağ kenara iter; satır kaydırma, uzun bir değerin sonraki satırda devam etmesini sağlar. İmleç konumunda uygulanır."
   },
   "variablePicker": {
     "noVariablesAvailable": "Kullanılabilir değişken yok",
@@ -3667,6 +3733,33 @@
       "body": "Yükleme ve çevrimdışı kullanım güvenli bir adres gerektirir. Şu anda http://{host} adresindesiniz. FiestaBoard’u https adresinden açın veya hub’ınız için HTTPS kurun.",
       "help": "HTTPS nasıl kurulur"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Canlı önizleme",
+    "mirror": "Düzenlerken panoya yansıt",
+    "mirroring": "Yansıtılıyor",
+    "mirrorHint": "Yazmaya her ara verdiğinizde gönderir. Düzenleyiciden çıkınca durur.",
+    "savedToPages": "Sayfalara kaydedildi",
+    "savedToPagesDescription": "{name}, sayfa kitaplığınızda.",
+    "addToSchedule": "Zamanlamaya ekle",
+    "showNow": "Şimdi göster",
+    "saved": "Kaydedildi",
+    "unsaved": "Kaydedilmedi",
+    "unknownDisplay": "Bu ekranın neleri gösterebildiği belirlenemiyor",
+    "plainTextOnly": "Düz metin kullanılabilir. Renkler ve ekrana özel araçlar kullanılamaz.",
+    "targetUnavailable": "Bu ekran yansıtma için kullanılamıyor.",
+    "nameRequired": "Bu sayfayı adlandırın",
+    "newerChangesUnsaved": "Kaydetme sırasında yapılan değişiklikler hâlâ kaydedilmedi. Göstermeden önce yeniden kaydedin.",
+    "plainText": "Düz metin",
+    "plainTemplate": "Şablon · yalnızca düz metin",
+    "editorTools": "Düzenleyici araçları",
+    "displayToolsUnavailable": "Renkler ve Biçimlendirme kullanılamıyor — ekran türü bilinmiyor.",
+    "plainTemplateHelp": "Her satır yazıldığı gibi gönderilir. Bu ekran için genişlik ve karakterler denetlenemez.",
+    "emptyPrompt": "{board} üzerinde görünecek metni yazın…",
+    "thisDisplay": "bu ekran",
+    "startFrom": "Ya da şununla başlayın",
+    "insertVariable": "Bir değişken ekle",
+    "browseStaffPicks": "Ekip Seçimlerine göz at"
   },
   "phonePairing": {
     "title": "Telefon bağla",

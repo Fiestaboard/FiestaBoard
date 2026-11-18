@@ -41,6 +41,31 @@ describe("AiSettings", () => {
     expect(screen.getByText(/sent directly to the provider you configure/i)).toBeInTheDocument();
   });
 
+  it("states the prompt destination for a collapsed provider without exposing URL credentials", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [
+            {
+              id: "destination",
+              name: "Example provider",
+              base_url: "https://example-user:example-password@api.example.test/v1?example_secret=hidden",
+              api_key: "***",
+              models: ["example-model"],
+              default_model: "example-model",
+            },
+          ],
+          default_provider_id: "destination",
+        }),
+      ),
+    );
+    render(<AiSettings />, { wrapper: Wrapper });
+    expect(await screen.findByText("Prompts go to https://api.example.test")).toBeInTheDocument();
+    expect(screen.queryByText(/example-password/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/example_secret/)).not.toBeInTheDocument();
+  });
+
   it("shows an empty state when no providers are configured", async () => {
     render(<AiSettings />, { wrapper: Wrapper });
     expect(await screen.findByText(/no providers configured yet/i)).toBeInTheDocument();

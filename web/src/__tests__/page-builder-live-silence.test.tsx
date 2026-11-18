@@ -98,7 +98,8 @@ const SILENCED_STATUS = {
 function serveSilencedBoard() {
   const bodies: Record<string, unknown>[] = [];
   server.use(
-    http.get(`${API_BASE}/silence-status`, () => HttpResponse.json(SILENCED_STATUS)),
+    // Simulate silence starting after the status read: the hub refuses the first live send.
+    http.get(`${API_BASE}/silence-status`, () => HttpResponse.json({ ...SILENCED_STATUS, active: false })),
     http.post(`${API_BASE}/templates/render/live`, async ({ request }) => {
       const body = (await request.json()) as Record<string, unknown>;
       bodies.push(body);
@@ -120,7 +121,7 @@ function serveSilencedBoard() {
 }
 
 async function turnLiveOn(user: ReturnType<typeof userEvent.setup>) {
-  const toggle = await screen.findByRole("switch", { name: /toggle live output to board/i });
+  const toggle = await screen.findByRole("switch", { name: /mirror to board while editing/i });
   await user.click(toggle);
   return toggle;
 }

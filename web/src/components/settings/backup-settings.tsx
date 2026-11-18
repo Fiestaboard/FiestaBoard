@@ -12,7 +12,6 @@ import {
   Button,
   Flex,
   Label,
-  PageSection,
   Stack,
   Switch,
   Text,
@@ -23,6 +22,7 @@ import { AlertTriangle, Database, Download, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
@@ -127,13 +127,13 @@ export function BackupSettings() {
 
   return (
     <>
-      <PageSection
+      <SettingsPanel
         icon={<Database />}
         title={t("cardTitle")}
         description={t("cardDescription")}
         contentClassName="space-y-6"
       >
-        <Flex direction="col" gap="3" className="sm:flex-row">
+        <Flex direction="col" gap="3" wrap className="sm:flex-row">
           <Button variant="default" className="gap-2" onClick={handleExport} disabled={importMutation.isPending}>
             <Download className="h-4 w-4" />
             {t("exportButton")}
@@ -171,7 +171,7 @@ export function BackupSettings() {
         <Text size="xs" tone="muted">
           {t("sensitiveNote")}
         </Text>
-      </PageSection>
+      </SettingsPanel>
 
       <AlertDialog
         open={pending !== null}

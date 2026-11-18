@@ -8,5 +8,5 @@ interface EditPageClientProps {
 export function EditPageClient({ pageId }: EditPageClientProps) {
   const router = useRouter();
   const back = () => router.push("/pages");
-  return <PageEditorShell pageId={pageId} onClose={back} onSave={back} />;
+  return <PageEditorShell pageId={pageId} onClose={back} onSave={() => {}} />;
 }

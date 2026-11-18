@@ -297,6 +297,8 @@
       "outTitle": "{board} ist nicht synchron",
       "outDetail": "Es wird etwas anderes als {page} angezeigt. Eine andere App hat den Inhalt möglicherweise geändert.",
       "showAgain": "{page} erneut anzeigen",
+      "outHoldPaused": "Diese Anzeige ist pausiert. Setze sie fort, um {page} erneut anzuzeigen.",
+      "heldPreview": "„{preview}“",
       "silenceSoonTitle": "Silence Schedule beginnt um {time}",
       "silenceSoonPage": "{board} wird in {minutes} Min. still und zeigt weiterhin {page} an.",
       "silenceSoonOther": "{board} wird in {minutes} Min. still. Neue Nachrichten warten, bis Silence Schedule endet.",
@@ -744,6 +746,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "Integrationsdetails",
+    "variablesTab": "Variablen",
+    "readmeTab": "README",
+    "readmeUnavailable": "Dokumentation ist nicht verfügbar.",
+    "about": "Über",
+    "versionLabel": "Version",
+    "authorLabel": "Autor",
+    "sourceLabel": "Quelle",
+    "backToIntegrations": "Zurück zu Integrationen",
+    "reconnectTitle": "{name} erneut verbinden",
+    "reconnectConsequence": "Daten für Seiten mit dieser Integration können fehlen oder veraltet sein, bis Sie die Verbindung wiederherstellen.",
+    "setupConsequence": "Vervollständigen Sie die Einstellungen, damit Seiten die Daten dieser Integration nutzen können.",
+    "noVariables": "Diese Integration stellt keine Vorlagenvariablen bereit.",
+    "needsAttention": "Handlungsbedarf",
+    "setUpAction": "Einrichten",
+    "integrationSettings": "Integrationseinstellungen",
+    "sortInstalled": "Installierte Integrationen sortieren",
+    "sortMarketplace": "Marketplace-Ergebnisse sortieren",
+    "sortAscending": "aufsteigend",
+    "sortDescending": "absteigend",
     "title": "Integrationen",
     "description": "Aktivieren und konfigurieren Sie Datenquellen-Plugins für Ihr FiestaBoard",
     "totalLabel": "Gesamt:",
@@ -1043,7 +1065,8 @@
         "modelsAfterSave": "Speichere die Änderungen, um aus den Modellen des Anbieters zu wählen."
       },
       "addModel": "Modell hinzufügen",
-      "refreshModels": "Modelle aktualisieren"
+      "refreshModels": "Modelle aktualisieren",
+      "promptDestination": "Prompts werden an {destination} gesendet"
     },
     "backup": {
       "cardTitle": "Sicherung & Wiederherstellung",
@@ -1077,11 +1100,11 @@
         },
         "appearance": {
           "title": "Darstellung",
-          "description": "Wie FiestaBoard in diesem Browser aussieht."
+          "description": "Design für diesen Browser; Vorschaubewegungen für alle an diesem Hub."
         },
         "accessibility": {
           "title": "Barrierefreiheit",
-          "description": "Bewegung und Lesekomfort in diesem Browser."
+          "description": "Einstellungen für Bewegung und Animationen"
         },
         "network": {
           "title": "Netzwerk",
@@ -1097,13 +1120,40 @@
         },
         "language-time": {
           "title": "Sprache & Zeit",
-          "description": "Vom Hub für den Zeitplan, Zeitvariablen und jeden Zeitstempel genutzt."
+          "description": "Sprache für diesen Browser; Hub-Uhr und Zeitplanung."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot-Einstellungen und Unterhaltungen."
         },
         "notifications": {
           "title": "Benachrichtigungen",
           "description": "Legen Sie fest, ob Ihr Konto und dieser Browser Warnmeldungen von Ihrem Hub erhalten dürfen."
         }
       }
+    },
+    "panels": {
+      "theme": "Design",
+      "browserTheme": "Nur für diesen Browser.",
+      "motionScope": "Bewegungseinstellungen gelten für alle an diesem Hub."
+    },
+    "fiestabot": {
+      "title": "Änderungen, Seitenleiste und Verlauf",
+      "scope": "Der Genehmigungsmodus in der Seitenleiste gilt für alle an diesem Hub.",
+      "unavailable": "Persönliche Einstellungen für Genehmigungen, Seitenleiste und Verlauf sind noch nicht verfügbar.",
+      "open": "FiestaBot öffnen",
+      "setup": "KI-Anbieter einrichten",
+      "needsSetup": "FiestaBot benötigt aktivierte KI und einen eingerichteten Anbieter auf diesem Hub.",
+      "checking": "Verfügbarkeit von FiestaBot wird geprüft…",
+      "checkFailed": "Die Verfügbarkeit von FiestaBot konnte nicht geprüft werden.",
+      "retry": "Erneut versuchen"
+    },
+    "addresses": {
+      "title": "Adressen",
+      "description": "So erreicht dieser Browser den Hub.",
+      "browser": "Dieser Browser verwendet",
+      "ip": "Vom Hub gemeldete IP-Adresse",
+      "hint": "Der Hub kann eine Containeradresse melden. Dies ist keine geprüfte Adresse für die Verbindung eines anderen Geräts."
     }
   },
   "offline": {
@@ -2715,7 +2765,23 @@
     "fillSpaceTooltip": "Füllbereich - dehnt sich auf die restliche Zeilenbreite aus",
     "fillSpaceRepeatTooltip": "Füllbereich wiederholt: {char}",
     "variableFilterTooltip": "Filter: {filter}",
-    "variableMaxLengthTooltip": "Maximale Länge: {maxLength} Zeichen"
+    "variableMaxLengthTooltip": "Maximale Länge: {maxLength} Zeichen",
+    "tools": "Editor-Werkzeuge",
+    "formula": "Formel",
+    "more": "Mehr",
+    "textColor": "Textfarbe",
+    "icon": "Symbol",
+    "size": "Größe",
+    "brush": "Pinsel",
+    "drawDone": "Fertig",
+    "align": "Ausrichten",
+    "alignLeftShort": "Links",
+    "alignCenterShort": "Mitte",
+    "alignRightShort": "Rechts",
+    "wrapLine": "Diese Zeile umbrechen",
+    "clipboard": "Zwischenablage",
+    "colorsHint": "Tippe auf eine Farbe, um am Cursor eine Kachel einzufügen. Das Fenster bleibt für weitere Kacheln geöffnet. Zum Schließen nach unten wischen, auf ✕ tippen oder Esc drücken.",
+    "formattingHint": "Leerraum füllen schiebt den Rest der Zeile an den rechten Rand; Zeilenumbruch setzt lange Werte in der nächsten Zeile fort. Gilt an der Cursorposition."
   },
   "variablePicker": {
     "noVariablesAvailable": "Keine Variablen verfügbar",
@@ -3667,6 +3733,33 @@
       "body": "Installieren und Offline-Nutzung brauchen eine sichere Adresse. Du bist auf http://{host}. Öffne FiestaBoard unter seiner https-Adresse oder richte HTTPS für deinen Hub ein.",
       "help": "So richtest du HTTPS ein"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Live-Vorschau",
+    "mirror": "Beim Bearbeiten auf dem Board anzeigen",
+    "mirroring": "Spiegelung aktiv",
+    "mirrorHint": "Sendet nach jeder Tipp-Pause. Endet beim Verlassen des Editors.",
+    "savedToPages": "In Seiten gespeichert",
+    "savedToPagesDescription": "{name} ist in deiner Seitenbibliothek.",
+    "addToSchedule": "Zum Zeitplan hinzufügen",
+    "showNow": "Jetzt anzeigen",
+    "saved": "Gespeichert",
+    "unsaved": "Nicht gespeichert",
+    "unknownDisplay": "Der Zeichensatz dieses Displays ist unbekannt",
+    "plainTextOnly": "Einfacher Text ist verfügbar. Farben und displayspezifische Werkzeuge sind nicht verfügbar.",
+    "targetUnavailable": "Dieses Display ist für die Spiegelung nicht verfügbar.",
+    "nameRequired": "Diese Seite benennen",
+    "newerChangesUnsaved": "Änderungen, die während des Speicherns vorgenommen wurden, sind noch nicht gespeichert. Speichere erneut, bevor du sie anzeigst.",
+    "plainText": "Klartext",
+    "plainTemplate": "Vorlage · nur Klartext",
+    "editorTools": "Editor-Werkzeuge",
+    "displayToolsUnavailable": "Farben und Formatierung sind nicht verfügbar — der Displaytyp ist unbekannt.",
+    "plainTemplateHelp": "Jede Zeile wird wie eingegeben gesendet. Breite und Zeichen können für dieses Display nicht geprüft werden.",
+    "emptyPrompt": "Gib ein, was {board} anzeigen soll…",
+    "thisDisplay": "dieses Display",
+    "startFrom": "Oder beginne mit",
+    "insertVariable": "Eine Variable einfügen",
+    "browseStaffPicks": "Empfehlungen durchsuchen"
   },
   "phonePairing": {
     "title": "Smartphone verbinden",

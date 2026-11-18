@@ -44,7 +44,8 @@ test.describe("Plugin Detail Page", () => {
       await expect(page).toHaveURL(/\/integrations\/[^?]+/, { timeout: 10_000 });
     } else {
       // If no direct links, verify the marketplace tab is at least visible with content
-      await expect(page.getByRole("button", { name: /add from git/i }).first()).toBeVisible({ timeout: 5_000 });
+      await page.getByRole("button", { name: "More options" }).click();
+      await expect(page.getByRole("menuitem", { name: /add from git/i }).first()).toBeVisible({ timeout: 5_000 });
     }
   });
 
@@ -181,18 +182,18 @@ test.describe("Plugin Detail Page", () => {
 
     await page.goto(`/integrations/${entries[0].id}`);
 
-    // Wait for README to load or fallback to render
-    // The page has either markdown content or a "Documentation not available" message
-    await page.waitForTimeout(3000);
+    const readmeTab = page.getByRole("tab", { name: "README", exact: true });
+    const documentation = page
+      .locator('[data-slot="prose"]')
+      .or(page.getByText("Documentation is not available.", { exact: true }));
 
-    // One of these should be present
-    const markdownContent = page.locator(".plugin-readme").first();
-    const noDocsFallback = page.getByText(/documentation not available/i);
-
-    const hasMarkdown = await markdownContent.isVisible({ timeout: 5_000 }).catch(() => false);
-    const hasFallback = await noDocsFallback.isVisible({ timeout: 5_000 }).catch(() => false);
-
-    expect(hasMarkdown || hasFallback).toBe(true);
+    // Installed integrations open Settings first; Marketplace details show
+    // the same Prose renderer directly. Both must reach readable documentation
+    // or the explicit unavailable state after the fetch completes.
+    await expect(readmeTab.or(documentation).first()).toBeVisible({ timeout: 15_000 });
+    if (await readmeTab.isVisible()) await readmeTab.click();
+    await expect(documentation).toBeVisible({ timeout: 15_000 });
+    await expect(documentation).toContainText(/\S/);
   });
 
   test("unknown plugin ID shows an error or empty state, not a server error", async ({ page }) => {

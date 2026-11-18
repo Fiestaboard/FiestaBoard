@@ -65,6 +65,9 @@ describe("Collection editor layout", () => {
     expect(modes.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(preview.compareDocumentPosition(duration) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getAllByText("Saved preview")).toHaveLength(1);
+    // Wider than a phone the preview is always shown, with no collapse trigger.
+    expect(screen.getByText("Saved preview")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Now in this Collection" })).not.toBeInTheDocument();
   });
 
   it("opens the phone preview independently of settings and updates its dirty state", async () => {
@@ -77,6 +80,8 @@ describe("Collection editor layout", () => {
     try {
       const user = userEvent.setup();
       renderForm("time", true);
+      // The phone preview starts collapsed behind its trigger.
+      expect(screen.getByText("Saved preview")).not.toBeVisible();
       await user.click(screen.getByRole("button", { name: "Now in this Collection" }));
       expect(screen.getByText("Saved preview")).toBeVisible();
       expect(screen.getByLabelText("Collection name")).not.toBeVisible();

@@ -1,17 +1,19 @@
 "use client";
 
-import { Box, Flex, PageSection, Skeleton, Switch, Text } from "@fiestaboard/ui";
+import { Box, Flex, Skeleton, Switch, Text } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Accessibility } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 export function AccessibilitySettings() {
   const t = useTranslations("profile");
+  const tPanels = useTranslations("settings.panels");
   const queryClient = useQueryClient();
 
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -41,27 +43,29 @@ export function AccessibilitySettings() {
   };
 
   return (
-    <PageSection icon={<Accessibility />} title={t("accessibilityTitle")} description={t("accessibilityDescription")}>
+    <SettingsPanel icon={<Accessibility />} title={t("accessibilityTitle")} description={tPanels("motionScope")}>
       {isLoading ? (
         <Skeleton className="h-6 w-48" />
       ) : (
-        <Flex align="center" gap="3">
-          <Switch
-            id="reduce-motion"
-            checked={reduceMotion}
-            onCheckedChange={handleReduceMotionToggle}
-            disabled={updateDisplayMutation.isPending}
-          />
-          <Box>
+        <Flex align="center" justify="between" gap="3" className="min-h-16">
+          <Box className="min-w-0">
             <label htmlFor="reduce-motion" className="text-sm font-medium cursor-pointer">
               {t("reduceMotion")}
             </label>
-            <Text size="xs" tone="muted" className="mt-0.5">
+            <Text id="reduce-motion-hint" size="xs" tone="muted" className="mt-0.5">
               {t("reduceMotionHint")}
             </Text>
           </Box>
+          <Switch
+            id="reduce-motion"
+            aria-describedby="reduce-motion-hint"
+            checked={reduceMotion}
+            onCheckedChange={handleReduceMotionToggle}
+            disabled={updateDisplayMutation.isPending}
+            className="shrink-0"
+          />
         </Flex>
       )}
-    </PageSection>
+    </SettingsPanel>
   );
 }

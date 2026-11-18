@@ -1279,10 +1279,14 @@ class ConfigManager:
         Returns:
             True if settings were saved successfully, False otherwise.
         """
+        renamed = False
         try:
             with self._file_lock:
                 if "general" not in self._config:
                     self._config["general"] = {}
+                renamed = "instance_name" in settings and settings["instance_name"] != self._config["general"].get(
+                    "instance_name"
+                )
 
                 for key, value in settings.items():
                     if key in DEFAULT_CONFIG.get("general", {}):
@@ -1294,10 +1298,12 @@ class ConfigManager:
 
                 self._save_internal()
             logger.info("General settings updated")
-            return True
         except Exception as e:
             logger.error(f"Failed to update general settings: {e}")
             return False
+        if renamed:
+            _refresh_mdns_advertisement()
+        return True
 
     def get_ai_providers(self) -> dict[str, Any]:
         """Get the AI providers configuration block.
@@ -2295,3 +2301,13 @@ class ConfigManager:
 def get_config_manager() -> ConfigManager:
     """Get the singleton ConfigManager instance."""
     return ConfigManager()
+
+
+def _refresh_mdns_advertisement() -> None:
+    """Re-announce the mDNS TXT ``name=`` after a rename (H13 PR 3); never fails a save."""
+    try:
+        from src.system.mdns import refresh_mdns_advertisement
+
+        refresh_mdns_advertisement()
+    except Exception:
+        logger.debug("Could not schedule an mDNS TXT refresh", exc_info=True)

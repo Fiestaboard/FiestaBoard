@@ -23,7 +23,6 @@ import {
   Flex,
   Input,
   Label,
-  PageSection,
   Skeleton,
   Stack,
   Text,
@@ -35,6 +34,7 @@ import { AlertTriangle, Bot, Check, KeyRound, Lock, RefreshCw, Trash2 } from "lu
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useTranslations } from "@/i18n/translations";
 import { api, ApiError } from "@/lib/api";
 import { appUrl, stripBasePath } from "@/lib/base-path";
@@ -201,7 +201,7 @@ export function McpSettings() {
 
   if (isLocked) {
     return (
-      <PageSection icon={<Lock />} title={t("title")} description={t("lockedDescription")} className="space-y-4">
+      <SettingsPanel icon={<Lock />} title={t("title")} description={t("lockedDescription")} className="space-y-4">
         <Stack gap="2" className="max-w-md">
           <Label htmlFor="mcp-current-token">{t("lockedTokenLabel")}</Label>
           <Flex gap="2">
@@ -223,16 +223,16 @@ export function McpSettings() {
             </Button>
           </Flex>
         </Stack>
-      </PageSection>
+      </SettingsPanel>
     );
   }
 
   if (isLoading || !status) {
     return (
-      <PageSection>
+      <SettingsPanel>
         <Skeleton className="h-5 w-44" />
         <Skeleton className="mt-2 h-4 w-72" />
-      </PageSection>
+      </SettingsPanel>
     );
   }
 
@@ -242,7 +242,7 @@ export function McpSettings() {
 
   return (
     <>
-      <PageSection
+      <SettingsPanel
         icon={<Bot />}
         title={t("title")}
         description={
@@ -328,7 +328,7 @@ export function McpSettings() {
             )}
           </Flex>
         )}
-      </PageSection>
+      </SettingsPanel>
 
       {/* "Are you sure you want to rotate?" — only shown when there's an
           existing token whose rotation would invalidate something. */}

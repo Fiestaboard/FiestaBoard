@@ -70,7 +70,7 @@ test.afterEach(async () => {
 test("pencil draw mode walkthrough", async ({ page }) => {
   // --- Open the page builder ---
   await page.goto("/pages/new");
-  await expect(page.getByText("Create Page").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("#page-name")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("draw-mode-toggle")).toBeVisible({ timeout: 10_000 });
   await beat(page, 800);
 
@@ -227,7 +227,7 @@ test("pencil draw mode on an 8x8 note array", async ({ page }) => {
 
   // --- Open the editor: the 24×120 preview fills the card ---
   await page.goto(`/pages/edit/${pageId}`);
-  await expect(page.getByText("Edit Page").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("#page-name")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("draw-mode-toggle")).toBeVisible({ timeout: 10_000 });
   await beat(page, 1_000);
 

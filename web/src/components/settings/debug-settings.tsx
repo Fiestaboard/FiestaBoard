@@ -12,7 +12,6 @@ import {
   Label,
   List,
   ListItem,
-  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -43,6 +42,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { DiagnosticStepResult, NetworkDiagnosticsResult, VestaboardDiagnostics } from "@/lib/api";
@@ -201,7 +201,7 @@ export function DebugSettings() {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <PageSection {...anchorProps("settings.debug")}>
+      <SettingsPanel {...anchorProps("settings.debug")}>
         {/* -mx-6 -my-6 …: the whole section is the trigger's hit area, so it
             bleeds back out over the block padding the page card supplies and
             restates it, rather than assuming a card of its own. */}
@@ -614,7 +614,7 @@ export function DebugSettings() {
             </Stack>
           </Stack>
         </CollapsibleContent>
-      </PageSection>
+      </SettingsPanel>
     </Collapsible>
   );
 }
