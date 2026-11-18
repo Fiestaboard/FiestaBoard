@@ -13,12 +13,12 @@ still asks the display engine to render its resulting state immediately.
 
 Restore with `POST /settings/temporary-override/undo` and a JSON object containing
 only `board_id` and `undo_token`. Success returns the existing override status
-shape. An unknown display is404; unavailable, expired, used, stale, wrong-session
-or wrong-display authority is409. Invalid bodies are422. An in-flight manual
-write also returns409. Clients must refresh state on failed or unknown outcomes
+shape. An unknown display is 404; unavailable, expired, used, stale, wrong-session
+or wrong-display authority is 409. Invalid bodies are 422. An in-flight manual
+write also returns 409. Clients must refresh state on failed or unknown outcomes
 and must not automatically retry mutations. Receipt responses use `no-store`.
 
-Authority lasts at most30seconds and never beyond the cancelled run's original
+Authority lasts at most 30 seconds and never beyond the cancelled run's original
 expiry. It is scoped to the issuing native session or browser session; local
 installs with authentication disabled share their existing anonymous authority.
 The server retains the exact original payload, geometry, revert metadata,
@@ -29,9 +29,12 @@ discards receipts. Neither receipt tokens nor cancelled content are persisted.
 This follows the existing single-process deployment contract in PERSISTENCE.md.
 
 Restoration checks under the established settings/config/pages/collections/
-schedules lock order. Settings writes and content-owner saves/reloads change
-runtime generations, so ABA changes and internal/background content writes are
-refused even when their HTTP/SSE response has already completed. Physical manual
+schedules lock order. Each display has its own Undo generation, advanced by
+every settings save that changes that display's override, active page, own
+board settings (including its removal) or primary status; content-owner saves/reloads change their runtime generations.
+ABA changes and internal/background content writes are therefore refused even
+when their HTTP/SSE response has already completed, while a cancel, page change
+or override expiry on another display leaves the receipt usable. Physical manual
 HTTP writes and internal/MCP/MQTT sends use an in-flight barrier; successful or
 uncertain writes invalidate authority. Native/MCP active-page and refresh
 operations carry manual intent into the existing send pool. Each queued manual
@@ -45,10 +48,11 @@ manual intent. Trigger/held-message delivery joins that barrier without
 changing its delivery, silence or queue semantics. Unauthenticated
 HTTP attempts never reach it; previews do not enter it.
 
-Invalidation is intentionally conservative: changes to another display,
-unrelated settings/config/content saves, same-value saves, admitted output actions (which declare no read-only effect
-metadata), and uncertain hardware
-outcomes can refuse Undo. Cold template-engine initialization can persist plugin
+Invalidation is otherwise conservative: any successful manual HTTP write
+(on any display), config and content saves, admitted output actions (which
+declare no read-only effect metadata), and uncertain hardware outcomes can
+refuse Undo. Settings saves that leave the display's own state alone (polling,
+another display) do not. Cold template-engine initialization can persist plugin
 defaults, so the first preview may refuse a receipt because of that actual config
 save. Once initialized, read-only previews and validation refusals leave receipts
 usable. Automatic schedule rendering after cancellation does not itself revoke
