@@ -47,6 +47,14 @@ export type InspectFocus =
 export interface UseFormulaIdeOptions {
   /** The board and template the preview renders; null keeps the IDE inert (canvases, plain text boards). */
   target: RenderTarget | null;
+  /**
+   * Whether this editor offers the IDE at all (not canvases or a plain-text
+   * board). The preview controls follow this, not `target`, so they are there
+   * from the first render instead of appearing when the debounced template
+   * lands (which would grow the docked preview under open menus). Defaults to
+   * `target !== null`.
+   */
+  available?: boolean;
   /** ≥1024 px: docked workbench, inspector and header controls. */
   desktop: boolean;
   mirroring: boolean;
@@ -87,6 +95,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export function useFormulaIde({
   target,
+  available = target !== null,
   desktop,
   mirroring,
   stopMirroring,
@@ -234,7 +243,7 @@ export function useFormulaIde({
   const atLabel = atTime ? formatClock(atTime) : null;
 
   const controls = (size: "default" | "touch") =>
-    inert ? null : (
+    !available ? null : (
       <PreviewDataControls
         mode={mode}
         onModeChange={setMode}

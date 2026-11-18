@@ -59,9 +59,18 @@ beforeEach(() => {
   );
 });
 
-function Harness({ desktop, onOpen }: { desktop: boolean; onOpen?: () => void }) {
+function Harness({
+  desktop,
+  onOpen,
+  empty = false,
+}: {
+  desktop: boolean;
+  onOpen?: () => void;
+  empty?: boolean;
+}) {
   const ide = useFormulaIde({
-    target,
+    target: empty ? null : target,
+    available: true,
     desktop,
     mirroring: false,
     stopMirroring: vi.fn(),
@@ -99,11 +108,11 @@ function Chip({ onOpen }: { onOpen?: () => void }) {
   );
 }
 
-function renderHarness(desktop: boolean, onOpen?: () => void) {
+function renderHarness(desktop: boolean, onOpen?: () => void, empty = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <Harness desktop={desktop} onOpen={onOpen} />
+      <Harness desktop={desktop} onOpen={onOpen} empty={empty} />
     </QueryClientProvider>,
   );
 }
@@ -132,6 +141,14 @@ describe("useFormulaIde", () => {
     const group = await screen.findByRole("radiogroup", { name: "Preview data" });
     await userEvent.click(within(group).getByRole("radio", { name: "Sample" }));
     await waitFor(() => expect(bodies.at(-1)).toMatchObject({ preview: { values: { "weather.temp": "70" } } }));
+  });
+
+  // The docked preview must not grow when the debounced template first lands
+  // (menus anchored below it would move under the pointer).
+  it("shows the preview controls before the template has content", () => {
+    renderHarness(false, undefined, true);
+    expect(screen.getByRole("radiogroup", { name: "Preview data" })).toBeInTheDocument();
+    expect(bodies).toHaveLength(0);
   });
 
   it("opens the docked editor only on desktop", async () => {

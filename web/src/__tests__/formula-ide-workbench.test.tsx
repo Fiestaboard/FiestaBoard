@@ -109,6 +109,17 @@ describe("FormulaBuilderCard", () => {
 });
 
 describe("FormulaCodeCard", () => {
+  // axe color-contrast at 1440 light: `--warning` is a fill token (about 3:1
+  // on the light surface); code text uses the kit's ink tokens.
+  it("colours code with ink tokens, never the warning fill", () => {
+    wrap(
+      <Workbench card={(p) => <FormulaCodeCard {...p} />} initial={opened({ tab: "code", expression: "SUM(1, 80)" })} />,
+    );
+    const css = [...document.querySelectorAll("style")].map((style) => style.textContent ?? "").join("\n");
+    expect(css).toContain("var(--hue-yellow)");
+    expect(css).not.toMatch(/color:\s*var\(--warning\)/);
+  });
+
   it("pretty-prints the chip's formula and writes it back flat once valid", async () => {
     const apply = vi.fn();
     wrap(

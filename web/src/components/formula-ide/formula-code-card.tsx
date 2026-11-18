@@ -52,20 +52,29 @@ const highlighter = HighlightStyle.define([
   { tag: tags.keyword, color: "var(--tag-formula)" },
   { tag: tags.variableName, color: "var(--tag-variable)" },
   { tag: tags.string, color: "var(--tag-success-foreground)" },
-  { tag: tags.number, color: "var(--warning)" },
+  // `--hue-yellow` is the kit's ink-plateau yellow for text; `--warning` is a fill (≈3:1 on light).
+  { tag: tags.number, color: "var(--hue-yellow)" },
   { tag: tags.operator, color: "var(--muted-foreground)" },
   { tag: tags.punctuation, color: "var(--muted-foreground)" },
 ]);
 
 const theme = EditorView.theme({
   "&": { fontFamily: "var(--font-mono-stack)", fontSize: "12px", background: "transparent" },
-  ".cm-content": { padding: "8px 0", caretColor: "var(--foreground)", color: "var(--foreground)" },
+  ".cm-content": {
+    padding: "8px 0",
+    paddingRight: "9rem",
+    caretColor: "var(--foreground)",
+    color: "var(--foreground)",
+  },
+  ".cm-line": { position: "relative" },
   "&.cm-focused": { outline: "none" },
   ".cm-gutters": { background: "transparent", border: "none", color: "var(--muted-foreground)" },
   ".cm-activeLine": { background: "transparent" },
+  // Out of flow, so a hint never changes a line's height (the gutter stays aligned).
   ".cm-value-hint": {
-    float: "right",
-    marginLeft: "12px",
+    position: "absolute",
+    right: "calc(8px - 9rem)",
+    top: "0",
     padding: "0 6px",
     borderRadius: "3px",
     background: "var(--muted)",

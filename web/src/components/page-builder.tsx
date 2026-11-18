@@ -2612,6 +2612,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   ]);
   const formulaIde = useFormulaIde({
     target: formulaIdeTarget,
+    available: !baselineDisplay && debouncedCanvases.length === 0,
     desktop: !dockedPreview,
     mirroring: liveOutputEnabled,
     stopMirroring: () => changeMirroring(false),
