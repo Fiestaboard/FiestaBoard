@@ -193,8 +193,8 @@ test.describe("Page Builder", () => {
       // The picker titles each plugin group from its id ("date_time" -> "Date Time").
       await expect(page.getByText("Date Time", { exact: true })).toBeVisible({ timeout: 5_000 });
       // Each variable is an insert button whose name starts with the variable
-      // and may be followed by a live preview value ("hour 14").
-      await expect(page.getByRole("button", { name: /^hour\b/ }).first()).toBeVisible();
+      // and may be followed by a live preview value ("hour14").
+      await expect(page.getByRole("button", { name: /^hour/ }).first()).toBeVisible();
     } finally {
       if (!wasEnabled) await disablePlugin("date_time");
     }
