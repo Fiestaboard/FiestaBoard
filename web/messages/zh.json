@@ -297,6 +297,8 @@
       "outTitle": "{board} 不同步",
       "outDetail": "显示的内容与 {page} 不同。可能已被其他应用更改。",
       "showAgain": "再次显示 {page}",
+      "outHoldPaused": "此显示设备已暂停。恢复后才能再次显示 {page}。",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule 将于 {time} 开始",
       "silenceSoonPage": "{board} 将在 {minutes} 分钟后静音，并保持显示 {page}。",
       "silenceSoonOther": "{board} 将在 {minutes} 分钟后静音。新消息将等待 Silence Schedule 结束后再显示。",
@@ -744,6 +746,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "集成详情",
+    "variablesTab": "变量",
+    "readmeTab": "README",
+    "readmeUnavailable": "文档不可用。",
+    "about": "关于",
+    "versionLabel": "版本",
+    "authorLabel": "作者",
+    "sourceLabel": "来源",
+    "backToIntegrations": "返回集成",
+    "reconnectTitle": "重新连接 {name}",
+    "reconnectConsequence": "重新连接之前，使用此集成的页面数据可能不可用或已过时。",
+    "setupConsequence": "请完成设置，以便页面使用此集成的数据。",
+    "noVariables": "此集成不提供模板变量。",
+    "needsAttention": "需要处理",
+    "setUpAction": "设置",
+    "integrationSettings": "集成设置",
+    "sortInstalled": "排序已安装的集成",
+    "sortMarketplace": "排序市场结果",
+    "sortAscending": "升序",
+    "sortDescending": "降序",
     "title": "集成",
     "description": "为您的 FiestaBoard 启用和配置数据源插件",
     "totalLabel": "总计：",
@@ -1043,7 +1065,8 @@
         "modelsAfterSave": "保存更改后即可从提供方的模型中选择。"
       },
       "addModel": "添加模型",
-      "refreshModels": "刷新模型"
+      "refreshModels": "刷新模型",
+      "promptDestination": "提示词发送至 {destination}"
     },
     "backup": {
       "cardTitle": "备份与恢复",
@@ -1077,11 +1100,11 @@
         },
         "appearance": {
           "title": "外观",
-          "description": "FiestaBoard 在此浏览器中的外观。"
+          "description": "主题仅适用于此浏览器；预览动态效果适用于此中枢上的所有人。"
         },
         "accessibility": {
           "title": "无障碍",
-          "description": "此浏览器中的动画和阅读舒适度。"
+          "description": "动作和动画偏好"
         },
         "network": {
           "title": "网络",
@@ -1097,13 +1120,40 @@
         },
         "language-time": {
           "title": "语言与时间",
-          "description": "中枢用于日程、时间变量和所有时间戳。"
+          "description": "此浏览器的语言；中枢的时钟和计划时间。"
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot 偏好和对话。"
         },
         "notifications": {
           "title": "通知",
           "description": "选择是否允许你的账户和此浏览器接收中枢的提醒。"
         }
       }
+    },
+    "panels": {
+      "theme": "主题",
+      "browserTheme": "仅适用于此浏览器。",
+      "motionScope": "动态效果偏好适用于此中枢上的所有人。"
+    },
+    "fiestabot": {
+      "title": "更改、侧栏和历史记录",
+      "scope": "侧栏中的审批模式适用于此中枢上的所有人。",
+      "unavailable": "暂不支持个人审批、侧栏和历史记录偏好。",
+      "open": "打开 FiestaBot",
+      "setup": "设置 AI 提供商",
+      "needsSetup": "FiestaBot 需要在此中枢上启用 AI 并配置提供商。",
+      "checking": "正在检查 FiestaBot 是否可用…",
+      "checkFailed": "无法检查 FiestaBot 是否可用。",
+      "retry": "重试"
+    },
+    "addresses": {
+      "title": "地址",
+      "description": "此浏览器如何连接中枢。",
+      "browser": "此浏览器使用的地址",
+      "ip": "中枢报告的 IP 地址",
+      "hint": "中枢可能报告容器地址。此地址未经验证，不能保证可供其他设备连接。"
     }
   },
   "offline": {

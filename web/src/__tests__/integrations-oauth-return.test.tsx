@@ -115,21 +115,21 @@ describe("Integrations — returning from an OAuth sign-in", () => {
     mockInstall();
   });
 
-  it("confirms a successful connection and reopens that plugin's settings", async () => {
+  it("confirms a successful connection and returns to that plugin’s full detail", async () => {
     const success = vi.spyOn(toast, "success");
     renderPage("tab=installed&oauth=connected&plugin=music");
 
     await waitFor(() => expect(success).toHaveBeenCalledWith("Account connected."));
-    // The sheet opened by itself, on the plugin that was being connected.
-    expect(await screen.findByTestId("oauth-connection")).toHaveTextContent(
-      "This plugin is signed in to Example Music.",
+    await waitFor(() =>
+      expect(navigation.replace).toHaveBeenCalledWith("/integrations/music?from=installed", { scroll: false }),
     );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("cleans the outcome out of the URL so a reload does not report it again", async () => {
     renderPage("tab=installed&oauth=connected&plugin=music");
     await waitFor(() =>
-      expect(navigation.replace).toHaveBeenCalledWith("/integrations?tab=installed", { scroll: false }),
+      expect(navigation.replace).toHaveBeenCalledWith("/integrations/music?from=installed", { scroll: false }),
     );
   });
 
@@ -143,7 +143,7 @@ describe("Integrations — returning from an OAuth sign-in", () => {
     const error = vi.spyOn(toast, "error");
     renderPage("tab=installed&oauth=error&reason=invalid_state");
     await waitFor(() => expect(error).toHaveBeenCalledTimes(1));
-    await screen.findAllByRole("button", { name: /configure/i });
+    await screen.findByRole("link", { name: /^Music/ });
     expect(screen.queryByTestId("oauth-connection")).not.toBeInTheDocument();
   });
 
@@ -151,7 +151,7 @@ describe("Integrations — returning from an OAuth sign-in", () => {
     const success = vi.spyOn(toast, "success");
     const error = vi.spyOn(toast, "error");
     renderPage("tab=installed");
-    await screen.findAllByRole("button", { name: /configure/i });
+    await screen.findByRole("link", { name: /^Music/ });
     expect(success).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
     expect(navigation.replace).not.toHaveBeenCalled();

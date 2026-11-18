@@ -5,7 +5,7 @@
  * Both tables used to put `onClick` on a bare `<th>`: no focus stop, no key
  * handling, and the direction lived only in a chevron icon. axe does not flag
  * that, so these tests drive the headers the way a keyboard / screen reader
- * user would: by role, by Tab, and by Enter / Space, and read `aria-sort`.
+ * user would: by role, by Tab, and by Enter / Space, and read `the announced direction`.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
@@ -78,49 +78,49 @@ function renderPage() {
 }
 
 function headerCell(name: RegExp) {
-  return screen.getByRole("columnheader", { name });
+  return screen.getByRole("button", { name });
 }
 
 function rowOrder(names: string[]): string[] {
   const seen: string[] = [];
-  for (const row of screen.getAllByRole("row")) {
+  for (const row of document.querySelectorAll<HTMLElement>('[data-slot="list-row"], [data-slot="plugin-card"]')) {
     for (const n of names) if (within(row).queryByText(n)) seen.push(n);
   }
   return seen;
 }
 
-describe("Installed table — sortable headers (#2003)", () => {
+describe("Installed groups — sort controls (#2003)", () => {
   it("exposes each sortable header as a button", async () => {
     mockApi();
     renderPage();
     await screen.findByText("Alpha");
 
     for (const name of [/^name/i, /^category/i, /^status/i]) {
-      expect(within(headerCell(name)).getByRole("button")).toBeInTheDocument();
+      expect(headerCell(name)).toBeInTheDocument();
     }
   });
 
-  it("marks the active column with aria-sort and the rest with none", async () => {
+  it("announces the active sort direction and marks other controls unpressed", async () => {
     mockApi();
     renderPage();
     await screen.findByText("Alpha");
 
-    expect(headerCell(/^name/i)).toHaveAttribute("aria-sort", "ascending");
-    expect(headerCell(/^category/i)).toHaveAttribute("aria-sort", "none");
+    expect(headerCell(/^name/i)).toHaveAttribute("aria-label", expect.stringContaining("ascending"));
+    expect(headerCell(/^category/i)).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("sorts with Enter on a focused header, and updates aria-sort", async () => {
+  it("sorts with Enter on a focused header, and updates the announced direction", async () => {
     mockApi();
     const user = userEvent.setup();
     renderPage();
     await screen.findByText("Alpha");
 
-    const nameButton = within(headerCell(/^name/i)).getByRole("button");
+    const nameButton = headerCell(/^name/i);
     nameButton.focus();
     expect(nameButton).toHaveFocus();
     await user.keyboard("{Enter}");
 
-    expect(headerCell(/^name/i)).toHaveAttribute("aria-sort", "descending");
+    expect(headerCell(/^name/i)).toHaveAttribute("aria-label", expect.stringContaining("descending"));
     expect(rowOrder(["Alpha", "Bravo"])).toEqual(["Bravo", "Alpha"]);
   });
 
@@ -130,19 +130,19 @@ describe("Installed table — sortable headers (#2003)", () => {
     renderPage();
     await screen.findByText("Alpha");
 
-    within(headerCell(/^name/i)).getByRole("button").focus();
+    headerCell(/^name/i).focus();
     await user.tab();
-    expect(within(headerCell(/^category/i)).getByRole("button")).toHaveFocus();
+    expect(headerCell(/^category/i)).toHaveFocus();
     await user.keyboard(" ");
 
-    expect(headerCell(/^category/i)).toHaveAttribute("aria-sort", "ascending");
-    expect(headerCell(/^name/i)).toHaveAttribute("aria-sort", "none");
+    expect(headerCell(/^category/i)).toHaveAttribute("aria-label", expect.stringContaining("ascending"));
+    expect(headerCell(/^name/i)).toHaveAttribute("aria-pressed", "false");
     // utility < weather
     expect(rowOrder(["Alpha", "Bravo"])).toEqual(["Bravo", "Alpha"]);
   });
 });
 
-describe("Marketplace list — sortable headers (#2003)", () => {
+describe("Marketplace compact results — sort controls (#2003)", () => {
   async function openList(user: ReturnType<typeof userEvent.setup>) {
     await user.click(await screen.findByRole("tab", { name: /marketplace/i }));
     await user.click(await screen.findByRole("button", { name: /list view/i }));
@@ -156,31 +156,31 @@ describe("Marketplace list — sortable headers (#2003)", () => {
     await openList(user);
 
     for (const name of [/^name/i, /^category/i, /^author/i, /^added/i]) {
-      expect(within(headerCell(name)).getByRole("button")).toBeInTheDocument();
+      expect(headerCell(name)).toBeInTheDocument();
     }
   });
 
-  it("starts with Name ascending and the other columns none", async () => {
+  it("starts with Name ascending and other controls unpressed", async () => {
     mockApi();
     const user = userEvent.setup();
     renderPage();
     await openList(user);
 
-    expect(headerCell(/^name/i)).toHaveAttribute("aria-sort", "ascending");
-    expect(headerCell(/^author/i)).toHaveAttribute("aria-sort", "none");
+    expect(headerCell(/^name/i)).toHaveAttribute("aria-label", expect.stringContaining("ascending"));
+    expect(headerCell(/^author/i)).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("toggles direction with Enter and reflects it in aria-sort", async () => {
+  it("toggles direction with Enter and reflects it in the announced direction", async () => {
     mockApi();
     const user = userEvent.setup();
     renderPage();
     await openList(user);
 
     expect(rowOrder(["Yankee", "Zulu"])).toEqual(["Yankee", "Zulu"]);
-    within(headerCell(/^name/i)).getByRole("button").focus();
+    headerCell(/^name/i).focus();
     await user.keyboard("{Enter}");
 
-    expect(headerCell(/^name/i)).toHaveAttribute("aria-sort", "descending");
+    expect(headerCell(/^name/i)).toHaveAttribute("aria-label", expect.stringContaining("descending"));
     expect(rowOrder(["Yankee", "Zulu"])).toEqual(["Zulu", "Yankee"]);
   });
 });

@@ -213,7 +213,15 @@ class BoardTestResponse(BaseModel):
     error: str | None = None
     troubleshooting: list[str] | None = None
     #: H19: the boards already using this display (its host, cloud key or token).
-    existing_boards: list[ExistingBoard] | None = None
+    #: ``[]`` means checked and none found; null (left out: the route drops nulls)
+    #: means the check could not run.
+    existing_boards: list[ExistingBoard] | None = Field(
+        default=None,
+        description=(
+            "The displays already using this host, cloud key or token. [] = checked, none found; "
+            "absent/null = not checked (the lookup failed), so a client must not read it as 'new display'."
+        ),
+    )
 
 
 class EnablementTokenRequest(BaseModel):

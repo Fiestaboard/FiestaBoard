@@ -297,6 +297,8 @@
       "outTitle": "{board} no está sincronizado",
       "outDetail": "Muestra algo distinto de {page}. Puede que otra aplicación lo haya cambiado.",
       "showAgain": "Mostrar {page} de nuevo",
+      "outHoldPaused": "Esta pantalla está en pausa. Reanúdala para mostrar {page} de nuevo.",
+      "heldPreview": "«{preview}»",
       "silenceSoonTitle": "Silence Schedule comienza a las {time}",
       "silenceSoonPage": "{board} entra en silencio en {minutes} min y mantiene {page}.",
       "silenceSoonOther": "{board} entra en silencio en {minutes} min. Los mensajes nuevos esperan hasta que termine Silence Schedule.",
@@ -744,6 +746,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "Detalles de integración",
+    "variablesTab": "Variables",
+    "readmeTab": "README",
+    "readmeUnavailable": "La documentación no está disponible.",
+    "about": "Acerca de",
+    "versionLabel": "Versión",
+    "authorLabel": "Autor",
+    "sourceLabel": "Origen",
+    "backToIntegrations": "Volver a Integraciones",
+    "reconnectTitle": "Volver a conectar {name}",
+    "reconnectConsequence": "Los datos de las páginas que usan esta integración pueden faltar o estar desactualizados hasta que vuelvas a conectarla.",
+    "setupConsequence": "Completa los ajustes para que las páginas puedan usar los datos de esta integración.",
+    "noVariables": "Esta integración no proporciona variables de plantilla.",
+    "needsAttention": "Necesita atención",
+    "setUpAction": "Configurar",
+    "integrationSettings": "Ajustes de integración",
+    "sortInstalled": "Ordenar integraciones instaladas",
+    "sortMarketplace": "Ordenar resultados del catálogo",
+    "sortAscending": "ascendente",
+    "sortDescending": "descendente",
     "title": "Integraciones",
     "description": "Habilita y configura complementos de fuentes de datos para tu FiestaBoard",
     "totalLabel": "Total:",
@@ -1043,7 +1065,8 @@
         "modelsAfterSave": "Guarda los cambios para elegir entre los modelos del proveedor."
       },
       "addModel": "Añadir un modelo",
-      "refreshModels": "Actualizar modelos"
+      "refreshModels": "Actualizar modelos",
+      "promptDestination": "Las instrucciones se envían a {destination}"
     },
     "backup": {
       "cardTitle": "Copia de seguridad y restauración",
@@ -1077,11 +1100,11 @@
         },
         "appearance": {
           "title": "Apariencia",
-          "description": "Cómo se ve FiestaBoard en este navegador."
+          "description": "Tema para este navegador; movimiento de vistas previas para todos en este hub."
         },
         "accessibility": {
           "title": "Accesibilidad",
-          "description": "Movimiento y comodidad de lectura en este navegador."
+          "description": "Preferencias de movimiento y animación"
         },
         "network": {
           "title": "Red",
@@ -1097,13 +1120,40 @@
         },
         "language-time": {
           "title": "Idioma y hora",
-          "description": "El hub lo usa para el Horario, las variables de hora y cada marca de tiempo."
+          "description": "Idioma para este navegador; reloj y horarios del hub."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "Preferencias y conversaciones de FiestaBot."
         },
         "notifications": {
           "title": "Notificaciones",
           "description": "Elige si tu cuenta y este navegador pueden recibir alertas de tu hub."
         }
       }
+    },
+    "panels": {
+      "theme": "Tema",
+      "browserTheme": "Solo para este navegador.",
+      "motionScope": "Las preferencias de movimiento se aplican a todos en este hub."
+    },
+    "fiestabot": {
+      "title": "Cambios, panel e historial",
+      "scope": "El modo de aprobación del panel se aplica a todos en este hub.",
+      "unavailable": "Aún no hay preferencias personales de aprobación, panel e historial.",
+      "open": "Abrir FiestaBot",
+      "setup": "Configurar proveedor de IA",
+      "needsSetup": "FiestaBot necesita que la IA esté habilitada y un proveedor configurado en este hub.",
+      "checking": "Comprobando la disponibilidad de FiestaBot…",
+      "checkFailed": "No se pudo comprobar la disponibilidad de FiestaBot.",
+      "retry": "Reintentar"
+    },
+    "addresses": {
+      "title": "Direcciones",
+      "description": "Cómo llega este navegador al hub.",
+      "browser": "Este navegador usa",
+      "ip": "Dirección IP indicada por el hub",
+      "hint": "El hub puede indicar una dirección de contenedor. No es una dirección verificada para conectar otro dispositivo."
     }
   },
   "offline": {

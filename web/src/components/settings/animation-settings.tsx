@@ -7,7 +7,6 @@ import {
   Flex,
   Grid,
   Label,
-  PageSection,
   SegmentedControl,
   SegmentedControlItem,
   Skeleton,
@@ -20,6 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { BoardDisplay } from "@/components/board-display";
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
@@ -148,7 +148,7 @@ export function AnimationSettings() {
   const boardAnimating = useBoardAnimationsEnabled();
 
   return (
-    <PageSection
+    <SettingsPanel
       icon={<Sparkles />}
       title={t("animationsTitle")}
       description={t("animationsDescription")}
@@ -275,6 +275,6 @@ export function AnimationSettings() {
           )}
         </>
       )}
-    </PageSection>
+    </SettingsPanel>
   );
 }

@@ -645,7 +645,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
             : tb("heldTitle")}
         </CardTitle>
         <Text size="sm" className="font-semibold">
-          “{silence.held.preview}”
+          {tb("heldPreview", { preview: silence.held.preview })}
         </Text>
         <Text size="sm" tone="muted">
           {silence.until
@@ -789,7 +789,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
                   ? tb("offlineMeta", { time: formatClock(new Date(health.last_connected_at), locale) })
                   : tb("offlineNever")
                 : recoverableOutOfSync
-                  ? `${outcome ?? ""} ${tb("outOfSyncOutcome", { page: title })}`
+                  ? [outcome, tb("outOfSyncOutcome", { page: title })].filter(Boolean).join(" ")
                   : outcome
           }
           actions={actions}
