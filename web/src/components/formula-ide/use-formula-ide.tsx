@@ -85,6 +85,8 @@ export interface FormulaIde {
   dotStatus?: StatusDotProps["status"];
   /** Mirror-to-board is off while the preview is not live data at the real time. */
   mirrorLocked: boolean;
+  /** The render behind the hints failed: the IDE's own, or the editor's preview in Live. */
+  renderFailed: boolean;
   headerControls: ReactNode;
   bodyControls: ReactNode;
   previewFooter: ReactNode;
@@ -306,6 +308,10 @@ export function useFormulaIde({
   };
 
   const showWorkbench = desktop && !inert && (open !== null || inspect);
+  // A failed render means no hints: the IDE's own in Sample/Missing/at/Inspect;
+  // the editor's preview in Live. While mirroring the live render is the one
+  // behind the hints, so a stale preview error does not count (FABLE-2541 N15).
+  const renderFailed = ownRender ? render.isError : !mirroring && (live?.failed ?? false);
   const workbenchProps = {
     open,
     setOpen,
@@ -323,7 +329,7 @@ export function useFormulaIde({
     sourceMapStatus: own?.debug?.source_map_status ?? null,
     // A failed render means no hints: the IDE's own in Sample/Missing/at/Inspect,
     // the editor's preview render in Live (N13).
-    renderFailed: ownRender ? render.isError : (live?.failed ?? false),
+    renderFailed,
     boardCols,
     onReplaceFormula: (line: number, from: string, to: string) =>
       editTemplateLine(line - 1, (text) => text.replace(from, to)),
@@ -335,6 +341,7 @@ export function useFormulaIde({
     previewTitle: !inert && mode === "sample" ? t("sampleTitle") : undefined,
     dotStatus: !inert && mode === "sample" ? "neutral" : undefined,
     mirrorLocked: !inert && previewContext !== null,
+    renderFailed,
     headerControls: desktop ? controls("default") : null,
     bodyControls: desktop ? null : controls("touch"),
     previewFooter: footer,

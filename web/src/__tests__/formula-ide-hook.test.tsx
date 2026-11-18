@@ -80,18 +80,24 @@ function Harness({
   onOpen,
   empty = false,
   withLive = false,
+  liveFailed = false,
+  mirroring = false,
 }: {
   desktop: boolean;
   onOpen?: () => void;
   empty?: boolean;
   withLive?: boolean;
+  liveFailed?: boolean;
+  mirroring?: boolean;
 }) {
   const ide = useFormulaIde({
     target: empty ? null : target,
     available: true,
-    ...(withLive ? { live: { diagnostics: LIVE_DIAGNOSTICS, lines: ["GOOD MORNING", "72°", "HOT OUT"] } } : {}),
+    ...(withLive
+      ? { live: { diagnostics: LIVE_DIAGNOSTICS, lines: ["GOOD MORNING", "72°", "HOT OUT"], failed: liveFailed } }
+      : {}),
     desktop,
-    mirroring: false,
+    mirroring,
     stopMirroring: vi.fn(),
     boardCols: 22,
     editTemplateLine: vi.fn(),
@@ -99,6 +105,7 @@ function Harness({
   return (
     <FormulaIdeContext.Provider value={ide.bridge}>
       <div data-testid="override">{ide.previewOverride ?? "ordinary"}</div>
+      <div data-testid="render-failed">{String(ide.renderFailed)}</div>
       {ide.headerControls}
       {ide.bodyControls}
       {ide.previewFooter}
@@ -127,11 +134,17 @@ function Chip({ onOpen }: { onOpen?: () => void }) {
   );
 }
 
-function renderHarness(desktop: boolean, onOpen?: () => void, empty = false, withLive = false) {
+function renderHarness(
+  desktop: boolean,
+  onOpen?: () => void,
+  empty = false,
+  withLive = false,
+  extra: { liveFailed?: boolean; mirroring?: boolean } = {},
+) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <Harness desktop={desktop} onOpen={onOpen} empty={empty} withLive={withLive} />
+      <Harness desktop={desktop} onOpen={onOpen} empty={empty} withLive={withLive} {...extra} />
     </QueryClientProvider>,
   );
 }
@@ -150,6 +163,17 @@ describe("useFormulaIde", () => {
     expect(screen.getByTestId("hint")).toHaveTextContent('ok:{"kind":"value","text":"HOT"}');
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(bodies).toHaveLength(0);
+  });
+
+  // FABLE-2541 N15: a preview render that failed before mirroring must not keep
+  // the "couldn't be rendered" alert up while the live render (the one behind
+  // the hints now) is fine.
+  it("reports a failed preview render in Live, but not while mirroring", () => {
+    const { unmount } = renderHarness(true, undefined, false, true, { liveFailed: true });
+    expect(screen.getByTestId("render-failed")).toHaveTextContent("true");
+    unmount();
+    renderHarness(true, undefined, false, true, { liveFailed: true, mirroring: true });
+    expect(screen.getByTestId("render-failed")).toHaveTextContent("false");
   });
 
   it("still renders through the hub for Missing when the editor supplies Live values", async () => {

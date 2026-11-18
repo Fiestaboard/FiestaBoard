@@ -2107,6 +2107,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (previewMutationRef.current.isPending) {
         shouldIgnoreNextResponse.current = true;
         previewMutationRef.current.reset();
+      } else if (previewMutationRef.current.isError) {
+        // A preview that failed before mirroring is not the render behind the
+        // hints any more; clear it so its error cannot linger (FABLE-2541 N15).
+        previewMutationRef.current.reset();
       }
       return;
     }
@@ -2686,7 +2690,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   ]);
   const formulaIde = useFormulaIde({
     target: formulaIdeTarget,
-    live: { diagnostics: previewDiagnostics, lines: (preview ?? "").split("\n"), failed: previewMutation.isError },
+    live: {
+      diagnostics: previewDiagnostics,
+      lines: (preview ?? "").split("\n"),
+      // While mirroring the live render is the one behind the hints (N15).
+      failed: !liveOutputEnabled && previewMutation.isError,
+    },
     available: !baselineDisplay && debouncedCanvases.length === 0,
     desktop: !dockedPreview,
     mirroring: liveOutputEnabled,
