@@ -778,6 +778,28 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_FILE: playwright-pwa-http-report.json
           PLAYWRIGHT_OUTPUT_DIR: playwright-pwa-http-test-results
 
+      # Measure the already-built production image; no rebuild or extra
+      # container. Run after browser tests so a budget failure cannot skip them.
+      - name: Check published-baseline bundle budgets
+        if: ${{ !cancelled() && steps.containers_ready.outcome == 'success' }}
+        timeout-minutes: 2
+        run: |
+          python3 -m unittest discover -s scripts/perf -p 'test_*.py' -v
+          docker cp fiestaboard-0:/app/web/build/client "$RUNNER_TEMP/perf-client"
+          python3 scripts/perf/bundle_budget.py \
+            --client "$RUNNER_TEMP/perf-client" \
+            --budget scripts/perf/bundle-budget.json \
+            --report "$RUNNER_TEMP/bundle-report.json"
+
+      - name: Upload bundle measurement
+        if: ${{ !cancelled() && steps.containers_ready.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: bundle-measurement
+          path: ${{ runner.temp }}/bundle-report.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Stop containers
         if: always()
         run: |
