@@ -23,7 +23,15 @@
 # Treat these response codes as success. 403/429 are common from bot
 # protection and rate limiting on otherwise-valid external links, and would
 # otherwise make the check flaky.
-accept = ["200..=299", "403", "429"]
+#
+# 502/503/504 are gateway/availability errors, not evidence of a broken link.
+# github.com intermittently answers GitHub-hosted runners with 503 for blob
+# URLs (e.g. DOCKERHUB_README.md -> .../blob/main/CONTRIBUTING.md) even after
+# the retry budget below, failing PRs that never touched the file. An
+# accepted code counts as success, so these links are not retried — a host
+# that is down cannot tell us whether the link is broken. 404/410 and every
+# other 4xx/5xx code keep failing the check.
+accept = ["200..=299", "403", "429", "502..=504"]
 
 # Transport-level failures need a bigger retry budget than HTTP statuses do.
 # GitHub-hosted runners intermittently fail github.com requests with
