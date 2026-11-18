@@ -375,12 +375,15 @@ describe("Page editor board-size switching", () => {
     await user.click(screen.getByRole("button", { name: "Save Page" }));
     await user.click(await screen.findByRole("button", { name: "Resize and save" }));
 
-    // The save still succeeds (editor closes) and the stale refs surface as
+    // The save succeeds in place and the stale refs surface as
     // a warning listing each board and where the page is referenced.
     await waitFor(() => {
-      expect(onClose).toHaveBeenCalled();
+      expect(api.updatePage).toHaveBeenCalledWith("existing-1", expect.objectContaining({ device_type: "note" }));
+      expect(toast.warning).toHaveBeenCalledTimes(1);
     });
-    expect(toast.warning).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("Existing Page")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled();
     const warned = vi.mocked(toast.warning).mock.calls[0][0] as string;
     expect(warned).toContain("Kitchen");
     expect(warned).toContain("schedule entry");

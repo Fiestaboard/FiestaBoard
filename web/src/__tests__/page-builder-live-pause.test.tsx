@@ -115,10 +115,8 @@ describe("PageBuilder paused Live Output target", () => {
         "This display is paused. Live Output updates the preview only until you resume the display.",
       ),
     ).toBeVisible();
-    expect(screen.getByRole("switch", { name: /toggle live output to board/i })).not.toBeChecked();
-    expect(screen.getByRole("switch", { name: /toggle live output to board/i })).toHaveAccessibleDescription(
-      "This display is paused. Live Output updates the preview only until you resume the display.",
-    );
+    expect(screen.getByRole("switch", { name: /mirror to board while editing/i })).not.toBeChecked();
+    expect(screen.getByRole("switch", { name: /mirror to board while editing/i })).toBeDisabled();
     expect(requests).toEqual([]);
   });
 
@@ -142,7 +140,7 @@ describe("PageBuilder paused Live Output target", () => {
     await user.click(screen.getByRole("combobox", { name: /select board/i }));
     await user.click(await screen.findByRole("option", { name: "Hall" }));
     await waitFor(() => expect(screen.queryByText(/This display is paused/)).not.toBeInTheDocument());
-    expect(screen.getByRole("switch", { name: /toggle live output to board/i })).not.toHaveAttribute(
+    expect(screen.getByRole("switch", { name: /mirror to board while editing/i })).not.toHaveAttribute(
       "aria-describedby",
     );
   });

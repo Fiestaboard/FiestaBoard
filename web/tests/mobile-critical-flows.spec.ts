@@ -328,7 +328,7 @@ test.describe("Mobile — Editor toolbar dropdowns", () => {
     await expect(colorsButton).toBeVisible({ timeout: 10_000 });
     await colorsButton.click();
 
-    const panel = page.getByTestId("toolbar-dropdown-panel");
+    const panel = page.locator('[data-slot="sheet-content"]');
     await expect(panel).toBeVisible({ timeout: 5_000 });
 
     const box = await panel.boundingBox();
