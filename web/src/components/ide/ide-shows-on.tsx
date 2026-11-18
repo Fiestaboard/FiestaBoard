@@ -43,7 +43,7 @@ export function IdeShowsOn({
 
   return (
     <Stack gap="3" data-slot="ide-shows-on">
-      {showWeek && <IdeWeek ide={ide} compact />}
+      {showWeek && <IdeWeek ide={ide} />}
       {empty ? (
         <Text size="sm" tone="muted">
           {t("showsOnEmpty")}

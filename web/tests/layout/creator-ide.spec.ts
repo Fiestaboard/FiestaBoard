@@ -222,6 +222,11 @@ for (const theme of ["light", "dark"] as const) {
         // Live: the header offers Save draft beside Save & update board (04d decision 4).
         await expect(page.getByRole("button", { name: "Save draft" })).toBeVisible();
         await expect(page.getByRole("button", { name: "Save & update board" })).toBeVisible();
+        // The page name keeps usable room beside the header actions, and they stay on screen.
+        const nameBox = await page.getByRole("textbox", { name: /page name/i }).boundingBox();
+        expect(nameBox!.width).toBeGreaterThanOrEqual(width < 640 ? 80 : 200);
+        const publishBox = await page.getByRole("button", { name: "Save & update board" }).boundingBox();
+        expect(publishBox!.x + publishBox!.width).toBeLessThanOrEqual(width);
 
         if (desktop) {
           await expect(page.getByRole("navigation", { name: "Explorer" })).toBeVisible();

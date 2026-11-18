@@ -47,7 +47,7 @@ export function useWeekEntries(ide: CreatorIdeState): { entries: WeekCalendarEnt
  * The page's week (04d 4.3 timeline strip; 1.6b Shows on week block): the
  * kit WeekCalendar cropped to the hours the page is scheduled.
  */
-export function IdeWeek({ ide, compact = false }: { ide: CreatorIdeState; compact?: boolean }) {
+export function IdeWeek({ ide }: { ide: CreatorIdeState }) {
   const t = useTranslations("creatorIde");
   const locale = useLocale();
   const { entries, weekStart } = useWeekEntries(ide);
@@ -74,7 +74,7 @@ export function IdeWeek({ ide, compact = false }: { ide: CreatorIdeState; compac
       entries={entries}
       startHour={startHour}
       endHour={endHour}
-      hourHeight={compact ? 24 : 18}
+      hourHeight={28}
       formatTime={formatWeekCalendarTime}
       formatHour={formatWeekCalendarHour}
       labels={{ conflict: t("overlap"), off: t("entryOff") }}

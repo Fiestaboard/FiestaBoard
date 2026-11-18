@@ -86,6 +86,7 @@ export default function CreatorIde({
   const router = useRouter();
   const ide = useCreatorIde(pageId, builderRef, savedTick);
   const desktop = useMediaQuery(IDE_DESKTOP_QUERY);
+  const phone = useMediaQuery("(max-width: 639px)");
   const [tab, setTab] = useState<IdeTabId>("page");
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>("problems");
   const [copyOpen, setCopyOpen] = useState(false);
@@ -102,16 +103,30 @@ export default function CreatorIde({
     // A function value: wrapped so the shell's setState stores it rather than calling it.
     onSaveActionsChange(() => (actions: PageBuilderSaveActions) => (
       <>
-        <Button
-          variant="secondary"
-          size={actions.size}
-          className="shrink-0 gap-1.5 px-3 text-sm"
-          disabled={actions.disabled || savingDraft}
-          onClick={() => saveDraftMutate()}
-        >
-          <Save className="size-3.5" aria-hidden="true" />
-          {savingDraft ? t("savingDraft") : t("saveDraft")}
-        </Button>
+        {phone ? (
+          // Phone header: the name keeps its room; Save draft is the icon (named for AT).
+          <Button
+            variant="secondary"
+            size="icon-touch"
+            className="shrink-0"
+            aria-label={t("saveDraft")}
+            disabled={actions.disabled || savingDraft}
+            onClick={() => saveDraftMutate()}
+          >
+            <Save className="size-4" aria-hidden="true" />
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            size={actions.size}
+            className="shrink-0 gap-1.5 px-3 text-sm"
+            disabled={actions.disabled || savingDraft}
+            onClick={() => saveDraftMutate()}
+          >
+            <Save className="size-3.5" aria-hidden="true" />
+            {savingDraft ? t("savingDraft") : t("saveDraft")}
+          </Button>
+        )}
         <Button
           variant="brand"
           size={actions.size}
@@ -125,7 +140,7 @@ export default function CreatorIde({
         </Button>
       </>
     ));
-  }, [draftOffered, savingDraft, saveDraftMutate, onSaveActionsChange, t]);
+  }, [draftOffered, phone, savingDraft, saveDraftMutate, onSaveActionsChange, t]);
   useEffect(() => () => onSaveActionsChange(undefined), [onSaveActionsChange]);
 
   const problemCount = ide.problems.length;
