@@ -249,8 +249,32 @@ A phone credential **cannot**:
 - create pairing codes for other phones;
 - export or import backups;
 - change the hub's network, update channel or software, or restart it;
-- install, update or remove plugins or outputs;
+- install plugins from a Git URL, or install outputs;
 - read stored secrets, or change AI, MQTT or display connection settings.
+
+### Step-up on the phone
+
+Some phone actions ask for your password again first. They are called **step-up**
+actions. When the hub answers one with `403` and `"error": "step_up_required"`, the
+app asks for the account password and sends it to `POST /auth/device/elevate`.
+
+- A correct password lets **this phone** do step-up actions for **10 minutes**.
+  Other phones, TVs and browsers don't get it.
+- Wrong passwords count toward the same lockout as signing in.
+- The step-up is never a new credential. It ends when the 10 minutes are up, when the
+  app ends it (`DELETE /auth/device/elevate`), or when this phone is signed out.
+- `GET /auth/device/elevate` says whether the phone is stepped up, and for how long.
+
+These actions need step-up on the phone:
+
+- installing a plugin from the plugin list, updating one or all plugins, and removing
+  a plugin.
+
+Checking for plugin updates doesn't need step-up. Installing a plugin from a Git URL
+stays in the web app.
+
+Step-up never opens account, password, session, pairing or API-token management to a
+phone.
 
 A phone can edit the non-secret fields of an installed integration, the same as the
 web app can. Stored secrets such as API keys stay masked, and the hub keeps the saved
@@ -284,9 +308,12 @@ credential as a password sign-in, listed in **Signed-in devices** as a QR / code
   hub's network address, or set `FIESTABOARD_EXTERNAL_URL`.
   `FIESTABOARD_EXTERNAL_URL` must be `scheme://host[:port]` with no path (a reverse
   proxy on a sub-path isn't supported here); a value that isn't is logged once and
-  skipped. In Docker's default bridge network the hub's own LAN address is the
-  container's, so it's left out; with `network_mode: host` it's kept. If you removed
-  Docker's default bridge, set `FIESTABOARD_EXTERNAL_URL` instead.
+  skipped. In a bridged Docker or Podman container the hub's own LAN address is the
+  container's, whatever its range, so it's left out; with host networking
+  (`network_mode: host`, `--network host`) it's kept. Some setups read as bridged even
+  though the address is reachable: a container on a `macvlan` or `ipvlan` network, rootless
+  Podman with `--network host`, or a host with Docker's or Podman's default bridge
+  (`docker0`, `podman0`) removed. In those, set `FIESTABOARD_EXTERNAL_URL`.
 
 The endpoints are `POST /auth/pairing` (browser session), `GET /auth/pairing/{id}`,
 `DELETE /auth/pairing` and `POST /auth/pairing/claim` (the app).

@@ -56,6 +56,9 @@ def no_network(monkeypatch):
         def get_registry_entries(self):
             return []
 
+        def check_for_updates(self):
+            return {}
+
     monkeypatch.setattr(update_service, "_perform_update_check", update_check)
     monkeypatch.setattr(plugin_routes, "_require_plugin_system", lambda: None)
     monkeypatch.setattr(plugin_routes, "get_plugin_registry", lambda: Registry())
@@ -192,6 +195,8 @@ CONTROL_ALLOWED = [
     ("GET", "/triggers", None),
     ("GET", "/system/update-check", None),
     ("GET", "/config/general", None),
+    # H21c: the update check is tier 1.
+    ("POST", "/plugins/updates/check", None),
     # H11: the phone approves a TV's code (an unknown code is 400, not 401/403).
     ("POST", "/auth/device/inspect", {"user_code": "BCDF-GHJK"}),
     ("POST", "/auth/device/approve", {"user_code": "BCDF-GHJK"}),
@@ -199,6 +204,8 @@ CONTROL_ALLOWED = [
     # H10b: the phone lists and signs out TVs (an unknown id is 404, not 401/403).
     ("GET", "/auth/device/tvs", None),
     ("DELETE", "/auth/device/tvs/unknown", None),
+    # H21s: the phone reads its own step-up state.
+    ("GET", "/auth/device/elevate", None),
 ]
 
 
@@ -239,12 +246,9 @@ CONTROL_DENIED = [
     ("POST", "/network/wifi/connect", {}),
     ("GET", "/network/wifi/saved", None),
     ("GET", "/logs", None),
-    # Installing code.
+    # Installing code from a Git URL. Registry install, update and uninstall are
+    # tier 2 (H21c; tests/test_auth_phone_plugin_lifecycle.py).
     ("POST", "/plugins/install", {}),
-    ("POST", "/plugins/registry/x/install", None),
-    ("DELETE", "/plugins/x/uninstall", None),
-    ("POST", "/plugins/x/update", None),
-    ("POST", "/plugins/updates/apply", {}),
     ("POST", "/pages/import", {}),
     ("POST", "/outputs/x/install", {}),
     # Stored secrets and integrations that hold credentials.
@@ -411,7 +415,11 @@ def test_every_control_rule_names_a_real_route():
 
 def test_control_is_a_strict_subset_of_the_api():
     routes = list(_routes())
-    allowed = {(m, p) for m, p in routes if scopes.permits(scopes.CONTROL, m, p)}
+    allowed = {
+        (m, p)
+        for m, p in routes
+        if scopes.permits(scopes.CONTROL, m, p) and not scopes.requires_step_up(scopes.CONTROL, m, p)
+    }
     denied = {(m, p) for m, p in routes if not scopes.permits(scopes.CONTROL, m, p)}
     assert allowed and denied
     # Nothing that manages credentials, the host or installed code is in the scope.
@@ -429,7 +437,8 @@ def test_literal_routes_never_ride_a_wildcard():
     for method, template in _templates():
         if "{" in template or template.startswith("/v1") or not scopes.permits(scopes.CONTROL, method, template):
             continue
-        assert any(rule.literal and rule.matches(method, template) for rule in scopes.CONTROL_RULES), (
+        rules = (*scopes.CONTROL_RULES, *scopes.CONTROL_STEP_UP_RULES)
+        assert any(rule.literal and rule.matches(method, template) for rule in rules), (
             method,
             template,
         )

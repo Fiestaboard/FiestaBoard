@@ -161,19 +161,25 @@ test.describe("transition pickers", () => {
   test("integrations badges a transition plugin and offers no enable toggle", async ({ page }) => {
     await page.goto("/integrations");
 
-    const row = page.getByRole("row").filter({ hasText: PLUGIN_NAME });
+    const installed = page.getByRole("list", { name: "Installed", exact: true });
+    const row = installed.getByRole("listitem").filter({ hasText: PLUGIN_NAME });
     await expect(row).toBeVisible();
     await expect(row.getByText("Transition", { exact: true })).toBeVisible();
+    await row.getByRole("button").click();
+    const settings = page.getByRole("complementary", { name: "Integration settings" });
+    await expect(settings.getByRole("heading", { name: PLUGIN_NAME, exact: true })).toBeVisible();
     // The toggle is a no-op for transitions -- get_transition_plugin() ignores
-    // the enabled flag -- so it must not be offered.
+    // the enabled flag -- so it must not be offered in the selected detail.
     await expect(row.getByRole("switch")).toHaveCount(0);
+    await expect(settings.getByRole("switch")).toHaveCount(0);
 
-    // Positive control: a data plugin in the same table still gets its
-    // toggle. Without this, the assertion above would also pass if the
-    // switch selector simply stopped matching anything.
-    const dataRow = page.getByRole("row").filter({ hasText: DATA_PLUGIN_NAME });
+    // Positive control: opening a data integration still exposes its toggle.
+    // Without this, the assertion above could pass if all toggles disappeared.
+    const dataRow = installed.getByRole("listitem").filter({ hasText: DATA_PLUGIN_NAME });
     await expect(dataRow).toBeVisible();
-    await expect(dataRow.getByRole("switch")).toHaveCount(1);
     await expect(dataRow.getByText("Transition", { exact: true })).toHaveCount(0);
+    await dataRow.getByRole("button").click();
+    await expect(settings.getByRole("heading", { name: DATA_PLUGIN_NAME, exact: true })).toBeVisible();
+    await expect(settings.getByRole("switch", { name: `Toggle ${DATA_PLUGIN_NAME}`, exact: true })).toBeVisible();
   });
 });

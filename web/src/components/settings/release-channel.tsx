@@ -13,7 +13,6 @@ import {
   Button,
   ChoiceCard,
   ChoiceCardGroup,
-  PageSection,
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +20,7 @@ import { FlaskConical } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
@@ -74,7 +74,7 @@ export function ReleaseChannelCard() {
   const leaving = (current === "alpha" && target !== "alpha") || (current === "beta" && target === "stable");
 
   return (
-    <PageSection
+    <SettingsPanel
       icon={<FlaskConical />}
       title={t("title")}
       description={t("chooserDescription")}
@@ -151,6 +151,6 @@ export function ReleaseChannelCard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </PageSection>
+    </SettingsPanel>
   );
 }

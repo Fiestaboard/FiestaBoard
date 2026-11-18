@@ -3233,7 +3233,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         onStrokeCommit={handleStrokeCommit}
                       >
                         {/* An LED target board previews as its LED matrix; draw
-                        mode hit-tests flap tiles, so it stays on the flaps. */}
+                          mode hit-tests flap tiles, so it stays on the flaps. */}
                         <DevicePreview
                           model={drawMode ? null : previewModel}
                           ledLayout={previewBoard?.led_layout}

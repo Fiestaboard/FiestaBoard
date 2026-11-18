@@ -263,25 +263,56 @@ def test_an_unset_or_good_external_url_is_not_logged(auth, network, on_the_hub, 
     assert [r for r in caplog.records if r.name == "src.auth.hub_addresses"] == []
 
 
-# ── a bridge network, not merely Docker (review S3) ─────────────────────────
+# ── a bridge network, not merely Docker (review S3); Podman too (H18b) ─────
 
 
 @pytest.mark.parametrize(
-    ("dockerenv", "docker0", "bridge"),
-    [(True, False, True), (True, True, False), (False, False, False), (False, True, False)],
-    ids=["bridge-container", "host-network-container", "no-docker", "docker-host-itself"],
+    ("dockerenv", "containerenv", "docker0", "podman0", "bridge"),
+    [
+        (True, False, False, False, True),
+        (True, False, True, False, False),
+        (False, True, False, False, True),
+        (False, True, False, True, False),
+        (False, False, False, False, False),
+        (False, False, True, False, False),
+        (False, False, False, True, False),
+    ],
+    ids=[
+        "docker-bridge",
+        "docker-host-network",
+        "podman-bridge",
+        "podman-host-network",
+        "no-container",
+        "docker-host-itself",
+        "podman-host-itself",
+    ],
 )
-def test_a_bridge_network_is_docker_without_the_hosts_docker0(tmp_path, monkeypatch, dockerenv, docker0, bridge):
-    """In a bridge container the host's ``docker0`` is not visible; with
-    ``network_mode: host`` it is, and the container's LAN address is real."""
+def test_a_bridge_network_is_a_container_without_the_hosts_bridge(
+    tmp_path, monkeypatch, dockerenv, containerenv, docker0, podman0, bridge
+):
+    """In a bridged container the host's ``docker0`` / ``podman0`` is not
+    visible; with host networking it is, and the container's LAN address is real.
+    Podman marks its containers with ``/run/.containerenv``, not ``/.dockerenv``."""
     from src.auth import hub_addresses
 
-    marker, iface = tmp_path / ".dockerenv", tmp_path / "docker0"
-    if dockerenv:
-        marker.touch()
-    if docker0:
-        iface.mkdir()
-    monkeypatch.setattr(hub_addresses, "DOCKERENV", marker)
-    monkeypatch.setattr(hub_addresses, "HOST_DOCKER_BRIDGE", iface)
+    markers = (tmp_path / ".dockerenv", tmp_path / ".containerenv")
+    bridges = (tmp_path / "docker0", tmp_path / "podman0")
+    for path, present in zip(markers, (dockerenv, containerenv), strict=True):
+        if present:
+            path.touch()
+    for path, present in zip(bridges, (docker0, podman0), strict=True):
+        if present:
+            path.mkdir()
+    monkeypatch.setattr(hub_addresses, "CONTAINER_MARKERS", markers)
+    monkeypatch.setattr(hub_addresses, "HOST_BRIDGES", bridges)
 
     assert hub_addresses.in_bridge_network() is bridge
+
+
+@pytest.mark.parametrize("ip", ["172.17.0.2", "10.88.0.5", "192.168.200.3", "10.0.0.9"])
+def test_a_bridged_container_offers_no_lan_address_whatever_its_range(auth, network, on_the_hub, ip):
+    """H18b: a bridged container's LAN address is its own, in whatever range the
+    network uses (Docker 172.16/12, Podman 10.88/16, a user-defined network)."""
+    network.update(ip=ip, docker=True)
+
+    assert _urls(_ok(on_the_hub)) == ["http://fiestaboard.local:4420"]

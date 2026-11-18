@@ -66,7 +66,8 @@ test.describe("Integrations Page", () => {
     await page.getByRole("tab", { name: /marketplace/i }).click();
 
     // Add from Git button should be visible in the Marketplace tab
-    await expect(page.getByRole("button", { name: /add from git/i }).first()).toBeVisible({ timeout: 5_000 });
+    await page.getByRole("button", { name: "More options" }).click();
+    await expect(page.getByRole("menuitem", { name: /add from git/i }).first()).toBeVisible({ timeout: 5_000 });
   });
 
   test("Add from Git dialog opens and accepts a URL", async ({ page }) => {
@@ -76,8 +77,9 @@ test.describe("Integrations Page", () => {
     await page.getByRole("tab", { name: /marketplace/i }).click();
 
     // Open the Add from Git dialog
+    await page.getByRole("button", { name: "More options" }).click();
     await page
-      .getByRole("button", { name: /add from git/i })
+      .getByRole("menuitem", { name: /add from git/i })
       .first()
       .click();
 
@@ -103,8 +105,9 @@ test.describe("Integrations Page", () => {
     await expect(page.getByRole("tab", { name: /marketplace/i })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: /marketplace/i }).click();
 
+    await page.getByRole("button", { name: "More options" }).click();
     await page
-      .getByRole("button", { name: /add from git/i })
+      .getByRole("menuitem", { name: /add from git/i })
       .first()
       .click();
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
@@ -127,8 +130,9 @@ test.describe("Integrations Page", () => {
     await expect(page.getByRole("tab", { name: /marketplace/i })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: /marketplace/i }).click();
 
+    await page.getByRole("button", { name: "More options" }).click();
     await page
-      .getByRole("button", { name: /add from git/i })
+      .getByRole("menuitem", { name: /add from git/i })
       .first()
       .click();
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
@@ -145,8 +149,9 @@ test.describe("Integrations Page", () => {
     await expect(page.getByRole("tab", { name: /marketplace/i })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("tab", { name: /marketplace/i }).click();
 
+    await page.getByRole("button", { name: "More options" }).click();
     await page
-      .getByRole("button", { name: /add from git/i })
+      .getByRole("menuitem", { name: /add from git/i })
       .first()
       .click();
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });

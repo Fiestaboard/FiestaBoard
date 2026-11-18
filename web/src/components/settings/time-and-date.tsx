@@ -3,7 +3,6 @@
 import {
   Grid,
   Label,
-  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -19,6 +18,7 @@ import { Clock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
@@ -86,7 +86,7 @@ export function TimeAndDateCard() {
   };
 
   return (
-    <PageSection id="time" icon={<Clock />} title={t("timeAndDateTitle")} description={t("timeAndDateDescription")}>
+    <SettingsPanel id="time" icon={<Clock />} title={t("timeAndDateTitle")} description={t("timeAndDateDescription")}>
       {isLoading ? (
         <Stack gap="4">
           <Skeleton className="h-10 w-full max-w-sm" />
@@ -153,6 +153,6 @@ export function TimeAndDateCard() {
           })()}
         </Stack>
       )}
-    </PageSection>
+    </SettingsPanel>
   );
 }
