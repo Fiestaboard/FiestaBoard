@@ -24,6 +24,10 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: [
+        "app/routes/integrations._index.tsx",
+        "app/routes/integrations.$pluginId.tsx",
+        "app/routes/integrations.tsx",
+        "src/components/integrations/**",
         "src/lib/**",
         "app/routes/activate.tsx",
         "app/routes/reset-password.tsx",
@@ -42,6 +46,14 @@ export default defineConfig({
         "src/components/service-controls.tsx",
         "src/components/general-settings.tsx",
         "src/components/settings/update-intervals.tsx",
+        // Slice 2.14: supported Settings sections and panel composition.
+        "src/components/settings/settings-panel.tsx",
+        "src/components/settings/fiestabot-settings.tsx",
+        "src/components/settings/network-addresses.tsx",
+        "src/components/settings/accessibility-settings.tsx",
+        "src/components/settings/appearance-settings.tsx",
+        "src/components/settings/animation-settings.tsx",
+        "src/components/settings/ai-settings.tsx",
         "src/components/settings/schedule-behavior.tsx",
         "src/components/settings/inline-panel-settings.tsx",
         "src/components/settings/release-channel.tsx",

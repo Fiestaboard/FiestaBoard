@@ -297,6 +297,8 @@
       "outTitle": "{board} が同期していません",
       "outDetail": "{page} とは異なる内容が表示されています。別のアプリが変更した可能性があります。",
       "showAgain": "{page} を再表示",
+      "outHoldPaused": "このディスプレイは一時停止中です。{page} を再表示するには再開してください。",
+      "heldPreview": "「{preview}」",
       "silenceSoonTitle": "Silence Schedule は {time} に開始します",
       "silenceSoonPage": "{board} は {minutes} 分後に静音状態になり、{page} の表示を保持します。",
       "silenceSoonOther": "{board} は {minutes} 分後に静音状態になります。新しいメッセージは Silence Schedule が終了するまで待機します。",
@@ -744,6 +746,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "連携の詳細",
+    "variablesTab": "変数",
+    "readmeTab": "README",
+    "readmeUnavailable": "ドキュメントを利用できません。",
+    "about": "概要",
+    "versionLabel": "バージョン",
+    "authorLabel": "作者",
+    "sourceLabel": "ソース",
+    "backToIntegrations": "連携に戻る",
+    "reconnectTitle": "{name}に再接続",
+    "reconnectConsequence": "再接続するまで、この連携を使用するページのデータが利用できないか、古い状態になる場合があります。",
+    "setupConsequence": "ページでこの連携のデータを使用できるように設定を完了してください。",
+    "noVariables": "この連携はテンプレート変数を提供しません。",
+    "needsAttention": "要対応",
+    "setUpAction": "設定",
+    "integrationSettings": "連携設定",
+    "sortInstalled": "インストール済み連携を並べ替え",
+    "sortMarketplace": "マーケットプレイスの結果を並べ替え",
+    "sortAscending": "昇順",
+    "sortDescending": "降順",
     "title": "連携",
     "description": "FiestaBoard のデータソースプラグインを有効化・設定します",
     "totalLabel": "合計:",
@@ -1043,7 +1065,8 @@
         "modelsAfterSave": "変更を保存すると、プロバイダーのモデルから選べます。"
       },
       "addModel": "モデルを追加",
-      "refreshModels": "モデルを更新"
+      "refreshModels": "モデルを更新",
+      "promptDestination": "プロンプトの送信先: {destination}"
     },
     "backup": {
       "cardTitle": "バックアップと復元",
@@ -1077,11 +1100,11 @@
         },
         "appearance": {
           "title": "外観",
-          "description": "このブラウザーでの FiestaBoard の見た目。"
+          "description": "テーマはこのブラウザーのみ。プレビューの動きはハブの全員に適用されます。"
         },
         "accessibility": {
           "title": "アクセシビリティ",
-          "description": "このブラウザーでの動きと読みやすさ。"
+          "description": "動きとアニメーションの設定"
         },
         "network": {
           "title": "ネットワーク",
@@ -1097,13 +1120,40 @@
         },
         "language-time": {
           "title": "言語と時刻",
-          "description": "スケジュール、時刻変数、すべてのタイムスタンプにハブが使用します。"
+          "description": "言語はこのブラウザーのみ。時計とスケジュールはハブの設定です。"
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBotの設定と会話。"
         },
         "notifications": {
           "title": "通知",
           "description": "アカウントとこのブラウザーでハブからの通知を受け取るかどうかを選択します。"
         }
       }
+    },
+    "panels": {
+      "theme": "テーマ",
+      "browserTheme": "このブラウザーのみ。",
+      "motionScope": "動きの設定はこのハブの全員に適用されます。"
+    },
+    "fiestabot": {
+      "title": "変更、パネル、履歴",
+      "scope": "パネルの承認モードはこのハブの全員に適用されます。",
+      "unavailable": "個人別の承認、パネル、履歴の設定はまだ利用できません。",
+      "open": "FiestaBotを開く",
+      "setup": "AIプロバイダーを設定",
+      "needsSetup": "FiestaBotを使うには、このハブでAIを有効にし、プロバイダーを設定してください。",
+      "checking": "FiestaBotが利用可能か確認中…",
+      "checkFailed": "FiestaBotが利用可能か確認できませんでした。",
+      "retry": "再試行"
+    },
+    "addresses": {
+      "title": "アドレス",
+      "description": "このブラウザーからハブへの接続先。",
+      "browser": "このブラウザーの接続先",
+      "ip": "ハブが報告したIPアドレス",
+      "hint": "ハブがコンテナーのアドレスを報告する場合があります。別の端末の接続先として確認されたアドレスではありません。"
     }
   },
   "offline": {

@@ -37,8 +37,8 @@ export interface StatusBannerHostProps {
   boardId?: string;
   /**
    * Kinds this page already says some other way. The next kind down still
-   * shows. Home passes `silenced` while its Now-showing card carries the
-   * Silence notice (slice 2.2 moves that here).
+   * shows. No route passes it today: since 2.3b (DD-W34) Home shows the
+   * silenced banner here and its card keeps only the held message.
    */
   exclude?: ReadonlyArray<PickedStatusBannerKind>;
   /** Also render the fleet-wide init-error banners and the silence-soon banner (Home). */
