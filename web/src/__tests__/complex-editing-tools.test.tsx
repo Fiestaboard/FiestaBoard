@@ -92,6 +92,29 @@ describe("useComplexEditing", () => {
   });
 });
 
+describe("useComplexEditing zoom and the session preview mode", () => {
+  const big = { rows: 24, cols: 96, deviceType: "panel", notesWide: 1, notesTall: 1, enabled: true, stage: null };
+
+  it("starts from the session's Fit and reports Fit-or-Actual intent back", () => {
+    const onPreviewModeChange = vi.fn();
+    const { result } = renderHook(() => useComplexEditing({ ...big, previewMode: "fit", onPreviewModeChange }));
+    expect(result.current.zoom).toBe("fit");
+    act(() => result.current.setZoom("md"));
+    expect(onPreviewModeChange).toHaveBeenLastCalledWith("actual");
+    expect(result.current.previewSize).toBe("md");
+  });
+
+  it("does not report a mode the session already has", () => {
+    const onPreviewModeChange = vi.fn();
+    const { result } = renderHook(() => useComplexEditing({ ...big, previewMode: "actual", onPreviewModeChange }));
+    expect(result.current.zoom).toBe("sm");
+    act(() => result.current.setZoom("lg"));
+    expect(onPreviewModeChange).not.toHaveBeenCalled();
+    act(() => result.current.setZoom("fit"));
+    expect(onPreviewModeChange).toHaveBeenCalledWith("fit");
+  });
+});
+
 describe("complex preview tools", () => {
   const board = { message: "HELLO", deviceType: "panel" as const, gridRows: 24, gridCols: 96 };
 

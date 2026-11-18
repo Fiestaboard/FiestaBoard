@@ -2623,6 +2623,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     notesTall,
     enabled: !dockedPreview && !baselineDisplay && !drawMode && !isLedModel(previewModel),
     stage: previewStage,
+    previewMode,
+    onPreviewModeChange: changePreviewMode,
   });
   const complexMinimapId = useId();
   const overflowTarget = useMemo(() => {

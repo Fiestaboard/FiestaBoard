@@ -20,6 +20,13 @@ export interface ComplexEditingOptions {
   enabled: boolean;
   /** The element around the preview board, measured for the ruler, minimap and seams. */
   stage: HTMLElement | null;
+  /**
+   * The session's Fit / Actual preference (2.5). The zoom starts from it and
+   * reports Fit-or-not back, so leaving the lenses (draw mode, a narrower
+   * window) keeps the overview the user chose.
+   */
+  previewMode?: "fit" | "actual";
+  onPreviewModeChange?: (mode: "fit" | "actual") => void;
 }
 
 /**
@@ -34,11 +41,18 @@ export function useComplexEditing({
   notesTall,
   enabled,
   stage,
+  previewMode: sessionMode = "actual",
+  onPreviewModeChange,
 }: ComplexEditingOptions) {
   const bigBoard = enabled && isBigBoard({ rows, cols });
   const noteArray = enabled && deviceType === "note_array" && notesWide * notesTall > 1;
   // 04b `126:149604` opens a big board at Tile sm, the editable floor.
-  const [zoom, setZoom] = useState<ZoomValue>("sm");
+  const [zoom, setZoomState] = useState<ZoomValue>(() => (sessionMode === "fit" ? "fit" : "sm"));
+  const setZoom = (next: ZoomValue) => {
+    setZoomState(next);
+    const mode = next === "fit" ? "fit" : "actual";
+    if (mode !== sessionMode) onPreviewModeChange?.(mode);
+  };
   const [minimapOpen, setMinimapOpen] = useState(true);
   const [focusedNote, setFocusedNote] = useState<number | null>(null);
   const viewport = useBoardViewportScroll(stage, cols, bigBoard || noteArray);
