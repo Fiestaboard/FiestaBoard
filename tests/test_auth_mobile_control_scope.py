@@ -199,6 +199,8 @@ CONTROL_ALLOWED = [
     # H10b: the phone lists and signs out TVs (an unknown id is 404, not 401/403).
     ("GET", "/auth/device/tvs", None),
     ("DELETE", "/auth/device/tvs/unknown", None),
+    # H21s: the phone reads its own step-up state.
+    ("GET", "/auth/device/elevate", None),
 ]
 
 

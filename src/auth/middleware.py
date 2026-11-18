@@ -21,7 +21,9 @@ Native sign-ins (``fb_tv_`` and ``fb_mob_`` Bearer tokens):
     in every auth mode. A TV token (scope ``tv_panels``) reaches the panel
     routes only; a phone token (scope ``control``) reaches ``/v1`` and the
     listed control routes. The lists live in ``src/auth/scopes.py``; anything
-    else is 403. A revoked or expired native token is 401 everywhere.
+    else is 403. A phone's tier-2 routes also need a live step-up (H21s,
+    ``src/auth/step_up.py``), else ``403 step_up_required``. A revoked or
+    expired native token is 401 everywhere.
 
 Bearer-token paths (``/mcp/*`` and ``/v1/*``):
     If an API token is configured (``FIESTABOARD_MCP_TOKEN`` or the value
@@ -54,7 +56,7 @@ from starlette.responses import JSONResponse
 
 from .device_models import AuthFlowError
 from .device_service import MOBILE_TOKEN_PREFIX, TV_TOKEN_PREFIX, DeviceService
-from .scopes import CONTROL, TV_PANELS, permits
+from .scopes import CONTROL, TV_PANELS, permits, requires_step_up
 from .service import (
     SESSION_COOKIE_NAME,
     auth_mode,
@@ -63,6 +65,7 @@ from .service import (
     verify_mcp_bearer,
 )
 from .session_store import SessionLimit
+from .step_up import STEP_UP_REQUIRED_BODY, is_elevated
 
 logger = logging.getLogger(__name__)
 
@@ -324,6 +327,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 {"error": "forbidden", "detail": f"This {device} sign-in does not permit that operation."},
                 status_code=403,
             )
+        if requires_step_up(scope, method, path) and not await run_in_threadpool(is_elevated, svc, session.id):
+            return JSONResponse(dict(STEP_UP_REQUIRED_BODY), status_code=403)
         if scope == TV_PANELS and method == "PATCH":
             try:
                 body = await request.json()
