@@ -12,10 +12,11 @@ someone adds them on purpose.
   ``/v1`` API plus the internal routes the phone apps need to show and change
   what a display shows, edit pages and schedules, set up integrations, manage
   TVs and read diagnostics. It never reaches account and credential
-  management, backups, the host (network, update, restart), installing code
-  from a Git URL, or settings that hold third-party secrets (AI keys, MQTT,
-  ``/config/board``). Registry plugin install, update and uninstall are tier 2
-  (H21c). It may approve or deny a TV's sign-in code (H11), but
+  management, installing code from a Git URL, the update channel, or settings
+  that hold third-party secrets in the clear (MQTT, ``/config/board``).
+  Registry plugin install, update and uninstall (H21c), and the hub's Wi-Fi
+  changes, software update, restart, AI provider changes and backups (H21d)
+  are tier 2. It may approve or deny a TV's sign-in code (H11), but
   never create pairing codes for other phones (``/auth/pairing``). It may
   list and sign out the account's TVs (H10b), never browsers or phones.
 
@@ -118,6 +119,19 @@ CONTROL_RULES = (
         ("PUT", "/settings/silence-schedule"),
         ("POST", "/settings/board/{}/pause"),
         ("POST", "/settings/board/{}/identify"),
+        # H21a tier 1: add, change and remove displays (every display type, MQTT
+        # included), detect a board's size, and display settings. Changing a
+        # display's connection while echoing a masked key is refused
+        # (src/settings/phone_displays.py). Installing outputs stays browser-only.
+        ("GET,PUT", "/settings/board"),
+        ("POST", "/settings/board/add"),
+        ("DELETE", "/settings/board/{}"),
+        ("POST", "/settings/board/{}/detect-size"),
+        ("POST", "/outputs/{}/boards"),
+        ("GET,PUT", "/settings/display"),
+        ("GET,PUT", "/settings/transitions"),
+        ("GET,PUT", "/settings/polling"),
+        ("GET,PUT", "/settings/location"),
         ("GET", "/settings/location/sun-times"),
         ("GET", "/settings/location/sun-times-week"),
         ("GET", "/triggers"),
@@ -213,13 +227,30 @@ CONTROL_RULES = (
         ("GET", "/panel/{}"),
         ("GET", "/panel/{}/frame"),
         # Diagnostics and update status (read-only, plus a connection test).
-        ("GET", "/config/general"),
+        ("GET,PUT", "/config/general"),
         ("GET", "/debug/network-diagnostics"),
         ("GET", "/debug/system-info"),
         ("POST", "/debug/test-connection"),
         ("POST", "/config/board/test"),
         ("GET", "/system/update-check"),
         ("GET", "/system/update/status"),
+        # H21d tier 1: Wi-Fi reads and a scan; AI settings read (keys and header
+        # values masked) and tested by provider id (src/auth/phone_policy.py).
+        ("GET", "/network/wifi/capability"),
+        ("GET", "/network/wifi/status"),
+        ("GET", "/network/wifi/saved"),
+        ("POST", "/network/wifi/scan"),
+        ("GET", "/settings/ai"),
+        ("GET", "/settings/ai/providers/{}/models"),
+        ("POST", "/settings/ai/test"),
+        # H21b: FiestaBot. Every tool and op the chat runs for a phone goes through
+        # the default-deny table in src/ai/phone_tools.py, checked when it runs.
+        ("POST", "/pages/ai/chat"),
+        ("POST", "/pages/ai/generate"),
+        ("POST", "/ai/operations"),
+        ("GET,DELETE", "/ai/conversations"),
+        ("GET,PUT,PATCH,DELETE", "/ai/conversations/{}"),
+        ("GET", "/ai/conversations/{}/export"),
     ),
 )
 
@@ -232,6 +263,18 @@ CONTROL_STEP_UP_RULES: tuple[Rule, ...] = _rules(
     ("POST", "/plugins/{}/update"),
     ("POST", "/plugins/updates/apply"),
     ("DELETE", "/plugins/{}/uninstall"),
+    # H21d: the hub's network, software and AI provider. Changing a provider's
+    # endpoint needs its key typed again. The update channel stays browser-only.
+    ("POST", "/network/wifi/connect"),
+    ("POST", "/network/wifi/disconnect"),
+    ("DELETE", "/network/wifi/saved/{}"),
+    ("PUT", "/settings/ai"),
+    ("POST", "/system/update"),
+    ("POST", "/system/restart"),
+    ("POST", "/system/shutdown"),
+    # A phone's export is redacted; its import never re-clones plugins.
+    ("GET", "/backup/export"),
+    ("POST", "/backup/import"),
 )
 
 _RULES = {TV_PANELS: TV_PANELS_RULES, CONTROL: CONTROL_RULES}

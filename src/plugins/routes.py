@@ -48,6 +48,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from src.api_deprecation import superseded_by_v1
 from src.api_errors import errors
@@ -402,17 +403,37 @@ async def get_plugin_manifest(plugin_id: str) -> PluginManifestResponse:
     dependencies=[superseded_by_v1("PUT /plugins/{plugin_id}/config")],
 )
 @plugin_errors_to_http
-async def update_plugin_config(plugin_id: str, request: PluginConfigRequest) -> PluginConfigUpdateResponse:
+async def update_plugin_config(
+    plugin_id: str, request: PluginConfigRequest, http_request: Request = None
+) -> PluginConfigUpdateResponse:
     """Validate, persist and apply a plugin's configuration.
 
     A sensitive field posted back as ``"***"`` resolves to the stored secret;
     see ``PluginService.update_plugin_config`` and
     ``tests/test_plugins_contract.py`` for the whole round-trip contract.
+    A phone that changes where the plugin's key is sent types it again
+    (``400 key_required``, ``src/auth/phone_policy.py``).
     """
     _require_plugin_system()
+    refusal = phone_key_refusal(http_request, plugin_id, request.config)
+    if refusal is not None:
+        return refusal
 
     masked = _plugin_service().update_plugin_config(plugin_id, request.config)
     return PluginConfigUpdateResponse(plugin_id=plugin_id, config=masked)
+
+
+def phone_key_refusal(
+    http_request: Request | None, plugin_id: str, config: Any, *, merge: bool = False
+) -> JSONResponse | None:
+    """The ``400 key_required`` a phone gets for moving a plugin's key, else None."""
+    from src.auth import phone_policy
+
+    if http_request is None or not phone_policy.is_phone(http_request):
+        return None
+    if not phone_policy.plugin_config_needs_key(plugin_id, config, merge=merge):
+        return None
+    return JSONResponse(phone_policy.key_required_body(phone_policy.PLUGIN_KEY_DETAIL), status_code=400)
 
 
 @router.post(
@@ -519,12 +540,20 @@ async def get_plugin_variables(plugin_id: str) -> PluginVariablesResponse:
 )
 @plugin_errors_to_http
 async def get_plugin_options_endpoint(
-    plugin_id: str, options_id: str, body: PluginOptionsRequest
+    plugin_id: str, options_id: str, body: PluginOptionsRequest, http_request: Request = None
 ) -> PluginOptionsResponse:
-    """Browse a plugin's upstream catalog to populate one settings field."""
+    """Browse a plugin's upstream catalog to populate one settings field.
+
+    A phone whose draft settings move the plugin's key types it again
+    (``400 key_required``), as for a save.
+    """
     from .base import OptionsRequest, OptionsUnavailable
 
     _require_plugin_system()
+    if body.draft_config:
+        refusal = phone_key_refusal(http_request, plugin_id, body.draft_config, merge=True)
+        if refusal is not None:
+            return refusal
 
     registry = get_plugin_registry()
 
