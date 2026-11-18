@@ -1,12 +1,13 @@
 "use client";
 
-import { Box, Button, Flex, Grid, Input, Label, PageSection, Stack, Text } from "@fiestaboard/ui";
+import { Box, Button, Flex, Grid, Input, Label, Stack, Text } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LocateFixed, MapPin } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { queryKeys } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
@@ -114,7 +115,7 @@ export function LocationSettingsCard() {
   const isConfigured = location?.latitude != null && location?.longitude != null;
 
   return (
-    <PageSection
+    <SettingsPanel
       id="location"
       icon={<MapPin />}
       title={t("title")}
@@ -190,6 +191,6 @@ export function LocationSettingsCard() {
           </Flex>
         </>
       )}
-    </PageSection>
+    </SettingsPanel>
   );
 }

@@ -28,10 +28,13 @@ import asyncio
 import inspect
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.api_errors import errors
+from src.auth import phone_policy
+from src.auth.step_up import STEP_UP_REQUIRED_BODY
 from src.ops import registry
 from src.ops.grammar import ToolCallValidationError
 
@@ -93,10 +96,10 @@ async def _dispatch(op_name: str, args: dict[str, Any]) -> dict[str, Any]:
 @router.post(
     "/operations",
     response_model=OperationResponse,
-    responses=errors(400, 404, 412, 422),
+    responses=errors(400, 403, 404, 412, 422),
     summary="Execute one chat-grammar operation server-side",
 )
-async def execute_operation(request: OperationRequest) -> OperationResponse:
+async def execute_operation(request: OperationRequest, http_request: Request = None) -> OperationResponse:
     """Validate and execute a chat tool call through the shared ops layer.
 
     - unknown op, or an op the chat grammar does not spell → **404**
@@ -118,6 +121,16 @@ async def execute_operation(request: OperationRequest) -> OperationResponse:
             status_code=404,
             detail=f"Operation {request.op!r} is not part of the chat operation grammar.",
         )
+
+    if phone_policy.is_phone(http_request):
+        # H21b: the phone's op allow-list, keyed on the credential (not the body).
+        from .phone_tools import DENIED, STEP_UP, denied_message, tier_for
+
+        tier = tier_for(operation.name, request.args if isinstance(request.args, dict) else {})
+        if tier == DENIED:
+            return JSONResponse({"error": "forbidden", "detail": denied_message(request.op)}, status_code=403)
+        if tier == STEP_UP and not phone_policy.session_is_elevated(http_request.scope.get("auth_session_id")):
+            return JSONResponse(dict(STEP_UP_REQUIRED_BODY), status_code=403)
 
     if operation.client_side:
         raise HTTPException(

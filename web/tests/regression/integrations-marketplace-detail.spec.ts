@@ -67,7 +67,8 @@ test.describe("regression: integrations.marketplace", () => {
       await marketplaceTab.click();
     }
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    const gitBtn = page.getByRole("button", { name: /install from git|git url|add from git|add custom/i }).first();
+    await page.getByRole("button", { name: "More options" }).click();
+    const gitBtn = page.getByRole("menuitem", { name: /install from git|git url|add from git|add custom/i }).first();
     if (!(await gitBtn.isVisible().catch(() => false))) {
       test.skip(true, "Git install button not present in this UI variant");
       return;

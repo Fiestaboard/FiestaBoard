@@ -122,6 +122,30 @@
       "kind": "APIRoute"
     },
     {
+      "path": "/auth/device/elevate",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "end_step_up",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/elevate",
+      "methods": [
+        "GET"
+      ],
+      "name": "step_up_state",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/device/elevate",
+      "methods": [
+        "POST"
+      ],
+      "name": "step_up",
+      "kind": "APIRoute"
+    },
+    {
       "path": "/auth/device/inspect",
       "methods": [
         "POST"

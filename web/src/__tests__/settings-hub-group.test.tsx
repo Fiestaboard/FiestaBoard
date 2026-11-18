@@ -110,7 +110,7 @@ afterEach(() => {
 });
 
 describe("Settings index", () => {
-  it("lists the You group including Notifications", async () => {
+  it("lists the You group in the 06 order: Account, Notifications, Appearance, Accessibility, FiestaBot", async () => {
     renderAt("/settings");
     const you = await screen.findByRole("list", { name: "You" });
     await waitFor(() =>
@@ -118,7 +118,7 @@ describe("Settings index", () => {
         within(you)
           .getAllByRole("link")
           .map((link) => link.textContent),
-      ).toEqual(["Account", "Appearance", "Accessibility", "Notifications"]),
+      ).toEqual(["Account", "Notifications", "Appearance", "Accessibility", "FiestaBot"]),
     );
   });
 
@@ -159,6 +159,31 @@ describe("Settings index", () => {
 });
 
 describe("Settings detail, from the rail breakpoint up", () => {
+  it("opens FiestaBot without offering unsupported per-person controls", async () => {
+    renderAt("/settings/fiestabot");
+    expect(await screen.findByRole("heading", { level: 2, name: "FiestaBot" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "FiestaBot" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText(/Approval mode in the drawer applies to everyone on this hub/)).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Auto" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it.each(["appearance", "network", "language-time", "system", "ai-provider"])(
+    "gives each %s settings panel its own card surface",
+    async (section) => {
+      renderAt(`/settings/${section}`);
+      const detail = await screen.findByRole("region", {
+        name: screen.getByRole("heading", { level: 2 }).textContent!,
+      });
+      await waitFor(() => expect(detail.querySelectorAll('[data-slot="page-section"]').length).toBeGreaterThan(0));
+      const panels = detail.querySelectorAll('[data-slot="page-section"]');
+      for (const panel of panels) {
+        expect(panel.parentElement).toHaveAttribute("data-slot", "page-card");
+        expect(panel.parentElement?.querySelectorAll('[data-slot="page-section"]')).toHaveLength(1);
+      }
+    },
+  );
+
   it("opens the first section beside the list when none is named", async () => {
     renderAt("/settings");
     expect(await screen.findByRole("heading", { level: 2, name: "Account" })).toBeInTheDocument();
@@ -208,6 +233,13 @@ describe("Settings detail, from the rail breakpoint up", () => {
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/settings$/));
   });
 
+  it("shows actual browser and hub-reported addresses without inventing remote access", async () => {
+    renderAt("/settings/network");
+    expect(await screen.findByText("This browser is using")).toBeInTheDocument();
+    expect(await screen.findByText("192.168.1.2")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Set up remote access/ })).not.toBeInTheDocument();
+  });
+
   it("puts MQTT under Network", async () => {
     renderAt("/settings/network");
     await waitFor(() => expect(anchor("settings.mqtt")).not.toBeNull());
@@ -238,6 +270,23 @@ describe("Settings detail, from the rail breakpoint up", () => {
   it("puts location and time under Language & time", async () => {
     renderAt("/settings/language-time");
     await waitFor(() => expect(anchor("settings.location")).not.toBeNull());
+  });
+
+  it("labels the theme as a browser preference with touch-sized choices", async () => {
+    renderAt("/settings/appearance");
+    expect(await screen.findByRole("heading", { name: "Theme" })).toBeInTheDocument();
+    expect(screen.getByText("For this browser only.")).toBeInTheDocument();
+    expect(screen.getByText("Theme for this browser; preview motion for everyone on this hub.")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "System" })).toHaveClass("min-h-12");
+  });
+
+  it("describes supported motion scope without unsupported reading controls", async () => {
+    renderAt("/settings/accessibility");
+    expect(await screen.findByText("Motion preferences apply to everyone on this hub.")).toBeInTheDocument();
+    const toggle = await screen.findByRole("switch", { name: "Reduce motion" });
+    expect(screen.queryByText("Motion and reading comfort in this browser.")).not.toBeInTheDocument();
+    expect(toggle).toHaveAccessibleDescription("Minimizes animations throughout the interface");
+    expect(screen.queryByRole("switch", { name: "Read board changes aloud" })).not.toBeInTheDocument();
   });
 
   it("keeps board previews and flip speed under Appearance", async () => {

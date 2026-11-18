@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -150,6 +150,65 @@ it("uses the expected page in Home's out-of-sync banner with one recovery action
   expect(screen.getByRole("button", { name: "Show Weather Page again" })).toBeInTheDocument();
   expect(banner.querySelectorAll("button")).toHaveLength(1);
   expect(screen.getByText("Should be showing · Flagship")).toBeInTheDocument();
+});
+
+it("says why Home's Show again is unavailable while the display is paused", async () => {
+  server.use(
+    http.get("/api/settings/board", () =>
+      HttpResponse.json({
+        board_type: "black",
+        boards: [
+          {
+            id: "default",
+            name: "Flagship",
+            device_type: "flagship",
+            board_color: "black",
+            enabled: true,
+            paused: true,
+          },
+        ],
+        devices: ["flagship"],
+      }),
+    ),
+    http.get("/api/board/current-message", () =>
+      HttpResponse.json({ characters: [[1]], expected_characters: [[2]], message: "OTHER APP", rows: 6, cols: 22 }),
+    ),
+  );
+  render(<ActivePageDisplay />, { wrapper: Wrapper });
+  const banner = await screen.findByTestId("board-out-of-sync");
+  await waitFor(() =>
+    expect(banner).toHaveTextContent("This display is paused. Resume it to show Weather Page again."),
+  );
+  expect(screen.getByRole("button", { name: "Show Weather Page again" })).toBeDisabled();
+});
+
+it.each([
+  ["en", "“GOOD LUCK”"],
+  ["de", "„GOOD LUCK“"],
+  ["fr", "«\u00a0GOOD LUCK\u00a0»"],
+  ["ja", "「GOOD LUCK」"],
+])("quotes the held message with %s quotation marks", async (locale, expected) => {
+  const messages = (await import(`../../messages/${locale}.json`)).default as {
+    home: { banners: { heldPreview: string } };
+  };
+  expect(messages.home.banners.heldPreview.replace("{preview}", "GOOD LUCK")).toBe(expected);
+});
+
+it("renders the held message through the locale quote message", async () => {
+  server.use(
+    http.get("/api/silence-status", () =>
+      HttpResponse.json({
+        enabled: true,
+        active: true,
+        mode: "freeze",
+        ends_at_utc: new Date(Date.now() + 3600000).toISOString(),
+        held: { kind: "message", preview: "GOOD LUCK", queued_at: new Date().toISOString() },
+      }),
+    ),
+  );
+  render(<ActivePageDisplay />, { wrapper: Wrapper });
+  const card = await screen.findByTestId("home-held-message");
+  expect(within(card).getByText("“GOOD LUCK”")).toBeInTheDocument();
 });
 
 vi.mock("@/components/wizard-provider", () => ({ useWizard: () => ({ triggerWizard: vi.fn() }) }));

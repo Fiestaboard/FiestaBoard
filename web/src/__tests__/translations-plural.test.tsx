@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { type Locale, locales } from "@/i18n/config";
 import i18n, { i18nReady } from "@/i18n/i18next";
-import { useTranslations } from "@/i18n/translations";
+import { pluralCategory, useTranslations } from "@/i18n/translations";
 
 // The shared setup substitutes an English-only hook. These regressions must
 // exercise the real hook, locale resources, and ICU interpolation together.
@@ -212,5 +212,12 @@ describe("ICU plural branch selection through the real translation hook", () => 
     const { result } = renderHook(() => useTranslations("pluralRegression"));
 
     expect(result.current("englishOnly", { count })).toBe(expected);
+  });
+
+  it("falls back to English plural rules for a malformed language tag instead of throwing", () => {
+    expect(() => new Intl.PluralRules("@@not-a-tag")).toThrow(RangeError);
+    expect(pluralCategory("@@not-a-tag", 1)).toBe("one");
+    expect(pluralCategory("@@not-a-tag", 5)).toBe("other");
+    expect(pluralCategory("ru", 22)).toBe("few");
   });
 });

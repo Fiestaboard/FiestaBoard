@@ -253,6 +253,8 @@
       "outTitle": "{board} is out of sync",
       "outDetail": "It’s showing something other than {page}. Another app may have changed it.",
       "showAgain": "Show {page} again",
+      "outHoldPaused": "This display is paused. Resume it to show {page} again.",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule starts at {time}",
       "silenceSoonPage": "{board} goes quiet in {minutes} min and holds {page}.",
       "silenceSoonOther": "{board} goes quiet in {minutes} min. New messages wait until Silence Schedule ends.",
@@ -700,6 +702,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "Integration details",
+    "variablesTab": "Variables",
+    "readmeTab": "README",
+    "readmeUnavailable": "Documentation is not available.",
+    "about": "About",
+    "versionLabel": "Version",
+    "authorLabel": "Author",
+    "sourceLabel": "Source",
+    "backToIntegrations": "Back to Integrations",
+    "reconnectTitle": "Reconnect {name}",
+    "reconnectConsequence": "Data for pages using this integration may be unavailable or out of date until you reconnect.",
+    "setupConsequence": "Complete the settings so pages can use this integration’s data.",
+    "noVariables": "This integration does not provide template variables.",
+    "needsAttention": "Needs attention",
+    "setUpAction": "Set up",
+    "integrationSettings": "Integration settings",
+    "sortInstalled": "Sort installed integrations",
+    "sortMarketplace": "Sort marketplace results",
+    "sortAscending": "ascending",
+    "sortDescending": "descending",
     "title": "Integrations",
     "description": "Enable and configure data source plugins for your FiestaBoard",
     "totalLabel": "Total:",
@@ -999,7 +1021,8 @@
         "modelsAfterSave": "Save changes to pick from the provider's models."
       },
       "addModel": "Add a model",
-      "refreshModels": "Refresh models"
+      "refreshModels": "Refresh models",
+      "promptDestination": "Prompts go to {destination}"
     },
     "backup": {
       "cardTitle": "Backup & Restore",
@@ -1033,11 +1056,11 @@
         },
         "appearance": {
           "title": "Appearance",
-          "description": "How FiestaBoard looks in this browser."
+          "description": "Theme for this browser; preview motion for everyone on this hub."
         },
         "accessibility": {
           "title": "Accessibility",
-          "description": "Motion and reading comfort in this browser."
+          "description": "Motion and animation preferences"
         },
         "network": {
           "title": "Network",
@@ -1053,13 +1076,40 @@
         },
         "language-time": {
           "title": "Language & time",
-          "description": "Used by the hub for the Schedule, time variables and every timestamp you see."
+          "description": "Language for this browser; hub clock and scheduling time."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot preferences and conversations."
         },
         "notifications": {
           "title": "Notifications",
           "description": "Choose whether your account and this browser can receive alerts from your hub."
         }
       }
+    },
+    "panels": {
+      "theme": "Theme",
+      "browserTheme": "For this browser only.",
+      "motionScope": "Motion preferences apply to everyone on this hub."
+    },
+    "fiestabot": {
+      "title": "Changes, drawer and history",
+      "scope": "Approval mode in the drawer applies to everyone on this hub.",
+      "unavailable": "Per-person approval, drawer and history preferences are not available yet.",
+      "open": "Open FiestaBot",
+      "setup": "Set up AI provider",
+      "needsSetup": "FiestaBot needs AI enabled and a configured provider on this hub.",
+      "checking": "Checking FiestaBot availability…",
+      "checkFailed": "Could not check FiestaBot availability.",
+      "retry": "Try again"
+    },
+    "addresses": {
+      "title": "Addresses",
+      "description": "How this browser reaches the hub.",
+      "browser": "This browser is using",
+      "ip": "Hub-reported IP address",
+      "hint": "The hub may report a container address. This is not a verified address for connecting another device."
     }
   },
   "offline": {
