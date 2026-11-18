@@ -11,6 +11,8 @@ import {
   createPage,
   deleteAllPages,
   deletePage,
+  disablePlugin,
+  enablePlugin,
   expect,
   resetToSingleBoard,
   setActivePage,
@@ -170,26 +172,29 @@ test.describe("Page Builder", () => {
   });
 
   test("template variables autocomplete/picker works", async ({ page }) => {
-    await page.goto("/pages/new");
-    await expect(page.locator("#page-name")).toBeVisible({
-      timeout: 15_000,
-    });
+    // The picker lists the hub's plugin variables, so this test owns that
+    // precondition. Other specs (draw-mode.spec.ts) switch date_time off
+    // afterwards, which used to leave the picker empty depending on order.
+    const before = await fetch(`${API_URL}/v1/plugins/date_time`, { headers: authHeaders() });
+    const wasEnabled = before.ok && (await before.json()).enabled === true;
+    if (!wasEnabled) await enablePlugin("date_time");
+    try {
+      await page.goto("/pages/new");
+      await expect(page.locator("#page-name")).toBeVisible({ timeout: 15_000 });
 
-    // Look for a variable picker / insert button
-    const variableBtn = page
-      .getByRole("button", { name: /variable|insert/i })
-      .first()
-      .or(page.getByText(/variables/i).first());
+      // The toolbar's Variables button is labelled for its state, so wait for
+      // the loaded, non-empty picker trigger rather than any "variable" text.
+      const variables = page.getByRole("button", { name: "Variables", exact: true });
+      await expect(variables).toBeEnabled({ timeout: 15_000 });
+      await variables.click();
 
-    const hasVariablePicker = await variableBtn.isVisible({ timeout: 5_000 }).catch(() => false);
-
-    if (hasVariablePicker) {
-      const isEnabled = await variableBtn.isEnabled().catch(() => false);
-      if (!isEnabled) return;
-      await variableBtn.click();
-      // Should show variable options
-      const variableOption = page.getByText(/time|date|weather/i).first();
-      await expect(variableOption).toBeVisible({ timeout: 5_000 });
+      // Assert inside the picker, not the first "time" text on the page
+      // (that matched the hidden sidebar's "Language & time" link).
+      // The picker titles each plugin group from its id ("date_time" -> "Date Time").
+      await expect(page.getByText("Date Time", { exact: true })).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByText("hour", { exact: true }).first()).toBeVisible();
+    } finally {
+      if (!wasEnabled) await disablePlugin("date_time");
     }
   });
 
