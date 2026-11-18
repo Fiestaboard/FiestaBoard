@@ -235,7 +235,21 @@ export function BoardOutOfSyncBanner({
       data-face={face}
       data-saved={saved ? "true" : undefined}
       title={home ? th("outTitle", { board: home.display }) : title}
-      description={home ? th("outDetail", { page: home.pageName }) : description}
+      description={
+        home ? (
+          <>
+            {th("outDetail", { page: home.pageName })}
+            {/* Home disables "Show again" while paused; say why, as the Display page does. */}
+            {live && paused && (
+              <Text size="xs" className="text-muted-foreground mt-1" data-testid="board-out-of-sync-hold">
+                {th("outHoldPaused", { page: home.pageName })}
+              </Text>
+            )}
+          </>
+        ) : (
+          description
+        )
+      }
       action={
         home ? (
           <StatusBannerAction onClick={restore} disabled={isRestoring || paused}>

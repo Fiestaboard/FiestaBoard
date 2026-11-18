@@ -297,6 +297,8 @@
       "outTitle": "{board} 동기화 불일치",
       "outDetail": "{page} 이외의 내용이 표시되고 있습니다. 다른 앱에서 변경했을 수 있습니다.",
       "showAgain": "{page} 다시 표시",
+      "outHoldPaused": "이 디스플레이가 일시정지되어 있습니다. {page}을(를) 다시 표시하려면 다시 시작하세요.",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule이 {time}에 시작됩니다",
       "silenceSoonPage": "{board}이(가) {minutes}분 후 무음 상태가 되며 {page} 표시를 유지합니다.",
       "silenceSoonOther": "{board}이(가) {minutes}분 후 무음 상태가 됩니다. 새 메시지는 Silence Schedule이 끝날 때까지 대기합니다.",

@@ -297,6 +297,8 @@
       "outTitle": "{board} is niet gesynchroniseerd",
       "outDetail": "Het toont iets anders dan {page}. Een andere app heeft dit mogelijk gewijzigd.",
       "showAgain": "Toon {page} opnieuw",
+      "outHoldPaused": "Dit scherm is gepauzeerd. Hervat het om {page} opnieuw te tonen.",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule begint om {time}",
       "silenceSoonPage": "{board} wordt over {minutes} min stil en houdt {page} in beeld.",
       "silenceSoonOther": "{board} wordt over {minutes} min stil. Nieuwe berichten wachten tot Silence Schedule eindigt.",

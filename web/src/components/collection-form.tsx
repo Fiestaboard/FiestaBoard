@@ -61,6 +61,14 @@ const MAX_INTERVAL_SECONDS = 86400; // 24 hours
 /** Sentinel Select value that switches the duration field into custom entry. */
 const CUSTOM_INTERVAL = "custom";
 
+/**
+ * Desktop (lg+) "Now in this Collection" column, 07c `312:76483`: a 405 px
+ * card beside the form with a 24 px gap. The form reserves the gutter and the
+ * preview is placed into it, so the two arbitrary values live together here.
+ */
+const DESKTOP_PREVIEW_GUTTER = "lg:pe-[429px]";
+const DESKTOP_PREVIEW_PLACEMENT = "min-w-0 lg:absolute lg:top-0 lg:-end-[429px] lg:w-[405px]";
+
 const INTERVAL_PRESETS = [
   { labelKey: "interval5s", value: 5 },
   { labelKey: "interval10s", value: 10 },
@@ -529,7 +537,7 @@ export function CollectionForm({
           </Button>
         </Flex>
       </Flex>
-      <Box className="relative min-w-0 lg:pe-[429px]">
+      <Box className={`relative min-w-0 ${DESKTOP_PREVIEW_GUTTER}`}>
         <Box className="relative min-w-0">
           <Card aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block" />
           <Stack gap="5" className="relative lg:p-6">
@@ -592,9 +600,7 @@ export function CollectionForm({
                       <SegmentedControlItem value="variable">{t("modeVariableLabel")}</SegmentedControlItem>
                     </SegmentedControl>
                   </Stack>
-                  {preview && !phone && (
-                    <Box className="min-w-0 lg:absolute lg:top-0 lg:-end-[429px] lg:w-[405px]">{preview(dirty)}</Box>
-                  )}
+                  {preview && !phone && <Box className={DESKTOP_PREVIEW_PLACEMENT}>{preview(dirty)}</Box>}
                   {/* Page-duration controls (time + random modes) */}
                   {(selectionMode === "time" || selectionMode === "random") && (
                     <Stack
@@ -677,15 +683,13 @@ export function CollectionForm({
               </CollapsibleContent>
             </Collapsible>
             {preview && phone && (
-              <Box className="min-w-0 lg:absolute lg:top-0 lg:-end-[429px] lg:w-[405px]">
-                <Collapsible open={!phone || previewOpen} onOpenChange={setPreviewOpen}>
-                  {phone && (
-                    <CollapsibleTrigger asChild>
-                      <Button type="button" variant="outline">
-                        {t("nowInCollection")}
-                      </Button>
-                    </CollapsibleTrigger>
-                  )}
+              <Box className="min-w-0">
+                <Collapsible open={previewOpen} onOpenChange={setPreviewOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="outline">
+                      {t("nowInCollection")}
+                    </Button>
+                  </CollapsibleTrigger>
                   <CollapsibleContent keepMounted>{preview(dirty)}</CollapsibleContent>
                 </Collapsible>
               </Box>

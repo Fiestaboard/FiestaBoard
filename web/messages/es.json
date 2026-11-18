@@ -297,6 +297,8 @@
       "outTitle": "{board} no está sincronizado",
       "outDetail": "Muestra algo distinto de {page}. Puede que otra aplicación lo haya cambiado.",
       "showAgain": "Mostrar {page} de nuevo",
+      "outHoldPaused": "Esta pantalla está en pausa. Reanúdala para mostrar {page} de nuevo.",
+      "heldPreview": "«{preview}»",
       "silenceSoonTitle": "Silence Schedule comienza a las {time}",
       "silenceSoonPage": "{board} entra en silencio en {minutes} min y mantiene {page}.",
       "silenceSoonOther": "{board} entra en silencio en {minutes} min. Los mensajes nuevos esperan hasta que termine Silence Schedule.",

@@ -297,6 +297,8 @@
       "outTitle": "{board} ist nicht synchron",
       "outDetail": "Es wird etwas anderes als {page} angezeigt. Eine andere App hat den Inhalt möglicherweise geändert.",
       "showAgain": "{page} erneut anzeigen",
+      "outHoldPaused": "Diese Anzeige ist pausiert. Setze sie fort, um {page} erneut anzuzeigen.",
+      "heldPreview": "„{preview}“",
       "silenceSoonTitle": "Silence Schedule beginnt um {time}",
       "silenceSoonPage": "{board} wird in {minutes} Min. still und zeigt weiterhin {page} an.",
       "silenceSoonOther": "{board} wird in {minutes} Min. still. Neue Nachrichten warten, bis Silence Schedule endet.",

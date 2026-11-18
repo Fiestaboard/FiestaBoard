@@ -297,6 +297,8 @@
       "outTitle": "{board}: рассинхронизация",
       "outDetail": "Отображается что-то другое вместо {page}. Возможно, содержимое изменило другое приложение.",
       "showAgain": "Показать {page} снова",
+      "outHoldPaused": "Этот дисплей приостановлен. Возобновите его, чтобы снова показать {page}.",
+      "heldPreview": "«{preview}»",
       "silenceSoonTitle": "Silence Schedule начнётся в {time}",
       "silenceSoonPage": "{board} перейдёт в режим тишины через {minutes} мин и сохранит {page} на экране.",
       "silenceSoonOther": "{board} перейдёт в режим тишины через {minutes} мин. Новые сообщения будут ждать окончания Silence Schedule.",
