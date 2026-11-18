@@ -230,7 +230,7 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByRole("textbox", { name: "Go to row and column" })).toBeVisible();
       const bands = page.getByRole("list", { name: "Row bands" });
       await expect(bands).toBeVisible();
-      await expect(bands.getByText("TONIGHT AT ROSA'S")).toBeVisible();
+      await expect(bands.getByText("THIS WEEK", { exact: true })).toBeVisible();
       // Zoom to Tile md keeps the page inside the viewport.
       await preview.getByRole("radio", { name: "Tile md" }).click();
       await expect(preview.locator('[data-slot="board-viewport"]')).toHaveAttribute("data-mode", "actual");

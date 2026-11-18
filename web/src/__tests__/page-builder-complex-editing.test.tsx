@@ -142,6 +142,15 @@ describe("page editor complex editing (2.9)", () => {
     expect(await screen.findByRole("group", { name: "Preview zoom" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Go to row and column" })).toBeInTheDocument();
     expect(screen.getByText("Where lines are cut")).toBeInTheDocument();
+    // The template's line numbers keep AA contrast on a tall board (axe in the
+    // 2.9 layout spec): muted colour, not muted colour at 40 % opacity.
+    const editor = await screen.findByRole("textbox", { name: "Template editor" }, { timeout: 5000 });
+    let node: Element | null = editor;
+    while (node && node.previousElementSibling?.getAttribute("aria-hidden") !== "true") node = node.parentElement;
+    const gutter = node!.previousElementSibling!;
+    const numbers = Array.from(gutter.children) as HTMLElement[];
+    expect(numbers.length).toBeGreaterThanOrEqual(24);
+    for (const number of numbers) expect(number.style.opacity).toBe("");
   });
 
   it("gives a 2 × 2 note array Note focus and a seam check", async () => {
