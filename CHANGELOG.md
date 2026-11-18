@@ -1,5 +1,13 @@
 # fiestaboard
 
+## 11.0.0-alpha.9
+
+### Minor Changes
+
+- [#2538](https://github.com/Fiestaboard/FiestaBoard/pull/2538) [`e54c7f3`](https://github.com/Fiestaboard/FiestaBoard/commit/e54c7f3f976df281a33e5ed0113abfb0b2e05ed5) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The phone app can add, change and remove displays and change display settings. If you move a display to a new address from the phone, you have to enter its key again.
+
+- [#2537](https://github.com/Fiestaboard/FiestaBoard/pull/2537) [`addb149`](https://github.com/Fiestaboard/FiestaBoard/commit/addb149c6c35894d7312cb4c9b6e7524d86ed45d) Thanks [@jeffredodd](https://github.com/jeffredodd)! - FiestaBot works from the phone app. It can only do what the phone can do, and it always asks before sensitive actions, which also need your password re-entered.
+
 ## 11.0.0-alpha.8
 
 ### Minor Changes

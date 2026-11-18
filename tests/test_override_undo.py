@@ -143,10 +143,59 @@ def test_successful_relevant_mutation_invalidates_receipt(store):
         restore(store, token)
 
 
-def test_unrelated_settings_save_conservatively_invalidates_receipt(store):
+def test_unrelated_settings_save_keeps_the_receipt(store):
     start(store)
     _, token, _ = cancel(store)
     store.set_polling_interval(42)
+    assert restore(store, token).template == ["HELLO"]
+
+
+def test_another_displays_cancel_keeps_the_receipt(store):
+    start(store)
+    store.set_temporary_override(TemporaryOverride(template=["B"]), "b")
+    _, token, _ = cancel(store)
+    _, other, _ = store.cancel_temporary_override("b", actor="phone-1", undo=True)
+    assert other
+    assert restore(store, token).template == ["HELLO"]
+    assert restore(store, other, board="b").template == ["B"]
+
+
+def test_another_displays_page_and_expiry_keep_the_receipt(store):
+    start(store)
+    expired = TemporaryOverride(template=["OLD"], expires_at=(datetime.now(UTC) - timedelta(seconds=1)).isoformat())
+    store.set_temporary_override(expired, "b")
+    _, token, _ = cancel(store)
+    store.set_active_page_id("p2", board_id="b")
+    store.consume_temporary_override("b")  # the display loop's expiry GC, which saves
+    assert store.peek_temporary_override("b") is None
+    assert restore(store, token).template == ["HELLO"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda store: store.set_active_page_id("p2", board_id="a"),
+        lambda store: store.remove_board("a"),
+        lambda store: store.set_boards(
+            [{"id": "a", "name": "A", "device_type": "note"}, {"id": "b", "name": "B", "device_type": "flagship"}]
+        ),
+        lambda store: store.set_schedule_enabled(True, "a"),
+    ],
+)
+def test_a_change_to_the_same_display_revokes_the_receipt(store, change):
+    start(store)
+    _, token, _ = cancel(store)
+    change(store)
+    with pytest.raises(ValueError):
+        restore(store, token)
+
+
+def test_a_page_set_and_set_back_never_revives_the_receipt(store):
+    start(store)
+    _, token, _ = cancel(store)
+    before = store.get_active_page_id("a")
+    store.set_active_page_id("p2", board_id="a")
+    store.set_active_page_id(before, board_id="a")
     with pytest.raises(ValueError):
         restore(store, token)
 
@@ -197,9 +246,34 @@ def test_http_opt_in_receipt_and_one_use_restore(http, store):
     )
 
 
-def test_legacy_cancel_never_issues_receipt(http, store):
+def test_legacy_cancel_keeps_its_exact_response(http, store):
     start(store)
-    assert http.delete("/settings/temporary-override?board_id=a").json().get("undo_token") is None
+    response = http.delete("/settings/temporary-override?board_id=a")
+    assert response.status_code == 200
+    assert response.json() == {"revert_mode": "schedule"}
+
+
+def test_a_successful_manual_write_over_http_revokes_the_receipt(http, store, monkeypatch):
+    # The send job the write starts would revoke it too; take it out so the
+    # middleware's 2xx rule is what this pins.
+    monkeypatch.setattr("src.main.track_send_job", lambda key: None)
+    monkeypatch.setattr("src.board_send_executor.track_send_job", lambda key: None)
+    start(store)
+    token = http.delete("/settings/temporary-override?board_id=a&undo=true").json()["undo_token"]
+    # Another display: only the middleware's 2xx rule can revoke display a's receipt.
+    written = http.put("/settings/active-page", json={"page_id": None, "board_id": "b"})
+    assert 200 <= written.status_code < 300, written.text
+    result = http.post("/settings/temporary-override/undo", json={"board_id": "a", "undo_token": token})
+    assert result.status_code == 409
+
+
+def test_a_refused_manual_write_over_http_keeps_the_receipt(http, store):
+    start(store)
+    token = http.delete("/settings/temporary-override?board_id=a&undo=true").json()["undo_token"]
+    refused = http.put("/settings/active-page", json={"page_id": "missing-page", "board_id": "a"})
+    assert refused.status_code == 404, refused.text
+    result = http.post("/settings/temporary-override/undo", json={"board_id": "a", "undo_token": token})
+    assert result.status_code == 200, result.text
 
 
 def test_internal_page_save_invalidates_http_receipt(http, store):

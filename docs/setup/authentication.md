@@ -287,10 +287,13 @@ provider's address or protocol, it has to send the key again, or the hub answers
 with `"error": "key_required"`. A phone can test a saved provider. It can test an
 unsaved one only with the key typed in.
 
-A phone reads display keys as `***`. If it changes a saved display's connection
-settings (address, port, mode, tiles or its plugin settings), it has to send the key
-again, or the hub answers `400` with `"error": "key_required"`. A connection test on
-edited settings follows the same rule. Leaving the key out of a save clears it.
+A phone reads display and plugin keys as `***`. If it changes where a saved key is
+sent (a display's or tile's address, port or mode, or a plugin's address, protocol or
+sign-in settings), it has to send the key again, or the hub answers `400` with
+`"error": "key_required"`. Other edits, such as renaming a display, moving or switching
+off a tile, or changing a plugin's other settings, keep the stored key. A connection
+test on edited settings follows the same rule, and so does FiestaBot. Leaving a
+display's key out of a save clears it.
 
 Checking for plugin updates doesn't need step-up. Neither do general settings
 (`PUT /config/general`), reading Wi-Fi status, saved networks and scan results, or
