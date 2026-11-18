@@ -1041,6 +1041,13 @@ def _migrate_v1_to_v2(data: dict) -> int:
 _LEGACY_CONNECTION_FIELDS = ("api_mode", "host", "local_api_key", "cloud_key", "note_array_token")
 
 
+#: Board fields that never change what a display shows, so editing them keeps
+#: that display's override Undo receipt (``SettingsService._display_snapshot``).
+_UNDO_IGNORED_BOARD_FIELDS = frozenset(
+    {"name", "board_color", "polling_interval_seconds", "board_read_interval_local", "board_read_interval_cloud"}
+)
+
+
 def _board_dict_has_credentials(board: dict) -> bool:
     """True when a raw board dict already carries any connection credential.
 
@@ -3053,19 +3060,25 @@ class SettingsService:
 
     def _display_snapshot(self, key: str, primary: str | None) -> tuple:
         """What an override Undo on display *key* depends on: its override, its
-        active page, whether it exists, and whether it is the primary."""
+        active page, its stored board settings (so also whether it exists; not
+        its name, colour or polling timings), and whether it is the primary."""
         override = self._temporary_overrides.get(key)
         page = self._active_page.by_board.get(key)
         if key in (primary, PRIMARY_RUNTIME_KEY):
             page = (page, self._active_page.page_id)
-        exists = any(isinstance(b, dict) and b.get("id") == key for b in self._board.boards)
-        return (override.to_dict() if override else None, page, exists, key == primary)
+        board = next((b for b in self._board.boards if isinstance(b, dict) and b.get("id") == key), None)
+        board_state = None
+        if board is not None:
+            shown = {k: v for k, v in board.items() if k not in _UNDO_IGNORED_BOARD_FIELDS}
+            board_state = json.dumps(shown, sort_keys=True, default=str)
+        return (override.to_dict() if override else None, page, board_state, key == primary)
 
     def _bump_display_generations(self) -> None:
         """Advance the generation of every display whose Undo-relevant state changed.
 
-        Called on every save (the lock is held), so no writer can be missed.
-        An override receipt holds its display's generation and is honoured only
+        Called on every save (the lock is held), so no writer of those fields
+        (override, active page, the display's own settings, primary) can be
+        missed. An override receipt holds its display's generation and is honoured only
         while it is unchanged, so a change to another display never revokes it.
         Generations only grow: A -> B -> A never revives a receipt.
         """
@@ -3079,10 +3092,6 @@ class SettingsService:
             if self._display_snapshots.get(key) != snapshot:
                 self._display_generations[key] = self._display_generations.get(key, 0) + 1
         self._display_snapshots = snapshots
-
-    def display_undo_generation(self, board_id: str | None) -> int:
-        """Display *board_id*'s current override Undo generation."""
-        return self._display_generations.get(self._override_key(board_id), 0)
 
     @_locked
     def begin_override_mutation(self) -> None:

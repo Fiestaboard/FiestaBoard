@@ -30,8 +30,8 @@ This follows the existing single-process deployment contract in PERSISTENCE.md.
 
 Restoration checks under the established settings/config/pages/collections/
 schedules lock order. Each display has its own Undo generation, advanced by
-every settings save that changes that display's override, active page, existence
-or primary status; content-owner saves/reloads change their runtime generations.
+every settings save that changes that display's override, active page, own
+board settings (including its removal) or primary status; content-owner saves/reloads change their runtime generations.
 ABA changes and internal/background content writes are therefore refused even
 when their HTTP/SSE response has already completed, while a cancel, page change
 or override expiry on another display leaves the receipt usable. Physical manual

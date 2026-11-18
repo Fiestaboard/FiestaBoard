@@ -166,7 +166,8 @@ def test_another_displays_page_and_expiry_keep_the_receipt(store):
     store.set_temporary_override(expired, "b")
     _, token, _ = cancel(store)
     store.set_active_page_id("p2", board_id="b")
-    assert store.get_temporary_override("b") is None  # expiry GC saves
+    store.consume_temporary_override("b")  # the display loop's expiry GC, which saves
+    assert store.peek_temporary_override("b") is None
     assert restore(store, token).template == ["HELLO"]
 
 
@@ -175,6 +176,10 @@ def test_another_displays_page_and_expiry_keep_the_receipt(store):
     [
         lambda store: store.set_active_page_id("p2", board_id="a"),
         lambda store: store.remove_board("a"),
+        lambda store: store.set_boards(
+            [{"id": "a", "name": "A", "device_type": "note"}, {"id": "b", "name": "B", "device_type": "flagship"}]
+        ),
+        lambda store: store.set_schedule_enabled(True, "a"),
     ],
 )
 def test_a_change_to_the_same_display_revokes_the_receipt(store, change):
