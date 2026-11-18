@@ -238,8 +238,8 @@ controls new phone sign-ins, as it does for TVs. A phone can also pair with a QR
 instead of a password (see below). The TV-style code on `/activate` is not offered to
 phones.
 
-A phone credential can do what the app needs: show and change what each display
-shows, start and end overrides, edit pages, collections and schedules, configure
+A phone credential can do what the app needs: add, change and remove displays (every
+display type, MQTT included), show and change what each display shows, start and end overrides, edit pages, collections and schedules, configure
 installed integrations and their sign-ins, manage TVs, run device actions such as
 **Identify**, and read status and diagnostics. It also has the whole `/v1` API.
 
@@ -250,9 +250,10 @@ A phone credential **cannot**:
 - export a backup with its secrets, or reinstall plugins while restoring a backup;
 - change the update channel, turn automatic updates on or off, or roll back an update;
 - install plugins from a Git URL, or install outputs;
-- read stored secrets, or change MQTT or display connection settings (except by restoring
-  a backup, which needs step-up);
-- move an AI provider to a new address or protocol without typing its key again.
+- read stored secrets, or change MQTT settings (except by restoring a backup, which needs
+  step-up);
+- move an AI provider or a display to new connection settings without typing its key
+  again.
 
 ### Step-up on the phone
 
@@ -262,7 +263,8 @@ app asks for the account password and sends it to `POST /auth/device/elevate`.
 
 - A correct password lets **this phone** do step-up actions for **10 minutes**.
   Other phones, TVs and browsers don't get it.
-- Wrong passwords count toward the same lockout as signing in.
+- Wrong passwords count toward the same lockout as signing in. Each phone can also try
+  at most 10 times a minute.
 - The step-up is never a new credential. It ends when the 10 minutes are up, when the
   app ends it (`DELETE /auth/device/elevate`), or when this phone is signed out.
 - `GET /auth/device/elevate` says whether the phone is stepped up, and for how long.
@@ -285,10 +287,36 @@ provider's address or protocol, it has to send the key again, or the hub answers
 with `"error": "key_required"`. A phone can test a saved provider. It can test an
 unsaved one only with the key typed in.
 
+A phone reads display keys as `***`. If it changes a saved display's connection
+settings (address, port, mode, tiles or its plugin settings), it has to send the key
+again, or the hub answers `400` with `"error": "key_required"`. A connection test on
+edited settings follows the same rule. Leaving the key out of a save clears it.
+
 Checking for plugin updates doesn't need step-up. Neither do general settings
 (`PUT /config/general`), reading Wi-Fi status, saved networks and scan results, or
 reading and testing AI providers. Installing a plugin from a Git URL
 stays in the web app.
+
+### FiestaBot on the phone
+
+A phone can chat with FiestaBot (`POST /pages/ai/chat`) and run its operations
+(`POST /ai/operations`). FiestaBot can only do what the phone itself may do:
+
+- Tools that match what a phone can already do run as they do in the web app.
+- Step-up tools always stop for **Approve** on the phone, even with **Auto** approval
+  or "don't ask again". When an approved call runs, the phone also needs a live
+  step-up. If it has lapsed, the call is blocked with `step_up_required` and nothing
+  changes.
+- Everything else is blocked: installing from a Git URL, importing pages, adding or
+  changing displays, debug tools, and any tool the hub doesn't list for phones.
+  Through FiestaBot's settings tool, a phone can change only the active page, general,
+  display, transition, polling and location settings, the silence schedule and schedule
+  behaviour: the same settings its own routes reach.
+
+FiestaBot conversations are shared by everyone signed in to the hub, on any device.
+
+The hub checks every call when it runs, including one approved from an earlier
+message. What the app sends can't widen this.
 
 Step-up never opens account, password, session, pairing or API-token management to a
 phone.

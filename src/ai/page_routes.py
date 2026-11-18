@@ -55,11 +55,12 @@ import threading
 import time
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, StrictBool, model_validator
 
 from src.api_errors import errors
+from src.auth import phone_policy as phone_scope
 from src.config_manager import get_config_manager
 from src.pages.models import PageCreate
 
@@ -573,7 +574,7 @@ def _tool_backend():
     },
     summary="Stream a multi-turn AI chat as Server-Sent Events",
 )
-async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
+async def chat_ai_page(request: AIChatRequest, http_request: Request = None) -> StreamingResponse:
     """Run one turn of the AI chat and stream it as Server-Sent Events.
 
     A turn may span several model calls and tool executions
@@ -667,6 +668,16 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     if request.interaction_mode == "tv" and target_board is None:
         raise HTTPException(status_code=400, detail="Select a TV panel before chatting with FiestaBot.")
     backend = _tool_backend()
+    if phone_scope.is_phone(http_request):
+        # H21b: a phone gets the default-deny tool table, checked when each call
+        # runs (resumed calls included), and every pause: neither the install's
+        # "auto" mode nor the conversation's "don't ask again" applies to it.
+        from .phone_tools import PhoneToolBackend
+
+        session_id = http_request.scope.get("auth_session_id")
+        backend = PhoneToolBackend(backend, lambda: phone_scope.session_is_elevated(session_id))
+        approval_mode = "ask"
+        auto_approve_destructive = False
     display = _display_for_board(request.board_id)
 
     async def event_source():
