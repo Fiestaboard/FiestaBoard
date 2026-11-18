@@ -32,6 +32,19 @@ function getNestedRaw(obj: unknown, path: string): unknown {
   return current;
 }
 
+/**
+ * The CLDR plural category for `value` in `language`. A malformed or
+ * unsupported tag makes `Intl.PluralRules` throw; fall back to English rules
+ * rather than failing `t()` during render.
+ */
+export function pluralCategory(language: string, value: number): Intl.LDMLPluralRule {
+  try {
+    return new Intl.PluralRules(language).select(value);
+  } catch {
+    return new Intl.PluralRules("en").select(value);
+  }
+}
+
 function interpolatePlural(input: string, language: string, params?: Record<string, unknown>): string {
   if (!params) return input;
   // ICU plural: {name, plural, one {...} other {...} =0 {...}}
@@ -45,7 +58,7 @@ function interpolatePlural(input: string, language: string, params?: Record<stri
       while ((m = branchRe.exec(branches)) !== null) {
         branchMap[m[1]] = m[2];
       }
-      const category = new Intl.PluralRules(language).select(value);
+      const category = pluralCategory(language, value);
       const chosen = branchMap[`=${value}`] ?? branchMap[category] ?? branchMap.other ?? "";
       return chosen.replace(/#/g, String(value));
     },

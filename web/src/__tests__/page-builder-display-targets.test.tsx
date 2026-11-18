@@ -367,7 +367,7 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
       await screen.findByDisplayValue("Restored draft");
       resolveSettings(settings([FLAGSHIP, NOTE]));
       await expectTarget("Note");
-      expect(screen.getByRole("textbox", { name: "" })).toHaveValue("\n\n\n\n\n");
+      expect(screen.getByRole("textbox", { name: "Template" })).toHaveValue("\n\n\n\n\n");
     });
 
     it("keeps text typed before the requested Note settings arrive", async () => {
@@ -381,10 +381,12 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
       render(<PageBuilder targetBoardId={NOTE.id} skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
         wrapper: TestWrapper,
       });
-      fireEvent.change(await screen.findByRole("textbox", { name: "" }), { target: { value: "KEEP\n\n\n\nLAST" } });
+      fireEvent.change(await screen.findByRole("textbox", { name: "Template" }), {
+        target: { value: "KEEP\n\n\n\nLAST" },
+      });
       resolveSettings(settings([FLAGSHIP, NOTE]));
       await expectTarget("Note");
-      expect(screen.getByRole("textbox", { name: "" })).toHaveValue("KEEP\n\n\n\nLAST");
+      expect(screen.getByRole("textbox", { name: "Template" })).toHaveValue("KEEP\n\n\n\nLAST");
     });
 
     it("authors for the requested board when the sidebar selects a different display", async () => {
@@ -511,7 +513,7 @@ describe("PageBuilder live output target", () => {
   });
 
   async function startLive(user: ReturnType<typeof userEvent.setup>, boardId: string) {
-    await user.click(await screen.findByRole("switch", { name: /toggle live output to board/i }));
+    await user.click(await screen.findByRole("switch", { name: "Mirror to board while editing" }));
     await waitFor(() => expect(liveBodies.length).toBeGreaterThan(0));
     expect(liveBodies.map((body) => body.board_id)).toEqual(expect.arrayContaining([boardId]));
     expect(liveBodies.every((body) => body.board_id === boardId)).toBe(true);
@@ -544,7 +546,7 @@ describe("PageBuilder live output target", () => {
     const user = userEvent.setup();
     renderExisting();
     await screen.findByRole("textbox", { name: "Template editor" });
-    const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
+    const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
     expect(toggle).toBeDisabled();
     await user.click(toggle);
     expect(liveBodies).toHaveLength(0);

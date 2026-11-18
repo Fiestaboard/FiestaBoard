@@ -11,7 +11,6 @@ import {
   Grid,
   Input,
   Label,
-  PageSection,
   Skeleton,
   Stack,
   Switch,
@@ -23,6 +22,7 @@ import { CheckCircle2, ChevronDown, Radio, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type { MqttSettings } from "@/lib/api";
@@ -82,10 +82,10 @@ export function MqttSettingsCard() {
 
   if (isLoading) {
     return (
-      <PageSection id="mqtt">
+      <SettingsPanel id="mqtt">
         <Skeleton className="h-5 w-40" />
         <Skeleton className="mt-2 h-4 w-56" />
-      </PageSection>
+      </SettingsPanel>
     );
   }
 
@@ -93,7 +93,7 @@ export function MqttSettingsCard() {
   const isEnabled = merged.enabled;
 
   return (
-    <PageSection
+    <SettingsPanel
       id="mqtt"
       icon={<Radio />}
       title={t("title")}
@@ -226,6 +226,6 @@ export function MqttSettingsCard() {
           </Box>
         </CollapsibleContent>
       </Collapsible>
-    </PageSection>
+    </SettingsPanel>
   );
 }

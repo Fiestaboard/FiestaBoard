@@ -1,11 +1,12 @@
 "use client";
 
-import { Input, Label, PageSection, Skeleton, Stack } from "@fiestaboard/ui";
+import { Input, Label, Skeleton, Stack } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tag } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
@@ -44,7 +45,7 @@ export function InstanceNameCard() {
   }, [instanceName, allSettings?.general?.instance_name, updateGeneralMutation]);
 
   return (
-    <PageSection
+    <SettingsPanel
       id="general"
       icon={<Tag />}
       title={t("instanceNameTitle")}
@@ -66,6 +67,6 @@ export function InstanceNameCard() {
           />
         </Stack>
       )}
-    </PageSection>
+    </SettingsPanel>
   );
 }

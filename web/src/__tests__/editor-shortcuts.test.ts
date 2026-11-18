@@ -131,6 +131,24 @@ describe("ariaKeyShortcuts and primaryChord", () => {
 });
 
 describe("hasOpenOverlay", () => {
+  it("ignores closed modal drawers and overlays under hidden or inert ancestors", () => {
+    for (const hiddenAttribute of ['aria-hidden="true"', "inert", "hidden"]) {
+      const host = document.createElement("div");
+      host.innerHTML = `<div ${hiddenAttribute}><div aria-modal="true"></div><div data-editor-overlay></div></div>`;
+      document.body.append(host);
+      try {
+        expect(hasOpenOverlay()).toBe(false);
+      } finally {
+        host.remove();
+      }
+    }
+    const open = document.createElement("div");
+    open.innerHTML = '<div aria-hidden="false"><div aria-modal="true"></div></div>';
+    document.body.append(open);
+    expect(hasOpenOverlay()).toBe(true);
+    open.remove();
+  });
+
   it("is true while an aria-modal element or a marked app overlay is in the document", () => {
     expect(hasOpenOverlay()).toBe(false);
     const modal = document.createElement("div");

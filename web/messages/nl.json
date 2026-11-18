@@ -297,6 +297,8 @@
       "outTitle": "{board} is niet gesynchroniseerd",
       "outDetail": "Het toont iets anders dan {page}. Een andere app heeft dit mogelijk gewijzigd.",
       "showAgain": "Toon {page} opnieuw",
+      "outHoldPaused": "Dit scherm is gepauzeerd. Hervat het om {page} opnieuw te tonen.",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule begint om {time}",
       "silenceSoonPage": "{board} wordt over {minutes} min stil en houdt {page} in beeld.",
       "silenceSoonOther": "{board} wordt over {minutes} min stil. Nieuwe berichten wachten tot Silence Schedule eindigt.",
@@ -744,6 +746,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "Integratiedetails",
+    "variablesTab": "Variabelen",
+    "readmeTab": "README",
+    "readmeUnavailable": "Documentatie is niet beschikbaar.",
+    "about": "Over",
+    "versionLabel": "Versie",
+    "authorLabel": "Auteur",
+    "sourceLabel": "Bron",
+    "backToIntegrations": "Terug naar integraties",
+    "reconnectTitle": "{name} opnieuw verbinden",
+    "reconnectConsequence": "Gegevens voor pagina’s met deze integratie zijn mogelijk niet beschikbaar of verouderd totdat je opnieuw verbinding maakt.",
+    "setupConsequence": "Voltooi de instellingen zodat pagina’s de gegevens van deze integratie kunnen gebruiken.",
+    "noVariables": "Deze integratie biedt geen sjabloonvariabelen.",
+    "needsAttention": "Aandacht nodig",
+    "setUpAction": "Instellen",
+    "integrationSettings": "Integratie-instellingen",
+    "sortInstalled": "Geïnstalleerde integraties sorteren",
+    "sortMarketplace": "Marketplace-resultaten sorteren",
+    "sortAscending": "oplopend",
+    "sortDescending": "aflopend",
     "title": "Integraties",
     "description": "Schakel databronplug-ins in en configureer ze voor je FiestaBoard",
     "totalLabel": "Totaal:",
@@ -1043,7 +1065,8 @@
         "modelsAfterSave": "Sla de wijzigingen op om uit de modellen van de provider te kiezen."
       },
       "addModel": "Een model toevoegen",
-      "refreshModels": "Modellen vernieuwen"
+      "refreshModels": "Modellen vernieuwen",
+      "promptDestination": "Prompts gaan naar {destination}"
     },
     "backup": {
       "cardTitle": "Back-up & herstel",
@@ -1077,11 +1100,11 @@
         },
         "appearance": {
           "title": "Weergave",
-          "description": "Hoe FiestaBoard eruitziet in deze browser."
+          "description": "Thema voor deze browser; voorbeeldbewegingen voor iedereen op deze hub."
         },
         "accessibility": {
           "title": "Toegankelijkheid",
-          "description": "Beweging en leescomfort in deze browser."
+          "description": "Voorkeuren voor beweging en animatie"
         },
         "network": {
           "title": "Netwerk",
@@ -1097,13 +1120,40 @@
         },
         "language-time": {
           "title": "Taal en tijd",
-          "description": "Gebruikt door de hub voor de Planning, tijdvariabelen en elke tijdstempel."
+          "description": "Taal voor deze browser; hubklok en planningstijd."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot-voorkeuren en gesprekken."
         },
         "notifications": {
           "title": "Meldingen",
           "description": "Kies of je account en deze browser waarschuwingen van je hub mogen ontvangen."
         }
       }
+    },
+    "panels": {
+      "theme": "Thema",
+      "browserTheme": "Alleen voor deze browser.",
+      "motionScope": "Bewegingsvoorkeuren gelden voor iedereen op deze hub."
+    },
+    "fiestabot": {
+      "title": "Wijzigingen, paneel en geschiedenis",
+      "scope": "De goedkeuringsmodus in het paneel geldt voor iedereen op deze hub.",
+      "unavailable": "Persoonlijke voorkeuren voor goedkeuring, paneel en geschiedenis zijn nog niet beschikbaar.",
+      "open": "FiestaBot openen",
+      "setup": "AI-provider instellen",
+      "needsSetup": "FiestaBot vereist ingeschakelde AI en een ingestelde provider op deze hub.",
+      "checking": "Beschikbaarheid van FiestaBot controleren…",
+      "checkFailed": "De beschikbaarheid van FiestaBot kon niet worden gecontroleerd.",
+      "retry": "Opnieuw proberen"
+    },
+    "addresses": {
+      "title": "Adressen",
+      "description": "Hoe deze browser de hub bereikt.",
+      "browser": "Deze browser gebruikt",
+      "ip": "Door de hub gemeld IP-adres",
+      "hint": "De hub kan een containeradres melden. Dit is geen geverifieerd adres om een ander apparaat te verbinden."
     }
   },
   "offline": {
@@ -2715,7 +2765,23 @@
     "fillSpaceTooltip": "Vulruimte - vult de resterende regelbreedte",
     "fillSpaceRepeatTooltip": "Vulruimte herhaalt: {char}",
     "variableFilterTooltip": "Filter: {filter}",
-    "variableMaxLengthTooltip": "Maximale lengte: {maxLength} tekens"
+    "variableMaxLengthTooltip": "Maximale lengte: {maxLength} tekens",
+    "tools": "Editorhulpmiddelen",
+    "formula": "Formule",
+    "more": "Meer",
+    "textColor": "Tekstkleur",
+    "icon": "Pictogram",
+    "size": "Grootte",
+    "brush": "Penseel",
+    "drawDone": "Gereed",
+    "align": "Uitlijnen",
+    "alignLeftShort": "Links",
+    "alignCenterShort": "Midden",
+    "alignRightShort": "Rechts",
+    "wrapLine": "Deze regel laten doorlopen",
+    "clipboard": "Klembord",
+    "colorsHint": "Tik op een kleur om een tegel bij de cursor in te voegen. Het paneel blijft open om meerdere tegels toe te voegen; veeg omlaag, tik op ✕ of druk op Esc om te sluiten.",
+    "formattingHint": "Ruimte vullen duwt de rest van de regel naar de rechterrand; tekstterugloop laat een lange waarde op de volgende regel doorgaan. Geldt bij de cursor."
   },
   "variablePicker": {
     "noVariablesAvailable": "Geen variabelen beschikbaar",
@@ -3667,6 +3733,33 @@
       "body": "Installeren en offline gebruik vragen een beveiligd adres. Je zit op http://{host}. Open FiestaBoard via het https-adres of stel HTTPS in voor je hub.",
       "help": "HTTPS instellen"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Livevoorbeeld",
+    "mirror": "Tijdens het bewerken op het bord weergeven",
+    "mirroring": "Weergave actief",
+    "mirrorHint": "Verstuurt na elke typepauze. Stopt wanneer je de editor verlaat.",
+    "savedToPages": "Opgeslagen in Pagina’s",
+    "savedToPagesDescription": "{name} staat in je paginabibliotheek.",
+    "addToSchedule": "Toevoegen aan planning",
+    "showNow": "Nu weergeven",
+    "saved": "Opgeslagen",
+    "unsaved": "Niet opgeslagen",
+    "unknownDisplay": "Onbekend wat dit scherm kan weergeven",
+    "plainTextOnly": "Platte tekst is beschikbaar. Kleuren en schermspecifieke hulpmiddelen zijn niet beschikbaar.",
+    "targetUnavailable": "Dit scherm is niet beschikbaar voor liveweergave.",
+    "nameRequired": "Geef deze pagina een naam",
+    "newerChangesUnsaved": "Wijzigingen die tijdens het opslaan zijn aangebracht, zijn nog niet opgeslagen. Sla opnieuw op voordat je ze weergeeft.",
+    "plainText": "Platte tekst",
+    "plainTemplate": "Sjabloon · alleen platte tekst",
+    "editorTools": "Hulpmiddelen van de editor",
+    "displayToolsUnavailable": "Kleuren en Opmaak zijn niet beschikbaar — het schermtype is onbekend.",
+    "plainTemplateHelp": "Elke regel wordt verzonden zoals je die typt. De breedte en tekens kunnen voor dit scherm niet worden gecontroleerd.",
+    "emptyPrompt": "Typ wat {board} moet weergeven…",
+    "thisDisplay": "dit scherm",
+    "startFrom": "Of begin met",
+    "insertVariable": "Een variabele invoegen",
+    "browseStaffPicks": "Aanbevolen inhoud bekijken"
   },
   "phonePairing": {
     "title": "Een telefoon verbinden",

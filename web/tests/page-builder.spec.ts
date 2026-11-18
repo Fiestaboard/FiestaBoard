@@ -28,7 +28,7 @@ test.beforeEach(async ({ page }) => {
 test.describe("Page Builder", () => {
   test("can create a template page with 6 lines", async ({ page }) => {
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -36,108 +36,82 @@ test.describe("Page Builder", () => {
     const nameInput = page.getByPlaceholder("My Custom Page");
     await nameInput.fill("E2E Builder Test");
 
-    // Try to interact with the editor
     const editor = page.locator('[contenteditable="true"]').first();
-    if (await editor.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await editor.click();
-      await editor.fill("HELLO BUILDER");
-    }
+    await expect(editor).toBeVisible();
+    await editor.fill("HELLO BUILDER");
 
     // Save the page
     const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
-    // Should redirect to /pages
-    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
+    // Saving keeps the current editor and announces its stored state.
+    await expect(page.getByText(/^Saved \d/)).toBeVisible({ timeout: 15_000 });
+    await expect(nameInput).toHaveValue("E2E Builder Test");
 
     // Verify page exists via API
     const res = await fetch(`${API_URL}/pages`);
     const data = await res.json();
-    const found = data.pages.some((p: { name: string }) => p.name === "E2E Builder Test");
-    expect(found).toBe(true);
+    const found = data.pages.find((p: { name: string }) => p.name === "E2E Builder Test");
+    expect(found).toMatchObject({ name: "E2E Builder Test", template: expect.arrayContaining(["HELLO BUILDER"]) });
   });
 
   test("can edit an existing page name and content", async ({ page }) => {
     const pageId = await createPage("Original Name", ["ORIGINAL", "", "", "", "", ""]);
 
     await page.goto(`/pages/edit/${pageId}`);
-    await expect(page.getByText("Edit Page").first()).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(page.getByPlaceholder("My Custom Page")).toHaveValue("Original Name", { timeout: 15_000 });
 
     const nameInput = page.getByPlaceholder("My Custom Page");
     await nameInput.fill("Updated Name");
+    await page.locator('[contenteditable="true"]').first().fill("UPDATED CONTENT");
 
     const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
-    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Saved \d/)).toBeVisible({ timeout: 15_000 });
+    await expect(nameInput).toHaveValue("Updated Name");
 
     // Verify via API
     const res = await fetch(`${API_URL}/pages/${pageId}`);
     const data = await res.json();
     expect(data.name).toBe("Updated Name");
+    expect(data.template).toContain("UPDATED CONTENT");
   });
 
   test("validates required fields — name cannot be empty", async ({ page }) => {
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
-    // Leave name empty — save button should be disabled
-    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
-    const isDisabled = await saveButton
-      .first()
-      .isDisabled({ timeout: 3_000 })
-      .catch(() => false);
-
-    if (isDisabled) {
-      expect(isDisabled).toBe(true);
-    } else {
-      // If save isn't disabled, clicking it should show a validation error
-      await saveButton.first().click();
-      const errorMsg = page
-        .getByText(/name|required/i)
-        .first()
-        .or(page.getByText(/error/i).first());
-      const hasError = await errorMsg.isVisible({ timeout: 5_000 }).catch(() => false);
-      // At minimum the page should not navigate away
-      expect(page.url()).toContain("/pages/new");
-      // Allow test to pass if either disabled or shows error
-      expect(isDisabled || hasError || page.url().includes("/pages/new")).toBe(true);
-    }
+    const name = page.getByPlaceholder("My Custom Page");
+    await name.fill("");
+    await page.getByRole("button", { name: "Save Page", exact: true }).click();
+    await expect(name).toBeFocused();
+    await expect(name).toHaveValue("");
+    await expect(page).toHaveURL(/\/pages\/new/);
   });
 
   test("can preview page content in the builder", async ({ page }) => {
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
     const nameInput = page.getByPlaceholder("My Custom Page");
     await nameInput.fill("Preview Test");
 
-    // Check for a preview panel / BoardDisplay component
-    const preview = page.getByText("Preview").first();
-    const previewVisible = await preview.isVisible({ timeout: 5_000 }).catch(() => false);
-
-    if (previewVisible) {
-      // The preview panel should contain some board tile elements
-      const tiles = page.locator('[data-testid^="char-tile-"]');
-      const tileCount = await tiles.count();
-      // A 6x22 board = 132 tiles; expect at least some
-      expect(tileCount).toBeGreaterThan(0);
-    }
+    const preview = page.locator('[data-slot="editor-preview"]');
+    await expect(preview).toBeVisible();
+    await expect(preview.getByText("Live preview", { exact: true })).toBeVisible();
+    await expect(preview.locator('[data-testid^="char-tile-"]').first()).toBeVisible();
   });
 
   test("can delete a page from the editor", async ({ page }) => {
     const pageId = await createPage("Delete From Editor", ["Delete test content"]);
 
     await page.goto(`/pages/edit/${pageId}`);
-    await expect(page.getByText("Edit Page").first()).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(page.getByPlaceholder("My Custom Page")).toHaveValue("Delete From Editor", { timeout: 15_000 });
 
     // Click delete button
     const deleteButton = page
@@ -197,7 +171,7 @@ test.describe("Page Builder", () => {
 
   test("template variables autocomplete/picker works", async ({ page }) => {
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -241,7 +215,7 @@ test.describe("Sync from Board", () => {
   test("Sync from Board button is visible on new page, hidden on edit page", async ({ page }) => {
     // New page: button should appear
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -253,9 +227,7 @@ test.describe("Sync from Board", () => {
     // Edit page: button should NOT appear
     const pageId = await createPage("Sync Button Hidden Test");
     await page.goto(`/pages/edit/${pageId}`);
-    await expect(page.getByText("Edit Page").first()).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(page.getByPlaceholder("My Custom Page")).toHaveValue("Sync Button Hidden Test", { timeout: 15_000 });
 
     await expect(page.getByRole("button", { name: "Sync from current board display" })).not.toBeVisible();
 
@@ -284,7 +256,7 @@ test.describe("Sync from Board", () => {
       await waitForNoActiveDisplay();
 
       await page.goto("/pages/new");
-      await expect(page.getByText("Create Page").first()).toBeVisible({
+      await expect(page.locator("#page-name")).toBeVisible({
         timeout: 15_000,
       });
 
@@ -318,7 +290,7 @@ test.describe("Sync from Board", () => {
     await setActivePage(sourcePageId);
 
     await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
+    await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 

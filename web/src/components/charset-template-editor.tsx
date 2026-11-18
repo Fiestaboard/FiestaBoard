@@ -19,6 +19,7 @@
  * app's own variable picker and Home Assistant entity picker.
  */
 import {
+  Box,
   type CharacterSet,
   type ColorPickerLabels,
   type LineAlignment,
@@ -27,12 +28,17 @@ import {
   type TemplateEditorHandle,
   type TemplateEditorLabels,
   type TemplateEditorToolbarLabels,
+  type TemplateEditorToolbarSlotProps,
   type ToolbarTemplateVariables,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { forwardRef, lazy, Suspense, useMemo } from "react";
+import { forwardRef, lazy, type ReactNode, Suspense, useMemo, useRef } from "react";
 
+import { EditorTabletTools } from "@/components/editor-tablet-tools";
 import { HomeAssistantEntityPicker } from "@/components/home-assistant-entity-picker";
+import { useEditorToolbarPortal } from "@/hooks/use-editor-toolbar-portal";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { useTiptapHostBridge } from "@/hooks/use-tiptap-host-bridge";
 import { useTranslations } from "@/i18n/translations";
 import type { Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -76,9 +82,26 @@ const TOOLBAR_STRING_KEYS = [
   "alignRight",
   "syncFromBoard",
   "syncFromBoardTooltip",
+  "tools",
+  "formula",
+  "more",
+  "textColor",
+  "icon",
+  "size",
+  "brush",
+  "drawDone",
+  "align",
+  "alignLeftShort",
+  "alignCenterShort",
+  "alignRightShort",
+  "wrapLine",
+  "clipboard",
+  "colorsHint",
+  "formattingHint",
 ] as const satisfies readonly (keyof TemplateEditorToolbarLabels)[];
 
 export interface CharsetTemplateEditorProps {
+  moreContent?: ReactNode;
   canvasRegions?: readonly TemplateCanvasRegion[];
   onCanvasActivate?: (id: string) => void;
   /** The target board's character set (resolved; an output plugin's own set included). */
@@ -101,6 +124,7 @@ export interface CharsetTemplateEditorProps {
 export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTemplateEditorProps>(
   function CharsetTemplateEditor(
     {
+      moreContent,
       canvasRegions,
       onCanvasActivate,
       charset,
@@ -120,7 +144,13 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
     },
     ref,
   ) {
+    const touch = useMediaQuery("(max-width: 767px), (pointer: coarse)");
+    const sheets = useMediaQuery("(max-width: 639px)");
+    const hostRef = useRef<HTMLDivElement>(null);
+    const { editor, firstLine, lastLine } = useTiptapHostBridge(hostRef);
+    const tabletTools = touch && !sheets && editor !== null;
     const t = useTranslations("templateEditor");
+    const portalHost = useEditorToolbarPortal(touch, t("tools"));
     const tCanvas = useTranslations("canvasEditor");
     const { data: templateVars, isLoading } = useQuery({
       queryKey: ["template-variables"],
@@ -178,59 +208,88 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
 
     const hasHomeAssistant = Boolean(templateVars?.variables?.home_assistant);
 
+    const toolbarProps: TemplateEditorToolbarSlotProps = {
+      container: touch ? portalHost : undefined,
+      size: touch ? "touch" : "default",
+      layout: touch ? "docked" : "row",
+      pickerPresentation: sheets ? "sheet" : "popover",
+      moreContent,
+      templateVariables: templateVars as ToolbarTemplateVariables | undefined,
+      isLoadingVariables: isLoading,
+      renderVariablePicker: ({ onInsert }) => (
+        <Suspense fallback={null}>
+          <VariablePickerContent onInsert={onInsert} />
+        </Suspense>
+      ),
+      entityPickerSlot: hasHomeAssistant
+        ? ({ open, onClose, onSelect }) => (
+            <HomeAssistantEntityPicker open={open} onClose={onClose} onSelect={onSelect} />
+          )
+        : undefined,
+      labels: toolbarLabels,
+      colorPickerLabels,
+    };
+
     return (
-      <TemplateEditor
-        ref={ref}
-        canvasRegions={canvasRegions}
-        onCanvasActivate={onCanvasActivate}
-        canvasLabels={{
-          name: (id) => tCanvas("richRegionName", { id }),
-          description: ({ id, area, text }) =>
-            tCanvas(text === "flow" ? "richRegionFlow" : "richRegionHide", {
-              id,
-              row: area.row,
-              lastRow: area.row + area.rows - 1,
-              col: area.col,
-              lastCol: area.col + area.cols - 1,
-            }),
-          hint: tCanvas("richRegionHint"),
-          edit: (id) => tCanvas("selectCanvas", { id }),
-          blocked: tCanvas("richRegionBlocked"),
-        }}
-        charset={charset}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        showAlignmentControls
-        showToolbar
-        lineAlignments={lineAlignments}
-        lineWrapEnabled={lineWrapEnabled}
-        onLineAlignmentChange={onLineAlignmentChange}
-        onLineWrapChange={onLineWrapChange}
-        boardWidth={boardWidth}
-        boardLines={boardLines}
-        deviceType={deviceType}
-        code62Glyph={code62Glyph}
-        onSyncFromBoard={onSyncFromBoard}
-        syncFromBoardPending={syncFromBoardPending}
-        labels={labels}
-        toolbarProps={{
-          templateVariables: templateVars as ToolbarTemplateVariables | undefined,
-          isLoadingVariables: isLoading,
-          renderVariablePicker: ({ onInsert }) => (
-            <Suspense fallback={null}>
-              <VariablePickerContent onInsert={onInsert} />
-            </Suspense>
-          ),
-          entityPickerSlot: hasHomeAssistant
-            ? ({ open, onClose, onSelect }) => (
-                <HomeAssistantEntityPicker open={open} onClose={onClose} onSelect={onSelect} />
-              )
-            : undefined,
-          labels: toolbarLabels,
-          colorPickerLabels,
-        }}
-      />
+      <Box ref={hostRef} data-slot="charset-editor-host" data-toolbar={tabletTools ? "tablet" : "kit"}>
+        <TemplateEditor
+          ref={ref}
+          canvasRegions={canvasRegions}
+          onCanvasActivate={onCanvasActivate}
+          canvasLabels={{
+            name: (id) => tCanvas("richRegionName", { id }),
+            description: ({ id, area, text }) =>
+              tCanvas(text === "flow" ? "richRegionFlow" : "richRegionHide", {
+                id,
+                row: area.row,
+                lastRow: area.row + area.rows - 1,
+                col: area.col,
+                lastCol: area.col + area.cols - 1,
+              }),
+            hint: tCanvas("richRegionHint"),
+            edit: (id) => tCanvas("selectCanvas", { id }),
+            blocked: tCanvas("richRegionBlocked"),
+          }}
+          charset={charset}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          showAlignmentControls
+          showToolbar={!tabletTools}
+          lineAlignments={lineAlignments}
+          lineWrapEnabled={lineWrapEnabled}
+          onLineAlignmentChange={onLineAlignmentChange}
+          onLineWrapChange={onLineWrapChange}
+          boardWidth={boardWidth}
+          boardLines={boardLines}
+          deviceType={deviceType}
+          code62Glyph={code62Glyph}
+          onSyncFromBoard={onSyncFromBoard}
+          syncFromBoardPending={syncFromBoardPending}
+          labels={labels}
+          toolbarProps={toolbarProps}
+        />
+        {tabletTools && (
+          <EditorTabletTools
+            {...toolbarProps}
+            editor={editor}
+            charset={charset}
+            deviceType={deviceType}
+            code62Glyph={code62Glyph}
+            onSyncFromBoard={onSyncFromBoard}
+            syncFromBoardPending={syncFromBoardPending}
+            currentAlignment={lineAlignments?.[firstLine] ?? "left"}
+            currentWrapEnabled={lineWrapEnabled?.[firstLine] ?? false}
+            onAlignmentChange={(alignment) => {
+              for (let line = firstLine; line <= Math.min(lastLine, boardLines - 1); line++)
+                onLineAlignmentChange?.(line, alignment);
+            }}
+            onWrapToggle={() => {
+              if (firstLine < boardLines) onLineWrapChange?.(firstLine, !(lineWrapEnabled?.[firstLine] ?? false));
+            }}
+          />
+        )}
+      </Box>
     );
   },
 );

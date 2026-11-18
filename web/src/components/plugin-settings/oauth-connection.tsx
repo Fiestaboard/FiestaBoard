@@ -671,7 +671,11 @@ export function OAuthConnectionPanel({
         {showPaste && !finishesByPaste && pasteOffer && (
           <Collapsible open={pasteOpen} onOpenChange={setPasteOpen}>
             <CollapsibleTrigger asChild>
-              <Button size="sm" variant="link" className="h-auto px-0">
+              <Button
+                size="sm"
+                variant="link"
+                className="h-auto min-h-touch max-w-full whitespace-normal px-0 text-left"
+              >
                 {t("pasteToggle")}
               </Button>
             </CollapsibleTrigger>

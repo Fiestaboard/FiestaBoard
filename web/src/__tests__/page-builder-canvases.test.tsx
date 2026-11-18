@@ -203,16 +203,16 @@ describe("PageBuilder — pixel canvases", () => {
       expect(screen.queryByRole("button", { name: "Add canvas" })).not.toBeInTheDocument();
       await screen.findByRole("textbox", { name: "Template editor" });
       await user.click(screen.getByRole("button", { name: "Plain Text" }));
-      const plainEditor = screen.getByRole("textbox", { name: "" });
+      const plainEditor = screen.getByRole("textbox", { name: "Template" });
       fireEvent.change(plainEditor, { target: { value: "Draft text" } });
       await user.click(screen.getByRole("button", { name: "Canvases" }));
-      expect(screen.queryByRole("textbox", { name: "" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("textbox", { name: "Template" })).not.toBeInTheDocument();
       fireEvent.change(screen.getByRole("textbox", { name: "Canvas ID" }), { target: { value: "draft-sky" } });
       await user.click(screen.getByRole("tab", { name: "Shapes" }));
       expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled();
-      expect(screen.getByRole("switch", { name: /live/i })).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
       await user.click(textMode);
-      expect(screen.getByRole("textbox", { name: "" })).toHaveValue("Draft text");
+      expect(screen.getByRole("textbox", { name: "Template" })).toHaveValue("Draft text");
       await user.click(screen.getByRole("button", { name: "Rich Editor" }));
       const retainedEditor = screen.getByRole("textbox", { name: "Template editor" });
       await user.click(screen.getByRole("button", { name: "Canvases" }));
@@ -316,7 +316,7 @@ describe("PageBuilder — pixel canvases", () => {
         const user = userEvent.setup();
         renderExisting();
         await screen.findByTestId("canvas-editor-sky", {}, { timeout: 5000 });
-        await user.click(screen.getByRole("switch", { name: /live/i }));
+        await user.click(screen.getByRole("switch", { name: "Mirror to board while editing" }));
         await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to send to board"));
         expect(toast.error).toHaveBeenCalledTimes(1);
         expect(api.renderTemplateLive).toHaveBeenCalledTimes(1);
@@ -339,7 +339,7 @@ describe("PageBuilder — pixel canvases", () => {
       const user = userEvent.setup();
       renderExisting();
       await screen.findByTestId("canvas-editor-sky", {}, { timeout: 5000 });
-      const toggle = screen.getByRole("switch", { name: /live/i });
+      const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
       await user.click(toggle);
       await waitFor(() => expect(api.renderTemplateLive).toHaveBeenCalledTimes(1));
       const signal = vi.mocked(api.renderTemplateLive).mock.calls[0][6];
@@ -373,7 +373,7 @@ describe("PageBuilder — pixel canvases", () => {
       const user = userEvent.setup();
       renderExisting();
       await waitFor(() => expect(devicePreviewProps.at(-1)?.layers).toEqual([LAYER]), { timeout: 5000 });
-      await user.click(screen.getByRole("switch", { name: /live/i }));
+      await user.click(screen.getByRole("switch", { name: "Mirror to board while editing" }));
       await waitFor(() => expect(api.renderTemplateLive).toHaveBeenCalledTimes(1));
       const firstSignal = vi.mocked(api.renderTemplateLive).mock.calls[0][6];
       await user.click(screen.getByRole("button", { name: "Canvases" }));
@@ -413,7 +413,7 @@ describe("PageBuilder — pixel canvases", () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderExisting();
       await screen.findByTestId("canvas-editor-sky", {}, { timeout: 5000 });
-      const toggle = screen.getByRole("switch", { name: /live/i });
+      const toggle = screen.getByRole("switch", { name: "Mirror to board while editing" });
       await user.click(toggle);
       await waitFor(() => expect(api.renderTemplateLive).toHaveBeenCalled());
       await act(async () => {
@@ -452,7 +452,7 @@ describe("PageBuilder — pixel canvases", () => {
       const user = userEvent.setup();
       renderExisting();
       await screen.findByTestId("canvas-editor-sky", {}, { timeout: 5000 });
-      await user.click(screen.getByRole("switch", { name: /live/i }));
+      await user.click(screen.getByRole("switch", { name: "Mirror to board while editing" }));
       await waitFor(() => expect(vi.mocked(api.renderTemplateLive).mock.calls.at(-1)?.[8]?.canvases).toEqual([SKY]));
       await waitFor(() => expect(displayPreviewLayers.at(-1)).toEqual([liveLayer]));
       await user.click(screen.getByRole("button", { name: "Canvases" }));
@@ -538,7 +538,7 @@ describe("PageBuilder — pixel canvases", () => {
       await user.click(screen.getByRole("button", { name: "Plain Text" }));
       const markers = await screen.findByTestId("line-markers");
       expect(markers).toHaveTextContent("{canvas:sky}");
-      expect(screen.getByRole("textbox", { name: "" })).not.toHaveValue(expect.stringContaining("{canvas:"));
+      expect(screen.getByRole("textbox", { name: "Template" })).not.toHaveValue(expect.stringContaining("{canvas:"));
     });
   });
 

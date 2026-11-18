@@ -203,6 +203,36 @@ describe("ActivePageDisplay - Now showing", () => {
     expect(within(card).getByRole("button", { name: "Cancel override" })).toBeInTheDocument();
   });
 
+  it("starts the out-of-sync sentence cleanly when a trigger leaves no outcome", async () => {
+    useSchedule({ temporary_override: override(300) });
+    server.use(
+      http.get(`${API_BASE}/triggers/active`, () =>
+        HttpResponse.json({
+          trigger: {
+            trigger_id: "t1",
+            plugin_id: "doorbell",
+            priority: 10,
+            duration_seconds: 60,
+            activated_at: new Date().toISOString(),
+            remaining_seconds: 50,
+          },
+        }),
+      ),
+      http.get(`${API_BASE}/board/current-message`, () =>
+        HttpResponse.json({ characters: [[1]], expected_characters: [[2]], message: "OTHER", rows: 6, cols: 22 }),
+      ),
+    );
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    const card = await screen.findByTestId("now-showing");
+    // No whitespace normalization: the old join rendered a leading space.
+    expect(
+      await within(card).findByText(
+        "The board itself reports something else; Show Alert from doorbell again re-sends it.",
+        { normalizer: (text) => text },
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("cancels the override and offers Undo, which puts the same hold back", async () => {
     let deletes = 0;
     const posts: unknown[] = [];

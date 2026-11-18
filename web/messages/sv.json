@@ -297,6 +297,8 @@
       "outTitle": "{board} är inte synkroniserad",
       "outDetail": "Den visar något annat än {page}. En annan app kan ha ändrat innehållet.",
       "showAgain": "Visa {page} igen",
+      "outHoldPaused": "Den här skärmen är pausad. Återuppta den för att visa {page} igen.",
+      "heldPreview": "”{preview}”",
       "silenceSoonTitle": "Silence Schedule börjar {time}",
       "silenceSoonPage": "{board} blir tyst om {minutes} min och behåller {page}.",
       "silenceSoonOther": "{board} blir tyst om {minutes} min. Nya meddelanden väntar tills Silence Schedule slutar.",
@@ -744,6 +746,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "Integrationsdetaljer",
+    "variablesTab": "Variabler",
+    "readmeTab": "README",
+    "readmeUnavailable": "Dokumentationen är inte tillgänglig.",
+    "about": "Om",
+    "versionLabel": "Version",
+    "authorLabel": "Författare",
+    "sourceLabel": "Källa",
+    "backToIntegrations": "Tillbaka till integrationer",
+    "reconnectTitle": "Anslut {name} igen",
+    "reconnectConsequence": "Data för sidor som använder denna integration kan saknas eller vara inaktuella tills du ansluter igen.",
+    "setupConsequence": "Slutför inställningarna så att sidor kan använda integrationens data.",
+    "noVariables": "Denna integration tillhandahåller inga mallvariabler.",
+    "needsAttention": "Behöver åtgärdas",
+    "setUpAction": "Konfigurera",
+    "integrationSettings": "Integrationsinställningar",
+    "sortInstalled": "Sortera installerade integrationer",
+    "sortMarketplace": "Sortera marknadsplatsresultat",
+    "sortAscending": "stigande",
+    "sortDescending": "fallande",
     "title": "Integrationer",
     "description": "Aktivera och konfigurera datakällor för din FiestaBoard",
     "totalLabel": "Totalt:",
@@ -1043,7 +1065,8 @@
         "modelsAfterSave": "Spara ändringarna för att välja bland leverantörens modeller."
       },
       "addModel": "Lägg till en modell",
-      "refreshModels": "Uppdatera modeller"
+      "refreshModels": "Uppdatera modeller",
+      "promptDestination": "Prompter skickas till {destination}"
     },
     "backup": {
       "cardTitle": "Säkerhetskopiering & återställning",
@@ -1077,11 +1100,11 @@
         },
         "appearance": {
           "title": "Utseende",
-          "description": "Hur FiestaBoard ser ut i den här webbläsaren."
+          "description": "Tema för den här webbläsaren; förhandsvisningsrörelser för alla på hubben."
         },
         "accessibility": {
           "title": "Tillgänglighet",
-          "description": "Rörelse och läskomfort i den här webbläsaren."
+          "description": "Rörelse- och animationsinställningar"
         },
         "network": {
           "title": "Nätverk",
@@ -1097,13 +1120,40 @@
         },
         "language-time": {
           "title": "Språk och tid",
-          "description": "Används av hubben för Schemat, tidsvariabler och varje tidsstämpel."
+          "description": "Språk för den här webbläsaren; hubbklocka och schematid."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot-inställningar och samtal."
         },
         "notifications": {
           "title": "Aviseringar",
           "description": "Välj om ditt konto och den här webbläsaren får ta emot varningar från din hubb."
         }
       }
+    },
+    "panels": {
+      "theme": "Tema",
+      "browserTheme": "Endast för den här webbläsaren.",
+      "motionScope": "Rörelseinställningar gäller alla på den här hubben."
+    },
+    "fiestabot": {
+      "title": "Ändringar, panel och historik",
+      "scope": "Godkännandeläget i panelen gäller alla på den här hubben.",
+      "unavailable": "Personliga inställningar för godkännande, panel och historik är ännu inte tillgängliga.",
+      "open": "Öppna FiestaBot",
+      "setup": "Konfigurera AI-leverantör",
+      "needsSetup": "FiestaBot kräver aktiverad AI och en konfigurerad leverantör på den här hubben.",
+      "checking": "Kontrollerar om FiestaBot är tillgänglig…",
+      "checkFailed": "Det gick inte att kontrollera om FiestaBot är tillgänglig.",
+      "retry": "Försök igen"
+    },
+    "addresses": {
+      "title": "Adresser",
+      "description": "Så når den här webbläsaren hubben.",
+      "browser": "Den här webbläsaren använder",
+      "ip": "IP-adress rapporterad av hubben",
+      "hint": "Hubben kan rapportera en containeradress. Det är inte en verifierad adress för att ansluta en annan enhet."
     }
   },
   "offline": {
@@ -2715,7 +2765,23 @@
     "fillSpaceTooltip": "Fyllutrymme - expanderar för att fylla resten av radens bredd",
     "fillSpaceRepeatTooltip": "Fyllutrymme upprepar: {char}",
     "variableFilterTooltip": "Filter: {filter}",
-    "variableMaxLengthTooltip": "Maxlängd: {maxLength} tecken"
+    "variableMaxLengthTooltip": "Maxlängd: {maxLength} tecken",
+    "tools": "Redigeringsverktyg",
+    "formula": "Formel",
+    "more": "Mer",
+    "textColor": "Textfärg",
+    "icon": "Ikon",
+    "size": "Storlek",
+    "brush": "Pensel",
+    "drawDone": "Klar",
+    "align": "Justera",
+    "alignLeftShort": "Vänster",
+    "alignCenterShort": "Mitten",
+    "alignRightShort": "Höger",
+    "wrapLine": "Radbryt den här raden",
+    "clipboard": "Urklipp",
+    "colorsHint": "Tryck på en färg för att infoga en ruta vid markören. Panelen förblir öppen så att du kan lägga till flera; svep nedåt, tryck på ✕ eller på Esc för att stänga.",
+    "formattingHint": "Fyll utrymme skjuter resten av raden till högerkanten; radbrytning låter ett långt värde fortsätta på nästa rad. Gäller vid markören."
   },
   "variablePicker": {
     "noVariablesAvailable": "Inga variabler tillgängliga",
@@ -3667,6 +3733,33 @@
       "body": "Installation och offlineläge kräver en säker adress. Du är på http://{host}. Öppna FiestaBoard på dess https-adress eller konfigurera HTTPS för din hubb.",
       "help": "Så konfigurerar du HTTPS"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Förhandsvisning i realtid",
+    "mirror": "Spegla på tavlan under redigering",
+    "mirroring": "Spegling pågår",
+    "mirrorHint": "Skickar efter varje skrivpaus. Avslutas när du lämnar redigeraren.",
+    "savedToPages": "Sparad i Sidor",
+    "savedToPagesDescription": "{name} finns i ditt sidbibliotek.",
+    "addToSchedule": "Lägg till i schema",
+    "showNow": "Visa nu",
+    "saved": "Sparad",
+    "unsaved": "Osparad",
+    "unknownDisplay": "Det går inte att avgöra vad den här skärmen kan visa",
+    "plainTextOnly": "Oformaterad text är tillgänglig. Färger och skärmspecifika verktyg är inte tillgängliga.",
+    "targetUnavailable": "Den här skärmen är inte tillgänglig för spegling.",
+    "nameRequired": "Namnge den här sidan",
+    "newerChangesUnsaved": "Ändringar som gjordes under sparandet är fortfarande osparade. Spara igen innan du visar dem.",
+    "plainText": "Ren text",
+    "plainTemplate": "Mall · endast ren text",
+    "editorTools": "Redigerarens verktyg",
+    "displayToolsUnavailable": "Färger och Formatering är inte tillgängliga — skärmtypen är okänd.",
+    "plainTemplateHelp": "Varje rad skickas precis som du skriver den. Bredd och tecken kan inte kontrolleras för den här skärmen.",
+    "emptyPrompt": "Skriv vad {board} ska visa…",
+    "thisDisplay": "den här skärmen",
+    "startFrom": "Eller börja med",
+    "insertVariable": "Infoga en variabel",
+    "browseStaffPicks": "Bläddra bland Personalens val"
   },
   "phonePairing": {
     "title": "Anslut en telefon",
