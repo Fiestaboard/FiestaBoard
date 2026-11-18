@@ -112,6 +112,12 @@ These variables belong to plugins you install from the [registry](/plugins), not
 |----------|-------------|---------|
 | `MDNS_HOSTNAME` | Container mDNS hostname without `.local`. Reachable from the LAN only with host networking; the default Docker bridge does not forward multicast. FiestaPi uses its host Avahi name, `fiestapi.local`, independently of this setting. | `fiestaboard` |
 
+The container's advertisement (`FiestaBoard._http._tcp`) carries a TXT record that the
+TV and phone apps read when they list hubs: `product=FiestaBoard`, `path=/`,
+`host=<MDNS_HOSTNAME>.local`, and, only while sign-in is off, `name=` with the hub's
+name from **Settings → General** (the same rule as `GET /discover`). Renaming the hub or
+turning sign-in on or off updates the record.
+
 ## System Configuration
 
 | Variable | Description | Default |

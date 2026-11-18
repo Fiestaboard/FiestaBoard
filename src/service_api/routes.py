@@ -40,13 +40,13 @@ from src import __version__
 from src import display_runtime as runtime
 from src.api_deprecation import V1_BOARD_MESSAGE_SUCCESSOR, deprecation_notice, superseded_by_v1
 from src.api_errors import errors
-from src.auth.service import auth_mode
 from src.board_guards import _require_board, silence_timing
 from src.board_send_executor import run_board_send
 from src.config import Config
 from src.config_manager import get_config_manager
 from src.outputs.health import board_health
 from src.paths import get_data_dir
+from src.system.hub_identity import public_instance_name
 
 from .install_id import load_install_id
 from .models import (
@@ -142,9 +142,8 @@ async def discover(response: Response):
     response.headers["Access-Control-Allow-Origin"] = FIND_ORIGIN
     response.headers["Cache-Control"] = "no-store"
 
-    name = ""
-    if auth_mode() == "disabled":
-        name = str(get_config_manager().get_general().get("instance_name") or "").strip()
+    # The same rule as the mDNS TXT ``name=`` (src/system/hub_identity.py).
+    name = public_instance_name(lambda: get_config_manager().get_general())
     return DiscoverResponse(product="FiestaBoard", version=__version__, id=load_install_id(get_data_dir()), name=name)
 
 
