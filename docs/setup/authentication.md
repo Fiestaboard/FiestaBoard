@@ -247,10 +247,12 @@ A phone credential **cannot**:
 
 - manage accounts, passwords, signed-in browsers or phones, or the API token;
 - create pairing codes for other phones;
-- export or import backups;
-- change the hub's network, update channel or software, or restart it;
+- export a backup with its secrets, or reinstall plugins while restoring a backup;
+- change the update channel, turn automatic updates on or off, or roll back an update;
 - install plugins from a Git URL, or install outputs;
-- read stored secrets, or change AI, MQTT or display connection settings.
+- read stored secrets, or change MQTT or display connection settings (except by restoring
+  a backup, which needs step-up);
+- move an AI provider to a new address or protocol without typing its key again.
 
 ### Step-up on the phone
 
@@ -268,9 +270,24 @@ app asks for the account password and sends it to `POST /auth/device/elevate`.
 These actions need step-up on the phone:
 
 - installing a plugin from the plugin list, updating one or all plugins, and removing
-  a plugin.
+  a plugin;
+- joining, disconnecting from or forgetting a Wi-Fi network;
+- updating the hub's software, restarting the hub and shutting it down;
+- changing AI provider settings;
+- exporting a backup and restoring one.
 
-Checking for plugin updates doesn't need step-up. Installing a plugin from a Git URL
+A phone's backup is **redacted**: passwords, keys and tokens are replaced with `***`,
+and the file says so. If you restore it, enter those secrets again afterwards. A phone
+restores a backup without reinstalling its plugins (`reinstall_plugins=false`).
+
+A phone reads AI provider keys and custom header values as `***`. If it changes a
+provider's address or protocol, it has to send the key again, or the hub answers `400`
+with `"error": "key_required"`. A phone can test a saved provider. It can test an
+unsaved one only with the key typed in.
+
+Checking for plugin updates doesn't need step-up. Neither do general settings
+(`PUT /config/general`), reading Wi-Fi status, saved networks and scan results, or
+reading and testing AI providers. Installing a plugin from a Git URL
 stays in the web app.
 
 Step-up never opens account, password, session, pairing or API-token management to a

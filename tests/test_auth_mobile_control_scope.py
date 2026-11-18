@@ -236,15 +236,11 @@ CONTROL_DENIED = [
     ("POST", "/auth/logout", None),
     ("POST", "/mcp", {}),
     ("POST", "/api/mcp", {}),
-    # Whole-install and host operations.
-    ("GET", "/backup/export", None),
-    ("POST", "/backup/import", {}),
-    ("POST", "/system/update", {}),
-    ("POST", "/system/restart", None),
-    ("POST", "/system/shutdown", None),
+    # Whole-install and host operations. Backups, Wi-Fi changes, update, restart
+    # and shutdown are tier 2 (H21d; tests/test_auth_phone_hub_settings.py).
+    ("POST", "/system/update/rollback", None),
+    ("POST", "/system/update/auto", {}),
     ("POST", "/system/channel", {}),
-    ("POST", "/network/wifi/connect", {}),
-    ("GET", "/network/wifi/saved", None),
     ("GET", "/logs", None),
     # Installing code from a Git URL. Registry install, update and uninstall are
     # tier 2 (H21c; tests/test_auth_phone_plugin_lifecycle.py).
@@ -252,14 +248,11 @@ CONTROL_DENIED = [
     ("POST", "/pages/import", {}),
     ("POST", "/outputs/x/install", {}),
     # Stored secrets and integrations that hold credentials.
-    ("GET", "/settings/ai", None),
-    ("GET", "/api/settings/ai", None),
     ("GET", "/settings/mqtt", None),
     ("GET", "/settings/all", None),
     ("GET", "/config", None),
     ("GET", "/config/full", None),
     ("GET", "/config/board", None),
-    ("PUT", "/config/general", {}),
     ("POST", "/generic-data/test-fetch", {}),
     ("POST", "/ai/operations", {}),
     ("POST", "/pages/ai/chat", {}),
@@ -424,7 +417,10 @@ def test_control_is_a_strict_subset_of_the_api():
     assert allowed and denied
     # Nothing that manages credentials, the host or installed code is in the scope.
     for method, path in allowed:
-        assert not path.startswith(("/auth/sessions", "/auth/mcp-token", "/backup", "/network", "/mcp")), path
+        assert not path.startswith(("/auth/sessions", "/auth/mcp-token", "/backup", "/mcp")), path
+        # Wi-Fi reads are tier 1 (H21d); every Wi-Fi change is tier 2.
+        if path.startswith("/network"):
+            assert method == "GET" or path == "/network/wifi/scan", (method, path)
         # ``/v1/install`` is the install's settings resource (schedule switch, default page), not an installer.
         if path == "/v1/install":
             continue
