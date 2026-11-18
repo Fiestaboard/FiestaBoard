@@ -18,7 +18,10 @@ names (a display's ``output``). A field is connection-like when
   ``.local`` name), before or after the write, whatever the field is called.
 
 Everything else (a tile's row and column, ``enabled``, a topic, a location) is
-not, so editing it never asks for the key again.
+not, so editing it never asks for the key again. The rule is a heuristic: a
+plain dotted name (``sensor.porch``, a Home Assistant entity, looks the same as
+``board.example.com``) under a field whose name says nothing about connections
+is not treated as an address. A plugin keeps its address in a field named for it.
 
 The rule, given the stored document, the document the write would store and
 the values the phone sent: a stored secret that still appears in the result
@@ -39,7 +42,8 @@ MASK = "***"
 _CONNECTION_KEY = re.compile(
     r"(^|_)(host|hostname|hosts|url|uri|urls|endpoint|endpoints|server|servers|address|addr|ip|port|"
     r"protocol|scheme|mode|ssl|tls|https|insecure|broker|domain|realm|sign_in|signin|auth_type|"
-    r"auth_method)($|_)",
+    r"auth_method|subdomain|region|tenant|site|org|organization|workspace|account|cluster|zone|datacenter|"
+    r"instance)($|_)",
     re.I,
 )
 _HOST_PORT = re.compile(r"^[a-z0-9.-]+:\d{1,5}$", re.I)

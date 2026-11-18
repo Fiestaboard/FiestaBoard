@@ -423,13 +423,15 @@ async def update_plugin_config(
     return PluginConfigUpdateResponse(plugin_id=plugin_id, config=masked)
 
 
-def phone_key_refusal(http_request: Request | None, plugin_id: str, config: Any) -> JSONResponse | None:
+def phone_key_refusal(
+    http_request: Request | None, plugin_id: str, config: Any, *, merge: bool = False
+) -> JSONResponse | None:
     """The ``400 key_required`` a phone gets for moving a plugin's key, else None."""
     from src.auth import phone_policy
 
     if http_request is None or not phone_policy.is_phone(http_request):
         return None
-    if not phone_policy.plugin_config_needs_key(plugin_id, config, merge=False):
+    if not phone_policy.plugin_config_needs_key(plugin_id, config, merge=merge):
         return None
     return JSONResponse(phone_policy.key_required_body(phone_policy.PLUGIN_KEY_DETAIL), status_code=400)
 
@@ -538,12 +540,20 @@ async def get_plugin_variables(plugin_id: str) -> PluginVariablesResponse:
 )
 @plugin_errors_to_http
 async def get_plugin_options_endpoint(
-    plugin_id: str, options_id: str, body: PluginOptionsRequest
+    plugin_id: str, options_id: str, body: PluginOptionsRequest, http_request: Request = None
 ) -> PluginOptionsResponse:
-    """Browse a plugin's upstream catalog to populate one settings field."""
+    """Browse a plugin's upstream catalog to populate one settings field.
+
+    A phone whose draft settings move the plugin's key types it again
+    (``400 key_required``), as for a save.
+    """
     from .base import OptionsRequest, OptionsUnavailable
 
     _require_plugin_system()
+    if body.draft_config:
+        refusal = phone_key_refusal(http_request, plugin_id, body.draft_config, merge=True)
+        if refusal is not None:
+            return refusal
 
     registry = get_plugin_registry()
 

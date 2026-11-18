@@ -166,11 +166,12 @@ def plugin_config_needs_key(plugin_id: str, config: Any, *, merge: bool) -> bool
     if not live:
         return False
     env_only = {key: value for key, value in live.items() if stored.get(key) != value}
-    after = unmask_sensitive_values({**stored, **config} if merge else config, stored)
-    after = {**after, **env_only}
+    saved = unmask_sensitive_values({**stored, **config} if merge else config, stored)
     # The masked view every plugin read answers with (PluginService.mask_config).
     masked = manager._mask_sensitive(live)
-    return moves_a_secret(live, after, masked, config)
+    # Judged twice: as the plugin runs now (environment values on top) and as
+    # saved (what it runs with once an environment variable is removed).
+    return moves_a_secret(live, {**saved, **env_only}, masked, config) or moves_a_secret(live, saved, masked, config)
 
 
 PLUGIN_KEY_DETAIL = "Enter the plugin's key again: its address or sign-in settings changed."

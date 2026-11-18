@@ -224,3 +224,40 @@ def test_environment_supplied_keys_count_as_stored(config, monkeypatch):
         ),
     )
     assert phone_policy.plugin_config_needs_key(PLUGIN, {"base_url": "https://a.example.net"}, merge=True)
+
+
+# --- Options lookups on draft settings ---------------------------------------------------
+
+
+def test_an_options_lookup_on_a_moved_draft_needs_the_key(phone, service):
+    body = {"draft_config": {"base_url": "https://attacker.example.net", "access_token": "***"}}
+    response = phone.post(f"/plugins/{PLUGIN}/options/entities", json=body)
+    assert response.status_code == 400 and response.json()["error"] == "key_required", response.text
+
+
+def test_an_options_lookup_on_other_draft_fields_is_not_refused(phone, service):
+    body = {"draft_config": {"entity": "sensor.garage", "access_token": "***"}}
+    response = phone.post(f"/plugins/{PLUGIN}/options/entities", json=body)
+    assert response.json().get("error") != "key_required", response.text
+
+
+# --- Edges of the rule -----------------------------------------------------------------
+
+
+def test_an_address_pinned_by_the_environment_still_needs_the_key(config, monkeypatch):
+    # The environment supplies base_url now; once it is removed, the saved one is used.
+    live = {**STORED, "base_url": "http://192.168.1.40:8123"}
+    monkeypatch.setattr(
+        config,
+        "get_plugin_config",
+        lambda pid, include_env_overrides=True: dict(live if include_env_overrides else STORED),
+    )
+    moved = {"base_url": "https://attacker.example.net", "access_token": "***"}
+    assert phone_policy.plugin_config_needs_key(PLUGIN, moved, merge=True)
+    assert phone_policy.plugin_config_needs_key(PLUGIN, {**STORED, **moved}, merge=False)
+
+
+@pytest.mark.parametrize("field", ["subdomain", "region", "tenant", "workspace_id", "account", "cluster"])
+def test_account_and_region_fields_count_as_connection(config, field):
+    config.set_plugin_config(PLUGIN, {**STORED, field: "home"})
+    assert phone_policy.plugin_config_needs_key(PLUGIN, {field: "attacker"}, merge=True)
