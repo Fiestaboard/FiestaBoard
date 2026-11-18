@@ -26,6 +26,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
 import IntegrationsPage from "../../app/routes/integrations._index";
+import { integrationDesktop, openIntegration } from "./integrations-test-helpers";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -141,6 +142,7 @@ function renderPage() {
       mutations: { retry: false },
     },
   });
+  integrationDesktop();
   return render(
     <QueryClientProvider client={queryClient}>
       <IntegrationsPage />
@@ -149,7 +151,7 @@ function renderPage() {
 }
 
 async function openConfigSheet(user: ReturnType<typeof userEvent.setup>) {
-  await user.click((await screen.findAllByRole("button", { name: /configure/i }))[0]);
+  await openIntegration(user);
   return screen.findByRole("button", { name: /create demo page/i });
 }
 

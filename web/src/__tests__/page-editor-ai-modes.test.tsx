@@ -164,7 +164,7 @@ it("reveals Text before the AI spotlight and staged text update when a clean edi
   await play(getScript("update_page").narrate(CALL, ctx));
   expect(shown).toContainEqual({ caption: "typingLines", visible: true });
   expect(screen.getByRole("button", { name: "Text" })).toHaveAttribute("aria-pressed", "true");
-  expect(screen.getByRole("textbox", { name: "" })).toHaveValue(["AI text", ...Array(9).fill("")].join("\n"));
+  expect(screen.getByRole("textbox", { name: "Template" })).toHaveValue(["AI text", ...Array(9).fill("")].join("\n"));
   expect(screen.getByRole("button", { name: "Save Page" })).toBeDisabled();
   savedPage = { ...savedPage, template: ["AI text"] };
   await play(getScript("update_page").settle(CALL, OK, ctx));
@@ -174,7 +174,7 @@ it("reveals Text before the AI spotlight and staged text update when a clean edi
 
 it("shows the dirty-draft notice from Canvases and retains every draft value after the AI succeeds", async () => {
   const { user, bridge, ctx, shown, pulses, play } = await setup();
-  fireEvent.change(screen.getByRole("textbox", { name: "" }), { target: { value: "My unsaved text" } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Template" }), { target: { value: "My unsaved text" } });
   await user.click(screen.getByRole("button", { name: "Canvases" }));
   fireEvent.change(screen.getByLabelText("Canvas ID"), { target: { value: "my-sky" } });
   await waitFor(() => expect(bridge.staging.hasUnsavedChanges()).toBe(true));

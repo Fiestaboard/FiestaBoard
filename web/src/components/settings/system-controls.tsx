@@ -10,7 +10,6 @@ import {
   DialogTitle,
   Flex,
   Heading,
-  PageSection,
   Stack,
   Text,
 } from "@fiestaboard/ui";
@@ -20,6 +19,7 @@ import { ArrowUpCircle, Cpu, Power, RefreshCw } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
@@ -85,7 +85,12 @@ export function SystemControls() {
 
   return (
     <>
-      <PageSection icon={<Cpu />} title={t("title")} description={t("description")} {...anchorProps("settings.system")}>
+      <SettingsPanel
+        icon={<Cpu />}
+        title={t("title")}
+        description={t("description")}
+        {...anchorProps("settings.system")}
+      >
         <Flex wrap gap="2">
           <Button
             variant={updateAvailable ? "default" : "outline"}
@@ -125,7 +130,7 @@ export function SystemControls() {
             {t("shutdown")}
           </Button>
         </Flex>
-      </PageSection>
+      </SettingsPanel>
 
       {/* Update confirmation */}
       <Dialog open={confirmAction === "update"} onOpenChange={(open) => !open && setConfirmAction(null)}>

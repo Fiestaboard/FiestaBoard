@@ -297,6 +297,8 @@
       "outTitle": "{board} 동기화 불일치",
       "outDetail": "{page} 이외의 내용이 표시되고 있습니다. 다른 앱에서 변경했을 수 있습니다.",
       "showAgain": "{page} 다시 표시",
+      "outHoldPaused": "이 디스플레이가 일시정지되어 있습니다. {page}을(를) 다시 표시하려면 다시 시작하세요.",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule이 {time}에 시작됩니다",
       "silenceSoonPage": "{board}이(가) {minutes}분 후 무음 상태가 되며 {page} 표시를 유지합니다.",
       "silenceSoonOther": "{board}이(가) {minutes}분 후 무음 상태가 됩니다. 새 메시지는 Silence Schedule이 끝날 때까지 대기합니다.",
@@ -744,6 +746,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "연동 세부 정보",
+    "variablesTab": "변수",
+    "readmeTab": "README",
+    "readmeUnavailable": "문서를 사용할 수 없습니다.",
+    "about": "정보",
+    "versionLabel": "버전",
+    "authorLabel": "작성자",
+    "sourceLabel": "소스",
+    "backToIntegrations": "연동으로 돌아가기",
+    "reconnectTitle": "{name} 다시 연결",
+    "reconnectConsequence": "다시 연결할 때까지 이 연동을 사용하는 페이지의 데이터를 사용할 수 없거나 데이터가 오래되었을 수 있습니다.",
+    "setupConsequence": "페이지에서 이 연동의 데이터를 사용할 수 있도록 설정을 완료하세요.",
+    "noVariables": "이 연동은 템플릿 변수를 제공하지 않습니다.",
+    "needsAttention": "확인 필요",
+    "setUpAction": "설정",
+    "integrationSettings": "연동 설정",
+    "sortInstalled": "설치된 연동 정렬",
+    "sortMarketplace": "마켓플레이스 결과 정렬",
+    "sortAscending": "오름차순",
+    "sortDescending": "내림차순",
     "title": "연동",
     "description": "FiestaBoard의 데이터 소스 플러그인을 활성화하고 설정하세요",
     "totalLabel": "전체:",
@@ -1043,7 +1065,8 @@
         "modelsAfterSave": "변경 사항을 저장하면 제공자의 모델에서 고를 수 있습니다."
       },
       "addModel": "모델 추가",
-      "refreshModels": "모델 새로 고침"
+      "refreshModels": "모델 새로 고침",
+      "promptDestination": "프롬프트 전송 대상: {destination}"
     },
     "backup": {
       "cardTitle": "백업 및 복원",
@@ -1077,11 +1100,11 @@
         },
         "appearance": {
           "title": "모양",
-          "description": "이 브라우저에서 FiestaBoard가 보이는 방식."
+          "description": "테마는 이 브라우저에 적용되며 미리보기 동작은 이 허브의 모든 사용자에게 적용됩니다."
         },
         "accessibility": {
           "title": "접근성",
-          "description": "이 브라우저의 움직임과 읽기 편의."
+          "description": "모션 및 애니메이션 환경설정"
         },
         "network": {
           "title": "네트워크",
@@ -1097,13 +1120,40 @@
         },
         "language-time": {
           "title": "언어 및 시간",
-          "description": "허브가 일정, 시간 변수, 모든 타임스탬프에 사용합니다."
+          "description": "언어는 이 브라우저에 적용되며 시계와 일정은 허브 설정입니다."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot 설정 및 대화."
         },
         "notifications": {
           "title": "알림",
           "description": "계정과 이 브라우저에서 허브의 알림을 받을지 선택합니다."
         }
       }
+    },
+    "panels": {
+      "theme": "테마",
+      "browserTheme": "이 브라우저에만 적용됩니다.",
+      "motionScope": "동작 설정은 이 허브의 모든 사용자에게 적용됩니다."
+    },
+    "fiestabot": {
+      "title": "변경, 패널 및 기록",
+      "scope": "패널의 승인 모드는 이 허브의 모든 사용자에게 적용됩니다.",
+      "unavailable": "개인별 승인, 패널 및 기록 설정은 아직 지원되지 않습니다.",
+      "open": "FiestaBot 열기",
+      "setup": "AI 제공자 설정",
+      "needsSetup": "FiestaBot을 사용하려면 이 허브에서 AI를 활성화하고 제공자를 설정해야 합니다.",
+      "checking": "FiestaBot 사용 가능 여부 확인 중…",
+      "checkFailed": "FiestaBot 사용 가능 여부를 확인할 수 없습니다.",
+      "retry": "다시 시도"
+    },
+    "addresses": {
+      "title": "주소",
+      "description": "이 브라우저가 허브에 연결하는 방법입니다.",
+      "browser": "이 브라우저의 연결 주소",
+      "ip": "허브가 보고한 IP 주소",
+      "hint": "허브가 컨테이너 주소를 보고할 수 있습니다. 다른 기기 연결용으로 확인된 주소가 아닙니다."
     }
   },
   "offline": {
@@ -2715,7 +2765,23 @@
     "fillSpaceTooltip": "공간 채우기 - 남은 줄 너비를 채우도록 확장됩니다",
     "fillSpaceRepeatTooltip": "반복하여 공간 채우기: {char}",
     "variableFilterTooltip": "필터: {filter}",
-    "variableMaxLengthTooltip": "최대 길이: {maxLength}자"
+    "variableMaxLengthTooltip": "최대 길이: {maxLength}자",
+    "tools": "편집기 도구",
+    "formula": "수식",
+    "more": "더 보기",
+    "textColor": "글자 색상",
+    "icon": "아이콘",
+    "size": "크기",
+    "brush": "브러시",
+    "drawDone": "완료",
+    "align": "정렬",
+    "alignLeftShort": "왼쪽",
+    "alignCenterShort": "가운데",
+    "alignRightShort": "오른쪽",
+    "wrapLine": "이 줄 줄바꿈",
+    "clipboard": "클립보드",
+    "colorsHint": "색상을 탭하면 커서 위치에 타일이 삽입됩니다. 여러 개를 추가할 수 있도록 패널이 열린 상태로 유지됩니다. 아래로 스와이프하거나 ✕를 탭하거나 Esc를 눌러 닫으세요.",
+    "formattingHint": "공백 채우기는 줄의 나머지를 오른쪽 끝으로 밀어냅니다. 줄바꿈은 긴 값을 다음 줄로 이어 표시합니다. 커서 위치에 적용됩니다."
   },
   "variablePicker": {
     "noVariablesAvailable": "사용 가능한 변수가 없습니다",
@@ -3667,6 +3733,33 @@
       "body": "설치와 오프라인 사용에는 보안 주소가 필요합니다. 현재 http://{host}에 있습니다. https 주소로 FiestaBoard를 열거나 허브에 HTTPS를 설정하세요.",
       "help": "HTTPS 설정 방법"
     }
+  },
+  "editorTouch": {
+    "livePreview": "실시간 미리보기",
+    "mirror": "편집하는 동안 보드에 미러링",
+    "mirroring": "미러링 중",
+    "mirrorHint": "입력을 잠시 멈출 때마다 전송합니다. 편집기를 나가면 중지됩니다.",
+    "savedToPages": "페이지에 저장됨",
+    "savedToPagesDescription": "{name}이(가) 페이지 라이브러리에 있습니다.",
+    "addToSchedule": "스케줄에 추가",
+    "showNow": "지금 표시",
+    "saved": "저장됨",
+    "unsaved": "저장되지 않음",
+    "unknownDisplay": "이 디스플레이가 무엇을 표시할 수 있는지 알 수 없습니다",
+    "plainTextOnly": "일반 텍스트를 사용할 수 있습니다. 색상 및 디스플레이 전용 도구는 사용할 수 없습니다.",
+    "targetUnavailable": "이 디스플레이는 미러링에 사용할 수 없습니다.",
+    "nameRequired": "이 페이지의 이름을 지정하세요",
+    "newerChangesUnsaved": "저장 중에 변경한 내용은 아직 저장되지 않았습니다. 표시하기 전에 다시 저장하세요.",
+    "plainText": "일반 텍스트",
+    "plainTemplate": "템플릿 · 일반 텍스트만",
+    "editorTools": "편집기 도구",
+    "displayToolsUnavailable": "디스플레이 유형을 알 수 없어 색상 및 서식을 사용할 수 없습니다.",
+    "plainTemplateHelp": "각 줄은 입력한 그대로 전송됩니다. 이 디스플레이의 너비와 지원 문자는 확인할 수 없습니다.",
+    "emptyPrompt": "{board}에 표시할 내용을 입력하세요…",
+    "thisDisplay": "이 디스플레이",
+    "startFrom": "또는 다음으로 시작하세요",
+    "insertVariable": "변수 삽입",
+    "browseStaffPicks": "스태프 추천 둘러보기"
   },
   "phonePairing": {
     "title": "휴대폰 연결",

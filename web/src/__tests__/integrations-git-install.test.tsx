@@ -46,7 +46,8 @@ function setup(respond: () => Response) {
 }
 
 async function installFromDialog(branch = "") {
-  await userEvent.click(await screen.findByRole("button", { name: /Add from Git/ }));
+  await userEvent.click(await screen.findByRole("button", { name: "More options" }));
+  await userEvent.click(await screen.findByRole("menuitem", { name: /Add from Git/ }));
   const dialog = await screen.findByRole("dialog", { name: "Install Plugin from Git" });
   await userEvent.type(within(dialog).getByLabelText("Repository URL"), GIT);
   if (branch) await userEvent.type(within(dialog).getByLabelText("Branch (optional)"), branch);

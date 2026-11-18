@@ -297,6 +297,8 @@
       "outTitle": "{board} está dessincronizado",
       "outDetail": "Está a mostrar algo diferente de {page}. Outra aplicação pode ter alterado o conteúdo.",
       "showAgain": "Mostrar {page} novamente",
+      "outHoldPaused": "Esta exibição está pausada. Retome-a para mostrar {page} novamente.",
+      "heldPreview": "“{preview}”",
       "silenceSoonTitle": "Silence Schedule começa às {time}",
       "silenceSoonPage": "{board} entra em silêncio daqui a {minutes} min e mantém {page}.",
       "silenceSoonOther": "{board} entra em silêncio daqui a {minutes} min. As novas mensagens aguardam o fim de Silence Schedule.",
@@ -744,6 +746,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "Detalhes da integração",
+    "variablesTab": "Variáveis",
+    "readmeTab": "README",
+    "readmeUnavailable": "A documentação não está disponível.",
+    "about": "Sobre",
+    "versionLabel": "Versão",
+    "authorLabel": "Autor",
+    "sourceLabel": "Origem",
+    "backToIntegrations": "Voltar às integrações",
+    "reconnectTitle": "Voltar a ligar {name}",
+    "reconnectConsequence": "Os dados das páginas que usam esta integração podem estar indisponíveis ou desatualizados até voltar a ligar.",
+    "setupConsequence": "Conclua as definições para que as páginas possam usar os dados desta integração.",
+    "noVariables": "Esta integração não fornece variáveis de modelo.",
+    "needsAttention": "Requer atenção",
+    "setUpAction": "Configurar",
+    "integrationSettings": "Definições da integração",
+    "sortInstalled": "Ordenar integrações instaladas",
+    "sortMarketplace": "Ordenar resultados do catálogo",
+    "sortAscending": "crescente",
+    "sortDescending": "decrescente",
     "title": "Integrações",
     "description": "Ative e configure plugins de fontes de dados para o seu FiestaBoard",
     "totalLabel": "Total:",
@@ -1043,7 +1065,8 @@
         "modelsAfterSave": "Salve as alterações para escolher entre os modelos do provedor."
       },
       "addModel": "Adicionar um modelo",
-      "refreshModels": "Atualizar modelos"
+      "refreshModels": "Atualizar modelos",
+      "promptDestination": "As instruções são enviadas para {destination}"
     },
     "backup": {
       "cardTitle": "Backup e restauro",
@@ -1077,11 +1100,11 @@
         },
         "appearance": {
           "title": "Aparência",
-          "description": "Como o FiestaBoard aparece neste navegador."
+          "description": "Tema para este navegador; movimento das prévias para todos neste hub."
         },
         "accessibility": {
           "title": "Acessibilidade",
-          "description": "Movimento e conforto de leitura neste navegador."
+          "description": "Preferências de movimento e animação"
         },
         "network": {
           "title": "Rede",
@@ -1097,13 +1120,40 @@
         },
         "language-time": {
           "title": "Idioma e hora",
-          "description": "Usados pelo hub na Programação, nas variáveis de hora e em cada horário exibido."
+          "description": "Idioma deste navegador; relógio e programação do hub."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "Preferências e conversas do FiestaBot."
         },
         "notifications": {
           "title": "Notificações",
           "description": "Escolha se a sua conta e este navegador podem receber alertas do seu hub."
         }
       }
+    },
+    "panels": {
+      "theme": "Tema",
+      "browserTheme": "Apenas neste navegador.",
+      "motionScope": "As preferências de movimento aplicam-se a todos neste hub."
+    },
+    "fiestabot": {
+      "title": "Alterações, painel e histórico",
+      "scope": "O modo de aprovação no painel aplica-se a todos neste hub.",
+      "unavailable": "As preferências pessoais de aprovação, painel e histórico ainda não estão disponíveis.",
+      "open": "Abrir FiestaBot",
+      "setup": "Configurar provedor de IA",
+      "needsSetup": "O FiestaBot precisa de IA ativada e um provedor configurado neste hub.",
+      "checking": "Verificando a disponibilidade do FiestaBot…",
+      "checkFailed": "Não foi possível verificar a disponibilidade do FiestaBot.",
+      "retry": "Tentar novamente"
+    },
+    "addresses": {
+      "title": "Endereços",
+      "description": "Como este navegador acessa o hub.",
+      "browser": "Este navegador usa",
+      "ip": "Endereço IP informado pelo hub",
+      "hint": "O hub pode informar um endereço de contêiner. Não é um endereço verificado para conectar outro dispositivo."
     }
   },
   "offline": {
@@ -2715,7 +2765,23 @@
     "fillSpaceTooltip": "Preencher espaço - expande-se para ocupar a largura restante da linha",
     "fillSpaceRepeatTooltip": "Preencher espaço repetindo: {char}",
     "variableFilterTooltip": "Filtro: {filter}",
-    "variableMaxLengthTooltip": "Comprimento máximo: {maxLength} caracteres"
+    "variableMaxLengthTooltip": "Comprimento máximo: {maxLength} caracteres",
+    "tools": "Ferramentas do editor",
+    "formula": "Fórmula",
+    "more": "Mais",
+    "textColor": "Cor do texto",
+    "icon": "Ícone",
+    "size": "Tamanho",
+    "brush": "Pincel",
+    "drawDone": "Concluído",
+    "align": "Alinhar",
+    "alignLeftShort": "Esquerda",
+    "alignCenterShort": "Centro",
+    "alignRightShort": "Direita",
+    "wrapLine": "Quebrar esta linha",
+    "clipboard": "Área de transferência",
+    "colorsHint": "Toque em uma cor para inserir um bloco no cursor. O painel permanece aberto para adicionar vários; deslize para baixo, toque em ✕ ou pressione Esc para fechar.",
+    "formattingHint": "Preencher espaço empurra o restante da linha para a borda direita; a quebra de linha permite que um valor longo continue na próxima linha. Aplica-se na posição do cursor."
   },
   "variablePicker": {
     "noVariablesAvailable": "Nenhuma variável disponível",
@@ -3667,6 +3733,33 @@
       "body": "Instalar e usar offline exigem um endereço seguro. Você está em http://{host}. Abra o FiestaBoard no endereço https ou configure HTTPS para o seu hub.",
       "help": "Como configurar HTTPS"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Pré-visualização em tempo real",
+    "mirror": "Espelhar no painel durante a edição",
+    "mirroring": "Espelhando",
+    "mirrorHint": "Envia após cada pausa na digitação. Para ao sair do editor.",
+    "savedToPages": "Salvo em Páginas",
+    "savedToPagesDescription": "{name} está na sua biblioteca de páginas.",
+    "addToSchedule": "Adicionar à agenda",
+    "showNow": "Mostrar agora",
+    "saved": "Salvo",
+    "unsaved": "Não salvo",
+    "unknownDisplay": "Não é possível determinar o que esta tela pode exibir",
+    "plainTextOnly": "O texto simples está disponível. As cores e as ferramentas específicas da tela não estão disponíveis.",
+    "targetUnavailable": "Esta tela não está disponível para espelhamento.",
+    "nameRequired": "Dê um nome a esta página",
+    "newerChangesUnsaved": "As alterações feitas durante o salvamento ainda não foram salvas. Salve novamente antes de mostrá-las.",
+    "plainText": "Texto simples",
+    "plainTemplate": "Modelo · apenas texto simples",
+    "editorTools": "Ferramentas do editor",
+    "displayToolsUnavailable": "Cores e Formatação não estão disponíveis — o tipo de tela é desconhecido.",
+    "plainTemplateHelp": "Cada linha é enviada exatamente como você a digita. A largura e os caracteres não podem ser verificados para esta tela.",
+    "emptyPrompt": "Digite o que {board} deve mostrar…",
+    "thisDisplay": "esta tela",
+    "startFrom": "Ou comece por",
+    "insertVariable": "Inserir uma variável",
+    "browseStaffPicks": "Explorar as Seleções da equipa"
   },
   "phonePairing": {
     "title": "Conectar um celular",

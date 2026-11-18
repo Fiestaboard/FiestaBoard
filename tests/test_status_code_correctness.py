@@ -76,6 +76,66 @@ class TestBoardTestPreconditions:
         mock_get.assert_not_called()
 
 
+class TestBoardTestStaysOnThisNetwork:
+    """H10 F5: the probe carries the typed key to the host, so a host that
+    is, or resolves to, an internet address is refused before any request."""
+
+    @pytest.mark.parametrize("host", ["8.8.8.8", "93.184.216.34"])
+    def test_a_public_address_is_400_and_issues_no_request(self, client, host):
+        with patch("requests.get") as mock_get:
+            response = client.post(
+                "/config/board/test", json={"api_mode": "local", "local_api_key": "key", "host": host}
+            )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "host must resolve to a local/private IPv4 address"
+        mock_get.assert_not_called()
+
+    def test_a_hostname_resolving_to_a_public_address_is_400(self, client):
+        with (
+            patch("socket.getaddrinfo", return_value=[(2, 1, 6, "", ("8.8.8.8", 0))]),
+            patch("requests.get") as mock_get,
+        ):
+            response = client.post(
+                "/config/board/test",
+                json={"api_mode": "local", "local_api_key": "key", "host": "board.example.com"},
+            )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "host must resolve only to local/private IPv4 addresses"
+        mock_get.assert_not_called()
+
+    def test_a_missing_key_is_still_told_first(self, client):
+        """The output's recorded refusal order is unchanged."""
+        response = client.post("/config/board/test", json={"api_mode": "local", "host": "8.8.8.8"})
+        assert response.status_code == 400
+        assert "API key" in response.json()["detail"]
+
+    def test_a_cloud_probe_is_not_held_to_a_local_host(self, client):
+        """Cloud is exempt because it never contacts ``host``: it asks Vestaboard's cloud."""
+        from urllib.parse import urlparse
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = Mock(status_code=200, json=Mock(return_value={}))
+            response = client.post(
+                "/config/board/test", json={"api_mode": "cloud", "cloud_key": "key", "host": "8.8.8.8"}
+            )
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+        url = mock_get.call_args.args[0] if mock_get.call_args.args else mock_get.call_args.kwargs["url"]
+        host = urlparse(url).hostname
+        assert host is not None and host.endswith("vestaboard.com") and host != "8.8.8.8"
+
+    @pytest.mark.parametrize("api_mode", ["local", "virtual", "CLOUD", ""])
+    def test_every_non_cloud_mode_is_held_to_a_local_host(self, client, api_mode):
+        """The output treats anything but ``cloud`` as local, so the guard does too."""
+        with patch("requests.get") as mock_get:
+            response = client.post(
+                "/config/board/test", json={"api_mode": api_mode, "local_api_key": "key", "host": "8.8.8.8"}
+            )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "host must resolve to a local/private IPv4 address"
+        mock_get.assert_not_called()
+
+
 class TestBoardTestUpstreamVerdictsStay200:
     """The declared contract: an upstream board result is data, not an error."""
 

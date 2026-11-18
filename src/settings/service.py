@@ -1041,6 +1041,13 @@ def _migrate_v1_to_v2(data: dict) -> int:
 _LEGACY_CONNECTION_FIELDS = ("api_mode", "host", "local_api_key", "cloud_key", "note_array_token")
 
 
+#: Board fields that never change what a display shows, so editing them keeps
+#: that display's override Undo receipt (``SettingsService._display_snapshot``).
+_UNDO_IGNORED_BOARD_FIELDS = frozenset(
+    {"name", "board_color", "polling_interval_seconds", "board_read_interval_local", "board_read_interval_cloud"}
+)
+
+
 def _board_dict_has_credentials(board: dict) -> bool:
     """True when a raw board dict already carries any connection credential.
 
@@ -1656,6 +1663,9 @@ class SettingsService:
         """Reload this live owner after restore without changing its lock."""
         self.runtime_revision = str(uuid.uuid4())
         self._override_undo_receipts = {}
+        # Per-display Undo generation (runtime only): see _bump_display_generations.
+        self._display_generations: dict[str, int] = {}
+        self._display_snapshots: dict[str, tuple] = {}
         # Restore/reload must not forget a manual writer already in flight.
         self._override_mutations_pending = getattr(self, "_override_mutations_pending", 0)
         self._needs_seed_save = False
@@ -1879,6 +1889,7 @@ class SettingsService:
         # State may already have changed even when persistence fails. Never
         # revive the generation held by an editor of the earlier state.
         self.runtime_revision = str(uuid.uuid4())
+        self._bump_display_generations()
         try:
             data = {
                 "schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
@@ -3047,6 +3058,41 @@ class SettingsService:
             self._persist_override_gc()
         return raw
 
+    def _display_snapshot(self, key: str, primary: str | None) -> tuple:
+        """What an override Undo on display *key* depends on: its override, its
+        active page, its stored board settings (so also whether it exists; not
+        its name, colour or polling timings), and whether it is the primary."""
+        override = self._temporary_overrides.get(key)
+        page = self._active_page.by_board.get(key)
+        if key in (primary, PRIMARY_RUNTIME_KEY):
+            page = (page, self._active_page.page_id)
+        board = next((b for b in self._board.boards if isinstance(b, dict) and b.get("id") == key), None)
+        board_state = None
+        if board is not None:
+            shown = {k: v for k, v in board.items() if k not in _UNDO_IGNORED_BOARD_FIELDS}
+            board_state = json.dumps(shown, sort_keys=True, default=str)
+        return (override.to_dict() if override else None, page, board_state, key == primary)
+
+    def _bump_display_generations(self) -> None:
+        """Advance the generation of every display whose Undo-relevant state changed.
+
+        Called on every save (the lock is held), so no writer of those fields
+        (override, active page, the display's own settings, primary) can be
+        missed. An override receipt holds its display's generation and is honoured only
+        while it is unchanged, so a change to another display never revokes it.
+        Generations only grow: A -> B -> A never revives a receipt.
+        """
+        primary = self.get_primary_board_id()
+        keys = {PRIMARY_RUNTIME_KEY, *self._temporary_overrides, *self._active_page.by_board, *self._display_snapshots}
+        keys.update(b.get("id") for b in self._board.boards if isinstance(b, dict) and b.get("id"))
+        snapshots = {}
+        for key in keys:
+            snapshot = self._display_snapshot(key, primary)
+            snapshots[key] = snapshot
+            if self._display_snapshots.get(key) != snapshot:
+                self._display_generations[key] = self._display_generations.get(key, 0) + 1
+        self._display_snapshots = snapshots
+
     @_locked
     def begin_override_mutation(self) -> None:
         """Block Undo while a relevant manual mutation is in flight."""
@@ -3078,7 +3124,7 @@ class SettingsService:
         self._override_undo_receipts = {
             k: value
             for k, value in self._override_undo_receipts.items()
-            if value[3] > time.monotonic() and value[4] == self.runtime_revision
+            if value[3] > time.monotonic() and value[4] == self._display_generations.get(k, 0)
         }
         self._override_undo_receipts.pop(key, None)
         override = self.get_temporary_override(key)
@@ -3103,7 +3149,7 @@ class SettingsService:
             actor,
             original,
             time.monotonic() + lifetime,
-            self.runtime_revision,
+            self._display_generations.get(key, 0),
             content_revision,
         )
         return original, token, deadline
@@ -3128,7 +3174,7 @@ class SettingsService:
         if (
             time.monotonic() >= deadline
             or original.is_expired()
-            or self.runtime_revision != revision
+            or self._display_generations.get(key, 0) != revision
             or content_revision != content
             or key in self._temporary_overrides
         ):

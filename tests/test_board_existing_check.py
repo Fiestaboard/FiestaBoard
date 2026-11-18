@@ -221,7 +221,9 @@ def test_the_port_field_wins_over_one_written_into_the_host(client, boards):
 
 @patch("requests.get")
 def test_a_broken_duplicate_check_never_fails_a_good_connection_test(mock_get, client, boards, monkeypatch, caplog):
-    """S2: the board answered; the existing-board lookup failing is logged and reads as none found."""
+    """S2: the board answered; the existing-board lookup failing is logged and never a 500.
+    H19 follow-up: it reads as not checked (absent, i.e. null: the route drops nulls),
+    never [] ("checked, none found")."""
     from src.config_api import service
 
     mock_get.return_value = Mock(status_code=200, json=Mock(return_value={"message": [[0] * 22] * 6}))
@@ -236,7 +238,7 @@ def test_a_broken_duplicate_check_never_fails_a_good_connection_test(mock_get, c
     )
 
     assert response.status_code == 200
-    assert response.json()["success"] is True and response.json()["existing_boards"] == []
+    assert response.json()["success"] is True and "existing_boards" not in response.json()
     assert any("existing" in r.getMessage().lower() for r in caplog.records if r.levelname == "ERROR")
 
 

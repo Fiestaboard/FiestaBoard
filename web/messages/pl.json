@@ -297,6 +297,8 @@
       "outTitle": "{board} nie jest zsynchronizowane",
       "outDetail": "Wyświetla coś innego niż {page}. Inna aplikacja mogła zmienić zawartość.",
       "showAgain": "Pokaż ponownie {page}",
+      "outHoldPaused": "Ten wyświetlacz jest wstrzymany. Wznów go, aby ponownie pokazać {page}.",
+      "heldPreview": "„{preview}”",
       "silenceSoonTitle": "Silence Schedule zaczyna się o {time}",
       "silenceSoonPage": "{board} wyciszy się za {minutes} min i zachowa {page} na ekranie.",
       "silenceSoonOther": "{board} wyciszy się za {minutes} min. Nowe wiadomości poczekają do końca Silence Schedule.",
@@ -744,6 +746,26 @@
     }
   },
   "integrations": {
+    "detailTabs": "Szczegóły integracji",
+    "variablesTab": "Zmienne",
+    "readmeTab": "README",
+    "readmeUnavailable": "Dokumentacja jest niedostępna.",
+    "about": "Informacje",
+    "versionLabel": "Wersja",
+    "authorLabel": "Autor",
+    "sourceLabel": "Źródło",
+    "backToIntegrations": "Wróć do integracji",
+    "reconnectTitle": "Połącz ponownie {name}",
+    "reconnectConsequence": "Dane stron korzystających z tej integracji mogą być niedostępne lub nieaktualne do czasu ponownego połączenia.",
+    "setupConsequence": "Uzupełnij ustawienia, aby strony mogły korzystać z danych tej integracji.",
+    "noVariables": "Ta integracja nie udostępnia zmiennych szablonu.",
+    "needsAttention": "Wymaga uwagi",
+    "setUpAction": "Skonfiguruj",
+    "integrationSettings": "Ustawienia integracji",
+    "sortInstalled": "Sortuj zainstalowane integracje",
+    "sortMarketplace": "Sortuj wyniki katalogu",
+    "sortAscending": "rosnąco",
+    "sortDescending": "malejąco",
     "title": "Integracje",
     "description": "Włącz i skonfiguruj wtyczki źródeł danych dla swojego FiestaBoard",
     "totalLabel": "Łącznie:",
@@ -1043,7 +1065,8 @@
         "modelsAfterSave": "Zapisz zmiany, aby wybrać spośród modeli dostawcy."
       },
       "addModel": "Dodaj model",
-      "refreshModels": "Odśwież modele"
+      "refreshModels": "Odśwież modele",
+      "promptDestination": "Prompty są wysyłane do {destination}"
     },
     "backup": {
       "cardTitle": "Kopia zapasowa i przywracanie",
@@ -1077,11 +1100,11 @@
         },
         "appearance": {
           "title": "Wygląd",
-          "description": "Jak FiestaBoard wygląda w tej przeglądarce."
+          "description": "Motyw tej przeglądarki; ruch podglądów dla wszystkich użytkowników huba."
         },
         "accessibility": {
           "title": "Dostępność",
-          "description": "Ruch i wygoda czytania w tej przeglądarce."
+          "description": "Preferencje ruchu i animacji"
         },
         "network": {
           "title": "Sieć",
@@ -1097,13 +1120,40 @@
         },
         "language-time": {
           "title": "Język i czas",
-          "description": "Używane przez hub w Harmonogramie, zmiennych czasu i każdym znaczniku czasu."
+          "description": "Język tej przeglądarki; zegar huba i czas harmonogramu."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "Preferencje i rozmowy FiestaBot."
         },
         "notifications": {
           "title": "Powiadomienia",
           "description": "Wybierz, czy Twoje konto i ta przeglądarka mogą otrzymywać alerty z centrum."
         }
       }
+    },
+    "panels": {
+      "theme": "Motyw",
+      "browserTheme": "Tylko w tej przeglądarce.",
+      "motionScope": "Preferencje ruchu dotyczą wszystkich użytkowników tego huba."
+    },
+    "fiestabot": {
+      "title": "Zmiany, panel i historia",
+      "scope": "Tryb zatwierdzania w panelu dotyczy wszystkich użytkowników tego huba.",
+      "unavailable": "Osobiste preferencje zatwierdzania, panelu i historii nie są jeszcze dostępne.",
+      "open": "Otwórz FiestaBot",
+      "setup": "Skonfiguruj dostawcę AI",
+      "needsSetup": "FiestaBot wymaga włączenia AI i skonfigurowania dostawcy na tym hubie.",
+      "checking": "Sprawdzanie dostępności FiestaBot…",
+      "checkFailed": "Nie udało się sprawdzić dostępności FiestaBot.",
+      "retry": "Spróbuj ponownie"
+    },
+    "addresses": {
+      "title": "Adresy",
+      "description": "Jak ta przeglądarka łączy się z hubem.",
+      "browser": "Ta przeglądarka używa",
+      "ip": "Adres IP zgłoszony przez hub",
+      "hint": "Hub może zgłaszać adres kontenera. Nie jest to zweryfikowany adres do łączenia innego urządzenia."
     }
   },
   "offline": {
@@ -2715,7 +2765,23 @@
     "fillSpaceTooltip": "Wypełnij przestrzeń — rozszerza się na pozostałą szerokość wiersza",
     "fillSpaceRepeatTooltip": "Wypełnij przestrzeń, powtarzając: {char}",
     "variableFilterTooltip": "Filtr: {filter}",
-    "variableMaxLengthTooltip": "Maksymalna długość: {maxLength} znaków"
+    "variableMaxLengthTooltip": "Maksymalna długość: {maxLength} znaków",
+    "tools": "Narzędzia edytora",
+    "formula": "Formuła",
+    "more": "Więcej",
+    "textColor": "Kolor tekstu",
+    "icon": "Ikona",
+    "size": "Rozmiar",
+    "brush": "Pędzel",
+    "drawDone": "Gotowe",
+    "align": "Wyrównaj",
+    "alignLeftShort": "Do lewej",
+    "alignCenterShort": "Do środka",
+    "alignRightShort": "Do prawej",
+    "wrapLine": "Zawijaj ten wiersz",
+    "clipboard": "Schowek",
+    "colorsHint": "Dotknij koloru, aby wstawić kafelek przy kursorze. Panel pozostaje otwarty, aby można było dodać kolejne; przesuń w dół, dotknij ✕ lub naciśnij Esc, aby zamknąć.",
+    "formattingHint": "Wypełnienie przestrzeni przesuwa resztę wiersza do prawej krawędzi; zawijanie pozwala kontynuować długą wartość w następnym wierszu. Działa w miejscu kursora."
   },
   "variablePicker": {
     "noVariablesAvailable": "Brak dostępnych zmiennych",
@@ -3667,6 +3733,33 @@
       "body": "Instalacja i praca offline wymagają bezpiecznego adresu. Jesteś pod http://{host}. Otwórz FiestaBoard pod adresem https albo skonfiguruj HTTPS dla huba.",
       "help": "Jak skonfigurować HTTPS"
     }
+  },
+  "editorTouch": {
+    "livePreview": "Podgląd na żywo",
+    "mirror": "Wyświetlaj na tablicy podczas edycji",
+    "mirroring": "Wyświetlanie na żywo",
+    "mirrorHint": "Wysyła po każdej przerwie w pisaniu. Zatrzymuje się po opuszczeniu edytora.",
+    "savedToPages": "Zapisano w Stronach",
+    "savedToPagesDescription": "{name} jest w Twojej bibliotece stron.",
+    "addToSchedule": "Dodaj do harmonogramu",
+    "showNow": "Wyświetl teraz",
+    "saved": "Zapisano",
+    "unsaved": "Niezapisane",
+    "unknownDisplay": "Nie można ustalić, co ten wyświetlacz potrafi wyświetlać",
+    "plainTextOnly": "Dostępny jest zwykły tekst. Kolory i narzędzia właściwe dla wyświetlacza są niedostępne.",
+    "targetUnavailable": "Ten wyświetlacz jest niedostępny do wyświetlania na żywo.",
+    "nameRequired": "Nadaj nazwę tej stronie",
+    "newerChangesUnsaved": "Zmiany wprowadzone podczas zapisywania nadal nie są zapisane. Zapisz ponownie przed ich wyświetleniem.",
+    "plainText": "Tekst zwykły",
+    "plainTemplate": "Szablon · tylko zwykły tekst",
+    "editorTools": "Narzędzia edytora",
+    "displayToolsUnavailable": "Kolory i Formatowanie są niedostępne — nieznany typ wyświetlacza.",
+    "plainTemplateHelp": "Każdy wiersz jest wysyłany dokładnie tak, jak go wpiszesz. Nie można sprawdzić szerokości ani znaków dla tego wyświetlacza.",
+    "emptyPrompt": "Wpisz treść, którą ma wyświetlać {board}…",
+    "thisDisplay": "ten wyświetlacz",
+    "startFrom": "Lub zacznij od",
+    "insertVariable": "Wstaw zmienną",
+    "browseStaffPicks": "Przeglądaj Polecane"
   },
   "phonePairing": {
     "title": "Połącz telefon",

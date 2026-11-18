@@ -10,8 +10,10 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 
 from src.api_errors import errors
+from src.auth import phone_policy
 from src.display_runtime import reinitialize_board_clients
 
 from .actions import list_outputs, run_draft_action, run_saved_action
@@ -212,7 +214,25 @@ async def run_output_action(
 async def run_board_action(
     board_id: str, action: str, request: SavedBoardActionRequest, http_request: Request
 ) -> ActionResult:
+    if request.output_config and phone_policy.is_phone(http_request):
+        # H21a: a phone that tests edited connection settings types the key
+        # again; a stored secret is never sent to settings the phone just chose.
+        from src.settings.phone_displays import action_moves_a_stored_secret
+
+        stored = _saved_board(board_id)
+        if stored is not None and action_moves_a_stored_secret(request.output_config, stored):
+            return JSONResponse(
+                phone_policy.key_required_body("Enter the key again to test changed connection settings."),
+                status_code=400,
+            )
     return await board_action(board_id, action, request, client_hint=client_lan_hint(http_request))
+
+
+def _saved_board(board_id: str) -> dict | None:
+    from src.settings.service import get_settings_service
+
+    boards = get_settings_service().get_board_settings().boards or []
+    return next((dict(b) for b in boards if isinstance(b, dict) and b.get("id") == board_id), None)
 
 
 async def board_action(

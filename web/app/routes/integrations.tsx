@@ -5,7 +5,7 @@ import { Outlet } from "react-router";
 
 import { PluginUpdateCheckButton } from "@/components/plugin-updates-control";
 import { SectionShell } from "@/components/section-shell";
-import { useParams } from "@/hooks/use-router";
+import { useParams, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
@@ -35,6 +35,9 @@ export function IntegrationsSection({ children }: { children: React.ReactNode })
   const tDetail = useTranslations("pluginDetail");
   const tCommon = useTranslations("common");
   const { pluginId } = useParams<{ pluginId?: string }>();
+  const searchParams = useSearchParams();
+  const { data: installed } = useQuery({ queryKey: ["plugins"], queryFn: api.listPlugins, enabled: !!pluginId });
+  const installedPlugin = installed?.plugins.find((plugin) => plugin.id === pluginId);
 
   // The same query the plugin page reads, so the name is in hand from cache.
   const { data: registry, isLoading } = useQuery({
@@ -43,7 +46,7 @@ export function IntegrationsSection({ children }: { children: React.ReactNode })
     staleTime: 5 * 60 * 1000,
     enabled: !!pluginId,
   });
-  const entry = pluginId ? registry?.entries.find((e) => e.id === pluginId) : undefined;
+  const entry = installedPlugin || (pluginId ? registry?.entries.find((e) => e.id === pluginId) : undefined);
   const category = entry?.category ?? "utility";
   const categoryLabel = CATEGORY_KEYS.has(category) ? tDetail(`categories.${category}`) : category;
 
@@ -76,7 +79,10 @@ export function IntegrationsSection({ children }: { children: React.ReactNode })
         title: entry?.name ?? (isLoading ? tCommon("loading") : pluginId),
         description: about || undefined,
         // Plugin pages are opened from the Marketplace; going back lands on it.
-        backHref: "/integrations?tab=marketplace",
+        backHref:
+          installedPlugin || searchParams.get("from") === "installed"
+            ? "/integrations?tab=installed"
+            : "/integrations?tab=marketplace",
       }
     : null;
 

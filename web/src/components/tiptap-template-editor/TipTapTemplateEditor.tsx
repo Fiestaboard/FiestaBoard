@@ -157,6 +157,8 @@ interface TipTapTemplateEditorProps {
   drawBrush?: DrawBrush; // Currently selected draw brush (color, eraser, or stamp character)
   onDrawBrushChange?: (brush: DrawBrush) => void; // Change the draw brush
   onDrawHistoryEvent?: (event: DrawHistoryEvent) => void; // Undo/redo crossed a history step (stroke or not)
+  toolbarContainer?: Element | null;
+  toolbarMoreContent?: ReactNode;
   toolbarTrailing?: ReactNode; // Pinned to the toolbar row's right end (the "? All shortcuts" hint)
 }
 
@@ -190,6 +192,8 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       onDrawBrushChange,
       onDrawHistoryEvent,
       toolbarTrailing,
+      toolbarMoreContent,
+      toolbarContainer,
     },
     ref,
   ) {
@@ -1271,6 +1275,8 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             drawBrush={drawBrush}
             onDrawBrushChange={onDrawBrushChange}
             trailing={toolbarTrailing}
+            moreContent={toolbarMoreContent}
+            container={toolbarContainer}
           />
         )}
 

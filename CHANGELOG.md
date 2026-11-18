@@ -1,5 +1,53 @@
 # fiestaboard
 
+## 11.0.0-alpha.9
+
+### Minor Changes
+
+- [#2538](https://github.com/Fiestaboard/FiestaBoard/pull/2538) [`e54c7f3`](https://github.com/Fiestaboard/FiestaBoard/commit/e54c7f3f976df281a33e5ed0113abfb0b2e05ed5) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The phone app can add, change and remove displays and change display settings. If you move a display to a new address from the phone, you have to enter its key again.
+
+- [#2537](https://github.com/Fiestaboard/FiestaBoard/pull/2537) [`addb149`](https://github.com/Fiestaboard/FiestaBoard/commit/addb149c6c35894d7312cb4c9b6e7524d86ed45d) Thanks [@jeffredodd](https://github.com/jeffredodd)! - FiestaBot works from the phone app. It can only do what the phone can do, and it always asks before sensitive actions, which also need your password re-entered.
+
+## 11.0.0-alpha.8
+
+### Minor Changes
+
+- [#2501](https://github.com/Fiestaboard/FiestaBoard/pull/2501) [`0afe3c8`](https://github.com/Fiestaboard/FiestaBoard/commit/0afe3c8137a280f90eb590df50c948b5935d20d4) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Keep the editor preview visible while editing on touch devices, add responsive kit toolbars and mirroring controls, and save Pages in place before showing them on a display.
+  
+  Keep plain-text tools and undo history available for unknown displays, offer starter actions on empty pages, and preserve toolbar landmarks, editor focus and the preview when the visible viewport contracts.
+
+- [#2536](https://github.com/Fiestaboard/FiestaBoard/pull/2536) [`5fd4b6b`](https://github.com/Fiestaboard/FiestaBoard/commit/5fd4b6bfb79c68a6a114f65084e85be04537f05a) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The phone app can change general settings and see Wi-Fi status. After you re-enter your password, it can also join or forget Wi-Fi networks, update or restart the hub, change AI providers, and export or restore backups. A phone's backup leaves out passwords and keys.
+
+- [#2535](https://github.com/Fiestaboard/FiestaBoard/pull/2535) [`33be4a0`](https://github.com/Fiestaboard/FiestaBoard/commit/33be4a0a9f03572165f9acb13cfbc44ee5413ded) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The phone app can install plugins from the plugin list, update them and remove them after you re-enter your password. Installing from a Git URL stays in the web app.
+
+- [#2534](https://github.com/Fiestaboard/FiestaBoard/pull/2534) [`823790a`](https://github.com/Fiestaboard/FiestaBoard/commit/823790ad684e0171c1511e417c6c76d00eafcfb0) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Phones can re-enter the account password to unlock sensitive actions for 10 minutes (step-up). The hub asks for it before those actions.
+
+### Patch Changes
+
+- [#2506](https://github.com/Fiestaboard/FiestaBoard/pull/2506) [`cd4cf4f`](https://github.com/Fiestaboard/FiestaBoard/commit/cd4cf4f147a5f7535682a3562be1131045f9a483) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Group integrations that need setup or reconnection, show settings beside the installed list on larger screens, and use compact marketplace results on phones.
+  
+  Open full integration details on phones, reconnect accounts, and browse settings, live variables and README documentation.
+
+- [#2503](https://github.com/Fiestaboard/FiestaBoard/pull/2503) [`60b33e0`](https://github.com/Fiestaboard/FiestaBoard/commit/60b33e0937ab358ca79e38d2ebb9c0ed56f66494) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Unify Home's silence and out-of-sync banners, retain held messages, and clearly pause sends with a last-known preview when the hub is unreachable.
+
+- [#2530](https://github.com/Fiestaboard/FiestaBoard/pull/2530) [`5e018c4`](https://github.com/Fiestaboard/FiestaBoard/commit/5e018c4534bc3075055e2ecd7b2e1a561c947e9b) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The hub's mDNS record now carries its `.local` host name (and its name while sign-in is off) for the TV and phone apps; the phone pairing QR skips a bridged Podman or Docker container's own address whatever its range; and a failed duplicate-display check during a connection test now reads as "not checked" instead of "none found".
+
+- [#2539](https://github.com/Fiestaboard/FiestaBoard/pull/2539) [`a341b0f`](https://github.com/Fiestaboard/FiestaBoard/commit/a341b0ff4aad4d3935bff83583051b935b2d6cb5) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Stop the docs link check from failing CI when a linked host returns a transient 502/503/504; broken links (404s) still fail.
+
+- [#2527](https://github.com/Fiestaboard/FiestaBoard/pull/2527) [`69b0d8c`](https://github.com/Fiestaboard/FiestaBoard/commit/69b0d8c3a93c027d9ebecc40412e29e084939118) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Distinguish failed notification tests from skipped tests in every language and remove unused notification translations.
+
+- [#2531](https://github.com/Fiestaboard/FiestaBoard/pull/2531) [`966bc2a`](https://github.com/Fiestaboard/FiestaBoard/commit/966bc2ad15ff6b42b711e560af75ea170d4c4d4a) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The display connection test now applies the same host checks as the Local API enablement step.
+
+- [#2502](https://github.com/Fiestaboard/FiestaBoard/pull/2502) [`566125d`](https://github.com/Fiestaboard/FiestaBoard/commit/566125d84af677277ef9dac3a310e9d0dbc656cc) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Refresh Schedule with responsive day, list and week views and read-only previews of what a display will show at a chosen time.
+
+- [#2507](https://github.com/Fiestaboard/FiestaBoard/pull/2507) [`c5a403f`](https://github.com/Fiestaboard/FiestaBoard/commit/c5a403f730fdb92be91fab48565a9f3242f8e6af) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Present Settings in individual responsive panels, clarify browser and hub preference scope, and add a FiestaBot section that explains currently supported behavior.
+
+- [#2505](https://github.com/Fiestaboard/FiestaBoard/pull/2505) [`1307989`](https://github.com/Fiestaboard/FiestaBoard/commit/1307989f0b36dfc8b2fb1e9e1dc7e3d4ff3d51d8) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Add atomic, display and session scoped cancellation receipts for restoring a temporary override without replacing newer display changes or extending its original expiry.
+
+- [#2499](https://github.com/Fiestaboard/FiestaBoard/pull/2499) [`e83731f`](https://github.com/Fiestaboard/FiestaBoard/commit/e83731f19c8a45f3e2425d96dd9507e58b11b3fd) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Group Displays by health and show the selected display’s preview, settings, playback and diagnostics beside the list on larger screens.
+
+- [#2532](https://github.com/Fiestaboard/FiestaBoard/pull/2532) [`6098848`](https://github.com/Fiestaboard/FiestaBoard/commit/60988488396a4837ab919d5177e2d659d1b8b157) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Home explains why "Show again" is unavailable while a display is paused, quotes held messages with each language's quotation marks, and no longer starts the out-of-sync sentence with a stray space. Plural selection falls back to English rules instead of failing on an unknown language tag.
+
 ## 11.0.0-alpha.7
 
 ### Patch Changes

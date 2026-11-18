@@ -17,12 +17,15 @@ to declare and no failure of its own to document.
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi.responses import JSONResponse
 
 from src.api_errors import errors
+from src.auth import phone_policy
 
 from .models import BackupDocument, BackupImportResponse
 
@@ -32,19 +35,27 @@ router = APIRouter(tags=["backup"])
 
 
 @router.get("/backup/export")
-async def export_backup():
+async def export_backup(request: Request = None):
     """Download a JSON file containing all user data (config, settings,
     pages, collections, schedules, and metadata for installed external
     plugins).
 
     The file can be re-uploaded to ``/backup/import`` on a new instance
     to migrate or restore a configuration.
+
+    From a phone (step-up required) the file is **redacted**: passwords,
+    keys and tokens are replaced by ``***`` and the file says so.
     """
     from . import get_backup_service
 
-    payload = get_backup_service().export_to_json()
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    filename = f"fiestaboard-backup-{timestamp}.json"
+    if phone_policy.is_phone(request):
+        document = phone_policy.redact_backup(get_backup_service().build_backup())
+        payload = json.dumps(document, indent=2, sort_keys=False)
+        filename = f"fiestaboard-backup-redacted-{timestamp}.json"
+    else:
+        payload = get_backup_service().export_to_json()
+        filename = f"fiestaboard-backup-{timestamp}.json"
     return Response(
         content=payload,
         media_type="application/json",
@@ -58,6 +69,7 @@ async def export_backup():
 @router.post("/backup/import", response_model=BackupImportResponse, responses=errors(400, 500))
 async def import_backup(
     payload: BackupDocument,
+    request: Request = None,
     reinstall_plugins: bool = Query(True),
 ):
     """Restore a backup file produced by ``/backup/export``.
@@ -68,6 +80,18 @@ async def import_backup(
     change takes effect without restarting the container.
     """
     from . import BackupError, BackupRestoreAborted, get_backup_service
+
+    if reinstall_plugins and phone_policy.is_phone(request):
+        # H21d: re-cloning plugins from a backup runs code from the file's Git
+        # URLs, which stays browser-only. A phone restores with it off.
+        return JSONResponse(
+            {
+                "error": "browser_only",
+                "detail": "Reinstalling plugins from a backup is only available in the web app. "
+                "Send reinstall_plugins=false to restore from this phone.",
+            },
+            status_code=400,
+        )
 
     # ``exclude_unset`` keeps the document byte-for-byte what was uploaded:
     # a key the file did not carry must stay absent, not arrive as an

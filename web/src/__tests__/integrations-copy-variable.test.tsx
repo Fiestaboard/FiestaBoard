@@ -10,6 +10,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
 import IntegrationsPage from "../../app/routes/integrations._index";
+import { integrationDesktop, openIntegration } from "./integrations-test-helpers";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -88,6 +89,7 @@ function renderPage() {
       mutations: { retry: false },
     },
   });
+  integrationDesktop();
   return render(
     <QueryClientProvider client={queryClient}>
       <IntegrationsPage />
@@ -101,7 +103,7 @@ describe("Integrations — Template Variables copy", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click((await screen.findAllByRole("button", { name: /configure/i }))[0]);
+    await openIntegration(user, "Variables");
     await user.click(await screen.findByRole("button", { name: /copy date_time\.time/i }));
 
     await expect(navigator.clipboard.readText()).resolves.toBe("{{date_time.time}}");

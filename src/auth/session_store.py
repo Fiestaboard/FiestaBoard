@@ -148,6 +148,10 @@ class SessionStore:
                 created_ms INTEGER NOT NULL, expires_ms INTEGER NOT NULL)""")
             db.execute("""CREATE TABLE IF NOT EXISTS session_approvals (
                 session_id TEXT PRIMARY KEY, approver_session_id TEXT NOT NULL)""")
+            # H21s: a phone session's step-up (password re-entry) window. Bound to
+            # the session id and never a credential of its own. Additive.
+            db.execute("""CREATE TABLE IF NOT EXISTS session_elevations (
+                session_id TEXT PRIMARY KEY, expires_ms INTEGER NOT NULL)""")
             db.execute("PRAGMA user_version = 1")
 
     @contextmanager
@@ -180,6 +184,11 @@ class SessionStore:
             "DELETE FROM session_approvals WHERE session_id NOT IN (SELECT id FROM sessions WHERE revoked_ms IS NULL)"
         )
         db.execute("DELETE FROM panel_views WHERE session_id NOT IN (SELECT id FROM sessions WHERE revoked_ms IS NULL)")
+        db.execute(
+            "DELETE FROM session_elevations WHERE expires_ms <= ? "
+            "OR session_id NOT IN (SELECT id FROM sessions WHERE revoked_ms IS NULL)",
+            (now,),
+        )
 
     def create_session(self, record: SessionRecord, *, connection: sqlite3.Connection | None = None) -> None:
         if connection is None:
@@ -230,6 +239,34 @@ class SessionStore:
                 "UPDATE pairings SET state='cancelled' WHERE creator_session_id=? AND state='pending'",
                 (session_id,),
             )
+
+    # -- H21s: step-up elevation -------------------------------------------
+
+    def elevate(self, session_id: str, ttl_ms: int) -> int:
+        """Mark *session_id* as stepped up for *ttl_ms*; returns when that ends (ms)."""
+        until = self.clock_ms() + ttl_ms
+        with self.transaction() as db:
+            self.cleanup(db)
+            db.execute("INSERT OR REPLACE INTO session_elevations VALUES (?, ?)", (session_id, until))
+        return until
+
+    def elevated_until(self, session_id: str) -> int | None:
+        """When *session_id*'s step-up ends, or None if it has none.
+
+        A revoked or expired session never counts as elevated, whatever the row says.
+        """
+        now = self.clock_ms()
+        with self.transaction() as db:
+            row = db.execute(
+                """SELECT e.expires_ms FROM session_elevations e JOIN sessions s ON s.id = e.session_id
+                WHERE e.session_id=? AND e.expires_ms>? AND s.revoked_ms IS NULL AND s.expires_ms>?""",
+                (session_id, now, now),
+            ).fetchone()
+        return row["expires_ms"] if row else None
+
+    def drop_elevation(self, session_id: str) -> None:
+        with self.transaction() as db:
+            db.execute("DELETE FROM session_elevations WHERE session_id=?", (session_id,))
 
     def revoke_sessions(self, username: str, except_id: str | None = None) -> None:
         with self.transaction() as db:

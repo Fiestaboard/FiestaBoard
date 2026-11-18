@@ -238,8 +238,8 @@ controls new phone sign-ins, as it does for TVs. A phone can also pair with a QR
 instead of a password (see below). The TV-style code on `/activate` is not offered to
 phones.
 
-A phone credential can do what the app needs: show and change what each display
-shows, start and end overrides, edit pages, collections and schedules, configure
+A phone credential can do what the app needs: add, change and remove displays (every
+display type, MQTT included), show and change what each display shows, start and end overrides, edit pages, collections and schedules, configure
 installed integrations and their sign-ins, manage TVs, run device actions such as
 **Identify**, and read status and diagnostics. It also has the whole `/v1` API.
 
@@ -247,10 +247,82 @@ A phone credential **cannot**:
 
 - manage accounts, passwords, signed-in browsers or phones, or the API token;
 - create pairing codes for other phones;
-- export or import backups;
-- change the hub's network, update channel or software, or restart it;
-- install, update or remove plugins or outputs;
-- read stored secrets, or change AI, MQTT or display connection settings.
+- export a backup with its secrets, or reinstall plugins while restoring a backup;
+- change the update channel, turn automatic updates on or off, or roll back an update;
+- install plugins from a Git URL, or install outputs;
+- read stored secrets, or change MQTT settings (except by restoring a backup, which needs
+  step-up);
+- move an AI provider or a display to new connection settings without typing its key
+  again.
+
+### Step-up on the phone
+
+Some phone actions ask for your password again first. They are called **step-up**
+actions. When the hub answers one with `403` and `"error": "step_up_required"`, the
+app asks for the account password and sends it to `POST /auth/device/elevate`.
+
+- A correct password lets **this phone** do step-up actions for **10 minutes**.
+  Other phones, TVs and browsers don't get it.
+- Wrong passwords count toward the same lockout as signing in. Each phone can also try
+  at most 10 times a minute.
+- The step-up is never a new credential. It ends when the 10 minutes are up, when the
+  app ends it (`DELETE /auth/device/elevate`), or when this phone is signed out.
+- `GET /auth/device/elevate` says whether the phone is stepped up, and for how long.
+
+These actions need step-up on the phone:
+
+- installing a plugin from the plugin list, updating one or all plugins, and removing
+  a plugin;
+- joining, disconnecting from or forgetting a Wi-Fi network;
+- updating the hub's software, restarting the hub and shutting it down;
+- changing AI provider settings;
+- exporting a backup and restoring one.
+
+A phone's backup is **redacted**: passwords, keys and tokens are replaced with `***`,
+and the file says so. If you restore it, enter those secrets again afterwards. A phone
+restores a backup without reinstalling its plugins (`reinstall_plugins=false`).
+
+A phone reads AI provider keys and custom header values as `***`. If it changes a
+provider's address or protocol, it has to send the key again, or the hub answers `400`
+with `"error": "key_required"`. A phone can test a saved provider. It can test an
+unsaved one only with the key typed in.
+
+A phone reads display and plugin keys as `***`. If it changes where a saved key is
+sent (a display's or tile's address, port or mode, or a plugin's address, protocol or
+sign-in settings), it has to send the key again, or the hub answers `400` with
+`"error": "key_required"`. Other edits, such as renaming a display, moving or switching
+off a tile, or changing a plugin's other settings, keep the stored key. A connection
+test on edited settings follows the same rule, and so does FiestaBot. Leaving a
+display's key out of a save clears it.
+
+Checking for plugin updates doesn't need step-up. Neither do general settings
+(`PUT /config/general`), reading Wi-Fi status, saved networks and scan results, or
+reading and testing AI providers. Installing a plugin from a Git URL
+stays in the web app.
+
+### FiestaBot on the phone
+
+A phone can chat with FiestaBot (`POST /pages/ai/chat`) and run its operations
+(`POST /ai/operations`). FiestaBot can only do what the phone itself may do:
+
+- Tools that match what a phone can already do run as they do in the web app.
+- Step-up tools always stop for **Approve** on the phone, even with **Auto** approval
+  or "don't ask again". When an approved call runs, the phone also needs a live
+  step-up. If it has lapsed, the call is blocked with `step_up_required` and nothing
+  changes.
+- Everything else is blocked: installing from a Git URL, importing pages, adding or
+  changing displays, debug tools, and any tool the hub doesn't list for phones.
+  Through FiestaBot's settings tool, a phone can change only the active page, general,
+  display, transition, polling and location settings, the silence schedule and schedule
+  behaviour: the same settings its own routes reach.
+
+FiestaBot conversations are shared by everyone signed in to the hub, on any device.
+
+The hub checks every call when it runs, including one approved from an earlier
+message. What the app sends can't widen this.
+
+Step-up never opens account, password, session, pairing or API-token management to a
+phone.
 
 A phone can edit the non-secret fields of an installed integration, the same as the
 web app can. Stored secrets such as API keys stay masked, and the hub keeps the saved
@@ -284,9 +356,12 @@ credential as a password sign-in, listed in **Signed-in devices** as a QR / code
   hub's network address, or set `FIESTABOARD_EXTERNAL_URL`.
   `FIESTABOARD_EXTERNAL_URL` must be `scheme://host[:port]` with no path (a reverse
   proxy on a sub-path isn't supported here); a value that isn't is logged once and
-  skipped. In Docker's default bridge network the hub's own LAN address is the
-  container's, so it's left out; with `network_mode: host` it's kept. If you removed
-  Docker's default bridge, set `FIESTABOARD_EXTERNAL_URL` instead.
+  skipped. In a bridged Docker or Podman container the hub's own LAN address is the
+  container's, whatever its range, so it's left out; with host networking
+  (`network_mode: host`, `--network host`) it's kept. Some setups read as bridged even
+  though the address is reachable: a container on a `macvlan` or `ipvlan` network, rootless
+  Podman with `--network host`, or a host with Docker's or Podman's default bridge
+  (`docker0`, `podman0`) removed. In those, set `FIESTABOARD_EXTERNAL_URL`.
 
 The endpoints are `POST /auth/pairing` (browser session), `GET /auth/pairing/{id}`,
 `DELETE /auth/pairing` and `POST /auth/pairing/claim` (the app).

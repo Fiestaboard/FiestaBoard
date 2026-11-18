@@ -105,7 +105,11 @@ export const EDITOR_OVERLAY_ATTR = "data-editor-overlay";
 
 /** An open modal (`aria-modal`) or app overlay owns the keyboard. */
 export function hasOpenOverlay(doc: Document = document): boolean {
-  return doc.querySelector(`[aria-modal="true"], [${EDITOR_OVERLAY_ATTR}]`) !== null;
+  return Array.from(doc.querySelectorAll(`[aria-modal="true"], [${EDITOR_OVERLAY_ATTR}]`)).some(
+    // Closed drawers may stay mounted for their exit animation and retain
+    // modal semantics. Their hidden/inert subtree does not own the keyboard.
+    (overlay) => !overlay.closest('[aria-hidden="true"], [inert], [hidden]'),
+  );
 }
 
 function toChords(keys: EditorShortcut["keys"]): readonly ShortcutChord[] {

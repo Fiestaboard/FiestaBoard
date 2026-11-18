@@ -113,7 +113,8 @@ it.each(["scanned", "manual"])("moves keyboard focus to the consent heading for 
     await user.click(screen.getByRole("button", { name: "Continue" }));
   }
   const heading = await screen.findByRole("heading", { name: "Allow this TV?" });
-  expect(heading).toHaveFocus();
+  // The heading mounts before the route's focus effect has necessarily run.
+  await waitFor(() => expect(heading).toHaveFocus());
   expect(approved).toBe(0);
   await userEvent.tab();
   expect(screen.getByRole("button", { name: "Allow this TV" })).toHaveFocus();

@@ -184,7 +184,7 @@ test.describe("Page Management", () => {
     await page.getByRole("button", { name: /New/ }).click();
 
     // Wait for the page builder to appear
-    await expect(page.getByText("Create Page").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("#page-name")).toBeVisible({ timeout: 10_000 });
 
     // Fill in page name
     const nameInput = page.getByPlaceholder("My Custom Page");
