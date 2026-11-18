@@ -210,8 +210,9 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
     private runtime, never a board's live one — and its verdict
     (:meth:`~src.outputs.hooks.ConnectionCheck.to_verdict`, the outcome's
     ``detail``) is the response. Which credential is missing (in the recorded
-    order) and the host's shape are the action's refusals; the local-network
-    host check runs here, before the action, once those cannot fire first.
+    order) is the action's refusal. Once a key and host are both given, the
+    host's shape and then its local-network check run here, before the action
+    (which checks the shape again for its other callers).
 
     That contract used to be recorded as a ``no_200_on_failure`` exception in
     ``tests/conventions_manifest.json``; the rule reads the *handler's* AST, so
