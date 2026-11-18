@@ -108,18 +108,13 @@ export function findLine(diagnostics: RenderDiagnostics | null | undefined, line
 }
 
 /**
- * Whether any template line holds a `{{= … }}` formula atom. A `{{=` inside a
- * quoted string is literal text and does not count, so only pages with real
- * formulas ask a render for H5 diagnostics.
+ * Whether any template line holds a `{{= … }}` formula atom, using the hub's
+ * `_FORMULA_PATTERN` so only pages with real formulas ask a render for H5
+ * diagnostics. Template text has no string syntax, so a `"` (an inch mark)
+ * before the atom does not hide it.
  */
+const FORMULA_ATOM = /\{\{=[^}{]*\}\}/;
+
 export function templateHasFormula(template: readonly string[]): boolean {
-  return template.some((line) => {
-    let inString = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') inString = !inString;
-      else if (!inString && line.startsWith("{{=", i)) return true;
-    }
-    return false;
-  });
+  return template.some((line) => FORMULA_ATOM.test(line));
 }

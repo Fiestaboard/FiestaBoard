@@ -123,7 +123,11 @@ describe("templateHasFormula", () => {
     const { templateHasFormula } = await import("@/lib/formula-ide/hints");
     expect(templateHasFormula(["HI", '{{= IF(1, "A", "B") }}'])).toBe(true);
   });
-  it("ignores {{= inside a quoted formula string and in plain text", async () => {
+  it("finds a formula after an inch mark on the same line", async () => {
+    const { templateHasFormula } = await import("@/lib/formula-ide/hints");
+    expect(templateHasFormula(['12" PIZZA {{= price }}'])).toBe(true);
+  });
+  it("ignores an unclosed {{= and plain text", async () => {
     const { templateHasFormula } = await import("@/lib/formula-ide/hints");
     expect(templateHasFormula(['SAY "{{=" LOUD', "no braces"])).toBe(false);
     expect(templateHasFormula([])).toBe(false);
