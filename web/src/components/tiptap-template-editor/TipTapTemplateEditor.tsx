@@ -1313,8 +1313,8 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                     style={{
                       height: `${lineHeights[i] ?? 24}px`,
                       lineHeight: "1.5rem",
+                      // Muted, not faded: 40 % opacity failed AA contrast (axe, 2.9).
                       color: i === currentLineIndex ? "var(--foreground)" : "var(--muted-foreground)",
-                      opacity: i === currentLineIndex ? 0.7 : 0.4,
                     }}
                   >
                     {i + 1}

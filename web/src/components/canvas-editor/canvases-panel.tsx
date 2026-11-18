@@ -35,6 +35,7 @@ import { CanvasAreaPicker } from "@/components/canvas-editor/canvas-area-picker"
 import { CanvasDrawTab } from "@/components/canvas-editor/canvas-draw-tab";
 import { CanvasShapesEditor } from "@/components/canvas-editor/canvas-shapes-editor";
 import { CanvasSourcePicker } from "@/components/canvas-editor/canvas-source-picker";
+import { CanvasLayers } from "@/components/complex-editing/canvas-layers";
 import { useTranslations } from "@/i18n/translations";
 import type { Canvas, CanvasArea, CanvasBleedSide, CanvasContent, CanvasIssue } from "@/lib/api";
 import {
@@ -466,6 +467,11 @@ function CanvasEditor({
           <CanvasSourcePicker source={canvas.source} onChange={(source) => onChange({ ...canvas, source })} />
         </TabsContent>
       </Tabs>
+      <CanvasLayers
+        canvasId={canvas.id}
+        shapes={canvas.content?.shapes ?? []}
+        onShapesChange={(shapes) => setContent({ ...(canvas.content ?? {}), shapes })}
+      />
     </Stack>
   );
 }

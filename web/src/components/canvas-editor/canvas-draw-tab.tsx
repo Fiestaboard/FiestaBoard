@@ -4,10 +4,12 @@
 // canvas (brush, eraser, fill bucket, eyedropper, any RGB colour) that writes
 // the canvas's `content.pixels` + `palette` (design PIXEL_CANVAS.md §5).
 
-import { Box, Button, Flex, Input, Label, Stack, Switch, Text, Toggle, ToggleGroup } from "@fiestaboard/ui";
-import { Eraser, Paintbrush, PaintBucket, Pipette, Trash2, ZoomIn, ZoomOut } from "lucide-react";
+import { Box, Button, Flex, Input, Label, Stack, Switch, Text, ToolRail, type ToolRailTool } from "@fiestaboard/ui";
+import { Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { useCanvasHistory } from "@/components/complex-editing/use-canvas-history";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import type { CanvasContent } from "@/lib/api";
 import {
@@ -23,6 +25,11 @@ import {
 export type PadTool = "brush" | "eraser" | "fill" | "picker";
 
 const ZOOMS = [2, 4, 6, 8, 12, 16];
+
+/** The pad's tools in 04b's Tool rail (`135:140352`); shapes on the pad are not built yet (DD-W). */
+const RAIL_TOOLS: readonly ToolRailTool[] = ["brush", "eraser", "fill", "eyedropper"];
+const toRail = (tool: PadTool): ToolRailTool => (tool === "picker" ? "eyedropper" : tool);
+const fromRail = (tool: ToolRailTool): PadTool => (tool === "eyedropper" ? "picker" : (tool as PadTool));
 const DEFAULT_ZOOM_INDEX = 3;
 
 interface CanvasDrawTabProps {
@@ -37,6 +44,9 @@ interface CanvasDrawTabProps {
 /** Draw tab: tool bar + pixel pad. Painting writes `pixels`/`palette` and pins `size` to the pad. */
 export function CanvasDrawTab({ content, source, width, height, onContentChange }: CanvasDrawTabProps) {
   const t = useTranslations("canvasEditor");
+  const tRail = useTranslations("complexEditing");
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  const history = useCanvasHistory(content, onContentChange);
   const [tool, setTool] = useState<PadTool>("brush");
   const [color, setColor] = useState("#ff0000");
   const [hexDraft, setHexDraft] = useState("#ff0000");
@@ -58,12 +68,12 @@ export function CanvasDrawTab({ content, source, width, height, onContentChange 
         );
         const { palette, pixels } = encodePixels(next, content?.palette ?? {}, references);
         setError(null);
-        onContentChange({ ...(content ?? {}), size: content?.size ?? [width, height], palette, pixels });
+        history.commit({ ...(content ?? {}), size: content?.size ?? [width, height], palette, pixels });
       } catch {
         setError(t("tooManyColors", { max: MAX_PALETTE_COLORS }));
       }
     },
-    [content, grid, height, onContentChange, t, width],
+    [content, grid, height, history, t, width],
   );
 
   const chooseColor = (value: string) => {
@@ -80,25 +90,6 @@ export function CanvasDrawTab({ content, source, width, height, onContentChange 
         </Text>
       )}
       <Flex align="center" gap="2" className="flex-wrap">
-        <ToggleGroup
-          aria-label={t("toolsLabel")}
-          segmented
-          value={[tool]}
-          onValueChange={(values) => values[0] && setTool(values[0] as PadTool)}
-        >
-          <Toggle value="brush" size="icon-sm" aria-label={t("toolBrush")}>
-            <Paintbrush aria-hidden="true" />
-          </Toggle>
-          <Toggle value="eraser" size="icon-sm" aria-label={t("toolEraser")}>
-            <Eraser aria-hidden="true" />
-          </Toggle>
-          <Toggle value="fill" size="icon-sm" aria-label={t("toolFill")}>
-            <PaintBucket aria-hidden="true" />
-          </Toggle>
-          <Toggle value="picker" size="icon-sm" aria-label={t("toolPicker")}>
-            <Pipette aria-hidden="true" />
-          </Toggle>
-        </ToggleGroup>
         <Flex align="center" gap="1.5">
           <Label htmlFor={colorId} className="sr-only">
             {t("colorLabel")}
@@ -156,21 +147,50 @@ export function CanvasDrawTab({ content, source, width, height, onContentChange 
       <Text size="xs" tone="muted">
         {t("padSize", { width, height })}
       </Text>
-      <PixelPad
-        grid={grid}
-        tool={tool}
-        color={color}
-        zoom={ZOOMS[zoomIndex]}
-        showGrid={showGrid}
-        onChange={commit}
-        onPick={(picked) => {
-          if (picked) {
-            setColor(picked);
-            setHexDraft(picked);
-          }
-          setTool("brush");
-        }}
-      />
+      <Flex gap="3" className={desktop ? "flex-row items-start" : "flex-col"}>
+        <ToolRail
+          className="shrink-0 self-start"
+          orientation={desktop ? "vertical" : "horizontal"}
+          tools={RAIL_TOOLS}
+          selected={toRail(tool)}
+          onSelectedChange={(next) => setTool(fromRail(next))}
+          onUndo={history.undo}
+          onRedo={history.redo}
+          canUndo={history.canUndo}
+          canRedo={history.canRedo}
+          labels={{
+            rail: tRail("railLabel"),
+            tools: t("toolsLabel"),
+            brush: t("toolBrush"),
+            eraser: t("toolEraser"),
+            fill: t("toolFill"),
+            eyedropper: t("toolPicker"),
+            pan: tRail("toolPan"),
+            rectangle: tRail("toolRectangle"),
+            circle: tRail("toolCircle"),
+            text: tRail("toolText"),
+            undo: tRail("undo"),
+            redo: tRail("redo"),
+          }}
+        />
+        <Box className="min-w-0">
+          <PixelPad
+            grid={grid}
+            tool={tool}
+            color={color}
+            zoom={ZOOMS[zoomIndex]}
+            showGrid={showGrid}
+            onChange={commit}
+            onPick={(picked) => {
+              if (picked) {
+                setColor(picked);
+                setHexDraft(picked);
+              }
+              setTool("brush");
+            }}
+          />
+        </Box>
+      </Flex>
       {error && (
         <Text size="xs" tone="destructive" role="alert">
           {error}
