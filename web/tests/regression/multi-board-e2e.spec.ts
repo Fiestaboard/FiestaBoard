@@ -290,7 +290,9 @@ test.describe("regression: multi-board — mixed fleet through the real UI", () 
     await page.getByRole("option", { name: "Note", exact: true }).click();
     await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });
 
-    await page.getByRole("button", { name: "Save" }).first().click();
+    // The page is live on Kitchen, so the header offers Save draft and
+    // Save & update board (04d decision 4, web 2.11); publishing is the latter.
+    await page.getByRole("button", { name: "Save & update board" }).click();
     await expect(page.getByRole("heading", { name: "Change board size?" })).toBeVisible({ timeout: 10_000 });
     await page.getByRole("button", { name: "Resize and save" }).click();
 

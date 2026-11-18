@@ -64,6 +64,7 @@ import { ArrowLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload, Variable, Za
 import {
   forwardRef,
   lazy,
+  type ReactNode,
   Suspense,
   useCallback,
   useEffect,
@@ -208,6 +209,21 @@ interface PageBuilderProps {
    * in the section's card as a block instead of a second card inside it.
    */
   embedded?: boolean;
+  /**
+   * Creator IDE seam (web 2.11): replaces the header's Save and Show now while
+   * a display shows the page (04d decision 4: Save draft / Save & update
+   * board). `save` runs the header Save exactly as its button does.
+   */
+  saveActions?: (actions: PageBuilderSaveActions) => ReactNode;
+}
+
+export interface PageBuilderSaveActions {
+  save: () => void;
+  saving: boolean;
+  disabled: boolean;
+  size: "touch" | "sm";
+  /** The header Save's AI-walkthrough anchor; spread it on the button that publishes. */
+  anchor: Record<string, string>;
 }
 
 /**
@@ -238,6 +254,8 @@ export interface PageBuilderHandle {
   stageDeviceType: (value: string) => void;
   discardStaging: () => void;
   reloadFromServer: () => Promise<void>;
+  /** Mirror to board is on: a display shows these edits (the IDE's Testing state). */
+  isMirroring: () => boolean;
 }
 
 interface PageSnapshot {
@@ -335,6 +353,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     onClose,
     onSave,
     embedded = false,
+    saveActions,
   },
   ref,
 ) {
@@ -877,6 +896,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     await queryClient.invalidateQueries({ queryKey: ["page", pageId] });
   }, [pageId, queryClient]);
 
+  // Read by the Creator IDE (Testing state); kept current where the state is declared.
+  const ideMirroringRef = useRef(false);
   useImperativeHandle(
     ref,
     (): PageBuilderHandle => ({
@@ -950,6 +971,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       },
       undo: handleUndoAi,
       canUndo: () => undoStackRef.current.length > 0,
+      isMirroring: () => ideMirroringRef.current,
     }),
     // undoVersion is intentionally a dep so the host re-reads canUndo()
     // when the stack changes (the function returned by canUndo always
@@ -986,6 +1008,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
+  useEffect(() => {
+    ideMirroringRef.current = liveOutputEnabled;
+  }, [liveOutputEnabled]);
   const [chosenLiveBoardId, setChosenLiveBoardId] = useState<string>("");
   // The board this page is previewed as: the live-output target, else the
   // board in context, when the page fits it; else any board it fits. Its
@@ -2613,6 +2638,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         return null;
       })();
 
+  const requestSave = () => {
+    if (!name.trim()) {
+      document.getElementById("page-name")?.focus();
+      return;
+    }
+    // A shrinking retarget loses content — confirm first.
+    if (isShrinkingRetarget) {
+      setConfirmRetargetOpen(true);
+    } else {
+      saveMutation.mutate();
+    }
+  };
+
   // Web 2.9 (04b): complex-editing lenses for big boards and note arrays on
   // the desktop pane, and the hub's real-width overflow check (H4) everywhere.
   const [previewStage, setPreviewStage] = useState<HTMLElement | null>(null);
@@ -2755,51 +2793,52 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               <Box hidden={dockedPreview} className={dockedPreview ? "hidden" : "contents"}>
                 <EditorShortcutList variant="header" {...shortcutListProps} />
               </Box>
-              <TooltipProvider skipDelayDuration={0}>
+              {saveActions ? (
                 <Flex align="center" gap="1.5" className="shrink-0 flex-nowrap">
-                  {/* Save button */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size={dockedPreview ? "touch" : "sm"}
-                        className="shrink-0 gap-1.5 px-3 text-sm"
-                        {...anchorProps("page-editor.save")}
-                        onClick={() => {
-                          if (!name.trim()) {
-                            document.getElementById("page-name")?.focus();
-                            return;
-                          }
-                          // A shrinking retarget loses content — confirm first.
-                          if (isShrinkingRetarget) {
-                            setConfirmRetargetOpen(true);
-                          } else {
-                            saveMutation.mutate();
-                          }
-                        }}
-                        disabled={saveMutation.isPending || stagingActive}
-                        aria-label={t("savePageAriaLabel")}
-                      >
-                        <Save className="h-3.5 w-3.5" />
-                        {saveMutation.isPending ? tCommon("saving") : t("savePage")}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <Text>{t("savePageTooltip")}</Text>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Button
-                    variant="brand"
-                    size={dockedPreview ? "touch" : "sm"}
-                    className="shrink-0 gap-1.5 px-3 text-sm"
-                    disabled={saveMutation.isPending || stagingActive || !selectedBoardId}
-                    onClick={() => requestShowNowRef.current()}
-                  >
-                    <Send className="size-4" />
-                    {tTouch("showNow")}
-                  </Button>
+                  {saveActions({
+                    save: requestSave,
+                    saving: saveMutation.isPending,
+                    disabled: saveMutation.isPending || stagingActive,
+                    size: dockedPreview ? "touch" : "sm",
+                    anchor: anchorProps("page-editor.save"),
+                  })}
                 </Flex>
-              </TooltipProvider>
+              ) : (
+                <TooltipProvider skipDelayDuration={0}>
+                  <Flex align="center" gap="1.5" className="shrink-0 flex-nowrap">
+                    {/* Save button */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size={dockedPreview ? "touch" : "sm"}
+                          className="shrink-0 gap-1.5 px-3 text-sm"
+                          {...anchorProps("page-editor.save")}
+                          onClick={requestSave}
+                          disabled={saveMutation.isPending || stagingActive}
+                          aria-label={t("savePageAriaLabel")}
+                        >
+                          <Save className="h-3.5 w-3.5" />
+                          {saveMutation.isPending ? tCommon("saving") : t("savePage")}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <Text>{t("savePageTooltip")}</Text>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Button
+                      variant="brand"
+                      size={dockedPreview ? "touch" : "sm"}
+                      className="shrink-0 gap-1.5 px-3 text-sm"
+                      disabled={saveMutation.isPending || stagingActive || !selectedBoardId}
+                      onClick={() => requestShowNowRef.current()}
+                    >
+                      <Send className="size-4" />
+                      {tTouch("showNow")}
+                    </Button>
+                  </Flex>
+                </TooltipProvider>
+              )}
             </Flex>
           </CardHeader>
 
