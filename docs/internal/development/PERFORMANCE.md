@@ -77,6 +77,41 @@ unreadable subdirectories, and malformed limits. Exit 0 means the raw-byte limit
 limit (report still written); 2 means invalid input. Gzip and file hashes remain
 diagnostic. Hosted `bundle-measurement` artifacts are retained for 30 days.
 
+## Re-baselining on a newer published alpha
+
+The baseline is always a **published** image, never a branch build. Move it
+forward when shipped features have used up the allowance (each alpha legitimately
+grows the bundle), not to let one PR through. Re-baselining applies the same
+110%-rounded-to-1 KiB rule to the new published sizes; it never adds extra
+headroom, and limits are never edited by hand.
+
+1. Pick the newest published, immutable alpha tag, for example
+   `v11-alpha-11.0.0-alpha.10`, and confirm its release run succeeded.
+2. Copy its served client out of the registry into an empty scratch directory.
+   The script verifies every layer digest and diff ID, replays only regular
+   files under `app/web/build/client` in layer order, fails closed on links or
+   whiteouts that touch that tree, and never runs the image or uses Docker:
+
+   ```sh
+   python3 scripts/perf/fetch_published_client.py \
+     --tag v11-alpha-11.0.0-alpha.10 --out /path/to/scratch/alpha10
+   ```
+
+3. Measure it and rewrite the committed sample and limits. The script refuses an
+   image whose `VERSION` environment does not match `--version`:
+
+   ```sh
+   python3 scripts/perf/rebaseline_bundle.py \
+     --fetched /path/to/scratch/alpha10 --version 11.0.0-alpha.10
+   ```
+
+   This writes `scripts/perf/published-v11-alpha10.json` (every path, size and
+   hash plus registry provenance) and points `bundle-budget.json` at it. Delete
+   the superseded sample in the same PR.
+4. Update the table under "Observed published bundle" with the new tag,
+   digests, measured values and ceilings, run the unit tests, and open the
+   re-baseline as its own reviewed PR.
+
 ## Runtime gates still open
 
 No API p95 baseline, LCP, INP, or memory-soak result is established by this PR.
