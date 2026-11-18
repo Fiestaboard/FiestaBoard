@@ -100,6 +100,8 @@ export default defineConfig({
         "src/components/board-init-error-banner.tsx",
         "src/components/silence-imminent-banner.tsx",
         "src/components/board-out-of-sync-banner.tsx",
+        // Slice 2.9: complex editing (04b).
+        "src/components/complex-editing/**",
       ],
       exclude: ["src/__tests__/**", "**/*.stories.tsx", "src/lib/ai-chat-types.ts"],
       thresholds: {

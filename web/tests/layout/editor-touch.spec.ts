@@ -68,6 +68,9 @@ async function mockEditorApi(page: Page, drawingSource: "profile" | "baseline" =
             fill_space: { syntax: "{{fill_space}}", description: "Fill the remaining line width" },
           },
         };
+      } else if (pathname === "/templates/validate") {
+        // 2.9: the editor's real-width overflow check (H4); nothing overflows here.
+        response = { valid: true, errors: [], rows: 6, cols: 22 };
       } else if (pathname === "/templates/render" || pathname === "/templates/render/live") {
         const request = route.request().postDataJSON() as { template: string | string[] };
         const template = Array.isArray(request.template) ? request.template.join("\n") : request.template;
