@@ -5,6 +5,7 @@ FiestaUI `8.17.0-alpha.3` (C30 ChoiceChip, C31 FormulaAtom, C32 TraceStep, C33 D
 Hub: H5 `diagnostics`, H6 `preview` + `sources`, H7 `debug.trace` / `debug.source_map` on `POST /templates/render`.
 
 ## Figma refs (shots/web-2.10/FIGMA-REFS.md)
+
 - 04c `111:30911` Code mode with autocomplete and inline value hints (1440).
 - 04c `118:5246` Builder, list recipe, column budget (1440).
 - 04c `132:20145` Inspect: click a cell → source, Steps, clip report (1440).
@@ -12,7 +13,9 @@ Hub: H5 `diagnostics`, H6 `preview` + `sources`, H7 `debug.trace` / `debug.sourc
 - 07c `307:45424` 390 long-press chip › Inspect bottom sheet (TraceStep per ruling).
 
 ## Design
+
 Pure logic (`web/src/lib/formula-ide/*`, unit tested first):
+
 - `api` client additions: `formulaDebugApi.render()` (diagnostics, preview, debug).
 - `hints`: H5 formula/line diagnostics → FormulaAtom value/state per formula source.
 - `data-source`: Live/Sample/Missing + render-at → H6 `preview` object; referenced plugin roots;
@@ -25,6 +28,7 @@ Pure logic (`web/src/lib/formula-ide/*`, unit tested first):
 - `source-map`: H7 cell → source, formula, FOREACH row index, cells to outline.
 
 UI (`web/src/components/formula-ide/*`, lazy where heavy):
+
 - Context + hook mounted by PageBuilder with minimal seams (render target, preview props,
   board click, docked workbench slot, overlays).
 - Desktop (≥1024): docked Formula card (Code | Builder via Tabs), "Line N produces" card,
@@ -34,6 +38,7 @@ UI (`web/src/components/formula-ide/*`, lazy where heavy):
 - FormulaNodeView shows FormulaAtom value hints when the IDE provider is present.
 
 ## Tests
+
 Vitest for every lib module and the components; Playwright layout spec
 `web/tests/layout/formula-ide.spec.ts` at 390/900/1440 light+dark with axe (hosted CI).
 14 locales with identical `formulaIde` keys.

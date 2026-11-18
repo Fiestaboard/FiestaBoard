@@ -23,6 +23,14 @@ import type { FormulaDiagnostic, PreviewSource } from "@/lib/api/formula-debug";
 import { appUrl } from "@/lib/base-path";
 import { fallbackTip, type MissingEntry, missingReport } from "@/lib/formula-ide/data-source";
 
+/**
+ * Kit `AlertTitle` is always an `<h5>`. In the editor it sits under the
+ * page's h2 (and beside the h3 card titles), so announce it as level 3 to
+ * keep the heading outline unbroken (axe heading-order). FiestaUI gap:
+ * AlertTitle has no heading-level prop.
+ */
+const MISSING_TITLE_LEVEL = 3;
+
 export interface MissingValuesCardProps {
   mode: DataSource;
   /** Localized render-at time, or null for now. */
@@ -112,7 +120,7 @@ export function MissingValuesCard({
     return (
       <Stack gap="1" data-testid="missing-values">
         <Alert variant="success">
-          <AlertTitle>{t("missingNothingTitle")}</AlertTitle>
+          <AlertTitle aria-level={MISSING_TITLE_LEVEL}>{t("missingNothingTitle")}</AlertTitle>
           <AlertDescription>{t("missingNothingBody")}</AlertDescription>
         </Alert>
         {atNote}
@@ -124,7 +132,7 @@ export function MissingValuesCard({
   return (
     <Stack gap="2" data-testid="missing-values">
       <Alert variant="warning">
-        <AlertTitle>
+        <AlertTitle aria-level={MISSING_TITLE_LEVEL}>
           <Flex align="center" gap="2" wrap>
             <Badge variant="outline">{t("missingCount", { count: entries.length })}</Badge>
             {t("missingTitle")}

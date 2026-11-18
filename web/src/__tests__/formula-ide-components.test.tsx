@@ -146,6 +146,15 @@ describe("MissingValuesCard", () => {
     );
     expect(card).toHaveTextContent('Tip: DEFAULT(weather.temp, "--") shows -- instead of ???');
   });
+  it("keeps the heading outline: its titles are level 3 under the editor's h2", () => {
+    const { unmount } = wrap(<MissingValuesCard {...base} mode="missing" onAddFallback={vi.fn()} />);
+    expect(screen.getAllByRole("heading", { level: 3 }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole("heading", { level: 5 })).toHaveLength(0);
+    unmount();
+    wrap(<MissingValuesCard {...base} roots={[]} formulas={[]} mode="missing" onAddFallback={vi.fn()} />);
+    expect(screen.getAllByRole("heading", { level: 3 }).length).toBeGreaterThan(0);
+  });
+
   it("adds a DEFAULT fallback to the first ??? line", async () => {
     const onAddFallback = vi.fn();
     wrap(<MissingValuesCard {...base} mode="missing" onAddFallback={onAddFallback} />);
