@@ -139,8 +139,14 @@ describe("page editor complex editing (2.9)", () => {
       grid_cols: 96,
       template: ["ROSA'S CAFE", ...Array.from({ length: 23 }, () => "")],
     });
-    expect(await screen.findByRole("group", { name: "Preview zoom" })).toBeInTheDocument();
-    expect(await screen.findByRole("textbox", { name: "Go to row and column" })).toBeInTheDocument();
+    // The lenses are lazy chunks, and every role query walks the 2,304-tile
+    // board, so under hosted coverage one poll can outlast findBy's 1 s
+    // default. Wait for the first lens as long as the editor wait below; the
+    // assertions themselves are unchanged.
+    expect(await screen.findByRole("group", { name: "Preview zoom" }, { timeout: 10_000 })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("textbox", { name: "Go to row and column" }, { timeout: 10_000 }),
+    ).toBeInTheDocument();
     expect(await screen.findByText("Where lines are cut")).toBeInTheDocument();
     // The template's line numbers keep AA contrast on a tall board (axe in the
     // 2.9 layout spec): muted colour, not muted colour at 40 % opacity.
