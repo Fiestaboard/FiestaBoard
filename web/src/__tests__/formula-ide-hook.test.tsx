@@ -59,15 +59,7 @@ beforeEach(() => {
   );
 });
 
-function Harness({
-  desktop,
-  onOpen,
-  empty = false,
-}: {
-  desktop: boolean;
-  onOpen?: () => void;
-  empty?: boolean;
-}) {
+function Harness({ desktop, onOpen, empty = false }: { desktop: boolean; onOpen?: () => void; empty?: boolean }) {
   const ide = useFormulaIde({
     target: empty ? null : target,
     available: true,

@@ -113,7 +113,10 @@ describe("FormulaCodeCard", () => {
   // on the light surface); code text uses the kit's ink tokens.
   it("colours code with ink tokens, never the warning fill", () => {
     wrap(
-      <Workbench card={(p) => <FormulaCodeCard {...p} />} initial={opened({ tab: "code", expression: "SUM(1, 80)" })} />,
+      <Workbench
+        card={(p) => <FormulaCodeCard {...p} />}
+        initial={opened({ tab: "code", expression: "SUM(1, 80)" })}
+      />,
     );
     const css = [...document.querySelectorAll("style")].map((style) => style.textContent ?? "").join("\n");
     expect(css).toContain("var(--hue-yellow)");
