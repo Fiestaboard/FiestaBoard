@@ -4010,7 +4010,6 @@
     "compare": "Compare",
     "comparison": "Version comparison",
     "restore": "Restore",
-    "restoreAt": "Restore {time}",
     "restoring": "Restoring",
     "restoreDescription": "Restoring makes a new draft. Displays keep the live version until you publish.",
     "restoredToDraft": "Restored into a draft",
@@ -4051,6 +4050,9 @@
     "replaceDraftTitle": "Replace the draft?",
     "replaceDraftDescription": "This page already has a draft. Restoring this version replaces it.",
     "keepDraft": "Keep draft",
-    "replaceDraft": "Replace draft"
+    "replaceDraft": "Replace draft",
+    "draftConflictTitle": "Replace the newer draft?",
+    "draftConflictDescription": "Another device saved this page’s draft after you opened it. Replacing it keeps only what’s in this editor.",
+    "legendLabel": "Schedule entries"
   }
 }

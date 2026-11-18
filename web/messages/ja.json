@@ -4010,7 +4010,6 @@
     "compare": "比較",
     "comparison": "バージョン比較",
     "restore": "復元",
-    "restoreAt": "{time}を復元",
     "restoring": "復元中",
     "restoreDescription": "復元すると新しい下書きが作成されます。公開するまで、ディスプレイはライブ版のままです。",
     "restoredToDraft": "下書きに復元しました",
@@ -4051,6 +4050,9 @@
     "replaceDraftTitle": "下書きを置き換えますか?",
     "replaceDraftDescription": "このページにはすでに下書きがあります。このバージョンを復元すると置き換えられます。",
     "keepDraft": "下書きを残す",
-    "replaceDraft": "下書きを置き換える"
+    "replaceDraft": "下書きを置き換える",
+    "draftConflictTitle": "新しい下書きを置き換えますか？",
+    "draftConflictDescription": "このページを開いた後、別のデバイスが下書きを保存しました。置き換えると、このエディタの内容だけが残ります。",
+    "legendLabel": "スケジュールの項目"
   }
 }

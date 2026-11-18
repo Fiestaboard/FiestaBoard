@@ -1,6 +1,13 @@
 "use client";
 
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Box,
   Button,
   Card,
@@ -111,7 +118,7 @@ export default function CreatorIde({
             className="shrink-0"
             aria-label={t("saveDraft")}
             disabled={actions.disabled || savingDraft}
-            onClick={() => saveDraftMutate()}
+            onClick={() => saveDraftMutate({})}
           >
             <Save className="size-4" aria-hidden="true" />
           </Button>
@@ -121,7 +128,7 @@ export default function CreatorIde({
             size={actions.size}
             className="shrink-0 gap-1.5 px-3 text-sm"
             disabled={actions.disabled || savingDraft}
-            onClick={() => saveDraftMutate()}
+            onClick={() => saveDraftMutate({})}
           >
             <Save className="size-3.5" aria-hidden="true" />
             {savingDraft ? t("savingDraft") : t("saveDraft")}
@@ -246,6 +253,20 @@ export default function CreatorIde({
           </Card>
         </Stack>
       </Box>
+      <AlertDialog open={ide.draftConflict} onOpenChange={(open) => !open && ide.dismissDraftConflict()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("draftConflictTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("draftConflictDescription")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("keepDraft")}</AlertDialogCancel>
+            <Button variant="destructive" disabled={savingDraft} onClick={() => saveDraftMutate({ overwrite: true })}>
+              {t("replaceDraft")}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <DuplicateDialog open={copyOpen} onOpenChange={setCopyOpen} ide={ide} pageId={pageId} />
     </>
   );

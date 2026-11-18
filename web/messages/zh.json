@@ -4010,7 +4010,6 @@
     "compare": "比较",
     "comparison": "版本比较",
     "restore": "恢复",
-    "restoreAt": "恢复 {time}",
     "restoring": "正在恢复",
     "restoreDescription": "恢复会生成新的草稿。在你发布之前，显示屏将保持当前线上版本。",
     "restoredToDraft": "已恢复为草稿",
@@ -4051,6 +4050,9 @@
     "replaceDraftTitle": "替换草稿？",
     "replaceDraftDescription": "此页面已有草稿。恢复此版本将替换它。",
     "keepDraft": "保留草稿",
-    "replaceDraft": "替换草稿"
+    "replaceDraft": "替换草稿",
+    "draftConflictTitle": "替换较新的草稿？",
+    "draftConflictDescription": "你打开此页面后，另一台设备保存了它的草稿。替换后只保留此编辑器中的内容。",
+    "legendLabel": "日程条目"
   }
 }

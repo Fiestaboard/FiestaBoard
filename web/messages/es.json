@@ -4010,7 +4010,6 @@
     "compare": "Comparar",
     "comparison": "Comparación de versiones",
     "restore": "Restaurar",
-    "restoreAt": "Restaurar {time}",
     "restoring": "Restaurando",
     "restoreDescription": "Al restaurar se crea un nuevo borrador. Las pantallas conservan la versión en vivo hasta que publiques.",
     "restoredToDraft": "Restaurada como borrador",
@@ -4051,6 +4050,9 @@
     "replaceDraftTitle": "¿Reemplazar el borrador?",
     "replaceDraftDescription": "Esta página ya tiene un borrador. Al restaurar esta versión se reemplaza.",
     "keepDraft": "Conservar borrador",
-    "replaceDraft": "Reemplazar borrador"
+    "replaceDraft": "Reemplazar borrador",
+    "draftConflictTitle": "¿Reemplazar el borrador más reciente?",
+    "draftConflictDescription": "Otro dispositivo guardó el borrador de esta página después de que la abrieras. Si lo reemplazas, solo se conserva lo que hay en este editor.",
+    "legendLabel": "Entradas de la programación"
   }
 }

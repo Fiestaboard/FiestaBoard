@@ -212,13 +212,34 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     void queryClient.invalidateQueries({ queryKey: ideKeys.revisions(pageId) });
   }, [queryClient, pageId]);
 
+  // The draft revisions this editor session wrote. Only those may be discarded
+  // after the editor saves the page itself; a draft saved on another device or
+  // made by Restore stays (the hub marks it stale).
+  const ownedDraftRevisions = useRef(new Set<string>());
+  const [draftConflict, setDraftConflict] = useState(false);
   const saveDraft = useMutation({
-    mutationFn: () => {
+    /** `overwrite` drops the revision guard: only after the reader chose Replace. */
+    mutationFn: ({ overwrite = false }: { overwrite?: boolean } = {}) => {
       const current = builderRef.current?.getCurrentPage();
       if (!current) throw new Error("editor not ready");
-      return pageHistoryApi.saveDraft(pageId, draftBodyFromSnapshot(current));
+      const known = queryClient.getQueryData<PageDraft | null>(ideKeys.draft(pageId));
+      return pageHistoryApi.saveDraft(pageId, {
+        ...draftBodyFromSnapshot(current),
+        ...(known && !overwrite && { expected_revision: known.revision }),
+      });
     },
-    onSuccess: (saved) => queryClient.setQueryData(ideKeys.draft(pageId), saved),
+    onSuccess: (saved) => {
+      ownedDraftRevisions.current.add(saved.revision);
+      setDraftConflict(false);
+      queryClient.setQueryData(ideKeys.draft(pageId), saved);
+    },
+    onError: (error) => {
+      // 412: another device saved the draft since this editor read it. Ask; never retry on our own.
+      if (error instanceof ApiError && error.status === 412) {
+        setDraftConflict(true);
+        void queryClient.invalidateQueries({ queryKey: ideKeys.draft(pageId) });
+      }
+    },
   });
   const discardDraft = useMutation({
     mutationFn: () => pageHistoryApi.discardDraft(pageId, hubDraft?.revision),
@@ -234,20 +255,22 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     },
   });
 
-  // "Save & update board" saved the page itself: a hub draft is now behind it.
+  // "Save & update board" saved the page itself. A draft this session wrote is
+  // now behind the page and goes; any other draft is kept for History (stale).
   const lastTick = useRef(savedTick);
   useEffect(() => {
     if (savedTick === lastTick.current) return;
     lastTick.current = savedTick;
     const pending = queryClient.getQueryData<PageDraft | null>(ideKeys.draft(pageId));
-    const after = pending
-      ? pageHistoryApi.discardDraft(pageId, pending.revision).catch(() => undefined)
-      : Promise.resolve();
-    void after.then(() => {
-      queryClient.setQueryData(ideKeys.draft(pageId), null);
-      invalidateHistory();
-      void queryClient.invalidateQueries({ queryKey: ideKeys.sends(pageId) });
-    });
+    const owned = !!pending && ownedDraftRevisions.current.has(pending.revision);
+    const after = owned ? pageHistoryApi.discardDraft(pageId, pending.revision) : Promise.resolve();
+    void after
+      .catch(() => undefined)
+      .finally(() => {
+        void queryClient.invalidateQueries({ queryKey: ideKeys.draft(pageId) });
+        invalidateHistory();
+        void queryClient.invalidateQueries({ queryKey: ideKeys.sends(pageId) });
+      });
   }, [savedTick, pageId, queryClient, invalidateHistory]);
 
   return {
@@ -270,6 +293,8 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     warnings,
     validationError: validation.isError,
     saveDraft,
+    draftConflict,
+    dismissDraftConflict: () => setDraftConflict(false),
     discardDraft,
     publishDraft,
     invalidateHistory,

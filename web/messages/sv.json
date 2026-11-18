@@ -4010,7 +4010,6 @@
     "compare": "Jämför",
     "comparison": "Versionsjämförelse",
     "restore": "Återställ",
-    "restoreAt": "Återställ {time}",
     "restoring": "Återställer",
     "restoreDescription": "Återställning skapar ett nytt utkast. Skärmarna behåller liveversionen tills du publicerar.",
     "restoredToDraft": "Återställd till ett utkast",
@@ -4051,6 +4050,9 @@
     "replaceDraftTitle": "Ersätta utkastet?",
     "replaceDraftDescription": "Den här sidan har redan ett utkast. Om du återställer den här versionen ersätts det.",
     "keepDraft": "Behåll utkast",
-    "replaceDraft": "Ersätt utkast"
+    "replaceDraft": "Ersätt utkast",
+    "draftConflictTitle": "Ersätta det nyare utkastet?",
+    "draftConflictDescription": "En annan enhet sparade sidans utkast efter att du öppnade den. Om du ersätter det behålls bara det som finns i den här redigeraren.",
+    "legendLabel": "Schemaposter"
   }
 }

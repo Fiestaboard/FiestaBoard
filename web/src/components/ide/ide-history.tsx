@@ -204,7 +204,6 @@ export function IdeHistory({ ide, pageId }: { ide: CreatorIdeState; pageId: stri
           onRestore={comparedRevision.current ? undefined : () => onRestore(comparedRevision.id)}
           labels={{
             ...labels,
-            restore: t("restoreAt", { time: formatSavedAt(comparedRevision.saved_at, locale) }),
             comparison: t("comparison"),
             changedRegions: (count) => t("rowsChanged", { count }),
           }}

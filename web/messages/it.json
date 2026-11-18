@@ -4010,7 +4010,6 @@
     "compare": "Confronta",
     "comparison": "Confronto versioni",
     "restore": "Ripristina",
-    "restoreAt": "Ripristina {time}",
     "restoring": "Ripristino",
     "restoreDescription": "Il ripristino crea una nuova bozza. I display mantengono la versione live finché non pubblichi.",
     "restoredToDraft": "Ripristinata in una bozza",
@@ -4051,6 +4050,9 @@
     "replaceDraftTitle": "Sostituire la bozza?",
     "replaceDraftDescription": "Questa pagina ha già una bozza. Ripristinare questa versione la sostituisce.",
     "keepDraft": "Mantieni bozza",
-    "replaceDraft": "Sostituisci bozza"
+    "replaceDraft": "Sostituisci bozza",
+    "draftConflictTitle": "Sostituire la bozza più recente?",
+    "draftConflictDescription": "Un altro dispositivo ha salvato la bozza di questa pagina dopo che l’hai aperta. Sostituendola resta solo il contenuto di questo editor.",
+    "legendLabel": "Voci della programmazione"
   }
 }

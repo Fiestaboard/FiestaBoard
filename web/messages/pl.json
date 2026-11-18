@@ -4010,7 +4010,6 @@
     "compare": "Porównaj",
     "comparison": "Porównanie wersji",
     "restore": "Przywróć",
-    "restoreAt": "Przywróć {time}",
     "restoring": "Przywracanie",
     "restoreDescription": "Przywrócenie tworzy nowy szkic. Wyświetlacze zachowują wersję na żywo do czasu publikacji.",
     "restoredToDraft": "Przywrócono do szkicu",
@@ -4051,6 +4050,9 @@
     "replaceDraftTitle": "Zastąpić szkic?",
     "replaceDraftDescription": "Ta strona ma już szkic. Przywrócenie tej wersji go zastąpi.",
     "keepDraft": "Zachowaj szkic",
-    "replaceDraft": "Zastąp szkic"
+    "replaceDraft": "Zastąp szkic",
+    "draftConflictTitle": "Zastąpić nowszy szkic?",
+    "draftConflictDescription": "Inne urządzenie zapisało szkic tej strony po jej otwarciu. Zastąpienie zachowa tylko zawartość tego edytora.",
+    "legendLabel": "Wpisy harmonogramu"
   }
 }

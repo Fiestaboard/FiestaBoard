@@ -4010,7 +4010,6 @@
     "compare": "Vergelijken",
     "comparison": "Versievergelijking",
     "restore": "Herstellen",
-    "restoreAt": "{time} herstellen",
     "restoring": "Herstellen",
     "restoreDescription": "Herstellen maakt een nieuw concept. Displays houden de live versie tot je publiceert.",
     "restoredToDraft": "Hersteld naar een concept",
@@ -4051,6 +4050,9 @@
     "replaceDraftTitle": "Het concept vervangen?",
     "replaceDraftDescription": "Deze pagina heeft al een concept. Als je deze versie herstelt, wordt het vervangen.",
     "keepDraft": "Concept behouden",
-    "replaceDraft": "Concept vervangen"
+    "replaceDraft": "Concept vervangen",
+    "draftConflictTitle": "Nieuwer concept vervangen?",
+    "draftConflictDescription": "Een ander apparaat heeft het concept van deze pagina opgeslagen nadat je hem opende. Bij vervangen blijft alleen over wat in deze editor staat.",
+    "legendLabel": "Planningsitems"
   }
 }

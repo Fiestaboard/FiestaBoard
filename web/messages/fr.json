@@ -4010,7 +4010,6 @@
     "compare": "Comparer",
     "comparison": "Comparaison des versions",
     "restore": "Restaurer",
-    "restoreAt": "Restaurer {time}",
     "restoring": "Restauration",
     "restoreDescription": "La restauration crée un nouveau brouillon. Les écrans gardent la version en direct jusqu’à la publication.",
     "restoredToDraft": "Restaurée dans un brouillon",
@@ -4051,6 +4050,9 @@
     "replaceDraftTitle": "Remplacer le brouillon ?",
     "replaceDraftDescription": "Cette page a déjà un brouillon. La restauration de cette version le remplace.",
     "keepDraft": "Garder le brouillon",
-    "replaceDraft": "Remplacer le brouillon"
+    "replaceDraft": "Remplacer le brouillon",
+    "draftConflictTitle": "Remplacer le brouillon plus récent ?",
+    "draftConflictDescription": "Un autre appareil a enregistré le brouillon de cette page après son ouverture. Le remplacer ne garde que le contenu de cet éditeur.",
+    "legendLabel": "Entrées du planning"
   }
 }

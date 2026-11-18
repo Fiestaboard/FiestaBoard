@@ -48,10 +48,12 @@ interface Calls {
   restore: { id: string; body: unknown }[];
   duplicate: unknown[];
   validate: unknown[];
+  draftGet: number;
+  draftDelete: string[];
 }
 
-function mockHub({ draft = null as unknown, restoreConflict = false, live = true } = {}) {
-  const calls: Calls = { draftPut: [], restore: [], duplicate: [], validate: [] };
+function mockHub({ draft = null as unknown, restoreConflict = false, live = true, draftConflict = false } = {}) {
+  const calls: Calls = { draftPut: [], restore: [], duplicate: [], validate: [], draftGet: 0, draftDelete: [] };
   server.use(
     http.get("/api/v1/pages", () =>
       HttpResponse.json({
@@ -102,12 +104,21 @@ function mockHub({ draft = null as unknown, restoreConflict = false, live = true
     http.post("/api/collections/col_den/dry-run", () =>
       HttpResponse.json({ collection_id: "col_den", page_id: "brunch", timeline: [], shown_on: [], sources: {} }),
     ),
-    http.get(`/api/pages/${PAGE}/draft`, () =>
-      draft ? HttpResponse.json(draft) : HttpResponse.json({ detail: "No draft" }, { status: 404 }),
-    ),
+    http.get(`/api/pages/${PAGE}/draft`, () => {
+      calls.draftGet += 1;
+      return draft ? HttpResponse.json(draft) : HttpResponse.json({ detail: "No draft" }, { status: 404 });
+    }),
+    http.delete(`/api/pages/${PAGE}/draft`, ({ request }) => {
+      calls.draftDelete.push(new URL(request.url).searchParams.get("expected_revision") ?? "none");
+      return HttpResponse.json({ page_id: PAGE, discarded: true });
+    }),
     http.put(`/api/pages/${PAGE}/draft`, async ({ request }) => {
-      const body = await request.json();
+      const body = (await request.json()) as { expected_revision?: string };
       calls.draftPut.push(body);
+      // The hub's guard: another device saved the draft since this editor read it.
+      if (draftConflict && body.expected_revision) {
+        return HttpResponse.json({ detail: "Draft changed" }, { status: 412 });
+      }
       return HttpResponse.json({
         page_id: PAGE,
         revision: "d1",
@@ -341,6 +352,9 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(within(console).getByRole("tab", { name: "Sent" })).toBeInTheDocument();
     expect(await within(console).findByText("#REF · Row 2")).toBeInTheDocument();
     expect(await within(console).findByText(/Sent: .* to Den TV · 1 substitution \(é → E\)/)).toBeInTheDocument();
+    // The week legend names each entry; the narrow blocks only carry their start time.
+    const legend = await screen.findByRole("list", { name: "Schedule entries" });
+    expect(legend).toHaveTextContent(/Weekdays 7:30.*8:30.* · Den TV/);
   });
 
   it("portals the Explorer with the open page selected and its collection facet", async () => {
@@ -432,27 +446,79 @@ describe("status row and header actions", () => {
     expect(onSaveActionsChange).toHaveBeenLastCalledWith(undefined);
   });
 
-  it("discards the hub draft after the editor saves the page itself", async () => {
-    mockHub({
+  it("discards a draft this session saved once the editor saves the page itself", async () => {
+    const calls = mockHub();
+    const { onSaveActionsChange, rerenderTick } = renderIde();
+    await waitFor(() => expect(latestRenderer(onSaveActionsChange)).toBeDefined());
+    render(
+      <>
+        {latestRenderer(onSaveActionsChange)!({
+          save: vi.fn(),
+          saving: false,
+          disabled: false,
+          size: "sm",
+          anchor: {},
+        })}
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(calls.draftPut).toHaveLength(1));
+    await screen.findByText(/^Draft /);
+    act(() => rerenderTick(1));
+    await waitFor(() => expect(calls.draftDelete).toEqual(["d1"]));
+  });
+
+  it("keeps a draft saved elsewhere (phone, Restore) after the editor saves the page; the hub marks it stale", async () => {
+    const calls = mockHub({
       draft: {
         page_id: PAGE,
-        revision: "d1",
+        revision: "phone-1",
+        via: "phone",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: false,
+        content: { ...snapshot, type: "template", template: ["FROM THE PHONE"] },
+      },
+    });
+    const { rerenderTick } = renderIde();
+    await screen.findByText(/^Draft /);
+    const reads = calls.draftGet;
+    act(() => rerenderTick(1));
+    // The IDE re-reads the draft (for its stale flag) instead of deleting it.
+    await waitFor(() => expect(calls.draftGet).toBeGreaterThan(reads));
+    expect(calls.draftDelete).toEqual([]);
+  });
+
+  it("guards Save draft with the draft's revision and asks before overwriting a newer one", async () => {
+    const calls = mockHub({
+      draftConflict: true,
+      draft: {
+        page_id: PAGE,
+        revision: "d0",
         saved_at: "2026-11-17T15:44:00Z",
         stale: false,
         content: { ...snapshot, type: "template" },
       },
     });
-    let discarded = "";
-    server.use(
-      http.delete(`/api/pages/${PAGE}/draft`, ({ request }) => {
-        discarded = new URL(request.url).searchParams.get("expected_revision") ?? "none";
-        return HttpResponse.json({ page_id: PAGE, discarded: true });
-      }),
-    );
-    const { rerenderTick } = renderIde();
+    const { onSaveActionsChange } = renderIde();
     await screen.findByText(/^Draft /);
-    act(() => rerenderTick(1));
-    await waitFor(() => expect(discarded).toBe("d1"));
+    await waitFor(() => expect(latestRenderer(onSaveActionsChange)).toBeDefined());
+    render(
+      <>
+        {latestRenderer(onSaveActionsChange)!({
+          save: vi.fn(),
+          saving: false,
+          disabled: false,
+          size: "sm",
+          anchor: {},
+        })}
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Replace the newer draft?" });
+    expect(calls.draftPut).toEqual([expect.objectContaining({ expected_revision: "d0" })]);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Replace draft" }));
+    await waitFor(() => expect(calls.draftPut).toHaveLength(2));
+    expect(calls.draftPut[1]).not.toHaveProperty("expected_revision");
   });
 });
 
@@ -517,5 +583,8 @@ describe("History", () => {
     fireEvent.click(compare[1]);
     const diff = await screen.findByRole("group", { name: "Version comparison" });
     expect(await within(diff).findByText("Row 1: “OLD” → “NEXT DEPARTURES”")).toBeInTheDocument();
+    // The kit appends the version's time to the Restore label itself: it must appear once.
+    const restore = within(diff).getByRole("button", { name: /^Restore/ });
+    expect(restore.textContent?.match(/\d:\d\d/g)).toHaveLength(1);
   });
 });

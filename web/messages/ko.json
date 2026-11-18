@@ -4010,7 +4010,6 @@
     "compare": "비교",
     "comparison": "버전 비교",
     "restore": "복원",
-    "restoreAt": "{time} 복원",
     "restoring": "복원 중",
     "restoreDescription": "복원하면 새 초안이 만들어집니다. 게시하기 전까지 디스플레이는 라이브 버전을 유지합니다.",
     "restoredToDraft": "초안으로 복원됨",
@@ -4051,6 +4050,9 @@
     "replaceDraftTitle": "초안을 바꾸시겠습니까?",
     "replaceDraftDescription": "이 페이지에는 이미 초안이 있습니다. 이 버전을 복원하면 초안이 대체됩니다.",
     "keepDraft": "초안 유지",
-    "replaceDraft": "초안 바꾸기"
+    "replaceDraft": "초안 바꾸기",
+    "draftConflictTitle": "최신 초안을 바꿀까요?",
+    "draftConflictDescription": "이 페이지를 연 뒤 다른 기기에서 초안을 저장했습니다. 바꾸면 이 편집기의 내용만 남습니다.",
+    "legendLabel": "일정 항목"
   }
 }
