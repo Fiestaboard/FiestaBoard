@@ -8,6 +8,9 @@ a phone must never be able to read a stored secret or send one somewhere new:
   ``base_url`` or ``protocol``) while the key comes back as the mask ``"***"``
   is refused with ``400 key_required``: the key has to be typed again. Masked
   header values are treated the same way.
+* **Plugins and displays.** The same rule for an installed plugin's settings
+  and a display's connection: see :func:`plugin_config_needs_key` and
+  ``src/auth/key_reentry.py``.
 * **Masked headers.** A phone reads every AI provider header value as ``"***"``
   (custom headers often carry credentials), and an echoed mask keeps the
   stored value as long as the endpoint is unchanged.
@@ -69,6 +72,8 @@ def _endpoint(provider: dict[str, Any]) -> tuple[str, ...]:
     values = []
     for field in _ENDPOINT_FIELDS:
         value = provider.get(field)
+        if field == "protocol" and value is not None and not isinstance(value, str):
+            raise ValueError("A provider's protocol must be a string.")
         if field == "protocol" and (not value or value not in PROTOCOLS):
             # The generator treats a missing or unknown protocol as the default.
             value = DEFAULT_PROTOCOL
@@ -97,7 +102,8 @@ def prepare_provider_update(providers: list[Any], stored: list[Any]) -> str | No
     """Apply the phone rules to an incoming ``providers`` list, in place.
 
     Returns the id of the first provider that needs its key typed again (the
-    request must then be refused), else None. For providers whose endpoint is
+    request must then be refused), else None. Raises ``ValueError`` for a
+    provider whose endpoint fields are malformed (a ``400``). For providers whose endpoint is
     unchanged, masked header values are restored from the stored provider.
     """
     stored_by_id = {p.get("id"): p for p in stored if isinstance(p, dict) and p.get("id")}
@@ -133,6 +139,41 @@ def draft_needs_key(draft: dict[str, Any]) -> bool:
     if draft.get("api_key") in (None, "", MASK):
         return True
     return any(value == MASK for value in _headers(draft).values())
+
+
+# -- Installed plugins ---------------------------------------------------------------
+
+
+def plugin_config_needs_key(plugin_id: str, config: Any, *, merge: bool) -> bool:
+    """True when saving *config* for plugin *plugin_id* would send a stored secret to a new endpoint.
+
+    The same rule as a display's (``src/auth/key_reentry.py``): changing the
+    plugin's address, protocol or sign-in fields while its key comes back
+    masked, or is left out of a merged update, needs the key typed again.
+    *merge* is True for ``configure_plugin``, which merges into the stored
+    config (so an omitted key is kept); the REST route replaces it. Secrets
+    supplied by environment variables count as stored ones.
+    """
+    if not isinstance(config, dict):
+        return False
+    from src.config_manager import get_config_manager, unmask_sensitive_values
+
+    from .key_reentry import moves_a_secret
+
+    manager = get_config_manager()
+    stored = manager.get_plugin_config(plugin_id, include_env_overrides=False) or {}
+    live = manager.get_plugin_config(plugin_id) or {}
+    if not live:
+        return False
+    env_only = {key: value for key, value in live.items() if stored.get(key) != value}
+    after = unmask_sensitive_values({**stored, **config} if merge else config, stored)
+    after = {**after, **env_only}
+    # The masked view every plugin read answers with (PluginService.mask_config).
+    masked = manager._mask_sensitive(live)
+    return moves_a_secret(live, after, masked, config)
+
+
+PLUGIN_KEY_DETAIL = "Enter the plugin's key again: its address or sign-in settings changed."
 
 
 # -- Backups ------------------------------------------------------------------------

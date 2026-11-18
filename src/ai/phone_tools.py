@@ -25,6 +25,7 @@ so the phone's limits have to hold *inside* them, not only at the route:
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 from collections.abc import Callable
 from typing import Any, Literal
@@ -214,6 +215,28 @@ def tier_for(name: str, args: dict[str, Any] | None = None) -> Tier:
     return tier
 
 
+#: Tools that save a plugin's settings by merging them into the stored ones, and
+#: the argument carrying those settings: a phone that moves the plugin's key
+#: types it again (H21a rule, ``phone_policy.plugin_config_needs_key``).
+_PLUGIN_CONFIG_ARGS = {"configure_plugin": "config", "install_plugin": "initial_config"}
+
+KEY_REQUIRED_MESSAGE = f"{phone_policy.KEY_REQUIRED}: {phone_policy.PLUGIN_KEY_DETAIL}"
+
+
+def needs_key(name: str, args: dict[str, Any] | None) -> bool:
+    """True when this call would send a plugin's stored key to settings the phone chose.
+
+    Reads the stored config, so async callers run it on a worker thread.
+    """
+    field = _PLUGIN_CONFIG_ARGS.get(name)
+    args = args or {}
+    config = args.get(field) if field else None
+    plugin_id = args.get("plugin_id")
+    if not config or not isinstance(plugin_id, str):
+        return False
+    return phone_policy.plugin_config_needs_key(plugin_id, config, merge=True)
+
+
 def denied_message(name: str) -> str:
     return f"{name} isn't available from the phone app. Use the web app for it."
 
@@ -251,11 +274,18 @@ class PhoneToolBackend:
             return ToolOutcome(
                 status="blocked", error=message, result={"status": "blocked", "code": "forbidden", "message": message}
             )
-        if tier == STEP_UP and not self._is_elevated():
+        # Both checks read stores on disk; keep them off the event loop.
+        if tier == STEP_UP and not await asyncio.to_thread(self._is_elevated):
             return ToolOutcome(
                 status="blocked",
                 error=STEP_UP_MESSAGE,
                 result={"status": "blocked", "code": STEP_UP_REQUIRED, "message": STEP_UP_MESSAGE},
+            )
+        if await asyncio.to_thread(needs_key, name, args):
+            return ToolOutcome(
+                status="blocked",
+                error=KEY_REQUIRED_MESSAGE,
+                result={"status": "blocked", "code": phone_policy.KEY_REQUIRED, "message": KEY_REQUIRED_MESSAGE},
             )
         outcome = await self._inner.call_tool(name, args)
         if name == "export_backup" and outcome.status == "ok" and isinstance(outcome.result, dict):
@@ -271,5 +301,6 @@ __all__ = [
     "STEP_UP_MESSAGE",
     "PhoneToolBackend",
     "denied_message",
+    "needs_key",
     "tier_for",
 ]
