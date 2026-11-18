@@ -9,10 +9,12 @@ all three of its handlers.
 Nothing here imports ``fastapi``. Refusals are raised as
 :class:`BoardProbeError`, carrying the status and detail the router hands
 straight to ``HTTPException`` — ``tests/test_config_contract.py`` pins every
-one of those pairs by value. Two exceptions travel *through* this module
-rather than from it: ``src.board_guards.validate_board_host`` and
-``validate_board_host_is_local_network`` still raise ``HTTPException`` for the
-whole app, so their 400s pass through untouched.
+one of those pairs by value. The one exception is the host guard:
+``src.board_guards.validate_board_host`` and
+``validate_board_host_is_local_network`` raise ``HTTPException`` for the whole
+app. This module calls them (:func:`probe_board_connection` runs both before
+the probe, H10 F5) without importing ``fastapi`` itself, and their 400s reach
+the client untouched.
 
 Vestaboard knowledge is not here. The probe and the enablement-token exchange
 are the ``vestaboard`` output's ``test_connection`` and ``enable_local_api``
@@ -207,8 +209,10 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
     the request's credentials as draft settings — a throwaway instance on a
     private runtime, never a board's live one — and its verdict
     (:meth:`~src.outputs.hooks.ConnectionCheck.to_verdict`, the outcome's
-    ``detail``) is the response. The refusals (which credential is missing,
-    in the recorded order; the host guard) are the action's.
+    ``detail``) is the response. Which credential is missing (in the recorded
+    order) is the action's refusal. Once a key and host are both given, the
+    host's shape and then its local-network check run here, before the action
+    (which checks the shape again for its other callers).
 
     That contract used to be recorded as a ``no_200_on_failure`` exception in
     ``tests/conventions_manifest.json``; the rule reads the *handler's* AST, so
@@ -229,7 +233,8 @@ async def probe_board_connection(request: BoardTestRequest) -> dict:
     # network: the same guard the enablement-token exchange applies (H10 F5).
     # Only once the output's own refusals (missing key, then host) cannot
     # fire first, so their recorded order is unchanged; the shape guard runs
-    # first so a malformed host keeps its own 400.
+    # first so a malformed host keeps its own 400. The action checks the shape
+    # again; that duplicate is intentional (it guards every other caller).
     if request.api_mode != "cloud" and request.local_api_key and request.host:
         validate_board_host(request.host)
         validate_board_host_is_local_network(request.host)

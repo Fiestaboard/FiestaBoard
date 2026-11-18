@@ -81,7 +81,7 @@ async def get_plugin(plugin_id: str) -> PluginDetail:
         "configuration you meant to replace. Answers with the plugin's full detail, secrets masked."
     ),
 )
-async def update_plugin(plugin_id: str, request: PluginUpdate) -> PluginDetail:
+async def update_plugin(plugin_id: str, request: PluginUpdate, http_request: Request) -> PluginDetail:
     provided = request.model_dump(exclude_unset=True)
     if not provided:
         raise HTTPException(status_code=400, detail="Send at least one of enabled or config.")
@@ -89,6 +89,9 @@ async def update_plugin(plugin_id: str, request: PluginUpdate) -> PluginDetail:
     if "config" in provided and provided["config"] is not None:
         from src.plugins.models import PluginConfigRequest
 
+        refusal = plugins_routes.phone_key_refusal(http_request, plugin_id, provided["config"])
+        if refusal is not None:
+            return refusal
         await plugins_routes.update_plugin_config(plugin_id, PluginConfigRequest(config=provided["config"]))
 
     if "enabled" in provided and provided["enabled"] is not None:

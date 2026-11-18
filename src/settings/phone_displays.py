@@ -1,53 +1,22 @@
 """H21a: a phone never sends a display's stored secret to settings it just chose.
 
 A phone (``control`` scope) may add, change and remove displays. Changing a
-saved display's *connection* (its host, mode, tiles or ``output_config``)
+saved display's *connection* (a host, port or mode, its own or a tile's)
 must not carry the stored key along: the stored key would then be sent to a
 host the phone picked. The browser keeps today's rule (an echoed ``"***"``
 keeps the stored secret), so this check runs for phones only.
 
 How: the write is simulated with the same pure steps ``set_boards`` uses
-(restore echoed masks, merge the two shapes, normalise). When the masked
-connection view changes, every stored secret must have been re-entered: a
-secret whose stored value survives into the result, and which the request
-did not carry itself, refuses the write (``key_required``).
+(restore echoed masks, merge the two shapes, normalise). A stored secret
+that survives into the result under different connection fields (see
+``src/auth/key_reentry.py``), and which the request did not carry itself,
+refuses the write (``key_required``).
 """
 
 from __future__ import annotations
 
 import copy
-import json
 from typing import Any
-
-from src.auth.phone_policy import MASK
-
-
-def _leaves(value: Any, path: tuple = ()):
-    if isinstance(value, dict):
-        for key, item in value.items():
-            yield from _leaves(item, (*path, key))
-    elif isinstance(value, list):
-        for index, item in enumerate(value):
-            yield from _leaves(item, (*path, index))
-    else:
-        yield path, value
-
-
-def _at(value: Any, path: tuple) -> Any:
-    for step in path:
-        if (isinstance(value, dict) and step in value) or (
-            isinstance(value, list) and isinstance(step, int) and 0 <= step < len(value)
-        ):
-            value = value[step]
-        else:
-            return None
-    return value
-
-
-def _connection(view: dict[str, Any]) -> dict[str, Any]:
-    from src.devices import LEGACY_CONNECTION_FIELDS
-
-    return {key: view.get(key) for key in (*LEGACY_CONNECTION_FIELDS, "output", "output_config")}
 
 
 def simulate_board_write(incoming: dict[str, Any], stored: dict[str, Any]) -> dict[str, Any]:
@@ -62,45 +31,32 @@ def simulate_board_write(incoming: dict[str, Any], stored: dict[str, Any]) -> di
 
 
 def moves_a_stored_secret(incoming: dict[str, Any], stored: dict[str, Any], sent: Any = None) -> bool:
-    """True when this write changes the connection but keeps a stored secret the request did not carry.
+    """True when this write sends a stored secret to a new endpoint and the request did not carry it.
 
     *sent* is what the phone actually sent, when *incoming* has already been
     merged onto the stored board (a saved-board action); default *incoming*.
+    Only connection fields count (``src/auth/key_reentry.py``): moving tiles
+    around, switching one off, or editing an output's non-connection
+    settings keeps each key with its host and needs no re-entry.
     """
+    from src.auth.key_reentry import moves_a_secret
     from src.settings.board_shape import board_view
     from src.settings.service import BoardSettings
 
     try:
         after = simulate_board_write(incoming, stored)
+        masked_before = BoardSettings._mask_board(stored)
+        if masked_before == BoardSettings._mask_board(after):
+            return False
+        return moves_a_secret(
+            board_view(stored),
+            board_view(after),
+            masked_before,
+            incoming if sent is None else sent,
+            extra_keys=("output",),
+        )
     except (ValueError, TypeError, KeyError):
         return False  # the real write refuses it with its own error
-    masked_before = _connection(BoardSettings._mask_board(stored))
-    masked_after = _connection(BoardSettings._mask_board(after))
-    if masked_before == masked_after:
-        return False
-    raw_before = _connection(board_view(stored))
-    raw_after = _connection(board_view(after))
-    # Exact leaf values the phone typed, whatever their type: a secret the
-    # request carries anywhere is one the user re-entered.
-    typed = {_hashable(v) for _p, v in _leaves(incoming if sent is None else sent)}
-    for path, value in _leaves(masked_before):
-        if value != MASK:
-            continue
-        secret = _at(raw_before, path)
-        if secret in (None, "", MASK):
-            continue
-        survived = any(v == secret for _p, v in _leaves(raw_after))
-        if survived and _hashable(secret) not in typed:
-            return True
-    return False
-
-
-def _hashable(value: Any) -> Any:
-    try:
-        hash(value)
-    except TypeError:
-        return json.dumps(value, sort_keys=True, default=str)
-    return value
 
 
 def first_board_needing_key(boards: list[Any], stored_boards: list[dict[str, Any]]) -> str | None:

@@ -260,7 +260,10 @@ async def update_ai_settings(request: AiProvidersUpdate, http_request: Request =
     changes = request.model_dump(exclude_unset=True)
     if phone_policy.is_phone(http_request) and isinstance(changes.get("providers"), list):
         # H21d: a phone that moves a provider to another endpoint types its key again.
-        needs_key = phone_policy.prepare_provider_update(changes["providers"], before.get("providers") or [])
+        try:
+            needs_key = phone_policy.prepare_provider_update(changes["providers"], before.get("providers") or [])
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
         if needs_key is not None:
             return JSONResponse(
                 phone_policy.key_required_body(

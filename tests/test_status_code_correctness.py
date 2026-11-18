@@ -110,12 +110,30 @@ class TestBoardTestStaysOnThisNetwork:
         assert "API key" in response.json()["detail"]
 
     def test_a_cloud_probe_is_not_held_to_a_local_host(self, client):
+        """Cloud is exempt because it never contacts ``host``: it asks Vestaboard's cloud."""
+        from urllib.parse import urlparse
+
         with patch("requests.get") as mock_get:
             mock_get.return_value = Mock(status_code=200, json=Mock(return_value={}))
             response = client.post(
                 "/config/board/test", json={"api_mode": "cloud", "cloud_key": "key", "host": "8.8.8.8"}
             )
         assert response.status_code == 200
+        mock_get.assert_called_once()
+        url = mock_get.call_args.args[0] if mock_get.call_args.args else mock_get.call_args.kwargs["url"]
+        host = urlparse(url).hostname
+        assert host is not None and host.endswith("vestaboard.com") and host != "8.8.8.8"
+
+    @pytest.mark.parametrize("api_mode", ["local", "virtual", "CLOUD", ""])
+    def test_every_non_cloud_mode_is_held_to_a_local_host(self, client, api_mode):
+        """The output treats anything but ``cloud`` as local, so the guard does too."""
+        with patch("requests.get") as mock_get:
+            response = client.post(
+                "/config/board/test", json={"api_mode": api_mode, "local_api_key": "key", "host": "8.8.8.8"}
+            )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "host must resolve to a local/private IPv4 address"
+        mock_get.assert_not_called()
 
 
 class TestBoardTestUpstreamVerdictsStay200:
