@@ -1065,7 +1065,8 @@
         "modelsAfterSave": "변경 사항을 저장하면 제공자의 모델에서 고를 수 있습니다."
       },
       "addModel": "모델 추가",
-      "refreshModels": "모델 새로 고침"
+      "refreshModels": "모델 새로 고침",
+      "promptDestination": "프롬프트 전송 대상: {destination}"
     },
     "backup": {
       "cardTitle": "백업 및 복원",
@@ -1099,11 +1100,11 @@
         },
         "appearance": {
           "title": "모양",
-          "description": "이 브라우저에서 FiestaBoard가 보이는 방식."
+          "description": "테마는 이 브라우저에 적용되며 미리보기 동작은 이 허브의 모든 사용자에게 적용됩니다."
         },
         "accessibility": {
           "title": "접근성",
-          "description": "이 브라우저의 움직임과 읽기 편의."
+          "description": "모션 및 애니메이션 환경설정"
         },
         "network": {
           "title": "네트워크",
@@ -1119,13 +1120,40 @@
         },
         "language-time": {
           "title": "언어 및 시간",
-          "description": "허브가 일정, 시간 변수, 모든 타임스탬프에 사용합니다."
+          "description": "언어는 이 브라우저에 적용되며 시계와 일정은 허브 설정입니다."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot 설정 및 대화."
         },
         "notifications": {
           "title": "알림",
           "description": "계정과 이 브라우저에서 허브의 알림을 받을지 선택합니다."
         }
       }
+    },
+    "panels": {
+      "theme": "테마",
+      "browserTheme": "이 브라우저에만 적용됩니다.",
+      "motionScope": "동작 설정은 이 허브의 모든 사용자에게 적용됩니다."
+    },
+    "fiestabot": {
+      "title": "변경, 패널 및 기록",
+      "scope": "패널의 승인 모드는 이 허브의 모든 사용자에게 적용됩니다.",
+      "unavailable": "개인별 승인, 패널 및 기록 설정은 아직 지원되지 않습니다.",
+      "open": "FiestaBot 열기",
+      "setup": "AI 제공자 설정",
+      "needsSetup": "FiestaBot을 사용하려면 이 허브에서 AI를 활성화하고 제공자를 설정해야 합니다.",
+      "checking": "FiestaBot 사용 가능 여부 확인 중…",
+      "checkFailed": "FiestaBot 사용 가능 여부를 확인할 수 없습니다.",
+      "retry": "다시 시도"
+    },
+    "addresses": {
+      "title": "주소",
+      "description": "이 브라우저가 허브에 연결하는 방법입니다.",
+      "browser": "이 브라우저의 연결 주소",
+      "ip": "허브가 보고한 IP 주소",
+      "hint": "허브가 컨테이너 주소를 보고할 수 있습니다. 다른 기기 연결용으로 확인된 주소가 아닙니다."
     }
   },
   "offline": {

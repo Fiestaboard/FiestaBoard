@@ -1065,7 +1065,8 @@
         "modelsAfterSave": "Sağlayıcının modelleri arasından seçmek için değişiklikleri kaydedin."
       },
       "addModel": "Model ekle",
-      "refreshModels": "Modelleri yenile"
+      "refreshModels": "Modelleri yenile",
+      "promptDestination": "İstemler {destination} adresine gönderilir"
     },
     "backup": {
       "cardTitle": "Yedekleme ve Geri Yükleme",
@@ -1099,11 +1100,11 @@
         },
         "appearance": {
           "title": "Görünüm",
-          "description": "FiestaBoard’un bu tarayıcıdaki görünümü."
+          "description": "Tema bu tarayıcı için; önizleme hareketleri bu hub üzerindeki herkes için geçerlidir."
         },
         "accessibility": {
           "title": "Erişilebilirlik",
-          "description": "Bu tarayıcıda hareket ve okuma rahatlığı."
+          "description": "Hareket ve animasyon tercihleri"
         },
         "network": {
           "title": "Ağ",
@@ -1119,13 +1120,40 @@
         },
         "language-time": {
           "title": "Dil ve saat",
-          "description": "Hub tarafından Program, saat değişkenleri ve her zaman damgası için kullanılır."
+          "description": "Bu tarayıcının dili; hub saati ve programlama zamanı."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot tercihleri ve görüşmeleri."
         },
         "notifications": {
           "title": "Bildirimler",
           "description": "Hesabınızın ve bu tarayıcının hub’ınızdan uyarı alıp alamayacağını seçin."
         }
       }
+    },
+    "panels": {
+      "theme": "Tema",
+      "browserTheme": "Yalnızca bu tarayıcı için.",
+      "motionScope": "Hareket tercihleri bu hub üzerindeki herkes için geçerlidir."
+    },
+    "fiestabot": {
+      "title": "Değişiklikler, panel ve geçmiş",
+      "scope": "Paneldeki onay modu bu hub üzerindeki herkes için geçerlidir.",
+      "unavailable": "Kişiye özel onay, panel ve geçmiş tercihleri henüz kullanılamıyor.",
+      "open": "FiestaBot’u aç",
+      "setup": "AI sağlayıcısını ayarla",
+      "needsSetup": "FiestaBot için bu hub üzerinde AI etkin ve bir sağlayıcı yapılandırılmış olmalıdır.",
+      "checking": "FiestaBot kullanılabilirliği kontrol ediliyor…",
+      "checkFailed": "FiestaBot kullanılabilirliği kontrol edilemedi.",
+      "retry": "Yeniden dene"
+    },
+    "addresses": {
+      "title": "Adresler",
+      "description": "Bu tarayıcının hub’a erişim yolu.",
+      "browser": "Bu tarayıcının kullandığı adres",
+      "ip": "Hub’ın bildirdiği IP adresi",
+      "hint": "Hub bir kapsayıcı adresi bildirebilir. Bu, başka bir cihaz bağlamak için doğrulanmış bir adres değildir."
     }
   },
   "offline": {

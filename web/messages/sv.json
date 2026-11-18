@@ -1065,7 +1065,8 @@
         "modelsAfterSave": "Spara ändringarna för att välja bland leverantörens modeller."
       },
       "addModel": "Lägg till en modell",
-      "refreshModels": "Uppdatera modeller"
+      "refreshModels": "Uppdatera modeller",
+      "promptDestination": "Prompter skickas till {destination}"
     },
     "backup": {
       "cardTitle": "Säkerhetskopiering & återställning",
@@ -1099,11 +1100,11 @@
         },
         "appearance": {
           "title": "Utseende",
-          "description": "Hur FiestaBoard ser ut i den här webbläsaren."
+          "description": "Tema för den här webbläsaren; förhandsvisningsrörelser för alla på hubben."
         },
         "accessibility": {
           "title": "Tillgänglighet",
-          "description": "Rörelse och läskomfort i den här webbläsaren."
+          "description": "Rörelse- och animationsinställningar"
         },
         "network": {
           "title": "Nätverk",
@@ -1119,13 +1120,40 @@
         },
         "language-time": {
           "title": "Språk och tid",
-          "description": "Används av hubben för Schemat, tidsvariabler och varje tidsstämpel."
+          "description": "Språk för den här webbläsaren; hubbklocka och schematid."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "FiestaBot-inställningar och samtal."
         },
         "notifications": {
           "title": "Aviseringar",
           "description": "Välj om ditt konto och den här webbläsaren får ta emot varningar från din hubb."
         }
       }
+    },
+    "panels": {
+      "theme": "Tema",
+      "browserTheme": "Endast för den här webbläsaren.",
+      "motionScope": "Rörelseinställningar gäller alla på den här hubben."
+    },
+    "fiestabot": {
+      "title": "Ändringar, panel och historik",
+      "scope": "Godkännandeläget i panelen gäller alla på den här hubben.",
+      "unavailable": "Personliga inställningar för godkännande, panel och historik är ännu inte tillgängliga.",
+      "open": "Öppna FiestaBot",
+      "setup": "Konfigurera AI-leverantör",
+      "needsSetup": "FiestaBot kräver aktiverad AI och en konfigurerad leverantör på den här hubben.",
+      "checking": "Kontrollerar om FiestaBot är tillgänglig…",
+      "checkFailed": "Det gick inte att kontrollera om FiestaBot är tillgänglig.",
+      "retry": "Försök igen"
+    },
+    "addresses": {
+      "title": "Adresser",
+      "description": "Så når den här webbläsaren hubben.",
+      "browser": "Den här webbläsaren använder",
+      "ip": "IP-adress rapporterad av hubben",
+      "hint": "Hubben kan rapportera en containeradress. Det är inte en verifierad adress för att ansluta en annan enhet."
     }
   },
   "offline": {

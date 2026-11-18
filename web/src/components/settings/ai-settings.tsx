@@ -15,7 +15,6 @@ import {
   Grid,
   Input,
   Label,
-  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -51,6 +50,7 @@ import {
   oauthReturnErrorKey,
   readOAuthReturn,
 } from "@/components/plugin-settings";
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useAiSignInConnected, useProviderModels } from "@/hooks/use-provider-models";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -458,6 +458,9 @@ function ProviderRow({
     }
   };
 
+  const endpointUrl = parseUrl(provider.base_url);
+  const promptDestination =
+    endpointUrl && ["http:", "https:"].includes(endpointUrl.protocol) ? endpointUrl.origin : null;
   const summaryName = provider.name.trim() || "Unnamed provider";
   const modelCount = provider.models.length;
 
@@ -745,6 +748,11 @@ function ProviderRow({
         </Flex>
       </Flex>
 
+      {promptDestination && (
+        <Text size="xs" tone="muted" className="px-3 pb-3 break-all">
+          {t("promptDestination", { destination: promptDestination })}
+        </Text>
+      )}
       <CollapsibleContent>
         <Stack gap="3" className="border-t p-3">
           {view === "advanced" ? (
@@ -988,15 +996,15 @@ export function AiSettings() {
 
   if (isLoading) {
     return (
-      <PageSection>
+      <SettingsPanel>
         <Skeleton className="h-5 w-40" />
         <Skeleton className="mt-2 h-4 w-64" />
-      </PageSection>
+      </SettingsPanel>
     );
   }
 
   return (
-    <PageSection
+    <SettingsPanel
       icon={<Sparkles />}
       title={t("cardTitle")}
       description={t("cardDescription")}
@@ -1129,6 +1137,6 @@ export function AiSettings() {
           </Flex>
         )}
       </Flex>
-    </PageSection>
+    </SettingsPanel>
   );
 }

@@ -1,21 +1,12 @@
 "use client";
 
-import {
-  Button,
-  Flex,
-  PageSection,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Text,
-} from "@fiestaboard/ui";
+import { Button, Flex, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Text } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api, AUTO_UPDATE_INTERVALS, type AutoUpdateInterval } from "@/lib/api";
@@ -114,7 +105,7 @@ export function AutoUpdateIntervalCard() {
   const current: AutoUpdateInterval = status.auto_update_interval ?? "weekly";
 
   return (
-    <PageSection
+    <SettingsPanel
       icon={<CalendarClock />}
       title={t("checkForUpdates")}
       description={t("intervalCardDescription")}
@@ -161,6 +152,6 @@ export function AutoUpdateIntervalCard() {
         </Button>
       </Flex>
       <Text tone="muted">{INTERVAL_DESCRIPTIONS[current]}</Text>
-    </PageSection>
+    </SettingsPanel>
   );
 }

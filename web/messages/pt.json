@@ -1065,7 +1065,8 @@
         "modelsAfterSave": "Salve as alterações para escolher entre os modelos do provedor."
       },
       "addModel": "Adicionar um modelo",
-      "refreshModels": "Atualizar modelos"
+      "refreshModels": "Atualizar modelos",
+      "promptDestination": "As instruções são enviadas para {destination}"
     },
     "backup": {
       "cardTitle": "Backup e restauro",
@@ -1099,11 +1100,11 @@
         },
         "appearance": {
           "title": "Aparência",
-          "description": "Como o FiestaBoard aparece neste navegador."
+          "description": "Tema para este navegador; movimento das prévias para todos neste hub."
         },
         "accessibility": {
           "title": "Acessibilidade",
-          "description": "Movimento e conforto de leitura neste navegador."
+          "description": "Preferências de movimento e animação"
         },
         "network": {
           "title": "Rede",
@@ -1119,13 +1120,40 @@
         },
         "language-time": {
           "title": "Idioma e hora",
-          "description": "Usados pelo hub na Programação, nas variáveis de hora e em cada horário exibido."
+          "description": "Idioma deste navegador; relógio e programação do hub."
+        },
+        "fiestabot": {
+          "title": "FiestaBot",
+          "description": "Preferências e conversas do FiestaBot."
         },
         "notifications": {
           "title": "Notificações",
           "description": "Escolha se a sua conta e este navegador podem receber alertas do seu hub."
         }
       }
+    },
+    "panels": {
+      "theme": "Tema",
+      "browserTheme": "Apenas neste navegador.",
+      "motionScope": "As preferências de movimento aplicam-se a todos neste hub."
+    },
+    "fiestabot": {
+      "title": "Alterações, painel e histórico",
+      "scope": "O modo de aprovação no painel aplica-se a todos neste hub.",
+      "unavailable": "As preferências pessoais de aprovação, painel e histórico ainda não estão disponíveis.",
+      "open": "Abrir FiestaBot",
+      "setup": "Configurar provedor de IA",
+      "needsSetup": "O FiestaBot precisa de IA ativada e um provedor configurado neste hub.",
+      "checking": "Verificando a disponibilidade do FiestaBot…",
+      "checkFailed": "Não foi possível verificar a disponibilidade do FiestaBot.",
+      "retry": "Tentar novamente"
+    },
+    "addresses": {
+      "title": "Endereços",
+      "description": "Como este navegador acessa o hub.",
+      "browser": "Este navegador usa",
+      "ip": "Endereço IP informado pelo hub",
+      "hint": "O hub pode informar um endereço de contêiner. Não é um endereço verificado para conectar outro dispositivo."
     }
   },
   "offline": {
