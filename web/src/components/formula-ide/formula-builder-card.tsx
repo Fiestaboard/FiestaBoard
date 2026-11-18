@@ -174,7 +174,7 @@ function ColumnRow({
         <Checkbox
           id={`${id}-upper`}
           checked={column.upper}
-          onCheckedChange={(checked) => onChange({ ...column, upper: checked === true })}
+          onChange={(e) => onChange({ ...column, upper: e.target.checked })}
         />
         <Label htmlFor={`${id}-upper`}>{t("columnUpper")}</Label>
       </Flex>

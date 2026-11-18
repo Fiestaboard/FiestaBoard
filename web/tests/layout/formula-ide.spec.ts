@@ -111,7 +111,7 @@ async function mockEditorApi(page: Page, drawingSource: "profile" | "baseline" =
           line_count: lines.length,
           charset: "vestaboard_v1",
           charset_issues: [],
-          ...(request.diagnostics && {
+          ...(request.diagnostics === true && {
             diagnostics: {
               formulas: [formula],
               lines: lines.map((text, index) => ({
@@ -135,9 +135,39 @@ async function mockEditorApi(page: Page, drawingSource: "profile" | "baseline" =
                     ...formula,
                     truncated: false,
                     events: [
-                      { id: 0, parent: null, kind: "call", label: "IF", start: 0, end: 43, value: `"${ifValue}"`, value_truncated: false, error: formula.error },
-                      { id: 1, parent: 0, kind: "binary", label: ">", start: 3, end: 27, value: "false", value_truncated: false, error: formula.error },
-                      { id: 2, parent: 1, kind: "variable", label: "weather.temperature", start: 3, end: 22, value: missing ? "" : "72", value_truncated: false, error: formula.error },
+                      {
+                        id: 0,
+                        parent: null,
+                        kind: "call",
+                        label: "IF",
+                        start: 0,
+                        end: 43,
+                        value: `"${ifValue}"`,
+                        value_truncated: false,
+                        error: formula.error,
+                      },
+                      {
+                        id: 1,
+                        parent: 0,
+                        kind: "binary",
+                        label: ">",
+                        start: 3,
+                        end: 27,
+                        value: "false",
+                        value_truncated: false,
+                        error: formula.error,
+                      },
+                      {
+                        id: 2,
+                        parent: 1,
+                        kind: "variable",
+                        label: "weather.temperature",
+                        start: 3,
+                        end: 22,
+                        value: missing ? "" : "72",
+                        value_truncated: false,
+                        error: formula.error,
+                      },
                     ],
                   }
                 : null,

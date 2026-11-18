@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildRecipe, columnBudget, type ListColumn,listColumnExpr } from "@/lib/formula-ide/recipes";
+import { buildRecipe, columnBudget, type ListColumn, listColumnExpr } from "@/lib/formula-ide/recipes";
 
 const columns: ListColumn[] = [
   { field: "time", label: "Time", format: "hh:mm", upper: false, width: 5, cut: "pad" },
