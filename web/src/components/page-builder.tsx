@@ -64,9 +64,11 @@ import { ArrowLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload, Variable, Za
 import {
   forwardRef,
   lazy,
+  type ReactNode,
   Suspense,
   useCallback,
   useEffect,
+  useId,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -76,6 +78,8 @@ import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { CanvasesPanel, type CanvasesPanelHandle } from "@/components/canvas-editor/canvases-panel";
+import { LineOverflowWarnings } from "@/components/complex-editing/line-overflow-warnings";
+import { useComplexEditing } from "@/components/complex-editing/use-complex-editing";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
 import type { StrokeCell } from "@/components/drawable-board-preview";
@@ -111,6 +115,7 @@ import {
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEditorViewportDock } from "@/hooks/use-editor-viewport-dock";
+import { useLineOverflow } from "@/hooks/use-line-overflow";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useDisplayTargets } from "@/hooks/use-panel-targets";
 import { usePluginSettings } from "@/hooks/use-plugin-settings";
@@ -137,10 +142,13 @@ import type {
   TemplateRenderResponse,
 } from "@/lib/api";
 import { api } from "@/lib/api";
+import type { RenderDiagnostics } from "@/lib/api/formula-debug";
 import { appUrl } from "@/lib/base-path";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
 import { charsetTokenText } from "@/lib/charset-issues";
+import { seamStraddles } from "@/lib/complex-editing";
+import { focusTemplateCell } from "@/lib/complex-editing-dom";
 import { boardForShape, isLedModel, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
 import {
   EDITOR_SHORTCUTS,
@@ -148,6 +156,7 @@ import {
   matchesShortcut,
   previewBindsBoardViewportKeys,
 } from "@/lib/editor-shortcuts";
+import { templateHasFormula } from "@/lib/formula-ide/hints";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -155,6 +164,9 @@ import { panelsFittingGrid, targetValue } from "@/lib/panel-page-fit";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { isDisplayOffline } from "@/lib/status-banners";
 import { cn } from "@/lib/utils";
+
+import { FormulaIdeContext } from "./formula-ide/formula-ide-context";
+import { useFormulaIde } from "./formula-ide/use-formula-ide";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
 // barrel push this module past 500 kB minified on their own (see #1575).
@@ -176,6 +188,18 @@ const CharsetTemplateEditor = lazy(() =>
   import("@/components/charset-template-editor").then((m) => ({ default: m.CharsetTemplateEditor })),
 );
 
+// Web 2.9 (04b) lenses load only for big boards and note arrays on the
+// desktop pane, keeping their kit composites off every other editor load.
+const previewTools = () => import("@/components/complex-editing/complex-preview-tools");
+const templateTools = () => import("@/components/complex-editing/complex-template-tools");
+const BigBoardZoom = lazy(() => previewTools().then((m) => ({ default: m.BigBoardZoom })));
+const ComplexPreviewRuler = lazy(() => previewTools().then((m) => ({ default: m.ComplexPreviewRuler })));
+const ComplexPreviewSeams = lazy(() => previewTools().then((m) => ({ default: m.ComplexPreviewSeams })));
+const ComplexPreviewOverview = lazy(() => previewTools().then((m) => ({ default: m.ComplexPreviewOverview })));
+const ComplexTemplateHeader = lazy(() => templateTools().then((m) => ({ default: m.ComplexTemplateHeader })));
+const NoteSeamSummary = lazy(() => templateTools().then((m) => ({ default: m.NoteSeamSummary })));
+const RowBandGutter = lazy(() => templateTools().then((m) => ({ default: m.RowBandGutter })));
+
 interface PageBuilderProps {
   pageId?: string; // If provided, edit existing page
   deviceType?: DeviceType; // Device type for new pages
@@ -190,6 +214,21 @@ interface PageBuilderProps {
    * in the section's card as a block instead of a second card inside it.
    */
   embedded?: boolean;
+  /**
+   * Creator IDE seam (web 2.11): replaces the header's Save and Show now while
+   * a display shows the page (04d decision 4: Save draft / Save & update
+   * board). `save` runs the header Save exactly as its button does.
+   */
+  saveActions?: (actions: PageBuilderSaveActions) => ReactNode;
+}
+
+export interface PageBuilderSaveActions {
+  save: () => void;
+  saving: boolean;
+  disabled: boolean;
+  size: "touch" | "sm";
+  /** The header Save's AI-walkthrough anchor; spread it on the button that publishes. */
+  anchor: Record<string, string>;
 }
 
 /**
@@ -220,6 +259,8 @@ export interface PageBuilderHandle {
   stageDeviceType: (value: string) => void;
   discardStaging: () => void;
   reloadFromServer: () => Promise<void>;
+  /** Mirror to board is on: a display shows these edits (the IDE's Testing state). */
+  isMirroring: () => boolean;
 }
 
 interface PageSnapshot {
@@ -317,6 +358,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     onClose,
     onSave,
     embedded = false,
+    saveActions,
   },
   ref,
 ) {
@@ -562,6 +604,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const plainTextRef = useRef<PlainTextEditorHandle>(null);
   const [plainHistory, setPlainHistory] = useState({ canUndo: false, canRedo: false });
   const richTemplateContainerRef = useRef<HTMLDivElement>(null);
+  const plainTemplateContainerRef = useRef<HTMLDivElement>(null);
   // Metadata history keyed to stroke boundaries: done/undone mirror the
   // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
   const strokeMetaHistoryRef = useRef<{ done: StrokeMetaSnapshot[]; undone: StrokeMetaSnapshot[] }>({
@@ -858,6 +901,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     await queryClient.invalidateQueries({ queryKey: ["page", pageId] });
   }, [pageId, queryClient]);
 
+  // Read by the Creator IDE (Testing state); kept current where the state is declared.
+  const ideMirroringRef = useRef(false);
   useImperativeHandle(
     ref,
     (): PageBuilderHandle => ({
@@ -931,6 +976,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       },
       undo: handleUndoAi,
       canUndo: () => undoStackRef.current.length > 0,
+      isMirroring: () => ideMirroringRef.current,
     }),
     // undoVersion is intentionally a dep so the host re-reads canUndo()
     // when the stack changes (the function returned by canUndo always
@@ -967,6 +1013,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
+  useEffect(() => {
+    ideMirroringRef.current = liveOutputEnabled;
+  }, [liveOutputEnabled]);
   const [chosenLiveBoardId, setChosenLiveBoardId] = useState<string>("");
   // The board this page is previewed as: the live-output target, else the
   // board in context, when the page fits it; else any board it fits. Its
@@ -1018,6 +1067,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Cells of the last render that board's character set draws differently
   // (POST /templates/render with board_id); [] when none or no board.
   const [charsetIssues, setCharsetIssues] = useState<CharsetIssue[]>([]);
+  // H5 values from the preview render (web 2.10 formula chips and line report).
+  const [previewDiagnostics, setPreviewDiagnostics] = useState<RenderDiagnostics | null>(null);
   const lastLiveSentPreview = useRef<string | null>(null);
   // Ref-tracked copy of lastPreview so the liveOutputEnabled effect can read it
   // synchronously without a stale closure (avoids adding lastPreview as a dep).
@@ -1953,6 +2004,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           debouncedCanvases,
         );
       }
+      // Web 2.10: a page with formulas asks this render for their values (H5),
+      // so the formula chips cost no second render per edit. Other pages'
+      // requests are exactly what they always were.
+      const hasFormula = templateHasFormula(cleanedLines);
+      if (hasFormula) {
+        return api.renderTemplate(
+          cleanedLines,
+          metadata,
+          deviceType,
+          notesWide,
+          notesTall,
+          panelGrid,
+          previewBoardId,
+          undefined,
+          { diagnostics: true },
+        );
+      }
       return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall, panelGrid, previewBoardId);
     },
     onSuccess: (data: TemplateRenderResponse) => {
@@ -1961,6 +2029,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         return;
       }
       setCharsetIssues(data.charset_issues ?? []);
+      setPreviewDiagnostics(data.diagnostics ?? null);
       setPreviewLayers(data.layers ?? null);
       setCanvasIssues(data.canvas_issues ?? []);
       setCanvasError(null);
@@ -2000,6 +2069,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     onError: (error: Error) => {
       setPreview(null);
       setCharsetIssues([]);
+      setPreviewDiagnostics(null);
       setPreviewLayers(null);
       setCanvasIssues([]);
       // With canvases, a refusal is most likely theirs (a 422 naming the field).
@@ -2036,6 +2106,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       needsRePreview.current = false;
       if (previewMutationRef.current.isPending) {
         shouldIgnoreNextResponse.current = true;
+        previewMutationRef.current.reset();
+      } else if (previewMutationRef.current.isError) {
+        // A preview that failed before mirroring is not the render behind the
+        // hints any more; clear it so its error cannot linger (FABLE-2541 N15).
         previewMutationRef.current.reset();
       }
       return;
@@ -2178,11 +2252,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           notesTall,
           controller.signal,
           panelGrid,
-          { overrideSilence: liveOverrideSilence, canvases },
+          {
+            overrideSilence: liveOverrideSilence,
+            canvases,
+            // Web 2.10: a page with formulas takes their values from this
+            // render, the only one per edit while mirroring (FABLE-2541 M2).
+            diagnostics: templateHasFormula(cleanedLines),
+          },
         ]);
 
         if (controller.signal.aborted) return;
 
+        setPreviewDiagnostics(data.diagnostics ?? null);
         setPreviewLayers(data.layers ?? null);
         setCanvasIssues(data.canvas_issues ?? []);
         setCanvasError(null);
@@ -2576,16 +2657,55 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     </Stack>
   );
 
-  if (pageId && loadingPage) {
-    return (
-      <Card>
-        <CardContent className="p-4 sm:p-6">
-          <Skeleton className="h-64 w-full" />
-        </CardContent>
-      </Card>
+  // Web 2.10 (04c): formula values, Live/Sample/Missing, Inspect and the
+  // docked formula workbench. Inert for canvases and plain-text-only boards.
+  const formulaIdeTarget = useMemo(() => {
+    if (baselineDisplay || debouncedCanvases.length > 0) return null;
+    if (!debouncedTemplateLines.some((line) => line.trim().length > 0)) return null;
+    const { cleanedLines, metadata } = processLinesWithPrefixes(
+      debouncedTemplateLines,
+      debouncedLineAlignments,
+      debouncedLineWrapEnabled,
     );
-  }
-
+    return {
+      template: cleanedLines,
+      lineMetadata: metadata,
+      deviceType,
+      notesWide,
+      notesTall,
+      grid: panelGrid,
+      boardId: previewBoardId,
+    };
+  }, [
+    baselineDisplay,
+    debouncedCanvases,
+    debouncedTemplateLines,
+    debouncedLineAlignments,
+    debouncedLineWrapEnabled,
+    deviceType,
+    notesWide,
+    notesTall,
+    panelGrid,
+    previewBoardId,
+  ]);
+  const formulaIde = useFormulaIde({
+    target: formulaIdeTarget,
+    live: {
+      diagnostics: previewDiagnostics,
+      lines: (preview ?? "").split("\n"),
+      // While mirroring the live render is the one behind the hints (N15).
+      failed: !liveOutputEnabled && previewMutation.isError,
+    },
+    available: !baselineDisplay && debouncedCanvases.length === 0,
+    desktop: !dockedPreview,
+    mirroring: liveOutputEnabled,
+    stopMirroring: () => changeMirroring(false),
+    boardCols: dims.cols,
+    editTemplateLine: (index, edit) => {
+      setTemplateInputStarted(true);
+      setTemplateLines((lines) => lines.map((line, i) => (i === index ? edit(line) : line)));
+    },
+  });
   // What the live preview shows. Keeps the previous message visible during
   // loading/transition, so tiles cycle through characters (like a real board)
   // instead of flashing empty.
@@ -2603,9 +2723,116 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         if (isPending && hasContent && !shouldIgnore) return "";
         return null;
       })();
+  // Sample, Missing or another time render through the formula IDE (hub H6).
+  const shownPreviewMessage = drawMode ? editorPreviewMessage : (formulaIde.previewOverride ?? editorPreviewMessage);
+
+  const requestSave = () => {
+    if (!name.trim()) {
+      document.getElementById("page-name")?.focus();
+      return;
+    }
+    // A shrinking retarget loses content — confirm first.
+    if (isShrinkingRetarget) {
+      setConfirmRetargetOpen(true);
+    } else {
+      saveMutation.mutate();
+    }
+  };
+
+  // Web 2.9 (04b): complex-editing lenses for big boards and note arrays on
+  // the desktop pane, and the hub's real-width overflow check (H4) everywhere.
+  const [previewStage, setPreviewStage] = useState<HTMLElement | null>(null);
+  // One stage element serves 2.9's lenses and 2.10's Inspect. The ref must be
+  // stable: an inline callback runs again on every commit, and its
+  // setPreviewStage(null) / (el) pair kept the whole editor re-committing.
+  const formulaBoardRef = formulaIde.boardProps.ref;
+  const setPreviewStageElement = useCallback(
+    (el: HTMLDivElement | null) => {
+      setPreviewStage(el);
+      formulaBoardRef.current = el;
+    },
+    [formulaBoardRef],
+  );
+  const complexEditing = useComplexEditing({
+    rows: dims.rows,
+    cols: dims.cols,
+    deviceType,
+    notesWide,
+    notesTall,
+    enabled: !dockedPreview && !baselineDisplay && !drawMode && !isLedModel(previewModel),
+    stage: previewStage,
+    previewMode,
+    onPreviewModeChange: changePreviewMode,
+  });
+  const complexMinimapId = useId();
+  const overflowTarget = useMemo(() => {
+    const { cleanedLines, metadata } = processLinesWithPrefixes(
+      debouncedTemplateLines,
+      debouncedLineAlignments,
+      debouncedLineWrapEnabled,
+    );
+    return {
+      template: cleanedLines,
+      lineMetadata: metadata,
+      boardId: previewBoardId,
+      deviceType,
+      notesWide,
+      notesTall,
+      grid: panelGrid,
+    };
+    // processLinesWithPrefixes is a pure, per-render helper.
+  }, [
+    debouncedTemplateLines,
+    debouncedLineAlignments,
+    debouncedLineWrapEnabled,
+    previewBoardId,
+    deviceType,
+    notesWide,
+    notesTall,
+    panelGrid,
+  ]);
+  const lineOverflow = useLineOverflow(overflowTarget, dims.cols, !baselineDisplay && !newPageEmpty);
+  // The lenses describe the board on screen, so they read the shown message
+  // (a Sample/Missing/render-at override included), never the live one behind it.
+  const renderedRows = useMemo(() => (shownPreviewMessage ?? "").split("\n"), [shownPreviewMessage]);
+  const straddles = useMemo(
+    () => (complexEditing.noteArray ? seamStraddles(renderedRows, notesWide) : []),
+    [complexEditing.noteArray, renderedRows, notesWide],
+  );
+  const rowBandsEnabled = complexEditing.bigBoard && isXlUp;
+  const applyTemplateRows = (next: { lines: string[]; alignments: LineAlignment[]; wraps: boolean[] }) => {
+    setTemplateInputStarted(true);
+    setTemplateLines(next.lines);
+    setLineAlignments(next.alignments);
+    setLineWrapEnabled(next.wraps);
+  };
+  const wrapTemplateLine = (line: number) => {
+    setLineWrapEnabled((previous) => {
+      const next = [...previous];
+      next[line - 1] = true;
+      return next;
+    });
+  };
+  const goToTemplateCell = ({ row, column }: { row: number; column: number }) => {
+    const root = richTemplateContainerRef.current ?? plainTemplateContainerRef.current;
+    if (root) focusTemplateCell(root, row, column);
+    complexEditing.scrollToColumn(column);
+  };
+
+  // After every hook above (the 2.9 lenses included), so a loading render
+  // calls the same hooks as a loaded one.
+  if (pageId && loadingPage) {
+    return (
+      <Card>
+        <CardContent className="p-4 sm:p-6">
+          <Skeleton className="h-64 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <>
+    <FormulaIdeContext.Provider value={formulaIde.bridge}>
       <Box
         ref={editorContentRef}
         className="min-w-0 w-full max-w-full overflow-x-clip transition-none"
@@ -2667,51 +2894,52 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               <Box hidden={dockedPreview} className={dockedPreview ? "hidden" : "contents"}>
                 <EditorShortcutList variant="header" {...shortcutListProps} />
               </Box>
-              <TooltipProvider skipDelayDuration={0}>
+              {saveActions ? (
                 <Flex align="center" gap="1.5" className="shrink-0 flex-nowrap">
-                  {/* Save button */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size={dockedPreview ? "touch" : "sm"}
-                        className="shrink-0 gap-1.5 px-3 text-sm"
-                        {...anchorProps("page-editor.save")}
-                        onClick={() => {
-                          if (!name.trim()) {
-                            document.getElementById("page-name")?.focus();
-                            return;
-                          }
-                          // A shrinking retarget loses content — confirm first.
-                          if (isShrinkingRetarget) {
-                            setConfirmRetargetOpen(true);
-                          } else {
-                            saveMutation.mutate();
-                          }
-                        }}
-                        disabled={saveMutation.isPending || stagingActive}
-                        aria-label={t("savePageAriaLabel")}
-                      >
-                        <Save className="h-3.5 w-3.5" />
-                        {saveMutation.isPending ? tCommon("saving") : t("savePage")}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <Text>{t("savePageTooltip")}</Text>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Button
-                    variant="brand"
-                    size={dockedPreview ? "touch" : "sm"}
-                    className="shrink-0 gap-1.5 px-3 text-sm"
-                    disabled={saveMutation.isPending || stagingActive || !selectedBoardId}
-                    onClick={() => requestShowNowRef.current()}
-                  >
-                    <Send className="size-4" />
-                    {tTouch("showNow")}
-                  </Button>
+                  {saveActions({
+                    save: requestSave,
+                    saving: saveMutation.isPending,
+                    disabled: saveMutation.isPending || stagingActive,
+                    size: dockedPreview ? "touch" : "sm",
+                    anchor: anchorProps("page-editor.save"),
+                  })}
                 </Flex>
-              </TooltipProvider>
+              ) : (
+                <TooltipProvider skipDelayDuration={0}>
+                  <Flex align="center" gap="1.5" className="shrink-0 flex-nowrap">
+                    {/* Save button */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size={dockedPreview ? "touch" : "sm"}
+                          className="shrink-0 gap-1.5 px-3 text-sm"
+                          {...anchorProps("page-editor.save")}
+                          onClick={requestSave}
+                          disabled={saveMutation.isPending || stagingActive}
+                          aria-label={t("savePageAriaLabel")}
+                        >
+                          <Save className="h-3.5 w-3.5" />
+                          {saveMutation.isPending ? tCommon("saving") : t("savePage")}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <Text>{t("savePageTooltip")}</Text>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Button
+                      variant="brand"
+                      size={dockedPreview ? "touch" : "sm"}
+                      className="shrink-0 gap-1.5 px-3 text-sm"
+                      disabled={saveMutation.isPending || stagingActive || !selectedBoardId}
+                      onClick={() => requestShowNowRef.current()}
+                    >
+                      <Send className="size-4" />
+                      {tTouch("showNow")}
+                    </Button>
+                  </Flex>
+                </TooltipProvider>
+              )}
             </Flex>
           </CardHeader>
 
@@ -2768,7 +2996,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               )}
               <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-0 lg:gap-6">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
-                <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0 px-2 lg:px-0">
+                <Box
+                  hidden={!!pixelBoard && editingSurface !== "text"}
+                  className={cn("order-1 min-w-0 px-2 lg:px-0", formulaIde.rightSlot && "lg:row-span-2")}
+                >
                   <Stack gap="3" className="min-w-0">
                     <Flex ref={templateHeadingRef} align="center" justify="between" className="order-2 lg:order-none">
                       <label htmlFor="page-template-plain" className="text-xs sm:text-sm font-medium">
@@ -2803,8 +3034,36 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </Button>
                       </Flex>
                     </Flex>
+                    {complexEditing.active && (
+                      <Suspense fallback={null}>
+                        <ComplexTemplateHeader
+                          complex={complexEditing}
+                          editorRootRef={
+                            editorMode === "rich" && !baselineDisplay
+                              ? richTemplateContainerRef
+                              : plainTemplateContainerRef
+                          }
+                          onGo={goToTemplateCell}
+                        />
+                      </Suspense>
+                    )}
                     {editorMode === "rich" && !baselineDisplay ? (
-                      <Box ref={richTemplateContainerRef} {...anchorProps("page-editor.template")} className="relative">
+                      <Box
+                        ref={richTemplateContainerRef}
+                        {...anchorProps("page-editor.template")}
+                        className={cn("relative", rowBandsEnabled && "pl-38")}
+                      >
+                        {rowBandsEnabled && (
+                          <Suspense fallback={null}>
+                            <RowBandGutter
+                              enabled
+                              state={{ lines: templateLines, alignments: lineAlignments, wraps: lineWrapEnabled }}
+                              rows={numLines}
+                              editorRootRef={richTemplateContainerRef}
+                              onChange={(next) => applyTemplateRows(next as Parameters<typeof applyTemplateRows>[0])}
+                            />
+                          </Suspense>
+                        )}
                         {newPageEmpty && (
                           <Text
                             aria-hidden
@@ -2906,7 +3165,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </Suspense>
                       </Box>
                     ) : (
-                      <Box {...anchorProps("page-editor.template")}>
+                      <Box ref={plainTemplateContainerRef} {...anchorProps("page-editor.template")}>
                         <PlainTextEditor
                           ref={plainTextRef}
                           onHistoryChange={setPlainHistory}
@@ -3037,6 +3296,22 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </Stack>
                       </Flex>
                     )}
+
+                    {/* H4: lines the hub measured past the board's real width. */}
+                    <LineOverflowWarnings
+                      overflows={lineOverflow.overflows}
+                      boardName={previewBoard?.name}
+                      checkedAt={lineOverflow.checkedAt}
+                      touch={useTouchToolbar}
+                      wrapped={lineWrapEnabled}
+                      onWrap={wrapTemplateLine}
+                    />
+                    {complexEditing.noteArray && (
+                      <Suspense fallback={null}>
+                        <NoteSeamSummary straddles={straddles} />
+                      </Suspense>
+                    )}
+                    {formulaIde.leftSlot}
                   </Stack>
                 </Box>
 
@@ -3046,12 +3321,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   id="page-editor-preview"
                   variant={dockedPreview ? "docked" : "pane"}
                   className={cn("order-first lg:order-2 min-w-0 top-16 scroll-mt-16", dockedPreview && "px-0")}
-                  title={baselineDisplay ? tTouch("plainText") : tTouch("livePreview")}
-                  dotStatus={baselineDisplay ? "warning" : "success"}
+                  title={baselineDisplay ? tTouch("plainText") : (formulaIde.previewTitle ?? tTouch("livePreview"))}
+                  dotStatus={baselineDisplay ? "warning" : (formulaIde.dotStatus ?? "success")}
                   boardName={previewBoard?.name}
                   live={liveOutputEnabled}
                   onLiveChange={changeMirroring}
-                  liveDisabled={mirrorUnavailable && !liveOutputEnabled}
+                  liveDisabled={(mirrorUnavailable && !liveOutputEnabled) || formulaIde.mirrorLocked}
                   liveLabel={tTouch("mirror")}
                   mirroringLabel={tTouch("mirroring")}
                   statusLine={
@@ -3062,8 +3337,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         : undefined
                   }
                   headerAction={
-                    <Flex align="center" gap="1">
-                      {!baselineDisplay && (
+                    <Flex align="center" gap="1" wrap className="justify-end">
+                      {formulaIde.headerControls}
+                      {!baselineDisplay && complexEditing.bigBoard && (
+                        <Suspense fallback={null}>
+                          <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
+                        </Suspense>
+                      )}
+                      {!baselineDisplay && !complexEditing.bigBoard && (
                         <BoardPreviewModeToggle
                           mode={previewMode}
                           onModeChange={changePreviewMode}
@@ -3095,7 +3376,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Flex>
                   }
                 >
-                  <Flex justify="center">
+                  {formulaIde.bodyControls}
+                  {complexEditing.bigBoard && (
+                    <Suspense fallback={null}>
+                      <ComplexPreviewRuler complex={complexEditing} />
+                    </Suspense>
+                  )}
+                  {/* One stage element serves 2.9's lenses (previewStage) and 2.10's Inspect (board ref). */}
+                  <Flex
+                    justify="center"
+                    {...formulaIde.boardProps}
+                    ref={setPreviewStageElement}
+                    className={cn("relative min-w-0", formulaIde.boardProps.className)}
+                  >
+                    {formulaIde.boardOverlay}
                     {baselineDisplay ? (
                       <Alert variant="warning" className="w-full">
                         <AlertDescription>
@@ -3120,11 +3414,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           model={drawMode ? null : previewModel}
                           ledLayout={previewBoard?.led_layout}
                           layers={drawMode ? undefined : previewLayers}
-                          message={editorPreviewMessage}
+                          message={shownPreviewMessage}
                           size={dockedPreview ? "sm" : "md"}
                         >
                           <ScaledBoardDisplay
-                            message={editorPreviewMessage}
+                            message={shownPreviewMessage}
                             isLoading={
                               drawMode
                                 ? false
@@ -3141,10 +3435,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                   })()
                             }
                             isStatic={drawMode}
-                            size={dockedPreview ? "sm" : "md"}
+                            size={complexEditing.bigBoard ? complexEditing.previewSize : dockedPreview ? "sm" : "md"}
                             layout={dockedPreview ? "phone-hero" : "pane"}
-                            mode={previewMode}
-                            onModeChange={changePreviewMode}
+                            mode={complexEditing.bigBoard ? complexEditing.previewMode : previewMode}
+                            onModeChange={
+                              complexEditing.bigBoard
+                                ? (mode) => complexEditing.setZoom(mode === "fit" ? "fit" : "sm")
+                                : changePreviewMode
+                            }
                             showModeToggle={false}
                             boardType={effectiveBoardColor}
                             deviceType={deviceType}
@@ -3161,7 +3459,33 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </DevicePreview>
                       </DrawableBoardPreview>
                     )}
+                    {complexEditing.noteArray && (
+                      <Suspense fallback={null}>
+                        <ComplexPreviewSeams complex={complexEditing} />
+                      </Suspense>
+                    )}
                   </Flex>
+                  {complexEditing.bigBoard && (
+                    <Suspense fallback={null}>
+                      <ComplexPreviewOverview
+                        complex={complexEditing}
+                        board={{
+                          message: shownPreviewMessage,
+                          boardType: effectiveBoardColor,
+                          deviceType,
+                          code62Glyph: effectiveCode62Glyph,
+                          notesWide,
+                          notesTall,
+                          gridRows: panelGrid?.rows,
+                          gridCols: panelGrid?.cols,
+                        }}
+                        rendered={renderedRows}
+                        overflows={lineOverflow.overflows}
+                        minimapId={complexMinimapId}
+                        onJump={goToTemplateCell}
+                      />
+                    </Suspense>
+                  )}
                   {drawMode && (
                     <Text tone="muted" size="xs" className="mt-1 text-center">
                       {t("drawModeHint")}
@@ -3196,7 +3520,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     onSendAnyway={() => setLiveOverrideSilence(true)}
                     onStopOverriding={() => setLiveOverrideSilence(false)}
                   />
+                  {formulaIde.previewFooter}
                 </EditorPreview>
+                {formulaIde.rightSlot && <Box className="order-2 min-w-0 lg:col-start-2">{formulaIde.rightSlot}</Box>}
                 <Box className="order-3 min-w-0 px-2 lg:px-0 lg:col-start-1">
                   <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
                     <Flex align="center" gap="2" className="flex-wrap">
@@ -3453,7 +3779,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+      {formulaIde.overlays}
+    </FormulaIdeContext.Provider>
   );
 });
 PageBuilder.displayName = "PageBuilder";

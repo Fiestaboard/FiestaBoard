@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "11.0.0-alpha.9",
+  "version": "11.0.0-alpha.10",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,6 +25,7 @@
     "test:storybook-hosts": "node --test scripts/test-storybook-hosts.mjs"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/language": "^6.13.1",
     "@codemirror/state": "^6.7.5",

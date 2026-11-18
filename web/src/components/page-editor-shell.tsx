@@ -18,14 +18,20 @@ import {
   SheetTitle,
   Stack,
 } from "@fiestaboard/ui";
-import { useCallback, useEffect, useRef } from "react";
+import { lazy, type ReactNode, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { type BlockerFunction, useBlocker } from "react-router";
 
-import { PageBuilder, type PageBuilderHandle } from "@/components/page-builder";
+import { PageBuilder, type PageBuilderHandle, type PageBuilderSaveActions } from "@/components/page-builder";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
+
+// The Creator IDE (web 2.11) only exists for a saved page; its chunk loads
+// with the editor route instead of the app shell.
+const CreatorIde = lazy(() => import("@/components/ide/creator-ide"));
+
+export type SaveActionsRenderer = (actions: PageBuilderSaveActions) => ReactNode;
 
 export interface PageEditorShellProps {
   pageId?: string;
@@ -71,6 +77,14 @@ export function PageEditorShell({
   const discardAndLeave = () => {
     // Let the router unmount the confirmation; resetting here can cancel a POP.
     if (blocker.state === "blocked") blocker.proceed();
+  };
+
+  const [explorerSlot, setExplorerSlot] = useState<HTMLElement | null>(null);
+  const [saveActions, setSaveActions] = useState<SaveActionsRenderer | undefined>(undefined);
+  const [savedTick, setSavedTick] = useState(0);
+  const handleSave = () => {
+    setSavedTick((tick) => tick + 1);
+    onSave();
   };
 
   const call = <K extends keyof PageBuilderHandle>(key: K): PageBuilderHandle[K] | undefined =>
@@ -145,6 +159,8 @@ export function PageEditorShell({
         </AlertDialog>
       )}
       <Flex className="flex-1 min-h-0 w-full overflow-hidden">
+        {/* Creator IDE Explorer column (>= 1024 px); the IDE portals into it. */}
+        {pageId && <aside ref={setExplorerSlot} data-slot="ide-explorer-slot" className="contents" />}
         {/* No padding of its own: it sits in the Pages section's card, which
           already puts the editor on the content column. */}
         <Stack className="h-full w-full min-w-0 flex-1 overflow-y-auto">
@@ -156,8 +172,20 @@ export function PageEditorShell({
             targetBoardId={targetBoardId}
             skipDraft={skipDraft}
             onClose={onClose}
-            onSave={onSave}
+            onSave={handleSave}
+            saveActions={saveActions}
           />
+          {pageId && (
+            <Suspense fallback={null}>
+              <CreatorIde
+                pageId={pageId}
+                builderRef={builderRef}
+                explorerSlot={explorerSlot}
+                savedTick={savedTick}
+                onSaveActionsChange={setSaveActions}
+              />
+            </Suspense>
+          )}
         </Stack>
       </Flex>
     </>

@@ -1,0 +1,303 @@
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+
+import { expect, type Page, test } from "@playwright/test";
+import { checkA11y, injectAxe } from "axe-playwright";
+
+import outputs from "../../src/__tests__/mocks/first-party-outputs.json" with { type: "json" };
+
+/**
+ * Web 2.9 (Figma 04b + 07c): the real page editor with the complex-editing
+ * lenses, at 390 / 900 / 1440 in light and dark, axe-checked.
+ * - Lobby TV 96 × 24 (04b `126:134198`): desktop zoom, ruler, minimap,
+ *   truncation map, Go to and row bands; scroll viewport below 1024.
+ * - Lobby wall Note array 2 × 2 (04b `127:133562`, 07c `310:68695`/`310:71145`):
+ *   Note focus and seams at desktop; "Column 1 of 2" scrolling below.
+ * - Den TV 29 × 12 (07c `310:72331`): "Columns 1–… of 29" on the phone.
+ * - Kitchen Flagship (07c `307:41698`/`307:44268`): H4 per-line overflow.
+ */
+const board = {
+  id: "kitchen-board",
+  name: "Kitchen board",
+  device_type: "flagship",
+  board_color: "black",
+  enabled: true,
+  output: "vestaboard",
+};
+
+const blank = (n: number) => Array.from({ length: n }, () => "");
+const meta = (n: number) => Array.from({ length: n }, () => ({ alignment: "left", wrap: false }));
+
+const pages = {
+  "kitchen-morning": {
+    id: "kitchen-morning",
+    name: "Kitchen morning",
+    type: "template",
+    device_type: "flagship",
+    template: ["GOOD MORNING", "", "", "N JUDAH {{muni.next}}", "", ""],
+    line_metadata: meta(6),
+  },
+  "lobby-this-week": {
+    id: "lobby-this-week",
+    name: "Lobby this week",
+    type: "template",
+    device_type: "panel",
+    grid_rows: 24,
+    grid_cols: 96,
+    template: [
+      "ROSA'S CAFE  GOOD MORNING",
+      "",
+      "TONIGHT AT ROSA'S",
+      "6:30 PM  OPEN MIC NIGHT",
+      "7:00 PM  JAZZ TRIO ON THE PATIO",
+      "",
+      "THIS WEEK",
+      "THU  POETRY SLAM",
+      ...blank(15),
+      "NOW POURING COLD BREW  HOUSE CHAI  OAT LATTE  SPECIALS",
+    ],
+    line_metadata: meta(24),
+  },
+  "lobby-menu": {
+    id: "lobby-menu",
+    name: "Lobby menu",
+    type: "template",
+    device_type: "note_array",
+    notes_wide: 2,
+    notes_tall: 2,
+    template: [
+      "GOOD MORNING   FROM ROSA'S",
+      "LATTE    4.50  MOCHA    5.00",
+      // "CAPPUCCINO" (columns 12–21) runs across the seam after column 15.
+      "TEA 3.00   CAPPUCCINO 4.75",
+      "",
+      "",
+      "",
+    ],
+    line_metadata: meta(6),
+  },
+  "cafe-menu": {
+    id: "cafe-menu",
+    name: "Café menu",
+    type: "template",
+    device_type: "panel",
+    grid_rows: 12,
+    grid_cols: 29,
+    template: ["", "    LOBBY MENU", "", "  COFFEE               $3", "  TEA                  $2", ...blank(7)],
+    line_metadata: meta(12),
+  },
+} as const;
+type PageId = keyof typeof pages;
+
+async function mockEditorApi(page: Page, pageId: PageId) {
+  const current = { ...pages[pageId], duration_seconds: 300, revision: 1 };
+  await page.route(
+    (url) => url.pathname.startsWith("/api/"),
+    async (route) => {
+      const pathname = new URL(route.request().url()).pathname.slice(4);
+      let response: unknown;
+      if (pathname === "/settings/board") {
+        response = { boards: [board], devices: ["flagship"], board_type: "black" };
+      } else if (pathname.startsWith("/v1/boards/")) {
+        response = {
+          ...board,
+          rows: 6,
+          cols: 22,
+          is_primary: true,
+          paused: false,
+          schedule_enabled: false,
+          drawing: { source: "profile", features: {} },
+          next_change_at: null,
+          next_page_id: null,
+          active_page_id: current.id,
+        };
+      } else if (pathname === `/v1/pages/${current.id}`) {
+        response = current;
+      } else if (pathname === "/v1/pages" || pathname === "/pages") {
+        response = { pages: [current] };
+      } else if (pathname === "/v1/variables") {
+        response = {
+          variables: { muni: ["next"] },
+          max_lengths: { "muni.next": 16 },
+          colors: { red: 63, orange: 64, yellow: 65, green: 66, blue: 67, violet: 68, white: 69, black: 70 },
+          formatting: {},
+        };
+      } else if (pathname === "/templates/validate") {
+        response =
+          pageId === "kitchen-morning"
+            ? {
+                valid: false,
+                rows: 6,
+                cols: 22,
+                errors: [{ line: 4, column: 22, message: "Line 4 is too long", code: "line_too_long", max_length: 24 }],
+              }
+            : { valid: true, errors: [] };
+      } else if (pathname === "/templates/render" || pathname === "/templates/render/live") {
+        const request = route.request().postDataJSON() as { template: string | string[] };
+        const lines = (Array.isArray(request.template) ? request.template : request.template.split("\n")).map((line) =>
+          line.replaceAll("{{muni.next}}", "4, 12 AND 25 MIN"),
+        );
+        response = {
+          rendered: lines.join("\n"),
+          lines,
+          line_count: lines.length,
+          charset: "vestaboard_v1",
+          charset_issues: [],
+          ...(pathname.endsWith("/live") && {
+            sent_to_board: true,
+            board_id: board.id,
+            paused: false,
+            silenced: false,
+          }),
+        };
+      } else if (pathname === "/outputs") {
+        response = outputs;
+      } else if (pathname === "/settings/plugins") {
+        response = { transition_plugins_enabled: false, output_plugins_enabled: false, auto_update: false };
+      } else if (pathname === "/plugins") {
+        response = { plugins: [], total: 0, enabled_count: 0, plugin_system_enabled: true };
+      } else if (pathname === "/plugins/registry") {
+        response = { entries: [] };
+      } else if (pathname === "/silence-status") {
+        response = { active: false, holds_blocked_sends: false, held: null };
+      } else if (pathname === "/schedules") {
+        response = { schedules: [] };
+      } else if (pathname === "/collections" || pathname === "/v1/collections") {
+        response = { collections: [] };
+      } else if (pathname === "/v1/status") {
+        response = {
+          running: true,
+          initialized: true,
+          config_summary: {
+            weather_enabled: false,
+            home_assistant_enabled: false,
+            guest_wifi_enabled: false,
+            star_trek_quotes_enabled: false,
+          },
+        };
+      } else if (pathname === "/panels") {
+        response = { panels: [], total: 0 };
+      } else if (pathname === "/settings/all") {
+        response = { display: { board_animations: "off", board_flap_speed: "standard" } };
+      } else if (pathname === "/config") {
+        response = { board_type: "black", refresh_interval: 60 };
+      } else {
+        await route.fulfill({ status: 404, json: { detail: `Unmocked editor fixture endpoint: ${pathname}` } });
+        return;
+      }
+      await route.fulfill({ json: response });
+    },
+  );
+}
+
+async function openEditor(page: Page, pageId: PageId, width: number, theme: "light" | "dark") {
+  page.on("pageerror", (error) => console.error("Complex editing fixture page error:", error.message));
+  await page.setViewportSize({ width, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockEditorApi(page, pageId);
+  const rendered = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/templates/render");
+  await page.goto(`/tests/layout/complex-editing.html?theme=${theme}&page=${pageId}`);
+  await rendered;
+  await expect(page.getByRole("textbox", { name: /page name/i })).toHaveValue(pages[pageId].name);
+  await expect(page.locator('[data-slot="editor-preview"] [data-slot="board-viewport"]')).toBeVisible();
+}
+
+async function finish(page: Page, testInfo: { outputPath: (...p: string[]) => string }, name: string) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(() => document.fonts.ready);
+  await injectAxe(page);
+  await checkA11y(page, "main", { detailedReport: true, detailedReportOptions: { html: true } });
+  const shots = process.env.COMPLEX_EDITING_SHOTS || testInfo.outputPath("complex-editing-shots");
+  await mkdir(shots, { recursive: true });
+  await page.screenshot({ path: path.join(shots, `${name}.png`) });
+}
+
+const indicator = (page: Page) =>
+  page.locator('[data-slot="editor-preview"] [data-slot="board-viewport-indicator-text"]');
+
+for (const theme of ["light", "dark"] as const) {
+  test.describe(`complex editing in ${theme}`, () => {
+    test("1440: big board opens with zoom, ruler, minimap, truncation map, Go to and bands", async ({
+      page,
+    }, testInfo) => {
+      await openEditor(page, "lobby-this-week", 1440, theme);
+      const preview = page.locator('[data-slot="editor-preview"]');
+      await expect(preview.getByRole("group", { name: "Preview zoom" })).toBeVisible();
+      await expect(preview.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(0);
+      await expect(preview.getByRole("img", { name: /Column ruler · 96 columns/ })).toBeVisible();
+      await expect(indicator(page)).toContainText(/Columns 1–\d+ of 96/);
+      await expect(preview.getByText("Where lines are cut")).toBeVisible();
+      await expect(preview.locator('[data-slot="board-minimap"], [aria-label="Board overview"]').first()).toBeVisible();
+      await expect(page.getByRole("textbox", { name: "Go to row and column" })).toBeVisible();
+      const bands = page.getByRole("list", { name: "Row bands" });
+      await expect(bands).toBeVisible();
+      await expect(bands.getByText("THIS WEEK", { exact: true })).toBeVisible();
+      // Zoom to Tile md keeps the page inside the viewport.
+      await preview.getByRole("radio", { name: "Tile md" }).click();
+      await expect(preview.locator('[data-slot="board-viewport"]')).toHaveAttribute("data-mode", "actual");
+      await expect(preview.getByRole("radio", { name: "Tile md" })).toBeChecked();
+      await finish(page, testInfo, `impl-1440-${theme}-big-board`);
+    });
+
+    test("1440: note array has Note focus and a clear seam check", async ({ page }, testInfo) => {
+      await openEditor(page, "lobby-menu", 1440, theme);
+      const focus = page.getByRole("radiogroup", { name: "Note focus" });
+      await expect(focus).toBeVisible();
+      await focus.getByRole("radio", { name: "Note 2" }).click();
+      await expect(focus.getByRole("radio", { name: "Note 2" })).toBeChecked();
+      await expect(page.locator('[data-slot="note-seam-summary"]')).toHaveText(
+        "Row 3: “CAPPUCCINO” runs across the seam after column 15.",
+      );
+      await finish(page, testInfo, `impl-1440-${theme}-note-array`);
+    });
+
+    test("1440: hub-validated overflow card (H4)", async ({ page }, testInfo) => {
+      await openEditor(page, "kitchen-morning", 1440, theme);
+      const warning = page.locator('[data-slot="line-overflow-warnings"]');
+      await expect(warning.getByText("Line 4", { exact: true })).toBeVisible();
+      await expect(warning.getByText("24 of 22 columns · 2 cut off")).toBeVisible();
+      await expect(warning.getByRole("button", { name: "Wrap line 4" })).toBeVisible();
+      await finish(page, testInfo, `impl-1440-${theme}-overflow`);
+    });
+
+    for (const width of [900, 390]) {
+      test(`${width}: big board scrolls in the docked preview without desktop lenses`, async ({ page }, testInfo) => {
+        await openEditor(page, "lobby-this-week", width, theme);
+        await expect(page.getByRole("group", { name: "Preview zoom" })).toHaveCount(0);
+        await expect(page.getByRole("textbox", { name: "Go to row and column" })).toHaveCount(0);
+        await expect(indicator(page)).toContainText("of 96");
+        await finish(page, testInfo, `impl-${width}-${theme}-big-board`);
+      });
+
+      test(`${width}: note array scrolls a column of Notes at a time`, async ({ page }, testInfo) => {
+        await openEditor(page, "lobby-menu", width, theme);
+        await expect(page.getByRole("radiogroup", { name: "Note focus" })).toHaveCount(0);
+        // 2.5 docks the preview full width below 1024 px: the 2 × 2 wall fits at
+        // 900 (no scroll), and scrolls a column of Notes at a time on a phone.
+        if (width === 900) {
+          await expect(page.locator('[data-slot="editor-preview"] [data-slot="board-viewport"]')).toHaveAttribute(
+            "data-overflow",
+            "false",
+          );
+        } else {
+          await expect(indicator(page)).toContainText("Column 1 of 2");
+        }
+        await finish(page, testInfo, `impl-${width}-${theme}-note-array`);
+      });
+    }
+
+    test("390: Den TV 29 × 12 shows its first columns and swipes", async ({ page }, testInfo) => {
+      await openEditor(page, "cafe-menu", 390, theme);
+      await expect(indicator(page)).toContainText(/Columns 1–\d+ of 29/);
+      await finish(page, testInfo, `impl-390-${theme}-den-tv`);
+    });
+
+    test("390: hub-validated overflow card uses touch actions (H4)", async ({ page }, testInfo) => {
+      await openEditor(page, "kitchen-morning", 390, theme);
+      const action = page.locator('[data-slot="line-overflow-warnings"]').getByRole("button", { name: "Wrap line 4" });
+      await expect(action).toBeVisible();
+      expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await finish(page, testInfo, `impl-390-${theme}-overflow`);
+    });
+  });
+}

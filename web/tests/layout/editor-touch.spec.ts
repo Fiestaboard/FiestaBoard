@@ -68,6 +68,9 @@ async function mockEditorApi(page: Page, drawingSource: "profile" | "baseline" =
             fill_space: { syntax: "{{fill_space}}", description: "Fill the remaining line width" },
           },
         };
+      } else if (pathname === "/templates/validate") {
+        // 2.9: the editor's real-width overflow check (H4); nothing overflows here.
+        response = { valid: true, errors: [], rows: 6, cols: 22 };
       } else if (pathname === "/templates/render" || pathname === "/templates/render/live") {
         const request = route.request().postDataJSON() as { template: string | string[] };
         const template = Array.isArray(request.template) ? request.template.join("\n") : request.template;
@@ -311,6 +314,12 @@ async function openFinePointerMore(page: Page) {
   await mockEditorApi(page);
   await page.goto("/tests/layout/editor-touch.html?theme=light");
   await expect(page.getByRole("textbox", { name: /page name/i })).toHaveValue("Kitchen morning");
+  // The lazy rich editor mounts its toolbar above the docked preview, moving
+  // the More trigger down. Open More only once the editor is in place: the
+  // anchored panel does not follow a trigger that moves after it opened, so a
+  // late mount repositioned it (and the nested menu) between mousedown and
+  // mouseup on a slow runner.
+  await expect(page.locator('[contenteditable="true"]')).toBeVisible();
   await page.getByRole("button", { name: "More", exact: true }).click();
   const popup = page.getByTestId("toolbar-dropdown-panel");
   await expect(popup).toBeVisible();
@@ -333,9 +342,15 @@ test.describe("900px fine-pointer nested More actions", () => {
     const popup = await openFinePointerMore(page);
     const transition = popup.getByRole("button", { name: "Page transition", exact: true });
     await expect(transition.locator('span[aria-hidden="true"].bg-brand')).toHaveCount(0);
+    // Baseline once the panel's own enter transition has settled.
+    await popup.evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
+    const panelTop = (await popup.boundingBox())!.y;
     await transition.click();
     const option = page.getByRole("menuitemradio", { name: "Wave", exact: true });
     await expect(option).toBeVisible();
+    // Regression: nothing may shift the open panel (and its nested menu) under the pointer.
+    await page.waitForTimeout(400);
+    expect((await popup.boundingBox())!.y).toBe(panelTop);
     await clickThroughMouseDown(page, option);
     await expect(option).toBeHidden();
     await expect(popup).toBeVisible();

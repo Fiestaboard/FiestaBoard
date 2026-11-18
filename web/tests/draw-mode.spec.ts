@@ -428,10 +428,9 @@ test.describe("Draw mode", () => {
 
     await gotoEditPage(page, pageId);
     // Paint the full array in overview: Actual preserves real tiles and scrolls.
-    await page
-      .locator('[data-slot="board-preview-mode-toggle"]')
-      .getByRole("button", { name: "Fit", exact: true })
-      .click();
+    // A 120-column array is a big board, so the desktop preview's zoom control
+    // (2.9, 04b) owns Fit; the overview carries into draw mode.
+    await page.getByRole("group", { name: "Preview zoom" }).getByRole("radio", { name: "Fit · overview" }).click();
     await enterDrawMode(page);
     await pickBrush(page, "blue");
 
