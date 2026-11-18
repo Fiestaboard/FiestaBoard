@@ -156,7 +156,7 @@ def fetch(tag: str, platform: str, out: Path) -> dict:
         "manifest_digest": manifest_digest,
         "config_digest": config_digest,
         "version_env": env.get("VERSION"),
-        "fetched_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "fetched_at": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
         "method": "Registry HTTP API; digests and diff IDs verified; client files replayed in layer order; "
         "client-tree whiteouts and non-regular entries fail closed; image never executed.",
         "layers": records,

@@ -93,7 +93,8 @@ headroom, and limits are never edited by hand.
 
 1. Pick the newest published, immutable alpha tag, for example
    `v11-alpha-11.0.0-alpha.10`, and confirm its release run succeeded.
-2. Copy its served client out of the registry into an empty scratch directory.
+2. Copy its served client out of the registry into an empty scratch directory
+   (Python 3.11+; standard library only).
    The script verifies every layer digest and diff ID, replays only regular
    files under `app/web/build/client` in layer order, fails closed on links or
    whiteouts that touch that tree, and never runs the image or uses Docker:

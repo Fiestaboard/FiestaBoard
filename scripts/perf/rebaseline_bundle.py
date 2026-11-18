@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from bundle_budget import METRICS, measure  # noqa: E402
+from bundle_budget import METRICS, measure
 
 PERF = Path(__file__).resolve().parent
 GROWTH = 1.10

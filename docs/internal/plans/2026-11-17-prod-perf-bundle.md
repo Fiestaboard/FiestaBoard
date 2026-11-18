@@ -35,7 +35,7 @@
 
 ## Task 2: Offline inventory and budgets
 
-Files: `scripts/perf/bundle_budget.py`, `scripts/perf/test_bundle_budget.py`, `scripts/perf/bundle-budget.json`, `scripts/perf/published-v11-alpha3.json`.
+Files: `scripts/perf/bundle_budget.py`, `scripts/perf/test_bundle_budget.py`, `scripts/perf/bundle-budget.json`, `scripts/perf/published-v11-alpha3.json` (since replaced by the alpha.10 sample; see PERFORMANCE.md).
 
 Interfaces: `measure(client: Path) -> dict` produces sorted per-file sizes/hashes, aggregate raw bytes for JavaScript, CSS, fonts and largest JavaScript, plus gzip estimates and source-map storage. `check_budget(report: dict, budget: dict) -> list[str]` validates required numeric limits and returns violations. CLI writes `--report` before returning nonzero for exceeded limits.
 
