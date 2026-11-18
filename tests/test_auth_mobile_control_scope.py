@@ -401,7 +401,7 @@ def _routes():
 
 def test_every_control_rule_names_a_real_route():
     routes = list(_routes())
-    for rule in scopes.CONTROL_RULES:
+    for rule in (*scopes.CONTROL_RULES, *scopes.CONTROL_STEP_UP_RULES):
         assert any(rule.matches(m, p) for m, p in routes), f"dead control rule: {rule}"
 
 
