@@ -290,6 +290,27 @@ Checking for plugin updates doesn't need step-up. Neither do general settings
 reading and testing AI providers. Installing a plugin from a Git URL
 stays in the web app.
 
+### FiestaBot on the phone
+
+A phone can chat with FiestaBot (`POST /pages/ai/chat`) and run its operations
+(`POST /ai/operations`). FiestaBot can only do what the phone itself may do:
+
+- Tools that match what a phone can already do run as they do in the web app.
+- Step-up tools always stop for **Approve** on the phone, even with **Auto** approval
+  or "don't ask again". When an approved call runs, the phone also needs a live
+  step-up. If it has lapsed, the call is blocked with `step_up_required` and nothing
+  changes.
+- Everything else is blocked: installing from a Git URL, importing pages, adding or
+  changing displays, debug tools, and any tool the hub doesn't list for phones.
+  Through FiestaBot's settings tool, a phone can change only the active page, general
+  settings, the silence schedule and schedule behaviour, the same settings its own
+  routes reach.
+
+FiestaBot conversations are shared by everyone signed in to the hub, on any device.
+
+The hub checks every call when it runs, including one approved from an earlier
+message. What the app sends can't widen this.
+
 Step-up never opens account, password, session, pairing or API-token management to a
 phone.
 
