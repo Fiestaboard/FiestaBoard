@@ -125,7 +125,7 @@ describe("complex preview tools", () => {
     const onJump = vi.fn();
     render(<Preview complex={fakeComplex()} onJump={onJump} />);
     expect(screen.getByRole("img", { name: "Column ruler · 96 columns" })).toBeInTheDocument();
-    expect(screen.getByText("Cols 1–44 of 96 · Rows 1–24 of 24")).toBeInTheDocument();
+    expect(screen.getByText("Overview · 96 × 24")).toBeInTheDocument();
     expect(document.getElementById("map")).not.toBeNull();
     expect(screen.getByText("Where lines are cut")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Row 24 · 98 of 96 columns · 2 cut off/ }));

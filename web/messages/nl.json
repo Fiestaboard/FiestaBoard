@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "Passend toont het hele bord als alleen-lezen overzicht.",
     "rulerLabel": "Kolomliniaal · {columns} kolommen",
     "cutMark": "KNIP",
-    "viewportCaption": "Kol. {first}–{last} van {columns} · Rijen 1–{rows} van {rows}",
     "minimapControl": "Bordoverzicht",
     "minimapOverview": "Overzicht · {columns} × {rows}",
     "minimapViewport": "Kol. {firstColumn}–{lastColumn} · Rijen {firstRow}–{lastRow}",

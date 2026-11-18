@@ -137,9 +137,6 @@ export function ComplexPreviewOverview({
   if (!bigBoard) return null;
   return (
     <Stack gap="2" data-slot="complex-preview-overview" className="min-w-0">
-      <Text size="xs" tone="muted" className="font-mono" data-slot="complex-preview-caption">
-        {t("viewportCaption", { first: geometry.first, last: geometry.last, columns: cols, rows })}
-      </Text>
       <Flex gap="3" align="start" className="flex-wrap">
         {complex.minimapOpen && (
           <BoardMinimap

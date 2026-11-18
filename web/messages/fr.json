@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "Ajuster affiche tout le tableau en vue d’ensemble en lecture seule.",
     "rulerLabel": "Règle des colonnes · {columns} colonnes",
     "cutMark": "COUPE",
-    "viewportCaption": "Col. {first}–{last} sur {columns} · Lignes 1–{rows} sur {rows}",
     "minimapControl": "Vue d’ensemble du tableau",
     "minimapOverview": "Vue d’ensemble · {columns} × {rows}",
     "minimapViewport": "Col. {firstColumn}–{lastColumn} · Lignes {firstRow}–{lastRow}",

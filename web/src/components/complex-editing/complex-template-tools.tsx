@@ -297,15 +297,19 @@ export function RowBandGutter<A>({
       data-slot="row-band-gutter"
       className="absolute inset-y-0 left-0 w-36"
     >
-      {bands.map((band) => {
+      {bands.map((band, index) => {
         const top = boxes[band.start - 1]?.top;
         const last = boxes[band.end - 1];
         if (top === undefined || !last) return null;
+        // A band's bracket runs down to the next band (over its trailing blank
+        // rows, as 04b draws it), so a one-row band still fits its label.
+        const nextTop = bands[index + 1] ? boxes[bands[index + 1].start - 1]?.top : undefined;
+        const bottom = Math.max(last.top + last.height, (nextTop ?? last.top + last.height) - 4);
         return (
           <Box key={band.id} role="listitem" className="absolute inset-x-0" style={{ top }}>
             <RowBand
               className="w-full"
-              style={{ height: Math.max(24, last.top + last.height - top) }}
+              style={{ height: Math.max(24, bottom - top) }}
               label={band.label ?? t("bandFallback", { start: band.start, end: band.end })}
               rows={[band.start, band.end]}
               formatRows={(start, end) =>

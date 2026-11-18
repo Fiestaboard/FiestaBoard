@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "Einpassen zeigt das ganze Board als schreibgeschützte Übersicht.",
     "rulerLabel": "Spaltenlineal · {columns} Spalten",
     "cutMark": "SCHNITT",
-    "viewportCaption": "Spalten {first}–{last} von {columns} · Zeilen 1–{rows} von {rows}",
     "minimapControl": "Board-Übersicht",
     "minimapOverview": "Übersicht · {columns} × {rows}",
     "minimapViewport": "Spalten {firstColumn}–{lastColumn} · Zeilen {firstRow}–{lastRow}",

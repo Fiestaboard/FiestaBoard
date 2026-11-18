@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "맞춤은 보드 전체를 읽기 전용 개요로 보여 줍니다.",
     "rulerLabel": "열 눈금자 · {columns}열",
     "cutMark": "잘림",
-    "viewportCaption": "열 {first}–{last} / {columns} · 행 1–{rows} / {rows}",
     "minimapControl": "보드 개요",
     "minimapOverview": "개요 · {columns} × {rows}",
     "minimapViewport": "열 {firstColumn}–{lastColumn} · 행 {firstRow}–{lastRow}",

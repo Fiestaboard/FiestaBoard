@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "Ajustar mostra o quadro inteiro como visão geral somente leitura.",
     "rulerLabel": "Régua de colunas · {columns} colunas",
     "cutMark": "CORTE",
-    "viewportCaption": "Col. {first}–{last} de {columns} · Linhas 1–{rows} de {rows}",
     "minimapControl": "Visão geral do quadro",
     "minimapOverview": "Visão geral · {columns} × {rows}",
     "minimapViewport": "Col. {firstColumn}–{lastColumn} · Linhas {firstRow}–{lastRow}",

@@ -205,7 +205,7 @@ async function finish(page: Page, testInfo: { outputPath: (...p: string[]) => st
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.evaluate(() => document.fonts.ready);
   await injectAxe(page);
-  await checkA11y(page, "main");
+  await checkA11y(page, "main", { detailedReport: true, detailedReportOptions: { html: true } });
   const shots = process.env.COMPLEX_EDITING_SHOTS || testInfo.outputPath("complex-editing-shots");
   await mkdir(shots, { recursive: true });
   await page.screenshot({ path: path.join(shots, `${name}.png`) });
@@ -224,12 +224,13 @@ for (const theme of ["light", "dark"] as const) {
       await expect(preview.getByRole("group", { name: "Preview zoom" })).toBeVisible();
       await expect(preview.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(0);
       await expect(preview.getByRole("img", { name: /Column ruler · 96 columns/ })).toBeVisible();
-      await expect(preview.getByText(/Cols 1–\d+ of 96 · Rows 1–24 of 24/)).toBeVisible();
+      await expect(indicator(page)).toContainText(/Columns 1–\d+ of 96/);
       await expect(preview.getByText("Where lines are cut")).toBeVisible();
       await expect(preview.locator('[data-slot="board-minimap"], [aria-label="Board overview"]').first()).toBeVisible();
       await expect(page.getByRole("textbox", { name: "Go to row and column" })).toBeVisible();
-      await expect(page.locator('[data-slot="row-band-gutter"]')).toHaveAttribute("data-enabled", "true");
-      await expect(page.getByRole("list", { name: "Row bands" }).getByText("TONIGHT AT ROSA'S")).toBeVisible();
+      const bands = page.getByRole("list", { name: "Row bands" });
+      await expect(bands).toBeVisible();
+      await expect(bands.getByText("TONIGHT AT ROSA'S")).toBeVisible();
       // Zoom to Tile md keeps the page inside the viewport.
       await preview.getByRole("radio", { name: "Tile md" }).click();
       await expect(preview.locator('[data-slot="board-viewport"]')).toHaveAttribute("data-mode", "actual");
@@ -249,7 +250,7 @@ for (const theme of ["light", "dark"] as const) {
     test("1440: hub-validated overflow card (H4)", async ({ page }, testInfo) => {
       await openEditor(page, "kitchen-morning", 1440, theme);
       const warning = page.locator('[data-slot="line-overflow-warnings"]');
-      await expect(warning.getByText("Line 4")).toBeVisible();
+      await expect(warning.getByText("Line 4", { exact: true })).toBeVisible();
       await expect(warning.getByText("24 of 22 columns · 2 cut off")).toBeVisible();
       await expect(warning.getByRole("button", { name: "Wrap line 4" })).toBeVisible();
       await finish(page, testInfo, `impl-1440-${theme}-overflow`);
@@ -267,7 +268,16 @@ for (const theme of ["light", "dark"] as const) {
       test(`${width}: note array scrolls a column of Notes at a time`, async ({ page }, testInfo) => {
         await openEditor(page, "lobby-menu", width, theme);
         await expect(page.getByRole("radiogroup", { name: "Note focus" })).toHaveCount(0);
-        await expect(indicator(page)).toContainText("Column 1 of 2");
+        // 2.5 docks the preview full width below 1024 px: the 2 × 2 wall fits at
+        // 900 (no scroll), and scrolls a column of Notes at a time on a phone.
+        if (width === 900) {
+          await expect(page.locator('[data-slot="editor-preview"] [data-slot="board-viewport"]')).toHaveAttribute(
+            "data-overflow",
+            "false",
+          );
+        } else {
+          await expect(indicator(page)).toContainText("Column 1 of 2");
+        }
         await finish(page, testInfo, `impl-${width}-${theme}-note-array`);
       });
     }

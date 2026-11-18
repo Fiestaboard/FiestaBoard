@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "«Вписать» показывает всё табло как обзор только для чтения.",
     "rulerLabel": "Линейка столбцов · {columns} столбцов",
     "cutMark": "ОБРЕЗ",
-    "viewportCaption": "Столбцы {first}–{last} из {columns} · Строки 1–{rows} из {rows}",
     "minimapControl": "Обзор табло",
     "minimapOverview": "Обзор · {columns} × {rows}",
     "minimapViewport": "Столбцы {firstColumn}–{lastColumn} · Строки {firstRow}–{lastRow}",

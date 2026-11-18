@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "Ajustar muestra todo el tablero como vista general de solo lectura.",
     "rulerLabel": "Regla de columnas · {columns} columnas",
     "cutMark": "CORTE",
-    "viewportCaption": "Col. {first}–{last} de {columns} · Filas 1–{rows} de {rows}",
     "minimapControl": "Vista general del tablero",
     "minimapOverview": "Vista general · {columns} × {rows}",
     "minimapViewport": "Col. {firstColumn}–{lastColumn} · Filas {firstRow}–{lastRow}",

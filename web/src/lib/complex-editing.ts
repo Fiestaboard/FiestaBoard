@@ -16,7 +16,7 @@ export const BIG_BOARD_MAX_ROWS = 12;
 /** One Note is 15 columns × 3 rows. */
 export const NOTE_COLUMNS = 15;
 
-const BAND_LABEL_MAX = 16;
+const BAND_LABEL_MAX = 12;
 
 export interface BoardSize {
   rows: number;

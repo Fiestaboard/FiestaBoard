@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "Anpassa visar hela tavlan som en skrivskyddad översikt.",
     "rulerLabel": "Kolumnlinjal · {columns} kolumner",
     "cutMark": "KAP",
-    "viewportCaption": "Kol. {first}–{last} av {columns} · Rader 1–{rows} av {rows}",
     "minimapControl": "Tavelöversikt",
     "minimapOverview": "Översikt · {columns} × {rows}",
     "minimapViewport": "Kol. {firstColumn}–{lastColumn} · Rader {firstRow}–{lastRow}",

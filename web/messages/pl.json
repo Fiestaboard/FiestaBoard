@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "Dopasuj pokazuje całą tablicę jako przegląd tylko do odczytu.",
     "rulerLabel": "Linijka kolumn · {columns} kolumn",
     "cutMark": "CIĘCIE",
-    "viewportCaption": "Kol. {first}–{last} z {columns} · Wiersze 1–{rows} z {rows}",
     "minimapControl": "Przegląd tablicy",
     "minimapOverview": "Przegląd · {columns} × {rows}",
     "minimapViewport": "Kol. {firstColumn}–{lastColumn} · Wiersze {firstRow}–{lastRow}",

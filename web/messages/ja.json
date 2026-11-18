@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "全体表示ではボード全体を読み取り専用の概要として表示します。",
     "rulerLabel": "列ルーラー · {columns} 列",
     "cutMark": "切断",
-    "viewportCaption": "列 {first}–{last} / {columns} · 行 1–{rows} / {rows}",
     "minimapControl": "ボードの概要",
     "minimapOverview": "概要 · {columns} × {rows}",
     "minimapViewport": "列 {firstColumn}–{lastColumn} · 行 {firstRow}–{lastRow}",

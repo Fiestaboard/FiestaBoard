@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "Sığdır, tüm panoyu salt okunur bir genel bakış olarak gösterir.",
     "rulerLabel": "Sütun cetveli · {columns} sütun",
     "cutMark": "KESİM",
-    "viewportCaption": "Süt. {first}–{last} / {columns} · Satır 1–{rows} / {rows}",
     "minimapControl": "Pano genel bakışı",
     "minimapOverview": "Genel bakış · {columns} × {rows}",
     "minimapViewport": "Süt. {firstColumn}–{lastColumn} · Satır {firstRow}–{lastRow}",

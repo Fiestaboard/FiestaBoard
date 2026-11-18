@@ -142,7 +142,6 @@ describe("page editor complex editing (2.9)", () => {
     expect(await screen.findByRole("group", { name: "Preview zoom" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Go to row and column" })).toBeInTheDocument();
     expect(screen.getByText("Where lines are cut")).toBeInTheDocument();
-    expect(screen.getByText(/Cols 1–\d+ of 96/)).toBeInTheDocument();
   });
 
   it("gives a 2 × 2 note array Note focus and a seam check", async () => {

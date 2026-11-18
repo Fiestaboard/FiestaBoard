@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "Adatta mostra l’intera bacheca come panoramica di sola lettura.",
     "rulerLabel": "Righello colonne · {columns} colonne",
     "cutMark": "TAGLIO",
-    "viewportCaption": "Col. {first}–{last} di {columns} · Righe 1–{rows} di {rows}",
     "minimapControl": "Panoramica della bacheca",
     "minimapOverview": "Panoramica · {columns} × {rows}",
     "minimapViewport": "Col. {firstColumn}–{lastColumn} · Righe {firstRow}–{lastRow}",

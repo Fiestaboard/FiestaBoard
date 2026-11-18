@@ -30,7 +30,7 @@ describe("bandLabel", () => {
   it("strips template markup and keeps readable words", () => {
     expect(bandLabel('{{= PAD("TONIGHT AT ROSA\'S", 48) }} OUTSIDE')).toBe("OUTSIDE");
     expect(bandLabel("  THIS WEEK  ")).toBe("THIS WEEK");
-    expect(bandLabel("{red}{red} NOW POURING COLD BREW")).toBe("NOW POURING COLD…");
+    expect(bandLabel("{red}{red} NOW POURING COLD BREW")).toBe("NOW POURING…");
   });
 
   it("falls back to the first variable name, then null", () => {

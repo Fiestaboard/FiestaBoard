@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "Fit shows the whole board as a read-only overview.",
     "rulerLabel": "Column ruler · {columns} columns",
     "cutMark": "CUT",
-    "viewportCaption": "Cols {first}–{last} of {columns} · Rows 1–{rows} of {rows}",
     "minimapControl": "Board overview",
     "minimapOverview": "Overview · {columns} × {rows}",
     "minimapViewport": "Cols {firstColumn}–{lastColumn} · Rows {firstRow}–{lastRow}",

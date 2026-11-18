@@ -3881,7 +3881,6 @@
     "zoomOverviewDescription": "适应会将整个看板显示为只读概览。",
     "rulerLabel": "列标尺 · {columns} 列",
     "cutMark": "截断",
-    "viewportCaption": "第 {first}–{last} 列，共 {columns} 列 · 第 1–{rows} 行，共 {rows} 行",
     "minimapControl": "看板概览",
     "minimapOverview": "概览 · {columns} × {rows}",
     "minimapViewport": "第 {firstColumn}–{lastColumn} 列 · 第 {firstRow}–{lastRow} 行",
