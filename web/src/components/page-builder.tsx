@@ -156,6 +156,7 @@ import {
   matchesShortcut,
   previewBindsBoardViewportKeys,
 } from "@/lib/editor-shortcuts";
+import { templateHasFormula } from "@/lib/formula-ide/hints";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -2006,7 +2007,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       // Web 2.10: a page with formulas asks this render for their values (H5),
       // so the formula chips cost no second render per edit. Other pages'
       // requests are exactly what they always were.
-      const hasFormula = cleanedLines.some((line) => line.includes("{{="));
+      const hasFormula = templateHasFormula(cleanedLines);
       if (hasFormula) {
         return api.renderTemplate(
           cleanedLines,
@@ -2247,11 +2248,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           notesTall,
           controller.signal,
           panelGrid,
-          { overrideSilence: liveOverrideSilence, canvases },
+          {
+            overrideSilence: liveOverrideSilence,
+            canvases,
+            // Web 2.10: a page with formulas takes their values from this
+            // render, the only one per edit while mirroring (FABLE-2541 M2).
+            diagnostics: templateHasFormula(cleanedLines),
+          },
         ]);
 
         if (controller.signal.aborted) return;
 
+        setPreviewDiagnostics(data.diagnostics ?? null);
         setPreviewLayers(data.layers ?? null);
         setCanvasIssues(data.canvas_issues ?? []);
         setCanvasError(null);
@@ -2678,7 +2686,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   ]);
   const formulaIde = useFormulaIde({
     target: formulaIdeTarget,
-    live: { diagnostics: previewDiagnostics, lines: (preview ?? "").split("\n") },
+    live: { diagnostics: previewDiagnostics, lines: (preview ?? "").split("\n"), failed: previewMutation.isError },
     available: !baselineDisplay && debouncedCanvases.length === 0,
     desktop: !dockedPreview,
     mirroring: liveOutputEnabled,

@@ -327,6 +327,13 @@ describe("FormulaInspectorPane", () => {
     );
     expect(screen.getByText(/Row 1, column 22 is layout padding/)).toBeInTheDocument();
   });
+  // N13: a failed render (the editor's own preview in Live, or the IDE's in
+  // Sample/Missing/at) is why chips have no hints; the pane says so.
+  it("says when the render behind the hints failed", () => {
+    wrap(<FormulaInspectorPane {...paneProps({ renderFailed: true })} />);
+    expect(screen.getByTestId("inspector-render-failed")).toHaveTextContent(/couldn't be rendered/);
+  });
+
   it("says when the page is too large to map", () => {
     wrap(<FormulaInspectorPane {...paneProps({ sourceMapStatus: "limit" })} />);
     expect(screen.getByTestId("inspector-limit")).toBeInTheDocument();

@@ -117,3 +117,15 @@ describe("buildHintIndex", () => {
     expect(findLine(diagnostics, 9)).toBeUndefined();
   });
 });
+
+describe("templateHasFormula", () => {
+  it("finds a formula atom on any line", async () => {
+    const { templateHasFormula } = await import("@/lib/formula-ide/hints");
+    expect(templateHasFormula(["HI", '{{= IF(1, "A", "B") }}'])).toBe(true);
+  });
+  it("ignores {{= inside a quoted formula string and in plain text", async () => {
+    const { templateHasFormula } = await import("@/lib/formula-ide/hints");
+    expect(templateHasFormula(['SAY "{{=" LOUD', "no braces"])).toBe(false);
+    expect(templateHasFormula([])).toBe(false);
+  });
+});

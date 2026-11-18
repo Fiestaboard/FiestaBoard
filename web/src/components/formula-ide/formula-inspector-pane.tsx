@@ -45,6 +45,13 @@ export function FormulaInspectorPane(props: WorkbenchProps) {
 
   const close = () => setFocus(null);
 
+  if (props.renderFailed) {
+    return (
+      <Alert variant="destructive" data-testid="inspector-render-failed">
+        <AlertDescription>{t("previewFailed")}</AlertDescription>
+      </Alert>
+    );
+  }
   if (props.sourceMapStatus === "limit") {
     return (
       <Alert variant="warning" data-testid="inspector-limit">

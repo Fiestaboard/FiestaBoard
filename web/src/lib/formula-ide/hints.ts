@@ -106,3 +106,20 @@ export function findFormula(
 export function findLine(diagnostics: RenderDiagnostics | null | undefined, line: number): LineDiagnostic | undefined {
   return diagnostics?.lines?.find((entry) => entry.line === line);
 }
+
+/**
+ * Whether any template line holds a `{{= … }}` formula atom. A `{{=` inside a
+ * quoted string is literal text and does not count, so only pages with real
+ * formulas ask a render for H5 diagnostics.
+ */
+export function templateHasFormula(template: readonly string[]): boolean {
+  return template.some((line) => {
+    let inString = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') inString = !inString;
+      else if (!inString && line.startsWith("{{=", i)) return true;
+    }
+    return false;
+  });
+}

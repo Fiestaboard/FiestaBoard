@@ -66,7 +66,7 @@ export interface UseFormulaIdeOptions {
    * for Sample, Missing, another time or Inspect, so an edit costs one render,
    * not two.
    */
-  live?: { diagnostics: RenderDiagnostics | null; lines: string[] };
+  live?: { diagnostics: RenderDiagnostics | null; lines: string[]; failed?: boolean };
   /** ≥1024 px: docked workbench, inspector and header controls. */
   desktop: boolean;
   mirroring: boolean;
@@ -321,7 +321,9 @@ export function useFormulaIde({
     traceLoading: trace.isFetching,
     traceFailed: trace.isError,
     sourceMapStatus: own?.debug?.source_map_status ?? null,
-    renderFailed: ownRender && render.isError,
+    // A failed render means no hints: the IDE's own in Sample/Missing/at/Inspect,
+    // the editor's preview render in Live (N13).
+    renderFailed: ownRender ? render.isError : (live?.failed ?? false),
     boardCols,
     onReplaceFormula: (line: number, from: string, to: string) =>
       editTemplateLine(line - 1, (text) => text.replace(from, to)),

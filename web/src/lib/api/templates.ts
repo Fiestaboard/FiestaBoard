@@ -142,6 +142,8 @@ export interface TemplateRenderLiveResponse {
    */
   silenced: boolean;
   board_id: string | null;
+  /** H5 per-formula values and line report, only when the request asked (`diagnostics`). */
+  diagnostics?: RenderDiagnostics | null;
 }
 
 export const templatesApi = {
@@ -211,7 +213,9 @@ export const templatesApi = {
     signal?: AbortSignal,
     grid?: GridSize | null,
     // `overrideSilence` writes to the board even while it is silenced (#1943).
-    opts?: { overrideSilence?: boolean; canvases?: Canvas[] },
+    // `diagnostics` (web 2.10): the formula values the chips show, on the same
+    // render the board gets, so mirroring still costs one render per edit.
+    opts?: { overrideSilence?: boolean; canvases?: Canvas[]; diagnostics?: boolean },
   ) =>
     fetchApi<TemplateRenderLiveResponse>("/templates/render/live", {
       method: "POST",
@@ -225,6 +229,7 @@ export const templatesApi = {
         ...gridFields(grid),
         ...(opts?.overrideSilence === true && { override_silence: true }),
         ...(opts?.canvases != null && { canvases: opts.canvases }),
+        ...(opts?.diagnostics === true && { diagnostics: true }),
       }),
       signal,
     }),
