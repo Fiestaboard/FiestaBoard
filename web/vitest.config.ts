@@ -24,6 +24,10 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: [
+        "app/routes/integrations._index.tsx",
+        "app/routes/integrations.$pluginId.tsx",
+        "app/routes/integrations.tsx",
+        "src/components/integrations/**",
         "src/lib/**",
         "app/routes/activate.tsx",
         "app/routes/reset-password.tsx",
