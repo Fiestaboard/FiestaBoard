@@ -338,6 +338,14 @@ def test_an_explicit_default_protocol_is_not_a_move(phone, config, monkeypatch, 
     assert phone.put("/settings/ai", json=update).status_code == 200
 
 
+@pytest.mark.parametrize("protocol", [["openai"], {"name": "openai"}])
+def test_a_malformed_protocol_is_a_400(phone, config, protocol):
+    step_up(phone)
+    response = phone.put("/settings/ai", json=provider_update(protocol=protocol))
+    assert response.status_code == 400, response.text
+    assert config.get_ai_provider("acme")["protocol"] == "openai"
+
+
 def test_changing_a_sign_in_preset_needs_the_key(phone, config):
     step_up(phone)
     response = phone.put("/settings/ai", json=provider_update(sign_in={"preset": "other"}))

@@ -124,13 +124,17 @@ async def execute_operation(request: OperationRequest, http_request: Request = N
 
     if phone_policy.is_phone(http_request):
         # H21b: the phone's op allow-list, keyed on the credential (not the body).
-        from .phone_tools import DENIED, STEP_UP, denied_message, tier_for
+        from .phone_tools import DENIED, STEP_UP, denied_message, needs_key, tier_for
 
-        tier = tier_for(operation.name, request.args if isinstance(request.args, dict) else {})
+        args = request.args if isinstance(request.args, dict) else {}
+        tier = tier_for(operation.name, args)
         if tier == DENIED:
             return JSONResponse({"error": "forbidden", "detail": denied_message(request.op)}, status_code=403)
-        if tier == STEP_UP and not phone_policy.session_is_elevated(http_request.scope.get("auth_session_id")):
+        session_id = http_request.scope.get("auth_session_id")
+        if tier == STEP_UP and not await asyncio.to_thread(phone_policy.session_is_elevated, session_id):
             return JSONResponse(dict(STEP_UP_REQUIRED_BODY), status_code=403)
+        if await asyncio.to_thread(needs_key, operation.name, args):
+            return JSONResponse(phone_policy.key_required_body(phone_policy.PLUGIN_KEY_DETAIL), status_code=400)
 
     if operation.client_side:
         raise HTTPException(

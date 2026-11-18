@@ -272,6 +272,152 @@ def test_a_non_string_secret_is_compared_exactly():
     assert moves_a_stored_secret(decoy, stored)
 
 
+# --- Only connection fields ask for the key (tiles, plugin outputs) ----------------------
+
+TILE_KEYS = ("test_tile_key_a", "test_tile_key_b")
+ARRAY = {
+    "id": "wall",
+    "name": "Wall",
+    "device_type": "note_array",
+    "api_mode": "local",
+    "notes_wide": 2,
+    "notes_tall": 1,
+    "tiles": [
+        {"row": 0, "col": 0, "host": "192.168.1.41", "port": 7000, "local_api_key": TILE_KEYS[0], "enabled": True},
+        {"row": 0, "col": 1, "host": "192.168.1.42", "port": 7000, "local_api_key": TILE_KEYS[1], "enabled": True},
+    ],
+}
+
+
+@pytest.fixture
+def wall(boards):
+    boards.set_boards([dict(KITCHEN), dict(HALL), json.loads(json.dumps(ARRAY))])
+
+
+def stored_tiles():
+    tiles = stored("wall").get("output_config", {}).get("tiles") or stored("wall").get("tiles")
+    return {(t["host"], t.get("local_api_key")) for t in tiles}
+
+
+def edited_wall(client, edit):
+    boards = echoed_boards(client)
+    for board in boards:
+        if board["id"] == "wall":
+            for tiles in (board.get("tiles"), (board.get("output_config") or {}).get("tiles")):
+                if tiles:
+                    edit(tiles)
+    return client.put("/settings/board", json={"boards": boards})
+
+
+def _swap(tiles):
+    tiles[0]["col"], tiles[1]["col"] = 1, 0
+
+
+def _switch_off(tiles):
+    tiles[1]["enabled"] = False
+
+
+def test_swapping_tiles_keeps_each_key_with_its_host(phone, wall):
+    response = edited_wall(phone, _swap)
+    assert response.status_code == 200, response.text
+    assert stored_tiles() == {("192.168.1.41", TILE_KEYS[0]), ("192.168.1.42", TILE_KEYS[1])}
+
+
+def test_switching_a_tile_off_needs_no_key(phone, wall):
+    assert edited_wall(phone, _switch_off).status_code == 200
+
+
+def _move_tile(tiles):
+    tiles[1]["host"] = "203.0.113.60"
+
+
+def _move_tile_port(tiles):
+    tiles[0]["port"] = 7001
+
+
+@pytest.mark.parametrize("edit", [_move_tile, _move_tile_port])
+def test_moving_a_tile_with_its_key_masked_is_refused(phone, wall, edit):
+    response = edited_wall(phone, edit)
+    assert response.status_code == 400 and response.json()["error"] == "key_required", response.text
+    assert ("192.168.1.42", TILE_KEYS[1]) in stored_tiles()
+
+
+@pytest.fixture
+def recording_output(tmp_path, monkeypatch):
+    """A third-party output whose schema declares ``host`` and a secret ``token``."""
+    import shutil
+    from pathlib import Path
+
+    from src.plugins.loader import PluginLoader
+    from src.plugins.registry import PluginRegistry
+
+    plugin_id = "recording_output"
+    root = tmp_path / "external"
+    shutil.copytree(
+        Path(__file__).parent / "fixtures" / "plugins" / plugin_id,
+        root / plugin_id,
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
+    loader = PluginLoader(plugins_dir=tmp_path / "builtin", external_dirs=[root])
+    assert loader.load_plugin(plugin_id) is not None, loader.load_errors
+    registry = PluginRegistry(plugins_dir=tmp_path / "builtin")
+    registry._loader = loader
+    registry._plugins[plugin_id], registry._manifests[plugin_id] = loader.output_plugins[plugin_id]
+    monkeypatch.setattr("src.plugins.get_plugin_registry", lambda: registry)
+    yield plugin_id
+    loader.unload_plugin(plugin_id)
+
+
+def _plugin_board(output_id, **config):
+    from src.devices import BoardInstance
+
+    output_config = {"host": "192.168.1.50", "token": "test_sign_token", "animation": "stream", **config}
+    return BoardInstance.from_dict(
+        {"id": "sign", "name": "Sign", "device_type": "flagship", "output": output_id, "output_config": output_config}
+    ).to_dict()
+
+
+@pytest.mark.parametrize("edit", [{"animation": "none"}, {"min_interval_ms": 250}, {"wait_for_cancel": True}])
+def test_a_plugin_outputs_other_settings_need_no_key(recording_output, edit):
+    from src.settings.phone_displays import moves_a_stored_secret
+
+    stored_board = _plugin_board(recording_output)
+    incoming = {**stored_board, "output_config": {**stored_board["output_config"], "token": "***", **edit}}
+    assert not moves_a_stored_secret(incoming, stored_board)
+
+
+def test_a_plugin_outputs_host_change_needs_the_key(recording_output):
+    from src.settings.phone_displays import moves_a_stored_secret
+
+    stored_board = _plugin_board(recording_output)
+    moved = {**stored_board["output_config"], "token": "***", "host": "203.0.113.70"}
+    assert moves_a_stored_secret({**stored_board, "output_config": moved}, stored_board)
+    retyped = {**moved, "token": "test_sign_token"}
+    assert not moves_a_stored_secret({**stored_board, "output_config": retyped}, stored_board)
+
+
+def test_re_entry_is_compared_type_strictly():
+    from src.auth.key_reentry import moves_a_secret
+
+    before = {"host": "192.168.1.20", "pin": 1}
+    masked = {"host": "192.168.1.20", "pin": "***"}
+    after = {"host": "203.0.113.50", "pin": 1}
+    # A boolean true (or a float 1.0) in the request is not the stored integer 1.
+    assert moves_a_secret(before, after, masked, {"host": "203.0.113.50", "pin": "***", "enabled": True})
+    assert moves_a_secret(before, after, masked, {"host": "203.0.113.50", "pin": "***", "ratio": 1.0})
+    assert not moves_a_secret(before, after, masked, {"host": "203.0.113.50", "pin": 1})
+
+
+def test_a_withheld_config_is_moved_by_any_change():
+    from src.auth.key_reentry import moves_a_secret
+
+    before = {"output": "unknown", "output_config": {"addr": "sign-1", "token": "test_token"}}
+    masked = {"output": "unknown", "output_config": "***"}
+    after = {"output": "unknown", "output_config": {"addr": "sign-2", "token": "test_token"}}
+    assert moves_a_secret(before, after, masked, {"output_config": "***"})
+    assert not moves_a_secret(before, dict(before), masked, {"output_config": "***"})
+
+
 # --- The tables ----------------------------------------------------------------------------
 
 
