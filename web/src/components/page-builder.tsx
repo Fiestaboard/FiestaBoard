@@ -142,6 +142,7 @@ import type {
   TemplateRenderResponse,
 } from "@/lib/api";
 import { api } from "@/lib/api";
+import type { RenderDiagnostics } from "@/lib/api/formula-debug";
 import { appUrl } from "@/lib/base-path";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
@@ -155,6 +156,7 @@ import {
   matchesShortcut,
   previewBindsBoardViewportKeys,
 } from "@/lib/editor-shortcuts";
+import { templateHasFormula } from "@/lib/formula-ide/hints";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -162,6 +164,9 @@ import { panelsFittingGrid, targetValue } from "@/lib/panel-page-fit";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { isDisplayOffline } from "@/lib/status-banners";
 import { cn } from "@/lib/utils";
+
+import { FormulaIdeContext } from "./formula-ide/formula-ide-context";
+import { useFormulaIde } from "./formula-ide/use-formula-ide";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
 // barrel push this module past 500 kB minified on their own (see #1575).
@@ -1062,6 +1067,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Cells of the last render that board's character set draws differently
   // (POST /templates/render with board_id); [] when none or no board.
   const [charsetIssues, setCharsetIssues] = useState<CharsetIssue[]>([]);
+  // H5 values from the preview render (web 2.10 formula chips and line report).
+  const [previewDiagnostics, setPreviewDiagnostics] = useState<RenderDiagnostics | null>(null);
   const lastLiveSentPreview = useRef<string | null>(null);
   // Ref-tracked copy of lastPreview so the liveOutputEnabled effect can read it
   // synchronously without a stale closure (avoids adding lastPreview as a dep).
@@ -1997,6 +2004,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           debouncedCanvases,
         );
       }
+      // Web 2.10: a page with formulas asks this render for their values (H5),
+      // so the formula chips cost no second render per edit. Other pages'
+      // requests are exactly what they always were.
+      const hasFormula = templateHasFormula(cleanedLines);
+      if (hasFormula) {
+        return api.renderTemplate(
+          cleanedLines,
+          metadata,
+          deviceType,
+          notesWide,
+          notesTall,
+          panelGrid,
+          previewBoardId,
+          undefined,
+          { diagnostics: true },
+        );
+      }
       return api.renderTemplate(cleanedLines, metadata, deviceType, notesWide, notesTall, panelGrid, previewBoardId);
     },
     onSuccess: (data: TemplateRenderResponse) => {
@@ -2005,6 +2029,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         return;
       }
       setCharsetIssues(data.charset_issues ?? []);
+      setPreviewDiagnostics(data.diagnostics ?? null);
       setPreviewLayers(data.layers ?? null);
       setCanvasIssues(data.canvas_issues ?? []);
       setCanvasError(null);
@@ -2044,6 +2069,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     onError: (error: Error) => {
       setPreview(null);
       setCharsetIssues([]);
+      setPreviewDiagnostics(null);
       setPreviewLayers(null);
       setCanvasIssues([]);
       // With canvases, a refusal is most likely theirs (a 422 naming the field).
@@ -2080,6 +2106,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       needsRePreview.current = false;
       if (previewMutationRef.current.isPending) {
         shouldIgnoreNextResponse.current = true;
+        previewMutationRef.current.reset();
+      } else if (previewMutationRef.current.isError) {
+        // A preview that failed before mirroring is not the render behind the
+        // hints any more; clear it so its error cannot linger (FABLE-2541 N15).
         previewMutationRef.current.reset();
       }
       return;
@@ -2222,11 +2252,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           notesTall,
           controller.signal,
           panelGrid,
-          { overrideSilence: liveOverrideSilence, canvases },
+          {
+            overrideSilence: liveOverrideSilence,
+            canvases,
+            // Web 2.10: a page with formulas takes their values from this
+            // render, the only one per edit while mirroring (FABLE-2541 M2).
+            diagnostics: templateHasFormula(cleanedLines),
+          },
         ]);
 
         if (controller.signal.aborted) return;
 
+        setPreviewDiagnostics(data.diagnostics ?? null);
         setPreviewLayers(data.layers ?? null);
         setCanvasIssues(data.canvas_issues ?? []);
         setCanvasError(null);
@@ -2620,6 +2657,55 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     </Stack>
   );
 
+  // Web 2.10 (04c): formula values, Live/Sample/Missing, Inspect and the
+  // docked formula workbench. Inert for canvases and plain-text-only boards.
+  const formulaIdeTarget = useMemo(() => {
+    if (baselineDisplay || debouncedCanvases.length > 0) return null;
+    if (!debouncedTemplateLines.some((line) => line.trim().length > 0)) return null;
+    const { cleanedLines, metadata } = processLinesWithPrefixes(
+      debouncedTemplateLines,
+      debouncedLineAlignments,
+      debouncedLineWrapEnabled,
+    );
+    return {
+      template: cleanedLines,
+      lineMetadata: metadata,
+      deviceType,
+      notesWide,
+      notesTall,
+      grid: panelGrid,
+      boardId: previewBoardId,
+    };
+  }, [
+    baselineDisplay,
+    debouncedCanvases,
+    debouncedTemplateLines,
+    debouncedLineAlignments,
+    debouncedLineWrapEnabled,
+    deviceType,
+    notesWide,
+    notesTall,
+    panelGrid,
+    previewBoardId,
+  ]);
+  const formulaIde = useFormulaIde({
+    target: formulaIdeTarget,
+    live: {
+      diagnostics: previewDiagnostics,
+      lines: (preview ?? "").split("\n"),
+      // While mirroring the live render is the one behind the hints (N15).
+      failed: !liveOutputEnabled && previewMutation.isError,
+    },
+    available: !baselineDisplay && debouncedCanvases.length === 0,
+    desktop: !dockedPreview,
+    mirroring: liveOutputEnabled,
+    stopMirroring: () => changeMirroring(false),
+    boardCols: dims.cols,
+    editTemplateLine: (index, edit) => {
+      setTemplateInputStarted(true);
+      setTemplateLines((lines) => lines.map((line, i) => (i === index ? edit(line) : line)));
+    },
+  });
   // What the live preview shows. Keeps the previous message visible during
   // loading/transition, so tiles cycle through characters (like a real board)
   // instead of flashing empty.
@@ -2637,6 +2723,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         if (isPending && hasContent && !shouldIgnore) return "";
         return null;
       })();
+  // Sample, Missing or another time render through the formula IDE (hub H6).
+  const shownPreviewMessage = drawMode ? editorPreviewMessage : (formulaIde.previewOverride ?? editorPreviewMessage);
 
   const requestSave = () => {
     if (!name.trim()) {
@@ -2654,6 +2742,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Web 2.9 (04b): complex-editing lenses for big boards and note arrays on
   // the desktop pane, and the hub's real-width overflow check (H4) everywhere.
   const [previewStage, setPreviewStage] = useState<HTMLElement | null>(null);
+  // One stage element serves 2.9's lenses and 2.10's Inspect. The ref must be
+  // stable: an inline callback runs again on every commit, and its
+  // setPreviewStage(null) / (el) pair kept the whole editor re-committing.
+  const formulaBoardRef = formulaIde.boardProps.ref;
+  const setPreviewStageElement = useCallback(
+    (el: HTMLDivElement | null) => {
+      setPreviewStage(el);
+      formulaBoardRef.current = el;
+    },
+    [formulaBoardRef],
+  );
   const complexEditing = useComplexEditing({
     rows: dims.rows,
     cols: dims.cols,
@@ -2693,7 +2792,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     panelGrid,
   ]);
   const lineOverflow = useLineOverflow(overflowTarget, dims.cols, !baselineDisplay && !newPageEmpty);
-  const renderedRows = useMemo(() => (editorPreviewMessage ?? "").split("\n"), [editorPreviewMessage]);
+  // The lenses describe the board on screen, so they read the shown message
+  // (a Sample/Missing/render-at override included), never the live one behind it.
+  const renderedRows = useMemo(() => (shownPreviewMessage ?? "").split("\n"), [shownPreviewMessage]);
   const straddles = useMemo(
     () => (complexEditing.noteArray ? seamStraddles(renderedRows, notesWide) : []),
     [complexEditing.noteArray, renderedRows, notesWide],
@@ -2731,7 +2832,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }
 
   return (
-    <>
+    <FormulaIdeContext.Provider value={formulaIde.bridge}>
       <Box
         ref={editorContentRef}
         className="min-w-0 w-full max-w-full overflow-x-clip transition-none"
@@ -2895,7 +2996,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               )}
               <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-0 lg:gap-6">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
-                <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0 px-2 lg:px-0">
+                <Box
+                  hidden={!!pixelBoard && editingSurface !== "text"}
+                  className={cn("order-1 min-w-0 px-2 lg:px-0", formulaIde.rightSlot && "lg:row-span-2")}
+                >
                   <Stack gap="3" className="min-w-0">
                     <Flex ref={templateHeadingRef} align="center" justify="between" className="order-2 lg:order-none">
                       <label htmlFor="page-template-plain" className="text-xs sm:text-sm font-medium">
@@ -3207,6 +3311,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         <NoteSeamSummary straddles={straddles} />
                       </Suspense>
                     )}
+                    {formulaIde.leftSlot}
                   </Stack>
                 </Box>
 
@@ -3216,12 +3321,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   id="page-editor-preview"
                   variant={dockedPreview ? "docked" : "pane"}
                   className={cn("order-first lg:order-2 min-w-0 top-16 scroll-mt-16", dockedPreview && "px-0")}
-                  title={baselineDisplay ? tTouch("plainText") : tTouch("livePreview")}
-                  dotStatus={baselineDisplay ? "warning" : "success"}
+                  title={baselineDisplay ? tTouch("plainText") : (formulaIde.previewTitle ?? tTouch("livePreview"))}
+                  dotStatus={baselineDisplay ? "warning" : (formulaIde.dotStatus ?? "success")}
                   boardName={previewBoard?.name}
                   live={liveOutputEnabled}
                   onLiveChange={changeMirroring}
-                  liveDisabled={mirrorUnavailable && !liveOutputEnabled}
+                  liveDisabled={(mirrorUnavailable && !liveOutputEnabled) || formulaIde.mirrorLocked}
                   liveLabel={tTouch("mirror")}
                   mirroringLabel={tTouch("mirroring")}
                   statusLine={
@@ -3232,7 +3337,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         : undefined
                   }
                   headerAction={
-                    <Flex align="center" gap="1">
+                    <Flex align="center" gap="1" wrap className="justify-end">
+                      {formulaIde.headerControls}
                       {!baselineDisplay && complexEditing.bigBoard && (
                         <Suspense fallback={null}>
                           <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
@@ -3270,12 +3376,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Flex>
                   }
                 >
+                  {formulaIde.bodyControls}
                   {complexEditing.bigBoard && (
                     <Suspense fallback={null}>
                       <ComplexPreviewRuler complex={complexEditing} />
                     </Suspense>
                   )}
-                  <Flex ref={setPreviewStage} justify="center" className="relative min-w-0">
+                  {/* One stage element serves 2.9's lenses (previewStage) and 2.10's Inspect (board ref). */}
+                  <Flex
+                    justify="center"
+                    {...formulaIde.boardProps}
+                    ref={setPreviewStageElement}
+                    className={cn("relative min-w-0", formulaIde.boardProps.className)}
+                  >
+                    {formulaIde.boardOverlay}
                     {baselineDisplay ? (
                       <Alert variant="warning" className="w-full">
                         <AlertDescription>
@@ -3300,11 +3414,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           model={drawMode ? null : previewModel}
                           ledLayout={previewBoard?.led_layout}
                           layers={drawMode ? undefined : previewLayers}
-                          message={editorPreviewMessage}
+                          message={shownPreviewMessage}
                           size={dockedPreview ? "sm" : "md"}
                         >
                           <ScaledBoardDisplay
-                            message={editorPreviewMessage}
+                            message={shownPreviewMessage}
                             isLoading={
                               drawMode
                                 ? false
@@ -3356,7 +3470,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <ComplexPreviewOverview
                         complex={complexEditing}
                         board={{
-                          message: editorPreviewMessage,
+                          message: shownPreviewMessage,
                           boardType: effectiveBoardColor,
                           deviceType,
                           code62Glyph: effectiveCode62Glyph,
@@ -3406,7 +3520,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     onSendAnyway={() => setLiveOverrideSilence(true)}
                     onStopOverriding={() => setLiveOverrideSilence(false)}
                   />
+                  {formulaIde.previewFooter}
                 </EditorPreview>
+                {formulaIde.rightSlot && <Box className="order-2 min-w-0 lg:col-start-2">{formulaIde.rightSlot}</Box>}
                 <Box className="order-3 min-w-0 px-2 lg:px-0 lg:col-start-1">
                   <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
                     <Flex align="center" gap="2" className="flex-wrap">
@@ -3663,7 +3779,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+      {formulaIde.overlays}
+    </FormulaIdeContext.Provider>
   );
 });
 PageBuilder.displayName = "PageBuilder";

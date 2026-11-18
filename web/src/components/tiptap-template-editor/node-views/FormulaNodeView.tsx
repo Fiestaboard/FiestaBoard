@@ -13,6 +13,7 @@ import {
   Badge,
   Box,
   Flex,
+  FormulaAtom,
   Skeleton,
   Text,
   Tooltip,
@@ -26,8 +27,13 @@ import { SquareFunction } from "lucide-react";
 import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { atomValueText } from "@/components/formula-ide/atom-text";
+import { useFormulaIdeBridge } from "@/components/formula-ide/formula-ide-context";
 import { useTranslations } from "@/i18n/translations";
 import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
+
+/** Long-press before a touch on a chip opens Inspect (07c 307:45424). */
+const LONG_PRESS_MS = 500;
 
 // Lazy-loaded — CodeMirror (+ the lucide-react icon barrel pulled in via
 // VariablePickerContent's "Variables" tab) is only needed once the formula
@@ -45,8 +51,41 @@ interface FormulaAttrs {
 
 export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNodeViewProps) {
   const t = useTranslations("formulaEditor");
+  const tIde = useTranslations("formulaIde");
   const { expression, autoOpen } = node.attrs;
   const [open, setOpen] = useState(false);
+  // Web 2.10: the page editor's formula IDE, when this editor has one. It
+  // supplies H5 value hints, the docked desktop editor and Inspect.
+  const ide = useFormulaIdeBridge();
+  const hint = ide && expression ? ide.hint(expression) : undefined;
+  const longPress = useRef<{ timer: ReturnType<typeof setTimeout> | null; fired: boolean; x: number; y: number }>({
+    timer: null,
+    fired: false,
+    x: 0,
+    y: 0,
+  });
+  // The latest node and IDE for callbacks created at open time.
+  const latest = useRef({ node, ide, updateAttributes, deleteNode });
+  useEffect(() => {
+    latest.current = { node, ide, updateAttributes, deleteNode };
+  });
+
+  /** Open in the docked desktop editor when there is one; else this chip's dialog. */
+  const openEditor = useCallback(() => {
+    const { ide: bridge } = latest.current;
+    const docked = bridge?.openFormula({
+      expression: latest.current.node.attrs.expression,
+      apply: (next) => latest.current.updateAttributes({ expression: next }),
+      cancel: () => {
+        if (latest.current.node.attrs.expression === "") latest.current.deleteNode();
+      },
+    });
+    if (!docked) setOpen(true);
+  }, []);
+
+  const inspect = useCallback(() => {
+    latest.current.ide?.inspectFormula(latest.current.node.attrs.expression);
+  }, []);
   // Capture autoOpen at mount time so the effect doesn't depend on the prop
   // (calling updateAttributes would trigger a ProseMirror transaction that can
   // remount this component, cancelling the RAF before it fires).
@@ -58,15 +97,77 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
   // Auto-open on mount when freshly inserted via the toolbar.
   useEffect(() => {
     if (!shouldAutoOpen.current) return;
-    const rafId = requestAnimationFrame(() => setOpen(true));
+    const rafId = requestAnimationFrame(openEditor);
     return () => cancelAnimationFrame(rafId);
-  }, []);
+  }, [openEditor]);
 
-  const openPanel = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setOpen(true);
-  }, []);
+  const openPanel = useCallback(
+    (e: React.MouseEvent) => {
+      // A secondary button opens Inspect through the context menu instead.
+      if ("button" in e && typeof e.button === "number" && e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // The compatibility mousedown after a long-press must not also open the editor.
+      if (longPress.current.fired) {
+        longPress.current.fired = false;
+        return;
+      }
+      openEditor();
+    },
+    [openEditor],
+  );
+
+  const clearLongPress = () => {
+    if (longPress.current.timer) clearTimeout(longPress.current.timer);
+    longPress.current.timer = null;
+  };
+  const inspectHandlers = ide
+    ? {
+        onPointerDown: (e: React.PointerEvent) => {
+          if (e.pointerType === "mouse" || !expression) return;
+          clearLongPress();
+          longPress.current = {
+            fired: false,
+            x: e.clientX,
+            y: e.clientY,
+            timer: setTimeout(() => {
+              longPress.current.fired = true;
+              inspect();
+            }, LONG_PRESS_MS),
+          };
+        },
+        onPointerMove: (e: React.PointerEvent) => {
+          if (Math.hypot(e.clientX - longPress.current.x, e.clientY - longPress.current.y) > 10) clearLongPress();
+        },
+        onPointerUp: clearLongPress,
+        onPointerCancel: clearLongPress,
+        onPointerLeave: clearLongPress,
+        onContextMenu: (e: React.MouseEvent) => {
+          if (!expression) return;
+          e.preventDefault();
+          e.stopPropagation();
+          inspect();
+        },
+      }
+    : {};
+
+  const triggerProps = {
+    // Use onMouseDown instead of onClick — ProseMirror's drag-handle
+    // intercepts mousedown on atom nodes before React's onClick fires.
+    onMouseDown: openPanel,
+    role: "button",
+    tabIndex: 0,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openPanel(e as unknown as React.MouseEvent);
+      } else if (ide && expression && (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10"))) {
+        e.preventDefault();
+        inspect();
+      }
+    },
+    ...inspectHandlers,
+  };
 
   // Close on Escape — delete node if it was never given an expression
   useEffect(() => {
@@ -105,28 +206,35 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge
-              variant="formula"
-              className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
-              // Use onMouseDown instead of onClick — ProseMirror's drag-handle
-              // intercepts mousedown on atom nodes before React's onClick fires.
-              onMouseDown={openPanel}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e: React.KeyboardEvent) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  openPanel(e as unknown as React.MouseEvent);
-                }
-              }}
-            >
-              <SquareFunction className="w-2.5 h-2.5 flex-shrink-0" />
-              {/* Raw <span>: colored Badge inside contentEditable; <Text as="span">
-                  would reset the inherited pill color and text-[11px] is sub-xs
-                  grid geometry. Kept raw for correctness. */}
-              {/* eslint-disable-next-line react/forbid-elements -- span inside a colored Badge in TipTap contentEditable; Text as="span" would reset the inherited pill color and text-[11px] is sub-xs grid geometry */}
-              <span className="font-mono text-[11px] leading-none">{preview}</span>
-            </Badge>
+            {hint ? (
+              // Web 2.10 (04c C1): the chip carries its H5 value, `= 3 of 7 rows`.
+              // eslint-disable-next-line react/forbid-elements -- inline button role around the noninteractive kit FormulaAtom inside TipTap contentEditable
+              <span
+                {...triggerProps}
+                data-testid="formula-atom-chip"
+                className="mr-0.5 inline-flex cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <FormulaAtom
+                  kind="formula"
+                  source={expression}
+                  value={atomValueText(hint.value, tIde)}
+                  state={hint.state}
+                />
+              </span>
+            ) : (
+              <Badge
+                variant="formula"
+                className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
+                {...triggerProps}
+              >
+                <SquareFunction className="w-2.5 h-2.5 flex-shrink-0" />
+                {/* Raw <span>: colored Badge inside contentEditable; <Text as="span">
+                    would reset the inherited pill color and text-[11px] is sub-xs
+                    grid geometry. Kept raw for correctness. */}
+                {/* eslint-disable-next-line react/forbid-elements -- span inside a colored Badge in TipTap contentEditable; Text as="span" would reset the inherited pill color and text-[11px] is sub-xs grid geometry */}
+                <span className="font-mono text-[11px] leading-none">{preview}</span>
+              </Badge>
+            )}
           </TooltipTrigger>
           <TooltipContent>
             <Text size="xs" className="font-mono">
