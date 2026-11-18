@@ -249,7 +249,7 @@ A phone credential **cannot**:
 - create pairing codes for other phones;
 - export or import backups;
 - change the hub's network, update channel or software, or restart it;
-- install, update or remove plugins or outputs;
+- install plugins from a Git URL, or install outputs;
 - read stored secrets, or change AI, MQTT or display connection settings.
 
 ### Step-up on the phone
@@ -264,6 +264,14 @@ app asks for the account password and sends it to `POST /auth/device/elevate`.
 - The step-up is never a new credential. It ends when the 10 minutes are up, when the
   app ends it (`DELETE /auth/device/elevate`), or when this phone is signed out.
 - `GET /auth/device/elevate` says whether the phone is stepped up, and for how long.
+
+These actions need step-up on the phone:
+
+- installing a plugin from the plugin list, updating one or all plugins, and removing
+  a plugin.
+
+Checking for plugin updates doesn't need step-up. Installing a plugin from a Git URL
+stays in the web app.
 
 Step-up never opens account, password, session, pairing or API-token management to a
 phone.
