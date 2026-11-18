@@ -4,7 +4,7 @@
 Reads a client tree and its provenance written by fetch_published_client.py,
 measures it with bundle_budget.measure, writes the new committed sample, and
 rewrites bundle-budget.json so every ceiling is 110% of the published value,
-rounded up to 1024 bytes. That is the same allowance the original alpha.3
+rounded up to 1024 bytes. That is the same allowance the first (alpha.3)
 baseline used; this script never adds headroom beyond it.
 
     python3 scripts/perf/rebaseline_bundle.py \

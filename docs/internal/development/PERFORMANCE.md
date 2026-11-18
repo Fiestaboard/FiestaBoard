@@ -8,43 +8,49 @@ unchanged.
 
 ## Observed published bundle
 
-On 2026-11-17 the public `fiestaboard/fiestaboard:v11-alpha` tag resolved to
-index `sha256:dd279f9eaffaf5e2af22173b60ac6437b70d04fca8d867873833102d5af53ae6`.
+The baseline is `fiestaboard/fiestaboard:v11-alpha-11.0.0-alpha.10`, measured
+on 2026-11-18 with `scripts/perf/fetch_published_client.py` (see
+"Re-baselining" below). That tag resolved to index
+`sha256:a5e24ae550002db07513b27cfd56d201e4158c78b0ff325b9cf58f7c49c8f649`.
 The measured platform is **linux/amd64**, with manifest
-`sha256:62764744c42302386ed746a93c8ca15ee7464b75a436a8cc6acb2e9be675a9e3` and
-config `sha256:84fce4473f73cf77a81974314ba4382043fec2d49cce955cdffdbe4b84b2a683`.
-Its environment records `VERSION=11.0.0-alpha.3`. The
-[source tag](https://github.com/Fiestaboard/FiestaBoard/tree/v11.0.0-alpha.3)
+`sha256:b56e719de340afe880a35dcff6de9125dd9dcf27997931401ae357fc64392d6f` and
+config `sha256:b2e7841ef43493e4f88e3da1365b208d76cd50ffc61efb3049aa87712a19b2a3`.
+Its environment records `VERSION=11.0.0-alpha.10`. The
+[source tag](https://github.com/Fiestaboard/FiestaBoard/tree/v11.0.0-alpha.10)
 and successful
-[release run](https://github.com/Fiestaboard/FiestaBoard/actions/runs/44009121846)
-identify `83236253aa8103db856b7efa456e088b9c9ec548`. The image has no source-revision
-label; this is corroboration, not a source attestation.
+[release run](https://github.com/Fiestaboard/FiestaBoard/actions/runs/44276902049)
+identify `bf914c0ea649ff0eaeb5551ecae711f7176ba524`. The image has no
+source-revision label; this is corroboration, not a source attestation.
 
-The client COPY layer (zero-based 18) and all later layers through 30 were
-downloaded over the public Registry HTTPS API without executing the image.
-Compressed SHA-256/length and uncompressed diff IDs were verified. Only regular
-files under `app/web/build/client` were copied. Relevant whiteouts or links would
-abort extraction. Layer 30 repeats all 542 client files with identical hashes;
-layers 19–29 do not modify that subtree. Raw layers and extracted assets are
-retained in the program's `status/prodPerf-evidence` directory. The committed
-[sample](../../../scripts/perf/published-v11-alpha3.json) records every path,
-size and hash, plus immutable provenance.
+Every layer was downloaded over the public Registry HTTPS API without executing
+the image, and its compressed digest, size and uncompressed diff ID were verified.
+Only regular files under `app/web/build/client` were replayed, in layer order:
+the client COPY layer (zero-based 18) writes all 586 client files and layer 30
+repeats them with identical bytes. A link, device or whiteout touching that tree
+would have stopped the run. The committed
+[sample](../../../scripts/perf/published-v11-alpha10.json) records every path,
+size and hash, plus the registry provenance.
 
 | Metric | Observed raw bytes | CI ceiling |
 | --- | ---: | ---: |
-| All JavaScript, 256 files | 6,421,698 | 7,064,576 |
-| All CSS, 2 files | 255,096 | 281,600 |
+| All JavaScript, 279 files | 7,457,365 | 8,203,264 |
+| All CSS, 2 files | 282,521 | 311,296 |
 | Fonts, 5 files | 138,068 | 152,576 |
-| Largest JavaScript file | 576,617 | 634,880 |
+| Largest JavaScript file | 573,266 | 630,784 |
 
 There is **one unique published artifact sample**, not repeated timing samples.
 It includes lazy route and locale chunks and the service worker. These totals
-are not the initial payload of any route. The inventory also records 251 source
-maps (20,796,328 raw bytes) as image-storage cost; nginx refuses `.map` requests,
+are not the initial payload of any route. The inventory also records 272 source
+maps (22,837,120 raw bytes) as image-storage cost; nginx refuses `.map` requests,
 so maps do not count toward served-code ceilings. Other assets are inventoried
 but not currently budgeted.
 
-Per-file gzip level 6 estimates total 2,030,119 JavaScript bytes and 41,051 CSS
+The first baseline was `11.0.0-alpha.3` (JS 6,421,698 / CSS 255,096 bytes).
+It was replaced with alpha.10 after web slices 2.5, 2.9–2.11 and 2.14 shipped:
+measured against alpha.3, v11 had reached 99% of the JS and 99.98% of the CSS
+allowance, so the gate would have failed every later PR regardless of its content.
+
+Per-file gzip level 6 estimates total 2,362,574 JavaScript bytes and 45,081 CSS
 bytes. These are estimates, not observed wire transfers; nginx filtering,
 headers, cache/service-worker state and transport overhead are unmeasured.
 Only raw bytes gate, avoiding compressor-version differences. The inventory

@@ -34,12 +34,27 @@ def layer(*entries):
 
 
 class CeilingTests(unittest.TestCase):
-    def test_reproduces_the_committed_alpha3_ceilings_exactly(self):
-        sample = json.loads((PERF / "published-v11-alpha3.json").read_text())
+    def test_committed_ceilings_are_exactly_the_rule_applied_to_the_committed_baseline(self):
         budget = json.loads((PERF / "bundle-budget.json").read_text())
-        if budget["baseline"] != "published-v11-alpha3.json":
-            self.skipTest("baseline has moved past alpha.3")
+        sample = json.loads((PERF / budget["baseline"]).read_text())
         self.assertEqual({key: ceiling(value) for key, value in sample["metrics"].items()}, budget["limits"])
+
+    def test_reproduces_the_original_alpha3_ceilings(self):
+        alpha3 = {
+            "javascript_bytes": 6421698,
+            "css_bytes": 255096,
+            "font_bytes": 138068,
+            "largest_javascript_bytes": 576617,
+        }
+        self.assertEqual(
+            {key: ceiling(value) for key, value in alpha3.items()},
+            {
+                "javascript_bytes": 7064576,
+                "css_bytes": 281600,
+                "font_bytes": 152576,
+                "largest_javascript_bytes": 634880,
+            },
+        )
 
     def test_rounds_up_to_whole_kib_and_never_below_110_percent(self):
         self.assertEqual(ceiling(0), 0)
