@@ -77,18 +77,7 @@ import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { CanvasesPanel, type CanvasesPanelHandle } from "@/components/canvas-editor/canvases-panel";
-import {
-  BigBoardZoom,
-  ComplexPreviewOverview,
-  ComplexPreviewRuler,
-  ComplexPreviewSeams,
-} from "@/components/complex-editing/complex-preview-tools";
-import {
-  ComplexTemplateHeader,
-  LineOverflowWarnings,
-  NoteSeamSummary,
-  RowBandGutter,
-} from "@/components/complex-editing/complex-template-tools";
+import { LineOverflowWarnings } from "@/components/complex-editing/line-overflow-warnings";
 import { useComplexEditing } from "@/components/complex-editing/use-complex-editing";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
@@ -192,6 +181,18 @@ const TipTapTemplateEditor = lazy(() =>
 const CharsetTemplateEditor = lazy(() =>
   import("@/components/charset-template-editor").then((m) => ({ default: m.CharsetTemplateEditor })),
 );
+
+// Web 2.9 (04b) lenses load only for big boards and note arrays on the
+// desktop pane, keeping their kit composites off every other editor load.
+const previewTools = () => import("@/components/complex-editing/complex-preview-tools");
+const templateTools = () => import("@/components/complex-editing/complex-template-tools");
+const BigBoardZoom = lazy(() => previewTools().then((m) => ({ default: m.BigBoardZoom })));
+const ComplexPreviewRuler = lazy(() => previewTools().then((m) => ({ default: m.ComplexPreviewRuler })));
+const ComplexPreviewSeams = lazy(() => previewTools().then((m) => ({ default: m.ComplexPreviewSeams })));
+const ComplexPreviewOverview = lazy(() => previewTools().then((m) => ({ default: m.ComplexPreviewOverview })));
+const ComplexTemplateHeader = lazy(() => templateTools().then((m) => ({ default: m.ComplexTemplateHeader })));
+const NoteSeamSummary = lazy(() => templateTools().then((m) => ({ default: m.NoteSeamSummary })));
+const RowBandGutter = lazy(() => templateTools().then((m) => ({ default: m.RowBandGutter })));
 
 interface PageBuilderProps {
   pageId?: string; // If provided, edit existing page
@@ -2890,26 +2891,36 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </Button>
                       </Flex>
                     </Flex>
-                    <ComplexTemplateHeader
-                      complex={complexEditing}
-                      editorRootRef={
-                        editorMode === "rich" && !baselineDisplay ? richTemplateContainerRef : plainTemplateContainerRef
-                      }
-                      onGo={goToTemplateCell}
-                    />
+                    {complexEditing.active && (
+                      <Suspense fallback={null}>
+                        <ComplexTemplateHeader
+                          complex={complexEditing}
+                          editorRootRef={
+                            editorMode === "rich" && !baselineDisplay
+                              ? richTemplateContainerRef
+                              : plainTemplateContainerRef
+                          }
+                          onGo={goToTemplateCell}
+                        />
+                      </Suspense>
+                    )}
                     {editorMode === "rich" && !baselineDisplay ? (
                       <Box
                         ref={richTemplateContainerRef}
                         {...anchorProps("page-editor.template")}
                         className={cn("relative", rowBandsEnabled && "pl-38")}
                       >
-                        <RowBandGutter
-                          enabled={rowBandsEnabled}
-                          state={{ lines: templateLines, alignments: lineAlignments, wraps: lineWrapEnabled }}
-                          rows={numLines}
-                          editorRootRef={richTemplateContainerRef}
-                          onChange={applyTemplateRows}
-                        />
+                        {rowBandsEnabled && (
+                          <Suspense fallback={null}>
+                            <RowBandGutter
+                              enabled
+                              state={{ lines: templateLines, alignments: lineAlignments, wraps: lineWrapEnabled }}
+                              rows={numLines}
+                              editorRootRef={richTemplateContainerRef}
+                              onChange={(next) => applyTemplateRows(next as Parameters<typeof applyTemplateRows>[0])}
+                            />
+                          </Suspense>
+                        )}
                         {newPageEmpty && (
                           <Text
                             aria-hidden
@@ -3152,7 +3163,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       wrapped={lineWrapEnabled}
                       onWrap={wrapTemplateLine}
                     />
-                    {complexEditing.noteArray && <NoteSeamSummary straddles={straddles} />}
+                    {complexEditing.noteArray && (
+                      <Suspense fallback={null}>
+                        <NoteSeamSummary straddles={straddles} />
+                      </Suspense>
+                    )}
                   </Stack>
                 </Box>
 
@@ -3180,7 +3195,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   headerAction={
                     <Flex align="center" gap="1">
                       {!baselineDisplay && complexEditing.bigBoard && (
-                        <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
+                        <Suspense fallback={null}>
+                          <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
+                        </Suspense>
                       )}
                       {!baselineDisplay && !complexEditing.bigBoard && (
                         <BoardPreviewModeToggle
@@ -3214,7 +3231,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Flex>
                   }
                 >
-                  <ComplexPreviewRuler complex={complexEditing} />
+                  {complexEditing.bigBoard && (
+                    <Suspense fallback={null}>
+                      <ComplexPreviewRuler complex={complexEditing} />
+                    </Suspense>
+                  )}
                   <Flex ref={setPreviewStage} justify="center" className="relative min-w-0">
                     {baselineDisplay ? (
                       <Alert variant="warning" className="w-full">
@@ -3285,25 +3306,33 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </DevicePreview>
                       </DrawableBoardPreview>
                     )}
-                    <ComplexPreviewSeams complex={complexEditing} />
+                    {complexEditing.noteArray && (
+                      <Suspense fallback={null}>
+                        <ComplexPreviewSeams complex={complexEditing} />
+                      </Suspense>
+                    )}
                   </Flex>
-                  <ComplexPreviewOverview
-                    complex={complexEditing}
-                    board={{
-                      message: editorPreviewMessage,
-                      boardType: effectiveBoardColor,
-                      deviceType,
-                      code62Glyph: effectiveCode62Glyph,
-                      notesWide,
-                      notesTall,
-                      gridRows: panelGrid?.rows,
-                      gridCols: panelGrid?.cols,
-                    }}
-                    rendered={renderedRows}
-                    overflows={lineOverflow.overflows}
-                    minimapId={complexMinimapId}
-                    onJump={goToTemplateCell}
-                  />
+                  {complexEditing.bigBoard && (
+                    <Suspense fallback={null}>
+                      <ComplexPreviewOverview
+                        complex={complexEditing}
+                        board={{
+                          message: editorPreviewMessage,
+                          boardType: effectiveBoardColor,
+                          deviceType,
+                          code62Glyph: effectiveCode62Glyph,
+                          notesWide,
+                          notesTall,
+                          gridRows: panelGrid?.rows,
+                          gridCols: panelGrid?.cols,
+                        }}
+                        rendered={renderedRows}
+                        overflows={lineOverflow.overflows}
+                        minimapId={complexMinimapId}
+                        onJump={goToTemplateCell}
+                      />
+                    </Suspense>
+                  )}
                   {drawMode && (
                     <Text tone="muted" size="xs" className="mt-1 text-center">
                       {t("drawModeHint")}

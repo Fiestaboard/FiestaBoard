@@ -68,7 +68,8 @@ const pages = {
     template: [
       "GOOD MORNING   FROM ROSA'S",
       "LATTE    4.50  MOCHA    5.00",
-      "TEA      3.00  CAPPUCCINO 4.75",
+      // "CAPPUCCINO" (columns 12–21) runs across the seam after column 15.
+      "TEA 3.00   CAPPUCCINO 4.75",
       "",
       "",
       "",
@@ -234,6 +235,7 @@ for (const theme of ["light", "dark"] as const) {
       // Zoom to Tile md keeps the page inside the viewport.
       await preview.getByRole("radio", { name: "Tile md" }).click();
       await expect(preview.locator('[data-slot="board-viewport"]')).toHaveAttribute("data-mode", "actual");
+      await expect(preview.getByRole("radio", { name: "Tile md" })).toBeChecked();
       await finish(page, testInfo, `impl-1440-${theme}-big-board`);
     });
 
@@ -243,7 +245,9 @@ for (const theme of ["light", "dark"] as const) {
       await expect(focus).toBeVisible();
       await focus.getByRole("radio", { name: "Note 2" }).click();
       await expect(focus.getByRole("radio", { name: "Note 2" })).toBeChecked();
-      await expect(page.locator('[data-slot="note-seam-summary"]')).toContainText(/straddle|runs across/);
+      await expect(page.locator('[data-slot="note-seam-summary"]')).toHaveText(
+        "Row 3: “CAPPUCCINO” runs across the seam after column 15.",
+      );
       await finish(page, testInfo, `impl-1440-${theme}-note-array`);
     });
 

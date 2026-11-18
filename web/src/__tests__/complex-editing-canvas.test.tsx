@@ -1,12 +1,33 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CanvasDrawTab } from "@/components/canvas-editor/canvas-draw-tab";
+import { CanvasesPanel } from "@/components/canvas-editor/canvases-panel";
 import { CanvasLayers, describeShape, shapeIsBound } from "@/components/complex-editing/canvas-layers";
 import { useCanvasHistory } from "@/components/complex-editing/use-canvas-history";
-import type { CanvasContent, CanvasShape } from "@/lib/api";
+import type { Canvas, CanvasContent, CanvasShape, TemplateVariables } from "@/lib/api";
+import { api } from "@/lib/api";
+import { makeCanvas } from "@/lib/canvas-editing";
+
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual("@/lib/api");
+  return { ...actual, api: { ...(actual as { api: object }).api, getTemplateVariables: vi.fn() } };
+});
+
+beforeEach(() => {
+  vi.mocked(api.getTemplateVariables).mockResolvedValue({
+    variables: {},
+    max_lengths: {},
+    colors: {},
+    symbols: [],
+    filters: [],
+    formatting: {},
+    syntax_examples: {},
+  } as unknown as TemplateVariables);
+});
 
 const t = (key: string, params?: Record<string, unknown>) => `${key}:${JSON.stringify(params ?? {})}`;
 
@@ -135,5 +156,70 @@ describe("CanvasDrawTab tool rail", () => {
     expect(spy.mock.calls.at(-1)![0]).toEqual({});
     await userEvent.click(within(rail).getByRole("button", { name: "Eraser" }));
     expect(within(rail).getByRole("button", { name: "Eraser" })).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
+describe("Draw-rail Undo across the canvas tabs (Fable M1)", () => {
+  function Panel({ spy }: { spy: (c: Canvas[]) => void }) {
+    const [canvases, setCanvases] = useState<Canvas[]>([makeCanvas("sky", { row: 1, col: 1, rows: 1, cols: 1 })]);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return (
+      <QueryClientProvider client={client}>
+        <CanvasesPanel
+          canvases={canvases}
+          onChange={(next) => {
+            spy(next);
+            setCanvases(next);
+          }}
+          gridRows={10}
+          gridCols={16}
+          board={{ width: 64, height: 64, font: "3x5" }}
+          issues={[]}
+          error={null}
+        />
+      </QueryClientProvider>
+    );
+  }
+
+  it("undoes the stroke and keeps a shape added in the Shapes tab after it", async () => {
+    const user = userEvent.setup();
+    const spy = vi.fn();
+    render(<Panel spy={spy} />);
+    await user.click(screen.getByRole("tab", { name: "Draw" }));
+    fireEvent.keyDown(screen.getByTestId("pixel-pad"), { key: " " });
+    const painted = spy.mock.calls.at(-1)![0][0].content as CanvasContent;
+    expect(painted.pixels![0][0]).not.toBe(".");
+
+    await user.click(screen.getByRole("tab", { name: "Shapes" }));
+    await user.click(screen.getByRole("button", { name: "Add shape" }));
+    expect((spy.mock.calls.at(-1)![0][0].content as CanvasContent).shapes).toHaveLength(1);
+
+    await user.click(screen.getByRole("tab", { name: "Draw" }));
+    await user.click(within(screen.getByRole("group", { name: "Canvas tools" })).getByRole("button", { name: "Undo" }));
+    const undone = spy.mock.calls.at(-1)![0][0].content as CanvasContent;
+    expect(undone.shapes).toHaveLength(1);
+    expect((undone.pixels ?? []).join("")).not.toMatch(/[^.]/);
+  });
+});
+
+describe("useCanvasHistory keeps non-pad fields", () => {
+  it("restores only pixels, palette and size over the current content", () => {
+    const onChange = vi.fn();
+    const before: CanvasContent = { size: [2, 1], pixels: [".."], palette: {} };
+    const after: CanvasContent = { size: [2, 1], pixels: ["a."], palette: { a: "#ff0000" } };
+    const { result, rerender } = renderHook(({ content }) => useCanvasHistory(content, onChange), {
+      initialProps: { content: before as CanvasContent },
+    });
+    act(() => result.current.commit(after));
+    const shapes: CanvasShape[] = [{ type: "rect", x: 0, y: 0, w: 1, h: 1, fill: "b" }];
+    rerender({ content: { ...after, background: "#000", shapes, palette: { a: "#ff0000", b: "#00ff00" } } });
+    act(() => result.current.undo());
+    expect(onChange).toHaveBeenLastCalledWith({
+      size: [2, 1],
+      pixels: [".."],
+      palette: { b: "#00ff00" },
+      background: "#000",
+      shapes,
+    });
   });
 });

@@ -140,8 +140,8 @@ describe("page editor complex editing (2.9)", () => {
       template: ["ROSA'S CAFE", ...Array.from({ length: 23 }, () => "")],
     });
     expect(await screen.findByRole("group", { name: "Preview zoom" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Go to row and column" })).toBeInTheDocument();
-    expect(screen.getByText("Where lines are cut")).toBeInTheDocument();
+    expect(await screen.findByRole("textbox", { name: "Go to row and column" })).toBeInTheDocument();
+    expect(await screen.findByText("Where lines are cut")).toBeInTheDocument();
     // The template's line numbers keep AA contrast on a tall board (axe in the
     // 2.9 layout spec): muted colour, not muted colour at 40 % opacity.
     const editor = await screen.findByRole("textbox", { name: "Template editor" }, { timeout: 5000 });
@@ -166,6 +166,6 @@ describe("page editor complex editing (2.9)", () => {
     });
     expect(await screen.findByRole("radiogroup", { name: "Note focus" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "All notes" })).toBeChecked();
-    expect(screen.getByRole("status")).toHaveTextContent(/nothing straddles a seam/);
+    expect(await screen.findByRole("status")).toHaveTextContent(/nothing straddles a seam/);
   });
 });

@@ -11,10 +11,10 @@ import {
 } from "@/components/complex-editing/complex-preview-tools";
 import {
   ComplexTemplateHeader,
-  LineOverflowWarnings,
   NoteSeamSummary,
   RowBandGutter,
 } from "@/components/complex-editing/complex-template-tools";
+import { LineOverflowWarnings } from "@/components/complex-editing/line-overflow-warnings";
 import { type ComplexEditing, useComplexEditing } from "@/components/complex-editing/use-complex-editing";
 
 function fakeComplex(overrides: Partial<ComplexEditing> = {}): ComplexEditing {
@@ -204,6 +204,22 @@ describe("ComplexTemplateHeader", () => {
     const input = screen.getByRole("textbox", { name: "Go to row and column" });
     await userEvent.type(input, "4 10{Enter}");
     expect(onGo).toHaveBeenCalledWith({ row: 4, column: 10 });
+  });
+
+  it("adds no ⌘J/Ctrl+J binding or kbd outside the editor's shortcut registry (DD-W130)", () => {
+    render(<ComplexTemplateHeader complex={fakeComplex()} editorRootRef={createRef()} onGo={vi.fn()} />);
+    const input = screen.getByRole("textbox", { name: "Go to row and column" });
+    expect(document.querySelector("kbd")).toBeNull();
+    const event = new KeyboardEvent("keydown", {
+      key: "j",
+      code: "KeyJ",
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.body.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).not.toBe(input);
   });
 
   it("focuses a Note and scrolls the preview to it", async () => {
