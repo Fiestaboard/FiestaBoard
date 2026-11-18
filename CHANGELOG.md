@@ -1,5 +1,21 @@
 # fiestaboard
 
+## 11.0.0-alpha.10
+
+### Minor Changes
+
+- [#2542](https://github.com/Fiestaboard/FiestaBoard/pull/2542) [`26bb476`](https://github.com/Fiestaboard/FiestaBoard/commit/26bb476a3ead45bd9bf81594b9f23ec98649ad54) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor now helps with big boards and note arrays: a zoom control, column ruler, board overview and "where lines are cut" map for large displays, Go to row and column, movable row bands, Note focus with seam checks, a canvas tool rail with undo and a layers list, and per-line warnings when the hub finds a line wider than the board.
+
+- [#2540](https://github.com/Fiestaboard/FiestaBoard/pull/2540) [`ad8c90d`](https://github.com/Fiestaboard/FiestaBoard/commit/ad8c90d42260dd901ce58a6315230567cba3ac58) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor becomes a Creator IDE on wide screens: an Explorer of pages and collections, a status row that says where the page is showing and whether your edits are a draft, Inspector tabs for Data, Logic, Page, Shows on and History, and a docked Problems / Warnings / Sent console with a week timeline. While a display shows the page you can Save draft or Save & update board, restore an earlier version into a draft, and make a copy sized for another display.
+
+- [#2541](https://github.com/Fiestaboard/FiestaBoard/pull/2541) [`8fffb2b`](https://github.com/Fiestaboard/FiestaBoard/commit/8fffb2bfdb2ff8cdae60bad1bcde743e008c0ddb) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor's formulas now show their live values, open in a docked Code or Builder editor with autocomplete and recipes, and can be inspected step by step; the preview can also show sample data, missing data, or a chosen time.
+
+### Patch Changes
+
+- [#2546](https://github.com/Fiestaboard/FiestaBoard/pull/2546) [`7db3048`](https://github.com/Fiestaboard/FiestaBoard/commit/7db3048031e4beb24c0fa1ef10c86dc0f5a17495) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Undo after cancelling a timed message on one display now keeps working when another display changes in the meantime.
+
+- [#2545](https://github.com/Fiestaboard/FiestaBoard/pull/2545) [`9f3e533`](https://github.com/Fiestaboard/FiestaBoard/commit/9f3e533472837492f3c44b9884aa58f33451e835) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The phone app now asks for a key again in a few more cases where saved settings change, and no longer asks for it when a display edit doesn't need it.
+
 ## 11.0.0-alpha.9
 
 ### Minor Changes
