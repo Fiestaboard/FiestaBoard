@@ -192,7 +192,9 @@ test.describe("Page Builder", () => {
       // (that matched the hidden sidebar's "Language & time" link).
       // The picker titles each plugin group from its id ("date_time" -> "Date Time").
       await expect(page.getByText("Date Time", { exact: true })).toBeVisible({ timeout: 5_000 });
-      await expect(page.getByText("hour", { exact: true }).first()).toBeVisible();
+      // Each variable is an insert button whose name starts with the variable
+      // and may be followed by a live preview value ("hour 14").
+      await expect(page.getByRole("button", { name: /^hour\b/ }).first()).toBeVisible();
     } finally {
       if (!wasEnabled) await disablePlugin("date_time");
     }
