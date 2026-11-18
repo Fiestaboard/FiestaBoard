@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "hub_commit": "fc7962d9b556bd7ebc2aa0e8ab7bcfb52af381a1",
+  "hub_commit": "e096144cf654f1a63e91a16426bcdaffd7fe10dd",
   "capture": "FastAPI TestClient with real middleware, synthetic mobile/TV sessions and vendored assets",
   "recorder": "scripts/record_render_assets.py",
   "source_files_sha256": {
