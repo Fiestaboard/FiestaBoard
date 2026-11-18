@@ -119,6 +119,19 @@ CONTROL_RULES = (
         ("PUT", "/settings/silence-schedule"),
         ("POST", "/settings/board/{}/pause"),
         ("POST", "/settings/board/{}/identify"),
+        # H21a tier 1: add, change and remove displays (every display type, MQTT
+        # included), detect a board's size, and display settings. Changing a
+        # display's connection while echoing a masked key is refused
+        # (src/settings/phone_displays.py). Installing outputs stays browser-only.
+        ("GET,PUT", "/settings/board"),
+        ("POST", "/settings/board/add"),
+        ("DELETE", "/settings/board/{}"),
+        ("POST", "/settings/board/{}/detect-size"),
+        ("POST", "/outputs/{}/boards"),
+        ("GET,PUT", "/settings/display"),
+        ("GET,PUT", "/settings/transitions"),
+        ("GET,PUT", "/settings/polling"),
+        ("GET,PUT", "/settings/location"),
         ("GET", "/settings/location/sun-times"),
         ("GET", "/settings/location/sun-times-week"),
         ("GET", "/triggers"),

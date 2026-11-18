@@ -64,13 +64,9 @@ MUST_DENY = {
     "clear_board_cache",
     "get_plugin_demo_page",
     "create_plugin_demo_page",
-    # Until H21a widens displays for phones.
-    "add_board",
-    "remove_board",
-    "detect_board_size",
-    "update_board",
-    "create_display",
+    # Merges connection settings keeping omitted secrets (H21a uses REST instead).
     "configure_display",
+    # Until the output side of the H10 F5 host guard ships.
     "run_display_action",
     "list_staff_picks",
     "force_refresh",
@@ -130,10 +126,16 @@ def test_git_install_is_denied(args):
 
 @pytest.mark.parametrize(
     "category",
-    ["mqtt", "ai", "release_channel", "auto_update", "beta", "hdmi_kiosk", "output", "plugins", "display", None],
+    ["mqtt", "ai", "release_channel", "auto_update", "beta", "hdmi_kiosk", "output", "plugins", None],
 )
 def test_update_setting_categories_outside_the_phone_list_are_denied(category):
     assert tier_for("update_setting", {"category": category, "values": {}}) == DENIED
+
+
+@pytest.mark.parametrize("args", [{"board_id": "b", "host": "203.0.113.5"}, {"board_id": "b", "api_mode": "cloud"}])
+def test_update_board_cannot_move_a_display(args):
+    assert tier_for("update_board", args) == DENIED
+    assert tier_for("update_board", {"board_id": "b", "name": "Kitchen"}) == ALLOWED
 
 
 def test_update_setting_general_is_tier_two():
