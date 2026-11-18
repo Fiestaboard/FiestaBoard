@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SpotlightProvider, useSpotlight } from "@/components/ai-spotlight/spotlight-provider";
 import { GlobalAiPanelProvider, useGlobalAiPanel } from "@/components/global-ai-panel-context";
@@ -62,6 +62,10 @@ const DEFAULT_OFFSET = "24px";
 describe("Toaster beside the FiestaBot drawer", () => {
   beforeEach(() => {
     setViewport(true);
+  });
+
+  afterEach(() => {
+    act(() => toast.dismiss());
   });
 
   it("stays in its usual corner while the drawer is closed", async () => {
@@ -135,4 +139,40 @@ describe("Toaster beside the FiestaBot drawer", () => {
     render(<Toaster />);
     expect(screen.getByLabelText(/notifications/i)).toBeInTheDocument();
   });
+
+  it("keeps explicit host edges and position ahead of the desktop drawer defaults", async () => {
+    render(
+      <GlobalAiPanelProvider>
+        <OpenTheDrawer />
+        <Toaster position="top-right" offset={{ right: 80, top: 64 }} mobileOffset={{ bottom: 120 }} />
+      </GlobalAiPanelProvider>,
+    );
+    const element = await toaster();
+    expect(element).toHaveAttribute("data-y-position", "top");
+    expect(element).toHaveAttribute("data-x-position", "right");
+    expect(element.style.getPropertyValue("--offset-right")).toBe("80px");
+    expect(element.style.getPropertyValue("--offset-top")).toBe("64px");
+    expect(element.style.getPropertyValue("--mobile-offset-bottom")).toBe("120px");
+  });
+
+  it.each(["phone", "minimized", "walkthrough"] as const)(
+    "keeps an explicit position ahead of the %s top-center default",
+    async (state) => {
+      setViewport(state !== "phone");
+      render(
+        <SpotlightProvider>
+          <GlobalAiPanelProvider>
+            {state === "minimized" ? <MinimizeTheDrawer /> : <OpenTheDrawer />}
+            {state === "walkthrough" && <StartWalkthrough />}
+            <Toaster position="bottom-center" offset={32} mobileOffset="12px" />
+          </GlobalAiPanelProvider>
+        </SpotlightProvider>,
+      );
+      const element = await toaster();
+      expect(element).toHaveAttribute("data-y-position", "bottom");
+      expect(element).toHaveAttribute("data-x-position", "center");
+      expect(element.style.getPropertyValue("--offset-right")).toBe("32px");
+      expect(element.style.getPropertyValue("--mobile-offset-right")).toBe("12px");
+    },
+  );
 });
