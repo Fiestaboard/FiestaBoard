@@ -156,6 +156,9 @@ import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { isDisplayOffline } from "@/lib/status-banners";
 import { cn } from "@/lib/utils";
 
+import { FormulaIdeContext } from "./formula-ide/formula-ide-context";
+import { useFormulaIde } from "./formula-ide/use-formula-ide";
+
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
 // barrel push this module past 500 kB minified on their own (see #1575).
 // It's route-split from the surrounding page-builder chunk so "plain" text
@@ -2576,6 +2579,48 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     </Stack>
   );
 
+  // Web 2.10 (04c): formula values, Live/Sample/Missing, Inspect and the
+  // docked formula workbench. Inert for canvases and plain-text-only boards.
+  const formulaIdeTarget = useMemo(() => {
+    if (baselineDisplay || debouncedCanvases.length > 0) return null;
+    if (!debouncedTemplateLines.some((line) => line.trim().length > 0)) return null;
+    const { cleanedLines, metadata } = processLinesWithPrefixes(
+      debouncedTemplateLines,
+      debouncedLineAlignments,
+      debouncedLineWrapEnabled,
+    );
+    return {
+      template: cleanedLines,
+      lineMetadata: metadata,
+      deviceType,
+      notesWide,
+      notesTall,
+      grid: panelGrid,
+      boardId: previewBoardId,
+    };
+  }, [
+    baselineDisplay,
+    debouncedCanvases,
+    debouncedTemplateLines,
+    debouncedLineAlignments,
+    debouncedLineWrapEnabled,
+    deviceType,
+    notesWide,
+    notesTall,
+    panelGrid,
+    previewBoardId,
+  ]);
+  const formulaIde = useFormulaIde({
+    target: formulaIdeTarget,
+    desktop: !dockedPreview,
+    mirroring: liveOutputEnabled,
+    stopMirroring: () => changeMirroring(false),
+    boardCols: dims.cols,
+    editTemplateLine: (index, edit) => {
+      setTemplateInputStarted(true);
+      setTemplateLines((lines) => lines.map((line, i) => (i === index ? edit(line) : line)));
+    },
+  });
   if (pageId && loadingPage) {
     return (
       <Card>
@@ -2603,9 +2648,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         if (isPending && hasContent && !shouldIgnore) return "";
         return null;
       })();
+  // Sample, Missing or another time render through the formula IDE (hub H6).
+  const shownPreviewMessage = drawMode ? editorPreviewMessage : (formulaIde.previewOverride ?? editorPreviewMessage);
 
   return (
-    <>
+    <FormulaIdeContext.Provider value={formulaIde.bridge}>
       <Box
         ref={editorContentRef}
         className="min-w-0 w-full max-w-full overflow-x-clip transition-none"
@@ -2768,7 +2815,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               )}
               <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-0 lg:gap-6">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
-                <Box hidden={!!pixelBoard && editingSurface !== "text"} className="order-1 min-w-0 px-2 lg:px-0">
+                <Box
+                  hidden={!!pixelBoard && editingSurface !== "text"}
+                  className={cn("order-1 min-w-0 px-2 lg:px-0", formulaIde.rightSlot && "lg:row-span-2")}
+                >
                   <Stack gap="3" className="min-w-0">
                     <Flex ref={templateHeadingRef} align="center" justify="between" className="order-2 lg:order-none">
                       <label htmlFor="page-template-plain" className="text-xs sm:text-sm font-medium">
@@ -3037,6 +3087,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </Stack>
                       </Flex>
                     )}
+                    {formulaIde.leftSlot}
                   </Stack>
                 </Box>
 
@@ -3046,12 +3097,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   id="page-editor-preview"
                   variant={dockedPreview ? "docked" : "pane"}
                   className={cn("order-first lg:order-2 min-w-0 top-16 scroll-mt-16", dockedPreview && "px-0")}
-                  title={baselineDisplay ? tTouch("plainText") : tTouch("livePreview")}
-                  dotStatus={baselineDisplay ? "warning" : "success"}
+                  title={baselineDisplay ? tTouch("plainText") : (formulaIde.previewTitle ?? tTouch("livePreview"))}
+                  dotStatus={baselineDisplay ? "warning" : (formulaIde.dotStatus ?? "success")}
                   boardName={previewBoard?.name}
                   live={liveOutputEnabled}
                   onLiveChange={changeMirroring}
-                  liveDisabled={mirrorUnavailable && !liveOutputEnabled}
+                  liveDisabled={(mirrorUnavailable && !liveOutputEnabled) || formulaIde.mirrorLocked}
                   liveLabel={tTouch("mirror")}
                   mirroringLabel={tTouch("mirroring")}
                   statusLine={
@@ -3062,7 +3113,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         : undefined
                   }
                   headerAction={
-                    <Flex align="center" gap="1">
+                    <Flex align="center" gap="1" wrap className="justify-end">
+                      {formulaIde.headerControls}
                       {!baselineDisplay && (
                         <BoardPreviewModeToggle
                           mode={previewMode}
@@ -3095,7 +3147,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Flex>
                   }
                 >
-                  <Flex justify="center">
+                  {formulaIde.bodyControls}
+                  <Flex justify="center" {...formulaIde.boardProps}>
+                    {formulaIde.boardOverlay}
                     {baselineDisplay ? (
                       <Alert variant="warning" className="w-full">
                         <AlertDescription>
@@ -3120,11 +3174,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           model={drawMode ? null : previewModel}
                           ledLayout={previewBoard?.led_layout}
                           layers={drawMode ? undefined : previewLayers}
-                          message={editorPreviewMessage}
+                          message={shownPreviewMessage}
                           size={dockedPreview ? "sm" : "md"}
                         >
                           <ScaledBoardDisplay
-                            message={editorPreviewMessage}
+                            message={shownPreviewMessage}
                             isLoading={
                               drawMode
                                 ? false
@@ -3196,7 +3250,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     onSendAnyway={() => setLiveOverrideSilence(true)}
                     onStopOverriding={() => setLiveOverrideSilence(false)}
                   />
+                  {formulaIde.previewFooter}
                 </EditorPreview>
+                {formulaIde.rightSlot && <Box className="order-2 min-w-0 lg:col-start-2">{formulaIde.rightSlot}</Box>}
                 <Box className="order-3 min-w-0 px-2 lg:px-0 lg:col-start-1">
                   <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
                     <Flex align="center" gap="2" className="flex-wrap">
@@ -3453,7 +3509,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+      {formulaIde.overlays}
+    </FormulaIdeContext.Provider>
   );
 });
 PageBuilder.displayName = "PageBuilder";
