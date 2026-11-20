@@ -682,21 +682,30 @@ describe("Pages library card menu", () => {
     await waitFor(() => expect(deleted).toEqual(["beta"]));
   });
 
-  it("opens the menu on a long-press without opening the page", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
-      renderLibrary();
-      const card = (await screen.findByText("Alpha")).closest("button")!;
-      fireEvent.pointerDown(card, { pointerType: "touch", clientX: 5, clientY: 5 });
-      await act(async () => {
-        vi.advanceTimersByTime(600);
-      });
-      expect(await screen.findByRole("menuitem", { name: "Duplicate" })).toBeInTheDocument();
-      fireEvent.pointerUp(card, { pointerType: "touch" });
-      fireEvent.click(card);
-      expect(push).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
+  it("opens the same menu from the card itself (right-click; long-press on touch) without opening the page", async () => {
+    renderLibrary();
+    const card = (await screen.findByText("Alpha")).closest("button")!;
+    fireEvent.contextMenu(card);
+    expect(await screen.findByRole("menuitem", { name: "Duplicate" })).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("moves focus to the next card's menu after a delete", async () => {
+    let remaining = pages;
+    server.use(
+      http.get("/api/v1/pages", () => HttpResponse.json({ pages: remaining, total: remaining.length })),
+      http.delete("/api/v1/pages/:id", ({ params }) => {
+        remaining = remaining.filter((p) => p.id !== params.id);
+        return HttpResponse.json({ status: "deleted" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
+    await user.click(screen.getByRole("button", { name: "Actions for Alpha" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete page…" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(screen.queryByText("Alpha")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Actions for Beta" })).toHaveFocus());
   });
 });

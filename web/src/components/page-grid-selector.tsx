@@ -645,16 +645,14 @@ export interface PageGridSelectorProps {
   /** Opt-in saved-content search/sort for the library; assignment pickers keep their defaults. */
   libraryQuery?: PageLibraryQuery;
   /**
-   * The library's per-card menu (BB-B-8), drawn beside each card rather than
-   * inside its button. Gets `open`/`onOpenChange` so a right-click or a
-   * long-press on the card opens it too. Pickers leave it out.
+   * The library's per-card menu (BB-B-8): given the card, returns it wrapped
+   * with its menu (a ··· button, right-click and long-press). Pickers leave
+   * it out.
    */
-  renderPageActions?: (page: Page, menu: { open: boolean; onOpenChange: (open: boolean) => void }) => ReactNode;
+  renderPageActions?: (page: Page, card: ReactNode) => ReactNode;
 }
 
-const LONG_PRESS_MS = 500;
-
-/** A card with its menu beside it; a right-click or long-press on the card opens the menu. */
+/** A card, wrapped with the library's menu when there is one. */
 function WithPageActions({
   page,
   render,
@@ -664,57 +662,7 @@ function WithPageActions({
   render?: PageGridSelectorProps["renderPageActions"];
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-  // Touch long-press (iOS Safari fires no contextmenu): open the menu, and
-  // swallow the click the release would send to the card.
-  const press = useRef<{ timer: ReturnType<typeof setTimeout> | null; fired: boolean; x: number; y: number }>({
-    timer: null,
-    fired: false,
-    x: 0,
-    y: 0,
-  });
-  const cancelPress = () => {
-    if (press.current.timer) clearTimeout(press.current.timer);
-    press.current.timer = null;
-  };
-  if (!render) return <>{children}</>;
-  return (
-    <Box
-      // The card button fills the cell as it did when it was the grid item.
-      className="relative min-w-0 [&>button]:w-full"
-      onContextMenu={(event) => {
-        event.preventDefault();
-        setOpen(true);
-      }}
-      onPointerDown={(event) => {
-        if (event.pointerType !== "touch") return;
-        cancelPress();
-        press.current = {
-          fired: false,
-          x: event.clientX,
-          y: event.clientY,
-          timer: setTimeout(() => {
-            press.current.fired = true;
-            setOpen(true);
-          }, LONG_PRESS_MS),
-        };
-      }}
-      onPointerMove={(event) => {
-        if (Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > 10) cancelPress();
-      }}
-      onPointerUp={cancelPress}
-      onPointerCancel={cancelPress}
-      onClickCapture={(event) => {
-        if (!press.current.fired) return;
-        press.current.fired = false;
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-    >
-      {children}
-      <Box className="absolute right-1.5 top-1.5">{render(page, { open, onOpenChange: setOpen })}</Box>
-    </Box>
-  );
+  return <>{render ? render(page, children) : children}</>;
 }
 
 export function PageGridSelector({

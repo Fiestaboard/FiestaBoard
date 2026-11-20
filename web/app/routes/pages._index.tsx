@@ -316,7 +316,7 @@ export default function PagesPage() {
         </Text>
         <PageGridSelector
           onSelectPage={handleSelectPage}
-          renderPageActions={(page, menu) => <PageCardMenu page={page} {...menu} />}
+          renderPageActions={(page, card) => <PageCardMenu page={page}>{card}</PageCardMenu>}
           label={null}
           showActiveIndicator={false}
           showCollections={false}
