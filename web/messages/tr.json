@@ -1066,7 +1066,8 @@
       },
       "addModel": "Model ekle",
       "refreshModels": "Modelleri yenile",
-      "promptDestination": "İstemler {destination} adresine gönderilir"
+      "promptDestination": "İstemler {destination} adresine gönderilir",
+      "savedToast": "Yapay zekâ sağlayıcısı ayarları kaydedildi."
     },
     "backup": {
       "cardTitle": "Yedekleme ve Geri Yükleme",
@@ -1079,7 +1080,18 @@
       "confirmTitle": "Mevcut yapılandırma değiştirilsin mi?",
       "confirmDescription": "<file></file> dosyasını geri yüklemek üzeresiniz. Mevcut sayfalarınızın, döngülerinizin, zamanlamalarınızın ve yapılandırmanızın üzerine yazılacak. Gerekirse elle geri dönebilmeniz için her mevcut dosyanın zaman damgalı bir kopyası yenisinin yanında saklanır.",
       "restoringButton": "Geri yükleniyor…",
-      "restoreButton": "Yedeği geri yükle"
+      "restoreButton": "Yedeği geri yükle",
+      "exportDone": "Yedek indirildi.",
+      "exportUnreachable": "Hub’a ulaşılamıyor — yedek indirilmedi.",
+      "exportFailed": "Yedek indirilmedi: {error}",
+      "importFailed": "İçe aktarma başarısız: {error}",
+      "readFailed": "Dosya okunamadı: {error}",
+      "invalidJson": "Dosya geçerli bir JSON değil: {error}",
+      "notABackup": "Bu bir FiestaBoard yedek dosyası gibi görünmüyor.",
+      "restoredFiles": "{count} dosya geri yüklendi.",
+      "reinstalledPlugins": "{count} eklenti yeniden yüklendi.",
+      "pluginsFailed": "{count} eklenti yeniden yüklenemedi — elle yükleyin.",
+      "manualReinstall": "{count} harici eklentinin Entegrasyonlar’dan elle yeniden yüklenmesi gerekiyor: {names}"
     },
     "groupIdentity": "Örnek",
     "groupAppearance": "Görünüm ve erişilebilirlik",

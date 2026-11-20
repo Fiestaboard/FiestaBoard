@@ -1066,7 +1066,8 @@
       },
       "addModel": "모델 추가",
       "refreshModels": "모델 새로 고침",
-      "promptDestination": "프롬프트 전송 대상: {destination}"
+      "promptDestination": "프롬프트 전송 대상: {destination}",
+      "savedToast": "AI 제공자 설정을 저장했습니다."
     },
     "backup": {
       "cardTitle": "백업 및 복원",
@@ -1079,7 +1080,18 @@
       "confirmTitle": "현재 설정을 교체하시겠습니까?",
       "confirmDescription": "<file></file>을(를) 복원하려고 합니다. 기존 페이지, 캐러셀, 스케줄 및 설정을 덮어씁니다. 각 기존 파일의 타임스탬프가 붙은 사본이 새 파일과 함께 보관되므로 필요하면 수동으로 되돌릴 수 있습니다.",
       "restoringButton": "복원 중…",
-      "restoreButton": "백업 복원"
+      "restoreButton": "백업 복원",
+      "exportDone": "백업을 다운로드했습니다.",
+      "exportUnreachable": "허브에 연결할 수 없습니다 — 백업이 다운로드되지 않았습니다.",
+      "exportFailed": "백업이 다운로드되지 않았습니다: {error}",
+      "importFailed": "가져오기 실패: {error}",
+      "readFailed": "파일을 읽을 수 없습니다: {error}",
+      "invalidJson": "파일이 올바른 JSON이 아닙니다: {error}",
+      "notABackup": "FiestaBoard 백업 파일이 아닌 것 같습니다.",
+      "restoredFiles": "{count, plural, other {파일 #개를 복원했습니다}}.",
+      "reinstalledPlugins": "{count, plural, other {플러그인 #개를 다시 설치했습니다}}.",
+      "pluginsFailed": "{count, plural, other {플러그인 #개를 다시 설치하지 못했습니다}} — 직접 설치하세요.",
+      "manualReinstall": "{count, plural, other {외부 플러그인 #개}}는 통합에서 직접 다시 설치해야 합니다: {names}"
     },
     "groupIdentity": "인스턴스",
     "groupAppearance": "화면 표시 및 접근성",

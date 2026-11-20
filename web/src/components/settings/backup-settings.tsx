@@ -24,7 +24,7 @@ import { toast } from "sonner";
 
 import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useTranslations } from "@/i18n/translations";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 
 interface PendingImport {
   fileName: string;
@@ -48,42 +48,46 @@ export function BackupSettings() {
       const installed = result.plugins.installed.length;
       const manualRequired = result.plugins.manual_reinstall_required ?? [];
 
-      let msg = `Restored ${restored} file${restored === 1 ? "" : "s"}.`;
-      if (installed > 0) {
-        msg += ` Reinstalled ${installed} plugin${installed === 1 ? "" : "s"}.`;
-      }
-      if (failed > 0) {
-        msg += ` ${failed} plugin${failed === 1 ? "" : "s"} could not be reinstalled — install manually.`;
-      }
-      toast.success(msg);
+      const parts = [t("restoredFiles", { count: restored })];
+      if (installed > 0) parts.push(t("reinstalledPlugins", { count: installed }));
+      if (failed > 0) parts.push(t("pluginsFailed", { count: failed }));
+      toast.success(parts.join(" "));
 
       if (manualRequired.length > 0) {
         const names = manualRequired.map((p) => p.plugin_id).join(", ");
-        toast.warning(
-          `${manualRequired.length} external plugin${manualRequired.length === 1 ? "" : "s"} must be reinstalled manually via Integrations: ${names}`,
-          { duration: 8000 },
-        );
+        toast.warning(t("manualReinstall", { count: manualRequired.length, names }), { duration: 8000 });
       }
 
       // Invalidate every query so the UI re-fetches the restored data.
       queryClient.invalidateQueries();
     },
     onError: (err: Error) => {
-      toast.error(`Import failed: ${err.message}`);
+      toast.error(t("importFailed", { error: err.message }));
     },
   });
 
-  const handleExport = () => {
-    // Trigger a file download via a temporary anchor element.  The
-    // browser handles the Content-Disposition header from the server.
-    const link = document.createElement("a");
-    link.href = api.exportBackupUrl();
-    link.rel = "noopener";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Backup download started");
-  };
+  // Fetch first, save second (BB-C-7): only a file the hub actually sent is
+  // saved, and only then is success announced. An unreachable hub or an
+  // error response says so and leaves the app where it is.
+  const exportMutation = useMutation({
+    mutationFn: () => api.exportBackup(),
+    onSuccess: ({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      // Revoked on the next task: the click has handed the blob to the download.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      toast.success(t("exportDone"));
+    },
+    onError: (err: Error) => {
+      toast.error(err instanceof ApiError ? t("exportFailed", { error: err.message }) : t("exportUnreachable"));
+    },
+  });
+  const busy = importMutation.isPending || exportMutation.isPending;
 
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -95,7 +99,7 @@ export function BackupSettings() {
     try {
       text = await file.text();
     } catch (err) {
-      toast.error(`Could not read file: ${(err as Error).message}`);
+      toast.error(t("readFailed", { error: (err as Error).message }));
       return;
     }
 
@@ -103,12 +107,12 @@ export function BackupSettings() {
     try {
       parsed = JSON.parse(text);
     } catch (err) {
-      toast.error(`File is not valid JSON: ${(err as Error).message}`);
+      toast.error(t("invalidJson", { error: (err as Error).message }));
       return;
     }
 
     if (!parsed || typeof parsed !== "object" || !(parsed as Record<string, unknown>).fiestaboard_backup) {
-      toast.error("This does not look like a FiestaBoard backup file.");
+      toast.error(t("notABackup"));
       return;
     }
 
@@ -134,16 +138,11 @@ export function BackupSettings() {
         contentClassName="space-y-6"
       >
         <Flex direction="col" gap="3" wrap className="sm:flex-row">
-          <Button variant="default" className="gap-2" onClick={handleExport} disabled={importMutation.isPending}>
-            <Download className="h-4 w-4" />
+          <Button variant="default" className="gap-2" onClick={() => exportMutation.mutate()} disabled={busy}>
+            {exportMutation.isPending ? <Spinner label={null} className="h-4 w-4" /> : <Download className="h-4 w-4" />}
             {t("exportButton")}
           </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importMutation.isPending}
-          >
+          <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()} disabled={busy}>
             {importMutation.isPending ? <Spinner label={null} className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
             {t("importButton")}
           </Button>

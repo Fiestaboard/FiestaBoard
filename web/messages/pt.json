@@ -1066,7 +1066,8 @@
       },
       "addModel": "Adicionar um modelo",
       "refreshModels": "Atualizar modelos",
-      "promptDestination": "As instruções são enviadas para {destination}"
+      "promptDestination": "As instruções são enviadas para {destination}",
+      "savedToast": "Definições do fornecedor de IA guardadas."
     },
     "backup": {
       "cardTitle": "Backup e restauro",
@@ -1079,7 +1080,18 @@
       "confirmTitle": "Substituir a configuração atual?",
       "confirmDescription": "Está prestes a restaurar <file></file>. As suas páginas, carrosséis, agendamentos e configuração existentes serão substituídos. É guardada uma cópia com data e hora de cada ficheiro existente junto ao novo, para poder reverter manualmente se for necessário.",
       "restoringButton": "A restaurar…",
-      "restoreButton": "Restaurar backup"
+      "restoreButton": "Restaurar backup",
+      "exportDone": "Backup transferido.",
+      "exportUnreachable": "Não é possível contactar o hub — backup não transferido.",
+      "exportFailed": "Backup não transferido: {error}",
+      "importFailed": "Falha na importação: {error}",
+      "readFailed": "Não foi possível ler o ficheiro: {error}",
+      "invalidJson": "O ficheiro não é um JSON válido: {error}",
+      "notABackup": "Isto não parece um ficheiro de backup do FiestaBoard.",
+      "restoredFiles": "{count, plural, one {# ficheiro restaurado} other {# ficheiros restaurados}}.",
+      "reinstalledPlugins": "{count, plural, one {# plugin reinstalado} other {# plugins reinstalados}}.",
+      "pluginsFailed": "Não foi possível reinstalar {count, plural, one {# plugin} other {# plugins}} — instale manualmente.",
+      "manualReinstall": "{count, plural, one {# plugin externo tem} other {# plugins externos têm}} de ser reinstalados manualmente em Integrações: {names}"
     },
     "groupIdentity": "Instância",
     "groupAppearance": "Aspeto e acessibilidade",

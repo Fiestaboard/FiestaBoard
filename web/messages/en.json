@@ -1022,7 +1022,8 @@
       },
       "addModel": "Add a model",
       "refreshModels": "Refresh models",
-      "promptDestination": "Prompts go to {destination}"
+      "promptDestination": "Prompts go to {destination}",
+      "savedToast": "AI provider settings saved."
     },
     "backup": {
       "cardTitle": "Backup & Restore",
@@ -1035,7 +1036,18 @@
       "confirmTitle": "Replace current configuration?",
       "confirmDescription": "You are about to restore <file></file>. Your existing pages, collections, schedules and configuration will be overwritten. A timestamped copy of each existing file is kept alongside the new one so you can roll back manually if needed.",
       "restoringButton": "Restoring…",
-      "restoreButton": "Restore backup"
+      "restoreButton": "Restore backup",
+      "exportDone": "Backup downloaded.",
+      "exportUnreachable": "Can’t reach the hub — backup not downloaded.",
+      "exportFailed": "Backup not downloaded: {error}",
+      "importFailed": "Import failed: {error}",
+      "readFailed": "Could not read the file: {error}",
+      "invalidJson": "The file is not valid JSON: {error}",
+      "notABackup": "This does not look like a FiestaBoard backup file.",
+      "restoredFiles": "Restored {count, plural, one {# file} other {# files}}.",
+      "reinstalledPlugins": "Reinstalled {count, plural, one {# plugin} other {# plugins}}.",
+      "pluginsFailed": "{count, plural, one {# plugin} other {# plugins}} could not be reinstalled — install manually.",
+      "manualReinstall": "{count, plural, one {# external plugin} other {# external plugins}} must be reinstalled manually from Integrations: {names}"
     },
     "groupIdentity": "Instance",
     "groupAppearance": "Appearance and accessibility",

@@ -1066,7 +1066,8 @@
       },
       "addModel": "Een model toevoegen",
       "refreshModels": "Modellen vernieuwen",
-      "promptDestination": "Prompts gaan naar {destination}"
+      "promptDestination": "Prompts gaan naar {destination}",
+      "savedToast": "Instellingen van de AI-provider opgeslagen."
     },
     "backup": {
       "cardTitle": "Back-up & herstel",
@@ -1079,7 +1080,18 @@
       "confirmTitle": "Huidige configuratie vervangen?",
       "confirmDescription": "Je staat op het punt <file></file> terug te zetten. Je bestaande pagina's, carrousels, planningen en configuratie worden overschreven. Van elk bestaand bestand wordt een kopie met tijdstempel bewaard naast het nieuwe, zodat je zo nodig handmatig kunt terugdraaien.",
       "restoringButton": "Terugzetten…",
-      "restoreButton": "Back-up terugzetten"
+      "restoreButton": "Back-up terugzetten",
+      "exportDone": "Back-up gedownload.",
+      "exportUnreachable": "Kan de hub niet bereiken — back-up niet gedownload.",
+      "exportFailed": "Back-up niet gedownload: {error}",
+      "importFailed": "Importeren mislukt: {error}",
+      "readFailed": "Kan het bestand niet lezen: {error}",
+      "invalidJson": "Het bestand is geen geldige JSON: {error}",
+      "notABackup": "Dit lijkt geen FiestaBoard-back-upbestand.",
+      "restoredFiles": "{count, plural, one {# bestand} other {# bestanden}} hersteld.",
+      "reinstalledPlugins": "{count, plural, one {# plug-in} other {# plug-ins}} opnieuw geïnstalleerd.",
+      "pluginsFailed": "{count, plural, one {# plug-in kon} other {# plug-ins konden}} niet opnieuw worden geïnstalleerd — installeer handmatig.",
+      "manualReinstall": "{count, plural, one {# externe plug-in moet} other {# externe plug-ins moeten}} handmatig opnieuw worden geïnstalleerd via Integraties: {names}"
     },
     "groupIdentity": "Instantie",
     "groupAppearance": "Uiterlijk en toegankelijkheid",
