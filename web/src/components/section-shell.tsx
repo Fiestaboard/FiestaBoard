@@ -83,6 +83,16 @@ export function SectionShell({
 }: SectionShellProps) {
   const t = useTranslations("common");
   const phone = useBelowRail();
+  // Drilling in on a phone moves focus to the item's name, as the card's
+  // sub-header does on wider screens; a deep link (first render) keeps it.
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const shownId = useRef(detail?.id ?? null);
+  useEffect(() => {
+    const id = detail?.id ?? null;
+    if (id === shownId.current) return;
+    shownId.current = id;
+    if (id && compactOnPhone && phone) titleRef.current?.focus({ preventScroll: true });
+  }, [detail?.id, compactOnPhone, phone]);
   const pathname = usePathname();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
 
@@ -132,7 +142,7 @@ export function SectionShell({
                 {title}
               </Link>
             </Button>
-            <Heading level={1} size="2xl">
+            <Heading level={1} size="2xl" ref={titleRef} tabIndex={-1} className="outline-none">
               {detail.title}
             </Heading>
           </Stack>
@@ -144,10 +154,17 @@ export function SectionShell({
             {action}
           </Flex>
         )}
-        {/* No slot: a detail page's own actions render in place. */}
-        <PageOutlet key={pathname} fill={fill}>
-          {children}
-        </PageOutlet>
+        {/* No slot: a detail page's own actions render in place. The card's
+            inset and hairline go: the page itself is the surface on a phone
+            (DD-W135, until the kit has a bare PageOutlet). */}
+        <Box
+          data-compact-section="true"
+          className="contents [&_[data-slot=page-outlet]]:border-t-0 [&_[data-slot=page-section]]:px-0 [&_[data-slot=page-toolbar]]:px-0"
+        >
+          <PageOutlet key={pathname} fill={fill}>
+            {children}
+          </PageOutlet>
+        </Box>
       </PageLayout>
     );
   }

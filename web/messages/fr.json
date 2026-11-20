@@ -1825,7 +1825,7 @@
     "pauseLabel": "Mettre {name} en pause",
     "resumeLabel": "Reprendre {name}",
     "notFound": "Cet écran n'existe plus.",
-    "notFoundTitle": "Affichage introuvable",
+    "notFoundTitle": "Écran introuvable",
     "previewTitle": "Affiché en ce moment",
     "settingsTitle": "Paramètres",
     "transition": {

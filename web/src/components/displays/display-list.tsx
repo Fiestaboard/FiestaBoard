@@ -224,15 +224,10 @@ export function DisplayList({
                           <Text
                             as="span"
                             size="sm"
-                            className={
-                              compact && override && kind === "online"
-                                ? "sr-only"
-                                : group === "attention"
-                                  ? kind === "noViewer"
-                                    ? "text-foreground"
-                                    : "text-destructive"
-                                  : "text-muted-foreground"
-                            }
+                            // 07d `320:17086`: No viewer in the warning text tone
+                            // (--hue-yellow, AA on the page), errors in destructive.
+                            tone={group === "attention" ? (kind === "noViewer" ? "warning" : "destructive") : "muted"}
+                            className={compact && override && kind === "online" ? "sr-only" : undefined}
                           >
                             {t(kind)}
                           </Text>

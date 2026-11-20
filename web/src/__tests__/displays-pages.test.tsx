@@ -235,7 +235,7 @@ describe("/displays", () => {
     server.use(http.get(`${API}/auth/sessions`, () => HttpResponse.json({ sessions: [], total: 0 })));
     renderWith(<DisplaysPage />);
     const group = await screen.findByRole("list", { name: "Needs a look" });
-    expect(within(group).getByText("No viewer", { exact: true })).toHaveClass("text-foreground");
+    expect(within(group).getByText("No viewer", { exact: true })).toHaveClass("text-hue-yellow");
     expect(group.querySelector('[data-slot="status-dot"]')).toHaveAttribute("data-status", "warning");
   });
 
@@ -865,8 +865,13 @@ describe("Displays on a phone", () => {
     expect(container.querySelector('[data-slot="page-card"]')).toBeNull();
     expect(screen.queryByText(/Every board and screen FiestaBoard shows on/)).not.toBeInTheDocument();
     expect(screen.getByTestId("add-display")).toBeInTheDocument();
-    // Status words stay body ink: the kit keeps warning colour off text (AA).
-    expect(await screen.findByText("No viewer")).toHaveClass("text-foreground");
+    // 07d: the status word is tinted, in the kit's text tone (AA on the page).
+    expect(await screen.findByText("No viewer")).toHaveClass("text-hue-yellow");
+    // The mobile frame has no Your displays / Marketplace tabs; Add display
+    // reaches the outputs.
+    expect(screen.queryByRole("tab", { name: /Marketplace/ })).not.toBeInTheDocument();
+    // No card inset or hairline around the outlet.
+    expect(container.querySelector('[data-compact-section="true"]')).not.toBeNull();
     const cause = await screen.findByText("No signed-in TV is showing this display");
     expect(cause.className).not.toMatch(/\btruncate\b/);
   });
@@ -887,5 +892,26 @@ describe("Displays on a phone", () => {
     expect(screen.queryByRole("link", { name: "Back to Displays" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Now showing" })).not.toBeInTheDocument();
     expect(await screen.findByRole("tab", { name: "Overview" })).toBeInTheDocument();
+  });
+
+  it("moves focus to the display's name when drilling in, not to the page body", async () => {
+    asPhone();
+    setup([KITCHEN]);
+    const { rerender } = renderWith(
+      <DisplaysSection>
+        <DisplaysPage />
+      </DisplaysSection>,
+    );
+    await screen.findByRole("heading", { level: 1, name: "Displays" });
+    params.boardId = "kitchen";
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <DisplaysSection>
+          <DisplayPage />
+        </DisplaysSection>
+      </QueryClientProvider>,
+    );
+    const heading = await screen.findByRole("heading", { level: 1, name: "Kitchen" });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 });
