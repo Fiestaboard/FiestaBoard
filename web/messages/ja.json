@@ -1176,8 +1176,9 @@
   },
   "notFound": {
     "title": "ページが見つかりません",
-    "description": "このリンクは FiestaBoard のどこにもつながっていません。入力ミスか、古いリンクかもしれません。",
-    "home": "ホームへ"
+    "description": "{where} には何もありません。リンクの入力ミスか、ページが移動した可能性があります。",
+    "home": "ホームへ",
+    "help": "ヘルプとドキュメント"
   },
   "wizard": {
     "welcomeTitle": "FiestaBoard へようこそ",

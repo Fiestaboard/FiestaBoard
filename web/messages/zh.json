@@ -1176,8 +1176,9 @@
   },
   "notFound": {
     "title": "找不到页面",
-    "description": "此链接在 FiestaBoard 中无处可去，可能拼写有误或已过时。",
-    "home": "前往首页"
+    "description": "{where} 没有内容。链接可能有拼写错误，或页面已移动。",
+    "home": "前往首页",
+    "help": "帮助和文档"
   },
   "wizard": {
     "welcomeTitle": "欢迎使用 FiestaBoard",

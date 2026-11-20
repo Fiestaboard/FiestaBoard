@@ -1176,8 +1176,9 @@
   },
   "notFound": {
     "title": "Page introuvable",
-    "description": "Ce lien ne mène nulle part dans FiestaBoard. Il est peut-être mal saisi ou périmé.",
-    "home": "Aller à l’accueil"
+    "description": "Il n’y a rien à {where}. Le lien contient peut-être une faute de frappe, ou la page a été déplacée.",
+    "home": "Aller à l’accueil",
+    "help": "Aide & Documentation"
   },
   "wizard": {
     "welcomeTitle": "Bienvenue sur FiestaBoard",

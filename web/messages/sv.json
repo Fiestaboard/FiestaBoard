@@ -1176,8 +1176,9 @@
   },
   "notFound": {
     "title": "Sidan hittades inte",
-    "description": "Den här länken leder ingenstans i FiestaBoard. Den kan vara felstavad eller inaktuell.",
-    "home": "Gå till Hem"
+    "description": "Det finns inget på {where}. Länken kan ha ett stavfel, eller så har sidan flyttats.",
+    "home": "Gå till Hem",
+    "help": "Hjälp & dokumentation"
   },
   "wizard": {
     "welcomeTitle": "Välkommen till FiestaBoard",

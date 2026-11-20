@@ -1132,8 +1132,9 @@
   },
   "notFound": {
     "title": "Page not found",
-    "description": "This link doesn’t go anywhere in FiestaBoard. It may be mistyped or out of date.",
-    "home": "Go to Home"
+    "description": "There’s nothing at {where}. The link may have a typo, or the page moved.",
+    "home": "Go to Home",
+    "help": "Help & Docs"
   },
   "wizard": {
     "welcomeTitle": "Welcome to FiestaBoard",

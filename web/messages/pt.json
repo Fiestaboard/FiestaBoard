@@ -1176,8 +1176,9 @@
   },
   "notFound": {
     "title": "Página não encontrada",
-    "description": "Este link não leva a lugar nenhum no FiestaBoard. Pode estar digitado errado ou desatualizado.",
-    "home": "Ir para o Início"
+    "description": "Não há nada em {where}. O link pode ter um erro de digitação ou a página foi movida.",
+    "home": "Ir para o Início",
+    "help": "Ajuda e documentação"
   },
   "wizard": {
     "welcomeTitle": "Bem-vindo ao FiestaBoard",

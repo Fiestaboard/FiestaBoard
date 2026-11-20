@@ -120,5 +120,8 @@ describe("the scroll hint on a touch phone (BB-A-21)", () => {
     expect(touch?.className).toMatch(/\bhidden\b.*\bpointer-coarse:inline\b/);
     expect(keys?.textContent).toMatch(/Shift \+ scroll/);
     expect(keys?.className).toMatch(/\bpointer-coarse:hidden\b/);
+    // Review M1 (#2564): the hint keeps the indicator's muted ink.
+    expect(keys?.className).toMatch(/\btext-muted-foreground\b/);
+    expect(touch?.className).toMatch(/\btext-muted-foreground\b/);
   });
 });

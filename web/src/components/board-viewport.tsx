@@ -66,10 +66,10 @@ export function BoardViewportHint({ deviceType }: { deviceType: DeviceType | und
   const t = useTranslations("boardDisplay");
   return (
     <>
-      <Text as="span" size="xs" data-hint="keyboard" className="pointer-coarse:hidden">
+      <Text as="span" size="xs" tone="muted" data-hint="keyboard" className="pointer-coarse:hidden">
         {boardViewportHint(t, deviceType, false)}
       </Text>
-      <Text as="span" size="xs" data-hint="touch" className="hidden pointer-coarse:inline">
+      <Text as="span" size="xs" tone="muted" data-hint="touch" className="hidden pointer-coarse:inline">
         {boardViewportHint(t, deviceType, true)}
       </Text>
     </>
