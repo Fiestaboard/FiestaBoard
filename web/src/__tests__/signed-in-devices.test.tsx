@@ -57,7 +57,7 @@ it("revokes just the chosen device", async () => {
   expect(screen.getByText("Desktop")).toBeInTheDocument();
 });
 it.each([
-  ["Sign out other devices", false],
+  ["Sign out other devices…", false],
   ["Sign out everywhere", true],
 ] as const)("confirms %s", async (label, includeCurrent) => {
   render(<SignedInDevices />);

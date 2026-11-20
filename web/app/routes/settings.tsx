@@ -224,7 +224,9 @@ export default function SettingsPage() {
           {tHub(`sections.${active}.title`)}
         </Heading>
         <Text size="xs" tone="muted" data-slot="settings-detail-meta">
-          {[hubName, browserHostname()].filter(Boolean).join(" · ")}
+          {/* Account reads who is signed in (07e `321:9076`); the rest read
+              the hub they belong to. */}
+          {active === "account" && username ? username : [hubName, browserHostname()].filter(Boolean).join(" · ")}
         </Text>
       </Stack>
       {/* Account's cards and its Signed-in devices sit straight on the page

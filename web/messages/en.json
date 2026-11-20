@@ -3673,7 +3673,7 @@
     "expires": "Expires: {date}",
     "legacyHint": "Older apps can save your account password and sign in again after revocation. Change your password to permanently exclude them.",
     "revoke": "Revoke",
-    "others": "Sign out other devices",
+    "others": "Sign out other devices…",
     "all": "Sign out everywhere",
     "confirmOthers": "Sign out every other browser and TV? This browser will stay signed in. Pending TV codes will be cancelled.",
     "confirmAll": "Sign out all browsers and TVs, including this browser? Pending TV codes will be cancelled.",
