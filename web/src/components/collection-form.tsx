@@ -37,7 +37,7 @@ import { ChevronLeft, Clock, Plus, Send, Trash2 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { CollectionPageList } from "@/components/collection-page-list";
+import { CollectionPageList, pageShapeLabel } from "@/components/collection-page-list";
 import { useMediaQuery } from "@/components/home/use-media-query";
 import { VariableRuleRow } from "@/components/variable-rule-row";
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
@@ -192,7 +192,8 @@ export function CollectionForm({
   };
   const isEdit = Boolean(collection);
   const phone = useMediaQuery("(max-width: 767.98px)");
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // A new Collection opens on its name: Create can't work without one (BB-B-25).
+  const [settingsOpen, setSettingsOpen] = useState(!collection);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const [name, setName] = useState(collection?.name || "");
@@ -536,6 +537,12 @@ export function CollectionForm({
             {isEdit ? tc("save") : t("createCollection")}
           </Button>
         </Flex>
+        {/* Why Create is off, for a new Collection (BB-B-25). */}
+        {!isEdit && !canSubmit && (name.trim().length === 0 || selectedPageIds.length === 0) && (
+          <Text size="xs" tone="muted" role="status" className="basis-full">
+            {name.trim().length === 0 ? t("createNeedsName") : t("createNeedsPage")}
+          </Text>
+        )}
       </Flex>
       <Box className={`relative min-w-0 ${DESKTOP_PREVIEW_GUTTER}`}>
         <Box className="relative min-w-0">
@@ -565,7 +572,7 @@ export function CollectionForm({
                   </Button>
                 </CollapsibleTrigger>
               )}
-              <CollapsibleContent keepMounted>
+              <CollapsibleContent keepMounted className={phone ? "pt-4" : undefined}>
                 <Stack gap="5">
                   {" "}
                   {/* Name */}
@@ -736,8 +743,18 @@ export function CollectionForm({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
                         {availablePages.map((page) => (
-                          <DropdownMenuItem key={page.id} onClick={() => handleAddPage(page.id)}>
-                            {page.name}
+                          <DropdownMenuItem
+                            key={page.id}
+                            // Stays open to add several; each row says the page's size (BB-B-25).
+                            closeOnClick={false}
+                            onClick={() => handleAddPage(page.id)}
+                          >
+                            <Text as="span" className="min-w-0 flex-1 truncate">
+                              {page.name}
+                            </Text>
+                            <Text as="span" size="xs" tone="muted" className="shrink-0">
+                              {pageShapeLabel(page, t)}
+                            </Text>
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -757,7 +774,8 @@ export function CollectionForm({
                 <Stack gap="2">
                   <Label>{t("variableRulesLabel")}</Label>
                   <Text id="collection-rule-instructions" size="xs" tone="muted">
-                    {t("sortInstructions")}
+                    {/* Follows the pointer, like the page list's hint (BB-B-26). */}
+                    {t(coarsePointer ? "sortInstructionsTouch" : "sortInstructions")}
                   </Text>
                   <Text size="xs" tone="muted">
                     {t("variableRulesDescription")}

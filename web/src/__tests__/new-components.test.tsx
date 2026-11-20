@@ -205,6 +205,20 @@ describe("PageBuilder", () => {
     expect(screen.getByText("Create Page")).toBeInTheDocument();
   });
 
+  // BB-B-11: the desktop preview settles a 22-column board into its pane
+  // (Tile md, fitted while every tile stays readable) instead of showing
+  // columns 1–13 and making you scroll; a truly larger board still scrolls.
+  it("settles the desktop preview to the pane", async () => {
+    const { container } = render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
+    await screen.findByPlaceholderText("My Custom Page");
+    await waitFor(() =>
+      expect(container.querySelector('[data-slot="editor-preview"] [data-layout]')).toHaveAttribute(
+        "data-layout",
+        "medium-hero",
+      ),
+    );
+  });
+
   // BB-B-29: embedded, the editor's card keeps no 80px toolbar gap of its own
   // (the IDE's rows follow it); the editor's scroll area clears the toolbar.
   it("keeps no toolbar gap inside the card when embedded", async () => {

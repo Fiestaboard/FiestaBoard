@@ -286,6 +286,10 @@ describe("ActivePageDisplay - Now showing", () => {
     expect(await screen.findByRole("dialog", { name: "Change Page" })).toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    // Closing takes the dialog's Back entry off history a task later
+    // (useCloseOnBack); let that land so its popstate can't close the dialog
+    // P opens next (flaked on slow CI).
+    await waitFor(() => expect((window.history.state as Record<string, unknown> | null)?.fbOverlay).toBeUndefined());
 
     fireEvent.keyDown(window, { key: "c" });
     expect(onCompose).toHaveBeenCalledTimes(1);

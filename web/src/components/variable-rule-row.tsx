@@ -296,14 +296,18 @@ export function VariableRuleRow({
             <Text size="sm" tone="muted">
               {t("ruleWhen")}
             </Text>
-            <Input
+            {/* The whole expression, wrapping, not a one-line field that
+                hid `= "Saturday"` at phone width (BB-B-26). Opens the editor. */}
+            <Button
+              type="button"
+              variant="outline"
               disabled={actionsDisabled}
-              readOnly
-              value={summaryExpression}
               aria-label={t("variableExpressionAriaLabel", { index: index + 1 })}
               onClick={() => onRequestEdit()}
-              className="min-w-32 flex-[1_1_10rem]"
-            />
+              className="h-auto min-h-9 min-w-32 flex-[1_1_10rem] justify-start whitespace-normal break-words py-1.5 text-left font-mono text-sm font-normal"
+            >
+              {summaryExpression}
+            </Button>
             <Text size="sm" tone="muted">
               {t("ruleShow")}
             </Text>
