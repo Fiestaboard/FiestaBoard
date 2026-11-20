@@ -150,9 +150,18 @@ for (const width of [390, 768, 900, 1280]) {
       // On a phone the board runs edge to edge in the phone-hero placement
       // (BB-A-19); a board that fits there draws no Fit/Actual toggle, and the
       // offline dim holds for the board alone.
-      const heroFits =
-        width < 768 &&
-        (await page.locator("[data-slot=board-viewport]").first().getAttribute("data-overflow")) === "false";
+      // "Entry clock" is a Flagship (22 × 6): at phone width it fits whole in
+      // the phone-hero placement, edge to edge inside the viewport.
+      const heroFits = width < 768;
+      if (heroFits) {
+        const hero = page.locator("[data-slot=board-viewport]").first();
+        await expect(hero).toHaveAttribute("data-layout", "phone-hero");
+        await expect(hero).toHaveAttribute("data-overflow", "false");
+        const bezel = await page.locator('[data-slot="board-viewport-bezel"]').first().boundingBox();
+        expect(bezel).not.toBeNull();
+        expect(bezel!.x).toBeGreaterThanOrEqual(0);
+        expect(bezel!.x + bezel!.width).toBeLessThanOrEqual(width);
+      }
       if (heroFits) {
         await expect(page.getByRole("button", { name: "Fit", exact: true })).toHaveCount(0);
         const dim = await page

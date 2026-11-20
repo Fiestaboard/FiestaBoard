@@ -5,7 +5,7 @@
  * FiestaPanel's own controls.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -862,7 +862,7 @@ describe("Displays on a phone", () => {
       </DisplaysSection>,
     );
     expect(await screen.findByRole("heading", { level: 1, name: "Displays" })).toBeInTheDocument();
-    expect(container.querySelector('[data-slot="page-card"]')).toBeNull();
+    expect(container.querySelector('[data-slot="page-card"]')).toHaveAttribute("data-surface", "plain");
     expect(screen.queryByText(/Every board and screen FiestaBoard shows on/)).not.toBeInTheDocument();
     expect(screen.getByTestId("add-display")).toBeInTheDocument();
     // 07d: the status word is tinted, in the kit's text tone (AA on the page).
@@ -871,7 +871,7 @@ describe("Displays on a phone", () => {
     // reaches the outputs.
     expect(screen.queryByRole("tab", { name: /Marketplace/ })).not.toBeInTheDocument();
     // No card inset or hairline around the outlet.
-    expect(container.querySelector('[data-compact-section="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="page-outlet"]')).toHaveAttribute("data-surface", "plain");
     const cause = await screen.findByText("No signed-in TV is showing this display");
     expect(cause.className).not.toMatch(/\btruncate\b/);
   });
@@ -906,7 +906,7 @@ describe("Displays on a phone", () => {
       </DisplaysSection>,
     );
     await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
-    const wrapper = container.querySelector('[data-compact-section="true"]')!;
+    const wrapper = container.querySelector('[data-slot="page-card"][data-surface="plain"]')!;
     const rule = wrapper.className.split(/\s+/).find((c) => c.includes("data-slot=page-section"));
     expect(rule).toBe("[&_[data-slot=page-section]:not([data-slot=card]_*)]:px-0");
     const inCard = wrapper.querySelector('[data-slot="card"] [data-slot="page-section"]');
@@ -933,5 +933,41 @@ describe("Displays on a phone", () => {
     );
     const heading = await screen.findByRole("heading", { level: 1, name: "Kitchen" });
     await waitFor(() => expect(document.activeElement).toBe(heading));
+  });
+});
+
+// Review (#2568, round 5): crossing the phone breakpoint must not remount the
+// page (a rotated tablet lost the list's selection).
+describe("Displays across the phone breakpoint", () => {
+  it("keeps the same outlet element when the layout switches", async () => {
+    let phone = false;
+    const listeners: EventListener[] = [];
+    window.matchMedia = vi.fn(
+      (query: string) =>
+        ({
+          media: query,
+          get matches() {
+            return query.includes("max-width: 767.98px") ? phone : query.includes("max-width: 1023.98px");
+          },
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: (_type: string, listener: EventListener) => listeners.push(listener),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+    setup([KITCHEN]);
+    const { container } = renderWith(
+      <DisplaysSection>
+        <DisplaysPage />
+      </DisplaysSection>,
+    );
+    await screen.findByTestId("display-card");
+    const outlet = container.querySelector('[data-slot="page-outlet"]');
+    phone = true;
+    act(() => listeners.forEach((listener) => listener(new Event("change"))));
+    await screen.findByRole("heading", { level: 1, name: "Displays" });
+    expect(container.querySelector('[data-slot="page-outlet"]')).toBe(outlet);
   });
 });
