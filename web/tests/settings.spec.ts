@@ -40,7 +40,12 @@ test.describe("Settings Page", () => {
         timeout: 15_000,
       },
     );
-    await expect(hub.getByRole("link").locator(titles)).toHaveText(["Network", "AI provider", "System & backups", "Language & time"]);
+    await expect(hub.getByRole("link").locator(titles)).toHaveText([
+      "Network",
+      "AI provider",
+      "System & backups",
+      "Language & time",
+    ]);
     // Scheduling now belongs to display Playback; there is no Hardware,
     // Behavior or Integrations section, and no tab strip at all.
     for (const gone of ["Hardware", "Behavior", "Scheduling", "Integrations"]) {
