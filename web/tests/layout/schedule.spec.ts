@@ -49,7 +49,7 @@ async function expectScheduleReady(page: Page, width: number, theme: "light" | "
   const toolbar = page.locator('[data-slot="page-toolbar"]');
   await expectOpaque(board);
   await expectOpaque(toolbar);
-  await expectOpaque(page.getByRole("button", { name: "Add Schedule", exact: true }).first());
+  await expectOpaque(page.getByRole("button", { name: "Add entry", exact: true }).first());
   if (width < 768) {
     // 07d Schedule · Day (322:19169): title + Add, one Schedule Mode row, day chips, then the agenda;
     // no Day/Week/List choice and no seven-column week on a phone (BB-C-3, BB-C-4).
@@ -127,7 +127,7 @@ for (const width of [390, 768, 1280]) {
         await expect(page.getByRole("button", { name: "Edit entry", exact: true })).toBeVisible();
         await shot("inspector");
         await page.getByRole("button", { name: "Edit entry", exact: true }).click();
-      } else await page.getByRole("button", { name: "Add Schedule", exact: true }).first().click();
+      } else await page.getByRole("button", { name: "Add entry", exact: true }).first().click();
       await expect(page.getByLabel("Start Time", { exact: true })).toHaveAttribute("type", "time");
       if (width < 768) await expect(page.locator('[data-slot="sheet-grabber"]')).toBeVisible();
       await shot("entry", false);
@@ -202,7 +202,7 @@ for (const width of [390, 1280]) {
     await expect(preview.locator('[data-slot="board-display"]')).toHaveAttribute("aria-label", /BREAKFAST SPECIALS/);
     await expect(preview).toHaveAttribute("data-mode", "actual");
     const bounds = await empty.boundingBox();
-    for (const target of [preview, empty.getByRole("button", { name: "Add Schedule", exact: true })]) {
+    for (const target of [preview, empty.getByRole("button", { name: "Add entry", exact: true })]) {
       const box = await target.boundingBox();
       expect(box!.x).toBeGreaterThanOrEqual(bounds!.x);
       expect(box!.x + box!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width);
@@ -234,7 +234,7 @@ test("Schedule entry side sheet runs the full height in landscape", async ({ pag
   await page.clock.install({ time: new Date("2026-11-17T02:18:00Z") });
   await page.setViewportSize({ width: 844, height: 390 });
   await page.goto("/tests/layout/schedule.html");
-  await page.getByRole("button", { name: "Add Schedule", exact: true }).first().click();
+  await page.getByRole("button", { name: "Add entry", exact: true }).first().click();
   const sheet = page.getByRole("dialog");
   await expect(page.getByLabel("Start Time", { exact: true })).toBeVisible();
   await expect

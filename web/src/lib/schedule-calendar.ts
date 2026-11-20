@@ -204,13 +204,14 @@ export function scheduleToCalendarEvents(
   sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
 ): ScheduleCalendarEvent[] {
   const events: ScheduleCalendarEvent[] = [];
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+  // Seven days from whatever day the caller's week starts on (Monday on the
+  // 07d week, BB-FC-6; Sunday in the legacy calendar).
+  const weekEnd = addDays(weekStart, 6);
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const pageName = getPageName(schedule.page_id, pages, collections);
 
   for (const day of daysInWeek) {
-    const dayOfWeek = getDay(day);
     if (!scheduleAppliesOnDay(schedule, day)) continue;
 
     const dateStr = format(day, "yyyy-MM-dd");
@@ -240,12 +241,12 @@ export function scheduleToCalendarEvents(
       // Split into two events at the midnight boundary
       const nextDay = addDays(day, 1);
 
-      // For a repeating weekly schedule, Saturday's morning continuation
-      // should wrap to this week's Sunday instead of next week's Sunday.
+      // For a repeating weekly schedule, the last day's morning continuation
+      // wraps to this week's first day instead of next week's.
       // Date-specific (annual / one-off) events don't repeat, so the wrap
       // is just the actual next calendar day.
       const recurrence = schedule.recurrence_type || "weekly";
-      const morningDay = recurrence === "weekly" && dayOfWeek === 6 ? weekStart : nextDay;
+      const morningDay = recurrence === "weekly" && isSameDay(day, weekEnd) ? weekStart : nextDay;
 
       // Evening part: start_time → end of day (23:59:59.999)
       // Use endOfDay instead of midnight-next-day so react-big-calendar
@@ -363,7 +364,7 @@ export function silenceToCalendarEvents(
   if (sH === eH && sM === eM) return [];
 
   const events: SilenceCalendarEvent[] = [];
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+  const weekEnd = addDays(weekStart, 6);
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
   const isMidnightRollover = eH < sH || (eH === sH && eM <= sM);
   const pageName =
@@ -379,14 +380,13 @@ export function silenceToCalendarEvents(
   };
 
   for (const day of daysInWeek) {
-    const dayOfWeek = getDay(day);
     const eventStart = setMinutes(setHours(day, sH), sM);
 
     if (isMidnightRollover) {
       // Saturday's morning continuation wraps to this week's Sunday so the
       // event stays in the visible template view (same trick as regular
       // schedule midnight splits).
-      const morningDay = dayOfWeek === 6 ? weekStart : addDays(day, 1);
+      const morningDay = isSameDay(day, weekEnd) ? weekStart : addDays(day, 1);
 
       events.push({
         id: `silence-${format(day, "yyyy-MM-dd")}-evening`,
