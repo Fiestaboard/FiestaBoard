@@ -954,6 +954,7 @@
     "toastInstalledFromGit": "{pluginId} установлен из git",
     "toastInstallFromGitFailed": "Установка не удалась: {error}",
     "checkForUpdates": "Проверить обновления",
+    "pluginUpdatesSection": "Обновления плагинов",
     "checking": "Проверка…",
     "toastUpdatesFound": "{count, plural, one {Доступно # обновление плагина} few {Доступно # обновления плагинов} many {Доступно # обновлений плагинов} other {Доступно # обновлений плагинов}}",
     "toastNoUpdates": "Все плагины актуальны",

@@ -117,7 +117,8 @@ describe("Integrations canonical groups", () => {
     expect(within(installed).getByText("Disabled")).toBeInTheDocument();
     expect(within(installed).getByText("Weather")).toBeInTheDocument();
     expect(attention.compareDocumentPosition(installed) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(attention.querySelector('[data-slot="icon-tile"]')).toHaveClass("bg-muted");
+    // Below the rail a row leads with its state (BB-C-22, Figma 324:50158).
+    expect(attention.querySelector('[data-slot="status-dot"]')?.className).toMatch(/warning/);
   });
 
   it("links the Set up row to the full installed detail route", async () => {

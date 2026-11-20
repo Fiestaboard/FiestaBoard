@@ -954,6 +954,7 @@
     "toastInstalledFromGit": "{pluginId} git에서 설치됨",
     "toastInstallFromGitFailed": "설치 실패: {error}",
     "checkForUpdates": "업데이트 확인",
+    "pluginUpdatesSection": "플러그인 업데이트",
     "checking": "확인 중…",
     "toastUpdatesFound": "{count, plural, one {#개의 플러그인 업데이트 가능} other {#개의 플러그인 업데이트 가능}}",
     "toastNoUpdates": "모든 플러그인이 최신입니다",

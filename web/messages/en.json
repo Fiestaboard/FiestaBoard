@@ -910,6 +910,7 @@
     "toastInstalledFromGit": "{pluginId} installed from git",
     "toastInstallFromGitFailed": "Failed to install: {error}",
     "checkForUpdates": "Check for updates",
+    "pluginUpdatesSection": "Plugin updates",
     "checking": "Checking…",
     "toastUpdatesFound": "{count, plural, one {# plugin update available} other {# plugin updates available}}",
     "toastNoUpdates": "All plugins are up to date",

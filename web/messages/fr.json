@@ -954,6 +954,7 @@
     "toastInstalledFromGit": "{pluginId} installé depuis git",
     "toastInstallFromGitFailed": "Échec de l'installation : {error}",
     "checkForUpdates": "Rechercher des mises à jour",
+    "pluginUpdatesSection": "Mises à jour des plugins",
     "checking": "Recherche…",
     "toastUpdatesFound": "{count, plural, one {# mise à jour de plugin disponible} other {# mises à jour de plugins disponibles}}",
     "toastNoUpdates": "Tous les plugins sont à jour",

@@ -954,6 +954,7 @@
     "toastInstalledFromGit": "{pluginId} zainstalowana z git",
     "toastInstallFromGitFailed": "Instalacja nie powiodła się: {error}",
     "checkForUpdates": "Sprawdź aktualizacje",
+    "pluginUpdatesSection": "Aktualizacje wtyczek",
     "checking": "Sprawdzanie…",
     "toastUpdatesFound": "{count, plural, one {# aktualizacja wtyczki dostępna} few {# aktualizacje wtyczek dostępne} many {# aktualizacji wtyczek dostępnych} other {# aktualizacji wtyczek dostępnych}}",
     "toastNoUpdates": "Wszystkie wtyczki są aktualne",
