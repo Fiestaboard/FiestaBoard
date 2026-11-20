@@ -58,7 +58,7 @@ interface Props {
   legacyCalendar?: React.ReactNode;
   /** The Day/Week/List switcher, led into the one toolbar row (07d `322:9978`). */
   viewSwitcher?: React.ReactNode;
-  /** Controls the frame does not draw but the page keeps (default page, issues; DD-W145), at the toolbar's right. */
+  /** Controls the frame does not draw but the page keeps (default page, issues; DD-W149), at the toolbar's right. */
   toolbarExtra?: React.ReactNode;
 }
 export function ScheduleWorkspace({
@@ -215,10 +215,10 @@ export function ScheduleWorkspace({
   );
   // 07d `322:9978`: ONE toolbar row — the view switcher and the bold range on
   // the left, Today on the right (BB-FC-6). The week arrows and "Which page
-  // at…" are kept beside them (DD-W145).
+  // at…" are kept beside them (DD-W149).
   const controls = compact ? (
     // 07d `322:19169` draws nothing under the agenda; the tray moves the day,
-    // so only what has no other home stays here (DD-W145, BB-FC-5).
+    // so only what has no other home stays here (DD-W149, BB-FC-5).
     <Flex align="center" justify="end" gap="2" wrap>
       {toolbarExtra}
       {!lookupOpen && hasTimeline && !isSameDay(date, today) && (

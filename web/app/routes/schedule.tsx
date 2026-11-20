@@ -673,7 +673,7 @@ export default function SchedulePage() {
   );
   // The default page for gaps and the conflicts/gaps badge have no place in
   // 07d but are the only home of those settings; they ride at the toolbar's
-  // right (DD-W145).
+  // right (DD-W149).
   const toolbarExtra = (
     <TooltipProvider>
       <Flex align="center" gap="2">
