@@ -175,7 +175,11 @@ export default function CreatorIde({
         aria-label={t("regionLabel")}
         data-slot="creator-ide"
         data-layout={desktop ? "desktop" : "compact"}
-        className="grid min-w-0 grid-cols-1 items-start gap-4 px-2 pb-24 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-6 lg:px-4"
+        // The same two equal columns as the builder above (page-builder.tsx):
+        // Console and Timeline under the template, the Inspector under the
+        // preview. At 2fr the console was ~300px at 1440 and wrapped each
+        // problem onto four lines (BB-B-19).
+        className="grid min-w-0 grid-cols-1 items-start gap-4 px-2 pb-24 lg:grid-cols-2 lg:gap-6 lg:px-4"
       >
         {desktop && (
           <Stack gap="3" className="min-w-0">

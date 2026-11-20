@@ -195,7 +195,7 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("Schedule gap (no default page set)")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 2, name: "Nothing scheduled" })).toBeInTheDocument();
     });
 
     expect(screen.queryByRole("link", { name: /Edit page/i })).not.toBeInTheDocument();
@@ -237,10 +237,13 @@ describe("ActivePageDisplay", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
+    // BB-A-14: plain copy about what the board shows, not the server's gap reason.
     await waitFor(() => {
-      expect(screen.getByText("Schedule gap (no default page set)")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 2, name: "Nothing scheduled" })).toBeInTheDocument();
+      expect(screen.getByText(/The board keeps what it shows/)).toBeInTheDocument();
       expect(screen.getByText(/No page scheduled for current time/i)).toBeInTheDocument();
     });
+    expect(screen.queryByText(/Schedule gap/)).not.toBeInTheDocument();
   });
 
   it("renders View Schedule as a link (not a button) when schedule is enabled", async () => {

@@ -53,7 +53,8 @@ export function TemplateEditorToolbar(
     isLoadingVariables: isLoading,
     renderVariablePicker: ({ onInsert }) => (
       <Suspense fallback={null}>
-        <VariablePickerContent onInsert={onInsert} />
+        {/* Touch: open on the groups; the keyboard comes up when search is tapped (BB-B-21). */}
+        <VariablePickerContent onInsert={onInsert} autoFocusSearch={!touch} />
       </Suspense>
     ),
     entityPickerSlot: data?.variables?.home_assistant

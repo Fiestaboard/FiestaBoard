@@ -12,7 +12,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { createPortal } from "react-dom";
 
 import Link from "@/components/smart-link";
-import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
+import { useRailBreakpoint } from "@/hooks/use-below-rail";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -76,6 +76,7 @@ export function SectionShell({
   bare = false,
   children,
 }: SectionShellProps) {
+  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("common");
   const pathname = usePathname();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
@@ -121,7 +122,7 @@ export function SectionShell({
     // On a phone it runs edge to edge, as the editor frames draw it.
     return (
       <PageLayout
-        railBreakpoint={RAIL_BREAKPOINT}
+        railBreakpoint={railBreakpoint}
         fillHeight={fill}
         outerClassName="flex h-dvh flex-col overflow-hidden sm:h-dvh"
         className="flex min-h-0 flex-1 flex-col overflow-hidden max-sm:p-0"
@@ -138,7 +139,7 @@ export function SectionShell({
   }
 
   return (
-    <PageLayout railBreakpoint={RAIL_BREAKPOINT} fillHeight={fill}>
+    <PageLayout railBreakpoint={railBreakpoint} fillHeight={fill}>
       <PageCard fillHeight={fill}>
         <PageHeader icon={icon} title={title} description={description} collapsed={detail != null}>
           {action}

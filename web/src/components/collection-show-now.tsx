@@ -135,7 +135,7 @@ function ReadyShowNow({
       currentPageId={override.active ? override.page_id : detail.data!.active_page_id}
       manualPageName={nameOf(detail.data!.active_page_id)}
       overrideName={override.active ? (nameOf(override.page_id) ?? tn("composedMessage")) : null}
-      nextChange={override.active ? null : scheduleNextChange(detail.data, new Date())}
+      nextChange={scheduleNextChange(detail.data, new Date())}
       silence={silence.data!.active ? { until: silenceEndsAtLabel(silence.data) } : null}
       initialPageId={collection.id}
     />

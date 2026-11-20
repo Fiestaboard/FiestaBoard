@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SignedInDevices } from "@/components/settings/signed-in-devices";
 
@@ -83,26 +83,31 @@ it("identifies the target device in each revoke button accessible name", async (
 it.each([
   [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/27.0 Safari/605.1.15",
-    "Safari · macOS",
+    "Safari on macOS",
   ],
-  ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36", "Chrome · Windows"],
-  ["Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0", "Firefox · Linux"],
+  ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36", "Chrome on Windows"],
+  ["Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0", "Firefox on Linux"],
   [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36 Edg/130.0",
-    "Edge · Windows",
+    "Edge on Windows",
   ],
   // Actual persisted shape: the server bounds raw User-Agent names to 100 characters.
   [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.",
-    "Safari · macOS",
+    "Safari on macOS",
   ],
   [
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 S",
-    "Browser · Linux",
+    "Browser on Linux",
   ],
   [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Sa",
-    "Browser · Windows",
+    "Browser on Windows",
+  ],
+  // Automation's Chrome (the bug bash's own browser) is still Chrome.
+  [
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+    "Chrome on Linux",
   ],
   ["Mozilla/5.0 (Unknown system) CustomBrowser/1.0", "Browser"],
 ])("presents browser metadata as a readable device name: %s", async (userAgent, label) => {
@@ -258,4 +263,82 @@ it("names the remaining TV after a partial phone sign-out and keeps the same cas
   await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
   expect(screen.queryByText("Living room")).not.toBeInTheDocument();
   expect(attempts).toBe(2);
+});
+
+describe("07e Account › Signed-in devices (`322:31855` / `321:9076`, BB-C-24)", () => {
+  // Local wall-clock times, so the expectations hold in any TZ.
+  const NOW = new Date(2026, 10, 20, 18, 0);
+  const at = (day: number, hour: number, minute: number) => new Date(2026, 10, day, hour, minute).toISOString();
+  const MAC_CHROME =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+  const IPAD_SAFARI =
+    "Mozilla/5.0 (iPad; CPU OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+    sessions = [
+      {
+        id: "browser",
+        device_name: MAC_CHROME,
+        kind: "browser",
+        method: "password",
+        created_at: at(2, 9, 0),
+        last_active_at: NOW.toISOString(),
+      },
+      {
+        id: "ipad",
+        device_name: IPAD_SAFARI,
+        kind: "browser",
+        method: "password",
+        created_at: at(19, 8, 0),
+        last_active_at: at(19, 21, 12),
+      },
+      {
+        id: "tv",
+        device_name: "Living room",
+        kind: "tv",
+        client_id: "fiestaboard-tvos",
+        method: "device_code",
+        created_at: at(5, 9, 0),
+        last_active_at: at(20, 17, 39),
+      },
+      {
+        id: "script",
+        device_name: "Legacy client (may retain your password)",
+        kind: "legacy",
+        method: "password",
+        created_at: at(20, 7, 15),
+        last_active_at: at(20, 7, 15),
+      },
+    ].map((row) => ({ ...row, expires_at: "2027-10-18T00:00:00Z" }));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("names browsers as '<browser> on <system>' and says how and when they signed in", async () => {
+    render(<SignedInDevices />);
+    const mac = await screen.findByRole("listitem", { name: "Chrome on macOS" });
+    expect(within(mac).getByText("Signed in with a password · Nov 2")).toBeInTheDocument();
+    expect(screen.getByRole("listitem", { name: "Safari on iOS" })).toBeInTheDocument();
+  });
+
+  it("reads last-connected times relative to now", async () => {
+    render(<SignedInDevices />);
+    const mac = await screen.findByRole("listitem", { name: "Chrome on macOS" });
+    expect(within(mac).getByText("Last connected just now")).toBeInTheDocument();
+    const ipad = screen.getByRole("listitem", { name: "Safari on iOS" });
+    expect(within(ipad).getByText(/^Last connected yesterday, 9:12\sPM$/)).toBeInTheDocument();
+    const tv = screen.getByRole("listitem", { name: "Living room" });
+    expect(within(tv).getByText(/^Last connected 5:39\sPM$/)).toBeInTheDocument();
+    expect(screen.queryByText(/11\/20\/2026/)).not.toBeInTheDocument();
+  });
+
+  it("does not call a password-signed-in app or script an older TV app", async () => {
+    render(<SignedInDevices />);
+    const row = await screen.findByRole("listitem", { name: "App signed in with a password" });
+    expect(screen.queryByRole("heading", { name: /older TV app/i })).not.toBeInTheDocument();
+    const group = screen.getByRole("heading", { name: "Apps & older TVs · Signed in with a password" });
+    expect(group.parentElement).toContainElement(row);
+    expect(screen.queryByText("Legacy client (may retain your password)")).not.toBeInTheDocument();
+    expect(within(row).getByText(/may keep your password/i)).toBeInTheDocument();
+  });
 });

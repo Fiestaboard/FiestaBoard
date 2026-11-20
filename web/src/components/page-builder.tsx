@@ -146,7 +146,7 @@ import type { RenderDiagnostics } from "@/lib/api/formula-debug";
 import { appUrl } from "@/lib/base-path";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
-import { charsetTokenText } from "@/lib/charset-issues";
+import { charsetTokenText, drawnDifferently } from "@/lib/charset-issues";
 import { seamStraddles } from "@/lib/complex-editing";
 import { focusTemplateCell } from "@/lib/complex-editing-dom";
 import { boardForShape, isLedModel, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
@@ -208,6 +208,11 @@ interface PageBuilderProps {
   skipDraft?: boolean; // If true, ignore and clear any saved draft
   onClose: () => void;
   onSave?: () => void;
+  /**
+   * A new page's first save created it: the route shows its edit URL
+   * (BB-B-9). Called once.
+   */
+  onCreated?: (pageId: string) => void;
   /**
    * Rendered inside the Pages section (section-shell.tsx): the section's
    * breadcrumb is the way back, so the back arrow goes, and the editor sits
@@ -357,6 +362,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     skipDraft = false,
     onClose,
     onSave,
+    onCreated,
     embedded = false,
     saveActions,
   },
@@ -383,6 +389,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     writeStoredBoardPreviewMode(mode);
   };
   const [showPageId, setShowPageId] = useState<string | null>(null);
+  // Report a created page once, so its route can show its own URL (BB-B-9).
+  const reportedCreatedRef = useRef(false);
+  useEffect(() => {
+    if (!createdPageId || initialPageId || reportedCreatedRef.current) return;
+    reportedCreatedRef.current = true;
+    onCreated?.(createdPageId);
+  }, [createdPageId, initialPageId, onCreated]);
   const showAfterSaveRef = useRef(false);
   const requestShowNowRef = useRef<(savedId?: string) => void>(() => {});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -2036,7 +2049,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         shouldIgnoreNextResponse.current = false;
         return;
       }
-      setCharsetIssues(data.charset_issues ?? []);
+      setCharsetIssues(drawnDifferently(data.charset_issues));
       setPreviewDiagnostics(data.diagnostics ?? null);
       setPreviewLayers(data.layers ?? null);
       setCanvasIssues(data.canvas_issues ?? []);
@@ -3045,7 +3058,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   moreContent={mirrorMoreContent}
                 />
               )}
-              <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-0 lg:gap-6">
+              {/* Two equal columns, the same as the Creator IDE's below, so the
+                Console sits under the template and the Inspector under the
+                preview at one width (184:159319; BB-B-19). */}
+              <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-2 items-start gap-0 lg:gap-6">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
                 <Box
                   hidden={!!pixelBoard && editingSurface !== "text"}
@@ -3066,7 +3082,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEditorModeChange("rich")}
-                          className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+                          className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                           aria-label={t("richEditorAriaLabel")}
                           disabled={baselineDisplay}
                           aria-pressed={!baselineDisplay && editorMode === "rich"}
@@ -3077,7 +3093,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEditorModeChange("plain")}
-                          className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+                          className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                           aria-label={t("plainTextAriaLabel")}
                           aria-pressed={baselineDisplay || editorMode === "plain"}
                         >
@@ -3607,7 +3623,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
                         <SelectTrigger
                           {...anchorProps("page-editor.device")}
-                          className="h-7 w-auto gap-1 px-2 text-xs"
+                          className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
                           aria-label={t("deviceTypeSwitcherAriaLabel")}
                         >
                           <SelectValue />
@@ -3680,7 +3696,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         <>
                           <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
                             <SelectTrigger
-                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
                               aria-label={tDisplaySettings("notesWideLabel")}
                             >
                               <SelectValue />
@@ -3695,7 +3711,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           </Select>
                           <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
                             <SelectTrigger
-                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
                               aria-label={tDisplaySettings("notesTallLabel")}
                             >
                               <SelectValue />
@@ -3719,7 +3735,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         onClick={() => setPreviewBoardColor("black")}
                         aria-label={t("previewAsBlack")}
                         aria-pressed={effectiveBoardColor === "black"}
-                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                        className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                           effectiveBoardColor === "black"
                             ? "border-primary ring-1 ring-primary/30"
                             : "border-border hover:border-muted-foreground"
@@ -3729,7 +3745,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         onClick={() => setPreviewBoardColor("white")}
                         aria-label={t("previewAsWhite")}
                         aria-pressed={effectiveBoardColor === "white"}
-                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                        className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                           effectiveBoardColor === "white"
                             ? "border-primary ring-1 ring-primary/30"
                             : "border-border hover:border-muted-foreground"

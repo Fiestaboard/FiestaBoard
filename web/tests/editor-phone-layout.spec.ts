@@ -101,11 +101,15 @@ test.describe("keyboard up (390 × 508)", () => {
 test.describe("landscape phone (844 × 390)", () => {
   test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
 
-  test("the toolbar starts right of the rail (BB-B-17)", async ({ page }) => {
+  // A short viewport keeps the phone chrome (BB-A-13, #2559), so here too the
+  // editor's toolbar replaces the tab bar: no rail or tab bar is drawn under
+  // it, and it spans the screen (BB-B-17).
+  test("the toolbar replaces the phone nav and spans the screen (BB-B-17, BB-A-13)", async ({ page }) => {
     await openEditor(page);
-    const rail = await box(page, "aside");
+    await expect(page.locator("aside:visible")).toHaveCount(0);
+    await expect(page.locator("nav:visible")).toHaveCount(0);
     const toolbar = await box(page, TOOLBAR);
-    expect(toolbar.x).toBeGreaterThanOrEqual(rail.x + rail.width - 1);
-    expect(toolbar.x + toolbar.width).toBeLessThanOrEqual(844);
+    expect(toolbar.x).toBeLessThanOrEqual(1);
+    expect(toolbar.x + toolbar.width).toBeGreaterThanOrEqual(843);
   });
 });

@@ -62,10 +62,12 @@ export function PlainTemplateVariablePicker({
   // Successful insertion owns the caret; ordinary dismissal returns to the opener.
   const finalFocus = () => (inserted.current ? false : triggerRef.current);
   const sheet = useMediaQuery("(max-width: 639px)");
+  const touch = useMediaQuery("(max-width: 767px), (pointer: coarse)");
   const t = useTranslations("templateEditor");
   const content = (
     <Suspense fallback={null}>
       <VariablePickerContent
+        autoFocusSearch={!touch}
         onInsert={(text) => {
           inserted.current = true;
           setOpen(false);

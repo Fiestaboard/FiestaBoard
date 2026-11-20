@@ -1,5 +1,5 @@
 import { AgendaRow, Box, ListItem, ListRowGroup, Stack, Text } from "@fiestaboard/ui";
-import { isSameDay, startOfWeek } from "date-fns";
+import { addDays, isSameDay, startOfDay, startOfWeek } from "date-fns";
 
 import { useLocale, useTranslations } from "@/i18n/translations";
 import type { Collection, Gap, Overlap, Page, ScheduleEntry } from "@/lib/api";
@@ -53,14 +53,36 @@ export function ScheduleAgenda({
   const t = useTranslations("schedule.agenda");
   const tSchedule = useTranslations("schedule");
   const locale = useLocale();
-  const time = (value: Date) => value.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit", hour12: true });
+  // An end at the end of the day (the calendar's 23:59:59.999, the hub's
+  // "23:59" gap end) is midnight: "11:00 PM – 12:00 AM", not "11:59 PM" (BB-C-6).
+  const time = (value: Date) =>
+    (value.getHours() === 23 && value.getMinutes() === 59 ? startOfDay(addDays(value, 1)) : value).toLocaleTimeString(
+      locale,
+      { hour: "numeric", minute: "2-digit", hour12: true },
+    );
   const clock = (value: string) => {
     const [hour, minute] = value.split(":").map(Number);
     return time(new Date(2000, 0, 1, hour, minute));
   };
-  const events = schedulesToCalendarEvents(schedules, startOfWeek(date), pages, collections, sunTimesMap)
+  const week = schedulesToCalendarEvents(schedules, startOfWeek(date), pages, collections, sunTimesMap);
+  const events = week
     .filter((event) => isSameDay(event.start, date))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
+  // Both halves of an overnight entry read as the entry: "11:30 PM – 2:00 AM".
+  const range = (event: (typeof week)[number]) => {
+    const half = event.resource.splitPart;
+    const other = half
+      ? week.find(
+          (candidate) =>
+            candidate.resource.scheduleId === event.resource.scheduleId &&
+            candidate.resource.splitPart === (half === "evening" ? "morning" : "evening"),
+        )
+      : undefined;
+    const start = half === "morning" && other ? other.start : event.start;
+    const end = half === "evening" && other ? other.end : event.end;
+    return `${time(start)} – ${time(end)}`;
+  };
+  const today = now && isSameDay(now, date) ? now.getHours() * 60 + now.getMinutes() : null;
   const datedOverlaps = supportsDatedGaps(schedules) ? overlaps : [];
   const dayName = date.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const dayGaps = (supportsDatedGaps(schedules) ? gaps : []).filter((gap) =>
@@ -106,7 +128,7 @@ export function ScheduleAgenda({
               <ListItem key={key}>
                 <AgendaRow
                   title={event.title}
-                  time={`${time(event.start)} – ${time(event.end)}`}
+                  time={range(event)}
                   detail={isCollectionId(event.resource.pageId) ? t("collection") : t("page")}
                   kind={
                     datedOverlaps.some(
@@ -128,8 +150,12 @@ export function ScheduleAgenda({
             ) : gap ? (
               <AgendaRow
                 key={key}
-                kind="gap"
-                title={fallback}
+                // The gap the board is in now is the current row; it keeps its "Gap ·" title (BB-C-3).
+                {...(today !== null &&
+                today >= minute(gap.start_time) &&
+                today < (gap.end_time === "23:59" ? 1440 : minute(gap.end_time))
+                  ? { kind: "now" as const, title: `${t("gap")} · ${fallback}` }
+                  : { kind: "gap" as const, title: fallback })}
                 time={`${clock(gap.start_time)} – ${clock(gap.end_time)}`}
                 detail={t("default")}
                 labels={labels}

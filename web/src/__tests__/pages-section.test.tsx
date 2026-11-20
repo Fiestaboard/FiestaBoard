@@ -3,9 +3,11 @@
  * replaces it with its own header (back to Pages, the name, Save).
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { useReportCreatedPage } from "@/components/pages/created-page-context";
 
 import { PagesSection } from "../../app/routes/pages";
 import { server } from "./mocks/server";
@@ -76,4 +78,33 @@ describe("/pages section", () => {
       expect(screen.getByText("body")).toBeInTheDocument();
     },
   );
+
+  // BB-B-9 (#2563) with the bare editor: after the first save the address
+  // shows /pages/edit/{id}, and the editor stays mounted with no section
+  // header drawn above it (the editor's own header names the page).
+  it("keeps the editor mounted, with no section header, after a new page's first save", async () => {
+    route.pathname = "/pages/new";
+    function SaveFirst() {
+      const report = useReportCreatedPage();
+      return (
+        <button type="button" onClick={() => report?.("p1")}>
+          save
+        </button>
+      );
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PagesSection>
+          <SaveFirst />
+        </PagesSection>
+      </QueryClientProvider>,
+    );
+    const before = screen.getByRole("button", { name: "save" });
+    act(() => before.click());
+    // The same node: the editor was not remounted by the report.
+    await waitFor(() => expect(screen.getByRole("button", { name: "save" })).toBe(before));
+    expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
+    expect(document.querySelector("[data-slot=page-card]")).toHaveAttribute("data-surface", "plain");
+  });
 });

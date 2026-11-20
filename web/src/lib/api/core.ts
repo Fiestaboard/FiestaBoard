@@ -76,11 +76,14 @@ function loginRedirectTarget(): string {
  */
 export class ApiError extends Error {
   readonly status: number;
+  /** The response's FastAPI `detail`, as sent — e.g. a plugin config's `{message, errors}`. */
+  readonly detail: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, detail?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -97,6 +100,22 @@ function detailMessage(detail: unknown): string {
     if (typeof message === "string" && message) return message;
   }
   return JSON.stringify(detail);
+}
+
+/** The ApiError for a non-2xx response, with the hub's `detail` when it sent one. */
+export async function apiErrorFrom(res: globalThis.Response): Promise<ApiError> {
+  let detail = `API error: ${res.status} ${res.statusText}`;
+  let rawDetail: unknown;
+  try {
+    const body = await res.json();
+    if (body?.detail) {
+      rawDetail = body.detail;
+      detail = detailMessage(body.detail);
+    }
+  } catch {
+    // ignore JSON parse errors; use status text fallback
+  }
+  return new ApiError(detail, res.status, rawDetail);
 }
 
 export async function fetchApi<T>(
@@ -129,16 +148,7 @@ export async function fetchApi<T>(
     if (!skipAuthRedirect) {
       redirectToLoginIfNeeded(res);
     }
-    let detail = `API error: ${res.status} ${res.statusText}`;
-    try {
-      const body = await res.json();
-      if (body?.detail) {
-        detail = detailMessage(body.detail);
-      }
-    } catch {
-      // ignore JSON parse errors; use status text fallback
-    }
-    throw new ApiError(detail, res.status);
+    throw await apiErrorFrom(res);
   }
   emitApiSuccess(fetchOptions.method, path);
   // 204 No Content (e.g. DELETE /board/external-frame) has no body to parse.

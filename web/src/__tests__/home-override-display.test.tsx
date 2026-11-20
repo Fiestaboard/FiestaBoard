@@ -1,5 +1,5 @@
 // Review fixes for slice 2.2 (pr-2481-review): per-display Cancel and Undo
-// (m08, m09, m11, S2), the next-change chip while an Override runs (m23, m24),
+// (m08, m09, m11, S2), the next-change chip while an Override runs (BB-A-7, was m23/m24),
 // the key guards (m21, m22) and the alert's plugin name (S4).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -94,11 +94,13 @@ function serveOfficeOverride() {
         name: "Office board",
         override_expires_at: override().expires_at,
         override_started_at: override().started_at,
-        // Deliberately "schedule": the UI must still drop the chip while an
-        // override runs (H2 normally says override_ends then).
-        next_change_at: nineLater,
-        next_change_reason: "schedule",
-        next_page_id: "page-1",
+        // While an override runs H2 reports its end; the Schedule's own next
+        // hand-over comes separately (BB-A-7).
+        next_change_at: override().expires_at,
+        next_change_reason: "override_ends",
+        next_page_id: null,
+        schedule_next_change_at: nineLater,
+        schedule_next_page_id: "page-1",
       }),
     ),
   );
@@ -262,7 +264,10 @@ describe("Cancel override and Undo on a multi-display install", () => {
 });
 
 describe("the next-change chip while an Override runs", () => {
-  it("Change Page from Home offers no Until <time> chip (m24)", async () => {
+  // BB-A-7 (07a `310:30778`, `310:25531`): Change Page and Compose replace the
+  // running override, so the Schedule's next change still applies and its
+  // chip is offered (and preselected). Supersedes m23/m24.
+  it("Change Page from Home offers Until <next Schedule change> while an Override runs", async () => {
     serveOfficeOverride();
     let detailServed = false;
     server.use(
@@ -272,9 +277,11 @@ describe("the next-change chip while an Override runs", () => {
           id: String(params.board),
           override_started_at: override().started_at,
           override_expires_at: override().expires_at,
-          next_change_at: new Date(Date.now() + 2 * 60 * 60_000).toISOString(),
-          next_change_reason: "schedule",
-          next_page_id: "page-1",
+          next_change_at: override().expires_at,
+          next_change_reason: "override_ends",
+          next_page_id: null,
+          schedule_next_change_at: new Date(Date.now() + 2 * 60 * 60_000).toISOString(),
+          schedule_next_page_id: "page-1",
         });
       }),
     );
@@ -285,14 +292,45 @@ describe("the next-change chip while an Override runs", () => {
     fireEvent.click(await screen.findByRole("button", { name: /^Change Page$/ }));
     const dialog = await screen.findByRole("dialog", { name: "Change Page" });
     fireEvent.click(await within(dialog).findByRole("button", { name: /Weather Page/ }));
-    const chips = within(dialog)
+    const radios = within(dialog)
       .getAllByRole("radio")
-      .map((r) => r.textContent?.trim())
-      .filter((label) => label && !["Pages", "Collections"].includes(label));
-    expect(chips).toEqual(["15 min", "1 hr", "Until I cancel"]);
+      .filter((r) => !["Pages", "Collections"].includes(r.textContent?.trim() ?? ""));
+    expect(radios.map((r) => r.textContent?.trim())).toEqual([
+      "15 min",
+      "1 hr",
+      expect.stringMatching(/^Until \d/),
+      "Until I cancel",
+    ]);
+    expect(radios[2]).toHaveAttribute("aria-checked", "true");
   });
 
-  it("Compose offers no Until <time> chip on a display with an Override (m23)", async () => {
+  it("offers no Until <time> chip when an older hub cannot say the Schedule's next change", async () => {
+    serveOfficeOverride();
+    server.use(
+      http.get(`${API}/v1/boards/:board`, ({ params }) =>
+        HttpResponse.json({
+          id: String(params.board),
+          override_started_at: override().started_at,
+          override_expires_at: override().expires_at,
+          next_change_at: override().expires_at,
+          next_change_reason: "override_ends",
+          next_page_id: null,
+        }),
+      ),
+    );
+    localStorage.setItem("fiestaboard_current_board", "board-2");
+    render(<HomeCompose open onOpenChange={vi.fn()} />, { wrapper: Wrapper });
+    await screen.findByText("Shows on Office board when you choose Show now. Nothing reaches the board before that.");
+    await waitFor(() =>
+      expect(screen.getAllByRole("radio").map((r) => r.textContent?.trim())).toEqual([
+        "15 min",
+        "1 hr",
+        "Until I cancel",
+      ]),
+    );
+  });
+
+  it("Compose offers Until <next Schedule change> on a display with an Override", async () => {
     serveOfficeOverride();
     localStorage.setItem("fiestaboard_current_board", "board-2");
     render(<HomeCompose open onOpenChange={vi.fn()} />, { wrapper: Wrapper });
@@ -301,6 +339,7 @@ describe("the next-change chip while an Override runs", () => {
       expect(screen.getAllByRole("radio").map((r) => r.textContent?.trim())).toEqual([
         "15 min",
         "1 hr",
+        expect.stringMatching(/^Until \d/),
         "Until I cancel",
       ]),
     );
