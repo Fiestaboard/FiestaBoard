@@ -19,8 +19,10 @@ import { Check, Ellipsis, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { classifyInstallSuccess, onApiSuccess } from "@/lib/api/success-events";
+import { stripBasePath } from "@/lib/base-path";
 import { isPanelPath } from "@/lib/chromeless";
 import { deviceWord, hubHost } from "@/lib/pwa/device-words";
 import { canInstallOnSecureOrigin, isIosSafari, isSecureOrigin, isStandalone } from "@/lib/pwa/environment";
@@ -45,6 +47,11 @@ export const INSTALL_OFFER_SLOT_ID = "install-offer-slot";
 type Offer =
   { kind: "card"; state: InstallCardState; reason: InstallSuccess; count: number } | { kind: "sheet" } | null;
 
+/** The page editor: an install offer never interrupts editing (BB-B-10). */
+function isEditing(pathname: string): boolean {
+  return /^\/pages\/(new|edit)(\/|$)/.test(stripBasePath(pathname));
+}
+
 /**
  * The install offer (WEB-12; 07 `58:33496`, `58:34465`, notes `58:34443`,
  * `58:35364`). Never on load: it waits for a real success (the 3rd send or
@@ -64,6 +71,9 @@ export function InstallPrompt() {
   const t = useTranslations("installPrompt");
   const [offer, setOffer] = useState<Offer>(null);
   const deferred = useRef<BeforeInstallPromptEvent | null>(null);
+  // An offer earned in the editor (its first Save) waits for the editor to
+  // be left, so the Saved toast is what that moment shows (316:91196).
+  const editing = isEditing(usePathname());
 
   // Stash the browser's install event from the first moment, without showing
   // anything: the offer itself waits for a success.
@@ -127,7 +137,7 @@ export function InstallPrompt() {
     }
   };
 
-  if (offer === null) return null;
+  if (offer === null || editing) return null;
 
   if (offer.kind === "sheet") {
     const close = (never: boolean) => {

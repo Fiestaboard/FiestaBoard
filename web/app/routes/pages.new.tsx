@@ -1,5 +1,5 @@
 import { PageEditorShell } from "@/components/page-editor-shell";
-import { useSearchParams } from "@/hooks/use-router";
+import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import type { DeviceType } from "@/lib/api";
 
@@ -11,6 +11,7 @@ export default function NewPage() {
   const targetBoardId = searchParams.get("board") || undefined;
   const skipDraft = searchParams.get("fresh") === "1";
 
+  const { replace } = useRouter();
   const back = () => push("/pages");
 
   return (
@@ -20,6 +21,9 @@ export default function NewPage() {
       skipDraft={skipDraft}
       onClose={back}
       onSave={() => {}}
+      // After the first save this is the page's editor, at its own URL:
+      // reload, share and Back find it (BB-B-9).
+      onCreated={(id) => replace(`/pages/edit/${encodeURIComponent(id)}`)}
     />
   );
 }
