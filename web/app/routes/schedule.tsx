@@ -54,7 +54,7 @@ import { ScheduleEntryAdapter as ScheduleEntryForm } from "@/components/schedule
 import { ScheduleWorkspace } from "@/components/schedule/schedule-workspace";
 import { type ScheduleFormHandle, useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import Link from "@/components/smart-link";
-import { RAIL_BREAKPOINT, useBelowRail } from "@/hooks/use-below-rail";
+import { useBelowRail, useRailBreakpoint } from "@/hooks/use-below-rail";
 import { queryKeys } from "@/hooks/use-board";
 import { useCollections } from "@/hooks/use-board";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
@@ -142,6 +142,7 @@ function readUrlPrefill(searchParams: URLSearchParams): PrefillData | null {
 const NO_DEFAULT_PAGE = "__none__";
 
 export default function SchedulePage() {
+  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("schedule");
   const tCommon = useTranslations("common");
   const tAgenda = useTranslations("schedule.agenda");
@@ -560,7 +561,7 @@ export default function SchedulePage() {
 
   if (isLoading) {
     return (
-      <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
+      <PageLayout railBreakpoint={railBreakpoint}>
         <Skeleton className="h-10 w-48 mb-4" />
         <Skeleton className="h-64 w-full" />
       </PageLayout>
@@ -580,7 +581,7 @@ export default function SchedulePage() {
   const issueCount = hasOverlaps ? (validation?.overlaps?.length ?? 0) : (validation?.gaps?.length ?? 0);
 
   return (
-    <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
+    <PageLayout railBreakpoint={railBreakpoint}>
       <Box>
         {/* ── Page header ── */}
         <PageHeader

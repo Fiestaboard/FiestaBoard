@@ -12,7 +12,7 @@ import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { useAppBadge } from "@/hooks/use-app-badge";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
-import { RAIL_BREAKPOINT, useBelowRail, useTabletRailCollapse } from "@/hooks/use-below-rail";
+import { useBelowRail, useRailBreakpoint, useTabletRailCollapse } from "@/hooks/use-below-rail";
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { useDisplaysNeedingALook } from "@/hooks/use-displays-needing-a-look";
 import { useHubLine } from "@/hooks/use-hub-connection";
@@ -29,6 +29,7 @@ import { integrationsNeedingAttention, isNavItemActive, type NavItemDef, navItem
  * all live here; every pixel lives in @fiestaboard/ui.
  */
 export function NavigationSidebar() {
+  const railBreakpoint = useRailBreakpoint();
   const pathname = usePathname();
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, setCollapsed, onTransitionEnd } = useSidebar();
@@ -150,7 +151,7 @@ export function NavigationSidebar() {
       // Below 768px a tab bar (Home · Pages · Schedule · Displays · More);
       // from 768px the rail. MainContent takes the same breakpoint.
       variant="bottom-nav"
-      railBreakpoint={RAIL_BREAKPOINT}
+      railBreakpoint={railBreakpoint}
       items={navItemsFor(chrome).map(toNavItem)}
       renderLink={renderLink}
       collapsed={collapsed}

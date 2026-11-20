@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { HomeConnectionNotice } from "@/components/home/connection-notice";
 import { SilenceNotice } from "@/components/silence-notice";
 import { useCollections, usePagePreview, usePages } from "@/hooks/use-board";
+import { useCloseOnBack } from "@/hooks/use-close-on-back";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useLocale, useTranslations } from "@/i18n/translations";
@@ -106,6 +107,8 @@ export function ChangePageDialog({
   const connection = useHubConnection();
   const sendsDisabled = !connection.deviceOnline || !connection.hubReachable;
   const isPhone = useMediaQuery(PHONE_QUERY);
+  // Back closes the sheet and stays on the screen (BB-A-12).
+  useCloseOnBack(open, () => onOpenChange(false));
   const refresh = useRefreshHomeStatus();
   const displayName = board?.name ?? boardName ?? "";
 
