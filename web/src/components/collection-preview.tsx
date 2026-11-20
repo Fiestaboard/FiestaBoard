@@ -1,4 +1,4 @@
-import { Box, Card, Flex, Stack, StaticBoardDisplay, Text } from "@fiestaboard/ui";
+import { Box, Card, Flex, Stack, Text } from "@fiestaboard/ui";
 
 import { BoardViewport } from "@/components/board-viewport";
 import { usePagePreview } from "@/hooks/use-board";
@@ -26,7 +26,6 @@ export function CollectionPreview({
   historical = false,
 }: CollectionPreviewProps) {
   const t = useTranslations("collections");
-  const tb = useTranslations("boardDisplay");
   const locale = useLocale();
   const selected = !dirty && !failed ? pages.find((p) => p.id === evaluation?.page_id) : undefined;
   const preview = usePagePreview(selected?.id ?? null);
@@ -78,23 +77,20 @@ export function CollectionPreview({
                 <Text size="sm" tone="muted">
                   {t("evaluationUnavailable")}
                 </Text>
-              ) : mode === "random" ? (
+              ) : (
+                // A viewport, not a fixed-size board centred in the card, which
+                // was clipped on both sides at 390 (BB-B-12).
                 <BoardViewport
                   {...geometry}
                   message={preview.data?.message ?? null}
                   isLoading={preview.isLoading}
-                  size="sm"
+                  layout="phone-hero"
+                  // A glance at what the Collection shows: the whole board first
+                  // (Actual size is a tap away), not its left 16 columns.
+                  defaultMode="fit"
+                  persist={false}
+                  isStatic={mode !== "random"}
                 />
-              ) : (
-                <Box role="region" tabIndex={0} aria-label={tb("preview")} className="overflow-x-auto">
-                  <StaticBoardDisplay
-                    {...geometry}
-                    message={preview.data?.message ?? null}
-                    size="sm"
-                    emptyLabel={tb("empty")}
-                    messageLabel={(message) => tb("withMessage", { message })}
-                  />
-                </Box>
               )}
             </Box>
             <Stack gap="2" className="min-w-0 md:flex-1 md:justify-center">

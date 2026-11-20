@@ -9,8 +9,8 @@ import type { Collection, Page } from "@/lib/api";
 import { CollectionForm } from "../../app/routes/collections";
 
 const pages = [
-  { id: "page-1", name: "Page One" },
-  { id: "page-2", name: "Page Two" },
+  { id: "page-1", name: "Page One", device_type: "flagship" },
+  { id: "page-2", name: "Page Two", device_type: "note" },
 ] as Page[];
 
 function makeCollection(mode: Collection["selection_mode"] = "time"): Collection {
@@ -36,14 +36,14 @@ function makeCollection(mode: Collection["selection_mode"] = "time"): Collection
   };
 }
 
-function renderForm(mode: Collection["selection_mode"] = "time", withPreview = false) {
+function renderForm(mode: Collection["selection_mode"] = "time", withPreview = false, isNew = false) {
   const onSubmit = vi.fn().mockResolvedValue(undefined);
   // The reusable form must also render without a query provider; live preview
   // belongs to the route's optional preview slot.
   const view = render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <CollectionForm
-        collection={makeCollection(mode)}
+        collection={isNew ? undefined : makeCollection(mode)}
         pages={pages}
         onSubmit={onSubmit}
         onCancel={vi.fn()}
@@ -125,7 +125,7 @@ describe("Collection editor layout", () => {
     const user = userEvent.setup();
     const { onSubmit } = renderForm();
     await user.click(screen.getByRole("button", { name: /^\+?\s*Add page$/i }));
-    await user.click(await screen.findByRole("menuitem", { name: "Page Two" }));
+    await user.click(await screen.findByRole("menuitem", { name: /^Page Two/ }));
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ page_ids: ["page-1", "page-2"] })),
@@ -157,7 +157,7 @@ describe("Collection editor layout", () => {
     const first = container.querySelector<HTMLElement>("#collection-rule-0")!;
     first.focus();
     await user.keyboard(" {ArrowDown}{Escape}");
-    expect(screen.getByRole("textbox", { name: "Expression for rule 1" })).toHaveValue("1 == 1");
+    expect(screen.getByRole("button", { name: "Expression for rule 1" })).toHaveTextContent("1 == 1");
     container.querySelector<HTMLElement>("#collection-rule-0")!.focus();
     await user.keyboard(" {ArrowDown} ");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -205,6 +205,48 @@ describe("Collection editor layout", () => {
       expect(name).not.toBeVisible();
       await user.click(screen.getByRole("button", { name: "Save" }));
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: "Changed on phone" }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  const phoneTouch = () =>
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(max-width: 767.98px)" || query === "(pointer: coarse)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+
+  // BB-B-25: a new Collection shows its name field first and says why Create
+  // is disabled; Add page lists each page's size.
+  it("opens a new Collection on its name and says what Create still needs", async () => {
+    phoneTouch();
+    try {
+      const user = userEvent.setup();
+      renderForm("time", false, true);
+      expect(screen.getByLabelText("Collection name")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Create Collection" })).toBeDisabled();
+      expect(screen.getByText("Name the Collection to create it.")).toBeInTheDocument();
+      await user.type(screen.getByLabelText("Collection name"), "Lunch");
+      expect(screen.getByText("Add at least one page to create it.")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Add page" }));
+      expect(await screen.findByRole("menuitem", { name: /Page One/ })).toHaveTextContent(/Flagship/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  // BB-B-26 (Figma 57:66920): touch copy for rule reordering, and a rule's
+  // whole expression is readable.
+  it("gives touch reorder copy for rules and shows the whole expression", () => {
+    phoneTouch();
+    try {
+      renderForm("variable");
+      expect(screen.getByText(/drag a handle, or use ··· › Move up \/ Move down/)).toBeInTheDocument();
+      expect(screen.queryByText(/press Space to lift/)).not.toBeInTheDocument();
+      const expression = screen.getByRole("button", { name: "Expression for rule 1" });
+      expect(expression).toHaveTextContent("1 == 1");
     } finally {
       vi.unstubAllGlobals();
     }
