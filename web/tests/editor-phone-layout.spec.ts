@@ -48,7 +48,8 @@ for (const [width, height] of [
     test("the name is readable and the header is the top of the screen (BB-B-3, BB-B-4)", async ({ page }) => {
       await openEditor(page);
       const name = await box(page, "#page-name");
-      expect(name.width).toBeGreaterThanOrEqual(96);
+      // Beside the IDE's Save draft + Update or the builder's Save + Show now.
+      expect(name.width).toBeGreaterThanOrEqual(90);
       expect(name.y).toBeLessThan(40);
       // No section card header, breadcrumb or second title above the editor.
       await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toHaveCount(0);
