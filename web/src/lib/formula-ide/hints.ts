@@ -128,8 +128,27 @@ const VARIABLE_TOKEN = /\{\{\s*([A-Za-z_][\w-]*(?::[\w-]+)?\.[\w.]+)\s*(?:\|[^{}
 
 export function templateVariablePaths(template: readonly string[]): string[] {
   const paths = new Set<string>();
-  for (const line of template) for (const match of line.matchAll(VARIABLE_TOKEN)) paths.add(match[1]);
+  for (const line of template) {
+    for (const match of line.matchAll(VARIABLE_TOKEN)) {
+      // A `*_color` field draws a colour tile, not text: the formula evaluator
+      // has no such field, so probing it would show a false #REF.
+      if (!/_color$/i.test(match[1])) paths.add(match[1]);
+    }
+  }
   return [...paths];
+}
+
+/**
+ * Variable hints from the probe render. Where the formula evaluator reports an
+ * error for a bare path (missing source or field, null, a list), the board's
+ * plain `{{path}}` substitution prints `???`, so the chip says that too.
+ */
+export function buildVariableHintIndex(diagnostics: RenderDiagnostics | null | undefined): Map<string, AtomHint> {
+  const index = buildHintIndex(diagnostics);
+  for (const [path, hint] of index) {
+    if (hint.state === "error") index.set(path, { ...hint, value: { kind: "error", tag: "???" } });
+  }
+  return index;
 }
 
 /**

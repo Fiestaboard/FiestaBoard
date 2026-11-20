@@ -49,8 +49,8 @@ beforeEach(() => {
                 start: 0,
                 end: 19,
                 source: " weather.temp ",
-                value: "72",
-                error: null,
+                value: missing ? "#REF" : "72",
+                error: missing ? "#REF" : null,
                 error_at: null,
                 message: null,
               },
@@ -107,6 +107,7 @@ function Harness({
   withLive = false,
   liveFailed = false,
   mirroring = false,
+  template,
 }: {
   desktop: boolean;
   onOpen?: () => void;
@@ -114,9 +115,11 @@ function Harness({
   withLive?: boolean;
   liveFailed?: boolean;
   mirroring?: boolean;
+  /** Replaces the page template (an edit), keeping the board. */
+  template?: string[];
 }) {
   const ide = useFormulaIde({
-    target: empty ? null : target,
+    target: empty ? null : template ? { ...target, template } : target,
     available: true,
     ...(withLive
       ? { live: { diagnostics: LIVE_DIAGNOSTICS, lines: ["GOOD MORNING", "72°", "HOT OUT"], failed: liveFailed } }
@@ -166,14 +169,16 @@ function renderHarness(
   onOpen?: () => void,
   empty = false,
   withLive = false,
-  extra: { liveFailed?: boolean; mirroring?: boolean } = {},
+  extra: { liveFailed?: boolean; mirroring?: boolean; template?: string[] } = {},
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const tree = (more: typeof extra) => (
     <QueryClientProvider client={client}>
-      <Harness desktop={desktop} onOpen={onOpen} empty={empty} withLive={withLive} {...extra} />
-    </QueryClientProvider>,
+      <Harness desktop={desktop} onOpen={onOpen} empty={empty} withLive={withLive} {...extra} {...more} />
+    </QueryClientProvider>
   );
+  const result = render(tree({}));
+  return { ...result, rerenderWith: (more: typeof extra) => result.rerender(tree(more)) };
 }
 
 describe("useFormulaIde", () => {
@@ -191,6 +196,24 @@ describe("useFormulaIde", () => {
     const probes = bodies.filter((body) => !pageRenders().includes(body));
     expect(probes).toHaveLength(1);
     expect(probes[0]).toMatchObject({ template: PROBE, board_id: "kitchen", device_type: "flagship" });
+  });
+
+  it("doesn't probe again for an edit that keeps the same variables (BB-FP-11)", async () => {
+    const { rerenderWith } = renderHarness(true, undefined, false, true);
+    await waitFor(() => expect(screen.getByTestId("variable-hint")).toHaveTextContent("72"));
+    rerenderWith({ template: ["GOOD AFTERNOON", "{{weather.temp}}°", "BYE"] });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(bodies.filter((body) => !pageRenders().includes(body))).toHaveLength(1);
+  });
+
+  it("shows ??? for a missing variable, as the board does, not the evaluator's #REF (BB-FP-11)", async () => {
+    renderHarness(true, undefined, false, true);
+    await waitFor(() => expect(screen.getByTestId("variable-hint")).toHaveTextContent("72"));
+    const group = screen.getByRole("radiogroup", { name: "Preview data" });
+    await userEvent.click(within(group).getByRole("radio", { name: "Missing" }));
+    await waitFor(() => expect(screen.getByTestId("variable-hint")).toHaveTextContent('{"kind":"error","tag":"???"}'));
+    const probes = bodies.filter((body) => !pageRenders().includes(body));
+    expect(probes.at(-1)).toMatchObject({ template: PROBE, preview: { missing: ["weather"] } });
   });
 
   it("reads Live values from the editor's own preview render instead of rendering again", async () => {
