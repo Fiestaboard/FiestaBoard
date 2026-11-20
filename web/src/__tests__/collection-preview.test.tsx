@@ -67,4 +67,20 @@ describe("saved Collection preview", () => {
     expect(screen.getByText("Selected: Morning")).toBeInTheDocument();
     expect(screen.getByText(/Saved Collection · cached data/)).toBeInTheDocument();
   });
+  // BB-B-12: the board sits in a phone-hero viewport that fits the card
+  // (settling a board that overflows a little), not a fixed-size board
+  // centred in it and clipped on both sides.
+  it("fits the evaluated board to the card in every mode", async () => {
+    server.use(http.post("/api/pages/p1/preview", () => HttpResponse.json({ message: "GROCERIES" })));
+    for (const mode of ["time", "variable", "random"] as const) {
+      const { container, unmount } = view({ mode });
+      const viewport = container.querySelector('[data-testid="collection-preview-board"] [data-layout]');
+      expect(viewport).toHaveAttribute("data-layout", "phone-hero");
+      expect(viewport).toHaveAttribute("data-mode", "fit");
+      // From md the board box is the hero's 373px, so a Flagship needs no scroll chrome.
+      expect(container.querySelector('[data-testid="collection-preview-board"]')).toHaveClass("md:w-[373px]");
+      expect(container.querySelector('[data-testid="collection-preview-board"]')).not.toHaveClass("lg:w-auto");
+      unmount();
+    }
+  });
 });

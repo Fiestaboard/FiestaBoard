@@ -3569,7 +3569,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             }
                             isStatic={drawMode}
                             size={complexEditing.bigBoard ? complexEditing.previewSize : dockedPreview ? "sm" : "md"}
-                            layout={dockedPreview ? "phone-hero" : "pane"}
+                            // Hero layouts settle a board that overflows by a
+                            // little into the pane (tiles stay >= 13 px): a
+                            // Flagship shows whole, Den TV still scrolls (BB-B-11).
+                            layout={dockedPreview ? "phone-hero" : "medium-hero"}
                             mode={complexEditing.bigBoard ? complexEditing.previewMode : previewMode}
                             onModeChange={
                               complexEditing.bigBoard

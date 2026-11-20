@@ -87,7 +87,7 @@ describe("Collection routes", () => {
     const router = renderRoute("/collections/new");
     await user.type(await screen.findByLabelText("Collection name"), "New rotation");
     await user.click(screen.getByRole("button", { name: "Add page" }));
-    await user.click(await screen.findByRole("menuitem", { name: "First" }));
+    await user.click(await screen.findByRole("menuitem", { name: /^First/ }));
     await user.click(screen.getByRole("button", { name: "Create Collection" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/collections"));
     expect(body).toEqual(expect.objectContaining({ name: "New rotation", page_ids: ["p1"] }));
