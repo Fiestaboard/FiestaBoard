@@ -193,6 +193,7 @@ export function ReleaseChannelCard() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={switchMutation.isPending}>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               disabled={switchMutation.isPending}
               onClick={() => {
                 if (target) switchMutation.mutate(target);

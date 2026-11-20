@@ -752,7 +752,18 @@
       "weekdaysShort": "Seg–Sex",
       "weekendsShort": "Sáb–Dom",
       "customShort": "Outros",
-      "openEnded": "Sem fim"
+      "openEnded": "Sem fim",
+      "moreOptions": "Mais opções",
+      "timeRangeTo": "até",
+      "startsAtSun": {
+        "sunrise": "Começa ao nascer do sol",
+        "sunset": "Começa ao pôr do sol"
+      },
+      "endsAtSun": {
+        "sunrise": "Termina ao nascer do sol",
+        "sunset": "Termina ao pôr do sol"
+      },
+      "entryOff": "Entrada desativada"
     },
     "copy": {
       "open": "Copiar de outra tela…",
@@ -3831,7 +3842,11 @@
     "thisDisplay": "esta tela",
     "startFrom": "Ou comece por",
     "insertVariable": "Inserir uma variável",
-    "browseStaffPicks": "Explorar as Seleções da equipa"
+    "browseStaffPicks": "Explorar as Seleções da equipa",
+    "replay": "Repetir",
+    "replayHint": "Reproduzir a animação das palhetas",
+    "previewTarget": "Destino da pré-visualização",
+    "previewTargetTrigger": "Pré-visualizar em {target}"
   },
   "phonePairing": {
     "title": "Conectar um celular",
@@ -3980,6 +3995,7 @@
     "overflowChecked": "Verificado pelo hub na largura real de {board} · {time}",
     "overflowCheckedNoBoard": "Verificado pelo hub na largura real deste quadro · {time}",
     "overflowWrap": "Quebrar a linha {line}",
+    "overflowMore": "Também cortadas: {lines}",
     "bandsLabel": "Faixas de linhas",
     "bandMoveUp": "Mover para cima",
     "bandMoveDown": "Mover para baixo",
@@ -4054,7 +4070,6 @@
     "showingUntil": "Exibida agora em {board} · até {time}",
     "showingNow": "Exibida agora em {board}",
     "scheduledOn": "Agendada em {board}",
-    "notScheduledMessage": "Não está na programação de nenhum display",
     "problemsLink": "{count, plural, one {# problema} other {# problemas}}",
     "saveDraft": "Salvar rascunho",
     "savingDraft": "Salvando rascunho…",
@@ -4213,7 +4228,6 @@
     "renderAtLabel": "Pré-visualizar fórmulas em um horário",
     "renderAtReset": "Pré-visualizar no horário atual",
     "renderAtNote": "“Às {time}” avalia as fórmulas como se fossem {time}; os dados de integração são os que o hub tem agora.",
-    "sampleTitle": "Dados de exemplo — não ao vivo",
     "sampleNote": "Exemplo mostra os valores de exemplo de cada integração. Espelhar no painel fica desativado enquanto você pré-visualiza dados de exemplo.",
     "sampleUnsampled": "Não há valores de exemplo para {plugins}; eles mostram os dados atuais do hub.",
     "previewFailed": "Não foi possível gerar esta pré-visualização. Verifique o modelo e tente novamente.",

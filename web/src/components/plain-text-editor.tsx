@@ -4,6 +4,7 @@ import { Box, Stack, Text, Textarea } from "@fiestaboard/ui";
 import { forwardRef, type ReactNode, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
+import { usedLineCount } from "@/lib/complex-editing";
 import { cn } from "@/lib/utils";
 
 export interface PlainTextEditorHandle {
@@ -291,7 +292,9 @@ export const PlainTextEditor = forwardRef<PlainTextEditorHandle, PlainTextEditor
 
   const lineCount = value.split("\n").length;
   const hasMarkers = !!lineMarkers && Object.keys(lineMarkers).length > 0;
-  const isOverLimit = lineCount > boardLines;
+  // Blank padding rows after the last line with content are not over the limit (BB-E-18).
+  const usedLines = usedLineCount(value.split("\n"));
+  const isOverLimit = usedLines > boardLines;
 
   const gutterNumbers =
     lineHeights.length === lineCount
@@ -427,7 +430,7 @@ export const PlainTextEditor = forwardRef<PlainTextEditorHandle, PlainTextEditor
         <>
           {/* Line counter */}
           <Text size="xs" className={cn("mt-1", isOverLimit ? "text-warning font-medium" : "text-muted-foreground")}>
-            {t("lineCount", { current: lineCount, total: boardLines })}
+            {t("lineCount", { current: usedLines, total: boardLines })}
             {isOverLimit && ` ${t("exceedsLimit", { limit: boardLines })}`}
           </Text>
 

@@ -752,7 +752,18 @@
       "weekdaysShort": "Pn–Pt",
       "weekendsShort": "Sob–Nd",
       "customShort": "Własne",
-      "openEnded": "Bez końca"
+      "openEnded": "Bez końca",
+      "moreOptions": "Więcej opcji",
+      "timeRangeTo": "do",
+      "startsAtSun": {
+        "sunrise": "Zaczyna się o wschodzie słońca",
+        "sunset": "Zaczyna się o zachodzie słońca"
+      },
+      "endsAtSun": {
+        "sunrise": "Kończy się o wschodzie słońca",
+        "sunset": "Kończy się o zachodzie słońca"
+      },
+      "entryOff": "Wpis wyłączony"
     },
     "copy": {
       "open": "Kopiuj z innego wyświetlacza…",
@@ -3831,7 +3842,11 @@
     "thisDisplay": "ten wyświetlacz",
     "startFrom": "Lub zacznij od",
     "insertVariable": "Wstaw zmienną",
-    "browseStaffPicks": "Przeglądaj Polecane"
+    "browseStaffPicks": "Przeglądaj Polecane",
+    "replay": "Odtwórz",
+    "replayHint": "Odtwórz animację klapek",
+    "previewTarget": "Cel podglądu",
+    "previewTargetTrigger": "Podgląd na {target}"
   },
   "phonePairing": {
     "title": "Połącz telefon",
@@ -3980,6 +3995,7 @@
     "overflowChecked": "Sprawdzone przez hub przy rzeczywistej szerokości {board} · {time}",
     "overflowCheckedNoBoard": "Sprawdzone przez hub przy rzeczywistej szerokości tej tablicy · {time}",
     "overflowWrap": "Zawiń wiersz {line}",
+    "overflowMore": "Obcięte także: {lines}",
     "bandsLabel": "Pasma wierszy",
     "bandMoveUp": "Przenieś w górę",
     "bandMoveDown": "Przenieś w dół",
@@ -4054,7 +4070,6 @@
     "showingUntil": "Teraz wyświetlana na {board} · do {time}",
     "showingNow": "Teraz wyświetlana na {board}",
     "scheduledOn": "Zaplanowana na {board}",
-    "notScheduledMessage": "Nie ma w harmonogramie żadnego wyświetlacza",
     "problemsLink": "{count, plural, one {# problem} few {# problemy} many {# problemów} other {# problemu}}",
     "saveDraft": "Zapisz szkic",
     "savingDraft": "Zapisywanie szkicu…",
@@ -4213,7 +4228,6 @@
     "renderAtLabel": "Podgląd formuł o wybranej godzinie",
     "renderAtReset": "Podgląd o bieżącej godzinie",
     "renderAtNote": "„O {time}” oblicza formuły tak, jakby była godzina {time}; dane integracji to to, co hub ma teraz.",
-    "sampleTitle": "Dane przykładowe — nie na żywo",
     "sampleNote": "Przykład pokazuje przykładowe wartości każdej integracji. Wyświetlanie na tablicy jest wyłączone podczas podglądu danych przykładowych.",
     "sampleUnsampled": "Brak przykładowych wartości dla {plugins}; pokazują bieżące dane z huba.",
     "previewFailed": "Nie udało się wyświetlić tego podglądu. Sprawdź szablon i spróbuj ponownie.",

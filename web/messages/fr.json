@@ -752,7 +752,18 @@
       "weekdaysShort": "Lun–Ven",
       "weekendsShort": "Sam–Dim",
       "customShort": "Autres",
-      "openEnded": "Sans fin"
+      "openEnded": "Sans fin",
+      "moreOptions": "Plus d’options",
+      "timeRangeTo": "à",
+      "startsAtSun": {
+        "sunrise": "Commence au lever du soleil",
+        "sunset": "Commence au coucher du soleil"
+      },
+      "endsAtSun": {
+        "sunrise": "Se termine au lever du soleil",
+        "sunset": "Se termine au coucher du soleil"
+      },
+      "entryOff": "Entrée désactivée"
     },
     "copy": {
       "open": "Copier depuis un autre écran…",
@@ -3831,7 +3842,11 @@
     "thisDisplay": "cet écran",
     "startFrom": "Ou commencez par",
     "insertVariable": "Insérer une variable",
-    "browseStaffPicks": "Parcourir les Sélections de l’équipe"
+    "browseStaffPicks": "Parcourir les Sélections de l’équipe",
+    "replay": "Rejouer",
+    "replayHint": "Lire l’animation des palettes",
+    "previewTarget": "Cible de l’aperçu",
+    "previewTargetTrigger": "Aperçu sur {target}"
   },
   "phonePairing": {
     "title": "Connecter un téléphone",
@@ -3980,6 +3995,7 @@
     "overflowChecked": "Vérifié par le hub à la largeur réelle de {board} · {time}",
     "overflowCheckedNoBoard": "Vérifié par le hub à la largeur réelle de ce tableau · {time}",
     "overflowWrap": "Renvoyer la ligne {line}",
+    "overflowMore": "Également coupées : {lines}",
     "bandsLabel": "Bandes de lignes",
     "bandMoveUp": "Monter",
     "bandMoveDown": "Descendre",
@@ -4054,7 +4070,6 @@
     "showingUntil": "Affichée sur {board} en ce moment · jusqu’à {time}",
     "showingNow": "Affichée sur {board} en ce moment",
     "scheduledOn": "Planifiée sur {board}",
-    "notScheduledMessage": "Dans aucune programmation d’écran",
     "problemsLink": "{count, plural, one {# problème} other {# problèmes}}",
     "saveDraft": "Enregistrer le brouillon",
     "savingDraft": "Enregistrement du brouillon…",
@@ -4213,7 +4228,6 @@
     "renderAtLabel": "Prévisualiser les formules à une heure donnée",
     "renderAtReset": "Aperçu à l’heure actuelle",
     "renderAtNote": "« À {time} » évalue les formules comme s’il était {time} ; les données d’intégration sont celles que le hub a actuellement.",
-    "sampleTitle": "Données d’exemple — pas en direct",
     "sampleNote": "Exemple affiche les valeurs d’exemple de chaque intégration. La reproduction sur le tableau est désactivée pendant l’aperçu des données d’exemple.",
     "sampleUnsampled": "Aucune valeur d’exemple pour {plugins} ; ils affichent les données actuelles du hub.",
     "previewFailed": "Cet aperçu n’a pas pu être généré. Vérifiez le modèle, puis réessayez.",

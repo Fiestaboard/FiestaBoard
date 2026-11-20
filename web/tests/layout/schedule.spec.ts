@@ -132,6 +132,12 @@ for (const width of [390, 768, 1280]) {
       if (width < 768) await expect(page.locator('[data-slot="sheet-grabber"]')).toBeVisible();
       await shot("entry", false);
       await axe();
+      if (width < 768) {
+        // BB-C-5: the phone sheet is the compact form, Save in view without scrolling.
+        await expect(page.locator('[data-slot="schedule-entry-form"]')).toHaveAttribute("data-layout", "compact");
+        await expect(page.getByRole("button", { name: "Save", exact: true })).toBeInViewport({ ratio: 1 });
+        await page.getByRole("button", { name: "More options" }).click();
+      }
       await page.getByRole("radio", { name: "Specific date", exact: true }).click();
       await expect(page.getByLabel("Date", { exact: true })).toHaveAttribute("type", "date");
       await shot("date-entry", false);

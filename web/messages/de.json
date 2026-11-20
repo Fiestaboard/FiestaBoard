@@ -752,7 +752,18 @@
       "weekdaysShort": "Mo–Fr",
       "weekendsShort": "Sa–So",
       "customShort": "Eigene",
-      "openEnded": "Offen"
+      "openEnded": "Offen",
+      "moreOptions": "Weitere Optionen",
+      "timeRangeTo": "bis",
+      "startsAtSun": {
+        "sunrise": "Beginnt bei Sonnenaufgang",
+        "sunset": "Beginnt bei Sonnenuntergang"
+      },
+      "endsAtSun": {
+        "sunrise": "Endet bei Sonnenaufgang",
+        "sunset": "Endet bei Sonnenuntergang"
+      },
+      "entryOff": "Eintrag ist aus"
     },
     "copy": {
       "open": "Von anderem Display kopieren…",
@@ -3831,7 +3842,11 @@
     "thisDisplay": "dieses Display",
     "startFrom": "Oder beginne mit",
     "insertVariable": "Eine Variable einfügen",
-    "browseStaffPicks": "Empfehlungen durchsuchen"
+    "browseStaffPicks": "Empfehlungen durchsuchen",
+    "replay": "Abspielen",
+    "replayHint": "Split-Flap-Animation abspielen",
+    "previewTarget": "Vorschauziel",
+    "previewTargetTrigger": "Vorschau auf {target}"
   },
   "phonePairing": {
     "title": "Smartphone verbinden",
@@ -3980,6 +3995,7 @@
     "overflowChecked": "Vom Hub in der echten Breite von {board} geprüft · {time}",
     "overflowCheckedNoBoard": "Vom Hub in der echten Breite dieses Boards geprüft · {time}",
     "overflowWrap": "Zeile {line} umbrechen",
+    "overflowMore": "Ebenfalls abgeschnitten: {lines}",
     "bandsLabel": "Zeilenbänder",
     "bandMoveUp": "Nach oben",
     "bandMoveDown": "Nach unten",
@@ -4054,7 +4070,6 @@
     "showingUntil": "Wird jetzt auf {board} angezeigt · bis {time}",
     "showingNow": "Wird jetzt auf {board} angezeigt",
     "scheduledOn": "Geplant auf {board}",
-    "notScheduledMessage": "Auf keinem Display-Zeitplan",
     "problemsLink": "{count, plural, one {# Problem} other {# Probleme}}",
     "saveDraft": "Entwurf speichern",
     "savingDraft": "Entwurf wird gespeichert…",
@@ -4213,7 +4228,6 @@
     "renderAtLabel": "Formeln zu einer Zeit in der Vorschau anzeigen",
     "renderAtReset": "Vorschau zur aktuellen Zeit",
     "renderAtNote": "„Um {time}“ wertet Formeln aus, als wäre es {time}; Integrationsdaten sind der aktuelle Stand des Hubs.",
-    "sampleTitle": "Beispieldaten — nicht live",
     "sampleNote": "Beispiel zeigt die Beispielwerte jeder Integration. Spiegeln aufs Board ist aus, solange du Beispieldaten ansiehst.",
     "sampleUnsampled": "Keine Beispielwerte für {plugins}; dort erscheinen die aktuellen Daten des Hubs.",
     "previewFailed": "Diese Vorschau konnte nicht erstellt werden. Vorlage prüfen und erneut versuchen.",

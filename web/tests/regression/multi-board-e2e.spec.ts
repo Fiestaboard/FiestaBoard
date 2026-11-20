@@ -286,6 +286,8 @@ test.describe("regression: multi-board — mixed fleet through the real UI", () 
     await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 15_000 });
 
     // Flagship (6x22) -> Note (3x15): a shrinking retarget confirms first.
+    // BB-E-6: size and target live behind the preview header's meta.
+    await page.getByTestId("preview-target-trigger").click();
     await page.getByLabel("Change board size").click();
     await page.getByRole("option", { name: "Note", exact: true }).click();
     await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });

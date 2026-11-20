@@ -376,6 +376,16 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(within(nav).queryByRole("link", { name: /^Commute/ })).toBeNull();
   });
 
+  it("keeps the Explorer lists' children listitems (BB-B-20: axe aria-required-children)", async () => {
+    mockHub();
+    const { slot } = renderIde();
+    const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
+    await within(nav).findByRole("link", { name: /Commute/ });
+    const lists = nav.querySelectorAll("ul");
+    expect(lists.length).toBeGreaterThan(0);
+    for (const list of lists) for (const child of Array.from(list.children)) expect(child.tagName).toBe("LI");
+  });
+
   it("validates at the open display's width with the page geometry", async () => {
     const calls = mockHub();
     renderIde();
@@ -449,8 +459,23 @@ describe("status row and header actions", () => {
       ),
     );
     const { onSaveActionsChange } = renderIde();
-    expect(await screen.findByText("Not on any display’s schedule")).toBeInTheDocument();
-    expect(onSaveActionsChange).toHaveBeenLastCalledWith(undefined);
+    await waitFor(() => expect(onSaveActionsChange).toHaveBeenLastCalledWith(undefined));
+    const status = await waitFor(() => {
+      const row = document.querySelector<HTMLElement>('[data-slot="preview-status"]');
+      expect(row).toHaveAttribute("data-display", "not-scheduled");
+      return row!;
+    });
+    // Said once (BB-E-26): the chip, not the chip and a sentence repeating it.
+    expect(within(status).getByText("Not scheduled")).toBeInTheDocument();
+    expect(within(status).queryByText("Not on any display’s schedule")).not.toBeInTheDocument();
+  });
+
+  it("leaves a saved page's save state to the header, not a second Saved chip (BB-E-26)", async () => {
+    mockHub();
+    renderIde();
+    expect(await screen.findByText(/Showing on Den TV now/)).toBeInTheDocument();
+    const status = document.querySelector<HTMLElement>('[data-slot="preview-status"]')!;
+    expect(within(status).queryByText("Saved")).not.toBeInTheDocument();
   });
 
   it("discards a draft this session saved once the editor saves the page itself", async () => {

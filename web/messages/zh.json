@@ -752,7 +752,18 @@
       "weekdaysShort": "工作日",
       "weekendsShort": "周末",
       "customShort": "自定",
-      "openEnded": "无结束"
+      "openEnded": "无结束",
+      "moreOptions": "更多选项",
+      "timeRangeTo": "至",
+      "startsAtSun": {
+        "sunrise": "日出时开始",
+        "sunset": "日落时开始"
+      },
+      "endsAtSun": {
+        "sunrise": "日出时结束",
+        "sunset": "日落时结束"
+      },
+      "entryOff": "日程已关闭"
     },
     "copy": {
       "open": "从其他显示屏复制…",
@@ -3831,7 +3842,11 @@
     "thisDisplay": "此显示屏",
     "startFrom": "也可以从这里开始",
     "insertVariable": "插入变量",
-    "browseStaffPicks": "浏览团队精选"
+    "browseStaffPicks": "浏览团队精选",
+    "replay": "重播",
+    "replayHint": "播放翻牌动画",
+    "previewTarget": "预览目标",
+    "previewTargetTrigger": "在 {target} 上预览"
   },
   "phonePairing": {
     "title": "连接手机",
@@ -3980,6 +3995,7 @@
     "overflowChecked": "已由中枢按 {board} 的实际宽度检查 · {time}",
     "overflowCheckedNoBoard": "已由中枢按此看板的实际宽度检查 · {time}",
     "overflowWrap": "第 {line} 行自动换行",
+    "overflowMore": "同样被截断：{lines}",
     "bandsLabel": "行分段",
     "bandMoveUp": "上移",
     "bandMoveDown": "下移",
@@ -4054,7 +4070,6 @@
     "showingUntil": "正在 {board} 上显示 · 直到 {time}",
     "showingNow": "正在 {board} 上显示",
     "scheduledOn": "已在 {board} 上排程",
-    "notScheduledMessage": "不在任何显示屏的排程中",
     "problemsLink": "{count, plural, other {# 个问题}}",
     "saveDraft": "保存草稿",
     "savingDraft": "正在保存草稿…",
@@ -4213,7 +4228,6 @@
     "renderAtLabel": "按指定时间预览公式",
     "renderAtReset": "按当前时间预览",
     "renderAtNote": "“在 {time}”会按照现在是 {time} 来计算公式；集成数据则是中枢当前拥有的数据。",
-    "sampleTitle": "示例数据 — 非实时",
     "sampleNote": "示例显示每个集成的示例值。预览示例数据时，同步到看板处于关闭状态。",
     "sampleUnsampled": "{plugins} 没有示例值；它们显示中枢的当前数据。",
     "previewFailed": "无法渲染此预览。请检查模板后重试。",

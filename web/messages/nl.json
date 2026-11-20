@@ -752,7 +752,18 @@
       "weekdaysShort": "Ma–Vr",
       "weekendsShort": "Za–Zo",
       "customShort": "Eigen",
-      "openEnded": "Open"
+      "openEnded": "Open",
+      "moreOptions": "Meer opties",
+      "timeRangeTo": "tot",
+      "startsAtSun": {
+        "sunrise": "Begint bij zonsopgang",
+        "sunset": "Begint bij zonsondergang"
+      },
+      "endsAtSun": {
+        "sunrise": "Eindigt bij zonsopgang",
+        "sunset": "Eindigt bij zonsondergang"
+      },
+      "entryOff": "Item staat uit"
     },
     "copy": {
       "open": "Kopiëren van ander scherm…",
@@ -3831,7 +3842,11 @@
     "thisDisplay": "dit scherm",
     "startFrom": "Of begin met",
     "insertVariable": "Een variabele invoegen",
-    "browseStaffPicks": "Aanbevolen inhoud bekijken"
+    "browseStaffPicks": "Aanbevolen inhoud bekijken",
+    "replay": "Afspelen",
+    "replayHint": "Split-flap-animatie afspelen",
+    "previewTarget": "Voorbeelddoel",
+    "previewTargetTrigger": "Voorbeeld op {target}"
   },
   "phonePairing": {
     "title": "Een telefoon verbinden",
@@ -3980,6 +3995,7 @@
     "overflowChecked": "Door de hub gecontroleerd op de echte breedte van {board} · {time}",
     "overflowCheckedNoBoard": "Door de hub gecontroleerd op de echte breedte van dit bord · {time}",
     "overflowWrap": "Regel {line} laten teruglopen",
+    "overflowMore": "Ook afgekapt: {lines}",
     "bandsLabel": "Rijbanden",
     "bandMoveUp": "Omhoog",
     "bandMoveDown": "Omlaag",
@@ -4054,7 +4070,6 @@
     "showingUntil": "Nu te zien op {board} · tot {time}",
     "showingNow": "Nu te zien op {board}",
     "scheduledOn": "Ingepland op {board}",
-    "notScheduledMessage": "Op geen enkel displayschema",
     "problemsLink": "{count, plural, one {# probleem} other {# problemen}}",
     "saveDraft": "Concept opslaan",
     "savingDraft": "Concept opslaan…",
@@ -4213,7 +4228,6 @@
     "renderAtLabel": "Formules bekijken op een tijdstip",
     "renderAtReset": "Voorbeeld op de huidige tijd",
     "renderAtNote": "“Om {time}” evalueert formules alsof het {time} is; integratiegegevens zijn wat de hub nu heeft.",
-    "sampleTitle": "Voorbeeldgegevens — niet live",
     "sampleNote": "Voorbeeld toont de voorbeeldwaarden van elke integratie. Op het bord weergeven staat uit zolang je voorbeeldgegevens bekijkt.",
     "sampleUnsampled": "Geen voorbeeldwaarden voor {plugins}; die tonen de huidige gegevens van de hub.",
     "previewFailed": "Dit voorbeeld kon niet worden weergegeven. Controleer het sjabloon en probeer het opnieuw.",

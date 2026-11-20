@@ -752,7 +752,18 @@
       "weekdaysShort": "Mån–Fre",
       "weekendsShort": "Lör–Sön",
       "customShort": "Egna",
-      "openEnded": "Öppet"
+      "openEnded": "Öppet",
+      "moreOptions": "Fler alternativ",
+      "timeRangeTo": "till",
+      "startsAtSun": {
+        "sunrise": "Börjar vid soluppgång",
+        "sunset": "Börjar vid solnedgång"
+      },
+      "endsAtSun": {
+        "sunrise": "Slutar vid soluppgång",
+        "sunset": "Slutar vid solnedgång"
+      },
+      "entryOff": "Posten är av"
     },
     "copy": {
       "open": "Kopiera från en annan skärm…",
@@ -3831,7 +3842,11 @@
     "thisDisplay": "den här skärmen",
     "startFrom": "Eller börja med",
     "insertVariable": "Infoga en variabel",
-    "browseStaffPicks": "Bläddra bland Personalens val"
+    "browseStaffPicks": "Bläddra bland Personalens val",
+    "replay": "Spela upp",
+    "replayHint": "Spela upp vändbladsanimationen",
+    "previewTarget": "Förhandsvisningsmål",
+    "previewTargetTrigger": "Förhandsvisa på {target}"
   },
   "phonePairing": {
     "title": "Anslut en telefon",
@@ -3980,6 +3995,7 @@
     "overflowChecked": "Kontrollerat av hubben vid {board}s verkliga bredd · {time}",
     "overflowCheckedNoBoard": "Kontrollerat av hubben vid tavlans verkliga bredd · {time}",
     "overflowWrap": "Radbryt rad {line}",
+    "overflowMore": "Även avklippta: {lines}",
     "bandsLabel": "Radband",
     "bandMoveUp": "Flytta upp",
     "bandMoveDown": "Flytta ned",
@@ -4054,7 +4070,6 @@
     "showingUntil": "Visas nu på {board} · till {time}",
     "showingNow": "Visas nu på {board}",
     "scheduledOn": "Schemalagd på {board}",
-    "notScheduledMessage": "Inte i någon skärms schema",
     "problemsLink": "{count, plural, one {# problem} other {# problem}}",
     "saveDraft": "Spara utkast",
     "savingDraft": "Sparar utkast…",
@@ -4213,7 +4228,6 @@
     "renderAtLabel": "Förhandsvisa formler vid en tidpunkt",
     "renderAtReset": "Förhandsvisa vid aktuell tid",
     "renderAtNote": "”Vid {time}” utvärderar formler som om klockan var {time}; integrationsdata är det hubben har just nu.",
-    "sampleTitle": "Exempeldata — inte live",
     "sampleNote": "Exempel visar varje integrations exempelvärden. Spegling på tavlan är av medan du förhandsvisar exempeldata.",
     "sampleUnsampled": "Inga exempelvärden för {plugins}; de visar hubbens aktuella data.",
     "previewFailed": "Förhandsvisningen kunde inte skapas. Kontrollera mallen och försök igen.",

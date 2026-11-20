@@ -42,6 +42,7 @@ const ThumbnailBoard = memo(function ThumbnailBoard({
   defaultMode: _defaultMode,
   persist: _persist,
   showModeToggle: _showModeToggle,
+  animate: _animate,
   ...props
 }: BoardViewportProps) {
   const t = useTranslations("boardDisplay");
