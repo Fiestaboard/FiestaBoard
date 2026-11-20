@@ -45,6 +45,11 @@ export interface FormulaIdeBridge {
   variableHint?: (path: string) => AtomHint | undefined;
   /** The board and preview data a formula sheet evaluates against (BB-FP-14). */
   preview?: FormulaPreviewTarget | null;
+  /**
+   * The 1-based template line the docked editor or Inspect is about; the
+   * template tints it (Figma 111:30911, 132:20145; BB-FP-15/16).
+   */
+  activeLine?: number | null;
 }
 
 export const FormulaIdeContext = createContext<FormulaIdeBridge | null>(null);

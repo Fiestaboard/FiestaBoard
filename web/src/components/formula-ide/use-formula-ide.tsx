@@ -298,6 +298,7 @@ export function useFormulaIde({
       hint: (expression) => hints.get(normalizeSource(expression)),
       variableHint: (path) => variableHints.get(path),
       preview: formulaPreview,
+      activeLine: desktop && (open !== null || (inspect && focus !== null)) ? (focusFormula?.line ?? null) : null,
       openFormula: (request) => {
         if (!desktop || target === null) return false;
         openCounter.current += 1;
@@ -314,7 +315,7 @@ export function useFormulaIde({
         }
       },
     }),
-    [hints, variableHints, formulaPreview, desktop, target],
+    [hints, variableHints, formulaPreview, desktop, target, open, inspect, focus, focusFormula],
   );
 
   const inert = target === null;
