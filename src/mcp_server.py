@@ -3043,7 +3043,7 @@ def _build_mcp_server() -> Any:
         board appears in the boards list and can be targeted like any board.
 
         Args:
-            name: Display name for the panel (the board is named "<name> (Panel)").
+            name: Display name for the panel and its board.
             screen_diagonal_inches: TV size in inches (3–200, default 55).
             screen_aspect_w: Aspect ratio width (default 16).
             screen_aspect_h: Aspect ratio height (default 9).

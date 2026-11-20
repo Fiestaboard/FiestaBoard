@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ActiveScheduleResponse, BoardInstance, Collection, ScheduleEntry } from "@/lib/api";
+import { drawnDifferently } from "@/lib/charset-issues";
 import { deriveEditState, derivePreviewDisplay, offersDraft } from "@/lib/ide/edit-state";
 import { ideDataSources, inspectorTabIds, isIdeTabId, resolveInspectorTab } from "@/lib/ide/inspector-tabs";
 import { jumpToTemplateLine, lineStartPosition, textOffsetOfLine } from "@/lib/ide/jump-to-line";
@@ -150,6 +151,20 @@ describe("problems", () => {
     expect(substitutionSummary(warnings)).toEqual(["é → E"]);
     expect(warningsFromCharset(null)).toEqual([]);
   });
+  it("drops lowercase the board just shows in capitals (BB-B-7)", () => {
+    const fold = (col: number, from: string) => ({
+      row: 3,
+      col,
+      reason: "case" as const,
+      token: { type: "char" as const, value: from },
+      fallback: { type: "char" as const, value: from.toUpperCase() },
+    });
+    const issues = [...[..."aunch"].map((c, i) => fold(i + 4, c))];
+    expect(warningsFromCharset(issues)).toEqual([]);
+    expect(drawnDifferently(issues)).toEqual([]);
+    const accent = { ...fold(1, "é"), reason: "char" as const, fallback: { type: "char" as const, value: "E" } };
+    expect(drawnDifferently([...issues, accent])).toEqual([accent]);
+  });
   it("names color substitutions by code", () => {
     const [warning] = warningsFromCharset([
       {
@@ -296,8 +311,24 @@ describe("template references", () => {
     expect(refs.variables).toEqual([
       { line: 2, text: "muni.next" },
       { line: 2, text: "weather.temperature" },
+      { line: 3, text: "muni.alert" },
     ]);
     expect(refs.formulas.map((f) => f.line)).toEqual([1, 3]);
     expect(refs.fallbacks).toEqual([{ line: 3, text: 'DEFAULT(muni.alert, "OK")' }]);
+  });
+
+  it("lists the data a formula reads, not its strings, numbers or loop locals (BB-B-2)", async () => {
+    const { templateReferences } = await import("@/lib/ide/references");
+    const refs = templateReferences([
+      "{{= missing.value }}",
+      '{{= IFERROR(nope.x, "FALLBACK") }} {{= "a.b" & 18.5 }}',
+      '{{= FOREACH(transit.stops, item.eta & " " & item.name) }} {{= missing.value }}',
+    ]);
+    expect(refs.variables).toEqual([
+      { line: 1, text: "missing.value" },
+      { line: 2, text: "nope.x" },
+      { line: 3, text: "transit.stops" },
+      { line: 3, text: "missing.value" },
+    ]);
   });
 });

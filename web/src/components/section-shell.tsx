@@ -12,7 +12,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { createPortal } from "react-dom";
 
 import Link from "@/components/smart-link";
-import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
+import { useRailBreakpoint } from "@/hooks/use-below-rail";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -61,6 +61,7 @@ const ActionSlot = createContext<HTMLElement | null | undefined>(undefined);
  * an animation and without taking focus.
  */
 export function SectionShell({ icon, title, description, href, action, detail, fill, children }: SectionShellProps) {
+  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("common");
   const pathname = usePathname();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
@@ -101,7 +102,7 @@ export function SectionShell({ icon, title, description, href, action, detail, f
   }, [detail, pathname]);
 
   return (
-    <PageLayout railBreakpoint={RAIL_BREAKPOINT} fillHeight={fill}>
+    <PageLayout railBreakpoint={railBreakpoint} fillHeight={fill}>
       <PageCard fillHeight={fill}>
         <PageHeader icon={icon} title={title} description={description} collapsed={detail != null}>
           {action}

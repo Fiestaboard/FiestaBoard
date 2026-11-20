@@ -118,8 +118,13 @@ export function serializeTemplateSimple(doc: JSONContent, maxLines = 6): string 
 function serializeNodeContent(node: JSONContent): string {
   switch (node.type) {
     case "text":
-      // Strip end-of-line cursor placeholder and convert to uppercase
-      return (node.text || "").replace(/\u200B/g, "").toUpperCase();
+      // Strip end-of-line cursor placeholder and convert to uppercase. A
+      // space typed before an inline chip comes back as a no-break space,
+      // which no board draws: store a plain one (BB-B-6).
+      return (node.text || "")
+        .replace(/\u200B/g, "")
+        .replace(/\u00A0/g, " ")
+        .toUpperCase();
 
     case "variable":
       const filters = node.attrs?.filters || [];

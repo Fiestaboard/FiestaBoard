@@ -200,6 +200,19 @@ describe("PageBuilder", () => {
     expect(screen.getByText("Create Page")).toBeInTheDocument();
   });
 
+  // BB-B-18: on a touch screen the editor's own small controls grow to 44px
+  // (pointer-coarse); a mouse keeps the dense desktop sizes.
+  it("gives the editor's small controls 44px touch targets on a coarse pointer", async () => {
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
+    await screen.findByPlaceholderText("My Custom Page");
+    for (const name of ["Rich Editor", "Plain Text"]) {
+      expect(screen.getByRole("button", { name })).toHaveClass("pointer-coarse:h-11");
+    }
+    for (const name of [/preview.*black/i, /preview.*white/i]) {
+      expect(screen.getByRole("button", { name })).toHaveClass("pointer-coarse:size-11");
+    }
+  });
+
   it("shows preview display", async () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 

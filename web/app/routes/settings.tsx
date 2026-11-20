@@ -54,7 +54,7 @@ import Link from "@/components/smart-link";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { isUntouchedPlaceholder } from "@/components/wizard/default-board";
 import { useWizard } from "@/components/wizard-provider";
-import { RAIL_BREAKPOINT, useBelowRail } from "@/hooks/use-below-rail";
+import { useBelowRail, useRailBreakpoint } from "@/hooks/use-below-rail";
 import { useHubIdentity } from "@/hooks/use-hub-identity";
 import { useParams, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -83,6 +83,7 @@ const LEGACY_HARDWARE_SECTION = "hardware";
  * with a way back. It replaces six horizontal tabs that overflowed at 375px.
  */
 export default function SettingsPage() {
+  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("settings");
   const tHub = useTranslations("settings.hub");
   const { section: sectionParam } = useParams<{ section?: string }>();
@@ -232,7 +233,7 @@ export default function SettingsPage() {
   );
 
   return (
-    <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
+    <PageLayout railBreakpoint={railBreakpoint}>
       {belowRail && sectionParam ? (
         <Box className="mb-4">
           <ViewTransitionLink

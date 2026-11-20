@@ -175,7 +175,10 @@ test.describe("board previews fit or scroll inside their container on a phone", 
     );
   });
 
-  test("the dashboard keeps readable tiles and reaches its last column inside the bezel at 390px", async ({ page }) => {
+  // At 390 the Flagship now fits whole (phone-hero, BB-A-6); the scrolling
+  // contract is held at 360, below the kit's 13 px tile floor.
+  test("the dashboard keeps readable tiles and reaches its last column inside the bezel at 360px", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
     await page.goto("/");
     await waitForABoard(page);
 
@@ -193,7 +196,7 @@ test.describe("board previews fit or scroll inside their container on a phone", 
     }));
     expect(initial.tileWidth).toBeGreaterThanOrEqual(13);
     expect(initial.scrollWidth).toBeGreaterThan(initial.clientWidth);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(MOBILE.width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
 
     await scroller.focus();
     await page.keyboard.press("End");

@@ -20,7 +20,7 @@ import { HomeCompose } from "@/components/home/home-compose";
 import { StatusBannerHost } from "@/components/status-banners/status-banner-host";
 import { isUntouchedPlaceholder } from "@/components/wizard/default-board";
 import { useWizard } from "@/components/wizard-provider";
-import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
+import { useRailBreakpoint } from "@/hooks/use-below-rail";
 import { useBoardSettings } from "@/hooks/use-board";
 import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useRouter } from "@/hooks/use-router";
@@ -34,6 +34,7 @@ import { getSetupStatus } from "@/lib/setup-detection";
  * (nav, rail, bottom nav) is slice 2.1's.
  */
 export default function Home() {
+  const railBreakpoint = useRailBreakpoint();
   const [boardNotConfigured, setBoardNotConfigured] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [addingDisplay, setAddingDisplay] = useState(false);
@@ -60,7 +61,7 @@ export default function Home() {
   }, []);
 
   return (
-    <PageLayout outerClassName="relative" className="relative z-10" railBreakpoint={RAIL_BREAKPOINT}>
+    <PageLayout outerClassName="relative" className="relative z-10" railBreakpoint={railBreakpoint}>
       <PageHeader icon={HomeIcon} title={t("title")} description={t("description")} hue="orange">
         {!noDisplays && (
           <Button

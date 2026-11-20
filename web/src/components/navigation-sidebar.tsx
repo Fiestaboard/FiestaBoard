@@ -2,6 +2,7 @@
 
 import { BoardSelector, Sidebar, type SidebarLinkProps, type SidebarNavItem } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
@@ -11,8 +12,9 @@ import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { useAppBadge } from "@/hooks/use-app-badge";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
-import { RAIL_BREAKPOINT, useBelowRail, useTabletRailCollapse } from "@/hooks/use-below-rail";
+import { useBelowRail, useRailBreakpoint, useTabletRailCollapse } from "@/hooks/use-below-rail";
 import { usePrefetchPagesData } from "@/hooks/use-board";
+import { useDisplaysNeedingALook } from "@/hooks/use-displays-needing-a-look";
 import { useHubLine } from "@/hooks/use-hub-connection";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -27,6 +29,7 @@ import { integrationsNeedingAttention, isNavItemActive, type NavItemDef, navItem
  * all live here; every pixel lives in @fiestaboard/ui.
  */
 export function NavigationSidebar() {
+  const railBreakpoint = useRailBreakpoint();
   const pathname = usePathname();
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, setCollapsed, onTransitionEnd } = useSidebar();
@@ -89,6 +92,17 @@ export function NavigationSidebar() {
   // single-board install adds no status poll for it.
   const tHub = useTranslations("statusBanners");
   const { host: hubHost, status: hubStatus } = useHubLine({ enabled: !chromeless && boards.length > 1 });
+  // The hub line says how the hub is reached; each display's own trouble is
+  // its dot and words in the switcher, by the Displays list's rules (BB-A-10).
+  const tFleet = useTranslations("displays.fleet");
+  const needsALook = useDisplaysNeedingALook(boards, { enabled: !chromeless && boards.length > 1 });
+  const flagged = [...needsALook].sort().join(",");
+  const selectorBoards = useMemo(
+    () => boards.map((board) => (needsALook.has(board.id) ? { ...board, status: "error" as const } : board)),
+    // `needsALook` is a fresh Set each render; `flagged` is its stable value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [boards, flagged],
+  );
 
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer
@@ -117,6 +131,7 @@ export function NavigationSidebar() {
     boardSelector: t("boardSelector"),
     selectBoard: t("selectBoard"),
     unnamedBoard: t("unnamedBoard"),
+    boardError: tFleet("attention"),
     hubStatus: { online: tHub("hubOnline"), remote: tHub("hubRemote"), unreachable: tHub("hubUnreachable") },
   };
 
@@ -136,7 +151,7 @@ export function NavigationSidebar() {
       // Below 768px a tab bar (Home · Pages · Schedule · Displays · More);
       // from 768px the rail. MainContent takes the same breakpoint.
       variant="bottom-nav"
-      railBreakpoint={RAIL_BREAKPOINT}
+      railBreakpoint={railBreakpoint}
       items={navItemsFor(chrome).map(toNavItem)}
       renderLink={renderLink}
       collapsed={collapsed}
@@ -152,7 +167,7 @@ export function NavigationSidebar() {
       boardSelector={
         boards.length > 1 ? (
           <BoardSelector
-            boards={boards}
+            boards={selectorBoards}
             value={currentBoardId}
             onChange={setCurrentBoardId}
             labels={boardSelectorLabels}
@@ -165,7 +180,7 @@ export function NavigationSidebar() {
       mobileBoardSelector={
         boards.length > 1 ? (
           <BoardSelector
-            boards={boards}
+            boards={selectorBoards}
             value={currentBoardId}
             onChange={setCurrentBoardId}
             labels={boardSelectorLabels}

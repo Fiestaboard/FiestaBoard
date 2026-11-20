@@ -83,6 +83,20 @@ class BoardListResponse(BaseModel):
     total: int
 
 
+ChangeReason = Literal["override_ends", "schedule", "silence_starts", "silence_ends", "collection"]
+
+
+class UpcomingChange(BaseModel):
+    """One predicted change on a board (``BoardDetail.upcoming_changes``)."""
+
+    at: str = Field(description="When it happens (ISO 8601 UTC, whole seconds).")
+    reason: ChangeReason = Field(description="Why, as in ``next_change_reason``.")
+    page_id: str | None = Field(
+        default=None,
+        description="The page or collection in force after it, when the hub can know it.",
+    )
+
+
 class BoardDetail(BoardSummary):
     """One board plus what is on it right now.
 
@@ -163,6 +177,36 @@ class BoardDetail(BoardSummary):
         description=(
             "The page or collection in force after next_change_at, when the hub can know it; null when it "
             "cannot (a collection rotation, a blank revert, a quiet-hours indicator)."
+        ),
+    )
+    schedule_next_change_at: str | None = Field(
+        default=None,
+        description=(
+            "When this board's schedule next hands over to a different page (ISO 8601 UTC, whole seconds), "
+            "as if no override were running and ignoring quiet hours. Unlike next_change_at it stays known "
+            "while an override runs, so a replacing override can hold until it. Null in manual mode, while "
+            "paused, or when nothing changes within 8 days."
+        ),
+    )
+    schedule_next_page_id: str | None = Field(
+        default=None,
+        description="The page or collection the schedule names after schedule_next_change_at; null in a gap.",
+    )
+    upcoming_changes: list[UpcomingChange] = Field(
+        default_factory=list,
+        description=(
+            "Up to three predicted changes, earliest first. The first is next_change_at; each later one follows "
+            "the hub's rules from the one before: quiet hours starting and ending, and the schedule's hand-overs "
+            "outside them (a hand-over inside quiet hours is not shown on the board, so it is not listed). A running "
+            "override's own collection rotation ends the list, as does the 8-day horizon. Empty when "
+            "next_change_at is null."
+        ),
+    )
+    override_page_id: str | None = Field(
+        default=None,
+        description=(
+            "The page or collection this board's active override shows, or null for a composed message or "
+            "when no override is running."
         ),
     )
     override_started_at: str | None = Field(

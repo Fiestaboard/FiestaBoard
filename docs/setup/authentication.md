@@ -31,7 +31,7 @@ login and panel display endpoints are listed below.
    username and password.
 
 3. **Sign in.** You'll be redirected to the dashboard with a session
-   cookie. Tick **Keep me logged in** (on by default) to stay signed in
+   cookie. Tick **Keep me signed in on this browser** (on by default) to stay signed in
    across browser restarts; clear it on a shared or public computer so the
    session ends when you close the browser. Manage your account (rename,
    change password, sign out) from **Settings → Account**.
@@ -59,7 +59,7 @@ future request.
 - **Cookies** are `HttpOnly`, `SameSite=Lax`, and `Secure` when the request
   comes in over HTTPS (FiestaBoard trusts the `X-Forwarded-Proto` header
   set by its bundled nginx).
-- **"Keep me logged in"** controls how long the session survives:
+- **"Keep me signed in on this browser"** controls how long the session survives:
   - **Checked** → a *persistent* cookie with a `Max-Age` (30 days by
     default) that outlives browser restarts.
   - **Unchecked** → a *session* cookie (no `Max-Age`) that the browser
@@ -77,8 +77,8 @@ future request.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `FIESTABOARD_AUTH_ENABLED` | *(unset, first-run picker)* | `true`/`1`/`yes`/`on` force-enables, `false`/`0`/`no`/`off` force-disables. Unset = use stored preference; if none, show the first-run picker. |
-| `FIESTABOARD_SESSION_TTL_SECONDS` | `604800` (7d) | Lifetime for a normal sign-in (without "Keep me logged in"), in seconds. Caps the session-cookie token. |
-| `FIESTABOARD_REMEMBER_ME_TTL_SECONDS` | `2592000` (30d) | Lifetime when "Keep me logged in" is checked, in seconds. Sets both the persistent cookie's `Max-Age` and the token expiry. |
+| `FIESTABOARD_SESSION_TTL_SECONDS` | `604800` (7d) | Lifetime for a normal sign-in (without "Keep me signed in on this browser"), in seconds. Caps the session-cookie token. |
+| `FIESTABOARD_REMEMBER_ME_TTL_SECONDS` | `2592000` (30d) | Lifetime when "Keep me signed in on this browser" is checked, in seconds. Sets both the persistent cookie's `Max-Age` and the token expiry. |
 | `FIESTABOARD_MCP_TOKEN` | *(unset)* | Pre-shared bearer token for `/api/mcp/`. Takes precedence over a token stored from **Settings → AI**, and disables the UI's rotate/revoke buttons. See [MCP clients and the bearer token](#mcp-clients-and-the-bearer-token). |
 | `FIESTABOARD_CORS_ORIGINS` | *(unset, no credentialed cross-origin access)* | Comma-separated list of exact origins allowed to send credentials on cross-origin browser requests. See [Cross-origin browser access](#cross-origin-browser-access-cors). |
 
