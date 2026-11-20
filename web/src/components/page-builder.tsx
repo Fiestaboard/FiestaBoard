@@ -36,7 +36,6 @@ import {
   DropdownMenuTrigger,
   EditorPreview,
   Flex,
-  Input,
   readStoredBoardPreviewMode,
   Select,
   SelectContent,
@@ -60,7 +59,7 @@ import {
   writeStoredBoardPreviewMode,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload, Variable, Zap } from "lucide-react";
+import { ArrowLeft, ChevronLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload, Variable, Zap } from "lucide-react";
 import {
   forwardRef,
   lazy,
@@ -114,6 +113,7 @@ import {
   useStatus,
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useEditorScrollMargin } from "@/hooks/use-editor-scroll-margin";
 import { useEditorViewportDock } from "@/hooks/use-editor-viewport-dock";
 import { useLineOverflow } from "@/hooks/use-line-overflow";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -378,6 +378,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const dockedPreview = useMediaQuery("(max-width: 1023px)");
   const sheetPickers = useMediaQuery("(max-width: 639px)");
   const useTouchToolbar = useMediaQuery("(max-width: 767px), (pointer: coarse)");
+  // Under 390px Save is its icon, so the page name keeps two readable lines (BB-B-3).
+  const narrowHeader = useMediaQuery("(max-width: 389px)");
   const editorContentRef = useRef<HTMLDivElement>(null);
   const dockPreviewRef = useRef<HTMLElement>(null);
   const viewportBottom = useEditorViewportDock(dockedPreview && useTouchToolbar, editorContentRef, dockPreviewRef);
@@ -399,6 +401,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
+  const tNav = useTranslations("navigation");
   const tCanvas = useTranslations("canvasEditor");
   const tDisplaySettings = useTranslations("displaySettings");
   const tPanels = useTranslations("fiestaPanels");
@@ -1315,6 +1318,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     queryFn: () => api.getPage(pageId!),
     enabled: !!pageId,
   });
+  const caretScrollMargin = useEditorScrollMargin(
+    dockedPreview && !(pageId && loadingPage),
+    editorContentRef,
+    viewportBottom,
+  );
 
   // Transition plugins (beta, deprecated): offered only while the flag is on,
   // since the backend refuses a `plugin:` strategy otherwise. The installed
@@ -2858,9 +2866,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             embedded && "rounded-none border-0 bg-transparent shadow-none",
           )}
         >
-          <CardHeader className="sticky top-0 z-20 h-14 lg:min-h-16 bg-background flex-shrink-0 gap-0 px-2 lg:px-4 py-0">
+          <CardHeader
+            className={cn(
+              "sticky top-0 z-20 bg-background flex-shrink-0 gap-0 px-2 lg:px-4",
+              // Docked: one fixed height, so the preview docks right under it.
+              dockedPreview ? "h-16 py-1" : "h-14 lg:min-h-16 py-0",
+            )}
+          >
             <Flex align="center" className="h-full min-w-0 flex-nowrap gap-1.5">
-              {(!embedded || dockedPreview) && (
+              {/* The editor's own way back: the section draws no breadcrumb
+                around it (BB-B-4, BB-B-19). "‹ Pages" on desktop (184:159319). */}
+              {dockedPreview ? (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -2870,24 +2886,59 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 >
                   <ArrowLeft className="size-4" />
                 </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="h-11 shrink-0 gap-1 px-2"
+                  onClick={onClose}
+                  aria-label={t("backToPages")}
+                >
+                  <ChevronLeft className="size-4" aria-hidden="true" />
+                  {tNav("pages")}
+                </Button>
               )}
-              <Box className="relative h-11 lg:h-12 min-w-0 flex-1">
+              <Box className={cn("relative min-w-0 flex-1", !dockedPreview && "h-11 lg:h-12")}>
                 <label htmlFor="page-name" className="sr-only">
                   {t("pageNameLabel")}
                 </label>
                 <CardTitle className="sr-only">{name || (pageId ? t("editPage") : t("createPage"))}</CardTitle>
-                <Input
+                {/* One field at every width, so focus survives a resize. Docked
+                  (phone, tablet) the name wraps onto a second line beside Save
+                  and Show now, with the save status under it (57:64661;
+                  BB-B-3). It is one line of text: Enter finishes editing. */}
+                <Textarea
                   id="page-name"
-                  type="text"
+                  rows={dockedPreview ? 2 : 1}
+                  wrap={dockedPreview ? "soft" : "off"}
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) => setName(event.target.value.replace(/[\r\n]+/g, " "))}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  // Show the name from its start again once editing ends.
+                  onBlur={(event) => {
+                    event.currentTarget.scrollTop = 0;
+                    event.currentTarget.scrollLeft = 0;
+                  }}
                   placeholder={t("pageNamePlaceholder")}
-                  className="h-11 lg:h-12 w-full min-w-0 border-transparent bg-transparent px-0 pt-0 pb-4 text-base lg:text-2xl font-semibold shadow-none"
+                  enterKeyHint="done"
+                  className={cn(
+                    "block min-h-0 w-full min-w-0 resize-none overflow-hidden rounded-none border-transparent bg-transparent font-semibold shadow-none",
+                    dockedPreview
+                      ? "max-h-[2lh] p-0 text-base leading-tight [field-sizing:content]"
+                      : "h-11 lg:h-12 px-0 pt-0 pb-4 text-base lg:text-2xl",
+                  )}
                 />
                 <Text
                   size="xs"
                   tone="muted"
-                  className="pointer-events-none absolute bottom-0 left-0 truncate font-mono"
+                  className={cn(
+                    "pointer-events-none truncate font-mono",
+                    dockedPreview ? "block" : "absolute bottom-0 left-0",
+                  )}
                 >
                   {hasUnsavedChanges
                     ? tTouch("unsaved")
@@ -2925,15 +2976,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <TooltipTrigger asChild>
                         <Button
                           variant="secondary"
-                          size={dockedPreview ? "touch" : "sm"}
-                          className="shrink-0 gap-1.5 px-3 text-sm"
+                          size={narrowHeader ? "icon-touch" : dockedPreview ? "touch" : "sm"}
+                          className={cn("shrink-0 text-sm", !narrowHeader && "gap-1.5 px-3")}
                           {...anchorProps("page-editor.save")}
                           onClick={requestSave}
                           disabled={saveMutation.isPending || stagingActive}
                           aria-label={t("savePageAriaLabel")}
                         >
                           <Save className="h-3.5 w-3.5" />
-                          {saveMutation.isPending ? tCommon("saving") : t("savePage")}
+                          {!narrowHeader && (saveMutation.isPending ? tCommon("saving") : t("savePage"))}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -3135,6 +3186,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           ) : (
                             <TipTapTemplateEditor
                               ref={tipTapRef}
+                              scrollMargin={caretScrollMargin}
                               value={newPageEmpty ? "" : templateLines.join("\n")}
                               onChange={handleRichEditorChange}
                               lineAlignments={lineAlignments}
@@ -3336,7 +3388,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   ref={dockPreviewRef}
                   id="page-editor-preview"
                   variant={dockedPreview ? "docked" : "pane"}
-                  className={cn("order-first lg:order-2 min-w-0 top-16 scroll-mt-16", dockedPreview && "px-0")}
+                  className={cn(
+                    "order-first lg:order-2 min-w-0",
+                    dockedPreview ? "top-16 scroll-mt-16 px-0" : "top-16 scroll-mt-16",
+                    // A landscape phone has no height for a docked board: it
+                    // scrolls with the template instead (BB-B-4).
+                    dockedPreview && "[@media(max-height:500px)]:static",
+                  )}
                   title={baselineDisplay ? tTouch("plainText") : (formulaIde.previewTitle ?? tTouch("livePreview"))}
                   dotStatus={baselineDisplay ? "warning" : (formulaIde.dotStatus ?? "success")}
                   boardName={previewBoard?.name}

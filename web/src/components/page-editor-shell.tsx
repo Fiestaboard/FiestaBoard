@@ -166,7 +166,7 @@ export function PageEditorShell({
         {pageId && <aside ref={setExplorerSlot} data-slot="ide-explorer-slot" className="contents" />}
         {/* No padding of its own: it sits in the Pages section's card, which
           already puts the editor on the content column. */}
-        <Stack className="h-full w-full min-w-0 flex-1 overflow-y-auto">
+        <Stack data-slot="page-editor-scroll" className="h-full w-full min-w-0 flex-1 overflow-y-auto">
           <PageBuilder
             embedded
             ref={builderRef}

@@ -1,9 +1,9 @@
 /**
- * Pages is a section: the page editor opens under "Pages › <page name>"
- * inside the Pages card, instead of sliding up as a separate full screen.
+ * Pages is a section. The list sits in the Pages card; the page editor
+ * replaces it with its own header (back to Pages, the name, Save).
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -57,34 +57,44 @@ describe("/pages section", () => {
     expect(document.querySelector("[data-slot=page-subheader]")).toHaveAttribute("data-state", "closed");
   });
 
-  it("names the page being edited under a breadcrumb back to Pages", async () => {
-    route.pathname = "/pages/edit/p1";
-    route.params = { id: "p1" };
-    renderSection();
-    expect(await screen.findByRole("heading", { level: 2, name: "Morning briefing" })).toBeInTheDocument();
-    const trail = screen.getByRole("navigation", { name: "Breadcrumb" });
-    expect(within(trail).getByRole("link", { name: "Pages" })).toHaveAttribute("href", "/pages");
-  });
+  // BB-B-4 / BB-B-19 (Figma 57:64661, 316:90600, 184:159319): the editor draws
+  // its own header (back to Pages, the name, Save), so the section's card
+  // header, breadcrumb and second h2 title are not drawn above it.
+  it.each([
+    ["/pages/edit/p1", { id: "p1" }, ""],
+    ["/pages/edit", {}, "id=p1"],
+    ["/pages/new", {}, ""],
+  ])(
+    "draws no section header, breadcrumb or card above the editor at %s",
+    (pathname, params: Record<string, string>, search) => {
+      route.pathname = pathname;
+      route.params = params;
+      route.search = search;
+      renderSection();
+      expect(screen.queryByRole("heading", { level: 1, name: "Pages" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
+      expect(document.querySelector("[data-slot=page-card]")).toHaveAttribute("data-surface", "plain");
+      expect(screen.getByText("body")).toBeInTheDocument();
+    },
+  );
 
-  it("reads the page from ?id= on the query-string editor route", async () => {
-    route.pathname = "/pages/edit";
-    route.search = "id=p1";
-    renderSection();
-    expect(await screen.findByRole("heading", { level: 2, name: "Morning briefing" })).toBeInTheDocument();
-  });
-
-  it("calls a page that is still being made a new page", () => {
+  // BB-B-9 (#2563) with the bare editor: after the first save the address
+  // shows /pages/edit/{id}, and the editor stays mounted with no section
+  // header drawn above it (the editor's own header names the page). The
+  // section still learns the created id: going back to the list puts focus on
+  // that page's tile. The next New Page starts fresh.
+  it("keeps the editor mounted after a new page's first save, and knows the page it made", async () => {
     route.pathname = "/pages/new";
-    renderSection();
-    expect(screen.getByRole("heading", { level: 2, name: "New Page" })).toBeInTheDocument();
-  });
-
-  // BB-B-9: after the first save the address shows /pages/edit/{id} (the
-  // editor stays mounted) and the title shows the page's name, not New Page.
-  it("names the page a new page's first save created", async () => {
-    route.pathname = "/pages/new";
-    function SaveFirst() {
+    function Body() {
       const report = useReportCreatedPage();
+      if (route.pathname === "/pages") {
+        return (
+          <button type="button" data-section-item="p1">
+            Morning briefing
+          </button>
+        );
+      }
       return (
         <button type="button" onClick={() => report?.("p1")}>
           save
@@ -95,21 +105,29 @@ describe("/pages section", () => {
     const tree = () => (
       <QueryClientProvider client={queryClient}>
         <PagesSection>
-          <SaveFirst />
+          <Body />
         </PagesSection>
       </QueryClientProvider>
     );
     const view = render(tree());
-    const rerender = () => view.rerender(tree());
-    expect(screen.getByRole("heading", { level: 2, name: "New Page" })).toBeInTheDocument();
-    screen.getByRole("button", { name: "save" }).click();
-    expect(await screen.findByRole("heading", { level: 2, name: "Morning briefing" })).toBeInTheDocument();
+    const before = screen.getByRole("button", { name: "save" });
+    act(() => before.click());
+    // The same node: the editor was not remounted by the report.
+    await waitFor(() => expect(screen.getByRole("button", { name: "save" })).toBe(before));
+    expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
+    expect(document.querySelector("[data-slot=page-card]")).toHaveAttribute("data-surface", "plain");
 
-    // Back to the list, then New Page again: a fresh page, not the last one.
     route.pathname = "/pages";
-    rerender();
+    view.rerender(tree());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Morning briefing" })).toHaveFocus());
+
+    // New Page again, then back without saving: nothing was made this time.
+    screen.getByRole("button", { name: "Morning briefing" }).blur();
     route.pathname = "/pages/new";
-    rerender();
-    expect(await screen.findByRole("heading", { level: 2, name: "New Page" })).toBeInTheDocument();
+    view.rerender(tree());
+    route.pathname = "/pages";
+    view.rerender(tree());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByRole("button", { name: "Morning briefing" })).not.toHaveFocus();
   });
 });
