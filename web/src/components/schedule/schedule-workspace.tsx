@@ -31,6 +31,7 @@ import { weeklyConflictRepair } from "@/lib/schedule-conflict-repair";
 
 import { ScheduleAgenda, type ScheduleView, supportsDatedGaps } from "./schedule-agenda";
 import { ScheduleCopy } from "./schedule-copy";
+import { useOverlapText } from "./schedule-entry-conflict";
 import { ScheduleLookup } from "./schedule-lookup";
 import { SchedulePagePreview } from "./schedule-page-preview";
 
@@ -78,6 +79,7 @@ export function ScheduleWorkspace({
   const tSchedule = useTranslations("schedule");
   const tCommon = useTranslations("common");
   const locale = useLocale();
+  const describeOverlap = useOverlapText(pages, collections);
   const [date, setDate] = useState(() => startOfDay(toZonedTime(new Date(), timezone)));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [repairing, setRepairing] = useState(false);
@@ -347,7 +349,7 @@ export function ScheduleWorkspace({
             <WeekCalendarInspector
               title={selected!.title}
               description={`${time(minute(selected!.start, selected!.start))} – ${time(minute(selected!.end, selected!.start))} · ${boardName ?? ""}`}
-              conflict={conflict?.conflict_description}
+              conflict={conflict ? describeOverlap(conflict, selectedEntry.id, schedules) : undefined}
               conflictActions={
                 repairStart && onRepair ? (
                   <Stack gap="2">

@@ -51,12 +51,14 @@ import { toast } from "sonner";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { defaultScheduleView, type ScheduleView } from "@/components/schedule/schedule-agenda";
 import { ScheduleEntryAdapter as ScheduleEntryForm } from "@/components/schedule/schedule-entry-adapter";
+import { ScheduleEntryConflict, useOverlapText } from "@/components/schedule/schedule-entry-conflict";
 import { ScheduleWorkspace } from "@/components/schedule/schedule-workspace";
 import { type ScheduleFormHandle, useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import Link from "@/components/smart-link";
 import { useBelowRail, useRailBreakpoint } from "@/hooks/use-below-rail";
 import { queryKeys } from "@/hooks/use-board";
 import { useCollections } from "@/hooks/use-board";
+import { useFormatPreferences } from "@/hooks/use-format-preferences";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
@@ -70,6 +72,7 @@ import {
   type SilenceMode,
 } from "@/lib/api";
 import { extractTimeFromDate, getDayNameFromDate, type ResolvedSilenceSchedule } from "@/lib/schedule-calendar";
+import { orderScheduleDays } from "@/lib/schedule-overlap";
 import { scheduleTimezone } from "@/lib/schedule-timezone";
 import { resolveSilenceConfig } from "@/lib/silence-config";
 import { utcToLocalTime } from "@/lib/timezone-utils";
@@ -146,6 +149,7 @@ export default function SchedulePage() {
   const t = useTranslations("schedule");
   const tCommon = useTranslations("common");
   const tAgenda = useTranslations("schedule.agenda");
+  const tDays = useTranslations("daySelector");
   const belowRail = useBelowRail();
   const queryClient = useQueryClient();
 
@@ -249,6 +253,8 @@ export default function SchedulePage() {
 
   // Fetch collections for form
   const { data: collectionsData } = useCollections();
+  const describeOverlap = useOverlapText(pagesData?.pages ?? [], collectionsData?.collections ?? []);
+  const { formatTime } = useFormatPreferences();
 
   // Fetch location settings (needed for sunrise/sunset schedule resolution)
   const { data: locationData } = useQuery({
@@ -312,16 +318,36 @@ export default function SchedulePage() {
     },
   });
 
+  // BB-C-1: a save that leaves the entry overlapping another one is not a
+  // plain success. Ask the hub (after the write) and say which entry shows.
+  const announceSaved = async (saved: ScheduleEntry, savedMessage: string) => {
+    try {
+      const { overlaps } = await api.validateSchedules(effectiveBoardId || undefined);
+      const mine = overlaps.filter((item) => item.schedule1_id === saved.id || item.schedule2_id === saved.id);
+      if (mine.length) {
+        const entries = [...(schedulesData?.schedules ?? []).filter((entry) => entry.id !== saved.id), saved];
+        toast.warning(t("toastSavedWithOverlap"), {
+          description: mine.map((item) => describeOverlap(item, saved.id, entries)).join(" "),
+          duration: 10000,
+        });
+        return;
+      }
+    } catch {
+      // The write succeeded; an unreachable check must not turn it into an error.
+    }
+    toast.success(savedMessage);
+  };
+
   // Create schedule (include board_id when multi-board)
   const createSchedule = useMutation({
     mutationFn: (data: ScheduleCreate) =>
       api.createSchedule({ ...data, ...(effectiveBoardId && { board_id: effectiveBoardId }) }),
-    onSuccess: () => {
+    onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
-      toast.success(t("toastCreated"));
+      void announceSaved(saved, t("toastCreated"));
       setShowForm(false);
       setPrefillData(null);
     },
@@ -334,12 +360,12 @@ export default function SchedulePage() {
   // Update schedule
   const updateSchedule = useMutation({
     mutationFn: ({ id, data }: { id: string; data: ScheduleUpdate }) => api.updateSchedule(id, data),
-    onSuccess: () => {
+    onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
-      toast.success(t("toastUpdated"));
+      void announceSaved(saved, t("toastUpdated"));
       setShowForm(false);
       setEditingSchedule(null);
     },
@@ -556,7 +582,9 @@ export default function SchedulePage() {
     if (hasAllWeekdays && days.length === 5) return t("weekdays");
     if (hasAllWeekends && days.length === 2) return t("weekends");
 
-    return days.map((d) => d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3)).join(", ");
+    return orderScheduleDays(days)
+      .map((d) => tDays(`dayLabels.${d}`))
+      .join(", ");
   };
 
   if (isLoading) {
@@ -579,6 +607,13 @@ export default function SchedulePage() {
 
   const isCalendarMode = viewMode === "calendar";
   const issueCount = hasOverlaps ? (validation?.overlaps?.length ?? 0) : (validation?.gaps?.length ?? 0);
+  // BB-C-2: conflicts no longer hide gaps; the badge names both.
+  const issueLabel = [
+    hasOverlaps && t("conflictsCountTooltip", { count: validation?.overlaps?.length ?? 0 }),
+    hasGaps && t("gapsCountTooltip", { count: validation?.gaps?.length ?? 0 }),
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <PageLayout railBreakpoint={railBreakpoint}>
@@ -686,11 +721,7 @@ export default function SchedulePage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={
-                              hasOverlaps
-                                ? t("conflictsCountTooltip", { count: issueCount })
-                                : t("gapsCountTooltip", { count: issueCount })
-                            }
+                            aria-label={issueLabel}
                             className={`relative h-8 w-8 p-0 ${hasOverlaps ? "text-destructive hover:text-destructive" : "text-warning hover:text-warning"}`}
                           >
                             {hasOverlaps ? <AlertCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
@@ -710,31 +741,33 @@ export default function SchedulePage() {
                           </Button>
                         </DropdownMenuTrigger>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        {hasOverlaps
-                          ? t("conflictsCountTooltip", { count: issueCount })
-                          : t("gapsCountTooltip", { count: issueCount })}
-                      </TooltipContent>
+                      <TooltipContent side="bottom">{issueLabel}</TooltipContent>
                     </Tooltip>
                     <DropdownMenuContent align="end" className="w-80">
-                      <DropdownMenuLabel className={hasOverlaps ? "text-destructive" : "text-warning"}>
-                        {hasOverlaps ? t("scheduleConflictsLabel") : t("scheduleGapsLabel")}
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {hasOverlaps ? (
-                        validation?.overlaps?.map((overlap, i) => (
-                          <DropdownMenuItem
-                            key={i}
-                            className="text-xs whitespace-normal cursor-default focus:bg-transparent"
-                            variant="destructive"
-                          >
-                            {overlap?.conflict_description || t("unknownConflict")}
-                          </DropdownMenuItem>
-                        ))
-                      ) : (
+                      {hasOverlaps && (
                         <>
+                          <DropdownMenuLabel className="text-destructive">
+                            {t("scheduleConflictsLabel")}
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {validation?.overlaps?.map((overlap, i) => (
+                            <DropdownMenuItem
+                              key={i}
+                              className="text-xs whitespace-normal cursor-default focus:bg-transparent"
+                              variant="destructive"
+                            >
+                              {describeOverlap(overlap, null, schedules) || t("unknownConflict")}
+                            </DropdownMenuItem>
+                          ))}
+                        </>
+                      )}
+                      {hasOverlaps && hasGaps && <DropdownMenuSeparator />}
+                      {hasGaps && (
+                        <>
+                          <DropdownMenuLabel className="text-warning">{t("scheduleGapsLabel")}</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-xs cursor-default focus:bg-transparent">
-                            {t("gapsInSchedule", { count: issueCount })}{" "}
+                            {t("gapsInSchedule", { count: validation?.gaps?.length ?? 0 })}{" "}
                             {defaultPageId ? (
                               <>
                                 {t("defaultLabel")}{" "}
@@ -748,22 +781,18 @@ export default function SchedulePage() {
                               </Text>
                             )}
                           </DropdownMenuItem>
-                          {validation?.gaps && validation.gaps.length > 0 && (
-                            <>
-                              <DropdownMenuSeparator />
-                              {validation.gaps.map((gap, i) => {
-                                if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
-                                return (
-                                  <DropdownMenuItem key={i} className="text-xs cursor-default focus:bg-transparent">
-                                    <Text as="span" size="xs" tone="muted" className="mr-2">
-                                      {formatDaysCompact(gap.days)}
-                                    </Text>
-                                    {gap.start_time} – {gap.end_time}
-                                  </DropdownMenuItem>
-                                );
-                              })}
-                            </>
-                          )}
+                          <DropdownMenuSeparator />
+                          {validation?.gaps?.map((gap, i) => {
+                            if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
+                            return (
+                              <DropdownMenuItem key={i} className="text-xs cursor-default focus:bg-transparent">
+                                <Text as="span" size="xs" tone="muted" className="mr-2">
+                                  {formatDaysCompact(gap.days)}
+                                </Text>
+                                {formatTime(gap.start_time)} – {formatTime(gap.end_time)}
+                              </DropdownMenuItem>
+                            );
+                          })}
                         </>
                       )}
                     </DropdownMenuContent>
@@ -897,6 +926,17 @@ export default function SchedulePage() {
               prefillEndTime={prefillData?.endTime}
               prefillDayPattern={prefillData?.dayPattern}
               prefillCustomDays={prefillData?.customDays}
+              notice={(draft) => (
+                <ScheduleEntryConflict
+                  draft={draft}
+                  editingId={editingSchedule?.id}
+                  boardId={effectiveBoardId}
+                  schedules={schedulesData?.schedules ?? []}
+                  pages={pagesData.pages}
+                  collections={collectionsData?.collections ?? []}
+                  onFix={(field, time) => formRef.current?.setField(field, time)}
+                />
+              )}
             />
           )}
         </SheetContent>
