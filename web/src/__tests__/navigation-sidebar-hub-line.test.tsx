@@ -288,4 +288,29 @@ describe("the switcher with no displays (BB-FH-10)", () => {
     expect(trigger.textContent).toContain("No displays yet");
     await waitFor(() => expect(hubLines()[0]?.textContent).toContain("Online"));
   });
+
+  // Fable #2594 M1: a board list that failed to load is not "no displays".
+  it("shows no switcher when the board list fails to load", async () => {
+    server.use(http.get("/api/settings/board", () => new HttpResponse(null, { status: 500 })));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <GlobalAiPanelProvider>
+          <SidebarProvider>
+            <CurrentBoardProvider>
+              <ConfigOverridesProvider>
+                <ThemeProvider attribute="class" defaultTheme="light">
+                  <NavigationSidebar />
+                </ThemeProvider>
+              </ConfigOverridesProvider>
+            </CurrentBoardProvider>
+          </SidebarProvider>
+        </GlobalAiPanelProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findAllByRole("link", { name: "Home" });
+    await waitFor(() => expect(queryClient.getQueryState(["boardSettings"])?.status ?? "error").not.toBe("pending"));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(screen.queryByText("No displays yet")).toBeNull();
+  });
 });

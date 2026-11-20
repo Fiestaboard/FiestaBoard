@@ -15,7 +15,7 @@ import { isUntouchedPlaceholder } from "@/components/wizard/default-board";
 import { useAppBadge } from "@/hooks/use-app-badge";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
 import { useBelowRail, useRailAutoCollapse, useRailBreakpoint } from "@/hooks/use-below-rail";
-import { queryKeys, usePrefetchPagesData, useStatus } from "@/hooks/use-board";
+import { queryKeys, useBoardSettings, usePrefetchPagesData, useStatus } from "@/hooks/use-board";
 import { useDisplaysNeedingALook } from "@/hooks/use-displays-needing-a-look";
 import { useHubLine } from "@/hooks/use-hub-connection";
 import { usePathname } from "@/hooks/use-router";
@@ -44,7 +44,7 @@ export function NavigationSidebar() {
   const t = useTranslations("navigation");
   const tMenu = useTranslations("settingsMenu");
   const { isOpen: aiPanelOpen, open: openAiPanel } = useGlobalAiPanel();
-  const { boards, currentBoardId, setCurrentBoardId, isLoading: boardsLoading } = useCurrentBoard();
+  const { boards, currentBoardId, setCurrentBoardId } = useCurrentBoard();
 
   // The chromeless early-return below runs AFTER hooks, so these queries
   // must be gated too or the TV viewer fires them (authenticated, 401 +
@@ -92,14 +92,18 @@ export function NavigationSidebar() {
 
   // The hub line under the switcher (WEB-09, slice 2.3): "host · Online /
   // Remote / Can't reach". The same source as the More drawer's foot line
-  // (useHubLine). The switcher only renders with two or more boards, so a
-  // single-board install adds no status poll for it.
+  // (useHubLine). The switcher renders with two or more boards, or with no
+  // display yet (below), so a single real display adds no status poll for it.
   const tHub = useTranslations("statusBanners");
   // 07e `343:65200` / `343:66216`: with no display yet (none, or only the
   // untouched placeholder) the switcher stays and reads "No displays yet"
   // over the hub line (BB-FH-10).
   const tNone = useTranslations("wizard.noDisplays");
-  const noDisplays = !boardsLoading && boards.length <= 1 && boards.every(isUntouchedPlaceholder);
+  // Only from a loaded board list: one that failed or is loading is not "no
+  // displays" (same query and cache key as the board context).
+  const { data: boardSettings } = useBoardSettings({ enabled: !chromeless });
+  const settledBoards = boardSettings?.boards;
+  const noDisplays = !!settledBoards && settledBoards.length <= 1 && settledBoards.every(isUntouchedPlaceholder);
   const showSwitcher = boards.length > 1 || noDisplays;
   const { host: hubHost, status: hubStatus } = useHubLine({ enabled: !chromeless && showSwitcher });
   // The hub line says how the hub is reached; each display's own trouble is
