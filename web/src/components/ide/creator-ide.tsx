@@ -198,7 +198,13 @@ export default function CreatorIde({
         desktop &&
         createPortal(
           explorerOpen ? (
-            <IdeExplorer ide={ide} pageId={pageId} onHide={() => toggleExplorer(false)} hideRef={hideExplorerRef} />
+            <IdeExplorer
+              ide={ide}
+              pageId={pageId}
+              references={references}
+              onHide={() => toggleExplorer(false)}
+              hideRef={hideExplorerRef}
+            />
           ) : (
             <IdeExplorerShow onShow={() => toggleExplorer(true)} buttonRef={showExplorerRef} />
           ),

@@ -371,16 +371,25 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(legend).toHaveTextContent(/Weekdays 7:30.*8:30.* · Den TV/);
   });
 
-  it("portals the Explorer with the open page selected and its collection facet", async () => {
+  it("scopes the Explorer to the open page: its boards, parts and snippets, no other pages (D2b)", async () => {
     mockHub();
     const { slot } = renderIde();
     const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
-    const current = await within(nav).findByRole("link", { name: /Commute/ });
-    expect(current).toHaveAttribute("aria-current", "page");
-    expect(within(nav).getByRole("link", { name: /Den rotation/ })).toHaveAttribute("href", "/collections/col_den");
+    // This page, and only this page: no list of the hub's pages, no page search, no links away.
+    const thisPage = within(nav).getByRole("group", { name: "This page" });
+    expect(thisPage).toHaveTextContent("Commute");
+    expect(within(nav).queryByText("Weekend brunch")).toBeNull();
+    expect(within(nav).queryByRole("searchbox")).toBeNull();
+    expect(within(nav).queryAllByRole("link")).toHaveLength(0);
+    // Its boards: the display it is live or scheduled on.
+    expect(await within(within(nav).getByRole("group", { name: "Boards" })).findByText("Den TV")).toBeInTheDocument();
+    // Its parts: the data sources and formulas the template reads, by row.
+    const parts = within(nav).getByRole("group", { name: "Parts" });
+    expect(within(parts).getByText("muni")).toBeInTheDocument();
+    expect(within(parts).getByText("Formulas")).toBeInTheDocument();
+    expect(within(parts).getAllByText("Row 2")).toHaveLength(2);
+    expect(within(nav).getByRole("group", { name: "Snippets" })).toBeInTheDocument();
     expect(await within(nav).findByText("Used by Den rotation")).toBeInTheDocument();
-    fireEvent.change(within(nav).getByRole("searchbox", { name: "Filter pages…" }), { target: { value: "brunch" } });
-    expect(within(nav).queryByRole("link", { name: /^Commute/ })).toBeNull();
   });
 
   it("hides the Explorer to one Show Explorer button and back, moving focus with it (D2)", async () => {
