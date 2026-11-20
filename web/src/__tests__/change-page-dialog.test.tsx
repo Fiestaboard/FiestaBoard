@@ -224,6 +224,8 @@ describe("ChangePageDialog (phone, two steps)", () => {
     const { onOpenChange } = setup();
     await screen.findByRole("dialog", { name: "Change Page" });
     act(() => {
+      // Back: the browser is now on the entry below the sheet's.
+      window.history.replaceState(null, "");
       window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);

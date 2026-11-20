@@ -2,6 +2,7 @@
 
 import {
   Badge,
+  Box,
   Button,
   type DeviceModel,
   Dialog,
@@ -21,7 +22,6 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
   Stack,
@@ -407,19 +407,24 @@ export function ComposePageDialog({
             {boardLabel ? t("notSentYetOn", { board: boardLabel }) : t("notSentYet")}
           </Text>
         </Flex>
-        <DevicePreview model={model} ledLayout={ledLayout} message={preview?.rendered ?? ""} size="sm">
-          <ScaledBoardDisplay
-            message={preview?.rendered ?? ""}
-            size="sm"
-            boardType={boardColor}
-            deviceType={deviceType}
-            notesWide={notesWide}
-            notesTall={notesTall}
-            gridRows={panelGrid?.rows}
-            gridCols={panelGrid?.cols}
-            code62Glyph={code62Glyph}
-          />
-        </DevicePreview>
+        {/* On a phone the preview runs edge to edge in the kit's phone-hero
+            placement, so a Flagship shows whole without Fit/Actual (BB-A-3). */}
+        <Box className={isPhone ? "-mx-4 min-w-0" : "contents"}>
+          <DevicePreview model={model} ledLayout={ledLayout} message={preview?.rendered ?? ""} size="sm">
+            <ScaledBoardDisplay
+              message={preview?.rendered ?? ""}
+              size={isPhone ? undefined : "sm"}
+              layout={isPhone ? "phone-hero" : undefined}
+              boardType={boardColor}
+              deviceType={deviceType}
+              notesWide={notesWide}
+              notesTall={notesTall}
+              gridRows={panelGrid?.rows}
+              gridCols={panelGrid?.cols}
+              code62Glyph={code62Glyph}
+            />
+          </DevicePreview>
+        </Box>
       </Stack>
 
       <DurationStep
@@ -509,7 +514,11 @@ export function ComposePageDialog({
               {tb("sendReason")}
             </Text>
           )}
-          <SheetFooter className="[&>button]:w-full">{actions}</SheetFooter>
+          {/* 07a `310:25531`: Show now comes last, after the duration
+              choice, in the one scrolling flow — never pinned above it. */}
+          <Stack gap="2" className="pb-2 [&>button]:w-full" data-slot="compose-actions">
+            {actions}
+          </Stack>
         </SheetContent>
       </Sheet>
     );

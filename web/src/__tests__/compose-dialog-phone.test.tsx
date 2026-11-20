@@ -54,6 +54,11 @@ describe("ComposePageDialog on a phone", () => {
     // The sheet's own body is the one scroller; the duration step sits in it.
     const duration = within(sheet).getByText(/how long should it stay up/i);
     expect(duration.closest(".overflow-y-auto")).toHaveAttribute("data-slot", "sheet-body");
+    // Review M2 (#2559): Show now comes after the duration, in the same flow.
+    const show = within(sheet).getByRole("button", { name: /^show now$/i });
+    expect(duration.compareDocumentPosition(show) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(show.closest('[data-slot="sheet-body"]')).not.toBeNull();
+    expect(sheet.querySelector('[data-layout="phone-hero"]')).not.toBeNull();
   });
 
   it("gives the actions full-width touch-size buttons", async () => {
@@ -70,6 +75,8 @@ describe("ComposePageDialog on a phone", () => {
     draw(onOpenChange);
     await screen.findByRole("dialog", { name: /compose a message/i });
     act(() => {
+      // Back: the browser is now on the entry below the sheet's.
+      window.history.replaceState(null, "");
       window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);

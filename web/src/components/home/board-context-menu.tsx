@@ -219,7 +219,9 @@ export function BoardActionsMenu({ actions }: { actions: BoardActions }) {
       size="icon"
       aria-label={t("moreActions", { board: actions.boardName })}
       className="size-9 shrink-0 opacity-0 shadow-sm transition-opacity group-hover/home-card:opacity-100 group-focus-within/home-card:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100 pointer-coarse:opacity-100"
-      {...(coarse ? { onClick: () => setSheetOpen(true), "aria-haspopup": "dialog" as const } : {})}
+      {...(coarse
+        ? { onClick: () => setSheetOpen(true), "aria-haspopup": "dialog" as const, "aria-expanded": sheetOpen }
+        : {})}
     >
       <MoreHorizontal className="size-4" aria-hidden="true" />
     </Button>
