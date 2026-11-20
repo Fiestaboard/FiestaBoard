@@ -445,7 +445,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Modo de visualização",
     "libraryCount": "{count, plural, one {# carrossel} other {# carrosséis}}",
     "removePage": "Remover {name}",
     "sortLifted": "{name} levantada · posição {position} de {total} · ↑ ↓ para mover, Espaço para soltar, Esc para cancelar",

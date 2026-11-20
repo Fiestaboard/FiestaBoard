@@ -445,7 +445,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Tryb widoku",
     "libraryCount": "{count, plural, one {Karuzele: #} other {Karuzele: #}}",
     "removePage": "Usuń {name}",
     "sortLifted": "{name} podniesiona · pozycja {position} z {total} · ↑ ↓ przesuwa, Spacja upuszcza, Esc anuluje",

@@ -445,7 +445,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Visningsläge",
     "libraryCount": "{count, plural, one {# karusell} other {# karuseller}}",
     "removePage": "Ta bort {name}",
     "sortLifted": "{name} lyft · position {position} av {total} · ↑ ↓ för att flytta, Mellanslag för att släppa, Esc för att avbryta",

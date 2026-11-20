@@ -682,6 +682,8 @@ describe("Pages library toolbar", () => {
     const clear = screen.getByRole("button", { name: "Clear search" });
     // The clear control sits inside the field, as an icon (no text label).
     expect(clear).not.toHaveTextContent(/\S/);
+    // A kit icon size that grows to the 44 px touch target on a coarse pointer.
+    expect(clear).toHaveAttribute("data-size", "icon-sm");
     expect(search.parentElement).toContainElement(clear);
     await user.click(clear);
     expect(search).toHaveValue("");

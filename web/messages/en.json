@@ -401,7 +401,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "View mode",
     "libraryCount": "{count, plural, one {# collection} other {# collections}}",
     "removePage": "Remove {name}",
     "sortLifted": "{name} lifted · position {position} of {total} · ↑ ↓ to move, Space to drop, Esc to cancel",

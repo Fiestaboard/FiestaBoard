@@ -445,7 +445,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Ansichtsmodus",
     "libraryCount": "{count, plural, one {# Karussell} other {# Karussells}}",
     "removePage": "{name} entfernen",
     "sortLifted": "{name} angehoben · Position {position} von {total} · ↑ ↓ zum Verschieben, Leertaste zum Ablegen, Esc zum Abbrechen",

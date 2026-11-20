@@ -445,7 +445,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Weergavemodus",
     "libraryCount": "{count, plural, one {# carrousel} other {# carrousels}}",
     "removePage": "{name} verwijderen",
     "sortLifted": "{name} opgetild · positie {position} van {total} · ↑ ↓ om te verplaatsen, Spatie om neer te zetten, Esc om te annuleren",

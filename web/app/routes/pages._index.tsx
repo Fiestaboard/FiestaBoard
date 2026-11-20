@@ -275,14 +275,14 @@ export default function PagesPage() {
                 onChange={(event) => setLibraryQuery((previous) => ({ ...previous, text: event.target.value }))}
                 className={cn(
                   "h-9 w-full [&::-webkit-search-cancel-button]:appearance-none",
-                  libraryQuery.text && "pr-8",
+                  libraryQuery.text && "pr-10",
                 )}
               />
               {libraryQuery.text && (
                 <Button
                   variant="ghost"
-                  size="icon-xs"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2"
+                  size="icon-sm"
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2"
                   aria-label={t("clearSearch")}
                   onClick={() => {
                     setLibraryQuery((previous) => ({ ...previous, text: "" }));

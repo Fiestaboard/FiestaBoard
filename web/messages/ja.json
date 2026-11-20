@@ -445,7 +445,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "表示形式",
     "libraryCount": "{count, plural, one {# 件のカルーセル} other {# 件のカルーセル}}",
     "removePage": "{name}を取り除く",
     "sortLifted": "{name} を持ち上げました · {total} 件中 {position} 番目 · ↑ ↓ で移動、Space で配置、Esc でキャンセル",

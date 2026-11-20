@@ -445,7 +445,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Görünüm modu",
     "libraryCount": "{count, plural, one {# döngü} other {# döngü}}",
     "removePage": "{name} öğesini kaldır",
     "sortLifted": "{name} kaldırıldı · {total} içinde {position}. sıra · ↑ ↓ taşı, Boşluk bırak, Esc iptal",

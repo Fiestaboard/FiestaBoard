@@ -445,7 +445,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "보기 모드",
     "libraryCount": "{count, plural, one {캐러셀 #개} other {캐러셀 #개}}",
     "removePage": "{name} 제거",
     "sortLifted": "{name} 들어 올림 · {total}개 중 {position}번째 · ↑ ↓로 이동, Space로 놓기, Esc로 취소",
