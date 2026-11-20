@@ -32,10 +32,10 @@ export default function NotFound() {
               </Link>
             </Button>
             <Button asChild variant="outline" size="touch" className="w-full gap-2">
-              <a href={HELP_DOCS_URL} target="_blank" rel="noreferrer">
+              <Link href={HELP_DOCS_URL} target="_blank" rel="noreferrer">
                 <CircleHelp className="size-4" aria-hidden="true" />
                 {t("help")}
-              </a>
+              </Link>
             </Button>
           </Box>
         }
