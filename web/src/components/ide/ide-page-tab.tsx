@@ -204,7 +204,7 @@ export function DuplicateDialog({
   return (
     <Root open={open} onOpenChange={close}>
       <Content {...contentProps}>
-        <Header className="pr-12">
+        <Header className="pr-12 text-start">
           <Title>{result ? t("copyMade", { name: result.page.name }) : t("makeCopy")}</Title>
           <Description>{result ? t("cropReport") : t("pickDisplay")}</Description>
         </Header>

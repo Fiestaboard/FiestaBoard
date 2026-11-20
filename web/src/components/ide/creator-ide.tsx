@@ -173,9 +173,10 @@ export default function CreatorIde({
         aria-label={t("regionLabel")}
         data-slot="creator-ide"
         data-layout={desktop ? "desktop" : "compact"}
-        // Console and Timeline get half the row (184:159319 draws them as wide
-        // as the template): at 2fr they were ~300px at 1440 and the console
-        // wrapped each problem onto four lines (BB-B-19).
+        // The same two equal columns as the builder above (page-builder.tsx):
+        // Console and Timeline under the template, the Inspector under the
+        // preview. At 2fr the console was ~300px at 1440 and wrapped each
+        // problem onto four lines (BB-B-19).
         className="grid min-w-0 grid-cols-1 items-start gap-4 px-2 pb-24 lg:grid-cols-2 lg:gap-6 lg:px-4"
       >
         {desktop && (

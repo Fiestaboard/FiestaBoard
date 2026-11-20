@@ -2994,7 +2994,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   moreContent={mirrorMoreContent}
                 />
               )}
-              <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-0 lg:gap-6">
+              {/* Two equal columns, the same as the Creator IDE's below, so the
+                Console sits under the template and the Inspector under the
+                preview at one width (184:159319; BB-B-19). */}
+              <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-2 items-start gap-0 lg:gap-6">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
                 <Box
                   hidden={!!pixelBoard && editingSurface !== "text"}
