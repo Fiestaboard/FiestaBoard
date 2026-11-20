@@ -439,7 +439,7 @@ export function StepBoardSetup({
               variant="outline"
               onClick={() => void test()}
               disabled={!fieldsValid || isLoading}
-              className="max-md:min-h-11"
+              className="max-md:min-h-11 max-sm:w-full"
             >
               {t(result ? "testAgain" : "test")}
             </Button>
