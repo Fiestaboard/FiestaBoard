@@ -207,7 +207,7 @@ export default function Activate() {
     >
       <meta name="referrer" content="no-referrer" />
       <BoardBackdrop phrases={BACKDROP_PHRASES} fixed className="hidden sm:block" />
-      <Card className="relative z-10 w-full max-w-[440px] gap-4 p-6 sm:p-8">
+      <Card className="relative z-10 w-full max-w-[398px] gap-4 p-6 sm:p-8">
         <Flex align="center" justify="between" gap="3" wrap className="min-h-25 min-w-0">
           <FiestaLogo size="sm" />
           <Flex align="center" gap="1.5" className="min-w-0">
