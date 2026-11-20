@@ -2773,7 +2773,7 @@
     "submitButton": "Sign in",
     "submittingButton": "Signing in…",
     "invalidCredentials": "That username and password don’t match.",
-    "invalidCredentialsHint": "Check caps lock and try again. After several wrong tries, sign-in pauses for a few minutes to keep guessers out.",
+    "invalidCredentialsHint": "Check caps lock and try again. After several wrong tries, sign-in pauses for a minute to keep guessers out.",
     "tooManyAttempts": "Too many failed login attempts. Please wait a minute and try again.",
     "networkError": "Network error. Please try again.",
     "signInFailedStatus": "Sign-in failed ({status}).",

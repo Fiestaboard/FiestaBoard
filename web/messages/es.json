@@ -2802,7 +2802,7 @@
     "submitButton": "Iniciar sesión",
     "submittingButton": "Iniciando sesión…",
     "invalidCredentials": "El usuario y la contraseña no coinciden.",
-    "invalidCredentialsHint": "Revisa el bloqueo de mayúsculas e inténtalo de nuevo. Tras varios intentos fallidos, el inicio de sesión se pausa unos minutos para frenar a quien intente adivinar.",
+    "invalidCredentialsHint": "Revisa el bloqueo de mayúsculas e inténtalo de nuevo. Tras varios intentos fallidos, el inicio de sesión se pausa un minuto para frenar a quien intente adivinar.",
     "tooManyAttempts": "Demasiados intentos de inicio de sesión fallidos. Espera un minuto e inténtalo de nuevo.",
     "networkError": "Error de red. Inténtalo de nuevo.",
     "signInFailedStatus": "Error al iniciar sesión ({status}).",

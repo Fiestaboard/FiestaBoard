@@ -276,7 +276,15 @@ describe("LoginPage sign-in form (07e Sign in `326:40175` / `326:34407`)", () =>
     expect(username).toHaveValue("maya");
     expect(password).toHaveValue("");
     expect(password).toHaveAttribute("aria-invalid", "true");
+    expect(password).toHaveAttribute("aria-describedby", alert.id);
     await waitFor(() => expect(password).toHaveFocus());
+
+    // The retry: typing stays in the password field, the explanation stays up.
+    await user.keyboard("abc");
+    expect(password).toHaveValue("abc");
+    expect(username).toHaveValue("maya");
+    expect(password).toHaveFocus();
+    expect(screen.getByRole("alert")).toHaveTextContent(/Check caps lock and try again/i);
   });
 });
 

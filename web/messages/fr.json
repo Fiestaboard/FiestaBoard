@@ -2802,7 +2802,7 @@
     "submitButton": "Se connecter",
     "submittingButton": "Connexion…",
     "invalidCredentials": "Ce nom d’utilisateur et ce mot de passe ne correspondent pas.",
-    "invalidCredentialsHint": "Vérifiez le verrouillage des majuscules et réessayez. Après plusieurs essais incorrects, la connexion est suspendue quelques minutes pour bloquer les tentatives au hasard.",
+    "invalidCredentialsHint": "Vérifiez le verrouillage des majuscules et réessayez. Après plusieurs essais incorrects, la connexion est suspendue une minute pour bloquer les tentatives au hasard.",
     "tooManyAttempts": "Trop de tentatives de connexion infructueuses. Veuillez patienter une minute et réessayer.",
     "networkError": "Erreur réseau. Veuillez réessayer.",
     "signInFailedStatus": "Échec de la connexion ({status}).",

@@ -2802,7 +2802,7 @@
     "submitButton": "Inloggen",
     "submittingButton": "Inloggen…",
     "invalidCredentials": "Deze gebruikersnaam en dit wachtwoord horen niet bij elkaar.",
-    "invalidCredentialsHint": "Controleer Caps Lock en probeer het opnieuw. Na meerdere foute pogingen pauzeert inloggen een paar minuten om gokkers buiten te houden.",
+    "invalidCredentialsHint": "Controleer Caps Lock en probeer het opnieuw. Na meerdere foute pogingen pauzeert inloggen een minuut om gokkers buiten te houden.",
     "tooManyAttempts": "Te veel mislukte inlogpogingen. Wacht een minuut en probeer het opnieuw.",
     "networkError": "Netwerkfout. Probeer het opnieuw.",
     "signInFailedStatus": "Inloggen mislukt ({status}).",

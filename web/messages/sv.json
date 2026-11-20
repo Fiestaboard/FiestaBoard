@@ -2802,7 +2802,7 @@
     "submitButton": "Logga in",
     "submittingButton": "Loggar in…",
     "invalidCredentials": "Användarnamnet och lösenordet stämmer inte.",
-    "invalidCredentialsHint": "Kontrollera Caps Lock och försök igen. Efter flera felaktiga försök pausas inloggningen i några minuter för att stoppa gissningar.",
+    "invalidCredentialsHint": "Kontrollera Caps Lock och försök igen. Efter flera felaktiga försök pausas inloggningen i en minut för att stoppa gissningar.",
     "tooManyAttempts": "För många misslyckade inloggningsförsök. Vänta en minut och försök igen.",
     "networkError": "Nätverksfel. Försök igen.",
     "signInFailedStatus": "Inloggning misslyckades ({status}).",

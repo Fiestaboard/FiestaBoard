@@ -2802,7 +2802,7 @@
     "submitButton": "Zaloguj się",
     "submittingButton": "Logowanie…",
     "invalidCredentials": "Nazwa użytkownika i hasło nie pasują do siebie.",
-    "invalidCredentialsHint": "Sprawdź Caps Lock i spróbuj ponownie. Po kilku błędnych próbach logowanie jest wstrzymywane na kilka minut, aby powstrzymać zgadywanie.",
+    "invalidCredentialsHint": "Sprawdź Caps Lock i spróbuj ponownie. Po kilku błędnych próbach logowanie jest wstrzymywane na minutę, aby powstrzymać zgadywanie.",
     "tooManyAttempts": "Zbyt wiele nieudanych prób logowania. Poczekaj minutę i spróbuj ponownie.",
     "networkError": "Błąd sieci. Spróbuj ponownie.",
     "signInFailedStatus": "Logowanie nie powiodło się ({status}).",

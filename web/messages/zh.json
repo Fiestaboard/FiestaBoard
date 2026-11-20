@@ -2802,7 +2802,7 @@
     "submitButton": "登录",
     "submittingButton": "正在登录…",
     "invalidCredentials": "用户名和密码不匹配。",
-    "invalidCredentialsHint": "请检查大写锁定后重试。多次输错后，登录会暂停几分钟，以阻止猜测密码。",
+    "invalidCredentialsHint": "请检查大写锁定后重试。多次输错后，登录会暂停一分钟，以阻止猜测密码。",
     "tooManyAttempts": "登录失败次数过多。请稍后再试。",
     "networkError": "网络错误。请重试。",
     "signInFailedStatus": "登录失败 ({status})。",
@@ -2830,7 +2830,7 @@
     "redirectingTitle": "正在跳转…",
     "redirectingDescription": "请稍候…",
     "pageTitle": "登录",
-    "forgotPassword": "忘记密码？<link>使用集线器生成的代码重置</link>。"
+    "forgotPassword": "忘记密码？<link>使用中枢生成的代码重置</link>。"
   },
   "picks": {
     "title": "团队精选",

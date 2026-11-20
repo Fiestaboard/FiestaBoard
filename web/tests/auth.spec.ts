@@ -207,6 +207,10 @@ test.describe("Authentication", () => {
       // 07e `326:34407`: the password is cleared and focused for the retry.
       await expect(page.getByLabel("Password", { exact: true })).toHaveValue("");
       await expect(page.getByLabel("Password", { exact: true })).toBeFocused();
+      // Typing the retry stays in the password field.
+      await page.keyboard.type("abc");
+      await expect(page.getByLabel("Password", { exact: true })).toHaveValue("abc");
+      await expect(page.getByLabel("Username")).toHaveValue(ADMIN_USERNAME);
       await expect(page).toHaveURL(/\/login/);
     });
 

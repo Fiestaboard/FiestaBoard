@@ -2802,7 +2802,7 @@
     "submitButton": "Accedi",
     "submittingButton": "Accesso…",
     "invalidCredentials": "Nome utente e password non corrispondono.",
-    "invalidCredentialsHint": "Controlla il blocco maiuscole e riprova. Dopo diversi tentativi errati, l’accesso si sospende per qualche minuto per fermare chi tira a indovinare.",
+    "invalidCredentialsHint": "Controlla il blocco maiuscole e riprova. Dopo diversi tentativi errati, l’accesso si sospende per un minuto per fermare chi tira a indovinare.",
     "tooManyAttempts": "Troppi tentativi di accesso falliti. Attendi un minuto e riprova.",
     "networkError": "Errore di rete. Riprova.",
     "signInFailedStatus": "Accesso non riuscito ({status}).",

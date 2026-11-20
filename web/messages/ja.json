@@ -2802,7 +2802,7 @@
     "submitButton": "サインイン",
     "submittingButton": "サインイン中…",
     "invalidCredentials": "ユーザー名とパスワードが一致しません。",
-    "invalidCredentialsHint": "Caps Lock を確認して、もう一度お試しください。何度も間違えると、推測を防ぐためにサインインが数分間停止されます。",
+    "invalidCredentialsHint": "Caps Lock を確認して、もう一度お試しください。何度も間違えると、推測を防ぐためにサインインが 1 分間停止されます。",
     "tooManyAttempts": "サインインの失敗が続いています。1 分待ってからもう一度お試しください。",
     "networkError": "ネットワークエラーです。もう一度お試しください。",
     "signInFailedStatus": "サインインに失敗しました ({status})。",

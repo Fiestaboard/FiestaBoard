@@ -2802,7 +2802,7 @@
     "submitButton": "Giriş yap",
     "submittingButton": "Giriş yapılıyor…",
     "invalidCredentials": "Kullanıcı adı ve parola eşleşmiyor.",
-    "invalidCredentialsHint": "Caps Lock’u kontrol edip tekrar deneyin. Birkaç hatalı denemeden sonra, tahmin girişimlerini durdurmak için oturum açma birkaç dakika duraklatılır.",
+    "invalidCredentialsHint": "Caps Lock’u kontrol edip tekrar deneyin. Birkaç hatalı denemeden sonra, tahmin girişimlerini durdurmak için oturum açma bir dakika duraklatılır.",
     "tooManyAttempts": "Çok fazla başarısız giriş denemesi. Lütfen bir dakika bekleyip tekrar dene.",
     "networkError": "Ağ hatası. Lütfen tekrar dene.",
     "signInFailedStatus": "Giriş başarısız ({status}).",

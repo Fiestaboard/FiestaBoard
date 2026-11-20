@@ -2802,7 +2802,7 @@
     "submitButton": "Anmelden",
     "submittingButton": "Anmeldung…",
     "invalidCredentials": "Benutzername und Passwort passen nicht zusammen.",
-    "invalidCredentialsHint": "Prüfe die Feststelltaste und versuche es erneut. Nach mehreren Fehlversuchen pausiert die Anmeldung einige Minuten, um Ratende auszubremsen.",
+    "invalidCredentialsHint": "Prüfe die Feststelltaste und versuche es erneut. Nach mehreren Fehlversuchen pausiert die Anmeldung eine Minute, um Ratende auszubremsen.",
     "tooManyAttempts": "Zu viele fehlgeschlagene Anmeldeversuche. Bitte warten Sie eine Minute und versuchen Sie es erneut.",
     "networkError": "Netzwerkfehler. Bitte erneut versuchen.",
     "signInFailedStatus": "Anmeldung fehlgeschlagen ({status}).",

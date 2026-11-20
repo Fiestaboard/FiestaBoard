@@ -2802,7 +2802,7 @@
     "submitButton": "Entrar",
     "submittingButton": "A entrar…",
     "invalidCredentials": "O nome de utilizador e a palavra-passe não correspondem.",
-    "invalidCredentialsHint": "Verifique o Caps Lock e tente novamente. Após várias tentativas erradas, o início de sessão pausa alguns minutos para travar quem tenta adivinhar.",
+    "invalidCredentialsHint": "Verifique o Caps Lock e tente novamente. Após várias tentativas erradas, o início de sessão pausa um minuto para travar quem tenta adivinhar.",
     "tooManyAttempts": "Demasiadas tentativas de início de sessão falhadas. Aguarde um minuto e tente novamente.",
     "networkError": "Erro de rede. Tente novamente.",
     "signInFailedStatus": "Falha ao entrar ({status}).",

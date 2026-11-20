@@ -130,6 +130,8 @@ export default function LoginPage() {
   // A rejected username/password pair: 07e `326:34407` titles the alert and
   // marks the password field, so it is told apart from other failures.
   const [wrongCredentials, setWrongCredentials] = useState(false);
+  // Where focus goes after this error; set with the error, read by the effect.
+  const wrongCredentialsRef = useRef(false);
 
   // Refs let us restore focus after a failed submit so the user can retry
   // without re-tabbing past the skip link, sidebar, etc.
@@ -178,6 +180,7 @@ export default function LoginPage() {
       e.preventDefault();
       setFormError(null);
       setWrongCredentials(false);
+      wrongCredentialsRef.current = false;
       setSubmitting(true);
       try {
         const res = await postJson("/auth/login", {
@@ -197,6 +200,7 @@ export default function LoginPage() {
           // the retry starts from an empty field (focus moves there below).
           setPassword("");
           setWrongCredentials(true);
+          wrongCredentialsRef.current = true;
           setFormError(t("invalidCredentials"));
         } else if (res.status === 409) {
           // User store is empty — drop into setup mode.
@@ -274,11 +278,13 @@ export default function LoginPage() {
   // while we're not mid-submit (the submit handler clears submitting after).
   // A wrong password goes back to the (now empty) password field; anything
   // else (lockout, network, setup conflicts) to the username.
+  // Keyed on the error and the submit only: anything else changing while the
+  // reader retypes must not pull focus away mid-word.
   useEffect(() => {
     if (formError && !submitting) {
-      (wrongCredentials ? passwordInputRef : usernameInputRef).current?.focus();
+      (wrongCredentialsRef.current ? passwordInputRef : usernameInputRef).current?.focus();
     }
-  }, [formError, submitting, wrongCredentials]);
+  }, [formError, submitting]);
 
   // --- Render states --------------------------------------------------------
 
@@ -443,7 +449,7 @@ export default function LoginPage() {
     <CenteredCard tCommon={tCommon} title={t("signInTitle")} subtitle={<LoginHubLine />}>
       <Box as="form" className="space-y-4" onSubmit={handleLogin}>
         {formError && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" id="login-error">
             {wrongCredentials ? (
               <>
                 <AlertTitle>{formError}</AlertTitle>
@@ -477,12 +483,11 @@ export default function LoginPage() {
             required
             ref={passwordInputRef}
             value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setWrongCredentials(false);
-            }}
+            onChange={(e) => setPassword(e.target.value)}
             disabled={submitting}
+            // Stays marked until the next submit, tied to the alert that says why.
             aria-invalid={wrongCredentials || undefined}
+            aria-describedby={wrongCredentials ? "login-error" : undefined}
             // Dots, not the kit's monospace for keys and tokens.
             className="font-sans"
             showLabel={tReset("show")}
