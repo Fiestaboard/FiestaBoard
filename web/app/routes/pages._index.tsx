@@ -1,5 +1,7 @@
 import {
+  Box,
   Button,
+  cn,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -21,10 +23,11 @@ import {
   Textarea,
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Download, LayoutGrid, List, Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { LibraryViewToggle } from "@/components/library-view-toggle";
 import type { ViewMode } from "@/components/page-grid-selector";
 import { PageCardMenu } from "@/components/pages/page-card-menu";
 import { useBoardSettings, usePages } from "@/hooks/use-board";
@@ -223,30 +226,7 @@ export default function PagesPage() {
         }
         right={
           <Flex align="center" gap="2" wrap>
-            <Flex align="center" className="rounded-md bg-muted/50 p-0.5" role="group" aria-label={t("viewModeLabel")}>
-              <Button
-                size="sm"
-                variant={viewMode === "grid" ? "secondary" : "ghost"}
-                onClick={() => handleViewModeChange("grid")}
-                className="h-8 w-8 p-0"
-                aria-label={t("gridView")}
-                aria-pressed={viewMode === "grid"}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                onClick={() => handleViewModeChange("list")}
-                className="h-8 w-8 p-0"
-                aria-label={t("listView")}
-                aria-pressed={viewMode === "list"}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </Flex>
-            <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)} className="h-9 px-3">
-              <Download className="h-4 w-4 mr-1" />
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="h-9 px-3">
               {t("importPage")}
             </Button>
             <Button
@@ -263,39 +243,16 @@ export default function PagesPage() {
         }
       />
 
-      <PageToolbar
-        left={
-          <Flex gap="2" align="center" wrap className="min-w-0 w-full">
-            <Input
-              ref={searchInputRef}
-              type="search"
-              aria-label={t("searchLabel")}
-              aria-describedby="page-library-search-hint"
-              placeholder={t("searchPlaceholder")}
-              value={libraryQuery.text}
-              onChange={(event) => setLibraryQuery((previous) => ({ ...previous, text: event.target.value }))}
-              className="w-full sm:w-72"
-            />
-            {libraryQuery.text && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setLibraryQuery((previous) => ({ ...previous, text: "" }));
-                  searchInputRef.current?.focus();
-                }}
-              >
-                {t("clearSearch")}
-              </Button>
-            )}
-          </Flex>
-        }
-        right={
+      {/* Figma 297:1824: the search field (240) and the Grid / List switch sit
+          together on the right of the library row. The sort select is not in the
+          frame; it stays on the left (DD-W145) and fills the row on a phone. */}
+      <PageToolbar className="px-4 sm:px-6">
+        <Flex align="center" gap="3" wrap className="justify-between">
           <Select
             value={libraryQuery.sort}
             onValueChange={(sort) => setLibraryQuery((previous) => ({ ...previous, sort: sort as PageLibrarySort }))}
           >
-            <SelectTrigger aria-label={t("sortLabel")} className="w-48">
+            <SelectTrigger aria-label={t("sortLabel")} className="h-9 w-full sm:w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -307,13 +264,41 @@ export default function PagesPage() {
               <SelectItem value="updated-asc">{t("sortUpdatedAsc")}</SelectItem>
             </SelectContent>
           </Select>
-        }
-      />
+          <Flex align="center" gap="3" className="w-full sm:w-auto">
+            <Box className="relative min-w-0 flex-1 sm:w-60 sm:flex-none">
+              <Input
+                ref={searchInputRef}
+                type="search"
+                aria-label={t("searchLabel")}
+                placeholder={t("searchPlaceholder")}
+                value={libraryQuery.text}
+                onChange={(event) => setLibraryQuery((previous) => ({ ...previous, text: event.target.value }))}
+                className={cn(
+                  "h-9 w-full [&::-webkit-search-cancel-button]:appearance-none",
+                  libraryQuery.text && "pr-8",
+                )}
+              />
+              {libraryQuery.text && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2"
+                  aria-label={t("clearSearch")}
+                  onClick={() => {
+                    setLibraryQuery((previous) => ({ ...previous, text: "" }));
+                    searchInputRef.current?.focus();
+                  }}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              )}
+            </Box>
+            <LibraryViewToggle value={viewMode} onValueChange={handleViewModeChange} />
+          </Flex>
+        </Flex>
+      </PageToolbar>
 
       <PageSection className="px-4 pt-0 pb-4 sm:px-6 [&:not(:first-child)]:border-t-0" {...anchorProps("pages.root")}>
-        <Text id="page-library-search-hint" size="xs" tone="muted" className="mb-3">
-          {t("searchHint")}
-        </Text>
         <PageGridSelector
           onSelectPage={handleSelectPage}
           renderPageActions={(page, card) => <PageCardMenu page={page}>{card}</PageCardMenu>}

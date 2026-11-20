@@ -155,13 +155,13 @@ describe("Pages library search and sorting", () => {
     await user.type(screen.getByRole("searchbox", { name: "Search pages" }), "weather");
     expect(resultIds()).toEqual(["alpha", "note"]);
     await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
-    await user.click(await screen.findByRole("option", { name: "Newest created" }));
+    await user.click(await screen.findByRole("option", { name: "Created, newest first" }));
     expect(resultIds()).toEqual(["note", "alpha"]);
     await user.click(screen.getByRole("combobox", { name: "Display filter" }));
     await user.click(await screen.findByRole("option", { name: "Note" }));
     expect(resultIds()).toEqual(["note"]);
     expect(screen.getByRole("searchbox", { name: "Search pages" })).toHaveValue("weather");
-    expect(screen.getByRole("combobox", { name: "Sort pages" })).toHaveTextContent("Newest created");
+    expect(screen.getByRole("combobox", { name: "Sort pages" })).toHaveTextContent("Created, newest first");
     await user.click(screen.getByRole("button", { name: /New page/i }));
     expect(push).toHaveBeenCalledWith("/pages/new?board=note-board");
     await user.click(screen.getByRole("combobox", { name: "Display filter" }));
@@ -174,10 +174,10 @@ describe("Pages library search and sorting", () => {
     renderLibrary();
     await screen.findByText("Alpha");
     await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
-    await user.click(await screen.findByRole("option", { name: "Newest created" }));
+    await user.click(await screen.findByRole("option", { name: "Created, newest first" }));
     expect(resultIds()).toEqual(["beta", "alpha"]);
     await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
-    await user.click(await screen.findByRole("option", { name: "Recently updated" }));
+    await user.click(await screen.findByRole("option", { name: "Updated, newest first" }));
     expect(resultIds()).toEqual(["alpha", "beta"]);
   });
 
@@ -188,15 +188,15 @@ describe("Pages library search and sorting", () => {
     await user.click(await screen.findByRole("option", { name: "Note" }));
     await user.type(screen.getByRole("searchbox", { name: "Search pages" }), "weather");
     await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
-    await user.click(await screen.findByRole("option", { name: "Newest created" }));
+    await user.click(await screen.findByRole("option", { name: "Created, newest first" }));
     await user.click(screen.getByRole("button", { name: /^Note forecast/ }));
     expect(push).toHaveBeenCalledWith("/pages/edit/note");
     view.unmount();
     renderLibrary();
     await waitFor(() => expect(screen.getByRole("combobox", { name: "Display filter" })).toHaveTextContent("Note"));
     expect(screen.getByRole("searchbox", { name: "Search pages" })).toHaveValue("weather");
-    expect(screen.getByRole("combobox", { name: "Sort pages" })).toHaveTextContent("Newest created");
-    expect(screen.getByRole("button", { name: "List view" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("combobox", { name: "Sort pages" })).toHaveTextContent("Created, newest first");
+    expect(screen.getByRole("radio", { name: "List" })).toHaveAttribute("aria-checked", "true");
     expect(await screen.findByText("Note forecast")).toBeInTheDocument();
     expect(screen.queryByText("Alpha")).not.toBeInTheDocument();
   });
@@ -228,7 +228,7 @@ describe("Pages library search and sorting", () => {
     await user.click(screen.getByRole("button", { name: "Retry loading pages" }));
     expect(await screen.findByText("Alpha")).toBeInTheDocument();
     expect(screen.queryByText("Beta")).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Sort pages" })).toHaveTextContent("Recently updated");
+    expect(screen.getByRole("combobox", { name: "Sort pages" })).toHaveTextContent("Updated, newest first");
   });
 
   it("retains loaded pages and the query after a failed background page refetch", async () => {
@@ -318,7 +318,7 @@ describe("Pages library search and sorting", () => {
       await waitFor(() => expect(previewIds).toEqual([["alpha", "beta"]]));
       await user.type(screen.getByRole("searchbox", { name: "Search pages" }), "weather");
       await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
-      await user.click(await screen.findByRole("option", { name: "Newest created" }));
+      await user.click(await screen.findByRole("option", { name: "Created, newest first" }));
       expect(previewIds).toEqual([["alpha", "beta"]]);
     } finally {
       release();
@@ -351,7 +351,7 @@ describe("Pages library search and sorting", () => {
     try {
       const view = renderLibrary();
       await screen.findByText("Alpha");
-      await user.click(screen.getByRole("button", { name: "Grid view" }));
+      await user.click(screen.getByRole("radio", { name: "Grid" }));
       await waitFor(() => expect(errors).toHaveBeenCalledWith("Failed to fetch batch previews:", expect.anything()));
       expect(previewIds).toEqual([["alpha", "beta"]]);
       if (retry === "edit") {
@@ -395,11 +395,11 @@ describe("Pages library search and sorting", () => {
       const user = userEvent.setup();
       renderLibrary();
       await screen.findByText("Artwork Alpha");
-      await user.click(screen.getByRole("button", { name: "Grid view" }));
+      await user.click(screen.getByRole("radio", { name: "Grid" }));
       await waitFor(() => expect(errors).toHaveBeenCalledWith("Failed to fetch batch previews:", expect.anything()));
       expect(calls).toHaveBeenCalledTimes(1);
       await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
-      await user.click(await screen.findByRole("option", { name: "Newest created" }));
+      await user.click(await screen.findByRole("option", { name: "Created, newest first" }));
       await user.type(screen.getByRole("searchbox", { name: "Search pages" }), "ar");
       await act(async () => {
         await Promise.allSettled(
@@ -436,7 +436,7 @@ describe("Pages library search and sorting", () => {
       const user = userEvent.setup();
       const view = renderLibrary();
       await screen.findByText("Artwork Alpha");
-      await user.click(screen.getByRole("button", { name: "Grid view" }));
+      await user.click(screen.getByRole("radio", { name: "Grid" }));
       await waitFor(() => expect(calls).toHaveBeenCalledTimes(1));
       const data = view.client.getQueryData(["pages"]);
       const updatedAt = view.client.getQueryState(["pages"])!.dataUpdatedAt;
@@ -486,7 +486,7 @@ describe("Pages library search and sorting", () => {
       const user = userEvent.setup();
       const view = renderLibrary();
       await screen.findByText("Alpha");
-      await user.click(screen.getByRole("button", { name: "Grid view" }));
+      await user.click(screen.getByRole("radio", { name: "Grid" }));
       await waitFor(() => expect(calls).toHaveBeenCalledTimes(1));
       await act(async () => {
         await calls.mock.results[0].value;
@@ -626,6 +626,82 @@ describe("Pages library search and sorting", () => {
       <PageGridSelector onSelectPage={() => {}} showCollections={false} deviceTypeFilter="flagship" viewMode="list" />,
     );
     expect(await screen.findByText("Beta")).toBeInTheDocument();
+  });
+});
+
+// BB-FP-6 / BB-FP-7 / BB-FP-8 (Figma 297:1824, 303:16324): the library toolbar.
+describe("Pages library toolbar", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem("fiestaboard_pages_view_mode", "list");
+    server.use(
+      http.get("/api/settings/board", () =>
+        HttpResponse.json({ board_type: "black", devices: ["flagship"], boards: [] }),
+      ),
+      http.get("/api/v1/pages", () => HttpResponse.json({ pages, total: pages.length })),
+      http.get("/api/v1/collections", () => HttpResponse.json({ collections: [], total: 0 })),
+      http.get("/api/panels", () => HttpResponse.json({ panels: [], total: 0 })),
+    );
+  });
+
+  it("switches Grid / List with a text segmented control and imports from an outline button", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
+    const view = screen.getByRole("radiogroup", { name: "View mode" });
+    expect(view).toHaveAttribute("data-slot", "segmented-control");
+    const grid = within(view).getByRole("radio", { name: "Grid" });
+    const list = within(view).getByRole("radio", { name: "List" });
+    expect(grid).toHaveTextContent("Grid");
+    expect(list).toHaveTextContent("List");
+    expect(list).toHaveAttribute("aria-checked", "true");
+    await user.click(grid);
+    expect(grid).toHaveAttribute("aria-checked", "true");
+    expect(localStorage.getItem("fiestaboard_pages_view_mode")).toBe("grid");
+
+    const importButton = screen.getByRole("button", { name: "Import" });
+    expect(importButton).toHaveAttribute("data-variant", "outline");
+    expect(importButton.querySelector("svg")).toBeNull();
+  });
+
+  it("searches from a 'Search pages' field with an in-field clear and no standing help text", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
+    const search = screen.getByRole("searchbox", { name: "Search pages" });
+    expect(search).toHaveAttribute("placeholder", "Search pages");
+    expect(screen.queryByText(/Searches names and saved content/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/of \d+ pages/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear search" })).not.toBeInTheDocument();
+
+    await user.type(search, "zzzz");
+    expect(screen.getByText("No matching pages")).toBeInTheDocument();
+    expect(screen.getAllByText(/Searches names and saved content/)).toHaveLength(1);
+    const clear = screen.getByRole("button", { name: "Clear search" });
+    // The clear control sits inside the field, as an icon (no text label).
+    expect(clear).not.toHaveTextContent(/\S/);
+    expect(search.parentElement).toContainElement(clear);
+    await user.click(clear);
+    expect(search).toHaveValue("");
+    expect(search).toHaveFocus();
+  });
+
+  it("offers parallel sort labels", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
+    await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
+    const options = (await screen.findAllByRole("option")).map((o) => o.textContent);
+    expect(options).toEqual([
+      "Name A–Z",
+      "Name Z–A",
+      "Created, newest first",
+      "Created, oldest first",
+      "Updated, newest first",
+      "Updated, oldest first",
+    ]);
   });
 });
 
