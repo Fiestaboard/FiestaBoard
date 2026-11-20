@@ -194,6 +194,7 @@ export function NotificationSettings() {
 
       <ListRowGroup>
         <NotificationRow
+          size="default"
           title={t("account")}
           reason={t("accountHint")}
           checked={status.data.user_enabled}
@@ -201,6 +202,7 @@ export function NotificationSettings() {
           onCheckedChange={(checked) => void change("account", checked)}
         />
         <NotificationRow
+          size="default"
           title={t("device")}
           reason={t("deviceHint")}
           checked={enrolled}
@@ -236,6 +238,7 @@ export function NotificationSettings() {
         <ListRowGroup>
           {(["offline", "override", "update", "silence"] as const).map((category) => (
             <NotificationRow
+              size="default"
               key={category}
               title={t(category)}
               reason={t(`${category}Hint`)}
