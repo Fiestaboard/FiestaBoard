@@ -320,3 +320,25 @@ describe("ActivePageDisplay - Now showing", () => {
     expect(hints).toHaveTextContent("CComposePChange Page");
   });
 });
+
+// BB-FH-7, BB-FH-9 (07a `302:20841`): the actions are Button lg (40 px) and
+// the card's meta names the hub: "Flagship 22 × 6 · fiestapi.local".
+describe("ActivePageDisplay - 07a desktop details", () => {
+  it("draws Change Page, Cancel override and Edit page at Button lg", async () => {
+    useSchedule({ temporary_override: override(42 * 60) });
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    const card = await screen.findByTestId("now-showing");
+    await within(card).findByText("Override");
+    for (const name of [/Change Page/, /Cancel override/]) {
+      expect(within(card).getByRole("button", { name })).toHaveAttribute("data-size", "lg");
+    }
+    expect(within(card).getByRole("link", { name: /Edit page/ })).toHaveAttribute("data-size", "lg");
+  });
+
+  it("names the hub after the type and size", async () => {
+    useSchedule({});
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    const card = await screen.findByTestId("now-showing");
+    expect(await within(card).findByText(`Flagship 22 × 6 · ${window.location.hostname}`)).toBeInTheDocument();
+  });
+});

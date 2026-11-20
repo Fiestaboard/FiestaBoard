@@ -62,6 +62,7 @@ import { api, isCollectionId } from "@/lib/api";
 import type { BoardGeometry } from "@/lib/board-characters-to-template";
 import { classifyDimensions } from "@/lib/board-dimensions";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
+import { browserHostname } from "@/lib/network-hint";
 import { isDisplayOffline } from "@/lib/status-banners";
 
 export interface ActivePageDisplayProps {
@@ -89,6 +90,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   }, [sendsDisabled]);
   const { data: fleetStatus } = useStatus();
   const phone = useMediaQuery("(max-width: 767px)");
+  const hubHost = browserHostname();
   const tPause = useTranslations("displaySettings.pause");
   const navigate = useNavigate();
   const locale = useLocale();
@@ -558,10 +560,12 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     !!silenceStatus?.active ||
     isTargetPaused;
 
+  // 07a `302:20841`: the actions are Button lg (40 px); a phone keeps 44.
   const actions = (
     <Flex align="center" gap="3" wrap className="w-full">
       <Button
         variant="secondary"
+        size="lg"
         disabled={sendsDisabled}
         onClick={openChangePage}
         className="gap-2 max-sm:flex-1 max-sm:h-11"
@@ -572,6 +576,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       {overrideActive && (
         <Button
           variant="outline"
+          size="lg"
           onClick={() =>
             cancelOverrideMutation.mutate({
               boardId: overrideBoardId,
@@ -586,14 +591,14 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
         </Button>
       )}
       {mode === "schedule" ? (
-        <Button variant="ghost" asChild className="gap-2 max-sm:hidden">
+        <Button variant="ghost" size="lg" asChild className="gap-2 max-sm:hidden">
           <Link href="/schedule">
             <Calendar className="size-4" aria-hidden="true" />
             {tn("viewSchedule")}
           </Link>
         </Button>
       ) : editHref ? (
-        <Button variant="ghost" asChild className="gap-2 max-sm:hidden">
+        <Button variant="ghost" size="lg" asChild className="gap-2 max-sm:hidden">
           <Link href={editHref}>
             <PencilLine className="size-4" aria-hidden="true" />
             {tn("editPage")}
@@ -764,7 +769,8 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
               {/* 07a `306:53086`: on a phone the mode sits in the header and
                   the title takes the whole line below (BB-A-16); the board
                   needs no type-and-size row there (BB-A-6). */}
-              {phone ? phoneModeBadge : boardMeta(targetBoard, activeGeometry)}
+              {/* 07a `302:20841`: "Flagship 22 × 6 · fiestapi.local" (BB-FH-9). */}
+              {phone ? phoneModeBadge : [boardMeta(targetBoard, activeGeometry), hubHost].filter(Boolean).join(" · ")}
               <BoardActionsMenu actions={boardActions} />
             </Text>
           }
