@@ -296,7 +296,8 @@ export function useFormulaIde({
       template={template}
       roots={roots}
       offRoots={offRoots}
-      unsampled={sample.unsampled}
+      // An integration that is off has no hub data to keep: not in this note.
+      unsampled={sample.unsampled.filter((root) => !disabled?.[root])}
       formulas={diagnostics?.formulas ?? []}
       sources={own?.sources ?? null}
       loading={render.isPending && previewContext !== null}
