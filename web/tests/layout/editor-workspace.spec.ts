@@ -38,6 +38,8 @@ for (const width of [1440, 1280, 1024]) {
     const explorer = await box(column(page, "explorer"));
     const template = await box(column(page, "template"));
     const preview = await box(column(page, "preview"));
+    // Explorer open (184:159319): template and preview share the width evenly.
+    expect(Math.abs(template.width - preview.width)).toBeLessThanOrEqual(2);
     expect(explorer.x + explorer.width).toBeLessThanOrEqual(template.x);
     expect(template.x + template.width).toBeLessThanOrEqual(preview.x);
     // The Explorer sits under the header and toolbar, as drawn (not beside them).
@@ -53,6 +55,11 @@ for (const width of [1440, 1280, 1024]) {
       expect(b.x).toBeGreaterThanOrEqual(template.x - 1);
       expect(b.x + b.width).toBeLessThanOrEqual(template.x + template.width + 1);
     }
+    // Under, not beside: the Console starts below the template, the Inspector below the preview card.
+    const templateCard = await box(page.locator('[data-slot="page-editor-template-column"]'));
+    const previewCard = await box(page.locator('[data-slot="editor-preview"]'));
+    expect(consoleBox.y).toBeGreaterThanOrEqual(templateCard.y + templateCard.height - 1);
+    expect(inspectorBox.y).toBeGreaterThanOrEqual(previewCard.y + previewCard.height - 1);
     expect(inspectorBox.x).toBeGreaterThanOrEqual(preview.x - 1);
     expect(inspectorBox.x + inspectorBox.width).toBeLessThanOrEqual(preview.x + preview.width + 1);
     // Figma fits it all at 1440 × 900: the Console and the Inspector start above the fold.
@@ -150,4 +157,66 @@ test("Page duration is one Tab stop: the Page panel itself is not a second one (
   await expect(page.locator(":focus")).toContainText("Page duration");
   await page.keyboard.press("Tab");
   await expect(page.locator(":focus")).toContainText("Transition");
+});
+
+test("a Flagship page with the Explorer closed gives the preview the wider column (53:137378)", async ({ page }) => {
+  await mockHub(page);
+  await open(page, 1440);
+  await expect(page.getByRole("button", { name: "Show Explorer" })).toBeVisible();
+  const template = await box(column(page, "template"));
+  const preview = await box(column(page, "preview"));
+  expect(preview.width / template.width).toBeGreaterThan(1.4);
+});
+
+for (const width of [1440, 1024]) {
+  test(`${width}px: the sticky preview never covers the status row or the Inspector (BB-E-7)`, async ({ page }) => {
+    // A tall board with the Explorer open (a FiestaPanel's default): the case that left the Inspector unreadable.
+    await mockHub(page, { deviceType: "panel" });
+    await open(page, width);
+    const inspector = page.getByRole("tablist", { name: "Inspector" });
+    await expect(inspector).toBeVisible();
+    for (const target of [page.locator('[data-slot="preview-status"]'), page.locator("#ide-inspector")]) {
+      await target.scrollIntoViewIfNeeded();
+      for (const dy of [0, 200, 400]) {
+        await page.locator('[data-slot="page-editor-scroll"]').evaluate((el, by) => el.scrollBy(0, by), dy);
+        const covered = await target.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const x = r.left + Math.min(40, r.width / 2);
+          const ys = [r.top + 4, r.top + r.height / 2].filter((y) => y > 0 && y < innerHeight);
+          return ys.some((y) => {
+            const hit = document.elementFromPoint(x, y);
+            return hit !== null && !el.contains(hit) && hit.closest('[data-slot="editor-preview"]') !== null;
+          });
+        });
+        expect(covered).toBe(false);
+      }
+    }
+  });
+}
+
+test("a new page on a FiestaPanel display: the first save moves nothing either (BB-E-11)", async ({ page }) => {
+  await mockHub(page, { deviceType: "panel", panelBoard: true });
+  await open(page, 1440, "/pages/new");
+  const name = page.getByRole("textbox", { name: /page name/i });
+  await expect(name).toBeVisible();
+  // The new page adopts the display's kind before it is saved, and so does the Explorer (D2: open for panels).
+  await expect(page.getByRole("navigation", { name: "Explorer" })).toBeVisible();
+  await name.fill("Den family board");
+  const frame = async () => ({
+    explorer: await box(column(page, "explorer")),
+    template: await box(column(page, "template")),
+    preview: await box(page.locator('[data-slot="editor-preview"]')),
+  });
+  const before = await frame();
+  await page.getByRole("button", { name: /save page/i }).click();
+  await expect(page.getByRole("region", { name: "Console" })).toBeVisible();
+  const after = await frame();
+  for (const key of ["explorer", "template", "preview"] as const) {
+    expect({ key, x: after[key].x, y: after[key].y, width: after[key].width }).toEqual({
+      key,
+      x: before[key].x,
+      y: before[key].y,
+      width: before[key].width,
+    });
+  }
 });

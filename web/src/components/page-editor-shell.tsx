@@ -123,11 +123,16 @@ export function PageEditorShell({
   );
   // The Explorer's open state lives here, so the column is the same before
   // the first save (a placeholder) and after it (the IDE's Explorer).
-  const explorer = useExplorerToggle(loadedPage?.device_type ?? deviceType ?? "flagship");
+  // Keyed on the kind the builder actually edits: a new page adopts the
+  // selected display's kind before its first save (BB-E-11).
+  const [builderKind, setBuilderKind] = useState<DeviceType>();
+  const explorer = useExplorerToggle(builderKind ?? loadedPage?.device_type ?? deviceType ?? "flagship");
   const desktop = useMediaQuery(IDE_DESKTOP_QUERY);
   const ideMounted = Boolean(editorPageId && loadedPage);
   const explorerPlaceholder =
-    explorerSlot && desktop ? createPortal(<IdeExplorerPlaceholder toggle={explorer} />, explorerSlot) : null;
+    explorerSlot && desktop
+      ? createPortal(<IdeExplorerPlaceholder toggle={explorer} saved={Boolean(editorPageId)} />, explorerSlot)
+      : null;
   const [saveActions, setSaveActions] = useState<SaveActionsRenderer | undefined>(undefined);
   const [savedTick, setSavedTick] = useState(0);
   const handleSave = () => {
@@ -234,6 +239,7 @@ export function PageEditorShell({
             onCreated={handleCreated}
             saveActions={saveActions}
             workspaceSlots={workspaceSlots}
+            onDeviceTypeChange={setBuilderKind}
           />
           {/* Until the IDE is up (a new page, or its chunk still loading), the
               Explorer column keeps its frame so nothing moves (BB-E-11). */}

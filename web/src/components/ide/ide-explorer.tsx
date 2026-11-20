@@ -46,16 +46,20 @@ export type ExplorerToggle = ReturnType<typeof useExplorerToggle>;
 /**
  * The Explorer column before the page has an id (/pages/new, BB-E-11): the
  * same frame as a saved page's, so the first save moves nothing. Open, it is
- * the Explorer card with a note; closed, the Show Explorer button.
+ * the Explorer card with a note (none while a saved page's IDE is loading);
+ * closed, the Show Explorer button.
  */
-export function IdeExplorerPlaceholder({ toggle }: { toggle: ExplorerToggle }) {
+export function IdeExplorerPlaceholder({ toggle, saved = false }: { toggle: ExplorerToggle; saved?: boolean }) {
   const t = useTranslations("creatorIde");
   if (!toggle.open) return <IdeExplorerShow onShow={toggle.show} buttonRef={toggle.showRef} />;
   return (
     <ExplorerCard onHide={toggle.hide} hideRef={toggle.hideRef}>
-      <Text size="sm" tone="muted">
-        {t("explorerAfterSave")}
-      </Text>
+      {/* A saved page's Explorer is only loading: no "once it is saved" note. */}
+      {!saved && (
+        <Text size="sm" tone="muted">
+          {t("explorerAfterSave")}
+        </Text>
+      )}
     </ExplorerCard>
   );
 }

@@ -10,6 +10,8 @@ export interface CreatorIdeHubOptions {
   deviceType?: "flagship" | "note" | "note_array" | "panel";
   /** The page is on no display and in no schedule: the header offers Save / Show now. */
   notScheduled?: boolean;
+  /** The selected display is a 34×14 FiestaPanel: a new page adopts its kind (BB-E-11). */
+  panelBoard?: boolean;
 }
 
 export const board = {
@@ -60,6 +62,8 @@ export async function mockHub(page: Page, options: CreatorIdeHubOptions = {}) {
     device_type: deviceType,
     ...(deviceType === "panel" && { grid_rows: 14, grid_cols: 34 }),
   };
+  let created: Record<string, unknown> | undefined;
+  const shownBoard = options.panelBoard ? { ...board, device_type: "panel", grid_rows: 14, grid_cols: 34 } : board;
   // What the display shows: this page (live), or another one.
   const showing = options.notScheduled ? "evening" : kitchenMorning.id;
   await page.route(
@@ -70,12 +74,12 @@ export async function mockHub(page: Page, options: CreatorIdeHubOptions = {}) {
       let response: unknown;
       let status = 200;
       if (pathname === "/settings/board") {
-        response = { boards: [board], devices: ["flagship"], board_type: "black" };
+        response = { boards: [shownBoard], devices: ["flagship", "panel"], board_type: "black" };
       } else if (pathname.startsWith("/v1/boards/")) {
         response = {
-          ...board,
-          rows: 6,
-          cols: 22,
+          ...shownBoard,
+          rows: options.panelBoard ? 14 : 6,
+          cols: options.panelBoard ? 34 : 22,
           is_primary: true,
           paused: false,
           schedule_enabled: true,
@@ -86,11 +90,12 @@ export async function mockHub(page: Page, options: CreatorIdeHubOptions = {}) {
         };
       } else if (pathname === "/v1/pages" && request.method() === "POST") {
         // The first save of a new page (BB-E-11): it becomes this fixture's page.
-        const body = request.postDataJSON() as { name?: string; template?: string[] };
-        response = { ...opened, name: body.name ?? opened.name, template: body.template ?? opened.template };
+        const body = request.postDataJSON() as Record<string, unknown>;
+        created = { ...opened, ...body, id: opened.id };
+        response = created;
         status = 201;
       } else if (pathname === `/v1/pages/${kitchenMorning.id}`) {
-        response = opened;
+        response = created ?? opened;
       } else if (pathname === "/v1/pages" || pathname === "/pages") {
         response = { pages: [opened, { ...kitchenMorning, id: "evening", name: "Evening news" }], total: 2 };
       } else if (pathname === "/v1/variables") {

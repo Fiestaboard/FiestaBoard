@@ -259,6 +259,12 @@ interface PageBuilderProps {
    * holds the whole workspace. Omitted, the builder is its two columns.
    */
   workspaceSlots?: PageBuilderWorkspaceSlots;
+  /**
+   * The page's board kind as the editor has it, including a new page's
+   * adopted display kind (BB-E-11): the shell keys the Explorer's D2 state on
+   * it, so the first save never changes it.
+   */
+  onDeviceTypeChange?: (deviceType: DeviceType) => void;
 }
 
 export interface PageBuilderWorkspaceSlots {
@@ -408,6 +414,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     embedded = false,
     saveActions,
     workspaceSlots,
+    onDeviceTypeChange,
   },
   ref,
 ) {
@@ -545,6 +552,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // replace it with another board's.
     setPanelSizedGrid(true);
   }
+  // Before paint, so the Explorer column never draws the wrong kind's state first.
+  useLayoutEffect(() => {
+    onDeviceTypeChange?.(deviceType);
+  }, [deviceType, onDeviceTypeChange]);
   const dims = resolveDimensions(deviceType, notesWide, notesTall, gridRows, gridCols);
   const numLines = dims.rows;
   // The grid a panel render/save needs (the API refuses a panel without one).
@@ -3435,12 +3446,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <Box
                     ref={workspaceSlots.explorer}
                     data-slot="page-editor-explorer-column"
-                    className="hidden min-w-0 lg:block lg:self-stretch"
+                    className="hidden min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:block lg:self-stretch"
                   />
                 )}
                 <Box
                   data-slot="page-editor-template-column"
-                  className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4"
+                  className={cn(
+                    "contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4",
+                    workspaceSlots && "lg:col-start-2 lg:row-start-1",
+                  )}
                 >
                   {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
                   <Box
@@ -3788,11 +3802,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       </Alert>
                     )
                   )}
-                  {workspaceSlots && <Box ref={workspaceSlots.template} className="order-4 min-w-0 lg:order-none" />}
                 </Box>
+                {/* Row 2 of the template column: the Console and Timeline (DOM order
+                    keeps the column together for Tab, BB-E-22). */}
+                {workspaceSlots && (
+                  <Box
+                    ref={workspaceSlots.template}
+                    className="order-4 min-w-0 lg:order-none lg:col-start-2 lg:row-start-2"
+                  />
+                )}
                 <Box
                   data-slot="page-editor-preview-column"
-                  className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4"
+                  className={cn(
+                    "contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4",
+                    // Its own row's full height: the sticky preview travels within
+                    // row 1 and never over the status row or Inspector below.
+                    workspaceSlots && "lg:col-start-3 lg:row-start-1 lg:self-stretch",
+                  )}
                 >
                   {/* Preview is shared by both modes; the dock stays visible below 1024 px. */}
                   <EditorPreview
@@ -4051,8 +4077,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     {formulaIde.previewFooter}
                   </EditorPreview>
                   {formulaIde.rightSlot && <Box className="order-2 min-w-0 lg:order-none">{formulaIde.rightSlot}</Box>}
-                  {workspaceSlots && <Box ref={workspaceSlots.preview} className="order-5 min-w-0 lg:order-none" />}
                 </Box>
+                {/* Row 2 of the preview column: the status row and the Inspector. */}
+                {workspaceSlots && (
+                  <Box
+                    ref={workspaceSlots.preview}
+                    className="order-5 min-w-0 lg:order-none lg:col-start-3 lg:row-start-2"
+                  />
+                )}
               </Box>
             </Box>
           </CardContent>
