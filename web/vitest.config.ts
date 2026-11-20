@@ -33,6 +33,7 @@ export default defineConfig({
         "src/components/service-controls.tsx",
         "src/components/general-settings.tsx",
         "src/components/settings/update-intervals.tsx",
+        "src/components/settings/release-channel.tsx",
         "src/components/settings/silence-schedule.tsx",
         "src/components/sidebar-settings-menu.tsx",
         "src/components/about-dialog.tsx",

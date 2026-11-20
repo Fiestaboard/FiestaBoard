@@ -90,7 +90,7 @@ class BackupService:
 
     # ── export ──────────────────────────────────────────────────────────
 
-    def build_backup(self) -> dict[str, Any]:
+    def build_backup(self, *, strict: bool = False) -> dict[str, Any]:
         """Produce an in-memory backup document.
 
         Returns:
@@ -102,13 +102,32 @@ class BackupService:
             data: dict[str, Any | None] = {}
             for filename in DATA_FILES:
                 key = filename[:-5]  # strip ".json"
-                data[key] = self._read_json(self.data_dir / filename)
+                if strict:
+                    # A major upgrade must not mistake an unreadable/corrupt
+                    # source for an absent store and advertise a partial backup.
+                    try:
+                        with (self.data_dir / filename).open(encoding="utf-8") as handle:
+                            data[key] = json.load(handle)
+                    except FileNotFoundError:
+                        data[key] = None
+                    except (OSError, ValueError) as exc:
+                        raise BackupError(f"Could not back up {filename}: {exc}") from exc
+                    else:
+                        if data[key] is None:
+                            raise BackupError(f"Could not back up {filename}: null store")
+                        # Restore needs a JSON object per store. On this line
+                        # the restore preflight does not check store shapes,
+                        # so the strict export rejects them itself.
+                        if not isinstance(data[key], dict):
+                            raise BackupError(f"Could not back up {filename}: store must be a JSON object")
+                else:
+                    data[key] = self._read_json(self.data_dir / filename)
 
             installed_plugins = self._collect_installed_plugins()
 
             from src import __version__ as app_version
 
-            return {
+            backup = {
                 BACKUP_FILE_MARKER: True,
                 "schema_version": BACKUP_SCHEMA_VERSION,
                 "exported_at": datetime.now(UTC).isoformat(),
@@ -116,10 +135,13 @@ class BackupService:
                 "data": data,
                 "installed_plugins": installed_plugins,
             }
+            if strict:
+                self._validate_backup(backup)
+            return backup
 
-    def export_to_json(self, *, indent: int = 2) -> str:
+    def export_to_json(self, *, indent: int = 2, strict: bool = False) -> str:
         """Return the backup as a JSON string."""
-        return json.dumps(self.build_backup(), indent=indent, sort_keys=False)
+        return json.dumps(self.build_backup(strict=strict), indent=indent, sort_keys=False)
 
     # ── import ──────────────────────────────────────────────────────────
 

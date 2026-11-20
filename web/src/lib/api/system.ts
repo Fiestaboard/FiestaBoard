@@ -259,8 +259,13 @@ export interface WifiConnectResponse {
 }
 
 /** Which release channel an install follows (#1955). */
+export type ReleaseChannel = "stable" | "beta" | "alpha";
+
 export interface ReleaseChannelResponse {
-  channel: "stable" | "beta";
+  channel: ReleaseChannel;
+  running_channel: ReleaseChannel;
+  running_version: string;
+  channel_versions: Partial<Record<ReleaseChannel, string | null>>;
   available_channels: string[];
   can_switch: boolean;
   /** Why switching is unavailable, when it is. */
@@ -402,10 +407,13 @@ export const systemApi = {
   // both directions because the API takes the target channel either way.
   getReleaseChannel: () => fetchApi<ReleaseChannelResponse>("/system/channel"),
 
-  setReleaseChannel: (channel: "stable" | "beta") =>
+  getReleaseChannelVersions: () =>
+    fetchApi<{ channel_versions: Partial<Record<ReleaseChannel, string | null>> }>("/system/channel/versions"),
+
+  setReleaseChannel: (channel: ReleaseChannel, confirmMajorUpgrade = false) =>
     fetchApi<ReleaseChannelSwitchResponse>("/system/channel", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channel }),
+      body: JSON.stringify({ channel, confirm_major_upgrade: confirmMajorUpgrade }),
     }),
 };
