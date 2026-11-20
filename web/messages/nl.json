@@ -1553,6 +1553,7 @@
   "composeDialog": {
     "title": "Bericht opstellen",
     "description": "Verschijnt op {board} als je Nu tonen kiest. Daarvoor komt er niets op het bord.",
+    "descriptionPhone": "Verschijnt op {board} (het scherm in de kop) als je Nu tonen kiest.",
     "messageLabel": "Bericht",
     "messagePlaceholder": "Typ je bericht…",
     "previewLabel": "Voorbeeld",

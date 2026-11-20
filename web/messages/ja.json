@@ -1553,6 +1553,7 @@
   "composeDialog": {
     "title": "メッセージを作成",
     "description": "今すぐ表示を選ぶと {board} に表示されます。それまでボードには何も届きません。",
+    "descriptionPhone": "今すぐ表示を選ぶと {board}（ヘッダーのディスプレイ）に表示されます。",
     "messageLabel": "メッセージ",
     "messagePlaceholder": "メッセージを入力…",
     "previewLabel": "プレビュー",

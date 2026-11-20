@@ -1553,6 +1553,7 @@
   "composeDialog": {
     "title": "메시지 작성",
     "description": "지금 표시를 선택하면 {board}에 표시됩니다. 그 전에는 보드에 아무것도 전달되지 않습니다.",
+    "descriptionPhone": "지금 표시를 선택하면 {board}(헤더의 디스플레이)에 표시됩니다.",
     "messageLabel": "메시지",
     "messagePlaceholder": "메시지를 입력하세요…",
     "previewLabel": "미리 보기",

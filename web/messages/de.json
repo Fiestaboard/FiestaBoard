@@ -1553,6 +1553,7 @@
   "composeDialog": {
     "title": "Nachricht verfassen",
     "description": "Erscheint auf {board}, sobald du „Jetzt anzeigen“ wählst. Vorher erreicht nichts die Tafel.",
+    "descriptionPhone": "Erscheint auf {board} (der Anzeige oben in der Kopfzeile), sobald du „Jetzt anzeigen“ wählst.",
     "messageLabel": "Nachricht",
     "messagePlaceholder": "Nachricht eingeben …",
     "previewLabel": "Vorschau",
