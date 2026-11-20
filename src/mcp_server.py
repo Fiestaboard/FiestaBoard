@@ -734,13 +734,14 @@ def _build_mcp_server() -> Any:
         """
         from .config_manager import get_config_manager
         from .plugins import get_plugin_registry
+        from .plugins.service import PluginService
 
         registry = get_plugin_registry()
         cm = get_config_manager()
         plugins = registry.list_plugins()
         for p in plugins:
             cfg = cm.get_plugin_config(p["id"])
-            p["config"] = cm._mask_sensitive(cfg) if cfg else {}
+            p["config"] = PluginService(registry=registry, config_manager=cm).mask_config(cfg, p["id"])
             p["configured"] = bool(cfg)
         return _serialize(plugins)
 

@@ -34,6 +34,7 @@ class _Recorder:
 def _service(recorder: _Recorder, *, config_errors: list[str] | None = None) -> PluginService:
     registry = Mock()
     registry.get_plugin.return_value = object()
+    registry.get_manifest.return_value.settings_schema = {}
     registry.validate_plugin_config.side_effect = lambda pid, cfg: (
         recorder.steps.append("validate"),
         list(config_errors or []),
@@ -102,7 +103,7 @@ def _service(recorder: _Recorder, *, config_errors: list[str] | None = None) -> 
     config_manager.disable_plugin.side_effect = lambda pid: recorder.steps.append("persist")
     config_manager.delete_plugin_config.side_effect = lambda pid: recorder.steps.append("persist")
     config_manager.delete_plugin_instance_config.side_effect = lambda pid: recorder.steps.append("persist")
-    config_manager._mask_sensitive.side_effect = lambda cfg: dict.fromkeys(cfg, "***")
+    config_manager._mask_sensitive.side_effect = lambda cfg, **kwargs: dict.fromkeys(cfg, "***")
 
     return PluginService(
         registry=registry,
@@ -196,9 +197,9 @@ def test_unknown_plugin_raises_not_found_for_config_enable_and_disable():
 def test_mask_config_delegates_to_the_config_managers_masker():
     svc = _service(_Recorder())
 
-    assert svc.mask_config({"api_key": "k", "location": "NYC"}) == {"api_key": "***", "location": "***"}
-    assert svc.mask_config(None) == {}
-    assert svc.mask_config({}) == {}
+    assert svc.mask_config({"api_key": "k", "location": "NYC"}, "test_plugin") == {"api_key": "***", "location": "***"}
+    assert svc.mask_config(None, "test_plugin") == {}
+    assert svc.mask_config({}, "test_plugin") == {}
 
 
 def test_clear_update_status_pops_the_registrys_cache():

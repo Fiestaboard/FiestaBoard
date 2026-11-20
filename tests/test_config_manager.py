@@ -826,7 +826,7 @@ def test_enable_plugin_disable_plugin(tmp_path):
     assert cm.is_plugin_enabled("weather") is False
 
 
-def test_get_all_plugin_configs_and_masked(tmp_path):
+def test_get_all_plugin_configs_and_masked(tmp_path, monkeypatch):
     """get_all_plugin_configs / get_all_plugin_configs_masked."""
     config_path = tmp_path / "config.json"
     cm = ConfigManager(config_path=str(config_path))
@@ -834,6 +834,9 @@ def test_get_all_plugin_configs_and_masked(tmp_path):
     all_cfgs = cm.get_all_plugin_configs()
     assert "weather" in all_cfgs
     assert all_cfgs["weather"]["api_key"] == "secret"
+    registry = MagicMock()
+    registry.get_manifest.return_value.settings_schema = {}
+    monkeypatch.setattr("src.plugins.registry._registry", registry)
     masked = cm.get_all_plugin_configs_masked()
     assert masked["weather"]["api_key"] == "***"
 

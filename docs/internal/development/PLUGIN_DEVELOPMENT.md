@@ -2014,3 +2014,16 @@ honoured. Errors are `AINotConfiguredError`, `AIRejectedError`, and
 `PluginBase.get_options` itself. A plugin's own saved `api_key` keeps working and
 wins when set. Published guide:
 [`docs/development/plugin-ai.md`](../../development/plugin-ai.md).
+
+### Private settings and masked round-trips
+
+Mark private settings with `"secret": true` or `"ui:widget": "password"` in
+`settings_schema`, including nested object properties and array items. Public
+configuration projections use these annotations in addition to legacy sensitive
+field names. A plugin whose manifest is unavailable has its configuration
+withheld from these projections.
+
+Clients may echo `"***"` to retain a stored private value. Array entries need a
+unique stable `id`, `name`, or `key`, or an unambiguous unchanged public-field
+signature, so restoration cannot transfer a value to another entry. Ambiguous
+masked values must be re-entered. Environment overrides remain runtime-only.

@@ -496,11 +496,14 @@ SENSITIVE_FIELDS = {
 MASKED_VALUE = "***"
 
 
-def unmask_sensitive_values(values: dict[str, Any], stored: dict[str, Any]) -> dict[str, Any]:
+def unmask_sensitive_values(
+    values: dict[str, Any], stored: dict[str, Any], schema: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Return *values* with every masked sensitive field restored from *stored*.
 
     The browser never holds a real secret: :meth:`ConfigManager._mask_sensitive`
-    replaces every :data:`SENSITIVE_FIELDS` entry with :data:`MASKED_VALUE`
+    replaces schema-declared secrets and :data:`SENSITIVE_FIELDS` entries
+    with :data:`MASKED_VALUE`
     before the config leaves the process. Anything the form posts back
     therefore says ``"***"`` where the API key used to be, and writing that
     through — or handing it to a plugin — replaces a working credential with
@@ -525,11 +528,12 @@ def unmask_sensitive_values(values: dict[str, Any], stored: dict[str, Any]) -> d
     Args:
         values: Incoming settings, possibly carrying masked placeholders.
         stored: The currently persisted settings to restore secrets from.
+        schema: Optional manifest settings schema; legacy names always apply.
 
     Returns:
         A new dict; *values* is not mutated.
     """
-    return _unmask_node(values, stored)
+    return _unmask_node(values, stored, schema or {})
 
 
 # Sentinel for "no stored counterpart could be identified for this node", as
@@ -541,7 +545,7 @@ _UNMATCHED = object()
 IDENTITY_FIELDS = ("id", "name", "key")
 
 
-def _match_stored_element(item: Any, stored_list: list[Any]) -> Any:
+def _match_stored_element(item: Any, stored_list: list[Any], schema: Any = None) -> Any:
     """Return the stored element *item* is confidently the same as, or ``_UNMATCHED``.
 
     Positional matching is not safe here: deleting, reordering, or inserting a
@@ -563,40 +567,89 @@ def _match_stored_element(item: Any, stored_list: list[Any]) -> Any:
     candidates = [element for element in stored_list if isinstance(element, dict)]
 
     for field in IDENTITY_FIELDS:
-        if field in item and isinstance(item[field], (str, int)) and not isinstance(item[field], bool):
+        if (
+            field in item
+            and not _secret_schema(_property_schema(schema, field), field)
+            and isinstance(item[field], (str, int))
+            and not isinstance(item[field], bool)
+        ):
             matches = [element for element in candidates if element.get(field) == item[field]]
             return matches[0] if len(matches) == 1 else _UNMATCHED
 
-    signature = _non_sensitive_keys(item)
-    matches = [element for element in candidates if _non_sensitive_keys(element) == signature]
+    signature = _non_sensitive_keys(item, schema)
+    matches = [element for element in candidates if _non_sensitive_keys(element, schema) == signature]
     return matches[0] if len(matches) == 1 else _UNMATCHED
 
 
-def _non_sensitive_keys(element: dict[str, Any]) -> dict[str, Any]:
-    """The part of *element* a client can echo back unchanged: everything unmasked."""
-    return {key: value for key, value in element.items() if key not in SENSITIVE_FIELDS}
+def _secret_schema(schema: Any, key: str = "") -> bool:
+    return key in SENSITIVE_FIELDS or (
+        isinstance(schema, dict) and (schema.get("secret") is True or schema.get("ui:widget") == "password")
+    )
 
 
-def _unmask_node(value: Any, stored: Any) -> Any:
-    """Recursive worker for :func:`unmask_sensitive_values`."""
+def _property_schema(schema: Any, key: str) -> Any:
+    if not isinstance(schema, dict):
+        return {}
+    return schema.get("properties", {}).get(key, schema.get("additionalProperties", {}))
+
+
+def _item_schema(schema: Any) -> Any:
+    return schema.get("items", {}) if isinstance(schema, dict) else {}
+
+
+def _non_sensitive_keys(element: Any, schema: Any = None) -> Any:
+    """Recursive public signature; masked values cannot identify array elements."""
+    if isinstance(element, dict):
+        return {
+            key: _non_sensitive_keys(value, _property_schema(schema, key))
+            for key, value in element.items()
+            if not _secret_schema(_property_schema(schema, key), key)
+        }
+    if isinstance(element, list):
+        return (
+            []
+            if _secret_schema(_item_schema(schema))
+            else [_non_sensitive_keys(item, _item_schema(schema)) for item in element]
+        )
+    return element
+
+
+def _unmask_node(value: Any, stored: Any, schema: Any = None, key: str = "") -> Any:
+    """Restore only confidently identified stored secrets, never an env overlay."""
+    if _secret_schema(schema, key) and value == MASKED_VALUE:
+        return MASKED_VALUE if stored is _UNMATCHED else stored if stored is not None else ""
     if isinstance(value, dict):
-        unmatched = stored is _UNMATCHED
         stored_dict = stored if isinstance(stored, dict) else {}
-        merged: dict[str, Any] = {}
-        for key, item in value.items():
-            if key in SENSITIVE_FIELDS and item == MASKED_VALUE:
-                # Under an unmatched element there is nothing to restore from,
-                # and "" would destroy a secret just as surely as "***" did.
-                merged[key] = MASKED_VALUE if unmatched else stored_dict.get(key, "")
-            else:
-                merged[key] = _unmask_node(item, _UNMATCHED if unmatched else stored_dict.get(key))
-        return merged
+        return {
+            name: _unmask_node(
+                item,
+                _UNMATCHED if stored is _UNMATCHED else stored_dict.get(name),
+                _property_schema(schema, name),
+                name,
+            )
+            for name, item in value.items()
+        }
     if isinstance(value, list):
-        if stored is _UNMATCHED:
-            return [_unmask_node(item, _UNMATCHED) for item in value]
+        item_schema = _item_schema(schema)
         stored_list = stored if isinstance(stored, list) else []
-        return [_unmask_node(item, _match_stored_element(item, stored_list)) for item in value]
+        return [
+            _unmask_node(item, _match_stored_element(item, stored_list, item_schema), item_schema) for item in value
+        ]
     return value
+
+
+def has_masked_placeholder(value: Any, schema: Any = None, key: str = "") -> bool:
+    """Detect unresolved secret sentinels, conservatively when schema is unknown."""
+    if value == MASKED_VALUE and (schema is None or _secret_schema(schema, key)):
+        return True
+    if isinstance(value, dict):
+        return any(
+            has_masked_placeholder(item, None if schema is None else _property_schema(schema, name), name)
+            for name, item in value.items()
+        )
+    if isinstance(value, list):
+        return any(has_masked_placeholder(item, None if schema is None else _item_schema(schema)) for item in value)
+    return False
 
 
 class ConfigManager:
@@ -1156,22 +1209,34 @@ class ConfigManager:
     def get_all_masked(self) -> dict[str, Any]:
         """Get full configuration with sensitive fields masked."""
         config = self.get_all()
-        return self._mask_sensitive(config)
+        masked = self._mask_sensitive(config)
+        if isinstance(config.get("plugins"), dict):
+            masked["plugins"] = {key: self.mask_plugin_config(key, value) for key, value in config["plugins"].items()}
+        return masked
 
-    def _mask_sensitive(self, obj: Any, path: str = "") -> Any:
-        """Recursively mask sensitive fields in config."""
+    def mask_plugin_config(self, plugin_id: str, config: Any) -> dict[str, Any]:
+        """Project stored or effective plugin settings without bootstrapping plugins."""
+        from src.plugins.registry import get_plugin_settings_schema
+
+        schema = get_plugin_settings_schema(plugin_id)
+        if schema is None or not isinstance(config, dict):
+            return {}
+        masked = self._mask_sensitive(config, schema=schema)
+        return masked if isinstance(masked, dict) else {}
+
+    def _mask_sensitive(self, obj: Any, path: str = "", schema: Any = None) -> Any:
+        """Recursively mask schema-declared secrets and legacy sensitive names."""
+        if _secret_schema(schema):
+            return MASKED_VALUE if obj else obj
         if isinstance(obj, dict):
-            result = {}
-            for key, value in obj.items():
-                current_path = f"{path}.{key}" if path else key
-                if key in SENSITIVE_FIELDS and value:
-                    # Show that a value is set without revealing it
-                    result[key] = "***" if value else ""
-                else:
-                    result[key] = self._mask_sensitive(value, current_path)
-            return result
+            return {
+                key: (MASKED_VALUE if value else value)
+                if _secret_schema(_property_schema(schema, key), key)
+                else self._mask_sensitive(value, schema=_property_schema(schema, key))
+                for key, value in obj.items()
+            }
         if isinstance(obj, list):
-            return [self._mask_sensitive(item, path) for item in obj]
+            return [self._mask_sensitive(item, schema=_item_schema(schema)) for item in obj]
         return obj
 
     def get_board(self) -> dict[str, Any]:
@@ -1969,6 +2034,15 @@ class ConfigManager:
             self._apply_plugin_env_overlay(plugin_id, config)
         return config
 
+    def _restore_plugin_config(
+        self, incoming: dict[str, Any], stored: dict[str, Any], schema: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """Restore masked settings before persistence; refuse unresolved placeholders."""
+        restored = unmask_sensitive_values(incoming, stored, schema)
+        if has_masked_placeholder(restored, schema):
+            raise ValueError("Cannot save unresolved masked plugin settings; re-enter the affected values.")
+        return restored
+
     def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> bool:
         """Set configuration for a specific plugin.
 
@@ -1979,11 +2053,16 @@ class ConfigManager:
         Returns:
             True if successful.
         """
+        from src.plugins.registry import get_plugin_settings_schema
+
+        # Registry operations can hold its lock while calling into config.
+        # Resolve the schema before taking the file lock to preserve that order.
+        schema = get_plugin_settings_schema(plugin_id)
         with self._file_lock:
             candidate = self._deep_copy(self._config)
             plugins = candidate.setdefault("plugins", {})
             existing = plugins.get(plugin_id, {})
-            plugins[plugin_id] = unmask_sensitive_values(config, existing)
+            plugins[plugin_id] = self._restore_plugin_config(config, existing, schema)
             self._save_internal(candidate)
 
         logger.info(f"Plugin '{plugin_id}' configuration updated")
@@ -1999,6 +2078,11 @@ class ConfigManager:
         Returns:
             True if successful.
         """
+        from src.plugins.registry import get_plugin_settings_schema
+
+        # Registry operations can hold its lock while calling into config.
+        # Resolve the schema before taking the file lock to preserve that order.
+        schema = get_plugin_settings_schema(plugin_id)
         with self._file_lock:
             candidate = self._deep_copy(self._config)
             plugins = candidate.setdefault("plugins", {})
@@ -2009,7 +2093,7 @@ class ConfigManager:
             # persisting "***" over secrets nested in dicts and lists, which is
             # exactly the drift that produced #1743.
             existing = plugins.setdefault(plugin_id, {})
-            existing.update(unmask_sensitive_values(updates, existing))
+            existing.update(self._restore_plugin_config(updates, existing, schema))
 
             self._save_internal(candidate)
 
@@ -2081,7 +2165,7 @@ class ConfigManager:
             Dict mapping plugin_id to masked configuration.
         """
         configs = self.get_all_plugin_configs()
-        return self._mask_sensitive(configs)
+        return {key: self.mask_plugin_config(key, config) for key, config in configs.items()}
 
     def prepare_plugin_instance_config(self, plugin_id: str) -> dict[str, Any] | None:
         """Commit an instance's presence and clear its removal marker together.
