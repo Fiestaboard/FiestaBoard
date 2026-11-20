@@ -518,6 +518,32 @@ describe("status row and header actions", () => {
     await waitFor(() => expect(calls.draftDelete).toEqual(["d1"]));
   });
 
+  // E2E page-builder "Saved <time>": once the editor has saved the page, the
+  // header must say Saved, not "Draft saved", even before the hub answers the
+  // draft discard; the draft this session wrote is behind the page now.
+  it("drops the Draft saved label the moment the editor saves the page", async () => {
+    const calls = mockHub();
+    let unsaved = true;
+    const builder = {
+      ...fakeBuilder(),
+      hasUnsavedChanges: () => unsaved,
+    } as unknown as PageBuilderHandle;
+    const onDraftStateChange = vi.fn();
+    const { rerenderTick } = renderIde(builder, 0, onDraftStateChange);
+    // Autosave writes the draft for the dirty editor.
+    await waitFor(() => expect(calls.draftPut).toHaveLength(1), { timeout: 5000 });
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ label: expect.stringMatching(/^Draft saved/) }),
+      ),
+    );
+    // The editor saves the page: it is clean now, and the shell bumps savedTick.
+    unsaved = false;
+    act(() => rerenderTick(1));
+    await waitFor(() => expect(onDraftStateChange.mock.lastCall![0]?.label).toBeUndefined());
+    await waitFor(() => expect(calls.draftDelete).toEqual(["d1"]));
+  }, 10_000);
+
   // BB-B-27: a page without a draft is the usual case, not a failed request:
   // the IDE reads the drafts list first and asks for no draft that isn't there.
   it("asks for no draft the hub doesn't hold, so opening a page logs no 404", async () => {

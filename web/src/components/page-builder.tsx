@@ -3329,9 +3329,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       {headerMeta}
                     </Text>
                     {headerState && (
-                      <Text size="xs" tone="muted" className="shrink-0 whitespace-nowrap font-mono">
-                        {headerMeta ? ` · ${headerState}` : headerState}
-                      </Text>
+                      <>
+                        {/* The separator sits outside the state, so the state's text is
+                            exactly "Saved 7:28 PM" for anything that reads it. */}
+                        {headerMeta && (
+                          <Text
+                            as="span"
+                            size="xs"
+                            tone="muted"
+                            aria-hidden
+                            className="shrink-0 whitespace-pre font-mono"
+                          >
+                            {" · "}
+                          </Text>
+                        )}
+                        <Text size="xs" tone="muted" className="shrink-0 whitespace-nowrap font-mono">
+                          {headerState}
+                        </Text>
+                      </>
                     )}
                     {draftState?.onDiscard && (
                       <Button
