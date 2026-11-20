@@ -3,12 +3,13 @@
  *
  * Displays {{plugin.field|filter}} as the kit FormulaAtom (kind "variable",
  * Figma 111:30911 "Atom · weather.temperature"): the source as written, a `{}`
- * glyph, and, in the page editor, the value the preview sees ("= 62").
+ * glyph, and, in the page editor, the value the preview sees ("= 62"). The
+ * value is the variable's own; display filters (`|pad:3`) stay in the source.
  */
 import { FormulaAtom, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
-import React, { useId } from "react";
+import React from "react";
 
 import { atomValueText } from "@/components/formula-ide/atom-text";
 import { useFormulaIdeBridge } from "@/components/formula-ide/formula-ide-context";
@@ -20,14 +21,14 @@ interface VariableAttrs {
   pluginId: string;
   field: string;
   filters: Array<{ name: string; arg?: string }>;
+  /** Never set by the editor or serialized (defaults to 10), so not shown. */
   maxLength?: number;
 }
 
 export function VariableNodeView({ node }: ReactNodeViewProps) {
   const t = useTranslations("templateEditor");
   const tIde = useTranslations("formulaIde");
-  const descriptionId = useId();
-  const { pluginId, field, filters, maxLength } = node.attrs as VariableAttrs;
+  const { pluginId, field, filters } = node.attrs as VariableAttrs;
   const path = `${pluginId}.${field}`;
   const filterText = (filters ?? []).map((filter) => `${filter.name}${filter.arg ? `:${filter.arg}` : ""}`);
   const source = [path, ...filterText].join("|");
@@ -50,7 +51,6 @@ export function VariableNodeView({ node }: ReactNodeViewProps) {
             {/* eslint-disable-next-line react/forbid-elements -- inline wrapper around the noninteractive kit FormulaAtom inside TipTap contentEditable */}
             <span
               data-testid="variable-atom-chip"
-              aria-describedby={descriptionId}
               className="mr-0.5 inline-flex cursor-grab normal-case active:cursor-grabbing"
             >
               <FormulaAtom
@@ -72,18 +72,9 @@ export function VariableNodeView({ node }: ReactNodeViewProps) {
                 {t("variableFilterTooltip", { filter })}
               </Text>
             ))}
-            {maxLength ? (
-              <Text size="xs" tone="muted">
-                {t("variableMaxLengthTooltip", { maxLength })}
-              </Text>
-            ) : null}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      {/* eslint-disable-next-line react/forbid-elements -- screen-reader description of the chip inside TipTap contentEditable */}
-      <span id={descriptionId} className="sr-only">
-        {maxLength ? t("variableMaxLengthTooltip", { maxLength }) : ""}
-      </span>
     </NodeViewWrapper>
   );
 }

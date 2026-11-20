@@ -65,9 +65,14 @@ describe("VariableNodeView", () => {
     expect(atom()?.className).toContain("[&>[data-slot=formula-atom-value]]:hidden");
   });
 
-  it("keeps filters in the source and the max length in the description", () => {
-    renderChip(null, { filters: [{ name: "pad", arg: "3" }], maxLength: 4 });
+  it("keeps filters in the source as written", () => {
+    renderChip(null, { filters: [{ name: "pad", arg: "3" }] });
     expect(atom()?.querySelector('[data-slot="formula-atom-source"]')).toHaveTextContent("weather.temperature|pad:3");
-    expect(screen.getByTestId("variable-atom-chip")).toHaveAccessibleDescription(/Max length: 4 characters/);
+  });
+
+  it("claims no max length the template doesn't carry", () => {
+    renderChip(null, { maxLength: 10 });
+    expect(screen.queryByText(/Max length/)).toBeNull();
+    expect(screen.getByTestId("variable-atom-chip").parentElement).not.toHaveTextContent(/~10/);
   });
 });

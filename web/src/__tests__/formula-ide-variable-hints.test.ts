@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildHintIndex, templateVariablePaths, variableProbeTemplate } from "@/lib/formula-ide/hints";
+import {
+  buildHintIndex,
+  buildVariableHintIndex,
+  templateVariablePaths,
+  variableProbeTemplate,
+} from "@/lib/formula-ide/hints";
 
 describe("variable value hints (BB-FP-11)", () => {
   it("finds each variable path once, skipping formulas, colours and formatting", () => {
@@ -31,5 +36,28 @@ describe("variable value hints (BB-FP-11)", () => {
       lines: null,
     });
     expect(index.get("weather.temperature")?.value).toEqual({ kind: "value", text: "62" });
+  });
+
+  it("leaves colour-tile fields out of the probe", () => {
+    expect(templateVariablePaths(["{{date_time.hour_color}} {{date_time.hour}}"])).toEqual(["date_time.hour"]);
+  });
+
+  it("turns the evaluator's error for a bare path into the board's ???", () => {
+    const index = buildVariableHintIndex({
+      formulas: [
+        {
+          line: 1,
+          start: 0,
+          end: 18,
+          source: "weather.temp",
+          value: "#REF",
+          error: "#REF",
+          error_at: null,
+          message: null,
+        },
+      ],
+      lines: null,
+    });
+    expect(index.get("weather.temp")).toMatchObject({ state: "error", value: { kind: "error", tag: "???" } });
   });
 });

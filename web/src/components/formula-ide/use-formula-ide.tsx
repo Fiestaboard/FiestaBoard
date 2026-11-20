@@ -20,6 +20,7 @@ import {
 import { atIsoForTime, buildPreviewContext, referencedRoots, sampleValues } from "@/lib/formula-ide/data-source";
 import {
   buildHintIndex,
+  buildVariableHintIndex,
   findFormula,
   normalizeSource,
   templateVariablePaths,
@@ -202,12 +203,15 @@ export function useFormulaIde({
     queryFn: ({ signal }) => formulaDebugApi.render({ target: probeTarget!, preview: previewContext }, signal),
     enabled: probeTarget !== null,
     placeholderData: keepPreviousData,
+    // Keyed on the variable set, not the text, so an edit doesn't re-probe;
+    // live data is re-read on the preview's own cadence instead.
     staleTime: 30_000,
+    refetchInterval: 30_000,
     retry: false,
   });
   const variableHints = useMemo(
-    () => buildHintIndex(probeTarget ? variableRender.data?.diagnostics : null, missingRoots),
-    [probeTarget, variableRender.data, missingRoots],
+    () => buildVariableHintIndex(probeTarget ? variableRender.data?.diagnostics : null),
+    [probeTarget, variableRender.data],
   );
 
   // The formula the inspector, the trace and the line card are about.
