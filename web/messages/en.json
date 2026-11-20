@@ -300,6 +300,8 @@
     "retryLoading": "Retry loading pages",
     "cardActions": "Actions for {name}",
     "duplicate": "Duplicate",
+    "cardEdited": "Edited {when}",
+    "cardScheduled": "Schedule {time}",
     "deletePage": "Delete page…",
     "toastDuplicated": "Made “{name}”",
     "actionFailed": "Couldn’t do that. Try again."

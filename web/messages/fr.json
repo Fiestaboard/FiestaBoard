@@ -344,6 +344,8 @@
     "retryLoading": "Réessayer le chargement",
     "cardActions": "Actions pour {name}",
     "duplicate": "Dupliquer",
+    "cardEdited": "Modifiée {when}",
+    "cardScheduled": "Planning {time}",
     "deletePage": "Supprimer la page…",
     "toastDuplicated": "« {name} » créée",
     "actionFailed": "Impossible pour le moment. Réessayez."

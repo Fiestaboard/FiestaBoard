@@ -344,6 +344,8 @@
     "retryLoading": "Försök läsa in sidorna igen",
     "cardActions": "Åtgärder för {name}",
     "duplicate": "Duplicera",
+    "cardEdited": "Redigerad {when}",
+    "cardScheduled": "Schema {time}",
     "deletePage": "Ta bort sidan…",
     "toastDuplicated": "”{name}” skapad",
     "actionFailed": "Det gick inte. Försök igen."

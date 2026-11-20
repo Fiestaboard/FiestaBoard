@@ -344,6 +344,8 @@
     "retryLoading": "페이지 불러오기 재시도",
     "cardActions": "{name} 작업",
     "duplicate": "복제",
+    "cardEdited": "{when} 편집",
+    "cardScheduled": "일정 {time}",
     "deletePage": "페이지 삭제…",
     "toastDuplicated": "‘{name}’ 만듦",
     "actionFailed": "실패했습니다. 다시 시도하세요."

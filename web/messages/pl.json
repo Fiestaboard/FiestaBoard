@@ -344,6 +344,8 @@
     "retryLoading": "Ponów wczytywanie stron",
     "cardActions": "Działania dla {name}",
     "duplicate": "Duplikuj",
+    "cardEdited": "Edytowano {when}",
+    "cardScheduled": "Harmonogram {time}",
     "deletePage": "Usuń stronę…",
     "toastDuplicated": "Utworzono „{name}”",
     "actionFailed": "Nie udało się. Spróbuj ponownie."

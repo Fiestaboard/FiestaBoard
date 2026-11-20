@@ -344,6 +344,8 @@
     "retryLoading": "Pagina’s opnieuw laden",
     "cardActions": "Acties voor {name}",
     "duplicate": "Dupliceren",
+    "cardEdited": "Bewerkt {when}",
+    "cardScheduled": "Schema {time}",
     "deletePage": "Pagina verwijderen…",
     "toastDuplicated": "‘{name}’ gemaakt",
     "actionFailed": "Dat lukte niet. Probeer het opnieuw."

@@ -344,6 +344,8 @@
     "retryLoading": "Sayfaları yüklemeyi yeniden dene",
     "cardActions": "{name} için işlemler",
     "duplicate": "Çoğalt",
+    "cardEdited": "{when} düzenlendi",
+    "cardScheduled": "Program {time}",
     "deletePage": "Sayfayı sil…",
     "toastDuplicated": "“{name}” oluşturuldu",
     "actionFailed": "Yapılamadı. Tekrar deneyin."
