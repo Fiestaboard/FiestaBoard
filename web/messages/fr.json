@@ -344,6 +344,7 @@
     "retryLoading": "Réessayer le chargement",
     "cardActions": "Actions pour {name}",
     "duplicate": "Dupliquer",
+    "exportShareString": "Exporter la chaîne de partage",
     "deletePage": "Supprimer la page…",
     "toastDuplicated": "« {name} » créée",
     "actionFailed": "Impossible pour le moment. Réessayez."
