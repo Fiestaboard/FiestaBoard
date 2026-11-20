@@ -3703,6 +3703,7 @@
     "legacyHint": "Las apps antiguas pueden guardar la contraseña y volver a iniciar sesión tras revocar el acceso. Cambia la contraseña para excluirlas permanentemente.",
     "revoke": "Revocar",
     "others": "Cerrar otras sesiones",
+    "othersAction": "Cerrar otras sesiones…",
     "all": "Cerrar todas las sesiones",
     "confirmOthers": "¿Cerrar la sesión en los demás navegadores y TV? Este navegador seguirá conectado. Se cancelarán los códigos de TV pendientes.",
     "confirmAll": "¿Cerrar la sesión en todos los navegadores y TV, incluido este? Se cancelarán los códigos de TV pendientes.",

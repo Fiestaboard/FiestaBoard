@@ -4,7 +4,7 @@
  * Account settings — rendered as a stack of sibling cards on the
  * Account tab in Settings:
  *
- *   1. Signed in (identity readout)
+ *   1. Signed-in devices (the username is the Account header's line)
  *   2. Change username
  *   3. Change password
  *   4. Sign out

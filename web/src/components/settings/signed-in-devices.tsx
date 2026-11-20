@@ -160,8 +160,13 @@ export function SignedInDevices() {
         </Stack>
         {data && (
           <Flex gap="2" wrap className="flex-col sm:flex-row">
-            <Button variant="outline" disabled={busy} onClick={() => setConfirm("others")}>
-              {t("others")}
+            <Button
+              variant="outline"
+              className="min-h-touch sm:min-h-0"
+              disabled={busy}
+              onClick={() => setConfirm("others")}
+            >
+              {t("othersAction")}
             </Button>
             <Button className="min-h-touch sm:min-h-0" disabled={busy} onClick={() => setPairing(true)}>
               <QrCode className="size-4" />

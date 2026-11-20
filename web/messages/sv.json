@@ -3703,6 +3703,7 @@
     "legacyHint": "Äldre appar kan spara lösenordet och logga in igen efter återkallelse. Byt lösenord för att utesluta dem permanent.",
     "revoke": "Återkalla",
     "others": "Logga ut andra enheter",
+    "othersAction": "Logga ut andra enheter…",
     "all": "Logga ut överallt",
     "confirmOthers": "Logga ut alla andra webbläsare och TV-apparater? Denna webbläsare förblir inloggad. Väntande TV-koder avbryts.",
     "confirmAll": "Logga ut alla webbläsare och TV-apparater, inklusive denna webbläsare? Väntande TV-koder avbryts.",

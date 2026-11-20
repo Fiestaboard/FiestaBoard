@@ -63,8 +63,17 @@ it("puts Sign out other devices… then Connect a phone on the heading row", asy
 it("draws the legend with a clock and a monitor icon", async () => {
   render(<SignedInDevices />);
   await screen.findByText("This browser");
-  const legend = document.querySelector("[data-slot=signed-in-devices-legend]")!;
+  const legend = document.querySelector("[data-slot=signed-in-devices-legend]");
+  expect(legend).not.toBeNull();
+  if (!legend) return;
   expect(legend.querySelectorAll("svg")).toHaveLength(2);
   expect(legend.textContent).toContain("Last connected = when it last talked to the hub");
   expect(legend.textContent).toContain("Last shown = the panel a TV last displayed");
+});
+
+it("titles the confirm without the button's ellipsis", async () => {
+  render(<SignedInDevices />);
+  await screen.findByText("This browser");
+  await userEvent.click(screen.getByRole("button", { name: "Sign out other devices…" }));
+  expect(await screen.findByRole("alertdialog", { name: "Sign out other devices" })).toBeInTheDocument();
 });

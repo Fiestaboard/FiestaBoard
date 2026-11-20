@@ -3703,6 +3703,7 @@
     "legacyHint": "Eski uygulamalar parolanızı kaydedip erişim iptal edildikten sonra tekrar oturum açabilir. Kalıcı olarak engellemek için parolanızı değiştirin.",
     "revoke": "İptal et",
     "others": "Diğer cihazlardan çıkış yap",
+    "othersAction": "Diğer cihazlardan çıkış yap…",
     "all": "Her yerden çıkış yap",
     "confirmOthers": "Diğer tüm tarayıcılardan ve TV’lerden çıkış yapılsın mı? Bu tarayıcı açık kalır. Bekleyen TV kodları iptal edilir.",
     "confirmAll": "Bu tarayıcı dahil tüm tarayıcılardan ve TV’lerden çıkış yapılsın mı? Bekleyen TV kodları iptal edilir.",

@@ -3703,6 +3703,7 @@
     "legacyHint": "Les anciennes applications peuvent conserver votre mot de passe et se reconnecter après révocation. Changez-le pour les exclure définitivement.",
     "revoke": "Révoquer",
     "others": "Déconnecter les autres appareils",
+    "othersAction": "Déconnecter les autres appareils…",
     "all": "Déconnecter tous les appareils",
     "confirmOthers": "Déconnecter les autres navigateurs et TV ? Ce navigateur restera connecté. Les codes TV en attente seront annulés.",
     "confirmAll": "Déconnecter tous les navigateurs et TV, y compris celui-ci ? Les codes TV en attente seront annulés.",
