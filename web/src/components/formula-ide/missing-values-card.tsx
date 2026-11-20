@@ -24,12 +24,12 @@ import { appUrl } from "@/lib/base-path";
 import { fallbackTip, type MissingEntry, missingReport } from "@/lib/formula-ide/data-source";
 
 /**
- * Kit `AlertTitle` is always an `<h5>`. In the editor it sits under the
- * page's h2 (and beside the h3 card titles), so announce it as level 3 to
- * keep the heading outline unbroken (axe heading-order). FiestaUI gap:
- * AlertTitle has no heading-level prop.
+ * Kit `AlertTitle` is always an `<h5>`. In the editor it sits under the page
+ * name, the editor's h1 (BB-E-23), so announce it as level 2 to keep the
+ * heading outline unbroken (axe heading-order). FiestaUI gap: AlertTitle has
+ * no heading-level prop.
  */
-const MISSING_TITLE_LEVEL = 3;
+const MISSING_TITLE_LEVEL = 2;
 
 export interface MissingValuesCardProps {
   mode: DataSource;

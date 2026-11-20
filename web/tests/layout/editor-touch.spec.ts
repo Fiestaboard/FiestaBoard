@@ -378,6 +378,10 @@ test.describe("900px fine-pointer nested More actions", () => {
     await clickThroughMouseDown(page, cancelled.getByRole("button", { name: "Cancel", exact: true }));
     await expect(cancelled).toBeHidden();
     expect(deletes).toHaveLength(0);
+    // The confirmation is the editor's own dialog now (D6: the desktop opens it
+    // from the Inspector), so More closes behind it; open it again.
+    await expect(popup).toBeHidden();
+    await page.getByRole("button", { name: "More", exact: true }).click();
     await expect(popup).toBeVisible();
     const confirmed = await openDelete();
     await clickThroughMouseDown(page, confirmed.getByRole("button", { name: "Delete", exact: true }));

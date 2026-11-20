@@ -495,7 +495,7 @@ export function GeneratedCodeCard({ open, setOpen }: WorkbenchProps) {
     <Card data-testid="generated-code" className="gap-2 py-4">
       <CardHeader className="px-4">
         <Flex align="center" justify="between" gap="2">
-          <CardTitle as="h3" icon={<Code2 aria-hidden />}>
+          <CardTitle as="h2" icon={<Code2 aria-hidden />}>
             {t("builderWrote")}
           </CardTitle>
           <Button variant="link" size="sm" onClick={() => setOpen((c) => (c ? { ...c, tab: "code" } : c))}>
