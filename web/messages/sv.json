@@ -1772,7 +1772,7 @@
       "lastUpdate": "Senaste uppdatering: {time}",
       "noViewerHint": "Ingen inloggad tv visar den här skärmen",
       "nextChange": "Till {time} · sedan {page}",
-      "nextChangeAt": "Ändras {time}",
+      "nextChangeAt": "Ändras kl. {time}",
       "nextCompact": "Sedan {page}",
       "overrideUntil": "Manuellt · till {time}",
       "pauseDisplay": "Pausa skärmen",

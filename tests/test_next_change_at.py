@@ -535,3 +535,46 @@ def test_get_board_reports_the_override_page_and_the_schedule_around_it(client, 
         ("schedule", None),
         ("schedule", pages["Breakfast"]),
     ]
+
+
+# --- Review M1/S1 on #2553: quiet hours and an override's own rotation in the chain -------------
+
+
+def test_upcoming_lists_quiet_hours_and_hides_the_schedule_inside_them(loud_board, clock):
+    # Figma 302:20841: Up next shows the silence window as an entry; the
+    # schedule hand-overs it covers are not shown on the board, so not listed.
+    board_id, pages = loud_board
+    _schedule(board_id, pages["Work"], "17:00", "23:00")  # 23:00 lands inside quiet hours
+    _schedule(board_id, pages["Breakfast"], "06:00", "09:00")
+    # 22:00-06:30 LA in November is 06:00-14:30 UTC.
+    _quiet_hours(board_id, start="06:00+00:00", end="14:30+00:00")
+    clock(_tomorrow_at(20, 0))
+    _override(board_id, _tomorrow_at(21, 0))
+    upcoming = [(c.at, c.reason, c.page_id) for c in _upcoming(board_id)]
+    after = _tomorrow_at(6, 30) + timedelta(days=1)
+    assert upcoming == [
+        (_utc(_tomorrow_at(21, 0)), "override_ends", pages["Work"]),
+        (_utc(_tomorrow_at(22, 0)), "silence_starts", None),
+        (_utc(after), "silence_ends", pages["Breakfast"]),
+    ]
+
+
+def test_upcoming_stops_at_a_running_override_s_own_rotation(board, clock):
+    from src.settings.service import TemporaryOverride, get_settings_service
+
+    board_id, pages = board
+    _schedule(board_id, pages["Work"], "09:00", "10:30")
+    _schedule(board_id, pages["Evening"], "10:30", "17:00")  # masked by the override
+    clock(_tomorrow_at(10, 0))
+    mix = _collection([pages["Work"], pages["Evening"]])
+    get_settings_service().set_temporary_override(
+        TemporaryOverride(page_id=mix.id, expires_at=_tomorrow_at(12, 0).isoformat()), board_id=board_id
+    )
+    upcoming = _upcoming(board_id)
+    assert upcoming[0].reason == "collection"
+    # The override still holds after its rotation: no schedule hand-over it masks.
+    assert all(c.reason != "schedule" or _parse_utc(c.at) >= _tomorrow_at(12, 0) for c in upcoming)
+
+
+def _parse_utc(value):
+    return datetime.fromisoformat(value)

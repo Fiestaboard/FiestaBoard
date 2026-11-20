@@ -195,9 +195,11 @@ class BoardDetail(BoardSummary):
     upcoming_changes: list[UpcomingChange] = Field(
         default_factory=list,
         description=(
-            "Up to three predicted changes, earliest first. The first is next_change_at; each later one is the "
-            "schedule's next hand-over after the one before. Empty when next_change_at is null. The list stops "
-            "where quiet hours start or the schedule is off."
+            "Up to three predicted changes, earliest first. The first is next_change_at; each later one follows "
+            "the hub's rules from the one before: quiet hours starting and ending, and the schedule's hand-overs "
+            "outside them (a hand-over inside quiet hours is not shown on the board, so it is not listed). A running "
+            "override's own collection rotation ends the list, as does the 8-day horizon. Empty when "
+            "next_change_at is null."
         ),
     )
     override_page_id: str | None = Field(

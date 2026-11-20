@@ -10,9 +10,11 @@ import { isDisplayOffline, panelViewer } from "@/lib/status-banners";
 export const VIEWER_SESSIONS_QUERY_KEY = ["auth-sessions", "viewers"] as const;
 
 /**
- * The displays that "need a look" (BB-A-10), by the rules the Displays list
- * groups them with: a client that failed to start or is not configured, a
- * display the hub cannot reach, or a FiestaPanel no signed-in TV is showing.
+ * The displays that "need a look" (BB-A-10), by the Displays list's health
+ * rules: a client that failed to start or is not configured, a display the
+ * hub cannot reach, or a FiestaPanel no signed-in TV is showing. The list's
+ * fourth rule, out of sync, needs every display's board read; the header
+ * does not poll those, and Home's own banner says it for the display shown.
  * The header switcher marks them, so it never calls a display fine while
  * Home and Displays say otherwise. Reads the shared status poll; panels and
  * viewer sessions are asked for only when a FiestaPanel exists.

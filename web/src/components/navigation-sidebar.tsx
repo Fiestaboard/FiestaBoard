@@ -2,6 +2,7 @@
 
 import { BoardSelector, Sidebar, type SidebarLinkProps, type SidebarNavItem } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
@@ -94,8 +95,12 @@ export function NavigationSidebar() {
   // its dot and words in the switcher, by the Displays list's rules (BB-A-10).
   const tFleet = useTranslations("displays.fleet");
   const needsALook = useDisplaysNeedingALook(boards, { enabled: !chromeless && boards.length > 1 });
-  const selectorBoards = boards.map((board) =>
-    needsALook.has(board.id) ? { ...board, status: "error" as const } : board,
+  const flagged = [...needsALook].sort().join(",");
+  const selectorBoards = useMemo(
+    () => boards.map((board) => (needsALook.has(board.id) ? { ...board, status: "error" as const } : board)),
+    // `needsALook` is a fresh Set each render; `flagged` is its stable value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [boards, flagged],
   );
 
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't

@@ -223,29 +223,80 @@ def next_schedule_change(board_id: str) -> NextChange:
 UPCOMING_LIMIT = 3
 
 
+def _silence_windows(silence: dict, around: datetime) -> list[tuple[datetime, datetime]]:
+    """The daily quiet-hours windows (UTC) from the day before *around* to past the horizon.
+
+    Quiet hours are configured as UTC times of day (``"22:00+00:00"``); a
+    window whose end is not after its start runs past midnight.
+    """
+    if not silence.get("enabled"):
+        return []
+    start, end = silence.get("start_time"), silence.get("end_time")
+    if not start or not end:
+        return []
+    windows = []
+    first = around.astimezone(UTC).date() - timedelta(days=1)
+    for offset in range(HORIZON_DAYS + 3):
+        day = (first + timedelta(days=offset)).isoformat()
+        try:
+            opens = _on_the_minute(_parse(f"{day}T{start}"))
+            closes = _on_the_minute(_parse(f"{day}T{end}"))
+        except ValueError:
+            return []
+        if opens is None or closes is None:
+            return []
+        if closes <= opens:
+            closes += timedelta(days=1)
+        windows.append((opens, closes))
+    return windows
+
+
 def upcoming_changes(board_id: str, limit: int = UPCOMING_LIMIT) -> list[NextChange]:
     """The next *limit* changes on *board_id*, earliest first (BB-A-23).
 
-    The first is ``next_change``. Each later one is the schedule's next
-    hand-over after the previous entry, starting from the page in force after
-    it. The chain stops at quiet hours starting (they hide the schedule until
-    they end, which ``next_change`` reports separately), in manual mode, and at
-    the horizon.
+    The first is ``next_change``. Each later one follows the engine's rules
+    from the moment before it: quiet hours starting and ending (they hide the
+    schedule, so a hand-over inside them is not a change on the board), and
+    the schedule's hand-overs outside them. A running override's own
+    collection rotation ends the list (the override still holds after it), as
+    does the horizon.
     """
     first = next_change(board_id)
     if first.at is None:
         return []
     changes = [first]
     settings = _settings()
-    if first.reason == "silence_starts" or not settings.is_schedule_enabled(board_id=board_id):
+    if first.reason == "collection" and settings.peek_temporary_override(board_id) is not None:
         return changes
-    zone = time_service.get_time_service().get_current_time().tzinfo
+    local_now = time_service.get_time_service().get_current_time()
+    zone = local_now.tzinfo
+    horizon = local_now.astimezone(UTC) + timedelta(days=HORIZON_DAYS)
+    silence = Config.silence_config_for(board_id) or {}
+    windows = _silence_windows(silence, local_now)
+    silence_page = silence.get("page_id") if silence.get("mode") == "page" else None
+    scheduled = settings.is_schedule_enabled(board_id=board_id)
+
     at = _parse(first.at)
     current = first.page_id if first.reason != "collection" else _page_at(board_id, at, zone)
     while at is not None and len(changes) < limit:
-        boundary = _schedule_boundary(board_id, at, zone, current)
-        if boundary is None:
+        inside = next((w for w in windows if w[0] <= at < w[1]), None)
+        if inside is not None:
+            # Quiet hours hide the schedule: the next change is their end.
+            at = inside[1]
+            current = _page_at(board_id, at, zone)
+            reason: Reason = "silence_ends"
+            page = current
+        else:
+            opens = min((w[0] for w in windows if w[0] > at), default=None)
+            boundary = _schedule_boundary(board_id, at, zone, current) if scheduled else None
+            if boundary is not None and (opens is None or boundary[0] < opens):
+                at, reason, current = boundary
+                page = current
+            elif opens is not None:
+                at, reason, page = opens, "silence_starts", silence_page
+            else:
+                break
+        if at > horizon:
             break
-        at, _, current = boundary
-        changes.append(NextChange(_instant(at), "schedule", current))
+        changes.append(NextChange(_instant(at), reason, page))
     return changes
