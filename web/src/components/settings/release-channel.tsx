@@ -11,12 +11,13 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
-  Flex,
   PageSection,
   Text,
+  ToggleCard,
+  ToggleCardGroup,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, FlaskConical } from "lucide-react";
+import { FlaskConical } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -24,125 +25,137 @@ import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api } from "@/lib/api";
+import type { ReleaseChannel } from "@/lib/api/system";
+
+const CHANNELS: ReleaseChannel[] = ["stable", "beta", "alpha"];
+const LABELS = { stable: "channelStable", beta: "channelBeta", alpha: "channelAlpha" } as const;
 
 /**
- * Settings → System → "Release channel".
+ * Settings → System; exploring channels never installs an image.
  *
- * Opting INTO the beta lives here, on the stable build, because that is the
- * only place it can be discovered: a control that shipped only on the beta
- * could only be found by someone who had already opted in. Opting back out
- * lives on the beta build, which is where you are by then.
- *
- * Renders nothing when switching is unavailable and there is nothing useful
- * to say about it — Home Assistant installs, where the Supervisor owns
- * updating, get an explanation instead of a dead button.
+ * Stable line: rendered with FiestaUI 8.16's ToggleCardGroup/ToggleCard (the
+ * radiogroup primitive the 8.17 ChoiceCardGroup grew out of), because the
+ * Stable line pins the released kit and ChoiceCardGroup only exists on the
+ * 8.17 prerelease line.
  */
 export function ReleaseChannelCard() {
   const t = useTranslations("releaseChannel");
   const queryClient = useQueryClient();
   const { startUpdate } = useUpdate();
-  const [confirming, setConfirming] = useState(false);
-
+  const [selection, setSelection] = useState<ReleaseChannel | null>(null);
+  const [target, setTarget] = useState<ReleaseChannel | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["system", "channel"],
     queryFn: () => api.getReleaseChannel(),
     staleTime: 60_000,
   });
-
+  const versions = useQuery({
+    queryKey: ["system", "channel", "versions"],
+    queryFn: () => api.getReleaseChannelVersions(),
+    enabled: !!data?.can_switch,
+    staleTime: 60_000,
+    retry: false,
+  });
   const switchMutation = useMutation({
-    mutationFn: (channel: "stable" | "beta") => api.setReleaseChannel(channel),
+    // A separate dialog action explicitly confirms the major-upgrade warning.
+    mutationFn: (channel: ReleaseChannel) => {
+      const targetVersion = versions.data?.channel_versions[channel];
+      const targetMajor = targetVersion ? Number.parseInt(targetVersion, 10) : channel === "alpha" ? 11 : NaN;
+      const runningMajor = Number.parseInt(data?.running_version ?? "", 10);
+      return api.setReleaseChannel(channel, targetMajor > runningMajor);
+    },
     onSuccess: (result) => {
-      setConfirming(false);
-      // A leave that could not roll settings back is not a failure, but the
-      // user has to know: the stable build may refuse to read what the beta
-      // migrated, and the fix is a manual backup restore.
+      setTarget(null);
       if (result?.warning) toast.warning(result.warning);
       queryClient.invalidateQueries({ queryKey: ["system", "channel"] });
-      // The container is about to be recreated. Hand off to the same
-      // overlay the Update Now button uses so the reconnect is handled
-      // identically rather than reinvented here. No version argument: the
-      // overlay's /version-difference check is only a fallback, and the
-      // number we are moving to is not known until the new image boots.
       startUpdate();
     },
     onError: (error: Error) => {
-      setConfirming(false);
+      setTarget(null);
       toast.error(t("switchFailedToast", { error: error.message }));
     },
   });
-
   if (isLoading || !data) return null;
-
-  const onBeta = data.channel === "beta";
+  const current = data.running_channel ?? data.channel;
+  const selected = selection ?? current;
+  const leaving = (current === "alpha" && target !== "alpha") || (current === "beta" && target === "stable");
 
   return (
     <PageSection
       icon={<FlaskConical />}
       title={t("title")}
-      description={t("description")}
+      description={t("chooserDescription")}
       {...anchorProps("settings.release_channel")}
     >
-      <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
-        <Flex direction="col" gap="1" className="min-w-0">
-          <Flex align="center" gap="2">
-            <Text weight="medium">{t("currentLabel")}</Text>
-            <Badge variant={onBeta ? "default" : "secondary"}>{onBeta ? t("channelBeta") : t("channelStable")}</Badge>
-          </Flex>
-
-          {onBeta ? (
-            <Text size="sm" tone="muted">
-              {t("onBetaBody")}
-            </Text>
-          ) : (
-            <Text size="sm" tone="muted">
-              {t("onStableBody")}
-            </Text>
-          )}
-
-          {!data.can_switch && data.reason && (
-            <Flex align="start" gap="2" className="mt-1">
-              <AlertTriangle className="text-warning mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <Text size="sm" tone="muted">
-                {data.reason}
-              </Text>
-            </Flex>
-          )}
-        </Flex>
-
-        {data.can_switch && (
-          <Button
-            variant="outline"
-            onClick={() => setConfirming(true)}
+      {data.can_switch ? (
+        <>
+          <ToggleCardGroup
+            columns="1"
+            indicator="trailing"
+            aria-label={t("title")}
+            value={selected}
             disabled={switchMutation.isPending}
+            onValueChange={(value) => {
+              if (CHANNELS.includes(value as ReleaseChannel)) setSelection(value as ReleaseChannel);
+            }}
+            onKeyDown={(event) => {
+              if ((event.key === "Enter" || event.key === " ") && selected !== current) {
+                event.preventDefault();
+                setTarget(selected);
+              }
+            }}
             {...anchorProps("settings.release_channel.channel")}
           >
-            {onBeta ? t("leaveCta") : t("joinCta")}
+            {CHANNELS.map((channel) => (
+              <ToggleCard
+                key={channel}
+                value={channel}
+                disabled={!data.available_channels.includes(channel)}
+                title={
+                  <>
+                    {t(LABELS[channel])} {current === channel && <Badge variant="secondary">{t("currentBadge")}</Badge>}
+                  </>
+                }
+                description={t(`${channel}Description`)}
+                meta={
+                  versions.isPending
+                    ? t("versionLoading")
+                    : (versions.data?.channel_versions[channel] ?? t("versionUnavailable"))
+                }
+              />
+            ))}
+          </ToggleCardGroup>
+          <Button disabled={selected === current || switchMutation.isPending} onClick={() => setTarget(selected)}>
+            {t("switchCta")}
           </Button>
-        )}
-      </Flex>
-
-      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        </>
+      ) : (
+        <Text size="sm" tone="muted">
+          {data.reason ?? t("switchUnavailable")}
+        </Text>
+      )}
+      <AlertDialog
+        open={target !== null}
+        onOpenChange={(open) => {
+          if (!open && !switchMutation.isPending) setTarget(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              <Flex align="center" gap="2">
-                <AlertTriangle className="text-warning h-5 w-5" aria-hidden="true" />
-                {onBeta ? t("leaveConfirmTitle") : t("confirmTitle")}
-              </Flex>
-            </AlertDialogTitle>
-            {/* The data warning is the whole point of the confirm step. A
-                beta can migrate settings and pages to a schema the stable
-                build refuses to read, so the snapshot taken on the way in
-                is the way back. Say that before the switch, not after. */}
-            <AlertDialogDescription>{onBeta ? t("leaveConfirmBody") : t("confirmBody")}</AlertDialogDescription>
+            <AlertDialogTitle>{t("switchTitle", { channel: target ? t(LABELS[target]) : "" })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(target === "alpha" ? "alphaConfirmBody" : leaving ? "downgradeConfirmBody" : "betaConfirmBody")}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={switchMutation.isPending}>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => switchMutation.mutate(onBeta ? "stable" : "beta")}
               disabled={switchMutation.isPending}
+              onClick={() => {
+                if (target) switchMutation.mutate(target);
+              }}
             >
-              {switchMutation.isPending ? t("switching") : onBeta ? t("leaveConfirmCta") : t("confirmCta")}
+              {switchMutation.isPending ? t("switching") : t("switchCta")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
