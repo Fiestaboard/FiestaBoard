@@ -203,7 +203,10 @@ test.describe("Authentication", () => {
       await page.getByLabel("Password", { exact: true }).fill(WRONG_PASSWORD);
       await page.getByRole("button", { name: "Sign in" }).click();
 
-      await expect(page.getByText(/invalid username or password/i)).toBeVisible();
+      await expect(page.getByRole("alert").filter({ hasText: /username and password don.t match/i })).toBeVisible();
+      // 07e `326:34407`: the password is cleared and focused for the retry.
+      await expect(page.getByLabel("Password", { exact: true })).toHaveValue("");
+      await expect(page.getByLabel("Password", { exact: true })).toBeFocused();
       await expect(page).toHaveURL(/\/login/);
     });
 
