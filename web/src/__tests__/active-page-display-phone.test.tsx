@@ -82,3 +82,19 @@ describe("ActivePageDisplay on a phone", () => {
     expect(screen.queryByTestId("home-phone-board")).not.toBeInTheDocument();
   });
 });
+
+// BB-FH-12 (07a `307:61756`, DD-W61): above a phone the Home board is the
+// medium hero, whose bezel hugs a board that fits and settles a near fit to
+// fill it, instead of the 02 viewport's full-width slab with black margins.
+describe("ActivePageDisplay above a phone", () => {
+  beforeEach(() => setPhone(false));
+  afterEach(() => {
+    window.matchMedia = original;
+  });
+
+  it("places the board as the medium hero", async () => {
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    const board = await screen.findByTestId("home-board-state");
+    await waitFor(() => expect(board.querySelector('[data-layout="medium-hero"]')).not.toBeNull());
+  });
+});

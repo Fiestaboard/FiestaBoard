@@ -708,7 +708,11 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           layers={displayLayers}
           isLoading={!boardState && !liveMessageForBoard}
           size="md"
-          layout={phone ? "phone-hero" : undefined}
+          // 07a hero placements (DD-W61): Tile sm edge to edge on a phone;
+          // above it the medium hero, whose bezel hugs a board that fits and
+          // settles a near fit to fill it, not a full-width slab with black
+          // side margins (BB-FH-12).
+          layout={phone ? "phone-hero" : "medium-hero"}
           fallbackColor={getEffectiveBoardColor(boardSettings)}
           fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
         />
