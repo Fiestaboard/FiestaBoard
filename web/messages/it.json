@@ -3822,7 +3822,11 @@
     "thisDisplay": "questo display",
     "startFrom": "Oppure inizia da",
     "insertVariable": "Inserisci una variabile",
-    "browseStaffPicks": "Sfoglia le Scelte del team"
+    "browseStaffPicks": "Sfoglia le Scelte del team",
+    "replay": "Riproduci",
+    "replayHint": "Riproduci l’animazione delle palette",
+    "previewTarget": "Destinazione dell’anteprima",
+    "previewTargetTrigger": "Anteprima su {target}"
   },
   "phonePairing": {
     "title": "Collega un telefono",

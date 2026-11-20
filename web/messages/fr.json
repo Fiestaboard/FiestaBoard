@@ -3822,7 +3822,11 @@
     "thisDisplay": "cet écran",
     "startFrom": "Ou commencez par",
     "insertVariable": "Insérer une variable",
-    "browseStaffPicks": "Parcourir les Sélections de l’équipe"
+    "browseStaffPicks": "Parcourir les Sélections de l’équipe",
+    "replay": "Rejouer",
+    "replayHint": "Lire l’animation des palettes",
+    "previewTarget": "Cible de l’aperçu",
+    "previewTargetTrigger": "Aperçu sur {target}"
   },
   "phonePairing": {
     "title": "Connecter un téléphone",

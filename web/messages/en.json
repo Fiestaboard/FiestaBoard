@@ -3822,7 +3822,11 @@
     "thisDisplay": "display",
     "startFrom": "Or start from",
     "insertVariable": "Insert a variable",
-    "browseStaffPicks": "Browse Staff Picks"
+    "browseStaffPicks": "Browse Staff Picks",
+    "replay": "Replay",
+    "replayHint": "Play the split-flap animation",
+    "previewTarget": "Preview target",
+    "previewTargetTrigger": "Preview on {target}"
   },
   "phonePairing": {
     "title": "Connect a phone",

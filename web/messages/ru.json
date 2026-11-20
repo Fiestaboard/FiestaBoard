@@ -3822,7 +3822,11 @@
     "thisDisplay": "этот дисплей",
     "startFrom": "Или начните с",
     "insertVariable": "Вставить переменную",
-    "browseStaffPicks": "Посмотреть подборку команды"
+    "browseStaffPicks": "Посмотреть подборку команды",
+    "replay": "Повтор",
+    "replayHint": "Воспроизвести анимацию табло",
+    "previewTarget": "Цель предпросмотра",
+    "previewTargetTrigger": "Предпросмотр на {target}"
   },
   "phonePairing": {
     "title": "Подключить телефон",

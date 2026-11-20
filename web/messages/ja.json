@@ -3822,7 +3822,11 @@
     "thisDisplay": "このディスプレイ",
     "startFrom": "または、こちらから始める",
     "insertVariable": "変数を挿入",
-    "browseStaffPicks": "スタッフのおすすめを見る"
+    "browseStaffPicks": "スタッフのおすすめを見る",
+    "replay": "再生",
+    "replayHint": "フラップのアニメーションを再生",
+    "previewTarget": "プレビュー先",
+    "previewTargetTrigger": "{target} でプレビュー"
   },
   "phonePairing": {
     "title": "スマートフォンを接続",

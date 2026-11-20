@@ -3822,7 +3822,11 @@
     "thisDisplay": "此显示屏",
     "startFrom": "也可以从这里开始",
     "insertVariable": "插入变量",
-    "browseStaffPicks": "浏览团队精选"
+    "browseStaffPicks": "浏览团队精选",
+    "replay": "重播",
+    "replayHint": "播放翻牌动画",
+    "previewTarget": "预览目标",
+    "previewTargetTrigger": "在 {target} 上预览"
   },
   "phonePairing": {
     "title": "连接手机",

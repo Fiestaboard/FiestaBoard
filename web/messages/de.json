@@ -3822,7 +3822,11 @@
     "thisDisplay": "dieses Display",
     "startFrom": "Oder beginne mit",
     "insertVariable": "Eine Variable einfügen",
-    "browseStaffPicks": "Empfehlungen durchsuchen"
+    "browseStaffPicks": "Empfehlungen durchsuchen",
+    "replay": "Abspielen",
+    "replayHint": "Split-Flap-Animation abspielen",
+    "previewTarget": "Vorschauziel",
+    "previewTargetTrigger": "Vorschau auf {target}"
   },
   "phonePairing": {
     "title": "Smartphone verbinden",

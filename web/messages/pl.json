@@ -3822,7 +3822,11 @@
     "thisDisplay": "ten wyświetlacz",
     "startFrom": "Lub zacznij od",
     "insertVariable": "Wstaw zmienną",
-    "browseStaffPicks": "Przeglądaj Polecane"
+    "browseStaffPicks": "Przeglądaj Polecane",
+    "replay": "Odtwórz",
+    "replayHint": "Odtwórz animację klapek",
+    "previewTarget": "Cel podglądu",
+    "previewTargetTrigger": "Podgląd na {target}"
   },
   "phonePairing": {
     "title": "Połącz telefon",

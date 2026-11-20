@@ -3822,7 +3822,11 @@
     "thisDisplay": "esta tela",
     "startFrom": "Ou comece por",
     "insertVariable": "Inserir uma variável",
-    "browseStaffPicks": "Explorar as Seleções da equipa"
+    "browseStaffPicks": "Explorar as Seleções da equipa",
+    "replay": "Repetir",
+    "replayHint": "Reproduzir a animação das palhetas",
+    "previewTarget": "Destino da pré-visualização",
+    "previewTargetTrigger": "Pré-visualizar em {target}"
   },
   "phonePairing": {
     "title": "Conectar um celular",

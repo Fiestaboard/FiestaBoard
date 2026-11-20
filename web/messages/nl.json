@@ -3822,7 +3822,11 @@
     "thisDisplay": "dit scherm",
     "startFrom": "Of begin met",
     "insertVariable": "Een variabele invoegen",
-    "browseStaffPicks": "Aanbevolen inhoud bekijken"
+    "browseStaffPicks": "Aanbevolen inhoud bekijken",
+    "replay": "Afspelen",
+    "replayHint": "Split-flap-animatie afspelen",
+    "previewTarget": "Voorbeelddoel",
+    "previewTargetTrigger": "Voorbeeld op {target}"
   },
   "phonePairing": {
     "title": "Een telefoon verbinden",

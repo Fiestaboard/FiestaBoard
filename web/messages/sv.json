@@ -3822,7 +3822,11 @@
     "thisDisplay": "den här skärmen",
     "startFrom": "Eller börja med",
     "insertVariable": "Infoga en variabel",
-    "browseStaffPicks": "Bläddra bland Personalens val"
+    "browseStaffPicks": "Bläddra bland Personalens val",
+    "replay": "Spela upp",
+    "replayHint": "Spela upp vändbladsanimationen",
+    "previewTarget": "Förhandsvisningsmål",
+    "previewTargetTrigger": "Förhandsvisa på {target}"
   },
   "phonePairing": {
     "title": "Anslut en telefon",

@@ -13,6 +13,8 @@ import { api } from "@/lib/api";
 
 import { server } from "./mocks/server";
 
+vi.mock("@/components/preview-target-popover", () => import("./mocks/preview-target-popover-inline"));
+
 const API_BASE = "/api";
 
 vi.mock("sonner", () => ({

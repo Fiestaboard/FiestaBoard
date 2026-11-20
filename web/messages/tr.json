@@ -3822,7 +3822,11 @@
     "thisDisplay": "bu ekran",
     "startFrom": "Ya da şununla başlayın",
     "insertVariable": "Bir değişken ekle",
-    "browseStaffPicks": "Ekip Seçimlerine göz at"
+    "browseStaffPicks": "Ekip Seçimlerine göz at",
+    "replay": "Yeniden oynat",
+    "replayHint": "Kanatçık animasyonunu oynat",
+    "previewTarget": "Önizleme hedefi",
+    "previewTargetTrigger": "{target} üzerinde önizle"
   },
   "phonePairing": {
     "title": "Telefon bağla",
