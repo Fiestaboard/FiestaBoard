@@ -629,6 +629,74 @@ describe("Pages library search and sorting", () => {
   });
 });
 
+// BB-FP-2 (Figma 297:1824 PageCard): the board full-bleed on top, then a meta
+// block with the title, "<display> · <model> <size>" and "Edited … · Schedule …",
+// a Now showing badge on the page on screen, three columns on a wide screen.
+describe("Pages library card", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem("fiestaboard_pages_view_mode", "grid");
+    server.use(
+      http.get("/api/settings/board", () =>
+        HttpResponse.json({
+          board_type: "black",
+          devices: ["flagship"],
+          boards: [{ id: "board", name: "Main", device_type: "flagship", board_color: "black" }],
+        }),
+      ),
+      http.get("/api/v1/pages", () => HttpResponse.json({ pages: pages.slice(0, 2), total: 2 })),
+      http.get("/api/v1/collections", () => HttpResponse.json({ collections: [], total: 0 })),
+      http.get("/api/panels", () => HttpResponse.json({ panels: [], total: 0 })),
+      http.post("/api/pages/preview/batch", () => HttpResponse.json({ previews: {}, total: 0, successful: 0 })),
+      http.get("/api/v1/schedules", () =>
+        HttpResponse.json({
+          schedules: [{ id: "s1", page_id: "beta", start_time: "07:00", end_time: "09:00", enabled: true }],
+          total: 1,
+        }),
+      ),
+      http.get("/api/v1/boards/:board", ({ params }) =>
+        HttpResponse.json({ id: params.board, active_page_id: "alpha", resolved_page_id: "alpha", paused: false }),
+      ),
+      http.get("/api/schedules/active/page", () =>
+        HttpResponse.json({
+          page_id: "alpha",
+          temporary_override: { active: false, page_id: null, expires_at: null, remaining_seconds: null },
+        }),
+      ),
+    );
+  });
+
+  function card(name: string) {
+    return screen.getByText(name, { selector: "[data-card-meta] span" }).closest("button")!;
+  }
+
+  it("draws the board first, then the title and two meta lines", async () => {
+    renderLibrary();
+    await screen.findByText("Alpha");
+    const alpha = card("Alpha");
+    expect(alpha.firstElementChild).toHaveAttribute("data-card-preview");
+    const meta = alpha.querySelector<HTMLElement>("[data-card-meta]")!;
+    expect(meta).toHaveTextContent(/Main ·\s*Flagship\s*22\s*×\s*6/);
+    expect(meta).toHaveTextContent(/Edited /);
+    await waitFor(() => expect(card("Beta").querySelector("[data-card-meta]")).toHaveTextContent(/Schedule 7:00/));
+  });
+
+  it("badges the page on screen as Now showing", async () => {
+    renderLibrary();
+    await screen.findByText("Alpha");
+    await waitFor(() => expect(within(card("Alpha")).getByText("Now showing")).toBeInTheDocument());
+    expect(within(card("Beta")).queryByText("Now showing")).not.toBeInTheDocument();
+  });
+
+  it("lays the cards out three across on a wide screen", async () => {
+    renderLibrary();
+    await screen.findByText("Alpha");
+    expect(screen.getByRole("group", { name: "Pages" })).toHaveClass("xl:grid-cols-3");
+  });
+});
+
 // BB-B-8 (Figma 303:18724): each card has a menu to edit, duplicate or delete
 // the page without opening it.
 describe("Pages library card menu", () => {

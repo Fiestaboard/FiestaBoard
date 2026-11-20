@@ -344,6 +344,8 @@
     "retryLoading": "ページの読み込みを再試行",
     "cardActions": "{name} の操作",
     "duplicate": "複製",
+    "cardEdited": "{when}に編集",
+    "cardScheduled": "スケジュール {time}",
     "deletePage": "ページを削除…",
     "toastDuplicated": "「{name}」を作成しました",
     "actionFailed": "できませんでした。もう一度お試しください。"

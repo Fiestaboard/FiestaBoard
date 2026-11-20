@@ -344,6 +344,8 @@
     "retryLoading": "Повторить загрузку страниц",
     "cardActions": "Действия для {name}",
     "duplicate": "Дублировать",
+    "cardEdited": "Изменено {when}",
+    "cardScheduled": "Расписание {time}",
     "deletePage": "Удалить страницу…",
     "toastDuplicated": "Создано «{name}»",
     "actionFailed": "Не удалось. Попробуйте ещё раз."

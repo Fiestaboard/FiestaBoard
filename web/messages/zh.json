@@ -344,6 +344,8 @@
     "retryLoading": "重试加载页面",
     "cardActions": "{name} 的操作",
     "duplicate": "复制",
+    "cardEdited": "{when}编辑",
+    "cardScheduled": "日程 {time}",
     "deletePage": "删除页面…",
     "toastDuplicated": "已创建“{name}”",
     "actionFailed": "操作失败，请重试。"
