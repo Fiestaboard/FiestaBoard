@@ -448,6 +448,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: { "data-ai-anchor": "page-editor.save" },
         })}
       </>,
@@ -487,6 +488,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: {},
         })}
       </>,
@@ -549,6 +551,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: {},
         })}
       </>,

@@ -94,6 +94,43 @@ for (const width of [1440, 1280, 1024]) {
   }
 }
 
+/** The header row's content fits its box: nothing clipped or pushed past the card. */
+async function expectHeaderFits(page: Page) {
+  const header = page.locator('[data-slot="card-header"]').first();
+  const row = header.locator("> div").first();
+  const [rowBox, headerBox] = [(await row.boundingBox())!, (await header.boundingBox())!];
+  const overflow = await row.evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow, "header row content wider than the row").toBeLessThanOrEqual(0);
+  expect(rowBox.x + rowBox.width).toBeLessThanOrEqual(headerBox.x + headerBox.width + 0.5);
+  for (const button of await header.getByRole("button").all()) {
+    const b = (await button.boundingBox())!;
+    expect(b.x + b.width, `${await button.getAttribute("aria-label")} past the header`).toBeLessThanOrEqual(
+      headerBox.x + headerBox.width + 0.5,
+    );
+  }
+}
+
+for (const width of [1440, 1280, 1024]) {
+  for (const notScheduled of [false, true]) {
+    test(`${width}px, ${notScheduled ? "not live (Save / Show now)" : "live (Save draft / Update)"}: the header fits, Explorer closed and open (BB-E-4)`, async ({
+      page,
+    }) => {
+      await mockHub(page, { notScheduled });
+      await openApp(page, width);
+      await expect(pageName(page)).toHaveValue("Kitchen morning");
+      await expect(
+        page.getByRole("button", { name: notScheduled ? /show now/i : "Save & update board" }),
+      ).toBeVisible();
+      await expectHeaderFits(page);
+      expect((await pageName(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
+      await page.getByRole("button", { name: "Show Explorer" }).click();
+      await expect(explorer(page)).toBeVisible();
+      await expectHeaderFits(page);
+      expect((await pageName(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
+    });
+  }
+}
+
 test.describe("D1: the nav rail in the editor", () => {
   test("collapses on entering the editor and restores an expanded nav on leaving", async ({ page }) => {
     await mockHub(page);

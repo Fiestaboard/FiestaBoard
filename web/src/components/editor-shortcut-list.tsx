@@ -30,7 +30,6 @@ import {
   matchesShortcut,
   primaryChord,
 } from "@/lib/editor-shortcuts";
-import { COMPACT_EDITOR_HEADER_QUERY } from "@/lib/layout-constants";
 
 export type EditorShortcutListVariant = "header" | "hint";
 
@@ -75,16 +74,24 @@ export interface EditorShortcutListProps {
    * the kit then hangs the list from the trigger, or its gutter on touch.
    */
   anchorRef?: RefObject<HTMLElement | null>;
+  /** The header trigger in a tight desktop header: icon only, named "Shortcuts" (BB-E-4). */
+  compact?: boolean;
   /** The preview binds BoardViewport's keys (`previewBindsBoardViewportKeys`). */
   boardViewport?: boolean;
 }
 
-export function EditorShortcutList({ variant, state, anchorRef, boardViewport = false }: EditorShortcutListProps) {
+export function EditorShortcutList({
+  variant,
+  state,
+  anchorRef,
+  boardViewport = false,
+  compact = false,
+}: EditorShortcutListProps) {
   const t = useTranslations("editorShortcuts");
   const groups = useMemo(() => editorShortcutGroups((key) => t(key), { boardViewport }), [t, boardViewport]);
   const anchor = useCallback(() => anchorRef?.current ?? null, [anchorRef]);
   const { openFrom, setOpenFrom } = state;
-  const compactHeader = useMediaQuery(COMPACT_EDITOR_HEADER_QUERY);
+  const compactHeader = variant === "header" && compact;
 
   const trigger =
     variant === "header" ? (

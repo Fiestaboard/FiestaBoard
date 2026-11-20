@@ -40,7 +40,6 @@ import { offersDraft } from "@/lib/ide/edit-state";
 import { useExplorerOpen } from "@/lib/ide/explorer-pref";
 import { IDE_DESKTOP_QUERY, type IdeTabId, inspectorTabIds, resolveInspectorTab } from "@/lib/ide/inspector-tabs";
 import { templateReferences } from "@/lib/ide/references";
-import { COMPACT_EDITOR_HEADER_QUERY } from "@/lib/layout-constants";
 
 import { type ConsoleTab, IdeConsole, IdeProblemList, IdeSentPanel } from "./ide-console";
 import { IdeExplorer, IdeExplorerShow } from "./ide-explorer";
@@ -101,7 +100,6 @@ export default function CreatorIde({
   const ide = useCreatorIde(pageId, builderRef, savedTick);
   const desktop = useMediaQuery(IDE_DESKTOP_QUERY);
   const phone = useMediaQuery("(max-width: 639px)");
-  const compactHeader = useMediaQuery(COMPACT_EDITOR_HEADER_QUERY);
   const [tab, setTab] = useState<IdeTabId>("page");
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>("problems");
   const [copyOpen, setCopyOpen] = useState(false);
@@ -149,13 +147,13 @@ export default function CreatorIde({
             variant="secondary"
             size={actions.size}
             className="shrink-0 gap-1.5 px-3 text-sm"
-            aria-label={compactHeader ? t("saveDraft") : undefined}
+            aria-label={actions.compact ? t("saveDraft") : undefined}
             disabled={actions.disabled || savingDraft}
             onClick={() => saveDraftMutate({})}
           >
             <Save className="size-3.5" aria-hidden="true" />
             {/* 1024–1279: icon only, so the page name keeps its room (BB-E-4). */}
-            {!compactHeader && (savingDraft ? t("savingDraft") : t("saveDraft"))}
+            {!actions.compact && (savingDraft ? t("savingDraft") : t("saveDraft"))}
           </Button>
         )}
         <Button
@@ -166,15 +164,15 @@ export default function CreatorIde({
           onClick={actions.save}
           // Phone, and 1024–1279: a short label so the page name keeps its room
           // (BB-B-3, BB-E-4); the full words stay the accessible name.
-          aria-label={(phone || compactHeader) && !actions.saving ? t("saveAndUpdate") : undefined}
+          aria-label={(phone || actions.compact) && !actions.saving ? t("saveAndUpdate") : undefined}
           {...actions.anchor}
         >
           <Send className="size-4" aria-hidden="true" />
-          {actions.saving ? t("saving") : phone || compactHeader ? t("updateBoardShort") : t("saveAndUpdate")}
+          {actions.saving ? t("saving") : phone || actions.compact ? t("updateBoardShort") : t("saveAndUpdate")}
         </Button>
       </>
     ));
-  }, [draftOffered, phone, compactHeader, savingDraft, saveDraftMutate, onSaveActionsChange, t]);
+  }, [draftOffered, phone, savingDraft, saveDraftMutate, onSaveActionsChange, t]);
   useEffect(() => () => onSaveActionsChange(undefined), [onSaveActionsChange]);
 
   const problemCount = ide.problems.length;

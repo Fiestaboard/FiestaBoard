@@ -5,8 +5,9 @@ export const MAX_APP_WIDTH = 1920;
 export const SIDEBAR_INSET = 12;
 
 /**
- * The desktop editor between the `lg` rail and 1280px: the header actions
- * beside the page name go icon-only (or short) so the name keeps 240px
- * (BB-E-4). Figma draws no frame here (D8).
+ * Below this width of the desktop editor's header row, the actions beside the
+ * page name go icon-only (Update for Save & update board) so the name keeps
+ * 240px (BB-E-4). Measured on the row, not the viewport: the nav rail and an
+ * open Explorer take room too. Figma draws no frame this narrow (D8).
  */
-export const COMPACT_EDITOR_HEADER_QUERY = "(min-width: 1024px) and (max-width: 1279.98px)";
+export const COMPACT_EDITOR_HEADER_WIDTH = 1000;

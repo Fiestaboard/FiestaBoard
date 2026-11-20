@@ -8,6 +8,8 @@ import outputs from "../../src/__tests__/mocks/first-party-outputs.json" with { 
 
 export interface CreatorIdeHubOptions {
   deviceType?: "flagship" | "note" | "note_array" | "panel";
+  /** The page is on no display and in no schedule: the header offers Save / Show now. */
+  notScheduled?: boolean;
 }
 
 export const board = {
@@ -58,6 +60,8 @@ export async function mockHub(page: Page, options: CreatorIdeHubOptions = {}) {
     device_type: deviceType,
     ...(deviceType === "panel" && { grid_rows: 14, grid_cols: 34 }),
   };
+  // What the display shows: this page (live), or another one.
+  const showing = options.notScheduled ? "evening" : kitchenMorning.id;
   await page.route(
     (url) => url.pathname.startsWith("/api/"),
     async (route) => {
@@ -78,7 +82,7 @@ export async function mockHub(page: Page, options: CreatorIdeHubOptions = {}) {
           drawing: { source: "profile", features: {} },
           next_change_at: null,
           next_page_id: null,
-          active_page_id: kitchenMorning.id,
+          active_page_id: showing,
         };
       } else if (pathname === `/v1/pages/${kitchenMorning.id}`) {
         response = opened;
@@ -150,25 +154,27 @@ export async function mockHub(page: Page, options: CreatorIdeHubOptions = {}) {
         };
       } else if (pathname === "/v1/schedules" || pathname === "/schedules") {
         response = {
-          schedules: [
-            {
-              id: "s1",
-              page_id: kitchenMorning.id,
-              board_id: board.id,
-              start_time: "07:30",
-              end_time: "08:30",
-              day_pattern: "weekdays",
-              enabled: true,
-              created_at: "",
-            },
-          ],
-          total: 1,
+          schedules: options.notScheduled
+            ? []
+            : [
+                {
+                  id: "s1",
+                  page_id: kitchenMorning.id,
+                  board_id: board.id,
+                  start_time: "07:30",
+                  end_time: "08:30",
+                  day_pattern: "weekdays",
+                  enabled: true,
+                  created_at: "",
+                },
+              ],
+          total: options.notScheduled ? 0 : 1,
           default_page_id: null,
           enabled: null,
         };
       } else if (pathname === "/schedules/active/page") {
         response = {
-          page_id: kitchenMorning.id,
+          page_id: showing,
           source: "schedule",
           schedule_enabled: true,
           current_time: "07:41",

@@ -31,7 +31,6 @@ export function IdeExplorerShow({ onShow, buttonRef }: { onShow: () => void; but
         size="icon"
         aria-label={t("showExplorer")}
         aria-expanded={false}
-        title={t("showExplorer")}
         onClick={onShow}
       >
         <PanelLeftOpen className="size-4" aria-hidden="true" />
@@ -100,7 +99,6 @@ export function IdeExplorer({
               className="-my-1.5 -mr-1.5"
               aria-label={t("hideExplorer")}
               aria-expanded={true}
-              title={t("hideExplorer")}
               onClick={onHide}
             >
               <PanelLeftClose className="size-4" aria-hidden="true" />
