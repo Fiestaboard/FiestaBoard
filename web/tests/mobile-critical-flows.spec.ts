@@ -243,13 +243,13 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
     // Mirrors the report in #1558: a multi-word page name plus the
     // "Disabled" badge is enough to blow the row past the phone viewport.
     const pageId = await createPage("School Departure Countdown");
-    await createSchedule(pageId, "07:40", "07:45", "weekdays", undefined, {
+    // Every day, so today's Day agenda (the only phone view, BB-C-4) carries the row.
+    await createSchedule(pageId, "07:40", "07:45", "all", undefined, {
       enabled: false,
     });
 
     try {
       await page.goto("/schedule");
-      await page.getByRole("radio", { name: "List", exact: true }).click();
       const rows = page.getByRole("button", { name: /School Departure Countdown/ });
       await expect(rows.first()).toBeVisible({ timeout: 15_000 });
 
@@ -293,24 +293,6 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
       expect(overflowing).toBe(0);
     } finally {
       await deleteAllCollections().catch(() => {});
-    }
-  });
-
-  test("schedule calendar zoom control stays on screen", async ({ page }) => {
-    const pageId = await createPage("Phone calendar zoom target");
-    await createSchedule(pageId, "09:00", "10:00");
-    await page.goto("/schedule");
-    await page.getByRole("radio", { name: "Week", exact: true }).click();
-    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
-
-    const zoomControls = page.locator(".schedule-calendar-wrapper .ml-auto.flex.items-center").first();
-    await expect(zoomControls).toBeVisible({ timeout: 10_000 });
-
-    const box = await zoomControls.boundingBox();
-    expect(box).not.toBeNull();
-    if (box) {
-      expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
     }
   });
 });
