@@ -1920,7 +1920,9 @@ def _build_mcp_server() -> Any:
                       get_settings_summary()). Omitted = the primary board.
 
         Returns: {valid (false when any overlap exists), overlaps:
-        [{schedule1_id, schedule2_id, conflict_description}], gaps:
+        [{schedule1_id, schedule2_id, conflict_description, days,
+        start_time, end_time, winner_id}] (winner_id: the entry shown
+        during the overlap), gaps:
         [{start_time, end_time, days}]}. Gaps are informational — the
         board shows default_page_id (see list_schedules()) during them.
         """

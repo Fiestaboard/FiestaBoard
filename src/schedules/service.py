@@ -31,6 +31,9 @@ from .sun_times import (
 
 logger = logging.getLogger(__name__)
 
+#: The id an unsaved candidate entry carries in ``validate_schedules`` results.
+CANDIDATE_ID = "candidate"
+
 
 @dataclass(frozen=True)
 class _ResolvedWindow:
@@ -433,17 +436,43 @@ class ScheduleService:
 
     # Validation
 
-    def validate_schedules(self, board_id: str | None = None) -> ScheduleValidationResult:
+    def validate_schedules(
+        self,
+        board_id: str | None = None,
+        candidate: ScheduleCreate | None = None,
+        candidate_id: str | None = None,
+    ) -> ScheduleValidationResult:
         """Validate schedules for overlaps and gaps (optionally for one board).
 
         Date-specific recurrences (annual_date / one_off_date) are intentional
         overrides and are excluded from overlap/gap detection in v1: they're
         expected to "overlap" the weekly schedule and we don't want to surface
         that as a conflict.
+
+        ``candidate`` is an unsaved entry checked alongside the saved ones and
+        never stored: it replaces ``candidate_id`` (an edit, which keeps that
+        entry's age for the same-start tie-break) or, without one, is a new
+        entry carrying ``CANDIDATE_ID``, newer than every saved entry.
+
+        Raises:
+            ValueError: the candidate's configuration is incomplete.
         """
-        weekly_schedules = [
-            s for s in self.list_schedules(board_id=board_id) if s.enabled and s.recurrence_type == "weekly"
-        ]
+        entries = self.list_schedules(board_id=board_id)
+        if candidate is not None:
+            edited = next((entry for entry in entries if entry.id == candidate_id), None) if candidate_id else None
+            entries = [entry for entry in entries if entry.id != candidate_id]
+            data = candidate.model_dump()
+            data["board_id"] = edited.board_id if edited else (candidate.board_id or board_id or DEFAULT_BOARD_ID)
+            proposed = ScheduleEntry(
+                **data,
+                id=candidate_id or CANDIDATE_ID,
+                **({"created_at": edited.created_at} if edited else {}),
+            )
+            errors = proposed.validate_config()
+            if errors:
+                raise ValueError("; ".join(errors))
+            entries.append(proposed)
+        weekly_schedules = [s for s in entries if s.enabled and s.recurrence_type == "weekly"]
 
         # Resolve sun-based start/end times before checking for overlaps and
         # gaps so validation reflects what the user actually scheduled (e.g.
@@ -464,9 +493,13 @@ class ScheduleService:
     def _detect_overlaps(self, schedules: list[_ResolvedWindow]) -> list[Overlap]:
         """Detect overlapping schedules.
 
-        Two schedules overlap if they have:
-        1. Overlapping day patterns
-        2. Overlapping time ranges
+        Two schedules overlap if they share minutes on a calendar day (an
+        overnight window counts on the day it spills into). Each overlap
+        carries the shared days in week order, the shared minutes on the first
+        of them, and the entry the hub shows then: the same rule as
+        :meth:`get_active_schedule_entry` (the window that started most
+        recently wins; on a tie the newer entry). Both windows are live for
+        the whole intersection, so that winner holds throughout it.
 
         Args:
             schedules: List of enabled schedules to check
@@ -480,29 +513,43 @@ class ScheduleService:
         for i, window1 in enumerate(schedules):
             for window2 in schedules[i + 1 :]:
                 schedule1, schedule2 = window1.schedule, window2.schedule
-                intervals1 = self._daily_intervals(window1)
-                intervals2 = self._daily_intervals(window2)
-                common_days = {
-                    day
+                pieces1 = self._daily_pieces(window1)
+                pieces2 = self._daily_pieces(window2)
+                hits = [
+                    (day, max(a, c), min(b, d), origin1, origin2)
                     for day in VALID_DAYS
-                    if any(a < d and c < b for a, b in intervals1[day] for c, d in intervals2[day])
-                }
-                if common_days:
-                    # Build description
-                    days_str = ", ".join(sorted(common_days))
-                    end1_str = schedule1.end_time or "open"
-                    end2_str = schedule2.end_time or "open"
-                    conflict_desc = (
-                        f"Schedules overlap on {days_str}: "
-                        f"{schedule1.start_time}-{end1_str} and "
-                        f"{schedule2.start_time}-{end2_str}"
-                    )
+                    for a, b, origin1 in pieces1[day]
+                    for c, d, origin2 in pieces2[day]
+                    if a < d and c < b
+                ]
+                if not hits:
+                    continue
+                days = list(dict.fromkeys(hit[0] for hit in hits))
+                _, start, end, origin1, origin2 = hits[0]
+                rank1 = (start - origin1, -schedule1.created_at.timestamp())
+                rank2 = (start - origin2, -schedule2.created_at.timestamp())
+                winner = schedule1 if rank1 <= rank2 else schedule2
 
-                    overlaps.append(
-                        Overlap(
-                            schedule1_id=schedule1.id, schedule2_id=schedule2.id, conflict_description=conflict_desc
-                        )
+                # English fallback for API/MCP readers; days in week order.
+                end1_str = schedule1.end_time or "open"
+                end2_str = schedule2.end_time or "open"
+                conflict_desc = (
+                    f"Schedules overlap on {', '.join(days)}: "
+                    f"{schedule1.start_time}-{end1_str} and "
+                    f"{schedule2.start_time}-{end2_str}"
+                )
+
+                overlaps.append(
+                    Overlap(
+                        schedule1_id=schedule1.id,
+                        schedule2_id=schedule2.id,
+                        conflict_description=conflict_desc,
+                        days=days,
+                        start_time=self._minutes_to_time(start % 1440),
+                        end_time=self._minutes_to_time(end % 1440),
+                        winner_id=winner.id,
                     )
+                )
 
         return overlaps
 
@@ -548,20 +595,30 @@ class ScheduleService:
         # Overlap if range2 intersects [s1, 1440) or [0, e1)
         return s2 < e1 or e2 > s1
 
-    def _daily_intervals(self, window: _ResolvedWindow) -> dict[str, list[tuple[int, int]]]:
-        """Split weekly windows onto the calendar days they actually cover."""
+    def _daily_pieces(self, window: _ResolvedWindow) -> dict[str, list[tuple[int, int, int]]]:
+        """Split weekly windows onto the calendar days they actually cover.
+
+        Each piece is ``(start, end, origin)`` in that day's minutes, where
+        ``origin`` is when the whole window started: the piece's own start, or
+        a negative minute for the part of an overnight window that spilled
+        over from the day before.
+        """
         schedule = window.schedule
-        intervals = {day: [] for day in VALID_DAYS}
+        pieces = {day: [] for day in VALID_DAYS}
         start = self._time_to_minutes(schedule.start_time)
         end = self._time_to_minutes(schedule.end_time) if schedule.end_time is not None else 1440
         for day in schedule.get_days():
             if window.end_day_offset:
-                intervals[day].append((start, 1440))
+                pieces[day].append((start, 1440, start))
                 next_day = VALID_DAYS[(VALID_DAYS.index(day) + 1) % 7]
-                intervals[next_day].append((0, end))
+                pieces[next_day].append((0, end, start - 1440))
             else:
-                intervals[day].append((start, end))
-        return intervals
+                pieces[day].append((start, end, start))
+        return pieces
+
+    def _daily_intervals(self, window: _ResolvedWindow) -> dict[str, list[tuple[int, int]]]:
+        """``_daily_pieces`` without the window origin."""
+        return {day: [(a, b) for a, b, _ in pieces] for day, pieces in self._daily_pieces(window).items()}
 
     def _detect_gaps(self, schedules: list[_ResolvedWindow]) -> list[Gap]:
         """Detect gaps in schedule coverage.

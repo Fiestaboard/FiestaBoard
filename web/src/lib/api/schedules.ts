@@ -126,8 +126,19 @@ export interface SchedulesResponse {
 export interface Overlap {
   schedule1_id: string;
   schedule2_id: string;
+  /** The hub's English fallback; the web builds localized text from the fields below. */
   conflict_description: string;
+  /** Days the windows share, Monday first (hubs before 11.0 omit these four). */
+  days?: string[];
+  /** The shared minutes on the first of `days`, "HH:MM" ("00:00" end = midnight). */
+  start_time?: string | null;
+  end_time?: string | null;
+  /** The entry the hub shows during the overlap. */
+  winner_id?: string | null;
 }
+
+/** The id an unsaved entry carries in a candidate validation. */
+export const CANDIDATE_SCHEDULE_ID = "candidate";
 
 export interface Gap {
   start_time: string;
@@ -342,10 +353,18 @@ export const schedulesApi = {
     return fetchApi<ActiveScheduleResponse>(`/schedules/active/page${query.size ? `?${query}` : ""}`);
   },
 
-  validateSchedules: (boardId?: string) =>
+  /**
+   * Overlaps and gaps. With `candidate`, the hub also checks that unsaved
+   * entry (replacing `candidateId`, an edit) and stores nothing.
+   */
+  validateSchedules: (boardId?: string, candidate?: ScheduleCreate, candidateId?: string) =>
     fetchApi<ScheduleValidationResult>("/schedules/validate", {
       method: "POST",
-      body: JSON.stringify(boardId != null ? { board_id: boardId } : {}),
+      body: JSON.stringify({
+        ...(boardId != null && { board_id: boardId }),
+        ...(candidate && { candidate }),
+        ...(candidateId && { candidate_id: candidateId }),
+      }),
     }),
 
   // Both of these are per-board settings, so v1 puts them on the board rather
