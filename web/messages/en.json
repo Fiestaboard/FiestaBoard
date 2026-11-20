@@ -1130,6 +1130,11 @@
       "computer": "computer"
     }
   },
+  "notFound": {
+    "title": "Page not found",
+    "description": "This link doesn’t go anywhere in FiestaBoard. It may be mistyped or out of date.",
+    "home": "Go to Home"
+  },
   "wizard": {
     "welcomeTitle": "Welcome to FiestaBoard",
     "welcomeSubtitle": "Let's get you set up in just a few steps",

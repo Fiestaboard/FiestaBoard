@@ -1174,6 +1174,11 @@
       "computer": "ordenador"
     }
   },
+  "notFound": {
+    "title": "Página no encontrada",
+    "description": "Este enlace no lleva a ninguna parte de FiestaBoard. Puede que esté mal escrito o desactualizado.",
+    "home": "Ir a Inicio"
+  },
   "wizard": {
     "welcomeTitle": "Bienvenido a FiestaBoard",
     "welcomeSubtitle": "Vamos a configurarte en solo unos pasos",

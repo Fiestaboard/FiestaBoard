@@ -5,11 +5,11 @@ import {
   type BoardViewportLabels,
   type BoardViewportProps as UIBoardViewportProps,
   type DeviceType,
+  Text,
 } from "@fiestaboard/ui";
 import { memo, useMemo } from "react";
 
 import { useBoardChrome } from "@/components/board-display";
-import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useTranslations } from "@/i18n/translations";
 
 /**
@@ -56,6 +56,26 @@ export function boardViewportHint(t: Translate, deviceType: DeviceType | undefin
   return t(deviceType === "note_array" ? "viewportHintNotes" : "viewportHintColumns");
 }
 
+/**
+ * The hint as rendered: both wordings, and the `pointer: coarse` media query
+ * shows one (BB-A-21). Deciding it in CSS keeps it right on the first paint
+ * and on every remount; picking it in JS left a touch phone on the keyboard
+ * hint whenever the render ran before the pointer was known.
+ */
+export function BoardViewportHint({ deviceType }: { deviceType: DeviceType | undefined }) {
+  const t = useTranslations("boardDisplay");
+  return (
+    <>
+      <Text as="span" size="xs" data-hint="keyboard" className="pointer-coarse:hidden">
+        {boardViewportHint(t, deviceType, false)}
+      </Text>
+      <Text as="span" size="xs" data-hint="touch" className="hidden pointer-coarse:inline">
+        {boardViewportHint(t, deviceType, true)}
+      </Text>
+    </>
+  );
+}
+
 /** Every BoardViewport string, translated. Stable while the language is. */
 export function useBoardViewportLabels(regionLabel?: string): Required<BoardViewportLabels> {
   const t = useTranslations("boardDisplay");
@@ -77,11 +97,14 @@ export function useBoardViewportLabels(regionLabel?: string): Required<BoardView
 }
 
 export const BoardViewport = memo(function BoardViewport({ flapSpeed, regionLabel, ...props }: BoardViewportProps) {
-  const t = useTranslations("boardDisplay");
   const chrome = useBoardChrome(flapSpeed);
   const labels = useBoardViewportLabels(regionLabel);
-  const coarse = useCoarsePointer();
   return (
-    <UIBoardViewport {...props} {...chrome} labels={labels} hint={boardViewportHint(t, props.deviceType, coarse)} />
+    <UIBoardViewport
+      {...props}
+      {...chrome}
+      labels={labels}
+      hint={<BoardViewportHint deviceType={props.deviceType} />}
+    />
   );
 });

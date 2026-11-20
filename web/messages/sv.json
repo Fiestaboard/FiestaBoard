@@ -1174,6 +1174,11 @@
       "computer": "dator"
     }
   },
+  "notFound": {
+    "title": "Sidan hittades inte",
+    "description": "Den här länken leder ingenstans i FiestaBoard. Den kan vara felstavad eller inaktuell.",
+    "home": "Gå till Hem"
+  },
   "wizard": {
     "welcomeTitle": "Välkommen till FiestaBoard",
     "welcomeSubtitle": "Låt oss komma igång med några enkla steg",

@@ -1174,6 +1174,11 @@
       "computer": "コンピュータ"
     }
   },
+  "notFound": {
+    "title": "ページが見つかりません",
+    "description": "このリンクは FiestaBoard のどこにもつながっていません。入力ミスか、古いリンクかもしれません。",
+    "home": "ホームへ"
+  },
   "wizard": {
     "welcomeTitle": "FiestaBoard へようこそ",
     "welcomeSubtitle": "簡単なステップでセットアップを完了しましょう",

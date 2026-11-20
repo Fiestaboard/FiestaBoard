@@ -1174,6 +1174,11 @@
       "computer": "bilgisayar"
     }
   },
+  "notFound": {
+    "title": "Sayfa bulunamadı",
+    "description": "Bu bağlantı FiestaBoard'da hiçbir yere gitmiyor. Yanlış yazılmış ya da eskimiş olabilir.",
+    "home": "Ana sayfaya git"
+  },
   "wizard": {
     "welcomeTitle": "FiestaBoard'a Hoş Geldiniz",
     "welcomeSubtitle": "Birkaç adımda kurulumunuzu tamamlayalım",

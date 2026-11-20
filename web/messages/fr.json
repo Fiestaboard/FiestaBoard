@@ -1174,6 +1174,11 @@
       "computer": "ordinateur"
     }
   },
+  "notFound": {
+    "title": "Page introuvable",
+    "description": "Ce lien ne mène nulle part dans FiestaBoard. Il est peut-être mal saisi ou périmé.",
+    "home": "Aller à l’accueil"
+  },
   "wizard": {
     "welcomeTitle": "Bienvenue sur FiestaBoard",
     "welcomeSubtitle": "Configurons tout en quelques étapes",
