@@ -4021,6 +4021,7 @@
     "partsGroup": "Parçalar",
     "noBoards": "Henüz hiçbir ekranda değil.",
     "noParts": "Veri veya formül yok: düz metin.",
+    "partRow": "Satır {rows}",
     "partRows": "Satır {rows}",
     "formulasPart": "Formüller",
     "snippetsUnavailable": "Kayıtlı parçacıklar bu hub’da henüz kullanılamıyor.",

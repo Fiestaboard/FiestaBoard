@@ -4021,6 +4021,7 @@
     "partsGroup": "パーツ",
     "noBoards": "まだどのディスプレイにもありません。",
     "noParts": "データや数式なし：プレーンテキスト。",
+    "partRow": "{rows} 行",
     "partRows": "{rows} 行",
     "formulasPart": "数式",
     "snippetsUnavailable": "保存済みスニペットは、このHubではまだ利用できません。",

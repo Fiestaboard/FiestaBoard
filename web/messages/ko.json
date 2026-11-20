@@ -4021,6 +4021,7 @@
     "partsGroup": "구성 요소",
     "noBoards": "아직 어떤 디스플레이에도 없습니다.",
     "noParts": "데이터나 수식 없음: 일반 텍스트.",
+    "partRow": "{rows}행",
     "partRows": "{rows}행",
     "formulasPart": "수식",
     "snippetsUnavailable": "저장된 스니펫은 아직 이 허브에서 사용할 수 없습니다.",

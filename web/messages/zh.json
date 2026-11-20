@@ -4021,6 +4021,7 @@
     "partsGroup": "组成部分",
     "noBoards": "尚未在任何显示屏上。",
     "noParts": "没有数据或公式：纯文本。",
+    "partRow": "第 {rows} 行",
     "partRows": "第 {rows} 行",
     "formulasPart": "公式",
     "snippetsUnavailable": "此 Hub 暂不支持已保存的代码片段。",

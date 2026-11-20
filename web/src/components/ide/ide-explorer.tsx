@@ -155,7 +155,7 @@ export function IdeExplorer({
                 <ListRow
                   key={part.formulas ? "=" : part.name}
                   title={part.formulas ? t("formulasPart") : part.name}
-                  description={t("partRows", { count: part.rows.length, rows: part.rows.join(", ") })}
+                  description={t(part.rows.length === 1 ? "partRow" : "partRows", { rows: part.rows.join(", ") })}
                 />
               ))}
             </ListRowGroup>
