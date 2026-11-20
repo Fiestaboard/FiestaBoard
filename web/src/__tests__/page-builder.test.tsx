@@ -12,6 +12,8 @@ import { server } from "./mocks/server";
 const API_BASE = "/api";
 import { PageBuilder } from "@/components/page-builder";
 
+vi.mock("@/components/preview-target-popover", () => import("./mocks/preview-target-popover-inline"));
+
 vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({
     push: vi.fn(),

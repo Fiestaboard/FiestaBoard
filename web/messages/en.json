@@ -3825,7 +3825,11 @@
     "thisDisplay": "display",
     "startFrom": "Or start from",
     "insertVariable": "Insert a variable",
-    "browseStaffPicks": "Browse Staff Picks"
+    "browseStaffPicks": "Browse Staff Picks",
+    "replay": "Replay",
+    "replayHint": "Play the split-flap animation",
+    "previewTarget": "Preview target",
+    "previewTargetTrigger": "Preview on {target}"
   },
   "phonePairing": {
     "title": "Connect a phone",
@@ -4207,7 +4211,6 @@
     "renderAtLabel": "Preview formulas at a time",
     "renderAtReset": "Preview at the current time",
     "renderAtNote": "“At {time}” evaluates formulas as if it were {time}; integration data is whatever the hub has now.",
-    "sampleTitle": "Sample data — not live",
     "sampleNote": "Sample shows each integration's example values. Mirror to board is off while you preview sample data.",
     "sampleUnsampled": "No example values for {plugins}; those show the hub's current data.",
     "previewFailed": "This preview couldn't be rendered. Check the template, then try again.",

@@ -3825,7 +3825,11 @@
     "thisDisplay": "此显示屏",
     "startFrom": "也可以从这里开始",
     "insertVariable": "插入变量",
-    "browseStaffPicks": "浏览团队精选"
+    "browseStaffPicks": "浏览团队精选",
+    "replay": "重播",
+    "replayHint": "播放翻牌动画",
+    "previewTarget": "预览目标",
+    "previewTargetTrigger": "在 {target} 上预览"
   },
   "phonePairing": {
     "title": "连接手机",
@@ -4207,7 +4211,6 @@
     "renderAtLabel": "按指定时间预览公式",
     "renderAtReset": "按当前时间预览",
     "renderAtNote": "“在 {time}”会按照现在是 {time} 来计算公式；集成数据则是中枢当前拥有的数据。",
-    "sampleTitle": "示例数据 — 非实时",
     "sampleNote": "示例显示每个集成的示例值。预览示例数据时，同步到看板处于关闭状态。",
     "sampleUnsampled": "{plugins} 没有示例值；它们显示中枢的当前数据。",
     "previewFailed": "无法渲染此预览。请检查模板后重试。",

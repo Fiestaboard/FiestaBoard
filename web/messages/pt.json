@@ -3825,7 +3825,11 @@
     "thisDisplay": "esta tela",
     "startFrom": "Ou comece por",
     "insertVariable": "Inserir uma variável",
-    "browseStaffPicks": "Explorar as Seleções da equipa"
+    "browseStaffPicks": "Explorar as Seleções da equipa",
+    "replay": "Repetir",
+    "replayHint": "Reproduzir a animação das palhetas",
+    "previewTarget": "Destino da pré-visualização",
+    "previewTargetTrigger": "Pré-visualizar em {target}"
   },
   "phonePairing": {
     "title": "Conectar um celular",
@@ -4207,7 +4211,6 @@
     "renderAtLabel": "Pré-visualizar fórmulas em um horário",
     "renderAtReset": "Pré-visualizar no horário atual",
     "renderAtNote": "“Às {time}” avalia as fórmulas como se fossem {time}; os dados de integração são os que o hub tem agora.",
-    "sampleTitle": "Dados de exemplo — não ao vivo",
     "sampleNote": "Exemplo mostra os valores de exemplo de cada integração. Espelhar no painel fica desativado enquanto você pré-visualiza dados de exemplo.",
     "sampleUnsampled": "Não há valores de exemplo para {plugins}; eles mostram os dados atuais do hub.",
     "previewFailed": "Não foi possível gerar esta pré-visualização. Verifique o modelo e tente novamente.",

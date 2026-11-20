@@ -3,7 +3,7 @@
 
 "use client";
 
-import { Button, type DataSource, DataSourceSwitch, Flex, Toggle } from "@fiestaboard/ui";
+import { Button, type DataSource, DataSourceSwitch, Flex, Text, Toggle } from "@fiestaboard/ui";
 import { Clock, ScanSearch, X } from "lucide-react";
 
 import { TimePicker } from "@/components/ui/time-picker";
@@ -43,7 +43,10 @@ export function PreviewDataControls({
           data-testid="inspect-toggle"
         >
           <ScanSearch aria-hidden />
-          {t("inspect")}
+          {/* A narrow preview card keeps its one-row header by showing the icon (BB-E-5). */}
+          <Text as="span" className="@max-2xl/preview:sr-only">
+            {t("inspect")}
+          </Text>
         </Toggle>
       )}
       <DataSourceSwitch

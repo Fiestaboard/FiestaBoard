@@ -11,6 +11,8 @@ import { ThemeProvider } from "@/hooks/use-theme";
 
 import { server } from "./mocks/server";
 
+vi.mock("@/components/preview-target-popover", () => import("./mocks/preview-target-popover-inline"));
+
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn(), dismiss: vi.fn() },
 }));

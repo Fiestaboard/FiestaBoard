@@ -81,7 +81,6 @@ export interface FormulaIde {
   bridge: FormulaIdeBridge;
   /** The board text to show instead of the ordinary preview (Sample, Missing, or another time). */
   previewOverride: string | null;
-  previewTitle?: string;
   dotStatus?: StatusDotProps["status"];
   /** Mirror-to-board is off while the preview is not live data at the real time. */
   mirrorLocked: boolean;
@@ -338,7 +337,6 @@ export function useFormulaIde({
   return {
     bridge,
     previewOverride,
-    previewTitle: !inert && mode === "sample" ? t("sampleTitle") : undefined,
     dotStatus: !inert && mode === "sample" ? "neutral" : undefined,
     mirrorLocked: !inert && previewContext !== null,
     renderFailed,

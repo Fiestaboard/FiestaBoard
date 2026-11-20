@@ -65,6 +65,7 @@ import {
   ChevronLeft,
   Ellipsis,
   FileQuestion,
+  Play,
   Save,
   Send,
   Sparkles,
@@ -82,6 +83,7 @@ import {
   useEffect,
   useId,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -99,12 +101,14 @@ import { DrawableBoardPreview } from "@/components/drawable-board-preview";
 import { EditorShortcutList, useEditorShortcutList } from "@/components/editor-shortcut-list";
 import { EditorAnchoredTool } from "@/components/editor-tablet-tools";
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
+import { boardMeta } from "@/components/home/home-board";
 import { scheduleNextChange } from "@/components/home/home-status";
 import { useBoardDetail } from "@/components/home/use-home-data";
 import { LiveOutputSilenceStrip } from "@/components/live-output-silence-strip";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { PlainTemplateToolbar, PlainTemplateVariablePicker } from "@/components/plain-template-toolbar";
 import { PlainTextEditor, type PlainTextEditorHandle } from "@/components/plain-text-editor";
+import { PreviewTargetPopover } from "@/components/preview-target-popover";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import type {
   DrawHistoryEvent,
@@ -125,6 +129,7 @@ import {
   useBoardSettings,
   useStatus,
 } from "@/hooks/use-board";
+import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEditorScrollMargin } from "@/hooks/use-editor-scroll-margin";
 import { useEditorViewportDock } from "@/hooks/use-editor-viewport-dock";
@@ -132,6 +137,7 @@ import { useLineOverflow } from "@/hooks/use-line-overflow";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useDisplayTargets } from "@/hooks/use-panel-targets";
 import { usePluginSettings } from "@/hooks/use-plugin-settings";
+import { usePreviewReplay } from "@/hooks/use-preview-replay";
 import { useSilence } from "@/hooks/use-silence";
 import { useTransitionPlugins } from "@/hooks/use-transition-plugins";
 import { useTranslations } from "@/i18n/translations";
@@ -204,6 +210,11 @@ const CharsetTemplateEditor = lazy(() =>
 
 // Web 2.9 (04b) lenses load only for big boards and note arrays on the
 // desktop pane, keeping their kit composites off every other editor load.
+/**
+ * The preview board's width (px) under which the header cannot hold the title,
+ * the target and the data controls in one row (BB-E-5).
+ */
+const PREVIEW_HEADER_MIN_WIDTH = 528;
 const previewTools = () => import("@/components/complex-editing/complex-preview-tools");
 const templateTools = () => import("@/components/complex-editing/complex-template-tools");
 const BigBoardZoom = lazy(() => previewTools().then((m) => ({ default: m.BigBoardZoom })));
@@ -2780,6 +2791,199 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Sample, Missing or another time render through the formula IDE (hub H6).
   const shownPreviewMessage = drawMode ? editorPreviewMessage : (formulaIde.previewOverride ?? editorPreviewMessage);
 
+  const previewReplay = usePreviewReplay(shownPreviewMessage);
+  const boardAnimationsEnabled = useBoardAnimationsEnabled();
+  // Nothing to replay when the user's settings (or reduced motion) turn the flaps off.
+  const canReplay = boardAnimationsEnabled && !drawMode && !baselineDisplay && !isLedModel(previewModel);
+  const previewTargetLabel = [
+    previewBoard?.name,
+    boardMeta(previewBoard ?? undefined, {
+      deviceType,
+      notesWide,
+      notesTall,
+      gridRows: gridRows ?? undefined,
+      gridCols: gridCols ?? undefined,
+    }),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  // D3 (BB-E-6): the preview's target, the board size and the board colour,
+  // behind the preview header's meta instead of on the canvas.
+  const previewTargetControls = (
+    <>
+      {boardSettings?.boards && boardSettings.boards.length > 1 && (
+        <Select value={selectedBoardId} onValueChange={setChosenLiveBoardId}>
+          <SelectTrigger aria-label={t("selectBoardAriaLabel")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {boardSettings.boards.map((board) => (
+              <SelectItem key={board.id} value={board.id}>
+                {board.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      <Stack gap="3">
+        <Flex align="center" gap="2" className="flex-wrap">
+          <Text as="span" size="sm" weight="medium">
+            {t("previewLabel")}
+          </Text>
+          <BoardSizeIndicator
+            deviceType={deviceType}
+            notesWide={notesWide}
+            notesTall={notesTall}
+            gridRows={gridRows}
+            gridCols={gridCols}
+            className="ml-1"
+          />
+          <PanelFitNote
+            deviceType={deviceType}
+            notesWide={notesWide}
+            notesTall={notesTall}
+            gridRows={gridRows}
+            gridCols={gridCols}
+          />
+          {/* Device/size retarget (issue #1250): both new AND saved
+              pages can change board size. Converting a saved page is
+              lossy (shrinks truncate), so saving a shrinking retarget
+              asks for confirmation first. */}
+          <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
+            <SelectTrigger
+              className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
+              aria-label={t("deviceTypeSwitcherAriaLabel")}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {/* FiestaPanels first: a panel's grid is auto-fit from
+                  its TV size, so nobody can pick it out of the
+                  generic Notes-wide/tall selects below. Absent on an
+                  install with no panels, leaving the picker exactly
+                  the three sizes it has always been. */}
+              {fiestaPanelTargets.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel>{tPanels("yourPanelsGroupLabel")}</SelectLabel>
+                  {fiestaPanelTargets.map((panel) => (
+                    <SelectItem key={panel.id} value={targetValue(panel)} className="text-xs">
+                      {tPanels("panelSizeOption", {
+                        name: panel.name,
+                        cols: panel.cols,
+                        rows: panel.rows,
+                      })}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+              {/* Every other display with a custom grid — an output
+                  plugin's board, such as an LED matrix — named for
+                  its board and model, so a page can be authored
+                  for it. Driven by the board list alone. */}
+              {otherDisplayTargets.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel>{tPanels("yourDisplaysGroupLabel")}</SelectLabel>
+                  {otherDisplayTargets.map((display) => (
+                    <SelectItem key={display.id} value={targetValue(display)} className="text-xs">
+                      {tPanels(
+                        display.modelLabel
+                          ? display.led
+                            ? "displaySizeOptionLed"
+                            : "displaySizeOption"
+                          : "panelSizeOption",
+                        {
+                          name: display.name,
+                          model: display.modelLabel ?? "",
+                          cols: display.cols,
+                          rows: display.rows,
+                        },
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+              <SelectItem value="flagship" className="text-xs">
+                {tDisplaySettings("flagshipLabel")}
+              </SelectItem>
+              <SelectItem value="note" className="text-xs">
+                {tDisplaySettings("noteLabel")}
+              </SelectItem>
+              <SelectItem value="note_array" className="text-xs">
+                {tDisplaySettings("noteArrayLabel")}
+              </SelectItem>
+              {/* A panel page no listed panel matches: still named,
+                  at its own grid, so the trigger never goes blank. */}
+              {sizeSelectValue === "panel" && (
+                <SelectItem value="panel" className="text-xs">
+                  {tPanels("panelGridOption", { cols: dims.cols, rows: dims.rows })}
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+          {deviceType === "note_array" && (
+            <>
+              <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
+                <SelectTrigger
+                  className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
+                  aria-label={tDisplaySettings("notesWideLabel")}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {NOTE_AXIS_OPTIONS.map((n) => (
+                    <SelectItem key={`w-${n}`} value={String(n)} className="text-xs">
+                      {t("notesWideOption", { count: n })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
+                <SelectTrigger
+                  className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
+                  aria-label={tDisplaySettings("notesTallLabel")}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {NOTE_AXIS_OPTIONS.map((n) => (
+                    <SelectItem key={`t-${n}`} value={String(n)} className="text-xs">
+                      {t("notesTallOption", { count: n })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+        </Flex>
+        <Flex align="center" gap="1.5" className="shrink-0">
+          <Text as="span" size="xs" tone="muted" className="mr-0.5">
+            {t("boardColorLabel")}
+          </Text>
+          <button
+            onClick={() => setPreviewBoardColor("black")}
+            aria-label={t("previewAsBlack")}
+            aria-pressed={effectiveBoardColor === "black"}
+            className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+              effectiveBoardColor === "black"
+                ? "border-primary ring-1 ring-primary/30"
+                : "border-border hover:border-muted-foreground"
+            }`}
+          />
+          <button
+            onClick={() => setPreviewBoardColor("white")}
+            aria-label={t("previewAsWhite")}
+            aria-pressed={effectiveBoardColor === "white"}
+            className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+              effectiveBoardColor === "white"
+                ? "border-primary ring-1 ring-primary/30"
+                : "border-border hover:border-muted-foreground"
+            }`}
+          />
+        </Flex>
+      </Stack>
+    </>
+  );
+
   const requestSave = () => {
     if (!name.trim()) {
       document.getElementById("page-name")?.focus();
@@ -2796,6 +3000,32 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Web 2.9 (04b): complex-editing lenses for big boards and note arrays on
   // the desktop pane, and the hub's real-width overflow check (H4) everywhere.
   const [previewStage, setPreviewStage] = useState<HTMLElement | null>(null);
+  // The header is one row (BB-E-5). Figma 53:137378 puts Fit / Actual there;
+  // 307:46094, with Live · Sample · Missing and the clock, has no room for it,
+  // so then the zoom moves to the board.
+  // A pane too narrow for both keeps the header one row by moving the data
+  // controls (and the zoom) onto a row above the board.
+  // Stored as the decision, not the width, so a resize re-renders only when it flips.
+  const [previewStageNarrow, setPreviewStageNarrow] = useState(false);
+  useLayoutEffect(() => {
+    if (!previewStage) return;
+    const measure = () => {
+      const width = previewStage.getBoundingClientRect().width;
+      setPreviewStageNarrow(width > 0 && width < PREVIEW_HEADER_MIN_WIDTH);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(previewStage);
+    return () => observer.disconnect();
+  }, [previewStage]);
+  const dataControlsInHeader = dockedPreview || !previewStageNarrow;
+  const hasDataControls = !!formulaIde.headerControls;
+  // Fit / Actual takes the header only when nothing else needs the row; otherwise
+  // it is the viewport's own toggle, shown while the board overflows.
+  const fitToggleInHeader = !hasDataControls && dataControlsInHeader;
+  // The big-board zoom is wide: the header only takes it when it has the row to itself.
+  const bigZoomInHeader = !hasDataControls && dataControlsInHeader;
   // One stage element serves 2.9's lenses and 2.10's Inspect. The ref must be
   // stable: an inline callback runs again on every commit, and its
   // setPreviewStage(null) / (el) pair kept the whole editor re-committing.
@@ -3445,15 +3675,42 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   id="page-editor-preview"
                   variant={dockedPreview ? "docked" : "pane"}
                   className={cn(
-                    "order-first lg:order-2 min-w-0",
+                    "@container/preview order-first lg:order-2 min-w-0",
                     dockedPreview ? "top-16 scroll-mt-16 px-0" : "top-16 scroll-mt-16",
                     // A landscape phone has no height for a docked board: it
                     // scrolls with the template instead (BB-B-4).
                     dockedPreview && "[@media(max-height:500px)]:static",
                   )}
-                  title={baselineDisplay ? tTouch("plainText") : (formulaIde.previewTitle ?? tTouch("livePreview"))}
+                  // One stable title (BB-E-5): Sample shows in the switch and the dot, not
+                  // by renaming the card, so the header never reflows.
+                  title={baselineDisplay ? tTouch("plainText") : tTouch("livePreview")}
                   dotStatus={baselineDisplay ? "warning" : (formulaIde.dotStatus ?? "success")}
-                  boardName={previewBoard?.name}
+                  // The pane's meta is the target control (D3); the dock keeps the name.
+                  boardName={dockedPreview ? previewBoard?.name : undefined}
+                  details={
+                    dockedPreview ? undefined : (
+                      <PreviewTargetPopover
+                        target={previewTargetLabel}
+                        triggerProps={anchorProps("page-editor.device")}
+                      >
+                        {previewTargetControls}
+                      </PreviewTargetPopover>
+                    )
+                  }
+                  liveAction={
+                    canReplay ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={previewReplay.replay}
+                        title={tTouch("replayHint")}
+                        data-testid="preview-replay"
+                      >
+                        <Play aria-hidden />
+                        {tTouch("replay")}
+                      </Button>
+                    ) : undefined
+                  }
                   live={liveOutputEnabled}
                   onLiveChange={changeMirroring}
                   liveDisabled={(mirrorUnavailable && !liveOutputEnabled) || formulaIde.mirrorLocked}
@@ -3467,14 +3724,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         : undefined
                   }
                   headerAction={
-                    <Flex align="center" gap="1" wrap className="justify-end">
-                      {formulaIde.headerControls}
-                      {!baselineDisplay && complexEditing.bigBoard && (
+                    // One row (BB-E-5): the meta truncates, the controls never wrap.
+                    <Flex align="center" gap="1" className="shrink-0 flex-nowrap justify-end">
+                      {dockedPreview && (
+                        <PreviewTargetPopover
+                          target={previewTargetLabel}
+                          variant="icon"
+                          triggerProps={anchorProps("page-editor.device")}
+                        >
+                          {previewTargetControls}
+                        </PreviewTargetPopover>
+                      )}
+                      {dataControlsInHeader && formulaIde.headerControls}
+                      {bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard && (
                         <Suspense fallback={null}>
                           <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
                         </Suspense>
                       )}
-                      {!baselineDisplay && !complexEditing.bigBoard && (
+                      {fitToggleInHeader && !baselineDisplay && !complexEditing.bigBoard && (
                         <BoardPreviewModeToggle
                           mode={previewMode}
                           onModeChange={changePreviewMode}
@@ -3507,6 +3774,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   }
                 >
                   {formulaIde.bodyControls}
+                  {((!dataControlsInHeader && hasDataControls) ||
+                    (!bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard)) && (
+                    <Flex justify="end" gap="2" wrap>
+                      {!dataControlsInHeader && formulaIde.headerControls}
+                      {!bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard && (
+                        <Suspense fallback={null}>
+                          <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
+                        </Suspense>
+                      )}
+                    </Flex>
+                  )}
                   {complexEditing.bigBoard && (
                     <Suspense fallback={null}>
                       <ComplexPreviewRuler complex={complexEditing} />
@@ -3548,7 +3826,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           size={dockedPreview ? "sm" : "md"}
                         >
                           <ScaledBoardDisplay
-                            message={shownPreviewMessage}
+                            message={previewReplay.message}
+                            // D7: edits snap; only Replay flaps.
+                            animate={previewReplay.animate}
                             isLoading={
                               drawMode
                                 ? false
@@ -3576,7 +3856,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 ? (mode) => complexEditing.setZoom(mode === "fit" ? "fit" : "sm")
                                 : changePreviewMode
                             }
-                            showModeToggle={false}
+                            // With the data controls in the header, Fit / Actual is the
+                            // viewport's own, shown while the board overflows (307:46094).
+                            showModeToggle={!fitToggleInHeader && !complexEditing.bigBoard}
                             boardType={effectiveBoardColor}
                             deviceType={deviceType}
                             code62Glyph={effectiveCode62Glyph}
@@ -3625,20 +3907,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </Text>
                   )}
 
-                  {boardSettings?.boards && boardSettings.boards.length > 1 && (
-                    <Select value={selectedBoardId} onValueChange={setChosenLiveBoardId}>
-                      <SelectTrigger aria-label={t("selectBoardAriaLabel")}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {boardSettings.boards.map((board) => (
-                          <SelectItem key={board.id} value={board.id}>
-                            {board.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
                   {liveTargetPaused && (
                     <Alert id="live-output-paused-notice" className="mt-2">
                       <AlertDescription>{t("livePausedNotice")}</AlertDescription>
@@ -3656,164 +3924,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   {formulaIde.previewFooter}
                 </EditorPreview>
                 {formulaIde.rightSlot && <Box className="order-2 min-w-0 lg:col-start-2">{formulaIde.rightSlot}</Box>}
-                <Box className="order-3 min-w-0 px-2 lg:px-0 lg:col-start-1">
-                  <Flex align="center" justify="between" className="flex-wrap gap-y-2 mb-2">
-                    <Flex align="center" gap="2" className="flex-wrap">
-                      <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
-                      <BoardSizeIndicator
-                        deviceType={deviceType}
-                        notesWide={notesWide}
-                        notesTall={notesTall}
-                        gridRows={gridRows}
-                        gridCols={gridCols}
-                        className="ml-1"
-                      />
-                      <PanelFitNote
-                        deviceType={deviceType}
-                        notesWide={notesWide}
-                        notesTall={notesTall}
-                        gridRows={gridRows}
-                        gridCols={gridCols}
-                      />
-                      {/* Device/size retarget (issue #1250): both new AND saved
-                          pages can change board size. Converting a saved page is
-                          lossy (shrinks truncate), so saving a shrinking retarget
-                          asks for confirmation first. */}
-                      <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
-                        <SelectTrigger
-                          {...anchorProps("page-editor.device")}
-                          className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
-                          aria-label={t("deviceTypeSwitcherAriaLabel")}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {/* FiestaPanels first: a panel's grid is auto-fit from
-                              its TV size, so nobody can pick it out of the
-                              generic Notes-wide/tall selects below. Absent on an
-                              install with no panels, leaving the picker exactly
-                              the three sizes it has always been. */}
-                          {fiestaPanelTargets.length > 0 && (
-                            <SelectGroup>
-                              <SelectLabel>{tPanels("yourPanelsGroupLabel")}</SelectLabel>
-                              {fiestaPanelTargets.map((panel) => (
-                                <SelectItem key={panel.id} value={targetValue(panel)} className="text-xs">
-                                  {tPanels("panelSizeOption", {
-                                    name: panel.name,
-                                    cols: panel.cols,
-                                    rows: panel.rows,
-                                  })}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          )}
-                          {/* Every other display with a custom grid — an output
-                              plugin's board, such as an LED matrix — named for
-                              its board and model, so a page can be authored
-                              for it. Driven by the board list alone. */}
-                          {otherDisplayTargets.length > 0 && (
-                            <SelectGroup>
-                              <SelectLabel>{tPanels("yourDisplaysGroupLabel")}</SelectLabel>
-                              {otherDisplayTargets.map((display) => (
-                                <SelectItem key={display.id} value={targetValue(display)} className="text-xs">
-                                  {tPanels(
-                                    display.modelLabel
-                                      ? display.led
-                                        ? "displaySizeOptionLed"
-                                        : "displaySizeOption"
-                                      : "panelSizeOption",
-                                    {
-                                      name: display.name,
-                                      model: display.modelLabel ?? "",
-                                      cols: display.cols,
-                                      rows: display.rows,
-                                    },
-                                  )}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          )}
-                          <SelectItem value="flagship" className="text-xs">
-                            {tDisplaySettings("flagshipLabel")}
-                          </SelectItem>
-                          <SelectItem value="note" className="text-xs">
-                            {tDisplaySettings("noteLabel")}
-                          </SelectItem>
-                          <SelectItem value="note_array" className="text-xs">
-                            {tDisplaySettings("noteArrayLabel")}
-                          </SelectItem>
-                          {/* A panel page no listed panel matches: still named,
-                              at its own grid, so the trigger never goes blank. */}
-                          {sizeSelectValue === "panel" && (
-                            <SelectItem value="panel" className="text-xs">
-                              {tPanels("panelGridOption", { cols: dims.cols, rows: dims.rows })}
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {deviceType === "note_array" && (
-                        <>
-                          <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
-                            <SelectTrigger
-                              className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
-                              aria-label={tDisplaySettings("notesWideLabel")}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {NOTE_AXIS_OPTIONS.map((n) => (
-                                <SelectItem key={`w-${n}`} value={String(n)} className="text-xs">
-                                  {t("notesWideOption", { count: n })}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
-                            <SelectTrigger
-                              className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
-                              aria-label={tDisplaySettings("notesTallLabel")}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {NOTE_AXIS_OPTIONS.map((n) => (
-                                <SelectItem key={`t-${n}`} value={String(n)} className="text-xs">
-                                  {t("notesTallOption", { count: n })}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </>
-                      )}
-                    </Flex>
-                    <Flex align="center" gap="1.5" className="shrink-0">
-                      <Text as="span" size="xs" tone="muted" className="mr-0.5">
-                        {t("boardColorLabel")}
-                      </Text>
-                      <button
-                        onClick={() => setPreviewBoardColor("black")}
-                        aria-label={t("previewAsBlack")}
-                        aria-pressed={effectiveBoardColor === "black"}
-                        className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                          effectiveBoardColor === "black"
-                            ? "border-primary ring-1 ring-primary/30"
-                            : "border-border hover:border-muted-foreground"
-                        }`}
-                      />
-                      <button
-                        onClick={() => setPreviewBoardColor("white")}
-                        aria-label={t("previewAsWhite")}
-                        aria-pressed={effectiveBoardColor === "white"}
-                        className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                          effectiveBoardColor === "white"
-                            ? "border-primary ring-1 ring-primary/30"
-                            : "border-border hover:border-muted-foreground"
-                        }`}
-                      />
-                    </Flex>
-                  </Flex>
-                </Box>
-
                 {/* Pixel canvases: edited for an LED pixel board; on any other
                     board a page that has them says why their areas are blank. */}
                 {pixelBoard ? (
