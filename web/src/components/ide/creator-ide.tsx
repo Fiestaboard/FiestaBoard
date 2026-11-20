@@ -26,6 +26,7 @@ import {
   type SetStateAction,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
@@ -34,12 +35,14 @@ import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions }
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRouter } from "@/hooks/use-router";
 import { useLocale, useTranslations } from "@/i18n/translations";
+import type { DeviceType } from "@/lib/api";
 import { offersDraft } from "@/lib/ide/edit-state";
+import { useExplorerOpen } from "@/lib/ide/explorer-pref";
 import { IDE_DESKTOP_QUERY, type IdeTabId, inspectorTabIds, resolveInspectorTab } from "@/lib/ide/inspector-tabs";
 import { templateReferences } from "@/lib/ide/references";
 
 import { type ConsoleTab, IdeConsole, IdeProblemList, IdeSentPanel } from "./ide-console";
-import { IdeExplorer } from "./ide-explorer";
+import { IdeExplorer, IdeExplorerShow } from "./ide-explorer";
 import { formatClock, formatSavedAt, formatWallTime } from "./ide-format";
 import { IdeHistory } from "./ide-history";
 import { DuplicateDialog, IdePageTab } from "./ide-page-tab";
@@ -53,6 +56,8 @@ export interface CreatorIdeProps {
   builderRef: RefObject<PageBuilderHandle | null>;
   /** Where the Explorer column renders (beside the editor). */
   explorerSlot: HTMLElement | null;
+  /** The saved page's board kind: whether the Explorer starts open, and whose remembered choice applies (D2). */
+  boardKind?: DeviceType;
   /** Increments after each successful header Save. */
   savedTick: number;
   /** Supplies the header's Save draft / Save & update board while a display shows the page (a state setter). */
@@ -89,6 +94,7 @@ export default function CreatorIde({
   pageId,
   builderRef,
   explorerSlot,
+  boardKind = "flagship",
   savedTick,
   onSaveActionsChange,
   onDraftStateChange,
@@ -102,6 +108,20 @@ export default function CreatorIde({
   const [tab, setTab] = useState<IdeTabId>("page");
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>("problems");
   const [copyOpen, setCopyOpen] = useState(false);
+  const [explorerOpen, setExplorerOpen] = useExplorerOpen(boardKind);
+  // Focus follows the toggle to its counterpart, so a keyboard reader isn't dropped on <body>.
+  const showExplorerRef = useRef<HTMLButtonElement>(null);
+  const hideExplorerRef = useRef<HTMLButtonElement>(null);
+  const explorerToggled = useRef(false);
+  const toggleExplorer = (open: boolean) => {
+    explorerToggled.current = true;
+    setExplorerOpen(open);
+  };
+  useEffect(() => {
+    if (!explorerToggled.current) return;
+    explorerToggled.current = false;
+    (explorerOpen ? hideExplorerRef : showExplorerRef).current?.focus();
+  }, [explorerOpen]);
   const activeTab = resolveInspectorTab(tab, desktop);
   const references = useMemo(() => templateReferences(ide.builder.snapshot?.template ?? []), [ide.builder.snapshot]);
 
@@ -173,11 +193,13 @@ export default function CreatorIde({
             variant="secondary"
             size={actions.size}
             className="shrink-0 gap-1.5 px-3 text-sm"
+            aria-label={actions.compact ? t("saveDraft") : undefined}
             disabled={actions.disabled || savingDraft}
             onClick={() => saveDraftMutate({})}
           >
             <Save className="size-3.5" aria-hidden="true" />
-            {savingDraft ? t("savingDraft") : t("saveDraft")}
+            {/* 1024–1279: icon only, so the page name keeps its room (BB-E-4). */}
+            {!actions.compact && (savingDraft ? t("savingDraft") : t("saveDraft"))}
           </Button>
         )}
         <Button
@@ -186,12 +208,13 @@ export default function CreatorIde({
           className="shrink-0 gap-1.5 px-3 text-sm"
           disabled={actions.disabled}
           onClick={actions.save}
-          // Phone: a short label so the page name keeps two readable lines (BB-B-3).
-          aria-label={phone && !actions.saving ? t("saveAndUpdate") : undefined}
+          // Phone, and 1024–1279: a short label so the page name keeps its room
+          // (BB-B-3, BB-E-4); the full words stay the accessible name.
+          aria-label={(phone || actions.compact) && !actions.saving ? t("saveAndUpdate") : undefined}
           {...actions.anchor}
         >
           <Send className="size-4" aria-hidden="true" />
-          {actions.saving ? t("saving") : phone ? t("updateBoardShort") : t("saveAndUpdate")}
+          {actions.saving ? t("saving") : phone || actions.compact ? t("updateBoardShort") : t("saveAndUpdate")}
         </Button>
       </>
     ));
@@ -215,7 +238,22 @@ export default function CreatorIde({
 
   return (
     <>
-      {explorerSlot && desktop && createPortal(<IdeExplorer ide={ide} pageId={pageId} />, explorerSlot)}
+      {explorerSlot &&
+        desktop &&
+        createPortal(
+          explorerOpen ? (
+            <IdeExplorer
+              ide={ide}
+              pageId={pageId}
+              references={references}
+              onHide={() => toggleExplorer(false)}
+              hideRef={hideExplorerRef}
+            />
+          ) : (
+            <IdeExplorerShow onShow={() => toggleExplorer(true)} buttonRef={showExplorerRef} />
+          ),
+          explorerSlot,
+        )}
       <Box
         as="section"
         aria-label={t("regionLabel")}

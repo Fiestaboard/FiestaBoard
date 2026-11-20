@@ -178,6 +178,7 @@ import {
   previewBindsBoardViewportKeys,
 } from "@/lib/editor-shortcuts";
 import { templateHasFormula } from "@/lib/formula-ide/hints";
+import { COMPACT_EDITOR_HEADER_WIDTH } from "@/lib/layout-constants";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -274,6 +275,8 @@ export interface PageBuilderSaveActions {
   disabled: boolean;
   /** `lg` is the desktop header's 40 px (Figma 53:137378). */
   size: "touch" | "sm" | "lg";
+  /** A tight desktop header (BB-E-4): show icons or short labels, keep full accessible names. */
+  compact: boolean;
   /** The header Save's AI-walkthrough anchor; spread it on the button that publishes. */
   anchor: Record<string, string>;
 }
@@ -433,6 +436,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const useTouchToolbar = useMediaQuery("(max-width: 767px), (pointer: coarse)");
   // Under 390px Save is its icon, so the page name keeps two readable lines (BB-B-3).
   const narrowHeader = useMediaQuery("(max-width: 389px)");
+  // The header row's width (BB-E-4): below COMPACT_EDITOR_HEADER_WIDTH the
+  // actions beside the name go icon-only. Measured before paint by the observer.
+  const [headerRow, setHeaderRow] = useState<HTMLElement | null>(null);
+  const [headerRowWidth, setHeaderRowWidth] = useState(0);
+  useEffect(() => {
+    if (!headerRow || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => setHeaderRowWidth(Math.round(entry.contentRect.width)));
+    observer.observe(headerRow);
+    return () => observer.disconnect();
+  }, [headerRow]);
+  const compactHeader = !dockedPreview && headerRowWidth > 0 && headerRowWidth < COMPACT_EDITOR_HEADER_WIDTH;
   const editorContentRef = useRef<HTMLDivElement>(null);
   const dockPreviewRef = useRef<HTMLElement>(null);
   const viewportBottom = useEditorViewportDock(dockedPreview && useTouchToolbar, editorContentRef, dockPreviewRef);
@@ -2752,7 +2766,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 aria-label={t("exportPageAriaLabel")}
               >
                 <Upload className="h-3.5 w-3.5" />
-                {t("exportPage")}
+                {/* 1024–1279: icon only, so the page name keeps its room (BB-E-4). */}
+                {!compactHeader && t("exportPage")}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -3251,7 +3266,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               dockedPreview ? "h-16 py-1" : "h-14 lg:min-h-16 py-0",
             )}
           >
-            <Flex align="center" className="h-full min-w-0 flex-nowrap gap-1.5">
+            <Flex ref={setHeaderRow} align="center" className="h-full min-w-0 flex-nowrap gap-1.5">
               {/* The editor's own way back: the section draws no breadcrumb
                 around it (BB-B-4, BB-B-19). "‹ Pages" on desktop (184:159319). */}
               {dockedPreview ? (
@@ -3272,10 +3287,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   aria-label={t("backToPages")}
                 >
                   <ChevronLeft className="size-4" aria-hidden="true" />
-                  {tNav("pages")}
+                  {/* A tight header: the chevron alone, so the name keeps 240 px (BB-E-4). */}
+                  {!compactHeader && tNav("pages")}
                 </Button>
               )}
-              <Box className={cn("relative min-w-0 flex-1", !dockedPreview && "h-11 lg:h-12")}>
+              {/* Desktop: the name never gets less than 240 px; the actions beside it
+                  go icon-only below 1280 to make the room (BB-E-4). */}
+              <Box className={cn("relative min-w-0 flex-1", !dockedPreview && "h-11 lg:h-12 lg:min-w-60")}>
                 <label htmlFor="page-name" className="sr-only">
                   {t("pageNameLabel")}
                 </label>
@@ -3370,7 +3388,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   Only its trigger hides; the kit portals the single controlled
                   popup and anchors it to the template for hardware `?`. */}
               <Box hidden={dockedPreview} className={dockedPreview ? "hidden" : "contents"}>
-                <EditorShortcutList variant="header" {...shortcutListProps} />
+                <EditorShortcutList variant="header" compact={compactHeader} {...shortcutListProps} />
               </Box>
               {saveActions ? (
                 <Flex align="center" gap="1.5" className="shrink-0 flex-nowrap">
@@ -3379,6 +3397,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     saving: saveMutation.isPending,
                     disabled: saveMutation.isPending || stagingActive,
                     size: dockedPreview ? "touch" : "lg",
+                    compact: compactHeader,
                     anchor: anchorProps("page-editor.save"),
                   })}
                 </Flex>
@@ -3392,13 +3411,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           variant="secondary"
                           size={narrowHeader ? "icon-touch" : dockedPreview ? "touch" : "lg"}
                           className={cn("shrink-0 text-sm", !narrowHeader && "gap-1.5 px-3")}
+                          // A tight desktop header: icon only (BB-E-4).
                           {...anchorProps("page-editor.save")}
                           onClick={requestSave}
                           disabled={saveMutation.isPending || stagingActive}
                           aria-label={t("savePageAriaLabel")}
                         >
                           <Save className="h-3.5 w-3.5" />
-                          {!narrowHeader && (saveMutation.isPending ? tCommon("saving") : t("savePage"))}
+                          {!narrowHeader &&
+                            !compactHeader &&
+                            (saveMutation.isPending ? tCommon("saving") : t("savePage"))}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -3411,9 +3433,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       className="shrink-0 gap-1.5 px-3 text-sm"
                       disabled={saveMutation.isPending || stagingActive || !selectedBoardId}
                       onClick={() => requestShowNowRef.current()}
+                      aria-label={compactHeader ? tTouch("showNow") : undefined}
                     >
                       <Send className="size-4" />
-                      {tTouch("showNow")}
+                      {!compactHeader && tTouch("showNow")}
                     </Button>
                   </Flex>
                 </TooltipProvider>

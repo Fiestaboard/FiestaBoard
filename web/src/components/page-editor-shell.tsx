@@ -290,6 +290,7 @@ export function PageEditorShell({
                 pageId={pageId}
                 builderRef={builderRef}
                 explorerSlot={explorerSlot}
+                boardKind={loadedPage.device_type}
                 savedTick={savedTick}
                 onSaveActionsChange={setSaveActions}
                 onDraftStateChange={setDraftState}

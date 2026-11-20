@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 import { TABLET_RAIL_QUERY } from "@/hooks/use-below-rail";
+import { isPageEditorPath } from "@/lib/chromeless";
 
 const STORAGE_KEY = "fiestaboard_sidebar_collapsed";
 
@@ -42,8 +43,13 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   // effect renders the sidebar expanded and then snaps it closed
   // (react-hooks/set-state-in-effect, issue #1568). Safe here because the app
   // is a static SPA (`ssr: false`) — there is no server render to mismatch.
+  // The tablet band and the page editor (D1) start on the icon rail, so a
+  // load straight into either never animates it closed.
   const [collapsed, setCollapsedState] = useState(
-    () => (window.matchMedia?.(TABLET_RAIL_QUERY)?.matches ?? false) || readStoredCollapsed(),
+    () =>
+      (window.matchMedia?.(TABLET_RAIL_QUERY)?.matches ?? false) ||
+      isPageEditorPath(window.location.pathname) ||
+      readStoredCollapsed(),
   );
   const [transitioning, setTransitioning] = useState(false);
 

@@ -19,6 +19,7 @@ import { Button, Kbd, ShortcutListPopover, useKbdPlatform } from "@fiestaboard/u
 import { Zap } from "lucide-react";
 import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import {
   EDITOR_SHORTCUTS,
@@ -73,21 +74,37 @@ export interface EditorShortcutListProps {
    * the kit then hangs the list from the trigger, or its gutter on touch.
    */
   anchorRef?: RefObject<HTMLElement | null>;
+  /** The header trigger in a tight desktop header: icon only, named "Shortcuts" (BB-E-4). */
+  compact?: boolean;
   /** The preview binds BoardViewport's keys (`previewBindsBoardViewportKeys`). */
   boardViewport?: boolean;
 }
 
-export function EditorShortcutList({ variant, state, anchorRef, boardViewport = false }: EditorShortcutListProps) {
+export function EditorShortcutList({
+  variant,
+  state,
+  anchorRef,
+  boardViewport = false,
+  compact = false,
+}: EditorShortcutListProps) {
   const t = useTranslations("editorShortcuts");
   const groups = useMemo(() => editorShortcutGroups((key) => t(key), { boardViewport }), [t, boardViewport]);
   const anchor = useCallback(() => anchorRef?.current ?? null, [anchorRef]);
   const { openFrom, setOpenFrom } = state;
+  const compactHeader = variant === "header" && compact;
 
   const trigger =
     variant === "header" ? (
-      <Button variant="ghost" size="lg" className="gap-1.5 px-4 text-sm" aria-keyshortcuts="?">
+      <Button
+        variant="ghost"
+        size="lg"
+        className="gap-1.5 px-4 text-sm"
+        aria-keyshortcuts="?"
+        aria-label={compactHeader ? t("button") : undefined}
+      >
         <Zap className="h-3.5 w-3.5" aria-hidden />
-        {t("button")}
+        {/* 1024–1279: icon only beside the page name (BB-E-4). */}
+        {!compactHeader && t("button")}
       </Button>
     ) : (
       <Button variant="ghost" size="sm" className="text-xs font-normal text-muted-foreground" aria-keyshortcuts="?">
