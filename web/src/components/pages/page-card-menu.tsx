@@ -35,6 +35,7 @@ import { useTranslations } from "@/i18n/translations";
 import type { Page } from "@/lib/api";
 import { api } from "@/lib/api";
 import { pageHistoryApi } from "@/lib/api/page-history";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 
 /**
@@ -47,7 +48,7 @@ import { clearPreviewCacheForPage } from "@/lib/preview-cache";
  * through FiestaUI's `DropdownMenu trigger="context"` (the Home board's menu),
  * which keeps the menu open when the finger lifts.
  */
-export function PageCardMenu({ page, children }: { page: Pick<Page, "id" | "name">; children: ReactNode }) {
+export function PageCardMenu({ page, children }: { page: Page; children: ReactNode }) {
   const t = useTranslations("pages");
   const tCommon = useTranslations("common");
   const tBuilder = useTranslations("pageBuilder");
@@ -136,6 +137,9 @@ export function PageCardMenu({ page, children }: { page: Pick<Page, "id" | "name
   });
 
   const paused = currentBoard?.paused === true;
+  // Change Page… shows this page on the current display, so it is offered only
+  // for a page drawn for that display's size (FABLE-2603 M1).
+  const fitsCurrent = !!currentBoard && pagesCompatibleWithBoard(page, currentBoard);
   const items = (
     <>
       {!coarse && (
@@ -147,10 +151,12 @@ export function PageCardMenu({ page, children }: { page: Pick<Page, "id" | "name
         {tCommon("edit")}
         {!coarse && <DropdownMenuShortcut aria-hidden="true">E</DropdownMenuShortcut>}
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => setShowNowOpen(true)}>
-        <LayoutGrid aria-hidden="true" />
-        {tHome("changePage")}
-      </DropdownMenuItem>
+      {fitsCurrent && (
+        <DropdownMenuItem onClick={() => setShowNowOpen(true)}>
+          <LayoutGrid aria-hidden="true" />
+          {tHome("changePage")}
+        </DropdownMenuItem>
+      )}
       <DropdownMenuItem onClick={() => push(`/schedule?prefill_page_id=${encodeURIComponent(page.id)}`)}>
         <CalendarPlus aria-hidden="true" />
         {tTouch("addToSchedule")}

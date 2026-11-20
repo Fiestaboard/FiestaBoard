@@ -747,6 +747,26 @@ describe("Pages library card menu", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  // FABLE-2603 M1: Change Page… shows the page on the current display, so a
+  // page drawn for another size has no Change Page… (nothing to send it to).
+  it("offers no Change Page… for a page that does not fit the current display", async () => {
+    server.use(
+      http.get("/api/v1/pages", () =>
+        HttpResponse.json({
+          pages: [...pages, { ...pages[0], id: "notey", name: "Notey", device_type: "note" }],
+          total: pages.length + 1,
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Notey");
+    await user.click(screen.getByRole("button", { name: "Actions for Notey" }));
+    await screen.findByRole("menu");
+    expect(screen.queryByRole("menuitem", { name: "Change Page…" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeInTheDocument();
+  });
+
   it("edits with E and duplicates with Mod+D from a focused card", async () => {
     const duplicated: string[] = [];
     server.use(
