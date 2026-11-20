@@ -30,6 +30,8 @@ import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 type Props = ComponentPropsWithoutRef<typeof LegacyScheduleEntryForm> & {
   /** Host notice about the current, unsaved value (BB-C-1: the overlap callout), shown above the fields. */
   notice?: (value: ScheduleEntryValue) => ReactNode;
+  /** BB-C-5: "compact" is the 07d phone sheet (the kit tucks the rarer fields behind More options). */
+  layout?: "default" | "compact";
 };
 const DAYS: ScheduleDay[] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 function canonicalDays(values: string[] | null | undefined): ScheduleDay[] | null {
@@ -54,6 +56,7 @@ export const ScheduleEntryAdapter = forwardRef<ScheduleFormHandle, Props>(functi
     prefillDayPattern,
     prefillCustomDays,
     notice,
+    layout = "default",
   },
   ref,
 ) {
@@ -167,6 +170,11 @@ export const ScheduleEntryAdapter = forwardRef<ScheduleFormHandle, Props>(functi
     save: tc("save"),
     saving: tc("saving"),
     delete: ta("delete"),
+    moreOptions: ta("moreOptions"),
+    timeRangeTo: ta("timeRangeTo"),
+    startsAtSun: (type) => ta(`startsAtSun.${type}`),
+    endsAtSun: (type) => ta(`endsAtSun.${type}`),
+    entryOff: ta("entryOff"),
     errors: {
       page_id: t("validationSelectPage"),
       start_time: ta("invalidTime"),
@@ -249,6 +257,7 @@ export const ScheduleEntryAdapter = forwardRef<ScheduleFormHandle, Props>(functi
         resolvedEndTime={schedule?.resolved_end_time ?? undefined}
         onDelete={onDelete}
         busy={busy}
+        layout={layout}
         labels={labels}
         {...anchorProps("schedule.entry-form")}
         onSubmit={async (normalized) => {

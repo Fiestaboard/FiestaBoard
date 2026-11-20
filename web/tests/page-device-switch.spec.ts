@@ -45,6 +45,8 @@ test.describe("Page creator board-size switching", () => {
     await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 15_000 });
 
     // Switch the size to Note before saving.
+    // BB-E-6: size and target live behind the preview header's meta.
+    await page.getByTestId("preview-target-trigger").click();
     await page.getByLabel("Change board size").click();
     await page.getByRole("option", { name: "Note", exact: true }).click();
     await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });
@@ -74,6 +76,8 @@ test.describe("Page creator board-size switching", () => {
     await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 15_000 });
 
     // The switcher is now available for saved pages (#1250).
+    // BB-E-6: size and target live behind the preview header's meta.
+    await page.getByTestId("preview-target-trigger").click();
     await page.getByLabel("Change board size").click();
     await page.getByRole("option", { name: "Note", exact: true }).click();
     await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });

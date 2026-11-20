@@ -6,6 +6,7 @@ import { useMemo } from "react";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
+import { boardGeometry, boardMeta } from "@/components/home/home-board";
 import { MoreSheetExtras } from "@/components/more-sheet";
 import { readStoredCollapsed, useSidebar } from "@/components/sidebar-context";
 import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
@@ -13,7 +14,7 @@ import { ViewTransitionLink } from "@/components/view-transition-link";
 import { useAppBadge } from "@/hooks/use-app-badge";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
 import { useBelowRail, useRailAutoCollapse, useRailBreakpoint } from "@/hooks/use-below-rail";
-import { usePrefetchPagesData } from "@/hooks/use-board";
+import { queryKeys, usePrefetchPagesData, useStatus } from "@/hooks/use-board";
 import { useDisplaysNeedingALook } from "@/hooks/use-displays-needing-a-look";
 import { useHubLine } from "@/hooks/use-hub-connection";
 import { usePathname } from "@/hooks/use-router";
@@ -99,11 +100,24 @@ export function NavigationSidebar() {
   const tFleet = useTranslations("displays.fleet");
   const needsALook = useDisplaysNeedingALook(boards, { enabled: !chromeless && boards.length > 1 });
   const flagged = [...needsALook].sort().join(",");
+  // Each display's second line, "Flagship 22 × 6 · Pizza Special" (07a
+  // `310:34278`, BB-A-11): its type and size, then the page the shared status
+  // poll says it shows. The page names share the Pages cache.
+  const switcher = !chromeless && boards.length > 1;
+  const { data: status } = useStatus({ enabled: switcher });
+  const { data: pages } = useQuery({ queryKey: queryKeys.pages, queryFn: api.getPages, enabled: switcher });
   const selectorBoards = useMemo(
-    () => boards.map((board) => (needsALook.has(board.id) ? { ...board, status: "error" as const } : board)),
+    () =>
+      boards.map((board) => {
+        const page = pages?.pages.find((item) => item.id === status?.boards?.[board.id]?.active_page_id)?.name;
+        const description = [boardMeta(board, boardGeometry(board)), page].filter(Boolean).join(" · ");
+        return needsALook.has(board.id)
+          ? { ...board, description, status: "error" as const }
+          : { ...board, description };
+      }),
     // `needsALook` is a fresh Set each render; `flagged` is its stable value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [boards, flagged],
+    [boards, flagged, status, pages],
   );
 
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't

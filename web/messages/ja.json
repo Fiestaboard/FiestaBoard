@@ -752,7 +752,18 @@
       "weekdaysShort": "平日",
       "weekendsShort": "週末",
       "customShort": "指定",
-      "openEnded": "終了なし"
+      "openEnded": "終了なし",
+      "moreOptions": "その他のオプション",
+      "timeRangeTo": "〜",
+      "startsAtSun": {
+        "sunrise": "日の出に開始",
+        "sunset": "日の入りに開始"
+      },
+      "endsAtSun": {
+        "sunrise": "日の出に終了",
+        "sunset": "日の入りに終了"
+      },
+      "entryOff": "予定はオフ"
     },
     "copy": {
       "open": "別のディスプレイからコピー…",
@@ -3825,7 +3836,11 @@
     "thisDisplay": "このディスプレイ",
     "startFrom": "または、こちらから始める",
     "insertVariable": "変数を挿入",
-    "browseStaffPicks": "スタッフのおすすめを見る"
+    "browseStaffPicks": "スタッフのおすすめを見る",
+    "replay": "再生",
+    "replayHint": "フラップのアニメーションを再生",
+    "previewTarget": "プレビュー先",
+    "previewTargetTrigger": "{target} でプレビュー"
   },
   "phonePairing": {
     "title": "スマートフォンを接続",
@@ -4211,7 +4226,6 @@
     "renderAtLabel": "指定した時刻で数式をプレビュー",
     "renderAtReset": "現在の時刻でプレビュー",
     "renderAtNote": "「{time} 時点」では、{time} であるものとして数式を評価します。連携データはハブにある現在の内容です。",
-    "sampleTitle": "サンプルデータ — ライブではありません",
     "sampleNote": "サンプルは各連携の例の値を表示します。サンプルデータをプレビュー中は、ボードへのミラーリングがオフになります。",
     "sampleUnsampled": "{plugins} には例の値がないため、ハブの現在のデータが表示されます。",
     "previewFailed": "このプレビューを表示できませんでした。テンプレートを確認して、もう一度お試しください。",

@@ -697,7 +697,10 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
         }
         style={{ contain: "layout style paint" }}
       >
+        {/* Keyed per display (BB-A-2): a switch mounts a fresh board, whose
+            first paint lands at once instead of flapping from the last display. */}
         <HomeBoard
+          key={(currentBoard ?? boardSettings?.boards?.[0])?.id ?? "primary"}
           board={currentBoard ?? boardSettings?.boards?.[0]}
           geometry={activeGeometry}
           message={displayMessage}
