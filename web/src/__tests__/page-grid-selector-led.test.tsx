@@ -91,7 +91,7 @@ describe("Change Page thumbnails for an LED board", () => {
     await waitFor(() => expect(api.previewPagesBatch).toHaveBeenCalledWith(["page-1"], "px1"));
     // The cells' own case ("Hot"), which the message ("{red:HOT}") does not have.
     await waitFor(() =>
-      expect(screen.getAllByRole("img").map((el) => el.getAttribute("aria-label"))).toContainEqual(
+      expect(screen.getAllByRole("img", { hidden: true }).map((el) => el.getAttribute("aria-label"))).toContainEqual(
         expect.stringContaining("Hot"),
       ),
     );
@@ -124,7 +124,7 @@ describe("Change Page thumbnails for an LED board", () => {
     await waitFor(() => expect(api.previewPagesBatch).toHaveBeenCalledWith(["page-1"], "px1"));
     expect(api.previewPagesBatch).toHaveBeenCalledWith(["page-2"]);
     await waitFor(() =>
-      expect(screen.getAllByRole("img").map((el) => el.getAttribute("aria-label"))).toContainEqual(
+      expect(screen.getAllByRole("img", { hidden: true }).map((el) => el.getAttribute("aria-label"))).toContainEqual(
         expect.stringContaining("Hot"),
       ),
     );

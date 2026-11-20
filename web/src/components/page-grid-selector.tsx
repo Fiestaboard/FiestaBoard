@@ -326,7 +326,10 @@ const PageButton = memo(
           className="-mt-2 block truncate"
         />
 
-        <Box className="hover-stable">
+        {/* The board is a picture of the page inside the card's button:
+            decorative, so the card is named by its page and size alone
+            whether or not the preview has rendered (BB-B-28). */}
+        <Box className="hover-stable" aria-hidden="true" data-card-preview="">
           <PageButtonPreview
             preview={preview}
             isLoading={isLoadingPreview}
@@ -407,9 +410,10 @@ const PageListItem = memo(
       ? "h-4 w-4 shrink-0 text-brand"
       : "h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground";
 
+    // The name keeps its room (up to 60%) before the fit note truncates (BB-B-28).
     const nameClassName = isActive
-      ? "text-sm font-medium truncate text-foreground"
-      : "text-sm font-medium truncate text-muted-foreground group-hover:text-foreground";
+      ? "shrink-0 max-w-[60%] text-sm font-medium truncate text-foreground"
+      : "shrink-0 max-w-[60%] text-sm font-medium truncate text-muted-foreground group-hover:text-foreground";
 
     return (
       <button
@@ -431,7 +435,7 @@ const PageListItem = memo(
           notesTall={page.notes_tall}
           gridRows={page.grid_rows}
           gridCols={page.grid_cols}
-          className="shrink-0 truncate"
+          className="min-w-0 truncate"
         />
         <BoardSizeIndicator
           deviceType={page.device_type || "flagship"}

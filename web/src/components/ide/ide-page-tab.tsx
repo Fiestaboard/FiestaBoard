@@ -20,6 +20,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
   Stack,
   Text,
 } from "@fiestaboard/ui";
@@ -29,6 +35,7 @@ import { Link } from "react-router";
 
 import type { PageBuilderHandle } from "@/components/page-builder";
 import { queryKeys } from "@/hooks/use-board";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { type PageDuplicateResponse, pageHistoryApi } from "@/lib/api/page-history";
@@ -184,13 +191,23 @@ export function DuplicateDialog({
     onOpenChange(next);
   };
   const report = result?.report;
+  // A sheet on a phone, like the rest of the phone UI; the dialog elsewhere.
+  // Its title keeps clear of the close button (BB-B-23).
+  const phone = useMediaQuery("(max-width: 639px)");
+  const Root = phone ? Sheet : Dialog;
+  const Content = phone ? SheetContent : DialogContent;
+  const Header = phone ? SheetHeader : DialogHeader;
+  const Title = phone ? SheetTitle : DialogTitle;
+  const Description = phone ? SheetDescription : DialogDescription;
+  const Footer = phone ? SheetFooter : DialogFooter;
+  const contentProps = phone ? { side: "bottom" as const, grabber: true } : {};
   return (
-    <Dialog open={open} onOpenChange={close}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{result ? t("copyMade", { name: result.page.name }) : t("makeCopy")}</DialogTitle>
-          <DialogDescription>{result ? t("cropReport") : t("pickDisplay")}</DialogDescription>
-        </DialogHeader>
+    <Root open={open} onOpenChange={close}>
+      <Content {...contentProps}>
+        <Header className="pr-12">
+          <Title>{result ? t("copyMade", { name: result.page.name }) : t("makeCopy")}</Title>
+          <Description>{result ? t("cropReport") : t("pickDisplay")}</Description>
+        </Header>
         {report ? (
           <Stack gap="1" data-slot="ide-crop-report">
             <Text size="sm">
@@ -239,24 +256,20 @@ export function DuplicateDialog({
             {t("copyFailed")}
           </Text>
         )}
-        <DialogFooter>
+        <Footer>
           {result ? (
-            <>
-              <Button variant="outline" onClick={() => close(false)}>
-                {t("close")}
-              </Button>
-              <Button asChild onClick={() => close(false)}>
-                <Link to={`/pages/edit/${encodeURIComponent(result.page.id)}`}>{t("openCopy")}</Link>
-              </Button>
-            </>
+            // The X closes; a second Close button beside it was one too many.
+            <Button asChild onClick={() => close(false)}>
+              <Link to={`/pages/edit/${encodeURIComponent(result.page.id)}`}>{t("openCopy")}</Link>
+            </Button>
           ) : (
             <Button variant="outline" onClick={() => close(false)}>
               {t("cancel")}
             </Button>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </Footer>
+      </Content>
+    </Root>
   );
 }
 

@@ -173,7 +173,10 @@ export default function CreatorIde({
         aria-label={t("regionLabel")}
         data-slot="creator-ide"
         data-layout={desktop ? "desktop" : "compact"}
-        className="grid min-w-0 grid-cols-1 items-start gap-4 px-2 pb-24 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-6 lg:px-4"
+        // Console and Timeline get half the row (184:159319 draws them as wide
+        // as the template): at 2fr they were ~300px at 1440 and the console
+        // wrapped each problem onto four lines (BB-B-19).
+        className="grid min-w-0 grid-cols-1 items-start gap-4 px-2 pb-24 lg:grid-cols-2 lg:gap-6 lg:px-4"
       >
         {desktop && (
           <Stack gap="3" className="min-w-0">

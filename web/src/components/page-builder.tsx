@@ -3015,7 +3015,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEditorModeChange("rich")}
-                          className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+                          className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                           aria-label={t("richEditorAriaLabel")}
                           disabled={baselineDisplay}
                           aria-pressed={!baselineDisplay && editorMode === "rich"}
@@ -3026,7 +3026,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEditorModeChange("plain")}
-                          className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+                          className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                           aria-label={t("plainTextAriaLabel")}
                           aria-pressed={baselineDisplay || editorMode === "plain"}
                         >
@@ -3549,7 +3549,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
                         <SelectTrigger
                           {...anchorProps("page-editor.device")}
-                          className="h-7 w-auto gap-1 px-2 text-xs"
+                          className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
                           aria-label={t("deviceTypeSwitcherAriaLabel")}
                         >
                           <SelectValue />
@@ -3622,7 +3622,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         <>
                           <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
                             <SelectTrigger
-                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
                               aria-label={tDisplaySettings("notesWideLabel")}
                             >
                               <SelectValue />
@@ -3637,7 +3637,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           </Select>
                           <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
                             <SelectTrigger
-                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
                               aria-label={tDisplaySettings("notesTallLabel")}
                             >
                               <SelectValue />
@@ -3661,7 +3661,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         onClick={() => setPreviewBoardColor("black")}
                         aria-label={t("previewAsBlack")}
                         aria-pressed={effectiveBoardColor === "black"}
-                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                        className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                           effectiveBoardColor === "black"
                             ? "border-primary ring-1 ring-primary/30"
                             : "border-border hover:border-muted-foreground"
@@ -3671,7 +3671,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         onClick={() => setPreviewBoardColor("white")}
                         aria-label={t("previewAsWhite")}
                         aria-pressed={effectiveBoardColor === "white"}
-                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                        className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                           effectiveBoardColor === "white"
                             ? "border-primary ring-1 ring-primary/30"
                             : "border-border hover:border-muted-foreground"
