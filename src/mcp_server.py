@@ -3584,8 +3584,9 @@ def build_streamable_http_app() -> Any:
     allows Host headers matching ``127.0.0.1:*``/``localhost:*``/``[::1]:*``.
     FiestaBoard is reached over the LAN by IP, hostname, or
     ``fiestaboard.local`` — none of which match — so the default would 421
-    every legitimate request. We opt out and rely on the auth layer
-    (``FIESTABOARD_AUTH_ENABLED``) for access control instead.
+    every legitimate request. The enclosing API applies its shared request-address policy
+    before this mount, including when sign-in is off. The SDK loopback-only
+    policy is disabled here so the same configured LAN/proxy hosts work.
     """
     if mcp_server is None:
         return None

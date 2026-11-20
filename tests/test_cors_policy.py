@@ -96,10 +96,11 @@ def test_preflight_from_arbitrary_origin_is_not_credentialed(client):
     assert r.headers.get("access-control-allow-credentials") != "true"
 
 
-def test_anonymous_cross_origin_reads_still_allowed_by_default(client):
-    """Backward compatibility: the default stays open to anonymous callers."""
+def test_anonymous_cross_origin_reads_require_configuration(client):
+    """The default does not grant an unlisted browser access."""
     r = client.get("/health", headers={"Origin": EVIL})
-    assert r.headers.get("access-control-allow-origin") == "*"
+    assert r.status_code == 403
+    assert "access-control-allow-origin" not in r.headers
 
 
 # --- cors_settings() ------------------------------------------------------
@@ -108,7 +109,7 @@ def test_anonymous_cross_origin_reads_still_allowed_by_default(client):
 def test_default_config_does_not_allow_credentials(monkeypatch):
     monkeypatch.delenv("FIESTABOARD_CORS_ORIGINS", raising=False)
     settings = cors_settings()
-    assert settings["allow_origins"] == ["*"]
+    assert settings["allow_origins"] == []
     assert settings["allow_credentials"] is False
 
 

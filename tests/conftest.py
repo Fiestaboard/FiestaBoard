@@ -14,6 +14,12 @@ import pytest
 _SESSION_DATA_ROOT: Path | None = None
 
 
+@pytest.fixture(autouse=True)
+def _test_request_hosts(monkeypatch):
+    """Declare only the in-process clients' synthetic server addresses."""
+    monkeypatch.setenv("FIESTABOARD_ALLOWED_HOSTS", "testserver,test,board.example")
+
+
 def pytest_configure(config):
     """Point ``FIESTABOARD_DATA_DIR`` at a throwaway dir before collection (#1894).
 

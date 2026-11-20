@@ -1,6 +1,6 @@
-"""ASGI middleware that gates the API behind a session cookie.
+"""ASGI request-address boundary and optional session-cookie gate.
 
-Activated only when ``FIESTABOARD_AUTH_ENABLED`` is truthy — otherwise it
+The session gate activates only when ``FIESTABOARD_AUTH_ENABLED`` is truthy — otherwise it
 short-circuits to a no-op so existing local-only installs are unaffected.
 
 Public paths (no auth required):
@@ -45,9 +45,11 @@ from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from .device_models import AuthFlowError
 from .device_service import DeviceService
+from .request_boundary import _FIND_ORIGIN, _origin, _trusted_host, _trusted_origins
 from .service import (
     SESSION_COOKIE_NAME,
     auth_mode,
@@ -319,3 +321,51 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # handlers that want to know who's calling.
         request.scope["auth_user"] = username
         return await call_next(request)
+
+
+class RequestBoundaryMiddleware:
+    """Reject untrusted addresses before any API handler or mounted transport."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] not in {"http", "websocket"}:
+            await self.app(scope, receive, send)
+            return
+        hosts = [v.decode("latin-1") for k, v in scope["headers"] if k.lower() == b"host"]
+        origins = [v.decode("latin-1") for k, v in scope["headers"] if k.lower() == b"origin"]
+        scheme = {"ws": "http", "wss": "https"}.get(scope["scheme"], scope["scheme"])
+        address = _origin(f"{scheme}://{hosts[0]}") if len(hosts) == 1 and "/" not in hosts[0] else None
+        allowed = _trusted_origins()
+        status = 0
+        if address is None or not _trusted_host(address[1], allowed):
+            status = 400
+        elif origins:
+            origin = _origin(origins[0]) if len(origins) == 1 else None
+            discovery = (
+                scope["type"] == "http"
+                and scope["method"] == "GET"
+                and scope["path"] in {"/discover", "/api/discover"}
+                and origins == [_FIND_ORIGIN]
+            )
+            if not discovery and (origin is None or origin not in allowed | {address}):
+                status = 403
+        elif any(k.lower() == b"sec-fetch-site" and v == b"cross-site" for k, v in scope["headers"]):
+            # The OAuth relay returns by cross-site navigation. Its handler
+            # authenticates the signed, single-use state; Host is still checked.
+            callback = (
+                scope["type"] == "http"
+                and scope["method"] == "GET"
+                and scope["path"] in {"/oauth/callback", "/api/oauth/callback"}
+            )
+            if not callback:
+                status = 403
+        if status:
+            if scope["type"] == "websocket":
+                await send({"type": "websocket.close", "code": 1008})
+            else:
+                response = JSONResponse({"detail": "Request address is not allowed."}, status_code=status)
+                await response(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
