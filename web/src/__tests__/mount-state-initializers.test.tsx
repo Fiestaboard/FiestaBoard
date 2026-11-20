@@ -104,9 +104,11 @@ describe("browser state read on the first render", () => {
 
       const router = createMemoryRouter([{ path: "*", element: <EditPage /> }]);
       render(
-        <PageEditorBridgeProvider>
-          <RouterProvider router={router} />
-        </PageEditorBridgeProvider>,
+        <QueryClientProvider client={new QueryClient()}>
+          <PageEditorBridgeProvider>
+            <RouterProvider router={router} />
+          </PageEditorBridgeProvider>
+        </QueryClientProvider>,
       );
 
       // Never the "Loading..." placeholder — the id was in the URL all along.

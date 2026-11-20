@@ -5,6 +5,7 @@ import { Outlet } from "react-router";
 
 import { PluginUpdateCheckButton } from "@/components/plugin-updates-control";
 import { SectionShell } from "@/components/section-shell";
+import { useBelowRail } from "@/hooks/use-below-rail";
 import { useParams, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
@@ -35,6 +36,9 @@ export function IntegrationsSection({ children }: { children: React.ReactNode })
   const tDetail = useTranslations("pluginDetail");
   const tCommon = useTranslations("common");
   const { pluginId } = useParams<{ pluginId?: string }>();
+  // On a phone the list leads with its title alone (Figma 324:50158); the
+  // update controls sit under the installed list instead (BB-C-22).
+  const phone = useBelowRail();
   const searchParams = useSearchParams();
   const { data: installed } = useQuery({ queryKey: ["plugins"], queryFn: api.listPlugins, enabled: !!pluginId });
   const installedPlugin = installed?.plugins.find((plugin) => plugin.id === pluginId);
@@ -90,10 +94,10 @@ export function IntegrationsSection({ children }: { children: React.ReactNode })
     <SectionShell
       icon={Puzzle}
       title={t("title")}
-      description={t("description")}
+      description={phone ? undefined : t("description")}
       href="/integrations"
       detail={detail}
-      action={<PluginUpdateCheckButton />}
+      action={phone ? undefined : <PluginUpdateCheckButton />}
     >
       {children}
     </SectionShell>

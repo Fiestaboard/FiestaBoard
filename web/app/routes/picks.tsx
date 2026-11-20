@@ -27,7 +27,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import Link from "@/components/smart-link";
-import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
+import { useRailBreakpoint } from "@/hooks/use-below-rail";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useTranslations } from "@/i18n/translations";
@@ -235,6 +235,7 @@ function PicksGrid({ deviceType }: { deviceType: DeviceType }) {
 // ---------------------------------------------------------------------------
 
 export default function PicksPage() {
+  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("picks");
   const { data: boardSettings } = useBoardSettings();
   const configuredDevices = boardSettings?.devices ?? ["flagship"];
@@ -242,7 +243,7 @@ export default function PicksPage() {
   const [activeTab, setActiveTab] = useState<DeviceType>("flagship");
 
   return (
-    <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
+    <PageLayout railBreakpoint={railBreakpoint}>
       <PageCard>
         <PageHeader icon={Sparkles} title={t("title")} description={t("description")} />
 

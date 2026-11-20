@@ -118,12 +118,12 @@ test.describe("Navigation", () => {
     await page.locator('aside [data-slot="sidebar-account-trigger"]').click();
     await page.getByRole("button", { name: /About FiestaBoard/ }).click();
 
-    const about = page.getByRole("dialog", { name: "Fiesta Board", exact: true });
+    const about = page.getByRole("dialog", { name: "About FiestaBoard", exact: true });
     await expect(about).toBeVisible();
-    // The number on screen is the number the server is running, not a
-    // build-time constant baked into the bundle.
-    await expect(about.getByText(runningVersion, { exact: false }).first()).toBeVisible();
-    await expect(about.getByText("MIT License")).toBeVisible();
+    // The Hub line carries the number the server is running, not a
+    // build-time constant baked into the bundle ("This page" is the bundle's).
+    await expect(about.getByText(`FiestaBoard ${runningVersion}`, { exact: false }).first()).toBeVisible();
+    await expect(about.getByRole("link", { name: "Open-source licenses" })).toBeVisible();
 
     await page.keyboard.press("Escape");
     await expect(about).not.toBeVisible();

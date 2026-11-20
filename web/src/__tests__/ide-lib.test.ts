@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ActiveScheduleResponse, BoardInstance, Collection, ScheduleEntry } from "@/lib/api";
+import { drawnDifferently } from "@/lib/charset-issues";
 import { deriveEditState, derivePreviewDisplay, offersDraft } from "@/lib/ide/edit-state";
 import { ideDataSources, inspectorTabIds, isIdeTabId, resolveInspectorTab } from "@/lib/ide/inspector-tabs";
 import { jumpToTemplateLine, lineStartPosition, textOffsetOfLine } from "@/lib/ide/jump-to-line";
@@ -149,6 +150,20 @@ describe("problems", () => {
     expect(warnings[1]).toMatchObject({ severity: "warning", kind: "substitution", line: 3, message: "é → E" });
     expect(substitutionSummary(warnings)).toEqual(["é → E"]);
     expect(warningsFromCharset(null)).toEqual([]);
+  });
+  it("drops lowercase the board just shows in capitals (BB-B-7)", () => {
+    const fold = (col: number, from: string) => ({
+      row: 3,
+      col,
+      reason: "case" as const,
+      token: { type: "char" as const, value: from },
+      fallback: { type: "char" as const, value: from.toUpperCase() },
+    });
+    const issues = [...[..."aunch"].map((c, i) => fold(i + 4, c))];
+    expect(warningsFromCharset(issues)).toEqual([]);
+    expect(drawnDifferently(issues)).toEqual([]);
+    const accent = { ...fold(1, "é"), reason: "char" as const, fallback: { type: "char" as const, value: "E" } };
+    expect(drawnDifferently([...issues, accent])).toEqual([accent]);
   });
   it("names color substitutions by code", () => {
     const [warning] = warningsFromCharset([

@@ -1,8 +1,10 @@
 /**
  * Slice 2.4 (WEB-07): boards scroll horizontally; Actual size is the default.
  *
- * Against the full stack: on a phone, Home's board keeps its real tiles and
- * scrolls inside its bezel instead of shrinking (owner rule 9). F gives the
+ * Against the full stack: on a phone, Home's board keeps its real tiles; at
+ * 390 a Flagship fits whole in the phone-hero placement (07a, BB-A-6), and
+ * below the tile floor (360) it scrolls inside its bezel instead of
+ * shrinking (owner rule 9). F gives the
  * labelled Fit overview, the choice lasts the session, and a page card's
  * thumbnail stays a fit picture inside its button. The component behaviour
  * itself (snap, fades, every indicator string) is pinned in
@@ -39,16 +41,34 @@ test.beforeEach(async ({ page }) => {
   await setActivePage(id);
 });
 
+// BB-A-6 (07a `306:53086`): at 390 Home's board leads edge to edge in the
+// kit's phone-hero placement and a 22-column Flagship shows whole, with no
+// Fit/Actual row. At 360 the kit's 13 px tile floor still makes it scroll, so
+// the scrolling contract is held there.
 test.describe("phone (390)", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("Home's Flagship scrolls at Actual size instead of shrinking", async ({ page }) => {
+  test("Home's Flagship shows whole in the phone-hero placement, no Fit/Actual row", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("char-tile-0-0")).toBeVisible({ timeout: 15_000 });
+    await expect(homeViewport(page)).toHaveAttribute("data-layout", "phone-hero");
+    await expect(homeViewport(page)).toHaveAttribute("data-overflow", "false");
+    await expect(homeViewport(page).getByRole("group", { name: "Preview size" })).toHaveCount(0);
+    // Real tiles: no transform scales the board down.
+    const scaled = page.locator("[data-slot=board-viewport-scaled]").first();
+    await expect(scaled).not.toHaveAttribute("style", /scale\(/);
+  });
+});
+
+test.describe("small phone (360)", () => {
+  test.use({ viewport: { width: 360, height: 780 } });
+
+  test("Home's Flagship scrolls at Actual size instead of shrinking under the tile floor", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByTestId("char-tile-0-0")).toBeVisible({ timeout: 15_000 });
     await expect(homeViewport(page)).toHaveAttribute("data-mode", "actual");
     await expect(homeViewport(page)).toHaveAttribute("data-overflow", "true");
     await expect(homeIndicator(page)).toHaveText(/^Columns 1–\d+ of 22$/);
-    // Real tiles: no transform scales the board down.
     const scaled = page.locator("[data-slot=board-viewport-scaled]").first();
     await expect(scaled).not.toHaveAttribute("style", /scale\(/);
   });
@@ -61,8 +81,7 @@ test.describe("phone (390)", () => {
     await expect(homeIndicator(page)).toHaveText(/^Columns \d+–22 of 22$/);
     await page.keyboard.press("f");
     await expect(homeViewport(page)).toHaveAttribute("data-mode", "fit");
-    // At phone width the fit Flagship is either a readable fit or an overview;
-    // either way the session remembers the choice across a reload.
+    // The session remembers the choice across a reload.
     await page.reload();
     await expect(page.getByTestId("char-tile-0-0")).toBeAttached({ timeout: 15_000 });
     await expect(homeViewport(page)).toHaveAttribute("data-mode", "fit");
@@ -167,8 +186,11 @@ test.describe("note-array page card", () => {
 test.describe("touch Home actions and viewport controls", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 
+  // At 390 the board leads and the card (with ⋯) follows (07a `306:53086`,
+  // BB-A-6); from the rail up the actions stay above the preview. On a touch
+  // pointer ⋯ opens the actions as a sheet (07a `310:33402`, BB-A-5).
   for (const width of [390, 768, 1280]) {
-    test(`at ${width}px the actions stay above the preview and its mode controls`, async ({ page }) => {
+    test(`at ${width}px the actions and the preview sit where 07a puts them`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/");
       await expect(homeViewport(page)).toHaveAttribute("data-mode", "actual", { timeout: 15_000 });
@@ -176,8 +198,9 @@ test.describe("touch Home actions and viewport controls", () => {
       await expect(actions).toBeVisible();
       const [actionBox, previewBox] = await Promise.all([actions.boundingBox(), homeViewport(page).boundingBox()]);
       expect(actionBox && previewBox).toBeTruthy();
-      expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(previewBox!.y);
-      if (width !== 1280) {
+      if (width === 390) expect(previewBox!.y + previewBox!.height).toBeLessThanOrEqual(actionBox!.y);
+      else expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(previewBox!.y);
+      if (width === 768) {
         const modes = homeViewport(page).getByRole("group", { name: "Preview size" });
         await modes.getByRole("button", { name: "Fit", exact: true }).click();
         await expect(homeViewport(page)).toHaveAttribute("data-mode", "fit");
@@ -185,7 +208,7 @@ test.describe("touch Home actions and viewport controls", () => {
         await expect(homeViewport(page)).toHaveAttribute("data-mode", "actual");
       }
       await actions.click();
-      await expect(page.getByRole("menuitem", { name: /Refresh board/ })).toBeVisible();
+      await expect(page.getByRole("dialog").getByRole("button", { name: /Refresh board/ })).toBeVisible();
       await page.keyboard.press("Escape");
     });
   }

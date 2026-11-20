@@ -1,12 +1,13 @@
 import "../../app/globals.css";
 import "@/i18n/i18next";
 
-import { PageHeader, PageLayout } from "@fiestaboard/ui";
+import { Dialog, PageHeader, PageLayout } from "@fiestaboard/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Settings } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
+import { AddDisplayDialog } from "@/components/displays/add-display-dialog";
 import { SignedInDevices } from "@/components/settings/signed-in-devices";
 import { SetupWizard } from "@/components/wizard/setup-wizard";
 
@@ -21,6 +22,10 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={client}>
       {params.get("mode") === "wizard" ? (
         <SetupWizard />
+      ) : params.get("mode") === "add-display" ? (
+        <Dialog open>
+          <AddDisplayDialog onCreated={() => undefined} onCancel={() => undefined} />
+        </Dialog>
       ) : params.get("mode") === "activate" ? (
         <Activate />
       ) : params.get("mode") === "reset" ? (

@@ -14,43 +14,56 @@
  *   - All visible strings route through `useTranslations("login")` so
  *     screen readers don't read English under a non-English `<html lang>`
  *     (WCAG 3.1.1 Language of Page, 3.1.2 Language of Parts).
- *   - On a failed sign-in / setup the username input regains focus so the
- *     user can retry without re-tabbing past the skip link
+ *   - A wrong password clears the password field, marks it invalid and
+ *     moves focus there (07e `326:34407`): the username was right often
+ *     enough that retyping it is the wrong default. A failed setup returns
+ *     focus to the field that failed
  *     (WCAG 2.4.3 Focus Order, 3.3.1 Error Identification).
- *   - The "authentication docs" link opens in a new tab and carries a
- *     visually-hidden "(opens in new tab)" string for screen readers
+ *   - The "authentication docs" link (first-run picker and setup only; the
+ *     sign-in form has no such footer in 07e) opens in a new tab and carries
+ *     a visually-hidden "(opens in new tab)" string for screen readers
  *     (WCAG 2.4.4 Link Purpose, 3.2.5 Change on Request).
+ *
+ * The sign-in form follows 07e Sign in (`326:40175` phone, `326:32474` /
+ * `326:34407` desktop): wordmark, "Sign in to …", the hub line, password
+ * reveal, "Keep me signed in on this browser" and a forgotten-password line
+ * that leads to /reset-password. 07e titles the card with the hub's own name;
+ * the hub withholds that name from anyone not signed in
+ * (src/system/hub_identity.py), so the title keeps the product name and the
+ * hub line names the address this browser reached instead.
  */
 
 import {
   Alert,
   AlertDescription,
+  AlertTitle,
+  BoardBackdrop,
   Box,
   Button,
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
   Checkbox,
-  FiestaIcon,
   FiestaLogo,
   Flex,
+  Heading,
   Input,
   Label,
+  SecretInput,
   Stack,
+  StatusDot,
   Text,
   TextLink,
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
-import { Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { CircleHelp, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
+import { useDeviceOnline } from "@/hooks/use-hub-connection";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { AuthStatusResponse } from "@/lib/api";
-import { apiUrl } from "@/lib/base-path";
+import { apiUrl, appUrl } from "@/lib/base-path";
+import { hubLineStatus } from "@/lib/hub-identity";
+import { browserHostname } from "@/lib/network-hint";
 import { safeRedirect } from "@/lib/safe-redirect";
 
 type AuthStatus = AuthStatusResponse;
@@ -96,6 +109,7 @@ export default function LoginPage() {
   const redirectTo = safeRedirect(searchParams.get("redirect"));
   const t = useTranslations("login");
   const tCommon = useTranslations("common");
+  const tReset = useTranslations("passwordReset");
 
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -108,11 +122,16 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  // "Keep me logged in" — defaults to checked (matches Home Assistant). When
+  // "Keep me signed in on this browser" — defaults to checked (matches Home Assistant). When
   // off, the server issues a session cookie that the browser drops on close.
   const [rememberMe, setRememberMe] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // A rejected username/password pair: 07e `326:34407` titles the alert and
+  // marks the password field, so it is told apart from other failures.
+  const [wrongCredentials, setWrongCredentials] = useState(false);
+  // Where focus goes after this error; set with the error, read by the effect.
+  const wrongCredentialsRef = useRef(false);
 
   // Refs let us restore focus after a failed submit so the user can retry
   // without re-tabbing past the skip link, sidebar, etc.
@@ -160,6 +179,8 @@ export default function LoginPage() {
     async (e: FormEvent) => {
       e.preventDefault();
       setFormError(null);
+      setWrongCredentials(false);
+      wrongCredentialsRef.current = false;
       setSubmitting(true);
       try {
         const res = await postJson("/auth/login", {
@@ -174,7 +195,13 @@ export default function LoginPage() {
         if (res.status === 429) {
           setFormError(res.detail || t("tooManyAttempts"));
         } else if (res.status === 401) {
-          setFormError(res.detail || t("invalidCredentials"));
+          // Our own words, not the server's English detail: the alert has a
+          // title and a hint in the reader's language. The password goes, so
+          // the retry starts from an empty field (focus moves there below).
+          setPassword("");
+          setWrongCredentials(true);
+          wrongCredentialsRef.current = true;
+          setFormError(t("invalidCredentials"));
         } else if (res.status === 409) {
           // User store is empty — drop into setup mode.
           setStatus((s) => (s ? { ...s, setup_required: true } : s));
@@ -249,9 +276,13 @@ export default function LoginPage() {
   // After a failed sign-in or setup submit, return focus to the failing
   // field. Triggers whenever ``formError`` transitions from null to a string
   // while we're not mid-submit (the submit handler clears submitting after).
+  // A wrong password goes back to the (now empty) password field; anything
+  // else (lockout, network, setup conflicts) to the username.
+  // Keyed on the error and the submit only: anything else changing while the
+  // reader retypes must not pull focus away mid-word.
   useEffect(() => {
     if (formError && !submitting) {
-      usernameInputRef.current?.focus();
+      (wrongCredentialsRef.current ? passwordInputRef : usernameInputRef).current?.focus();
     }
   }, [formError, submitting]);
 
@@ -275,7 +306,6 @@ export default function LoginPage() {
     return (
       <CenteredCard
         tCommon={tCommon}
-        loading
         icon={<Spinner size="lg" className="size-6" label={null} />}
         title={t("loadingTitle")}
       >
@@ -289,7 +319,6 @@ export default function LoginPage() {
     return (
       <CenteredCard
         tCommon={tCommon}
-        loading
         icon={<Spinner size="lg" className="size-6" label={null} />}
         title={t("redirectingTitle")}
       >
@@ -307,6 +336,7 @@ export default function LoginPage() {
         icon={<ShieldQuestion className="h-6 w-6 text-brand" />}
         title={t("protectTitle")}
         description={t("protectDescription")}
+        docsFooter
       >
         <Stack gap="3">
           <Button
@@ -347,6 +377,7 @@ export default function LoginPage() {
         icon={<ShieldCheck className="h-6 w-6 text-brand" />}
         title={t("setupTitle")}
         description={t("setupDescription")}
+        docsFooter
       >
         <Box as="form" className="space-y-4" onSubmit={handleSetup}>
           <Stack gap="2">
@@ -415,13 +446,20 @@ export default function LoginPage() {
   }
 
   return (
-    <CenteredCard
-      tCommon={tCommon}
-      icon={<Lock className="h-6 w-6 text-brand" />}
-      title={t("signInTitle")}
-      description={t("signInDescription")}
-    >
+    <CenteredCard tCommon={tCommon} title={t("signInTitle")} subtitle={<LoginHubLine />}>
       <Box as="form" className="space-y-4" onSubmit={handleLogin}>
+        {formError && (
+          <Alert variant="destructive" id="login-error">
+            {wrongCredentials ? (
+              <>
+                <AlertTitle>{formError}</AlertTitle>
+                <AlertDescription>{t("invalidCredentialsHint")}</AlertDescription>
+              </>
+            ) : (
+              <AlertDescription>{formError}</AlertDescription>
+            )}
+          </Alert>
+        )}
         <Stack gap="2">
           <Label htmlFor="username">{t("usernameLabel")}</Label>
           <Input
@@ -438,16 +476,22 @@ export default function LoginPage() {
         </Stack>
         <Stack gap="2">
           <Label htmlFor="password">{t("passwordLabel")}</Label>
-          <Input
+          <SecretInput
             id="password"
             name="password"
-            type="password"
             autoComplete="current-password"
             required
             ref={passwordInputRef}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={submitting}
+            // Stays marked until the next submit, tied to the alert that says why.
+            aria-invalid={wrongCredentials || undefined}
+            aria-describedby={wrongCredentials ? "login-error" : undefined}
+            // Dots, not the kit's monospace for keys and tokens.
+            className="font-sans"
+            showLabel={tReset("show")}
+            hideLabel={tReset("hide")}
           />
         </Stack>
         <Flex align="center" gap="2">
@@ -462,11 +506,6 @@ export default function LoginPage() {
             {t("rememberMeLabel")}
           </Label>
         </Flex>
-        {formError && (
-          <Alert variant="destructive">
-            <AlertDescription>{formError}</AlertDescription>
-          </Alert>
-        )}
         <Button type="submit" variant="brand" className="w-full" disabled={submitting}>
           {submitting ? (
             <>
@@ -476,63 +515,124 @@ export default function LoginPage() {
             t("submitButton")
           )}
         </Button>
+        <Flex gap="2" align="start">
+          <CircleHelp className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <Text size="xs" tone="muted">
+            {t.rich("forgotPassword", {
+              link: (chunks) => <TextLink href={appUrl("/reset-password")}>{chunks}</TextLink>,
+            })}
+          </Text>
+        </Flex>
       </Box>
     </CenteredCard>
   );
 }
 
+/**
+ * "● fiestapi.local · Online" under the sign-in title (07e `326:40175`).
+ * The page only renders once /auth/status has answered, so the hub is known
+ * to be reachable; the device's own network state can still say otherwise.
+ * No /status poll: it needs a session this page does not have yet.
+ */
+function LoginHubLine() {
+  const tStatus = useTranslations("statusBanners");
+  const deviceOnline = useDeviceOnline();
+  const host = browserHostname();
+  const status = hubLineStatus({ host, hubReachable: true, deviceOnline });
+  if (!host || !status) return null;
+  const words = { online: tStatus("hubOnline"), remote: tStatus("hubRemote"), unreachable: tStatus("hubUnreachable") };
+  const dot = { online: "success", remote: "info", unreachable: "danger" } as const;
+  return (
+    <Flex align="center" gap="1.5" className="min-w-0" data-slot="login-hub-line" data-status={status}>
+      <StatusDot status={dot[status]} size="md" className="shrink-0" aria-hidden="true" />
+      <Text size="xs" tone="muted" className="min-w-0 truncate">
+        {host} · {words[status]}
+      </Text>
+    </Flex>
+  );
+}
+
 // --- Layout helper -----------------------------------------------------------
 
+/**
+ * The card every state of this page sits in, laid out like 07e Sign in and
+ * its sibling /reset-password: the board backdrop from 640px, the wordmark
+ * inside the card, an H1, then the state's own content.
+ */
 function CenteredCard({
   icon,
   title,
   description,
+  subtitle,
   children,
   tCommon,
-  loading = false,
+  docsFooter = false,
 }: {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   title: string;
   description?: string;
+  /** A line under the title in place of a description (the sign-in hub line). */
+  subtitle?: React.ReactNode;
   children: React.ReactNode;
   tCommon: ReturnType<typeof useTranslations>;
-  loading?: boolean;
+  /**
+   * The "change this later" docs footnote, for the first-run picker and the
+   * setup form only: the sign-in form has none in 07e (BB-C-10).
+   */
+  docsFooter?: boolean;
 }) {
   const t = useTranslations("login");
   return (
-    <Flex direction="col" align="center" justify="center" className="min-h-screen bg-background p-4">
-      <Flex align="center" gap="3" className="mb-6">
-        {!loading && <FiestaIcon size={36} className="flex-shrink-0" />}
-        <FiestaLogo className="text-2xl" />
-      </Flex>
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
+    <Flex
+      direction="col"
+      align="center"
+      justify="center"
+      className="relative isolate min-h-svh w-full bg-background px-4 py-6 sm:p-8"
+    >
+      <BoardBackdrop
+        phrases={["WELCOME", "GOOD MORNING", "HELLO WORLD", "72 AND CLEAR"]}
+        fixed
+        className="hidden sm:block"
+      />
+      <Card className="relative z-10 w-full max-w-[440px] gap-4 p-6 sm:p-8">
+        <FiestaLogo size="sm" />
+        <Stack gap="1">
           <Flex align="center" gap="2">
             {icon}
-            <CardTitle as="h1">{title}</CardTitle>
+            <Heading level={1} size="xl">
+              {title}
+            </Heading>
           </Flex>
-          {description && <CardDescription>{description}</CardDescription>}
-        </CardHeader>
-        <CardContent>{children}</CardContent>
-        <CardFooter className="text-xs text-muted-foreground">
-          {t.rich("changeLater", {
-            link: (chunks) => (
-              <TextLink
-                href="https://fiestaboard.app/docs/setup/authentication"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {chunks}
-                {/* sr-only cue lets screen-reader users know this link
-                    leaves the app (WCAG 2.4.4 / 3.2.5). */}
-                <Text as="span" className="sr-only">
-                  {" "}
-                  {tCommon("opensInNewTab")}
-                </Text>
-              </TextLink>
-            ),
-          })}
-        </CardFooter>
+          {subtitle}
+          {description && (
+            <Text size="sm" tone="muted">
+              {description}
+            </Text>
+          )}
+        </Stack>
+        {children}
+        {docsFooter && (
+          // One paragraph, so the sentence wraps as text (BB-C-10).
+          <Text as="p" size="xs" tone="muted">
+            {t.rich("changeLater", {
+              link: (chunks) => (
+                <TextLink
+                  href="https://fiestaboard.app/docs/setup/authentication"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {chunks}
+                  {/* sr-only cue lets screen-reader users know this link
+                      leaves the app (WCAG 2.4.4 / 3.2.5). */}
+                  <Text as="span" className="sr-only">
+                    {" "}
+                    {tCommon("opensInNewTab")}
+                  </Text>
+                </TextLink>
+              ),
+            })}
+          </Text>
+        )}
       </Card>
     </Flex>
   );

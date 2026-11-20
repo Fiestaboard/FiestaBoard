@@ -12,14 +12,14 @@ import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { useAppBadge } from "@/hooks/use-app-badge";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
-import { RAIL_BREAKPOINT, useBelowRail, useTabletRailCollapse } from "@/hooks/use-below-rail";
+import { useBelowRail, useRailBreakpoint, useTabletRailCollapse } from "@/hooks/use-below-rail";
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { useDisplaysNeedingALook } from "@/hooks/use-displays-needing-a-look";
 import { useHubLine } from "@/hooks/use-hub-connection";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
-import { isChromelessPath } from "@/lib/chromeless";
+import { isChromelessPath, isPageEditorPath } from "@/lib/chromeless";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { integrationsNeedingAttention, isNavItemActive, type NavItemDef, navItemsFor } from "@/lib/nav-items";
 
@@ -29,6 +29,7 @@ import { integrationsNeedingAttention, isNavItemActive, type NavItemDef, navItem
  * all live here; every pixel lives in @fiestaboard/ui.
  */
 export function NavigationSidebar() {
+  const railBreakpoint = useRailBreakpoint();
   const pathname = usePathname();
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, setCollapsed, onTransitionEnd } = useSidebar();
@@ -107,6 +108,9 @@ export function NavigationSidebar() {
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer
   // (a wall display must never grow app chrome).
   if (chromeless) return null;
+  // Below the rail the page editor's own header and toolbar replace the phone
+  // header and tab bar (Figma 57:64661; BB-B-17).
+  if (belowRail && isPageEditorPath(pathname)) return null;
 
   const toNavItem = (item: NavItemDef): SidebarNavItem => ({
     key: item.key,
@@ -150,7 +154,7 @@ export function NavigationSidebar() {
       // Below 768px a tab bar (Home · Pages · Schedule · Displays · More);
       // from 768px the rail. MainContent takes the same breakpoint.
       variant="bottom-nav"
-      railBreakpoint={RAIL_BREAKPOINT}
+      railBreakpoint={railBreakpoint}
       items={navItemsFor(chrome).map(toNavItem)}
       renderLink={renderLink}
       collapsed={collapsed}

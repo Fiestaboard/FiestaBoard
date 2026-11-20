@@ -48,6 +48,40 @@ describe("BootGate offline branch (WEB-16)", () => {
     }
   });
 
+  // BB-C-8: a hub that refuses the connection is not "starting" — say so in
+  // seconds, not after the 30 s cold-boot timeout.
+  it("shows hub-unreachable within seconds when the hub refuses the connection", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+      server.use(http.get("*/api/health", () => HttpResponse.error()));
+      render(withClient(<BootGate>app</BootGate>));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4_500);
+      });
+      expect(screen.getByRole("heading", { level: 1, name: "Can’t reach your hub" })).toBeInTheDocument();
+      expect(screen.queryByText("Waiting to start…")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps Waiting to start while a reachable hub is still starting", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+      server.use(http.get("*/api/health", () => new HttpResponse(null, { status: 502 })));
+      render(withClient(<BootGate>app</BootGate>));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4_500);
+      });
+      expect(screen.getByText("Waiting to start…")).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Can’t reach your hub" })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("lets the app through when the device is online and the hub answers", async () => {
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
     server.use(http.get("*/api/health", () => HttpResponse.json({ status: "ok" })));

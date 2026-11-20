@@ -18,7 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { addDays, format, isSameDay, startOfDay, startOfWeek } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { api, type Collection, type Gap, isCollectionId, type Overlap, type Page, type ScheduleEntry } from "@/lib/api";
@@ -31,11 +31,14 @@ import { weeklyConflictRepair } from "@/lib/schedule-conflict-repair";
 
 import { ScheduleAgenda, type ScheduleView, supportsDatedGaps } from "./schedule-agenda";
 import { ScheduleCopy } from "./schedule-copy";
+import { useOverlapText } from "./schedule-entry-conflict";
 import { ScheduleLookup } from "./schedule-lookup";
 import { SchedulePagePreview } from "./schedule-page-preview";
 
 interface Props {
   view: ScheduleView;
+  /** Phone (07d `322:19169`): day chips first, the agenda next, week and lookup controls after it. */
+  compact?: boolean;
   schedules: ScheduleEntry[];
   pages: Page[];
   collections: Collection[];
@@ -56,6 +59,7 @@ interface Props {
 }
 export function ScheduleWorkspace({
   view,
+  compact = false,
   schedules,
   pages,
   collections,
@@ -78,6 +82,7 @@ export function ScheduleWorkspace({
   const tSchedule = useTranslations("schedule");
   const tCommon = useTranslations("common");
   const locale = useLocale();
+  const describeOverlap = useOverlapText(pages, collections);
   const [date, setDate] = useState(() => startOfDay(toZonedTime(new Date(), timezone)));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [repairing, setRepairing] = useState(false);
@@ -170,55 +175,68 @@ export function ScheduleWorkspace({
     selectedEntry && supportsDatedGaps(schedules) ? weeklyConflictRepair(selectedEntry, schedules, overlaps) : null;
   const today = toZonedTime(new Date(), timezone);
   const hasTimeline = schedules.length > 0 || silenceSchedule?.enabled;
-  return (
-    <Stack gap="4">
-      <Flex align="center" justify="between" gap="2" wrap>
-        {!lookupOpen && hasTimeline && (
-          <Flex gap="1" align="center">
-            <Button size="icon" variant="outline" aria-label={t("previous")} onClick={() => setDate(addDays(date, -7))}>
-              <ChevronLeft aria-hidden="true" />
-            </Button>
-            <Text size="sm" weight="semibold">
-              {weekStart.toLocaleDateString(locale, { month: "long", day: "numeric" })} –{" "}
-              {addDays(weekStart, 6).toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" })}
-            </Text>
-            <Button size="icon" variant="outline" aria-label={t("next")} onClick={() => setDate(addDays(date, 7))}>
-              <ChevronRight aria-hidden="true" />
-            </Button>
-          </Flex>
-        )}
-        <Flex gap="2" align="center" wrap>
-          {!lookupOpen && hasTimeline && (
-            <Button variant="outline" onClick={() => setDate(startOfDay(today))}>
-              {t("today")}
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            aria-expanded={lookupOpen}
-            aria-controls={lookupId}
-            onClick={() => setLookupOpen(!lookupOpen)}
-          >
-            {lookupOpen && <ChevronLeft aria-hidden="true" />}
-            {lookupOpen ? tCommon("back") : tSchedule("lookup.title")}
+  // Keep the chosen day chip on screen when the strip scrolls sideways (BB-C-3).
+  const strip = useRef<HTMLDivElement>(null);
+  const chosenDay = format(date, "yyyy-MM-dd");
+  useEffect(() => {
+    strip.current
+      ?.querySelector<HTMLElement>('[aria-checked="true"]')
+      ?.scrollIntoView?.({ block: "nearest", inline: "center" });
+  }, [chosenDay, view, lookupOpen]);
+  const controls = (
+    <Flex align="center" justify="between" gap="2" wrap>
+      {!lookupOpen && hasTimeline && (
+        <Flex gap="1" align="center">
+          <Button size="icon" variant="outline" aria-label={t("previous")} onClick={() => setDate(addDays(date, -7))}>
+            <ChevronLeft aria-hidden="true" />
+          </Button>
+          <Text size="sm" weight="semibold">
+            {weekStart.toLocaleDateString(locale, { month: "long", day: "numeric" })} –{" "}
+            {addDays(weekStart, 6).toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" })}
+          </Text>
+          <Button size="icon" variant="outline" aria-label={t("next")} onClick={() => setDate(addDays(date, 7))}>
+            <ChevronRight aria-hidden="true" />
           </Button>
         </Flex>
-      </Flex>
-      {!lookupOpen && view === "day" && hasTimeline && (
-        <WeekStrip
-          aria-label={t("days")}
-          value={format(date, "yyyy-MM-dd")}
-          onValueChange={(value) => {
-            const day = days.find((candidate) => format(candidate, "yyyy-MM-dd") === value);
-            if (day) setDate(day);
-          }}
+      )}
+      <Flex gap="2" align="center" wrap>
+        {!lookupOpen && hasTimeline && (
+          <Button variant="outline" onClick={() => setDate(startOfDay(today))}>
+            {t("today")}
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          aria-expanded={lookupOpen}
+          aria-controls={lookupId}
+          onClick={() => setLookupOpen(!lookupOpen)}
         >
-          {days.map((day) => (
-            <DayChip key={day.toISOString()} value={format(day, "yyyy-MM-dd")}>
-              {day.toLocaleDateString(locale, { weekday: "short", day: "numeric" })}
-            </DayChip>
-          ))}
-        </WeekStrip>
+          {lookupOpen && <ChevronLeft aria-hidden="true" />}
+          {lookupOpen ? tCommon("back") : tSchedule("lookup.title")}
+        </Button>
+      </Flex>
+    </Flex>
+  );
+  return (
+    <Stack gap="4">
+      {!compact && controls}
+      {!lookupOpen && view === "day" && hasTimeline && (
+        <Box ref={strip} className="min-w-0">
+          <WeekStrip
+            aria-label={t("days")}
+            value={format(date, "yyyy-MM-dd")}
+            onValueChange={(value) => {
+              const day = days.find((candidate) => format(candidate, "yyyy-MM-dd") === value);
+              if (day) setDate(day);
+            }}
+          >
+            {days.map((day) => (
+              <DayChip key={day.toISOString()} value={format(day, "yyyy-MM-dd")}>
+                {day.toLocaleDateString(locale, { weekday: "short", day: "numeric" })}
+              </DayChip>
+            ))}
+          </WeekStrip>
+        </Box>
       )}
       {!lookupOpen && !supportsDatedGaps(schedules) && (gaps.length > 0 || overlaps.length > 0) && (
         <Text role="status" size="sm" tone="muted">
@@ -347,7 +365,7 @@ export function ScheduleWorkspace({
             <WeekCalendarInspector
               title={selected!.title}
               description={`${time(minute(selected!.start, selected!.start))} – ${time(minute(selected!.end, selected!.start))} · ${boardName ?? ""}`}
-              conflict={conflict?.conflict_description}
+              conflict={conflict ? describeOverlap(conflict, selectedEntry.id, schedules) : undefined}
               conflictActions={
                 repairStart && onRepair ? (
                   <Stack gap="2">
@@ -421,6 +439,7 @@ export function ScheduleWorkspace({
           )}
         </Box>
       )}
+      {compact && controls}
     </Stack>
   );
 }

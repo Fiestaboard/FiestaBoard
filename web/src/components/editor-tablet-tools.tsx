@@ -42,6 +42,7 @@ import {
 import { type ReactNode, Suspense, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { useMainContentLeft } from "@/hooks/use-main-content-left";
 import { useVisualViewportBottom } from "@/hooks/use-visual-viewport-bottom";
 import { cn } from "@/lib/utils";
 
@@ -87,6 +88,7 @@ export function EditorTabletTools(props: TemplateEditorToolbarProps) {
   const [entityOpen, setEntityOpen] = useState(false);
   const [history, setHistory] = useState({ undo: false, redo: false, selection: false });
   const bottom = useVisualViewportBottom();
+  const left = useMainContentLeft(props.layout !== "row");
   useEffect(() => {
     if (!editor) return;
     const update = () =>
@@ -195,7 +197,7 @@ export function EditorTabletTools(props: TemplateEditorToolbarProps) {
         props.layout !== "row" && "fixed inset-x-0 z-[var(--z-mobile-menu)]",
         props.className,
       )}
-      style={props.layout !== "row" ? { bottom } : undefined}
+      style={props.layout !== "row" ? { bottom, left, width: "auto" } : undefined}
     >
       {drawMode ? (
         <>

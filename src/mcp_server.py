@@ -1920,7 +1920,9 @@ def _build_mcp_server() -> Any:
                       get_settings_summary()). Omitted = the primary board.
 
         Returns: {valid (false when any overlap exists), overlaps:
-        [{schedule1_id, schedule2_id, conflict_description}], gaps:
+        [{schedule1_id, schedule2_id, conflict_description, days,
+        start_time, end_time, winner_id}] (winner_id: the entry shown
+        during the overlap), gaps:
         [{start_time, end_time, days}]}. Gaps are informational — the
         board shows default_page_id (see list_schedules()) during them.
         """
@@ -3043,7 +3045,7 @@ def _build_mcp_server() -> Any:
         board appears in the boards list and can be targeted like any board.
 
         Args:
-            name: Display name for the panel (the board is named "<name> (Panel)").
+            name: Display name for the panel and its board.
             screen_diagonal_inches: TV size in inches (3–200, default 55).
             screen_aspect_w: Aspect ratio width (default 16).
             screen_aspect_h: Aspect ratio height (default 9).
