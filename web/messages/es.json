@@ -161,6 +161,7 @@
   "home": {
     "title": "Inicio",
     "description": "Lo que se muestra ahora en tus pantallas y lo que viene después.",
+    "descriptionPhone": "Lo que hay ahora en tus pantallas",
     "noBoardConfigured": "Ningún tablero configurado",
     "noBoardDescription": "Tu tablero aún no está configurado. Conecta tu tablero para comenzar a mostrar contenido.",
     "runSetupWizard": "Ejecutar asistente de configuración",
@@ -1503,8 +1504,12 @@
       "finish": "Finalizar configuración"
     },
     "noDisplays": {
-      "title": "Aún no hay pantallas",
-      "description": "Añade tu primera pantalla para empezar a mostrar páginas. Páginas, Programación e Integraciones están listas para cuando quieras.",
+      "title": "Aún no hay dónde mostrar nada",
+      "switcher": "Aún no hay pantallas",
+      "running": "{hub} está en marcha, pero no hay ninguna pantalla conectada.",
+      "runningNoName": "Tu hub está en marcha, pero no hay ninguna pantalla conectada.",
+      "addHint": "Añade tu Vestaboard, una TV o una pantalla LED e Inicio mostrará lo que hay en ella.",
+      "footnote": "Ya puedes crear páginas; esperan en Páginas hasta que se añada una pantalla.",
       "add": "Añadir pantalla",
       "rerun": "Repetir configuración"
     }

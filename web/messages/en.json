@@ -117,6 +117,7 @@
   "home": {
     "title": "Home",
     "description": "What’s on your displays right now, and what’s next.",
+    "descriptionPhone": "What’s on your displays now",
     "noBoardConfigured": "No board configured",
     "noBoardDescription": "You can create and preview pages now. Connect a display when you are ready to show them on a Vestaboard, TV, or another supported device.",
     "runSetupWizard": "Run Setup Wizard",
@@ -1459,8 +1460,12 @@
       "finish": "Finish setup"
     },
     "noDisplays": {
-      "title": "No displays yet",
-      "description": "Add your first display to start showing pages. Pages, Schedule and Integrations are ready whenever you are.",
+      "title": "Nothing to show on yet",
+      "switcher": "No displays yet",
+      "running": "{hub} is running, but no display is connected.",
+      "runningNoName": "Your hub is running, but no display is connected.",
+      "addHint": "Add your Vestaboard, a TV or an LED display and Home will show what’s on it.",
+      "footnote": "You can still make pages now; they wait in Pages until a display is added.",
       "add": "Add display",
       "rerun": "Run setup again"
     }

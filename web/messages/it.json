@@ -161,6 +161,7 @@
   "home": {
     "title": "Home",
     "description": "Cosa c’è ora sui tuoi schermi e cosa arriva dopo.",
+    "descriptionPhone": "Cosa c’è ora sui tuoi schermi",
     "noBoardConfigured": "Nessuna bacheca configurata",
     "noBoardDescription": "La tua bacheca non è ancora configurata. Collega la tua bacheca per iniziare a mostrare contenuti.",
     "runSetupWizard": "Avvia procedura guidata",
@@ -1503,8 +1504,12 @@
       "finish": "Completa configurazione"
     },
     "noDisplays": {
-      "title": "Ancora nessuno schermo",
-      "description": "Aggiungi il primo schermo per iniziare a mostrare pagine. Pagine, Programmazione e Integrazioni sono pronti quando vuoi.",
+      "title": "Ancora niente su cui mostrare",
+      "switcher": "Ancora nessuno schermo",
+      "running": "{hub} è attivo, ma nessuno schermo è collegato.",
+      "runningNoName": "Il tuo hub è attivo, ma nessuno schermo è collegato.",
+      "addHint": "Aggiungi il tuo Vestaboard, una TV o uno schermo LED e la Home mostrerà cosa c’è sopra.",
+      "footnote": "Puoi già creare pagine; restano in Pagine finché non aggiungi uno schermo.",
       "add": "Aggiungi schermo",
       "rerun": "Ripeti configurazione"
     }
