@@ -17,9 +17,12 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import {
   Box,
+  Button,
   Flex,
   List,
   ListItem,
+  SegmentedControl,
+  SegmentedControlItem,
   Skeleton,
   Stack,
   Tabs,
@@ -46,10 +49,12 @@ import {
   Hash,
   List as ListIcon,
   Palette,
+  Sigma,
   Type as TypeIcon,
   XCircle,
 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
+import { lazy, type ReactNode, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { ShortcutKeys } from "@/components/editor-shortcut-list";
 import { useTranslations } from "@/i18n/translations";
@@ -208,6 +213,20 @@ const formulaBaseTheme = EditorView.theme({
   ".cm-placeholder": { color: "hsl(var(--muted-foreground))" },
 });
 
+/**
+ * The sheet layout's expression is one wrapping line inside the amber box
+ * (306:38107): no inner fill, padding, minimum height or focus outline (the
+ * box shows focus).
+ */
+const formulaSheetTheme = EditorView.theme({
+  "&": { background: "transparent", fontSize: "0.875rem" },
+  "&.cm-focused": { outline: "none" },
+  ".cm-content": { padding: "0", minHeight: "1.5rem", lineHeight: "1.5rem" },
+});
+
+/** Figma 306:38107's chip order; any other category follows. */
+const SHEET_CATEGORY_ORDER = ["logic", "math", "text", "date", "color"];
+
 // ─── Category metadata ────────────────────────────────────────────────────────
 
 const CATEGORY_META: Record<string, { icon: LucideIcon; border: string }> = {
@@ -231,12 +250,39 @@ interface FormulaEditorPanelProps {
   onConfirm: (expr: string) => void;
   /** Called when the user cancels (edit mode only). */
   onCancel?: () => void;
+  /**
+   * `sheet`: the phone Formula sheet (Figma 306:38107): one amber expression
+   * box, category chips over two-line function rows and one full-width
+   * primary action. The sheet's own × closes it. Default `panel`.
+   */
+  layout?: "panel" | "sheet";
+  /** The live result under the expression, given the last valid one (sheet layout). */
+  result?: (expression: string | null) => ReactNode;
+  /** The sheet's pinned footer (kit `SheetFooter`); the primary action renders there. */
+  footer?: HTMLElement | null;
 }
+
+/** The Variables chip in the sheet layout's category row. */
+const VARIABLES = "variables";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel }: FormulaEditorPanelProps) {
+export function FormulaEditorPanel({
+  initialExpr = "",
+  mode,
+  onConfirm,
+  onCancel,
+  layout = "panel",
+  result,
+  footer,
+}: FormulaEditorPanelProps) {
   const t = useTranslations("formulaEditor");
+  const tTemplate = useTranslations("templateEditor");
+  const tIde = useTranslations("formulaIde");
+  const sheet = layout === "sheet";
+  // The sheet shows the expression on one wrapping line, as written.
+  const toDoc = useCallback((expression: string) => (sheet ? expression : formatFormula(expression)), [sheet]);
+  const [chosenCategory, setCategory] = useState<string | null>(null);
   const expressionLabelId = useId();
   const categoryLabels: Record<string, string> = {
     logic: t("categoryLogic"),
@@ -367,10 +413,12 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
 
     const view = new EditorView({
       state: EditorState.create({
-        doc: formatFormula(initialExpr),
+        doc: toDoc(initialExpr),
         extensions: [
           formulaStreamLang,
           syntaxHighlighting(formulaHighlighter),
+          // Earlier extensions take precedence: the sheet theme overrides the base.
+          ...(sheet ? [formulaSheetTheme] : []),
           formulaBaseTheme,
           EditorView.contentAttributes.of({ "aria-labelledby": expressionLabelId }),
           history(),
@@ -429,12 +477,12 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
     const currentRaw = unformatFormula(view.state.doc.toString());
     if (currentRaw === expr) return;
 
-    const formatted = formatFormula(expr);
+    const formatted = toDoc(expr);
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: formatted },
       selection: { anchor: formatted.length },
     });
-  }, [expr]);
+  }, [expr, toDoc]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -450,11 +498,11 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
     const view = viewRef.current;
     if (!view) return;
 
-    const formatted = formatFormula(scaffold);
+    const formatted = toDoc(scaffold);
     // Place cursor on the inner line (between opening paren and closing paren)
     const firstNewline = formatted.indexOf("\n");
     const innerEnd = firstNewline >= 0 ? formatted.indexOf("\n", firstNewline + 1) : -1;
-    const cursorPos = innerEnd >= 0 ? innerEnd : formatted.length;
+    const cursorPos = sheet ? formatted.length - 1 : innerEnd >= 0 ? innerEnd : formatted.length;
 
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: formatted },
@@ -506,6 +554,120 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
+
+  if (sheet) {
+    const action = (
+      <Button
+        size="touch"
+        onClick={handleConfirm}
+        disabled={isConfirmDisabled}
+        aria-keyshortcuts={ariaKeyShortcuts(EDITOR_SHORTCUTS.applyFormula)}
+        className="w-full"
+      >
+        <Sigma />
+        {mode === "create" ? tTemplate("insertFormula") : tIde("updateFormula")}
+      </Button>
+    );
+    const rank = (cat: string) => {
+      const at = SHEET_CATEGORY_ORDER.indexOf(cat);
+      return at < 0 ? SHEET_CATEGORY_ORDER.length : at;
+    };
+    const categories = categoriesToRender(grouped).sort((a, b) => rank(a) - rank(b));
+    const category =
+      chosenCategory !== null && (chosenCategory === VARIABLES || categories.includes(chosenCategory))
+        ? chosenCategory
+        : (categories[0] ?? (loadingFns ? "" : VARIABLES));
+    return (
+      <Stack gap="4" className="pb-1">
+        <Stack
+          gap="2"
+          data-testid="formula-expression-box"
+          className={cn(
+            "rounded-lg border-2 border-brand px-3 py-2.5 focus-within:ring-[3px] focus-within:ring-ring/50",
+            validationState === "invalid" && "border-destructive",
+          )}
+        >
+          <Text id={expressionLabelId} className="sr-only">
+            {t("formulaExpression")}
+          </Text>
+          <Flex align="start" gap="1.5" className="font-mono text-sm">
+            <Text as="span" aria-hidden="true" className="font-mono text-sm leading-6">
+              =
+            </Text>
+            <Box ref={editorContainerRef} className="min-w-0 flex-1" />
+          </Flex>
+          {validationState === "invalid" && errors.length > 0 ? (
+            <List className="space-y-0.5">
+              {errors.map((msg, i) => (
+                <ListItem key={i} className="flex items-start gap-1">
+                  <XCircle className="mt-0.5 size-3 shrink-0 text-destructive" />
+                  <Text as="span" size="xs" tone="destructive">
+                    {msg}
+                  </Text>
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            result?.(lastValidExpr)
+          )}
+        </Stack>
+
+        <Box className="-mx-4 overflow-x-auto px-4">
+          <SegmentedControl
+            size="touch"
+            aria-label={t("functionsTab")}
+            value={category}
+            onValueChange={(value) => setCategory(String(value))}
+            className="w-max"
+          >
+            {categories.map((cat) => (
+              <SegmentedControlItem key={cat} value={cat}>
+                {categoryLabels[cat] ?? cat}
+              </SegmentedControlItem>
+            ))}
+            <SegmentedControlItem value={VARIABLES}>{t("variablesTab")}</SegmentedControlItem>
+          </SegmentedControl>
+        </Box>
+
+        {category === VARIABLES ? (
+          <Suspense fallback={<Skeleton className="h-24 w-full" />}>
+            <VariablePickerContent
+              onInsert={handleVariableInsert}
+              maxHeight="320px"
+              autoFocusSearch={false}
+              className="min-w-0"
+            />
+          </Suspense>
+        ) : (
+          <Stack gap="0">
+            {loadingFns && (
+              <Text size="xs" tone="muted">
+                {t("loading")}
+              </Text>
+            )}
+            {(grouped[category] ?? []).map((fn) => (
+              <Button
+                key={fn.name}
+                variant="ghost"
+                onClick={() => handleFunctionClick(fn.name)}
+                className="h-auto min-h-touch w-full flex-col items-start gap-0.5 rounded-md px-0 py-2 text-left whitespace-normal"
+              >
+                <Text as="span" size="sm" className="font-mono">
+                  {fn.signature}
+                </Text>
+                <Text as="span" size="xs" tone="muted">
+                  {fn.summary}
+                </Text>
+              </Button>
+            ))}
+          </Stack>
+        )}
+
+        {/* In the sheet's pinned footer, so it stays put while the function list scrolls. */}
+        {footer ? createPortal(action, footer) : action}
+      </Stack>
+    );
+  }
 
   return (
     <TooltipProvider>

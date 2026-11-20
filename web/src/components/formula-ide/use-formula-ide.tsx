@@ -28,7 +28,7 @@ import {
 import { cellOrigin, originDetail } from "@/lib/formula-ide/source-map";
 
 import { BoardCellHighlight } from "./board-cell-highlight";
-import type { FormulaIdeBridge, OpenFormulaRequest } from "./formula-ide-context";
+import type { FormulaIdeBridge, FormulaPreviewTarget, OpenFormulaRequest } from "./formula-ide-context";
 import { MissingValuesCard } from "./missing-values-card";
 import { PreviewDataControls } from "./preview-data-controls";
 import type { WorkbenchProps } from "./workbench-types";
@@ -197,6 +197,23 @@ export function useFormulaIde({
           },
     [target, variablePaths],
   );
+  const formulaPreview = useMemo<FormulaPreviewTarget | null>(
+    () =>
+      target === null
+        ? null
+        : {
+            target: {
+              deviceType: target.deviceType,
+              notesWide: target.notesWide,
+              notesTall: target.notesTall,
+              grid: target.grid,
+              boardId: target.boardId,
+            },
+            context: previewContext,
+            boardCols,
+          },
+    [target, previewContext, boardCols],
+  );
   const variableRender = useQuery<FormulaDebugRenderResponse>({
     queryKey: ["formula-ide", "variables", probeTarget, previewContext],
     queryFn: ({ signal }) => formulaDebugApi.render({ target: probeTarget!, preview: previewContext }, signal),
@@ -276,6 +293,7 @@ export function useFormulaIde({
     () => ({
       hint: (expression) => hints.get(normalizeSource(expression)),
       variableHint: (path) => variableHints.get(path),
+      preview: formulaPreview,
       openFormula: (request) => {
         if (!desktop || target === null) return false;
         openCounter.current += 1;
@@ -292,7 +310,7 @@ export function useFormulaIde({
         }
       },
     }),
-    [hints, variableHints, desktop, target],
+    [hints, variableHints, formulaPreview, desktop, target],
   );
 
   const inert = target === null;

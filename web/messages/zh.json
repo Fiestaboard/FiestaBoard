@@ -2761,7 +2761,11 @@
     "clickToEditFormula": "点击以编辑公式",
     "newFormula": "新公式",
     "loading": "加载中…",
-    "dialogLabel": "公式编辑器"
+    "dialogLabel": "公式编辑器",
+    "sheetTitle": "公式",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} 当前为 {value}",
+    "resultColumns": "{cols} 列中的 {used} 列"
   },
   "templateEditor": {
     "variables": "变量",
