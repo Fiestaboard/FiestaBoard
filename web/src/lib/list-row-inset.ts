@@ -11,5 +11,10 @@
  */
 export const INSET_ROW_GROUP = "flex flex-col gap-0.5 p-1 divide-y-0";
 
-/** One row in an {@link INSET_ROW_GROUP}: 44px for one line, ~56 for two. */
-export const INSET_ROW = "min-h-11 rounded-md py-2";
+/**
+ * One row in an {@link INSET_ROW_GROUP}: 44px for one line, ~56 for two.
+ * `before:inset-0`: the kit paints a selected row's fill 4px inside the row;
+ * the row is already inset in the card, so the fill fills the row instead,
+ * landing 5px from the card edge like the hover fill (07e `321:9076`).
+ */
+export const INSET_ROW = "min-h-11 rounded-md py-2 before:inset-0";

@@ -166,4 +166,12 @@ describe("Settings index rows (BB-FC-2)", () => {
       expect(classes(row)).toContain("rounded-md");
     }
   });
+
+  it("fills the open row edge to edge of the inset row, not 4px further in", async () => {
+    renderAt("/settings/appearance");
+    const you = await screen.findByRole("list", { name: "You" });
+    const open = within(you).getByRole("link", { current: "page" });
+    expect(classes(open)).toContain("before:inset-0");
+    expect(classes(open)).not.toContain("before:inset-1");
+  });
 });
