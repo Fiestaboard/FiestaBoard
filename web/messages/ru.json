@@ -351,7 +351,12 @@
     "noMatches": "Нет подходящих страниц",
     "searchCount": "{count} из {total} страниц",
     "loadError": "Не удалось загрузить страницы. Условия поиска сохранены.",
-    "retryLoading": "Повторить загрузку страниц"
+    "retryLoading": "Повторить загрузку страниц",
+    "cardActions": "Действия для {name}",
+    "duplicate": "Дублировать",
+    "deletePage": "Удалить страницу…",
+    "toastDuplicated": "Создано «{name}»",
+    "actionFailed": "Не удалось. Попробуйте ещё раз."
   },
   "collections": {
     "title": "Карусели",

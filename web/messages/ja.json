@@ -351,7 +351,12 @@
     "noMatches": "一致するページがありません",
     "searchCount": "{total} ページ中 {count} ページ",
     "loadError": "ページを読み込めませんでした。検索条件は保持されています。",
-    "retryLoading": "ページの読み込みを再試行"
+    "retryLoading": "ページの読み込みを再試行",
+    "cardActions": "{name} の操作",
+    "duplicate": "複製",
+    "deletePage": "ページを削除…",
+    "toastDuplicated": "「{name}」を作成しました",
+    "actionFailed": "できませんでした。もう一度お試しください。"
   },
   "collections": {
     "title": "カルーセル",

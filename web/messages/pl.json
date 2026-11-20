@@ -351,7 +351,12 @@
     "noMatches": "Brak pasujących stron",
     "searchCount": "{count} z {total} stron",
     "loadError": "Nie udało się wczytać stron. Wyszukiwanie zostało zachowane.",
-    "retryLoading": "Ponów wczytywanie stron"
+    "retryLoading": "Ponów wczytywanie stron",
+    "cardActions": "Działania dla {name}",
+    "duplicate": "Duplikuj",
+    "deletePage": "Usuń stronę…",
+    "toastDuplicated": "Utworzono „{name}”",
+    "actionFailed": "Nie udało się. Spróbuj ponownie."
   },
   "collections": {
     "title": "Karuzele",

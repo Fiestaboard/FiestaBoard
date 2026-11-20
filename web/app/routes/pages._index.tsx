@@ -26,6 +26,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { toast } from "sonner";
 
 import type { ViewMode } from "@/components/page-grid-selector";
+import { PageCardMenu } from "@/components/pages/page-card-menu";
 import { useBoardSettings, usePages } from "@/hooks/use-board";
 import { queryKeys } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
@@ -315,6 +316,7 @@ export default function PagesPage() {
         </Text>
         <PageGridSelector
           onSelectPage={handleSelectPage}
+          renderPageActions={(page, menu) => <PageCardMenu page={page} {...menu} />}
           label={null}
           showActiveIndicator={false}
           showCollections={false}

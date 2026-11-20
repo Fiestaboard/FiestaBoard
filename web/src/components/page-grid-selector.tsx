@@ -20,7 +20,7 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { Clock, FilePlus, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
@@ -45,6 +45,7 @@ import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { boardForShape, isLedModel, resolveBoardModel } from "@/lib/device-preview";
 import { type PageLibraryQuery, selectLibraryPages } from "@/lib/page-library-query";
+import { cn } from "@/lib/utils";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -255,6 +256,7 @@ const PageButton = memo(
     boardType = "black",
     model = null,
     ledLayout = null,
+    hasActions = false,
   }: {
     page: Page;
     preview: PagePreviewResponse | null;
@@ -267,6 +269,8 @@ const PageButton = memo(
     model?: DeviceModel | null;
     /** The board's LED layout choices (`led_layout`), drawn with the model. */
     ledLayout?: BoardLedLayout | null;
+    /** A card menu sits over the top-right corner: keep the header clear of it. */
+    hasActions?: boolean;
   }) {
     const TypeIcon = LayoutTemplate;
 
@@ -301,7 +305,7 @@ const PageButton = memo(
         data-section-item={page.id}
         {...anchorProps(`page.${page.id}`)}
       >
-        <Flex align="center" gap="2.5" className="min-w-0">
+        <Flex align="center" gap="2.5" className={cn("min-w-0", hasActions && "pr-10")}>
           <TypeIcon className={iconClassName} aria-hidden="true" />
           <Text as="span" className={nameClassName}>
             {page.name}
@@ -359,7 +363,8 @@ const PageButton = memo(
       prevProps.showActiveIndicator === nextProps.showActiveIndicator &&
       prevProps.boardType === nextProps.boardType &&
       prevProps.model === nextProps.model &&
-      prevProps.ledLayout === nextProps.ledLayout
+      prevProps.ledLayout === nextProps.ledLayout &&
+      prevProps.hasActions === nextProps.hasActions
     );
   },
 );
@@ -371,11 +376,13 @@ const PageListItem = memo(
     isActive,
     isPending,
     onSelect,
+    hasActions = false,
   }: {
     page: Page;
     isActive: boolean;
     isPending: boolean;
     onSelect: (pageId: string) => void;
+    hasActions?: boolean;
   }) {
     const handleClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -416,7 +423,7 @@ const PageListItem = memo(
       <button
         onClick={handleClick}
         disabled={isPending}
-        className={buttonClassName}
+        className={cn(buttonClassName, hasActions && "pr-14")}
         type="button"
         aria-pressed={isActive}
         data-section-item={page.id}
@@ -456,7 +463,8 @@ const PageListItem = memo(
       prevProps.page.id === nextProps.page.id &&
       prevProps.isActive === nextProps.isActive &&
       prevProps.isPending === nextProps.isPending &&
-      prevProps.page.updated_at === nextProps.page.updated_at
+      prevProps.page.updated_at === nextProps.page.updated_at &&
+      prevProps.hasActions === nextProps.hasActions
     );
   },
 );
@@ -636,6 +644,77 @@ export interface PageGridSelectorProps {
   compatibleBoard?: BoardInstance;
   /** Opt-in saved-content search/sort for the library; assignment pickers keep their defaults. */
   libraryQuery?: PageLibraryQuery;
+  /**
+   * The library's per-card menu (BB-B-8), drawn beside each card rather than
+   * inside its button. Gets `open`/`onOpenChange` so a right-click or a
+   * long-press on the card opens it too. Pickers leave it out.
+   */
+  renderPageActions?: (page: Page, menu: { open: boolean; onOpenChange: (open: boolean) => void }) => ReactNode;
+}
+
+const LONG_PRESS_MS = 500;
+
+/** A card with its menu beside it; a right-click or long-press on the card opens the menu. */
+function WithPageActions({
+  page,
+  render,
+  children,
+}: {
+  page: Page;
+  render?: PageGridSelectorProps["renderPageActions"];
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  // Touch long-press (iOS Safari fires no contextmenu): open the menu, and
+  // swallow the click the release would send to the card.
+  const press = useRef<{ timer: ReturnType<typeof setTimeout> | null; fired: boolean; x: number; y: number }>({
+    timer: null,
+    fired: false,
+    x: 0,
+    y: 0,
+  });
+  const cancelPress = () => {
+    if (press.current.timer) clearTimeout(press.current.timer);
+    press.current.timer = null;
+  };
+  if (!render) return <>{children}</>;
+  return (
+    <Box
+      // The card button fills the cell as it did when it was the grid item.
+      className="relative min-w-0 [&>button]:w-full"
+      onContextMenu={(event) => {
+        event.preventDefault();
+        setOpen(true);
+      }}
+      onPointerDown={(event) => {
+        if (event.pointerType !== "touch") return;
+        cancelPress();
+        press.current = {
+          fired: false,
+          x: event.clientX,
+          y: event.clientY,
+          timer: setTimeout(() => {
+            press.current.fired = true;
+            setOpen(true);
+          }, LONG_PRESS_MS),
+        };
+      }}
+      onPointerMove={(event) => {
+        if (Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > 10) cancelPress();
+      }}
+      onPointerUp={cancelPress}
+      onPointerCancel={cancelPress}
+      onClickCapture={(event) => {
+        if (!press.current.fired) return;
+        press.current.fired = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
+      {children}
+      <Box className="absolute right-1.5 top-1.5">{render(page, { open, onOpenChange: setOpen })}</Box>
+    </Box>
+  );
 }
 
 export function PageGridSelector({
@@ -650,6 +729,7 @@ export function PageGridSelector({
   filterByCurrentBoardSize = false,
   compatibleBoard,
   libraryQuery,
+  renderPageActions,
 }: PageGridSelectorProps) {
   const t = useTranslations("pageGridSelector");
   const tPages = useTranslations("pages");
@@ -983,31 +1063,35 @@ export function PageGridSelector({
     viewMode === "list" ? (
       <Stack gap="3" role="group" aria-label={t("pagesAriaLabel")}>
         {pages.map((page) => (
-          <PageListItem
-            key={page.id}
-            page={page}
-            isActive={page.id === activePageId}
-            isPending={isPending}
-            onSelect={onSelectPage}
-          />
+          <WithPageActions key={page.id} page={page} render={renderPageActions}>
+            <PageListItem
+              page={page}
+              isActive={page.id === activePageId}
+              isPending={isPending}
+              onSelect={onSelectPage}
+              hasActions={!!renderPageActions}
+            />
+          </WithPageActions>
         ))}
       </Stack>
     ) : (
       <Grid cols="1" gap="4" className="sm:grid-cols-2" role="group" aria-label={t("pagesAriaLabel")}>
         {pages.map((page) => (
-          <PageButton
-            key={page.id}
-            page={page}
-            preview={previews[page.id] || null}
-            isLoadingPreview={previewsPending}
-            isActive={page.id === activePageId}
-            isPending={isPending}
-            onSelect={onSelectPage}
-            showActiveIndicator={showActiveIndicator}
-            boardType={getEffectiveBoardColor(boardSettings)}
-            model={previewTargets[page.id]?.model ?? null}
-            ledLayout={previewTargets[page.id]?.ledLayout ?? null}
-          />
+          <WithPageActions key={page.id} page={page} render={renderPageActions}>
+            <PageButton
+              hasActions={!!renderPageActions}
+              page={page}
+              preview={previews[page.id] || null}
+              isLoadingPreview={previewsPending}
+              isActive={page.id === activePageId}
+              isPending={isPending}
+              onSelect={onSelectPage}
+              showActiveIndicator={showActiveIndicator}
+              boardType={getEffectiveBoardColor(boardSettings)}
+              model={previewTargets[page.id]?.model ?? null}
+              ledLayout={previewTargets[page.id]?.ledLayout ?? null}
+            />
+          </WithPageActions>
         ))}
       </Grid>
     );

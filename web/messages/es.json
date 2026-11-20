@@ -351,7 +351,12 @@
     "noMatches": "No hay páginas coincidentes",
     "searchCount": "{count} de {total} páginas",
     "loadError": "No se pudieron cargar las páginas. Se conserva tu búsqueda.",
-    "retryLoading": "Reintentar cargar páginas"
+    "retryLoading": "Reintentar cargar páginas",
+    "cardActions": "Acciones de {name}",
+    "duplicate": "Duplicar",
+    "deletePage": "Eliminar página…",
+    "toastDuplicated": "Se creó «{name}»",
+    "actionFailed": "No se pudo hacer. Inténtalo de nuevo."
   },
   "collections": {
     "title": "Carruseles",

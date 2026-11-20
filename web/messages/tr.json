@@ -351,7 +351,12 @@
     "noMatches": "Eşleşen sayfa yok",
     "searchCount": "{total} sayfadan {count} tanesi",
     "loadError": "Sayfalar yüklenemedi. Aramanız korunuyor.",
-    "retryLoading": "Sayfaları yüklemeyi yeniden dene"
+    "retryLoading": "Sayfaları yüklemeyi yeniden dene",
+    "cardActions": "{name} için işlemler",
+    "duplicate": "Çoğalt",
+    "deletePage": "Sayfayı sil…",
+    "toastDuplicated": "“{name}” oluşturuldu",
+    "actionFailed": "Yapılamadı. Tekrar deneyin."
   },
   "collections": {
     "title": "Döngüler",

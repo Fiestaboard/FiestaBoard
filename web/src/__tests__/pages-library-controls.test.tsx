@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -60,6 +60,7 @@ function renderLibrary(children = <PagesPage />) {
 function resultIds() {
   return within(screen.getByRole("group", { name: "Pages" }))
     .getAllByRole("button")
+    .filter((button) => button.hasAttribute("data-section-item"))
     .map((button) => button.getAttribute("data-section-item"));
 }
 
@@ -188,7 +189,7 @@ describe("Pages library search and sorting", () => {
     await user.type(screen.getByRole("searchbox", { name: "Search pages" }), "weather");
     await user.click(screen.getByRole("combobox", { name: "Sort pages" }));
     await user.click(await screen.findByRole("option", { name: "Newest created" }));
-    await user.click(screen.getByRole("button", { name: /Note forecast/ }));
+    await user.click(screen.getByRole("button", { name: /^Note forecast/ }));
     expect(push).toHaveBeenCalledWith("/pages/edit/note");
     view.unmount();
     renderLibrary();
@@ -625,5 +626,77 @@ describe("Pages library search and sorting", () => {
       <PageGridSelector onSelectPage={() => {}} showCollections={false} deviceTypeFilter="flagship" viewMode="list" />,
     );
     expect(await screen.findByText("Beta")).toBeInTheDocument();
+  });
+});
+
+// BB-B-8 (Figma 303:18724): each card has a menu to edit, duplicate or delete
+// the page without opening it.
+describe("Pages library card menu", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem("fiestaboard_pages_view_mode", "list");
+    server.use(
+      http.get("/api/settings/board", () =>
+        HttpResponse.json({ board_type: "black", devices: ["flagship"], boards: [] }),
+      ),
+      http.get("/api/v1/pages", () => HttpResponse.json({ pages, total: pages.length })),
+      http.get("/api/v1/collections", () => HttpResponse.json({ collections: [], total: 0 })),
+      http.get("/api/panels", () => HttpResponse.json({ panels: [], total: 0 })),
+    );
+  });
+
+  it("edits, duplicates and deletes a page from its card", async () => {
+    const duplicated: string[] = [];
+    const deleted: string[] = [];
+    server.use(
+      http.post("/api/pages/:id/duplicate", ({ params }) => {
+        duplicated.push(String(params.id));
+        return HttpResponse.json(
+          { page: { ...pages[0], id: "alpha-2", name: "Alpha copy" }, report: {} },
+          { status: 201 },
+        );
+      }),
+      http.delete("/api/v1/pages/:id", ({ params }) => {
+        deleted.push(String(params.id));
+        return HttpResponse.json({ status: "deleted" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
+
+    await user.click(screen.getByRole("button", { name: "Actions for Alpha" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
+    expect(push).toHaveBeenCalledWith("/pages/edit/alpha");
+
+    await user.click(screen.getByRole("button", { name: "Actions for Alpha" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Duplicate" }));
+    await waitFor(() => expect(duplicated).toEqual(["alpha"]));
+
+    await user.click(screen.getByRole("button", { name: "Actions for Beta" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete page…" }));
+    const confirm = await screen.findByRole("alertdialog");
+    await user.click(within(confirm).getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(deleted).toEqual(["beta"]));
+  });
+
+  it("opens the menu on a long-press without opening the page", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderLibrary();
+      const card = (await screen.findByText("Alpha")).closest("button")!;
+      fireEvent.pointerDown(card, { pointerType: "touch", clientX: 5, clientY: 5 });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+      expect(await screen.findByRole("menuitem", { name: "Duplicate" })).toBeInTheDocument();
+      fireEvent.pointerUp(card, { pointerType: "touch" });
+      fireEvent.click(card);
+      expect(push).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

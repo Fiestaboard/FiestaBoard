@@ -307,7 +307,12 @@
     "noMatches": "No matching pages",
     "searchCount": "{count} of {total} pages",
     "loadError": "Could not load pages. Your search is kept.",
-    "retryLoading": "Retry loading pages"
+    "retryLoading": "Retry loading pages",
+    "cardActions": "Actions for {name}",
+    "duplicate": "Duplicate",
+    "deletePage": "Delete page…",
+    "toastDuplicated": "Made “{name}”",
+    "actionFailed": "Couldn’t do that. Try again."
   },
   "collections": {
     "title": "Collections",

@@ -351,7 +351,12 @@
     "noMatches": "Inga matchande sidor",
     "searchCount": "{count} av {total} sidor",
     "loadError": "Kunde inte läsa in sidorna. Din sökning finns kvar.",
-    "retryLoading": "Försök läsa in sidorna igen"
+    "retryLoading": "Försök läsa in sidorna igen",
+    "cardActions": "Åtgärder för {name}",
+    "duplicate": "Duplicera",
+    "deletePage": "Ta bort sidan…",
+    "toastDuplicated": "”{name}” skapad",
+    "actionFailed": "Det gick inte. Försök igen."
   },
   "collections": {
     "title": "Karuseller",

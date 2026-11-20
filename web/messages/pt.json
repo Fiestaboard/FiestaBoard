@@ -351,7 +351,12 @@
     "noMatches": "Nenhuma página correspondente",
     "searchCount": "{count} de {total} páginas",
     "loadError": "Não foi possível carregar as páginas. A pesquisa foi mantida.",
-    "retryLoading": "Tentar carregar páginas novamente"
+    "retryLoading": "Tentar carregar páginas novamente",
+    "cardActions": "Ações de {name}",
+    "duplicate": "Duplicar",
+    "deletePage": "Excluir página…",
+    "toastDuplicated": "“{name}” criada",
+    "actionFailed": "Não foi possível. Tente novamente."
   },
   "collections": {
     "title": "Carrosséis",

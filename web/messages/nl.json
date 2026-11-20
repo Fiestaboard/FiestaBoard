@@ -351,7 +351,12 @@
     "noMatches": "Geen overeenkomende pagina’s",
     "searchCount": "{count} van {total} pagina’s",
     "loadError": "Pagina’s konden niet worden geladen. Je zoekopdracht blijft behouden.",
-    "retryLoading": "Pagina’s opnieuw laden"
+    "retryLoading": "Pagina’s opnieuw laden",
+    "cardActions": "Acties voor {name}",
+    "duplicate": "Dupliceren",
+    "deletePage": "Pagina verwijderen…",
+    "toastDuplicated": "‘{name}’ gemaakt",
+    "actionFailed": "Dat lukte niet. Probeer het opnieuw."
   },
   "collections": {
     "title": "Carrousels",

@@ -351,7 +351,12 @@
     "noMatches": "Aucune page correspondante",
     "searchCount": "{count} sur {total} pages",
     "loadError": "Impossible de charger les pages. Votre recherche est conservée.",
-    "retryLoading": "Réessayer le chargement"
+    "retryLoading": "Réessayer le chargement",
+    "cardActions": "Actions pour {name}",
+    "duplicate": "Dupliquer",
+    "deletePage": "Supprimer la page…",
+    "toastDuplicated": "« {name} » créée",
+    "actionFailed": "Impossible pour le moment. Réessayez."
   },
   "collections": {
     "title": "Carrousels",
