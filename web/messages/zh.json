@@ -3221,7 +3221,7 @@
     "runningVersion": "FiestaBoard {version}",
     "upToDate": "已是最新",
     "updateAvailable": "有可用更新：{version}",
-    "managedExternally": "此中枢的更新由 Home Assistant 管理。要切换频道，请从其加载项商店安装 beta 加载项。"
+    "managedExternally": "此中枢的更新由 Home Assistant 管理。要切换渠道，请从其加载项商店安装 beta 加载项。"
   },
   "aiApprovalCard": {
     "heading": "需要你的批准",

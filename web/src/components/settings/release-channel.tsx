@@ -94,11 +94,16 @@ export function ReleaseChannelCard() {
   const selected = selection ?? current;
   const leaving = (current === "alpha" && target !== "alpha") || (current === "beta" && target === "stable");
   const runningVersion = t("runningVersion", { version: data.running_version });
+  // Say "Up to date" (green) only when the check says so; while it loads,
+  // when it failed, or when Home Assistant owns updates, claim nothing.
+  const upToDate =
+    !updateStatus?.managed_externally && !!updateCheck && !updateCheck.error && !updateCheck.update_available;
   const versionLine = updateVersion
     ? `${runningVersion} · ${t("updateAvailable", { version: updateVersion })}`
-    : updateCheck && !updateCheck.error && !updateCheck.update_available
+    : upToDate
       ? `${runningVersion} · ${t("upToDate")}`
       : runningVersion;
+  const versionStatus = updateVersion ? "warning" : upToDate ? "success" : "neutral";
   // The running channel's version is known here; the others are discovered.
   const versionOf = (channel: ReleaseChannel) =>
     channel === current && data.running_version
@@ -110,7 +115,7 @@ export function ReleaseChannelCard() {
   return (
     <SettingsPanel icon={<BadgeInfo />} title={t("versionTitle")} {...anchorProps("settings.release_channel")}>
       <Flex align="center" gap="2">
-        <StatusDot status={updateVersion ? "warning" : "success"} />
+        <StatusDot status={versionStatus} />
         <Text size="sm">{versionLine}</Text>
       </Flex>
       <Text size="sm" weight="medium" className="mt-3">

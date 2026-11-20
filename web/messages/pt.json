@@ -3221,7 +3221,7 @@
     "runningVersion": "FiestaBoard {version}",
     "upToDate": "Atualizado",
     "updateAvailable": "Atualização disponível: {version}",
-    "managedExternally": "O Home Assistant gere as atualizações deste hub. Para mudar de canal, instale o suplemento beta a partir da loja de suplementos."
+    "managedExternally": "O Home Assistant gerencia as atualizações deste hub. Para trocar de canal, instale o complemento beta pela loja de complementos."
   },
   "aiApprovalCard": {
     "heading": "Precisa da sua aprovação",

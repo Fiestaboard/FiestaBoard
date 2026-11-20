@@ -107,6 +107,43 @@ describe("ReleaseChannelCard", () => {
     );
     render(<ReleaseChannelCard />, { wrapper: Wrapper });
     expect(await screen.findByText("FiestaBoard 10.3.3 · Up to date")).toBeVisible();
+    expect(document.querySelector('[data-slot="status-dot"]')).toHaveAttribute("data-status", "success");
+  });
+
+  it("claims nothing about currency when the update check fails", async () => {
+    onChannel("stable");
+    server.use(
+      http.get(`${API_BASE}/system/update-check`, () => HttpResponse.json({ detail: "offline" }, { status: 503 })),
+    );
+    const { container } = render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    expect(await screen.findByText("FiestaBoard 10.3.3")).toBeVisible();
+    await waitFor(() =>
+      expect(container.querySelector('[data-slot="status-dot"]')).toHaveAttribute("data-status", "neutral"),
+    );
+  });
+
+  it("does not show a green dot on a Home Assistant install with an update waiting", async () => {
+    onChannel("stable");
+    server.use(
+      http.get(`${API_BASE}/system/update/status`, () =>
+        HttpResponse.json({ updater_available: false, auto_update_enabled: false, managed_externally: true }),
+      ),
+      http.get(`${API_BASE}/system/update-check`, () =>
+        HttpResponse.json({
+          current_version: "10.3.3",
+          latest_version: "10.4.0",
+          update_available: true,
+          package_url: "",
+          error: null,
+          is_production: true,
+        }),
+      ),
+    );
+    const { container } = render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    await screen.findByText(/FiestaBoard 10\.3\.3/);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(container.querySelector('[data-slot="status-dot"]')).not.toHaveAttribute("data-status", "success");
+    expect(screen.queryByText(/Up to date/)).not.toBeInTheDocument();
   });
 
   it("draws version numbers as written, not as uppercase code", async () => {
