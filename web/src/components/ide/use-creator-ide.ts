@@ -30,6 +30,8 @@ export const BUILDER_POLL_MS = 1000;
 export const VALIDATE_DEBOUNCE_MS = 600;
 /** H8 and H9b reads refresh on this cadence while the editor is open. */
 export const HUB_REFRESH_MS = 60_000;
+/** D4: unsaved edits reach the hub draft this long after the last change. */
+export const AUTOSAVE_MS = 1500;
 
 interface BuilderState {
   unsaved: boolean;
@@ -261,6 +263,82 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     },
   });
 
+  // D4 (BB-E-17): a draft the hub holds when the page opens is restored into
+  // the editor ("Draft restored · Discard"); from then on this session owns it.
+  const [restored, setRestored] = useState<{ revision: string; stale: boolean } | null>(null);
+  const [restoreChecked, setRestoreChecked] = useState(false);
+  if (!restoreChecked && draft.isFetched && snapshot) {
+    setRestoreChecked(true);
+    if (hubDraft) {
+      if (!builder.unsaved && contentKey(hubDraft.content) !== contentKey(snapshot)) {
+        setRestored({ revision: hubDraft.revision, stale: hubDraft.stale });
+      }
+    }
+  }
+  const appliedRestore = useRef<string | null>(null);
+  useEffect(() => {
+    if (!restored || appliedRestore.current === restored.revision) return;
+    const pending = queryClient.getQueryData<PageDraft | null>(ideKeys.draft(pageId));
+    if (!pending || pending.revision !== restored.revision) return;
+    appliedRestore.current = restored.revision;
+    ownedDraftRevisions.current.add(pending.revision);
+    builderRef.current?.applyContent(pending.content);
+  }, [restored, queryClient, pageId, builderRef]);
+  // A draft that already matches the editor is this session's to keep in step.
+  useEffect(() => {
+    if (restoreChecked && hubDraft && contentKey(hubDraft.content) === contentKey(snapshot ?? undefined)) {
+      ownedDraftRevisions.current.add(hubDraft.revision);
+    }
+  }, [restoreChecked, hubDraft, snapshot]);
+
+  const discardRestored = useCallback(async () => {
+    const pending = queryClient.getQueryData<PageDraft | null>(ideKeys.draft(pageId));
+    if (pending) await pageHistoryApi.discardDraft(pageId, pending.revision).catch(() => undefined);
+    queryClient.setQueryData(ideKeys.draft(pageId), null);
+    setRestored(null);
+    invalidateHistory();
+    await builderRef.current?.discardContent();
+  }, [queryClient, pageId, builderRef, invalidateHistory]);
+
+  /** The leave guard's "Discard changes": drop the draft this session owns, if any. */
+  const discardOwnedDraft = useCallback(async () => {
+    const pending = queryClient.getQueryData<PageDraft | null>(ideKeys.draft(pageId));
+    if (!pending || !ownedDraftRevisions.current.has(pending.revision)) return;
+    await pageHistoryApi.discardDraft(pageId, pending.revision).catch(() => undefined);
+    queryClient.setQueryData(ideKeys.draft(pageId), null);
+  }, [queryClient, pageId]);
+
+  // D4 autosave: unsaved edits go to the hub draft, never the page. Only a
+  // draft this session owns is written over; one made elsewhere meanwhile
+  // (History's Restore, a phone) is left for the reader. Edits undone back to
+  // the saved page drop the draft.
+  const snapshotKey = snapshot ? contentKey(snapshot) : "";
+  const draftKey = hubDraft ? contentKey(hubDraft.content) : null;
+  const autosaveBlocked = !restoreChecked || draftConflict || saveDraft.isPending;
+  useEffect(() => {
+    if (autosaveBlocked || !snapshotKey) return;
+    if (hubDraft && !ownedDraftRevisions.current.has(hubDraft.revision)) return;
+    const write = builder.unsaved && draftKey !== snapshotKey;
+    const drop = !builder.unsaved && hubDraft !== null;
+    if (!write && !drop) return;
+    const timer = setTimeout(() => {
+      if (write) {
+        saveDraft.mutate({});
+      } else if (hubDraft) {
+        void pageHistoryApi
+          .discardDraft(pageId, hubDraft.revision)
+          .catch(() => undefined)
+          .finally(() => {
+            queryClient.setQueryData(ideKeys.draft(pageId), null);
+            setRestored(null);
+          });
+      }
+    }, AUTOSAVE_MS);
+    return () => clearTimeout(timer);
+    // saveDraft is stable enough: its identity changes with its state, which autosaveBlocked covers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autosaveBlocked, snapshotKey, draftKey, builder.unsaved, hubDraft, pageId, queryClient]);
+
   // "Save & update board" saved the page itself. A draft this session wrote is
   // now behind the page and goes; any other draft is kept for History (stale).
   const lastTick = useRef(savedTick);
@@ -273,6 +351,7 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     void after
       .catch(() => undefined)
       .finally(() => {
+        setRestored(null);
         void queryClient.invalidateQueries({ queryKey: ideKeys.draft(pageId) });
         invalidateHistory();
         void queryClient.invalidateQueries({ queryKey: ideKeys.sends(pageId) });
@@ -304,6 +383,10 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     discardDraft,
     publishDraft,
     invalidateHistory,
+    /** D4: the draft restored into the editor when the page opened, until it is saved or discarded. */
+    restoredDraft: restored,
+    discardRestored,
+    discardOwnedDraft,
   };
 }
 

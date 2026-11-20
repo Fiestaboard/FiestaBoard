@@ -1734,7 +1734,15 @@
     "textMode": "Texto",
     "canvasesMode": "Lienzos",
     "showPreview": "Mostrar vista previa y salida en vivo",
-    "hidePreview": "Ocultar vista previa y salida en vivo"
+    "hidePreview": "Ocultar vista previa y salida en vivo",
+    "discardDialogClose": "Cerrar",
+    "discardChangesSince": "Cambiaste {count, plural, one {1 línea} other {# líneas}} desde las {time}. Si sales ahora, se perderán.",
+    "discardChangesLost": "Si sales ahora, perderás los cambios.",
+    "discardChangesBoardKeeps": "{board} sigue mostrando la versión guardada.",
+    "discardChangesDisplaysKeep": "Las pantallas siguen mostrando la versión guardada.",
+    "discardChangedLabel": "Cambiado",
+    "discardChangedLine": "Línea {line} ({text})",
+    "discardChangedLineEmpty": "Línea {line} (vacía)"
   },
   "displaySettings": {
     "unnamedBoard": "Tablero sin nombre",
@@ -3825,7 +3833,9 @@
     "thisDisplay": "esta pantalla",
     "startFrom": "O empieza con",
     "insertVariable": "Insertar una variable",
-    "browseStaffPicks": "Explorar Selecciones del equipo"
+    "browseStaffPicks": "Explorar Selecciones del equipo",
+    "discardDraft": "Descartar",
+    "lastSaved": "guardado por última vez {time}"
   },
   "phonePairing": {
     "title": "Conectar un teléfono",
@@ -4193,7 +4203,13 @@
     "replaceDraft": "Reemplazar borrador",
     "draftConflictTitle": "¿Reemplazar el borrador más reciente?",
     "draftConflictDescription": "Otro dispositivo guardó el borrador de esta página después de que la abrieras. Si lo reemplazas, solo se conserva lo que hay en este editor.",
-    "legendLabel": "Entradas de la programación"
+    "legendLabel": "Entradas de la programación",
+    "draftRestored": "Borrador restaurado",
+    "draftRestoredStale": "Borrador restaurado · la página cambió desde entonces",
+    "draftSavedAt": "Borrador guardado {time}",
+    "liveOn": "En vivo en {board}",
+    "deletePage": "Eliminar página…",
+    "deletePageDetail": "La quita de todas las programaciones y colecciones"
   },
   "formulaIde": {
     "atomValue": "= {value}",

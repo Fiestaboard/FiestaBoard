@@ -113,7 +113,7 @@ it("keeps the edited new page when Back is cancelled with Keep editing", async (
   await act(async () => {
     await router.navigate(-1);
   });
-  expect(await screen.findByRole("alertdialog", { name: "Discard unsaved changes?" })).toBeInTheDocument();
+  expect(await screen.findByRole("alertdialog", { name: /^Discard changes( to .*)?\?$/ })).toBeInTheDocument();
   expect(router.state.location.pathname).toBe("/pages/new");
   await user.click(screen.getByRole("button", { name: /^Keep editing$/ }));
   await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
@@ -121,15 +121,15 @@ it("keeps the edited new page when Back is cancelled with Keep editing", async (
   expect(router.state.location.pathname).toBe("/pages/new");
 });
 
-it("exits the edited new page when Back is confirmed with Discard and leave", async () => {
+it("exits the edited new page when Back is confirmed with Discard changes", async () => {
   const router = renderNewPage();
   const user = userEvent.setup();
   await user.type(await screen.findByLabelText(/page name/i), "Discard this draft");
   await act(async () => {
     await router.navigate(-1);
   });
-  expect(await screen.findByRole("alertdialog", { name: "Discard unsaved changes?" })).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: /^Discard and leave$/ }));
+  expect(await screen.findByRole("alertdialog", { name: /^Discard changes( to .*)?\?$/ })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /^Discard changes$/ }));
   expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
   expect(router.state.location.pathname).toBe("/pages");
   expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();

@@ -85,7 +85,7 @@ export function EditorShortcutList({ variant, state, anchorRef, boardViewport = 
 
   const trigger =
     variant === "header" ? (
-      <Button variant="secondary" size="sm" className="h-8 gap-1.5 px-3 text-xs" aria-keyshortcuts="?">
+      <Button variant="ghost" size="lg" className="gap-1.5 px-4 text-sm" aria-keyshortcuts="?">
         <Zap className="h-3.5 w-3.5" aria-hidden />
         {t("button")}
       </Button>

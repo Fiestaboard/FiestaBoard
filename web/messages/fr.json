@@ -1734,7 +1734,15 @@
     "textMode": "Texte",
     "canvasesMode": "Canevas",
     "showPreview": "Afficher l’aperçu et la sortie en direct",
-    "hidePreview": "Masquer l’aperçu et la sortie en direct"
+    "hidePreview": "Masquer l’aperçu et la sortie en direct",
+    "discardDialogClose": "Fermer",
+    "discardChangesSince": "Vous avez modifié {count, plural, one {1 ligne} other {# lignes}} depuis {time}. Si vous partez maintenant, elles seront perdues.",
+    "discardChangesLost": "Si vous partez maintenant, vos modifications seront perdues.",
+    "discardChangesBoardKeeps": "{board} continue d’afficher la version enregistrée.",
+    "discardChangesDisplaysKeep": "Les écrans continuent d’afficher la version enregistrée.",
+    "discardChangedLabel": "Modifié",
+    "discardChangedLine": "Ligne {line} ({text})",
+    "discardChangedLineEmpty": "Ligne {line} (vide)"
   },
   "displaySettings": {
     "unnamedBoard": "Tableau sans nom",
@@ -3825,7 +3833,9 @@
     "thisDisplay": "cet écran",
     "startFrom": "Ou commencez par",
     "insertVariable": "Insérer une variable",
-    "browseStaffPicks": "Parcourir les Sélections de l’équipe"
+    "browseStaffPicks": "Parcourir les Sélections de l’équipe",
+    "discardDraft": "Ignorer",
+    "lastSaved": "dernier enregistrement {time}"
   },
   "phonePairing": {
     "title": "Connecter un téléphone",
@@ -4193,7 +4203,13 @@
     "replaceDraft": "Remplacer le brouillon",
     "draftConflictTitle": "Remplacer le brouillon plus récent ?",
     "draftConflictDescription": "Un autre appareil a enregistré le brouillon de cette page après son ouverture. Le remplacer ne garde que le contenu de cet éditeur.",
-    "legendLabel": "Entrées du planning"
+    "legendLabel": "Entrées du planning",
+    "draftRestored": "Brouillon restauré",
+    "draftRestoredStale": "Brouillon restauré · la page a changé depuis",
+    "draftSavedAt": "Brouillon enregistré {time}",
+    "liveOn": "En direct sur {board}",
+    "deletePage": "Supprimer la page…",
+    "deletePageDetail": "La retire de tous les plannings et collections"
   },
   "formulaIde": {
     "atomValue": "= {value}",

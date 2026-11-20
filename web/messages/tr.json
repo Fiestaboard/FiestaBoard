@@ -1734,7 +1734,15 @@
     "textMode": "Metin",
     "canvasesMode": "Tuvaller",
     "showPreview": "Önizlemeyi ve canlı çıkışı göster",
-    "hidePreview": "Önizlemeyi ve canlı çıkışı gizle"
+    "hidePreview": "Önizlemeyi ve canlı çıkışı gizle",
+    "discardDialogClose": "Kapat",
+    "discardChangesSince": "{time} saatinden beri {count} satırı değiştirdin. Şimdi çıkarsan kaybolur.",
+    "discardChangesLost": "Şimdi çıkarsan değişikliklerin kaybolur.",
+    "discardChangesBoardKeeps": "{board} kayıtlı sürümü göstermeye devam eder.",
+    "discardChangesDisplaysKeep": "Ekranlar kayıtlı sürümü göstermeye devam eder.",
+    "discardChangedLabel": "Değişti",
+    "discardChangedLine": "Satır {line} ({text})",
+    "discardChangedLineEmpty": "Satır {line} (boş)"
   },
   "displaySettings": {
     "unnamedBoard": "İsimsiz Pano",
@@ -3825,7 +3833,9 @@
     "thisDisplay": "bu ekran",
     "startFrom": "Ya da şununla başlayın",
     "insertVariable": "Bir değişken ekle",
-    "browseStaffPicks": "Ekip Seçimlerine göz at"
+    "browseStaffPicks": "Ekip Seçimlerine göz at",
+    "discardDraft": "At",
+    "lastSaved": "son kayıt {time}"
   },
   "phonePairing": {
     "title": "Telefon bağla",
@@ -4193,7 +4203,13 @@
     "replaceDraft": "Taslağı değiştir",
     "draftConflictTitle": "Daha yeni taslak değiştirilsin mi?",
     "draftConflictDescription": "Bu sayfayı açtıktan sonra başka bir cihaz taslağını kaydetti. Değiştirirseniz yalnızca bu düzenleyicideki içerik kalır.",
-    "legendLabel": "Program girişleri"
+    "legendLabel": "Program girişleri",
+    "draftRestored": "Taslak geri yüklendi",
+    "draftRestoredStale": "Taslak geri yüklendi · sayfa o zamandan beri değişti",
+    "draftSavedAt": "Taslak kaydedildi {time}",
+    "liveOn": "{board} üzerinde yayında",
+    "deletePage": "Sayfayı sil…",
+    "deletePageDetail": "Tüm programlardan ve koleksiyonlardan kaldırır"
   },
   "formulaIde": {
     "atomValue": "= {value}",

@@ -1734,7 +1734,15 @@
     "textMode": "Testo",
     "canvasesMode": "Tele",
     "showPreview": "Mostra anteprima e output in tempo reale",
-    "hidePreview": "Nascondi anteprima e output in tempo reale"
+    "hidePreview": "Nascondi anteprima e output in tempo reale",
+    "discardDialogClose": "Chiudi",
+    "discardChangesSince": "Hai modificato {count, plural, one {1 riga} other {# righe}} dalle {time}. Se esci ora, andranno perse.",
+    "discardChangesLost": "Se esci ora, le modifiche andranno perse.",
+    "discardChangesBoardKeeps": "{board} continua a mostrare la versione salvata.",
+    "discardChangesDisplaysKeep": "I display continuano a mostrare la versione salvata.",
+    "discardChangedLabel": "Modificato",
+    "discardChangedLine": "Riga {line} ({text})",
+    "discardChangedLineEmpty": "Riga {line} (vuota)"
   },
   "displaySettings": {
     "unnamedBoard": "Bacheca senza nome",
@@ -3825,7 +3833,9 @@
     "thisDisplay": "questo display",
     "startFrom": "Oppure inizia da",
     "insertVariable": "Inserisci una variabile",
-    "browseStaffPicks": "Sfoglia le Scelte del team"
+    "browseStaffPicks": "Sfoglia le Scelte del team",
+    "discardDraft": "Scarta",
+    "lastSaved": "ultimo salvataggio {time}"
   },
   "phonePairing": {
     "title": "Collega un telefono",
@@ -4193,7 +4203,13 @@
     "replaceDraft": "Sostituisci bozza",
     "draftConflictTitle": "Sostituire la bozza più recente?",
     "draftConflictDescription": "Un altro dispositivo ha salvato la bozza di questa pagina dopo che l’hai aperta. Sostituendola resta solo il contenuto di questo editor.",
-    "legendLabel": "Voci della programmazione"
+    "legendLabel": "Voci della programmazione",
+    "draftRestored": "Bozza ripristinata",
+    "draftRestoredStale": "Bozza ripristinata · la pagina è cambiata nel frattempo",
+    "draftSavedAt": "Bozza salvata {time}",
+    "liveOn": "In onda su {board}",
+    "deletePage": "Elimina pagina…",
+    "deletePageDetail": "La rimuove da tutte le programmazioni e raccolte"
   },
   "formulaIde": {
     "atomValue": "= {value}",

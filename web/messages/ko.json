@@ -1734,7 +1734,15 @@
     "textMode": "텍스트",
     "canvasesMode": "캔버스",
     "showPreview": "미리보기 및 실시간 출력 표시",
-    "hidePreview": "미리보기 및 실시간 출력 숨기기"
+    "hidePreview": "미리보기 및 실시간 출력 숨기기",
+    "discardDialogClose": "닫기",
+    "discardChangesSince": "{time} 이후 {count}줄을 변경했습니다. 지금 나가면 사라집니다.",
+    "discardChangesLost": "지금 나가면 변경 사항이 사라집니다.",
+    "discardChangesBoardKeeps": "{board}에는 저장된 버전이 계속 표시됩니다.",
+    "discardChangesDisplaysKeep": "디스플레이에는 저장된 버전이 계속 표시됩니다.",
+    "discardChangedLabel": "변경됨",
+    "discardChangedLine": "{line}번째 줄 ({text})",
+    "discardChangedLineEmpty": "{line}번째 줄 (빈 줄)"
   },
   "displaySettings": {
     "unnamedBoard": "이름 없는 보드",
@@ -3825,7 +3833,9 @@
     "thisDisplay": "이 디스플레이",
     "startFrom": "또는 다음으로 시작하세요",
     "insertVariable": "변수 삽입",
-    "browseStaffPicks": "스태프 추천 둘러보기"
+    "browseStaffPicks": "스태프 추천 둘러보기",
+    "discardDraft": "버리기",
+    "lastSaved": "마지막 저장 {time}"
   },
   "phonePairing": {
     "title": "휴대폰 연결",
@@ -4193,7 +4203,13 @@
     "replaceDraft": "초안 바꾸기",
     "draftConflictTitle": "최신 초안을 바꿀까요?",
     "draftConflictDescription": "이 페이지를 연 뒤 다른 기기에서 초안을 저장했습니다. 바꾸면 이 편집기의 내용만 남습니다.",
-    "legendLabel": "일정 항목"
+    "legendLabel": "일정 항목",
+    "draftRestored": "초안을 복원했습니다",
+    "draftRestoredStale": "초안을 복원했습니다 · 이후 페이지가 변경됨",
+    "draftSavedAt": "초안 저장됨 {time}",
+    "liveOn": "{board}에서 표시 중",
+    "deletePage": "페이지 삭제…",
+    "deletePageDetail": "모든 일정과 컬렉션에서 제거됩니다"
   },
   "formulaIde": {
     "atomValue": "= {value}",

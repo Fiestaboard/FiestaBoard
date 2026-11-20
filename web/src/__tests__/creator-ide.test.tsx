@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CreatorIde from "@/components/ide/creator-ide";
-import type { PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
+import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
 
 import { server } from "./mocks/server";
 
@@ -35,11 +35,23 @@ const snapshot = {
 };
 
 function fakeBuilder(overrides: Partial<{ unsaved: boolean; mirroring: boolean }> = {}) {
+  // applyContent behaves like the editor: the restored content is the editor's, unsaved.
+  let current: typeof snapshot = snapshot;
+  let unsaved = overrides.unsaved ?? false;
   return {
-    hasUnsavedChanges: () => overrides.unsaved ?? false,
+    hasUnsavedChanges: () => unsaved,
     isMirroring: () => overrides.mirroring ?? false,
-    getCurrentPage: () => snapshot,
+    getCurrentPage: () => current,
     reloadFromServer: vi.fn(() => Promise.resolve()),
+    applyContent: vi.fn((content: typeof snapshot) => {
+      current = { ...snapshot, ...content };
+      unsaved = true;
+    }),
+    discardContent: vi.fn(() => {
+      current = snapshot;
+      unsaved = false;
+    }),
+    requestDelete: vi.fn(),
   } as unknown as PageBuilderHandle;
 }
 
@@ -271,7 +283,11 @@ function setDesktop(desktop: boolean) {
   })) as unknown as typeof window.matchMedia;
 }
 
-function renderIde(builder = fakeBuilder(), savedTick = 0) {
+function renderIde(
+  builder = fakeBuilder(),
+  savedTick = 0,
+  onDraftStateChange?: (state: PageBuilderDraftState | undefined) => void,
+) {
   const slot = document.createElement("div");
   document.body.append(slot);
   const onSaveActionsChange = vi.fn();
@@ -290,6 +306,7 @@ function renderIde(builder = fakeBuilder(), savedTick = 0) {
         explorerSlot={slot}
         savedTick={savedTick}
         onSaveActionsChange={onSaveActionsChange}
+        onDraftStateChange={onDraftStateChange}
       />,
     ),
   );
@@ -302,6 +319,7 @@ function renderIde(builder = fakeBuilder(), savedTick = 0) {
           explorerSlot={slot}
           savedTick={tick}
           onSaveActionsChange={onSaveActionsChange}
+          onDraftStateChange={onDraftStateChange}
         />,
       ),
     );
@@ -485,7 +503,10 @@ describe("status row and header actions", () => {
     expect(calls.draftGet).toBe(0);
   });
 
-  it("keeps a draft saved elsewhere (phone, Restore) after the editor saves the page; the hub marks it stale", async () => {
+  // D4 (BB-E-17): a draft the hub holds when the page opens is restored into the
+  // editor, so once the editor saves the page that draft is behind it and goes.
+  it("restores a hub draft into the editor on open and drops it once the editor saves", async () => {
+    const draftContent = { ...snapshot, type: "template", template: ["FROM THE PHONE"] };
     const calls = mockHub({
       draft: {
         page_id: PAGE,
@@ -493,16 +514,86 @@ describe("status row and header actions", () => {
         via: "phone",
         saved_at: "2026-11-17T15:44:00Z",
         stale: false,
-        content: { ...snapshot, type: "template", template: ["FROM THE PHONE"] },
+        content: draftContent,
       },
     });
-    const { rerenderTick } = renderIde();
-    await screen.findByText(/^Draft /);
-    const reads = calls.draftGet;
+    const builder = fakeBuilder();
+    const onDraftStateChange = vi.fn();
+    const { rerenderTick } = renderIde(builder, 0, onDraftStateChange);
+    await waitFor(() => expect(builder.applyContent).toHaveBeenCalledWith(draftContent));
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ label: "Draft restored", onDiscard: expect.any(Function) }),
+      ),
+    );
     act(() => rerenderTick(1));
-    // The IDE re-reads the draft (for its stale flag) instead of deleting it.
-    await waitFor(() => expect(calls.draftGet).toBeGreaterThan(reads));
-    expect(calls.draftDelete).toEqual([]);
+    await waitFor(() => expect(calls.draftDelete).toEqual(["phone-1"]));
+  });
+
+  it("Discard on a restored draft deletes it and puts the saved page back", async () => {
+    const calls = mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "d7",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: true,
+        content: { ...snapshot, type: "template", template: ["DRAFT"] },
+      },
+    });
+    const builder = fakeBuilder();
+    const onDraftStateChange = vi.fn();
+    renderIde(builder, 0, onDraftStateChange);
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ label: "Draft restored · the page changed since" }),
+      ),
+    );
+    const state = onDraftStateChange.mock.lastCall![0] as { onDiscard: () => void };
+    await act(async () => state.onDiscard());
+    await waitFor(() => expect(calls.draftDelete).toEqual(["d7"]));
+    expect(builder.discardContent).toHaveBeenCalled();
+    await waitFor(() => expect(onDraftStateChange.mock.lastCall![0]).not.toHaveProperty("label", "Draft restored"));
+  });
+
+  it("autosaves unsaved edits to a saved page as the hub draft, never the page", async () => {
+    const calls = mockHub();
+    const pagePuts: unknown[] = [];
+    server.use(
+      http.put(`/api/pages/${PAGE}`, async ({ request }) => {
+        pagePuts.push(await request.json());
+        return HttpResponse.json({});
+      }),
+    );
+    renderIde(fakeBuilder({ unsaved: true }));
+    await waitFor(() => expect(calls.draftPut).toHaveLength(1), { timeout: 5000 });
+    expect(calls.draftPut[0]).toMatchObject({ name: "Commute", template: snapshot.template });
+    expect(pagePuts).toEqual([]);
+  });
+
+  it("does not autosave over a draft this session neither restored nor wrote", async () => {
+    // The editor already differs from both: the draft was made elsewhere after
+    // these edits began, so it is the reader's to resolve (History), not ours.
+    const calls = mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "other",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: false,
+        content: { ...snapshot, type: "template", template: ["ELSEWHERE"] },
+      },
+    });
+    renderIde(fakeBuilder({ unsaved: true }));
+    await waitFor(() => expect(calls.draftGet).toBeGreaterThan(0));
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(calls.draftPut).toEqual([]);
+  }, 10_000);
+
+  it("offers Delete page in the Page tab, through the editor's confirmation", async () => {
+    mockHub();
+    const builder = fakeBuilder();
+    renderIde(builder);
+    fireEvent.click(await screen.findByRole("button", { name: /^Delete page…/ }));
+    expect(builder.requestDelete).toHaveBeenCalledOnce();
   });
 
   it("guards Save draft with the draft's revision and asks before overwriting a newer one", async () => {

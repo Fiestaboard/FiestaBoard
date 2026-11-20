@@ -113,7 +113,7 @@ it("keeps the desktop alert dialog and initially focuses Keep editing", async ()
   await act(async () => {
     await router.navigate(-1);
   });
-  const dialog = await screen.findByRole("alertdialog", { name: "Discard unsaved changes?" });
+  const dialog = await screen.findByRole("alertdialog", { name: /^Discard changes( to .*)?\?$/ });
   expect(dialog).not.toHaveAttribute("data-slot", "sheet-content");
   await waitFor(() => expect(within(dialog).getByRole("button", { name: /^Keep editing$/ })).toHaveFocus());
 });

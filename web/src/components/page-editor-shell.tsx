@@ -17,12 +17,20 @@ import {
   SheetHeader,
   SheetTitle,
   Stack,
+  Text,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { lazy, type ReactNode, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { type BlockerFunction, useBlocker } from "react-router";
 
-import { PageBuilder, type PageBuilderHandle, type PageBuilderSaveActions } from "@/components/page-builder";
+import { useCurrentBoard } from "@/components/current-board-context";
+import {
+  PageBuilder,
+  type PageBuilderDraftState,
+  type PageBuilderHandle,
+  type PageBuilderSaveActions,
+} from "@/components/page-builder";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
@@ -33,6 +41,30 @@ import { cn } from "@/lib/utils";
 // The Creator IDE (web 2.11) only exists for a saved page; its chunk loads
 // with the editor route instead of the app shell.
 const CreatorIde = lazy(() => import("@/components/ide/creator-ide"));
+
+const CHANGED_LINES_SHOWN = 3;
+const CHANGED_TEXT_MAX = 24;
+
+/** The lines that differ from the saved page (1-based, up to three) and the saved time. */
+export function changedLinesSummary(
+  current: readonly string[] | null | undefined,
+  saved: readonly string[] | null | undefined,
+  savedAt: string | null | undefined,
+): { count: number; lines: { line: number; text: string }[]; since: string | null } {
+  if (!current) return { count: 0, lines: [], since: null };
+  const before = saved ?? [];
+  const lines: { line: number; text: string }[] = [];
+  for (let index = 0; index < Math.max(current.length, before.length); index += 1) {
+    if ((current[index] ?? "") === (before[index] ?? "")) continue;
+    const text = (current[index] ?? "").replace(/\{\{\s*|\s*\}\}/g, "").trim();
+    lines.push({
+      line: index + 1,
+      text: text.length > CHANGED_TEXT_MAX ? `${text.slice(0, CHANGED_TEXT_MAX)}…` : text,
+    });
+  }
+  const since = savedAt ? new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
+  return { count: lines.length, lines: lines.slice(0, CHANGED_LINES_SHOWN), since };
+}
 
 export type SaveActionsRenderer = (actions: PageBuilderSaveActions) => ReactNode;
 
@@ -68,6 +100,7 @@ export function PageEditorShell({
   const { register, unregister } = usePageEditorBridge();
   const t = useTranslations("pageBuilder");
   const [blockedName, setBlockedName] = useState<string | null>(null);
+  const [blockedTemplate, setBlockedTemplate] = useState<string[] | null>(null);
   const shouldBlock = useCallback<BlockerFunction>(({ currentLocation, nextLocation }) => {
     // Query/hash updates within this editor do not discard its form state.
     const staysOnPage =
@@ -75,7 +108,11 @@ export function PageEditorShell({
       new URLSearchParams(currentLocation.search).get("id") === new URLSearchParams(nextLocation.search).get("id");
     const block = !staysOnPage && (builderRef.current?.hasUnsavedChanges() ?? false);
     // The phone sheet names the page it would discard (BB-B-22).
-    if (block) setBlockedName(builderRef.current?.getCurrentPage?.()?.name?.trim() || null);
+    if (block) {
+      const current = builderRef.current?.getCurrentPage?.();
+      setBlockedName(current?.name?.trim() || null);
+      setBlockedTemplate(current?.template ?? null);
+    }
     return block;
   }, []);
   const blocker = useBlocker(shouldBlock);
@@ -85,6 +122,8 @@ export function PageEditorShell({
     if (blocker.state === "blocked") blocker.reset();
   };
   const discardAndLeave = () => {
+    // D4: Discard also drops the hub draft this session kept of these edits.
+    void draftStateRef.current?.discardDraft?.();
     // Let the router unmount the confirmation; resetting here can cancel a POP.
     if (blocker.state === "blocked") blocker.proceed();
   };
@@ -99,6 +138,18 @@ export function PageEditorShell({
   });
   const [explorerSlot, setExplorerSlot] = useState<HTMLElement | null>(null);
   const [saveActions, setSaveActions] = useState<SaveActionsRenderer | undefined>(undefined);
+  const [draftState, setDraftState] = useState<PageBuilderDraftState | undefined>(undefined);
+  const draftStateRef = useRef(draftState);
+  useEffect(() => {
+    draftStateRef.current = draftState;
+  }, [draftState]);
+  const { currentBoard } = useCurrentBoard();
+  // What the desktop guard lists (BB-E-19): the changed lines and when the page was saved.
+  const discardSummary = changedLinesSummary(
+    blocker.state === "blocked" ? blockedTemplate : undefined,
+    loadedPage?.template,
+    loadedPage?.updated_at,
+  );
   const [savedTick, setSavedTick] = useState(0);
   const handleSave = () => {
     setSavedTick((tick) => tick + 1);
@@ -166,15 +217,44 @@ export function PageEditorShell({
             if (!open) resetBlockedNavigation();
           }}
         >
+          {/* BB-E-19: the desktop guard as Figma 306:32302 draws it. */}
           <AlertDialogContent initialFocus={keepEditingRef}>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t("discardChangesTitle")}</AlertDialogTitle>
-              <AlertDialogDescription>{t("discardChangesDescription")}</AlertDialogDescription>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-4 top-4 rounded-full"
+              aria-label={t("discardDialogClose")}
+              onClick={resetBlockedNavigation}
+            >
+              <X className="size-4" aria-hidden="true" />
+            </Button>
+            <AlertDialogHeader className="pr-12">
+              <AlertDialogTitle>
+                {blockedName ? t("discardChangesTitleNamed", { name: blockedName }) : t("discardChangesTitle")}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {discardSummary.lines.length > 0 && discardSummary.since
+                  ? t("discardChangesSince", { count: discardSummary.count, time: discardSummary.since })
+                  : t("discardChangesLost")}{" "}
+                {currentBoard?.name
+                  ? t("discardChangesBoardKeeps", { board: currentBoard.name })
+                  : t("discardChangesDisplaysKeep")}
+              </AlertDialogDescription>
             </AlertDialogHeader>
+            {discardSummary.lines.length > 0 && (
+              <Text size="xs" className="font-mono uppercase" data-testid="discard-changed-lines">
+                {[
+                  t("discardChangedLabel"),
+                  ...discardSummary.lines.map(({ line, text }) =>
+                    text ? t("discardChangedLine", { line, text }) : t("discardChangedLineEmpty", { line }),
+                  ),
+                ].join(" · ")}
+              </Text>
+            )}
             <AlertDialogFooter>
               <AlertDialogCancel ref={keepEditingRef}>{t("keepEditing")}</AlertDialogCancel>
               <Button variant="destructive" onClick={discardAndLeave}>
-                {t("discardAndLeave")}
+                {t("discardChanges")}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -202,6 +282,7 @@ export function PageEditorShell({
             onSave={handleSave}
             onCreated={onCreated}
             saveActions={saveActions}
+            draftState={draftState}
           />
           {pageId && loadedPage && (
             <Suspense fallback={null}>
@@ -211,6 +292,7 @@ export function PageEditorShell({
                 explorerSlot={explorerSlot}
                 savedTick={savedTick}
                 onSaveActionsChange={setSaveActions}
+                onDraftStateChange={setDraftState}
               />
             </Suspense>
           )}

@@ -1734,7 +1734,15 @@
     "textMode": "Texto",
     "canvasesMode": "Telas",
     "showPreview": "Mostrar pré-visualização e saída ao vivo",
-    "hidePreview": "Ocultar pré-visualização e saída ao vivo"
+    "hidePreview": "Ocultar pré-visualização e saída ao vivo",
+    "discardDialogClose": "Fechar",
+    "discardChangesSince": "Você alterou {count, plural, one {1 linha} other {# linhas}} desde {time}. Se sair agora, elas serão perdidas.",
+    "discardChangesLost": "Se sair agora, suas alterações serão perdidas.",
+    "discardChangesBoardKeeps": "{board} continua mostrando a versão salva.",
+    "discardChangesDisplaysKeep": "As telas continuam mostrando a versão salva.",
+    "discardChangedLabel": "Alterado",
+    "discardChangedLine": "Linha {line} ({text})",
+    "discardChangedLineEmpty": "Linha {line} (vazia)"
   },
   "displaySettings": {
     "unnamedBoard": "Painel Sem Nome",
@@ -3825,7 +3833,9 @@
     "thisDisplay": "esta tela",
     "startFrom": "Ou comece por",
     "insertVariable": "Inserir uma variável",
-    "browseStaffPicks": "Explorar as Seleções da equipa"
+    "browseStaffPicks": "Explorar as Seleções da equipa",
+    "discardDraft": "Descartar",
+    "lastSaved": "salvo pela última vez {time}"
   },
   "phonePairing": {
     "title": "Conectar um celular",
@@ -4193,7 +4203,13 @@
     "replaceDraft": "Substituir rascunho",
     "draftConflictTitle": "Substituir o rascunho mais recente?",
     "draftConflictDescription": "Outro dispositivo salvou o rascunho desta página depois que você a abriu. Ao substituir, fica apenas o que está neste editor.",
-    "legendLabel": "Entradas da programação"
+    "legendLabel": "Entradas da programação",
+    "draftRestored": "Rascunho restaurado",
+    "draftRestoredStale": "Rascunho restaurado · a página mudou desde então",
+    "draftSavedAt": "Rascunho salvo {time}",
+    "liveOn": "Ao vivo em {board}",
+    "deletePage": "Excluir página…",
+    "deletePageDetail": "Remove-a de todas as programações e coleções"
   },
   "formulaIde": {
     "atomValue": "= {value}",

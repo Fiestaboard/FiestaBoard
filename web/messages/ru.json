@@ -1734,7 +1734,15 @@
     "textMode": "Текст",
     "canvasesMode": "Холсты",
     "showPreview": "Показать предпросмотр и прямой вывод",
-    "hidePreview": "Скрыть предпросмотр и прямой вывод"
+    "hidePreview": "Скрыть предпросмотр и прямой вывод",
+    "discardDialogClose": "Закрыть",
+    "discardChangesSince": "С {time} вы изменили {count, plural, one {# строку} few {# строки} many {# строк} other {# строки}}. Если уйти сейчас, они пропадут.",
+    "discardChangesLost": "Если уйти сейчас, изменения пропадут.",
+    "discardChangesBoardKeeps": "{board} продолжает показывать сохранённую версию.",
+    "discardChangesDisplaysKeep": "Дисплеи продолжают показывать сохранённую версию.",
+    "discardChangedLabel": "Изменено",
+    "discardChangedLine": "Строка {line} ({text})",
+    "discardChangedLineEmpty": "Строка {line} (пустая)"
   },
   "displaySettings": {
     "unnamedBoard": "Доска без названия",
@@ -3825,7 +3833,9 @@
     "thisDisplay": "этот дисплей",
     "startFrom": "Или начните с",
     "insertVariable": "Вставить переменную",
-    "browseStaffPicks": "Посмотреть подборку команды"
+    "browseStaffPicks": "Посмотреть подборку команды",
+    "discardDraft": "Отменить",
+    "lastSaved": "последнее сохранение {time}"
   },
   "phonePairing": {
     "title": "Подключить телефон",
@@ -4193,7 +4203,13 @@
     "replaceDraft": "Заменить черновик",
     "draftConflictTitle": "Заменить более новый черновик?",
     "draftConflictDescription": "Другое устройство сохранило черновик этой страницы после того, как вы её открыли. При замене останется только содержимое этого редактора.",
-    "legendLabel": "Записи расписания"
+    "legendLabel": "Записи расписания",
+    "draftRestored": "Черновик восстановлен",
+    "draftRestoredStale": "Черновик восстановлен · страница с тех пор изменилась",
+    "draftSavedAt": "Черновик сохранён {time}",
+    "liveOn": "В эфире на {board}",
+    "deletePage": "Удалить страницу…",
+    "deletePageDetail": "Удаляет её из всех расписаний и коллекций"
   },
   "formulaIde": {
     "atomValue": "= {value}",

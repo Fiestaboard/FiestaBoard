@@ -330,6 +330,18 @@ export function IdePageTab({
         <ListItem>
           <InspectorRow title={t("makeCopy")} detail={t("makeCopyDetail")} chevron onPress={onMakeCopy} />
         </ListItem>
+        {/* D6: Delete lives here, not beside the title; the editor confirms first. */}
+        <ListItem>
+          <InspectorRow
+            title={
+              <Text as="span" tone="destructive">
+                {t("deletePage")}
+              </Text>
+            }
+            detail={t("deletePageDetail")}
+            onPress={() => builderRef.current?.requestDelete()}
+          />
+        </ListItem>
       </List>
       {field && (
         <PageSettingsDialog
