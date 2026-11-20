@@ -201,8 +201,12 @@ test.describe("Page Management", () => {
     const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
-    // After save, the app shows a toast and/or navigates to /pages
+    // After save the editor stays open (it draws its own header, not the
+    // section's), announces the save, and its way back returns to the list.
+    await expect(page.getByText("Saved to Pages").first()).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Back to Pages" }).click();
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Integration Test Page").first()).toBeVisible();
   });
 });
 

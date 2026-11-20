@@ -372,6 +372,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const dockedPreview = useMediaQuery("(max-width: 1023px)");
   const sheetPickers = useMediaQuery("(max-width: 639px)");
   const useTouchToolbar = useMediaQuery("(max-width: 767px), (pointer: coarse)");
+  // Under 390px Save is its icon, so the page name keeps two readable lines (BB-B-3).
+  const narrowHeader = useMediaQuery("(max-width: 389px)");
   const editorContentRef = useRef<HTMLDivElement>(null);
   const dockPreviewRef = useRef<HTMLElement>(null);
   const viewportBottom = useEditorViewportDock(dockedPreview && useTouchToolbar, editorContentRef, dockPreviewRef);
@@ -2898,10 +2900,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   value={name}
                   onChange={(event) => setName(event.target.value.replace(/[\r\n]+/g, " "))}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") {
+                    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
                       event.preventDefault();
                       event.currentTarget.blur();
                     }
+                  }}
+                  // Show the name from its start again once editing ends.
+                  onBlur={(event) => {
+                    event.currentTarget.scrollTop = 0;
+                    event.currentTarget.scrollLeft = 0;
                   }}
                   placeholder={t("pageNamePlaceholder")}
                   enterKeyHint="done"
@@ -2956,15 +2963,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <TooltipTrigger asChild>
                         <Button
                           variant="secondary"
-                          size={dockedPreview ? "touch" : "sm"}
-                          className="shrink-0 gap-1.5 px-3 text-sm"
+                          size={narrowHeader ? "icon-touch" : dockedPreview ? "touch" : "sm"}
+                          className={cn("shrink-0 text-sm", !narrowHeader && "gap-1.5 px-3")}
                           {...anchorProps("page-editor.save")}
                           onClick={requestSave}
                           disabled={saveMutation.isPending || stagingActive}
                           aria-label={t("savePageAriaLabel")}
                         >
                           <Save className="h-3.5 w-3.5" />
-                          {saveMutation.isPending ? tCommon("saving") : t("savePage")}
+                          {!narrowHeader && (saveMutation.isPending ? tCommon("saving") : t("savePage"))}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>

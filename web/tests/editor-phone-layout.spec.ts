@@ -58,14 +58,26 @@ for (const [width, height] of [
       expect(preview.y).toBeLessThan(100);
     });
 
+    test("a new page's name is readable beside Save and Show now (BB-B-3, 316:90600)", async ({ page }) => {
+      await page.goto("/pages/new");
+      await expect(page.locator('[contenteditable="true"]').first()).toBeVisible({ timeout: 15_000 });
+      expect((await box(page, "#page-name")).width).toBeGreaterThanOrEqual(90);
+      await page.locator("#page-name").fill("Kitchen morning");
+      // Two lines at most: the name is never cut mid-word onto a third.
+      expect((await box(page, "#page-name")).height).toBeLessThanOrEqual(44);
+    });
+
     test("the preview stays docked while you type on the last line (BB-B-4)", async ({ page }) => {
       await openEditor(page);
       const editor = page.locator('[contenteditable="true"]').first();
       await editor.click();
       await page.keyboard.press("Control+End");
       await page.keyboard.type("X");
-      await page.locator('[data-slot="page-editor-scroll"]').evaluate((el) => el.scrollTo(0, el.scrollHeight));
-      await expect(page.locator(PREVIEW)).toBeInViewport({ ratio: 0.9 });
+      // Scroll the template up under the docked preview.
+      await page.locator('[data-slot="page-editor-scroll"]').evaluate((el) => el.scrollBy(0, 240));
+      const preview = await box(page, PREVIEW);
+      expect(preview.y).toBeLessThan(100);
+      await expect(page.locator(PREVIEW)).toBeInViewport();
     });
   });
 }
