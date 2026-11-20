@@ -629,7 +629,7 @@ def test_create_panel_persists_the_panel_and_its_virtual_board(mcp, services, tw
     assert (listed["rows"], listed["cols"]) == (14, 34), 'a 65" 16:9 TV fits 14 x 34 characters'
 
     board = _board(two_boards, result["board_id"])
-    assert (board["api_mode"], board["name"]) == ("virtual", "Den TV (Panel)")
+    assert (board["api_mode"], board["name"]) == ("virtual", "Den TV")
     assert runtime.reinitialized == 1
 
 

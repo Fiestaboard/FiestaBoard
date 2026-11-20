@@ -187,3 +187,25 @@ def test_the_phone_may_duplicate_and_a_tv_may_not():
 
     assert scopes.permits(scopes.CONTROL, "POST", "/pages/x/duplicate")
     assert not scopes.permits(scopes.TV_PANELS, "POST", "/pages/x/duplicate")
+
+
+def test_the_copy_is_made_off_the_event_loop(client, source, monkeypatch):
+    """Its crop report may fetch plugin data for a formula (BB-B-1 review)."""
+    import asyncio
+
+    from src.pages import duplicate as page_duplicate
+
+    real = page_duplicate.duplicate_page
+    seen = []
+
+    def spy(*args, **kwargs):
+        try:
+            asyncio.get_running_loop()
+            seen.append("on the loop")
+        except RuntimeError:
+            seen.append("worker")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(page_duplicate, "duplicate_page", spy)
+    _ok(client, source["id"])
+    assert seen == ["worker"]

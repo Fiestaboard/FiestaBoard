@@ -1,6 +1,6 @@
 "use client";
 
-import { type BoardCellGrid, DISPLAY_TYPE_LABELS, displayTypeForModel } from "@fiestaboard/ui";
+import { type BoardCellGrid, DISPLAY_TYPE_LABELS, displayTypeForModel, type ScaledBoardLayout } from "@fiestaboard/ui";
 
 import { DevicePreview } from "@/components/device-preview";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
@@ -62,6 +62,8 @@ export interface HomeBoardProps {
   fallbackColor?: "black" | "white";
   fallbackGlyph?: "degree" | "heart";
   previewLabel?: string;
+  /** A hero placement from the kit (`phone-hero` on Home at phone width, BB-A-6). */
+  layout?: ScaledBoardLayout;
 }
 
 /**
@@ -80,6 +82,7 @@ export function HomeBoard({
   fallbackColor = "black",
   fallbackGlyph,
   previewLabel,
+  layout,
 }: HomeBoardProps) {
   return (
     <DevicePreview
@@ -94,7 +97,9 @@ export function HomeBoard({
       <ScaledBoardDisplay
         message={message}
         isLoading={isLoading}
-        size={size}
+        // A hero layout sets its own tile size (Tile sm on a phone).
+        size={layout ? undefined : size}
+        layout={layout}
         boardType={board?.board_color ?? fallbackColor}
         deviceType={geometry.deviceType}
         notesWide={geometry.notesWide}

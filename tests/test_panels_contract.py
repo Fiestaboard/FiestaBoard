@@ -149,7 +149,29 @@ def test_creating_a_panel_co_creates_its_virtual_board(client, panel):
     assert board["api_mode"] == "virtual"
     assert board["device_type"] == "panel"
     assert (board["grid_rows"], board["grid_cols"]) == (12, 29)
-    assert board["name"] == "Kitchen TV (Panel)"
+    # BB-C-17: the display is called what the user typed, not "Kitchen TV (Panel)".
+    assert board["name"] == "Kitchen TV"
+
+
+def test_a_panel_board_saved_with_the_old_panel_suffix_keeps_its_name_and_still_deletes(client):
+    """Boards created before BB-C-17 are named "<name> (Panel)"; nothing renames or relies on that."""
+    from src.settings.service import get_settings_service
+
+    created = client.post("/panels", json={"name": "Den TV"}).json()
+    settings = get_settings_service()
+    settings.set_boards(
+        [
+            {**b, "name": "Den TV (Panel)"} if b["id"] == created["board_id"] else b
+            for b in settings.get_board_settings().boards
+        ]
+    )
+
+    listed = client.get("/panels").json()["panels"]
+    assert [(p["id"], p["board_missing"]) for p in listed] == [(created["id"], False)]
+    board = next(b for b in client.get("/settings/board").json()["boards"] if b["id"] == created["board_id"])
+    assert board["name"] == "Den TV (Panel)"
+    assert client.delete(f"/panels/{created['id']}").status_code == 200
+    assert all(b["id"] != created["board_id"] for b in client.get("/settings/board").json()["boards"])
 
 
 def test_creating_a_panel_without_a_name_is_rejected(client):

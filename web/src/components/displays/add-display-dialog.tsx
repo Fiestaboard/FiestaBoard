@@ -13,7 +13,12 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { type BoardConfig, type BoardSetupHandle, StepBoardSetup } from "@/components/wizard/step-board-setup";
+import {
+  type BoardConfig,
+  type BoardSetupHandle,
+  type ExistingDisplayIntent,
+  StepBoardSetup,
+} from "@/components/wizard/step-board-setup";
 import { StepChooseOutput } from "@/components/wizard/step-choose-output";
 import {
   StepOutputPlugin,
@@ -41,6 +46,8 @@ export function AddDisplayDialog({
   const [chosen, setChosen] = useState<WizardOutputChoice | null>(initialOutput ?? null);
   const [canNext, setCanNext] = useState(false);
   const [busy, setBusy] = useState(false);
+  // An already connected board (BB-C-16): the primary action keeps or updates it, never "Add display".
+  const [existing, setExisting] = useState<ExistingDisplayIntent | null>(null);
   const [config, setConfig] = useState<BoardConfig>({
     output_config: { api_mode: "local" },
     connectionVerified: false,
@@ -63,9 +70,19 @@ export function AddDisplayDialog({
     onCreated(board.boardId);
   };
   const add = async () => {
-    const board = chosen?.id === "vestaboard" ? await boardStep.current?.save() : await panelStep.current?.save();
-    if (board) complete(board);
+    const vestaboard = chosen?.id === "vestaboard";
+    const kept = vestaboard ? existing : null;
+    const board = vestaboard ? await boardStep.current?.save() : await panelStep.current?.save();
+    if (!board || !alive.current) return;
+    if (!kept) return complete(board);
+    if (kept.choice === "keep") toast.info(t("kept", { name: board.name }));
+    else toast.success(t("updated", { name: board.name }));
+    onCreated(board.boardId);
   };
+  const primaryLabel =
+    chosen?.id === "vestaboard" && existing
+      ? t(existing.choice === "keep" ? "goTo" : "updateExisting", { name: existing.name })
+      : t("confirm");
   return (
     <DialogContent
       className="max-h-[90dvh] overflow-y-auto bg-popover sm:rounded-[var(--radius-card)] sm:max-w-[560px] max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[92dvh] max-sm:w-screen max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-[var(--radius-chrome-mobile)] max-sm:rounded-b-none max-sm:p-5 max-sm:pb-4"
@@ -97,6 +114,7 @@ export function AddDisplayDialog({
               config={config}
               onConfigChange={setConfig}
               onValidChange={setCanNext}
+              onExistingChange={setExisting}
               isLoading={busy}
               setIsLoading={setBusy}
             />
@@ -146,6 +164,7 @@ export function AddDisplayDialog({
               disabled={busy}
               onClick={() => {
                 setCanNext(false);
+                setExisting(null);
                 setStep("choose");
               }}
             >
@@ -153,7 +172,7 @@ export function AddDisplayDialog({
             </Button>
             {(chosen?.id === "vestaboard" || chosen?.id === "fiestapanel") && (
               <Button disabled={!canNext || busy} onClick={() => void add()}>
-                {t("confirm")}
+                {primaryLabel}
               </Button>
             )}
           </>
