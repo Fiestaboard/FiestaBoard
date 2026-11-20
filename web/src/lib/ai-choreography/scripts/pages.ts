@@ -16,6 +16,8 @@ import { failed, landed } from "./fallback";
 
 interface PageProgress {
   started?: boolean;
+  /** The fresh editor took the staging snapshot (set when that step runs). */
+  staged?: boolean;
   name?: string;
   lines?: string[];
   deviceType?: string;
@@ -31,10 +33,21 @@ function typeLine(index: number, value: string): Step {
   return { kind: "type", target: { bridge: "page-editor", field: "line", index }, value };
 }
 
+/** Take the staging snapshot; only a mounted editor counts as staged. */
+function stage(progress: PageProgress): Step {
+  return {
+    kind: "run",
+    run: (c) => {
+      c.pageEditor.begin();
+      if (c.pageEditor.isMounted()) progress.staged = true;
+    },
+  };
+}
+
 /** Open a fresh editor for a new page (from wherever we are). */
-function openNewEditor(ctx: ChoreographyContext, deviceType: string): Step[] {
+function openNewEditor(ctx: ChoreographyContext, deviceType: string, progress: PageProgress): Step[] {
   const onNew = ctx.pathname() === "/pages/new" && ctx.pageEditor.isMounted() && !ctx.pageEditor.hasUnsavedChanges();
-  if (onNew) return [{ kind: "run", run: (c) => c.pageEditor.begin() }];
+  if (onNew) return [stage(progress)];
   return [
     { kind: "navigate", href: "/pages" },
     { kind: "waitFor", anchor: "pages.new", timeoutMs: 1500 },
@@ -42,8 +55,25 @@ function openNewEditor(ctx: ChoreographyContext, deviceType: string): Step[] {
     { kind: "pause", ms: 450 },
     { kind: "navigate", href: `/pages/new?device=${encodeURIComponent(deviceType)}&fresh=1` },
     { kind: "waitBridge", bridge: "page-editor", timeoutMs: 4000 },
-    { kind: "run", run: (c) => c.pageEditor.begin() },
+    stage(progress),
   ];
+}
+
+/**
+ * The editor (or its staging) for every later batch. A slow device or a big
+ * Pages list can mount the fresh editor after the opening batch stopped
+ * waiting for it; typing into it then without staging leaves edits that
+ * settle's discard cannot clear, and the editor's discard dialog blocks the
+ * walk to the saved page. So a batch waits for the editor and stages it
+ * first, or (the wait failing) types nothing. `begin` is idempotent.
+ */
+function openOrStaged(ctx: ChoreographyContext, deviceType: string, progress: PageProgress): Step[] {
+  if (!progress.started) {
+    progress.started = true;
+    return openNewEditor(ctx, deviceType, progress);
+  }
+  if (progress.staged) return [];
+  return [{ kind: "waitBridge", bridge: "page-editor", timeoutMs: 4000 }, stage(progress)];
 }
 
 /** Type whatever is new since the last reveal. */
@@ -89,22 +119,14 @@ function revealProgress(
 
 const createPage: ChoreographyScript = {
   draft(draft: ToolDraft, ctx, progress: PageProgress) {
-    const steps: Step[] = [];
-    if (!progress.started) {
-      progress.started = true;
-      steps.push(...openNewEditor(ctx, draft.strings.device_type ?? "flagship"));
-    }
+    const steps = openOrStaged(ctx, draft.strings.device_type ?? "flagship", progress);
     const partial = draft.partial?.key === "template_lines" ? draft.partial.value : undefined;
     steps.push(...revealProgress(progress, draft.strings.name, draft.lists.template_lines, partial, ctx));
     return steps;
   },
   narrate(call, ctx, progress: PageProgress = {}) {
     const a = call.args as unknown as CreatePageArgs;
-    const steps: Step[] = [];
-    if (!progress.started) {
-      progress.started = true;
-      steps.push(...openNewEditor(ctx, a.device_type ?? "flagship"));
-    }
+    const steps = openOrStaged(ctx, a.device_type ?? "flagship", progress);
     steps.push(...revealProgress(progress, a.name, a.template_lines, undefined, ctx));
     steps.push({ kind: "caption", caption: ctx.t("creatingPage", { name: a.name ?? "" }) });
     return steps;

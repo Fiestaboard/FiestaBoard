@@ -9,6 +9,7 @@ import {
   settingAnchors,
   settingsHref,
 } from "@/lib/ai-choreography/anchors";
+import { runSteps } from "@/lib/ai-choreography/engine";
 import { homeFor } from "@/lib/ai-choreography/home";
 import { getScript, scriptedTools } from "@/lib/ai-choreography/registry";
 import { formatSettingValue } from "@/lib/ai-choreography/scripts/settings";
@@ -304,6 +305,52 @@ describe("scripts", () => {
     const rest = script.narrate(call, ctx, progress);
     expect(navigations(rest)).toEqual([]);
     expect(typed(rest)).toEqual(["WORLD"]);
+  });
+
+  it("create_page never types into an editor it has not staged, even when the editor mounts late", async () => {
+    // A slow device or a big library: the fresh editor is not up when the
+    // first batch's wait gives up, and mounts while later batches play. Any
+    // value typed without staging stays as an unsaved edit, so settle's
+    // discard cannot clear it and the editor's discard dialog blocks the
+    // walk to the saved page.
+    let mounted = false;
+    let staged = false;
+    const unstaged: string[] = [];
+    const apply = (value: string) => {
+      if (!staged) unstaged.push(value);
+    };
+    const ctx = ctxWith({ reducedMotion: true });
+    ctx.pageEditor = {
+      ...ctx.pageEditor,
+      isMounted: () => mounted,
+      begin: vi.fn(() => {
+        if (mounted) staged = true;
+      }),
+      setName: vi.fn((value: string) => mounted && apply(value)),
+      setLine: vi.fn((_index: number, value: string) => mounted && apply(value)),
+      discard: vi.fn(() => {
+        staged = false;
+      }),
+      // The first wait times out; the editor is up by the next one.
+      waitFor: vi.fn(async () => {
+        const ok = mounted;
+        mounted = true;
+        return ok;
+      }),
+    };
+    const script = getScript("create_page");
+    const progress: Record<string, unknown> = {};
+    const opts = { signal: new AbortController().signal, isFast: () => false };
+    await runSteps(
+      script.draft!({ name: "create_page", strings: { name: "Morning" }, lists: {} }, ctx, progress),
+      ctx,
+      opts,
+    );
+    const call = { ...BASE, args: { name: "Morning", template_lines: ["HELLO", "WORLD"] } };
+    await runSteps(script.narrate(call, ctx, progress), ctx, opts);
+
+    expect(unstaged).toEqual([]);
+    expect(ctx.pageEditor.setLine).toHaveBeenCalled();
   });
 
   it("create_page settles by discarding the staged draft and opening the saved page", () => {
