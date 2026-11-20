@@ -3246,8 +3246,13 @@
     "switchTitle": "切换到{channel}？",
     "switchCta": "切换渠道",
     "alphaConfirmBody": "Alpha 是 FiestaBoard 11 的早期预览版。切换可能将设置和页面迁移为旧版本无法读取的格式。安装新的主版本前，自动备份必须成功；如果备份失败，切换将停止。请另外下载并保存备份。返回 Beta 或稳定版时会恢复加入预览版前的备份，Alpha 中所做的更改将丢失。FiestaBoard 将重新启动。",
-    "downgradeConfirmBody": "您将切换到较旧的发布渠道。FiestaBoard 会恢复加入预览版前的备份，此后所做的更改将丢失。如果没有兼容的备份，请在“设置 → 系统 → 备份”中恢复已下载的备份。旧版本可能无法读取迁移后的数据。FiestaBoard 将重新启动。",
-    "betaConfirmBody": "Beta 版本可能迁移设置和页面。切换前会创建备份。升级到新的主版本要求自动备份成功。返回稳定版可能需要恢复加入预览版前的备份，并丢失此后所做的更改。FiestaBoard 将重新启动。"
+    "downgradeConfirmBody": "您将切换到较旧的发布渠道。FiestaBoard 会恢复加入预览版前的备份，此后所做的更改将丢失。如果没有兼容的备份，请在“设置 › 系统与备份 › 备份与恢复”中恢复已下载的备份。旧版本可能无法读取迁移后的数据。FiestaBoard 将重新启动。",
+    "betaConfirmBody": "Beta 版本可能迁移设置和页面。切换前会创建备份。升级到新的主版本要求自动备份成功。返回稳定版可能需要恢复加入预览版前的备份，并丢失此后所做的更改。FiestaBoard 将重新启动。",
+    "versionTitle": "版本",
+    "runningVersion": "FiestaBoard {version}",
+    "upToDate": "已是最新",
+    "updateAvailable": "有可用更新：{version}",
+    "managedExternally": "此中枢的更新由 Home Assistant 管理。要切换渠道，请从其加载项商店安装 beta 加载项。"
   },
   "aiApprovalCard": {
     "heading": "需要你的批准",

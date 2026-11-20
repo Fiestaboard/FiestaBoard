@@ -364,11 +364,12 @@ function SettingsSectionBody({ section }: { section: SettingsSectionId }) {
     case "system":
       return (
         <>
+          {/* 07e 320:8881: Version, then Backups, first. */}
+          <ReleaseChannelCard />
+          <BackupSettings />
           <InstanceNameCard />
           <SystemControls />
           <AutoUpdateIntervalCard />
-          <ReleaseChannelCard />
-          <BackupSettings />
           {!boardsLoading && boards.every(isUntouchedPlaceholder) && (
             <Card>
               <CardHeader>

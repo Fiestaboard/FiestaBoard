@@ -3246,8 +3246,13 @@
     "switchTitle": "Passer à {channel} ?",
     "switchCta": "Changer de canal",
     "alphaConfirmBody": "Alpha est un aperçu préliminaire de FiestaBoard 11. Vos réglages et pages peuvent être migrés vers un format illisible par les anciennes versions. Une sauvegarde automatique doit réussir avant l’installation d’une nouvelle version majeure ; en cas d’échec, le changement est annulé. Téléchargez aussi une sauvegarde. Revenir à Bêta ou Stable restaure la sauvegarde précédant l’aperçu et supprime les changements faits dans Alpha. FiestaBoard redémarrera.",
-    "downgradeConfirmBody": "Vous passez à un canal de versions plus ancien. FiestaBoard restaure la sauvegarde précédant l’aperçu ; les modifications ultérieures seront perdues. Sans sauvegarde compatible, restaurez celle que vous avez téléchargée dans Réglages → Système → Sauvegarde. L’ancienne version peut refuser de lire les données migrées. FiestaBoard redémarrera.",
-    "betaConfirmBody": "Les versions bêta peuvent migrer vos réglages et pages. Une sauvegarde est créée avant le changement. Une nouvelle version majeure exige une sauvegarde automatique réussie. Revenir à Stable peut nécessiter la restauration de la sauvegarde précédant l’aperçu et la perte des modifications ultérieures. FiestaBoard redémarrera."
+    "downgradeConfirmBody": "Vous passez à un canal de versions plus ancien. FiestaBoard restaure la sauvegarde précédant l’aperçu ; les modifications ultérieures seront perdues. Sans sauvegarde compatible, restaurez celle que vous avez téléchargée dans Réglages › Système et sauvegardes › Sauvegarde et restauration. L’ancienne version peut refuser de lire les données migrées. FiestaBoard redémarrera.",
+    "betaConfirmBody": "Les versions bêta peuvent migrer vos réglages et pages. Une sauvegarde est créée avant le changement. Une nouvelle version majeure exige une sauvegarde automatique réussie. Revenir à Stable peut nécessiter la restauration de la sauvegarde précédant l’aperçu et la perte des modifications ultérieures. FiestaBoard redémarrera.",
+    "versionTitle": "Version",
+    "runningVersion": "FiestaBoard {version}",
+    "upToDate": "À jour",
+    "updateAvailable": "Mise à jour disponible : {version}",
+    "managedExternally": "Home Assistant gère les mises à jour de ce hub. Pour changer de canal, installez le module complémentaire bêta depuis sa boutique."
   },
   "aiApprovalCard": {
     "heading": "Nécessite ton approbation",

@@ -260,6 +260,18 @@ describe("Settings detail, from the rail breakpoint up", () => {
     expect(screen.queryByText("About This FiestaBoard")).not.toBeInTheDocument();
   });
 
+  // BB-C-13 / 07e 320:8881: the Version card comes first, then Backups.
+  it("opens System & backups with the Version card, then backups", async () => {
+    renderAt("/settings/system");
+    await waitFor(() => expect(anchor("settings.release_channel")).not.toBeNull());
+    await waitFor(() => expect(anchor("settings.general")).not.toBeNull());
+    const version = anchor("settings.release_channel")!;
+    const backups = await screen.findByText("Backup & Restore");
+    const follows = (a: Node, b: Node) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(version, backups)).toBe(true);
+    expect(follows(backups, anchor("settings.general")!)).toBe(true);
+  });
+
   it("opens the About box from System & backups, the only About entry a phone has", async () => {
     const user = userEvent.setup();
     renderAt("/settings/system");
