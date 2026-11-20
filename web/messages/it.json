@@ -1130,7 +1130,9 @@
           "title": "Notifiche",
           "description": "Scegli se il tuo account e questo browser possono ricevere avvisi dal tuo hub."
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, one {# dispositivo connesso} other {# dispositivi connessi}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "Tema",
@@ -3665,7 +3667,14 @@
     "signOutPhone": "Disconnetti telefono",
     "signOutCascade": "Disconnetti telefono e {count} TV",
     "signedOutPhone": "Disconnessi {name} e {count} TV",
-    "partial": "{names} non hanno risposto. Disconnetti di nuovo questo telefono per completare la disconnessione delle sue TV."
+    "partial": "{names} non hanno risposto. Disconnetti di nuovo questo telefono per completare la disconnessione delle sue TV.",
+    "justNow": "proprio ora",
+    "dayTime": "{day}, {time}",
+    "browserOn": "{browser} su {platform}",
+    "browserSignedIn": "Accesso con password · {date}",
+    "appName": "App con accesso tramite password",
+    "appHint": "Accesso con password · {date} · potrebbe conservare la tua password; cambiala per escludere questa app",
+    "passwordApps": "App e TV meno recenti · Accesso con password"
   },
   "plugins": {
     "communityBadge": "Community",

@@ -1130,7 +1130,9 @@
           "title": "通知",
           "description": "选择是否允许你的账户和此浏览器接收中枢的提醒。"
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, other {# 台已登录设备}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "主题",
@@ -3665,7 +3667,14 @@
     "signOutPhone": "退出手机",
     "signOutCascade": "退出手机和 {count} 台电视",
     "signedOutPhone": "已退出 {name} 和 {count} 台电视",
-    "partial": "{names} 未响应。请尝试再次退出此手机，以完成其关联电视的退出操作。"
+    "partial": "{names} 未响应。请尝试再次退出此手机，以完成其关联电视的退出操作。",
+    "justNow": "刚刚",
+    "dayTime": "{day} {time}",
+    "browserOn": "{platform} 上的 {browser}",
+    "browserSignedIn": "使用密码登录 · {date}",
+    "appName": "使用密码登录的应用",
+    "appHint": "使用密码登录 · {date} · 它可能保存了你的密码；更改密码可将此应用拒之门外",
+    "passwordApps": "应用和旧版电视 · 使用密码登录"
   },
   "plugins": {
     "communityBadge": "社区",

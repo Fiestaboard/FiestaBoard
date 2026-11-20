@@ -1130,7 +1130,9 @@
           "title": "알림",
           "description": "계정과 이 브라우저에서 허브의 알림을 받을지 선택합니다."
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, other {로그인된 기기 #대}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "테마",
@@ -3665,7 +3667,14 @@
     "signOutPhone": "휴대폰에서 로그아웃",
     "signOutCascade": "휴대폰과 TV {count}대에서 로그아웃",
     "signedOutPhone": "{name} 및 TV {count}대에서 로그아웃됨",
-    "partial": "{names}에서 응답이 없습니다. 연결된 TV의 로그아웃을 완료하려면 이 휴대폰에서 다시 로그아웃해 보세요."
+    "partial": "{names}에서 응답이 없습니다. 연결된 TV의 로그아웃을 완료하려면 이 휴대폰에서 다시 로그아웃해 보세요.",
+    "justNow": "방금",
+    "dayTime": "{day} {time}",
+    "browserOn": "{platform}의 {browser}",
+    "browserSignedIn": "비밀번호로 로그인 · {date}",
+    "appName": "비밀번호로 로그인한 앱",
+    "appHint": "비밀번호로 로그인 · {date} · 비밀번호를 저장하고 있을 수 있습니다. 변경하면 이 앱을 차단할 수 있습니다",
+    "passwordApps": "앱 및 이전 TV · 비밀번호로 로그인"
   },
   "plugins": {
     "communityBadge": "커뮤니티",

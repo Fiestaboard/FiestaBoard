@@ -1130,7 +1130,9 @@
           "title": "Powiadomienia",
           "description": "Wybierz, czy Twoje konto i ta przeglądarka mogą otrzymywać alerty z centrum."
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, one {# zalogowane urządzenie} few {# zalogowane urządzenia} many {# zalogowanych urządzeń} other {# zalogowanego urządzenia}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "Motyw",
@@ -3665,7 +3667,14 @@
     "signOutPhone": "Wyloguj telefon",
     "signOutCascade": "Wyloguj telefon i telewizory ({count})",
     "signedOutPhone": "Wylogowano {name} i telewizory ({count})",
-    "partial": "Brak odpowiedzi od: {names}. Spróbuj ponownie wylogować ten telefon, aby dokończyć wylogowywanie jego telewizorów."
+    "partial": "Brak odpowiedzi od: {names}. Spróbuj ponownie wylogować ten telefon, aby dokończyć wylogowywanie jego telewizorów.",
+    "justNow": "przed chwilą",
+    "dayTime": "{day}, {time}",
+    "browserOn": "{browser} w systemie {platform}",
+    "browserSignedIn": "Zalogowano hasłem · {date}",
+    "appName": "Aplikacja zalogowana hasłem",
+    "appHint": "Zalogowano hasłem · {date} · może przechowywać Twoje hasło; zmień je, aby odciąć tę aplikację",
+    "passwordApps": "Aplikacje i starsze telewizory · Zalogowane hasłem"
   },
   "plugins": {
     "communityBadge": "Społeczność",

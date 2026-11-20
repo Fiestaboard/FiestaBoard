@@ -1130,7 +1130,9 @@
           "title": "Benachrichtigungen",
           "description": "Legen Sie fest, ob Ihr Konto und dieser Browser Warnmeldungen von Ihrem Hub erhalten dürfen."
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, one {# angemeldetes Gerät} other {# angemeldete Geräte}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "Design",
@@ -3665,7 +3667,14 @@
     "signOutPhone": "Smartphone abmelden",
     "signOutCascade": "Smartphone und {count} TVs abmelden",
     "signedOutPhone": "{name} und {count} TVs abgemeldet",
-    "partial": "{names} haben nicht geantwortet. Melde dieses Smartphone erneut ab, um auch seine TVs vollständig abzumelden."
+    "partial": "{names} haben nicht geantwortet. Melde dieses Smartphone erneut ab, um auch seine TVs vollständig abzumelden.",
+    "justNow": "gerade eben",
+    "dayTime": "{day}, {time}",
+    "browserOn": "{browser} auf {platform}",
+    "browserSignedIn": "Mit Passwort angemeldet · {date}",
+    "appName": "Mit Passwort angemeldete App",
+    "appHint": "Mit Passwort angemeldet · {date} · speichert eventuell dein Passwort; ändere es, um diese App auszusperren",
+    "passwordApps": "Apps & ältere TVs · Mit Passwort angemeldet"
   },
   "plugins": {
     "communityBadge": "Community",

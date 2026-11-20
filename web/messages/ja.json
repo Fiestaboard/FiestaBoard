@@ -1130,7 +1130,9 @@
           "title": "通知",
           "description": "アカウントとこのブラウザーでハブからの通知を受け取るかどうかを選択します。"
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, other {サインイン中のデバイス # 台}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "テーマ",
@@ -3665,7 +3667,14 @@
     "signOutPhone": "スマートフォンからログアウト",
     "signOutCascade": "スマートフォンとテレビ{count}台からログアウト",
     "signedOutPhone": "{name} とテレビ{count}台からログアウトしました",
-    "partial": "{names} から応答がありませんでした。このスマートフォンから再度ログアウトして、関連するテレビのログアウトを完了してください。"
+    "partial": "{names} から応答がありませんでした。このスマートフォンから再度ログアウトして、関連するテレビのログアウトを完了してください。",
+    "justNow": "たった今",
+    "dayTime": "{day} {time}",
+    "browserOn": "{platform} の {browser}",
+    "browserSignedIn": "パスワードでサインイン · {date}",
+    "appName": "パスワードでサインインしたアプリ",
+    "appHint": "パスワードでサインイン · {date} · パスワードを保存している可能性があります。変更するとこのアプリを締め出せます",
+    "passwordApps": "アプリと旧 TV · パスワードでサインイン"
   },
   "plugins": {
     "communityBadge": "コミュニティ",

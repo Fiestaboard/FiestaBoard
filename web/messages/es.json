@@ -1130,7 +1130,9 @@
           "title": "Notificaciones",
           "description": "Elige si tu cuenta y este navegador pueden recibir alertas de tu hub."
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, one {# dispositivo con sesión} other {# dispositivos con sesión}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "Tema",
@@ -3665,7 +3667,14 @@
     "signOutPhone": "Cerrar sesión del teléfono",
     "signOutCascade": "Cerrar sesión del teléfono y de {count} TV",
     "signedOutPhone": "Sesión cerrada de {name} y de {count} TV",
-    "partial": "{names} no respondieron. Vuelve a cerrar la sesión de este teléfono para terminar de cerrar las sesiones de sus TV."
+    "partial": "{names} no respondieron. Vuelve a cerrar la sesión de este teléfono para terminar de cerrar las sesiones de sus TV.",
+    "justNow": "justo ahora",
+    "dayTime": "{day}, {time}",
+    "browserOn": "{browser} en {platform}",
+    "browserSignedIn": "Sesión iniciada con contraseña · {date}",
+    "appName": "App con sesión iniciada con contraseña",
+    "appHint": "Sesión iniciada con contraseña · {date} · puede guardar tu contraseña; cámbiala para bloquear esta app",
+    "passwordApps": "Apps y TV antiguas · Sesión iniciada con contraseña"
   },
   "plugins": {
     "communityBadge": "Comunidad",
