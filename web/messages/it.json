@@ -451,7 +451,7 @@
     "sortInstructions": "Per riordinare, premi Spazio per sollevare, le frecce per spostare, Spazio per rilasciare, Esc per annullare.",
     "createNeedsName": "Dai un nome alla raccolta per crearla.",
     "createNeedsPage": "Aggiungi almeno una pagina per crearla.",
-    "sortInstructionsTouch": "Per riordinare, trascina una maniglia o usa ··· › Sposta su / Sposta giù.",
+    "sortInstructionsTouch": "Per riordinare, usa ··· › Sposta su / Sposta giù.",
     "sortMoveUp": "Sposta su",
     "sortMoveDown": "Sposta giù",
     "pageActions": "Altre azioni per {name}",

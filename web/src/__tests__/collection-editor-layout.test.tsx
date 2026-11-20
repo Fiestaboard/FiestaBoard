@@ -243,7 +243,8 @@ describe("Collection editor layout", () => {
     phoneTouch();
     try {
       renderForm("variable");
-      expect(screen.getByText(/drag a handle, or use ··· › Move up \/ Move down/)).toBeInTheDocument();
+      // Rules have no drag handle: the ··· menu is the touch way to move them.
+      expect(screen.getByText("To reorder, use ··· › Move up / Move down.")).toBeInTheDocument();
       expect(screen.queryByText(/press Space to lift/)).not.toBeInTheDocument();
       const expression = screen.getByRole("button", { name: "Expression for rule 1" });
       expect(expression).toHaveTextContent("1 == 1");

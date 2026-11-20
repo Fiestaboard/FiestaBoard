@@ -451,7 +451,7 @@
     "sortInstructions": "Om te herschikken: Spatie om op te tillen, pijltoetsen om te verplaatsen, Spatie om neer te zetten, Escape om te annuleren.",
     "createNeedsName": "Geef de collectie een naam om hem te maken.",
     "createNeedsPage": "Voeg minstens één pagina toe om hem te maken.",
-    "sortInstructionsTouch": "Sleep een greep om te herschikken, of gebruik ··· › Omhoog / Omlaag.",
+    "sortInstructionsTouch": "Gebruik ··· › Omhoog / Omlaag om te herschikken.",
     "sortMoveUp": "Omhoog",
     "sortMoveDown": "Omlaag",
     "pageActions": "Meer acties voor {name}",

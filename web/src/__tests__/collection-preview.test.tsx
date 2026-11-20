@@ -77,6 +77,9 @@ describe("saved Collection preview", () => {
       const viewport = container.querySelector('[data-testid="collection-preview-board"] [data-layout]');
       expect(viewport).toHaveAttribute("data-layout", "phone-hero");
       expect(viewport).toHaveAttribute("data-mode", "fit");
+      // From md the board box is the hero's 373px, so a Flagship needs no scroll chrome.
+      expect(container.querySelector('[data-testid="collection-preview-board"]')).toHaveClass("md:w-[373px]");
+      expect(container.querySelector('[data-testid="collection-preview-board"]')).not.toHaveClass("lg:w-auto");
       unmount();
     }
   });

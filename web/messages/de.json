@@ -451,7 +451,7 @@
     "sortInstructions": "Zum Umsortieren: Leertaste zum Anheben, Pfeiltasten zum Verschieben, Leertaste zum Ablegen, Escape zum Abbrechen.",
     "createNeedsName": "Gib der Sammlung einen Namen, um sie anzulegen.",
     "createNeedsPage": "Füge mindestens eine Seite hinzu, um sie anzulegen.",
-    "sortInstructionsTouch": "Zum Umsortieren einen Griff ziehen oder ··· › Nach oben / Nach unten verwenden.",
+    "sortInstructionsTouch": "Zum Umsortieren ··· › Nach oben / Nach unten verwenden.",
     "sortMoveUp": "Nach oben",
     "sortMoveDown": "Nach unten",
     "pageActions": "Weitere Aktionen für {name}",

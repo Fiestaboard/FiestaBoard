@@ -451,7 +451,7 @@
     "sortInstructions": "Pour réorganiser, appuyez sur Espace pour soulever, les flèches pour déplacer, Espace pour déposer, Échap pour annuler.",
     "createNeedsName": "Nommez la collection pour la créer.",
     "createNeedsPage": "Ajoutez au moins une page pour la créer.",
-    "sortInstructionsTouch": "Pour réordonner, faites glisser une poignée ou utilisez ··· › Monter / Descendre.",
+    "sortInstructionsTouch": "Pour réordonner, utilisez ··· › Monter / Descendre.",
     "sortMoveUp": "Monter",
     "sortMoveDown": "Descendre",
     "pageActions": "Plus d'actions pour {name}",

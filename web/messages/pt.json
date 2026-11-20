@@ -451,7 +451,7 @@
     "sortInstructions": "Para reordenar, pressione Espaço para levantar, as setas para mover, Espaço para soltar e Escape para cancelar.",
     "createNeedsName": "Dê um nome à coleção para criá-la.",
     "createNeedsPage": "Adicione pelo menos uma página para criá-la.",
-    "sortInstructionsTouch": "Para reordenar, arraste uma alça ou use ··· › Mover para cima / para baixo.",
+    "sortInstructionsTouch": "Para reordenar, use ··· › Mover para cima / para baixo.",
     "sortMoveUp": "Mover para cima",
     "sortMoveDown": "Mover para baixo",
     "pageActions": "Mais ações para {name}",

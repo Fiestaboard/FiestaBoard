@@ -304,7 +304,7 @@ export function VariableRuleRow({
               disabled={actionsDisabled}
               aria-label={t("variableExpressionAriaLabel", { index: index + 1 })}
               onClick={() => onRequestEdit()}
-              className="h-auto min-h-9 min-w-32 flex-[1_1_10rem] justify-start whitespace-normal break-all py-1.5 text-left font-mono text-sm font-normal"
+              className="h-auto min-h-9 min-w-32 flex-[1_1_10rem] justify-start whitespace-normal break-words py-1.5 text-left font-mono text-sm font-normal"
             >
               {summaryExpression}
             </Button>

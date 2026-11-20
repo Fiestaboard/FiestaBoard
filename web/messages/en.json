@@ -407,7 +407,7 @@
     "sortInstructions": "To reorder, press Space to lift, the arrow keys to move, Space to drop, Escape to cancel.",
     "createNeedsName": "Name the Collection to create it.",
     "createNeedsPage": "Add at least one page to create it.",
-    "sortInstructionsTouch": "To reorder, drag a handle, or use ··· › Move up / Move down.",
+    "sortInstructionsTouch": "To reorder, use ··· › Move up / Move down.",
     "sortMoveUp": "Move up",
     "sortMoveDown": "Move down",
     "pageActions": "More actions for {name}",
