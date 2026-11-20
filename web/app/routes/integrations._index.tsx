@@ -38,9 +38,9 @@ import {
   IconTile,
   Input,
   Label,
-  ListItem,
   ListRow,
   ListRowGroup,
+  ListRowItem,
   PageSection,
   PageToolbar,
   PluginCard,
@@ -1983,7 +1983,9 @@ export function InstalledPluginRow({
   );
   const configPanel = isConfigOpen && detailTarget ? createPortal(detailContent, detailTarget) : null;
   const row = (
-    <ListItem>
+    // ListRowItem, not ListItem: it tells the kit's ListRow it is already
+    // in an item, so the row doesn't wrap itself in a second <li>.
+    <ListRowItem>
       <ListRow
         {...anchorProps(`plugin.${plugin.id}`)}
         data-section-item={plugin.id}
@@ -2045,7 +2047,7 @@ export function InstalledPluginRow({
           </>
         }
       />
-    </ListItem>
+    </ListRowItem>
   );
 
   // Delete / uninstall confirmation dialog

@@ -313,3 +313,34 @@ describe("ComposePageDialog", () => {
     expect(document.querySelector("[data-board-preview]")).toBeInTheDocument();
   });
 });
+
+describe("ComposePageDialog preview while typing (BB-A-2)", () => {
+  afterEach(() => server.resetHandlers());
+
+  it("keeps the last preview on the board while the next one renders, so a keystroke doesn't flap from blank", async () => {
+    renderDialog();
+    typeMessage("HI");
+    await waitFor(() => expect(document.querySelector('[data-target-char="H"]')).toBeInTheDocument());
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.post(`${API_BASE}/templates/render`, async () => {
+        await held;
+        return HttpResponse.json({ rendered: "HO", lines: ["HO"], line_count: 1 });
+      }),
+    );
+    typeMessage("HO");
+    // Past the 250 ms debounce: the new preview query is in flight.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(document.querySelector('[data-target-char="H"]')).toBeInTheDocument();
+    release();
+    await waitFor(() => expect(document.querySelector('[data-target-char="O"]')).toBeInTheDocument());
+  });
+  it("clears the preview when the message is cleared", async () => {
+    renderDialog();
+    typeMessage("HI");
+    await waitFor(() => expect(document.querySelector('[data-target-char="H"]')).toBeInTheDocument());
+    typeMessage("");
+    await waitFor(() => expect(document.querySelector('[data-target-char="H"]')).not.toBeInTheDocument());
+  });
+});

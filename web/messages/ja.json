@@ -752,7 +752,18 @@
       "weekdaysShort": "平日",
       "weekendsShort": "週末",
       "customShort": "指定",
-      "openEnded": "終了なし"
+      "openEnded": "終了なし",
+      "moreOptions": "その他のオプション",
+      "timeRangeTo": "〜",
+      "startsAtSun": {
+        "sunrise": "日の出に開始",
+        "sunset": "日の入りに開始"
+      },
+      "endsAtSun": {
+        "sunrise": "日の出に終了",
+        "sunset": "日の入りに終了"
+      },
+      "entryOff": "予定はオフ"
     },
     "copy": {
       "open": "別のディスプレイからコピー…",

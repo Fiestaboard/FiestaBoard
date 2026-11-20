@@ -752,7 +752,18 @@
       "weekdaysShort": "Ma–Vr",
       "weekendsShort": "Za–Zo",
       "customShort": "Eigen",
-      "openEnded": "Open"
+      "openEnded": "Open",
+      "moreOptions": "Meer opties",
+      "timeRangeTo": "tot",
+      "startsAtSun": {
+        "sunrise": "Begint bij zonsopgang",
+        "sunset": "Begint bij zonsondergang"
+      },
+      "endsAtSun": {
+        "sunrise": "Eindigt bij zonsopgang",
+        "sunset": "Eindigt bij zonsondergang"
+      },
+      "entryOff": "Item staat uit"
     },
     "copy": {
       "open": "Kopiëren van ander scherm…",

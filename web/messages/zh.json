@@ -752,7 +752,18 @@
       "weekdaysShort": "工作日",
       "weekendsShort": "周末",
       "customShort": "自定",
-      "openEnded": "无结束"
+      "openEnded": "无结束",
+      "moreOptions": "更多选项",
+      "timeRangeTo": "至",
+      "startsAtSun": {
+        "sunrise": "日出时开始",
+        "sunset": "日落时开始"
+      },
+      "endsAtSun": {
+        "sunrise": "日出时结束",
+        "sunset": "日落时结束"
+      },
+      "entryOff": "日程已关闭"
     },
     "copy": {
       "open": "从其他显示屏复制…",

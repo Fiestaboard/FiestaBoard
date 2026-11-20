@@ -27,7 +27,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock, Save } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -216,7 +216,12 @@ export function ComposePageDialog({
     queryFn: () => api.renderTemplate(previewLines, undefined, deviceType, notesWide, notesTall, panelGrid),
     enabled: open && previewLines.length > 0,
     staleTime: 10_000,
+    // Hold the last preview while the next renders (BB-A-2): dropping to blank
+    // between keystrokes would replay the flap cascade from blank each time.
+    placeholderData: keepPreviousData,
   });
+  // A cleared message disables the query; the held placeholder must not outlive it.
+  const previewMessage = previewLines.length > 0 ? (preview?.rendered ?? "") : "";
 
   const sendMutation = useMutation({
     mutationFn: ({ request }: { request: SetTemporaryOverrideRequest; boardLabel: string }) => {
@@ -410,9 +415,9 @@ export function ComposePageDialog({
         {/* On a phone the preview runs edge to edge in the kit's phone-hero
             placement, so a Flagship shows whole without Fit/Actual (BB-A-3). */}
         <Box className={isPhone ? "-mx-4 min-w-0" : "contents"}>
-          <DevicePreview model={model} ledLayout={ledLayout} message={preview?.rendered ?? ""} size="sm">
+          <DevicePreview model={model} ledLayout={ledLayout} message={previewMessage} size="sm">
             <ScaledBoardDisplay
-              message={preview?.rendered ?? ""}
+              message={previewMessage}
               size={isPhone ? undefined : "sm"}
               layout={isPhone ? "phone-hero" : undefined}
               boardType={boardColor}

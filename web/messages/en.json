@@ -708,7 +708,18 @@
       "weekdaysShort": "Mon–Fri",
       "weekendsShort": "Sat–Sun",
       "customShort": "Custom",
-      "openEnded": "Open-ended"
+      "openEnded": "Open-ended",
+      "moreOptions": "More options",
+      "timeRangeTo": "to",
+      "startsAtSun": {
+        "sunrise": "Starts at sunrise",
+        "sunset": "Starts at sunset"
+      },
+      "endsAtSun": {
+        "sunrise": "Ends at sunrise",
+        "sunset": "Ends at sunset"
+      },
+      "entryOff": "Entry is off"
     },
     "copy": {
       "open": "Copy from another display…",

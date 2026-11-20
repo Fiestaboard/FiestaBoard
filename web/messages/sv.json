@@ -752,7 +752,18 @@
       "weekdaysShort": "Mån–Fre",
       "weekendsShort": "Lör–Sön",
       "customShort": "Egna",
-      "openEnded": "Öppet"
+      "openEnded": "Öppet",
+      "moreOptions": "Fler alternativ",
+      "timeRangeTo": "till",
+      "startsAtSun": {
+        "sunrise": "Börjar vid soluppgång",
+        "sunset": "Börjar vid solnedgång"
+      },
+      "endsAtSun": {
+        "sunrise": "Slutar vid soluppgång",
+        "sunset": "Slutar vid solnedgång"
+      },
+      "entryOff": "Posten är av"
     },
     "copy": {
       "open": "Kopiera från en annan skärm…",

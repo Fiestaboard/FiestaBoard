@@ -752,7 +752,18 @@
       "weekdaysShort": "Mo–Fr",
       "weekendsShort": "Sa–So",
       "customShort": "Eigene",
-      "openEnded": "Offen"
+      "openEnded": "Offen",
+      "moreOptions": "Weitere Optionen",
+      "timeRangeTo": "bis",
+      "startsAtSun": {
+        "sunrise": "Beginnt bei Sonnenaufgang",
+        "sunset": "Beginnt bei Sonnenuntergang"
+      },
+      "endsAtSun": {
+        "sunrise": "Endet bei Sonnenaufgang",
+        "sunset": "Endet bei Sonnenuntergang"
+      },
+      "entryOff": "Eintrag ist aus"
     },
     "copy": {
       "open": "Von anderem Display kopieren…",

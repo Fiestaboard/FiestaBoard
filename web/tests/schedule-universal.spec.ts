@@ -183,6 +183,11 @@ for (const width of [390, 768, 1280]) {
         });
         await page.getByRole("button", { name: "Edit entry", exact: true }).click();
       } else await page.getByRole("button", { name: "Add Schedule", exact: true }).first().click();
+      if (width < 768) {
+        // BB-C-5: a phone gets the compact form; Starts, Ends and Repeat sit behind More options.
+        await expect(page.locator('[data-slot="schedule-entry-form"]')).toHaveAttribute("data-layout", "compact");
+        await page.getByRole("button", { name: "More options" }).click();
+      }
       await expect(page.getByRole("radiogroup", { name: "Start time type" })).toBeVisible();
       await expect(page.getByLabel("Start Time", { exact: true })).toHaveAttribute("type", "time");
       const entryViolations = await getViolations(page, undefined, {

@@ -752,7 +752,18 @@
       "weekdaysShort": "평일",
       "weekendsShort": "주말",
       "customShort": "사용자 지정",
-      "openEnded": "종료 없음"
+      "openEnded": "종료 없음",
+      "moreOptions": "추가 옵션",
+      "timeRangeTo": "~",
+      "startsAtSun": {
+        "sunrise": "일출에 시작",
+        "sunset": "일몰에 시작"
+      },
+      "endsAtSun": {
+        "sunrise": "일출에 종료",
+        "sunset": "일몰에 종료"
+      },
+      "entryOff": "항목 꺼짐"
     },
     "copy": {
       "open": "다른 디스플레이에서 복사…",

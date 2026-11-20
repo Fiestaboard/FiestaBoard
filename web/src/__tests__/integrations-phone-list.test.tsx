@@ -107,6 +107,13 @@ describe("Integrations list on a phone (BB-C-22)", () => {
     expect(dot(installed, "Music")?.className).not.toMatch(/success|warning/);
   });
 
+  it("nests no listitem in another (kit 8.17.0-alpha.4 wraps render rows; axe listitem)", async () => {
+    renderList();
+    const installed = await screen.findByRole("list", { name: "Installed" });
+    await within(installed).findByRole("link", { name: /^Weather/ });
+    expect(document.querySelectorAll("li li")).toHaveLength(0);
+  });
+
   it("keeps Check for updates and Auto-update under the list", async () => {
     renderList();
     const updates = await screen.findByRole("region", { name: "Plugin updates" });
