@@ -91,6 +91,9 @@ describe("LoginPage first-run picker", () => {
     await user.click(screen.getByRole("button", { name: /Set up a username/i }));
 
     await screen.findByText(/Create administrator/i);
+    // 40px, 44 on a phone, like Sign in (07e `326:38261`, BB-FC-10).
+    const create = screen.getByRole("button", { name: /^Create account/i });
+    expect((create.getAttribute("class") ?? "").split(/\s+/)).toEqual(expect.arrayContaining(["h-11", "sm:h-10"]));
   });
 
   it("clicking 'Skip' POSTs preference and redirects", async () => {
@@ -232,6 +235,23 @@ describe("LoginPage sign-in form (07e Sign in `326:40175` / `326:34407`)", () =>
     expect(line).toHaveTextContent(`${window.location.hostname} · Online`);
     // No generic "administrator credentials" blurb under the title.
     expect(screen.queryByText(/administrator credentials/i)).not.toBeInTheDocument();
+  });
+
+  // BB-FC-10: 07e `326:32474` draws a 398px card and a 40px Sign in (44 on a
+  // phone, `326:40175`).
+  it("sizes the Sign in button 40px, 44 on a phone", async () => {
+    render(<LoginPage />);
+    const submit = await screen.findByRole("button", { name: /^Sign in$/i });
+    const classes = (submit.getAttribute("class") ?? "").split(/\s+/);
+    expect(classes).toContain("h-11");
+    expect(classes).toContain("sm:h-10");
+  });
+
+  it("draws the auth card 398px wide", async () => {
+    render(<LoginPage />);
+    const submit = await screen.findByRole("button", { name: /^Sign in$/i });
+    const card = submit.closest("[data-slot=card]");
+    expect((card?.getAttribute("class") ?? "").split(/\s+/)).toContain("max-w-[398px]");
   });
 
   it("lets the reader reveal the password (BB-C-9)", async () => {

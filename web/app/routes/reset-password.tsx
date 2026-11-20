@@ -84,7 +84,7 @@ export default function ResetPassword() {
         fixed
         className="hidden sm:block"
       />
-      <Card className="relative z-10 w-full max-w-[440px] gap-4 p-6 sm:p-8">
+      <Card className="relative z-10 w-full max-w-[398px] gap-4 p-6 sm:p-8">
         <FiestaLogo size="sm" className="mb-4" />
         <Heading level={1} size="xl" ref={heading} tabIndex={-1}>
           {t(done ? "successTitle" : "title")}

@@ -431,7 +431,8 @@ export default function LoginPage() {
               <AlertDescription>{formError}</AlertDescription>
             </Alert>
           )}
-          <Button type="submit" variant="brand" className="w-full" disabled={submitting}>
+          {/* 40px, 44 on a phone, like Sign in (07e `326:38261`, BB-FC-10). */}
+          <Button type="submit" variant="brand" size="lg" className="h-11 w-full sm:h-10" disabled={submitting}>
             {submitting ? (
               <>
                 <Spinner label={null} className="h-4 w-4" /> {t("creatingButton")}
@@ -506,7 +507,8 @@ export default function LoginPage() {
             {t("rememberMeLabel")}
           </Label>
         </Flex>
-        <Button type="submit" variant="brand" className="w-full" disabled={submitting}>
+        {/* 40px, 44 on a phone (07e `326:32474`, `326:40175`), as /reset-password's (BB-FC-10). */}
+        <Button type="submit" variant="brand" size="lg" className="h-11 w-full sm:h-10" disabled={submitting}>
           {submitting ? (
             <>
               <Spinner label={null} className="h-4 w-4" /> {t("submittingButton")}
@@ -594,7 +596,8 @@ function CenteredCard({
         fixed
         className="hidden sm:block"
       />
-      <Card className="relative z-10 w-full max-w-[440px] gap-4 p-6 sm:p-8">
+      {/* 398px, as 07e draws the auth card (`326:32474`, BB-FC-10). */}
+      <Card className="relative z-10 w-full max-w-[398px] gap-4 p-6 sm:p-8">
         <FiestaLogo size="sm" />
         <Stack gap="1">
           <Flex align="center" gap="2">
