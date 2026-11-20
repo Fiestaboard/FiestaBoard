@@ -1067,7 +1067,7 @@
       "addModel": "Adicionar um modelo",
       "refreshModels": "Atualizar modelos",
       "promptDestination": "As instruções são enviadas para {destination}",
-      "savedToast": "Definições do fornecedor de IA guardadas."
+      "savedToast": "Configurações do provedor de IA salvas."
     },
     "backup": {
       "cardTitle": "Backup e restauro",
@@ -1081,17 +1081,17 @@
       "confirmDescription": "Está prestes a restaurar <file></file>. As suas páginas, carrosséis, agendamentos e configuração existentes serão substituídos. É guardada uma cópia com data e hora de cada ficheiro existente junto ao novo, para poder reverter manualmente se for necessário.",
       "restoringButton": "A restaurar…",
       "restoreButton": "Restaurar backup",
-      "exportDone": "Backup transferido.",
-      "exportUnreachable": "Não é possível contactar o hub — backup não transferido.",
-      "exportFailed": "Backup não transferido: {error}",
+      "exportDone": "Backup baixado.",
+      "exportUnreachable": "Não é possível conectar ao hub — backup não baixado.",
+      "exportFailed": "Backup não baixado: {error}",
       "importFailed": "Falha na importação: {error}",
-      "readFailed": "Não foi possível ler o ficheiro: {error}",
-      "invalidJson": "O ficheiro não é um JSON válido: {error}",
-      "notABackup": "Isto não parece um ficheiro de backup do FiestaBoard.",
-      "restoredFiles": "{count, plural, one {# ficheiro restaurado} other {# ficheiros restaurados}}.",
+      "readFailed": "Não foi possível ler o arquivo: {error}",
+      "invalidJson": "O arquivo não é um JSON válido: {error}",
+      "notABackup": "Isto não parece um arquivo de backup do FiestaBoard.",
+      "restoredFiles": "{count, plural, one {# arquivo restaurado} other {# arquivos restaurados}}.",
       "reinstalledPlugins": "{count, plural, one {# plugin reinstalado} other {# plugins reinstalados}}.",
       "pluginsFailed": "Não foi possível reinstalar {count, plural, one {# plugin} other {# plugins}} — instale manualmente.",
-      "manualReinstall": "{count, plural, one {# plugin externo tem} other {# plugins externos têm}} de ser reinstalados manualmente em Integrações: {names}"
+      "manualReinstall": "{count, plural, one {# plugin externo precisa} other {# plugins externos precisam}} ser reinstalados manualmente em Integrações: {names}"
     },
     "groupIdentity": "Instância",
     "groupAppearance": "Aspeto e acessibilidade",
