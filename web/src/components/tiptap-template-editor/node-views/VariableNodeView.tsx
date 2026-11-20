@@ -59,6 +59,7 @@ export function VariableNodeView({ node }: ReactNodeViewProps) {
                 value={hint ? atomValueText(hint.value, tIde) : ""}
                 state={hint?.state ?? "ok"}
                 // Outside the page editor nothing renders a value: no empty segment.
+                // TODO(FiestaUI#442): pass `value={undefined}` once the kit omits the segment itself.
                 className={cn(!hint && "[&>[data-slot=formula-atom-value]]:hidden")}
               />
             </span>
