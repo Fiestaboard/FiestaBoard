@@ -161,3 +161,25 @@ describe("Variable filter arguments survive the round-trip", () => {
     expect(firstLine).toBe("{{weather.temp|pad:3}}");
   });
 });
+
+describe("no-break spaces (BB-B-6)", () => {
+  // ProseMirror keeps a space typed before an inline chip as U+00A0; the
+  // board has no such character, so the template stores a plain space.
+  it("stores a no-break space as a plain space", () => {
+    const doc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "PRICE " },
+            { type: "formula", attrs: { expression: '"$" & FIXED(3.5, 2)' } },
+          ],
+        },
+      ],
+    };
+    const template = serializeTemplateSimple(doc, 1);
+    expect(template).toBe('PRICE {{= "$" & FIXED(3.5, 2) }}');
+    expect(template).not.toContain(" ");
+  });
+});
