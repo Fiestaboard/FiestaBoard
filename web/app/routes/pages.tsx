@@ -27,6 +27,7 @@ function useOpenPageId(): string | null {
 export function PagesSection({ children }: { children: React.ReactNode }) {
   const t = useTranslations("pages");
   const tCommon = useTranslations("common");
+  const tBuilder = useTranslations("pageBuilder");
   const openId = useOpenPageId();
   const { data, isLoading } = usePages();
 
@@ -34,7 +35,11 @@ export function PagesSection({ children }: { children: React.ReactNode }) {
   const detail = openId
     ? {
         id: openId,
-        title: openId === "new" ? t("newPage") : (page?.name ?? (isLoading ? tCommon("loading") : openId)),
+        // Never the raw id: a page the library doesn't have is a missing page (BB-B-16).
+        title:
+          openId === "new"
+            ? t("newPage")
+            : (page?.name ?? (isLoading ? tCommon("loading") : tBuilder("pageNotFoundTitle"))),
       }
     : null;
 

@@ -76,4 +76,13 @@ describe("/pages section", () => {
     renderSection();
     expect(screen.getByRole("heading", { level: 2, name: "New Page" })).toBeInTheDocument();
   });
+
+  // BB-B-16: never the raw id as the title of a page the library doesn't have.
+  it("calls an unknown page id a missing page, not by its id", async () => {
+    route.pathname = "/pages/edit/undefined";
+    route.params = { id: "undefined" };
+    renderSection();
+    expect(await screen.findByRole("heading", { level: 2, name: "This page doesn’t exist" })).toBeInTheDocument();
+    expect(screen.queryByText("undefined")).not.toBeInTheDocument();
+  });
 });

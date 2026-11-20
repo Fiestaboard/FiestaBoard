@@ -200,6 +200,17 @@ describe("PageBuilder", () => {
     expect(screen.getByText("Create Page")).toBeInTheDocument();
   });
 
+  // BB-B-29: embedded, the editor's card keeps no 80px toolbar gap of its own
+  // (the IDE's rows follow it); the editor's scroll area clears the toolbar.
+  it("keeps no toolbar gap inside the card when embedded", async () => {
+    const { container } = render(<PageBuilder embedded onClose={mockOnClose} onSave={mockOnSave} />, {
+      wrapper: TestWrapper,
+    });
+    await screen.findByPlaceholderText("My Custom Page");
+    const content = container.querySelector('[data-slot="card-content"]');
+    expect(content).not.toHaveClass("pb-20");
+  });
+
   it("shows preview display", async () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 

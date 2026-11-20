@@ -84,6 +84,25 @@ describe("FormulaBuilderCard", () => {
     expect(apply).toHaveBeenCalledWith('DEFAULT(weather.temp, "--")');
   });
 
+  // BB-B-14: a hand-written formula is not a blank recipe the Builder would
+  // overwrite; it says it can't show it and offers Code.
+  it("does not dress a hand-written formula up as an empty recipe", async () => {
+    const onState = vi.fn();
+    wrap(
+      <Workbench
+        card={(p) => <FormulaBuilderCard {...p} />}
+        initial={opened({ expression: "1 / 0" })}
+        onState={onState}
+      />,
+    );
+    expect(screen.getByText(/Builder can’t show this formula/)).toBeInTheDocument();
+    const recipes = screen.getByRole("radiogroup", { name: "Recipes" });
+    expect(within(recipes).queryByRole("radio", { checked: true })).toBeNull();
+    expect(screen.queryByLabelText("List")).toBeNull();
+    expect(screen.getByRole("button", { name: /Update formula/ })).toBeDisabled();
+    expect(screen.getByTestId("generated-code-text")).toHaveTextContent("1 / 0");
+  });
+
   it("sums the list's column budget against the board", async () => {
     wrap(<Workbench card={(p) => <FormulaBuilderCard {...p} />} initial={opened()} />);
     await userEvent.click(screen.getByRole("button", { name: /Add a column/ }));
@@ -136,5 +155,14 @@ describe("FormulaCodeCard", () => {
     await waitFor(() => expect(screen.getByText("Valid")).toBeInTheDocument());
     await userEvent.click(screen.getByRole("button", { name: /Update formula/ }));
     expect(apply).toHaveBeenCalledWith('IF(weather.temp > 80, "HOT", "NICE")');
+  });
+
+  // BB-B-13: the docked editor opens under the preview, often below the fold;
+  // opening a chip brings it into view as well as focusing it.
+  it("scrolls the opened formula into view", () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    wrap(<Workbench card={(p) => <FormulaCodeCard {...p} />} initial={opened({ tab: "code", expression: "1 / 0" })} />);
+    expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
   });
 });

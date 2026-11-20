@@ -209,3 +209,43 @@ it("guards the legacy query-string editor route too", async () => {
   await user.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(screen.getByDisplayValue("Weather Page changed")).toBeInTheDocument();
 });
+
+// BB-B-27: deleting a page drops its cached query instead of refetching a
+// page that no longer exists (a 404 in the console after every delete).
+it("does not ask for the deleted page again", async () => {
+  const { user } = setup();
+  await screen.findByDisplayValue("Weather Page");
+  let deleted = false;
+  const afterDelete: string[] = [];
+  const listener = ({ request }: { request: Request }) => {
+    const path = new URL(request.url).pathname;
+    if (request.method === "DELETE" && path.endsWith("/pages/page-1")) deleted = true;
+    else if (deleted && request.method === "GET" && /\/pages\/page-1(\/|$)/.test(path)) afterDelete.push(path);
+  };
+  server.events.on("request:start", listener);
+  try {
+    await user.click(screen.getByRole("button", { name: "Delete Page" }));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+    expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(deleted).toBe(true);
+    expect(afterDelete).toEqual([]);
+  } finally {
+    server.events.removeListener("request:start", listener);
+  }
+});
+
+// BB-B-16: an unknown page id is a "doesn't exist" state with a way back,
+// not a blank, saveable editor titled with the raw id.
+it("says an unknown page doesn't exist and offers the way back", async () => {
+  server.use(http.get("/api/v1/pages/page-1", () => HttpResponse.json({ detail: "Page not found" }, { status: 404 })));
+  const { user } = setup();
+  expect(await screen.findByRole("heading", { name: "This page doesn’t exist" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /save page/i })).not.toBeInTheDocument();
+  expect(screen.queryByDisplayValue("My Custom Page")).not.toBeInTheDocument();
+  // No Creator IDE (status row, Inspector) around a page that isn't there.
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  await user.click(screen.getAllByRole("button", { name: "Back to Pages" }).at(-1)!);
+  expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
+});

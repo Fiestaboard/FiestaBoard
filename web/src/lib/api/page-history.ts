@@ -148,6 +148,8 @@ const pagePath = (pageId: string) => `/pages/${encodeURIComponent(pageId)}`;
 
 export const pageHistoryApi = {
   getDraft: (pageId: string) => fetchApi<PageDraft>(`${pagePath(pageId)}/draft`),
+  /** Every page that has a draft (`GET /pages/drafts`), so a page without one is never asked for it. */
+  listDrafts: () => fetchApi<{ drafts: { page_id: string; saved_at: string; stale: boolean }[] }>("/pages/drafts"),
   saveDraft: (pageId: string, body: PageUpdate) =>
     fetchApi<PageDraft>(`${pagePath(pageId)}/draft`, { method: "PUT", body: JSON.stringify(body) }),
   discardDraft: (pageId: string, expectedRevision?: string) =>

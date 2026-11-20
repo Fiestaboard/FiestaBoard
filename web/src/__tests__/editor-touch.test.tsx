@@ -358,3 +358,25 @@ it("keeps Show now intent after confirming a shrinking page retarget", async () 
   await waitFor(() => expect(saved?.device_type).toBe("note"));
   expect(await screen.findByRole("dialog", { name: "Change Page" })).toBeInTheDocument();
 });
+
+// BB-B-24 (Figma 303:18724): in the phone More sheet, Delete and the page
+// transition are labelled rows, not bare icons.
+it("labels Delete and Page transition in the phone More sheet", async () => {
+  vi.spyOn(window, "matchMedia").mockImplementation(
+    (q) =>
+      ({
+        matches: q.includes("max-width"),
+        media: q,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }) as unknown as MediaQueryList,
+  );
+  const user = userEvent.setup();
+  render(<PageBuilder pageId="page-1" onClose={vi.fn()} />, { wrapper: Wrapper });
+  await screen.findByDisplayValue("Weather Page");
+  await user.click(screen.getByRole("button", { name: "Plain Text" }));
+  await user.click(screen.getByRole("button", { name: "More" }));
+  const remove = await screen.findByRole("button", { name: "Delete Page" });
+  expect(remove).toHaveTextContent("Delete Page");
+  expect(screen.getByRole("button", { name: "Page transition" })).toHaveTextContent("Page transition");
+});
