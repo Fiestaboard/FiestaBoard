@@ -15,6 +15,8 @@ import type { ChoreographyContext } from "@/lib/ai-choreography/types";
 import NewPage from "../../app/routes/pages.new";
 import { server } from "./mocks/server";
 
+vi.mock("@/components/preview-target-popover", () => import("./mocks/preview-target-popover-inline"));
+
 vi.unmock("react-router");
 
 beforeEach(() => {

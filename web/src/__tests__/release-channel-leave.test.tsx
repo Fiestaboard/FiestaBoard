@@ -190,6 +190,11 @@ describe("ReleaseChannelCard", () => {
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog).toHaveTextContent(/automatic backup/i);
     expect(dialog).toHaveTextContent(/migrate/i);
+    // A switch can lose data, so its confirm is destructive, not the primary orange (BB-C-12).
+    expect(within(dialog).getByRole("button", { name: "Switch channel" })).toHaveAttribute(
+      "data-variant",
+      "destructive",
+    );
     expect(posted).toHaveLength(0);
     await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(screen.getByRole("radio", { name: /Alpha preview/ })).toHaveAttribute("aria-checked", "true");

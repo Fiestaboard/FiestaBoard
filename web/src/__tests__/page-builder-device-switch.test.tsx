@@ -20,6 +20,8 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import type { BoardSettings, Page } from "@/lib/api";
 import { api } from "@/lib/api";
 
+vi.mock("@/components/preview-target-popover", () => import("./mocks/preview-target-popover-inline"));
+
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),

@@ -39,6 +39,12 @@ export type BoardViewportProps = Omit<
    * the translated "Board preview".
    */
   regionLabel?: string;
+  /**
+   * `false` snaps every change instead of flapping: the page editor while you
+   * type (D7, BB-E-9). It can only turn animation off; `true` (the default)
+   * still follows the user's animation and reduced-motion settings.
+   */
+  animate?: boolean;
 };
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -76,12 +82,23 @@ export function useBoardViewportLabels(regionLabel?: string): Required<BoardView
   );
 }
 
-export const BoardViewport = memo(function BoardViewport({ flapSpeed, regionLabel, ...props }: BoardViewportProps) {
+export const BoardViewport = memo(function BoardViewport({
+  flapSpeed,
+  regionLabel,
+  animate = true,
+  ...props
+}: BoardViewportProps) {
   const t = useTranslations("boardDisplay");
   const chrome = useBoardChrome(flapSpeed);
   const labels = useBoardViewportLabels(regionLabel);
   const coarse = useCoarsePointer();
   return (
-    <UIBoardViewport {...props} {...chrome} labels={labels} hint={boardViewportHint(t, props.deviceType, coarse)} />
+    <UIBoardViewport
+      {...props}
+      {...chrome}
+      animationsEnabled={chrome.animationsEnabled && animate}
+      labels={labels}
+      hint={boardViewportHint(t, props.deviceType, coarse)}
+    />
   );
 });

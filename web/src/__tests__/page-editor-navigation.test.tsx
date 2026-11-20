@@ -13,6 +13,8 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import LegacyEditPage from "../../app/routes/pages.edit._index";
 import { server } from "./mocks/server";
 
+vi.mock("@/components/preview-target-popover", () => import("./mocks/preview-target-popover-inline"));
+
 vi.unmock("react-router");
 
 beforeEach(() => {

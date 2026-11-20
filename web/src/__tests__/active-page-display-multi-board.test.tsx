@@ -365,3 +365,38 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
     },
   );
 });
+
+describe("Home board per display (BB-A-2)", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("mounts a fresh board on a display switch, so its first paint lands instead of flapping", async () => {
+    useTwoBoards();
+    server.use(
+      http.get(`${API_BASE}/board/current-message`, ({ request }) =>
+        HttpResponse.json({
+          characters: [],
+          message: boardId(request) === "board-2" ? "KITCHEN" : "LIVING ROOM",
+          rows: 6,
+          cols: 22,
+          expected_characters: null,
+          cached_at: null,
+          api_mode: "local",
+          board_id: boardId(request),
+        }),
+      ),
+    );
+    localStorage.setItem("fiestaboard_current_board", "board-1");
+    render(
+      <>
+        <ActivePageDisplay />
+        <SwitchBoardButton to="board-2" />
+      </>,
+      { wrapper: TestWrapper },
+    );
+    const boardNode = () => screen.getByTestId("home-board-state").firstElementChild;
+    await waitFor(() => expect(boardNode()).not.toBeNull(), { timeout: 3000 });
+    const first = boardNode();
+    await userEvent.click(screen.getByRole("button", { name: "switch-board-board-2" }));
+    await waitFor(() => expect(boardNode()).not.toBe(first), { timeout: 3000 });
+  });
+});

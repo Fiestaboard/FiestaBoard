@@ -136,3 +136,41 @@ it("stages custom days, solar offsets and page values through the existing AI ha
     ),
   );
 });
+
+describe("compact layout (BB-C-5)", () => {
+  it("forwards layout='compact' to the kit form with the app's labels", () => {
+    render(
+      <ScheduleEntryAdapter
+        layout="compact"
+        schedule={{ ...schedule, enabled: false }}
+        pages={pages}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(document.querySelector("form")).toHaveAttribute("data-layout", "compact");
+    expect(screen.getByText("to")).toBeInTheDocument();
+    // The entry is off, so More options opens by itself; closed, it names what it holds.
+    fireEvent.click(screen.getByRole("button", { name: /More options/ }));
+    expect(screen.getByText(/Entry is off/)).toBeInTheDocument();
+  });
+  it("names a sun start with the app's translated label", () => {
+    render(
+      <ScheduleEntryAdapter
+        layout="compact"
+        schedule={{ ...schedule, start_type: "sunset", end_type: "sunrise" }}
+        pages={pages}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /More options/ }));
+    expect(screen.getByText(/Starts at sunset/)).toBeInTheDocument();
+    expect(screen.getByText(/Ends at sunrise/)).toBeInTheDocument();
+  });
+  it("keeps the default layout when no layout is given", () => {
+    render(<ScheduleEntryAdapter schedule={schedule} pages={pages} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.queryByText("More options")).not.toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "Start time type" })).toBeInTheDocument();
+  });
+});

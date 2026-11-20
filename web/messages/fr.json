@@ -752,7 +752,18 @@
       "weekdaysShort": "Lun–Ven",
       "weekendsShort": "Sam–Dim",
       "customShort": "Autres",
-      "openEnded": "Sans fin"
+      "openEnded": "Sans fin",
+      "moreOptions": "Plus d’options",
+      "timeRangeTo": "à",
+      "startsAtSun": {
+        "sunrise": "Commence au lever du soleil",
+        "sunset": "Commence au coucher du soleil"
+      },
+      "endsAtSun": {
+        "sunrise": "Se termine au lever du soleil",
+        "sunset": "Se termine au coucher du soleil"
+      },
+      "entryOff": "Entrée désactivée"
     },
     "copy": {
       "open": "Copier depuis un autre écran…",
@@ -3834,6 +3845,10 @@
     "startFrom": "Ou commencez par",
     "insertVariable": "Insérer une variable",
     "browseStaffPicks": "Parcourir les Sélections de l’équipe",
+    "replay": "Rejouer",
+    "replayHint": "Lire l’animation des palettes",
+    "previewTarget": "Cible de l’aperçu",
+    "previewTargetTrigger": "Aperçu sur {target}",
     "discardDraft": "Ignorer",
     "lastSaved": "dernier enregistrement {time}"
   },
@@ -4224,7 +4239,6 @@
     "renderAtLabel": "Prévisualiser les formules à une heure donnée",
     "renderAtReset": "Aperçu à l’heure actuelle",
     "renderAtNote": "« À {time} » évalue les formules comme s’il était {time} ; les données d’intégration sont celles que le hub a actuellement.",
-    "sampleTitle": "Données d’exemple — pas en direct",
     "sampleNote": "Exemple affiche les valeurs d’exemple de chaque intégration. La reproduction sur le tableau est désactivée pendant l’aperçu des données d’exemple.",
     "sampleUnsampled": "Aucune valeur d’exemple pour {plugins} ; ils affichent les données actuelles du hub.",
     "previewFailed": "Cet aperçu n’a pas pu être généré. Vérifiez le modèle, puis réessayez.",

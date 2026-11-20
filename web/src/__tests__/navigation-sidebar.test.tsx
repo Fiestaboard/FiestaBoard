@@ -188,6 +188,20 @@ describe("NavigationSidebar bottom nav (below 768px)", () => {
     mockPathname.mockReturnValue("/");
   });
 
+  it("tabs to the page before the tab bar (BB-A-22): the bar follows <main>", async () => {
+    render(
+      <>
+        <NavigationSidebar />
+        <main>
+          <button type="button">Compose</button>
+        </main>
+      </>,
+      { wrapper: TestWrapper },
+    );
+    const main = screen.getByRole("main");
+    await waitFor(() => expect(main.compareDocumentPosition(tabBar()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy());
+  });
+
   it("puts Home, Pages, Schedule and Displays on the tab bar, then More", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
