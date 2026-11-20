@@ -894,6 +894,26 @@ describe("Displays on a phone", () => {
     expect(await screen.findByRole("tab", { name: "Overview" })).toBeInTheDocument();
   });
 
+  // Review (#2568): the phone inset override must not reach sections that are
+  // a card's content (Playback, Diagnostics), only the page's own sections.
+  it("keeps the inset of sections inside cards on the Playback tab", async () => {
+    asPhone();
+    setup([KITCHEN]);
+    params.boardId = "kitchen";
+    const { container } = renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
+    const wrapper = container.querySelector('[data-compact-section="true"]')!;
+    const rule = wrapper.className.split(/\s+/).find((c) => c.includes("data-slot=page-section"));
+    expect(rule).toBe("[&_[data-slot=page-section]:not([data-slot=card]_*)]:px-0");
+    const inCard = wrapper.querySelector('[data-slot="card"] [data-slot="page-section"]');
+    expect(inCard).not.toBeNull();
+    expect(inCard!.matches('[data-slot="page-section"]:not([data-slot="card"] *)')).toBe(false);
+  });
+
   it("moves focus to the display's name when drilling in, not to the page body", async () => {
     asPhone();
     setup([KITCHEN]);

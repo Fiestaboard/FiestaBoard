@@ -142,7 +142,7 @@ export function SectionShell({
                 {title}
               </Link>
             </Button>
-            <Heading level={1} size="2xl" ref={titleRef} tabIndex={-1} className="outline-none">
+            <Heading level={1} size="2xl" ref={titleRef} tabIndex={-1} className="focus-ring rounded-sm">
               {detail.title}
             </Heading>
           </Stack>
@@ -159,7 +159,7 @@ export function SectionShell({
             (DD-W135, until the kit has a bare PageOutlet). */}
         <Box
           data-compact-section="true"
-          className="contents [&_[data-slot=page-outlet]]:border-t-0 [&_[data-slot=page-section]]:px-0 [&_[data-slot=page-toolbar]]:px-0"
+          className="contents [&_[data-slot=page-outlet]]:border-t-0 [&_[data-slot=page-section]:not([data-slot=card]_*)]:px-0 [&_[data-slot=page-toolbar]]:px-0"
         >
           <PageOutlet key={pathname} fill={fill}>
             {children}
