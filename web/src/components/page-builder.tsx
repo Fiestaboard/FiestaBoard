@@ -35,6 +35,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EditorPreview,
+  EmptyState,
   Flex,
   readStoredBoardPreviewMode,
   Select,
@@ -59,7 +60,19 @@ import {
   writeStoredBoardPreviewMode,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronLeft, Ellipsis, Save, Send, Sparkles, Trash2, Upload, Variable, Zap } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  Ellipsis,
+  FileQuestion,
+  Save,
+  Send,
+  Sparkles,
+  Trash2,
+  Upload,
+  Variable,
+  Zap,
+} from "lucide-react";
 import {
   forwardRef,
   lazy,
@@ -142,6 +155,7 @@ import type {
   TemplateRenderResponse,
 } from "@/lib/api";
 import { api } from "@/lib/api";
+import { ApiError } from "@/lib/api/core";
 import type { RenderDiagnostics } from "@/lib/api/formula-debug";
 import { appUrl } from "@/lib/base-path";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
@@ -1313,10 +1327,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch existing page if editing
-  const { data: existingPage, isLoading: loadingPage } = useQuery({
+  // Set once the page is deleted: nothing may fetch it again (BB-B-27).
+  const [pageDeleted, setPageDeleted] = useState(false);
+  const {
+    data: existingPage,
+    isLoading: loadingPage,
+    error: pageLoadError,
+  } = useQuery({
     queryKey: ["page", pageId],
     queryFn: () => api.getPage(pageId!),
-    enabled: !!pageId,
+    enabled: !!pageId && !pageDeleted,
+    // A page that isn't there won't appear on a retry: show the missing state
+    // at once instead of after the app's retries (BB-B-16).
+    retry: (failures, error) => !(error instanceof ApiError && error.status === 404) && failures < 2,
   });
   const caretScrollMargin = useEditorScrollMargin(
     dockedPreview && !(pageId && loadingPage),
@@ -1917,10 +1940,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
       queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
 
-      // Invalidate the specific page and its preview to bust the cache
+      // Drop the deleted page and its preview from the cache. Invalidating
+      // them refetched a page that no longer exists: a 404 after every
+      // delete (BB-B-27).
       if (pageId) {
-        queryClient.invalidateQueries({ queryKey: ["page", pageId], refetchType: "active" });
-        queryClient.invalidateQueries({ queryKey: queryKeys.pagePreview(pageId), refetchType: "active" });
+        setPageDeleted(true);
+        queryClient.removeQueries({ queryKey: ["page", pageId] });
+        queryClient.removeQueries({ queryKey: queryKeys.pagePreview(pageId) });
       }
 
       // Invalidate all page previews
@@ -2523,11 +2549,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="relative h-9 w-9"
+                  size={dockedPreview ? "touch" : "icon"}
+                  // In the phone More sheet a labelled row, not a bare icon (BB-B-24).
+                  className={cn("relative", dockedPreview ? "gap-2" : "h-9 w-9")}
                   aria-label={t("transitionPickerAriaLabel")}
                 >
                   <Sparkles className={`h-4 w-4 ${transitionStrategy ? "text-brand" : ""}`} />
+                  {dockedPreview && t("transitionPickerAriaLabel")}
                   {transitionStrategy && (
                     <Text
                       as="span"
@@ -2596,11 +2624,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 <AlertDialogTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    size={dockedPreview ? "touch" : "icon"}
+                    className={cn(
+                      "text-destructive hover:text-destructive hover:bg-destructive/10",
+                      dockedPreview ? "gap-2" : "h-9 w-9",
+                    )}
                     aria-label={t("deletePageTooltip")}
                   >
                     <Trash2 className="h-4 w-4" />
+                    {dockedPreview && t("deletePageTooltip")}
                   </Button>
                 </AlertDialogTrigger>
               </TooltipTrigger>
@@ -2840,6 +2872,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     complexEditing.scrollToColumn(column);
   };
 
+  // An unknown or deleted page id: say so, with the way back, instead of a
+  // blank editor that would save a new page under that id (BB-B-16).
+  if (initialPageId && pageLoadError instanceof ApiError && pageLoadError.status === 404) {
+    return (
+      <EmptyState
+        icon={FileQuestion}
+        title={t("pageNotFoundTitle")}
+        description={t("pageNotFoundBody")}
+        action={
+          <Button variant="outline" onClick={onClose}>
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            {t("backToPages")}
+          </Button>
+        }
+      />
+    );
+  }
+
   // After every hook above (the 2.9 lenses included), so a loading render
   // calls the same hooks as a loaded one.
   if (pageId && loadingPage) {
@@ -3007,7 +3057,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             </Flex>
           </CardHeader>
 
-          <CardContent className="flex flex-col flex-1 min-h-0 px-0 lg:px-4 pt-0 pb-20">
+          {/* Room for the fixed touch toolbar belongs at the end of the
+            editor's scroll area (page-editor-shell), not here: the IDE's
+            status row and Inspector follow, and 80px of it sat between them
+            at every width (BB-B-29). Standalone, the builder keeps it. */}
+          <CardContent className={cn("flex flex-col flex-1 min-h-0 px-0 lg:px-4 pt-0", embedded ? "pb-4" : "pb-20")}>
             <Box className="min-w-0">
               {/* Draft restored notification */}
               {draftRestored && (
