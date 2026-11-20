@@ -99,7 +99,7 @@ describe("SchemaForm - array fields (issue #739)", () => {
     render(<ControlledHarness />);
 
     // Remove the middle item (MSFT)
-    const removeButtons = screen.getAllByRole("button", { name: "Remove item" });
+    const removeButtons = screen.getAllByRole("button", { name: /^Remove / });
     expect(removeButtons).toHaveLength(3);
     await user.click(removeButtons[1]);
 
@@ -109,7 +109,7 @@ describe("SchemaForm - array fields (issue #739)", () => {
 
   it("renders remove buttons for pre-populated items without crashing", () => {
     const { getAllByRole } = render(<ArrayHarness initial={{ symbols: ["AAPL", "MSFT"] }} />);
-    expect(getAllByRole("button", { name: "Remove item" })).toHaveLength(2);
+    expect(getAllByRole("button", { name: /^Remove / })).toHaveLength(2);
   });
 });
 
@@ -552,7 +552,7 @@ describe("SchemaForm - declarative array of objects with an enum property", () =
       />,
     );
 
-    const removeButtons = screen.getAllByRole("button", { name: "Remove item" });
+    const removeButtons = screen.getAllByRole("button", { name: /^Remove / });
     expect(removeButtons).toHaveLength(3);
     await user.click(removeButtons[1]);
 
@@ -738,5 +738,70 @@ describe("SchemaForm - parks and rides via the generic remote-options widget", (
     await user.clear(input);
     last = onChange.mock.calls.at(-1)?.[0] as { parks: { custom_names?: Record<string, string> }[] };
     expect(last.parks[0].custom_names).toEqual({});
+  });
+});
+
+/**
+ * BB-C-19: axe flagged every `choices-N` input as unlabelled (critical) and
+ * every trash button read the same "Remove item".
+ */
+describe("SchemaForm - list items are named", () => {
+  const choicesSchema: JSONSchema = {
+    type: "object",
+    properties: {
+      choices: { type: "array", title: "Choices", items: { type: "string" }, minItems: 2, maxItems: 10 },
+    },
+  };
+
+  it("labels each item's input with the list's name and its position", () => {
+    render(<SchemaForm schema={choicesSchema} values={{ choices: ["TACOS", "PIZZA", "RAMEN"] }} onChange={vi.fn()} />);
+    expect(screen.getByRole("textbox", { name: "Choices 1" })).toHaveValue("TACOS");
+    expect(screen.getByRole("textbox", { name: "Choices 3" })).toHaveValue("RAMEN");
+  });
+
+  it("names each remove button for the item it removes", () => {
+    render(<SchemaForm schema={choicesSchema} values={{ choices: ["TACOS", "PIZZA", "RAMEN"] }} onChange={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Remove Choices 2" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove item" })).not.toBeInTheDocument();
+  });
+});
+
+/** BB-C-18: a message the hub rejected the config with sits on its field. */
+describe("SchemaForm - field errors", () => {
+  const schema: JSONSchema = {
+    type: "object",
+    properties: {
+      refresh_seconds: { type: "integer", title: "Refresh Interval (seconds)", minimum: 60 },
+      choices: { type: "array", title: "Choices", items: { type: "string" } },
+    },
+  };
+
+  it("marks a scalar field invalid and reads the message with it", () => {
+    render(
+      <SchemaForm
+        schema={schema}
+        values={{ refresh_seconds: -5, choices: ["A", "B"] }}
+        onChange={vi.fn()}
+        errors={{ refresh_seconds: ["Refresh interval must be at least 60 seconds"] }}
+      />,
+    );
+    const input = screen.getByRole("spinbutton", { name: "Refresh Interval (seconds)" });
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription("Refresh interval must be at least 60 seconds");
+  });
+
+  it("shows a list's message under the list", () => {
+    render(
+      <SchemaForm
+        schema={schema}
+        values={{ refresh_seconds: 60, choices: ["A", ""] }}
+        onChange={vi.fn()}
+        errors={{ choices: ["choices[1] must be a non-empty string"] }}
+      />,
+    );
+    expect(screen.getByText("choices[1] must be a non-empty string")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Choices 2" })).toHaveAccessibleDescription(
+      "choices[1] must be a non-empty string",
+    );
   });
 });

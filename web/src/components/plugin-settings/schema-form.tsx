@@ -173,6 +173,11 @@ interface SchemaFormProps {
    * input), instead of the host listing what is missing somewhere else.
    */
   requiredHints?: boolean;
+  /**
+   * Messages the hub rejected the last save with, by field key. Each shows
+   * under its field, is read with its input and marks it invalid.
+   */
+  errors?: Record<string, string[]>;
 }
 
 // Individual field components
@@ -196,6 +201,8 @@ interface FieldProps {
   disabled?: boolean;
   /** Ids of the field's hint lines (its "Required" line), read with its input. */
   describedBy?: string;
+  /** The hub rejected this field's value on the last save. */
+  invalid?: boolean;
 }
 
 interface EnumSelectFieldProps {
@@ -261,7 +268,7 @@ function EnumSelectField({
   );
 }
 
-function StringField({ name, property, value, onChange, required, disabled, describedBy }: FieldProps) {
+function StringField({ name, property, value, onChange, required, disabled, describedBy, invalid }: FieldProps) {
   const [_timezoneValid, setTimezoneValid] = useState(true);
   const isPassword = property["ui:widget"] === "password" || property.secret === true;
   const isTextarea = property["ui:widget"] === "textarea";
@@ -340,6 +347,7 @@ function StringField({ name, property, value, onChange, required, disabled, desc
         disabled={disabled}
         required={required}
         aria-describedby={describedBy}
+        aria-invalid={invalid || undefined}
         className="min-h-[80px]"
       />
     );
@@ -385,6 +393,7 @@ function StringField({ name, property, value, onChange, required, disabled, desc
       disabled={disabled}
       required={required}
       aria-describedby={describedBy}
+      aria-invalid={invalid || undefined}
     />
   );
 }
@@ -463,6 +472,7 @@ function NumberField(props: NumberFieldProps) {
     required,
     disabled,
     describedBy,
+    invalid,
     onLocationRequest,
     showLocationButton,
     isLocationLoading,
@@ -659,6 +669,7 @@ function NumberField(props: NumberFieldProps) {
         disabled={disabled}
         required={required}
         aria-describedby={describedBy}
+        aria-invalid={invalid || undefined}
         className={showLocationButton ? "pr-10" : undefined}
       />
       {showLocationButton && (
@@ -691,7 +702,7 @@ interface ArrayFieldProps extends FieldProps {
   itemSchema: SchemaProperty;
 }
 
-function ArrayField({ name, property, value, onChange, disabled, itemSchema }: ArrayFieldProps) {
+function ArrayField({ name, property, value, onChange, disabled, itemSchema, describedBy, invalid }: ArrayFieldProps) {
   const t = useTranslations("schemaForm");
   const { root } = useFieldScope();
   const { facts } = useBoardScreen();
@@ -766,6 +777,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
     onChange(next.map((k) => k.value));
   };
 
+  const listLabel = property.title || name;
   const canAdd = !property.maxItems || keyed.length < property.maxItems;
   const canRemove = !property.minItems || keyed.length > property.minItems;
 
@@ -810,13 +822,22 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
                 </Grid>
               </FieldScopeContext.Provider>
             ) : (
-              <FormField
-                name={`${name}-${index}`}
-                property={itemSchema}
-                value={item}
-                onChange={(val) => handleItemChange(index, val)}
-                disabled={disabled}
-              />
+              <>
+                {/* Each item is "<list> <n>" to a screen reader; the list's
+                    visible title already labels the group (BB-C-19). */}
+                <Label htmlFor={`${name}-${index}`} className="sr-only">
+                  {t("itemLabel", { label: listLabel, number: index + 1 })}
+                </Label>
+                <FormField
+                  name={`${name}-${index}`}
+                  property={itemSchema}
+                  value={item}
+                  onChange={(val) => handleItemChange(index, val)}
+                  disabled={disabled}
+                  describedBy={describedBy}
+                  invalid={invalid}
+                />
+              </>
             )}
           </Box>
           {canRemove && (
@@ -827,7 +848,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
               onClick={() => handleRemove(index)}
               disabled={disabled}
               className="h-9 w-9 text-destructive hover:text-destructive"
-              aria-label={t("removeItem")}
+              aria-label={t("removeItemLabel", { label: listLabel, number: index + 1 })}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -838,7 +859,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
       {canAdd && (
         <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={disabled} className="w-full">
           <Plus className="h-4 w-4 mr-2" />
-          {t("addItemLabel", { label: property.title || name })}
+          {t("addItemLabel", { label: listLabel })}
         </Button>
       )}
     </Stack>
@@ -862,6 +883,7 @@ function FormField({
   required,
   disabled,
   describedBy,
+  invalid,
   fieldKey,
   onLocationRequest,
   showLocationButton,
@@ -987,6 +1009,7 @@ function FormField({
           required={required}
           disabled={disabled}
           describedBy={describedBy}
+          invalid={invalid}
         />
       );
     case "number":
@@ -1000,6 +1023,7 @@ function FormField({
           required={required}
           disabled={disabled}
           describedBy={describedBy}
+          invalid={invalid}
           onLocationRequest={onLocationRequest}
           showLocationButton={showLocationButton}
           isLocationLoading={isLocationLoading}
@@ -1037,6 +1061,8 @@ function FormField({
             onChange={onChange}
             required={required}
             disabled={disabled}
+            describedBy={describedBy}
+            invalid={invalid}
             itemSchema={property.items}
           />
         );
@@ -1116,6 +1142,7 @@ export function SchemaForm({
   pluginId,
   idPrefix = "",
   requiredHints = false,
+  errors,
 }: SchemaFormProps) {
   const t = useTranslations("schemaForm");
   const { facts } = useBoardScreen();
@@ -1173,6 +1200,11 @@ export function SchemaForm({
     const id = `${idPrefix}${name}`;
     const requiredHintId = `${id}-required`;
     const showRequired = requiredHints && isRequired && isEmptyValue(values[name]);
+    const fieldErrors = errors?.[name] ?? [];
+    const errorId = `${id}-error`;
+    const describedBy =
+      [showRequired ? requiredHintId : "", fieldErrors.length > 0 ? errorId : ""].filter(Boolean).join(" ") ||
+      undefined;
 
     return (
       <Grid key={name} gap="1.5">
@@ -1192,7 +1224,8 @@ export function SchemaForm({
           onChange={(val, siblings) => handleFieldChange(name, val, siblings)}
           required={isRequired}
           disabled={fieldDisabled}
-          describedBy={showRequired ? requiredHintId : undefined}
+          describedBy={describedBy}
+          invalid={fieldErrors.length > 0}
           onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
           showLocationButton={showLocationButton}
           isLocationLoading={false}
@@ -1208,6 +1241,14 @@ export function SchemaForm({
             <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-destructive" aria-hidden="true" />
             <Text as="span" size="xs">
               {t("fieldRequired")}
+            </Text>
+          </Flex>
+        )}
+        {fieldErrors.length > 0 && (
+          <Flex align="start" gap="1" id={errorId} data-testid="field-error" data-field={name}>
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-destructive" aria-hidden="true" />
+            <Text as="span" size="xs" tone="destructive">
+              {fieldErrors.join(" ")}
             </Text>
           </Flex>
         )}

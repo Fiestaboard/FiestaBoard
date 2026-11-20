@@ -268,9 +268,10 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode, RefObject } from "react";
+import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { UNSAFE_DataRouterContext, useBeforeUnload, useBlocker } from "react-router";
 import { toast } from "sonner";
 
 import { IntegrationBoardPreview } from "@/components/integrations/integration-board-preview";
@@ -280,10 +281,12 @@ import { PluginProvenance } from "@/components/plugin-provenance";
 import {
   asJSONSchema,
   findOAuthConnection,
+  mapConfigErrors,
   OAUTH_CONNECTIONS_QUERY_KEY,
   oauthAppFieldKeys,
   OAuthConnectionSection,
   oauthReturnErrorKey,
+  pluginConfigErrors,
   readOAuthReturn,
   SchemaForm,
 } from "@/components/plugin-settings";
@@ -1087,6 +1090,56 @@ function SortHeaderButton({
   );
 }
 
+/**
+ * Asks before an integration's page is left with edits that were not saved
+ * (BB-C-18). Rendered only on the full-page route inside a data router; the
+ * desktop list-detail pane and jsdom tests without one have no blocker.
+ */
+function UnsavedSettingsGuard({ dirty, saved }: { dirty: boolean; saved: RefObject<boolean> }) {
+  const t = useTranslations("integrations");
+  // `saved` is set just before Save Changes navigates away, in the same tick
+  // as the state that clears `dirty` — too soon for this render to see it.
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty && !saved.current && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useBeforeUnload(
+    useCallback(
+      (event: BeforeUnloadEvent) => {
+        if (!dirty) return;
+        event.preventDefault();
+        event.returnValue = "";
+      },
+      [dirty],
+    ),
+  );
+  return (
+    <AlertDialog
+      open={blocker.state === "blocked"}
+      onOpenChange={(open) => {
+        if (!open && blocker.state === "blocked") blocker.reset();
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("discardChangesTitle")}</AlertDialogTitle>
+          <AlertDialogDescription>{t("discardChangesDescription")}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t("keepEditing")}</AlertDialogCancel>
+          <Button
+            onClick={() => {
+              if (blocker.state === "blocked") blocker.proceed();
+            }}
+          >
+            {t("discardAndLeave")}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export function InstalledPluginRow({
   plugin,
   onToggle,
@@ -1117,7 +1170,14 @@ export function InstalledPluginRow({
     else onSelect?.(open ? plugin.id : "");
   };
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
+  // What the form held when it loaded or last saved: edits are the difference.
+  const [savedValues, setSavedValues] = useState<Record<string, unknown>>({});
+  // The hub's reasons for refusing the last save, per field and otherwise.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const hasDataRouter = useContext(UNSAFE_DataRouterContext) != null;
+  const leavingAfterSave = useRef(false);
   const [isCreatingDemo, setIsCreatingDemo] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
   const [showAddInstance, setShowAddInstance] = useState(false);
@@ -1187,8 +1247,23 @@ export function InstalledPluginRow({
         defaults[key] = prop.default;
       }
     }
-    setConfigValues({ ...defaults, ...(pluginDetails.config ?? {}) });
+    const loaded = { ...defaults, ...(pluginDetails.config ?? {}) };
+    setConfigValues(loaded);
+    setSavedValues(loaded);
   }
+  const isDirty = JSON.stringify(configValues) !== JSON.stringify(savedValues);
+
+  // An edit to a field the hub refused clears that field's message.
+  const updateConfigValues = (next: Record<string, unknown>) => {
+    setConfigValues(next);
+    setSaveError(null);
+    setFieldErrors((current) => {
+      const kept = Object.fromEntries(
+        Object.entries(current).filter(([key]) => JSON.stringify(next[key]) === JSON.stringify(configValues[key])),
+      );
+      return Object.keys(kept).length === Object.keys(current).length ? current : kept;
+    });
+  };
 
   // A plugin whose users bring their own OAuth app has its Client ID (and
   // secret) fields inside the Account connection panel's guided setup, not in
@@ -1226,9 +1301,14 @@ export function InstalledPluginRow({
 
   const handleSaveConfig = async () => {
     setIsSaving(true);
+    setFieldErrors({});
+    setSaveError(null);
     try {
       await api.updatePluginConfig(plugin.id, configValues);
-      toast.success(`${plugin.name} configuration saved`);
+      // Saved: leaving now must not ask about the edits just written.
+      setSavedValues(configValues);
+      leavingAfterSave.current = true;
+      toast.success(t("toastConfigSaved", { pluginName: plugin.name }));
       onConfigUpdate();
       // The sheet's own details query. Without this the panel keeps serving the
       // pre-save config for staleTime (1 min), so areDemoRequirementsMet() still
@@ -1242,7 +1322,24 @@ export function InstalledPluginRow({
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setIsConfigOpen(false);
     } catch (error) {
-      toast.error(`Failed to save configuration: ${error instanceof Error ? error.message : "Unknown error"}`);
+      // Said beside Save, not in a toast that lands on top of it (BB-C-18).
+      const messages = pluginConfigErrors(error);
+      if (!messages) {
+        setSaveError(
+          t("toastConfigSaveFailed", { error: error instanceof Error ? error.message : tCommon("unknownError") }),
+        );
+        return;
+      }
+      const mapped = mapConfigErrors(messages, formSchema.properties);
+      setFieldErrors(mapped.fields);
+      setSaveError([t("saveFieldErrors"), ...mapped.general].join(" "));
+      const first = Object.keys(formSchema.properties).find((key) => mapped.fields[key]);
+      if (first) {
+        requestAnimationFrame(() => {
+          const target = document.getElementById(first) ?? document.getElementById(`${first}-0`);
+          target?.focus();
+        });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -1512,7 +1609,8 @@ export function InstalledPluginRow({
                     <SchemaForm
                       schema={formSchema}
                       values={configValues}
-                      onChange={setConfigValues}
+                      onChange={updateConfigValues}
+                      errors={fieldErrors}
                       disabled={isSaving}
                       // Lets `remote-options` fields ask this plugin — and only
                       // this plugin — for their catalogs.
@@ -1572,9 +1670,7 @@ export function InstalledPluginRow({
                 <ColorRulesEditor
                   pluginId={plugin.id}
                   colorRules={(configValues.color_rules as ColorRulesConfig) || {}}
-                  onChange={(newRules) => {
-                    setConfigValues((prev) => ({ ...prev, color_rules: newRules }));
-                  }}
+                  onChange={(newRules) => updateConfigValues({ ...configValues, color_rules: newRules })}
                   onVarCopied={handleVarCopied}
                 />
 
@@ -1585,6 +1681,12 @@ export function InstalledPluginRow({
               </>
             )}
           </Stack>
+          {saveError && (
+            <Alert variant="destructive" className="mb-3" data-testid="integration-save-error">
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription>{saveError}</AlertDescription>
+            </Alert>
+          )}
           <Flex gap="2" wrap className="justify-end">
             {canUninstall && onUninstall && (
               <Button
@@ -1605,7 +1707,7 @@ export function InstalledPluginRow({
               {tCommon("cancel")}
             </Button>
             <Button onClick={handleSaveConfig} disabled={isSaving || isLoadingDetails}>
-              {isSaving ? "Saving..." : "Save Changes"}
+              {isSaving ? tCommon("saving") : t("saveChanges")}
             </Button>
           </Flex>
         </TabsContent>
@@ -1859,6 +1961,7 @@ export function InstalledPluginRow({
         )}
         {configContent}
       </Card>
+      {fullPage && hasDataRouter && <UnsavedSettingsGuard dirty={isDirty} saved={leavingAfterSave} />}
     </Stack>
   );
   const configPanel = isConfigOpen && detailTarget ? createPortal(detailContent, detailTarget) : null;
