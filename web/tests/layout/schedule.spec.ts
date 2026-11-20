@@ -46,7 +46,9 @@ async function expectScheduleReady(page: Page, width: number, theme: "light" | "
     await expect(gaps).toHaveCount(occurrences);
     if (width < 1024) await expect(page.locator('[data-kind="now"]')).toHaveText(/Gap · Breakfast specials.*Now/);
   }
-  const toolbar = page.locator('[data-slot="page-toolbar"]');
+  // The toolbar is the workspace's controls row now (07d `322:9978`, BB-FC-6);
+  // its default-page Select is on it at every width.
+  const toolbar = page.getByTestId("gap-default-select");
   await expectOpaque(board);
   await expectOpaque(toolbar);
   await expectOpaque(page.getByRole("button", { name: "Add entry", exact: true }).first());

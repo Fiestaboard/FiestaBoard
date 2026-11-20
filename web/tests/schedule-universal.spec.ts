@@ -155,10 +155,10 @@ for (const width of [390, 768, 1280]) {
           "true",
         );
       }
-      // PageToolbar fades in independently of the view controls. Scan settled ink.
+      // The controls row fades in with the workspace. Scan settled ink.
       if (theme === "dark") await expect(page.locator("html")).toHaveClass(/dark/);
       else await expect(page.locator("html")).not.toHaveClass(/dark/);
-      await expect(page.locator('[data-slot="page-toolbar"]')).toHaveCSS("opacity", "1");
+      await expect(page.getByTestId("gap-default-select")).toHaveCSS("opacity", "1");
       // On a phone Add sits beside the title rather than in the toolbar.
       await expect(page.getByRole("button", { name: "Add entry", exact: true }).first()).toHaveCSS("opacity", "1");
       await injectAxe(page);

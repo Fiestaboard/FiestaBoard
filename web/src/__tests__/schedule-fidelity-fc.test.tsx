@@ -84,7 +84,7 @@ describe("Schedule week view (BB-FC-6)", () => {
 
   it("puts the view switcher, the bold range and Today on one toolbar row", () => {
     setup([entry], { viewSwitcher: <button type="button">View switcher</button> });
-    const toolbar = screen.getByRole("toolbar", { name: "Week" });
+    const toolbar = screen.getByRole("toolbar", { name: "Schedule" });
     expect(within(toolbar).getByRole("button", { name: "View switcher" })).toBeInTheDocument();
     expect(within(toolbar).getByText(/November 16\s*–\s*22, 2026/)).toBeInTheDocument();
     expect(within(toolbar).getByRole("button", { name: "Today" })).toBeInTheDocument();

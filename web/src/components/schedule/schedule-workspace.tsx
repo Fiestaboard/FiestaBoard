@@ -229,7 +229,7 @@ export function ScheduleWorkspace({
       {lookupButton}
     </Flex>
   ) : (
-    <Flex role="toolbar" aria-label={t("week")} align="center" justify="between" gap="3" wrap>
+    <Flex role="toolbar" aria-label={tSchedule("title")} align="center" justify="between" gap="3" wrap>
       <Flex gap="3" align="center" wrap>
         {viewSwitcher}
         {!lookupOpen && hasTimeline && (
