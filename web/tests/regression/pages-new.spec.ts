@@ -19,18 +19,23 @@ test.afterEach(async () => {
 
 test.describe("regression: pages.new", () => {
   /** UX node: pages.new.line-count-warning */
-  test("pages.new.line-count-warning — over-line-count entry surfaces banner", async ({ page }) => {
+  test("pages.new.line-count-warning — over-line-count entry is flagged once, padding rows are not", async ({
+    page,
+  }) => {
     await page.goto("/pages/new?device=note");
     await page.getByRole("button", { name: "Plain Text", exact: true }).click();
     const textarea = page.getByRole("textbox", { name: "Template", exact: true });
+    const overLimit = page.getByText(/exceeds the 3-line board limit/);
     await textarea.fill("L1\nL2\nL3\nL4\nL5\nL6\nL7");
-    await expect(page.getByText(/Template has \d+ lines but the board only displays \d+/)).toBeVisible({
-      timeout: 5_000,
-    });
+    await expect(overLimit).toBeVisible({ timeout: 5_000 });
+    // Said once, by the editor's caption (BB-E-10): no second banner repeating it.
+    await expect(page.getByText(/Template has \d+ lines but the board only displays \d+/)).toHaveCount(0);
     await textarea.fill("L1\nL2\nL3");
-    await expect(page.getByText(/Template has \d+ lines but the board only displays \d+/)).toBeHidden({
-      timeout: 5_000,
-    });
+    await expect(overLimit).toBeHidden({ timeout: 5_000 });
+    // Blank padding rows past the board are not over its limit (BB-E-18).
+    await textarea.fill("L1\n\n\n\n\n");
+    await expect(page.getByText("1 / 3 lines")).toBeVisible({ timeout: 5_000 });
+    await expect(overLimit).toBeHidden();
   });
 
   /** UX node: pages.new.wrap-budget-warning */

@@ -76,7 +76,9 @@ function useStatusMessage(ide: CreatorIdeState) {
   }
   const next = ide.showsOn.entries.find((entry) => entry.schedule.enabled);
   if (next) return t("scheduledOn", { board: next.boardName });
-  return t("notScheduledMessage");
+  // The "Not scheduled" chip already says it; a sentence repeating it was a
+  // second report of the same state (BB-E-26).
+  return "";
 }
 
 /**
@@ -236,7 +238,9 @@ export default function CreatorIde({
             display={ide.display}
             displayLabel={t(`display.${ide.display}`)}
             message={statusMessage}
-            editState={ide.editState}
+            // A saved page's state is the header's saved time; a Saved chip
+            // here repeated it (BB-E-26, Figma 184:159319 draws none).
+            editState={ide.editState === "saved" ? undefined : ide.editState}
             editStateLabel={ide.editState === "draft" && draftLabel ? draftLabel : t(`edit.${ide.editState}`)}
             problems={problemCount}
             onOpenProblems={openProblems}
