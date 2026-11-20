@@ -476,3 +476,54 @@ for (const { width, coarse } of [
     });
   });
 }
+
+test.describe("1280px template field (BB-E-8, BB-E-16)", () => {
+  const colors = ["red", "orange", "yellow", "green", "blue", "violet"];
+  // More tiles than the card is wide, so a break opportunity between tiles shows.
+  const longTileRow = Array.from({ length: 66 }, (_, i) => `{{${colors[i % 6]}}}`).join("");
+
+  async function openTemplate(page: Page, template: string[]) {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await mockEditorApi(page);
+    await page.route(
+      (url) => url.pathname === `/api/v1/pages/${kitchenMorning.id}`,
+      (route) => route.fulfill({ json: { ...kitchenMorning, template } }),
+    );
+    await page.goto("/tests/layout/editor-touch.html?theme=light");
+    await expect(page.locator('[contenteditable="true"]')).toBeVisible();
+  }
+
+  test("a row of tiles stays on one line in the template", async ({ page }) => {
+    await openTemplate(page, [longTileRow, "", "", "", "", ""]);
+    const chips = page.locator(".ProseMirror .react-renderer");
+    await expect(chips).toHaveCount(66);
+    const tops = await chips.evaluateAll(
+      (els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().top))).size,
+    );
+    expect(tops).toBe(1);
+  });
+
+  test("a long text row scrolls inside the card instead of painting past it", async ({ page }) => {
+    await openTemplate(page, ["THIS LINE IS DEFINITELY FAR TOO LONG ".repeat(4), "", "", "", "", ""]);
+    const card = (await page.locator('[data-slot="template-card"]').boundingBox())!;
+    const row = (await page.locator(".ProseMirror p").boundingBox())!;
+    // Just right of the card, on the first row: nothing of the template is painted there.
+    const outside = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest(".ProseMirror"), {
+      x: card.x + card.width + 12,
+      y: row.y + 12,
+    });
+    expect(outside).toBe(false);
+    await expect
+      .poll(() => page.locator('[data-slot="template-rows"]').evaluate((el) => el.scrollWidth > el.clientWidth))
+      .toBe(true);
+  });
+
+  test("the template card shows a focus ring while the template has focus", async ({ page }) => {
+    await openTemplate(page, kitchenMorning.template);
+    const card = page.locator('[data-slot="template-card"]');
+    const before = await card.evaluate((el) => getComputedStyle(el).boxShadow);
+    await page.locator('[contenteditable="true"]').click();
+    await expect.poll(() => card.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe(before);
+  });
+});
