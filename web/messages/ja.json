@@ -434,8 +434,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -443,7 +441,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "viewModeLabel": "表示形式",
     "gridView": "タイル表示",
@@ -514,7 +511,14 @@
     "safetyUnavailable": "ディスプレイの状態を読み込めませんでした。このコレクションを表示する前に、もう一度お試しください。",
     "selectedBadge": "選択中",
     "defaultHint": "どのルールにも一致しない場合の表示",
-    "collectionSettings": "コレクション設定"
+    "collectionSettings": "コレクション設定",
+    "everyDuration": "{duration}ごと",
+    "cardSchedule": "スケジュール · {schedule}",
+    "notScheduled": "スケジュールなし",
+    "scheduleSummaryMore": "{summary} · ほか{count}件",
+    "showingUntil": "{name} · {time}まで表示",
+    "nextPage": "次: {name}（{duration}）",
+    "collectionRuns": "スケジュールで {schedule} に表示されます"
   },
   "schedule": {
     "title": "スケジュール",

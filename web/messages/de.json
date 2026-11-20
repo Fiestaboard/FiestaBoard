@@ -434,8 +434,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -443,7 +441,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "viewModeLabel": "Ansichtsmodus",
     "gridView": "Kachelansicht",
@@ -514,7 +511,14 @@
     "safetyUnavailable": "Der Anzeigestatus konnte nicht geladen werden. Versuche es erneut, bevor du diese Sammlung anzeigst.",
     "selectedBadge": "Ausgewählt",
     "defaultHint": "Wenn keine Regel zutrifft, zeige",
-    "collectionSettings": "Sammlungseinstellungen"
+    "collectionSettings": "Sammlungseinstellungen",
+    "everyDuration": "alle {duration}",
+    "cardSchedule": "Zeitplan · {schedule}",
+    "notScheduled": "Nicht geplant",
+    "scheduleSummaryMore": "{summary} · +{count} weitere",
+    "showingUntil": "{name} · angezeigt bis {time}",
+    "nextPage": "Als Nächstes: {name} ({duration})",
+    "collectionRuns": "Die Sammlung läuft {schedule} laut Zeitplan"
   },
   "schedule": {
     "title": "Zeitplan",

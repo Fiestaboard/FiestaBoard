@@ -434,8 +434,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -443,7 +441,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "viewModeLabel": "Mode d’affichage",
     "gridView": "Vue en tuiles",
@@ -514,7 +511,14 @@
     "safetyUnavailable": "Impossible de charger l’état de l’affichage. Réessayez avant d’afficher cette collection.",
     "selectedBadge": "Sélectionnée",
     "defaultHint": "Si aucune règle ne correspond, afficher",
-    "collectionSettings": "Paramètres de la collection"
+    "collectionSettings": "Paramètres de la collection",
+    "everyDuration": "toutes les {duration}",
+    "cardSchedule": "Planning · {schedule}",
+    "notScheduled": "Non planifiée",
+    "scheduleSummaryMore": "{summary} · +{count} de plus",
+    "showingUntil": "{name} · affichée jusqu’à {time}",
+    "nextPage": "Ensuite : {name} ({duration})",
+    "collectionRuns": "La collection s’affiche {schedule} selon le planning"
   },
   "schedule": {
     "title": "Planification",
