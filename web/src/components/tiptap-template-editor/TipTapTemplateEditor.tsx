@@ -24,6 +24,7 @@ import {
 } from "react";
 
 import type { Code62Glyph, DeviceType } from "@/lib/api";
+import { usedLineCount } from "@/lib/complex-editing";
 import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
 import { cn } from "@/lib/utils";
 
@@ -741,7 +742,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         }
         const doc = editor.getJSON();
         const templateString = serializeTemplateSimple(doc, boardLines);
-        const lineCount = templateString.split("\n").length;
+        const lineCount = usedLineCount(templateString.split("\n"));
         onChange(templateString);
 
         setEditorLineCount(lineCount);
@@ -753,7 +754,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       onCreate: ({ editor }) => {
         const doc = editor.getJSON();
         const templateString = serializeTemplateSimple(doc, boardLines);
-        const lineCount = templateString.split("\n").length;
+        const lineCount = usedLineCount(templateString.split("\n"));
         setEditorLineCount(lineCount);
         if (onLineCountChange) {
           onLineCountChange(lineCount);
@@ -1100,7 +1101,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         }
       }
 
-      const lineCount = (value || "").split("\n").length;
+      const lineCount = usedLineCount((value || "").split("\n"));
       setEditorLineCount(lineCount);
       if (onLineCountChange) {
         onLineCountChange(lineCount);

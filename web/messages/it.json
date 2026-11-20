@@ -3971,6 +3971,7 @@
     "overflowChecked": "Verificato dall’hub alla larghezza reale di {board} · {time}",
     "overflowCheckedNoBoard": "Verificato dall’hub alla larghezza reale di questa bacheca · {time}",
     "overflowWrap": "Manda a capo la riga {line}",
+    "overflowMore": "Tagliate anche: {lines}",
     "bandsLabel": "Fasce di righe",
     "bandMoveUp": "Sposta su",
     "bandMoveDown": "Sposta giù",

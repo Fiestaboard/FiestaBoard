@@ -3971,6 +3971,7 @@
     "overflowChecked": "Door de hub gecontroleerd op de echte breedte van {board} · {time}",
     "overflowCheckedNoBoard": "Door de hub gecontroleerd op de echte breedte van dit bord · {time}",
     "overflowWrap": "Regel {line} laten teruglopen",
+    "overflowMore": "Ook afgekapt: {lines}",
     "bandsLabel": "Rijbanden",
     "bandMoveUp": "Omhoog",
     "bandMoveDown": "Omlaag",

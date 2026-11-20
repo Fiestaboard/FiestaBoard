@@ -3971,6 +3971,7 @@
     "overflowChecked": "Verificado pelo hub na largura real de {board} · {time}",
     "overflowCheckedNoBoard": "Verificado pelo hub na largura real deste quadro · {time}",
     "overflowWrap": "Quebrar a linha {line}",
+    "overflowMore": "Também cortadas: {lines}",
     "bandsLabel": "Faixas de linhas",
     "bandMoveUp": "Mover para cima",
     "bandMoveDown": "Mover para baixo",

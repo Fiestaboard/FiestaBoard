@@ -3971,6 +3971,7 @@
     "overflowChecked": "Merkez tarafından {board} gerçek genişliğinde denetlendi · {time}",
     "overflowCheckedNoBoard": "Merkez tarafından bu panonun gerçek genişliğinde denetlendi · {time}",
     "overflowWrap": "{line}. satırı kaydır",
+    "overflowMore": "Ayrıca kesilenler: {lines}",
     "bandsLabel": "Satır bantları",
     "bandMoveUp": "Yukarı taşı",
     "bandMoveDown": "Aşağı taşı",

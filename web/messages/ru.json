@@ -3971,6 +3971,7 @@
     "overflowChecked": "Проверено хабом по реальной ширине {board} · {time}",
     "overflowCheckedNoBoard": "Проверено хабом по реальной ширине этого табло · {time}",
     "overflowWrap": "Перенести строку {line}",
+    "overflowMore": "Также обрезаны: {lines}",
     "bandsLabel": "Полосы строк",
     "bandMoveUp": "Переместить вверх",
     "bandMoveDown": "Переместить вниз",

@@ -3971,6 +3971,7 @@
     "overflowChecked": "Vom Hub in der echten Breite von {board} geprüft · {time}",
     "overflowCheckedNoBoard": "Vom Hub in der echten Breite dieses Boards geprüft · {time}",
     "overflowWrap": "Zeile {line} umbrechen",
+    "overflowMore": "Ebenfalls abgeschnitten: {lines}",
     "bandsLabel": "Zeilenbänder",
     "bandMoveUp": "Nach oben",
     "bandMoveDown": "Nach unten",

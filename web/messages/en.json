@@ -3971,6 +3971,7 @@
     "overflowChecked": "Checked by the hub at {board}'s real width · {time}",
     "overflowCheckedNoBoard": "Checked by the hub at this board's real width · {time}",
     "overflowWrap": "Wrap line {line}",
+    "overflowMore": "Also cut off: {lines}",
     "bandsLabel": "Row bands",
     "bandMoveUp": "Move up",
     "bandMoveDown": "Move down",

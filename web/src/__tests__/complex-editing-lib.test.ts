@@ -11,6 +11,7 @@ import {
   noteSeamMarks,
   seamStraddles,
   truncationLines,
+  usedLineCount,
 } from "@/lib/complex-editing";
 
 describe("isBigBoard", () => {
@@ -150,6 +151,14 @@ describe("truncationLines", () => {
     ]);
   });
 
+  it("measures a row in drawn tiles, as the hub's render report does (BB-E-2)", () => {
+    const lines = truncationLines(["{63}{64}{65}{66} HOT{/}", "{63}" + "{64}".repeat(11)], [], 2, () => "");
+    expect(lines).toEqual([
+      { row: 1, length: 8 },
+      { row: 2, length: 12 },
+    ]);
+  });
+
   it("ignores overflow past the board's rows", () => {
     expect(truncationLines([], [{ line: 9, columns: 30, maxColumns: 22, cut: 8 }], 2, () => "")).toEqual([
       { row: 1, length: 0 },
@@ -177,5 +186,18 @@ describe("seamStraddles", () => {
 
   it("is empty for a single Note wide array", () => {
     expect(seamStraddles(["ABCDEFGHIJKLMNOPQRS"], 1)).toEqual([]);
+  });
+});
+
+describe("usedLineCount (BB-E-18)", () => {
+  it("counts rows up to the last one with content", () => {
+    expect(usedLineCount(["HELLO", "", "", "", "", ""])).toBe(1);
+    expect(usedLineCount(["", "", "MIDDLE", "  ", ""])).toBe(3);
+    expect(usedLineCount(["A", "", "B"])).toBe(3);
+  });
+
+  it("is zero for an empty template", () => {
+    expect(usedLineCount([])).toBe(0);
+    expect(usedLineCount(["", " ", ""])).toBe(0);
   });
 });
