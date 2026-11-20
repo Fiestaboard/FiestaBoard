@@ -4046,7 +4046,6 @@
     "showingUntil": "지금 {board}에 표시 중 · {time}까지",
     "showingNow": "지금 {board}에 표시 중",
     "scheduledOn": "{board}에 예약됨",
-    "notScheduledMessage": "어떤 디스플레이 일정에도 없음",
     "problemsLink": "{count, plural, other {문제 #개}}",
     "saveDraft": "초안 저장",
     "savingDraft": "초안 저장 중…",

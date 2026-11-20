@@ -742,7 +742,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         }
         const doc = editor.getJSON();
         const templateString = serializeTemplateSimple(doc, boardLines);
-        const lineCount = usedLineCount(templateString.split("\n"));
+        const lineCount = templateString.split("\n").length;
         onChange(templateString);
 
         setEditorLineCount(lineCount);
@@ -754,7 +754,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       onCreate: ({ editor }) => {
         const doc = editor.getJSON();
         const templateString = serializeTemplateSimple(doc, boardLines);
-        const lineCount = usedLineCount(templateString.split("\n"));
+        const lineCount = templateString.split("\n").length;
         setEditorLineCount(lineCount);
         if (onLineCountChange) {
           onLineCountChange(lineCount);
@@ -1101,7 +1101,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         }
       }
 
-      const lineCount = usedLineCount((value || "").split("\n"));
+      const lineCount = (value || "").split("\n").length;
       setEditorLineCount(lineCount);
       if (onLineCountChange) {
         onLineCountChange(lineCount);
@@ -1267,7 +1267,11 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         ? effectiveWrapEnabled[currentLineIndex] || false
         : false;
 
-    const isOverLineLimit = editorLineCount > boardLines;
+    // The caption counts rows up to the last with content: blank padding rows
+    // on a smaller board are not over its limit (BB-E-18). The gutter still
+    // numbers every row.
+    const usedLines = usedLineCount((value || "").split("\n"));
+    const isOverLineLimit = usedLines > boardLines;
 
     return (
       <Box className={cn("relative", className)}>
@@ -1351,7 +1355,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             size="xs"
             className={cn("mt-1", isOverLineLimit ? "text-warning font-medium" : "text-muted-foreground")}
           >
-            {t("lineCount", { used: editorLineCount, max: boardLines })}
+            {t("lineCount", { used: usedLines, max: boardLines })}
             {isOverLineLimit && t("overLineLimit", { max: boardLines })}
           </Text>
 

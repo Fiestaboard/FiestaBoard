@@ -4046,7 +4046,6 @@
     "showingUntil": "Şu an {board} üzerinde gösteriliyor · {time} saatine kadar",
     "showingNow": "Şu an {board} üzerinde gösteriliyor",
     "scheduledOn": "{board} için zamanlandı",
-    "notScheduledMessage": "Hiçbir ekranın takviminde yok",
     "problemsLink": "{count, plural, one {# sorun} other {# sorun}}",
     "saveDraft": "Taslağı kaydet",
     "savingDraft": "Taslak kaydediliyor…",

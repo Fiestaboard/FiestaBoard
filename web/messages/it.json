@@ -4046,7 +4046,6 @@
     "showingUntil": "Mostrata ora su {board} · fino a {time}",
     "showingNow": "Mostrata ora su {board}",
     "scheduledOn": "Programmata su {board}",
-    "notScheduledMessage": "In nessuna programmazione dei display",
     "problemsLink": "{count, plural, one {# problema} other {# problemi}}",
     "saveDraft": "Salva bozza",
     "savingDraft": "Salvataggio della bozza…",

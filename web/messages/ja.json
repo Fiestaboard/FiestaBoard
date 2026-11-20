@@ -4046,7 +4046,6 @@
     "showingUntil": "{board}に表示中 · {time}まで",
     "showingNow": "{board}に表示中",
     "scheduledOn": "{board}にスケジュール済み",
-    "notScheduledMessage": "どのディスプレイのスケジュールにもありません",
     "problemsLink": "{count, plural, other {#件の問題}}",
     "saveDraft": "下書きを保存",
     "savingDraft": "下書きを保存中…",

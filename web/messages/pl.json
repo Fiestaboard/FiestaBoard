@@ -4046,7 +4046,6 @@
     "showingUntil": "Teraz wyświetlana na {board} · do {time}",
     "showingNow": "Teraz wyświetlana na {board}",
     "scheduledOn": "Zaplanowana na {board}",
-    "notScheduledMessage": "Nie ma w harmonogramie żadnego wyświetlacza",
     "problemsLink": "{count, plural, one {# problem} few {# problemy} many {# problemów} other {# problemu}}",
     "saveDraft": "Zapisz szkic",
     "savingDraft": "Zapisywanie szkicu…",

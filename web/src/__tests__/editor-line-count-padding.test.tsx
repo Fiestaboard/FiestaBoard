@@ -24,6 +24,20 @@ describe("rich editor line caption", () => {
     expect(screen.queryByText(/exceeds/)).not.toBeInTheDocument();
   });
 
+  it("still numbers every row in the gutter, blank ones included", async () => {
+    render(
+      <TipTapTemplateEditor
+        value={"HELLO\n\n\n\n\n"}
+        onChange={vi.fn()}
+        showToolbar={false}
+        boardLines={3}
+        boardWidth={15}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText(/1 \/ 3 lines/)).toBeInTheDocument());
+    expect(screen.getByText("6", { exact: true })).toBeInTheDocument();
+  });
+
   it("still flags content past the board's last row", async () => {
     render(
       <TipTapTemplateEditor

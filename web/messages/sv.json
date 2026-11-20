@@ -4046,7 +4046,6 @@
     "showingUntil": "Visas nu på {board} · till {time}",
     "showingNow": "Visas nu på {board}",
     "scheduledOn": "Schemalagd på {board}",
-    "notScheduledMessage": "Inte i någon skärms schema",
     "problemsLink": "{count, plural, one {# problem} other {# problem}}",
     "saveDraft": "Spara utkast",
     "savingDraft": "Sparar utkast…",

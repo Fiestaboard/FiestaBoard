@@ -159,6 +159,14 @@ describe("truncationLines", () => {
     ]);
   });
 
+  it("measures extended markup as the board draws it: a span its cells, an icon one tile", () => {
+    const lines = truncationLines(["{red:HOT} X", "{icon:sun}"], [], 2, () => "");
+    expect(lines).toEqual([
+      { row: 1, length: 5 },
+      { row: 2, length: 1 },
+    ]);
+  });
+
   it("ignores overflow past the board's rows", () => {
     expect(truncationLines([], [{ line: 9, columns: 30, maxColumns: 22, cut: 8 }], 2, () => "")).toEqual([
       { row: 1, length: 0 },

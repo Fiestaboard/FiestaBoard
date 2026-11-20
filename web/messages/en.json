@@ -4046,7 +4046,6 @@
     "showingUntil": "Showing on {board} now · until {time}",
     "showingNow": "Showing on {board} now",
     "scheduledOn": "Scheduled on {board}",
-    "notScheduledMessage": "Not on any display’s schedule",
     "problemsLink": "{count, plural, one {# problem} other {# problems}}",
     "saveDraft": "Save draft",
     "savingDraft": "Saving draft…",

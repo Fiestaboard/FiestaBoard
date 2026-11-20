@@ -4046,7 +4046,6 @@
     "showingUntil": "正在 {board} 上显示 · 直到 {time}",
     "showingNow": "正在 {board} 上显示",
     "scheduledOn": "已在 {board} 上排程",
-    "notScheduledMessage": "不在任何显示屏的排程中",
     "problemsLink": "{count, plural, other {# 个问题}}",
     "saveDraft": "保存草稿",
     "savingDraft": "正在保存草稿…",

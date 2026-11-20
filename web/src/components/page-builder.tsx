@@ -3357,7 +3357,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
                     {/* Line count warning, only where the editor's own caption is
                     replaced; elsewhere the caption already says it (BB-E-10). */}
-                    {lineCount > numLines && baselineDisplay && editorMode === "plain" && (
+                    {lineCount > numLines && baselineDisplay && (
                       <Flex
                         align="start"
                         gap="2"

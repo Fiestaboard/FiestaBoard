@@ -4046,7 +4046,6 @@
     "showingUntil": "Nu te zien op {board} · tot {time}",
     "showingNow": "Nu te zien op {board}",
     "scheduledOn": "Ingepland op {board}",
-    "notScheduledMessage": "Op geen enkel displayschema",
     "problemsLink": "{count, plural, one {# probleem} other {# problemen}}",
     "saveDraft": "Concept opslaan",
     "savingDraft": "Concept opslaan…",

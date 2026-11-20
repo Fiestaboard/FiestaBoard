@@ -160,7 +160,9 @@ export function lineOverflows(response: TemplateValidationAtResponse | undefined
  * report measures it (BB-E-2). Trailing blanks are not counted.
  */
 export function drawnWidth(row: string): number {
-  return parseLine(row.trimEnd()).length;
+  // The parser defaults extended markup off; the hub and every renderer draw
+  // with it on, so `{red:HOT}` is 3 cells and `{icon:sun}` one.
+  return parseLine(row.trimEnd(), Infinity, { extendedMarkup: true }).length;
 }
 
 /**

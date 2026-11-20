@@ -4046,7 +4046,6 @@
     "showingUntil": "Сейчас показывается на {board} · до {time}",
     "showingNow": "Сейчас показывается на {board}",
     "scheduledOn": "Запланирована на {board}",
-    "notScheduledMessage": "Не входит в расписание ни одного дисплея",
     "problemsLink": "{count, plural, one {# проблема} few {# проблемы} many {# проблем} other {# проблемы}}",
     "saveDraft": "Сохранить черновик",
     "savingDraft": "Сохранение черновика…",

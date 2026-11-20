@@ -4046,7 +4046,6 @@
     "showingUntil": "Affichée sur {board} en ce moment · jusqu’à {time}",
     "showingNow": "Affichée sur {board} en ce moment",
     "scheduledOn": "Planifiée sur {board}",
-    "notScheduledMessage": "Dans aucune programmation d’écran",
     "problemsLink": "{count, plural, one {# problème} other {# problèmes}}",
     "saveDraft": "Enregistrer le brouillon",
     "savingDraft": "Enregistrement du brouillon…",
