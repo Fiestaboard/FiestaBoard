@@ -344,6 +344,7 @@
     "retryLoading": "Seiten erneut laden",
     "cardActions": "Aktionen für {name}",
     "duplicate": "Duplizieren",
+    "exportShareString": "Freigabezeichenfolge exportieren",
     "deletePage": "Seite löschen…",
     "toastDuplicated": "„{name}“ erstellt",
     "actionFailed": "Das hat nicht geklappt. Versuche es erneut."

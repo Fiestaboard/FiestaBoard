@@ -344,6 +344,7 @@
     "retryLoading": "Pagina’s opnieuw laden",
     "cardActions": "Acties voor {name}",
     "duplicate": "Dupliceren",
+    "exportShareString": "Deelreeks exporteren",
     "deletePage": "Pagina verwijderen…",
     "toastDuplicated": "‘{name}’ gemaakt",
     "actionFailed": "Dat lukte niet. Probeer het opnieuw."
