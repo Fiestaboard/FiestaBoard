@@ -12,7 +12,7 @@
  * `warning`; the card has to show it rather than report a silent success.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -42,16 +42,22 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 /** Put the card on a channel, and capture what a switch would POST. */
-function onChannel(channel: "stable" | "beta", switchResponse: Record<string, unknown> = {}) {
+function onChannel(channel: "stable" | "beta" | "alpha", switchResponse: Record<string, unknown> = {}) {
   const posted: Array<Record<string, unknown>> = [];
   server.use(
     http.get(`${API_BASE}/system/channel`, () =>
       HttpResponse.json({
         channel,
-        available_channels: ["beta", "stable"],
+        available_channels: ["stable", "beta", "alpha"],
+        running_channel: channel,
+        running_version: channel === "alpha" ? "11.0.0-alpha.0" : "10.3.3",
+        channel_versions: { stable: "10.3.3", beta: "10.3.4-beta.0", alpha: "11.0.0-alpha.1" },
         can_switch: true,
         reason: null,
       }),
+    ),
+    http.get(`${API_BASE}/system/channel/versions`, () =>
+      HttpResponse.json({ channel_versions: { stable: "10.3.3", beta: "10.3.4-beta.0", alpha: "11.0.0-alpha.1" } }),
     ),
     http.post(`${API_BASE}/system/channel`, async ({ request }) => {
       posted.push((await request.json()) as Record<string, unknown>);
@@ -73,58 +79,163 @@ beforeEach(() => {
 });
 
 describe("ReleaseChannelCard", () => {
-  it("offers a way off the beta when the box is on one", async () => {
+  it("shows all versions and the running channel", async () => {
     onChannel("beta");
     render(<ReleaseChannelCard />, { wrapper: Wrapper });
-    expect(await screen.findByRole("button", { name: /leave the beta/i })).toBeInTheDocument();
+    expect(await screen.findByRole("radiogroup", { name: "Release channel" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Beta.*Current/ })).toHaveAttribute("aria-checked", "true");
+    for (const version of ["10.3.3", "10.3.4-beta.0", "11.0.0-alpha.1"])
+      expect(await screen.findByText(version)).toBeVisible();
   });
 
-  it("still offers joining when the box is on stable", async () => {
-    onChannel("stable");
+  it("requires a separate explicit alpha confirmation and permits cancellation", async () => {
+    const posted = onChannel("stable");
     render(<ReleaseChannelCard />, { wrapper: Wrapper });
-    expect(await screen.findByRole("button", { name: /join the beta/i })).toBeInTheDocument();
-  });
-
-  it("asks the server for stable when leaving", async () => {
-    const posted = onChannel("beta");
-    render(<ReleaseChannelCard />, { wrapper: Wrapper });
-
-    await userEvent.click(await screen.findByRole("button", { name: /leave the beta/i }));
+    await userEvent.click(await screen.findByRole("radio", { name: /Alpha preview/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Switch channel" }));
     const dialog = await screen.findByRole("alertdialog");
-    await userEvent.click(within_(dialog, /leave the beta/i));
-
-    await waitFor(() => expect(posted).toHaveLength(1));
-    expect(posted[0]).toEqual({ channel: "stable" });
+    expect(dialog).toHaveTextContent(/automatic backup/i);
+    expect(dialog).toHaveTextContent(/migrate/i);
+    expect(posted).toHaveLength(0);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("radio", { name: /Alpha preview/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: /Stable.*Current/ })).toBeInTheDocument();
+    expect(posted).toHaveLength(0);
   });
 
-  it("warns when the settings could not be rolled back", async () => {
-    // The dangerous outcome: the box moves to an older major and the config
-    // it needs was never restored. Reporting plain success hides that.
-    onChannel("beta", { settings_restored: false, warning: "No join snapshot was available." });
+  it("sends explicit major confirmation for alpha", async () => {
+    const posted = onChannel("stable");
     render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByRole("radio", { name: /Alpha preview/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Switch channel" }));
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Switch channel" }),
+    );
+    await waitFor(() => expect(posted).toEqual([{ channel: "alpha", confirm_major_upgrade: true }]));
+  });
 
-    await userEvent.click(await screen.findByRole("button", { name: /leave the beta/i }));
+  it("uses the leave flow and surfaces missing backup guidance", async () => {
+    const posted = onChannel("alpha", { settings_restored: false, warning: "No join snapshot was available." });
+    render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByRole("radio", { name: /Beta/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Switch channel" }));
     const dialog = await screen.findByRole("alertdialog");
-    await userEvent.click(within_(dialog, /leave the beta/i));
-
+    expect(dialog).toHaveTextContent(/restore/i);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Switch channel" }));
+    await waitFor(() => expect(posted).toEqual([{ channel: "beta", confirm_major_upgrade: false }]));
     await waitFor(() => expect(toasts.warning).toHaveBeenCalledWith("No join snapshot was available."));
   });
 
-  it("stays quiet when the rollback worked", async () => {
-    onChannel("beta", { settings_restored: true, warning: null });
+  it("reports failed backup and does not start an update", async () => {
+    onChannel("stable");
+    server.use(
+      http.post(`${API_BASE}/system/channel`, () => HttpResponse.json({ detail: "Backup failed" }, { status: 503 })),
+    );
     render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByRole("radio", { name: /Alpha preview/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Switch channel" }));
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Switch channel" }),
+    );
+    await waitFor(() => expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining("Backup failed")));
+  });
 
-    await userEvent.click(await screen.findByRole("button", { name: /leave the beta/i }));
-    const dialog = await screen.findByRole("alertdialog");
-    await userEvent.click(within_(dialog, /leave the beta/i));
+  it.each(["{Enter}", " "])("arrow keys only explore; %s opens explicit confirmation", async (activation) => {
+    const posted = onChannel("stable");
+    render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    const stable = await screen.findByRole("radio", { name: /Stable/ });
+    stable.focus();
+    await userEvent.keyboard("{ArrowDown}");
+    const beta = screen.getByRole("radio", { name: /Beta/ });
+    expect(beta).toHaveFocus();
+    expect(beta).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(posted).toHaveLength(0);
+    await userEvent.keyboard(activation);
+    expect(await screen.findByRole("alertdialog")).toBeVisible();
+    expect(posted).toHaveLength(0);
+  });
 
-    await waitFor(() => expect(toasts.warning).not.toHaveBeenCalled());
+  it("renders the running channel while discovery is pending, then unavailable rows on failure", async () => {
+    onChannel("beta");
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get(`${API_BASE}/system/channel/versions`, async () => {
+        await pending;
+        return HttpResponse.json({ detail: "Offline" }, { status: 503 });
+      }),
+    );
+    render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    try {
+      expect(await screen.findByRole("radio", { name: /Beta.*Current/ })).toBeVisible();
+      expect(screen.getAllByText("Loading version…")).toHaveLength(3);
+    } finally {
+      release();
+    }
+    await waitFor(() => expect(screen.getAllByText("Version unavailable")).toHaveLength(3));
+  });
+
+  it.each([
+    ["stable", "beta", false],
+    ["alpha", "beta", false],
+    ["alpha", "stable", false],
+    ["beta", "alpha", true],
+  ] as const)("confirms major upgrade precisely for %s to %s", async (running, candidate, expected) => {
+    const posted = onChannel(running);
+    render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    await screen.findByText("11.0.0-alpha.1");
+    await userEvent.click(
+      screen.getByRole("radio", {
+        name: candidate === "stable" ? /Stable/ : candidate === "beta" ? /Beta/ : /Alpha preview/,
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Switch channel" }));
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Switch channel" }),
+    );
+    await waitFor(() => expect(posted).toEqual([{ channel: candidate, confirm_major_upgrade: expected }]));
+  });
+
+  it("does not confirm an alpha major upgrade from an already running 11.x stable build", async () => {
+    const posted = onChannel("stable");
+    server.use(
+      http.get(`${API_BASE}/system/channel`, () =>
+        HttpResponse.json({
+          channel: "stable",
+          running_channel: "stable",
+          running_version: "11.0.0",
+          available_channels: ["stable", "beta", "alpha"],
+          can_switch: true,
+          reason: null,
+        }),
+      ),
+    );
+    render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByRole("radio", { name: /Alpha preview/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Switch channel" }));
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Switch channel" }),
+    );
+    await waitFor(() => expect(posted).toEqual([{ channel: "alpha", confirm_major_upgrade: false }]));
+  });
+
+  it("explains Home Assistant management without active choices", async () => {
+    server.use(
+      http.get(`${API_BASE}/system/channel`, () =>
+        HttpResponse.json({
+          channel: "stable",
+          available_channels: ["stable", "beta", "alpha"],
+          can_switch: false,
+          reason: "Home Assistant manages updates in the add-on store.",
+          channel_versions: {},
+        }),
+      ),
+    );
+    render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    expect(await screen.findByText(/Home Assistant manages/)).toBeVisible();
+    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
   });
 });
-
-/** The confirm button inside the dialog, not the card button that opened it. */
-function within_(scope: HTMLElement, name: RegExp): HTMLElement {
-  const match = Array.from(scope.querySelectorAll("button")).find((b) => name.test(b.textContent ?? ""));
-  if (!match) throw new Error(`no button matching ${name} inside the dialog`);
-  return match;
-}

@@ -350,7 +350,8 @@ def test_update_setting_ai_enabled_flag_persists(mcp, services, two_boards):
 def test_update_setting_release_channel_switches_through_the_sidecar(mcp, services, two_boards):
     switched: list[str] = []
 
-    def fake_switch(channel):
+    def fake_switch(channel, *, confirm_major_upgrade=False, target_version=None):
+        assert confirm_major_upgrade is False
         switched.append(channel)
         return {"status": "queued", "channel": channel, "tag": "beta"}
 
