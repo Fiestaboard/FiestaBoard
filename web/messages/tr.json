@@ -4007,6 +4007,8 @@
   "creatorIde": {
     "regionLabel": "Oluşturucu IDE",
     "explorer": "Gezgin",
+    "showExplorer": "Gezgini göster",
+    "hideExplorer": "Gezgini gizle",
     "inspector": "Denetçi",
     "console": "Konsol",
     "filterPages": "Sayfaları filtrele…",

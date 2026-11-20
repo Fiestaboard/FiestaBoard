@@ -4007,6 +4007,8 @@
   "creatorIde": {
     "regionLabel": "IDE del creador",
     "explorer": "Explorador",
+    "showExplorer": "Mostrar el explorador",
+    "hideExplorer": "Ocultar el explorador",
     "inspector": "Inspector",
     "console": "Consola",
     "filterPages": "Filtrar páginas…",

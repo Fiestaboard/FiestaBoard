@@ -288,6 +288,8 @@ function renderIde(builder = fakeBuilder(), savedTick = 0) {
         pageId={PAGE}
         builderRef={builderRef}
         explorerSlot={slot}
+        // Commute is a FiestaPanel page: its Explorer opens by default (D2).
+        boardKind="panel"
         savedTick={savedTick}
         onSaveActionsChange={onSaveActionsChange}
       />,
@@ -300,6 +302,7 @@ function renderIde(builder = fakeBuilder(), savedTick = 0) {
           pageId={PAGE}
           builderRef={builderRef}
           explorerSlot={slot}
+          boardKind="panel"
           savedTick={tick}
           onSaveActionsChange={onSaveActionsChange}
         />,
@@ -342,7 +345,11 @@ describe("Creator IDE below 1024 px", () => {
 });
 
 describe("Creator IDE at 1024 px and wider", () => {
-  beforeEach(() => setDesktop(true));
+  beforeEach(() => {
+    setDesktop(true);
+    // Each test starts from the per-kind default (D2), not a toggle remembered by the last.
+    localStorage.removeItem("fiestaboard_ide_explorer:panel");
+  });
 
   it("draws five Inspector tabs and docks Problems | Warnings | Sent in the console", async () => {
     mockHub();
@@ -374,6 +381,22 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(await within(nav).findByText("Used by Den rotation")).toBeInTheDocument();
     fireEvent.change(within(nav).getByRole("searchbox", { name: "Filter pages…" }), { target: { value: "brunch" } });
     expect(within(nav).queryByRole("link", { name: /^Commute/ })).toBeNull();
+  });
+
+  it("hides the Explorer to one Show Explorer button and back, moving focus with it (D2)", async () => {
+    mockHub();
+    const { slot } = renderIde();
+    const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
+    fireEvent.click(within(nav).getByRole("button", { name: "Hide Explorer" }));
+    expect(within(slot).queryByRole("navigation", { name: "Explorer" })).toBeNull();
+    const show = within(slot).getByRole("button", { name: "Show Explorer" });
+    expect(show).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => expect(show).toHaveFocus());
+    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("closed");
+    fireEvent.click(show);
+    const hide = await within(slot).findByRole("button", { name: "Hide Explorer" });
+    await waitFor(() => expect(hide).toHaveFocus());
+    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("open");
   });
 
   it("validates at the open display's width with the page geometry", async () => {

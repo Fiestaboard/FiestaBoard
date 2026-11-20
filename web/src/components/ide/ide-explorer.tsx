@@ -1,7 +1,8 @@
 "use client";
 
-import { Box, Card, Input, ListRow, ListRowGroup, Stack, Text } from "@fiestaboard/ui";
-import { useId, useMemo, useState } from "react";
+import { Box, Button, Card, Flex, Input, ListRow, ListRowGroup, Stack, Text } from "@fiestaboard/ui";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { type Ref, useId, useMemo, useState } from "react";
 import { Link } from "react-router";
 
 import { useTranslations } from "@/i18n/translations";
@@ -17,10 +18,44 @@ function GroupLabel({ id, children }: { id: string; children: React.ReactNode })
 }
 
 /**
+ * The closed Explorer (D2, BB-E-3): one button at the head of the column it
+ * gives back to the editor.
+ */
+export function IdeExplorerShow({ onShow, buttonRef }: { onShow: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
+  const t = useTranslations("creatorIde");
+  return (
+    <Box data-slot="ide-explorer-closed" className="hidden lg:flex shrink-0 self-start my-4 ml-3">
+      <Button
+        ref={buttonRef}
+        variant="ghost"
+        size="icon"
+        aria-label={t("showExplorer")}
+        aria-expanded={false}
+        title={t("showExplorer")}
+        onClick={onShow}
+      >
+        <PanelLeftOpen className="size-4" aria-hidden="true" />
+      </Button>
+    </Box>
+  );
+}
+
+/**
  * Explorer (04d 4.3, >= 1024 px): this hub's pages, collections and
  * snippets, with the open page selected and a "used by" facet beneath.
+ * Collapsible (D2): `onHide` closes it to `IdeExplorerShow`.
  */
-export function IdeExplorer({ ide, pageId }: { ide: CreatorIdeState; pageId: string }) {
+export function IdeExplorer({
+  ide,
+  pageId,
+  onHide,
+  hideRef,
+}: {
+  ide: CreatorIdeState;
+  pageId: string;
+  onHide?: () => void;
+  hideRef?: Ref<HTMLButtonElement>;
+}) {
   const t = useTranslations("creatorIde");
   const [filter, setFilter] = useState("");
   const pagesLabel = useId();
@@ -53,9 +88,25 @@ export function IdeExplorer({ ide, pageId }: { ide: CreatorIdeState; pageId: str
       className="hidden lg:flex w-[220px] shrink-0 overflow-y-auto gap-0 py-0 my-4 ml-3 self-start max-h-[calc(100%-2rem)]"
     >
       <Box as="nav" aria-label={t("explorer")} className="flex flex-col gap-2 p-3.5">
-        <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
-          {t("explorer")}
-        </Text>
+        <Flex align="center" justify="between" gap="2">
+          <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
+            {t("explorer")}
+          </Text>
+          {onHide && (
+            <Button
+              ref={hideRef}
+              variant="ghost"
+              size="icon"
+              className="-my-1.5 -mr-1.5"
+              aria-label={t("hideExplorer")}
+              aria-expanded={true}
+              title={t("hideExplorer")}
+              onClick={onHide}
+            >
+              <PanelLeftClose className="size-4" aria-hidden="true" />
+            </Button>
+          )}
+        </Flex>
         <Input
           type="search"
           value={filter}

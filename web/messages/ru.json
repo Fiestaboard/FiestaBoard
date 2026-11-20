@@ -4007,6 +4007,8 @@
   "creatorIde": {
     "regionLabel": "IDE создателя",
     "explorer": "Проводник",
+    "showExplorer": "Показать проводник",
+    "hideExplorer": "Скрыть проводник",
     "inspector": "Инспектор",
     "console": "Консоль",
     "filterPages": "Фильтр страниц…",

@@ -171,6 +171,7 @@ import {
   previewBindsBoardViewportKeys,
 } from "@/lib/editor-shortcuts";
 import { templateHasFormula } from "@/lib/formula-ide/hints";
+import { COMPACT_EDITOR_HEADER_QUERY } from "@/lib/layout-constants";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
@@ -394,6 +395,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const useTouchToolbar = useMediaQuery("(max-width: 767px), (pointer: coarse)");
   // Under 390px Save is its icon, so the page name keeps two readable lines (BB-B-3).
   const narrowHeader = useMediaQuery("(max-width: 389px)");
+  const compactHeader = useMediaQuery(COMPACT_EDITOR_HEADER_QUERY);
   const editorContentRef = useRef<HTMLDivElement>(null);
   const dockPreviewRef = useRef<HTMLElement>(null);
   const viewportBottom = useEditorViewportDock(dockedPreview && useTouchToolbar, editorContentRef, dockPreviewRef);
@@ -2692,7 +2694,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 aria-label={t("exportPageAriaLabel")}
               >
                 <Upload className="h-3.5 w-3.5" />
-                {t("exportPage")}
+                {/* 1024–1279: icon only, so the page name keeps its room (BB-E-4). */}
+                {!compactHeader && t("exportPage")}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -2947,7 +2950,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   {tNav("pages")}
                 </Button>
               )}
-              <Box className={cn("relative min-w-0 flex-1", !dockedPreview && "h-11 lg:h-12")}>
+              {/* Desktop: the name never gets less than 240 px; the actions beside it
+                  go icon-only below 1280 to make the room (BB-E-4). */}
+              <Box className={cn("relative min-w-0 flex-1", !dockedPreview && "h-11 lg:h-12 lg:min-w-60")}>
                 <label htmlFor="page-name" className="sr-only">
                   {t("pageNameLabel")}
                 </label>

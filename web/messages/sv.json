@@ -4007,6 +4007,8 @@
   "creatorIde": {
     "regionLabel": "Skaparens IDE",
     "explorer": "Utforskare",
+    "showExplorer": "Visa utforskaren",
+    "hideExplorer": "Dölj utforskaren",
     "inspector": "Inspektör",
     "console": "Konsol",
     "filterPages": "Filtrera sidor…",

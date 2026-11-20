@@ -4007,6 +4007,8 @@
   "creatorIde": {
     "regionLabel": "创作者 IDE",
     "explorer": "资源管理器",
+    "showExplorer": "显示资源管理器",
+    "hideExplorer": "隐藏资源管理器",
     "inspector": "检查器",
     "console": "控制台",
     "filterPages": "筛选页面…",

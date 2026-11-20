@@ -19,6 +19,7 @@ import { Button, Kbd, ShortcutListPopover, useKbdPlatform } from "@fiestaboard/u
 import { Zap } from "lucide-react";
 import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import {
   EDITOR_SHORTCUTS,
@@ -29,6 +30,7 @@ import {
   matchesShortcut,
   primaryChord,
 } from "@/lib/editor-shortcuts";
+import { COMPACT_EDITOR_HEADER_QUERY } from "@/lib/layout-constants";
 
 export type EditorShortcutListVariant = "header" | "hint";
 
@@ -82,12 +84,20 @@ export function EditorShortcutList({ variant, state, anchorRef, boardViewport = 
   const groups = useMemo(() => editorShortcutGroups((key) => t(key), { boardViewport }), [t, boardViewport]);
   const anchor = useCallback(() => anchorRef?.current ?? null, [anchorRef]);
   const { openFrom, setOpenFrom } = state;
+  const compactHeader = useMediaQuery(COMPACT_EDITOR_HEADER_QUERY);
 
   const trigger =
     variant === "header" ? (
-      <Button variant="secondary" size="sm" className="h-8 gap-1.5 px-3 text-xs" aria-keyshortcuts="?">
+      <Button
+        variant="secondary"
+        size="sm"
+        className="h-8 gap-1.5 px-3 text-xs"
+        aria-keyshortcuts="?"
+        aria-label={compactHeader ? t("button") : undefined}
+      >
         <Zap className="h-3.5 w-3.5" aria-hidden />
-        {t("button")}
+        {/* 1024–1279: icon only beside the page name (BB-E-4). */}
+        {!compactHeader && t("button")}
       </Button>
     ) : (
       <Button variant="ghost" size="sm" className="text-xs font-normal text-muted-foreground" aria-keyshortcuts="?">

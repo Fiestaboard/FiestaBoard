@@ -4007,6 +4007,8 @@
   "creatorIde": {
     "regionLabel": "クリエイターIDE",
     "explorer": "エクスプローラー",
+    "showExplorer": "エクスプローラーを表示",
+    "hideExplorer": "エクスプローラーを隠す",
     "inspector": "インスペクター",
     "console": "コンソール",
     "filterPages": "ページを絞り込む…",

@@ -4007,6 +4007,8 @@
   "creatorIde": {
     "regionLabel": "크리에이터 IDE",
     "explorer": "탐색기",
+    "showExplorer": "탐색기 표시",
+    "hideExplorer": "탐색기 숨기기",
     "inspector": "인스펙터",
     "console": "콘솔",
     "filterPages": "페이지 필터…",
