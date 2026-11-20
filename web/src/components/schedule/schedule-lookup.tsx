@@ -159,7 +159,9 @@ function ScheduleLookupBody({
                     date.setHours(15, 0, 0, 0);
                   }
                   if (moment === "saturday") {
-                    date.setDate(date.getDate() + ((6 - date.getDay() + 7) % 7));
+                    // This Saturday's 12:30 PM, or next week's once it has passed (BB-C-6).
+                    const passed = date.getDay() === 6 && date.getHours() * 60 + date.getMinutes() >= 12 * 60 + 30;
+                    date.setDate(date.getDate() + (passed ? 7 : (6 - date.getDay() + 7) % 7));
                     date.setHours(12, 30, 0, 0);
                   }
                   const wall =
@@ -172,7 +174,10 @@ function ScheduleLookupBody({
                 wrap
               >
                 <SegmentedControlItem value="now">{t("quickNow")}</SegmentedControlItem>
-                <SegmentedControlItem value="tonight">{t("quickTonight")}</SegmentedControlItem>
+                {/* Tonight 9:00 PM is offered only while it is still ahead (BB-C-6). */}
+                {toZonedTime(new Date(), timezone).getHours() < 21 && (
+                  <SegmentedControlItem value="tonight">{t("quickTonight")}</SegmentedControlItem>
+                )}
                 <SegmentedControlItem value="tomorrow">{t("quickTomorrow")}</SegmentedControlItem>
                 <SegmentedControlItem value="saturday">{t("quickSaturday")}</SegmentedControlItem>
               </SegmentedControl>

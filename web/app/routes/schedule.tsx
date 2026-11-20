@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Flex,
+  Heading,
   Label,
   PageCard,
   PageHeader,
@@ -154,7 +155,9 @@ export default function SchedulePage() {
     return saved === "list" || saved === "calendar" || saved === "day" ? saved : null;
   });
   const width = useSyncExternalStore(subscribeScheduleWidth, scheduleWidth, () => 900);
-  const viewMode = preferredView ?? defaultScheduleView(width);
+  // A phone shows the Day agenda only (07d draws Day and the entry sheet at
+  // 390; a seven-column week is unreadable there, BB-C-4).
+  const viewMode = belowRail ? "day" : (preferredView ?? defaultScheduleView(width));
   const setViewMode = (value: ViewMode) => {
     setPreferredView(value);
     localStorage.setItem(SCHEDULE_VIEW_MODE_KEY, value);
@@ -558,6 +561,23 @@ export default function SchedulePage() {
     return days.map((d) => d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3)).join(", ");
   };
 
+  // The entry sheet's subtitle names the display and when the entry repeats,
+  // as 07d's sheet does ("Kitchen board · repeats on weekends", 322:20318).
+  const entrySummary = (entry: ScheduleEntry) => {
+    const days: Record<string, string[]> = {
+      all: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+      weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+      weekends: ["saturday", "sunday"],
+    };
+    const repeat =
+      entry.recurrence_type === "annual_date"
+        ? t("scheduleEntryForm.recurrenceAnnual")
+        : entry.recurrence_type === "one_off_date"
+          ? t("scheduleEntryForm.recurrenceOneOff")
+          : formatDaysCompact(entry.day_pattern === "custom" ? (entry.custom_days ?? []) : days[entry.day_pattern]);
+    return [currentBoard?.name, repeat].filter(Boolean).join(" · ") || t("editScheduleDescription");
+  };
+
   if (isLoading) {
     return (
       <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
@@ -577,46 +597,88 @@ export default function SchedulePage() {
   const hasGaps = (validation?.gaps?.length || 0) > 0;
 
   const isCalendarMode = viewMode === "calendar";
+  const modeSwitch = (
+    <Switch
+      id="schedule-mode"
+      data-testid="schedule-enabled-toggle"
+      checked={scheduleEnabled}
+      disabled={toggleSchedule.isPending}
+      onCheckedChange={(enabled) => toggleSchedule.mutate(enabled)}
+      aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
+      {...anchorProps("schedule.mode")}
+    />
+  );
+  const addButton = (
+    <Button variant="brand" size="sm" onClick={handleAdd} className="btn-lift" {...anchorProps("schedule.add")}>
+      <Plus className="h-4 w-4 mr-1" />
+      {t("addSchedule")}
+    </Button>
+  );
   const issueCount = hasOverlaps ? (validation?.overlaps?.length ?? 0) : (validation?.gaps?.length ?? 0);
 
   return (
     <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
       <Box>
-        {/* ── Page header ── */}
-        <PageHeader
-          icon={CalendarIcon}
-          title={t("title")}
-          className={cn(
-            "flex-shrink-0",
-            // In calendar mode the grid wants every vertical pixel — compact the
-            // header chrome on mobile so the calendar isn't squeezed.
-            isCalendarMode && "py-2 sm:py-4 mb-2 sm:mb-5",
-          )}
-          description={t("descriptionWithTimezone", { timezone })}
-        />
+        {/* ── Page header ── On a phone, 07d's Schedule · Day (322:19169): the
+            title with Add beside it, then one Schedule Mode row (BB-C-3). */}
+        {belowRail ? (
+          <Stack gap="3" className="flex-shrink-0 pb-3 pt-2">
+            <Flex align="center" justify="between" gap="3">
+              <Heading level={1} size="3xl">
+                {t("title")}
+              </Heading>
+              {addButton}
+            </Flex>
+            <Flex align="center" justify="between" gap="3">
+              <Label htmlFor="schedule-mode">
+                {tAgenda("mode")}
+                {currentBoard?.name && (
+                  <Text as="span" data-testid="active-board-indicator">
+                    {` · ${currentBoard.name}`}
+                  </Text>
+                )}
+              </Label>
+              {modeSwitch}
+            </Flex>
+          </Stack>
+        ) : (
+          <PageHeader
+            icon={CalendarIcon}
+            title={t("title")}
+            className={cn(
+              "flex-shrink-0",
+              // In calendar mode the grid wants every vertical pixel — compact the
+              // header chrome on mobile so the calendar isn't squeezed.
+              isCalendarMode && "py-2 sm:py-4 mb-2 sm:mb-5",
+            )}
+            description={t("descriptionWithTimezone", { timezone })}
+          />
+        )}
 
         {/* ── Compact toolbar: everything in one row ── */}
         <TooltipProvider>
           <PageToolbar
             className="flex-shrink-0"
             left={
-              <SegmentedControl
-                aria-label={tAgenda("view")}
-                value={viewMode}
-                onValueChange={(value) => {
-                  if (value === "day" || value === "list" || value === "calendar") setViewMode(value);
-                }}
-              >
-                <SegmentedControlItem value="day">{tAgenda("day")}</SegmentedControlItem>
-                <SegmentedControlItem value="calendar">{tAgenda("week")}</SegmentedControlItem>
-                <SegmentedControlItem value="list">{tAgenda("list")}</SegmentedControlItem>
-              </SegmentedControl>
+              !belowRail && (
+                <SegmentedControl
+                  aria-label={tAgenda("view")}
+                  value={viewMode}
+                  onValueChange={(value) => {
+                    if (value === "day" || value === "list" || value === "calendar") setViewMode(value);
+                  }}
+                >
+                  <SegmentedControlItem value="day">{tAgenda("day")}</SegmentedControlItem>
+                  <SegmentedControlItem value="calendar">{tAgenda("week")}</SegmentedControlItem>
+                  <SegmentedControlItem value="list">{tAgenda("list")}</SegmentedControlItem>
+                </SegmentedControl>
+              )
             }
             right={
               <Flex align="center" justify="end" gap="2" wrap>
                 {/* Active board indicator (multi-board only). Read-only: switching
                   boards happens via the shared sidebar selector (#1248). */}
-                {boards.length > 1 && (
+                {!belowRail && boards.length > 1 && (
                   <Flex
                     data-testid="active-board-indicator"
                     align="center"
@@ -630,18 +692,12 @@ export default function SchedulePage() {
                   </Flex>
                 )}
 
-                <Flex align="center" gap="2">
-                  <Label htmlFor="schedule-mode">{tAgenda("mode")}</Label>
-                  <Switch
-                    id="schedule-mode"
-                    data-testid="schedule-enabled-toggle"
-                    checked={scheduleEnabled}
-                    disabled={toggleSchedule.isPending}
-                    onCheckedChange={(enabled) => toggleSchedule.mutate(enabled)}
-                    aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
-                    {...anchorProps("schedule.mode")}
-                  />
-                </Flex>
+                {!belowRail && (
+                  <Flex align="center" gap="2">
+                    <Label htmlFor="schedule-mode">{tAgenda("mode")}</Label>
+                    {modeSwitch}
+                  </Flex>
+                )}
 
                 {/* Default page for gaps */}
                 <Select
@@ -769,16 +825,7 @@ export default function SchedulePage() {
                   </DropdownMenu>
                 )}
 
-                <Button
-                  variant="brand"
-                  size="sm"
-                  onClick={handleAdd}
-                  className="btn-lift"
-                  {...anchorProps("schedule.add")}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t("addSchedule")}
-                </Button>
+                {!belowRail && addButton}
               </Flex>
             }
           />
@@ -813,6 +860,7 @@ export default function SchedulePage() {
               <ScheduleWorkspace
                 key={`${effectiveBoardId ?? "default"}:${timezone}`}
                 view={viewMode}
+                compact={belowRail}
                 schedules={schedules}
                 pages={pages}
                 collections={collectionsData?.collections ?? []}
@@ -862,13 +910,14 @@ export default function SchedulePage() {
         <SheetContent
           side={belowRail ? "bottom" : "right"}
           grabber={belowRail}
-          className={belowRail ? "w-full max-h-[90dvh]" : "w-full sm:max-w-xl max-h-[90dvh] overflow-y-auto"}
+          // A side sheet runs the full height (a 90dvh cap left it short of the bottom in landscape, BB-C-5).
+          className={belowRail ? "w-full max-h-[90dvh]" : "w-full sm:max-w-xl overflow-y-auto"}
           {...anchorProps("schedule.form")}
         >
           <SheetHeader>
             <SheetTitle>{editingSchedule ? t("editScheduleTitle") : t("addScheduleTitle")}</SheetTitle>
             <SheetDescription>
-              {editingSchedule ? t("editScheduleDescription") : t("addScheduleDescription")}
+              {editingSchedule ? entrySummary(editingSchedule) : t("addScheduleDescription")}
             </SheetDescription>
           </SheetHeader>
           {pagesData && (
