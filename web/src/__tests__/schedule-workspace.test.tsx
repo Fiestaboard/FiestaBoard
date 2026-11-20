@@ -45,7 +45,7 @@ describe("Schedule workspace", () => {
     const props = setup([], { view });
     expect(screen.getByRole("region", { name: "No schedules created yet" })).toBeInTheDocument();
     expect(screen.getByText("Gaps use Morning page.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Add Schedule" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
     expect(props.onCreate).toHaveBeenCalled();
   });
   it("opens lookup on request and restores the selected inspector when closed", () => {
@@ -66,7 +66,7 @@ describe("Schedule workspace", () => {
     const props = setup([]);
     expect(screen.getByText("No schedules created yet")).toBeInTheDocument();
     expect(screen.getByText("Gaps use Morning page.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Add Schedule" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
     expect(props.onCreate).toHaveBeenCalled();
   });
   it("selects a calendar occurrence and edits the original stored entry", () => {

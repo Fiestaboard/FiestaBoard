@@ -118,7 +118,9 @@ describe("Schedule settings presentation", () => {
   it("labels the schedule with the configured timezone used to convert silence times", async () => {
     settings({}, "Asia/Tokyo");
     renderPage();
-    expect(await screen.findByText("Automate page rotation by time and day · Asia/Tokyo")).toBeInTheDocument();
+    // 07d `322:9978` has no description line; the hub's zone shows in the
+    // toolbar when it is not the browser's (BB-FC-6).
+    expect(await screen.findByText("Asia/Tokyo")).toBeInTheDocument();
     expect(
       (await screen.findAllByRole("button", { name: "Silence schedule, 1:00 PM – 12:00 AM, opens settings" }))[0],
     ).toBeInTheDocument();
@@ -187,7 +189,7 @@ it("opens the phone entry form with the kit grabber and independently scrolling 
   try {
     settings();
     renderPage();
-    fireEvent.click((await screen.findAllByRole("button", { name: "Add Schedule" }))[0]);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add entry" }))[0]);
     const dialog = await screen.findByRole("dialog");
     expect(dialog.querySelector('[data-slot="sheet-grabber"]')).toBeInTheDocument();
     expect(dialog.querySelector('[data-slot="sheet-head"]')).toHaveTextContent("Add Schedule");

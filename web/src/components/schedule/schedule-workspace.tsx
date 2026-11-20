@@ -15,7 +15,7 @@ import {
   WeekStrip,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { addDays, format, isSameDay, startOfDay, startOfWeek } from "date-fns";
+import { addDays, differenceInCalendarDays, format, isSameDay, startOfDay, startOfWeek } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -56,6 +56,10 @@ interface Props {
   onSilenceClick: () => void;
   onRepair?: (entry: ScheduleEntry, startTime: string) => Promise<void>;
   legacyCalendar?: React.ReactNode;
+  /** The Day/Week/List switcher, led into the one toolbar row (07d `322:9978`). */
+  viewSwitcher?: React.ReactNode;
+  /** Controls the frame does not draw but the page keeps (default page, issues; DD-W149), at the toolbar's right. */
+  toolbarExtra?: React.ReactNode;
 }
 export function ScheduleWorkspace({
   view,
@@ -77,6 +81,8 @@ export function ScheduleWorkspace({
   onSilenceClick,
   onRepair,
   legacyCalendar,
+  viewSwitcher,
+  toolbarExtra,
 }: Props) {
   const t = useTranslations("schedule.agenda");
   const tSchedule = useTranslations("schedule");
@@ -89,8 +95,16 @@ export function ScheduleWorkspace({
   const [legacy, setLegacy] = useState(false);
   const [lookupOpen, setLookupOpen] = useState(false);
   const lookupId = useId();
-  const weekStart = startOfWeek(date);
+  // Monday-first, as 07d draws the week (`322:9978`, BB-FC-6). The app has no
+  // first-day-of-week setting to defer to.
+  const weekStart = startOfWeek(date, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  // A phone's day tray holds five days centred on the chosen one (07d
+  // `322:19169`: "Thu 5 … Mon 9" in 358px); choosing an edge day moves it.
+  const stripDays = compact ? [-2, -1, 0, 1, 2].map((offset) => addDays(date, offset)) : days;
+  const column = (value: Date) => differenceInCalendarDays(startOfDay(value), weekStart);
+  // "Mon 9", weekday first (07d day chips and week columns).
+  const dayLabel = (day: Date) => `${day.toLocaleDateString(locale, { weekday: "short" })} ${day.getDate()}`;
   const needsSun = schedules.some(
     (entry) =>
       entry.start_type === "sunrise" ||
@@ -118,7 +132,7 @@ export function ScheduleWorkspace({
     new Date(2000, 0, 1, 0, value).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit", hour12: true });
   const entries: WeekCalendarEntry[] = events.map((event) => ({
     id: event.id,
-    day: event.start.getDay(),
+    day: column(event.start),
     start: minute(event.start, event.start),
     end: minute(event.end, event.start),
     title: event.title,
@@ -132,7 +146,7 @@ export function ScheduleWorkspace({
   entries.push(
     ...silence.map((event) => ({
       id: event.id,
-      day: event.start.getDay(),
+      day: column(event.start),
       start: minute(event.start, event.start),
       end: minute(event.end, event.start),
       title: t("silence"),
@@ -183,37 +197,70 @@ export function ScheduleWorkspace({
       ?.querySelector<HTMLElement>('[aria-checked="true"]')
       ?.scrollIntoView?.({ block: "nearest", inline: "center" });
   }, [chosenDay, view, lookupOpen]);
-  const controls = (
-    <Flex align="center" justify="between" gap="2" wrap>
-      {!lookupOpen && hasTimeline && (
-        <Flex gap="1" align="center">
-          <Button size="icon" variant="outline" aria-label={t("previous")} onClick={() => setDate(addDays(date, -7))}>
-            <ChevronLeft aria-hidden="true" />
-          </Button>
-          <Text size="sm" weight="semibold">
-            {weekStart.toLocaleDateString(locale, { month: "long", day: "numeric" })} –{" "}
-            {addDays(weekStart, 6).toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" })}
-          </Text>
-          <Button size="icon" variant="outline" aria-label={t("next")} onClick={() => setDate(addDays(date, 7))}>
-            <ChevronRight aria-hidden="true" />
-          </Button>
-        </Flex>
+  const range = new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", year: "numeric" }).formatRange(
+    weekStart,
+    addDays(weekStart, 6),
+  );
+  const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const lookupButton = (
+    <Button
+      variant="outline"
+      aria-expanded={lookupOpen}
+      aria-controls={lookupId}
+      onClick={() => setLookupOpen(!lookupOpen)}
+    >
+      {lookupOpen && <ChevronLeft aria-hidden="true" />}
+      {lookupOpen ? tCommon("back") : tSchedule("lookup.title")}
+    </Button>
+  );
+  // 07d `322:9978`: ONE toolbar row — the view switcher and the bold range on
+  // the left, Today on the right (BB-FC-6). The week arrows and "Which page
+  // at…" are kept beside them (DD-W149).
+  const controls = compact ? (
+    // 07d `322:19169` draws nothing under the agenda; the tray moves the day,
+    // so only what has no other home stays here (DD-W149, BB-FC-5).
+    <Flex align="center" justify="end" gap="2" wrap>
+      {toolbarExtra}
+      {!lookupOpen && hasTimeline && !isSameDay(date, today) && (
+        <Button variant="outline" onClick={() => setDate(startOfDay(today))}>
+          {t("today")}
+        </Button>
       )}
+      {lookupButton}
+    </Flex>
+  ) : (
+    <Flex role="toolbar" aria-label={tSchedule("title")} align="center" justify="between" gap="3" wrap>
+      <Flex gap="3" align="center" wrap>
+        {viewSwitcher}
+        {!lookupOpen && hasTimeline && (
+          <Flex gap="1" align="center">
+            <Button size="icon" variant="ghost" aria-label={t("previous")} onClick={() => setDate(addDays(date, -7))}>
+              <ChevronLeft aria-hidden="true" />
+            </Button>
+            <Text size="lg" weight="semibold">
+              {range}
+            </Text>
+            <Button size="icon" variant="ghost" aria-label={t("next")} onClick={() => setDate(addDays(date, 7))}>
+              <ChevronRight aria-hidden="true" />
+            </Button>
+          </Flex>
+        )}
+      </Flex>
       <Flex gap="2" align="center" wrap>
+        {/* 07d draws no time zone line; the hub's zone shows only when it is
+            not this browser's, the one case where times would read wrong. */}
+        {timezone !== browserZone && (
+          <Text size="sm" tone="muted" data-slot="schedule-timezone">
+            {timezone}
+          </Text>
+        )}
+        {toolbarExtra}
         {!lookupOpen && hasTimeline && (
           <Button variant="outline" onClick={() => setDate(startOfDay(today))}>
             {t("today")}
           </Button>
         )}
-        <Button
-          variant="outline"
-          aria-expanded={lookupOpen}
-          aria-controls={lookupId}
-          onClick={() => setLookupOpen(!lookupOpen)}
-        >
-          {lookupOpen && <ChevronLeft aria-hidden="true" />}
-          {lookupOpen ? tCommon("back") : tSchedule("lookup.title")}
-        </Button>
+        {lookupButton}
       </Flex>
     </Flex>
   );
@@ -226,13 +273,19 @@ export function ScheduleWorkspace({
             aria-label={t("days")}
             value={format(date, "yyyy-MM-dd")}
             onValueChange={(value) => {
-              const day = days.find((candidate) => format(candidate, "yyyy-MM-dd") === value);
+              const day = stripDays.find((candidate) => format(candidate, "yyyy-MM-dd") === value);
               if (day) setDate(day);
             }}
           >
-            {days.map((day) => (
-              <DayChip key={day.toISOString()} value={format(day, "yyyy-MM-dd")}>
-                {day.toLocaleDateString(locale, { weekday: "short", day: "numeric" })}
+            {stripDays.map((day) => (
+              // Five two-digit dates ("Wed 18") need 8px sides to fit 358px;
+              // the frame's 16 assumes one-digit dates (`322:19169`).
+              <DayChip
+                key={day.toISOString()}
+                value={format(day, "yyyy-MM-dd")}
+                className={compact ? "px-2" : undefined}
+              >
+                {dayLabel(day)}
               </DayChip>
             ))}
           </WeekStrip>
@@ -301,7 +354,7 @@ export function ScheduleWorkspace({
                     aria-label={t("calendar")}
                     days={days.map((day) => ({
                       id: format(day, "yyyy-MM-dd"),
-                      label: day.toLocaleDateString(locale, { weekday: "short", day: "numeric" }),
+                      label: dayLabel(day),
                       name: day.toLocaleDateString(locale, { weekday: "long", month: "long", day: "numeric" }),
                     }))}
                     entries={entries}
@@ -310,11 +363,14 @@ export function ScheduleWorkspace({
                     endHour={entries.some((entry) => entry.end > 1380) ? 24 : 23}
                     hourHeight={34}
                     formatTime={time}
-                    formatHour={(hour) => time(hour * 60)}
+                    // "6 AM", not "6:00 AM" (07d `322:9978`).
+                    formatHour={(hour) =>
+                      new Date(2000, 0, 1, hour).toLocaleTimeString(locale, { hour: "numeric", hour12: true })
+                    }
                     labels={{ conflict: t("overlap"), off: t("off") }}
                     now={
                       days.some((day) => isSameDay(day, today))
-                        ? { day: today.getDay(), minute: today.getHours() * 60 + today.getMinutes() }
+                        ? { day: column(today), minute: today.getHours() * 60 + today.getMinutes() }
                         : null
                     }
                     onSelect={(entry) => {
@@ -357,6 +413,8 @@ export function ScheduleWorkspace({
                   }
                   onEdit={onEdit}
                   onSilenceClick={onSilenceClick}
+                  // The phone's tray already names the day (07d `322:19169`).
+                  showDate={!compact}
                 />
               ))
             )}
