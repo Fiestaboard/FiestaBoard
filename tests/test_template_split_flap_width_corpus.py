@@ -11,7 +11,10 @@ whose line holds a shortcut or extended markup changed (6 of 32 lines); the
 520 cases on the other 26 lines are byte-identical to the first recording.
 The formula line's ``max_line_length`` was re-recorded once more when a
 formula began to be measured by its value instead of the board width
-(BB-B-1: 31/45 became 9/9); nothing else changed.
+(BB-B-1: 31/45 became 9/9); nothing else changed. Its colour-tile lines'
+``max_line_length`` were re-recorded when ``{{red}}`` and ``{71}`` began to be
+measured as one tile each, as the render report measures them (BB-E-2: 20 to
+12, 28 to 25, 21/28 to 17/24); nothing else changed.
 Any other change to what a split-flap board receives fails here.
 
 Re-recording: ``RECORD_WIDTH_GOLDEN=1 pytest tests/test_template_split_flap_width_corpus.py``.

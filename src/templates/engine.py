@@ -2577,17 +2577,10 @@ class TemplateEngine:
 
             result = self._normalize_colors(self._rewrite_extended(result, body_of))
         else:
-            # Remove color markers (they become single tiles, count as 1 char each)
-            # Replace {color} with single char placeholder
-            result = re.sub(
-                r"\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|70)\}",
-                "C",
-                result,
-                flags=re.IGNORECASE,
-            )
-            result = re.sub(
-                r"\{/(red|orange|yellow|green|blue|violet|purple|white|black)?\}", "", result, flags=re.IGNORECASE
-            )
+            # Colour tiles as render() writes them: the rich editor's {{red}} and
+            # {{63}} become {63}, then each marker is one tile in the count
+            # below, as the render report measures the drawn row (BB-E-2).
+            result = self._normalize_colors(result)
 
             # Replace symbols with their character equivalent (usually 1-2 chars)
             for symbol, char in SYMBOL_CHARS.items():
@@ -2627,7 +2620,7 @@ class TemplateEngine:
             # Shortcuts become what the board draws ({sun} -> one icon tile,
             # {heart} -> ♥), then the line is measured in drawn tiles.
             return markup_count_tiles(self._render_symbols(result, extended_markup=True))
-        return len(result)
+        return self._count_tiles(result, extended_markup=False)
 
     @staticmethod
     def _renders_as_color_tile(parts: list[str]) -> bool:
