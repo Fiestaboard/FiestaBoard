@@ -101,7 +101,11 @@
     "about": "Om FiestaBoard",
     "signOut": "Logga ut",
     "popoverLabel": "Kontomeny",
-    "account": "Konto"
+    "account": "Konto",
+    "theme": "Tema",
+    "signOutBrowser": "Logga ut från den här webbläsaren",
+    "ownerLine": "{username} · Ägare av {hub}",
+    "updateBadge": "Uppdatera till {version}"
   },
   "aboutDialog": {
     "description": "Egen drift. Din hubb, dina skärmar, dina data.",
