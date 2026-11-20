@@ -2539,6 +2539,20 @@ class PluginRegistry:
         return {key: self.build_template_context(board, plugin_ids=filters.get(key)) for key, board in boards.items()}
 
 
+def get_plugin_settings_schema(plugin_id: str, registry: Any = None) -> dict[str, Any] | None:
+    """Read a base manifest without creating/initializing the global registry.
+
+    Startup, removal and unavailable manifests fail closed in public projections.
+    Service callers can supply their existing registry explicitly.
+    """
+    registry = registry if registry is not None else _registry
+    if registry is None:
+        return None
+    manifest = registry.get_manifest(plugin_id.split(":", 1)[0])
+    schema = getattr(manifest, "settings_schema", None)
+    return schema if isinstance(schema, dict) else None
+
+
 def get_plugin_registry() -> PluginRegistry:
     """Get or create the global plugin registry singleton.
 

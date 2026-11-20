@@ -496,6 +496,41 @@ SENSITIVE_FIELDS = {
 MASKED_VALUE = "***"
 
 
+def mask_ai_provider_headers(block: Any) -> Any:
+    """Copy an AI settings block with custom header values kept private."""
+    result = copy.deepcopy(block)
+    if not isinstance(result, dict) or not isinstance(result.get("providers"), list):
+        return result
+    for provider in result["providers"]:
+        if not isinstance(provider, dict) or "headers" not in provider:
+            continue
+        headers = provider["headers"]
+        provider["headers"] = (
+            {name: MASKED_VALUE if value else value for name, value in headers.items()}
+            if isinstance(headers, dict)
+            else {}
+        )
+    return result
+
+
+def restore_ai_provider_headers(provider: dict[str, Any], stored: list[Any]) -> None:
+    """Restore header echoes only from an unambiguous provider and header."""
+    headers = provider.get("headers")
+    if not isinstance(headers, dict) or MASKED_VALUE not in headers.values():
+        return
+    matches = [p for p in stored if isinstance(p, dict) and p.get("id") == provider.get("id")]
+    previous = matches[0].get("headers") if provider.get("id") and len(matches) == 1 else None
+    for name, value in headers.items():
+        if value != MASKED_VALUE:
+            continue
+        found = (
+            [v for k, v in previous.items() if k.casefold() == name.casefold()] if isinstance(previous, dict) else []
+        )
+        if len(found) != 1 or found[0] == MASKED_VALUE:
+            raise ValueError("Re-enter the private header value for this provider.")
+        headers[name] = copy.deepcopy(found[0])
+
+
 def unmask_sensitive_values(values: dict[str, Any], stored: dict[str, Any]) -> dict[str, Any]:
     """Return *values* with every masked sensitive field restored from *stored*.
 
@@ -1156,7 +1191,10 @@ class ConfigManager:
     def get_all_masked(self) -> dict[str, Any]:
         """Get full configuration with sensitive fields masked."""
         config = self.get_all()
-        return self._mask_sensitive(config)
+        masked = self._mask_sensitive(config)
+        if "ai_providers" in masked:
+            masked["ai_providers"] = mask_ai_provider_headers(masked["ai_providers"])
+        return masked
 
     def _mask_sensitive(self, obj: Any, path: str = "") -> Any:
         """Recursively mask sensitive fields in config."""
@@ -1391,8 +1429,8 @@ class ConfigManager:
         return "ask"
 
     def get_ai_providers_masked(self) -> dict[str, Any]:
-        """Get the AI providers config with each provider's api_key masked."""
-        return self._mask_sensitive(self.get_ai_providers())
+        """Get AI provider configuration with keys and custom headers masked."""
+        return mask_ai_provider_headers(self._mask_sensitive(self.get_ai_providers()))
 
     def get_ai_provider(self, provider_id: str) -> dict[str, Any] | None:
         """Return the unmasked provider dict for ``provider_id``, or None."""
@@ -1427,6 +1465,26 @@ class ConfigManager:
                 p.get("id"): p for p in existing.get("providers", []) if isinstance(p, dict) and p.get("id")
             }
 
+            # Resolve all private echoes before changing any settings. An
+            # unresolved header must not leave a partially applied edit.
+            cleaned: list[dict[str, Any]] | None = None
+            if "providers" in settings and isinstance(settings["providers"], list):
+                cleaned = []
+                for raw in settings["providers"]:
+                    if not isinstance(raw, dict):
+                        continue
+                    provider = self._deep_copy(raw)
+                    pid = provider.get("id")
+                    headers = provider.get("headers")
+                    if isinstance(headers, dict) and MASKED_VALUE in headers.values():
+                        matches = [p for p in settings["providers"] if isinstance(p, dict) and p.get("id") == pid]
+                        if len(matches) != 1:
+                            raise ValueError("Each provider with private header values must have a unique ID.")
+                    if provider.get("api_key") == "***" and pid in existing_by_id:
+                        provider["api_key"] = existing_by_id[pid].get("api_key", "")
+                    restore_ai_provider_headers(provider, existing.get("providers", []))
+                    cleaned.append(provider)
+
             if "enabled" in settings:
                 existing["enabled"] = bool(settings["enabled"])
 
@@ -1448,17 +1506,7 @@ class ConfigManager:
                     else:
                         existing[cap_key] = coerced
 
-            if "providers" in settings and isinstance(settings["providers"], list):
-                cleaned: list[dict[str, Any]] = []
-                for raw in settings["providers"]:
-                    if not isinstance(raw, dict):
-                        continue
-                    provider = self._deep_copy(raw)
-                    pid = provider.get("id")
-                    # Preserve api_key if the incoming value is the mask
-                    if provider.get("api_key") == "***" and pid in existing_by_id:
-                        provider["api_key"] = existing_by_id[pid].get("api_key", "")
-                    cleaned.append(provider)
+            if cleaned is not None:
                 existing["providers"] = cleaned
 
             self._save_internal()
