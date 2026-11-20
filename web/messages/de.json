@@ -2796,13 +2796,13 @@
   },
   "login": {
     "signInTitle": "Bei FiestaBoard anmelden",
-    "signInDescription": "Geben Sie Ihre Administrator-Zugangsdaten ein, um fortzufahren.",
     "usernameLabel": "Benutzername",
     "passwordLabel": "Passwort",
-    "rememberMeLabel": "Angemeldet bleiben",
+    "rememberMeLabel": "Auf diesem Browser angemeldet bleiben",
     "submitButton": "Anmelden",
     "submittingButton": "Anmeldung…",
-    "invalidCredentials": "Ungültiger Benutzername oder ungültiges Passwort.",
+    "invalidCredentials": "Benutzername und Passwort passen nicht zusammen.",
+    "invalidCredentialsHint": "Prüfe die Feststelltaste und versuche es erneut. Nach mehreren Fehlversuchen pausiert die Anmeldung einige Minuten, um Ratende auszubremsen.",
     "tooManyAttempts": "Zu viele fehlgeschlagene Anmeldeversuche. Bitte warten Sie eine Minute und versuchen Sie es erneut.",
     "networkError": "Netzwerkfehler. Bitte erneut versuchen.",
     "signInFailedStatus": "Anmeldung fehlgeschlagen ({status}).",
@@ -2829,7 +2829,8 @@
     "loadingDescription": "Authentifizierungsstatus wird geprüft…",
     "redirectingTitle": "Weiterleitung…",
     "redirectingDescription": "Einen Moment…",
-    "pageTitle": "Anmelden"
+    "pageTitle": "Anmelden",
+    "forgotPassword": "Passwort vergessen? <link>Setze es mit einem Code vom Hub zurück</link>."
   },
   "picks": {
     "title": "Empfehlungen",

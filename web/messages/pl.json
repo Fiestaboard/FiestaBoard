@@ -2796,13 +2796,13 @@
   },
   "login": {
     "signInTitle": "Zaloguj się do FiestaBoard",
-    "signInDescription": "Wprowadź dane administratora, aby kontynuować.",
     "usernameLabel": "Nazwa użytkownika",
     "passwordLabel": "Hasło",
-    "rememberMeLabel": "Nie wylogowuj mnie",
+    "rememberMeLabel": "Nie wylogowuj mnie w tej przeglądarce",
     "submitButton": "Zaloguj się",
     "submittingButton": "Logowanie…",
-    "invalidCredentials": "Nieprawidłowa nazwa użytkownika lub hasło.",
+    "invalidCredentials": "Nazwa użytkownika i hasło nie pasują do siebie.",
+    "invalidCredentialsHint": "Sprawdź Caps Lock i spróbuj ponownie. Po kilku błędnych próbach logowanie jest wstrzymywane na kilka minut, aby powstrzymać zgadywanie.",
     "tooManyAttempts": "Zbyt wiele nieudanych prób logowania. Poczekaj minutę i spróbuj ponownie.",
     "networkError": "Błąd sieci. Spróbuj ponownie.",
     "signInFailedStatus": "Logowanie nie powiodło się ({status}).",
@@ -2829,7 +2829,8 @@
     "loadingDescription": "Sprawdzanie statusu uwierzytelnienia…",
     "redirectingTitle": "Przekierowywanie…",
     "redirectingDescription": "Chwila…",
-    "pageTitle": "Zaloguj się"
+    "pageTitle": "Zaloguj się",
+    "forgotPassword": "Nie pamiętasz hasła? <link>Zresetuj je kodem z huba</link>."
   },
   "picks": {
     "title": "Polecane",

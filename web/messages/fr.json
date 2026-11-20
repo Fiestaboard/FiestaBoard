@@ -2796,13 +2796,13 @@
   },
   "login": {
     "signInTitle": "Se connecter à FiestaBoard",
-    "signInDescription": "Saisissez vos identifiants administrateur pour continuer.",
     "usernameLabel": "Nom d'utilisateur",
     "passwordLabel": "Mot de passe",
-    "rememberMeLabel": "Rester connecté",
+    "rememberMeLabel": "Rester connecté sur ce navigateur",
     "submitButton": "Se connecter",
     "submittingButton": "Connexion…",
-    "invalidCredentials": "Nom d'utilisateur ou mot de passe incorrect.",
+    "invalidCredentials": "Ce nom d’utilisateur et ce mot de passe ne correspondent pas.",
+    "invalidCredentialsHint": "Vérifiez le verrouillage des majuscules et réessayez. Après plusieurs essais incorrects, la connexion est suspendue quelques minutes pour bloquer les tentatives au hasard.",
     "tooManyAttempts": "Trop de tentatives de connexion infructueuses. Veuillez patienter une minute et réessayer.",
     "networkError": "Erreur réseau. Veuillez réessayer.",
     "signInFailedStatus": "Échec de la connexion ({status}).",
@@ -2829,7 +2829,8 @@
     "loadingDescription": "Vérification du statut d'authentification…",
     "redirectingTitle": "Redirection…",
     "redirectingDescription": "Un instant…",
-    "pageTitle": "Se connecter"
+    "pageTitle": "Se connecter",
+    "forgotPassword": "Mot de passe oublié ? <link>Réinitialisez-le avec un code du hub</link>."
   },
   "picks": {
     "title": "Sélections de l'équipe",

@@ -2796,13 +2796,13 @@
   },
   "login": {
     "signInTitle": "Inloggen bij FiestaBoard",
-    "signInDescription": "Voer je beheerdersgegevens in om door te gaan.",
     "usernameLabel": "Gebruikersnaam",
     "passwordLabel": "Wachtwoord",
-    "rememberMeLabel": "Ingelogd blijven",
+    "rememberMeLabel": "Ingelogd blijven in deze browser",
     "submitButton": "Inloggen",
     "submittingButton": "Inloggen…",
-    "invalidCredentials": "Ongeldige gebruikersnaam of wachtwoord.",
+    "invalidCredentials": "Deze gebruikersnaam en dit wachtwoord horen niet bij elkaar.",
+    "invalidCredentialsHint": "Controleer Caps Lock en probeer het opnieuw. Na meerdere foute pogingen pauzeert inloggen een paar minuten om gokkers buiten te houden.",
     "tooManyAttempts": "Te veel mislukte inlogpogingen. Wacht een minuut en probeer het opnieuw.",
     "networkError": "Netwerkfout. Probeer het opnieuw.",
     "signInFailedStatus": "Inloggen mislukt ({status}).",
@@ -2829,7 +2829,8 @@
     "loadingDescription": "Authenticatiestatus controleren…",
     "redirectingTitle": "Doorverwijzen…",
     "redirectingDescription": "Een moment…",
-    "pageTitle": "Inloggen"
+    "pageTitle": "Inloggen",
+    "forgotPassword": "Wachtwoord vergeten? <link>Stel het opnieuw in met een code van de hub</link>."
   },
   "picks": {
     "title": "Aanbevolen",

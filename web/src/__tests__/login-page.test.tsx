@@ -129,7 +129,7 @@ describe("LoginPage first-run picker", () => {
   });
 });
 
-describe("LoginPage 'Keep me logged in'", () => {
+describe("LoginPage 'Keep me signed in on this browser'", () => {
   beforeEach(() => {
     replaceMock.mockReset();
   });
@@ -159,7 +159,7 @@ describe("LoginPage 'Keep me logged in'", () => {
     render(<LoginPage />);
 
     await screen.findByText(/Sign in to FiestaBoard/i);
-    const checkbox = screen.getByRole("checkbox", { name: /Keep me logged in/i });
+    const checkbox = screen.getByRole("checkbox", { name: /Keep me signed in on this browser/i });
     expect(checkbox).toBeInTheDocument();
     expect(checkbox).toBeChecked();
   });
@@ -191,7 +191,7 @@ describe("LoginPage 'Keep me logged in'", () => {
 
     await screen.findByText(/Sign in to FiestaBoard/i);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("checkbox", { name: /Keep me logged in/i }));
+    await user.click(screen.getByRole("checkbox", { name: /Keep me signed in on this browser/i }));
     await user.type(screen.getByLabelText(/Username/i), "admin");
     await user.type(screen.getByLabelText(/Password/i), "supersecret");
     await user.click(screen.getByRole("button", { name: /Sign in/i }));
@@ -213,4 +213,85 @@ it("rejects an external post-login redirect", async () => {
   render(<LoginPage />);
   await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/"));
   stableSearchParams.delete("redirect");
+});
+
+describe("LoginPage sign-in form (07e Sign in `326:40175` / `326:34407`)", () => {
+  beforeEach(() => {
+    replaceMock.mockReset();
+    server.use(
+      http.get("/api/auth/status", () =>
+        HttpResponse.json(makeStatus({ mode: "enabled", first_run: false, setup_required: false })),
+      ),
+    );
+  });
+
+  it("names the hub this browser reached and that it answered (BB-C-9)", async () => {
+    const { container } = render(<LoginPage />);
+    await screen.findByRole("heading", { level: 1, name: /Sign in to FiestaBoard/i });
+    const line = container.querySelector('[data-slot="login-hub-line"]');
+    expect(line).toHaveTextContent(`${window.location.hostname} · Online`);
+    // No generic "administrator credentials" blurb under the title.
+    expect(screen.queryByText(/administrator credentials/i)).not.toBeInTheDocument();
+  });
+
+  it("lets the reader reveal the password (BB-C-9)", async () => {
+    render(<LoginPage />);
+    const password = await screen.findByLabelText(/^Password$/i);
+    expect(password).toHaveAttribute("type", "password");
+    await userEvent.setup().click(screen.getByRole("button", { name: /^Show$/i }));
+    expect(password).toHaveAttribute("type", "text");
+  });
+
+  it("links a forgotten password to the reset page (BB-C-9)", async () => {
+    render(<LoginPage />);
+    await screen.findByText(/Forgot your password\?/i);
+    const link = screen.getByRole("link", { name: /Reset it with a code from the hub/i });
+    expect(link).toHaveAttribute("href", "/reset-password");
+  });
+
+  it("has no 'change this later' footer on the sign-in form (BB-C-10)", async () => {
+    render(<LoginPage />);
+    await screen.findByLabelText(/^Password$/i);
+    expect(screen.queryByText(/change this later/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /authentication docs/i })).not.toBeInTheDocument();
+  });
+
+  it("on a wrong password explains it, clears the password and puts focus there (BB-C-9)", async () => {
+    server.use(
+      http.post("/api/auth/login", () =>
+        HttpResponse.json({ detail: "Invalid username or password" }, { status: 401 }),
+      ),
+    );
+    render(<LoginPage />);
+    const user = userEvent.setup();
+    const username = await screen.findByLabelText(/Username/i);
+    const password = screen.getByLabelText(/^Password$/i);
+    await user.type(username, "maya");
+    await user.type(password, "wrong-password");
+    await user.click(screen.getByRole("button", { name: /^Sign in$/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/That username and password don.t match/i);
+    expect(alert).toHaveTextContent(/Check caps lock and try again/i);
+    expect(username).toHaveValue("maya");
+    expect(password).toHaveValue("");
+    expect(password).toHaveAttribute("aria-invalid", "true");
+    await waitFor(() => expect(password).toHaveFocus());
+  });
+});
+
+it("keeps the docs footnote as one sentence on the first-run picker (BB-C-10)", async () => {
+  server.use(
+    http.get("/api/auth/status", () =>
+      HttpResponse.json(makeStatus({ mode: "undecided", first_run: true, setup_required: true })),
+    ),
+  );
+  render(<LoginPage />);
+  const link = await screen.findByRole("link", { name: /authentication docs/i });
+  // One paragraph holds the whole sentence, so it wraps as text instead of
+  // splitting into flex columns.
+  const sentence = link.closest("p");
+  expect(sentence).not.toBeNull();
+  expect(sentence).toHaveTextContent(/You can change this later — see the authentication docs/);
+  expect(sentence?.textContent?.trim().endsWith(".")).toBe(true);
 });
