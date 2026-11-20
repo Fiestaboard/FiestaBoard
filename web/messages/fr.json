@@ -1416,6 +1416,8 @@
       "cloud": "Cloud (clé de lecture/écriture)",
       "address": "Adresse",
       "addressHint": "Saisissez l’adresse indiquée dans l’application Vestaboard. Le test de connexion la vérifie.",
+      "addressPort": "Saisissez uniquement l’adresse, sans port.",
+      "addressInvalid": "Saisissez une adresse IP ou un nom d’hôte, par exemple 192.168.1.20.",
       "localKey": "Clé API locale",
       "cloudKey": "Clé cloud de lecture/écriture",
       "keyHint": "Depuis l’application Vestaboard › Paramètres › Développeur › API locale.",
@@ -1874,7 +1876,11 @@
       "setupDescription": "Connectez cet écran. L’ajout ne crée pas de pages et ne modifie pas la programmation.",
       "step": "Étape {current} sur 2",
       "confirm": "Ajouter un écran",
-      "added": "{name} ajouté · Afficher une page"
+      "added": "{name} ajouté · Afficher une page",
+      "goTo": "Aller à {name}",
+      "kept": "Rien n’a été ajouté · {name} est déjà connecté",
+      "updateExisting": "Mettre à jour {name}",
+      "updated": "{name} mis à jour"
     },
     "marketplace": {
       "searchLabel": "Rechercher des écrans",

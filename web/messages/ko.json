@@ -1416,6 +1416,8 @@
       "cloud": "클라우드(읽기/쓰기 키)",
       "address": "주소",
       "addressHint": "Vestaboard 앱에 표시된 주소를 입력하세요. 연결 테스트에서 이 주소를 확인합니다.",
+      "addressPort": "포트 없이 주소만 입력하세요.",
+      "addressInvalid": "192.168.1.20과 같은 IP 주소나 호스트 이름을 입력하세요.",
       "localKey": "로컬 API 키",
       "cloudKey": "클라우드 읽기/쓰기 키",
       "keyHint": "Vestaboard 앱 › 설정 › 개발자 › 로컬 API에서 확인하세요.",
@@ -1874,7 +1876,11 @@
       "setupDescription": "이 디스플레이를 연결합니다. 추가해도 페이지가 생성되거나 스케줄이 변경되지 않습니다.",
       "step": "2단계 중 {current}단계",
       "confirm": "디스플레이 추가",
-      "added": "{name} 추가됨 · 페이지 표시"
+      "added": "{name} 추가됨 · 페이지 표시",
+      "goTo": "{name}(으)로 이동",
+      "kept": "추가된 항목 없음 · {name}은(는) 이미 연결되어 있습니다",
+      "updateExisting": "{name} 업데이트",
+      "updated": "{name} 업데이트됨"
     },
     "marketplace": {
       "searchLabel": "디스플레이 검색",

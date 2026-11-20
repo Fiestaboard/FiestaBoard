@@ -1416,6 +1416,8 @@
       "cloud": "Chmura (klucz odczytu/zapisu)",
       "address": "Adres",
       "addressHint": "Wpisz adres widoczny w aplikacji Vestaboard. Test połączenia go sprawdzi.",
+      "addressPort": "Wpisz sam adres, bez portu.",
+      "addressInvalid": "Wpisz adres IP lub nazwę hosta, np. 192.168.1.20.",
       "localKey": "Klucz lokalnego API",
       "cloudKey": "Klucz odczytu/zapisu w chmurze",
       "keyHint": "Z aplikacji Vestaboard › Ustawienia › Deweloper › Lokalne API.",
@@ -1874,7 +1876,11 @@
       "setupDescription": "Połącz ten ekran. Dodanie go nie tworzy stron ani nie zmienia harmonogramu.",
       "step": "Krok {current} z 2",
       "confirm": "Dodaj ekran",
-      "added": "Dodano {name} · Wyświetl stronę"
+      "added": "Dodano {name} · Wyświetl stronę",
+      "goTo": "Przejdź do {name}",
+      "kept": "Nic nie dodano · {name} jest już połączony",
+      "updateExisting": "Zaktualizuj {name}",
+      "updated": "Zaktualizowano {name}"
     },
     "marketplace": {
       "searchLabel": "Szukaj wyświetlaczy",

@@ -1416,6 +1416,8 @@
       "cloud": "云端（读写密钥）",
       "address": "地址",
       "addressHint": "输入 Vestaboard 应用中显示的地址。连接测试将检查此地址。",
+      "addressPort": "只输入地址，不要带端口。",
+      "addressInvalid": "请输入 IP 地址或主机名，例如 192.168.1.20。",
       "localKey": "本地 API 密钥",
       "cloudKey": "云端读写密钥",
       "keyHint": "从 Vestaboard 应用 › 设置 › 开发者 › 本地 API 获取。",
@@ -1874,7 +1876,11 @@
       "setupDescription": "连接此显示屏。添加显示屏不会创建页面，也不会更改排程。",
       "step": "第 {current} 步，共 2 步",
       "confirm": "添加显示屏",
-      "added": "已添加 {name} · 显示页面"
+      "added": "已添加 {name} · 显示页面",
+      "goTo": "前往 {name}",
+      "kept": "未添加任何内容 · {name} 已连接",
+      "updateExisting": "更新 {name}",
+      "updated": "已更新 {name}"
     },
     "marketplace": {
       "searchLabel": "搜索显示屏",

@@ -31,6 +31,7 @@ import { useTranslations } from "@/i18n/translations";
 import type { ActionResult, BoardInstance, Code62Glyph } from "@/lib/api";
 import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS } from "@/lib/board-dimensions";
+import { boardHostProblem } from "@/lib/board-host";
 
 import { removeUntouchedPlaceholder } from "./default-board";
 import {
@@ -52,6 +53,12 @@ export interface BoardConfig {
   name?: string;
 }
 
+/** The board already using this address, and whether the user keeps it or updates its connection. */
+export interface ExistingDisplayIntent {
+  name: string;
+  choice: "keep" | "update";
+}
+
 export interface BoardSetupHandle {
   save: (skipTest?: boolean) => Promise<WizardCreatedBoard | null>;
 }
@@ -65,6 +72,8 @@ interface StepBoardSetupProps {
   requireTest?: boolean;
   replacePlaceholder?: boolean;
   createdBoardId?: string;
+  /** Told when an already connected board is found, so the caller can label its primary action. */
+  onExistingChange?: (existing: ExistingDisplayIntent | null) => void;
   ref?: React.Ref<BoardSetupHandle>;
 }
 
@@ -78,6 +87,7 @@ export function StepBoardSetup({
   requireTest = false,
   replacePlaceholder = true,
   createdBoardId,
+  onExistingChange,
   ref,
 }: StepBoardSetupProps) {
   const t = useTranslations("wizard.connection");
@@ -107,6 +117,7 @@ export function StepBoardSetup({
     [notesWide, notesTall].every((value) => Number.isInteger(value) && value >= 1 && value <= MAX_NOTES_PER_AXIS);
   const mode = config.output_config.api_mode === "cloud" ? "cloud" : "local";
   const host = String(config.output_config.host ?? "");
+  const hostProblem = mode === "local" && !isArray ? boardHostProblem(host) : null;
   const keyField = isArray ? "note_array_token" : mode === "local" ? "local_api_key" : "cloud_key";
   const secret = String(config.output_config[keyField] ?? "");
   const name = config.name ?? t("defaultName");
@@ -116,7 +127,7 @@ export function StepBoardSetup({
       ...(isArray
         ? { note_array_token: secret }
         : mode === "local"
-          ? { host, port: config.output_config.port }
+          ? { host: hostProblem ? "" : host, port: config.output_config.port }
           : { cloud_key: secret }),
     },
     createdBoardId,
@@ -133,7 +144,12 @@ export function StepBoardSetup({
     if (known) setKnownSelection({ boardId: known.board_id, value });
   };
   const keep = !!known && knownChoice === "keep";
-  const fieldsValid = topologyValid && !!name.trim() && !!secret.trim() && (mode === "cloud" || !!host.trim());
+  const knownName = known?.name;
+  useEffect(() => {
+    onExistingChange?.(knownName === undefined ? null : { name: knownName, choice: keep ? "keep" : "update" });
+  }, [onExistingChange, knownName, keep]);
+  const fieldsValid =
+    topologyValid && !!name.trim() && !!secret.trim() && (mode === "cloud" || (!!host.trim() && !hostProblem));
   const failed = result?.status === "error";
   const valid =
     !lookup.pending &&
@@ -309,9 +325,14 @@ export function StepBoardSetup({
                 value={host}
                 disabled={isLoading}
                 onChange={(event) => connection({ ...config.output_config, host: event.target.value })}
-                aria-invalid={failed}
-                aria-describedby="setup-address-help"
+                aria-invalid={failed || !!hostProblem}
+                aria-describedby={hostProblem ? "setup-address-error setup-address-help" : "setup-address-help"}
               />
+              {hostProblem && (
+                <Text id="setup-address-error" size="xs" tone="destructive">
+                  {t(hostProblem === "port" ? "addressPort" : "addressInvalid")}
+                </Text>
+              )}
               <Text id="setup-address-help" size="xs" tone="muted">
                 {t("addressHint")}
               </Text>

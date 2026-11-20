@@ -1416,6 +1416,8 @@
       "cloud": "Nuvem (chave de leitura/gravação)",
       "address": "Endereço",
       "addressHint": "Digite o endereço exibido no app Vestaboard. O teste de conexão verifica esse endereço.",
+      "addressPort": "Digite apenas o endereço, sem porta.",
+      "addressInvalid": "Digite um endereço IP ou nome de host, como 192.168.1.20.",
       "localKey": "Chave da API local",
       "cloudKey": "Chave de leitura/gravação da nuvem",
       "keyHint": "No app Vestaboard › Configurações › Desenvolvedor › API local.",
@@ -1874,7 +1876,11 @@
       "setupDescription": "Conecte esta tela. Adicioná-la não cria páginas nem altera a programação.",
       "step": "Etapa {current} de 2",
       "confirm": "Adicionar tela",
-      "added": "{name} adicionada · Exibir uma página"
+      "added": "{name} adicionada · Exibir uma página",
+      "goTo": "Ir para {name}",
+      "kept": "Nada foi adicionado · {name} já está conectado",
+      "updateExisting": "Atualizar {name}",
+      "updated": "{name} atualizado"
     },
     "marketplace": {
       "searchLabel": "Pesquisar ecrãs",

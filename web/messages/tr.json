@@ -1416,6 +1416,8 @@
       "cloud": "Bulut (okuma/yazma anahtarı)",
       "address": "Adres",
       "addressHint": "Vestaboard uygulamasında gösterilen adresi girin. Bağlantı testi bu adresi kontrol eder.",
+      "addressPort": "Yalnızca adresi girin, bağlantı noktası olmadan.",
+      "addressInvalid": "192.168.1.20 gibi bir IP adresi veya ana bilgisayar adı girin.",
       "localKey": "Yerel API anahtarı",
       "cloudKey": "Bulut okuma/yazma anahtarı",
       "keyHint": "Vestaboard uygulaması › Ayarlar › Geliştirici › Yerel API bölümünden.",
@@ -1874,7 +1876,11 @@
       "setupDescription": "Bu ekranı bağlayın. Eklemek sayfa oluşturmaz veya Program’ı değiştirmez.",
       "step": "Adım {current} / 2",
       "confirm": "Ekran ekle",
-      "added": "{name} eklendi · Bir sayfa göster"
+      "added": "{name} eklendi · Bir sayfa göster",
+      "goTo": "{name} ekranına git",
+      "kept": "Hiçbir şey eklenmedi · {name} zaten bağlı",
+      "updateExisting": "{name} öğesini güncelle",
+      "updated": "{name} güncellendi"
     },
     "marketplace": {
       "searchLabel": "Ekranlarda ara",

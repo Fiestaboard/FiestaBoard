@@ -1416,6 +1416,8 @@
       "cloud": "Nube (clave de lectura/escritura)",
       "address": "Dirección",
       "addressHint": "Introduce la dirección que aparece en la app Vestaboard. La prueba de conexión la comprueba.",
+      "addressPort": "Escribe solo la dirección, sin puerto.",
+      "addressInvalid": "Escribe una dirección IP o un nombre de host, como 192.168.1.20.",
       "localKey": "Clave de API local",
       "cloudKey": "Clave de lectura/escritura de la nube",
       "keyHint": "Desde la app Vestaboard › Ajustes › Desarrollador › API local.",
@@ -1874,7 +1876,11 @@
       "setupDescription": "Conecta esta pantalla. Añadirla no crea páginas ni cambia la programación.",
       "step": "Paso {current} de 2",
       "confirm": "Añadir pantalla",
-      "added": "{name} añadida · Mostrar una página"
+      "added": "{name} añadida · Mostrar una página",
+      "goTo": "Ir a {name}",
+      "kept": "No se añadió nada · {name} ya está conectado",
+      "updateExisting": "Actualizar {name}",
+      "updated": "{name} actualizado"
     },
     "marketplace": {
       "searchLabel": "Buscar pantallas",
