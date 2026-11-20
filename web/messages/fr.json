@@ -161,6 +161,7 @@
   "home": {
     "title": "Accueil",
     "description": "Ce qui s’affiche sur vos écrans en ce moment, et ce qui vient ensuite.",
+    "descriptionPhone": "Ce qui est sur vos écrans maintenant",
     "noBoardConfigured": "Aucun tableau configuré",
     "noBoardDescription": "Votre tableau n'est pas encore configuré. Connectez votre tableau pour commencer à afficher du contenu.",
     "runSetupWizard": "Lancer l'assistant de configuration",
@@ -1503,8 +1504,12 @@
       "finish": "Terminer la configuration"
     },
     "noDisplays": {
-      "title": "Aucun écran pour le moment",
-      "description": "Ajoutez votre premier écran pour afficher des pages. Pages, Programmation et Intégrations sont prêts quand vous le souhaitez.",
+      "title": "Rien où afficher pour le moment",
+      "switcher": "Aucun écran pour le moment",
+      "running": "{hub} fonctionne, mais aucun écran n’est connecté.",
+      "runningNoName": "Votre hub fonctionne, mais aucun écran n’est connecté.",
+      "addHint": "Ajoutez votre Vestaboard, une TV ou un écran LED et l’Accueil montrera ce qu’il affiche.",
+      "footnote": "Vous pouvez déjà créer des pages ; elles attendent dans Pages qu’un écran soit ajouté.",
       "add": "Ajouter un écran",
       "rerun": "Relancer la configuration"
     }

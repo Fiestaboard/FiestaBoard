@@ -97,7 +97,7 @@ for (const width of [390, 768, 1280]) {
     test(`empty Home and two-step Add display ${width} ${theme}`, async ({ page }) => {
       const unexpected = await setup(page, width);
       await page.goto(`/tests/layout/setup-extended.html?mode=home&theme=${theme}`);
-      await expect(page.getByRole("heading", { name: "No displays yet" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Nothing to show on yet" })).toBeVisible();
       await injectAxe(page);
       await shot(page, "home-no-displays", width, theme);
       await page.getByRole("button", { name: "Add display", exact: true }).click();

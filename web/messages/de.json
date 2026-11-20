@@ -161,6 +161,7 @@
   "home": {
     "title": "Startseite",
     "description": "Was jetzt auf den Anzeigen läuft – und was danach kommt.",
+    "descriptionPhone": "Was gerade auf deinen Displays läuft",
     "noBoardConfigured": "Kein Board konfiguriert",
     "noBoardDescription": "Ihr Board ist noch nicht eingerichtet. Verbinden Sie Ihr Board, um Inhalte anzuzeigen.",
     "runSetupWizard": "Einrichtungsassistent starten",
@@ -1503,8 +1504,12 @@
       "finish": "Einrichtung abschließen"
     },
     "noDisplays": {
-      "title": "Noch keine Displays",
-      "description": "Füge dein erstes Display hinzu, um Seiten anzuzeigen. Seiten, Zeitplan und Integrationen stehen jederzeit bereit.",
+      "title": "Noch nichts, worauf etwas erscheinen kann",
+      "switcher": "Noch keine Displays",
+      "running": "{hub} läuft, aber es ist kein Display verbunden.",
+      "runningNoName": "Dein Hub läuft, aber es ist kein Display verbunden.",
+      "addHint": "Füge dein Vestaboard, einen Fernseher oder ein LED-Display hinzu, dann zeigt Start, was darauf läuft.",
+      "footnote": "Seiten kannst du jetzt schon anlegen; sie warten unter Seiten, bis ein Display hinzugefügt ist.",
       "add": "Display hinzufügen",
       "rerun": "Einrichtung erneut ausführen"
     }

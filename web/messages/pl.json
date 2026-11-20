@@ -161,6 +161,7 @@
   "home": {
     "title": "Strona główna",
     "description": "Co jest teraz na Twoich wyświetlaczach i co będzie dalej.",
+    "descriptionPhone": "Co teraz jest na twoich ekranach",
     "noBoardConfigured": "Tablica nie skonfigurowana",
     "noBoardDescription": "Twoja tablica nie jest jeszcze skonfigurowana. Połącz tablicę, aby zacząć wyświetlać treści.",
     "runSetupWizard": "Uruchom kreator konfiguracji",
@@ -1503,8 +1504,12 @@
       "finish": "Zakończ konfigurację"
     },
     "noDisplays": {
-      "title": "Nie ma jeszcze ekranów",
-      "description": "Dodaj pierwszy ekran, aby zacząć wyświetlać strony. Strony, Harmonogram i Integracje czekają, aż zechcesz z nich skorzystać.",
+      "title": "Nie ma jeszcze gdzie wyświetlać",
+      "switcher": "Nie ma jeszcze ekranów",
+      "running": "{hub} działa, ale nie jest podłączony żaden ekran.",
+      "runningNoName": "Twój hub działa, ale nie jest podłączony żaden ekran.",
+      "addHint": "Dodaj Vestaboard, telewizor lub ekran LED, a Start pokaże, co jest na nim wyświetlane.",
+      "footnote": "Strony możesz tworzyć już teraz; czekają w Stronach, aż dodasz ekran.",
       "add": "Dodaj ekran",
       "rerun": "Uruchom konfigurację ponownie"
     }

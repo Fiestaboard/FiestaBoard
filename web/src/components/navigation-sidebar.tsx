@@ -11,6 +11,7 @@ import { MoreSheetExtras } from "@/components/more-sheet";
 import { readStoredCollapsed, useSidebar } from "@/components/sidebar-context";
 import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
+import { isUntouchedPlaceholder } from "@/components/wizard/default-board";
 import { useAppBadge } from "@/hooks/use-app-badge";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
 import { useBelowRail, useRailAutoCollapse, useRailBreakpoint } from "@/hooks/use-below-rail";
@@ -43,7 +44,7 @@ export function NavigationSidebar() {
   const t = useTranslations("navigation");
   const tMenu = useTranslations("settingsMenu");
   const { isOpen: aiPanelOpen, open: openAiPanel } = useGlobalAiPanel();
-  const { boards, currentBoardId, setCurrentBoardId } = useCurrentBoard();
+  const { boards, currentBoardId, setCurrentBoardId, isLoading: boardsLoading } = useCurrentBoard();
 
   // The chromeless early-return below runs AFTER hooks, so these queries
   // must be gated too or the TV viewer fires them (authenticated, 401 +
@@ -94,7 +95,13 @@ export function NavigationSidebar() {
   // (useHubLine). The switcher only renders with two or more boards, so a
   // single-board install adds no status poll for it.
   const tHub = useTranslations("statusBanners");
-  const { host: hubHost, status: hubStatus } = useHubLine({ enabled: !chromeless && boards.length > 1 });
+  // 07e `343:65200` / `343:66216`: with no display yet (none, or only the
+  // untouched placeholder) the switcher stays and reads "No displays yet"
+  // over the hub line (BB-FH-10).
+  const tNone = useTranslations("wizard.noDisplays");
+  const noDisplays = !boardsLoading && boards.length <= 1 && boards.every(isUntouchedPlaceholder);
+  const showSwitcher = boards.length > 1 || noDisplays;
+  const { host: hubHost, status: hubStatus } = useHubLine({ enabled: !chromeless && showSwitcher });
   // The hub line says how the hub is reached; each display's own trouble is
   // its dot and words in the switcher, by the Displays list's rules (BB-A-10).
   const tFleet = useTranslations("displays.fleet");
@@ -119,6 +126,7 @@ export function NavigationSidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [boards, flagged, status, pages],
   );
+  const noDisplaysId = boards[0]?.id ?? "no-displays";
 
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer
@@ -184,10 +192,10 @@ export function NavigationSidebar() {
       // gear never lights.
       settings={{ href: "/settings", label: t("settings") }}
       boardSelector={
-        boards.length > 1 ? (
+        showSwitcher ? (
           <BoardSelector
-            boards={selectorBoards}
-            value={currentBoardId}
+            boards={noDisplays ? [{ id: noDisplaysId, name: tNone("switcher") }] : selectorBoards}
+            value={noDisplays ? noDisplaysId : currentBoardId}
             onChange={setCurrentBoardId}
             labels={boardSelectorLabels}
             collapsed={collapsed}
@@ -197,10 +205,10 @@ export function NavigationSidebar() {
         ) : undefined
       }
       mobileBoardSelector={
-        boards.length > 1 ? (
+        showSwitcher ? (
           <BoardSelector
-            boards={selectorBoards}
-            value={currentBoardId}
+            boards={noDisplays ? [{ id: noDisplaysId, name: tNone("switcher") }] : selectorBoards}
+            value={noDisplays ? noDisplaysId : currentBoardId}
             onChange={setCurrentBoardId}
             labels={boardSelectorLabels}
             variant="mobileHeader"

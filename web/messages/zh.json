@@ -161,6 +161,7 @@
   "home": {
     "title": "首页",
     "description": "你的显示设备此刻展示的内容，以及接下来的安排。",
+    "descriptionPhone": "显示屏上现在的内容",
     "noBoardConfigured": "未配置看板",
     "noBoardDescription": "您的看板尚未设置。连接看板以开始显示内容。",
     "runSetupWizard": "运行设置向导",
@@ -1503,8 +1504,12 @@
       "finish": "完成设置"
     },
     "noDisplays": {
-      "title": "暂无显示屏",
-      "description": "添加您的第一个显示屏，开始显示页面。您随时可以使用“页面”“排程”和“集成”。",
+      "title": "还没有可显示的地方",
+      "switcher": "暂无显示屏",
+      "running": "{hub} 正在运行，但没有连接任何显示屏。",
+      "runningNoName": "你的集线器正在运行，但没有连接任何显示屏。",
+      "addHint": "添加你的 Vestaboard、电视或 LED 显示屏后，主页会显示上面的内容。",
+      "footnote": "你现在就可以创建页面；它们会在“页面”中等待，直到添加了显示屏。",
       "add": "添加显示屏",
       "rerun": "重新运行设置"
     }
