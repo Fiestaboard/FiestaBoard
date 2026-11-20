@@ -752,7 +752,18 @@
       "weekdaysShort": "Lun–Vie",
       "weekendsShort": "Sáb–Dom",
       "customShort": "Otros",
-      "openEnded": "Sin fin"
+      "openEnded": "Sin fin",
+      "moreOptions": "Más opciones",
+      "timeRangeTo": "a",
+      "startsAtSun": {
+        "sunrise": "Empieza al amanecer",
+        "sunset": "Empieza al atardecer"
+      },
+      "endsAtSun": {
+        "sunrise": "Termina al amanecer",
+        "sunset": "Termina al atardecer"
+      },
+      "entryOff": "Entrada desactivada"
     },
     "copy": {
       "open": "Copiar de otra pantalla…",
@@ -3825,7 +3836,11 @@
     "thisDisplay": "esta pantalla",
     "startFrom": "O empieza con",
     "insertVariable": "Insertar una variable",
-    "browseStaffPicks": "Explorar Selecciones del equipo"
+    "browseStaffPicks": "Explorar Selecciones del equipo",
+    "replay": "Repetir",
+    "replayHint": "Reproducir la animación de paletas",
+    "previewTarget": "Destino de la vista previa",
+    "previewTargetTrigger": "Vista previa en {target}"
   },
   "phonePairing": {
     "title": "Conectar un teléfono",
@@ -4208,7 +4223,6 @@
     "renderAtLabel": "Previsualizar fórmulas a una hora",
     "renderAtReset": "Vista previa a la hora actual",
     "renderAtNote": "«A las {time}» evalúa las fórmulas como si fueran las {time}; los datos de integración son los que tiene el hub ahora.",
-    "sampleTitle": "Datos de ejemplo — no en vivo",
     "sampleNote": "Ejemplo muestra los valores de ejemplo de cada integración. Reflejar en el tablero está desactivado mientras previsualizas datos de ejemplo.",
     "sampleUnsampled": "No hay valores de ejemplo para {plugins}; esos muestran los datos actuales del hub.",
     "previewFailed": "No se pudo generar esta vista previa. Revisa la plantilla e inténtalo de nuevo.",

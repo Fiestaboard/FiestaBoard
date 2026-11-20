@@ -752,7 +752,18 @@
       "weekdaysShort": "Pzt–Cum",
       "weekendsShort": "Cmt–Paz",
       "customShort": "Özel",
-      "openEnded": "Açık uçlu"
+      "openEnded": "Açık uçlu",
+      "moreOptions": "Diğer seçenekler",
+      "timeRangeTo": "–",
+      "startsAtSun": {
+        "sunrise": "Gün doğumunda başlar",
+        "sunset": "Gün batımında başlar"
+      },
+      "endsAtSun": {
+        "sunrise": "Gün doğumunda biter",
+        "sunset": "Gün batımında biter"
+      },
+      "entryOff": "Giriş kapalı"
     },
     "copy": {
       "open": "Başka ekrandan kopyala…",
@@ -3825,7 +3836,11 @@
     "thisDisplay": "bu ekran",
     "startFrom": "Ya da şununla başlayın",
     "insertVariable": "Bir değişken ekle",
-    "browseStaffPicks": "Ekip Seçimlerine göz at"
+    "browseStaffPicks": "Ekip Seçimlerine göz at",
+    "replay": "Yeniden oynat",
+    "replayHint": "Kanatçık animasyonunu oynat",
+    "previewTarget": "Önizleme hedefi",
+    "previewTargetTrigger": "{target} üzerinde önizle"
   },
   "phonePairing": {
     "title": "Telefon bağla",
@@ -4208,7 +4223,6 @@
     "renderAtLabel": "Formülleri belirli bir zamanda önizle",
     "renderAtReset": "Geçerli zamanda önizle",
     "renderAtNote": "“{time} zamanında”, formülleri saat {time} imiş gibi değerlendirir; entegrasyon verisi hub’ın şu an sahip olduğu veridir.",
-    "sampleTitle": "Örnek veri — canlı değil",
     "sampleNote": "Örnek, her entegrasyonun örnek değerlerini gösterir. Örnek veriyi önizlerken panoya yansıtma kapalıdır.",
     "sampleUnsampled": "{plugins} için örnek değer yok; bunlar hub’ın geçerli verisini gösterir.",
     "previewFailed": "Bu önizleme oluşturulamadı. Şablonu kontrol edip tekrar deneyin.",

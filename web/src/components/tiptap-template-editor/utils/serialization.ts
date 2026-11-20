@@ -363,3 +363,27 @@ function parseVariable(expr: string): { varPath: string; filters: Array<{ name: 
 
   return { varPath, filters };
 }
+
+/**
+ * Text pasted into the template, as nodes for its single paragraph: each
+ * line's markup becomes its chips and a line break becomes a hard break
+ * (with the caret anchors every row carries), so multi-line text from
+ * another app lands on consecutive rows instead of being dropped (BB-E-1).
+ */
+export function parsePastedText(text: string): JSONContent[] {
+  const nodes: JSONContent[] = [];
+  text
+    .replace(/\r\n?/g, "\n")
+    // A copied paragraph's closing line break is not a row of its own.
+    .replace(/\n$/, "")
+    .split("\n")
+    .forEach((line, index) => {
+      if (index > 0) {
+        nodes.push({ type: "text", text: CURSOR_ANCHOR_CHAR });
+        nodes.push({ type: "hardBreak" });
+        nodes.push({ type: "text", text: CURSOR_ANCHOR_CHAR });
+      }
+      nodes.push(...parseLineContent(line));
+    });
+  return nodes;
+}

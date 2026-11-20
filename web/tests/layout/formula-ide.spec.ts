@@ -322,3 +322,41 @@ for (const theme of ["light", "dark"] as const) {
     });
   }
 }
+
+// BB-E-5 / BB-E-6 (Figma 53:137378, 307:46094): the preview card's header is one
+// row that never reflows, the target is its meta, and Mirror sits beside Replay.
+for (const width of [1280, 1440]) {
+  test(`preview card header is one row at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockEditorApi(page);
+    // Replay is offered only while the flaps animate; this fixture turns them off elsewhere.
+    await page.route(
+      (url) => url.pathname === "/api/settings/all",
+      (route) => route.fulfill({ json: { display: { board_animations: "on", board_flap_speed: "standard" } } }),
+    );
+    await page.goto(`/tests/layout/formula-ide.html?theme=light`);
+    const card = page.locator("#page-editor-preview");
+    const header = card.locator('[data-slot="editor-preview-header"]');
+    await expect(header.getByRole("radiogroup", { name: "Preview data" })).toBeVisible();
+    const height = async () => (await header.boundingBox())!.height;
+    expect(await height()).toBeLessThanOrEqual(40);
+    await expect(header).toContainText("Live preview");
+
+    await header.getByRole("radio", { name: "Sample" }).click();
+    await expect(header).toContainText("Live preview");
+    expect(await height()).toBeLessThanOrEqual(40);
+
+    // No size row on the canvas; the meta opens it.
+    await expect(page.getByRole("combobox", { name: "Change board size" })).toHaveCount(0);
+    const target = header.getByTestId("preview-target-trigger");
+    await expect(target).toContainText("Kitchen board · Flagship 22 × 6");
+    await target.click();
+    await expect(
+      page.getByRole("dialog", { name: "Preview target" }).getByRole("combobox", { name: "Change board size" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    const live = card.locator('[data-slot="editor-preview-live"]');
+    await expect(live.getByRole("button", { name: "Replay" })).toBeVisible();
+  });
+}

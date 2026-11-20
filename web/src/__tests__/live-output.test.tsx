@@ -9,6 +9,8 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import type { BoardSettings } from "@/lib/api";
 import { api } from "@/lib/api";
 
+vi.mock("@/components/preview-target-popover", () => import("./mocks/preview-target-popover-inline"));
+
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual("@/lib/api");
   return {
