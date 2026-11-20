@@ -449,8 +449,23 @@ describe("status row and header actions", () => {
       ),
     );
     const { onSaveActionsChange } = renderIde();
-    expect(await screen.findByText("Not on any display’s schedule")).toBeInTheDocument();
-    expect(onSaveActionsChange).toHaveBeenLastCalledWith(undefined);
+    await waitFor(() => expect(onSaveActionsChange).toHaveBeenLastCalledWith(undefined));
+    const status = await waitFor(() => {
+      const row = document.querySelector<HTMLElement>('[data-slot="preview-status"]');
+      expect(row).toHaveAttribute("data-display", "not-scheduled");
+      return row!;
+    });
+    // Said once (BB-E-26): the chip, not the chip and a sentence repeating it.
+    expect(within(status).getByText("Not scheduled")).toBeInTheDocument();
+    expect(within(status).queryByText("Not on any display’s schedule")).not.toBeInTheDocument();
+  });
+
+  it("leaves a saved page's save state to the header, not a second Saved chip (BB-E-26)", async () => {
+    mockHub();
+    renderIde();
+    expect(await screen.findByText(/Showing on Den TV now/)).toBeInTheDocument();
+    const status = document.querySelector<HTMLElement>('[data-slot="preview-status"]')!;
+    expect(within(status).queryByText("Saved")).not.toBeInTheDocument();
   });
 
   it("discards a draft this session saved once the editor saves the page itself", async () => {

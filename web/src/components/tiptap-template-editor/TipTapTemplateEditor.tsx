@@ -24,6 +24,7 @@ import {
 } from "react";
 
 import type { Code62Glyph, DeviceType } from "@/lib/api";
+import { usedLineCount } from "@/lib/complex-editing";
 import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
 import { cn } from "@/lib/utils";
 
@@ -1335,7 +1336,11 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         ? effectiveWrapEnabled[currentLineIndex] || false
         : false;
 
-    const isOverLineLimit = editorLineCount > boardLines;
+    // The caption counts rows up to the last with content: blank padding rows
+    // on a smaller board are not over its limit (BB-E-18). The gutter still
+    // numbers every row.
+    const usedLines = usedLineCount((value || "").split("\n"));
+    const isOverLineLimit = usedLines > boardLines;
 
     return (
       <Box ref={rootRef} className={cn("relative", className)}>
@@ -1427,7 +1432,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             size="xs"
             className={cn("mt-1", isOverLineLimit ? "text-warning font-medium" : "text-muted-foreground")}
           >
-            {t("lineCount", { used: editorLineCount, max: boardLines })}
+            {t("lineCount", { used: usedLines, max: boardLines })}
             {isOverLineLimit && t("overLineLimit", { max: boardLines })}
           </Text>
 
