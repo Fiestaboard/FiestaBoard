@@ -118,3 +118,24 @@ const FORMULA_ATOM = /\{\{=[^}{]*\}\}/;
 export function templateHasFormula(template: readonly string[]): boolean {
   return template.some((line) => FORMULA_ATOM.test(line));
 }
+
+/**
+ * `{{plugin.field}}` and `{{plugin:instance.field|filter}}` variable paths in a
+ * template, in first-seen order (BB-FP-11). Formulas, colours and formatting
+ * tokens have no `root.field` path and are skipped.
+ */
+const VARIABLE_TOKEN = /\{\{\s*([A-Za-z_][\w-]*(?::[\w-]+)?\.[\w.]+)\s*(?:\|[^{}]*)?\}\}/g;
+
+export function templateVariablePaths(template: readonly string[]): string[] {
+  const paths = new Set<string>();
+  for (const line of template) for (const match of line.matchAll(VARIABLE_TOKEN)) paths.add(match[1]);
+  return [...paths];
+}
+
+/**
+ * One template line that evaluates each path as a formula, so the hub's H5
+ * diagnostics report every variable's value in the preview's context.
+ */
+export function variableProbeTemplate(paths: readonly string[]): string[] {
+  return [paths.map((path) => `{{= ${path} }}`).join(" ")];
+}

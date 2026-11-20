@@ -1,0 +1,73 @@
+/**
+ * BB-FP-11 (Figma 111:30911 "Atom · weather.temperature"): a variable chip is
+ * the kit FormulaAtom (kind variable: 4 px radius, `{}` glyph, 22 px) with the
+ * value the page preview sees, not a 13 px dashed pill. Its max length is in
+ * the description, not in a hover-only span nothing can reveal.
+ * BB-FP-10 (app half): chips show their source as written, never uppercased by
+ * the template editor surface.
+ */
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import { type FormulaIdeBridge, FormulaIdeContext } from "@/components/formula-ide/formula-ide-context";
+import { VariableNodeView } from "@/components/tiptap-template-editor/node-views/VariableNodeView";
+
+function renderChip(
+  bridge: FormulaIdeBridge | null,
+  attrs: Partial<{ pluginId: string; field: string; filters: unknown[]; maxLength: number }> = {},
+) {
+  const props = {
+    node: { attrs: { pluginId: "weather", field: "temperature", filters: [], maxLength: 3, ...attrs } },
+  } as unknown as Parameters<typeof VariableNodeView>[0];
+  return render(
+    <FormulaIdeContext.Provider value={bridge}>
+      <VariableNodeView {...props} />
+    </FormulaIdeContext.Provider>,
+  );
+}
+
+function bridge(variableHint: FormulaIdeBridge["variableHint"]): FormulaIdeBridge {
+  return { hint: () => undefined, openFormula: vi.fn(() => false), inspectFormula: vi.fn(), variableHint };
+}
+
+const atom = () => screen.getByTestId("variable-atom-chip").querySelector('[data-slot="formula-atom"]');
+
+describe("VariableNodeView", () => {
+  it("renders the kit variable atom with its source as written", () => {
+    renderChip(null);
+    const el = atom();
+    expect(el).not.toBeNull();
+    expect(el).toHaveAttribute("data-kind", "variable");
+    expect(el?.querySelector('[data-slot="formula-atom-source"]')).toHaveTextContent("weather.temperature");
+    expect(el?.className).not.toMatch(/border-dashed|rounded-full/);
+  });
+
+  it("resets the editor surface's uppercase (BB-FP-10)", () => {
+    renderChip(null);
+    expect(screen.getByTestId("variable-atom-chip").className).toMatch(/\bnormal-case\b/);
+  });
+
+  it("shows the value the preview sees for that variable", () => {
+    const variableHint = vi.fn(() => ({
+      line: 1,
+      start: 0,
+      value: { kind: "value" as const, text: "62" },
+      state: "ok" as const,
+    }));
+    renderChip(bridge(variableHint));
+    expect(variableHint).toHaveBeenCalledWith("weather.temperature");
+    expect(atom()?.querySelector('[data-slot="formula-atom-value"]')).toHaveTextContent("= 62");
+  });
+
+  it("hides the value segment when nothing has been rendered for it", () => {
+    renderChip(bridge(() => undefined));
+    expect(atom()?.querySelector('[data-slot="formula-atom-value"]')).toHaveTextContent(/^$/);
+    expect(atom()?.className).toContain("[&>[data-slot=formula-atom-value]]:hidden");
+  });
+
+  it("keeps filters in the source and the max length in the description", () => {
+    renderChip(null, { filters: [{ name: "pad", arg: "3" }], maxLength: 4 });
+    expect(atom()?.querySelector('[data-slot="formula-atom-source"]')).toHaveTextContent("weather.temperature|pad:3");
+    expect(screen.getByTestId("variable-atom-chip")).toHaveAccessibleDescription(/Max length: 4 characters/);
+  });
+});

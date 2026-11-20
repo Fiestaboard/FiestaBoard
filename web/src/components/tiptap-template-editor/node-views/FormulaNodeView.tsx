@@ -253,7 +253,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
               <span
                 {...triggerProps}
                 data-testid="formula-atom-chip"
-                className="mr-0.5 inline-flex cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+                className="mr-0.5 inline-flex cursor-pointer rounded-sm normal-case focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <FormulaAtom
                   kind="formula"
@@ -265,7 +265,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
             ) : (
               <Badge
                 variant="formula"
-                className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
+                className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed normal-case cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
                 {...triggerProps}
               >
                 <SquareFunction className="w-2.5 h-2.5 flex-shrink-0" />

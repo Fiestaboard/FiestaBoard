@@ -13,6 +13,9 @@ import { server } from "./mocks/server";
 const TEMPLATE = ["GOOD MORNING", "{{weather.temp}}°", '{{= IF(weather.temp > 80, "HOT", "NICE") }} OUT'];
 const target: RenderTarget = { template: TEMPLATE, deviceType: "flagship", boardId: "kitchen" };
 const bodies: Array<Record<string, unknown>> = [];
+// BB-FP-11: the one-line render that reads the template's variables for their chips.
+const PROBE = ["{{= weather.temp }}"];
+const pageRenders = () => bodies.filter((body) => JSON.stringify(body.template) !== JSON.stringify(PROBE));
 
 beforeEach(() => {
   bodies.length = 0;
@@ -34,6 +37,28 @@ beforeEach(() => {
       bodies.push(body);
       const preview = body.preview as { missing?: string[]; values?: Record<string, string> } | undefined;
       const missing = !!preview?.missing;
+      if (JSON.stringify(body.template) === JSON.stringify(PROBE)) {
+        return HttpResponse.json({
+          rendered: "72",
+          lines: [],
+          line_count: 1,
+          diagnostics: {
+            formulas: [
+              {
+                line: 1,
+                start: 0,
+                end: 19,
+                source: " weather.temp ",
+                value: "72",
+                error: null,
+                error_at: null,
+                message: null,
+              },
+            ],
+            lines: [],
+          },
+        });
+      }
       return HttpResponse.json({
         rendered: missing ? "GOOD MORNING\n???°\n#REF OUT" : "GOOD MORNING\n72°\nNICE OUT",
         lines: [],
@@ -118,9 +143,11 @@ function Harness({
 function Chip({ onOpen }: { onOpen?: () => void }) {
   const bridge = useFormulaIdeBridge();
   const hint = bridge?.hint('IF(weather.temp > 80, "HOT", "NICE")');
+  const variable = bridge?.variableHint?.("weather.temp");
   return (
     <div>
       <span data-testid="hint">{hint ? `${hint.state}:${JSON.stringify(hint.value)}` : "none"}</span>
+      <span data-testid="variable-hint">{variable ? JSON.stringify(variable.value) : "none"}</span>
       <button
         type="button"
         onClick={() => {
@@ -158,11 +185,19 @@ describe("useFormulaIde", () => {
     expect(screen.getByTestId("override")).toHaveTextContent("ordinary");
   });
 
+  it("reads each variable's value for its chip from one probe render (BB-FP-11)", async () => {
+    renderHarness(true, undefined, false, true);
+    await waitFor(() => expect(screen.getByTestId("variable-hint")).toHaveTextContent('{"kind":"value","text":"72"}'));
+    const probes = bodies.filter((body) => !pageRenders().includes(body));
+    expect(probes).toHaveLength(1);
+    expect(probes[0]).toMatchObject({ template: PROBE, board_id: "kitchen", device_type: "flagship" });
+  });
+
   it("reads Live values from the editor's own preview render instead of rendering again", async () => {
     renderHarness(true, undefined, false, true);
     expect(screen.getByTestId("hint")).toHaveTextContent('ok:{"kind":"value","text":"HOT"}');
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(bodies).toHaveLength(0);
+    expect(pageRenders()).toHaveLength(0);
   });
 
   // FABLE-2541 N15: a preview render that failed before mirroring must not keep
@@ -181,8 +216,8 @@ describe("useFormulaIde", () => {
     const group = screen.getByRole("radiogroup", { name: "Preview data" });
     await userEvent.click(within(group).getByRole("radio", { name: "Missing" }));
     await waitFor(() => expect(screen.getByTestId("override")).toHaveTextContent("???°"));
-    expect(bodies).toHaveLength(1);
-    expect(bodies[0]).toMatchObject({ preview: { missing: ["weather"] } });
+    expect(pageRenders()).toHaveLength(1);
+    expect(pageRenders()[0]).toMatchObject({ preview: { missing: ["weather"] } });
   });
 
   it("Missing marks every referenced integration missing and shows the hub's render", async () => {

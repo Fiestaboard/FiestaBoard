@@ -27,6 +27,11 @@ export interface FormulaIdeBridge {
   openFormula: (request: OpenFormulaRequest) => boolean;
   /** Long-press / context menu › Inspect: steps and fit for one formula. */
   inspectFormula: (expression: string) => void;
+  /**
+   * The value a variable chip shows (`plugin.field`), read in the same preview
+   * context as the formula hints (BB-FP-11). Undefined until rendered.
+   */
+  variableHint?: (path: string) => AtomHint | undefined;
 }
 
 export const FormulaIdeContext = createContext<FormulaIdeBridge | null>(null);
