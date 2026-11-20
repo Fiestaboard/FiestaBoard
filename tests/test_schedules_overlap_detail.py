@@ -177,4 +177,4 @@ def test_validate_route_rejects_an_incomplete_candidate(client):
         json={"candidate": {"page_id": "p", "start_time": "10:00", "end_time": "11:00", "day_pattern": "custom"}},
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 400

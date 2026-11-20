@@ -30,9 +30,10 @@ async function expectScheduleReady(page: Page, width: number, theme: "light" | "
     const emptyState = page.getByRole("region", { name: "No schedules created yet", exact: true });
     await expect(emptyState).toBeVisible();
     await expect(emptyState).toContainText("Gaps use Breakfast specials.");
-    await expect(page.getByRole("button", { name: /^\d+ schedule (?:conflicts?|gaps?)$/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /\d+ schedule (?:conflicts?|gaps?)/ })).toHaveCount(0);
   } else {
-    await expect(page.getByRole("button", { name: "1 schedule conflict", exact: true })).toBeVisible();
+    // Conflicts no longer hide gaps: the badge names both counts (BB-C-2).
+    await expect(page.getByRole("button", { name: /^1 schedule conflict, \d+ schedule gaps?$/ })).toBeVisible();
     const conflicts =
       width >= 1024
         ? page.locator('[data-slot="week-calendar-entry"][data-conflict]')

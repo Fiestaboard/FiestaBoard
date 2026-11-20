@@ -225,7 +225,7 @@ async def get_active_schedule(board_id: str | None = None, at: datetime | None =
     return ActiveScheduleResponse(**answer)
 
 
-@router.post("/schedules/validate", response_model=ScheduleValidationResult, responses=errors(422))
+@router.post("/schedules/validate", response_model=ScheduleValidationResult, responses=errors(400))
 async def validate_schedules(request: ScheduleValidateRequest | None = None):
     """Validate schedules for overlaps and gaps. Body optional: {"board_id": "..."}.
 
@@ -235,7 +235,7 @@ async def validate_schedules(request: ScheduleValidateRequest | None = None):
     failure served as a success.
 
     ``candidate`` (+ optional ``candidate_id``) checks an unsaved entry with
-    the saved ones and stores nothing; an incomplete candidate is a 422.
+    the saved ones and stores nothing; an incomplete candidate is a 400.
     """
     schedule_service = get_schedule_service()
     board_id = request.board_id if request else None
@@ -246,7 +246,7 @@ async def validate_schedules(request: ScheduleValidateRequest | None = None):
             board_id=board_id, candidate=request.candidate, candidate_id=request.candidate_id
         )
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/schedules/default-page", response_model=DefaultPageResponse)
