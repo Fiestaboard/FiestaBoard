@@ -2776,13 +2776,13 @@
   },
   "login": {
     "signInTitle": "Sign in to FiestaBoard",
-    "signInDescription": "Enter your administrator credentials to continue.",
     "usernameLabel": "Username",
     "passwordLabel": "Password",
-    "rememberMeLabel": "Keep me logged in",
+    "rememberMeLabel": "Keep me signed in on this browser",
     "submitButton": "Sign in",
     "submittingButton": "Signing in…",
-    "invalidCredentials": "Invalid username or password.",
+    "invalidCredentials": "That username and password don’t match.",
+    "invalidCredentialsHint": "Check caps lock and try again. After several wrong tries, sign-in pauses for a minute to keep guessers out.",
     "tooManyAttempts": "Too many failed login attempts. Please wait a minute and try again.",
     "networkError": "Network error. Please try again.",
     "signInFailedStatus": "Sign-in failed ({status}).",
@@ -2809,7 +2809,8 @@
     "loadingDescription": "Checking authentication status…",
     "redirectingTitle": "Redirecting…",
     "redirectingDescription": "One moment…",
-    "pageTitle": "Sign in"
+    "pageTitle": "Sign in",
+    "forgotPassword": "Forgot your password? <link>Reset it with a code from the hub</link>."
   },
   "picks": {
     "title": "Staff Picks",

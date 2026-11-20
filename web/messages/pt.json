@@ -2805,13 +2805,13 @@
   },
   "login": {
     "signInTitle": "Entrar no FiestaBoard",
-    "signInDescription": "Introduza as suas credenciais de administrador para continuar.",
     "usernameLabel": "Nome de utilizador",
     "passwordLabel": "Palavra-passe",
-    "rememberMeLabel": "Manter sessão iniciada",
+    "rememberMeLabel": "Manter sessão iniciada neste navegador",
     "submitButton": "Entrar",
     "submittingButton": "A entrar…",
-    "invalidCredentials": "Nome de utilizador ou palavra-passe inválidos.",
+    "invalidCredentials": "O nome de utilizador e a palavra-passe não correspondem.",
+    "invalidCredentialsHint": "Verifique o Caps Lock e tente novamente. Após várias tentativas erradas, o início de sessão pausa um minuto para travar quem tenta adivinhar.",
     "tooManyAttempts": "Demasiadas tentativas de início de sessão falhadas. Aguarde um minuto e tente novamente.",
     "networkError": "Erro de rede. Tente novamente.",
     "signInFailedStatus": "Falha ao entrar ({status}).",
@@ -2838,7 +2838,8 @@
     "loadingDescription": "A verificar o estado de autenticação…",
     "redirectingTitle": "A redirecionar…",
     "redirectingDescription": "Um momento…",
-    "pageTitle": "Entrar"
+    "pageTitle": "Entrar",
+    "forgotPassword": "Esqueceu-se da palavra-passe? <link>Reponha-a com um código do hub</link>."
   },
   "picks": {
     "title": "Seleções da equipa",

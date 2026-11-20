@@ -2805,13 +2805,13 @@
   },
   "login": {
     "signInTitle": "FiestaBoard'a giriş yap",
-    "signInDescription": "Devam etmek için yönetici kimlik bilgilerini gir.",
     "usernameLabel": "Kullanıcı adı",
     "passwordLabel": "Şifre",
-    "rememberMeLabel": "Beni hatırla",
+    "rememberMeLabel": "Bu tarayıcıda oturumum açık kalsın",
     "submitButton": "Giriş yap",
     "submittingButton": "Giriş yapılıyor…",
-    "invalidCredentials": "Geçersiz kullanıcı adı veya şifre.",
+    "invalidCredentials": "Kullanıcı adı ve parola eşleşmiyor.",
+    "invalidCredentialsHint": "Caps Lock’u kontrol edip tekrar deneyin. Birkaç hatalı denemeden sonra, tahmin girişimlerini durdurmak için oturum açma bir dakika duraklatılır.",
     "tooManyAttempts": "Çok fazla başarısız giriş denemesi. Lütfen bir dakika bekleyip tekrar dene.",
     "networkError": "Ağ hatası. Lütfen tekrar dene.",
     "signInFailedStatus": "Giriş başarısız ({status}).",
@@ -2838,7 +2838,8 @@
     "loadingDescription": "Kimlik doğrulama durumu kontrol ediliyor…",
     "redirectingTitle": "Yönlendiriliyor…",
     "redirectingDescription": "Bir dakika…",
-    "pageTitle": "Giriş yap"
+    "pageTitle": "Giriş yap",
+    "forgotPassword": "Parolanızı mı unuttunuz? <link>Hub’dan alacağınız bir kodla sıfırlayın</link>."
   },
   "picks": {
     "title": "Ekip Seçimleri",

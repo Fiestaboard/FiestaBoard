@@ -2805,13 +2805,13 @@
   },
   "login": {
     "signInTitle": "Iniciar sesión en FiestaBoard",
-    "signInDescription": "Introduce tus credenciales de administrador para continuar.",
     "usernameLabel": "Nombre de usuario",
     "passwordLabel": "Contraseña",
-    "rememberMeLabel": "Mantener la sesión iniciada",
+    "rememberMeLabel": "Mantener la sesión iniciada en este navegador",
     "submitButton": "Iniciar sesión",
     "submittingButton": "Iniciando sesión…",
-    "invalidCredentials": "Nombre de usuario o contraseña incorrectos.",
+    "invalidCredentials": "El usuario y la contraseña no coinciden.",
+    "invalidCredentialsHint": "Revisa el bloqueo de mayúsculas e inténtalo de nuevo. Tras varios intentos fallidos, el inicio de sesión se pausa un minuto para frenar a quien intente adivinar.",
     "tooManyAttempts": "Demasiados intentos de inicio de sesión fallidos. Espera un minuto e inténtalo de nuevo.",
     "networkError": "Error de red. Inténtalo de nuevo.",
     "signInFailedStatus": "Error al iniciar sesión ({status}).",
@@ -2838,7 +2838,8 @@
     "loadingDescription": "Comprobando el estado de autenticación…",
     "redirectingTitle": "Redirigiendo…",
     "redirectingDescription": "Un momento…",
-    "pageTitle": "Iniciar sesión"
+    "pageTitle": "Iniciar sesión",
+    "forgotPassword": "¿Olvidaste tu contraseña? <link>Restablécela con un código del hub</link>."
   },
   "picks": {
     "title": "Selecciones del equipo",

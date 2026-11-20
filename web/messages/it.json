@@ -2805,13 +2805,13 @@
   },
   "login": {
     "signInTitle": "Accedi a FiestaBoard",
-    "signInDescription": "Inserisci le tue credenziali di amministratore per continuare.",
     "usernameLabel": "Nome utente",
     "passwordLabel": "Password",
-    "rememberMeLabel": "Mantieni l'accesso",
+    "rememberMeLabel": "Resta connesso su questo browser",
     "submitButton": "Accedi",
     "submittingButton": "Accesso…",
-    "invalidCredentials": "Nome utente o password non validi.",
+    "invalidCredentials": "Nome utente e password non corrispondono.",
+    "invalidCredentialsHint": "Controlla il blocco maiuscole e riprova. Dopo diversi tentativi errati, l’accesso si sospende per un minuto per fermare chi tira a indovinare.",
     "tooManyAttempts": "Troppi tentativi di accesso falliti. Attendi un minuto e riprova.",
     "networkError": "Errore di rete. Riprova.",
     "signInFailedStatus": "Accesso non riuscito ({status}).",
@@ -2838,7 +2838,8 @@
     "loadingDescription": "Verifica dello stato di autenticazione…",
     "redirectingTitle": "Reindirizzamento…",
     "redirectingDescription": "Un momento…",
-    "pageTitle": "Accedi"
+    "pageTitle": "Accedi",
+    "forgotPassword": "Password dimenticata? <link>Reimpostala con un codice dall’hub</link>."
   },
   "picks": {
     "title": "Scelte del team",

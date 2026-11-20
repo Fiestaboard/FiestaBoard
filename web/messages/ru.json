@@ -2805,13 +2805,13 @@
   },
   "login": {
     "signInTitle": "Войти в FiestaBoard",
-    "signInDescription": "Введите учётные данные администратора, чтобы продолжить.",
     "usernameLabel": "Имя пользователя",
     "passwordLabel": "Пароль",
-    "rememberMeLabel": "Запомнить меня",
+    "rememberMeLabel": "Оставаться в системе в этом браузере",
     "submitButton": "Войти",
     "submittingButton": "Вход…",
-    "invalidCredentials": "Неверное имя пользователя или пароль.",
+    "invalidCredentials": "Имя пользователя и пароль не совпадают.",
+    "invalidCredentialsHint": "Проверьте Caps Lock и попробуйте снова. После нескольких неудачных попыток вход приостанавливается на минуту, чтобы остановить подбор.",
     "tooManyAttempts": "Слишком много неудачных попыток входа. Подождите минуту и попробуйте снова.",
     "networkError": "Ошибка сети. Повторите попытку.",
     "signInFailedStatus": "Вход не удался ({status}).",
@@ -2838,7 +2838,8 @@
     "loadingDescription": "Проверка статуса аутентификации…",
     "redirectingTitle": "Перенаправление…",
     "redirectingDescription": "Один момент…",
-    "pageTitle": "Войти"
+    "pageTitle": "Войти",
+    "forgotPassword": "Забыли пароль? <link>Сбросьте его с помощью кода с хаба</link>."
   },
   "picks": {
     "title": "Подборка команды",
