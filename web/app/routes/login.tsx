@@ -431,7 +431,8 @@ export default function LoginPage() {
               <AlertDescription>{formError}</AlertDescription>
             </Alert>
           )}
-          <Button type="submit" variant="brand" className="w-full" disabled={submitting}>
+          {/* 40px, 44 on a phone, like Sign in (07e `326:38261`, BB-FC-10). */}
+          <Button type="submit" variant="brand" size="lg" className="h-11 w-full sm:h-10" disabled={submitting}>
             {submitting ? (
               <>
                 <Spinner label={null} className="h-4 w-4" /> {t("creatingButton")}
