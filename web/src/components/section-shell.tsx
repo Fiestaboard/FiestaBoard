@@ -45,9 +45,17 @@ interface SectionShellProps {
    * the section's header, breadcrumb and card are not drawn around it.
    */
   bare?: boolean;
+  /**
+   * `"plain"` draws the section on the page with no card around it (07d
+   * Integrations `324:40267`, BB-FC-8). @default "card"
+   */
+  surface?: "card" | "plain";
   /** The route outlet. */
   children: React.ReactNode;
 }
+
+const PLAIN_SURFACE_INSET =
+  "[&_[data-slot=page-header]]:px-0 [&_[data-slot=page-toolbar]]:px-0 [&_[data-slot=page-section][data-surface=plain]]:px-0";
 
 /** The sub-header's action slot, for a detail page's own buttons. Null outside a shell. */
 const ActionSlot = createContext<HTMLElement | null | undefined>(undefined);
@@ -74,6 +82,7 @@ export function SectionShell({
   detail,
   fill,
   bare = false,
+  surface = "card",
   children,
 }: SectionShellProps) {
   const railBreakpoint = useRailBreakpoint();
@@ -140,7 +149,14 @@ export function SectionShell({
 
   return (
     <PageLayout railBreakpoint={railBreakpoint} fillHeight={fill}>
-      <PageCard fillHeight={fill}>
+      <PageCard
+        fillHeight={fill}
+        surface={surface}
+        // With no card there is no card content column to inset to: the
+        // header, toolbar and sections sit on the page gutter (07d
+        // `324:50158` title and list at x 16).
+        className={surface === "plain" ? PLAIN_SURFACE_INSET : undefined}
+      >
         <PageHeader icon={icon} title={title} description={description} collapsed={detail != null}>
           {action}
         </PageHeader>

@@ -4,9 +4,10 @@
  * The install's plugin-update controls, split between the two places they
  * belong on the Integrations section:
  *
- * - `PluginUpdateCheckButton` — "Check for updates", the section header's one
- *   action (the same shape as Displays' "Add a display"). It acts on every
- *   plugin in the section.
+ * - `PluginUpdatesMenu` — the section header's "…" (07d `324:40267`), holding
+ *   "Check for updates", which acts on every plugin in the section.
+ *   `PluginUpdateCheckButton` is the same action as a labelled button, for
+ *   the phone's updates block under the list.
  * - `PluginAutoUpdateSwitch` — the "Auto-update plugins" setting, on the
  *   Installed tab's toolbar row beside the plugins it governs. In the header
  *   it outweighed the section title and wrapped onto extra rows on a phone.
@@ -19,10 +20,19 @@
  * can drive a board (Displays → Marketplace).
  */
 
-import { Button, Flex, Label, Switch } from "@fiestaboard/ui";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Flex,
+  Label,
+  Switch,
+} from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import { MoreHorizontal, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { usePluginSettings, useUpdatePluginSettings } from "@/hooks/use-plugin-settings";
@@ -33,12 +43,12 @@ import { cn } from "@/lib/utils";
 
 const AUTO_UPDATE_SWITCH_ID = "plugin-auto-update";
 
-export function PluginUpdateCheckButton() {
+function usePluginUpdateCheck() {
   const t = useTranslations("integrations");
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
 
-  const checkMutation = useMutation({
+  return useMutation({
     mutationFn: () => api.triggerPluginUpdateCheck(),
     onSuccess: (result) => {
       const count = result.updates_available.length;
@@ -52,6 +62,11 @@ export function PluginUpdateCheckButton() {
       queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
     },
   });
+}
+
+export function PluginUpdateCheckButton() {
+  const t = useTranslations("integrations");
+  const checkMutation = usePluginUpdateCheck();
 
   return (
     <Button
@@ -64,6 +79,31 @@ export function PluginUpdateCheckButton() {
       {checkMutation.isPending ? <Spinner size="sm" label={null} /> : <RefreshCw className="h-3.5 w-3.5" />}
       {checkMutation.isPending ? t("checking") : t("checkForUpdates")}
     </Button>
+  );
+}
+
+/**
+ * The section header's "…" (07d `324:40267`): Check for updates, which acts
+ * on every plugin, behind one icon button rather than a labelled one.
+ */
+export function PluginUpdatesMenu() {
+  const t = useTranslations("integrations");
+  const checkMutation = usePluginUpdateCheck();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" aria-label={t("moreOptionsAriaLabel")}>
+          {checkMutation.isPending ? <Spinner size="sm" label={null} /> : <MoreHorizontal className="h-4 w-4" />}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => checkMutation.mutate()} disabled={checkMutation.isPending}>
+          <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
+          {checkMutation.isPending ? t("checking") : t("checkForUpdates")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

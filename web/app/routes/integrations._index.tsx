@@ -303,6 +303,7 @@ import type { OAuthConnection, PluginInfo, RegistryEntry } from "@/lib/api";
 import { api } from "@/lib/api";
 import type { FiestaboardColorName } from "@/lib/board-colors";
 import { ALL_COLOR_CODES, AVAILABLE_COLORS, FIESTABOARD_COLORS } from "@/lib/board-colors";
+import { INSET_ROW, INSET_ROW_GROUP } from "@/lib/list-row-inset";
 import {
   buildVariablesList,
   getVariableGroups,
@@ -1997,18 +1998,15 @@ export function InstalledPluginRow({
             <Link href={`/integrations/${encodeURIComponent(plugin.id)}?from=installed`} />
           )
         }
-        leading={
-          desktop ? (
-            <IconTile size="sm" tone="muted">
-              <Icon className="h-4 w-4" />
-            </IconTile>
-          ) : (
-            // A phone row leads with its state, as in Figma 324:50158; the
-            // status line beside it says the same in words.
-            <StatusDot status={rowStatus} size="md" className="mx-1" />
-          )
+        className={INSET_ROW}
+        // Every row leads with its state, as in Figma 324:50158 and
+        // 324:40267; the status line beside it says the same in words.
+        leading={<StatusDot status={rowStatus} size="md" className="mx-1" />}
+        title={
+          <Text as="span" weight="semibold">
+            {plugin.name}
+          </Text>
         }
-        title={plugin.name}
         description={
           <>
             {isTransition ? (
@@ -2608,29 +2606,24 @@ export default function IntegrationsPage() {
             }
           >
             {/* A phone gets Figma's full-width pair, "Installed · 6 | Marketplace". */}
+            {/* "Installed · 6 | Marketplace" at every width (07d `324:40267`,
+                `324:50158`): the count is words, not a badge. */}
             <TabsList className={phone ? "grid w-full grid-cols-2" : "w-fit"}>
               <TabsTrigger value="installed">
                 {t("tabInstalled")}
-                {data &&
-                  (phone ? (
-                    ` · ${data.total}`
-                  ) : (
-                    <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
-                      {data.total}
-                    </Badge>
-                  ))}
+                {data && ` · ${data.total}`}
               </TabsTrigger>
-              <TabsTrigger value="marketplace">
-                {t("tabMarketplace")}
-                {!phone && availableCount > 0 && (
-                  <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
-                    {availableCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
+              <TabsTrigger value="marketplace">{t("tabMarketplace")}</TabsTrigger>
             </TabsList>
             {!(phone && activeTab === "installed") && (
-              <Box className="relative min-w-0 w-full">
+              // A 280px field at the right of the tabs (07d `324:40267`).
+              <Box
+                className={
+                  activeTab === "installed"
+                    ? "relative min-w-0 w-full sm:w-70 sm:max-w-full sm:justify-self-end"
+                    : "relative min-w-0 w-full"
+                }
+              >
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
                   placeholder={
@@ -2786,14 +2779,16 @@ export default function IntegrationsPage() {
                       .filter((group) => group.plugins.length > 0)
                       .map((group) => (
                         <Stack gap="2" key={group.label}>
+                          {/* Flush with the list, rows inset in it with no
+                              dividers (07d `324:40267`, DD-W143). */}
                           <Heading
                             level={2}
                             size="sm"
-                            className="px-4 font-mono uppercase tracking-wide text-muted-foreground"
+                            className="font-mono uppercase tracking-wide text-muted-foreground"
                           >
                             {group.label}
                           </Heading>
-                          <ListRowGroup aria-label={group.label} size="touch">
+                          <ListRowGroup aria-label={group.label} size="default" className={INSET_ROW_GROUP}>
                             {group.plugins.map((plugin) => (
                               <InstalledPluginRow
                                 key={plugin.id}
