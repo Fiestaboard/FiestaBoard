@@ -54,6 +54,7 @@ import {
   useStatus,
 } from "@/hooks/use-board";
 import { useHubConnection } from "@/hooks/use-hub-connection";
+import { useHubIdentity } from "@/hooks/use-hub-identity";
 import { useSilence } from "@/hooks/use-silence";
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
@@ -62,7 +63,6 @@ import { api, isCollectionId } from "@/lib/api";
 import type { BoardGeometry } from "@/lib/board-characters-to-template";
 import { classifyDimensions } from "@/lib/board-dimensions";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
-import { browserHostname } from "@/lib/network-hint";
 import { isDisplayOffline } from "@/lib/status-banners";
 
 export interface ActivePageDisplayProps {
@@ -90,7 +90,10 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   }, [sendsDisabled]);
   const { data: fleetStatus } = useStatus();
   const phone = useMediaQuery("(max-width: 767px)");
-  const hubHost = browserHostname();
+  // 07a `302:20841`: "Flagship 22 × 6 · Maya's FiestaPi", the hub's name,
+  // from lg up; the 900 frame (`307:61756`) draws the type and size alone.
+  const wide = useMediaQuery("(min-width: 1024px)");
+  const hub = useHubIdentity({ enabled: wide });
   const tPause = useTranslations("displaySettings.pause");
   const navigate = useNavigate();
   const locale = useLocale();
@@ -769,8 +772,9 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
               {/* 07a `306:53086`: on a phone the mode sits in the header and
                   the title takes the whole line below (BB-A-16); the board
                   needs no type-and-size row there (BB-A-6). */}
-              {/* 07a `302:20841`: "Flagship 22 × 6 · fiestapi.local" (BB-FH-9). */}
-              {phone ? phoneModeBadge : [boardMeta(targetBoard, activeGeometry), hubHost].filter(Boolean).join(" · ")}
+              {phone
+                ? phoneModeBadge
+                : [boardMeta(targetBoard, activeGeometry), wide ? hub.name : null].filter(Boolean).join(" · ")}
               <BoardActionsMenu actions={boardActions} />
             </Text>
           }
