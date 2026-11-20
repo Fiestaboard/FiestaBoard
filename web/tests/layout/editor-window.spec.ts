@@ -68,7 +68,9 @@ for (const width of [1440, 1280, 1024]) {
       // 1024–1279 has no Figma frame (D8, settled with the E4 grid): there the
       // floor is 22 tiles at 16 px or more.
       expect(preview!.width).toBeGreaterThanOrEqual(width >= 1280 ? width * 0.4 : 360);
-      await page.locator('[data-slot="board-preview-mode-option"]', { hasText: /^Fit$/ }).click();
+      // The preview offers Fit / Actual only when the board doesn't already fit (#2579).
+      const fit = page.locator('[data-slot="board-preview-mode-option"]', { hasText: /^Fit$/ });
+      if (await fit.count()) await fit.click();
       await expect(
         page.locator('[data-slot="board-viewport-scaled"], [data-slot="board-viewport"]').first(),
       ).toBeVisible();

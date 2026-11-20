@@ -412,7 +412,8 @@ describe("Creator IDE at 1024 px and wider", () => {
     mockHub();
     const { slot } = renderIde();
     const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
-    await within(nav).findByRole("link", { name: /Commute/ });
+    // D2b: the Explorer lists the open page's own rows (no page links), still in real lists.
+    await within(within(nav).getByRole("group", { name: "This page" })).findByText("Commute");
     const lists = nav.querySelectorAll("ul");
     expect(lists.length).toBeGreaterThan(0);
     for (const list of lists) for (const child of Array.from(list.children)) expect(child.tagName).toBe("LI");
