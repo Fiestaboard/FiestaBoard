@@ -17,7 +17,13 @@ import {
   type RenderDiagnostics,
   type RenderTarget,
 } from "@/lib/api/formula-debug";
-import { atIsoForTime, buildPreviewContext, referencedRoots, sampleValues } from "@/lib/formula-ide/data-source";
+import {
+  atIsoForTime,
+  buildPreviewContext,
+  referencedRoots,
+  sampleValues,
+  withDisabledExamples,
+} from "@/lib/formula-ide/data-source";
 import { buildHintIndex, findFormula, normalizeSource } from "@/lib/formula-ide/hints";
 import { cellOrigin, originDetail } from "@/lib/formula-ide/source-map";
 
@@ -137,13 +143,20 @@ export function useFormulaIde({
   });
 
   const template = useMemo(() => target?.template ?? [], [target]);
+  // Integrations that are switched off still count (BB-E-12): the board shows
+  // ??? for them, Sample fills their declared examples and Live says why.
+  const disabled = variables?.disabled_plugins;
   const roots = useMemo(
-    () => referencedRoots(template, Object.keys(variables?.variables ?? {})),
-    [template, variables],
+    () => referencedRoots(template, [...Object.keys(variables?.variables ?? {}), ...Object.keys(disabled ?? {})]),
+    [template, variables, disabled],
   );
   const sample = useMemo(
-    () => sampleValues(variables?.variable_metadata as Parameters<typeof sampleValues>[0], roots),
-    [variables, roots],
+    () => sampleValues(withDisabledExamples(variables?.variable_metadata, disabled), roots),
+    [variables, disabled, roots],
+  );
+  const offRoots = useMemo(
+    () => roots.filter((root) => disabled?.[root]).map((root) => ({ root, name: disabled![root].name })),
+    [roots, disabled],
   );
   const atIso = atTime ? atIsoForTime(atTime, new Date()) : null;
   const previewContext = useMemo(
@@ -282,6 +295,7 @@ export function useFormulaIde({
       atLabel={atLabel}
       template={template}
       roots={roots}
+      offRoots={offRoots}
       unsampled={sample.unsampled}
       formulas={diagnostics?.formulas ?? []}
       sources={own?.sources ?? null}

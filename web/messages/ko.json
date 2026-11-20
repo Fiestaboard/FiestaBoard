@@ -4006,7 +4006,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "점 {count}개",
     "layerMetaText": "글꼴 {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} 잘림"
   },
   "creatorIde": {
     "regionLabel": "크리에이터 IDE",
@@ -4336,6 +4337,7 @@
     "fits": "맞음",
     "doesNotFit": "맞지 않음",
     "fitReport": "{line}번째 줄은 {cols}열 중 {widest}열",
-    "nothingCut": "잘린 부분 없음"
+    "nothingCut": "잘린 부분 없음",
+    "missingOff": "{plugin}이(가) 통합에서 꺼져 있습니다"
   }
 }

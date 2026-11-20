@@ -4006,7 +4006,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} points",
     "layerMetaText": "Police {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} coupés"
   },
   "creatorIde": {
     "regionLabel": "IDE du créateur",
@@ -4336,6 +4337,7 @@
     "fits": "Tient",
     "doesNotFit": "Ne tient pas",
     "fitReport": "La ligne {line} fait {widest} sur {cols} colonnes",
-    "nothingCut": "rien de coupé"
+    "nothingCut": "rien de coupé",
+    "missingOff": "{plugin} est désactivé dans Intégrations"
   }
 }

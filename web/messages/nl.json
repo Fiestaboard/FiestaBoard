@@ -4006,7 +4006,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} punten",
     "layerMetaText": "Lettertype {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} afgekapt"
   },
   "creatorIde": {
     "regionLabel": "Creator-IDE",
@@ -4336,6 +4337,7 @@
     "fits": "Past",
     "doesNotFit": "Past niet",
     "fitReport": "Regel {line} is {widest} van {cols} kolommen",
-    "nothingCut": "niets afgekapt"
+    "nothingCut": "niets afgekapt",
+    "missingOff": "{plugin} staat uit bij Integraties"
   }
 }
