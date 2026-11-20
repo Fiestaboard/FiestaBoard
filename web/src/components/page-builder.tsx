@@ -2857,7 +2857,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             className={cn(
               "sticky top-0 z-20 bg-background flex-shrink-0 gap-0 px-2 lg:px-4",
               // Docked: one fixed height, so the preview docks right under it.
-              dockedPreview ? "h-17 py-1.5" : "h-14 lg:min-h-16 py-0",
+              dockedPreview ? "h-16 py-1" : "h-14 lg:min-h-16 py-0",
             )}
           >
             <Flex align="center" className="h-full min-w-0 flex-nowrap gap-1.5">
@@ -3374,7 +3374,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   variant={dockedPreview ? "docked" : "pane"}
                   className={cn(
                     "order-first lg:order-2 min-w-0",
-                    dockedPreview ? "top-17 scroll-mt-17 px-0" : "top-16 scroll-mt-16",
+                    dockedPreview ? "top-16 scroll-mt-16 px-0" : "top-16 scroll-mt-16",
                     // A landscape phone has no height for a docked board: it
                     // scrolls with the template instead (BB-B-4).
                     dockedPreview && "[@media(max-height:500px)]:static",
