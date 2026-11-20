@@ -4021,7 +4021,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} 点",
     "layerMetaText": "フォント {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} 切り捨て"
   },
   "creatorIde": {
     "regionLabel": "クリエイターIDE",
@@ -4354,6 +4355,7 @@
     "fits": "収まる",
     "doesNotFit": "収まらない",
     "fitReport": "{line} 行目は {cols} 列中 {widest} 列",
-    "nothingCut": "切り詰めなし"
+    "nothingCut": "切り詰めなし",
+    "missingOff": "{plugin} は連携でオフになっています"
   }
 }

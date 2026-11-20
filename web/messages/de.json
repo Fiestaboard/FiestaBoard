@@ -4021,7 +4021,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} Punkte",
     "layerMetaText": "Schrift {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} abgeschnitten"
   },
   "creatorIde": {
     "regionLabel": "Creator-IDE",
@@ -4354,6 +4355,7 @@
     "fits": "Passt",
     "doesNotFit": "Passt nicht",
     "fitReport": "Zeile {line} ist {widest} von {cols} Spalten",
-    "nothingCut": "nichts abgeschnitten"
+    "nothingCut": "nichts abgeschnitten",
+    "missingOff": "{plugin} ist unter Integrationen ausgeschaltet"
   }
 }
