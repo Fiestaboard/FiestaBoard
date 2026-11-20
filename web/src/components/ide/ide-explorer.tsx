@@ -1,10 +1,11 @@
 "use client";
 
-import { Box, Card, Input, ListRow, ListRowGroup, Stack, Text } from "@fiestaboard/ui";
-import { useId, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Box, Button, Card, Flex, ListRow, ListRowGroup, Stack, Text } from "@fiestaboard/ui";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { type Ref, useId, useMemo } from "react";
 
 import { useTranslations } from "@/i18n/translations";
+import type { TemplateReferences } from "@/lib/ide/references";
 
 import type { CreatorIdeState } from "./use-creator-ide";
 
@@ -17,34 +18,88 @@ function GroupLabel({ id, children }: { id: string; children: React.ReactNode })
 }
 
 /**
- * Explorer (04d 4.3, >= 1024 px): this hub's pages, collections and
- * snippets, with the open page selected and a "used by" facet beneath.
+ * The closed Explorer (D2, BB-E-3): one button at the head of the column it
+ * gives back to the editor.
  */
-export function IdeExplorer({ ide, pageId }: { ide: CreatorIdeState; pageId: string }) {
+export function IdeExplorerShow({ onShow, buttonRef }: { onShow: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
   const t = useTranslations("creatorIde");
-  const [filter, setFilter] = useState("");
-  const pagesLabel = useId();
-  const collectionsLabel = useId();
-  const snippetsLabel = useId();
-  const needle = filter.trim().toLocaleLowerCase();
-  const pages = useMemo(
-    () => ide.pages.filter((page) => !needle || page.name.toLocaleLowerCase().includes(needle)),
-    [ide.pages, needle],
+  return (
+    <Box data-slot="ide-explorer-closed" className="hidden lg:flex shrink-0 self-start my-4 ml-3">
+      <Button
+        ref={buttonRef}
+        variant="ghost"
+        size="icon"
+        aria-label={t("showExplorer")}
+        aria-expanded={false}
+        onClick={onShow}
+      >
+        <PanelLeftOpen className="size-4" aria-hidden="true" />
+      </Button>
+    </Box>
   );
-  const collections = ide.collections.filter(
-    (collection) => !needle || collection.name.toLocaleLowerCase().includes(needle),
+}
+
+/** The parts a template reads (D2b): one per data source, then its formulas, each with its rows. */
+export function explorerParts(references: TemplateReferences): { name: string; rows: number[]; formulas: boolean }[] {
+  const bySource = new Map<string, Set<number>>();
+  for (const reference of references.variables) {
+    const source = reference.text.split(".")[0];
+    bySource.set(source, (bySource.get(source) ?? new Set()).add(reference.line));
+  }
+  const parts = [...bySource].map(([name, rows]) => ({ name, rows: [...rows].sort((a, b) => a - b), formulas: false }));
+  const formulaRows = [...new Set(references.formulas.map((reference) => reference.line))].sort((a, b) => a - b);
+  if (formulaRows.length) parts.push({ name: "", rows: formulaRows, formulas: true });
+  return parts;
+}
+
+function ExplorerGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId();
+  return (
+    <Box role="group" aria-labelledby={id} className="flex flex-col gap-1">
+      <GroupLabel id={id}>{label}</GroupLabel>
+      {children}
+    </Box>
   );
-  const describePage = (id: string) => {
-    if (id === pageId) {
-      if (ide.display === "live") return t("explorerLive");
-      return ide.display === "scheduled" ? t("explorerScheduled") : t("explorerNotScheduled");
+}
+
+/**
+ * Explorer (04d 4.3, >= 1024 px), scoped to the open page (owner D2b): the
+ * page itself, the boards it is live or scheduled on, the parts its template
+ * reads, and snippets, with a "used by" facet beneath. It lists no other
+ * page and links nowhere: the way to another page is back to Pages.
+ * Collapsible (D2): `onHide` closes it to `IdeExplorerShow`.
+ */
+export function IdeExplorer({
+  ide,
+  pageId,
+  references,
+  onHide,
+  hideRef,
+}: {
+  ide: CreatorIdeState;
+  pageId: string;
+  references: TemplateReferences;
+  onHide?: () => void;
+  hideRef?: Ref<HTMLButtonElement>;
+}) {
+  const t = useTranslations("creatorIde");
+  const page = ide.pages.find((entry) => entry.id === pageId);
+  const pageName = ide.builder.snapshot?.name || page?.name || "";
+  const pageState =
+    ide.display === "live"
+      ? t("explorerLive")
+      : ide.display === "scheduled"
+        ? t("explorerScheduled")
+        : t("explorerNotScheduled");
+  const boards = useMemo(() => {
+    const byId = new Map<string, { name: string; live: boolean }>();
+    for (const now of ide.showsOn.showingNow) byId.set(now.boardId, { name: now.boardName, live: true });
+    for (const entry of ide.showsOn.entries) {
+      if (!byId.has(entry.boardId)) byId.set(entry.boardId, { name: entry.boardName, live: false });
     }
-    const viaCollection = new Set(ide.collections.filter((c) => c.page_ids.includes(id)).map((c) => c.id));
-    const scheduled = ide.schedules.some(
-      (entry) => entry.enabled && (entry.page_id === id || viaCollection.has(entry.page_id)),
-    );
-    return scheduled ? t("explorerScheduled") : t("explorerNotScheduled");
-  };
+    return [...byId].map(([id, board]) => ({ id, ...board }));
+  }, [ide.showsOn]);
+  const parts = useMemo(() => explorerParts(references), [references]);
   const usedBy = ide.showsOn.collections.map((entry) => entry.collection.name);
 
   return (
@@ -53,56 +108,68 @@ export function IdeExplorer({ ide, pageId }: { ide: CreatorIdeState; pageId: str
       className="hidden lg:flex w-[220px] shrink-0 overflow-y-auto gap-0 py-0 my-4 ml-3 self-start max-h-[calc(100%-2rem)]"
     >
       <Box as="nav" aria-label={t("explorer")} className="flex flex-col gap-2 p-3.5">
-        <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
-          {t("explorer")}
-        </Text>
-        <Input
-          type="search"
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          placeholder={t("filterPages")}
-          aria-label={t("filterPages")}
-          className="h-8"
-        />
-        <GroupLabel id={pagesLabel}>{t("pagesGroup")}</GroupLabel>
-        {pages.length ? (
-          <ListRowGroup variant="plain" aria-labelledby={pagesLabel}>
-            {pages.map((page) => (
-              <ListRow
-                key={page.id}
-                title={page.name}
-                description={describePage(page.id)}
-                selected={page.id === pageId}
-                render={<Link to={`/pages/edit/${encodeURIComponent(page.id)}`} />}
-              />
-            ))}
-          </ListRowGroup>
-        ) : (
-          <Text size="sm" tone="muted">
-            {t("noMatches")}
+        <Flex align="center" justify="between" gap="2">
+          <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
+            {t("explorer")}
           </Text>
-        )}
-        <GroupLabel id={collectionsLabel}>{t("collectionsGroup")}</GroupLabel>
-        {collections.length ? (
-          <ListRowGroup variant="plain" aria-labelledby={collectionsLabel}>
-            {collections.map((collection) => (
-              <ListRow
-                key={collection.id}
-                title={collection.name}
-                description={t("collectionPages", { count: collection.page_ids.length })}
-                render={<Link to={`/collections/${encodeURIComponent(collection.id)}`} />}
-              />
-            ))}
+          {onHide && (
+            <Button
+              ref={hideRef}
+              variant="ghost"
+              size="icon"
+              className="-my-1.5 -mr-1.5"
+              aria-label={t("hideExplorer")}
+              aria-expanded={true}
+              onClick={onHide}
+            >
+              <PanelLeftClose className="size-4" aria-hidden="true" />
+            </Button>
+          )}
+        </Flex>
+        <ExplorerGroup label={t("thisPageGroup")}>
+          <ListRowGroup variant="plain">
+            <ListRow title={pageName} description={pageState} selected />
           </ListRowGroup>
-        ) : (
+        </ExplorerGroup>
+        <ExplorerGroup label={t("boardsGroup")}>
+          {boards.length ? (
+            <ListRowGroup variant="plain">
+              {boards.map((board) => (
+                <ListRow
+                  key={board.id}
+                  title={board.name}
+                  description={board.live ? t("explorerLive") : t("explorerScheduled")}
+                />
+              ))}
+            </ListRowGroup>
+          ) : (
+            <Text size="sm" tone="muted">
+              {t("noBoards")}
+            </Text>
+          )}
+        </ExplorerGroup>
+        <ExplorerGroup label={t("partsGroup")}>
+          {parts.length ? (
+            <ListRowGroup variant="plain">
+              {parts.map((part) => (
+                <ListRow
+                  key={part.formulas ? "=" : part.name}
+                  title={part.formulas ? t("formulasPart") : part.name}
+                  description={t(part.rows.length === 1 ? "partRow" : "partRows", { rows: part.rows.join(", ") })}
+                />
+              ))}
+            </ListRowGroup>
+          ) : (
+            <Text size="sm" tone="muted">
+              {t("noParts")}
+            </Text>
+          )}
+        </ExplorerGroup>
+        <ExplorerGroup label={t("snippetsGroup")}>
           <Text size="sm" tone="muted">
-            {needle ? t("noMatches") : t("noCollections")}
+            {t("snippetsUnavailable")}
           </Text>
-        )}
-        <GroupLabel id={snippetsLabel}>{t("snippetsGroup")}</GroupLabel>
-        <Text size="sm" tone="muted" aria-describedby={snippetsLabel}>
-          {t("snippetsUnavailable")}
-        </Text>
+        </ExplorerGroup>
         <Stack className="mt-auto pt-2">
           <Text size="xs" tone="muted">
             {usedBy.length ? t("usedBy", { names: usedBy.join(", "), count: usedBy.length }) : t("usedByNone")}
