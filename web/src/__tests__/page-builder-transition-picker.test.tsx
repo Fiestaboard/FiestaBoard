@@ -84,7 +84,25 @@ function captureUpdate(): { body: Record<string, unknown> | null } {
   return captured;
 }
 
+// D6: the desktop header has no transition icon (the Inspector's Page tab has
+// the row). This picker is the phone/tablet editor's, in its More menu.
+function setDocked() {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: query === "(max-width: 1023px)",
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as unknown as typeof window.matchMedia;
+}
+
 async function openTransitionMenu(user: ReturnType<typeof userEvent.setup>) {
+  if (!screen.queryByRole("button", { name: "Page transition" })) {
+    await user.click(await screen.findByRole("button", { name: "More" }));
+  }
   const trigger = await screen.findByRole("button", { name: "Page transition" });
   await user.click(trigger);
   return trigger;
@@ -93,6 +111,7 @@ async function openTransitionMenu(user: ReturnType<typeof userEvent.setup>) {
 describe("PageBuilder — per-page transition picker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setDocked();
   });
 
   it("sends the chosen built-in strategy as transition_strategy on save", async () => {
@@ -151,12 +170,16 @@ describe("PageBuilder — per-page transition picker", () => {
     render(<PageBuilder pageId="page-1" onClose={vi.fn()} />, { wrapper: TestWrapper });
 
     // Export is gated on hasUnsavedChanges, so it doubles as a dirty-state probe.
+    await user.click(await screen.findByRole("button", { name: "More" }));
     const exportBtn = await screen.findByRole("button", { name: "Export Page" });
     await waitFor(() => expect(exportBtn).toBeEnabled());
 
     await openTransitionMenu(user);
     await user.click(await screen.findByRole("menuitemradio", { name: "Row" }));
 
+    if (!screen.queryByRole("button", { name: "Export Page" })) {
+      await user.click(screen.getByRole("button", { name: "More" }));
+    }
     await waitFor(() => expect(screen.getByRole("button", { name: "Export Page" })).toBeDisabled());
   });
 

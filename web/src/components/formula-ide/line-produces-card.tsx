@@ -37,7 +37,7 @@ export function LineProducesCard({ line, rendered }: { line: LineDiagnostic; ren
   return (
     <Card data-testid="line-produces" className="gap-2 py-4">
       <CardHeader className="px-4">
-        <CardTitle as="h3">{t("lineProduces", { line: line.line })}</CardTitle>
+        <CardTitle as="h2">{t("lineProduces", { line: line.line })}</CardTitle>
       </CardHeader>
       <CardContent className="px-4">
         <Stack gap="1">

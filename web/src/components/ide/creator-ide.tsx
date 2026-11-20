@@ -31,7 +31,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import type { PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
+import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRouter } from "@/hooks/use-router";
 import { useLocale, useTranslations } from "@/i18n/translations";
@@ -43,7 +43,7 @@ import { templateReferences } from "@/lib/ide/references";
 
 import { type ConsoleTab, IdeConsole, IdeProblemList, IdeSentPanel } from "./ide-console";
 import { IdeExplorer, IdeExplorerShow } from "./ide-explorer";
-import { formatSavedAt, formatWallTime } from "./ide-format";
+import { formatClock, formatSavedAt, formatWallTime } from "./ide-format";
 import { IdeHistory } from "./ide-history";
 import { DuplicateDialog, IdePageTab } from "./ide-page-tab";
 import { IdeReferences } from "./ide-references";
@@ -62,6 +62,8 @@ export interface CreatorIdeProps {
   savedTick: number;
   /** Supplies the header's Save draft / Save & update board while a display shows the page (a state setter). */
   onSaveActionsChange: Dispatch<SetStateAction<((actions: PageBuilderSaveActions) => ReactNode) | undefined>>;
+  /** D4: the hub draft's state for the header meta ("Draft restored · Discard", "Draft saved 7:44 AM"). */
+  onDraftStateChange?: (state: PageBuilderDraftState | undefined) => void;
 }
 
 function useStatusMessage(ide: CreatorIdeState) {
@@ -95,6 +97,7 @@ export default function CreatorIde({
   boardKind = "flagship",
   savedTick,
   onSaveActionsChange,
+  onDraftStateChange,
 }: CreatorIdeProps) {
   const t = useTranslations("creatorIde");
   const locale = useLocale();
@@ -121,6 +124,47 @@ export default function CreatorIde({
   }, [explorerOpen]);
   const activeTab = resolveInspectorTab(tab, desktop);
   const references = useMemo(() => templateReferences(ide.builder.snapshot?.template ?? []), [ide.builder.snapshot]);
+
+  // D4: what the header meta says about the hub draft, and (D6) where the page is
+  // live, which is why Save reads "Save draft / Save & update board".
+  const restoredDraft = ide.restoredDraft;
+  // "Draft saved" only when the draft holds exactly these edits; a draft from
+  // elsewhere that autosave leaves alone says so instead (FABLE-2583).
+  const draftSavedAt = ide.draft && ide.builder.unsaved && ide.draftInStep ? ide.draft.saved_at : null;
+  const autosavePaused = ide.autosavePaused;
+  const liveBoard = ide.showsOn.showingNow[0]?.boardName ?? null;
+  const { discardRestored, discardOwnedDraft } = ide;
+  useEffect(() => {
+    if (!onDraftStateChange) return;
+    const live = liveBoard ? t("liveOn", { board: liveBoard }) : undefined;
+    const label = restoredDraft
+      ? restoredDraft.stale
+        ? t("draftRestoredStale")
+        : t("draftRestored")
+      : draftSavedAt
+        ? t("draftSavedAt", { time: formatClock(draftSavedAt, locale) })
+        : autosavePaused
+          ? t("autosavePaused")
+          : undefined;
+    onDraftStateChange({
+      live,
+      liveBoard: liveBoard ?? undefined,
+      label,
+      onDiscard: restoredDraft ? () => void discardRestored() : undefined,
+      discardDraft: discardOwnedDraft,
+    });
+  }, [
+    onDraftStateChange,
+    restoredDraft,
+    draftSavedAt,
+    autosavePaused,
+    liveBoard,
+    discardRestored,
+    discardOwnedDraft,
+    t,
+    locale,
+  ]);
+  useEffect(() => () => onDraftStateChange?.(undefined), [onDraftStateChange]);
 
   const draftOffered = offersDraft(ide.display);
   const { mutate: saveDraftMutate, isPending: savingDraft } = ide.saveDraft;

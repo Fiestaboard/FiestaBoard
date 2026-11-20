@@ -1745,7 +1745,15 @@
     "textMode": "Text",
     "canvasesMode": "Zeichenflächen",
     "showPreview": "Vorschau und Live-Ausgabe anzeigen",
-    "hidePreview": "Vorschau und Live-Ausgabe ausblenden"
+    "hidePreview": "Vorschau und Live-Ausgabe ausblenden",
+    "discardDialogClose": "Schließen",
+    "discardChangesSince": "Du hast seit {time} {count, plural, one {1 Zeile} other {# Zeilen}} geändert. Wenn du jetzt gehst, gehen sie verloren.",
+    "discardChangesLost": "Wenn du jetzt gehst, gehen deine Änderungen verloren.",
+    "discardChangesBoardKeeps": "{board} zeigt weiter die gespeicherte Version.",
+    "discardChangesDisplaysKeep": "Displays zeigen weiter die gespeicherte Version.",
+    "discardChangedLabel": "Geändert",
+    "discardChangedLine": "Zeile {line} ({text})",
+    "discardChangedLineEmpty": "Zeile {line} (leer)"
   },
   "displaySettings": {
     "unnamedBoard": "Unbenanntes Board",
@@ -3840,7 +3848,9 @@
     "replay": "Abspielen",
     "replayHint": "Split-Flap-Animation abspielen",
     "previewTarget": "Vorschauziel",
-    "previewTargetTrigger": "Vorschau auf {target}"
+    "previewTargetTrigger": "Vorschau auf {target}",
+    "discardDraft": "Verwerfen",
+    "lastSaved": "zuletzt gespeichert {time}"
   },
   "phonePairing": {
     "title": "Smartphone verbinden",
@@ -4212,7 +4222,14 @@
     "replaceDraft": "Entwurf ersetzen",
     "draftConflictTitle": "Neueren Entwurf ersetzen?",
     "draftConflictDescription": "Ein anderes Gerät hat den Entwurf dieser Seite gespeichert, nachdem du sie geöffnet hast. Beim Ersetzen bleibt nur, was in diesem Editor steht.",
-    "legendLabel": "Zeitplaneinträge"
+    "legendLabel": "Zeitplaneinträge",
+    "draftRestored": "Entwurf wiederhergestellt",
+    "draftRestoredStale": "Entwurf wiederhergestellt · die Seite hat sich seitdem geändert",
+    "draftSavedAt": "Entwurf gespeichert {time}",
+    "liveOn": "Live auf {board}",
+    "deletePage": "Seite löschen…",
+    "deletePageDetail": "Entfernt sie aus allen Zeitplänen und Sammlungen",
+    "autosavePaused": "Nicht gespeichert · ein Entwurf von anderswo wartet im Verlauf"
   },
   "formulaIde": {
     "atomValue": "= {value}",
