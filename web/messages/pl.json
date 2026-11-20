@@ -3215,8 +3215,13 @@
     "switchTitle": "Przełączyć na {channel}?",
     "switchCta": "Zmień kanał",
     "alphaConfirmBody": "Alfa to wczesny podgląd FiestaBoard 11. Ustawienia i strony mogą zostać przeniesione do formatu nieczytelnego dla starszych wersji. Przed instalacją nowej wersji głównej automatyczna kopia zapasowa musi się powieść; w razie błędu zmiana zostanie anulowana. Zachowaj też pobraną kopię. Powrót do kanału Beta lub Stabilnego przywraca kopię sprzed podglądu i usuwa zmiany wprowadzone w Alfie. FiestaBoard uruchomi się ponownie.",
-    "downgradeConfirmBody": "Przechodzisz na starszy kanał wydań. FiestaBoard przywraca kopię sprzed podglądu, więc późniejsze zmiany zostaną utracone. Jeśli brak zgodnej kopii, przywróć pobraną kopię w Ustawienia → System → Kopia zapasowa. Starsza wersja może nie odczytać przeniesionych danych. FiestaBoard uruchomi się ponownie.",
-    "betaConfirmBody": "Wersje beta mogą przenosić ustawienia i strony. Kopia zapasowa powstaje przed zmianą. Nowa wersja główna wymaga udanej automatycznej kopii. Powrót do kanału Stabilnego może wymagać przywrócenia kopii sprzed podglądu i utraty późniejszych zmian. FiestaBoard uruchomi się ponownie."
+    "downgradeConfirmBody": "Przechodzisz na starszy kanał wydań. FiestaBoard przywraca kopię sprzed podglądu, więc późniejsze zmiany zostaną utracone. Jeśli brak zgodnej kopii, przywróć pobraną kopię w Ustawienia › System i kopie zapasowe › Kopia zapasowa i przywracanie. Starsza wersja może nie odczytać przeniesionych danych. FiestaBoard uruchomi się ponownie.",
+    "betaConfirmBody": "Wersje beta mogą przenosić ustawienia i strony. Kopia zapasowa powstaje przed zmianą. Nowa wersja główna wymaga udanej automatycznej kopii. Powrót do kanału Stabilnego może wymagać przywrócenia kopii sprzed podglądu i utraty późniejszych zmian. FiestaBoard uruchomi się ponownie.",
+    "versionTitle": "Wersja",
+    "runningVersion": "FiestaBoard {version}",
+    "upToDate": "Aktualna",
+    "updateAvailable": "Dostępna aktualizacja: {version}",
+    "managedExternally": "Aktualizacjami tego huba zarządza Home Assistant. Aby zmienić kanał, zainstaluj dodatek beta ze sklepu z dodatkami."
   },
   "aiApprovalCard": {
     "heading": "Wymaga Twojej zgody",

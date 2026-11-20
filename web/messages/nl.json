@@ -3215,8 +3215,13 @@
     "switchTitle": "Overschakelen naar {channel}?",
     "switchCta": "Kanaal wisselen",
     "alphaConfirmBody": "Alfa is een vroeg voorbeeld van FiestaBoard 11. Instellingen en pagina’s kunnen worden omgezet naar een indeling die oudere versies niet kunnen lezen. Vóór de installatie van een nieuwe hoofdversie moet een automatische back-up slagen. Mislukt die, dan stopt de overstap. Bewaar ook een gedownloade back-up. Teruggaan naar Bèta of Stabiel herstelt de back-up van vóór het voorbeeld; wijzigingen uit Alfa gaan verloren. FiestaBoard wordt opnieuw gestart.",
-    "downgradeConfirmBody": "Je stapt over naar een ouder releasekanaal. FiestaBoard herstelt de back-up van vóór het voorbeeld; latere wijzigingen gaan verloren. Zonder compatibele back-up herstel je de gedownloade back-up via Instellingen → Systeem → Back-up. De oudere versie kan gemigreerde gegevens mogelijk niet lezen. FiestaBoard wordt opnieuw gestart.",
-    "betaConfirmBody": "Bètaversies kunnen instellingen en pagina’s migreren. Vóór de overstap wordt een back-up gemaakt. Een nieuwe hoofdversie vereist een geslaagde automatische back-up. Teruggaan naar Stabiel kan herstel van de back-up van vóór het voorbeeld vereisen, waarbij latere wijzigingen verloren gaan. FiestaBoard wordt opnieuw gestart."
+    "downgradeConfirmBody": "Je stapt over naar een ouder releasekanaal. FiestaBoard herstelt de back-up van vóór het voorbeeld; latere wijzigingen gaan verloren. Zonder compatibele back-up herstel je de gedownloade back-up via Instellingen › Systeem en back-ups › Back-up & herstel. De oudere versie kan gemigreerde gegevens mogelijk niet lezen. FiestaBoard wordt opnieuw gestart.",
+    "betaConfirmBody": "Bètaversies kunnen instellingen en pagina’s migreren. Vóór de overstap wordt een back-up gemaakt. Een nieuwe hoofdversie vereist een geslaagde automatische back-up. Teruggaan naar Stabiel kan herstel van de back-up van vóór het voorbeeld vereisen, waarbij latere wijzigingen verloren gaan. FiestaBoard wordt opnieuw gestart.",
+    "versionTitle": "Versie",
+    "runningVersion": "FiestaBoard {version}",
+    "upToDate": "Up-to-date",
+    "updateAvailable": "Update beschikbaar: {version}",
+    "managedExternally": "Home Assistant beheert de updates van deze hub. Installeer de bèta-add-on uit de add-on-winkel om van kanaal te wisselen."
   },
   "aiApprovalCard": {
     "heading": "Heeft je goedkeuring nodig",

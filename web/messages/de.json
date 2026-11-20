@@ -3215,8 +3215,13 @@
     "switchTitle": "Zu {channel} wechseln?",
     "switchCta": "Kanal wechseln",
     "alphaConfirmBody": "Alpha ist eine frühe Vorschau auf FiestaBoard 11. Deine Einstellungen und Seiten können in ein Format migriert werden, das ältere Versionen nicht lesen können. Vor dem Wechsel auf eine neue Hauptversion muss eine automatische Sicherung erfolgreich sein. Schlägt sie fehl, wird der Wechsel abgebrochen. Lade zusätzlich eine Sicherung herunter. Bei der Rückkehr zu Beta oder Stable wird die Sicherung vor der Vorschau wiederhergestellt; Änderungen aus Alpha gehen verloren. FiestaBoard wird neu gestartet.",
-    "downgradeConfirmBody": "Du wechselst zu einem älteren Veröffentlichungskanal. FiestaBoard stellt die Sicherung vor dem Beitritt zur Vorschau wieder her; spätere Änderungen gehen verloren. Falls keine kompatible Sicherung vorhanden ist, stelle deine heruntergeladene Sicherung unter Einstellungen → System → Sicherung wieder her. Die ältere Version kann migrierte Daten möglicherweise nicht lesen. FiestaBoard wird neu gestartet.",
-    "betaConfirmBody": "Beta-Versionen können Einstellungen und Seiten migrieren. Vor dem Wechsel wird eine Sicherung erstellt. Eine neue Hauptversion erfordert eine erfolgreiche automatische Sicherung. Bei der Rückkehr zu Stable musst du möglicherweise die Sicherung vor der Vorschau wiederherstellen; spätere Änderungen gehen dabei verloren. FiestaBoard wird neu gestartet."
+    "downgradeConfirmBody": "Du wechselst zu einem älteren Veröffentlichungskanal. FiestaBoard stellt die Sicherung vor dem Beitritt zur Vorschau wieder her; spätere Änderungen gehen verloren. Falls keine kompatible Sicherung vorhanden ist, stelle deine heruntergeladene Sicherung unter „Einstellungen › System & Sicherungen › Sicherung & Wiederherstellung“ wieder her. Die ältere Version kann migrierte Daten möglicherweise nicht lesen. FiestaBoard wird neu gestartet.",
+    "betaConfirmBody": "Beta-Versionen können Einstellungen und Seiten migrieren. Vor dem Wechsel wird eine Sicherung erstellt. Eine neue Hauptversion erfordert eine erfolgreiche automatische Sicherung. Bei der Rückkehr zu Stable musst du möglicherweise die Sicherung vor der Vorschau wiederherstellen; spätere Änderungen gehen dabei verloren. FiestaBoard wird neu gestartet.",
+    "versionTitle": "Version",
+    "runningVersion": "FiestaBoard {version}",
+    "upToDate": "Aktuell",
+    "updateAvailable": "Update verfügbar: {version}",
+    "managedExternally": "Home Assistant verwaltet die Updates dieses Hubs. Installiere zum Kanalwechsel das Beta-Add-on aus dem Add-on-Store."
   },
   "aiApprovalCard": {
     "heading": "Braucht deine Freigabe",

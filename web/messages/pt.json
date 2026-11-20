@@ -3215,8 +3215,13 @@
     "switchTitle": "Mudar para {channel}?",
     "switchCta": "Trocar de canal",
     "alphaConfirmBody": "Alfa é uma prévia inicial do FiestaBoard 11. A troca pode migrar configurações e páginas para um formato que versões anteriores não conseguem ler. Antes de instalar uma nova versão principal, o backup automático precisa ser concluído. Se falhar, a troca será cancelada. Guarde também um backup baixado. Voltar para Beta ou Estável restaura o backup anterior à prévia e perde as alterações feitas no Alfa. O FiestaBoard será reiniciado.",
-    "downgradeConfirmBody": "Você está mudando para um canal de versões anterior. O FiestaBoard restaura o backup anterior à prévia; alterações posteriores serão perdidas. Sem um backup compatível, restaure o arquivo baixado em Configurações → Sistema → Backup. A versão anterior pode não ler os dados migrados. O FiestaBoard será reiniciado.",
-    "betaConfirmBody": "Versões beta podem migrar configurações e páginas. Um backup é criado antes da troca. Uma nova versão principal exige um backup automático bem-sucedido. Voltar para Estável pode exigir a restauração do backup anterior à prévia e a perda das alterações posteriores. O FiestaBoard será reiniciado."
+    "downgradeConfirmBody": "Você está mudando para um canal de versões anterior. O FiestaBoard restaura o backup anterior à prévia; alterações posteriores serão perdidas. Sem um backup compatível, restaure o arquivo baixado em Configurações › Sistema e backups › Backup e restauro. A versão anterior pode não ler os dados migrados. O FiestaBoard será reiniciado.",
+    "betaConfirmBody": "Versões beta podem migrar configurações e páginas. Um backup é criado antes da troca. Uma nova versão principal exige um backup automático bem-sucedido. Voltar para Estável pode exigir a restauração do backup anterior à prévia e a perda das alterações posteriores. O FiestaBoard será reiniciado.",
+    "versionTitle": "Versão",
+    "runningVersion": "FiestaBoard {version}",
+    "upToDate": "Atualizado",
+    "updateAvailable": "Atualização disponível: {version}",
+    "managedExternally": "O Home Assistant gere as atualizações deste hub. Para mudar de canal, instale o suplemento beta a partir da loja de suplementos."
   },
   "aiApprovalCard": {
     "heading": "Precisa da sua aprovação",

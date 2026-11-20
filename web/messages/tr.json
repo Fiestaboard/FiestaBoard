@@ -3215,8 +3215,13 @@
     "switchTitle": "{channel} kanalına geçilsin mi?",
     "switchCta": "Kanalı değiştir",
     "alphaConfirmBody": "Alfa, FiestaBoard 11’in erken önizlemesidir. Ayarlarınız ve sayfalarınız eski sürümlerin okuyamayacağı bir biçime taşınabilir. Yeni ana sürüm yüklenmeden önce otomatik yedekleme başarılı olmalıdır; başarısız olursa geçiş durdurulur. İndirilmiş bir yedeği de saklayın. Beta veya Kararlı kanalına dönmek, önizleme öncesi yedeği geri yükler ve Alfa’da yapılan değişiklikler kaybolur. FiestaBoard yeniden başlatılacaktır.",
-    "downgradeConfirmBody": "Daha eski bir sürüm kanalına geçiyorsunuz. FiestaBoard önizleme öncesi yedeği geri yükler; sonraki değişiklikler kaybolur. Uyumlu yedek yoksa Ayarlar → Sistem → Yedekleme bölümünden indirdiğiniz yedeği geri yükleyin. Eski sürüm taşınmış verileri okuyamayabilir. FiestaBoard yeniden başlatılacaktır.",
-    "betaConfirmBody": "Beta sürümleri ayarları ve sayfaları taşıyabilir. Geçişten önce yedek alınır. Yeni ana sürüm, başarılı bir otomatik yedekleme gerektirir. Kararlı kanalına dönüş, önizleme öncesi yedeğin geri yüklenmesini gerektirebilir ve sonraki değişiklikler kaybolabilir. FiestaBoard yeniden başlatılacaktır."
+    "downgradeConfirmBody": "Daha eski bir sürüm kanalına geçiyorsunuz. FiestaBoard önizleme öncesi yedeği geri yükler; sonraki değişiklikler kaybolur. Uyumlu yedek yoksa Ayarlar › Sistem ve yedekler › Yedekleme ve Geri Yükleme bölümünden indirdiğiniz yedeği geri yükleyin. Eski sürüm taşınmış verileri okuyamayabilir. FiestaBoard yeniden başlatılacaktır.",
+    "betaConfirmBody": "Beta sürümleri ayarları ve sayfaları taşıyabilir. Geçişten önce yedek alınır. Yeni ana sürüm, başarılı bir otomatik yedekleme gerektirir. Kararlı kanalına dönüş, önizleme öncesi yedeğin geri yüklenmesini gerektirebilir ve sonraki değişiklikler kaybolabilir. FiestaBoard yeniden başlatılacaktır.",
+    "versionTitle": "Sürüm",
+    "runningVersion": "FiestaBoard {version}",
+    "upToDate": "Güncel",
+    "updateAvailable": "Güncelleme var: {version}",
+    "managedExternally": "Bu hub’ın güncellemelerini Home Assistant yönetiyor. Kanal değiştirmek için eklenti mağazasından beta eklentisini yükleyin."
   },
   "aiApprovalCard": {
     "heading": "Onayın gerekiyor",

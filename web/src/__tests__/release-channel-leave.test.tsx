@@ -80,12 +80,69 @@ beforeEach(() => {
 
 describe("ReleaseChannelCard", () => {
   it("shows all versions and the running channel", async () => {
-    onChannel("beta");
+    onChannel("alpha");
     render(<ReleaseChannelCard />, { wrapper: Wrapper });
     expect(await screen.findByRole("radiogroup", { name: "Release channel" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /Beta.*Current/ })).toHaveAttribute("aria-checked", "true");
-    for (const version of ["10.3.3", "10.3.4-beta.0", "11.0.0-alpha.1"])
+    expect(screen.getByRole("radio", { name: /Alpha preview.*Current/ })).toHaveAttribute("aria-checked", "true");
+    // The current channel shows what is running; the others what they publish.
+    for (const version of ["10.3.3", "10.3.4-beta.0", "11.0.0-alpha.0"])
       expect(await screen.findByText(version)).toBeVisible();
+  });
+
+  // BB-C-13: Figma 320:8881's Version card — the running version and whether
+  // it is current, above the channel choice.
+  it("states the running version and that it is up to date", async () => {
+    onChannel("stable");
+    server.use(
+      http.get(`${API_BASE}/system/update-check`, () =>
+        HttpResponse.json({
+          current_version: "10.3.3",
+          latest_version: "10.3.3",
+          update_available: false,
+          package_url: "",
+          error: null,
+          is_production: true,
+        }),
+      ),
+    );
+    render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    expect(await screen.findByText("FiestaBoard 10.3.3 · Up to date")).toBeVisible();
+  });
+
+  it("draws version numbers as written, not as uppercase code", async () => {
+    onChannel("alpha");
+    render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    const version = await screen.findByText("11.0.0-alpha.0");
+    expect(version.closest(".uppercase")).toBeNull();
+  });
+
+  it("names the real backup section when leaving a preview", async () => {
+    onChannel("alpha");
+    render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    await userEvent.click(await screen.findByRole("radio", { name: /Stable/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Switch channel" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent("System & backups › Backup & Restore");
+    expect(dialog).not.toHaveTextContent("System → Backup");
+  });
+
+  it("never shows the server's setup instructions to the user", async () => {
+    server.use(
+      http.get(`${API_BASE}/system/channel`, () =>
+        HttpResponse.json({
+          channel: "stable",
+          running_channel: "stable",
+          running_version: "10.3.3",
+          available_channels: ["stable", "beta", "alpha"],
+          can_switch: false,
+          reason:
+            "The updater sidecar is not enabled. Add COMPOSE_PROFILES=fiestaupdater to your .env and run 'docker compose up -d'.",
+        }),
+      ),
+    );
+    render(<ReleaseChannelCard />, { wrapper: Wrapper });
+    expect(await screen.findByText("Channel switching is unavailable on this install.")).toBeVisible();
+    expect(screen.queryByText(/COMPOSE_PROFILES|sidecar/)).not.toBeInTheDocument();
   });
 
   it("requires a separate explicit alpha confirmation and permits cancellation", async () => {
@@ -171,11 +228,13 @@ describe("ReleaseChannelCard", () => {
     render(<ReleaseChannelCard />, { wrapper: Wrapper });
     try {
       expect(await screen.findByRole("radio", { name: /Beta.*Current/ })).toBeVisible();
-      expect(screen.getAllByText("Loading version…")).toHaveLength(3);
+      // The running channel's version is known locally; only the others wait.
+      expect(screen.getAllByText("Loading version…")).toHaveLength(2);
     } finally {
       release();
     }
-    await waitFor(() => expect(screen.getAllByText("Version unavailable")).toHaveLength(3));
+    await waitFor(() => expect(screen.getAllByText("Version unavailable")).toHaveLength(2));
+    expect(screen.getByText("10.3.3")).toBeVisible();
   });
 
   it.each([
@@ -186,7 +245,9 @@ describe("ReleaseChannelCard", () => {
   ] as const)("confirms major upgrade precisely for %s to %s", async (running, candidate, expected) => {
     const posted = onChannel(running);
     render(<ReleaseChannelCard />, { wrapper: Wrapper });
-    await screen.findByText("11.0.0-alpha.1");
+    // Discovery settled (the running channel's row shows its own version).
+    await screen.findByRole("radiogroup");
+    await waitFor(() => expect(screen.queryByText("Loading version…")).not.toBeInTheDocument());
     await userEvent.click(
       screen.getByRole("radio", {
         name: candidate === "stable" ? /Stable/ : candidate === "beta" ? /Beta/ : /Alpha preview/,
@@ -229,8 +290,17 @@ describe("ReleaseChannelCard", () => {
           channel: "stable",
           available_channels: ["stable", "beta", "alpha"],
           can_switch: false,
-          reason: "Home Assistant manages updates in the add-on store.",
+          reason: "This install is managed by Home Assistant.",
           channel_versions: {},
+        }),
+      ),
+      http.get(`${API_BASE}/system/update/status`, () =>
+        HttpResponse.json({
+          updater_available: false,
+          auto_update_enabled: false,
+          auto_update_interval: "weekly",
+          managed_externally: true,
+          profile: null,
         }),
       ),
     );

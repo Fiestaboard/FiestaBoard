@@ -3215,8 +3215,13 @@
     "switchTitle": "¿Cambiar a {channel}?",
     "switchCta": "Cambiar de canal",
     "alphaConfirmBody": "Alfa es una vista previa temprana de FiestaBoard 11. El cambio puede migrar los ajustes y las páginas a un formato que las versiones anteriores no puedan leer. Antes de instalar una nueva versión principal, la copia de seguridad automática debe completarse; si falla, se cancela el cambio. Descarga también una copia. Al volver a Beta o Estable se restaura la copia anterior a la vista previa y se pierden los cambios realizados en Alfa. FiestaBoard se reiniciará.",
-    "downgradeConfirmBody": "Cambiarás a un canal de versiones anterior. FiestaBoard restaura la copia guardada antes de entrar en la vista previa; los cambios posteriores se pierden. Si no existe una copia compatible, restaura la que descargaste en Ajustes → Sistema → Copia de seguridad. La versión anterior podría no leer los datos migrados. FiestaBoard se reiniciará.",
-    "betaConfirmBody": "Las versiones beta pueden migrar los ajustes y las páginas. Se crea una copia antes del cambio. Para pasar a una nueva versión principal, la copia automática debe completarse. Volver a Estable puede requerir restaurar la copia anterior a la vista previa y perder los cambios posteriores. FiestaBoard se reiniciará."
+    "downgradeConfirmBody": "Cambiarás a un canal de versiones anterior. FiestaBoard restaura la copia guardada antes de entrar en la vista previa; los cambios posteriores se pierden. Si no existe una copia compatible, restaura la que descargaste en Ajustes › Sistema y copias de seguridad › Copia de seguridad y restauración. La versión anterior podría no leer los datos migrados. FiestaBoard se reiniciará.",
+    "betaConfirmBody": "Las versiones beta pueden migrar los ajustes y las páginas. Se crea una copia antes del cambio. Para pasar a una nueva versión principal, la copia automática debe completarse. Volver a Estable puede requerir restaurar la copia anterior a la vista previa y perder los cambios posteriores. FiestaBoard se reiniciará.",
+    "versionTitle": "Versión",
+    "runningVersion": "FiestaBoard {version}",
+    "upToDate": "Actualizado",
+    "updateAvailable": "Actualización disponible: {version}",
+    "managedExternally": "Home Assistant gestiona las actualizaciones de este hub. Para cambiar de canal, instala el complemento beta desde su tienda de complementos."
   },
   "aiApprovalCard": {
     "heading": "Necesita tu aprobación",
