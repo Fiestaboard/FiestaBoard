@@ -1,7 +1,8 @@
 /**
  * BB-B-4 / BB-B-17 (Figma 57:64661): below the rail the page editor's own
- * header and toolbar replace the app's phone header and tab bar. With the rail
- * (landscape phones, tablets, desktop) the nav stays.
+ * header and toolbar replace the app's phone header and tab bar. A short
+ * landscape phone keeps the phone chrome below lg (BB-A-13), so it gets the
+ * takeover too. With the rail (tablets, desktop) the nav stays.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -21,9 +22,12 @@ vi.mock("@/hooks/use-router", () => ({
 import { MainContent } from "@/components/main-content";
 import { NavigationSidebar } from "@/components/navigation-sidebar";
 
-function setPhone(phone: boolean) {
+/** `true`: portrait phone; `"landscape"`: 844x390 (short, below lg); `false`: tablet+. */
+function setPhone(phone: boolean | "landscape") {
+  const hits =
+    phone === "landscape" ? ["max-height: 499.98px", "max-width: 1023.98px"] : phone ? ["max-width: 767.98px"] : [];
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches: phone && query.includes("max-width: 767.98px"),
+    matches: hits.some((h) => query.includes(h)),
     media: query,
     onchange: null,
     addListener: vi.fn(),
@@ -73,6 +77,13 @@ describe("the page editor takes over the phone chrome", () => {
     renderShell();
     expect(nav().length).toBeGreaterThan(0);
     expect(main()?.className).toMatch(/bottom-nav-offset/);
+  });
+
+  it("draws no tab bar or rail in the editor on a landscape phone (844x390)", () => {
+    setPhone("landscape");
+    mockPathname.mockReturnValue("/pages/edit/p1");
+    renderShell();
+    expect(nav()).toHaveLength(0);
   });
 
   it("keeps the rail in the editor from 768px", () => {

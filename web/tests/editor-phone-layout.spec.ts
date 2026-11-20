@@ -113,3 +113,15 @@ test.describe("landscape phone (844 × 390)", () => {
     expect(toolbar.x + toolbar.width).toBeGreaterThanOrEqual(843);
   });
 });
+
+test.describe("touch tablet with the rail (1024 × 768)", () => {
+  test.use({ viewport: { width: 1024, height: 768 }, hasTouch: true, isMobile: true });
+
+  test("the toolbar starts right of the rail (BB-B-17)", async ({ page }) => {
+    await openEditor(page);
+    const rail = await box(page, "aside:visible");
+    const toolbar = await box(page, TOOLBAR);
+    expect(toolbar.x).toBeGreaterThanOrEqual(rail.x + rail.width - 1);
+    expect(toolbar.x + toolbar.width).toBeLessThanOrEqual(1024);
+  });
+});

@@ -81,11 +81,20 @@ describe("/pages section", () => {
 
   // BB-B-9 (#2563) with the bare editor: after the first save the address
   // shows /pages/edit/{id}, and the editor stays mounted with no section
-  // header drawn above it (the editor's own header names the page).
-  it("keeps the editor mounted, with no section header, after a new page's first save", async () => {
+  // header drawn above it (the editor's own header names the page). The
+  // section still learns the created id: going back to the list puts focus on
+  // that page's tile. The next New Page starts fresh.
+  it("keeps the editor mounted after a new page's first save, and knows the page it made", async () => {
     route.pathname = "/pages/new";
-    function SaveFirst() {
+    function Body() {
       const report = useReportCreatedPage();
+      if (route.pathname === "/pages") {
+        return (
+          <button type="button" data-section-item="p1">
+            Morning briefing
+          </button>
+        );
+      }
       return (
         <button type="button" onClick={() => report?.("p1")}>
           save
@@ -93,18 +102,32 @@ describe("/pages section", () => {
       );
     }
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
+    const tree = () => (
       <QueryClientProvider client={queryClient}>
         <PagesSection>
-          <SaveFirst />
+          <Body />
         </PagesSection>
-      </QueryClientProvider>,
+      </QueryClientProvider>
     );
+    const view = render(tree());
     const before = screen.getByRole("button", { name: "save" });
     act(() => before.click());
     // The same node: the editor was not remounted by the report.
     await waitFor(() => expect(screen.getByRole("button", { name: "save" })).toBe(before));
     expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
     expect(document.querySelector("[data-slot=page-card]")).toHaveAttribute("data-surface", "plain");
+
+    route.pathname = "/pages";
+    view.rerender(tree());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Morning briefing" })).toHaveFocus());
+
+    // New Page again, then back without saving: nothing was made this time.
+    screen.getByRole("button", { name: "Morning briefing" }).blur();
+    route.pathname = "/pages/new";
+    view.rerender(tree());
+    route.pathname = "/pages";
+    view.rerender(tree());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByRole("button", { name: "Morning briefing" })).not.toHaveFocus();
   });
 });
