@@ -416,7 +416,8 @@ export function ChangePageDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden">
+      {/* 07a `310:27282`: the 560 px Dialog shell, 20 px title and 40 px close (BB-FH-4). */}
+      <DialogContent variant="wide" className="max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>{t("description", { board: displayName })}</DialogDescription>
@@ -428,7 +429,8 @@ export function ChangePageDialog({
           {durationAndPreview}
           {silenceNotice}
         </Stack>
-        <DialogFooter className="shrink-0 pt-2">
+        {/* 07a draws Cancel · Show now at the right edge; the wide shell's footer starts left. */}
+        <DialogFooter className="shrink-0 pt-2 sm:group-data-[variant=wide]/dialog:justify-end">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submit.isPending}>
             {t("cancel")}
           </Button>

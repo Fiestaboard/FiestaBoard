@@ -80,6 +80,13 @@ afterEach(() => {
 });
 
 describe("ChangePageDialog (desktop)", () => {
+  // BB-FH-4 (07a `310:27282`): the 560 px shell with the 20 px title and 40 px close.
+  it("uses the wide Dialog shell", async () => {
+    setup();
+    const dialog = await screen.findByRole("dialog", { name: /change page/i });
+    expect(dialog).toHaveAttribute("data-variant", "wide");
+  });
+
   it("lists the pages that fit the display, marking the one showing now", async () => {
     setup();
     const dialog = await screen.findByRole("dialog", { name: "Change Page" });
