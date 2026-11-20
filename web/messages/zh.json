@@ -4028,6 +4028,7 @@
     "explorer": "资源管理器",
     "showExplorer": "显示资源管理器",
     "hideExplorer": "隐藏资源管理器",
+    "explorerAfterSave": "保存后，此页面的显示屏和组成部分会显示在这里。",
     "inspector": "检查器",
     "console": "控制台",
     "snippetsGroup": "代码片段",

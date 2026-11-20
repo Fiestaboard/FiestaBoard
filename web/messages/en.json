@@ -4028,6 +4028,7 @@
     "explorer": "Explorer",
     "showExplorer": "Show Explorer",
     "hideExplorer": "Hide Explorer",
+    "explorerAfterSave": "This page’s boards and parts show here once it is saved.",
     "inspector": "Inspector",
     "console": "Console",
     "snippetsGroup": "Snippets",

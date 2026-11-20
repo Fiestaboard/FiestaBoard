@@ -84,6 +84,11 @@ export async function mockHub(page: Page, options: CreatorIdeHubOptions = {}) {
           next_page_id: null,
           active_page_id: showing,
         };
+      } else if (pathname === "/v1/pages" && request.method() === "POST") {
+        // The first save of a new page (BB-E-11): it becomes this fixture's page.
+        const body = request.postDataJSON() as { name?: string; template?: string[] };
+        response = { ...opened, name: body.name ?? opened.name, template: body.template ?? opened.template };
+        status = 201;
       } else if (pathname === `/v1/pages/${kitchenMorning.id}`) {
         response = opened;
       } else if (pathname === "/v1/pages" || pathname === "/pages") {

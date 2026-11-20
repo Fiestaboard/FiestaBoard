@@ -4028,6 +4028,7 @@
     "explorer": "탐색기",
     "showExplorer": "탐색기 표시",
     "hideExplorer": "탐색기 숨기기",
+    "explorerAfterSave": "저장하면 이 페이지의 디스플레이와 구성 요소가 여기에 표시됩니다.",
     "inspector": "인스펙터",
     "console": "콘솔",
     "snippetsGroup": "스니펫",

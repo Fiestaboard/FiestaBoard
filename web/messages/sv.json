@@ -4028,6 +4028,7 @@
     "explorer": "Utforskare",
     "showExplorer": "Visa utforskaren",
     "hideExplorer": "Dölj utforskaren",
+    "explorerAfterSave": "Sidans skärmar och delar visas här när den har sparats.",
     "inspector": "Inspektör",
     "console": "Konsol",
     "snippetsGroup": "Snippets",

@@ -4028,6 +4028,7 @@
     "explorer": "Gezgin",
     "showExplorer": "Gezgini göster",
     "hideExplorer": "Gezgini gizle",
+    "explorerAfterSave": "Bu sayfanın ekranları ve parçaları kaydedildiğinde burada görünür.",
     "inspector": "Denetçi",
     "console": "Konsol",
     "snippetsGroup": "Parçacıklar",

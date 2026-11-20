@@ -4028,6 +4028,7 @@
     "explorer": "Explorer",
     "showExplorer": "Explorer einblenden",
     "hideExplorer": "Explorer ausblenden",
+    "explorerAfterSave": "Displays und Bestandteile dieser Seite erscheinen hier, sobald sie gespeichert ist.",
     "inspector": "Inspektor",
     "console": "Konsole",
     "snippetsGroup": "Snippets",

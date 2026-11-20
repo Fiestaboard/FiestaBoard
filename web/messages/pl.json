@@ -4028,6 +4028,7 @@
     "explorer": "Eksplorator",
     "showExplorer": "Pokaż eksplorator",
     "hideExplorer": "Ukryj eksplorator",
+    "explorerAfterSave": "Wyświetlacze i elementy tej strony pojawią się tutaj po jej zapisaniu.",
     "inspector": "Inspektor",
     "console": "Konsola",
     "snippetsGroup": "Fragmenty",
