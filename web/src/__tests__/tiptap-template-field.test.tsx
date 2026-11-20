@@ -1,9 +1,8 @@
 /**
  * The rich template behaves like a text field (bug bash E2, desktop editor
  * audit root problem 5): BB-E-1 multi-line paste, BB-E-14 copy without the
- * caret anchors, BB-E-15 Esc from a picker keeps the caret, BB-E-16 a focus
- * ring, BB-E-8 rows stay on one line inside the card, BB-E-24 Undo starts
- * disabled.
+ * caret anchors, BB-E-15 Esc from a picker keeps the caret, BB-E-24 Undo
+ * starts disabled. BB-E-8 and BB-E-16 are checked in a real browser (layout).
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -95,6 +94,18 @@ describe("pasting text from outside the app (BB-E-1)", () => {
     await waitFor(() => expect(lastLines(onChange).slice(0, 3)).toEqual(["FIRST", "SECOND", "THIRD"]));
   });
 
+  it("does not add a row for a copied paragraph's closing line break", async () => {
+    const { onChange } = renderEditor();
+    const editor = await editorOf();
+    act(() => {
+      editor.commands.focus("start");
+    });
+    paste(editor.view.dom, { "text/plain": "one\ntwo\n" });
+    await waitFor(() => expect(lastLines(onChange).slice(0, 3)).toEqual(["ONE", "TWO", ""]));
+    // Two lines into a 6-row template add one row (the break between them), not two.
+    expect(lastLines(onChange)).toHaveLength(7);
+  });
+
   it("keeps every line of a rich (HTML) paste from a document", async () => {
     const { onChange } = renderEditor();
     const editor = await editorOf();
@@ -133,7 +144,11 @@ describe("copying from the template (BB-E-14)", () => {
     fireEvent(editor.view.dom, event);
     const text = data.store["text/plain"];
     expect(text).toContain("GOOD MORNING");
-    expect(text).not.toMatch(/​/);
+    expect(text).not.toMatch(/\u200B/);
+    // Rich targets (Docs, Mail, Slack) read the HTML flavour.
+    const html = data.store["text/html"];
+    expect(html).toContain("GOOD MORNING");
+    expect(html).not.toMatch(/\u200B/);
   });
 });
 
@@ -162,31 +177,7 @@ describe("Esc from a toolbar picker (BB-E-15)", () => {
   });
 });
 
-describe("the template card (BB-E-16, BB-E-8)", () => {
-  it("shows a focus ring on the card while the template has focus", async () => {
-    renderEditor();
-    await editorOf();
-    const card = document.querySelector('[data-slot="template-card"]');
-    expect(card).not.toBeNull();
-    expect(card!.className).toMatch(/focus-within:ring-\[3px\]/);
-    expect(card!.className).toMatch(/focus-within:border-ring/);
-  });
-
-  it("keeps a long row inside the card, scrolling instead of spilling", async () => {
-    renderEditor();
-    await editorOf();
-    const scroller = document.querySelector('[data-slot="template-rows"]');
-    expect(scroller).not.toBeNull();
-    expect(scroller!.className).toMatch(/overflow-x-auto/);
-  });
-
-  it("never wraps a row of tiles: chip renderers inherit no-wrap", async () => {
-    renderEditor();
-    await editorOf();
-    const css = [...document.querySelectorAll("style")].map((s) => s.textContent ?? "").join("\n");
-    expect(css).toMatch(/\.ProseMirror \.react-renderer\s*\{[^}]*white-space:\s*nowrap/);
-  });
-});
+// BB-E-8 and BB-E-16 are layout: tests/layout/editor-touch.spec.ts "1280px template field".
 
 describe("Undo on an untouched page (BB-E-24)", () => {
   it("is disabled after the page fills the template in, until the user edits", async () => {

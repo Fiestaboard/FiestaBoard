@@ -5,8 +5,8 @@
  */
 "use client";
 
-import { closeHistory, undoDepth } from "@tiptap/pm/history";
-import type { Slice } from "@tiptap/pm/model";
+import { closeHistory, redoDepth, undoDepth } from "@tiptap/pm/history";
+import { Fragment, type Node as PMNode, Slice } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
 import { TextSelection } from "@tiptap/pm/state";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -139,6 +139,24 @@ function serializeSliceToTemplate(slice: Slice | null | undefined): string {
     console.warn("Error in serializeSliceToTemplate:", error);
     return "";
   }
+}
+
+/**
+ * A copied slice without the caret anchors (U+200B): ProseMirror writes both
+ * clipboard flavours from it, so rich targets (Docs, Mail, Slack) that read
+ * text/html get the template's text too, not invisible characters (BB-E-14).
+ */
+function stripCaretAnchors(fragment: Fragment): Fragment {
+  const nodes: PMNode[] = [];
+  fragment.forEach((node) => {
+    if (node.isText) {
+      const text = (node.text ?? "").replace(/\u200B/g, "");
+      if (text) nodes.push(node.type.schema.text(text, node.marks));
+      return;
+    }
+    nodes.push(node.copy(stripCaretAnchors(node.content)));
+  });
+  return Fragment.from(nodes);
 }
 
 interface TipTapTemplateEditorProps {
@@ -709,6 +727,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           // For other drops, let TipTap handle it
           return false;
         },
+        transformCopied: (slice) => new Slice(stripCaretAnchors(slice.content), slice.openStart, slice.openEnd),
         clipboardTextSerializer: (slice) => {
           // Serialize nodes to their template string format for clipboard
           try {
@@ -1110,7 +1129,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             // While the user has not edited, filling the template in (a new
             // page's rows, a loaded page) is not an undo step: Undo stays
             // disabled and cannot rewind the page to blank (BB-E-24).
-            const pristine = !editor.can().undo();
+            const pristine = undoDepth(editor.state) === 0 && redoDepth(editor.state) === 0;
             editor
               .chain()
               .command(({ tr }) => {
@@ -1142,6 +1161,9 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       if (!editor || !showToolbar) return;
       const onKeyDown = (event: KeyboardEvent) => {
         if (event.key !== "Escape") return;
+        // Touch and sheet pickers already hand focus back themselves (and
+        // refocusing the editor there would raise the keyboard).
+        if (window.matchMedia("(max-width: 767px), (pointer: coarse)").matches) return;
         const target = event.target instanceof Element ? event.target : null;
         const picker = target?.closest('[data-testid="toolbar-dropdown-panel"], [aria-expanded="true"]');
         if (!picker) return;
@@ -1391,7 +1413,10 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
               {/* Editor content */}
               {/* Rows stay one line each inside the card: a long row scrolls
                   here instead of running under the preview (BB-E-8). */}
-              <Box data-slot="template-rows" className="relative flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
+              <Box
+                data-slot="template-rows"
+                className="relative -m-[3px] min-w-0 flex-1 overflow-x-auto overflow-y-hidden p-[3px]"
+              >
                 <EditorContent editor={editor} />
               </Box>
             </Flex>
@@ -1564,8 +1589,9 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             white-space: nowrap;
           }
 
-          /* A chip's React renderer span must not reopen wrapping: rows of
-             colour tiles broke between tiles (BB-E-8). */
+          /* A chip's React renderer span is contenteditable=false, which
+             ProseMirror's own CSS sets to white-space: normal; that reopened
+             a break between tiles, so a row of colour tiles wrapped (BB-E-8). */
           .ProseMirror .react-renderer {
             white-space: nowrap;
           }

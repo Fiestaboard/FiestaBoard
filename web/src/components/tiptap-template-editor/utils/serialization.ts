@@ -374,6 +374,8 @@ export function parsePastedText(text: string): JSONContent[] {
   const nodes: JSONContent[] = [];
   text
     .replace(/\r\n?/g, "\n")
+    // A copied paragraph's closing line break is not a row of its own.
+    .replace(/\n$/, "")
     .split("\n")
     .forEach((line, index) => {
       if (index > 0) {
