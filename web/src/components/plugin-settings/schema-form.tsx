@@ -694,8 +694,17 @@ function NumberField(props: NumberFieldProps) {
   );
 }
 
-function BooleanField({ name, value, onChange, disabled }: FieldProps) {
-  return <Switch id={name} checked={Boolean(value)} onCheckedChange={onChange} disabled={disabled} />;
+function BooleanField({ name, value, onChange, disabled, describedBy, invalid }: FieldProps) {
+  return (
+    <Switch
+      id={name}
+      checked={Boolean(value)}
+      onCheckedChange={onChange}
+      disabled={disabled}
+      aria-describedby={describedBy}
+      aria-invalid={invalid || undefined}
+    />
+  );
 }
 
 interface ArrayFieldProps extends FieldProps {
@@ -1038,6 +1047,8 @@ function FormField({
           onChange={onChange}
           required={required}
           disabled={disabled}
+          describedBy={describedBy}
+          invalid={invalid}
         />
       );
     case "array":

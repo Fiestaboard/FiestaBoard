@@ -2630,7 +2630,6 @@
     "useInTemplates": "Använd i mallar:",
     "addMapping": "Lägg till mappning",
     "removeMapping": "Ta bort mappning",
-    "removeItem": "Ta bort objekt",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "Ta bort {label} {number}",
     "noSchemaProperties": "Inga schema-egenskaper definierade",

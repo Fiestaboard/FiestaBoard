@@ -2630,7 +2630,6 @@
     "useInTemplates": "Użyj w szablonach:",
     "addMapping": "Dodaj mapowanie",
     "removeMapping": "Usuń mapowanie",
-    "removeItem": "Usuń element",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "Usuń {label} {number}",
     "noSchemaProperties": "Nie zdefiniowano właściwości schematu",

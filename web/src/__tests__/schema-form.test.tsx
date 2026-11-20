@@ -805,3 +805,20 @@ describe("SchemaForm - field errors", () => {
     );
   });
 });
+
+describe("SchemaForm - a refused switch", () => {
+  it("marks a boolean field invalid and reads the message with it", () => {
+    const schema: JSONSchema = { type: "object", properties: { show_album: { type: "boolean", title: "Show Album" } } };
+    render(
+      <SchemaForm
+        schema={schema}
+        values={{ show_album: true }}
+        onChange={vi.fn()}
+        errors={{ show_album: ["Show Album needs a signed-in account"] }}
+      />,
+    );
+    const toggle = screen.getByRole("switch", { name: "Show Album" });
+    expect(toggle).toHaveAttribute("aria-invalid", "true");
+    expect(toggle).toHaveAccessibleDescription("Show Album needs a signed-in account");
+  });
+});

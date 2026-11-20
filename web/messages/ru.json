@@ -2630,7 +2630,6 @@
     "useInTemplates": "Использовать в шаблонах:",
     "addMapping": "Добавить сопоставление",
     "removeMapping": "Удалить сопоставление",
-    "removeItem": "Удалить элемент",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "Удалить {label} {number}",
     "noSchemaProperties": "Свойства схемы не определены",

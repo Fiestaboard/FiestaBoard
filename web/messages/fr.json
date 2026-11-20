@@ -2630,7 +2630,6 @@
     "useInTemplates": "Utiliser dans les modèles :",
     "addMapping": "Ajouter un mapping",
     "removeMapping": "Supprimer le mapping",
-    "removeItem": "Supprimer l'élément",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "Retirer {label} {number}",
     "noSchemaProperties": "Aucune propriété de schéma définie",

@@ -2557,7 +2557,6 @@
     "useInTemplates": "Use in templates:",
     "addMapping": "Add mapping",
     "removeMapping": "Remove mapping",
-    "removeItem": "Remove item",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "Remove {label} {number}",
     "noSchemaProperties": "No schema properties defined",

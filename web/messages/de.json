@@ -2630,7 +2630,6 @@
     "useInTemplates": "In Vorlagen verwenden:",
     "addMapping": "Zuordnung hinzufügen",
     "removeMapping": "Zuordnung entfernen",
-    "removeItem": "Element entfernen",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "{label} {number} entfernen",
     "noSchemaProperties": "Keine Schema-Eigenschaften definiert",

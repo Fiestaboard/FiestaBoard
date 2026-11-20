@@ -2630,7 +2630,6 @@
     "useInTemplates": "템플릿에서 사용:",
     "addMapping": "매핑 추가",
     "removeMapping": "매핑 제거",
-    "removeItem": "항목 제거",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "{label} {number} 삭제",
     "noSchemaProperties": "스키마 속성이 정의되지 않음",

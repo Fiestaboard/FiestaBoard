@@ -2630,7 +2630,6 @@
     "useInTemplates": "Gebruik in sjablonen:",
     "addMapping": "Mapping toevoegen",
     "removeMapping": "Mapping verwijderen",
-    "removeItem": "Item verwijderen",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "{label} {number} verwijderen",
     "noSchemaProperties": "Geen schema-eigenschappen gedefinieerd",

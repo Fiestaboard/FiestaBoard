@@ -2630,7 +2630,6 @@
     "useInTemplates": "在模板中使用:",
     "addMapping": "添加映射",
     "removeMapping": "移除映射",
-    "removeItem": "移除项目",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "删除 {label} {number}",
     "noSchemaProperties": "未定义架构属性",

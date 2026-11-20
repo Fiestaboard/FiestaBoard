@@ -1095,22 +1095,23 @@ function SortHeaderButton({
  * (BB-C-18). Rendered only on the full-page route inside a data router; the
  * desktop list-detail pane and jsdom tests without one have no blocker.
  */
-function UnsavedSettingsGuard({ dirty, saved }: { dirty: boolean; saved: RefObject<boolean> }) {
+function UnsavedSettingsGuard({ dirty, leaving }: { dirty: boolean; leaving: RefObject<boolean> }) {
   const t = useTranslations("integrations");
-  // `saved` is set just before Save Changes navigates away, in the same tick
-  // as the state that clears `dirty` — too soon for this render to see it.
+  // `leaving` is set just before a deliberate exit (Save Changes, a guided
+  // sign-in leaving for the provider, Uninstall), in the same tick as the
+  // state that clears `dirty` — too soon for this render to see it.
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      dirty && !saved.current && currentLocation.pathname !== nextLocation.pathname,
+      dirty && !leaving.current && currentLocation.pathname !== nextLocation.pathname,
   );
   useBeforeUnload(
     useCallback(
       (event: BeforeUnloadEvent) => {
-        if (!dirty) return;
+        if (!dirty || leaving.current) return;
         event.preventDefault();
         event.returnValue = "";
       },
-      [dirty],
+      [dirty, leaving],
     ),
   );
   return (
@@ -1177,7 +1178,9 @@ export function InstalledPluginRow({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const hasDataRouter = useContext(UNSAFE_DataRouterContext) != null;
-  const leavingAfterSave = useRef(false);
+  // Set before a deliberate exit so the guard lets it through; any new edit
+  // re-arms the guard.
+  const leaving = useRef(false);
   const [isCreatingDemo, setIsCreatingDemo] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
   const [showAddInstance, setShowAddInstance] = useState(false);
@@ -1255,6 +1258,7 @@ export function InstalledPluginRow({
 
   // An edit to a field the hub refused clears that field's message.
   const updateConfigValues = (next: Record<string, unknown>) => {
+    leaving.current = false;
     setConfigValues(next);
     setSaveError(null);
     setFieldErrors((current) => {
@@ -1290,6 +1294,9 @@ export function InstalledPluginRow({
   // open and lets the caller report a failure.
   const saveConfigForSignIn = async () => {
     await api.updatePluginConfig(plugin.id, configValues);
+    // Saved, and the sign-in is about to leave for the provider.
+    setSavedValues(configValues);
+    leaving.current = true;
     onConfigUpdate();
     queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
     queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
@@ -1307,7 +1314,7 @@ export function InstalledPluginRow({
       await api.updatePluginConfig(plugin.id, configValues);
       // Saved: leaving now must not ask about the edits just written.
       setSavedValues(configValues);
-      leavingAfterSave.current = true;
+      leaving.current = true;
       toast.success(t("toastConfigSaved", { pluginName: plugin.name }));
       onConfigUpdate();
       // The sheet's own details query. Without this the panel keeps serving the
@@ -1594,7 +1601,10 @@ export function InstalledPluginRow({
                   pluginId={plugin.id}
                   appFields={{
                     values: configValues,
-                    onChange: (key, value) => setConfigValues((current) => ({ ...current, [key]: value })),
+                    onChange: (key, value) => {
+                      leaving.current = false;
+                      setConfigValues((current) => ({ ...current, [key]: value }));
+                    },
                     save: saveConfigForSignIn,
                     setupGuideUrl,
                   }}
@@ -1694,6 +1704,8 @@ export function InstalledPluginRow({
                 className="sm:mr-auto"
                 size="sm"
                 onClick={() => {
+                  // Uninstalling discards the settings anyway: don't ask.
+                  leaving.current = true;
                   setIsConfigOpen(false);
                   onUninstall(plugin.id);
                 }}
@@ -1961,7 +1973,7 @@ export function InstalledPluginRow({
         )}
         {configContent}
       </Card>
-      {fullPage && hasDataRouter && <UnsavedSettingsGuard dirty={isDirty} saved={leavingAfterSave} />}
+      {fullPage && hasDataRouter && <UnsavedSettingsGuard dirty={isDirty} leaving={leaving} />}
     </Stack>
   );
   const configPanel = isConfigOpen && detailTarget ? createPortal(detailContent, detailTarget) : null;

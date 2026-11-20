@@ -2630,7 +2630,6 @@
     "useInTemplates": "テンプレートで使用:",
     "addMapping": "マッピングを追加",
     "removeMapping": "マッピングを削除",
-    "removeItem": "項目を削除",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "{label} {number} を削除",
     "noSchemaProperties": "スキーマプロパティが定義されていません",

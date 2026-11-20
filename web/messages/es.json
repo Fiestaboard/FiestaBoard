@@ -2630,7 +2630,6 @@
     "useInTemplates": "Uso en plantillas:",
     "addMapping": "Añadir mapeo",
     "removeMapping": "Eliminar mapeo",
-    "removeItem": "Eliminar elemento",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "Quitar {label} {number}",
     "noSchemaProperties": "No hay propiedades de esquema definidas",

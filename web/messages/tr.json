@@ -2630,7 +2630,6 @@
     "useInTemplates": "Şablonlarda kullan:",
     "addMapping": "Eşleme ekle",
     "removeMapping": "Eşlemeyi kaldır",
-    "removeItem": "Öğeyi kaldır",
     "itemLabel": "{label} {number}",
     "removeItemLabel": "{label} {number} öğesini kaldır",
     "noSchemaProperties": "Şema özellikleri tanımlanmadı",

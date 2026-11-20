@@ -9,7 +9,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -144,6 +144,11 @@ describe("Integration settings: saving", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/check the highlighted settings/i);
     expect(toast.error).not.toHaveBeenCalled();
     await waitFor(() => expect(interval).toHaveFocus());
+
+    // Editing the refused field clears its message and the alert.
+    await user.type(interval, "0");
+    expect(interval).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("asks before leaving with unsaved edits, and keeps them on Keep editing", async () => {
@@ -184,6 +189,78 @@ describe("Integration settings: saving", () => {
     });
     await waitFor(() => expect(router.state.location.pathname).toBe("/integrations"));
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("lets a guided sign-in leave for the provider without a Leave site? prompt", async () => {
+    // A plugin whose users bring their own OAuth app: the Client ID is typed in
+    // the Account panel, and Sign in saves it before leaving for the provider.
+    const music = { ...plugin, id: "music", name: "Music", base_plugin_id: "music", configured: false };
+    let detailReads = 0;
+    server.use(
+      http.get("/api/plugins", () =>
+        HttpResponse.json({ plugins: [music], total: 1, enabled_count: 1, plugin_system_enabled: true }),
+      ),
+      http.get("/api/v1/plugins/music", async () => {
+        // The post-save refetch is slow, so nothing but the save itself can
+        // clear the unsaved state before the browser leaves.
+        if (detailReads++ > 0) await delay(2000);
+        return HttpResponse.json({
+          ...music,
+          config: {},
+          settings_schema: { type: "object", properties: { client_id: { type: "string", title: "Client ID" } } },
+          variables: {},
+          env_vars: [],
+          has_demo: false,
+        });
+      }),
+      http.get("/api/v1/plugins/music/data", () => HttpResponse.json({ available: false, data: {} })),
+      http.patch("/api/v1/plugins/music", () => HttpResponse.json(music)),
+      http.post("/api/oauth/connections/music/authorize", () =>
+        HttpResponse.json({ flow: "relay", authorization_url: "https://accounts.example.com/a", device: null }),
+      ),
+      http.get("/api/oauth/connections", () =>
+        HttpResponse.json({
+          connections: [
+            {
+              id: "music",
+              plugin_id: "music",
+              instance_label: null,
+              plugin_name: "Music",
+              provider_name: "Example Music",
+              flows: ["relay"],
+              configured: false,
+              user_app: true,
+              shared_app: false,
+              client_id_setting: "client_id",
+              client_secret_setting: null,
+              app_setup_url: "",
+              status: "disconnected",
+              scopes: [],
+              expires_at: null,
+              connected_at: null,
+              device: null,
+            },
+          ],
+          redirect_uri: "https://fiestaboard.app/auth/oauth/redirect",
+        }),
+      ),
+    );
+    const prompted: boolean[] = [];
+    vi.stubGlobal("location", {
+      ...window.location,
+      origin: window.location.origin,
+      assign: vi.fn(() => {
+        const leaving = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(leaving);
+        prompted.push(leaving.defaultPrevented);
+      }),
+    });
+    const user = userEvent.setup();
+    renderAt("/integrations/music?from=installed");
+    await user.type(await screen.findByLabelText("Client ID"), "0123456789abcdef");
+    await user.click(screen.getByRole("button", { name: "Sign in with Example Music" }));
+    await waitFor(() => expect(prompted).toEqual([false]));
+    vi.unstubAllGlobals();
   });
 
   it("says Save Changes in the reader's language", async () => {
