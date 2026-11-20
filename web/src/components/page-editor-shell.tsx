@@ -28,7 +28,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
-import { ApiError } from "@/lib/api/core";
+import { cn } from "@/lib/utils";
 
 // The Creator IDE (web 2.11) only exists for a saved page; its chunk loads
 // with the editor route instead of the app shell.
@@ -86,14 +86,14 @@ export function PageEditorShell({
     if (blocker.state === "blocked") blocker.proceed();
   };
 
-  // The builder's own page query (shared cache, no second request): an unknown
-  // id gets the "doesn't exist" state and no IDE around it (BB-B-16).
-  const { error: pageError } = useQuery({
+  // Reads the builder's page query without fetching it itself (the builder
+  // owns the fetch): the Creator IDE mounts only around a page that loaded,
+  // never under "This page doesn't exist" or a page just deleted (BB-B-16, -27).
+  const { data: loadedPage } = useQuery({
     queryKey: ["page", pageId],
     queryFn: () => api.getPage(pageId!),
-    enabled: !!pageId,
+    enabled: false,
   });
-  const pageMissing = pageError instanceof ApiError && pageError.status === 404;
   const [explorerSlot, setExplorerSlot] = useState<HTMLElement | null>(null);
   const [saveActions, setSaveActions] = useState<SaveActionsRenderer | undefined>(undefined);
   const [savedTick, setSavedTick] = useState(0);
@@ -182,8 +182,11 @@ export function PageEditorShell({
         {pageId && <aside ref={setExplorerSlot} data-slot="ide-explorer-slot" className="contents" />}
         {/* No padding of its own: it sits in the Pages section's card, which
           already puts the editor on the content column. */}
-        {/* The end of the scroll area clears the fixed touch toolbar (BB-B-29). */}
-        <Stack className="h-full w-full min-w-0 flex-1 overflow-y-auto max-md:pb-20 pointer-coarse:pb-20">
+        {/* The end of the scroll area clears the fixed touch toolbar (BB-B-29).
+            With the IDE below the builder, its own bottom padding already does. */}
+        <Stack
+          className={cn("h-full w-full min-w-0 flex-1 overflow-y-auto", !pageId && "max-md:pb-20 pointer-coarse:pb-20")}
+        >
           <PageBuilder
             embedded
             ref={builderRef}
@@ -195,7 +198,7 @@ export function PageEditorShell({
             onSave={handleSave}
             saveActions={saveActions}
           />
-          {pageId && !pageMissing && (
+          {pageId && loadedPage && (
             <Suspense fallback={null}>
               <CreatorIde
                 pageId={pageId}

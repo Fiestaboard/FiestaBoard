@@ -1309,6 +1309,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     queryKey: ["page", pageId],
     queryFn: () => api.getPage(pageId!),
     enabled: !!pageId && !pageDeleted,
+    // A page that isn't there won't appear on a retry: show the missing state
+    // at once instead of after the app's retries (BB-B-16).
+    retry: (failures, error) => !(error instanceof ApiError && error.status === 404) && failures < 2,
   });
 
   // Transition plugins (beta, deprecated): offered only while the flag is on,

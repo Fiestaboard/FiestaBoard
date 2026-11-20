@@ -159,10 +159,20 @@ describe("FormulaCodeCard", () => {
 
   // BB-B-13: the docked editor opens under the preview, often below the fold;
   // opening a chip brings it into view as well as focusing it.
-  it("scrolls the opened formula into view", () => {
-    const scroll = vi.fn();
-    Element.prototype.scrollIntoView = scroll;
-    wrap(<Workbench card={(p) => <FormulaCodeCard {...p} />} initial={opened({ tab: "code", expression: "1 / 0" })} />);
-    expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
+  it("scrolls the whole opened formula card into view", () => {
+    const original = Element.prototype.scrollIntoView;
+    const scrolled: Element[] = [];
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      wrap(
+        <Workbench card={(p) => <FormulaCodeCard {...p} />} initial={opened({ tab: "code", expression: "1 / 0" })} />,
+      );
+      // The card, with its validation line and Update / Cancel, not just the one-line editor.
+      expect(scrolled).toContain(screen.getByTestId("formula-code-card"));
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
   });
 });

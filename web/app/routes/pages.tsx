@@ -29,7 +29,7 @@ export function PagesSection({ children }: { children: React.ReactNode }) {
   const tCommon = useTranslations("common");
   const tBuilder = useTranslations("pageBuilder");
   const openId = useOpenPageId();
-  const { data, isLoading } = usePages();
+  const { data, isLoading, isFetching } = usePages();
 
   const page = openId && openId !== "new" ? data?.pages.find((p) => p.id === openId) : undefined;
   const detail = openId
@@ -39,7 +39,7 @@ export function PagesSection({ children }: { children: React.ReactNode }) {
         title:
           openId === "new"
             ? t("newPage")
-            : (page?.name ?? (isLoading ? tCommon("loading") : tBuilder("pageNotFoundTitle"))),
+            : (page?.name ?? (isLoading || isFetching ? tCommon("loading") : tBuilder("pageNotFoundTitle"))),
       }
     : null;
 

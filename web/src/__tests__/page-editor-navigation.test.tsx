@@ -249,3 +249,33 @@ it("says an unknown page doesn't exist and offers the way back", async () => {
   await user.click(screen.getAllByRole("button", { name: "Back to Pages" }).at(-1)!);
   expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
 });
+
+// BB-B-16: the missing state shows at once; a 404 is not retried like a
+// network blip (the app retries failed queries twice).
+it("does not retry a page that isn't there", async () => {
+  let gets = 0;
+  server.use(
+    http.get("/api/v1/pages/page-1", () => {
+      gets += 1;
+      return HttpResponse.json({ detail: "Page not found" }, { status: 404 });
+    }),
+  );
+  const router = createMemoryRouter([{ path: "/pages/edit/:id", element: <EditPageClient pageId="page-1" /> }], {
+    initialEntries: ["/pages/edit/page-1"],
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: 2, retryDelay: 1 } } });
+  render(
+    <QueryClientProvider client={client}>
+      <ConfigOverridesProvider>
+        <ThemeProvider attribute="class" defaultTheme="light">
+          <PageEditorBridgeProvider>
+            <RouterProvider router={router} />
+          </PageEditorBridgeProvider>
+        </ThemeProvider>
+      </ConfigOverridesProvider>
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByRole("heading", { name: "This page doesn’t exist" })).toBeInTheDocument();
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(gets).toBe(1);
+});
