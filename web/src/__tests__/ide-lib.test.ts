@@ -296,8 +296,24 @@ describe("template references", () => {
     expect(refs.variables).toEqual([
       { line: 2, text: "muni.next" },
       { line: 2, text: "weather.temperature" },
+      { line: 3, text: "muni.alert" },
     ]);
     expect(refs.formulas.map((f) => f.line)).toEqual([1, 3]);
     expect(refs.fallbacks).toEqual([{ line: 3, text: 'DEFAULT(muni.alert, "OK")' }]);
+  });
+
+  it("lists the data a formula reads, not its strings, numbers or loop locals (BB-B-2)", async () => {
+    const { templateReferences } = await import("@/lib/ide/references");
+    const refs = templateReferences([
+      "{{= missing.value }}",
+      '{{= IFERROR(nope.x, "FALLBACK") }} {{= "a.b" & 18.5 }}',
+      '{{= FOREACH(transit.stops, item.eta & " " & item.name) }} {{= missing.value }}',
+    ]);
+    expect(refs.variables).toEqual([
+      { line: 1, text: "missing.value" },
+      { line: 2, text: "nope.x" },
+      { line: 3, text: "transit.stops" },
+      { line: 3, text: "missing.value" },
+    ]);
   });
 });

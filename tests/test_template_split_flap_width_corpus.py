@@ -9,6 +9,9 @@ was first recorded BEFORE rendered-width measuring existed, and re-recorded
 once for the split-flap extended-markup flip (plan Task 12): only the cases
 whose line holds a shortcut or extended markup changed (6 of 32 lines); the
 520 cases on the other 26 lines are byte-identical to the first recording.
+The formula line's ``max_line_length`` was re-recorded once more when a
+formula began to be measured by its value instead of the board width
+(BB-B-1: 31/45 became 9/9); nothing else changed.
 Any other change to what a split-flap board receives fails here.
 
 Re-recording: ``RECORD_WIDTH_GOLDEN=1 pytest tests/test_template_split_flap_width_corpus.py``.

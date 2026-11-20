@@ -14,10 +14,22 @@ export interface TemplateReferences {
 
 const TAG = /\{\{\s*([^}]*?)\s*\}\}/g;
 const VARIABLE = /^([a-z0-9_]+\.[a-z0-9_.[\]]+)/i;
+/** A quoted string in a formula (`""` escapes a quote), which reads no data. */
+const FORMULA_STRING = /"(?:[^"]|"")*"/g;
+/** A dotted path in a formula: `plugin.field`, never a number like `18.5`. */
+const FORMULA_PATH = /(?<![\w.])([a-z_][a-z0-9_]*(?:\.[a-z0-9_]+)+)/gi;
+/** FOREACH's loop locals, which name the current item, not a data source. */
+const LOOP_LOCALS = new Set(["item", "index"]);
+
+/** The plugin paths a formula reads, in order, once each. */
+function formulaPaths(expression: string): string[] {
+  const paths = [...expression.replace(FORMULA_STRING, '""').matchAll(FORMULA_PATH)].map((m) => m[1]);
+  return [...new Set(paths.filter((path) => !LOOP_LOCALS.has(path.split(".")[0].toLowerCase())))];
+}
 
 /**
  * What a template reads (Inspector Data and Logic tabs): `{{plugin.field|…}}`
- * variables and `{{= …}}` formulas, each with its line. Colors and
+ * variables, the paths a formula reads, and `{{= …}}` formulas, each with its line. Colors and
  * formatting tags (`{{red}}`, `{{fill_space}}`) are neither.
  */
 export function templateReferences(template: readonly string[]): TemplateReferences {
@@ -29,6 +41,8 @@ export function templateReferences(template: readonly string[]): TemplateReferen
       if (body.startsWith("=")) {
         const expression = body.slice(1).trim();
         if (expression) formulas.push({ line: index + 1, text: expression });
+        // A formula's reads are data the page reads too (BB-B-2).
+        for (const path of formulaPaths(expression)) variables.push({ line: index + 1, text: path });
         continue;
       }
       const variable = VARIABLE.exec(body);
