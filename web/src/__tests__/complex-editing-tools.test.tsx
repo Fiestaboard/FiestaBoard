@@ -269,6 +269,31 @@ describe("LineOverflowWarnings", () => {
     expect(onWrap).toHaveBeenCalledWith(4);
   });
 
+  it("reports several cut lines in one card, not one card per line (BB-E-10)", async () => {
+    const onWrap = vi.fn();
+    const { container } = render(
+      <LineOverflowWarnings
+        overflows={[
+          { line: 1, columns: 63, maxColumns: 22, cut: 41 },
+          { line: 2, columns: 34, maxColumns: 22, cut: 12 },
+          { line: 3, columns: 51, maxColumns: 22, cut: 29 },
+        ]}
+        boardName="Kitchen"
+        checkedAt={new Date(2026, 10, 17, 18, 5)}
+        touch={false}
+        wrapped={[false, true, false]}
+        onWrap={onWrap}
+      />,
+    );
+    expect(container.querySelectorAll('[data-slot="editor-warning"]')).toHaveLength(1);
+    expect(screen.getAllByText(/Checked by the hub/)).toHaveLength(1);
+    expect(screen.getByText("63 of 22 columns · 41 cut off")).toBeInTheDocument();
+    expect(screen.getByText("Also cut off: Line 2, Line 3")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Wrap line 2" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Wrap line 3" }));
+    expect(onWrap).toHaveBeenCalledWith(3);
+  });
+
   it("drops the wrap action once the line wraps, and renders nothing without overflow", () => {
     const { rerender, container } = render(
       <LineOverflowWarnings

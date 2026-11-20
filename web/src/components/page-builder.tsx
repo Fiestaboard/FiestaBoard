@@ -163,7 +163,7 @@ import { appUrl } from "@/lib/base-path";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
 import { charsetTokenText, drawnDifferently } from "@/lib/charset-issues";
-import { seamStraddles } from "@/lib/complex-editing";
+import { seamStraddles, usedLineCount } from "@/lib/complex-editing";
 import { focusTemplateCell } from "@/lib/complex-editing-dom";
 import { boardForShape, isLedModel, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
 import {
@@ -1098,8 +1098,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, []);
 
   // Derive line count from templateLines — single source of truth avoids
-  // desync when switching between Rich and Plain Text editors.
-  const lineCount = templateLines.length;
+  // desync when switching between Rich and Plain Text editors. Blank rows
+  // after the last line with content are a smaller board's padding (BB-E-18).
+  const lineCount = usedLineCount(templateLines);
 
   // Live output mode state
   const [liveOutputEnabled, setLiveOutputEnabled] = useState(false);
@@ -3454,8 +3455,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       </Stack>
                     )}
 
-                    {/* Line count validation warning */}
-                    {lineCount > numLines && (
+                    {/* Line count warning, only where the editor's own caption is
+                    replaced; elsewhere the caption already says it (BB-E-10). */}
+                    {lineCount > numLines && baselineDisplay && (
                       <Flex
                         align="start"
                         gap="2"
