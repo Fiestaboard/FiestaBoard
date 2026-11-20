@@ -1,18 +1,22 @@
 import {
   Box,
+  Button,
+  Flex,
+  Heading,
   PageCard,
   PageHeader,
   PageLayout,
   PageOutlet,
   PageSubheader,
   type PageSubheaderDetail,
+  Stack,
 } from "@fiestaboard/ui";
-import type { LucideIcon } from "lucide-react";
+import { ChevronLeft, type LucideIcon } from "lucide-react";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import Link from "@/components/smart-link";
-import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
+import { RAIL_BREAKPOINT, useBelowRail } from "@/hooks/use-below-rail";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -40,6 +44,12 @@ interface SectionShellProps {
   detail: SectionDetail | null;
   /** Pin the card to the viewport so the body can scroll inside it (the page editor). */
   fill?: boolean;
+  /**
+   * On a phone, drop the card and the section description: the list is the
+   * title with its action beside it, and an item is "‹ <section>" over its
+   * name (07d `320:17086`, `328:27519`; BB-A-19, BB-A-24).
+   */
+  compactOnPhone?: boolean;
   /** The route outlet. */
   children: React.ReactNode;
 }
@@ -60,8 +70,19 @@ const ActionSlot = createContext<HTMLElement | null | undefined>(undefined);
  * item known on the first render is what lets a deep link land open, without
  * an animation and without taking focus.
  */
-export function SectionShell({ icon, title, description, href, action, detail, fill, children }: SectionShellProps) {
+export function SectionShell({
+  icon,
+  title,
+  description,
+  href,
+  action,
+  detail,
+  fill,
+  compactOnPhone,
+  children,
+}: SectionShellProps) {
   const t = useTranslations("common");
+  const phone = useBelowRail();
   const pathname = usePathname();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
 
@@ -99,6 +120,37 @@ export function SectionShell({ icon, title, description, href, action, detail, f
     );
     (byId ?? byHref)?.focus({ preventScroll: true });
   }, [detail, pathname]);
+
+  if (compactOnPhone && phone) {
+    return (
+      <PageLayout railBreakpoint={RAIL_BREAKPOINT} fillHeight={fill}>
+        {detail ? (
+          <Stack gap="1" className="mb-3">
+            <Button asChild variant="ghost" size="touch" className="-ms-4 self-start gap-1 px-3">
+              <Link href={detail.backHref ?? href}>
+                <ChevronLeft className="size-4" aria-hidden="true" />
+                {title}
+              </Link>
+            </Button>
+            <Heading level={1} size="2xl">
+              {detail.title}
+            </Heading>
+          </Stack>
+        ) : (
+          <Flex align="center" justify="between" gap="3" className="mb-4">
+            <Heading level={1} size="2xl">
+              {title}
+            </Heading>
+            {action}
+          </Flex>
+        )}
+        {/* No slot: a detail page's own actions render in place. */}
+        <PageOutlet key={pathname} fill={fill}>
+          {children}
+        </PageOutlet>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout railBreakpoint={RAIL_BREAKPOINT} fillHeight={fill}>

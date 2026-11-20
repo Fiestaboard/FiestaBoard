@@ -1825,6 +1825,7 @@
     "pauseLabel": "暂停 {name}",
     "resumeLabel": "继续 {name}",
     "notFound": "此显示设备已不存在。",
+    "notFoundTitle": "找不到显示屏",
     "previewTitle": "当前显示",
     "settingsTitle": "设置",
     "transition": {

@@ -1825,6 +1825,7 @@
     "pauseLabel": "Pausar {name}",
     "resumeLabel": "Retomar {name}",
     "notFound": "Este ecrã já não existe.",
+    "notFoundTitle": "Tela não encontrada",
     "previewTitle": "Em exibição agora",
     "settingsTitle": "Configurações",
     "transition": {

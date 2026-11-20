@@ -1825,6 +1825,7 @@
     "pauseLabel": "Приостановить: {name}",
     "resumeLabel": "Возобновить: {name}",
     "notFound": "Этого дисплея больше нет.",
+    "notFoundTitle": "Дисплей не найден",
     "previewTitle": "Сейчас на экране",
     "settingsTitle": "Настройки",
     "transition": {

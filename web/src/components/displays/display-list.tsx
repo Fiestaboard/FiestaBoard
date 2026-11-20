@@ -206,7 +206,7 @@ export function DisplayList({
                               as="span"
                               size={compact ? "xs" : "sm"}
                               tone="muted"
-                              className={compact ? (override ? "block" : "block truncate") : undefined}
+                              className={compact ? (override || phone ? "block" : "block truncate") : undefined}
                               title={compact ? compactCause : cause}
                             >
                               {compact ? compactCause : cause}

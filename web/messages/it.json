@@ -1825,6 +1825,7 @@
     "pauseLabel": "Metti in pausa {name}",
     "resumeLabel": "Riprendi {name}",
     "notFound": "Questo schermo non esiste più.",
+    "notFoundTitle": "Display non trovato",
     "previewTitle": "In mostra ora",
     "settingsTitle": "Impostazioni",
     "transition": {

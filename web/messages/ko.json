@@ -1825,6 +1825,7 @@
     "pauseLabel": "{name} 일시 중지",
     "resumeLabel": "{name} 재개",
     "notFound": "이 디스플레이는 더 이상 존재하지 않습니다.",
+    "notFoundTitle": "디스플레이를 찾을 수 없습니다",
     "previewTitle": "현재 표시 중",
     "settingsTitle": "설정",
     "transition": {

@@ -592,6 +592,25 @@ describe("/displays/:boardId", () => {
     expect(await screen.findByTestId("display-not-found")).toBeInTheDocument();
   });
 
+  // BB-A-20: an unknown id is named as not found (never shown as the title),
+  // with the ways forward.
+  it("titles an unknown display 'Display not found' and offers Back and Add", async () => {
+    setup([KITCHEN]);
+    params.boardId = "does-not-exist";
+    renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    const notFound = await screen.findByTestId("display-not-found");
+    expect(screen.getByRole("heading", { name: "Display not found" })).toBeInTheDocument();
+    expect(screen.queryByText("does-not-exist")).not.toBeInTheDocument();
+    expect(within(notFound).getByText("This display doesn’t exist anymore.")).toBeInTheDocument();
+    expect(within(notFound).getByRole("link", { name: "Back to Displays" })).toHaveAttribute("href", "/displays");
+    await userEvent.click(within(notFound).getByRole("button", { name: /Add a display/ }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
   it("a split-flap selector offers None and the strategies its output animates", async () => {
     setup([KITCHEN]);
     params.boardId = "kitchen";
@@ -817,5 +836,56 @@ describe("/displays/:boardId", () => {
     expect(within(panel).queryByDisplayValue("Bedroom")).not.toBeInTheDocument();
     // New panels come from Add a display, not from a panel's page.
     expect(within(panel).queryByRole("button", { name: "Create panel" })).not.toBeInTheDocument();
+  });
+});
+
+// 07d `320:17086` / `328:27519` on a phone (BB-A-19, BB-A-24): no card around
+// the section, no section description; the list is "Displays" with Add display
+// beside it; a display is "‹ Displays", its name, then the tabs — one way back.
+describe("Displays on a phone", () => {
+  function asPhone() {
+    const media = originalMatchMedia("");
+    window.matchMedia = vi.fn((query) => ({
+      ...media,
+      media: query,
+      matches: query.includes("max-width: 1023.98px") || query.includes("max-width: 767.98px"),
+    }));
+  }
+
+  it("draws the list without a card or description, causes whole", async () => {
+    asPhone();
+    setup([KITCHEN, TV]);
+    server.use(http.get(`${API}/auth/sessions`, () => HttpResponse.json({ sessions: [], total: 0 })));
+    const { container } = renderWith(
+      <DisplaysSection>
+        <DisplaysPage />
+      </DisplaysSection>,
+    );
+    expect(await screen.findByRole("heading", { level: 1, name: "Displays" })).toBeInTheDocument();
+    expect(container.querySelector('[data-slot="page-card"]')).toBeNull();
+    expect(screen.queryByText(/Every board and screen FiestaBoard shows on/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("add-display")).toBeInTheDocument();
+    // Status words stay body ink: the kit keeps warning colour off text (AA).
+    expect(await screen.findByText("No viewer")).toHaveClass("text-foreground");
+    const cause = await screen.findByText("No signed-in TV is showing this display");
+    expect(cause.className).not.toMatch(/\btruncate\b/);
+  });
+
+  it("opens a display with one way back, its name, then the tabs", async () => {
+    asPhone();
+    setup([KITCHEN]);
+    params.boardId = "kitchen";
+    renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    const back = await screen.findByRole("link", { name: "Displays" });
+    expect(back).toHaveAttribute("href", "/displays");
+    expect(await screen.findByRole("heading", { level: 1, name: "Kitchen" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Back to Displays" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Now showing" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "Overview" })).toBeInTheDocument();
   });
 });
