@@ -1087,7 +1087,8 @@
       },
       "addModel": "Dodaj model",
       "refreshModels": "Odśwież modele",
-      "promptDestination": "Prompty są wysyłane do {destination}"
+      "promptDestination": "Prompty są wysyłane do {destination}",
+      "savedToast": "Zapisano ustawienia dostawcy AI."
     },
     "backup": {
       "cardTitle": "Kopia zapasowa i przywracanie",
@@ -1100,7 +1101,18 @@
       "confirmTitle": "Zastąpić bieżącą konfigurację?",
       "confirmDescription": "Zaraz przywrócisz plik <file></file>. Twoje istniejące strony, karuzele, harmonogramy i konfiguracja zostaną nadpisane. Obok każdego nowego pliku zachowywana jest kopia istniejącego z sygnaturą czasową, więc w razie potrzeby możesz ręcznie cofnąć zmiany.",
       "restoringButton": "Przywracanie…",
-      "restoreButton": "Przywróć kopię zapasową"
+      "restoreButton": "Przywróć kopię zapasową",
+      "exportDone": "Kopia zapasowa pobrana.",
+      "exportUnreachable": "Nie można połączyć się z hubem — kopia zapasowa nie została pobrana.",
+      "exportFailed": "Kopia zapasowa nie została pobrana: {error}",
+      "importFailed": "Import nie powiódł się: {error}",
+      "readFailed": "Nie można odczytać pliku: {error}",
+      "invalidJson": "Plik nie jest prawidłowym JSON-em: {error}",
+      "notABackup": "To nie wygląda na plik kopii zapasowej FiestaBoard.",
+      "restoredFiles": "Przywrócono {count, plural, one {# plik} few {# pliki} many {# plików} other {# pliku}}.",
+      "reinstalledPlugins": "Ponownie zainstalowano {count, plural, one {# wtyczkę} few {# wtyczki} many {# wtyczek} other {# wtyczki}}.",
+      "pluginsFailed": "Nie udało się ponownie zainstalować: {count, plural, one {# wtyczka} few {# wtyczki} many {# wtyczek} other {# wtyczki}} — zainstaluj ręcznie.",
+      "manualReinstall": "Wtyczki zewnętrzne do ręcznej ponownej instalacji w Integracjach ({count}): {names}"
     },
     "groupIdentity": "Instancja",
     "groupAppearance": "Wygląd i dostępność",

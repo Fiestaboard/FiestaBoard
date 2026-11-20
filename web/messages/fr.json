@@ -1087,7 +1087,8 @@
       },
       "addModel": "Ajouter un modèle",
       "refreshModels": "Actualiser les modèles",
-      "promptDestination": "Les requêtes sont envoyées à {destination}"
+      "promptDestination": "Les requêtes sont envoyées à {destination}",
+      "savedToast": "Paramètres du fournisseur d’IA enregistrés."
     },
     "backup": {
       "cardTitle": "Sauvegarde et restauration",
@@ -1100,7 +1101,18 @@
       "confirmTitle": "Remplacer la configuration actuelle ?",
       "confirmDescription": "Vous êtes sur le point de restaurer <file></file>. Vos pages, carrousels, planifications et configuration actuels seront écrasés. Une copie horodatée de chaque fichier existant est conservée à côté du nouveau, pour pouvoir revenir en arrière manuellement si nécessaire.",
       "restoringButton": "Restauration…",
-      "restoreButton": "Restaurer la sauvegarde"
+      "restoreButton": "Restaurer la sauvegarde",
+      "exportDone": "Sauvegarde téléchargée.",
+      "exportUnreachable": "Impossible de joindre le hub — sauvegarde non téléchargée.",
+      "exportFailed": "Sauvegarde non téléchargée : {error}",
+      "importFailed": "Échec de l’importation : {error}",
+      "readFailed": "Impossible de lire le fichier : {error}",
+      "invalidJson": "Le fichier n’est pas un JSON valide : {error}",
+      "notABackup": "Ce fichier ne ressemble pas à une sauvegarde FiestaBoard.",
+      "restoredFiles": "{count, plural, one {# fichier restauré} other {# fichiers restaurés}}.",
+      "reinstalledPlugins": "{count, plural, one {# plugin réinstallé} other {# plugins réinstallés}}.",
+      "pluginsFailed": "{count, plural, one {# plugin n’a pas pu} other {# plugins n’ont pas pu}} être réinstallé(s) — installez-les manuellement.",
+      "manualReinstall": "{count, plural, one {# plugin externe doit} other {# plugins externes doivent}} être réinstallé(s) manuellement depuis Intégrations : {names}"
     },
     "groupIdentity": "Instance",
     "groupAppearance": "Apparence et accessibilité",

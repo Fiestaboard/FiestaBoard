@@ -1087,7 +1087,8 @@
       },
       "addModel": "Añadir un modelo",
       "refreshModels": "Actualizar modelos",
-      "promptDestination": "Las instrucciones se envían a {destination}"
+      "promptDestination": "Las instrucciones se envían a {destination}",
+      "savedToast": "Ajustes del proveedor de IA guardados."
     },
     "backup": {
       "cardTitle": "Copia de seguridad y restauración",
@@ -1100,7 +1101,18 @@
       "confirmTitle": "¿Reemplazar la configuración actual?",
       "confirmDescription": "Estás a punto de restaurar <file></file>. Tus páginas, carruseles, horarios y configuración actuales se sobrescribirán. Se conserva una copia con marca de tiempo de cada archivo existente junto al nuevo, para que puedas revertir manualmente si hace falta.",
       "restoringButton": "Restaurando…",
-      "restoreButton": "Restaurar copia de seguridad"
+      "restoreButton": "Restaurar copia de seguridad",
+      "exportDone": "Copia de seguridad descargada.",
+      "exportUnreachable": "No se puede conectar con el hub: la copia de seguridad no se descargó.",
+      "exportFailed": "No se descargó la copia de seguridad: {error}",
+      "importFailed": "Error al importar: {error}",
+      "readFailed": "No se pudo leer el archivo: {error}",
+      "invalidJson": "El archivo no es un JSON válido: {error}",
+      "notABackup": "Esto no parece un archivo de copia de seguridad de FiestaBoard.",
+      "restoredFiles": "{count, plural, one {# archivo restaurado} other {# archivos restaurados}}.",
+      "reinstalledPlugins": "{count, plural, one {# plugin reinstalado} other {# plugins reinstalados}}.",
+      "pluginsFailed": "No se pudo reinstalar {count, plural, one {# plugin} other {# plugins}}: instálalos manualmente.",
+      "manualReinstall": "{count, plural, one {# plugin externo debe} other {# plugins externos deben}} reinstalarse manualmente desde Integraciones: {names}"
     },
     "groupIdentity": "Instancia",
     "groupAppearance": "Apariencia y accesibilidad",

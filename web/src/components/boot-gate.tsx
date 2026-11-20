@@ -28,6 +28,15 @@ const ERROR_TIMEOUT_MS = 30_000;
 const POST_UPDATE_ERROR_TIMEOUT_MS = 120_000;
 
 /**
+ * A hub that is starting still answers (nginx returns 502/503 until the API
+ * is up); a hub that is off or unreachable does not answer at all and the
+ * fetch itself fails. After this many failed connections in a row (one poll
+ * apart, so a single blip is forgiven) the hub is unreachable, not starting:
+ * show that at once instead of 30 s of "Waiting to start…" (BB-C-8).
+ */
+const UNREACHABLE_AFTER_FAILED_CONNECTIONS = 2;
+
+/**
  * Gates the main UI behind an API availability check on boot.
  *
  * - If the API responds within SHOW_SPLASH_DELAY_MS → no splash ever shown.
@@ -46,6 +55,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
   const [hasConnected, setHasConnected] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const [failedConnections, setFailedConnections] = useState(0);
   const online = useOnline();
 
   const { data } = useQuery({
@@ -54,7 +64,14 @@ export function BootGate({ children }: { children: React.ReactNode }) {
     // clears even on a fresh install where /status would 409 with
     // "setup required" until the admin creates the first account.
     queryFn: async () => {
-      const res = await fetch(apiUrl("/health"), { credentials: "include" });
+      let res: Response;
+      try {
+        res = await fetch(apiUrl("/health"), { credentials: "include" });
+      } catch (err) {
+        setFailedConnections((n) => n + 1);
+        throw err;
+      }
+      setFailedConnections(0);
       if (!res.ok) throw new Error(`health: ${res.status}`);
       return res.json();
     },
@@ -106,7 +123,8 @@ export function BootGate({ children }: { children: React.ReactNode }) {
   // instead of "Waiting to start…": it is this device, not the hub (WEB-16).
   // After an ordinary cold-boot timeout, name the unreachable hub and retain
   // the last-known board. Updates keep their longer, update-specific flow.
-  if (!online || (timedOut && !awaitingPostUpdateBoot)) {
+  const unreachable = timedOut || failedConnections >= UNREACHABLE_AFTER_FAILED_CONNECTIONS;
+  if (!online || (unreachable && !awaitingPostUpdateBoot)) {
     return (
       <Flex role="main" direction="col" className="fixed inset-0 z-[200] overflow-y-auto bg-background">
         <OfflineScreen

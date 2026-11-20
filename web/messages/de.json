@@ -1087,7 +1087,8 @@
       },
       "addModel": "Modell hinzufügen",
       "refreshModels": "Modelle aktualisieren",
-      "promptDestination": "Prompts werden an {destination} gesendet"
+      "promptDestination": "Prompts werden an {destination} gesendet",
+      "savedToast": "KI-Anbieter-Einstellungen gespeichert."
     },
     "backup": {
       "cardTitle": "Sicherung & Wiederherstellung",
@@ -1100,7 +1101,18 @@
       "confirmTitle": "Aktuelle Konfiguration ersetzen?",
       "confirmDescription": "Sie sind dabei, <file></file> wiederherzustellen. Ihre vorhandenen Seiten, Karussells, Zeitpläne und Konfiguration werden überschrieben. Von jeder vorhandenen Datei wird eine Kopie mit Zeitstempel neben der neuen aufbewahrt, sodass Sie bei Bedarf manuell zurückkehren können.",
       "restoringButton": "Wird wiederhergestellt…",
-      "restoreButton": "Sicherung wiederherstellen"
+      "restoreButton": "Sicherung wiederherstellen",
+      "exportDone": "Sicherung heruntergeladen.",
+      "exportUnreachable": "Hub nicht erreichbar – Sicherung nicht heruntergeladen.",
+      "exportFailed": "Sicherung nicht heruntergeladen: {error}",
+      "importFailed": "Import fehlgeschlagen: {error}",
+      "readFailed": "Die Datei konnte nicht gelesen werden: {error}",
+      "invalidJson": "Die Datei ist kein gültiges JSON: {error}",
+      "notABackup": "Das sieht nicht nach einer FiestaBoard-Sicherungsdatei aus.",
+      "restoredFiles": "{count, plural, one {# Datei} other {# Dateien}} wiederhergestellt.",
+      "reinstalledPlugins": "{count, plural, one {# Plugin} other {# Plugins}} neu installiert.",
+      "pluginsFailed": "{count, plural, one {# Plugin konnte} other {# Plugins konnten}} nicht neu installiert werden – bitte manuell installieren.",
+      "manualReinstall": "{count, plural, one {# externes Plugin muss} other {# externe Plugins müssen}} manuell über Integrationen neu installiert werden: {names}"
     },
     "groupIdentity": "Instanz",
     "groupAppearance": "Darstellung und Barrierefreiheit",

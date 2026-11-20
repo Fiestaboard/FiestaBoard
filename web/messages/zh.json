@@ -1087,7 +1087,8 @@
       },
       "addModel": "添加模型",
       "refreshModels": "刷新模型",
-      "promptDestination": "提示词发送至 {destination}"
+      "promptDestination": "提示词发送至 {destination}",
+      "savedToast": "AI 提供商设置已保存。"
     },
     "backup": {
       "cardTitle": "备份与恢复",
@@ -1100,7 +1101,18 @@
       "confirmTitle": "替换当前配置？",
       "confirmDescription": "您即将恢复 <file></file>。您现有的页面、轮播、日程和配置将被覆盖。每个现有文件都会保留一份带时间戳的副本，与新文件放在一起，必要时可手动回滚。",
       "restoringButton": "恢复中…",
-      "restoreButton": "恢复备份"
+      "restoreButton": "恢复备份",
+      "exportDone": "备份已下载。",
+      "exportUnreachable": "无法连接到中枢 — 备份未下载。",
+      "exportFailed": "备份未下载：{error}",
+      "importFailed": "导入失败：{error}",
+      "readFailed": "无法读取文件：{error}",
+      "invalidJson": "文件不是有效的 JSON：{error}",
+      "notABackup": "这看起来不是 FiestaBoard 备份文件。",
+      "restoredFiles": "已恢复 {count} 个文件。",
+      "reinstalledPlugins": "已重新安装 {count} 个插件。",
+      "pluginsFailed": "{count} 个插件无法重新安装 — 请手动安装。",
+      "manualReinstall": "{count} 个外部插件需要在“集成”中手动重新安装：{names}"
     },
     "groupIdentity": "实例",
     "groupAppearance": "外观与无障碍",

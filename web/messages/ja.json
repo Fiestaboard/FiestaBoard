@@ -1087,7 +1087,8 @@
       },
       "addModel": "モデルを追加",
       "refreshModels": "モデルを更新",
-      "promptDestination": "プロンプトの送信先: {destination}"
+      "promptDestination": "プロンプトの送信先: {destination}",
+      "savedToast": "AI プロバイダーの設定を保存しました。"
     },
     "backup": {
       "cardTitle": "バックアップと復元",
@@ -1100,7 +1101,18 @@
       "confirmTitle": "現在の設定を置き換えますか？",
       "confirmDescription": "<file></file> を復元しようとしています。既存のページ、カルーセル、スケジュール、設定は上書きされます。既存の各ファイルはタイムスタンプ付きのコピーが新しいファイルと並べて保持されるため、必要に応じて手動で元に戻せます。",
       "restoringButton": "復元中…",
-      "restoreButton": "バックアップを復元"
+      "restoreButton": "バックアップを復元",
+      "exportDone": "バックアップをダウンロードしました。",
+      "exportUnreachable": "ハブに接続できません — バックアップはダウンロードされませんでした。",
+      "exportFailed": "バックアップをダウンロードできませんでした: {error}",
+      "importFailed": "インポートに失敗しました: {error}",
+      "readFailed": "ファイルを読み込めませんでした: {error}",
+      "invalidJson": "ファイルが有効な JSON ではありません: {error}",
+      "notABackup": "FiestaBoard のバックアップファイルではないようです。",
+      "restoredFiles": "{count, plural, other {# 個のファイルを復元しました}}。",
+      "reinstalledPlugins": "{count, plural, other {# 個のプラグインを再インストールしました}}。",
+      "pluginsFailed": "{count, plural, other {# 個のプラグインを再インストールできませんでした}} — 手動でインストールしてください。",
+      "manualReinstall": "{count, plural, other {# 個の外部プラグイン}}は「連携」から手動で再インストールする必要があります: {names}"
     },
     "groupIdentity": "インスタンス",
     "groupAppearance": "外観とアクセシビリティ",

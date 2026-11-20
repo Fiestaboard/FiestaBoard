@@ -1087,7 +1087,8 @@
       },
       "addModel": "Lägg till en modell",
       "refreshModels": "Uppdatera modeller",
-      "promptDestination": "Prompter skickas till {destination}"
+      "promptDestination": "Prompter skickas till {destination}",
+      "savedToast": "Inställningarna för AI-leverantören har sparats."
     },
     "backup": {
       "cardTitle": "Säkerhetskopiering & återställning",
@@ -1100,7 +1101,18 @@
       "confirmTitle": "Ersätta nuvarande konfiguration?",
       "confirmDescription": "Du håller på att återställa <file></file>. Dina befintliga sidor, karuseller, scheman och din konfiguration skrivs över. En kopia med tidsstämpel av varje befintlig fil sparas bredvid den nya, så att du kan rulla tillbaka manuellt vid behov.",
       "restoringButton": "Återställer…",
-      "restoreButton": "Återställ säkerhetskopia"
+      "restoreButton": "Återställ säkerhetskopia",
+      "exportDone": "Säkerhetskopian har laddats ned.",
+      "exportUnreachable": "Kan inte nå hubben — säkerhetskopian laddades inte ned.",
+      "exportFailed": "Säkerhetskopian laddades inte ned: {error}",
+      "importFailed": "Importen misslyckades: {error}",
+      "readFailed": "Det gick inte att läsa filen: {error}",
+      "invalidJson": "Filen är inte giltig JSON: {error}",
+      "notABackup": "Det här ser inte ut som en säkerhetskopia från FiestaBoard.",
+      "restoredFiles": "{count, plural, one {# fil} other {# filer}} återställda.",
+      "reinstalledPlugins": "{count, plural, one {# tillägg} other {# tillägg}} installerades om.",
+      "pluginsFailed": "{count, plural, one {# tillägg} other {# tillägg}} kunde inte installeras om — installera manuellt.",
+      "manualReinstall": "{count, plural, one {# externt tillägg} other {# externa tillägg}} måste installeras om manuellt via Integrationer: {names}"
     },
     "groupIdentity": "Instans",
     "groupAppearance": "Utseende och tillgänglighet",

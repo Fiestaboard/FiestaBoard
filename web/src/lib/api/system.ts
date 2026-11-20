@@ -3,7 +3,7 @@
 
 import { apiUrl } from "../base-path";
 import type { BoardStatus } from "./boards";
-import { fetchApi } from "./core";
+import { apiErrorFrom, fetchApi, redirectToLoginIfNeeded } from "./core";
 
 // Types for API responses
 export interface StatusResponse {
@@ -356,9 +356,29 @@ export const systemApi = {
     }),
 
   getMqttStatus: () => fetchApi<{ enabled: boolean; connected: boolean; running: boolean }>("/mqtt/status"),
-  // Backup & Restore — return URL/raw content directly so the browser can
-  // trigger a file download or upload arbitrary JSON.
+  // Backup & Restore.
   exportBackupUrl: () => apiUrl("/backup/export"),
+
+  /**
+   * Fetch the backup file before anything is saved (BB-C-7). Pointing the
+   * browser at the export URL instead navigates the whole tab to the
+   * browser's error page when the hub is unreachable, and cannot tell a
+   * 4xx/5xx from a file. Rejects with ApiError for an error response and
+   * with the fetch's own error (TypeError/TimeoutError) when unreachable.
+   */
+  exportBackup: async (): Promise<{ blob: Blob; filename: string }> => {
+    const res = await fetch(apiUrl("/backup/export"), {
+      credentials: "include",
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) {
+      redirectToLoginIfNeeded(res);
+      throw await apiErrorFrom(res);
+    }
+    const disposition = res.headers.get("content-disposition") ?? "";
+    const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? "fiestaboard-backup.json";
+    return { blob: await res.blob(), filename };
+  },
 
   importBackup: (payload: unknown, reinstallPlugins: boolean = true) =>
     fetchApi<{

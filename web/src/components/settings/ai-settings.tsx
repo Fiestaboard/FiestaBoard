@@ -900,7 +900,7 @@ export function AiSettings() {
       // A changed endpoint or key changes what a provider lists.
       queryClient.invalidateQueries({ queryKey: ["ai-provider-models"] });
       setDraft(null);
-      toast.success("AI provider settings saved");
+      toast.success(t("savedToast"));
     },
     onError: (err: Error) => toast.error(err.message),
   });

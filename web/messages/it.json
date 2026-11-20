@@ -1087,7 +1087,8 @@
       },
       "addModel": "Aggiungi un modello",
       "refreshModels": "Aggiorna modelli",
-      "promptDestination": "Le richieste vengono inviate a {destination}"
+      "promptDestination": "Le richieste vengono inviate a {destination}",
+      "savedToast": "Impostazioni del provider IA salvate."
     },
     "backup": {
       "cardTitle": "Backup e ripristino",
@@ -1100,7 +1101,18 @@
       "confirmTitle": "Sostituire la configurazione attuale?",
       "confirmDescription": "Stai per ripristinare <file></file>. Le tue pagine, i caroselli, le programmazioni e la configurazione attuali verranno sovrascritti. Una copia con marca temporale di ogni file esistente viene conservata accanto a quello nuovo, così puoi tornare indietro manualmente se necessario.",
       "restoringButton": "Ripristino…",
-      "restoreButton": "Ripristina backup"
+      "restoreButton": "Ripristina backup",
+      "exportDone": "Backup scaricato.",
+      "exportUnreachable": "Impossibile raggiungere l’hub: backup non scaricato.",
+      "exportFailed": "Backup non scaricato: {error}",
+      "importFailed": "Importazione non riuscita: {error}",
+      "readFailed": "Impossibile leggere il file: {error}",
+      "invalidJson": "Il file non è un JSON valido: {error}",
+      "notABackup": "Questo non sembra un file di backup di FiestaBoard.",
+      "restoredFiles": "{count, plural, one {# file ripristinato} other {# file ripristinati}}.",
+      "reinstalledPlugins": "{count, plural, one {# plugin reinstallato} other {# plugin reinstallati}}.",
+      "pluginsFailed": "Impossibile reinstallare {count, plural, one {# plugin} other {# plugin}}: installali manualmente.",
+      "manualReinstall": "{count, plural, one {# plugin esterno deve} other {# plugin esterni devono}} essere reinstallati manualmente da Integrazioni: {names}"
     },
     "groupIdentity": "Istanza",
     "groupAppearance": "Aspetto e accessibilità",
