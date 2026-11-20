@@ -934,6 +934,7 @@
     "toastInstalledFromGit": "{pluginId} を git からインストールしました",
     "toastInstallFromGitFailed": "インストールに失敗: {error}",
     "checkForUpdates": "更新を確認",
+    "pluginUpdatesSection": "プラグインの更新",
     "checking": "確認中…",
     "toastUpdatesFound": "{count, plural, one {# 件のプラグイン更新あり} other {# 件のプラグイン更新あり}}",
     "toastNoUpdates": "すべてのプラグインは最新です",

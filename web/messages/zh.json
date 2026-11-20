@@ -934,6 +934,7 @@
     "toastInstalledFromGit": "{pluginId} 已从 git 安装",
     "toastInstallFromGitFailed": "安装失败:{error}",
     "checkForUpdates": "检查更新",
+    "pluginUpdatesSection": "插件更新",
     "checking": "检查中…",
     "toastUpdatesFound": "{count, plural, one {# 个插件更新可用} other {# 个插件更新可用}}",
     "toastNoUpdates": "所有插件均为最新",

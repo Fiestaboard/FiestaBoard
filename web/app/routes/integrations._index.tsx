@@ -52,6 +52,7 @@ import {
   SelectValue,
   Skeleton,
   Stack,
+  StatusDot,
   Switch,
   Table,
   TableBody,
@@ -110,7 +111,6 @@ import {
   Check,
   CheckCircle,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   ChevronsUp,
   ChevronUp,
@@ -287,7 +287,7 @@ import {
   readOAuthReturn,
   SchemaForm,
 } from "@/components/plugin-settings";
-import { PluginAutoUpdateSwitch } from "@/components/plugin-updates-control";
+import { PluginAutoUpdateSwitch, PluginUpdateCheckButton } from "@/components/plugin-updates-control";
 import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
@@ -1146,6 +1146,7 @@ export function InstalledPluginRow({
   const hasNoToggle = isTransition || isOutput;
   const needsReconnect = plugin.enabled && connection?.status === "reauthorization_required";
   const needsSetup = plugin.enabled && !hasNoToggle && !plugin.configured;
+  const rowStatus = needsReconnect || needsSetup ? "warning" : hasNoToggle || !plugin.enabled ? "neutral" : "success";
 
   // Fetch plugin details when opening config
   const { data: pluginDetails, isLoading: isLoadingDetails } = useQuery({
@@ -1392,21 +1393,25 @@ export function InstalledPluginRow({
 
   // One supported detail body: the same schema, OAuth, variables, colors and
   // mutation state serve the selected desktop pane and installed detail route.
+  const badges = (
+    <Flex gap="2" align="center" wrap className={fullPage ? undefined : "mt-3"}>
+      <Badge variant="outline">{tCommon("versionShort", { version: plugin.version })}</Badge>
+      <PluginProvenance repository={plugin.source?.repository_url} />
+      <Badge variant="outline">
+        {t(
+          plugin.source?.source_type === "builtin"
+            ? "sourceCoreBadge"
+            : plugin.source?.source_type === "git"
+              ? "sourceExternalBadge"
+              : "sourceMarketplaceBadge",
+        )}
+      </Badge>
+    </Flex>
+  );
   const configContent = (
     <>
-      <Flex gap="2" align="center" wrap className="mt-3">
-        <Badge variant="outline">{tCommon("versionShort", { version: plugin.version })}</Badge>
-        <PluginProvenance repository={plugin.source?.repository_url} />
-        <Badge variant="outline">
-          {t(
-            plugin.source?.source_type === "builtin"
-              ? "sourceCoreBadge"
-              : plugin.source?.source_type === "git"
-                ? "sourceExternalBadge"
-                : "sourceMarketplaceBadge",
-          )}
-        </Badge>
-      </Flex>
+      {/* On its own page the badges share the switch's row (BB-C-21). */}
+      {!fullPage && badges}
       <Tabs
         value={detailTab}
         onValueChange={(value) => {
@@ -1440,8 +1445,11 @@ export function InstalledPluginRow({
                 {/* Demo Page Section */}
                 {pluginDetails?.has_demo && (
                   <Stack gap="3" className="rounded-lg border bg-muted/30 p-4">
-                    <Flex align="center" justify="between">
-                      <Box>
+                    {/* The button wraps under the text when both don't fit, so a
+                        long label (German) never squeezes the text to one word
+                        per line (BB-C-21). */}
+                    <Flex align="center" justify="between" gap="3" wrap>
+                      <Box className="min-w-0 flex-1 basis-56">
                         <Heading level={4} size="sm" className="font-medium">
                           {t("demoPage.title")}
                         </Heading>
@@ -1700,14 +1708,8 @@ export function InstalledPluginRow({
   );
   const detailContent = (
     <Stack gap="4" className="min-w-0">
-      {fullPage && (
-        <Button variant="ghost" className="w-fit min-h-11" asChild>
-          <Link href="/integrations?tab=installed">
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            {t("backToIntegrations")}
-          </Link>
-        </Button>
-      )}
+      {/* On its own page the section's breadcrumb is the way back; a second
+          Back link under it pushed the settings down a screen (BB-C-21). */}
       {(needsReconnect || needsSetup) && (
         <Alert variant="warning" data-testid="integration-attention-banner">
           <AlertCircle className="h-4 w-4" aria-hidden="true" />
@@ -1724,7 +1726,9 @@ export function InstalledPluginRow({
         )}
       >
         <Flex justify="between" align="center" gap="3" wrap>
-          {!fullPage && (
+          {fullPage ? (
+            badges
+          ) : (
             <Heading level={2} size="xl">
               {plugin.name}
             </Heading>
@@ -1876,9 +1880,15 @@ export function InstalledPluginRow({
           )
         }
         leading={
-          <IconTile size="sm" tone="muted">
-            <Icon className="h-4 w-4" />
-          </IconTile>
+          desktop ? (
+            <IconTile size="sm" tone="muted">
+              <Icon className="h-4 w-4" />
+            </IconTile>
+          ) : (
+            // A phone row leads with its state, as in Figma 324:50158; the
+            // status line beside it says the same in words.
+            <StatusDot status={rowStatus} size="md" className="mx-1" />
+          )
         }
         title={plugin.name}
         description={
@@ -2306,12 +2316,15 @@ export default function IntegrationsPage() {
 
   const query = searchQuery.toLowerCase().trim();
 
+  // A phone shows no search on Installed (Figma 324:50158), so a query typed
+  // on Marketplace must not silently filter it.
+  const installedQuery = phone ? "" : query;
   const filteredInstalled = (data?.plugins ?? []).filter(
     (p) =>
-      !query ||
-      p.name.toLowerCase().includes(query) ||
-      p.description?.toLowerCase().includes(query) ||
-      p.id.toLowerCase().includes(query),
+      !installedQuery ||
+      p.name.toLowerCase().includes(installedQuery) ||
+      p.description?.toLowerCase().includes(installedQuery) ||
+      p.id.toLowerCase().includes(installedQuery),
   );
 
   const filteredRegistry = allRegistryEntries.filter(
@@ -2476,45 +2489,51 @@ export default function IntegrationsPage() {
                 : "grid grid-cols-1 gap-3 items-center sm:grid-cols-[auto_minmax(0,1fr)_auto]"
             }
           >
-            <TabsList className="w-fit">
+            {/* A phone gets Figma's full-width pair, "Installed · 6 | Marketplace". */}
+            <TabsList className={phone ? "grid w-full grid-cols-2" : "w-fit"}>
               <TabsTrigger value="installed">
                 {t("tabInstalled")}
-                {data && (
-                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
-                    {data.total}
-                  </Badge>
-                )}
+                {data &&
+                  (phone ? (
+                    ` · ${data.total}`
+                  ) : (
+                    <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
+                      {data.total}
+                    </Badge>
+                  ))}
               </TabsTrigger>
               <TabsTrigger value="marketplace">
                 {t("tabMarketplace")}
-                {availableCount > 0 && (
+                {!phone && availableCount > 0 && (
                   <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
                     {availableCount}
                   </Badge>
                 )}
               </TabsTrigger>
             </TabsList>
-            <Box className="relative min-w-0 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder={
-                  activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
-                }
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setMarketplacePage(0);
-                }}
-                aria-label={
-                  activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
-                }
-                className="pl-9 w-full"
-              />
-            </Box>
+            {!(phone && activeTab === "installed") && (
+              <Box className="relative min-w-0 w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder={
+                    activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
+                  }
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setMarketplacePage(0);
+                  }}
+                  aria-label={
+                    activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
+                  }
+                  className="pl-9 w-full"
+                />
+              </Box>
+            )}
             {/* Auto-update governs the installed plugins, so it rides with
                 their tab: right of the search on a wide screen, a one-line row
                 of its own under it on a phone. */}
-            {activeTab === "installed" && <PluginAutoUpdateSwitch className="sm:justify-self-end" />}
+            {activeTab === "installed" && !phone && <PluginAutoUpdateSwitch className="sm:justify-self-end" />}
             {activeTab === "marketplace" && (
               <Flex align="center" gap="2" className="shrink-0 md:justify-self-end">
                 {!phone && !query && (
@@ -2626,17 +2645,20 @@ export default function IntegrationsPage() {
                     </Button>
                   </Flex>
                 )}
-                <Flex gap="3" wrap role="group" aria-label={t("sortInstalled")}>
-                  {(["name", "category", "status"] as const).map((key) => (
-                    <SortHeaderButton
-                      key={key}
-                      label={t(`${key}Column`)}
-                      active={installedSort.key === key}
-                      dir={installedSort.dir}
-                      onSort={() => handleInstalledSort(key)}
-                    />
-                  ))}
-                </Flex>
+                {/* The groups already sort a phone's list by status (Figma 324:50158). */}
+                {!phone && (
+                  <Flex gap="3" wrap role="group" aria-label={t("sortInstalled")}>
+                    {(["name", "category", "status"] as const).map((key) => (
+                      <SortHeaderButton
+                        key={key}
+                        label={t(`${key}Column`)}
+                        active={installedSort.key === key}
+                        dir={installedSort.dir}
+                        onSort={() => handleInstalledSort(key)}
+                      />
+                    ))}
+                  </Flex>
+                )}
                 <Box className="grid items-start gap-5 md:grid-cols-[minmax(0,0.45fr)_minmax(0,0.55fr)] xl:grid-cols-[minmax(0,0.6fr)_minmax(0,0.4fr)]">
                   <Stack gap="4" className="min-w-0">
                     {[
@@ -2683,6 +2705,22 @@ export default function IntegrationsPage() {
                     <Box as="aside" aria-label={t("integrationSettings")} ref={setDetailTarget} className="min-w-0" />
                   )}
                 </Box>
+                {phone && (
+                  <Box as="section" aria-labelledby="plugin-updates-heading" className="grid gap-3 border-t pt-4">
+                    <Heading
+                      id="plugin-updates-heading"
+                      level={2}
+                      size="sm"
+                      className="px-4 font-mono uppercase tracking-wide text-muted-foreground"
+                    >
+                      {t("pluginUpdatesSection")}
+                    </Heading>
+                    <Flex align="center" justify="between" gap="3" wrap className="px-4">
+                      <PluginAutoUpdateSwitch />
+                      <PluginUpdateCheckButton />
+                    </Flex>
+                  </Box>
+                )}
               </Stack>
             )}
           </TabsContent>

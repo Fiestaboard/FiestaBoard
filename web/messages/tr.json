@@ -934,6 +934,7 @@
     "toastInstalledFromGit": "{pluginId} git'ten kuruldu",
     "toastInstallFromGitFailed": "Kurulum başarısız: {error}",
     "checkForUpdates": "Güncellemeleri kontrol et",
+    "pluginUpdatesSection": "Eklenti güncellemeleri",
     "checking": "Kontrol ediliyor…",
     "toastUpdatesFound": "{count, plural, one {# eklenti güncellemesi mevcut} other {# eklenti güncellemesi mevcut}}",
     "toastNoUpdates": "Tüm eklentiler güncel",
