@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AddDisplayDialog } from "@/components/displays/add-display-dialog";
 import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
-import type { AvailableOutput, OutputSummary } from "@/lib/api";
+import { api, type AvailableOutput, type OutputSummary } from "@/lib/api";
 
 import { mockOutputs } from "./mocks/handlers";
 import { server } from "./mocks/server";
@@ -179,7 +179,7 @@ describe("Add a display", () => {
       available({ id: "acme_sign", name: "Acme Sign", source: "seed", installed: false }),
     ]);
     await choose(/Acme Sign/);
-    const dialog = await screen.findByRole("dialog", { name: "Add a display" });
+    const dialog = await screen.findByRole("dialog", { name: "Connect Acme Sign" });
     await userEvent.type(await within(dialog).findByLabelText(/Sign address/), "192.0.2.50");
     await userEvent.click(
       within(dialog).getByLabelText("Skip the connection test and add this community display untested"),
@@ -219,7 +219,7 @@ describe("Add a display", () => {
       ),
     );
     await choose(/Acme Sign/);
-    const dialog = await screen.findByRole("dialog", { name: "Add a display" });
+    const dialog = await screen.findByRole("dialog", { name: "Connect Acme Sign" });
     await userEvent.type(await within(dialog).findByLabelText(/Sign address/), "192.0.2.50");
     await userEvent.click(
       within(dialog).getByLabelText("Skip the connection test and add this community display untested"),
@@ -243,7 +243,7 @@ describe("Add a display", () => {
       }),
     );
     await choose(/FiestaPanel/);
-    expect(screen.getByRole("dialog", { name: "Add a display" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Connect FiestaPanel" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Add display" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Add display" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("panel-board"));
@@ -284,6 +284,69 @@ describe("Add a display", () => {
     await screen.findByRole("radio", { name: /Vestaboard/ });
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onCancel).toHaveBeenCalled();
+  });
+});
+
+describe("BB-C-14: short choices and a Connect step (Figma 335:59549, 335:60687)", () => {
+  const CATALOG = [
+    available({
+      id: "vestaboard",
+      name: "Vestaboard",
+      builtin: true,
+      description: "A Vestaboard Flagship, Note or Note array, over the Local API or the cloud.",
+      display: {
+        category: "Split-flap displays",
+        manufacturer: "",
+        models: ["Vestaboard Flagship", "Vestaboard Note", "Vestaboard Note array"],
+        keywords: [],
+      },
+    }),
+    available({
+      id: "fiestapanel",
+      name: "FiestaPanel",
+      builtin: true,
+      description: "Any TV or browser: a full-screen board FiestaBoard draws itself.",
+      display: { category: "TV & browser", manufacturer: "", models: ["Virtual panel"], keywords: [] },
+    }),
+    available({
+      id: "divoom_pixoo",
+      name: "Divoom Pixoo 64",
+      source: "seed",
+      installed: false,
+      description: "Show your FiestaBoard pages on a Divoom Pixoo 64 LED matrix over your local network.",
+      display: { category: "LED displays", manufacturer: "", models: ["Divoom Pixoo 64"], keywords: [] },
+    }),
+  ];
+
+  it("built-in cards carry one short summary instead of the long description and model list", async () => {
+    setup(CATALOG);
+    const vestaboard = await screen.findByRole("radio", { name: /Vestaboard/ });
+    expect(vestaboard).toHaveTextContent("Split-flap Flagship or Note, by Local API or cloud");
+    expect(vestaboard).not.toHaveTextContent("Vestaboard Flagship · Vestaboard Note");
+    const panel = screen.getByRole("radio", { name: /FiestaPanel/ });
+    expect(panel).toHaveTextContent("A TV or browser shows a board");
+    expect(panel).not.toHaveTextContent("Virtual panel");
+  });
+
+  it("a plugin card does not repeat its name as a model line", async () => {
+    setup(CATALOG);
+    const pixoo = await screen.findByRole("radio", { name: /Divoom Pixoo 64/ });
+    expect(pixoo.textContent?.split("Divoom Pixoo 64").length).toBe(3); // the title and the description, once each
+  });
+
+  it("step 1 reads Step 1 of 2 with the question as one line", async () => {
+    setup(CATALOG);
+    expect(await screen.findByText("Step 1 of 2 · What do you want FiestaBoard to show on?")).toBeInTheDocument();
+  });
+
+  it("step 2 is titled Connect <device>, says only what this display needs, and has a back arrow", async () => {
+    setup(CATALOG);
+    await choose(/Vestaboard/);
+    expect(await screen.findByRole("dialog", { name: "Connect Vestaboard" })).toBeInTheDocument();
+    expect(screen.getByText("Step 2 of 2 · Only what this display needs")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Back to display types" }));
+    expect(await screen.findByRole("dialog", { name: "Add a display" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Vestaboard/ })).toBeInTheDocument();
   });
 });
 
@@ -347,10 +410,29 @@ describe("Add a Vestaboard: address and an already connected board", () => {
     const { lookups } = knownKitchen();
     setup();
     await choose(/Vestaboard/);
-    await userEvent.type(await screen.findByLabelText("Address"), "192.0.2.60:7000");
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(lookups.filter((query) => typeof query.host === "string" && query.host.includes(":"))).toEqual([]);
-    expect(screen.queryByText("This board is already connected")).not.toBeInTheDocument();
+    const address = await screen.findByLabelText("Address");
+    await userEvent.type(address, "192.0.2.60");
+    expect(await screen.findByText("This board is already connected")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: /Update its connection/ }));
+    const check = vi.spyOn(api, "checkExistingBoards");
+    await userEvent.type(screen.getByLabelText("Address"), ":7000");
+    // The lookup is debounced by a 150 ms timer; one set later fires after it.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(check.mock.calls.filter(([query]) => String(query.host ?? "").includes(":"))).toEqual([]);
+    expect(lookups.filter((query) => String(query.host ?? "").includes(":"))).toEqual([]);
+    check.mockRestore();
+  });
+
+  it("BB-C-15: a half-typed address is not flagged until the field is left", async () => {
+    setup();
+    await choose(/Vestaboard/);
+    const address = await screen.findByLabelText("Address");
+    await userEvent.type(address, "192.168.");
+    expect(address).not.toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByText("Enter an IP address or hostname, like 192.168.1.20.")).not.toBeInTheDocument();
+    await userEvent.tab();
+    expect(address).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter an IP address or hostname, like 192.168.1.20.");
   });
 
   it("BB-C-15: a hostname or IP address is accepted", async () => {
@@ -411,7 +493,7 @@ describe("marketplace displays in the shared chooser", () => {
     const { calls } = setup([...BUILT_INS, remote]);
     await userEvent.click(await screen.findByRole("radio", { name: /Far Sign/ }));
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(await screen.findByRole("dialog", { name: "Add a display" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Connect Far Sign" })).toBeInTheDocument();
     await waitFor(() => expect(calls.install).toEqual(["far_sign"]));
     await userEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(await screen.findByRole("radio", { name: /Far Sign/ })).toBeChecked();

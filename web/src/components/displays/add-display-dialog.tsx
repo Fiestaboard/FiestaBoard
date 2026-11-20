@@ -7,9 +7,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Flex,
   Stack,
-  Text,
 } from "@fiestaboard/ui";
+import { ChevronLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -79,6 +80,11 @@ export function AddDisplayDialog({
     else toast.success(t("updated", { name: board.name }));
     onCreated(board.boardId);
   };
+  const back = () => {
+    setCanNext(false);
+    setExisting(null);
+    setStep("choose");
+  };
   const primaryLabel =
     chosen?.id === "vestaboard" && existing
       ? t(existing.choice === "keep" ? "goTo" : "updateExisting", { name: existing.name })
@@ -88,13 +94,30 @@ export function AddDisplayDialog({
       className="max-h-[90dvh] overflow-y-auto bg-popover sm:rounded-[var(--radius-card)] sm:max-w-[560px] max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[92dvh] max-sm:w-screen max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-[var(--radius-chrome-mobile)] max-sm:rounded-b-none max-sm:p-5 max-sm:pb-4"
       data-testid="add-display-dialog"
     >
-      <DialogHeader className={step === "choose" ? "text-left" : undefined}>
-        <DialogTitle>{t("title")}</DialogTitle>
-        <DialogDescription>{t(step === "choose" ? "chooseDescription" : "setupDescription")}</DialogDescription>
+      {/* BB-C-14 (Figma 335:59549, 335:60687): "Connect <device>" with a back arrow on phones;
+          the step and what it asks for share one line under the title. */}
+      <DialogHeader className="text-left">
+        <Flex align="start" gap="2">
+          {step === "setup" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="-ml-2 shrink-0 sm:hidden"
+              aria-label={t("backToChoices")}
+              disabled={busy}
+              onClick={back}
+            >
+              <ChevronLeft aria-hidden="true" />
+            </Button>
+          )}
+          <Stack gap="1">
+            <DialogTitle>
+              {step === "setup" && chosen ? t("connectTitle", { name: chosen.name }) : t("title")}
+            </DialogTitle>
+            <DialogDescription>{t(step === "choose" ? "chooseLine" : "connectLine")}</DialogDescription>
+          </Stack>
+        </Flex>
       </DialogHeader>
-      <Text size="xs" tone="muted">
-        {t("step", { current: step === "choose" ? 1 : 2 })}
-      </Text>
       <Stack gap="4">
         {step === "choose" && (
           <StepChooseOutput
@@ -159,15 +182,7 @@ export function AddDisplayDialog({
           </>
         ) : (
           <>
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() => {
-                setCanNext(false);
-                setExisting(null);
-                setStep("choose");
-              }}
-            >
+            <Button variant="outline" className="max-sm:hidden" disabled={busy} onClick={back}>
               {tc("back")}
             </Button>
             {(chosen?.id === "vestaboard" || chosen?.id === "fiestapanel") && (
