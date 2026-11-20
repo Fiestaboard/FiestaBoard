@@ -146,7 +146,7 @@ import type { RenderDiagnostics } from "@/lib/api/formula-debug";
 import { appUrl } from "@/lib/base-path";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
-import { charsetTokenText } from "@/lib/charset-issues";
+import { charsetTokenText, drawnDifferently } from "@/lib/charset-issues";
 import { seamStraddles } from "@/lib/complex-editing";
 import { focusTemplateCell } from "@/lib/complex-editing-dom";
 import { boardForShape, isLedModel, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
@@ -2028,7 +2028,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         shouldIgnoreNextResponse.current = false;
         return;
       }
-      setCharsetIssues(data.charset_issues ?? []);
+      setCharsetIssues(drawnDifferently(data.charset_issues));
       setPreviewDiagnostics(data.diagnostics ?? null);
       setPreviewLayers(data.layers ?? null);
       setCanvasIssues(data.canvas_issues ?? []);

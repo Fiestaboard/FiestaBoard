@@ -97,10 +97,10 @@ function page(overrides: Partial<Page> = {}): Page {
   };
 }
 
-const issue = (col: number, written: string, shown: string): CharsetIssue => ({
+const issue = (col: number, written: string, shown: string, reason: CharsetIssue["reason"] = "char"): CharsetIssue => ({
   row: 0,
   col,
-  reason: "case",
+  reason,
   token: { type: "char", value: written },
   fallback: { type: "char", value: shown },
 });
@@ -147,27 +147,43 @@ describe("PageBuilder board-aware preview", () => {
 
   it("shows the cells the board's character set draws differently", async () => {
     vi.mocked(api.renderTemplate).mockResolvedValue({
-      rendered: "Hi there",
-      lines: ["Hi there", "", "", "", "", ""],
+      rendered: "Hé there",
+      lines: ["Hé there", "", "", "", "", ""],
       line_count: 6,
       charset: "vestaboard_v1",
-      charset_issues: [issue(1, "i", "I")],
+      charset_issues: [issue(1, "é", "E")],
     });
     renderEditor();
     expect(
-      await screen.findByText("Line 1, column 2: this board can't show “i” and draws “I” instead.", undefined, {
+      await screen.findByText("Line 1, column 2: this board can't show “é” and draws “E” instead.", undefined, {
         timeout: 5000,
       }),
     ).toBeInTheDocument();
   });
 
-  it("lists the first few issues and counts the rest", async () => {
+  // BB-B-7: lowercase from data is shown in capitals, losing nothing; one
+  // warning per letter used to fill the panel.
+  it("does not warn about lowercase the board shows in capitals", async () => {
     vi.mocked(api.renderTemplate).mockResolvedValue({
-      rendered: "abcdefg",
-      lines: ["abcdefg", "", "", "", "", ""],
+      rendered: "Launch",
+      lines: ["Launch", "", "", "", "", ""],
       line_count: 6,
       charset: "vestaboard_v1",
-      charset_issues: [..."abcdefg"].map((c, i) => issue(i, c, c.toUpperCase())),
+      charset_issues: [..."aunch"].map((c, i) => issue(i + 1, c, c.toUpperCase(), "case")),
+    });
+    renderEditor();
+    await waitFor(() => expect(api.renderTemplate).toHaveBeenCalled(), { timeout: 5000 });
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(screen.queryByTestId("charset-issues")).toBeNull();
+  });
+
+  it("lists the first few issues and counts the rest", async () => {
+    vi.mocked(api.renderTemplate).mockResolvedValue({
+      rendered: "éèêëàâä",
+      lines: ["éèêëàâä", "", "", "", "", ""],
+      line_count: 6,
+      charset: "vestaboard_v1",
+      charset_issues: [..."éèêëàâä"].map((c, i) => issue(i, c, "E")),
     });
     renderEditor();
     expect(await screen.findByText("…and 2 more cells this board draws differently.", undefined, { timeout: 5000 }));
