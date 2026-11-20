@@ -55,7 +55,7 @@ import threading
 import time
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, StrictBool, model_validator
 
@@ -468,8 +468,11 @@ async def get_ai_context(
     payload = context.to_dict()
     if include_tools:
         from .tool_catalog import ToolCatalog
+        from .tool_policy import PolicedToolBackend
 
-        payload["tool_catalog"] = ToolCatalog(await _tool_backend().list_tools()).render_addendum("global")
+        # What the chat route teaches: the tools through the chat's policy.
+        tools = await PolicedToolBackend(_tool_backend()).list_tools()
+        payload["tool_catalog"] = ToolCatalog(tools).render_addendum("global")
     return AIPromptContextResponse(**payload)
 
 
@@ -573,7 +576,7 @@ def _tool_backend():
     },
     summary="Stream a multi-turn AI chat as Server-Sent Events",
 )
-async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
+async def chat_ai_page(request: AIChatRequest, http_request: Request) -> StreamingResponse:
     """Run one turn of the AI chat and stream it as Server-Sent Events.
 
     A turn may span several model calls and tool executions
@@ -603,6 +606,11 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     conversational — the user may send several messages back-to-back —
     and a 429 mid-conversation is jarring. The provider semaphore is passed
     into the loop instead, which holds it only around each model call.
+
+    Approvals are the hub's, not the transcript's: a ``resume: approve``
+    runs only a call this caller's earlier turn paused on
+    (:mod:`src.ai.approvals`), and every call passes the chat's own tool
+    policy (:mod:`src.ai.tool_policy`) at ``call_tool``.
     """
     from .transcript import pending_tool_call
 
@@ -666,7 +674,11 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
     target_board = _chat_board_context(request.board_id, strict=request.interaction_mode == "tv")
     if request.interaction_mode == "tv" and target_board is None:
         raise HTTPException(status_code=400, detail="Select a TV panel before chatting with FiestaBot.")
-    backend = _tool_backend()
+    from .tool_policy import ChatToolPolicy, PolicedToolBackend
+
+    # Built per request so the policy can be given the caller.
+    backend = PolicedToolBackend(_tool_backend(), ChatToolPolicy())
+    caller = _chat_caller(http_request)
     display = _display_for_board(request.board_id)
 
     async def event_source():
@@ -696,6 +708,7 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
                 display=display,
                 target_board=target_board,
                 interaction_mode=request.interaction_mode,
+                caller=caller,
             ):
                 yield _format_sse_event(evt["event"], evt["data"])
         except Exception:
@@ -714,6 +727,23 @@ async def chat_ai_page(request: AIChatRequest) -> StreamingResponse:
             "Connection": "keep-alive",
         },
     )
+
+
+def _chat_caller(http_request: Request) -> str:
+    """Who a chat pause is recorded for.
+
+    The kind of credential, its scope and the principal the auth middleware
+    put on the request (a signed-in user, ``api-token``; ``anonymous`` on an
+    install with sign-in off and no token). The kind and scope are part of
+    the key because a native device token carries its owner's username: a
+    lower-scope device must never be able to settle the admin's pauses.
+    """
+    scope = http_request.scope
+    kind = scope.get("auth_kind") or "web"
+    # A browser session is the admin; any other kind names its own scope or
+    # none, never borrowing the admin's label.
+    credential_scope = scope.get("auth_scope") or ("admin" if kind == "web" else "none")
+    return f"{kind}:{credential_scope}:{scope.get('auth_user') or 'anonymous'}"
 
 
 def _chat_board_context(board_id: str | None, *, strict: bool = True) -> dict[str, Any] | None:

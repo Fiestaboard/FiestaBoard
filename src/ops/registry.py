@@ -61,6 +61,54 @@ Grammar = Literal["canonical", "chat"]
 #: sets; the loop reads it from here so the chat keeps no roster of its own.
 SYSTEM_GATED: frozenset[str] = frozenset({"restart_system", "shutdown_system", "trigger_system_update"})
 
+#: Tools that fetch and load plugin code into the hub process. Like the
+#: system tier they always pause the in-app chat: neither ``approval_mode``
+#: "auto" nor a conversation's "don't ask again" may skip the ask, because
+#: running new code is not something another tool call can undo.
+CODE_GATED: frozenset[str] = frozenset({"install_plugin", "update_plugin", "update_all_plugins"})
+
+#: Every tool the in-app chat pauses on in every approval mode.
+ALWAYS_PAUSE: frozenset[str] = SYSTEM_GATED | CODE_GATED
+
+#: ``update_setting`` categories that pause like :data:`ALWAYS_PAUSE`: they
+#: change how the host updates itself or what it runs, or where a stored key
+#: is sent. ``None`` means any change to the category; a set
+#: means only a change that passes one of those keys.
+ALWAYS_PAUSE_SETTINGS: dict[str, frozenset[str] | None] = {
+    "release_channel": None,  # pulls another image and restarts
+    "auto_update": None,  # how often the host updates itself
+    "hdmi_kiosk": None,  # what the FiestaPi runs on its HDMI output
+    "plugins": frozenset({"auto_update"}),  # background plugin code updates
+    "ai": frozenset({"providers"}),  # re-points providers that hold a key
+    # Re-points the broker the stored password is sent to. The raw aliases
+    # are listed too: this gate sees the keys before the executor maps them.
+    "mqtt": frozenset({"broker_host", "broker_port", "host", "port"}),
+}
+
+#: Tool arguments that re-point where a stored key is sent: passing any of
+#: them pauses the call like :data:`ALWAYS_PAUSE`.
+ALWAYS_PAUSE_ARGS: dict[str, frozenset[str]] = {
+    "update_board": frozenset({"host", "api_mode"}),  # the board's stored local / cloud key goes along
+}
+
+
+def always_pauses(name: str, args: dict[str, Any] | None) -> bool:
+    """Whether the in-app chat must pause on ``name(args)`` in every approval mode."""
+    if name in ALWAYS_PAUSE:
+        return True
+    if not isinstance(args, dict):
+        return name in ALWAYS_PAUSE_ARGS or name == "update_setting"
+    if name in ALWAYS_PAUSE_ARGS:
+        return bool(ALWAYS_PAUSE_ARGS[name] & set(args))
+    if name != "update_setting":
+        return False
+    category = args.get("category")
+    if not isinstance(category, str) or category not in ALWAYS_PAUSE_SETTINGS:
+        return False
+    keys = ALWAYS_PAUSE_SETTINGS[category]
+    values = args.get("values")
+    return keys is None or not isinstance(values, dict) or bool(keys & set(values))
+
 
 @dataclass(frozen=True)
 class Operation:

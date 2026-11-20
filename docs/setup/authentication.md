@@ -141,6 +141,24 @@ or clear it in **Settings → AI** first. A token pinned by
 hijack: while it is set, both mutating routes refuse with `409` and the
 token cannot be changed over the network at all.
 
+The in-app AI chat (`/api/pages/ai/chat`) runs the same tools as
+`/api/mcp/`, so on an install where you chose *Continue without login* a
+configured token covers it too. The chat then needs that token as an
+`Authorization: Bearer` header, or a signed-in session. A wrong token gets a
+`401`; no credential gets a `403` with `"error": "chat_requires_api_token"`.
+A browser on such an install has neither, so FiestaBot shows that message
+until you turn the login on or clear the token. With no token configured,
+the chat stays open, like the rest of the API.
+
+While `FIESTABOARD_AUTH_ENABLED=false` pins the login off and
+`FIESTABOARD_MCP_TOKEN` is set, creating the first account
+(`POST /auth/setup`) also needs that token as a Bearer, so an anonymous
+caller can't mint a session the chat would accept. When the login is off
+only by preference, setup stays open, because that's how the web UI adds a
+login later and a browser can't hold a pinned token. On that configuration
+the chat rule is a second line of defense, not a boundary: the rest of the
+API is open to anyone who can reach the port anyway.
+
 ## Cross-origin browser access (CORS)
 
 The web UI and the API are served from the same origin (nginx fronts both),

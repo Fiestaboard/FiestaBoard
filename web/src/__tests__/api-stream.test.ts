@@ -319,6 +319,25 @@ describe("streamChat", () => {
       expect(onError).toHaveBeenCalledWith("Not authenticated");
     });
 
+    it("does not redirect when the hub needs the API token with sign-in off", async () => {
+      // With sign-in off there is no login page to go to: a redirect would
+      // bounce straight back and lose the conversation. The hub answers 403
+      // with a code, and the drawer shows its message instead.
+      mockFES.mockImplementation(async (_url: string, opts: any) => {
+        const response = {
+          ok: false,
+          status: 403,
+          headers: { get: () => "application/json" },
+          json: async () => ({ error: "chat_requires_api_token", detail: "AI chat needs sign-in or the API token." }),
+        };
+        await opts.onopen?.(response);
+      });
+      const onError = vi.fn();
+      await streamChat(BASE_BODY, { onError });
+      expect(assignMock).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith("AI chat needs sign-in or the API token.");
+    });
+
     it("does not redirect on a plain 500 error", async () => {
       mockFES.mockImplementation(async (_url: string, opts: any) => {
         const response = {

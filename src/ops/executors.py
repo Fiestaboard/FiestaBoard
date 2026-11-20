@@ -1766,8 +1766,9 @@ def _prepare_ai_values(values: dict[str, Any]) -> tuple[dict[str, Any] | None, d
     Provider entries are the tricky part: the endpoint REPLACES the provider
     list, and it keeps a provider's stored key only when the incoming entry
     carries the mask placeholder. So every provider the caller sends gets
-    ``api_key="***"`` when it already exists (key preserved) and ``""`` when
-    it is new (a key-less provider the user completes in the web UI).
+    ``api_key="***"`` when it already exists at the same ``base_url`` (key
+    preserved) and ``""`` when it is new or moved to another ``base_url`` (a
+    key-less provider the user completes in the web UI).
 
     Returns ``(body, None)`` or ``(None, error_envelope)``.
     """
@@ -1780,8 +1781,8 @@ def _prepare_ai_values(values: dict[str, Any]) -> tuple[dict[str, Any] | None, d
 
     from src.config_manager import get_config_manager
 
-    existing_ids = {
-        p.get("id")
+    existing = {
+        p.get("id"): p
         for p in get_config_manager().get_ai_providers().get("providers", [])
         if isinstance(p, dict) and p.get("id")
     }
@@ -1793,7 +1794,12 @@ def _prepare_ai_values(values: dict[str, Any]) -> tuple[dict[str, Any] | None, d
         if refusal is not None:
             return None, refusal
         provider = dict(raw)
-        provider["api_key"] = "***" if provider["id"] in existing_ids else ""
+        before = existing.get(provider["id"])
+        # A stored key stays with the endpoint it was entered for: moving a
+        # provider to another base_url drops it, and the user re-enters it in
+        # the web UI if the move was meant.
+        keeps_key = before is not None and provider.get("base_url", before.get("base_url")) == before.get("base_url")
+        provider["api_key"] = "***" if keeps_key else ""
         cleaned.append(provider)
     body["providers"] = cleaned
     return body, None

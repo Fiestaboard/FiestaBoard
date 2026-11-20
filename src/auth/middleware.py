@@ -32,6 +32,15 @@ Bearer-token paths (``/mcp/*`` and ``/v1/*``):
     configured token is a credential the operator asked for, not a
     formality that the UI login toggle can switch off. With no token
     configured, nothing changes for anyone.
+
+The AI chat route (``/pages/ai/chat``):
+    It runs the same tools as ``/mcp`` on the caller's behalf, so with
+    sign-in off and a token configured it is covered by that token too: it
+    takes the bearer, or a valid session cookie, and refuses anyone else
+    (401 for a wrong bearer, 403 ``chat_requires_api_token`` for none).
+    With sign-in on it keeps the ordinary session check; with sign-in off
+    and no token the whole API is open by the operator's choice, and so is
+    the chat.
 """
 
 from __future__ import annotations
@@ -146,6 +155,11 @@ def _accepts_bearer(path: str) -> bool:
     it. ``/v1`` is the surface a script is meant to use, so it takes it too.
     """
     return _is_mcp_path(path) or _is_v1_path(path)
+
+
+def _is_chat_agent_path(path: str) -> bool:
+    """The AI chat route, which runs MCP tools for the caller (both nginx regimes)."""
+    return path in ("/pages/ai/chat", "/api/pages/ai/chat")
 
 
 def _bearer_from(request: Request) -> str | None:
@@ -281,6 +295,35 @@ class AuthMiddleware(BaseHTTPMiddleware):
             # session there would be a regression the token merely enables.
             if _is_mcp_path(path):
                 return _mcp_unauthorized()
+
+        if mode == "disabled" and _is_chat_agent_path(path) and await run_in_threadpool(mcp_token) is not None:
+            # Sign-in is off but the operator configured a token for the
+            # tool surface; the chat reaches that surface, so it needs the
+            # token (or a session that is still valid) as /mcp does.
+            supplied = _bearer_from(request)
+            if supplied is not None:
+                if not await run_in_threadpool(verify_mcp_bearer, supplied):
+                    return _mcp_unauthorized()
+                # Its own kind: an account may be called "api-token" too.
+                request.scope["auth_kind"] = "token"
+                request.scope["auth_user"] = "api-token"
+                return await call_next(request)
+            cookie = request.cookies.get(SESSION_COOKIE_NAME)
+            svc = await run_in_threadpool(get_auth_service)
+            username = await run_in_threadpool(svc.verify_session, cookie) if cookie else None
+            if not username:
+                # 403, not 401: with sign-in off the web UI's 401 handler would
+                # send the browser to /login, which bounces straight back.
+                return JSONResponse(
+                    {
+                        "error": "chat_requires_api_token",
+                        "detail": "AI chat needs sign-in or the API token while an API token is configured. "
+                        "Turn on sign-in, or clear the API token in Settings → AI.",
+                    },
+                    status_code=403,
+                )
+            request.scope["auth_user"] = username
+            return await call_next(request)
 
         if mode == "disabled":
             return await call_next(request)
