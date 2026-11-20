@@ -96,7 +96,7 @@ test.describe("FiestaPanel settings flow", () => {
     const settings = page.getByTestId("display-panel-settings");
     // The URL can change before the outlet replaces the previous embedded
     // display. Wait for this panel's mounted content before using its tabs.
-    await expect(settings.getByTestId("board-name-input")).toHaveValue("E2E Wall TV (Panel)", { timeout: 10_000 });
+    await expect(settings.getByTestId("board-name-input")).toHaveValue("E2E Wall TV", { timeout: 10_000 });
     await page.getByRole("tab", { name: "Settings", exact: true }).click();
     await expect(settings.getByTestId("board-name-input")).toBeVisible();
     await expect(settings.getByRole("heading", { name: "FiestaPanel", exact: true })).toBeVisible();
@@ -132,8 +132,8 @@ test.describe("FiestaPanel settings flow", () => {
     const panel = await createPanelViaApi("E2E Resize TV", 43);
     await driveBoard(panel.board_id, ["BEFORE RESIZE", "", ""]);
 
-    const settings = await openDisplay(page, "E2E Resize TV (Panel)");
-    await expect(settings.getByTestId("board-name-input")).toHaveValue("E2E Resize TV (Panel)");
+    const settings = await openDisplay(page, "E2E Resize TV");
+    await expect(settings.getByTestId("board-name-input")).toHaveValue("E2E Resize TV");
     await settings.getByRole("radio", { name: "Custom (inches)", exact: true }).click();
     const size = settings.getByRole("spinbutton", { name: "Custom (inches)", exact: true });
     await size.fill("85");
@@ -182,7 +182,7 @@ test.describe("FiestaPanel settings flow", () => {
       body: JSON.stringify({ render_style: "led_matrix", matrix_layout: "legacy" }),
     });
     expect(switched.ok).toBe(true);
-    await openDisplay(page, "E2E LED Layout (Panel)");
+    await openDisplay(page, "E2E LED Layout");
     await page.getByRole("button", { name: "Advanced panel settings", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("button", { name: "Keep existing grid" })).toHaveAttribute("aria-pressed", "true");
@@ -209,8 +209,8 @@ test.describe("FiestaPanel settings flow", () => {
   test("deleting a panel removes its display", async ({ page }) => {
     await createPanelViaApi("E2E Doomed Panel");
 
-    const settings = await openDisplay(page, "E2E Doomed Panel (Panel)");
-    await expect(settings.getByTestId("board-name-input")).toHaveValue("E2E Doomed Panel (Panel)");
+    const settings = await openDisplay(page, "E2E Doomed Panel");
+    await expect(settings.getByTestId("board-name-input")).toHaveValue("E2E Doomed Panel");
     await settings.getByRole("button", { name: "Remove display…", exact: true }).click();
     const confirmation = page.getByRole("alertdialog");
     await expect(confirmation).toBeVisible();
@@ -218,6 +218,6 @@ test.describe("FiestaPanel settings flow", () => {
 
     // Back on Displays, without it.
     await expect(page).toHaveURL(/\/displays$/, { timeout: 10_000 });
-    await expect(displayCard(page, "E2E Doomed Panel (Panel)")).toHaveCount(0, { timeout: 10_000 });
+    await expect(displayCard(page, "E2E Doomed Panel")).toHaveCount(0, { timeout: 10_000 });
   });
 });

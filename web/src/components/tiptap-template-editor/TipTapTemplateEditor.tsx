@@ -160,6 +160,8 @@ interface TipTapTemplateEditorProps {
   toolbarContainer?: Element | null;
   toolbarMoreContent?: ReactNode;
   toolbarTrailing?: ReactNode; // Pinned to the toolbar row's right end (the "? All shortcuts" hint)
+  /** Room to keep around the caret when it scrolls into view: what docked bars cover (BB-B-5). */
+  scrollMargin?: { top: number; bottom: number };
 }
 
 /**
@@ -194,6 +196,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       toolbarTrailing,
       toolbarMoreContent,
       toolbarContainer,
+      scrollMargin,
     },
     ref,
   ) {
@@ -761,6 +764,19 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         onFocus?.();
       },
     });
+
+    // ProseMirror keeps the caret this far inside the scroll area when it
+    // scrolls it into view, so a line is never typed under the docked header,
+    // preview or toolbar.
+    const scrollTop = scrollMargin?.top;
+    const scrollBottom = scrollMargin?.bottom;
+    useEffect(() => {
+      if (!editor || editor.isDestroyed) return;
+      const margin = { top: scrollTop ?? 5, bottom: scrollBottom ?? 5, left: 5, right: 5 };
+      editor.setOptions({
+        editorProps: { ...editor.options.editorProps, scrollMargin: margin, scrollThreshold: margin },
+      });
+    }, [editor, scrollTop, scrollBottom]);
 
     // Store editor reference for use in handlers
     useEffect(() => {

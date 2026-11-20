@@ -12,6 +12,7 @@ import {
 import {
   type ComponentPropsWithoutRef,
   forwardRef,
+  type ReactNode,
   useImperativeHandle,
   useLayoutEffect,
   useRef,
@@ -26,7 +27,10 @@ import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
-type Props = ComponentPropsWithoutRef<typeof LegacyScheduleEntryForm>;
+type Props = ComponentPropsWithoutRef<typeof LegacyScheduleEntryForm> & {
+  /** Host notice about the current, unsaved value (BB-C-1: the overlap callout), shown above the fields. */
+  notice?: (value: ScheduleEntryValue) => ReactNode;
+};
 const DAYS: ScheduleDay[] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 function canonicalDays(values: string[] | null | undefined): ScheduleDay[] | null {
   return values
@@ -49,6 +53,7 @@ export const ScheduleEntryAdapter = forwardRef<ScheduleFormHandle, Props>(functi
     prefillEndTime,
     prefillDayPattern,
     prefillCustomDays,
+    notice,
   },
   ref,
 ) {
@@ -226,6 +231,7 @@ export const ScheduleEntryAdapter = forwardRef<ScheduleFormHandle, Props>(functi
           <AlertDescription>{warning}</AlertDescription>
         </Alert>
       )}
+      {notice?.(value)}
       <KitScheduleEntryForm
         ref={formRef}
         value={value}

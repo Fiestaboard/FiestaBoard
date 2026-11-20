@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -190,13 +190,16 @@ describe("PageBuilder", () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
-  it("leaves the way back to the section's breadcrumb when embedded", async () => {
+  // BB-B-19: the section draws no breadcrumb around the editor any more, so
+  // the editor's header carries the way back ("‹ Pages", 184:159319).
+  it("has its own way back to Pages when embedded", async () => {
     render(<PageBuilder embedded onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText("My Custom Page")).toBeInTheDocument();
     });
-    expect(screen.queryByRole("button", { name: /back to pages/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /back to pages/i }));
+    expect(mockOnClose).toHaveBeenCalled();
     expect(screen.getByText("Create Page")).toBeInTheDocument();
   });
 
@@ -209,6 +212,19 @@ describe("PageBuilder", () => {
     await screen.findByPlaceholderText("My Custom Page");
     const content = container.querySelector('[data-slot="card-content"]');
     expect(content).not.toHaveClass("pb-20");
+  });
+
+  // BB-B-18: on a touch screen the editor's own small controls grow to 44px
+  // (pointer-coarse); a mouse keeps the dense desktop sizes.
+  it("gives the editor's small controls 44px touch targets on a coarse pointer", async () => {
+    render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
+    await screen.findByPlaceholderText("My Custom Page");
+    for (const name of ["Rich Editor", "Plain Text"]) {
+      expect(screen.getByRole("button", { name })).toHaveClass("pointer-coarse:h-11");
+    }
+    for (const name of [/preview.*black/i, /preview.*white/i]) {
+      expect(screen.getByRole("button", { name })).toHaveClass("pointer-coarse:size-11");
+    }
   });
 
   it("shows preview display", async () => {

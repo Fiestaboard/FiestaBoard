@@ -3,7 +3,8 @@
 // size, and the H4 board-width validate the Problems console reads.
 //
 // Kept in its own module (not spread into the `api` barrel) so only the
-// lazily loaded IDE chunk pulls it in.
+// chunks that use it pull it in: the lazily loaded IDE, and the Pages
+// library's card menu (Duplicate).
 
 import { fetchApi } from "./core";
 import type { Page, PageUpdate, PageUpdateResponse } from "./pages";

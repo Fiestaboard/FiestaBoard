@@ -116,3 +116,26 @@ describe("Collection Show now safety", () => {
     await waitFor(() => expect(calls).toEqual(["clear:secondary", "pin:secondary:collection:c1"]));
   });
 });
+
+describe("Collection Show now during an Override (BB-A-7)", () => {
+  it("still offers Until <next Schedule change>, which a new hold replaces the Override up to", async () => {
+    const soon = new Date(Date.now() + 60 * 60_000).toISOString();
+    server.use(
+      http.get("/api/v1/boards/secondary", () =>
+        HttpResponse.json({
+          ...detail,
+          schedule_enabled: true,
+          schedule_next_change_at: soon,
+          schedule_next_page_id: "p1",
+        }),
+      ),
+      http.get("/api/schedules/active/page", () =>
+        HttpResponse.json({ schedule_enabled: true, temporary_override: { active: true, page_id: "p1" } }),
+      ),
+    );
+    mount();
+    await waitFor(() =>
+      expect(screen.getAllByRole("radio").some((r) => /^Until \d/.test(r.textContent?.trim() ?? ""))).toBe(true),
+    );
+  });
+});

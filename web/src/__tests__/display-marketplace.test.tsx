@@ -252,8 +252,8 @@ describe("Displays → Marketplace", () => {
     renderPage();
     const card = await cardFor("Vestaboard");
     await userEvent.click(within(card).getByRole("button", { name: "Add a display with Vestaboard" }));
-    const dialog = await screen.findByRole("dialog", { name: "Add a display" });
-    expect(within(dialog).getByText("Step 2 of 2")).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", { name: "Connect Vestaboard" });
+    expect(within(dialog).getByText("Step 2 of 2 · Only what this display needs")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Local API key")).toBeInTheDocument();
     expect(within(dialog).queryByTestId("wizard-output-choices")).not.toBeInTheDocument();
   });
@@ -272,8 +272,8 @@ describe("Displays → Marketplace", () => {
     search = new URLSearchParams("tab=marketplace&add=vestaboard");
     setup();
     renderPage();
-    const dialog = await screen.findByRole("dialog", { name: "Add a display" });
-    expect(within(dialog).getByText("Step 2 of 2")).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", { name: "Connect Vestaboard" });
+    expect(within(dialog).getByText("Step 2 of 2 · Only what this display needs")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Local API key")).toBeInTheDocument();
     expect(within(dialog).queryByTestId("wizard-output-choices")).not.toBeInTheDocument();
   });
@@ -357,8 +357,8 @@ describe("Displays → Marketplace", () => {
       const installed = (await marketplace()).querySelector("section") as HTMLElement;
       expect(await within(installed).findByRole("heading", { name: "Garage Sign", hidden: true })).toBeInTheDocument();
       await userEvent.click(within(panel).getByRole("button", { name: "Add a display with Garage Sign" }));
-      const dialog = await screen.findByRole("dialog", { name: "Add a display" });
-      expect(within(dialog).getByText("Step 2 of 2")).toBeInTheDocument();
+      const dialog = await screen.findByRole("dialog", { name: "Connect Garage Sign" });
+      expect(within(dialog).getByText("Step 2 of 2 · Only what this display needs")).toBeInTheDocument();
       expect(await within(dialog).findByLabelText("Board name")).toHaveValue("garage_sign");
       expect(calls.install).toEqual(["garage_sign"]);
       expect(within(dialog).queryByTestId("wizard-output-choices")).not.toBeInTheDocument();

@@ -51,6 +51,27 @@ export function StepChooseOutput({
     onValidChange(chosen !== null);
   }, [chosen, onValidChange]);
 
+  // BB-C-14: one short line under each name (Figma 325:34531, 335:59549), so
+  // the choices and Continue fit a phone screen. Built-ins have their own
+  // summary; a plugin's description is clamped, and a model line that only
+  // repeats the name is dropped.
+  const summary = (output: AvailableOutput) =>
+    output.builtin && (output.id === "vestaboard" || output.id === "fiestapanel") ? (
+      t(output.id === "vestaboard" ? "summaryVestaboard" : "summaryFiestapanel")
+    ) : (
+      // The card's description style (text-xs, muted); only the length is clamped.
+      <Text as="span" size="xs" tone="muted" className="line-clamp-2">
+        {output.description}
+      </Text>
+    );
+  const modelLine = (output: AvailableOutput) => {
+    if (output.builtin) return null;
+    const parts = [output.display?.manufacturer, ...(output.display?.models ?? []).slice(0, 3)].filter(
+      (part): part is string => !!part && !output.name.includes(part),
+    );
+    return parts.length ? parts.join(" · ") : null;
+  };
+
   // 07d draws five directly visible choices. Larger plugin catalogs keep
   // the existing searchable, categorized and paginated discovery workflow.
   const choices = (shown: AvailableOutput[]) => (
@@ -71,14 +92,12 @@ export function StepChooseOutput({
           value={output.id}
           icon={<OutputIcon name={output.icon} className="h-5 w-5" />}
           title={output.name}
-          description={output.description}
+          description={summary(output)}
           data-testid={`wizard-output-${output.id}`}
         >
-          {output.display?.manufacturer || output.display?.models?.length ? (
+          {modelLine(output) ? (
             <Text as="span" size="xs" tone="muted" className="block">
-              {[output.display?.manufacturer, ...(output.display?.models ?? []).slice(0, 3)]
-                .filter(Boolean)
-                .join(" · ")}
+              {modelLine(output)}
             </Text>
           ) : null}
           {/* Spans: the card is a <button>, which may hold phrasing content only. */}

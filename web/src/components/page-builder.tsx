@@ -37,7 +37,6 @@ import {
   EditorPreview,
   EmptyState,
   Flex,
-  Input,
   readStoredBoardPreviewMode,
   Select,
   SelectContent,
@@ -61,7 +60,19 @@ import {
   writeStoredBoardPreviewMode,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Ellipsis, FileQuestion, Save, Send, Sparkles, Trash2, Upload, Variable, Zap } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  Ellipsis,
+  FileQuestion,
+  Save,
+  Send,
+  Sparkles,
+  Trash2,
+  Upload,
+  Variable,
+  Zap,
+} from "lucide-react";
 import {
   forwardRef,
   lazy,
@@ -115,6 +126,7 @@ import {
   useStatus,
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
+import { useEditorScrollMargin } from "@/hooks/use-editor-scroll-margin";
 import { useEditorViewportDock } from "@/hooks/use-editor-viewport-dock";
 import { useLineOverflow } from "@/hooks/use-line-overflow";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -148,7 +160,7 @@ import type { RenderDiagnostics } from "@/lib/api/formula-debug";
 import { appUrl } from "@/lib/base-path";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
-import { charsetTokenText } from "@/lib/charset-issues";
+import { charsetTokenText, drawnDifferently } from "@/lib/charset-issues";
 import { seamStraddles } from "@/lib/complex-editing";
 import { focusTemplateCell } from "@/lib/complex-editing-dom";
 import { boardForShape, isLedModel, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
@@ -210,6 +222,11 @@ interface PageBuilderProps {
   skipDraft?: boolean; // If true, ignore and clear any saved draft
   onClose: () => void;
   onSave?: () => void;
+  /**
+   * A new page's first save created it: the route shows its edit URL
+   * (BB-B-9). Called once.
+   */
+  onCreated?: (pageId: string) => void;
   /**
    * Rendered inside the Pages section (section-shell.tsx): the section's
    * breadcrumb is the way back, so the back arrow goes, and the editor sits
@@ -359,6 +376,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     skipDraft = false,
     onClose,
     onSave,
+    onCreated,
     embedded = false,
     saveActions,
   },
@@ -374,6 +392,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const dockedPreview = useMediaQuery("(max-width: 1023px)");
   const sheetPickers = useMediaQuery("(max-width: 639px)");
   const useTouchToolbar = useMediaQuery("(max-width: 767px), (pointer: coarse)");
+  // Under 390px Save is its icon, so the page name keeps two readable lines (BB-B-3).
+  const narrowHeader = useMediaQuery("(max-width: 389px)");
   const editorContentRef = useRef<HTMLDivElement>(null);
   const dockPreviewRef = useRef<HTMLElement>(null);
   const viewportBottom = useEditorViewportDock(dockedPreview && useTouchToolbar, editorContentRef, dockPreviewRef);
@@ -383,11 +403,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     writeStoredBoardPreviewMode(mode);
   };
   const [showPageId, setShowPageId] = useState<string | null>(null);
+  // Report a created page once, so its route can show its own URL (BB-B-9).
+  const reportedCreatedRef = useRef(false);
+  useEffect(() => {
+    if (!createdPageId || initialPageId || reportedCreatedRef.current) return;
+    reportedCreatedRef.current = true;
+    onCreated?.(createdPageId);
+  }, [createdPageId, initialPageId, onCreated]);
   const showAfterSaveRef = useRef(false);
   const requestShowNowRef = useRef<(savedId?: string) => void>(() => {});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
+  const tNav = useTranslations("navigation");
   const tCanvas = useTranslations("canvasEditor");
   const tDisplaySettings = useTranslations("displaySettings");
   const tPanels = useTranslations("fiestaPanels");
@@ -1313,6 +1341,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // at once instead of after the app's retries (BB-B-16).
     retry: (failures, error) => !(error instanceof ApiError && error.status === 404) && failures < 2,
   });
+  const caretScrollMargin = useEditorScrollMargin(
+    dockedPreview && !(pageId && loadingPage),
+    editorContentRef,
+    viewportBottom,
+  );
 
   // Transition plugins (beta, deprecated): offered only while the flag is on,
   // since the backend refuses a `plugin:` strategy otherwise. The installed
@@ -2042,7 +2075,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         shouldIgnoreNextResponse.current = false;
         return;
       }
-      setCharsetIssues(data.charset_issues ?? []);
+      setCharsetIssues(drawnDifferently(data.charset_issues));
       setPreviewDiagnostics(data.diagnostics ?? null);
       setPreviewLayers(data.layers ?? null);
       setCanvasIssues(data.canvas_issues ?? []);
@@ -2883,9 +2916,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             embedded && "rounded-none border-0 bg-transparent shadow-none",
           )}
         >
-          <CardHeader className="sticky top-0 z-20 h-14 lg:min-h-16 bg-background flex-shrink-0 gap-0 px-2 lg:px-4 py-0">
+          <CardHeader
+            className={cn(
+              "sticky top-0 z-20 bg-background flex-shrink-0 gap-0 px-2 lg:px-4",
+              // Docked: one fixed height, so the preview docks right under it.
+              dockedPreview ? "h-16 py-1" : "h-14 lg:min-h-16 py-0",
+            )}
+          >
             <Flex align="center" className="h-full min-w-0 flex-nowrap gap-1.5">
-              {(!embedded || dockedPreview) && (
+              {/* The editor's own way back: the section draws no breadcrumb
+                around it (BB-B-4, BB-B-19). "‹ Pages" on desktop (184:159319). */}
+              {dockedPreview ? (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -2895,24 +2936,59 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 >
                   <ArrowLeft className="size-4" />
                 </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="h-11 shrink-0 gap-1 px-2"
+                  onClick={onClose}
+                  aria-label={t("backToPages")}
+                >
+                  <ChevronLeft className="size-4" aria-hidden="true" />
+                  {tNav("pages")}
+                </Button>
               )}
-              <Box className="relative h-11 lg:h-12 min-w-0 flex-1">
+              <Box className={cn("relative min-w-0 flex-1", !dockedPreview && "h-11 lg:h-12")}>
                 <label htmlFor="page-name" className="sr-only">
                   {t("pageNameLabel")}
                 </label>
                 <CardTitle className="sr-only">{name || (pageId ? t("editPage") : t("createPage"))}</CardTitle>
-                <Input
+                {/* One field at every width, so focus survives a resize. Docked
+                  (phone, tablet) the name wraps onto a second line beside Save
+                  and Show now, with the save status under it (57:64661;
+                  BB-B-3). It is one line of text: Enter finishes editing. */}
+                <Textarea
                   id="page-name"
-                  type="text"
+                  rows={dockedPreview ? 2 : 1}
+                  wrap={dockedPreview ? "soft" : "off"}
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) => setName(event.target.value.replace(/[\r\n]+/g, " "))}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  // Show the name from its start again once editing ends.
+                  onBlur={(event) => {
+                    event.currentTarget.scrollTop = 0;
+                    event.currentTarget.scrollLeft = 0;
+                  }}
                   placeholder={t("pageNamePlaceholder")}
-                  className="h-11 lg:h-12 w-full min-w-0 border-transparent bg-transparent px-0 pt-0 pb-4 text-base lg:text-2xl font-semibold shadow-none"
+                  enterKeyHint="done"
+                  className={cn(
+                    "block min-h-0 w-full min-w-0 resize-none overflow-hidden rounded-none border-transparent bg-transparent font-semibold shadow-none",
+                    dockedPreview
+                      ? "max-h-[2lh] p-0 text-base leading-tight [field-sizing:content]"
+                      : "h-11 lg:h-12 px-0 pt-0 pb-4 text-base lg:text-2xl",
+                  )}
                 />
                 <Text
                   size="xs"
                   tone="muted"
-                  className="pointer-events-none absolute bottom-0 left-0 truncate font-mono"
+                  className={cn(
+                    "pointer-events-none truncate font-mono",
+                    dockedPreview ? "block" : "absolute bottom-0 left-0",
+                  )}
                 >
                   {hasUnsavedChanges
                     ? tTouch("unsaved")
@@ -2950,15 +3026,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <TooltipTrigger asChild>
                         <Button
                           variant="secondary"
-                          size={dockedPreview ? "touch" : "sm"}
-                          className="shrink-0 gap-1.5 px-3 text-sm"
+                          size={narrowHeader ? "icon-touch" : dockedPreview ? "touch" : "sm"}
+                          className={cn("shrink-0 text-sm", !narrowHeader && "gap-1.5 px-3")}
                           {...anchorProps("page-editor.save")}
                           onClick={requestSave}
                           disabled={saveMutation.isPending || stagingActive}
                           aria-label={t("savePageAriaLabel")}
                         >
                           <Save className="h-3.5 w-3.5" />
-                          {saveMutation.isPending ? tCommon("saving") : t("savePage")}
+                          {!narrowHeader && (saveMutation.isPending ? tCommon("saving") : t("savePage"))}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -3036,7 +3112,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   moreContent={mirrorMoreContent}
                 />
               )}
-              <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-0 lg:gap-6">
+              {/* Two equal columns, the same as the Creator IDE's below, so the
+                Console sits under the template and the Inspector under the
+                preview at one width (184:159319; BB-B-19). */}
+              <Box className="grid min-w-0 grid-cols-1 lg:grid-cols-2 items-start gap-0 lg:gap-6">
                 {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
                 <Box
                   hidden={!!pixelBoard && editingSurface !== "text"}
@@ -3057,7 +3136,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEditorModeChange("rich")}
-                          className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+                          className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                           aria-label={t("richEditorAriaLabel")}
                           disabled={baselineDisplay}
                           aria-pressed={!baselineDisplay && editorMode === "rich"}
@@ -3068,7 +3147,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEditorModeChange("plain")}
-                          className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+                          className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                           aria-label={t("plainTextAriaLabel")}
                           aria-pressed={baselineDisplay || editorMode === "plain"}
                         >
@@ -3161,6 +3240,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           ) : (
                             <TipTapTemplateEditor
                               ref={tipTapRef}
+                              scrollMargin={caretScrollMargin}
                               value={newPageEmpty ? "" : templateLines.join("\n")}
                               onChange={handleRichEditorChange}
                               lineAlignments={lineAlignments}
@@ -3362,7 +3442,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   ref={dockPreviewRef}
                   id="page-editor-preview"
                   variant={dockedPreview ? "docked" : "pane"}
-                  className={cn("order-first lg:order-2 min-w-0 top-16 scroll-mt-16", dockedPreview && "px-0")}
+                  className={cn(
+                    "order-first lg:order-2 min-w-0",
+                    dockedPreview ? "top-16 scroll-mt-16 px-0" : "top-16 scroll-mt-16",
+                    // A landscape phone has no height for a docked board: it
+                    // scrolls with the template instead (BB-B-4).
+                    dockedPreview && "[@media(max-height:500px)]:static",
+                  )}
                   title={baselineDisplay ? tTouch("plainText") : (formulaIde.previewTitle ?? tTouch("livePreview"))}
                   dotStatus={baselineDisplay ? "warning" : (formulaIde.dotStatus ?? "success")}
                   boardName={previewBoard?.name}
@@ -3591,7 +3677,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
                         <SelectTrigger
                           {...anchorProps("page-editor.device")}
-                          className="h-7 w-auto gap-1 px-2 text-xs"
+                          className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
                           aria-label={t("deviceTypeSwitcherAriaLabel")}
                         >
                           <SelectValue />
@@ -3664,7 +3750,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         <>
                           <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
                             <SelectTrigger
-                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
                               aria-label={tDisplaySettings("notesWideLabel")}
                             >
                               <SelectValue />
@@ -3679,7 +3765,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           </Select>
                           <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
                             <SelectTrigger
-                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
                               aria-label={tDisplaySettings("notesTallLabel")}
                             >
                               <SelectValue />
@@ -3703,7 +3789,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         onClick={() => setPreviewBoardColor("black")}
                         aria-label={t("previewAsBlack")}
                         aria-pressed={effectiveBoardColor === "black"}
-                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                        className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                           effectiveBoardColor === "black"
                             ? "border-primary ring-1 ring-primary/30"
                             : "border-border hover:border-muted-foreground"
@@ -3713,7 +3799,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         onClick={() => setPreviewBoardColor("white")}
                         aria-label={t("previewAsWhite")}
                         aria-pressed={effectiveBoardColor === "white"}
-                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                        className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                           effectiveBoardColor === "white"
                             ? "border-primary ring-1 ring-primary/30"
                             : "border-border hover:border-muted-foreground"

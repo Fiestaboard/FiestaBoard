@@ -5,7 +5,9 @@ it is about to use, against every board the hub already has. Read-only, and
 deliberately literal:
 
 - **Hosts** compare as written: lower case, without a scheme, a path, a
-  trailing dot or surrounding space. No DNS lookup, so ``pixoo.local`` and
+  trailing dot or surrounding space. The exception is a Vestaboard request
+  (``output="vestaboard"``, checked in the route): its Local API takes a bare
+  IP or hostname, so a host with a port, scheme or path matches nothing. No DNS lookup, so ``pixoo.local`` and
   the IP it resolves to are two answers (and the check costs nothing).
 - **Ports** only tell two devices apart when both sides name one: a
   note array's tiles can share a host on different ports, and a request

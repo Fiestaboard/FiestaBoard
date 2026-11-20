@@ -26,21 +26,36 @@ export interface ScheduleNextChange {
 }
 
 /**
- * The "Until 9:00 PM" chip's target: H2's next change, but only when it is a
- * Schedule hand-over (07a: "the next Schedule change on this display") that an
- * override can actually hold until. Quiet hours, a collection's rotation and
- * an override's own end are not Schedule changes; while an override runs H2
- * reports `override_ends`, so the chip is left out then.
+ * The "Until 9:00 PM" chip's target: the Schedule's next hand-over on this
+ * display (07a: "the next Schedule change on this display") that an override
+ * can actually hold until. The hub reports it as `schedule_next_change_at`,
+ * which stays known while an override runs, because a new override replaces
+ * the running one (BB-A-7). A hub without that field falls back to H2's next
+ * change when it is a Schedule hand-over; quiet hours, a collection's
+ * rotation and an override's own end are not.
  */
 export function scheduleNextChange(
-  detail: Pick<BoardDetail, "next_change_at" | "next_change_reason" | "next_page_id"> | undefined | null,
+  detail:
+    | Pick<
+        BoardDetail,
+        "next_change_at" | "next_change_reason" | "next_page_id" | "schedule_next_change_at" | "schedule_next_page_id"
+      >
+    | undefined
+    | null,
   now: Date,
 ): ScheduleNextChange | null {
-  if (!detail?.next_change_at || detail.next_change_reason !== "schedule") return null;
-  const at = new Date(detail.next_change_at);
+  if (!detail) return null;
+  const [atIso, pageId] =
+    detail.schedule_next_change_at !== undefined
+      ? [detail.schedule_next_change_at, detail.schedule_next_page_id]
+      : detail.next_change_reason === "schedule"
+        ? [detail.next_change_at, detail.next_page_id]
+        : [null, null];
+  if (!atIso) return null;
+  const at = new Date(atIso);
   const ms = at.getTime() - now.getTime();
   if (Number.isNaN(ms) || ms <= 0 || ms > MAX_OVERRIDE_MINUTES * MINUTE) return null;
-  return { at, pageId: detail.next_page_id ?? null };
+  return { at, pageId: pageId ?? null };
 }
 
 /**

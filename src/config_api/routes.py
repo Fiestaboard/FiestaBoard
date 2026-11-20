@@ -43,7 +43,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 
 from src.api_deprecation import flat_board_fields_notice
 from src.api_errors import errors
-from src.board_guards import primary_board_entry
+from src.board_guards import primary_board_entry, validate_board_host
 from src.config import Config
 from src.config_manager import get_config_manager
 from src.display_runtime import get_service, reinitialize_board_clients
@@ -339,7 +339,16 @@ def existing_boards(request: ExistingBoardRequest):
     """
     from .existing import hub_existing_boards
 
-    return ExistingBoardsResponse(existing=hub_existing_boards(**request.model_dump(exclude={"output"})))
+    query = request.model_dump(exclude={"output"})
+    if request.output == "vestaboard" and request.host:
+        # A Vestaboard address is a bare IP or hostname (BB-C-15): "host:port",
+        # a scheme or a path is refused by the connection test, so it names no
+        # board here either, rather than "already connected".
+        try:
+            validate_board_host(request.host)
+        except HTTPException:
+            query["host"] = None
+    return ExistingBoardsResponse(existing=hub_existing_boards(**query))
 
 
 @router.post(

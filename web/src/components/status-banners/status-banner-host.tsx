@@ -11,6 +11,7 @@ import { isVirtualBoard } from "@/components/settings/output-boards";
 import { SilenceImminentBanner } from "@/components/silence-imminent-banner";
 import Link from "@/components/smart-link";
 import { queryKeys, STATUS_POLL_MS, usePages, useStatus } from "@/hooks/use-board";
+import { VIEWER_SESSIONS_QUERY_KEY } from "@/hooks/use-displays-needing-a-look";
 import { useHubConnection } from "@/hooks/use-hub-connection";
 import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
 import { useLocale, useTranslations } from "@/i18n/translations";
@@ -30,7 +31,7 @@ import { cn } from "@/lib/utils";
 /** Where the hub-unreachable banner's "Connection help" goes. */
 export const CONNECTION_HELP_URL = "https://fiestaboard.app/docs/troubleshooting#web-ui-issues";
 
-const SESSIONS_QUERY_KEY = ["auth-sessions", "viewers"] as const;
+const SESSIONS_QUERY_KEY = VIEWER_SESSIONS_QUERY_KEY;
 
 export interface StatusBannerHostProps {
   /** The board the banner is about; omitted means the board the user is managing. */

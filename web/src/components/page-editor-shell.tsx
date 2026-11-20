@@ -46,6 +46,8 @@ export interface PageEditorShellProps {
   skipDraft?: boolean;
   onClose: () => void;
   onSave: () => void;
+  /** A new page was created by its first save (BB-B-9). */
+  onCreated?: (pageId: string) => void;
 }
 
 /**
@@ -60,6 +62,7 @@ export function PageEditorShell({
   skipDraft,
   onClose,
   onSave,
+  onCreated,
 }: PageEditorShellProps) {
   const builderRef = useRef<PageBuilderHandle>(null);
   const { register, unregister } = usePageEditorBridge();
@@ -185,6 +188,7 @@ export function PageEditorShell({
         {/* The end of the scroll area clears the fixed touch toolbar (BB-B-29).
             With the IDE below the builder, its own bottom padding already does. */}
         <Stack
+          data-slot="page-editor-scroll"
           className={cn("h-full w-full min-w-0 flex-1 overflow-y-auto", !pageId && "max-md:pb-20 pointer-coarse:pb-20")}
         >
           <PageBuilder
@@ -196,6 +200,7 @@ export function PageEditorShell({
             skipDraft={skipDraft}
             onClose={onClose}
             onSave={handleSave}
+            onCreated={onCreated}
             saveActions={saveActions}
           />
           {pageId && loadedPage && (

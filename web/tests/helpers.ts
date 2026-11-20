@@ -900,7 +900,8 @@ export async function addVestaboardDisplay(page: Page, shape: "Flagship" | "Note
   const name = `My Board ${suffix}`;
   await openDisplays(page);
   await page.getByRole("button", { name: "Add a display", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Add a display", exact: true });
+  // Titled "Add a display", then "Connect Vestaboard" (BB-C-14): one dialog either way.
+  const dialog = page.getByTestId("add-display-dialog");
   await dialog.getByRole("radio", { name: /Vestaboard/ }).click();
   await dialog.getByRole("button", { name: "Next", exact: true }).click();
   await dialog.getByRole("combobox", { name: "Board type", exact: true }).click();
