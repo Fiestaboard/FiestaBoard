@@ -1163,7 +1163,9 @@
           "title": "Notifications",
           "description": "Choisissez si votre compte et ce navigateur peuvent recevoir des alertes de votre hub."
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, one {# appareil connecté} other {# appareils connectés}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "Thème",
@@ -3714,7 +3716,14 @@
     "signOutPhone": "Déconnecter le téléphone",
     "signOutCascade": "Déconnecter le téléphone et {count} TV",
     "signedOutPhone": "{name} et {count} TV déconnectés",
-    "partial": "{names} n’ont pas répondu. Déconnectez à nouveau ce téléphone pour terminer la déconnexion de ses TV."
+    "partial": "{names} n’ont pas répondu. Déconnectez à nouveau ce téléphone pour terminer la déconnexion de ses TV.",
+    "justNow": "à l’instant",
+    "dayTime": "{day}, {time}",
+    "browserOn": "{browser} sur {platform}",
+    "browserSignedIn": "Connecté avec un mot de passe · {date}",
+    "appName": "App connectée avec un mot de passe",
+    "appHint": "Connectée avec un mot de passe · {date} · elle peut garder votre mot de passe ; changez-le pour bloquer cette app",
+    "passwordApps": "Apps et anciennes TV · Connectées avec un mot de passe"
   },
   "plugins": {
     "communityBadge": "Communauté",

@@ -117,7 +117,8 @@ describe("Settings index", () => {
       expect(
         within(you)
           .getAllByRole("link")
-          .map((link) => link.textContent),
+          // The title alone: rows now read a value beside it ("System").
+          .map((link) => link.querySelector('[data-slot="list-row-title"]')?.textContent),
       ).toEqual(["Account", "Notifications", "Appearance", "Accessibility", "FiestaBot"]),
     );
   });
@@ -434,5 +435,98 @@ describe("setup entry availability", () => {
     boardContext.boards = [];
     renderAt("/settings/system");
     expect(await screen.findByRole("button", { name: /run setup wizard/i })).toBeEnabled();
+  });
+});
+
+describe("Settings index at 390 (07e `320:7936`, BB-C-23)", () => {
+  it("heads the phone list with a way back to More and a plain, left-aligned title", async () => {
+    setPhone(true);
+    // The shell's More tab (FiestaUI Sidebar bottom-nav), which the back link reopens.
+    const more = document.createElement("button");
+    more.setAttribute("data-slot", "sidebar-bottom-nav-more");
+    const opened = vi.fn();
+    more.addEventListener("click", opened);
+    document.body.appendChild(more);
+    try {
+      renderAt("/settings");
+      const back = await screen.findByRole("button", { name: "More" });
+      expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeInTheDocument();
+      // 07e draws no gear and no blurb under the phone title.
+      expect(screen.queryByText("Your account, this browser and this hub.")).not.toBeInTheDocument();
+      await userEvent.click(back);
+      expect(opened).toHaveBeenCalledTimes(1);
+    } finally {
+      more.remove();
+    }
+  });
+
+  it("shows each row's current value where the hub has one", async () => {
+    server.use(
+      http.get("/api/auth/status", () =>
+        HttpResponse.json({
+          enabled: true,
+          authenticated: true,
+          mode: "enabled",
+          username: "maya",
+          setup_required: false,
+          first_run: false,
+          session_management_supported: true,
+        }),
+      ),
+      http.get("/api/auth/sessions", () =>
+        HttpResponse.json({
+          current_session_id: "a",
+          sessions: ["a", "b", "c", "d"].map((id) => ({
+            id,
+            kind: "browser",
+            device_name: "Desktop",
+            method: "password",
+            created_at: "2026-11-01T00:00:00Z",
+            last_active_at: "2026-11-01T00:00:00Z",
+            expires_at: "2027-11-01T00:00:00Z",
+          })),
+        }),
+      ),
+      http.get("/api/push/status", () =>
+        HttpResponse.json({
+          public_key: "k",
+          user_enabled: true,
+          device_enabled: true,
+          subscribed: true,
+          expiration_time: null,
+          event_sources: [],
+          test_available: false,
+        }),
+      ),
+      http.get("/api/settings/ai", () =>
+        HttpResponse.json({
+          enabled: true,
+          default_provider_id: "local",
+          providers: [{ id: "local", name: "Ollama", base_url: "http://ollama:11434", api_key: "", models: [] }],
+        }),
+      ),
+    );
+    renderAt("/settings");
+    const you = await screen.findByRole("list", { name: "You" });
+    const row = (name: string) => within(you).getByRole("link", { name: new RegExp(`^${name}`) });
+    await waitFor(() => expect(row("Account")).toHaveTextContent("maya · 4 signed-in devices"));
+    await waitFor(() => expect(row("Notifications")).toHaveTextContent(/On$/));
+    expect(row("Appearance")).toHaveTextContent(/System$/);
+    await waitFor(() => expect(row("FiestaBot")).toHaveTextContent(/Ollama$/));
+  });
+});
+
+describe("Account at 390 (BB-C-24)", () => {
+  it("lays the account cards straight on the page, not inside another card", async () => {
+    setPhone(true);
+    server.use(
+      http.get("/api/auth/status", () =>
+        HttpResponse.json({ enabled: true, authenticated: true, mode: "enabled", username: "maya" }),
+      ),
+    );
+    renderAt("/settings/account");
+    await screen.findByRole("heading", { level: 1, name: "Account" });
+    const detail = document.querySelector('[data-slot="settings-detail"]')!;
+    expect(detail.querySelector('[data-slot="page-card"]')).toBeNull();
   });
 });

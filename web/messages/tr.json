@@ -1163,7 +1163,9 @@
           "title": "Bildirimler",
           "description": "Hesabınızın ve bu tarayıcının hub’ınızdan uyarı alıp alamayacağını seçin."
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, other {oturum açık # cihaz}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "Tema",
@@ -3714,7 +3716,14 @@
     "signOutPhone": "Telefondan çıkış yap",
     "signOutCascade": "Telefondan ve {count} TV’den çıkış yap",
     "signedOutPhone": "{name} cihazından ve {count} TV’den çıkış yapıldı",
-    "partial": "{names} yanıt vermedi. TV’lerinden çıkışı tamamlamak için bu telefondan tekrar çıkış yapmayı deneyin."
+    "partial": "{names} yanıt vermedi. TV’lerinden çıkışı tamamlamak için bu telefondan tekrar çıkış yapmayı deneyin.",
+    "justNow": "az önce",
+    "dayTime": "{day}, {time}",
+    "browserOn": "{platform} üzerinde {browser}",
+    "browserSignedIn": "Parolayla oturum açıldı · {date}",
+    "appName": "Parolayla oturum açan uygulama",
+    "appHint": "Parolayla oturum açıldı · {date} · parolanızı saklıyor olabilir; bu uygulamayı dışarıda bırakmak için değiştirin",
+    "passwordApps": "Uygulamalar ve eski TV’ler · Parolayla oturum açanlar"
   },
   "plugins": {
     "communityBadge": "Topluluk",

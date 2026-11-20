@@ -1163,7 +1163,9 @@
           "title": "Aviseringar",
           "description": "Välj om ditt konto och den här webbläsaren får ta emot varningar från din hubb."
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, one {# inloggad enhet} other {# inloggade enheter}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "Tema",
@@ -3714,7 +3716,14 @@
     "signOutPhone": "Logga ut telefonen",
     "signOutCascade": "Logga ut telefonen och {count} TV-apparater",
     "signedOutPhone": "Loggade ut {name} och {count} TV-apparater",
-    "partial": "{names} svarade inte. Försök logga ut den här telefonen igen för att slutföra utloggningen av dess TV-apparater."
+    "partial": "{names} svarade inte. Försök logga ut den här telefonen igen för att slutföra utloggningen av dess TV-apparater.",
+    "justNow": "nyss",
+    "dayTime": "{day}, {time}",
+    "browserOn": "{browser} på {platform}",
+    "browserSignedIn": "Inloggad med lösenord · {date}",
+    "appName": "App inloggad med lösenord",
+    "appHint": "Inloggad med lösenord · {date} · kan spara ditt lösenord; byt det för att stänga ute appen",
+    "passwordApps": "Appar & äldre tv-apparater · Inloggade med lösenord"
   },
   "plugins": {
     "communityBadge": "Gemenskap",

@@ -69,7 +69,7 @@ test.describe("Mobile — Navigation", () => {
     // On a phone /settings is the section list alone; a section opens as its
     // own screen.
     await expect(page.getByRole("list", { name: "You" })).toBeVisible();
-    await page.getByRole("link", { name: "Appearance", exact: true }).click();
+    await page.getByRole("link", { name: /^Appearance(?![a-z])/ }).click();
     await expect(page).toHaveURL(/\/settings\/appearance$/);
     await expect(page.getByRole("heading", { level: 1, name: "Appearance", exact: true })).toBeVisible();
   });

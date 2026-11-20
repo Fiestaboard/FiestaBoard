@@ -1163,7 +1163,9 @@
           "title": "Meldingen",
           "description": "Kies of je account en deze browser waarschuwingen van je hub mogen ontvangen."
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, one {# ingelogd apparaat} other {# ingelogde apparaten}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "Thema",
@@ -3714,7 +3716,14 @@
     "signOutPhone": "Telefoon afmelden",
     "signOutCascade": "Telefoon en {count} tv’s afmelden",
     "signedOutPhone": "{name} en {count} tv’s afgemeld",
-    "partial": "{names} reageerden niet. Meld deze telefoon opnieuw af om ook de bijbehorende tv’s volledig af te melden."
+    "partial": "{names} reageerden niet. Meld deze telefoon opnieuw af om ook de bijbehorende tv’s volledig af te melden.",
+    "justNow": "zojuist",
+    "dayTime": "{day}, {time}",
+    "browserOn": "{browser} op {platform}",
+    "browserSignedIn": "Ingelogd met een wachtwoord · {date}",
+    "appName": "App ingelogd met een wachtwoord",
+    "appHint": "Ingelogd met een wachtwoord · {date} · bewaart mogelijk je wachtwoord; wijzig het om deze app buiten te sluiten",
+    "passwordApps": "Apps & oudere tv’s · Ingelogd met een wachtwoord"
   },
   "plugins": {
     "communityBadge": "Community",

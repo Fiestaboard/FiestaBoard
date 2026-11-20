@@ -1119,7 +1119,9 @@
           "title": "Notifications",
           "description": "Choose whether your account and this browser can receive alerts from your hub."
         }
-      }
+      },
+      "accountMeta": "{name} · {count, plural, one {# signed-in device} other {# signed-in devices}}",
+      "networkMeta": "Wi-Fi · {ssid}"
     },
     "panels": {
       "theme": "Theme",
@@ -3685,7 +3687,14 @@
     "signOutPhone": "Sign out phone",
     "signOutCascade": "Sign out phone and {count} TVs",
     "signedOutPhone": "Signed out {name} and {count} TVs",
-    "partial": "{names} didn’t respond. Try signing out this phone again to finish signing out its TVs."
+    "partial": "{names} didn’t respond. Try signing out this phone again to finish signing out its TVs.",
+    "justNow": "just now",
+    "dayTime": "{day}, {time}",
+    "browserOn": "{browser} on {platform}",
+    "browserSignedIn": "Signed in with a password · {date}",
+    "appName": "App signed in with a password",
+    "appHint": "Signed in with a password · {date} · it may keep your password; change it to lock this app out",
+    "passwordApps": "Apps & older TVs · Signed in with a password"
   },
   "plugins": {
     "communityBadge": "Community",
