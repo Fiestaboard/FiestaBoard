@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Szkic zapisany {time}",
     "liveOn": "Na żywo na {board}",
     "deletePage": "Usuń stronę…",
-    "deletePageDetail": "Usuwa ją ze wszystkich harmonogramów i kolekcji"
+    "deletePageDetail": "Usuwa ją ze wszystkich harmonogramów i kolekcji",
+    "autosavePaused": "Niezapisane · szkic z innego miejsca czeka w Historii"
   },
   "formulaIde": {
     "atomValue": "= {value}",

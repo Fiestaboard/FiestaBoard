@@ -603,6 +603,54 @@ describe("status row and header actions", () => {
     expect(calls.draftPut).toEqual([]);
   }, 10_000);
 
+  // FABLE-2583 must-fixes 1-3.
+  it("writes no draft when the hub's drafts could not be read", async () => {
+    const calls = mockHub();
+    server.use(http.get("/api/pages/drafts", () => HttpResponse.json({ detail: "boom" }, { status: 500 })));
+    renderIde(fakeBuilder({ unsaved: true }));
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(calls.draftPut).toEqual([]);
+  }, 10_000);
+
+  it("autosaves an edit that changes only the transition, not the text", async () => {
+    const calls = mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "d1",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: false,
+        content: { ...snapshot, type: "template" },
+      },
+    });
+    // The open restores nothing (the draft matches), then the transition changes.
+    const builder = fakeBuilder();
+    renderIde(builder);
+    await waitFor(() => expect(calls.draftGet).toBeGreaterThan(0));
+    act(() => builder.applyContent({ ...snapshot, type: "template", transition_strategy: "wave" }));
+    await waitFor(() => expect(calls.draftPut).toHaveLength(1), { timeout: 5000 });
+    expect(calls.draftPut[0]).toMatchObject({ transition_strategy: "wave", expected_revision: "d1" });
+  }, 10_000);
+
+  it("says autosave is paused, not Draft saved, beside a draft from elsewhere", async () => {
+    mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "other",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: false,
+        content: { ...snapshot, type: "template", template: ["ELSEWHERE"] },
+      },
+    });
+    const onDraftStateChange = vi.fn();
+    renderIde(fakeBuilder({ unsaved: true }), 0, onDraftStateChange);
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ label: "Unsaved · a draft from elsewhere is waiting in History" }),
+      ),
+    );
+    expect(onDraftStateChange.mock.calls.some(([state]) => /^Draft saved/.test(state?.label ?? ""))).toBe(false);
+  });
+
   it("offers Delete page in the Page tab, through the editor's confirmation", async () => {
     mockHub();
     const builder = fakeBuilder();

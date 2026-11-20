@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Concept opgeslagen {time}",
     "liveOn": "Live op {board}",
     "deletePage": "Pagina verwijderen…",
-    "deletePageDetail": "Haalt haar uit alle schema’s en collecties"
+    "deletePageDetail": "Haalt haar uit alle schema’s en collecties",
+    "autosavePaused": "Niet opgeslagen · een concept van elders wacht in Geschiedenis"
   },
   "formulaIde": {
     "atomValue": "= {value}",

@@ -24,7 +24,6 @@ import { X } from "lucide-react";
 import { lazy, type ReactNode, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { type BlockerFunction, useBlocker } from "react-router";
 
-import { useCurrentBoard } from "@/components/current-board-context";
 import {
   PageBuilder,
   type PageBuilderDraftState,
@@ -143,12 +142,11 @@ export function PageEditorShell({
   useEffect(() => {
     draftStateRef.current = draftState;
   }, [draftState]);
-  const { currentBoard } = useCurrentBoard();
   // What the desktop guard lists (BB-E-19): the changed lines and when the page was saved.
   const discardSummary = changedLinesSummary(
     blocker.state === "blocked" ? blockedTemplate : undefined,
     loadedPage?.template,
-    loadedPage?.updated_at,
+    loadedPage?.updated_at ?? loadedPage?.created_at,
   );
   const [savedTick, setSavedTick] = useState(0);
   const handleSave = () => {
@@ -236,9 +234,11 @@ export function PageEditorShell({
                 {discardSummary.lines.length > 0 && discardSummary.since
                   ? t("discardChangesSince", { count: discardSummary.count, time: discardSummary.since })
                   : t("discardChangesLost")}{" "}
-                {currentBoard?.name
-                  ? t("discardChangesBoardKeeps", { board: currentBoard.name })
-                  : t("discardChangesDisplaysKeep")}
+                {/* Only a saved page has a saved version on display (FABLE-2583). */}
+                {loadedPage &&
+                  (draftState?.liveBoard
+                    ? t("discardChangesBoardKeeps", { board: draftState.liveBoard })
+                    : t("discardChangesDisplaysKeep"))}
               </AlertDialogDescription>
             </AlertDialogHeader>
             {discardSummary.lines.length > 0 && (

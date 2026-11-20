@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Bozza salvata {time}",
     "liveOn": "In onda su {board}",
     "deletePage": "Elimina pagina…",
-    "deletePageDetail": "La rimuove da tutte le programmazioni e raccolte"
+    "deletePageDetail": "La rimuove da tutte le programmazioni e raccolte",
+    "autosavePaused": "Non salvato · una bozza da altrove attende in Cronologia"
   },
   "formulaIde": {
     "atomValue": "= {value}",

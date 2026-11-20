@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Draft saved {time}",
     "liveOn": "Live on {board}",
     "deletePage": "Delete page…",
-    "deletePageDetail": "Removes it from every schedule and collection"
+    "deletePageDetail": "Removes it from every schedule and collection",
+    "autosavePaused": "Unsaved · a draft from elsewhere is waiting in History"
   },
   "formulaIde": {
     "atomValue": "= {value}",

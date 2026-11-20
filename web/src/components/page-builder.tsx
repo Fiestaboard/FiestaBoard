@@ -250,6 +250,8 @@ export interface PageBuilderDraftState {
   label?: string;
   /** Where the page is live ("Live on Kitchen"), which is why Save reads Save draft / Save & update board. */
   live?: string;
+  /** The display it is live on, by name (the leave guard says it keeps the saved version). */
+  liveBoard?: string;
   /** Drop the restored draft and its edits. */
   onDiscard?: () => void;
   /** Drop the hub draft this session owns (the leave guard's Discard changes). */
@@ -2776,7 +2778,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // The header's save state and its mono meta line (BB-E-13, Figma 53:137378):
   // "Flagship 22 × 6 · Kitchen · Live on Kitchen · Saved 7:28 PM".
   const clock = (date: Date) => date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  const lastSaved = savedAt ?? (existingPage?.updated_at ? new Date(existingPage.updated_at) : null);
+  const savedStamp = existingPage?.updated_at ?? existingPage?.created_at;
+  const lastSaved = savedAt ?? (savedStamp ? new Date(savedStamp) : null);
   const saveStateLabel = !pageId
     ? tTouch("unsaved")
     : hasUnsavedChanges
@@ -2794,10 +2797,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     }),
     previewBoard?.name,
     draftState?.live,
-    draftState?.label ?? saveStateLabel,
   ]
     .filter(Boolean)
     .join(" · ");
+  // The save/draft state never truncates: it carries "Draft restored · Discard".
+  const headerState = draftState?.label ?? saveStateLabel;
   const mirrorMoreContent = (
     <Stack gap="3">
       {mirrorControl}
@@ -3092,9 +3096,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     className="absolute bottom-0 left-0 max-w-full min-w-0"
                     data-testid="page-editor-meta"
                   >
-                    <Text size="xs" tone="muted" className="truncate font-mono">
+                    <Text size="xs" tone="muted" className="min-w-0 truncate font-mono">
                       {headerMeta}
                     </Text>
+                    {headerState && (
+                      <Text size="xs" tone="muted" className="shrink-0 whitespace-nowrap font-mono">
+                        {headerMeta ? ` · ${headerState}` : headerState}
+                      </Text>
+                    )}
                     {draftState?.onDiscard && (
                       <Button
                         variant="link"

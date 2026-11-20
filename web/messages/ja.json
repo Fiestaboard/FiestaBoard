@@ -4209,7 +4209,8 @@
     "draftSavedAt": "下書きを保存 {time}",
     "liveOn": "{board} で表示中",
     "deletePage": "ページを削除…",
-    "deletePageDetail": "すべてのスケジュールとコレクションから削除されます"
+    "deletePageDetail": "すべてのスケジュールとコレクションから削除されます",
+    "autosavePaused": "未保存 · 別の場所の下書きが履歴にあります"
   },
   "formulaIde": {
     "atomValue": "= {value}",

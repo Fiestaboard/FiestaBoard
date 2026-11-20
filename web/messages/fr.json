@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Brouillon enregistré {time}",
     "liveOn": "En direct sur {board}",
     "deletePage": "Supprimer la page…",
-    "deletePageDetail": "La retire de tous les plannings et collections"
+    "deletePageDetail": "La retire de tous les plannings et collections",
+    "autosavePaused": "Non enregistré · un brouillon venu d’ailleurs attend dans Historique"
   },
   "formulaIde": {
     "atomValue": "= {value}",

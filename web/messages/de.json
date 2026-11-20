@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Entwurf gespeichert {time}",
     "liveOn": "Live auf {board}",
     "deletePage": "Seite löschen…",
-    "deletePageDetail": "Entfernt sie aus allen Zeitplänen und Sammlungen"
+    "deletePageDetail": "Entfernt sie aus allen Zeitplänen und Sammlungen",
+    "autosavePaused": "Nicht gespeichert · ein Entwurf von anderswo wartet im Verlauf"
   },
   "formulaIde": {
     "atomValue": "= {value}",

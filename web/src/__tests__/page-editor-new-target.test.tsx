@@ -113,7 +113,9 @@ it("keeps the edited new page when Back is cancelled with Keep editing", async (
   await act(async () => {
     await router.navigate(-1);
   });
-  expect(await screen.findByRole("alertdialog", { name: /^Discard changes( to .*)?\?$/ })).toBeInTheDocument();
+  const guard = await screen.findByRole("alertdialog", { name: /^Discard changes( to .*)?\?$/ });
+  // A page never saved has no saved version on any display (FABLE-2583).
+  expect(guard).not.toHaveTextContent(/keeps? showing the saved version/);
   expect(router.state.location.pathname).toBe("/pages/new");
   await user.click(screen.getByRole("button", { name: /^Keep editing$/ }));
   await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());

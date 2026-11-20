@@ -77,7 +77,8 @@ it.each(["Pages breadcrumb", "Settings sidebar"])(
     await user.clear(name);
     await user.type(name, "Unsaved name");
     await user.click(screen.getByRole("link", { name: link }));
-    expect(await screen.findByRole("alertdialog", { name: /^Discard changes( to .*)?\?$/ })).toBeInTheDocument();
+    const guard = await screen.findByRole("alertdialog", { name: /^Discard changes( to .*)?\?$/ });
+    expect(guard).toHaveTextContent("Displays keep showing the saved version.");
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(screen.getByDisplayValue("Unsaved name")).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: link }));

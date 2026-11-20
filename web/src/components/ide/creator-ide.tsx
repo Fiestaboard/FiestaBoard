@@ -108,7 +108,10 @@ export default function CreatorIde({
   // D4: what the header meta says about the hub draft, and (D6) where the page is
   // live, which is why Save reads "Save draft / Save & update board".
   const restoredDraft = ide.restoredDraft;
-  const draftSavedAt = ide.draft && ide.builder.unsaved ? ide.draft.saved_at : null;
+  // "Draft saved" only when the draft holds exactly these edits; a draft from
+  // elsewhere that autosave leaves alone says so instead (FABLE-2583).
+  const draftSavedAt = ide.draft && ide.builder.unsaved && ide.draftInStep ? ide.draft.saved_at : null;
+  const autosavePaused = ide.autosavePaused;
   const liveBoard = ide.showsOn.showingNow[0]?.boardName ?? null;
   const { discardRestored, discardOwnedDraft } = ide;
   useEffect(() => {
@@ -120,14 +123,27 @@ export default function CreatorIde({
         : t("draftRestored")
       : draftSavedAt
         ? t("draftSavedAt", { time: formatClock(draftSavedAt, locale) })
-        : undefined;
+        : autosavePaused
+          ? t("autosavePaused")
+          : undefined;
     onDraftStateChange({
       live,
+      liveBoard: liveBoard ?? undefined,
       label,
       onDiscard: restoredDraft ? () => void discardRestored() : undefined,
       discardDraft: discardOwnedDraft,
     });
-  }, [onDraftStateChange, restoredDraft, draftSavedAt, liveBoard, discardRestored, discardOwnedDraft, t, locale]);
+  }, [
+    onDraftStateChange,
+    restoredDraft,
+    draftSavedAt,
+    autosavePaused,
+    liveBoard,
+    discardRestored,
+    discardOwnedDraft,
+    t,
+    locale,
+  ]);
   useEffect(() => () => onDraftStateChange?.(undefined), [onDraftStateChange]);
 
   const draftOffered = offersDraft(ide.display);

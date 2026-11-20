@@ -117,6 +117,15 @@ describe("Desktop editor header (BB-E-13)", () => {
     expect(screen.getByRole("button", { name: "Save Page" })).toHaveClass("h-10");
   });
 
+  it("keeps the save state whole when the meta truncates (FABLE-2583)", async () => {
+    renderBuilder({ draftState: { label: "Draft restored", onDiscard: vi.fn() } });
+    await screen.findByDisplayValue("Kitchen morning");
+    const meta = await screen.findByTestId("page-editor-meta");
+    const state = within(meta).getByText(/Draft restored/);
+    expect(state).toHaveClass("shrink-0");
+    expect(within(meta).getByText("Flagship 22 × 6 · Kitchen")).toHaveClass("truncate");
+  });
+
   it("has one keyboard-shortcuts entry, the header's (D5)", async () => {
     renderBuilder();
     await screen.findByDisplayValue("Kitchen morning");

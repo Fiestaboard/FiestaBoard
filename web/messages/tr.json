@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Taslak kaydedildi {time}",
     "liveOn": "{board} üzerinde yayında",
     "deletePage": "Sayfayı sil…",
-    "deletePageDetail": "Tüm programlardan ve koleksiyonlardan kaldırır"
+    "deletePageDetail": "Tüm programlardan ve koleksiyonlardan kaldırır",
+    "autosavePaused": "Kaydedilmedi · başka yerden bir taslak Geçmiş’te bekliyor"
   },
   "formulaIde": {
     "atomValue": "= {value}",

@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Rascunho salvo {time}",
     "liveOn": "Ao vivo em {board}",
     "deletePage": "Excluir página…",
-    "deletePageDetail": "Remove-a de todas as programações e coleções"
+    "deletePageDetail": "Remove-a de todas as programações e coleções",
+    "autosavePaused": "Não salvo · um rascunho de outro lugar aguarda no Histórico"
   },
   "formulaIde": {
     "atomValue": "= {value}",

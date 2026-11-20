@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Черновик сохранён {time}",
     "liveOn": "В эфире на {board}",
     "deletePage": "Удалить страницу…",
-    "deletePageDetail": "Удаляет её из всех расписаний и коллекций"
+    "deletePageDetail": "Удаляет её из всех расписаний и коллекций",
+    "autosavePaused": "Не сохранено · черновик с другого устройства ждёт в Истории"
   },
   "formulaIde": {
     "atomValue": "= {value}",

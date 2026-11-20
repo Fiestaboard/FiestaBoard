@@ -4209,7 +4209,8 @@
     "draftSavedAt": "草稿已保存 {time}",
     "liveOn": "正在 {board} 上显示",
     "deletePage": "删除页面…",
-    "deletePageDetail": "将其从所有日程和合集中移除"
+    "deletePageDetail": "将其从所有日程和合集中移除",
+    "autosavePaused": "未保存 · 来自别处的草稿在历史记录中等待"
   },
   "formulaIde": {
     "atomValue": "= {value}",

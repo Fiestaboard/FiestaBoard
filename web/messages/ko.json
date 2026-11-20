@@ -4209,7 +4209,8 @@
     "draftSavedAt": "초안 저장됨 {time}",
     "liveOn": "{board}에서 표시 중",
     "deletePage": "페이지 삭제…",
-    "deletePageDetail": "모든 일정과 컬렉션에서 제거됩니다"
+    "deletePageDetail": "모든 일정과 컬렉션에서 제거됩니다",
+    "autosavePaused": "저장 안 됨 · 다른 곳의 초안이 기록에서 기다리고 있습니다"
   },
   "formulaIde": {
     "atomValue": "= {value}",

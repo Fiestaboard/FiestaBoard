@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Utkast sparat {time}",
     "liveOn": "Live på {board}",
     "deletePage": "Ta bort sidan…",
-    "deletePageDetail": "Tar bort den från alla scheman och samlingar"
+    "deletePageDetail": "Tar bort den från alla scheman och samlingar",
+    "autosavePaused": "Inte sparat · ett utkast från annat håll väntar i Historik"
   },
   "formulaIde": {
     "atomValue": "= {value}",

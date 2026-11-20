@@ -4209,7 +4209,8 @@
     "draftSavedAt": "Borrador guardado {time}",
     "liveOn": "En vivo en {board}",
     "deletePage": "Eliminar página…",
-    "deletePageDetail": "La quita de todas las programaciones y colecciones"
+    "deletePageDetail": "La quita de todas las programaciones y colecciones",
+    "autosavePaused": "Sin guardar · un borrador de otro lugar espera en Historial"
   },
   "formulaIde": {
     "atomValue": "= {value}",
