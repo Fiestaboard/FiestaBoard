@@ -954,6 +954,7 @@ export default function SchedulePage() {
             <ScheduleEntryForm
               key={formInstance}
               ref={formRef}
+              layout={belowRail ? "compact" : "default"}
               schedule={editingSchedule || undefined}
               pages={pagesData.pages}
               collections={collectionsData?.collections}

@@ -749,7 +749,18 @@
       "weekdaysShort": "Пн–Пт",
       "weekendsShort": "Сб–Вс",
       "customShort": "Свои",
-      "openEnded": "Без конца"
+      "openEnded": "Без конца",
+      "moreOptions": "Другие параметры",
+      "timeRangeTo": "до",
+      "startsAtSun": {
+        "sunrise": "Начинается на восходе",
+        "sunset": "Начинается на закате"
+      },
+      "endsAtSun": {
+        "sunrise": "Заканчивается на восходе",
+        "sunset": "Заканчивается на закате"
+      },
+      "entryOff": "Запись выключена"
     },
     "copy": {
       "open": "Копировать с другого дисплея…",

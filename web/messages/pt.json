@@ -749,7 +749,18 @@
       "weekdaysShort": "Seg–Sex",
       "weekendsShort": "Sáb–Dom",
       "customShort": "Outros",
-      "openEnded": "Sem fim"
+      "openEnded": "Sem fim",
+      "moreOptions": "Mais opções",
+      "timeRangeTo": "até",
+      "startsAtSun": {
+        "sunrise": "Começa ao nascer do sol",
+        "sunset": "Começa ao pôr do sol"
+      },
+      "endsAtSun": {
+        "sunrise": "Termina ao nascer do sol",
+        "sunset": "Termina ao pôr do sol"
+      },
+      "entryOff": "Entrada desativada"
     },
     "copy": {
       "open": "Copiar de outra tela…",

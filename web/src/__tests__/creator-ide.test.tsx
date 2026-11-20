@@ -376,6 +376,16 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(within(nav).queryByRole("link", { name: /^Commute/ })).toBeNull();
   });
 
+  it("keeps the Explorer lists' children listitems (BB-B-20: axe aria-required-children)", async () => {
+    mockHub();
+    const { slot } = renderIde();
+    const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
+    await within(nav).findByRole("link", { name: /Commute/ });
+    const lists = nav.querySelectorAll("ul");
+    expect(lists.length).toBeGreaterThan(0);
+    for (const list of lists) for (const child of Array.from(list.children)) expect(child.tagName).toBe("LI");
+  });
+
   it("validates at the open display's width with the page geometry", async () => {
     const calls = mockHub();
     renderIde();

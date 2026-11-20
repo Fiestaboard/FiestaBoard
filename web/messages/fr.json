@@ -749,7 +749,18 @@
       "weekdaysShort": "Lun–Ven",
       "weekendsShort": "Sam–Dim",
       "customShort": "Autres",
-      "openEnded": "Sans fin"
+      "openEnded": "Sans fin",
+      "moreOptions": "Plus d’options",
+      "timeRangeTo": "à",
+      "startsAtSun": {
+        "sunrise": "Commence au lever du soleil",
+        "sunset": "Commence au coucher du soleil"
+      },
+      "endsAtSun": {
+        "sunrise": "Se termine au lever du soleil",
+        "sunset": "Se termine au coucher du soleil"
+      },
+      "entryOff": "Entrée désactivée"
     },
     "copy": {
       "open": "Copier depuis un autre écran…",

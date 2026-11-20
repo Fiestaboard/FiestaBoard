@@ -749,7 +749,18 @@
       "weekdaysShort": "Pzt–Cum",
       "weekendsShort": "Cmt–Paz",
       "customShort": "Özel",
-      "openEnded": "Açık uçlu"
+      "openEnded": "Açık uçlu",
+      "moreOptions": "Diğer seçenekler",
+      "timeRangeTo": "–",
+      "startsAtSun": {
+        "sunrise": "Gün doğumunda başlar",
+        "sunset": "Gün batımında başlar"
+      },
+      "endsAtSun": {
+        "sunrise": "Gün doğumunda biter",
+        "sunset": "Gün batımında biter"
+      },
+      "entryOff": "Giriş kapalı"
     },
     "copy": {
       "open": "Başka ekrandan kopyala…",

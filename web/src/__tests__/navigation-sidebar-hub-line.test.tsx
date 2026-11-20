@@ -213,3 +213,31 @@ describe("one hub-state source", () => {
     expect(status?.state.fetchStatus ?? "idle").toBe("idle");
   });
 });
+
+describe("each display's line in the switcher (BB-A-11)", () => {
+  it("reads 'Type W×H · page' under each display's name", async () => {
+    twoBoards();
+    server.use(
+      http.get("/api/v1/status", () =>
+        HttpResponse.json({
+          running: true,
+          initialized: true,
+          config_summary: {},
+          boards: { kitchen: { active_page_id: "pizza" }, clock: {} },
+        }),
+      ),
+      http.get("/api/v1/pages", () =>
+        HttpResponse.json({ pages: [{ id: "pizza", name: "Pizza Special", device_type: "flagship" }], total: 1 }),
+      ),
+    );
+    render(<NavigationSidebar />, { wrapper: Wrapper });
+    const [trigger] = await screen.findAllByRole("combobox", { name: /board/i });
+    await userEvent.click(trigger);
+    const kitchen = await screen.findByRole("option", { name: /Kitchen board/ });
+    await waitFor(() => expect(kitchen).toHaveTextContent("Flagship 22 × 6 · Pizza Special"));
+    // No page known: the type and size alone.
+    const clock = screen.getByRole("option", { name: /Entry clock/ });
+    expect(clock).toHaveTextContent("Flagship 22 × 6");
+    expect(clock).not.toHaveTextContent("·");
+  });
+});
