@@ -89,6 +89,10 @@ describe("Integrations list at the desktop (BB-FC-8)", () => {
     expect(card?.getAttribute("data-surface")).toBe("plain");
     // ...so its header and list sit on the page gutter, not a card's inset.
     expect(classes(card)).toContain("[&_[data-slot=page-header]]:px-0");
+    // The plugin page's crumb and h2 (PageSubheader) lose the card's rule and
+    // inset too, so they stay on the h1's gutter (07d `328:30630`).
+    expect(classes(card)).toContain("[&_[data-slot=page-subheader]_.border-t]:px-0");
+    expect(classes(card)).toContain("[&_[data-slot=page-subheader]_.border-t]:border-t-0");
   });
 
   it("puts Check for updates behind the header's More options button", async () => {

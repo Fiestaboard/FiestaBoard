@@ -54,8 +54,14 @@ interface SectionShellProps {
   children: React.ReactNode;
 }
 
-const PLAIN_SURFACE_INSET =
-  "[&_[data-slot=page-header]]:px-0 [&_[data-slot=page-toolbar]]:px-0 [&_[data-slot=page-section][data-surface=plain]]:px-0";
+// The kit's PageSubheader draws its own `border-t px-6` block whatever the
+// surface; with no card there is no card edge for that rule to divide, and
+// the crumb and the item's h2 belong on the gutter with the h1 (07d
+// `328:30630`).
+const PLAIN_SURFACE_INSET = [
+  "[&_[data-slot=page-header]]:px-0 [&_[data-slot=page-toolbar]]:px-0 [&_[data-slot=page-section]]:px-0",
+  "[&_[data-slot=page-subheader]_.border-t]:border-t-0 [&_[data-slot=page-subheader]_.border-t]:px-0",
+].join(" ");
 
 /** The sub-header's action slot, for a detail page's own buttons. Null outside a shell. */
 const ActionSlot = createContext<HTMLElement | null | undefined>(undefined);

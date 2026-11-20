@@ -2695,11 +2695,12 @@ export default function IntegrationsPage() {
             {isLoading ? (
               <Box role="status" aria-label={tCommon("loading")} aria-busy="true">
                 <Text className="sr-only">{tCommon("loading")}</Text>
-                <ListRowGroup size="touch" aria-hidden="true">
+                <ListRowGroup size="default" aria-hidden="true" className={INSET_ROW_GROUP}>
                   {Array.from({ length: 5 }, (_, i) => (
                     <ListRow
                       key={i}
-                      leading={<Skeleton className="h-8 w-8 rounded-md" />}
+                      className={INSET_ROW}
+                      leading={<Skeleton className="mx-1 size-2 rounded-full" />}
                       title={<Skeleton className="h-4 w-32 max-w-full" />}
                       description={<Skeleton className="h-3 w-20 max-w-full" />}
                     />
@@ -2824,11 +2825,11 @@ export default function IntegrationsPage() {
                       id="plugin-updates-heading"
                       level={2}
                       size="sm"
-                      className="px-4 font-mono uppercase tracking-wide text-muted-foreground"
+                      className="font-mono uppercase tracking-wide text-muted-foreground"
                     >
                       {t("pluginUpdatesSection")}
                     </Heading>
-                    <Flex align="center" justify="between" gap="3" wrap className="px-4">
+                    <Flex align="center" justify="between" gap="3" wrap>
                       <PluginAutoUpdateSwitch />
                       <PluginUpdateCheckButton />
                     </Flex>
