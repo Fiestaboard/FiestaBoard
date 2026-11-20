@@ -1419,6 +1419,8 @@
       "cloud": "Moln (läs-/skrivnyckel)",
       "address": "Adress",
       "addressHint": "Ange adressen som visas i Vestaboard-appen. Anslutningstestet kontrollerar den.",
+      "addressPort": "Ange bara adressen, utan port.",
+      "addressInvalid": "Ange en IP-adress eller ett värdnamn, till exempel 192.168.1.20.",
       "localKey": "Lokal API-nyckel",
       "cloudKey": "Läs-/skrivnyckel för molnet",
       "keyHint": "Från Vestaboard-appen › Inställningar › Utvecklare › Lokalt API.",
@@ -1877,7 +1879,11 @@
       "setupDescription": "Anslut den här skärmen. Att lägga till den skapar inga sidor och ändrar inte schemat.",
       "step": "Steg {current} av 2",
       "confirm": "Lägg till skärm",
-      "added": "{name} har lagts till · Visa en sida"
+      "added": "{name} har lagts till · Visa en sida",
+      "goTo": "Gå till {name}",
+      "kept": "Inget lades till · {name} är redan anslutet",
+      "updateExisting": "Uppdatera {name}",
+      "updated": "{name} uppdaterad"
     },
     "marketplace": {
       "searchLabel": "Sök skärmar",

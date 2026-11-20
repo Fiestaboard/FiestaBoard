@@ -1419,6 +1419,8 @@
       "cloud": "Cloud (Lese-/Schreibschlüssel)",
       "address": "Adresse",
       "addressHint": "Gib die Adresse aus der Vestaboard-App ein. Der Verbindungstest überprüft sie.",
+      "addressPort": "Gib nur die Adresse ein, ohne Port.",
+      "addressInvalid": "Gib eine IP-Adresse oder einen Hostnamen ein, z. B. 192.168.1.20.",
       "localKey": "Lokaler API-Schlüssel",
       "cloudKey": "Cloud-Lese-/Schreibschlüssel",
       "keyHint": "Aus der Vestaboard-App › Einstellungen › Entwickler › Lokale API.",
@@ -1877,7 +1879,11 @@
       "setupDescription": "Verbinde dieses Display. Dabei werden keine Seiten erstellt und der Zeitplan wird nicht geändert.",
       "step": "Schritt {current} von 2",
       "confirm": "Display hinzufügen",
-      "added": "{name} hinzugefügt · Eine Seite anzeigen"
+      "added": "{name} hinzugefügt · Eine Seite anzeigen",
+      "goTo": "Zu {name}",
+      "kept": "Nichts hinzugefügt · {name} ist bereits verbunden",
+      "updateExisting": "{name} aktualisieren",
+      "updated": "{name} aktualisiert"
     },
     "marketplace": {
       "searchLabel": "Anzeigen durchsuchen",

@@ -144,7 +144,9 @@ async def create_panel(data: PanelCreate):
             "api_mode": "virtual",
             "grid_rows": grid.rows,
             "grid_cols": grid.cols,
-            "name": f"{data.name} (Panel)",
+            # The name the user typed (BB-C-17). Boards created earlier keep
+            # their stored "<name> (Panel)"; nothing reads the suffix.
+            "name": data.name,
         }
     )
     panel_service = get_panel_service()

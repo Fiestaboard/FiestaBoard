@@ -1419,6 +1419,8 @@
       "cloud": "Cloud (lees-/schrijfsleutel)",
       "address": "Adres",
       "addressHint": "Voer het adres uit de Vestaboard-app in. De verbindingstest controleert het.",
+      "addressPort": "Voer alleen het adres in, zonder poort.",
+      "addressInvalid": "Voer een IP-adres of hostnaam in, zoals 192.168.1.20.",
       "localKey": "Lokale API-sleutel",
       "cloudKey": "Lees-/schrijfsleutel voor de cloud",
       "keyHint": "Uit de Vestaboard-app › Instellingen › Ontwikkelaar › Lokale API.",
@@ -1877,7 +1879,11 @@
       "setupDescription": "Verbind dit scherm. Toevoegen maakt geen pagina’s en wijzigt het schema niet.",
       "step": "Stap {current} van 2",
       "confirm": "Scherm toevoegen",
-      "added": "{name} toegevoegd · Een pagina tonen"
+      "added": "{name} toegevoegd · Een pagina tonen",
+      "goTo": "Naar {name}",
+      "kept": "Niets toegevoegd · {name} is al verbonden",
+      "updateExisting": "{name} bijwerken",
+      "updated": "{name} bijgewerkt"
     },
     "marketplace": {
       "searchLabel": "Schermen zoeken",

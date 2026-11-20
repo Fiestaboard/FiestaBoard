@@ -1419,6 +1419,8 @@
       "cloud": "Cloud (chiave di lettura/scrittura)",
       "address": "Indirizzo",
       "addressHint": "Inserisci l’indirizzo mostrato nell’app Vestaboard. Il test di connessione lo verifica.",
+      "addressPort": "Inserisci solo l’indirizzo, senza porta.",
+      "addressInvalid": "Inserisci un indirizzo IP o un nome host, ad esempio 192.168.1.20.",
       "localKey": "Chiave API locale",
       "cloudKey": "Chiave cloud di lettura/scrittura",
       "keyHint": "Dall’app Vestaboard › Impostazioni › Sviluppatore › API locale.",
@@ -1877,7 +1879,11 @@
       "setupDescription": "Collega questo schermo. Aggiungerlo non crea pagine né modifica la programmazione.",
       "step": "Passaggio {current} di 2",
       "confirm": "Aggiungi schermo",
-      "added": "{name} aggiunto · Mostra una pagina"
+      "added": "{name} aggiunto · Mostra una pagina",
+      "goTo": "Vai a {name}",
+      "kept": "Nessuna aggiunta · {name} è già connesso",
+      "updateExisting": "Aggiorna {name}",
+      "updated": "{name} aggiornato"
     },
     "marketplace": {
       "searchLabel": "Cerca display",

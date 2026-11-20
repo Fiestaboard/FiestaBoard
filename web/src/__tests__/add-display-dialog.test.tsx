@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
 
 import { AddDisplayDialog } from "@/components/displays/add-display-dialog";
@@ -283,6 +284,113 @@ describe("Add a display", () => {
     await screen.findByRole("radio", { name: /Vestaboard/ });
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onCancel).toHaveBeenCalled();
+  });
+});
+
+describe("Add a Vestaboard: address and an already connected board", () => {
+  const KITCHEN = {
+    id: "kitchen",
+    name: "Kitchen",
+    output: "vestaboard",
+    device_type: "flagship",
+    board_color: "black",
+    output_config: { api_mode: "local", host: "192.0.2.60", local_api_key: "***" },
+  };
+
+  function knownKitchen() {
+    const lookups: Record<string, unknown>[] = [];
+    const writes: unknown[] = [];
+    server.use(
+      http.post(`${API}/config/board/existing`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        lookups.push(body);
+        return HttpResponse.json({
+          existing:
+            body.host === "192.0.2.60"
+              ? [{ board_id: "kitchen", name: "Kitchen", output: "vestaboard", matched: "host" }]
+              : [],
+        });
+      }),
+      http.get(`${API}/settings/board`, () =>
+        HttpResponse.json({ board_type: "black", boards: [KITCHEN], devices: ["flagship"] }),
+      ),
+      http.put(`${API}/settings/board`, async ({ request }) => {
+        writes.push(await request.json());
+        return HttpResponse.json({ board_type: "black", boards: [KITCHEN], devices: ["flagship"] });
+      }),
+    );
+    return { lookups, writes };
+  }
+
+  it("BB-C-15: an address with a port is caught at the field, not sent to the board", async () => {
+    const tested = vi.fn();
+    server.use(
+      http.post(`${API}/outputs/vestaboard/actions/test_connection`, () => {
+        tested();
+        return HttpResponse.json({ detail: "host must be a bare IP address or hostname" }, { status: 400 });
+      }),
+    );
+    setup();
+    await choose(/Vestaboard/);
+    const address = await screen.findByLabelText("Address");
+    await userEvent.type(address, "127.0.0.1:9");
+    await userEvent.type(screen.getByLabelText("Local API key"), "test_key");
+
+    expect(address).toHaveAttribute("aria-invalid", "true");
+    expect(address).toHaveAccessibleDescription(expect.stringContaining("Enter just the address, without a port."));
+    expect(screen.getByRole("button", { name: "Test connection" })).toBeDisabled();
+    expect(screen.queryByText("Couldn’t reach the board")).not.toBeInTheDocument();
+    expect(tested).not.toHaveBeenCalled();
+  });
+
+  it("BB-C-15: an address with a port never finds an existing board", async () => {
+    const { lookups } = knownKitchen();
+    setup();
+    await choose(/Vestaboard/);
+    await userEvent.type(await screen.findByLabelText("Address"), "192.0.2.60:7000");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(lookups.filter((query) => typeof query.host === "string" && query.host.includes(":"))).toEqual([]);
+    expect(screen.queryByText("This board is already connected")).not.toBeInTheDocument();
+  });
+
+  it("BB-C-15: a hostname or IP address is accepted", async () => {
+    setup();
+    await choose(/Vestaboard/);
+    const address = await screen.findByLabelText("Address");
+    await userEvent.type(address, "vestaboard-kitchen.local");
+    await userEvent.type(screen.getByLabelText("Local API key"), "test_key");
+    expect(address).not.toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "Test connection" })).toBeEnabled();
+  });
+
+  it("BB-C-16: keeping the board already connected reads Go to <name> and says nothing was added", async () => {
+    vi.mocked(toast.success).mockClear();
+    const { writes } = knownKitchen();
+    const { calls, onCreated } = setup();
+    await choose(/Vestaboard/);
+    await userEvent.type(await screen.findByLabelText("Address"), "192.0.2.60");
+    expect(await screen.findByText("This board is already connected")).toBeInTheDocument();
+
+    expect(screen.queryByRole("button", { name: "Add display" })).not.toBeInTheDocument();
+    const go = await screen.findByRole("button", { name: "Go to Kitchen" });
+    await waitFor(() => expect(go).toBeEnabled());
+    await userEvent.click(go);
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith("kitchen"));
+    expect(calls.add).toEqual([]);
+    expect(writes).toEqual([]);
+    expect(toast.info).toHaveBeenCalledWith("Nothing added · Kitchen is already connected");
+    expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining("added"));
+  });
+
+  it("BB-C-16: choosing to update the board already connected says so", async () => {
+    knownKitchen();
+    setup();
+    await choose(/Vestaboard/);
+    await userEvent.type(await screen.findByLabelText("Address"), "192.0.2.60");
+    await userEvent.click(await screen.findByRole("radio", { name: /Update its connection/ }));
+    expect(await screen.findByRole("button", { name: "Update Kitchen" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add display" })).not.toBeInTheDocument();
   });
 });
 
