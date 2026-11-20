@@ -92,15 +92,24 @@ describe("/pages section", () => {
       );
     }
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
+    const tree = () => (
       <QueryClientProvider client={queryClient}>
         <PagesSection>
           <SaveFirst />
         </PagesSection>
-      </QueryClientProvider>,
+      </QueryClientProvider>
     );
+    const view = render(tree());
+    const rerender = () => view.rerender(tree());
     expect(screen.getByRole("heading", { level: 2, name: "New Page" })).toBeInTheDocument();
     screen.getByRole("button", { name: "save" }).click();
     expect(await screen.findByRole("heading", { level: 2, name: "Morning briefing" })).toBeInTheDocument();
+
+    // Back to the list, then New Page again: a fresh page, not the last one.
+    route.pathname = "/pages";
+    rerender();
+    route.pathname = "/pages/new";
+    rerender();
+    expect(await screen.findByRole("heading", { level: 2, name: "New Page" })).toBeInTheDocument();
   });
 });

@@ -5,6 +5,7 @@ import { Outlet } from "react-router";
 import { CreatedPageContext } from "@/components/pages/created-page-context";
 import { SectionShell } from "@/components/section-shell";
 import { usePages } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useParams, usePathname, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -34,10 +35,12 @@ export function PagesSection({ children }: { children: React.ReactNode }) {
   const t = useTranslations("pages");
   const tCommon = useTranslations("common");
   const pathname = usePathname();
-  // Remembered per visit to /pages/new: a fresh New Page starts as "new".
-  const [created, setCreated] = useState<{ path: string; id: string } | null>(null);
-  const openId = useOpenPageId(created?.path === pathname ? created.id : null);
-  const reportCreated = useCallback((id: string) => setCreated({ path: pathname, id }), [pathname]);
+  // The page this visit to /pages/new created. Forgotten as soon as the route
+  // moves on, so the next New Page starts as "new" again.
+  const [created, setCreated] = useState<string | null>(null);
+  if (useDepsChanged([pathname]) && created !== null) setCreated(null);
+  const openId = useOpenPageId(created);
+  const reportCreated = useCallback((id: string) => setCreated(id), []);
   const { data, isLoading } = usePages();
 
   const page = openId && openId !== "new" ? data?.pages.find((p) => p.id === openId) : undefined;
