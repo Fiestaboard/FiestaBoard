@@ -494,12 +494,13 @@ class ScheduleService:
         """Detect overlapping schedules.
 
         Two schedules overlap if they share minutes on a calendar day (an
-        overnight window counts on the day it spills into). Each overlap
-        carries the shared days in week order, the shared minutes on the first
-        of them, and the entry the hub shows then: the same rule as
+        overnight window counts on the day it spills into). Each distinct
+        shared window of a pair is one overlap carrying its days in week
+        order, its minutes, and the entry the hub shows then: the same rule as
         :meth:`get_active_schedule_entry` (the window that started most
-        recently wins; on a tie the newer entry). Both windows are live for
-        the whole intersection, so that winner holds throughout it.
+        recently wins; on a tie the newer entry). Within one shared window
+        both entries are live throughout, so that winner holds for all of it;
+        a pair that meets before and after midnight yields two overlaps.
 
         Args:
             schedules: List of enabled schedules to check
@@ -524,32 +525,39 @@ class ScheduleService:
                 ]
                 if not hits:
                     continue
-                days = list(dict.fromkeys(hit[0] for hit in hits))
-                _, start, end, origin1, origin2 = hits[0]
-                rank1 = (start - origin1, -schedule1.created_at.timestamp())
-                rank2 = (start - origin2, -schedule2.created_at.timestamp())
-                winner = schedule1 if rank1 <= rank2 else schedule2
 
                 # English fallback for API/MCP readers; days in week order.
                 end1_str = schedule1.end_time or "open"
                 end2_str = schedule2.end_time or "open"
                 conflict_desc = (
-                    f"Schedules overlap on {', '.join(days)}: "
+                    f"Schedules overlap on {', '.join(dict.fromkeys(hit[0] for hit in hits))}: "
                     f"{schedule1.start_time}-{end1_str} and "
                     f"{schedule2.start_time}-{end2_str}"
                 )
 
-                overlaps.append(
-                    Overlap(
-                        schedule1_id=schedule1.id,
-                        schedule2_id=schedule2.id,
-                        conflict_description=conflict_desc,
-                        days=days,
-                        start_time=self._minutes_to_time(start % 1440),
-                        end_time=self._minutes_to_time(end % 1440),
-                        winner_id=winner.id,
+                # One Overlap per distinct shared window: an overnight entry can
+                # meet another entry twice a day (before and after midnight),
+                # and the hub's winner differs between the two pieces.
+                groups: dict[tuple[int, int, str], list[str]] = {}
+                for day, start, end, origin1, origin2 in hits:
+                    rank1 = (start - origin1, -schedule1.created_at.timestamp())
+                    rank2 = (start - origin2, -schedule2.created_at.timestamp())
+                    winner = schedule1 if rank1 <= rank2 else schedule2
+                    days = groups.setdefault((start, end, winner.id), [])
+                    if day not in days:
+                        days.append(day)
+                for (start, end, winner_id), days in groups.items():
+                    overlaps.append(
+                        Overlap(
+                            schedule1_id=schedule1.id,
+                            schedule2_id=schedule2.id,
+                            conflict_description=conflict_desc,
+                            days=days,
+                            start_time=self._minutes_to_time(start % 1440),
+                            end_time=self._minutes_to_time(end % 1440),
+                            winner_id=winner_id,
+                        )
                     )
-                )
 
         return overlaps
 

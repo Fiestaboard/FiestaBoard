@@ -86,6 +86,19 @@ def test_overnight_window_started_yesterday_loses_to_one_starting_at_midnight(se
     assert overlap.winner_id == early.id == _hub_winner(service, "tuesday", "01:00")
 
 
+def test_a_pair_meeting_both_sides_of_midnight_reports_each_window_and_its_winner(service):
+    night = _add(service, "night", "22:00", "02:00", days="all")
+    day = _add(service, "day", "00:00", "23:00", days="all")
+
+    overlaps = service.validate_schedules().overlaps
+
+    by_window = {(o.start_time, o.end_time): o.winner_id for o in overlaps}
+    assert by_window == {("22:00", "23:00"): night.id, ("00:00", "02:00"): day.id}
+    assert by_window[("22:00", "23:00")] == _hub_winner(service, "tuesday", "22:30")
+    assert by_window[("00:00", "02:00")] == _hub_winner(service, "tuesday", "01:00")
+    assert all(len(o.days) == 7 for o in overlaps)
+
+
 def test_open_ended_overlap_ends_at_midnight(service):
     _add(service, "evening", "17:00", None, days="all")
     _add(service, "late", "21:00", "23:00", days="all")

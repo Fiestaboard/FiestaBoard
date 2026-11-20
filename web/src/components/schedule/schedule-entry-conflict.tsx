@@ -99,7 +99,11 @@ export function ScheduleEntryConflict({ draft, editingId, boardId, schedules, pa
     <Alert variant="destructive" politeness="polite" data-testid="schedule-entry-conflict">
       <AlertDescription className="flex flex-col items-start gap-2">
         {mine.map((overlap) => (
-          <Text as="p" size="sm" key={`${overlap.schedule1_id}:${overlap.schedule2_id}`}>
+          <Text
+            as="p"
+            size="sm"
+            key={`${overlap.schedule1_id}:${overlap.schedule2_id}:${overlap.start_time}:${overlap.end_time}`}
+          >
             {describe(overlap, selfId, entries)}
           </Text>
         ))}
