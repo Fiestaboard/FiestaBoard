@@ -12,7 +12,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { createPortal } from "react-dom";
 
 import Link from "@/components/smart-link";
-import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
+import { useRailBreakpoint } from "@/hooks/use-below-rail";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -40,6 +40,11 @@ interface SectionShellProps {
   detail: SectionDetail | null;
   /** Pin the card to the viewport so the body can scroll inside it (the page editor). */
   fill?: boolean;
+  /**
+   * The open item draws its own header (the page editor: back, name, Save), so
+   * the section's header, breadcrumb and card are not drawn around it.
+   */
+  bare?: boolean;
   /** The route outlet. */
   children: React.ReactNode;
 }
@@ -60,7 +65,18 @@ const ActionSlot = createContext<HTMLElement | null | undefined>(undefined);
  * item known on the first render is what lets a deep link land open, without
  * an animation and without taking focus.
  */
-export function SectionShell({ icon, title, description, href, action, detail, fill, children }: SectionShellProps) {
+export function SectionShell({
+  icon,
+  title,
+  description,
+  href,
+  action,
+  detail,
+  fill,
+  bare = false,
+  children,
+}: SectionShellProps) {
+  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("common");
   const pathname = usePathname();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
@@ -100,8 +116,30 @@ export function SectionShell({ icon, title, description, href, action, detail, f
     (byId ?? byHref)?.focus({ preventScroll: true });
   }, [detail, pathname]);
 
+  if (bare && detail) {
+    // The item fills the viewport and scrolls inside itself at every width,
+    // so its own sticky header (and the editor's docked preview) stay put.
+    // On a phone it runs edge to edge, as the editor frames draw it.
+    return (
+      <PageLayout
+        railBreakpoint={railBreakpoint}
+        fillHeight={fill}
+        outerClassName="flex h-dvh flex-col overflow-hidden sm:h-dvh"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden max-sm:p-0"
+      >
+        <PageCard fillHeight={fill} surface="plain">
+          <ActionSlot value={null}>
+            <PageOutlet key={pathname} fill={fill}>
+              {children}
+            </PageOutlet>
+          </ActionSlot>
+        </PageCard>
+      </PageLayout>
+    );
+  }
+
   return (
-    <PageLayout railBreakpoint={RAIL_BREAKPOINT} fillHeight={fill}>
+    <PageLayout railBreakpoint={railBreakpoint} fillHeight={fill}>
       <PageCard fillHeight={fill}>
         <PageHeader icon={icon} title={title} description={description} collapsed={detail != null}>
           {action}

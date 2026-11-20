@@ -104,6 +104,13 @@ function mockHub({ draft = null as unknown, restoreConflict = false, live = true
     http.post("/api/collections/col_den/dry-run", () =>
       HttpResponse.json({ collection_id: "col_den", page_id: "brunch", timeline: [], shown_on: [], sources: {} }),
     ),
+    // GET /pages/drafts: the drafts the hub holds; a saved draft joins the list.
+    http.get("/api/pages/drafts", () =>
+      HttpResponse.json({
+        drafts:
+          draft || calls.draftPut.length ? [{ page_id: PAGE, saved_at: "2026-11-17T15:44:00Z", stale: false }] : [],
+      }),
+    ),
     http.get(`/api/pages/${PAGE}/draft`, () => {
       calls.draftGet += 1;
       return draft ? HttpResponse.json(draft) : HttpResponse.json({ detail: "No draft" }, { status: 404 });
@@ -468,6 +475,16 @@ describe("status row and header actions", () => {
     await waitFor(() => expect(calls.draftDelete).toEqual(["d1"]));
   });
 
+  // BB-B-27: a page without a draft is the usual case, not a failed request:
+  // the IDE reads the drafts list first and asks for no draft that isn't there.
+  it("asks for no draft the hub doesn't hold, so opening a page logs no 404", async () => {
+    const calls = mockHub();
+    renderIde();
+    await screen.findByText(/Showing on Den TV now/);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(calls.draftGet).toBe(0);
+  });
+
   it("keeps a draft saved elsewhere (phone, Restore) after the editor saves the page; the hub marks it stale", async () => {
     const calls = mockHub({
       draft: {
@@ -558,6 +575,30 @@ describe("Inspector tabs", () => {
     expect(calls.duplicate).toEqual([{ board_id: "hall" }]);
     expect(screen.getByText("2 rows didn’t fit")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open the copy" })).toHaveAttribute("href", "/pages/edit/copy");
+    // BB-B-23: one way to close (the X), not a Close button beside it too.
+    expect(screen.getAllByRole("button", { name: "Close" })).toHaveLength(1);
+  });
+
+  // BB-B-23: on a phone the copy result is a sheet like the rest of the phone
+  // UI, its title clear of the close button.
+  it("shows the copy on a phone as a bottom sheet", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("max-width: 639px") || query.includes("max-width: 1023"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+    mockHub();
+    renderIde();
+    fireEvent.click(await screen.findByRole("button", { name: /Make a copy for another display/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Hall board/ }));
+    await screen.findByText("22 × 6 (was 29 × 12)");
+    const sheet = screen.getByRole("dialog");
+    expect(sheet).toHaveAttribute("data-slot", "sheet-content");
+    expect(sheet).toHaveAttribute("data-side", "bottom");
+    expect(sheet.querySelector('[data-slot="sheet-header"]')).toHaveClass("pr-12");
   });
 });
 

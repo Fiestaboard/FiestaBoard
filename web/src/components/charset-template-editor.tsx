@@ -218,7 +218,7 @@ export const CharsetTemplateEditor = forwardRef<TemplateEditorHandle, CharsetTem
       isLoadingVariables: isLoading,
       renderVariablePicker: ({ onInsert }) => (
         <Suspense fallback={null}>
-          <VariablePickerContent onInsert={onInsert} />
+          <VariablePickerContent onInsert={onInsert} autoFocusSearch={!touch} />
         </Suspense>
       ),
       entityPickerSlot: hasHomeAssistant

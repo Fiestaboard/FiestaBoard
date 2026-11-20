@@ -22,7 +22,7 @@ async function expectScheduleReady(page: Page, width: number, theme: "light" | "
     .toBe(theme);
   const board = page.getByRole("combobox", { name: "Select board to manage", exact: true }).filter({ visible: true });
   await expect(board).toContainText("Kitchen board");
-  await expect(page.getByTestId("active-board-indicator")).toHaveText("Kitchen board");
+  await expect(page.getByTestId("active-board-indicator")).toContainText("Kitchen board");
   await expect(page.getByTestId("gap-default-select")).toContainText("Breakfast specials");
   if (empty) {
     // The route enables validation only for nonempty schedules, so this state
@@ -30,9 +30,10 @@ async function expectScheduleReady(page: Page, width: number, theme: "light" | "
     const emptyState = page.getByRole("region", { name: "No schedules created yet", exact: true });
     await expect(emptyState).toBeVisible();
     await expect(emptyState).toContainText("Gaps use Breakfast specials.");
-    await expect(page.getByRole("button", { name: /^\d+ schedule (?:conflicts?|gaps?)$/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /\d+ schedule (?:conflicts?|gaps?)/ })).toHaveCount(0);
   } else {
-    await expect(page.getByRole("button", { name: "1 schedule conflict", exact: true })).toBeVisible();
+    // Conflicts no longer hide gaps: the badge names both counts (BB-C-2).
+    await expect(page.getByRole("button", { name: /^1 schedule conflict, \d+ schedule gaps?$/ })).toBeVisible();
     const conflicts =
       width >= 1024
         ? page.locator('[data-slot="week-calendar-entry"][data-conflict]')
@@ -40,12 +41,26 @@ async function expectScheduleReady(page: Page, width: number, theme: "light" | "
     const occurrences = width < 768 ? 1 : 7;
     await expect(conflicts.filter({ hasText: "Breakfast specials" })).toHaveCount(occurrences);
     await expect(conflicts.filter({ hasText: "Lunch menu" })).toHaveCount(occurrences);
-    await expect(page.locator('[data-kind="gap"]').filter({ hasText: "Breakfast specials" })).toHaveCount(occurrences);
+    // Today's gap holds the board right now (18:18 in the hub's zone), so it is the "Now" row (BB-C-3).
+    const gaps = page.locator('[data-kind="gap"], [data-kind="now"]').filter({ hasText: "Breakfast specials" });
+    await expect(gaps).toHaveCount(occurrences);
+    if (width < 1024) await expect(page.locator('[data-kind="now"]')).toHaveText(/Gap · Breakfast specials.*Now/);
   }
   const toolbar = page.locator('[data-slot="page-toolbar"]');
   await expectOpaque(board);
   await expectOpaque(toolbar);
-  await expectOpaque(toolbar.getByRole("button", { name: "Add Schedule", exact: true }));
+  await expectOpaque(page.getByRole("button", { name: "Add Schedule", exact: true }).first());
+  if (width < 768) {
+    // 07d Schedule · Day (322:19169): title + Add, one Schedule Mode row, day chips, then the agenda;
+    // no Day/Week/List choice and no seven-column week on a phone (BB-C-3, BB-C-4).
+    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveCount(0);
+    await expect(page.locator('label[for="schedule-mode"]')).toHaveText("Schedule Mode · Kitchen board");
+    if (!empty) {
+      // 07d draws the first row at y≈340 of 844; it used to start at ≈555 (BB-C-3).
+      const firstRow = page.locator('[data-slot="list-row"]').first();
+      expect((await firstRow.boundingBox())!.y).toBeLessThan(440);
+    }
+  }
 }
 
 async function settleCapture(page: Page, resetScroll = true) {
@@ -83,9 +98,11 @@ for (const width of [390, 768, 1280]) {
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(`/tests/layout/schedule.html?theme=${theme}`);
-      await expect(
-        page.getByRole("radio", { name: width < 768 ? "Day" : width < 1024 ? "List" : "Week", exact: true }),
-      ).toHaveAttribute("aria-checked", "true");
+      if (width >= 768)
+        await expect(page.getByRole("radio", { name: width < 1024 ? "List" : "Week", exact: true })).toHaveAttribute(
+          "aria-checked",
+          "true",
+        );
       await expectScheduleReady(page, width, theme);
       const shot = async (state: string, fullPage = true) => {
         await settleCapture(page, fullPage);
@@ -169,10 +186,8 @@ for (const width of [390, 1280]) {
     await page.clock.install({ time: new Date("2026-11-17T02:18:00Z") });
     await page.setViewportSize({ width, height: 1000 });
     await page.goto("/tests/layout/schedule.html?state=empty");
-    await expect(page.getByRole("radio", { name: width < 768 ? "Day" : "Week", exact: true })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
+    if (width >= 768)
+      await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByText("No schedules created yet", { exact: true })).toBeVisible();
     await expectScheduleReady(page, width, "light", true);
     await settleCapture(page);
@@ -207,3 +222,16 @@ for (const width of [390, 1280]) {
     await expect(page.getByRole("button", { name: /Breakfast specials/ }).first()).toBeVisible();
   });
 }
+
+// BB-C-5: in landscape the entry opens as a side sheet that reaches the bottom of the screen.
+test("Schedule entry side sheet runs the full height in landscape", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-11-17T02:18:00Z") });
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto("/tests/layout/schedule.html");
+  await page.getByRole("button", { name: "Add Schedule", exact: true }).first().click();
+  const sheet = page.getByRole("dialog");
+  await expect(page.getByLabel("Start Time", { exact: true })).toBeVisible();
+  await expect
+    .poll(async () => Math.round((await sheet.boundingBox())!.y + (await sheet.boundingBox())!.height))
+    .toBe(390);
+});

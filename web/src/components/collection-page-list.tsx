@@ -49,7 +49,8 @@ interface Member {
 }
 
 /** "Flagship", "Note", "Note Array 2×2", "Panel 12×29": the row's meta (07 `57:66920`). */
-function shapeLabel(page: Page | undefined, t: Translate): string | null {
+/** A page's board shape for a Collection row or picker ("Flagship", "Note 2 × 1"). */
+export function pageShapeLabel(page: Page | undefined, t: Translate): string | null {
   switch (page?.device_type) {
     case "flagship":
       return t("pageShapeFlagship");
@@ -93,7 +94,7 @@ export function CollectionPageList({
     () =>
       pageIds.map((id) => {
         const page = pages.find((p) => p.id === id);
-        return { id, name: page?.name || id, shape: shapeLabel(page, t) };
+        return { id, name: page?.name || id, shape: pageShapeLabel(page, t) };
       }),
     [pageIds, pages, t],
   );

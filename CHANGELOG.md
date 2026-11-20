@@ -1,5 +1,64 @@
 # fiestaboard
 
+## 11.0.0-alpha.11
+
+### Patch Changes
+
+- [#2560](https://github.com/Fiestaboard/FiestaBoard/pull/2560) [`9fdca30`](https://github.com/Fiestaboard/FiestaBoard/commit/9fdca30bcd9c9d852cae5f6780db1ec593a6d0d6) Thanks [@jeffredodd](https://github.com/jeffredodd)! - About FiestaBoard names the real release channel (Alpha preview no longer reads as Stable), shows this page's and the hub's versions and any waiting update, and opens as a bottom sheet on phones.
+
+- [#2555](https://github.com/Fiestaboard/FiestaBoard/pull/2555) [`6d4156c`](https://github.com/Fiestaboard/FiestaBoard/commit/6d4156c2a2e108ae5783fe8465743100e50449e6) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Exporting a backup while the hub can't be reached now says so and keeps you in the app, an export error is reported instead of a false "download started", a hub that refuses the connection shows "Can't reach your hub" within seconds instead of 30 s of "Waiting to start…", and the backup and AI provider messages are translated.
+
+- [#2566](https://github.com/Fiestaboard/FiestaBoard/pull/2566) [`c605e2b`](https://github.com/Fiestaboard/FiestaBoard/commit/c605e2b9845034e5edcfca234b613d7df2eb8a96) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Settings › System & backups now opens its Version card with the running version and whether it is up to date, shows version numbers as written (the running channel shows its own version instead of "Version unavailable"), no longer shows server setup instructions when channel switching is unavailable, and the leave-preview warning names the real Backup & Restore section.
+
+- [#2556](https://github.com/Fiestaboard/FiestaBoard/pull/2556) [`307349e`](https://github.com/Fiestaboard/FiestaBoard/commit/307349e511e530193479cd6a6fc34c5ba0cf3e94) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Add a display: an address with a port is caught at the field instead of a raw server error and is never mistaken for a board already connected, keeping an already connected board reads "Go to <name>" and says nothing was added, and a new FiestaPanel keeps the name you typed instead of gaining " (Panel)".
+
+- [#2569](https://github.com/Fiestaboard/FiestaBoard/pull/2569) [`7598431`](https://github.com/Fiestaboard/FiestaBoard/commit/75984313a75624cf913ae9446cc2caffb67ac2d2) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Setup and Add a display: each display choice shows one short line, so the choices and Continue fit a phone screen, and step 2 of Add a display is titled "Connect <display>" with a back arrow, "Step 2 of 2 · Only what this display needs" and a full-width Test connection on phones.
+
+- [#2553](https://github.com/Fiestaboard/FiestaBoard/pull/2553) [`df25354`](https://github.com/Fiestaboard/FiestaBoard/commit/df253542e5e568e618477269b4a238c847b0416d) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Home, Compose and Change Page agree with the board: the preview catches up within seconds of Show now, the "Until <next Schedule change>" chip stays offered while an Override runs, display detail names the Override's page, Up next lists up to three changes, a Schedule gap reads in plain words, and the display switcher marks a display that needs a look. `GET /v1/boards/{board}` adds `schedule_next_change_at`, `schedule_next_page_id`, `upcoming_changes` and `override_page_id`.
+
+- [#2559](https://github.com/Fiestaboard/FiestaBoard/pull/2559) [`7eda35e`](https://github.com/Fiestaboard/FiestaBoard/commit/7eda35efa66539e7d13a20f2205f34c2310bb6aa) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Phones follow the 07a frames more closely: Home leads with the whole board edge to edge and gives the page title its own line, Compose is a bottom sheet, the board's actions open as a sheet on touch, Back closes Change Page and Compose instead of leaving Home, focus scrolls clear of the bottom nav and header, and a landscape phone keeps the bottom nav.
+
+- [#2570](https://github.com/Fiestaboard/FiestaBoard/pull/2570) [`30d9765`](https://github.com/Fiestaboard/FiestaBoard/commit/30d97652a93d4d0942e185d8ebf4805acbac2d6c) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Page editor fixes:
+  - An unknown or deleted page shows "This page doesn't exist" with a way back.
+  - Opening a formula on desktop scrolls its editor into view.
+  - Builder no longer shows a hand-written formula as an empty recipe.
+  - The phone discard sheet names the page and matches the design.
+  - Delete and Page transition are labelled in the phone More sheet.
+  - Opening or deleting a page no longer logs 404s.
+  - The empty band under the preview settings is gone.
+
+- [#2552](https://github.com/Fiestaboard/FiestaBoard/pull/2552) [`7182051`](https://github.com/Fiestaboard/FiestaBoard/commit/71820517551335a8c7eff4612370b61d6a4460f3) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Measure a formula by the value it renders to, so a line with a formula beside other text is no longer reported as cut off; the Problems list now holds the formula errors the board shows (`#DIV/0`, `#VALUE`) and drops a missing source that `IFERROR` handles, and the Data tab lists the data a formula reads.
+
+- [#2561](https://github.com/Fiestaboard/FiestaBoard/pull/2561) [`553d0c2`](https://github.com/Fiestaboard/FiestaBoard/commit/553d0c29650c1d223e65020f679b4f6ca2001c17) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Phone formula editing uses the Formula sheet. It has an Inspect button, and the caret goes back into the template after Done or Cancel. A space typed before a chip is stored as a plain space, lowercase that the board shows in capitals no longer gives one warning per letter, and the Variables picker no longer brings up the keyboard on touch screens.
+
+- [#2574](https://github.com/Fiestaboard/FiestaBoard/pull/2574) [`ef59287`](https://github.com/Fiestaboard/FiestaBoard/commit/ef59287165954238db91373c6960a6c59d44bc3b) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Creator IDE and library polish:
+  - The console and timeline get half the width, so problems no longer wrap onto four lines.
+  - Copying a page to another display shows its result in a sheet on phones, with one close control.
+  - Library cards are named consistently, and list rows keep room for the page name.
+  - The editor's small controls grow to 44px on touch screens.
+
+- [#2567](https://github.com/Fiestaboard/FiestaBoard/pull/2567) [`924c2db`](https://github.com/Fiestaboard/FiestaBoard/commit/924c2db4452603b3db17b14984a1c7dce2337b94) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The Pages library can search page names and saved content and sort by name, created or updated date, keeping the display filter and preview caching (ported from alpha [#2408](https://github.com/Fiestaboard/FiestaBoard/issues/2408)). Each page card has a menu, opened from its ··· button, a right-click or a long-press, to edit the page, add it to the Schedule, duplicate it or delete it.
+
+- [#2557](https://github.com/Fiestaboard/FiestaBoard/pull/2557) [`bc552b5`](https://github.com/Fiestaboard/FiestaBoard/commit/bc552b5d7caca670c223ff6c895d58ebc5a3177a) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor fills the screen as Figma draws it. On a phone the page name is readable on two lines, the preview stays docked under the header while you type, the line you are typing stays above the toolbar with the keyboard up, and the editor toolbar replaces the tab bar. A landscape phone gets the same full-screen editor, and on a tablet the toolbar no longer covers the rail. At every width the section's card header and breadcrumb no longer sit above the editor, whose own header has the way back to Pages.
+
+- [#2563](https://github.com/Fiestaboard/FiestaBoard/pull/2563) [`84f41a4`](https://github.com/Fiestaboard/FiestaBoard/commit/84f41a48de7238f8bd19e7f6a503b026b98f1559) Thanks [@jeffredodd](https://github.com/jeffredodd)! - After a new page's first save the editor moves to the page's own URL, so a reload, a shared link and Back all find it. The Add to Home Screen offer no longer opens over the editor at the moment of saving; it waits until you leave the editor.
+
+- [#2558](https://github.com/Fiestaboard/FiestaBoard/pull/2558) [`b48de05`](https://github.com/Fiestaboard/FiestaBoard/commit/b48de05d429db096feb87c11c75c29d610a1fe37) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Settings on a phone now opens with "‹ More" and a plain title. Its rows show their current values: account and signed-in device count, notifications on/off, theme, FiestaBot provider, and Wi-Fi network. Signed-in devices sit directly on the page and read times as "just now" or "yesterday, 9:12 PM". Browsers are named "Chrome on macOS", and password sign-ins from apps or scripts are no longer listed as older TV apps.
+
+- [#2554](https://github.com/Fiestaboard/FiestaBoard/pull/2554) [`f394d89`](https://github.com/Fiestaboard/FiestaBoard/commit/f394d89aa360a76e84422330d3ac2e66fbf23415) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Sign-in now follows the 07e design: the hub address and status under the title, a password reveal, "Keep me signed in on this browser", and a forgotten-password line that links to the reset page. A wrong password is explained, cleared and focused, and the sign-in card no longer shows the "change this later" footnote.
+
+- [#2562](https://github.com/Fiestaboard/FiestaBoard/pull/2562) [`75fbf74`](https://github.com/Fiestaboard/FiestaBoard/commit/75fbf74291538c44c277a586b837a32777e4c813) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Integration settings now point at the field the hub rejected (for example a refresh interval below the plugin's minimum) and say so beside Save instead of in a toast over it, ask before leaving with unsaved edits, name each list item and its remove button for screen readers, and show Save Changes in your language.
+
+- [#2572](https://github.com/Fiestaboard/FiestaBoard/pull/2572) [`a45a0c3`](https://github.com/Fiestaboard/FiestaBoard/commit/a45a0c35b13bdad03567e80af1a4ab280b98bddc) Thanks [@jeffredodd](https://github.com/jeffredodd)! - On a phone, the Integrations list now leads with its title and a full-width Installed · n / Marketplace switch, shows each integration's state as a coloured dot, and keeps Check for updates and Auto-update under the list. An integration's settings page drops its second Back link and keeps the demo-page text readable in long languages such as German.
+
+- [#2520](https://github.com/Fiestaboard/FiestaBoard/pull/2520) [`67d8abc`](https://github.com/Fiestaboard/FiestaBoard/commit/67d8abcb3050a42a0836a87d663906e27c1d59bc) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Add CI bundle-size checks against measured published v11 alpha assets to catch unexpected web-code growth.
+
+- [#2565](https://github.com/Fiestaboard/FiestaBoard/pull/2565) [`19dd0d7`](https://github.com/Fiestaboard/FiestaBoard/commit/19dd0d7cb9d8ae701e024dc1ce749791dcbd9c6e) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Schedule: the entry sheet now warns before you save when an entry overlaps another one, says which page the board actually shows during the overlap and offers a one-tap fix; saving an overlapping entry shows a warning instead of "Schedule created", and the conflicts list is translated, names both entries, uses your 12/24-hour setting and no longer hides schedule gaps.
+
+- [#2571](https://github.com/Fiestaboard/FiestaBoard/pull/2571) [`e96e76b`](https://github.com/Fiestaboard/FiestaBoard/commit/e96e76b0c49ee430f3ebe611a86b0539c9793315) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Schedule on a phone: the title sits beside Add, one Schedule Mode row names the display, the day chips and agenda come next (week and "Which page at…" controls move below it), the Week grid is no longer offered, and the current entry or gap is marked "Now". Overnight entries read as their whole range (11:30 PM – 2:00 AM), the day ends at 12:00 AM instead of 11:59 PM, "Which page at…" no longer offers a quick moment that has passed, the entry sheet's subtitle names the display and its days, and the side sheet reaches the bottom of the screen in landscape.
+
+- [#2575](https://github.com/Fiestaboard/FiestaBoard/pull/2575) [`8750829`](https://github.com/Fiestaboard/FiestaBoard/commit/87508295eddeb53760c743aeda058926e404d201) Thanks [@jeffredodd](https://github.com/jeffredodd)! - A sheet or dialog reopened right after closing no longer closes itself again when the browser finishes taking back the old history entry.
+
 ## 11.0.0-alpha.10
 
 ### Minor Changes

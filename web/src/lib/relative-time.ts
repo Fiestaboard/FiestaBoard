@@ -53,3 +53,42 @@ export function formatRelativeTime(iso: string, locale: string, now: number = Da
   }
   return rtf.format(0, "second");
 }
+
+function startOfDay(ms: number): number {
+  const d = new Date(ms);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+/**
+ * A clock-style time for a session row (07e `322:31855`): "just now",
+ * "5:38 PM" (today; "today, 5:38 PM" with `nameToday`), "yesterday,
+ * 9:12 PM", then the date alone ("Nov 2", with the year once it is not this
+ * year's). Day words come from Intl ("yesterday" / "today" in every locale);
+ * "just now" and the day-and-time joiner come from the caller's messages.
+ */
+export function formatSessionTime(
+  iso: string,
+  locale: string,
+  labels: { justNow: string; dayTime: (day: string, time: string) => string },
+  { now = Date.now(), nameToday = false }: { now?: number; nameToday?: boolean } = {},
+): string {
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return iso;
+  if (Math.abs(now - then) < 60_000) return labels.justNow;
+  let time: string;
+  let date: string;
+  try {
+    time = new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }).format(then);
+    date = new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      year: new Date(then).getFullYear() === new Date(now).getFullYear() ? undefined : "numeric",
+    }).format(then);
+  } catch {
+    return formatSessionTime(iso, "en", labels, { now, nameToday });
+  }
+  const days = Math.round((startOfDay(now) - startOfDay(then)) / (24 * 3600_000));
+  if (days === 0) return nameToday ? labels.dayTime(formatterFor(locale).format(0, "day"), time) : time;
+  if (days === 1) return labels.dayTime(formatterFor(locale).format(-1, "day"), time);
+  return date;
+}

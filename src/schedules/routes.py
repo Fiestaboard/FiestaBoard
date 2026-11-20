@@ -225,7 +225,7 @@ async def get_active_schedule(board_id: str | None = None, at: datetime | None =
     return ActiveScheduleResponse(**answer)
 
 
-@router.post("/schedules/validate", response_model=ScheduleValidationResult)
+@router.post("/schedules/validate", response_model=ScheduleValidationResult, responses=errors(400))
 async def validate_schedules(request: ScheduleValidateRequest | None = None):
     """Validate schedules for overlaps and gaps. Body optional: {"board_id": "..."}.
 
@@ -233,10 +233,20 @@ async def validate_schedules(request: ScheduleValidateRequest | None = None):
     consistent?" and got the answer it asked for, in a declared response model
     — the probe-endpoint case of API_CONVENTIONS.md §status codes, not a
     failure served as a success.
+
+    ``candidate`` (+ optional ``candidate_id``) checks an unsaved entry with
+    the saved ones and stores nothing; an incomplete candidate is a 400.
     """
     schedule_service = get_schedule_service()
     board_id = request.board_id if request else None
-    return schedule_service.validate_schedules(board_id=board_id)
+    if request is None or request.candidate is None:
+        return schedule_service.validate_schedules(board_id=board_id)
+    try:
+        return schedule_service.validate_schedules(
+            board_id=board_id, candidate=request.candidate, candidate_id=request.candidate_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/schedules/default-page", response_model=DefaultPageResponse)

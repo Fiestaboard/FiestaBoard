@@ -11,6 +11,7 @@ import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
 import { NavigationSidebar } from "@/components/navigation-sidebar";
 import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridge-context";
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
+import { useRailBreakpoint } from "@/hooks/use-below-rail";
 import { ThemeProvider } from "@/hooks/use-theme";
 import i18n from "@/i18n/i18next";
 import type { ActiveScheduleResponse, ScheduleEntry } from "@/lib/api";
@@ -278,10 +279,13 @@ window.fetch = async (input, init) => {
 const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
 function Fixture() {
   const { collapsed } = useSidebar();
+  // The app's breakpoint (MainContent): a short landscape phone keeps the
+  // phone chrome up to lg (BB-A-13), so the content clears its header.
+  const railBreakpoint = useRailBreakpoint();
   return (
     <>
       <NavigationSidebar />
-      <MainContent collapsed={collapsed} railBreakpoint="md" bottomNav>
+      <MainContent collapsed={collapsed} railBreakpoint={railBreakpoint} bottomNav>
         <Routes>
           <Route path="/schedule" element={<SchedulePage />} />
         </Routes>

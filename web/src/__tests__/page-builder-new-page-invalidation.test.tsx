@@ -92,4 +92,21 @@ describe("PageBuilder — saving a new page", () => {
 
     expect(clearPreviewCacheForPage).toHaveBeenCalledWith(NEW_PAGE_ID);
   });
+
+  // BB-B-9: after the first save the editor moves to /pages/edit/{id}, so a
+  // reload, a shared link and Back all find the page.
+  it("reports the created page once, so the route can move to its edit URL", async () => {
+    const onCreated = vi.fn();
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+    render(<PageBuilder onClose={vi.fn()} onSave={onSave} onCreated={onCreated} />, { wrapper: TestWrapper });
+
+    await user.type(await screen.findByLabelText(/page name/i), "Fresh Page");
+    await user.click(await screen.findByRole("button", { name: /save page/i }));
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(NEW_PAGE_ID));
+    await user.click(await screen.findByRole("button", { name: /save page/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(onCreated).toHaveBeenCalledTimes(1);
+  });
 });

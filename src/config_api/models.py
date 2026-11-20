@@ -181,7 +181,13 @@ class ExistingBoardRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    output: str | None = Field(default=None, description="The output being set up (informational).")
+    output: str | None = Field(
+        default=None,
+        description=(
+            'The output being set up. "vestaboard" takes a bare IP or hostname: a host with a port, '
+            "scheme or path names no board."
+        ),
+    )
     host: str | None = Field(default=None, max_length=512)
     port: int | None = Field(default=None, ge=1, le=65535)
     cloud_key: str | None = Field(default=None, max_length=512)

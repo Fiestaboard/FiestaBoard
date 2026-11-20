@@ -13,7 +13,6 @@ import {
   ListItem,
   ListRow,
   ListRowGroup,
-  PageCard,
   PageHeader,
   PageLayout,
   Skeleton,
@@ -54,11 +53,14 @@ import Link from "@/components/smart-link";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { isUntouchedPlaceholder } from "@/components/wizard/default-board";
 import { useWizard } from "@/components/wizard-provider";
-import { RAIL_BREAKPOINT, useBelowRail } from "@/hooks/use-below-rail";
+import { useBelowRail, useRailBreakpoint } from "@/hooks/use-below-rail";
 import { useHubIdentity } from "@/hooks/use-hub-identity";
 import { useParams, useSearchParams } from "@/hooks/use-router";
+import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { pushApi } from "@/lib/api/push";
+import { sessionsApi } from "@/lib/api/sessions";
 import {
   legacySettingsTarget,
   resolveSettingsSection,
@@ -83,6 +85,7 @@ const LEGACY_HARDWARE_SECTION = "hardware";
  * with a way back. It replaces six horizontal tabs that overflowed at 375px.
  */
 export default function SettingsPage() {
+  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("settings");
   const tHub = useTranslations("settings.hub");
   const { section: sectionParam } = useParams<{ section?: string }>();
@@ -113,6 +116,12 @@ export default function SettingsPage() {
     [showAccount],
   );
   const active = resolveSettingsSection(sectionParam, visible);
+  const rowMeta = useRowMeta({
+    username,
+    sessions: !!authStatus?.session_management_supported && !!username,
+    // Only while the list is on screen (always from the rail up).
+    enabled: !belowRail || !sectionParam,
+  });
 
   // Scroll to a hash anchor once the section mounts, and pulse the target
   // card so the reader sees what they were sent to.
@@ -174,10 +183,6 @@ export default function SettingsPage() {
   const showList = !belowRail || !sectionParam;
   const showDetail = !belowRail || !!sectionParam;
 
-  const rowMeta: Partial<Record<SettingsSectionId, { description?: string }>> = {
-    account: username ? { description: username } : undefined,
-  };
-
   const list = (
     <Stack gap="4" data-slot="settings-index">
       <Card data-slot="settings-hub-card" className="py-4">
@@ -217,12 +222,11 @@ export default function SettingsPage() {
           {tHub(`sections.${active}.description`, { name: hubName })}
         </Text>
       </Stack>
+      {/* Account's cards and its Signed-in devices sit straight on the page
+          (07e `322:31855`), not inside a PageCard that has no padding of its
+          own on a phone (BB-C-24). */}
       {active === "notifications" ? (
         <NotificationSettings />
-      ) : active === "account" ? (
-        <PageCard>
-          <SettingsSectionBody section={active} />
-        </PageCard>
       ) : (
         <Stack gap="4">
           <SettingsSectionBody section={active} />
@@ -232,8 +236,10 @@ export default function SettingsPage() {
   );
 
   return (
-    <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
-      {belowRail && sectionParam ? (
+    <PageLayout railBreakpoint={railBreakpoint}>
+      {belowRail && !sectionParam ? (
+        <PhoneIndexHeader title={t("title")} />
+      ) : belowRail && sectionParam ? (
         <Box className="mb-4">
           <ViewTransitionLink
             href="/settings"
@@ -270,12 +276,111 @@ export default function SettingsPage() {
   );
 }
 
+type RowMeta = Partial<Record<SettingsSectionId, { description?: string; meta?: string }>>;
+
+/**
+ * The phone index head (07e `320:7936`): "‹ More", then a plain, left-aligned
+ * "Settings". On a phone Settings is reached from the More drawer, which is
+ * the shell's (FiestaUI Sidebar `bottom-nav`); it has no API to open it, so
+ * the back link presses the shell's own More tab, found by its kit slot.
+ */
+function PhoneIndexHeader({ title }: { title: string }) {
+  const tNav = useTranslations("navigation");
+  return (
+    <Stack gap="4" className="mb-2" data-slot="settings-phone-header">
+      {/* The section screens' "‹ Settings" link, as a button: it opens a drawer. */}
+      <button
+        type="button"
+        className="inline-flex min-h-11 items-center gap-1 self-start rounded-md text-sm font-medium text-brand focus-ring"
+        onClick={() => document.querySelector<HTMLButtonElement>('[data-slot="sidebar-bottom-nav-more"]')?.click()}
+      >
+        <ChevronLeft className="size-4" aria-hidden="true" />
+        {tNav("more")}
+      </button>
+      <Heading level={1} size="3xl">
+        {title}
+      </Heading>
+    </Stack>
+  );
+}
+
+/**
+ * The value each index row reads with its title (07e `320:7936`), from what
+ * the hub already reports. A row shows nothing when there is no honest value:
+ * Notifications reports on/off, not 07e's per-category count; Network has no
+ * value off a FiestaPi's Wi-Fi.
+ */
+function useRowMeta({
+  username,
+  sessions,
+  enabled,
+}: {
+  username: string | null;
+  sessions: boolean;
+  enabled: boolean;
+}): RowMeta {
+  const tHub = useTranslations("settings.hub");
+  const tCommon = useTranslations("common");
+  const tProfile = useTranslations("profile");
+  const { theme } = useTheme();
+  const signedIn = useQuery({
+    queryKey: ["auth-sessions"],
+    queryFn: sessionsApi.listSessions,
+    staleTime: 30_000,
+    retry: false,
+    enabled: enabled && sessions,
+  });
+  // The Notifications screen's own cache key.
+  const push = useQuery({
+    queryKey: ["push-status"],
+    queryFn: pushApi.getStatus,
+    staleTime: 15_000,
+    retry: false,
+    enabled: enabled && !!username,
+  });
+  const ai = useQuery({ queryKey: ["ai-settings"], queryFn: api.getAiSettings, retry: false, enabled });
+  const wifiCapability = useQuery({
+    queryKey: ["wifi-capability"],
+    queryFn: api.getWifiCapability,
+    staleTime: 5 * 60_000,
+    retry: false,
+    enabled,
+  });
+  const wifi = useQuery({
+    queryKey: ["wifi", "status"],
+    queryFn: api.getWifiStatus,
+    retry: false,
+    enabled: enabled && !!wifiCapability.data?.available,
+  });
+
+  const count = signedIn.data?.sessions.length;
+  const provider = ai.data?.enabled
+    ? (ai.data.providers.find((p) => p.id === ai.data?.default_provider_id) ?? ai.data.providers[0])
+    : undefined;
+  const themes = { light: tProfile("lightMode"), dark: tProfile("darkMode"), system: tProfile("systemMode") };
+  return {
+    account: username
+      ? { description: count === undefined ? username : tHub("accountMeta", { name: username, count }) }
+      : undefined,
+    notifications: push.data
+      ? {
+          meta:
+            push.data.user_enabled && push.data.device_enabled && push.data.subscribed ? tCommon("on") : tCommon("off"),
+        }
+      : undefined,
+    appearance: theme in themes ? { meta: themes[theme as keyof typeof themes] } : undefined,
+    fiestabot: provider ? { meta: provider.name } : undefined,
+    network:
+      wifi.data?.connected && wifi.data.ssid ? { meta: tHub("networkMeta", { ssid: wifi.data.ssid }) } : undefined,
+  };
+}
+
 interface SettingsGroupListProps {
   label: string;
   sections: readonly (typeof SETTINGS_SECTIONS)[number][];
   active: SettingsSectionId | null;
   title: (id: SettingsSectionId) => string;
-  meta: Partial<Record<SettingsSectionId, { description?: string }>>;
+  meta: RowMeta;
 }
 
 /** One group of the index: its label, then a row per section. */
@@ -300,6 +405,7 @@ function SettingsGroupList({ label, sections, active, title, meta }: SettingsGro
                 leading={<Icon className="size-4 text-foreground" aria-hidden="true" />}
                 title={title(id)}
                 description={meta[id]?.description}
+                meta={meta[id]?.meta}
                 trailing={<ChevronRight className="size-4" aria-hidden="true" />}
               />
             </ListItem>
@@ -363,11 +469,12 @@ function SettingsSectionBody({ section }: { section: SettingsSectionId }) {
     case "system":
       return (
         <>
+          {/* 07e 320:8881: Version, then Backups, first. */}
+          <ReleaseChannelCard />
+          <BackupSettings />
           <InstanceNameCard />
           <SystemControls />
           <AutoUpdateIntervalCard />
-          <ReleaseChannelCard />
-          <BackupSettings />
           {!boardsLoading && boards.every(isUntouchedPlaceholder) && (
             <Card>
               <CardHeader>

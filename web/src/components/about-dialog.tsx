@@ -1,47 +1,60 @@
 "use client";
 
 /**
- * The About box, in the tradition that invented them: one centred column,
- * the mark large and proud at the top, a quiet block of facts beneath it,
- * the licence last. No cards, no grid, no accent colour — the taco is the
- * only loud thing in here and everything else gets out of its way.
+ * About FiestaBoard (07e: dialog `343:63073`, phone sheet `343:64171`).
  *
- * Every fact is read from a real endpoint (`/version`,
- * `/system/update/status`, `/system/channel`) or from board settings the app
- * already holds. Rows whose value the server does not know are omitted
- * rather than rendered as "Unknown": an About box that pads itself out to
- * look substantial is worse than a short one that is entirely true.
+ * Which build this page is, which hub it talks to and on what release
+ * channel, and the update waiting, if any. A centred dialog from the rail up;
+ * a bottom sheet on a phone, like the app's other phone overlays.
+ *
+ * Every fact is read from a real endpoint (`/version`, `/system/channel`,
+ * `/system/update-check`, settings) or from this build. Rows whose value the
+ * server does not know are omitted rather than rendered as "Unknown".
  */
 
 import {
+  Badge,
+  Box,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogHeader,
   DialogTitle,
-  FiestaIcon,
-  FiestaLogo,
   Flex,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
   Stack,
   Text,
   TextLink,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 
-import { useCurrentBoard } from "@/components/current-board-context";
+import Link from "@/components/smart-link";
+import { useAvailableUpdate } from "@/hooks/use-available-update";
+import { useBelowRail } from "@/hooks/use-below-rail";
+import { useHubIdentity } from "@/hooks/use-hub-identity";
 import { useTranslations } from "@/i18n/translations";
-import type { AutoUpdateInterval, UpdateStatusResponse } from "@/lib/api";
 import { api } from "@/lib/api";
-import { resolveDimensions } from "@/lib/board-dimensions";
+import type { ReleaseChannel } from "@/lib/api/system";
 
-/**
- * Straight from the repo's LICENSE file — not from memory, and not from a
- * `new Date().getFullYear()` that would silently relicense the project every
- * January. If LICENSE changes, change these.
- */
-const LICENSE_HOLDER = "Fiestaboard contributors";
-const LICENSE_YEAR = "2026";
+import { version as WEB_VERSION } from "../../package.json";
+
 const REPO_URL = "https://github.com/Fiestaboard/FiestaBoard";
-const DOCS_URL = "https://fiestaboard.app/docs/intro";
+const LINKS = [
+  { key: "releaseNotes", href: `${REPO_URL}/releases` },
+  { key: "licenses", href: `${REPO_URL}/blob/main/LICENSE` },
+  { key: "reportProblem", href: `${REPO_URL}/issues/new/choose` },
+] as const;
+const CHANNEL_LABELS: Record<ReleaseChannel, string> = {
+  stable: "channelStable",
+  beta: "channelBeta",
+  alpha: "channelAlpha",
+};
 
 interface AboutDialogProps {
   open: boolean;
@@ -50,25 +63,14 @@ interface AboutDialogProps {
 
 export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
   const t = useTranslations("aboutDialog");
-  const { currentBoard } = useCurrentBoard();
+  const tMenu = useTranslations("settingsMenu");
+  const tChannel = useTranslations("releaseChannel");
+  const tCommon = useTranslations("common");
+  const belowRail = useBelowRail();
 
-  // All three are shared cache keys, so opening the box usually costs no
-  // requests at all — something else has already asked. `enabled: open`
-  // keeps a box nobody opens from ever being a reason to hit the API.
-  const { data: version } = useQuery({
-    queryKey: ["version"],
-    queryFn: () => api.getVersion(),
-    staleTime: Infinity,
-    retry: false,
-    enabled: open,
-  });
-  const { data: updateStatus } = useQuery({
-    queryKey: ["update-status"],
-    queryFn: () => api.getUpdateStatus(),
-    staleTime: 1000 * 30,
-    retry: false,
-    enabled: open,
-  });
+  // Shared cache keys, so opening the box usually costs no requests at all.
+  const hub = useHubIdentity({ enabled: open });
+  const updateVersion = useAvailableUpdate({ enabled: open });
   const { data: channel } = useQuery({
     queryKey: ["system", "channel"],
     queryFn: () => api.getReleaseChannel(),
@@ -76,154 +78,95 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
     retry: false,
     enabled: open,
   });
-  const { data: updateCheck } = useQuery({
-    queryKey: ["update-check"],
-    queryFn: () => api.checkForUpdate(),
-    staleTime: 1000 * 60 * 60,
-    retry: false,
-    enabled: open,
-  });
 
-  // The rail used to carry an always-visible update arrow next to the version
-  // string. The version string is in here now, so its arrow is too — as a
-  // line of text rather than an icon, because there is finally room to say
-  // which version is waiting. Hidden when an external supervisor owns updates
-  // (the Home Assistant add-on): FiestaBoard cannot apply it, so announcing
-  // it would be an offer it cannot honour.
-  const updateAvailable =
-    !updateStatus?.managed_externally && updateCheck?.update_available ? updateCheck.latest_version : null;
+  const running = channel?.running_channel ?? channel?.channel;
+  const facts = [
+    { key: "thisPage", label: t("thisPage"), value: t("webVersion", { version: WEB_VERSION }) },
+    {
+      key: "hub",
+      label: t("hub"),
+      value: [hub.name, hub.version && t("hubVersion", { version: hub.version }), hub.host].filter(Boolean).join(" · "),
+    },
+    running && CHANNEL_LABELS[running]
+      ? { key: "channel", label: tChannel("title"), value: tChannel(CHANNEL_LABELS[running]) }
+      : null,
+  ].filter((fact) => fact !== null);
 
-  const facts: { key: string; label: string; value: string }[] = [];
+  const updateLink = (
+    <Button asChild variant={belowRail ? "default" : "outline"} className={belowRail ? "w-full" : undefined}>
+      <Link href="/settings/system" onClick={() => onOpenChange(false)}>
+        {t("updateInSettings")}
+      </Link>
+    </Button>
+  );
 
-  if (channel?.channel) {
-    facts.push({
-      key: "channel",
-      label: t("channel"),
-      value: channel.channel === "beta" ? t("channelBeta") : t("channelStable"),
-    });
-  }
+  const body = (
+    <Stack gap="4">
+      <dl className="rounded-lg bg-muted px-4 py-3">
+        {facts.map((fact) => (
+          <Flex key={fact.key} direction={belowRail ? "col" : "row"} gap={belowRail ? "0.5" : "4"} className="py-1.5">
+            <dt className="shrink-0 text-sm text-muted-foreground sm:w-32">{fact.label}</dt>
+            <dd className="min-w-0 text-sm">{fact.value}</dd>
+          </Flex>
+        ))}
+      </dl>
+      {updateVersion && (
+        <Flex align="center" gap="3" wrap className="rounded-lg border border-brand px-3 py-2.5">
+          <Badge variant="brand">{tMenu("updateAvailable")}</Badge>
+          <Text size="sm" className="min-w-0 flex-1">
+            {t("hubVersion", { version: updateVersion })}
+          </Text>
+          {!belowRail && updateLink}
+        </Flex>
+      )}
+      {!belowRail && (
+        <Flex gap="4" wrap>
+          {LINKS.map((link) => (
+            <TextLink key={link.key} href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm">
+              {t(link.key)}
+            </TextLink>
+          ))}
+        </Flex>
+      )}
+    </Stack>
+  );
 
-  if (updateStatus?.profile) {
-    facts.push({
-      key: "platform",
-      label: t("platform"),
-      value: updateStatus.profile === "pi" ? t("platformPi") : t("platformDocker"),
-    });
-  }
-
-  if (version?.hardware_model) {
-    facts.push({ key: "hardware", label: t("hardware"), value: version.hardware_model });
-  }
-
-  if (updateStatus) {
-    facts.push({ key: "updates", label: t("updates"), value: describeUpdates(updateStatus, t) });
-  }
-
-  if (currentBoard) {
-    const { rows, cols } = resolveDimensions(
-      currentBoard.device_type,
-      currentBoard.notes_wide ?? 1,
-      currentBoard.notes_tall ?? 1,
-      currentBoard.grid_rows,
-      currentBoard.grid_cols,
+  if (belowRail) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" grabber labels={{ close: tCommon("close") }}>
+          <SheetHeader>
+            <SheetTitle>{tMenu("about")}</SheetTitle>
+            <SheetDescription>{t("description")}</SheetDescription>
+          </SheetHeader>
+          {body}
+          {/* The kit's footer stacks bottom-up: the primary action, listed
+              last, sits on top as in 343:64171. */}
+          <SheetFooter>
+            <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
+              {tCommon("close")}
+            </Button>
+            {updateVersion && updateLink}
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     );
-    facts.push({
-      key: "board",
-      label: t("board"),
-      // `×` is the multiplication sign, not the letter x — this is a
-      // dimension, and the board's own docs write it that way.
-      value: `${currentBoard.name} — ${cols}×${rows}`,
-    });
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-sm gap-0 p-0 sm:rounded-xl">
-        {/* pt-9: the mark needs air above it more than the facts need air
-            below them, and that asymmetry is what makes the box read as a
-            portrait rather than a form. */}
-        <Stack gap="4" align="center" className="px-6 pb-6 pt-9">
-          <FiestaIcon size={96} />
-          <Stack gap="1" align="center">
-            {/* The wordmark IS the title — a separate heading above it would
-                say the product's name twice. One accessible name, one
-                visible one, and they are the same name. */}
-            <DialogTitle className="text-3xl font-normal leading-none">
-              <FiestaLogo className="text-3xl" />
-            </DialogTitle>
-            {version && (
-              <Text size="sm" tone="muted" suppressHydrationWarning>
-                {version.running_version}
-                {version.is_dev && ` · ${t("devSuffix")}`}
-              </Text>
-            )}
-            {updateAvailable && (
-              <Text size="xs" tone="warning">
-                {t("updateAvailable", { version: updateAvailable })}
-              </Text>
-            )}
-          </Stack>
-          <DialogDescription className="sr-only">{t("description")}</DialogDescription>
-        </Stack>
-
-        {facts.length > 0 && (
-          <dl className="border-t border-border px-6 py-4">
-            {facts.map((fact) => (
-              <Flex key={fact.key} align="baseline" justify="between" gap="4" className="py-1">
-                <dt className="shrink-0 text-sm text-muted-foreground">{fact.label}</dt>
-                {/* text-right + min-w-0: a long hardware string wraps under
-                    itself rather than shoving the label off the left edge. */}
-                <dd className="min-w-0 text-right text-sm">{fact.value}</dd>
-              </Flex>
-            ))}
-          </dl>
-        )}
-
-        <Stack gap="1" align="center" className="border-t border-border px-6 py-4 text-center">
-          <Text size="xs" tone="muted">
-            {t("license")}
-          </Text>
-          <Text size="xs" tone="muted">
-            {t("copyright", { year: LICENSE_YEAR, holder: LICENSE_HOLDER })}
-          </Text>
-          <Flex align="center" justify="center" gap="3">
-            <TextLink href={DOCS_URL} target="_blank" rel="noopener noreferrer" className="text-xs">
-              {t("documentation")}
-            </TextLink>
-            <TextLink href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-xs">
-              {t("sourceCode")}
-            </TextLink>
-          </Flex>
-        </Stack>
+      <DialogContent className="sm:max-w-xl" labels={{ close: tCommon("close") }}>
+        <DialogHeader>
+          <DialogTitle>{tMenu("about")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
+        </DialogHeader>
+        {body}
+        <Box>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {tCommon("close")}
+          </Button>
+        </Box>
       </DialogContent>
     </Dialog>
   );
-}
-
-/**
- * Spelled out rather than built from the interval string. A computed key
- * (`updates${capitalize(interval)}`) works at runtime and is invisible to
- * every tool that reads this repo's i18n by grepping for `t("...")` — the
- * four interval strings would read as unused in all 14 locales and get
- * pruned by the next tidy-up.
- */
-const UPDATE_INTERVAL_KEYS: Record<AutoUpdateInterval, string> = {
-  daily: "updatesDaily",
-  weekly: "updatesWeekly",
-  monthly: "updatesMonthly",
-  manual: "updatesManual",
-};
-
-/**
- * One sentence for how this install gets its updates. The order matters: an
- * externally-managed install cannot update itself whatever the interval
- * says, and an install whose updater is unreachable cannot either —
- * reporting "Automatic, daily" in those cases would be a promise FiestaBoard
- * is in no position to keep.
- */
-function describeUpdates(status: UpdateStatusResponse, t: (key: string) => string): string {
-  if (status.managed_externally) return t("updatesManaged");
-  if (!status.updater_available) return t("updatesUnavailable");
-  if (!status.auto_update_enabled) return t("updatesManual");
-  return t(UPDATE_INTERVAL_KEYS[status.auto_update_interval]);
 }

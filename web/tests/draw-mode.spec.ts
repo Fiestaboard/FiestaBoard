@@ -125,8 +125,17 @@ test.describe("Draw mode", () => {
     const pageName = `Draw E2E ${Date.now()}`;
     await page.getByPlaceholder("My Custom Page").fill(pageName);
     const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    // The editor stays open after a save (it has its own header, not the
+    // section's), so wait for the save itself.
+    const saveResponse = page.waitForResponse(
+      (response) =>
+        /\/api\/v1\/pages(\/[^/]+)?$/.test(new URL(response.url()).pathname) &&
+        ["POST", "PUT"].includes(response.request().method()) &&
+        response.ok(),
+      { timeout: 15_000 },
+    );
     await saveButton.first().click();
-    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
+    await saveResponse;
 
     const res = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
     const data = await res.json();
@@ -369,8 +378,17 @@ test.describe("Draw mode", () => {
     const pageName = `Stamp E2E ${Date.now()}`;
     await page.getByPlaceholder("My Custom Page").fill(pageName);
     const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    // The editor stays open after a save (it has its own header, not the
+    // section's), so wait for the save itself.
+    const saveResponse = page.waitForResponse(
+      (response) =>
+        /\/api\/v1\/pages(\/[^/]+)?$/.test(new URL(response.url()).pathname) &&
+        ["POST", "PUT"].includes(response.request().method()) &&
+        response.ok(),
+      { timeout: 15_000 },
+    );
     await saveButton.first().click();
-    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
+    await saveResponse;
 
     const res = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
     const data = await res.json();
@@ -466,8 +484,17 @@ test.describe("Draw mode", () => {
     // note-array-output.spec.ts), so delivery can be asserted directly.
     await page.keyboard.press("Escape");
     const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    // The editor stays open after a save (it has its own header, not the
+    // section's), so wait for the save itself.
+    const saveResponse = page.waitForResponse(
+      (response) =>
+        /\/api\/v1\/pages(\/[^/]+)?$/.test(new URL(response.url()).pathname) &&
+        ["POST", "PUT"].includes(response.request().method()) &&
+        response.ok(),
+      { timeout: 15_000 },
+    );
     await saveButton.first().click();
-    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
+    await saveResponse;
 
     const sendRes = await fetch(`${API_URL}/pages/${pageId}/send?target=board`, {
       method: "POST",

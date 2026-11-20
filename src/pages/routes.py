@@ -1002,8 +1002,10 @@ async def duplicate_page(page_id: str, body: PageDuplicateRequest | None = None,
     """
     request = body or PageDuplicateRequest()
     board = _require_board(request.board_id) if request.board_id is not None else None
-    page, report = _history_call(
-        page_duplicate.duplicate_page, get_page_service(), page_id, request, board=board, via=via
+    # The crop report validates the copy, which evaluates its formulas against
+    # live plugin data: a worker thread, not the event loop.
+    page, report = await asyncio.to_thread(
+        _history_call, page_duplicate.duplicate_page, get_page_service(), page_id, request, board=board, via=via
     )
     if board is not None:
         from src.v1.routes_boards import _drawing

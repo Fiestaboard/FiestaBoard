@@ -1,6 +1,9 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const route = { pathname: "/" };
+vi.mock("@/hooks/use-router", () => ({ usePathname: () => route.pathname }));
+
 import { INSTALL_OFFER_SLOT_ID, InstallPrompt } from "@/components/install-prompt";
 import { emitApiSuccess } from "@/lib/api/success-events";
 import { INSTALL_TRIGGER_KEY, readInstallTrigger } from "@/lib/pwa/install-trigger";
@@ -42,6 +45,7 @@ const card = () => screen.queryByTestId("install-offer");
 describe("InstallPrompt (WEB-12)", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    route.pathname = "/";
     setBrowser();
   });
   afterEach(() => {
@@ -139,6 +143,28 @@ describe("InstallPrompt (WEB-12)", () => {
       expect.stringContaining("Add to Home Screen"),
       expect.stringContaining("Open as Web App"),
     ]);
+  });
+
+  // BB-B-10 (316:91196): saving in the editor shows the Saved toast; the
+  // install sheet waits until the editor is left.
+  it.each(["/pages/new", "/pages/edit/p1"])("waits until the editor is left to open the sheet (%s)", (path) => {
+    setBrowser({ ua: IPHONE_SAFARI });
+    route.pathname = path;
+    const { rerender } = render(<InstallPrompt />);
+    savePage();
+    expect(screen.queryByRole("dialog", { name: /add to your home screen/i })).toBeNull();
+    route.pathname = "/pages";
+    rerender(<InstallPrompt />);
+    expect(screen.getByRole("dialog", { name: /add to your home screen/i })).toBeInTheDocument();
+  });
+
+  it("does not spend the offer while it waits in the editor", () => {
+    setBrowser({ ua: IPHONE_SAFARI });
+    route.pathname = "/pages/edit/p1";
+    const { unmount } = render(<InstallPrompt />);
+    savePage();
+    unmount(); // a reload or a closed tab while still editing
+    expect(readInstallTrigger().snoozedAt ?? null).toBeNull();
   });
 
   it("Don't show again on the Safari sheet ends the offer for good", () => {

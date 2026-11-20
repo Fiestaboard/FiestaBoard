@@ -142,7 +142,7 @@ describe("07e setup flow", () => {
 
   it.each([
     ["cloud", { api_mode: "cloud", cloud_key: "test_existing_cloud" }, "cloud_key"],
-    ["local", { api_mode: "local", host: "HTTP://BOARD.LOCAL./", local_api_key: "test_key" }, "host"],
+    ["local", { api_mode: "local", host: "Board.Local", local_api_key: "test_key" }, "host"],
   ])(
     "recognizes an existing %s board through H19 without exposing saved keys or creating duplicates",
     async (_mode, output_config, matched) => {
@@ -189,9 +189,7 @@ describe("07e setup flow", () => {
       expect(lookup.length).toBeGreaterThanOrEqual(2);
       expect(lookup).toEqual(
         lookup.map(() =>
-          expect.objectContaining(
-            matched === "host" ? { host: "HTTP://BOARD.LOCAL./" } : { cloud_key: "test_existing_cloud" },
-          ),
+          expect.objectContaining(matched === "host" ? { host: "Board.Local" } : { cloud_key: "test_existing_cloud" }),
         ),
       );
       expect(lookup.every((body) => !("local_api_key" in (body as object)))).toBe(true);
