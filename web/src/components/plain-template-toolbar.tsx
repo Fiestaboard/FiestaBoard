@@ -27,6 +27,7 @@ import { createPortal } from "react-dom";
 
 import { EditorAnchoredTool } from "@/components/editor-tablet-tools";
 import { useEditorToolbarPortal } from "@/hooks/use-editor-toolbar-portal";
+import { useMainContentLeft } from "@/hooks/use-main-content-left";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useVisualViewportBottom } from "@/hooks/use-visual-viewport-bottom";
 import { useTranslations } from "@/i18n/translations";
@@ -121,6 +122,7 @@ export function PlainTemplateToolbar({
   const sheets = useMediaQuery("(max-width: 639px)");
   const portal = useEditorToolbarPortal(touch, tTouch("editorTools"));
   const bottom = useVisualViewportBottom();
+  const left = useMainContentLeft(touch);
   const reasonId = useId();
   const [formulaOpen, setFormulaOpen] = useState(false);
   const formulaTriggerRef = useRef<HTMLButtonElement>(null);
@@ -151,7 +153,7 @@ export function PlainTemplateToolbar({
         "w-full border-border bg-card p-1",
         touch ? "fixed inset-x-0 z-[var(--z-mobile-menu)] border-t" : "flex-wrap rounded-lg border",
       )}
-      style={touch ? { bottom } : undefined}
+      style={touch ? { bottom, left, width: "auto" } : undefined}
     >
       <PlainTemplateVariablePicker trigger={tool(t("variables"), <Variable />)} onInsert={onInsert} />
       {tool(t("colors"), <Palette />, true)}

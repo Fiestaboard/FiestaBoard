@@ -140,10 +140,12 @@ export default function CreatorIde({
           className="shrink-0 gap-1.5 px-3 text-sm"
           disabled={actions.disabled}
           onClick={actions.save}
+          // Phone: a short label so the page name keeps two readable lines (BB-B-3).
+          aria-label={phone && !actions.saving ? t("saveAndUpdate") : undefined}
           {...actions.anchor}
         >
           <Send className="size-4" aria-hidden="true" />
-          {actions.saving ? t("saving") : t("saveAndUpdate")}
+          {actions.saving ? t("saving") : phone ? t("updateBoardShort") : t("saveAndUpdate")}
         </Button>
       </>
     ));

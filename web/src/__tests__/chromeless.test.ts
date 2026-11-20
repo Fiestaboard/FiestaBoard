@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isChromelessPath, isPanelPath } from "@/lib/chromeless";
+import { isChromelessPath, isPageEditorPath, isPanelPath } from "@/lib/chromeless";
 
 describe("isPanelPath", () => {
   it("matches panel viewer routes", () => {
@@ -46,4 +46,21 @@ it("activation owns authentication without setup-wizard takeover", () => {
 
 it("lets the owner recover a password without login or setup takeover", () => {
   expect(isChromelessPath("/reset-password")).toBe(true);
+});
+
+describe("isPageEditorPath (BB-B-17: the editor toolbar replaces the phone nav)", () => {
+  it("matches the editor routes", () => {
+    expect(isPageEditorPath("/pages/new")).toBe(true);
+    expect(isPageEditorPath("/pages/edit/abc")).toBe(true);
+    expect(isPageEditorPath("/pages/edit")).toBe(true);
+    expect(isPageEditorPath("/pages/edit?id=abc")).toBe(true);
+  });
+
+  it("does not match the library or other routes", () => {
+    expect(isPageEditorPath("/pages")).toBe(false);
+    expect(isPageEditorPath("/pages/")).toBe(false);
+    expect(isPageEditorPath("/pages/newsletter")).toBe(false);
+    expect(isPageEditorPath("/collections/new")).toBe(false);
+    expect(isChromelessPath("/pages/new")).toBe(false);
+  });
 });

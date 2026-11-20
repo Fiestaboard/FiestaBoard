@@ -19,9 +19,9 @@ function useOpenPageId(): string | null {
 }
 
 /**
- * The Pages section: its card and header stay mounted while the list and the
- * page editor swap beneath them. The editor used to slide up as a screen of
- * its own; it now opens under "Pages › <page name>", and pins the card to the
+ * The Pages section. The list sits in the Pages card under its header; the
+ * page editor replaces both with its own header (back to Pages, the name,
+ * Save), as Figma draws it (57:64661, 184:159319), and pins itself to the
  * viewport so the editor keeps the height it scrolls within.
  */
 export function PagesSection({ children }: { children: React.ReactNode }) {
@@ -46,6 +46,7 @@ export function PagesSection({ children }: { children: React.ReactNode }) {
       href="/pages"
       detail={detail}
       fill={detail != null}
+      bare
     >
       {children}
     </SectionShell>

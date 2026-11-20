@@ -17,7 +17,7 @@ import { useHubLine } from "@/hooks/use-hub-connection";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
-import { isChromelessPath } from "@/lib/chromeless";
+import { isChromelessPath, isPageEditorPath } from "@/lib/chromeless";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { integrationsNeedingAttention, isNavItemActive, type NavItemDef, navItemsFor } from "@/lib/nav-items";
 
@@ -94,6 +94,9 @@ export function NavigationSidebar() {
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer
   // (a wall display must never grow app chrome).
   if (chromeless) return null;
+  // Below the rail the page editor's own header and toolbar replace the phone
+  // header and tab bar (Figma 57:64661; BB-B-17).
+  if (belowRail && isPageEditorPath(pathname)) return null;
 
   const toNavItem = (item: NavItemDef): SidebarNavItem => ({
     key: item.key,

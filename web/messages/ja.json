@@ -3987,6 +3987,7 @@
     "saveDraft": "下書きを保存",
     "savingDraft": "下書きを保存中…",
     "saveAndUpdate": "保存してボードを更新",
+    "updateBoardShort": "更新",
     "saving": "保存中…",
     "problemsCount": "問題 {count}",
     "warningsCount": "警告 {count}",
