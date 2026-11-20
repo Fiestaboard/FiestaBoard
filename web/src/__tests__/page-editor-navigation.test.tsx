@@ -241,6 +241,7 @@ it("says an unknown page doesn't exist and offers the way back", async () => {
   server.use(http.get("/api/v1/pages/page-1", () => HttpResponse.json({ detail: "Page not found" }, { status: 404 })));
   const { user } = setup();
   expect(await screen.findByRole("heading", { name: "This page doesn’t exist" })).toBeInTheDocument();
+  expect(screen.queryByText("page-1")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /save page/i })).not.toBeInTheDocument();
   expect(screen.queryByDisplayValue("My Custom Page")).not.toBeInTheDocument();
   // No Creator IDE (status row, Inspector) around a page that isn't there.
