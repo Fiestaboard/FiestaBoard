@@ -20,16 +20,17 @@ import { useEffect, useState } from "react";
 import { BoardOutOfSyncBanner } from "@/components/board-out-of-sync-banner";
 import { DisplayDiagnostics } from "@/components/displays/display-diagnostics";
 import { DisplayEditor } from "@/components/displays/display-editor";
+import { DisplayChangePageButton, DisplayPauseButton } from "@/components/displays/display-header-actions";
 import { DisplayLivePreview } from "@/components/displays/display-live-preview";
 import { DisplayOverview } from "@/components/displays/display-overview";
 import { DisplayTransition } from "@/components/displays/display-transition";
+import { SectionAction } from "@/components/section-shell";
 import { BoardEditor, BoardNameField, useDisplayBoards } from "@/components/settings/display-settings";
 import { FiestaPanelSettings } from "@/components/settings/fiestapanel-settings";
 import { isVirtualBoard } from "@/components/settings/output-boards";
 import { ScheduleBehavior } from "@/components/settings/schedule-behavior";
 import { SilenceSchedule } from "@/components/settings/silence-schedule";
 import { UpdateIntervals } from "@/components/settings/update-intervals";
-import Link from "@/components/smart-link";
 import { LastKnownBoard } from "@/components/status-banners/last-known-board";
 import { StatusBannerHost } from "@/components/status-banners/status-banner-host";
 import { useBelowRail } from "@/hooks/use-below-rail";
@@ -87,10 +88,16 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
   return (
     <Tabs value={section} onValueChange={changeSection}>
       <PageSection className={embedded ? "px-0 py-0" : "py-3"}>
+        {/* 07d `320:18175`: the header row carries the display's Pause and
+            Change Page…; the trail above is the way back, so no back button
+            stacks over the tabs (BB-FH-5). The phone keeps Overview's. */}
         {!embedded && !phone && (
-          <Button asChild variant="ghost" className="mb-3">
-            <Link href="/displays">{tf("back")}</Link>
-          </Button>
+          <SectionAction>
+            <Flex gap="2">
+              <DisplayPauseButton board={board} />
+              <DisplayChangePageButton board={board} />
+            </Flex>
+          </SectionAction>
         )}
         <TabsList aria-label={t("tabsLabel")} className="w-full sm:w-fit">
           <TabsTrigger value="overview">{t("tabOverview")}</TabsTrigger>
@@ -144,6 +151,8 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
               board={board}
               onPlayback={() => changeSection("playback")}
               onDiagnostics={() => changeSection("diagnostics")}
+              // On wider screens Change Page… is in the header (07d).
+              showChangePage={phone}
             />
           </PageSection>
         )}
@@ -197,6 +206,7 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
           </Box>
         )}
       </TabsContent>
+      {/* 07d `320:18175`: the Playback cards' titles carry no icons (BB-FH-6). */}
       <TabsContent keepMounted value="playback" className="mt-0">
         <Grid
           role="region"
@@ -206,10 +216,10 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
         >
           <Stack gap="5" className="min-w-0">
             <Card className="gap-0 py-0">
-              <SilenceSchedule key={board.id} boardId={board.id} />
+              <SilenceSchedule key={board.id} boardId={board.id} showIcon={false} />
             </Card>
             <Card className="gap-0 py-0">
-              <ScheduleBehavior key={`behavior-${board.id}`} board={board} />
+              <ScheduleBehavior key={`behavior-${board.id}`} board={board} showIcon={false} />
             </Card>
           </Stack>
           <Stack gap="5" className="min-w-0">
@@ -218,10 +228,11 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
                 board={board}
                 disabled={displays.saving}
                 onChange={(updates) => displays.updateBoard(board.id, updates)}
+                showIcon={false}
               />
             </Card>
             <Card className="gap-0 py-0">
-              <UpdateIntervals key={`intervals-${board.id}`} board={board} />
+              <UpdateIntervals key={`intervals-${board.id}`} board={board} showIcon={false} />
             </Card>
           </Stack>
         </Grid>

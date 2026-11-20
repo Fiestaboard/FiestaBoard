@@ -521,6 +521,110 @@ describe("/displays section", () => {
   });
 });
 
+// BB-FH-5 (07d `320:18175`, `320:9461`): the display's header row carries its
+// mono meta and its two actions, Pause and Change Page…; the pane's header
+// carries Change Page….
+describe("display header (BB-FH-5)", () => {
+  function openKitchen(board: typeof KITCHEN & { paused?: boolean } = KITCHEN) {
+    const calls = setup([board, DESK]);
+    params.boardId = "kitchen";
+    renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    return calls;
+  }
+  const subheader = () => within(document.querySelector<HTMLElement>("[data-slot=page-subheader]")!);
+
+  it("puts Pause and Change Page… in the header row", async () => {
+    openKitchen();
+    await screen.findByRole("heading", { level: 2, name: "Kitchen" });
+    expect(await subheader().findByRole("button", { name: "Pause" })).toBeInTheDocument();
+    expect(subheader().getByRole("button", { name: "Change Page…" })).toBeInTheDocument();
+  });
+
+  it("reads the size, connection and address under the name", async () => {
+    openKitchen();
+    await screen.findByRole("heading", { level: 2, name: "Kitchen" });
+    const meta = subheader().getByText("Flagship 22 × 6 · Local API · 192.0.2.10");
+    expect(meta.className).toContain("font-mono");
+    expect(meta.className).toContain("uppercase");
+  });
+
+  it("pauses from the header, and offers Resume while paused", async () => {
+    const calls = openKitchen();
+    await userEvent.click(await subheader().findByRole("button", { name: "Pause" }));
+    await waitFor(() => expect(calls.pause).toEqual([{ board: "kitchen", paused: true }]));
+  });
+
+  it("names the header action Resume on a paused display", async () => {
+    openKitchen({ ...KITCHEN, paused: true });
+    expect(await subheader().findByRole("button", { name: "Resume" })).toBeInTheDocument();
+  });
+
+  it("stacks no back button over the tabs; the trail is the way back", async () => {
+    openKitchen();
+    await screen.findByRole("heading", { level: 2, name: "Kitchen" });
+    expect(screen.queryByRole("link", { name: "Back to Displays" })).not.toBeInTheDocument();
+  });
+
+  it("gives the list's detail pane a Change Page… in its header, not at the foot of Overview", async () => {
+    setup([KITCHEN]);
+    renderWith(<DisplaysPage />);
+    const pane = await screen.findByTestId("display-detail-pane");
+    const heading = within(pane).getByRole("heading", { level: 2, name: "Kitchen" });
+    const change = within(pane).getByRole("button", { name: "Change Page…" });
+    const header = pane.querySelector<HTMLElement>("[data-slot=display-pane-header]");
+    expect(header).toContainElement(heading);
+    expect(header).toContainElement(change);
+    expect(within(pane).getAllByRole("button", { name: "Change Page…" })).toHaveLength(1);
+  });
+});
+
+// BB-FH-6 (07d `320:18175`): the Playback cards' titles carry no icons and
+// read "Silence Schedule", "Schedule behavior", "Transition", "Update
+// intervals"; the silence copy is 07d's; no label ends in a colon.
+describe("Playback tab copy (BB-FH-6)", () => {
+  async function openPlayback() {
+    setup([KITCHEN]);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
+    return screen.findByRole("region", { name: "Playback" });
+  }
+
+  it("titles the cards as 07d does, in sentence case", async () => {
+    const region = await openPlayback();
+    for (const name of ["Silence Schedule", "Schedule behavior", "Transition", "Update intervals"]) {
+      expect(await within(region).findByRole("heading", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("draws no icon beside the card titles", async () => {
+    const region = await openPlayback();
+    await within(region).findByRole("heading", { name: "Update intervals" });
+    for (const heading of within(region).getAllByRole("heading")) {
+      expect(heading.parentElement?.querySelector("svg.lucide")).toBeNull();
+    }
+  });
+
+  it("explains the Silence Schedule in 07d's words", async () => {
+    const region = await openPlayback();
+    expect(
+      await within(region).findByText(
+        "The Silence Schedule for this display. Messages that arrive while it is silenced follow the choice below.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("ends no label in a colon", async () => {
+    const region = await openPlayback();
+    await within(region).findByRole("heading", { name: "Schedule behavior" });
+    expect(within(region).queryByText(/:\s*$/)).toBeNull();
+  });
+});
+
 describe("/displays/:boardId", () => {
   it("separates overview, settings and playback without losing the route board", async () => {
     setup([KITCHEN, DESK]);
