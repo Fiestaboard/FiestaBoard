@@ -27,7 +27,7 @@ import Link from "@/components/smart-link";
 import { resolveCode62Glyph, useBoardCurrentMessage, useStatus } from "@/hooks/use-board";
 import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useLocale, useTranslations } from "@/i18n/translations";
-import { api, type BoardDetail, type BoardInstance, isCollectionId } from "@/lib/api";
+import { api, type BoardDetail, type BoardInstance, isCollectionId, type NextChangeReason } from "@/lib/api";
 import { resolveBoardModel } from "@/lib/device-preview";
 import { isDisplayOffline } from "@/lib/status-banners";
 
@@ -70,17 +70,28 @@ export function HomeSupportingPane({
     };
   }, [board?.id]);
   const { boards, currentBoardId } = useCurrentBoard();
-  const nextAt = detail?.next_change_at ? new Date(detail.next_change_at) : null;
-  const hasNext = nextAt && Number.isFinite(nextAt.getTime()) && nextAt.getTime() > Date.now();
-  const nextName = nameOf(detail?.next_page_id);
-  const nextTitle =
-    detail?.next_change_reason === "override_ends"
+  // BB-A-23: up to three changes, each with its page. A hub without
+  // `upcoming_changes` still reports the one next change.
+  const upcoming = (
+    detail?.upcoming_changes?.length
+      ? detail.upcoming_changes
+      : detail?.next_change_at && detail.next_change_reason
+        ? [{ at: detail.next_change_at, reason: detail.next_change_reason, page_id: detail.next_page_id ?? null }]
+        : []
+  )
+    .map((change) => ({ ...change, date: new Date(change.at) }))
+    .filter((change) => Number.isFinite(change.date.getTime()) && change.date.getTime() > Date.now())
+    .slice(0, 3);
+  const titleOf = (reason: NextChangeReason, page: string | null) =>
+    reason === "override_ends"
       ? t("resumes")
-      : detail?.next_change_reason === "silence_starts"
+      : reason === "silence_starts"
         ? t("silenceStarts")
-        : detail?.next_change_reason === "silence_ends"
+        : reason === "silence_ends"
           ? t("silenceEnds")
-          : (nextName ?? t("changes"));
+          : (page ?? t("changes"));
+  const subtitleOf = (reason: NextChangeReason, page: string | null, title: string) =>
+    reason === "override_ends" ? (page ?? t("scheduleMode")) : page && page !== title ? page : t("scheduleMode");
   const toggle = useMutation({
     mutationFn: ({ id }: { id: string; owner: { id: string } | null }) => api.setScheduleEnabled(true, id),
     onSuccess: (_, { id, owner }) => {
@@ -144,27 +155,31 @@ export function HomeSupportingPane({
                 {board?.name ? t("upNextDisplay", { display: board.name }) : t("upNext")}
               </Text>
             </CardTitle>
-            {hasNext ? (
-              <Flex gap="3" align="start" data-testid="home-next-event">
-                <time
-                  dateTime={nextAt.toISOString()}
-                  className="w-[70px] md:w-16 shrink-0 font-mono text-xs text-brand pt-0.5"
-                >
-                  {formatClock(nextAt, locale)}
-                </time>
-                <Stack gap="0.5" className="min-w-0">
-                  <Text size="sm" className="font-medium">
-                    {nextTitle}
-                  </Text>
-                  <Text size="xs" tone="muted">
-                    {detail?.next_change_reason === "override_ends"
-                      ? (nextName ?? t("scheduleMode"))
-                      : nextName && nextName !== nextTitle
-                        ? nextName
-                        : t("scheduleMode")}
-                  </Text>
-                </Stack>
-              </Flex>
+            {upcoming.length > 0 ? (
+              <Stack gap="3">
+                {upcoming.map((change) => {
+                  const page = nameOf(change.page_id);
+                  const title = titleOf(change.reason, page);
+                  return (
+                    <Flex key={change.at} gap="3" align="start" data-testid="home-next-event">
+                      <time
+                        dateTime={change.date.toISOString()}
+                        className="w-[70px] md:w-16 shrink-0 font-mono text-xs text-brand pt-0.5"
+                      >
+                        {formatClock(change.date, locale)}
+                      </time>
+                      <Stack gap="0.5" className="min-w-0">
+                        <Text size="sm" className="font-medium">
+                          {title}
+                        </Text>
+                        <Text size="xs" tone="muted">
+                          {subtitleOf(change.reason, page, title)}
+                        </Text>
+                      </Stack>
+                    </Flex>
+                  );
+                })}
+              </Stack>
             ) : (
               <Text size="sm" tone="muted">
                 {t("empty")}

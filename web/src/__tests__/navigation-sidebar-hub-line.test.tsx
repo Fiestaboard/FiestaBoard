@@ -117,6 +117,33 @@ describe("NavigationSidebar hub line", () => {
   });
 });
 
+describe("the selected display's own state (BB-A-10)", () => {
+  it("marks a display that needs a look, so the header never calls it fine", async () => {
+    setPhone(true);
+    twoBoards();
+    server.use(
+      http.get("/api/v1/status", () =>
+        HttpResponse.json({
+          running: true,
+          initialized: true,
+          config_summary: {},
+          boards: { kitchen: { health: { reachable: false } } },
+        }),
+      ),
+    );
+    render(<NavigationSidebar />, { wrapper: Wrapper });
+    const triggers = await screen.findAllByRole("combobox", { name: /board/i });
+    await waitFor(() => {
+      for (const trigger of triggers) {
+        const described = (trigger.getAttribute("aria-describedby") ?? "")
+          .split(" ")
+          .map((id) => document.getElementById(id)?.textContent ?? "");
+        expect(described).toContain("Needs a look");
+      }
+    });
+  });
+});
+
 describe("one hub-state source", () => {
   const host = () => window.location.hostname;
   const pill = () => document.querySelector<HTMLElement>('[data-slot="board-selector-hub"]');

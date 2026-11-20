@@ -134,7 +134,7 @@ describe("ActivePageDisplay - locale switch (issue #1570)", () => {
 
     // English first — this is the useMemo'd `activePageName` value.
     await waitFor(() => {
-      expect(screen.getByText("Schedule gap (no default page set)")).toBeInTheDocument();
+      expect(screen.getByText("Nothing scheduled")).toBeInTheDocument();
     });
 
     // A directly-rendered (unmemoized) t() call in the same component, used
@@ -154,7 +154,7 @@ describe("ActivePageDisplay - locale switch (issue #1570)", () => {
     // The memoized schedule-gap name must ALSO have updated to Spanish. Before
     // the fix (missing `t` dep), this stayed stuck on the English string
     // because none of the memo's other deps changed on a locale switch.
-    expect(screen.getByText("Intervalo en el horario (sin página predeterminada)")).toBeInTheDocument();
-    expect(screen.queryByText("Schedule gap (no default page set)")).not.toBeInTheDocument();
+    expect(screen.getByText("Nada programado")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing scheduled")).not.toBeInTheDocument();
   });
 });

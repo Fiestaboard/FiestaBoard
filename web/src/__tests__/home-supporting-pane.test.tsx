@@ -65,6 +65,29 @@ describe("Home supporting pane", () => {
     draw({ detail: detail({ next_page_id: null }) });
     expect(screen.getByText("Schedule changes")).toBeInTheDocument();
   });
+  it("lists up to three upcoming changes with their pages (BB-A-23)", () => {
+    const at = (h: number) => new Date(Date.now() + h * 3600000).toISOString();
+    draw({
+      nameOf: (id: string | null | undefined) =>
+        ({ "page-2": "Good night", "page-3": "Morning commute", "page-4": "Lunch" })[id ?? ""] ?? null,
+      detail: detail({
+        next_change_at: at(1),
+        next_change_reason: "override_ends",
+        next_page_id: "page-2",
+        upcoming_changes: [
+          { at: at(1), reason: "override_ends", page_id: "page-2" },
+          { at: at(2), reason: "schedule", page_id: "page-3" },
+          { at: at(3), reason: "schedule", page_id: "page-4" },
+        ],
+      }),
+    });
+    const events = screen.getAllByTestId("home-next-event");
+    expect(events).toHaveLength(3);
+    expect(events[0]).toHaveTextContent("Schedule resumes");
+    expect(events[0]).toHaveTextContent("Good night");
+    expect(events[1]).toHaveTextContent("Morning commute");
+    expect(events[2]).toHaveTextContent("Lunch");
+  });
   it("does not offer an immediate switch before schedule state is known", () => {
     draw({ scheduleEnabled: undefined });
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
