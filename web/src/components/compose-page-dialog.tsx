@@ -18,6 +18,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
   Stack,
   Text,
 } from "@fiestaboard/ui";
@@ -31,11 +37,13 @@ import { HomeConnectionNotice } from "@/components/home/connection-notice";
 import { defaultDurationChoice, DurationStep } from "@/components/home/duration-step";
 import { type DurationChoice, durationMinutes, type ScheduleNextChange } from "@/components/home/home-status";
 import { dismissOverrideUndo, nudgeDisplay, useRefreshHomeStatus } from "@/components/home/use-home-data";
+import { PHONE_QUERY, useMediaQuery } from "@/components/home/use-media-query";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { SilenceNotice } from "@/components/silence-notice";
 import Link from "@/components/smart-link";
 import { queryKeys } from "@/hooks/use-board";
+import { useCloseOnBack } from "@/hooks/use-close-on-back";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useTranslations } from "@/i18n/translations";
@@ -131,6 +139,9 @@ export function ComposePageDialog({
   silence = null,
 }: ComposePageDialogProps) {
   const t = useTranslations("composeDialog");
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  // Back closes the sheet and stays on the screen (BB-A-12).
+  useCloseOnBack(open, () => onOpenChange(false));
   const tb = useTranslations("home.banners");
   const connection = useHubConnection();
   const sendsDisabled = !connection.deviceOnline || !connection.hubReachable;
@@ -303,191 +314,223 @@ export function ComposePageDialog({
     });
   }, [isEmpty, pageName, lines, deviceType, geometryFields, saveMutation]);
 
+  // 07a `310:25531`: on a phone Compose is a bottom sheet that scrolls as
+  // one, so the duration choice is part of the flow, not below an inner
+  // scroller's fold (BB-A-3). Wider screens keep the dialog.
+  const buttonSize = isPhone ? ("touch" as const) : undefined;
+  const header = {
+    title: t("title"),
+    description: boardLabel ? t("description", { board: boardLabel }) : t("descriptionNoBoard"),
+  };
+  const body = (
+    <Stack gap="4" className={isPhone ? "pb-2" : "min-h-0 overflow-y-auto py-2"}>
+      <HomeConnectionNotice composing />
+      {showOn && (
+        <Stack gap="2">
+          <Label htmlFor={showOnId}>{t("showOn")}</Label>
+          <Select value={showOn.value} onValueChange={(v) => showOn.onValueChange(String(v))}>
+            <SelectTrigger id={showOnId}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {showOn.options.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Stack>
+      )}
+
+      {silence && (
+        <SilenceNotice
+          variant={silence.holds ? "info" : "warning"}
+          until={silence.until}
+          data-testid="compose-silence"
+          description={
+            silence.holds ? (
+              t("silenceHold", { time: silence.until ?? "—" })
+            ) : (
+              <>
+                {t("silenceNoHold")}{" "}
+                <Link
+                  href="/settings?section=scheduling#silence-schedule"
+                  className="font-medium underline underline-offset-2 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                >
+                  {t("openSettings")}
+                </Link>
+              </>
+            )
+          }
+        />
+      )}
+
+      <Stack gap="2">
+        <Label htmlFor={messageId}>{t("messageLabel")}</Label>
+        <PlainTextEditor
+          id={messageId}
+          value={text}
+          onChange={setText}
+          placeholder={t("messagePlaceholder")}
+          boardLines={dims.rows}
+          boardWidth={dims.cols}
+          help={
+            // 07a's one line: "3 of 6 lines · longest line 12 of 22
+            // characters · board shows capitals".
+            <Text size="xs" tone="muted" className="mt-1">
+              {[
+                t("countLines", { lines: lines.length, max: dims.rows }),
+                t("countLongest", {
+                  longest: lines.reduce((m, l) => Math.max(m, l.length), 0),
+                  width: dims.cols,
+                }),
+                showsCapitals ? t("countCapitals") : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </Text>
+          }
+        />
+        {isOverLimit && (
+          <Text size="xs" className="text-warning font-medium" role="alert">
+            {t("tooManyLines", { max: dims.rows })}
+          </Text>
+        )}
+      </Stack>
+
+      <Stack gap="2">
+        {/* 07a's bare preview row (DD-W15): what WILL show, not sent yet. */}
+        <Flex align="center" gap="2">
+          <Badge variant="outline">{t("previewLabel")}</Badge>
+          <Text size="xs" tone="muted">
+            {boardLabel ? t("notSentYetOn", { board: boardLabel }) : t("notSentYet")}
+          </Text>
+        </Flex>
+        <DevicePreview model={model} ledLayout={ledLayout} message={preview?.rendered ?? ""} size="sm">
+          <ScaledBoardDisplay
+            message={preview?.rendered ?? ""}
+            size="sm"
+            boardType={boardColor}
+            deviceType={deviceType}
+            notesWide={notesWide}
+            notesTall={notesTall}
+            gridRows={panelGrid?.rows}
+            gridCols={panelGrid?.cols}
+            code62Glyph={code62Glyph}
+          />
+        </DevicePreview>
+      </Stack>
+
+      <DurationStep
+        value={effectiveChoice}
+        onValueChange={setChoice}
+        nextChange={nextChange}
+        nextPageName={nextPageName}
+        scheduleEnabled={scheduleEnabled}
+        now={new Date()}
+      />
+
+      {showSaveForm && (
+        <Stack gap="2">
+          <Label htmlFor={pageNameId}>{t("pageNameLabel")}</Label>
+          <Flex gap="2" align="center">
+            <Input
+              id={pageNameId}
+              value={pageName}
+              onChange={(e) => setPageName(e.target.value)}
+              placeholder={t("pageNamePlaceholder")}
+              autoFocus
+            />
+            <Button
+              variant="outline"
+              onClick={handleSave}
+              disabled={isEmpty || pageName.trim() === "" || saveMutation.isPending}
+            >
+              {saveMutation.isPending ? t("saving") : t("save")}
+            </Button>
+          </Flex>
+        </Stack>
+      )}
+    </Stack>
+  );
+  const actions = (
+    <>
+      <Button
+        variant="ghost"
+        size={buttonSize}
+        onClick={() => onOpenChange(false)}
+        disabled={sendMutation.isPending || holdMutation.isPending}
+      >
+        {t("cancel")}
+      </Button>
+      {!showSaveForm && (
+        <Button variant="outline" size={buttonSize} onClick={() => setShowSaveForm(true)} disabled={isEmpty}>
+          <Save className="mr-1.5 h-4 w-4" />
+          {t("saveAsPage")}
+        </Button>
+      )}
+      {/* During silence the send is named for what it does: it wakes the
+              board (#949). With holds on, Hold is the primary action, last. */}
+      <Button
+        variant={silence?.holds ? "outline" : "default"}
+        size={buttonSize}
+        onClick={handleSend}
+        disabled={sendsDisabled || !canSend || sendMutation.isPending || holdMutation.isPending}
+        data-testid={silence ? "compose-send-anyway" : undefined}
+      >
+        {sendMutation.isPending ? t("sending") : t("send")}
+      </Button>
+      {silence?.holds && (
+        <Button
+          size={buttonSize}
+          onClick={handleHold}
+          disabled={sendsDisabled || !canSend || holdMutation.isPending || sendMutation.isPending}
+          data-testid="compose-hold"
+        >
+          <Clock className="mr-1.5 h-4 w-4" />
+          {holdMutation.isPending ? t("holding") : silence.until ? t("hold", { time: silence.until }) : t("holdNoTime")}
+        </Button>
+      )}
+    </>
+  );
+
+  if (isPhone) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" grabber className="max-h-[92dvh]">
+          <SheetHeader className="pe-12 text-start">
+            <SheetTitle>{header.title}</SheetTitle>
+            <SheetDescription>{header.description}</SheetDescription>
+          </SheetHeader>
+          {body}
+          {sendsDisabled && (
+            <Text size="sm" tone="muted">
+              {tb("sendReason")}
+            </Text>
+          )}
+          <SheetFooter className="[&>button]:w-full">{actions}</SheetFooter>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{t("title")}</DialogTitle>
-          <DialogDescription>
-            {boardLabel ? t("description", { board: boardLabel }) : t("descriptionNoBoard")}
-          </DialogDescription>
+          <DialogTitle>{header.title}</DialogTitle>
+          <DialogDescription>{header.description}</DialogDescription>
         </DialogHeader>
 
-        <Stack gap="4" className="min-h-0 overflow-y-auto py-2">
-          <HomeConnectionNotice composing />
-          {showOn && (
-            <Stack gap="2">
-              <Label htmlFor={showOnId}>{t("showOn")}</Label>
-              <Select value={showOn.value} onValueChange={(v) => showOn.onValueChange(String(v))}>
-                <SelectTrigger id={showOnId}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {showOn.options.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Stack>
-          )}
-
-          {silence && (
-            <SilenceNotice
-              variant={silence.holds ? "info" : "warning"}
-              until={silence.until}
-              data-testid="compose-silence"
-              description={
-                silence.holds ? (
-                  t("silenceHold", { time: silence.until ?? "—" })
-                ) : (
-                  <>
-                    {t("silenceNoHold")}{" "}
-                    <Link
-                      href="/settings?section=scheduling#silence-schedule"
-                      className="font-medium underline underline-offset-2 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                    >
-                      {t("openSettings")}
-                    </Link>
-                  </>
-                )
-              }
-            />
-          )}
-
-          <Stack gap="2">
-            <Label htmlFor={messageId}>{t("messageLabel")}</Label>
-            <PlainTextEditor
-              id={messageId}
-              value={text}
-              onChange={setText}
-              placeholder={t("messagePlaceholder")}
-              boardLines={dims.rows}
-              boardWidth={dims.cols}
-              help={
-                // 07a's one line: "3 of 6 lines · longest line 12 of 22
-                // characters · board shows capitals".
-                <Text size="xs" tone="muted" className="mt-1">
-                  {[
-                    t("countLines", { lines: lines.length, max: dims.rows }),
-                    t("countLongest", {
-                      longest: lines.reduce((m, l) => Math.max(m, l.length), 0),
-                      width: dims.cols,
-                    }),
-                    showsCapitals ? t("countCapitals") : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </Text>
-              }
-            />
-            {isOverLimit && (
-              <Text size="xs" className="text-warning font-medium" role="alert">
-                {t("tooManyLines", { max: dims.rows })}
-              </Text>
-            )}
-          </Stack>
-
-          <Stack gap="2">
-            {/* 07a's bare preview row (DD-W15): what WILL show, not sent yet. */}
-            <Flex align="center" gap="2">
-              <Badge variant="outline">{t("previewLabel")}</Badge>
-              <Text size="xs" tone="muted">
-                {boardLabel ? t("notSentYetOn", { board: boardLabel }) : t("notSentYet")}
-              </Text>
-            </Flex>
-            <DevicePreview model={model} ledLayout={ledLayout} message={preview?.rendered ?? ""} size="sm">
-              <ScaledBoardDisplay
-                message={preview?.rendered ?? ""}
-                size="sm"
-                boardType={boardColor}
-                deviceType={deviceType}
-                notesWide={notesWide}
-                notesTall={notesTall}
-                gridRows={panelGrid?.rows}
-                gridCols={panelGrid?.cols}
-                code62Glyph={code62Glyph}
-              />
-            </DevicePreview>
-          </Stack>
-
-          <DurationStep
-            value={effectiveChoice}
-            onValueChange={setChoice}
-            nextChange={nextChange}
-            nextPageName={nextPageName}
-            scheduleEnabled={scheduleEnabled}
-            now={new Date()}
-          />
-
-          {showSaveForm && (
-            <Stack gap="2">
-              <Label htmlFor={pageNameId}>{t("pageNameLabel")}</Label>
-              <Flex gap="2" align="center">
-                <Input
-                  id={pageNameId}
-                  value={pageName}
-                  onChange={(e) => setPageName(e.target.value)}
-                  placeholder={t("pageNamePlaceholder")}
-                  autoFocus
-                />
-                <Button
-                  variant="outline"
-                  onClick={handleSave}
-                  disabled={isEmpty || pageName.trim() === "" || saveMutation.isPending}
-                >
-                  {saveMutation.isPending ? t("saving") : t("save")}
-                </Button>
-              </Flex>
-            </Stack>
-          )}
-        </Stack>
+        {body}
 
         {sendsDisabled && (
           <Text size="sm" tone="muted">
             {tb("sendReason")}
           </Text>
         )}
-        <DialogFooter className="shrink-0 flex-wrap pt-2">
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={sendMutation.isPending || holdMutation.isPending}
-          >
-            {t("cancel")}
-          </Button>
-          {!showSaveForm && (
-            <Button variant="outline" onClick={() => setShowSaveForm(true)} disabled={isEmpty}>
-              <Save className="mr-1.5 h-4 w-4" />
-              {t("saveAsPage")}
-            </Button>
-          )}
-          {/* During silence the send is named for what it does: it wakes the
-              board (#949). With holds on, Hold is the primary action, last. */}
-          <Button
-            variant={silence?.holds ? "outline" : "default"}
-            onClick={handleSend}
-            disabled={sendsDisabled || !canSend || sendMutation.isPending || holdMutation.isPending}
-            data-testid={silence ? "compose-send-anyway" : undefined}
-          >
-            {sendMutation.isPending ? t("sending") : t("send")}
-          </Button>
-          {silence?.holds && (
-            <Button
-              onClick={handleHold}
-              disabled={sendsDisabled || !canSend || holdMutation.isPending || sendMutation.isPending}
-              data-testid="compose-hold"
-            >
-              <Clock className="mr-1.5 h-4 w-4" />
-              {holdMutation.isPending
-                ? t("holding")
-                : silence.until
-                  ? t("hold", { time: silence.until })
-                  : t("holdNoTime")}
-            </Button>
-          )}
-        </DialogFooter>
+        <DialogFooter className="shrink-0 flex-wrap pt-2">{actions}</DialogFooter>
       </DialogContent>
     </Dialog>
   );

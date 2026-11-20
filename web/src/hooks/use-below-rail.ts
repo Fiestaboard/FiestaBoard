@@ -8,16 +8,52 @@ import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
  * the Sidebar's and MainContent's `railBreakpoint="md"`; keep them together.
  */
 export const RAIL_BREAKPOINT = "md" as const;
-export const BELOW_RAIL_QUERY = "(max-width: 767.98px)";
 
-function subscribe(onChange: () => void) {
-  const query = window.matchMedia?.(BELOW_RAIL_QUERY);
+/**
+ * A viewport too short for the rail to list every destination: a phone on
+ * its side (844×390). It keeps the bottom tab bar up to the `lg` breakpoint
+ * instead (BB-A-13).
+ */
+export const SHORT_VIEWPORT_QUERY = "(max-height: 499.98px)";
+export const BELOW_RAIL_QUERY = "(max-width: 767.98px)";
+/** Below the `lg` rail: with a short viewport, still the tab bar (BB-A-13). */
+const BELOW_LG_QUERY = "(max-width: 1023.98px)";
+
+const matches = (query: string) => window.matchMedia?.(query)?.matches ?? false;
+
+/** Subscribe to several media queries at once. */
+function subscribeAll(queries: string[]) {
+  return (onChange: () => void) => {
+    const lists = queries.map((q) => window.matchMedia?.(q));
+    lists.forEach((list) => list?.addEventListener?.("change", onChange));
+    return () => lists.forEach((list) => list?.removeEventListener?.("change", onChange));
+  };
+}
+
+function subscribeShort(onChange: () => void) {
+  const query = window.matchMedia?.(SHORT_VIEWPORT_QUERY);
   query?.addEventListener?.("change", onChange);
   return () => query?.removeEventListener?.("change", onChange);
 }
 
+/**
+ * The breakpoint the Sidebar, MainContent and PageLayout take: `md` (the tab
+ * bar below 768px), or `lg` on a short viewport so a landscape phone keeps
+ * the tab bar. Keep every chrome piece on this one value.
+ */
+export function useRailBreakpoint(): "md" | "lg" {
+  const short = useSyncExternalStore(
+    subscribeShort,
+    () => window.matchMedia?.(SHORT_VIEWPORT_QUERY)?.matches ?? false,
+    () => false,
+  );
+  return short ? "lg" : RAIL_BREAKPOINT;
+}
+
+const subscribe = subscribeAll([BELOW_RAIL_QUERY, BELOW_LG_QUERY, SHORT_VIEWPORT_QUERY]);
+
 function getSnapshot() {
-  return window.matchMedia?.(BELOW_RAIL_QUERY)?.matches ?? false;
+  return matches(BELOW_RAIL_QUERY) || (matches(SHORT_VIEWPORT_QUERY) && matches(BELOW_LG_QUERY));
 }
 
 /**
@@ -32,14 +68,11 @@ export function useBelowRail(): boolean {
 /** The tablet band: the rail is on screen but a 256px rail would crowd the page. */
 export const TABLET_RAIL_QUERY = "(min-width: 768px) and (max-width: 1023.98px)";
 
-function subscribeTablet(onChange: () => void) {
-  const query = window.matchMedia?.(TABLET_RAIL_QUERY);
-  query?.addEventListener?.("change", onChange);
-  return () => query?.removeEventListener?.("change", onChange);
-}
+const subscribeTablet = subscribeAll([TABLET_RAIL_QUERY, SHORT_VIEWPORT_QUERY]);
 
+/** In the band, and tall enough to have the rail at all (a short one keeps the tab bar). */
 function getTabletSnapshot() {
-  return window.matchMedia?.(TABLET_RAIL_QUERY)?.matches ?? false;
+  return matches(TABLET_RAIL_QUERY) && !matches(SHORT_VIEWPORT_QUERY);
 }
 
 /**
