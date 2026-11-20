@@ -74,6 +74,14 @@ export function InstallPrompt() {
   // An offer earned in the editor (its first Save) waits for the editor to
   // be left, so the Saved toast is what that moment shows (316:91196).
   const editing = isEditing(usePathname());
+  // The offer counts as made (counts restart, 30-day hold) only once it is
+  // on screen: one held back in the editor is not spent by a reload there.
+  const shownOffer = useRef<Offer>(null);
+  useEffect(() => {
+    if (offer === null || editing || shownOffer.current === offer) return;
+    shownOffer.current = offer;
+    markOffered();
+  }, [offer, editing]);
 
   // Stash the browser's install event from the first moment, without showing
   // anything: the offer itself waits for a success.
@@ -116,7 +124,6 @@ export function InstallPrompt() {
           // installed, or it declined): keep the count, show nothing.
           return;
         }
-        markOffered();
         setOffer(next);
       }),
     [],

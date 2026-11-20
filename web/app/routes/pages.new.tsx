@@ -1,7 +1,8 @@
 import { PageEditorShell } from "@/components/page-editor-shell";
-import { useRouter, useSearchParams } from "@/hooks/use-router";
+import { useSearchParams } from "@/hooks/use-router";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import type { DeviceType } from "@/lib/api";
+import { appUrl } from "@/lib/base-path";
 
 export default function NewPage() {
   const { push } = useViewTransition();
@@ -11,7 +12,6 @@ export default function NewPage() {
   const targetBoardId = searchParams.get("board") || undefined;
   const skipDraft = searchParams.get("fresh") === "1";
 
-  const { replace } = useRouter();
   const back = () => push("/pages");
 
   return (
@@ -22,8 +22,12 @@ export default function NewPage() {
       onClose={back}
       onSave={() => {}}
       // After the first save this is the page's editor, at its own URL:
-      // reload, share and Back find it (BB-B-9).
-      onCreated={(id) => replace(`/pages/edit/${encodeURIComponent(id)}`)}
+      // reload, share and Back find it (BB-B-9). Only the address changes:
+      // a route change would remount the editor mid-flow (text typed during
+      // the save, the Saved toast's Show now), so the router is not asked.
+      onCreated={(id) =>
+        window.history.replaceState(window.history.state, "", appUrl(`/pages/edit/${encodeURIComponent(id)}`))
+      }
     />
   );
 }

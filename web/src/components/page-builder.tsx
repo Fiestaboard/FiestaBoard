@@ -209,8 +209,8 @@ interface PageBuilderProps {
   onClose: () => void;
   onSave?: () => void;
   /**
-   * A new page's first save created it: the route moves to its edit URL
-   * (BB-B-9). Called once, after any Show now that save asked for is done.
+   * A new page's first save created it: the route shows its edit URL
+   * (BB-B-9). Called once.
    */
   onCreated?: (pageId: string) => void;
   /**
@@ -387,14 +387,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     writeStoredBoardPreviewMode(mode);
   };
   const [showPageId, setShowPageId] = useState<string | null>(null);
-  // Report a created page once its Show now (if any) is finished: moving to
-  // the edit route remounts the editor, which would drop that dialog.
+  // Report a created page once, so its route can show its own URL (BB-B-9).
   const reportedCreatedRef = useRef(false);
   useEffect(() => {
-    if (!createdPageId || initialPageId || showPageId !== null || reportedCreatedRef.current) return;
+    if (!createdPageId || initialPageId || reportedCreatedRef.current) return;
     reportedCreatedRef.current = true;
     onCreated?.(createdPageId);
-  }, [createdPageId, initialPageId, showPageId, onCreated]);
+  }, [createdPageId, initialPageId, onCreated]);
   const showAfterSaveRef = useRef(false);
   const requestShowNowRef = useRef<(savedId?: string) => void>(() => {});
   const [savedAt, setSavedAt] = useState<Date | null>(null);

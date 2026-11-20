@@ -18,8 +18,12 @@ vi.mock("@/components/page-editor-shell", () => ({
 
 import NewPage from "../../app/routes/pages.new";
 
-it("replaces /pages/new with the created page's edit URL", () => {
+it("shows the created page's edit URL without a route change that would remount the editor", () => {
+  window.history.replaceState({ idx: 3 }, "", "/pages/new");
   render(<NewPage />);
   created?.("page 42");
-  expect(replace).toHaveBeenCalledWith("/pages/edit/page%2042");
+  expect(window.location.pathname).toBe("/pages/edit/page%2042");
+  // The router's own history entry (its index) is kept.
+  expect(window.history.state).toEqual({ idx: 3 });
+  expect(replace).not.toHaveBeenCalled();
 });

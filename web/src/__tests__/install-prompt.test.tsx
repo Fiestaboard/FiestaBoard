@@ -158,6 +158,15 @@ describe("InstallPrompt (WEB-12)", () => {
     expect(screen.getByRole("dialog", { name: /add to your home screen/i })).toBeInTheDocument();
   });
 
+  it("does not spend the offer while it waits in the editor", () => {
+    setBrowser({ ua: IPHONE_SAFARI });
+    route.pathname = "/pages/edit/p1";
+    const { unmount } = render(<InstallPrompt />);
+    savePage();
+    unmount(); // a reload or a closed tab while still editing
+    expect(readInstallTrigger().snoozedAt ?? null).toBeNull();
+  });
+
   it("Don't show again on the Safari sheet ends the offer for good", () => {
     setBrowser({ ua: IPHONE_SAFARI });
     render(<InstallPrompt />);
