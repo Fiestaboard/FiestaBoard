@@ -2,7 +2,7 @@ import { Box, Button, EmptyState, PageLayout } from "@fiestaboard/ui";
 import { CircleHelp, Home as HomeIcon, Search } from "lucide-react";
 
 import Link from "@/components/smart-link";
-import { RAIL_BREAKPOINT } from "@/hooks/use-below-rail";
+import { useRailBreakpoint } from "@/hooks/use-below-rail";
 import { useTranslations } from "@/i18n/translations";
 import { HELP_DOCS_URL } from "@/lib/nav-items";
 
@@ -14,9 +14,10 @@ import { HELP_DOCS_URL } from "@/lib/nav-items";
  */
 export default function NotFound() {
   const t = useTranslations("notFound");
+  const railBreakpoint = useRailBreakpoint();
   const where = typeof window === "undefined" ? "" : `${window.location.host}${window.location.pathname}`;
   return (
-    <PageLayout railBreakpoint={RAIL_BREAKPOINT}>
+    <PageLayout railBreakpoint={railBreakpoint}>
       <EmptyState
         icon={Search}
         illustration={<Search className="size-8 text-foreground" />}
