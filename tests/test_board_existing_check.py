@@ -7,7 +7,8 @@ read-only, answers which boards already use it, and ``POST
 /config/board/test`` carries the same answer as ``existing_boards``. Hosts
 compare as written (case, scheme, a trailing dot or slash aside; no DNS);
 a port only distinguishes when both sides name one; secrets match but never
-come back.
+come back. A Vestaboard request (``output="vestaboard"``) takes a bare host
+only: with a port, scheme or path it matches nothing (BB-C-15).
 """
 
 from unittest.mock import Mock, patch

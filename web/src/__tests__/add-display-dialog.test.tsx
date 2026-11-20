@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AddDisplayDialog } from "@/components/displays/add-display-dialog";
 import { PANELS_QUERY_KEY } from "@/hooks/use-panel-targets";
-import type { AvailableOutput, OutputSummary } from "@/lib/api";
+import { api, type AvailableOutput, type OutputSummary } from "@/lib/api";
 
 import { mockOutputs } from "./mocks/handlers";
 import { server } from "./mocks/server";
@@ -410,10 +410,29 @@ describe("Add a Vestaboard: address and an already connected board", () => {
     const { lookups } = knownKitchen();
     setup();
     await choose(/Vestaboard/);
-    await userEvent.type(await screen.findByLabelText("Address"), "192.0.2.60:7000");
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(lookups.filter((query) => typeof query.host === "string" && query.host.includes(":"))).toEqual([]);
-    expect(screen.queryByText("This board is already connected")).not.toBeInTheDocument();
+    const address = await screen.findByLabelText("Address");
+    await userEvent.type(address, "192.0.2.60");
+    expect(await screen.findByText("This board is already connected")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: /Update its connection/ }));
+    const check = vi.spyOn(api, "checkExistingBoards");
+    await userEvent.type(screen.getByLabelText("Address"), ":7000");
+    // The lookup is debounced by a 150 ms timer; one set later fires after it.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(check.mock.calls.filter(([query]) => String(query.host ?? "").includes(":"))).toEqual([]);
+    expect(lookups.filter((query) => String(query.host ?? "").includes(":"))).toEqual([]);
+    check.mockRestore();
+  });
+
+  it("BB-C-15: a half-typed address is not flagged until the field is left", async () => {
+    setup();
+    await choose(/Vestaboard/);
+    const address = await screen.findByLabelText("Address");
+    await userEvent.type(address, "192.168.");
+    expect(address).not.toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByText("Enter an IP address or hostname, like 192.168.1.20.")).not.toBeInTheDocument();
+    await userEvent.tab();
+    expect(address).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter an IP address or hostname, like 192.168.1.20.");
   });
 
   it("BB-C-15: a hostname or IP address is accepted", async () => {

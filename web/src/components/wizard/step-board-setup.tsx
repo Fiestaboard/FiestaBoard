@@ -118,6 +118,10 @@ export function StepBoardSetup({
   const mode = config.output_config.api_mode === "cloud" ? "cloud" : "local";
   const host = String(config.output_config.host ?? "");
   const hostProblem = mode === "local" && !isArray ? boardHostProblem(host) : null;
+  // A port is wrong at any point; "192.168." is just unfinished, so the
+  // general message waits until the field is left.
+  const [addressLeft, setAddressLeft] = useState(false);
+  const shownHostProblem = hostProblem === "port" || addressLeft ? hostProblem : null;
   const keyField = isArray ? "note_array_token" : mode === "local" ? "local_api_key" : "cloud_key";
   const secret = String(config.output_config[keyField] ?? "");
   const name = config.name ?? t("defaultName");
@@ -325,12 +329,13 @@ export function StepBoardSetup({
                 value={host}
                 disabled={isLoading}
                 onChange={(event) => connection({ ...config.output_config, host: event.target.value })}
-                aria-invalid={failed || !!hostProblem}
-                aria-describedby={hostProblem ? "setup-address-error setup-address-help" : "setup-address-help"}
+                onBlur={() => setAddressLeft(true)}
+                aria-invalid={failed || !!shownHostProblem}
+                aria-describedby={shownHostProblem ? "setup-address-error setup-address-help" : "setup-address-help"}
               />
-              {hostProblem && (
-                <Text id="setup-address-error" size="xs" tone="destructive">
-                  {t(hostProblem === "port" ? "addressPort" : "addressInvalid")}
+              {shownHostProblem && (
+                <Text id="setup-address-error" size="xs" tone="destructive" role="alert">
+                  {t(shownHostProblem === "port" ? "addressPort" : "addressInvalid")}
                 </Text>
               )}
               <Text id="setup-address-help" size="xs" tone="muted">
