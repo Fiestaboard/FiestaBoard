@@ -64,4 +64,21 @@ describe("useCloseOnBack", () => {
     });
     expect(close).not.toHaveBeenCalled();
   });
+
+  // A sheet reopened while the Back that takes the old entry is still in
+  // flight (history.back() is async) must not be closed by that Back's
+  // popstate, and must get its own entry again.
+  it("keeps a sheet reopened before the closing Back lands open, with an entry", () => {
+    vi.useFakeTimers();
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const close = vi.fn();
+    const { rerender } = renderHook(({ open }) => useCloseOnBack(open, close), { initialProps: { open: true } });
+    rerender({ open: false });
+    act(() => vi.runAllTimers());
+    rerender({ open: true });
+    act(() => pressBack());
+    expect(close).not.toHaveBeenCalled();
+    const state: unknown = window.history.state;
+    expect(state && typeof state === "object" && "fbOverlay" in state).toBe(true);
+  });
 });
