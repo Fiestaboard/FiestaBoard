@@ -198,7 +198,19 @@ for (const theme of ["light", "dark"] as const) {
           expect.soft(await scroller.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
         }
 
-        await expect(preview.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(1);
+        // Fit / Actual (BB-E-5, 307:46094): the header's when it has the row to
+        // itself, otherwise the viewport's own, drawn while the board overflows.
+        // Either way it is there whenever the board does not fit.
+        const toggles = await preview.locator('[data-slot="board-preview-mode-toggle"]').count();
+        const overflows =
+          (await preview.locator('[data-slot="board-viewport"]').getAttribute("data-overflow")) === "true";
+        expect(toggles).toBeLessThanOrEqual(1);
+        if (overflows) expect(toggles).toBe(1);
+        const overflows =
+          (await preview.locator('[data-slot="board-viewport"]').getAttribute("data-overflow")) === "true";
+        await expect(preview.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(
+          (await dataControls.count()) > 0 && !overflows ? 0 : 1,
+        );
         await expect(page.getByRole("button", { name: /hide preview/i })).toHaveCount(0);
         const bounds = await preview.boundingBox();
         expect(bounds!.x).toBeGreaterThanOrEqual(0);
