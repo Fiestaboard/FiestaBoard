@@ -4211,7 +4211,6 @@
     "renderAtLabel": "특정 시각 기준으로 수식 미리보기",
     "renderAtReset": "현재 시각으로 미리보기",
     "renderAtNote": "“{time} 기준”은 {time}인 것처럼 수식을 계산합니다. 연동 데이터는 허브가 지금 가진 값입니다.",
-    "sampleTitle": "샘플 데이터 — 실시간 아님",
     "sampleNote": "샘플은 각 연동의 예시 값을 보여 줍니다. 샘플 데이터를 미리보는 동안에는 보드 미러링이 꺼집니다.",
     "sampleUnsampled": "{plugins}에는 예시 값이 없어 허브의 현재 데이터가 표시됩니다.",
     "previewFailed": "이 미리보기를 표시할 수 없습니다. 템플릿을 확인한 뒤 다시 시도하세요.",

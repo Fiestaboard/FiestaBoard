@@ -4211,7 +4211,6 @@
     "renderAtLabel": "Podgląd formuł o wybranej godzinie",
     "renderAtReset": "Podgląd o bieżącej godzinie",
     "renderAtNote": "„O {time}” oblicza formuły tak, jakby była godzina {time}; dane integracji to to, co hub ma teraz.",
-    "sampleTitle": "Dane przykładowe — nie na żywo",
     "sampleNote": "Przykład pokazuje przykładowe wartości każdej integracji. Wyświetlanie na tablicy jest wyłączone podczas podglądu danych przykładowych.",
     "sampleUnsampled": "Brak przykładowych wartości dla {plugins}; pokazują bieżące dane z huba.",
     "previewFailed": "Nie udało się wyświetlić tego podglądu. Sprawdź szablon i spróbuj ponownie.",

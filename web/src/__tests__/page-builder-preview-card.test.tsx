@@ -48,6 +48,7 @@ vi.mock("@/lib/api", async () => {
 import { PageBuilder } from "@/components/page-builder";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { resolveAnchor } from "@/lib/ai-choreography/anchors";
 import type { BoardSettings, Page } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -128,6 +129,8 @@ describe("Preview card (BB-E-5, BB-E-6)", () => {
     const card = document.getElementById("page-editor-preview")!;
     const target = await within(card).findByRole("button", { name: /Preview on Living Room · Flagship 22 × 6/ });
     expect(target).toBeInTheDocument();
+    // The AI walkthrough spotlights the size control through this anchor; it must stay in the DOM.
+    expect(resolveAnchor("page-editor.device")).toBe(target);
     expect(screen.queryByRole("combobox", { name: "Select board for live output" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Change board size" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Preview as black board" })).toBeNull();

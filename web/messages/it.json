@@ -4211,7 +4211,6 @@
     "renderAtLabel": "Anteprima delle formule a un orario",
     "renderAtReset": "Anteprima all’ora attuale",
     "renderAtNote": "«Alle {time}» valuta le formule come se fossero le {time}; i dati delle integrazioni sono quelli che l’hub ha ora.",
-    "sampleTitle": "Dati di esempio — non dal vivo",
     "sampleNote": "Esempio mostra i valori di esempio di ogni integrazione. Riproduci sulla bacheca è disattivato mentre vedi l’anteprima dei dati di esempio.",
     "sampleUnsampled": "Nessun valore di esempio per {plugins}; mostrano i dati attuali dell’hub.",
     "previewFailed": "Impossibile generare questa anteprima. Controlla il modello e riprova.",

@@ -206,11 +206,6 @@ for (const theme of ["light", "dark"] as const) {
           (await preview.locator('[data-slot="board-viewport"]').getAttribute("data-overflow")) === "true";
         expect(toggles).toBeLessThanOrEqual(1);
         if (overflows) expect(toggles).toBe(1);
-        const overflows =
-          (await preview.locator('[data-slot="board-viewport"]').getAttribute("data-overflow")) === "true";
-        await expect(preview.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(
-          (await dataControls.count()) > 0 && !overflows ? 0 : 1,
-        );
         await expect(page.getByRole("button", { name: /hide preview/i })).toHaveCount(0);
         const bounds = await preview.boundingBox();
         expect(bounds!.x).toBeGreaterThanOrEqual(0);

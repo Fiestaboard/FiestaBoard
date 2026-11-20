@@ -329,6 +329,11 @@ for (const width of [1280, 1440]) {
   test(`preview card header is one row at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await mockEditorApi(page);
+    // Replay is offered only while the flaps animate; this fixture turns them off elsewhere.
+    await page.route(
+      (url) => url.pathname === "/api/settings/all",
+      (route) => route.fulfill({ json: { display: { board_animations: "on", board_flap_speed: "standard" } } }),
+    );
     await page.goto(`/tests/layout/formula-ide.html?theme=light`);
     const card = page.locator("#page-editor-preview");
     const header = card.locator('[data-slot="editor-preview-header"]');

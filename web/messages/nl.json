@@ -4211,7 +4211,6 @@
     "renderAtLabel": "Formules bekijken op een tijdstip",
     "renderAtReset": "Voorbeeld op de huidige tijd",
     "renderAtNote": "“Om {time}” evalueert formules alsof het {time} is; integratiegegevens zijn wat de hub nu heeft.",
-    "sampleTitle": "Voorbeeldgegevens — niet live",
     "sampleNote": "Voorbeeld toont de voorbeeldwaarden van elke integratie. Op het bord weergeven staat uit zolang je voorbeeldgegevens bekijkt.",
     "sampleUnsampled": "Geen voorbeeldwaarden voor {plugins}; die tonen de huidige gegevens van de hub.",
     "previewFailed": "Dit voorbeeld kon niet worden weergegeven. Controleer het sjabloon en probeer het opnieuw.",

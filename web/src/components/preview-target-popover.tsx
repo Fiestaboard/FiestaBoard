@@ -13,6 +13,8 @@ export interface PreviewTargetPopoverProps {
   variant?: "meta" | "icon";
   /** The board picker, the size picker and the board colour. */
   children: ReactNode;
+  /** Extra attributes for the trigger, e.g. the AI walkthrough's `page-editor.device` anchor. */
+  triggerProps?: Record<string, string>;
 }
 
 /**
@@ -21,12 +23,13 @@ export interface PreviewTargetPopoverProps {
  * that meta is the one place to change it: which board the preview and mirror
  * use, the page's board size, and the preview's board colour.
  */
-export function PreviewTargetPopover({ target, variant = "meta", children }: PreviewTargetPopoverProps) {
+export function PreviewTargetPopover({ target, variant = "meta", children, triggerProps }: PreviewTargetPopoverProps) {
   const t = useTranslations("editorTouch");
   const label = t("previewTargetTrigger", { target });
   return (
     <Popover>
       <PopoverTrigger
+        {...triggerProps}
         aria-label={label}
         title={label}
         data-testid="preview-target-trigger"

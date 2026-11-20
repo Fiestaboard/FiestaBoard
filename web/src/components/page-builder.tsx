@@ -129,6 +129,7 @@ import {
   useBoardSettings,
   useStatus,
 } from "@/hooks/use-board";
+import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEditorScrollMargin } from "@/hooks/use-editor-scroll-margin";
 import { useEditorViewportDock } from "@/hooks/use-editor-viewport-dock";
@@ -2790,7 +2791,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const shownPreviewMessage = drawMode ? editorPreviewMessage : (formulaIde.previewOverride ?? editorPreviewMessage);
 
   const previewReplay = usePreviewReplay(shownPreviewMessage);
-  const canReplay = !drawMode && !baselineDisplay && !isLedModel(previewModel);
+  const boardAnimationsEnabled = useBoardAnimationsEnabled();
+  // Nothing to replay when the user's settings (or reduced motion) turn the flaps off.
+  const canReplay = boardAnimationsEnabled && !drawMode && !baselineDisplay && !isLedModel(previewModel);
   const previewTargetLabel = [
     previewBoard?.name,
     boardMeta(previewBoard ?? undefined, {
@@ -2823,7 +2826,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       )}
       <Stack gap="3">
         <Flex align="center" gap="2" className="flex-wrap">
-          <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
+          <Text as="span" size="sm" weight="medium">
+            {t("previewLabel")}
+          </Text>
           <BoardSizeIndicator
             deviceType={deviceType}
             notesWide={notesWide}
@@ -2845,7 +2850,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               asks for confirmation first. */}
           <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
             <SelectTrigger
-              {...anchorProps("page-editor.device")}
               className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
               aria-label={t("deviceTypeSwitcherAriaLabel")}
             >
@@ -3000,18 +3004,21 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // so then the zoom moves to the board.
   // A pane too narrow for both keeps the header one row by moving the data
   // controls (and the zoom) onto a row above the board.
-  const [previewStageWidth, setPreviewStageWidth] = useState(0);
+  // Stored as the decision, not the width, so a resize re-renders only when it flips.
+  const [previewStageNarrow, setPreviewStageNarrow] = useState(false);
   useLayoutEffect(() => {
     if (!previewStage) return;
-    const measure = () => setPreviewStageWidth(previewStage.getBoundingClientRect().width);
+    const measure = () => {
+      const width = previewStage.getBoundingClientRect().width;
+      setPreviewStageNarrow(width > 0 && width < PREVIEW_HEADER_MIN_WIDTH);
+    };
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
     observer.observe(previewStage);
     return () => observer.disconnect();
   }, [previewStage]);
-  const dataControlsInHeader =
-    dockedPreview || previewStageWidth === 0 || previewStageWidth >= PREVIEW_HEADER_MIN_WIDTH;
+  const dataControlsInHeader = dockedPreview || !previewStageNarrow;
   const hasDataControls = !!formulaIde.headerControls;
   // Fit / Actual takes the header only when nothing else needs the row; otherwise
   // it is the viewport's own toggle, shown while the board overflows.
@@ -3680,7 +3687,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   boardName={dockedPreview ? previewBoard?.name : undefined}
                   details={
                     dockedPreview ? undefined : (
-                      <PreviewTargetPopover target={previewTargetLabel}>{previewTargetControls}</PreviewTargetPopover>
+                      <PreviewTargetPopover
+                        target={previewTargetLabel}
+                        triggerProps={anchorProps("page-editor.device")}
+                      >
+                        {previewTargetControls}
+                      </PreviewTargetPopover>
                     )
                   }
                   liveAction={
@@ -3713,7 +3725,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     // One row (BB-E-5): the meta truncates, the controls never wrap.
                     <Flex align="center" gap="1" className="shrink-0 flex-nowrap justify-end">
                       {dockedPreview && (
-                        <PreviewTargetPopover target={previewTargetLabel} variant="icon">
+                        <PreviewTargetPopover
+                          target={previewTargetLabel}
+                          variant="icon"
+                          triggerProps={anchorProps("page-editor.device")}
+                        >
                           {previewTargetControls}
                         </PreviewTargetPopover>
                       )}

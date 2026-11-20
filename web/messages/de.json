@@ -4211,7 +4211,6 @@
     "renderAtLabel": "Formeln zu einer Zeit in der Vorschau anzeigen",
     "renderAtReset": "Vorschau zur aktuellen Zeit",
     "renderAtNote": "„Um {time}“ wertet Formeln aus, als wäre es {time}; Integrationsdaten sind der aktuelle Stand des Hubs.",
-    "sampleTitle": "Beispieldaten — nicht live",
     "sampleNote": "Beispiel zeigt die Beispielwerte jeder Integration. Spiegeln aufs Board ist aus, solange du Beispieldaten ansiehst.",
     "sampleUnsampled": "Keine Beispielwerte für {plugins}; dort erscheinen die aktuellen Daten des Hubs.",
     "previewFailed": "Diese Vorschau konnte nicht erstellt werden. Vorlage prüfen und erneut versuchen.",

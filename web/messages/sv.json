@@ -4211,7 +4211,6 @@
     "renderAtLabel": "Förhandsvisa formler vid en tidpunkt",
     "renderAtReset": "Förhandsvisa vid aktuell tid",
     "renderAtNote": "”Vid {time}” utvärderar formler som om klockan var {time}; integrationsdata är det hubben har just nu.",
-    "sampleTitle": "Exempeldata — inte live",
     "sampleNote": "Exempel visar varje integrations exempelvärden. Spegling på tavlan är av medan du förhandsvisar exempeldata.",
     "sampleUnsampled": "Inga exempelvärden för {plugins}; de visar hubbens aktuella data.",
     "previewFailed": "Förhandsvisningen kunde inte skapas. Kontrollera mallen och försök igen.",
