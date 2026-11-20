@@ -26,6 +26,9 @@ import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useTranslations } from "@/i18n/translations";
 import { api, ApiError } from "@/lib/api";
 
+/** How long a downloaded backup's blob URL is kept before it is revoked. */
+const BLOB_URL_LIFETIME_MS = 60_000;
+
 interface PendingImport {
   fileName: string;
   payload: unknown;
@@ -79,8 +82,9 @@ export function BackupSettings() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      // Revoked on the next task: the click has handed the blob to the download.
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      // WebKit starts an anchor download asynchronously; revoking the URL
+      // straight after the click can silently cancel it. Keep it a minute.
+      setTimeout(() => URL.revokeObjectURL(url), BLOB_URL_LIFETIME_MS);
       toast.success(t("exportDone"));
     },
     onError: (err: Error) => {

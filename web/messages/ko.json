@@ -1091,7 +1091,7 @@
       "restoredFiles": "{count, plural, other {파일 #개를 복원했습니다}}.",
       "reinstalledPlugins": "{count, plural, other {플러그인 #개를 다시 설치했습니다}}.",
       "pluginsFailed": "{count, plural, other {플러그인 #개를 다시 설치하지 못했습니다}} — 직접 설치하세요.",
-      "manualReinstall": "{count, plural, other {외부 플러그인 #개}}는 통합에서 직접 다시 설치해야 합니다: {names}"
+      "manualReinstall": "{count, plural, other {외부 플러그인 #개}}는 연동에서 직접 다시 설치해야 합니다: {names}"
     },
     "groupIdentity": "인스턴스",
     "groupAppearance": "화면 표시 및 접근성",

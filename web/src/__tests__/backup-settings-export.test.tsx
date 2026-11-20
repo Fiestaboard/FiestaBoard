@@ -96,5 +96,8 @@ describe("BackupSettings export (BB-C-7)", () => {
     expect(clickedAnchors[0].getAttribute("href")).toBe("blob:backup");
     expect(clickedAnchors[0].download).toBe("fiestaboard-backup-20261120-101500.json");
     expect(toast.error).not.toHaveBeenCalled();
+    // Not revoked straight away: WebKit may not have started the download yet.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
   });
 });
