@@ -209,6 +209,11 @@ interface PageBuilderProps {
   onClose: () => void;
   onSave?: () => void;
   /**
+   * A new page's first save created it: the route shows its edit URL
+   * (BB-B-9). Called once.
+   */
+  onCreated?: (pageId: string) => void;
+  /**
    * Rendered inside the Pages section (section-shell.tsx): the section's
    * breadcrumb is the way back, so the back arrow goes, and the editor sits
    * in the section's card as a block instead of a second card inside it.
@@ -357,6 +362,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     skipDraft = false,
     onClose,
     onSave,
+    onCreated,
     embedded = false,
     saveActions,
   },
@@ -381,6 +387,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     writeStoredBoardPreviewMode(mode);
   };
   const [showPageId, setShowPageId] = useState<string | null>(null);
+  // Report a created page once, so its route can show its own URL (BB-B-9).
+  const reportedCreatedRef = useRef(false);
+  useEffect(() => {
+    if (!createdPageId || initialPageId || reportedCreatedRef.current) return;
+    reportedCreatedRef.current = true;
+    onCreated?.(createdPageId);
+  }, [createdPageId, initialPageId, onCreated]);
   const showAfterSaveRef = useRef(false);
   const requestShowNowRef = useRef<(savedId?: string) => void>(() => {});
   const [savedAt, setSavedAt] = useState<Date | null>(null);

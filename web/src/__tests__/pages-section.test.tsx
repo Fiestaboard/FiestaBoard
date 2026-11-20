@@ -7,6 +7,8 @@ import { render, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useReportCreatedPage } from "@/components/pages/created-page-context";
+
 import { PagesSection } from "../../app/routes/pages";
 import { server } from "./mocks/server";
 
@@ -75,5 +77,39 @@ describe("/pages section", () => {
     route.pathname = "/pages/new";
     renderSection();
     expect(screen.getByRole("heading", { level: 2, name: "New Page" })).toBeInTheDocument();
+  });
+
+  // BB-B-9: after the first save the address shows /pages/edit/{id} (the
+  // editor stays mounted) and the title shows the page's name, not New Page.
+  it("names the page a new page's first save created", async () => {
+    route.pathname = "/pages/new";
+    function SaveFirst() {
+      const report = useReportCreatedPage();
+      return (
+        <button type="button" onClick={() => report?.("p1")}>
+          save
+        </button>
+      );
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const tree = () => (
+      <QueryClientProvider client={queryClient}>
+        <PagesSection>
+          <SaveFirst />
+        </PagesSection>
+      </QueryClientProvider>
+    );
+    const view = render(tree());
+    const rerender = () => view.rerender(tree());
+    expect(screen.getByRole("heading", { level: 2, name: "New Page" })).toBeInTheDocument();
+    screen.getByRole("button", { name: "save" }).click();
+    expect(await screen.findByRole("heading", { level: 2, name: "Morning briefing" })).toBeInTheDocument();
+
+    // Back to the list, then New Page again: a fresh page, not the last one.
+    route.pathname = "/pages";
+    rerender();
+    route.pathname = "/pages/new";
+    rerender();
+    expect(await screen.findByRole("heading", { level: 2, name: "New Page" })).toBeInTheDocument();
   });
 });

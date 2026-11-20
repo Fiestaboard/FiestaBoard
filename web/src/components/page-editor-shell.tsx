@@ -43,6 +43,8 @@ export interface PageEditorShellProps {
   skipDraft?: boolean;
   onClose: () => void;
   onSave: () => void;
+  /** A new page was created by its first save (BB-B-9). */
+  onCreated?: (pageId: string) => void;
 }
 
 /**
@@ -57,6 +59,7 @@ export function PageEditorShell({
   skipDraft,
   onClose,
   onSave,
+  onCreated,
 }: PageEditorShellProps) {
   const builderRef = useRef<PageBuilderHandle>(null);
   const { register, unregister } = usePageEditorBridge();
@@ -173,6 +176,7 @@ export function PageEditorShell({
             skipDraft={skipDraft}
             onClose={onClose}
             onSave={handleSave}
+            onCreated={onCreated}
             saveActions={saveActions}
           />
           {pageId && (
