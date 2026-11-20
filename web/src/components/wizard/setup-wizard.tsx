@@ -192,7 +192,8 @@ export function SetupWizard({ onComplete }: { onComplete?: () => void }) {
                 {t("intro.restore")}
               </Button>
             ) : (
-              <Button variant="outline" onClick={back} disabled={isLoading}>
+              // A ghost text button, as 07e draws Back (`324:24067`, BB-FC-11).
+              <Button variant="ghost" onClick={back} disabled={isLoading}>
                 {tc("back")}
               </Button>
             )}

@@ -135,6 +135,14 @@ describe("choosing the display", () => {
     ]);
   });
 
+  // BB-FC-11: 07e `324:24067` draws Back as a ghost text button.
+  it("draws Back as a ghost text button", async () => {
+    available([SIGN_AVAILABLE]);
+    renderWizard();
+    await screen.findByRole("heading", { level: 1, name: "What will FiestaBoard drive?" });
+    expect(screen.getByRole("button", { name: "Back" })).toHaveAttribute("data-variant", "ghost");
+  });
+
   it("keeps Next disabled until a display is chosen", async () => {
     available();
     renderWizard();
