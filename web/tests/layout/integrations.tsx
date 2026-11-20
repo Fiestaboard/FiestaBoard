@@ -83,6 +83,8 @@ window.fetch = async (input, init) => {
 };
 
 const params = new URLSearchParams(location.search);
+// The app opts into the kit's touch layer on <html> (FiestaBoard#2564).
+document.documentElement.classList.add("fui-coarse");
 localStorage.setItem("theme", params.get("theme") === "dark" ? "dark" : "light");
 await i18n.changeLanguage(params.get("lang") ?? "en");
 const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });

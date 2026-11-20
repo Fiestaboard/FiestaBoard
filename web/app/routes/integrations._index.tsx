@@ -1071,7 +1071,8 @@ function SortHeaderButton({
       onClick={onSort}
       aria-pressed={active}
       aria-label={active ? `${label}, ${t(dir === "asc" ? "sortAscending" : "sortDescending")}` : label}
-      className="flex items-center gap-1 rounded-sm text-left font-medium cursor-pointer select-none hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      // The kit's touch floor: 44 px on a coarse pointer (BB-C-26 app half).
+      className="flex items-center gap-1 rounded-sm text-left font-medium cursor-pointer select-none hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-touch"
     >
       {label}
       {active ? (

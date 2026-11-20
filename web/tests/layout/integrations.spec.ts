@@ -50,3 +50,17 @@ test.describe("Integration settings in German at 360 (BB-C-21)", () => {
     ).toBeVisible();
   });
 });
+
+test.describe("Integrations sort chips on a touch tablet (BB-C-26 app half)", () => {
+  test.use({ viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true });
+
+  test("each sort chip is a 44 px touch target", async ({ page }) => {
+    await page.goto(fixture("/integrations?tab=installed"));
+    const chips = page.getByRole("group", { name: "Sort installed integrations" }).getByRole("button");
+    await expect(chips).toHaveCount(3);
+    for (const chip of await chips.all()) {
+      const box = await chip.boundingBox();
+      expect(Math.round(box!.height)).toBeGreaterThanOrEqual(44);
+    }
+  });
+});
