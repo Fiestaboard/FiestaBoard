@@ -686,10 +686,12 @@ describe("SidebarSettingsMenu About box", () => {
 
     const dialog = await screen.findByRole("dialog");
     // The real number off /api/version, not a build-time constant.
-    expect(await within(dialog).findByText("8.38.0")).toBeInTheDocument();
+    expect(await within(dialog).findByText(/FiestaBoard 8\.38\.0/)).toBeInTheDocument();
   });
 
-  it("shows the hardware the server reports", async () => {
+  it("links to the release notes, the licenses and problem reports", async () => {
+    // 07e `343:63073`: the About box's links. Documentation lives in the
+    // rail's Help & Docs.
     const user = userEvent.setup();
     mockAuth(SIGNED_IN);
     render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
@@ -699,39 +701,15 @@ describe("SidebarSettingsMenu About box", () => {
     await user.click(within(menu).getByRole("button", { name: "About FiestaBoard" }));
 
     const dialog = await screen.findByRole("dialog");
-    expect(await within(dialog).findByText("Raspberry Pi 4 Model B")).toBeInTheDocument();
-  });
-
-  it("states the licence", async () => {
-    const user = userEvent.setup();
-    mockAuth(SIGNED_IN);
-    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
-    await screen.findByText("casa");
-
-    const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("button", { name: "About FiestaBoard" }));
-
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("MIT License")).toBeInTheDocument();
-    expect(within(dialog).getByText("© 2026 Fiestaboard contributors")).toBeInTheDocument();
-  });
-
-  it("links to the documentation", async () => {
-    // Settings → System used to carry an About card whose one unique fact was
-    // this link; the card is gone, so the About box has to carry it.
-    const user = userEvent.setup();
-    mockAuth(SIGNED_IN);
-    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
-    await screen.findByText("casa");
-
-    const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("button", { name: "About FiestaBoard" }));
-
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByRole("link", { name: "Documentation" })).toHaveAttribute(
+    expect(within(dialog).getByRole("link", { name: "Release notes" })).toHaveAttribute(
       "href",
-      "https://fiestaboard.app/docs/intro",
+      "https://github.com/Fiestaboard/FiestaBoard/releases",
     );
+    expect(within(dialog).getByRole("link", { name: "Open-source licenses" })).toHaveAttribute(
+      "href",
+      "https://github.com/Fiestaboard/FiestaBoard/blob/main/LICENSE",
+    );
+    expect(within(dialog).getByRole("link", { name: "Report a problem" })).toBeInTheDocument();
   });
 
   it("closes on Escape", async () => {
@@ -749,32 +727,5 @@ describe("SidebarSettingsMenu About box", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
-  });
-
-  it("omits the hardware row when the server does not know the model", async () => {
-    // A Docker install on a generic host reports null, and "Hardware:
-    // Unknown" is worse than no row at all.
-    const user = userEvent.setup();
-    mockAuth(SIGNED_IN);
-    server.use(
-      http.get("/api/version", () =>
-        HttpResponse.json({
-          package_version: "8.38.0",
-          build_version: "8.38.0",
-          running_version: "8.38.0",
-          is_dev: false,
-          hardware_model: null,
-        }),
-      ),
-    );
-    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
-    await screen.findByText("casa");
-
-    const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("button", { name: "About FiestaBoard" }));
-
-    const dialog = await screen.findByRole("dialog");
-    await within(dialog).findByText("8.38.0");
-    expect(within(dialog).queryByText("Hardware")).not.toBeInTheDocument();
   });
 });
