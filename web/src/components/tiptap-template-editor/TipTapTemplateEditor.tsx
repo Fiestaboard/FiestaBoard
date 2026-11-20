@@ -38,7 +38,7 @@ import { WrappedTextNode } from "./extensions/wrapped-text-node";
 import { BOARD_LINES, BOARD_WIDTH } from "./utils/constants";
 import type { CellPaint, DrawBrush } from "./utils/draw-mode";
 import { brushToCell } from "./utils/draw-mode";
-import { parseLineContent, parseTemplateSimple, serializeTemplateSimple } from "./utils/serialization";
+import { parsePastedText, parseTemplateSimple, serializeTemplateSimple } from "./utils/serialization";
 import { buildStrokeTransaction } from "./utils/stroke-transaction";
 export type LineAlignment = "left" | "center" | "right";
 import { Box, Flex, Stack, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
@@ -89,15 +89,23 @@ function serializeSliceToTemplate(slice: Slice | null | undefined): string {
 
     let text = "";
 
-    // Iterate over the fragment using ProseMirror's forEach method
-    slice.content.forEach((node) => {
+    // Iterate over the fragment using ProseMirror's forEach method. A slice
+    // that spans the whole paragraph (Select all) holds the paragraph itself:
+    // its inline content is the template; without this the copy fell back to
+    // ProseMirror's plain text, caret anchors and all (BB-E-14).
+    const inline =
+      slice.content.childCount === 1 && slice.content.firstChild?.type.name === "paragraph"
+        ? slice.content.firstChild.content
+        : slice.content;
+    inline.forEach((node) => {
       if (!node || !node.type) {
         return;
       }
 
       try {
         if (node.type.name === "text") {
-          text += node.text || "";
+          // The caret anchors (U+200B) are the editor's, not the template's (BB-E-14).
+          text += (node.text || "").replace(/\u200B/g, "");
         } else if (node.type.name === "variable") {
           const { pluginId, field, filters } = node.attrs || {};
           const filterStr =
@@ -504,8 +512,15 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           try {
             const pastedText = event.clipboardData?.getData("text/plain") || "";
 
-            if (pastedText && (pastedText.includes("{{") || pastedText.match(/\{[a-z]+\}/i))) {
-              const nodes = parseLineContent(pastedText);
+            // A template string, or text of several lines (from any app, plain
+            // or rich): the doc is one paragraph, so ProseMirror's own parse
+            // turned each line into a paragraph that cannot fit and dropped it
+            // (BB-E-1). Lines become hard breaks instead.
+            if (
+              pastedText &&
+              (/[\r\n]/.test(pastedText) || pastedText.includes("{{") || pastedText.match(/\{[a-z]+\}/i))
+            ) {
+              const nodes = parsePastedText(pastedText);
               if (nodes.length > 0 && editorRef.current?.state && editorRef.current?.chain) {
                 editorRef.current.chain().focus().insertContent(nodes).run();
                 return true; // Handled
@@ -1092,10 +1107,21 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             // TipTap v3 signature: setContent(content, options). The v2
             // three-argument form silently dropped both `emitUpdate: false`
             // and `parseOptions`, echoing this sync back out as an edit.
-            editor.commands.setContent(parseTemplateSimple(value || "", boardLines), {
-              emitUpdate: false,
-              parseOptions: { preserveWhitespace: true },
-            });
+            // While the user has not edited, filling the template in (a new
+            // page's rows, a loaded page) is not an undo step: Undo stays
+            // disabled and cannot rewind the page to blank (BB-E-24).
+            const pristine = !editor.can().undo();
+            editor
+              .chain()
+              .command(({ tr }) => {
+                if (pristine) tr.setMeta("addToHistory", false);
+                return true;
+              })
+              .setContent(parseTemplateSimple(value || "", boardLines), {
+                emitUpdate: false,
+                parseOptions: { preserveWhitespace: true },
+              })
+              .run();
           });
         }
       }
@@ -1107,6 +1133,27 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       }
       scheduleMeasureRef.current?.();
     }, [value, editor, boardLines, onLineCountChange]);
+
+    // Esc from a toolbar picker (Colors, Formatting, Variables) hands the caret
+    // back to the template where it was. The kit's dropdown stops the Escape
+    // at the document, so this listens on the window, ahead of it (BB-E-15).
+    const rootRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+      if (!editor || !showToolbar) return;
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== "Escape") return;
+        const target = event.target instanceof Element ? event.target : null;
+        const picker = target?.closest('[data-testid="toolbar-dropdown-panel"], [aria-expanded="true"]');
+        if (!picker) return;
+        const inToolbar = [rootRef.current, toolbarContainer].some((root) => root?.contains(picker));
+        if (!inToolbar) return;
+        setTimeout(() => {
+          if (!editor.isDestroyed) editor.commands.focus();
+        }, 0);
+      };
+      window.addEventListener("keydown", onKeyDown, true);
+      return () => window.removeEventListener("keydown", onKeyDown, true);
+    }, [editor, showToolbar, toolbarContainer]);
 
     // No need to enforce paragraph count - we use line breaks now
 
@@ -1269,7 +1316,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     const isOverLineLimit = editorLineCount > boardLines;
 
     return (
-      <Box className={cn("relative", className)}>
+      <Box ref={rootRef} className={cn("relative", className)}>
         {/* Toolbar */}
         {showToolbar && (
           <TemplateEditorToolbar
@@ -1302,8 +1349,11 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           rich-text view underneath the drawing canvas. */}
         <Box className={cn("flex-1", drawMode && "hidden")}>
           <Box
+            data-slot="template-card"
             className={cn(
-              "border bg-background relative rounded-md",
+              "border bg-background relative rounded-md transition-[color,box-shadow]",
+              // The field's focus ring, as the kit's Input and Textarea draw it (BB-E-16).
+              "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
               showToolbar ? "rounded-t-none" : "",
               isOverLineLimit && "border-warning",
             )}
@@ -1339,7 +1389,9 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
               </Box>
 
               {/* Editor content */}
-              <Box className="relative flex-1 min-w-0">
+              {/* Rows stay one line each inside the card: a long row scrolls
+                  here instead of running under the preview (BB-E-8). */}
+              <Box data-slot="template-rows" className="relative flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
                 <EditorContent editor={editor} />
               </Box>
             </Flex>
@@ -1509,6 +1561,12 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           .ProseMirror [data-node-view-wrapper] {
             display: inline-block !important;
             vertical-align: middle;
+            white-space: nowrap;
+          }
+
+          /* A chip's React renderer span must not reopen wrapping: rows of
+             colour tiles broke between tiles (BB-E-8). */
+          .ProseMirror .react-renderer {
             white-space: nowrap;
           }
 
