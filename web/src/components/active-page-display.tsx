@@ -423,18 +423,22 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     // Live Mode (the editor's mirror) drives the board, not the Schedule or
     // the pin, so no mode is claimed while it is on.
     mode = liveMessageForBoard ? undefined : scheduleEnabled ? "schedule" : "manual";
-    title =
-      silencePage?.name ??
-      activeCollection?.name ??
-      activePage?.name ??
-      (scheduleEnabled ? t("scheduleGapNoDefault") : tn("noPage"));
+    // BB-A-14: in a Schedule gap the board keeps what it last showed; say
+    // that in plain words rather than the hub's gap reason.
+    const gap = scheduleEnabled && !silencePage && !activeCollection && !activePage;
+    title = silencePage?.name ?? activeCollection?.name ?? activePage?.name ?? (gap ? tn("scheduleGap") : tn("noPage"));
     if (scheduleEnabled) {
       const scheduleChange = boardDetail?.next_change_reason === "schedule" && nextChangeAt && nextChangeAt > now;
-      outcome = scheduleChange
-        ? nextPageName
-          ? tn("scheduleNext", { time: formatClock(nextChangeAt, locale), page: nextPageName })
-          : tn("scheduleUntil", { time: formatClock(nextChangeAt, locale) })
-        : tn("scheduleRunning");
+      if (gap)
+        outcome = scheduleChange
+          ? tn("scheduleGapUntil", { time: formatClock(nextChangeAt, locale) })
+          : tn("scheduleGapKeeps");
+      else
+        outcome = scheduleChange
+          ? nextPageName
+            ? tn("scheduleNext", { time: formatClock(nextChangeAt, locale), page: nextPageName })
+            : tn("scheduleUntil", { time: formatClock(nextChangeAt, locale) })
+          : tn("scheduleRunning");
     } else {
       const page = activeCollection?.name ?? activePage?.name;
       outcome = page ? tn("manual", { page }) : tn("manualNoPage");
@@ -815,7 +819,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
         currentPageId={overrideShowing ? overridePageId : activePageId}
         manualPageName={nameOf(manualPageId)}
         overrideName={overrideActive ? overrideTitle : null}
-        nextChange={overrideActive ? null : scheduleNextChange(boardDetail, now)}
+        nextChange={scheduleNextChange(boardDetail, now)}
         silence={silence.active ? { until: silence.until } : null}
       />
     </Stack>

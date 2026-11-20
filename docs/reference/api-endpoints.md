@@ -1317,6 +1317,10 @@ one document, because "what is this board doing" is one question.
 | `next_change_at` | `string` \| `null` | no | When this board is next expected to change (ISO 8601 UTC, whole seconds): its override ends, its schedule hands over to a different page, its quiet hours start or end, or the collection showing rotates. Null when paused or when nothing changes within 8 days. Plugin triggers are never predicted. |
 | `next_change_reason` | `"override_ends"` \| `"schedule"` \| `"silence_starts"` \| `"silence_ends"` \| `"collection"` \| `null` | no | Why next_change_at is when it is. Null exactly when next_change_at is. |
 | `next_page_id` | `string` \| `null` | no | The page or collection in force after next_change_at, when the hub can know it; null when it cannot (a collection rotation, a blank revert, a quiet-hours indicator). |
+| `schedule_next_change_at` | `string` \| `null` | no | When this board's schedule next hands over to a different page (ISO 8601 UTC, whole seconds), as if no override were running and ignoring quiet hours. Unlike next_change_at it stays known while an override runs, so a replacing override can hold until it. Null in manual mode, while paused, or when nothing changes within 8 days. |
+| `schedule_next_page_id` | `string` \| `null` | no | The page or collection the schedule names after schedule_next_change_at; null in a gap. |
+| `upcoming_changes` | array of [`UpcomingChange`](#schema-upcomingchange) | no | Up to three predicted changes, earliest first. The first is next_change_at; each later one is the schedule's next hand-over after the one before. Empty when next_change_at is null. The list stops where quiet hours start or the schedule is off. |
+| `override_page_id` | `string` \| `null` | no | The page or collection this board's active override shows, or null for a composed message or when no override is running. |
 | `override_started_at` | `string` \| `null` | no | When this board's active override began (ISO 8601), or null if none is running. A replaced override has a new value, so it identifies one run (for a Live Activity or Live Update). Null after expiry even while the display engine still has a pending revert. |
 | `health` | [`HealthSummary`](#schema-healthsummary) | no | When the hub last reached this board (last_connected_at, latency_ms), when a frame last landed (last_update_at), and the last failed contact (last_error_at, last_error); these survive a hub restart. reachable says whether this hub process last reached the board or failed to, and breaker_open whether writes are held back after repeated failures. |
 | `drawing` | [`BoardDrawing`](#schema-boarddrawing) | yes | What this board's display can draw (lowercase, colored text, highlights, tiles, icons, any color, solid shapes, pixel canvases), with the color model, LED text face, icon names and pixel size an editor's tools need. |
@@ -2413,6 +2417,16 @@ Per-send transition animation, overriding the install's settings.
 | `strategy` | `string` \| `null` | no | Transition strategy name, e.g. "instant" or "wipe". |
 | `interval_ms` | `integer` \| `null` | no | Milliseconds between animation steps. (0–5000) |
 | `step_size` | `integer` \| `null` | no | Flaps advanced per animation step. (min 1) |
+
+### `UpcomingChange` {#schema-upcomingchange}
+
+One predicted change on a board (`BoardDetail.upcoming_changes`).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `at` | `string` | yes | When it happens (ISO 8601 UTC, whole seconds). |
+| `reason` | `"override_ends"` \| `"schedule"` \| `"silence_starts"` \| `"silence_ends"` \| `"collection"` | yes | Why, as in `next_change_reason`. |
+| `page_id` | `string` \| `null` | no | The page or collection in force after it, when the hub can know it. |
 
 ### `ValidationError` {#schema-validationerror}
 

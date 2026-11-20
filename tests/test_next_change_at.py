@@ -436,3 +436,102 @@ def test_a_device_driven_collection_is_not_a_hub_rotation(board, clock, monkeypa
     change = _next(board_id)
     # The device's buttons and dwell decide; the next hub-known change is the window's end.
     assert (change.at, change.reason) == (_utc(_la(2026, 11, 9, 17, 0)), "schedule")
+
+
+# --- Bug bash A (BB-A-7, BB-A-8, BB-A-23) -------------------------------------------------
+
+
+def _schedule_next(board_id):
+    from src.schedules.next_change import next_schedule_change
+
+    return next_schedule_change(board_id)
+
+
+def _upcoming(board_id):
+    from src.schedules.next_change import upcoming_changes
+
+    return upcoming_changes(board_id)
+
+
+def test_the_next_schedule_change_is_known_while_an_override_runs(board, clock):
+    # BB-A-7: Change Page replaces the override, so "Until <next change>" must
+    # still name the schedule's own hand-over, not the override's end.
+    board_id, pages = board
+    _schedule(board_id, pages["Breakfast"], "07:00", "09:00")
+    _schedule(board_id, pages["Work"], "09:00", "17:00")
+    clock(_tomorrow_at(8, 0))
+    _override(board_id, _tomorrow_at(9, 30))
+    assert _next(board_id).reason == "override_ends"
+    change = _schedule_next(board_id)
+    assert (change.at, change.reason, change.page_id) == (_utc(_tomorrow_at(9, 0)), "schedule", pages["Work"])
+
+
+def test_the_next_schedule_change_after_a_gap(board, clock):
+    board_id, pages = board
+    _schedule(board_id, pages["Breakfast"], "06:00", "09:00")
+    clock(_tomorrow_at(0, 30))
+    _override(board_id, _tomorrow_at(3, 0))
+    change = _schedule_next(board_id)
+    assert (change.at, change.page_id) == (_utc(_tomorrow_at(6, 0)), pages["Breakfast"])
+
+
+def test_no_schedule_change_in_manual_mode(board, clock):
+    from src.settings.service import get_settings_service
+
+    board_id, pages = board
+    _schedule(board_id, pages["Work"], "09:00", "17:00")
+    get_settings_service().set_schedule_enabled(False, board_id=board_id)
+    clock(_tomorrow_at(8, 0))
+    assert _schedule_next(board_id).at is None
+
+
+def test_upcoming_follows_the_override_with_the_schedule(board, clock):
+    # BB-A-23: Up next lists up to three changes, each with its page.
+    board_id, pages = board
+    _schedule(board_id, pages["Breakfast"], "07:00", "09:00")
+    _schedule(board_id, pages["Work"], "09:00", "17:00")
+    _schedule(board_id, pages["Evening"], "17:00", "22:00")
+    clock(_tomorrow_at(8, 0))
+    _override(board_id, _tomorrow_at(9, 30))
+    upcoming = [(c.at, c.reason, c.page_id) for c in _upcoming(board_id)]
+    assert upcoming == [
+        (_utc(_tomorrow_at(9, 30)), "override_ends", pages["Work"]),
+        (_utc(_tomorrow_at(17, 0)), "schedule", pages["Evening"]),
+        (_utc(_tomorrow_at(22, 0)), "schedule", None),
+    ]
+
+
+def test_upcoming_is_at_most_three(board, clock):
+    board_id, pages = board
+    windows = (("07:00", "08:00", "Breakfast"), ("08:00", "09:00", "Work"), ("09:00", "10:00", "Evening"))
+    for start, end, name in windows:
+        _schedule(board_id, pages[name], start, end)
+    clock(_tomorrow_at(6, 0))
+    assert len(_upcoming(board_id)) == 3
+
+
+def test_upcoming_is_empty_when_nothing_changes(board, clock):
+    board_id, _ = board
+    clock(_tomorrow_at(8, 0))
+    assert _upcoming(board_id) == []
+
+
+def test_get_board_reports_the_override_page_and_the_schedule_around_it(client, board, clock, board_client):  # noqa: F811
+    from src.settings.service import TemporaryOverride, get_settings_service
+
+    board_id, pages = board
+    _schedule(board_id, pages["Breakfast"], "07:00", "09:00")
+    _schedule(board_id, pages["Work"], "09:00", "17:00")
+    clock(_tomorrow_at(8, 0))
+    get_settings_service().set_temporary_override(
+        TemporaryOverride(page_id=pages["Evening"], expires_at=_tomorrow_at(9, 30).isoformat()), board_id=board_id
+    )
+    detail = client.get(f"/v1/boards/{board_id}").json()
+    assert detail["override_page_id"] == pages["Evening"]
+    assert detail["schedule_next_change_at"] == _utc(_tomorrow_at(9, 0))
+    assert detail["schedule_next_page_id"] == pages["Work"]
+    assert [(c["reason"], c["page_id"]) for c in detail["upcoming_changes"]] == [
+        ("override_ends", pages["Work"]),
+        ("schedule", None),
+        ("schedule", pages["Breakfast"]),
+    ]

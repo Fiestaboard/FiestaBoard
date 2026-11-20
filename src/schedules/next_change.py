@@ -198,3 +198,54 @@ def next_change(board_id: str) -> NextChange:
     if settings.is_schedule_enabled(board_id=board_id):
         candidates.append(_schedule_boundary(board_id, now, zone, current))
     return _earliest(candidates)
+
+
+def next_schedule_change(board_id: str) -> NextChange:
+    """The schedule's own next hand-over on *board_id*, as if no override ran (BB-A-7).
+
+    ``next_change`` follows precedence, so while an override runs it reports
+    only the override's end. A new override *replaces* the running one, and
+    "until the next Schedule change" means the schedule's next boundary from
+    now. Quiet hours are ignored the same way: the boundary is still the
+    schedule's. Null in manual mode, while paused, or when nothing changes
+    within the horizon.
+    """
+    settings = _settings()
+    if settings.is_paused(board_id=board_id) is True or not settings.is_schedule_enabled(board_id=board_id):
+        return _NOTHING
+    local_now = time_service.get_time_service().get_current_time()
+    zone = local_now.tzinfo
+    now = local_now.astimezone(UTC)
+    return _earliest([_schedule_boundary(board_id, now, zone, _page_at(board_id, now, zone))])
+
+
+#: How many entries ``upcoming_changes`` lists (Home's Up next shows three).
+UPCOMING_LIMIT = 3
+
+
+def upcoming_changes(board_id: str, limit: int = UPCOMING_LIMIT) -> list[NextChange]:
+    """The next *limit* changes on *board_id*, earliest first (BB-A-23).
+
+    The first is ``next_change``. Each later one is the schedule's next
+    hand-over after the previous entry, starting from the page in force after
+    it. The chain stops at quiet hours starting (they hide the schedule until
+    they end, which ``next_change`` reports separately), in manual mode, and at
+    the horizon.
+    """
+    first = next_change(board_id)
+    if first.at is None:
+        return []
+    changes = [first]
+    settings = _settings()
+    if first.reason == "silence_starts" or not settings.is_schedule_enabled(board_id=board_id):
+        return changes
+    zone = time_service.get_time_service().get_current_time().tzinfo
+    at = _parse(first.at)
+    current = first.page_id if first.reason != "collection" else _page_at(board_id, at, zone)
+    while at is not None and len(changes) < limit:
+        boundary = _schedule_boundary(board_id, at, zone, current)
+        if boundary is None:
+            break
+        at, _, current = boundary
+        changes.append(NextChange(_instant(at), "schedule", current))
+    return changes

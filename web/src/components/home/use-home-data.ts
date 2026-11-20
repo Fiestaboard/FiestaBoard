@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { toast } from "sonner";
 
-import { queryKeys } from "@/hooks/use-board";
+import { queryKeys, scheduleBoardStateInvalidations } from "@/hooks/use-board";
 import { api } from "@/lib/api";
 
 /** Query key prefix for `GET /v1/boards/{board}`; the board id (or "primary") follows. */
@@ -40,6 +40,11 @@ export function useActiveTrigger(enabled: boolean) {
  * Refetch everything that says what a display shows. Called once per
  * `endsAt` by the Countdown (FiestaUI guarantees that, Strict Mode included),
  * and after either verb or a cancel.
+ *
+ * The verbs nudge the display in parallel (`nudgeDisplay`), so the immediate
+ * read of what the board shows usually beats the write. Ask again once it has
+ * landed, as the active-page mutation does; otherwise the preview stays on
+ * the old page until the 30 s poll (BB-A-1).
  */
 export function useRefreshHomeStatus() {
   const queryClient = useQueryClient();
@@ -49,6 +54,7 @@ export function useRefreshHomeStatus() {
     void queryClient.invalidateQueries({ queryKey: ACTIVE_TRIGGER_KEY });
     void queryClient.invalidateQueries({ queryKey: queryKeys.boardCurrentMessage() });
     void queryClient.invalidateQueries({ queryKey: queryKeys.activePage() });
+    scheduleBoardStateInvalidations(queryClient);
   }, [queryClient]);
 }
 
