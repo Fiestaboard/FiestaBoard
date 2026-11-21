@@ -32,7 +32,11 @@ jobs:
   integration-tests:
     name: Integration Tests (${{ (startsWith(github.head_ref, 'changeset-release/') || github.event_name == 'workflow_dispatch') && 'full' || 'smoke' }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Sized for the full suite (the smoke path finishes in a few minutes):
+    # up to ~3 min of build and setup, the 20-minute test step, the 3-minute
+    # insecure-HTTP step and teardown. Same budget as ci.yml's E2E Tests job,
+    # which runs the same suite.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -266,7 +270,12 @@ jobs:
       - name: Run integration tests (full suite on the Version PR)
         if: startsWith(github.head_ref, 'changeset-release/') || github.event_name == 'workflow_dispatch'
         working-directory: web
-        timeout-minutes: 12
+        # The same 772 tests take 8.1-13.6 min (p50 10.5, p95 13.2) in ci.yml's
+        # E2E Tests job over 93 runs (Nov 20-21 2026), and 8.6-10.7 min here
+        # when green; the runner, not the code, sets where in that range a run
+        # lands. 12 minutes cut two runs off at test ~720. 20 is ~1.5x the
+        # slowest measured run, as ci.yml's E2E Tests step allows.
+        timeout-minutes: 20
         # Plain HTTP cases run separately below against a genuine insecure origin.
         # Keep the configured JSON reporter as well as GitHub annotations.
         run: |

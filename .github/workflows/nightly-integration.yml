@@ -39,8 +39,9 @@ jobs:
   dispatch:
     name: Dispatch full integration suite on ${{ inputs.ref || 'v11' }}
     runs-on: ubuntu-latest
-    # The dispatched suite has a 15-minute job timeout; allow for queueing.
-    timeout-minutes: 45
+    # The dispatched suite's job has a 30-minute timeout (20 of it for the
+    # tests). Add up to 5 minutes to find the run and room for queueing.
+    timeout-minutes: 60
     permissions:
       # gh workflow run. A workflow_dispatch made with GITHUB_TOKEN does start
       # a run (it is one of the two events exempt from the no-recursion rule).

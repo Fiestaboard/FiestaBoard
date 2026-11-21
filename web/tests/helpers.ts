@@ -888,7 +888,27 @@ export async function openDisplay(page: Page, name: string): Promise<Locator> {
   );
   const settings = page.getByTestId("display-panel-settings").or(page.getByTestId("board-card"));
   await expect(settings).toBeVisible({ timeout: 15_000 });
+  await settleSectionDrillIn(page);
   return settings;
+}
+
+/**
+ * Wait out a section's drill-in (section-shell.tsx): the header collapses, the
+ * breadcrumb and the item's h2 expand above the page (the kit's Reveal, a
+ * grid-template-rows transition) and the body fades in. That moves everything
+ * below ~35 px down after the page is already visible, so a click made then
+ * can press on one control and release on another: the button takes focus but
+ * never gets a click (multi-board.spec.ts "Continue saves name…" lost its
+ * White click that way). `getAnimations()` flushes style first, so it includes
+ * transitions the last render started.
+ */
+export async function settleSectionDrillIn(page: Page) {
+  await page.evaluate(async () => {
+    const finite = document
+      .getAnimations()
+      .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity));
+    await Promise.all(finite.map((animation) => animation.finished.catch(() => {})));
+  });
 }
 
 /** Add a distinct mock-backed Vestaboard through the two-step connection dialog. */
