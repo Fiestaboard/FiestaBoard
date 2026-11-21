@@ -1898,6 +1898,7 @@
     "pauseLabel": "{name} pausieren",
     "resumeLabel": "{name} fortsetzen",
     "notFound": "Diese Anzeige gibt es nicht mehr.",
+    "notFoundTitle": "Anzeige nicht gefunden",
     "previewTitle": "Wird gerade angezeigt",
     "settingsTitle": "Einstellungen",
     "transition": {

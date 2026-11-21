@@ -22,6 +22,7 @@ import { DisplayList } from "@/components/displays/display-list";
 import { DisplayMarketplace } from "@/components/displays/display-marketplace";
 import { useDisplayBoards } from "@/components/settings/display-settings";
 import { AVAILABLE_OUTPUTS_QUERY_KEY, useOutputs } from "@/components/settings/output-boards";
+import { useBelowRail } from "@/hooks/use-below-rail";
 import { useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
@@ -43,6 +44,7 @@ type Tab = "displays" | "marketplace";
  */
 export default function DisplaysPage() {
   const t = useTranslations("displays");
+  const phone = useBelowRail();
   const searchParams = useSearchParams();
   const openAdd = useAddDisplay();
   const displays = useDisplayBoards();
@@ -66,26 +68,30 @@ export default function DisplaysPage() {
     // PageCard and takes the block padding PageCard would have given it (as
     // on Integrations).
     <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
-      <PageToolbar className="mb-0 py-6">
-        <TabsList className="w-fit">
-          <TabsTrigger value="displays">
-            {t("tabDisplays")}
-            {!displays.isLoading && (
-              <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 py-0 text-[10px]">
-                {displays.boards.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="marketplace">
-            {t("tabMarketplace")}
-            {toInstall > 0 && (
-              <Badge variant="outline" className="ml-1.5 h-4 px-1.5 py-0 text-[10px]">
-                {toInstall}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-      </PageToolbar>
+      {/* 07d `320:17086` draws no tabs on a phone: Add display reaches the
+          outputs there (Marketplace stays at ?tab=marketplace). */}
+      {!phone && (
+        <PageToolbar className="mb-0 py-6">
+          <TabsList className="w-fit">
+            <TabsTrigger value="displays">
+              {t("tabDisplays")}
+              {!displays.isLoading && (
+                <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 py-0 text-[10px]">
+                  {displays.boards.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="marketplace">
+              {t("tabMarketplace")}
+              {toInstall > 0 && (
+                <Badge variant="outline" className="ml-1.5 h-4 px-1.5 py-0 text-[10px]">
+                  {toInstall}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </PageToolbar>
+      )}
 
       <PageSection {...anchorProps("settings.boards")}>
         <TabsContent value="marketplace" className="mt-0">

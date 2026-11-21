@@ -1898,6 +1898,7 @@
     "pauseLabel": "{name} を一時停止",
     "resumeLabel": "{name} を再開",
     "notFound": "このディスプレイはもう存在しません。",
+    "notFoundTitle": "ディスプレイが見つかりません",
     "previewTitle": "現在の表示",
     "settingsTitle": "設定",
     "transition": {

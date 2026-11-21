@@ -1898,6 +1898,7 @@
     "pauseLabel": "Pausa {name}",
     "resumeLabel": "Återuppta {name}",
     "notFound": "Den här skärmen finns inte längre.",
+    "notFoundTitle": "Skärmen hittades inte",
     "previewTitle": "Visas nu",
     "settingsTitle": "Inställningar",
     "transition": {

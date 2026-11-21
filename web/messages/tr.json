@@ -1898,6 +1898,7 @@
     "pauseLabel": "{name} duraklat",
     "resumeLabel": "{name} devam ettir",
     "notFound": "Bu ekran artık yok.",
+    "notFoundTitle": "Ekran bulunamadı",
     "previewTitle": "Şu anda gösterilen",
     "settingsTitle": "Ayarlar",
     "transition": {
