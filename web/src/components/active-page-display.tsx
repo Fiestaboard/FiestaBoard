@@ -691,39 +691,43 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     </Badge>
   ) : null;
   const boardElement = (
-    <Stack gap="3">
-      <BoardContextMenu actions={boardActions}>
-        {/* TODO(FiestaUI G4): add a board-only last-known state. Dim the hardware
+    <BoardContextMenu actions={boardActions}>
+      {/* TODO(FiestaUI G4): add a board-only last-known state. Dim the hardware
                   picture, keeping viewport controls and scroll instructions at full contrast. */}
-        <Flex
-          justify="center"
-          data-testid="home-board-state"
-          className={
-            sendsDisabled
-              ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-50 [&_[data-slot=led-matrix-display]]:opacity-50"
-              : displayOffline
-                ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-60 [&_[data-slot=led-matrix-display]]:opacity-60"
-                : "overflow-x-hidden"
-          }
-          style={{ contain: "layout style paint" }}
-        >
-          {/* Keyed per display (BB-A-2): a switch mounts a fresh board, whose
+      <Flex
+        justify="center"
+        data-testid="home-board-state"
+        className={
+          sendsDisabled
+            ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-50 [&_[data-slot=led-matrix-display]]:opacity-50"
+            : displayOffline
+              ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-60 [&_[data-slot=led-matrix-display]]:opacity-60"
+              : "overflow-x-hidden"
+        }
+        style={{ contain: "layout style paint" }}
+      >
+        {/* Keyed per display (BB-A-2): a switch mounts a fresh board, whose
             first paint lands at once instead of flapping from the last display. */}
-          <HomeBoard
-            key={(currentBoard ?? boardSettings?.boards?.[0])?.id ?? "primary"}
-            board={currentBoard ?? boardSettings?.boards?.[0]}
-            geometry={activeGeometry}
-            message={displayMessage}
-            cells={displayCells}
-            layers={displayLayers}
-            isLoading={!boardState && !liveMessageForBoard}
-            size="md"
-            layout={phone ? "phone-hero" : undefined}
-            fallbackColor={getEffectiveBoardColor(boardSettings)}
-            fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
-          />
-        </Flex>
-      </BoardContextMenu>
+        <HomeBoard
+          key={(currentBoard ?? boardSettings?.boards?.[0])?.id ?? "primary"}
+          board={currentBoard ?? boardSettings?.boards?.[0]}
+          geometry={activeGeometry}
+          message={displayMessage}
+          cells={displayCells}
+          layers={displayLayers}
+          isLoading={!boardState && !liveMessageForBoard}
+          size="md"
+          layout={phone ? "phone-hero" : undefined}
+          fallbackColor={getEffectiveBoardColor(boardSettings)}
+          fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
+        />
+      </Flex>
+    </BoardContextMenu>
+  );
+  // 07e Appearance "Show the color strip on Home": under the board, never in it.
+  const boardWithStrip = (
+    <Stack gap="3">
+      {boardElement}
       <HomeColorStrip size={phone ? "sm" : "md"} />
     </Stack>
   );
@@ -766,7 +770,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           // page gutter is bled), in the kit's phone-hero placement so a
           // 22-column Flagship shows whole (BB-A-6).
           <Box className="-mx-4 min-w-0" data-testid="home-phone-board">
-            {boardElement}
+            {boardWithStrip}
           </Box>
         )}
         <NowShowingCard
@@ -792,7 +796,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
             modes: { schedule: tn("modeSchedule"), manual: tn("modeManual"), override: tn("modeOverride") },
           }}
           data-testid="now-showing"
-          board={phone ? null : boardElement}
+          board={phone ? null : boardWithStrip}
           description={
             sendsDisabled || displayOffline ? (
               <>

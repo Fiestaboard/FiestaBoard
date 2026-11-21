@@ -166,6 +166,7 @@ export function AnimationSettings() {
                 onCheckedChange={(checked) => handleSiteChange(checked ? "on" : "off")}
               />
               <SettingSwitchRow
+                anchor="settings.display.reduce_motion"
                 title={t("hubReduceMotion")}
                 hint={t("hubReduceMotionHint")}
                 checked={reduceMotion}
