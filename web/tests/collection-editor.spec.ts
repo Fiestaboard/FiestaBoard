@@ -163,7 +163,8 @@ test("07c parity evidence at four widths in both themes and every mode", async (
           if ((width === 768 || width === 900) && mode === "time") {
             const preview = capture.getByRole("region", { name: "Now in this Collection", exact: true });
             const board = await preview.getByRole("img").boundingBox();
-            const caption = await preview.getByText(/^Selected:/).boundingBox();
+            // "Selected: …", or "… · showing until …" once the dry run's timeline has a next page (BB-FP-22).
+            const caption = await preview.getByText(/^Selected:| · showing until /).first().boundingBox();
             expect(board).not.toBeNull();
             expect(caption).not.toBeNull();
             expect(caption!.x).toBeGreaterThan(board!.x + board!.width);
