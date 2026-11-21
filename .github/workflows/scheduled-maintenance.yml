@@ -21,10 +21,6 @@ name: 'Scheduled: Maintenance'
 #                       because each plugin repo tests itself in the bundled
 #                       plugins/<id>/ layout rather than the installed
 #                       data/external_plugins/<id>/ one.
-#
-# Note: the Claude-driven docs audit lives in its own workflow
-# (.github/workflows/claude-docs-audit.yml) so it surfaces independently
-# in the Actions sidebar.
 # =============================================================================
 
 on:
