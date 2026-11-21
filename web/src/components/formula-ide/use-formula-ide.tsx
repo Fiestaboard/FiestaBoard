@@ -221,7 +221,7 @@ export function useFormulaIde({
     enabled: probeTarget !== null,
     placeholderData: keepPreviousData,
     // Keyed on the variable set, not the text, so an edit doesn't re-probe;
-    // live data is re-read on the preview's own cadence instead.
+    // live data is re-read every 30 s instead.
     staleTime: 30_000,
     refetchInterval: 30_000,
     retry: false,
