@@ -22,7 +22,12 @@ import { isCollectionId } from "./api";
  * that is: the Schedule passes a Sunday, the editor timeline a Monday (BB-FP-19).
  */
 function weekEndOf(weekStart: Date): Date {
-  return endOfDay(addDays(weekStart, 6));
+  return endOfDay(lastDayOf(weekStart));
+}
+
+/** The last day of the 7-day week that begins at `weekStart`. */
+function lastDayOf(weekStart: Date): Date {
+  return addDays(weekStart, 6);
 }
 
 interface BaseCalendarEvent {
@@ -247,12 +252,14 @@ export function scheduleToCalendarEvents(
       // Split into two events at the midnight boundary
       const nextDay = addDays(day, 1);
 
-      // For a repeating weekly schedule, Saturday's morning continuation
-      // should wrap to this week's Sunday instead of next week's Sunday.
+      // For a repeating weekly schedule, the week's last day's morning
+      // continuation wraps to this week's first day instead of next week's
+      // (Saturday → Sunday on the Schedule, Sunday → Monday on the editor
+      // timeline; BB-FP-19).
       // Date-specific (annual / one-off) events don't repeat, so the wrap
       // is just the actual next calendar day.
       const recurrence = schedule.recurrence_type || "weekly";
-      const morningDay = recurrence === "weekly" && dayOfWeek === 6 ? weekStart : nextDay;
+      const morningDay = recurrence === "weekly" && isSameDay(day, lastDayOf(weekStart)) ? weekStart : nextDay;
 
       // Evening part: start_time → end of day (23:59:59.999)
       // Use endOfDay instead of midnight-next-day so react-big-calendar
@@ -390,10 +397,10 @@ export function silenceToCalendarEvents(
     const eventStart = setMinutes(setHours(day, sH), sM);
 
     if (isMidnightRollover) {
-      // Saturday's morning continuation wraps to this week's Sunday so the
-      // event stays in the visible template view (same trick as regular
+      // The week's last day's morning continuation wraps to its first day so
+      // the event stays in the visible template view (same trick as regular
       // schedule midnight splits).
-      const morningDay = dayOfWeek === 6 ? weekStart : addDays(day, 1);
+      const morningDay = isSameDay(day, lastDayOf(weekStart)) ? weekStart : addDays(day, 1);
 
       events.push({
         id: `silence-${format(day, "yyyy-MM-dd")}-evening`,
