@@ -175,14 +175,44 @@ describe("SidebarSettingsMenu contents", () => {
     expect(within(menu).getAllByText("Settings")).toHaveLength(1);
   });
 
-  it("opens account settings directly", async () => {
+  // BB-FS-5 (07e `343:61586`): the header is who you are and whose hub this
+  // is, not a link; Account is one row of Settings.
+  it("names the owner and the hub under the username", async () => {
+    const user = userEvent.setup();
+    mockAuth(SIGNED_IN);
+    server.use(http.get("/api/settings/all", () => HttpResponse.json({ general: { instance_name: "Casa FiestaPi" } })));
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+    const popup = await openMenu(user);
+    expect(await within(popup).findByText("casa · Owner of Casa FiestaPi")).toBeInTheDocument();
+    expect(within(popup).queryByRole("button", { name: "Account" })).not.toBeInTheDocument();
+  });
+
+  it("puts the theme choice on one row labelled Theme, not an Appearance block", async () => {
     const user = userEvent.setup();
     mockAuth(SIGNED_IN);
     render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
     await screen.findByText("casa");
     const popup = await openMenu(user);
-    await user.click(within(popup).getByRole("button", { name: "Account" }));
-    expect(pushMock).toHaveBeenCalledWith("/settings/account");
+    const group = within(popup).getByRole("radiogroup", { name: "Theme" });
+    expect(
+      within(group)
+        .getAllByRole("radio")
+        .map((radio) => radio.textContent),
+    ).toEqual(["Light", "Dark", "System"]);
+    expect(within(popup).queryByText("Appearance")).not.toBeInTheDocument();
+  });
+
+  it("links Help & Docs", async () => {
+    const user = userEvent.setup();
+    mockAuth(SIGNED_IN);
+    render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
+    await screen.findByText("casa");
+    const popup = await openMenu(user);
+    expect(within(popup).getByRole("link", { name: "Help & Docs" })).toHaveAttribute(
+      "href",
+      "https://fiestaboard.app/docs/intro",
+    );
   });
 
   it("opens with the keyboard and restores focus on Escape", async () => {
@@ -289,7 +319,7 @@ describe("SidebarSettingsMenu contents", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("button", { name: "Sign out" }));
+    await user.click(within(menu).getByRole("button", { name: "Sign out of this browser" }));
 
     await waitFor(() => expect(loggedOut).toBe(true));
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
@@ -312,7 +342,7 @@ describe("SidebarSettingsMenu contents", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("button", { name: "Sign out" }));
+    await user.click(within(menu).getByRole("button", { name: "Sign out of this browser" }));
 
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
     expect(await readLastKnownBoard()).toBeNull();
@@ -325,7 +355,7 @@ describe("SidebarSettingsMenu contents", () => {
     await screen.findByRole("button", { name: "More" });
 
     const menu = await openMenu(user);
-    expect(within(menu).queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole("button", { name: "Sign out of this browser" })).not.toBeInTheDocument();
   });
 });
 
@@ -482,18 +512,18 @@ describe("SidebarSettingsMenu update action", () => {
     );
   });
 
-  it("takes you to the updater from the desktop menu", async () => {
+  it("badges About with the waiting version on desktop, and About offers the update", async () => {
     const user = userEvent.setup();
     render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    // A badge that announces 8.39.0 and then leaves you to go find the
-    // updater yourself is a dead end; SystemUpdate renders at the top of
-    // /settings whenever one is waiting.
-    await user.click(await within(menu).findByRole("button", { name: /Update to 8\.39\.0/ }));
-
-    expect(pushMock).toHaveBeenCalledWith("/settings");
+    // 07e `343:61586`: "About FiestaBoard [Update 11.2.0]" — one row, no
+    // separate "Update to" action; About's own "Update in Settings" applies it.
+    const about = await within(menu).findByRole("button", { name: /About FiestaBoard.*Update 8\.39\.0/ });
+    expect(within(menu).queryByRole("button", { name: /Update to/ })).not.toBeInTheDocument();
+    await user.click(about);
+    expect(await screen.findByRole("dialog", { name: "About FiestaBoard" })).toBeInTheDocument();
   });
 
   it("takes you to the updater from the mobile rows", async () => {
@@ -516,10 +546,12 @@ describe("SidebarSettingsMenu update action", () => {
   });
 
   it("offers nothing to click when the install is current", async () => {
+    let asked = false;
     server.use(
-      http.get("/api/system/update/status", () =>
-        HttpResponse.json({ update_available: false, managed_externally: false }),
-      ),
+      http.get("/api/system/update/status", () => {
+        asked = true;
+        return HttpResponse.json({ update_available: false, managed_externally: false });
+      }),
       http.get("/api/system/update-check", () => HttpResponse.json({ update_available: false, latest_version: null })),
     );
     const user = userEvent.setup();
@@ -527,24 +559,28 @@ describe("SidebarSettingsMenu update action", () => {
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await within(menu).findByText("8.38.9");
+    await waitFor(() => expect(asked).toBe(true));
+    expect(within(menu).getByRole("button", { name: "About FiestaBoard" })).toBeInTheDocument();
     expect(within(menu).queryByRole("button", { name: /Update to/ })).not.toBeInTheDocument();
   });
 
   it("offers nothing to click when an external supervisor owns updates", async () => {
     // The Home Assistant add-on case: FiestaBoard cannot apply the update, so
     // routing someone to a button that cannot work is worse than silence.
+    let asked = false;
     server.use(
-      http.get("/api/system/update/status", () =>
-        HttpResponse.json({ update_available: true, managed_externally: true }),
-      ),
+      http.get("/api/system/update/status", () => {
+        asked = true;
+        return HttpResponse.json({ update_available: true, managed_externally: true });
+      }),
     );
     const user = userEvent.setup();
     render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await within(menu).findByText("8.38.9");
+    await waitFor(() => expect(asked).toBe(true));
+    expect(within(menu).getByRole("button", { name: "About FiestaBoard" })).toBeInTheDocument();
     expect(within(menu).queryByRole("button", { name: /Update to/ })).not.toBeInTheDocument();
   });
 });
@@ -593,7 +629,7 @@ describe("SidebarSettingsMenu trigger notice", () => {
     // Wait for the update to land (the menu item proves it did) before
     // asserting the trigger stayed quiet.
     const menu = await openMenu(user);
-    await within(menu).findByRole("button", { name: /Update to 8\.39\.0/ });
+    await within(menu).findByText("Update 8.39.0");
     expect(trigger()).toHaveAccessibleDescription("");
   });
 });
@@ -629,30 +665,26 @@ describe("SidebarSettingsMenu version row", () => {
     );
   }
 
-  it("states the running version in the menu, without opening About", async () => {
+  it("leaves the build number to About rather than the menu", async () => {
     mockUpdate({ available: false });
     const user = userEvent.setup();
     render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-
-    // The whole point of the row: the build number without a second click.
-    expect(await within(menu).findByText("8.38.9")).toBeInTheDocument();
+    // 07e `343:61586` draws no version line; the number lives in About.
+    await within(menu).findByRole("button", { name: "About FiestaBoard" });
+    expect(within(menu).queryByText(/8\.38\.9/)).not.toBeInTheDocument();
   });
 
-  it("keeps the version line to one mention of the number", async () => {
-    // The line states what is running; the actionable row below it (see the
-    // "update action" block) states what to do about it. The badge that used
-    // to sit on this line named the waiting version and went nowhere, so a
-    // menu 224px wide carried 8.39.0 twice with neither one clickable.
+  it("names the waiting version once, on the About row", async () => {
     mockUpdate({ available: true });
     const user = userEvent.setup();
     render(<SidebarSettingsMenu />, { wrapper: TestWrapper });
     await screen.findByText("casa");
 
     const menu = await openMenu(user);
-    await within(menu).findByText("8.38.9");
+    await within(menu).findByText("Update 8.39.0");
     expect(within(menu).getAllByText(/8\.39\.0/)).toHaveLength(1);
   });
 });

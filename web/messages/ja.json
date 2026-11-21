@@ -101,7 +101,11 @@
     "about": "FiestaBoard について",
     "signOut": "サインアウト",
     "popoverLabel": "アカウントメニュー",
-    "account": "アカウント"
+    "account": "アカウント",
+    "theme": "テーマ",
+    "signOutBrowser": "このブラウザからサインアウト",
+    "ownerLine": "{username} · {hub} のオーナー",
+    "updateBadge": "{version} に更新"
   },
   "aboutDialog": {
     "description": "セルフホスト。あなたのハブ、あなたのディスプレイ、あなたのデータ。",

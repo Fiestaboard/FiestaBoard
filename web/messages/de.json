@@ -101,7 +101,11 @@
     "about": "Über FiestaBoard",
     "signOut": "Abmelden",
     "popoverLabel": "Kontomenü",
-    "account": "Konto"
+    "account": "Konto",
+    "theme": "Design",
+    "signOutBrowser": "Von diesem Browser abmelden",
+    "ownerLine": "{username} · Besitzer von {hub}",
+    "updateBadge": "Update {version}"
   },
   "aboutDialog": {
     "description": "Selbst gehostet. Dein Hub, deine Displays, deine Daten.",

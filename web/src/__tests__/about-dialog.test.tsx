@@ -117,4 +117,14 @@ describe("AboutDialog (BB-C-11)", () => {
     renderAbout();
     expect(await screen.findByRole("dialog")).toHaveAttribute("data-slot", "dialog-content");
   });
+
+  // BB-FS-6 (07e `343:63073` "Web / Dialog shell · Desktop"): 560 wide,
+  // radius 14, the raised surface and the 40px close — the kit's wide shell.
+  it("uses the kit's wide desktop dialog shell", async () => {
+    phoneWidth(false);
+    renderAbout();
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveAttribute("data-variant", "wide");
+    expect(dialog.className).not.toMatch(/max-w-xl/);
+  });
 });

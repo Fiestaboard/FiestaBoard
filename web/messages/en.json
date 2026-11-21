@@ -79,7 +79,7 @@
     "primaryNavigation": "Primary navigation",
     "secondaryNavigation": "Secondary navigation",
     "picks": "Staff Picks",
-    "skipToMainContent": "Skip to main content",
+    "skipToMainContent": "Skip to content",
     "boardSelector": "Select board to manage",
     "selectBoard": "Select board",
     "unnamedBoard": "Unnamed board",
@@ -101,7 +101,11 @@
     "about": "About FiestaBoard",
     "signOut": "Sign out",
     "popoverLabel": "Account menu",
-    "account": "Account"
+    "account": "Account",
+    "theme": "Theme",
+    "signOutBrowser": "Sign out of this browser",
+    "ownerLine": "{username} · Owner of {hub}",
+    "updateBadge": "Update {version}"
   },
   "aboutDialog": {
     "description": "Self-hosted. Your hub, your displays, your data.",

@@ -101,7 +101,11 @@
     "about": "О FiestaBoard",
     "signOut": "Выйти",
     "popoverLabel": "Меню аккаунта",
-    "account": "Аккаунт"
+    "account": "Аккаунт",
+    "theme": "Тема",
+    "signOutBrowser": "Выйти в этом браузере",
+    "ownerLine": "{username} · Владелец {hub}",
+    "updateBadge": "Обновить до {version}"
   },
   "aboutDialog": {
     "description": "Собственный хостинг. Ваш хаб, ваши дисплеи, ваши данные.",

@@ -101,7 +101,11 @@
     "about": "关于 FiestaBoard",
     "signOut": "退出登录",
     "popoverLabel": "账户菜单",
-    "account": "账户"
+    "account": "账户",
+    "theme": "主题",
+    "signOutBrowser": "在此浏览器上退出登录",
+    "ownerLine": "{username} · {hub} 的所有者",
+    "updateBadge": "更新到 {version}"
   },
   "aboutDialog": {
     "description": "自托管。你的中枢、你的显示屏、你的数据。",
