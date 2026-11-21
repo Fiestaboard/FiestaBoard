@@ -64,6 +64,10 @@ interface VariableRuleRowProps {
   onMoveDown: () => void;
   onKeyDown: React.KeyboardEventHandler<HTMLDivElement>;
   result?: { value: string; error: string | null; message: string | null; matched: boolean };
+  /** When the result was evaluated for a chosen time (Test at a time…), its formatted time; otherwise "now". */
+  resultAt?: string | null;
+  /** Changes this rule's page straight from the row's Select, without opening the editor. */
+  onTargetChange: (pageId: string) => void;
   /** Returns true if the editor opened; false if blocked (e.g. dirty confirm cancelled). */
   onRequestEdit: () => boolean;
   onSave: (next: VariableRule) => void;
@@ -92,6 +96,8 @@ export function VariableRuleRow({
   onMoveDown,
   onKeyDown,
   result,
+  resultAt,
+  onTargetChange,
   onRequestEdit,
   onSave,
   onCancelEdit,
@@ -117,7 +123,22 @@ export function VariableRuleRow({
 
   const pageName = (id: string): string => pages.find((p) => p.id === id)?.name || id;
   const summaryExpression = rule.expression.trim() || t("variableExpressionEmpty");
-  const summaryTarget = rule.page_id ? pageName(rule.page_id) : t("variableRuleTargetPlaceholder");
+  // The value the rule saw, as Figma's "now: “cloudy” → false". The API returns the
+  // expression's own value (not each operand's), so a comparison's Yes/No is left
+  // out rather than shown as if it were the variable (BB-FP-21).
+  const resultLine = (r: NonNullable<typeof result>): string => {
+    if (r.error) return r.message || r.error;
+    const outcome = r.matched ? "true" : "false";
+    const plain = r.value === "" || r.value === "Yes" || r.value === "No";
+    if (resultAt) {
+      return plain
+        ? t("ruleResultAtPlain", { time: resultAt, result: outcome })
+        : t("ruleResultAt", { time: resultAt, value: r.value, result: outcome });
+    }
+    return plain
+      ? t("ruleResultNowPlain", { result: outcome })
+      : t("ruleResultNow", { value: r.value, result: outcome });
+  };
 
   // Validation
   const trimmedExpr = draft.expression.trim();
@@ -144,6 +165,7 @@ export function VariableRuleRow({
   return (
     <Box
       id={`collection-rule-${index}`}
+      role="group"
       tabIndex={isEditing ? undefined : 0}
       aria-label={t("ruleLabel", { number: index + 1 })}
       aria-describedby={!isEditing ? "collection-rule-instructions" : undefined}
@@ -296,24 +318,39 @@ export function VariableRuleRow({
             <Text size="sm" tone="muted">
               {t("ruleWhen")}
             </Text>
-            {/* The whole expression, wrapping, not a one-line field that
-                hid `= "Saturday"` at phone width (BB-B-26). Opens the editor. */}
+            {/* An outlined one-line field in the body face, as Figma's Input (312:78075).
+                It wraps rather than hides `= "Saturday"` at phone width (BB-B-26) and
+                breaks long tokens so they stay inside the border (BB-FP-21). Opens the editor. */}
             <Button
               type="button"
               variant="outline"
               disabled={actionsDisabled}
               aria-label={t("variableExpressionAriaLabel", { index: index + 1 })}
               onClick={() => onRequestEdit()}
-              className="h-auto min-h-9 min-w-32 flex-[1_1_10rem] justify-start whitespace-normal break-words py-1.5 text-left font-mono text-sm font-normal"
+              className="h-auto min-h-9 min-w-0 flex-[1_1_12rem] justify-start max-sm:basis-full whitespace-normal py-1.5 border-input bg-transparent text-left text-sm font-normal shadow-sm [overflow-wrap:anywhere] dark:bg-transparent"
             >
               {summaryExpression}
             </Button>
             <Text size="sm" tone="muted">
               {t("ruleShow")}
             </Text>
-            <Text size="sm" className="min-w-24 flex-1">
-              {summaryTarget}
-            </Text>
+            <Select value={rule.page_id} onValueChange={(v) => v && onTargetChange(v)} disabled={actionsDisabled}>
+              <SelectTrigger
+                aria-label={t("variableRuleTargetAriaLabel", { index: index + 1 })}
+                className="w-40 max-w-full shrink-0"
+              >
+                <SelectValue placeholder={t("variableRuleTargetPlaceholder")}>
+                  {rule.page_id ? pageName(rule.page_id) : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {selectablePageIds.map((pid) => (
+                  <SelectItem key={pid} value={pid}>
+                    {pageName(pid)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -349,9 +386,12 @@ export function VariableRuleRow({
           </Flex>
           {result && (
             <Flex gap="2" align="center">
-              <Badge variant={result.error ? "destructive" : "formula"}>{result.value}</Badge>
+              {/* true/false are formula values, the same in every locale. */}
+              <Badge variant={result.error ? "destructive" : "formula"}>
+                {result.error ? result.error : result.matched ? "true" : "false"}
+              </Badge>
               <Text size="xs" tone={result.error ? "destructive" : "muted"}>
-                {result.message || t("savedRuleResult")}
+                {resultLine(result)}
               </Text>
             </Flex>
           )}
