@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
@@ -781,6 +782,56 @@ describe("Inspector tabs", () => {
     expect(await screen.findByRole("button", { name: /Page duration/ })).toHaveTextContent("30 s");
     expect(screen.getByRole("button", { name: /Transition/ })).toHaveTextContent("Overrides Den TV’s default");
     expect(screen.getByRole("button", { name: /When data is missing/ })).toHaveTextContent("1 formula uses DEFAULT");
+  });
+
+  // D6 moved the desktop page-transition picker out of the header; the
+  // Inspector's Transition row must still offer transition plugins (beta) and
+  // name a page's plugin override, or that override can't be set on desktop.
+  it("offers transition plugins in the Page tab's Transition dialog while the beta is on", async () => {
+    mockHub();
+    const puts: unknown[] = [];
+    server.use(
+      http.get("/api/settings/plugins", () => HttpResponse.json({ transition_plugins_enabled: true })),
+      http.get("/api/plugins", () =>
+        HttpResponse.json({
+          plugins: [{ id: "typewriter", name: "Typewriter", plugin_type: "transition", enabled: true }],
+          total: 1,
+        }),
+      ),
+      http.put(`/api/v1/pages/${PAGE}`, async ({ request }) => {
+        puts.push(await request.json());
+        return HttpResponse.json({
+          page: { ...snapshot, transition_strategy: "plugin:typewriter" },
+          incompatible_references: [],
+        });
+      }),
+    );
+    renderIde();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Transition/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Transition" });
+    await user.click(within(dialog).getByRole("combobox", { name: "Transition" }));
+    await user.click(await screen.findByRole("option", { name: "Typewriter" }));
+    await user.click(within(dialog).getByRole("button", { name: /^Save$/ }));
+    await waitFor(() => expect(puts).toEqual([expect.objectContaining({ transition_strategy: "plugin:typewriter" })]));
+  });
+
+  it("names a page's transition-plugin override on the Transition row", async () => {
+    mockHub();
+    server.use(
+      http.get("/api/settings/plugins", () => HttpResponse.json({ transition_plugins_enabled: true })),
+      http.get("/api/plugins", () =>
+        HttpResponse.json({
+          plugins: [{ id: "typewriter", name: "Typewriter", plugin_type: "transition", enabled: true }],
+          total: 1,
+        }),
+      ),
+    );
+    const builder = fakeBuilder();
+    const original = builder.getCurrentPage;
+    builder.getCurrentPage = () => ({ ...original()!, transition_strategy: "plugin:typewriter" });
+    renderIde(builder);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Transition/ })).toHaveTextContent("Typewriter"));
   });
 
   it("answers Shows on with the hub's Now and the collection's rule dry run", async () => {
