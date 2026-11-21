@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { jumpToTemplateLine } from "@/lib/ide/jump-to-line";
 import type { IdeProblem } from "@/lib/ide/problems";
-import { substitutionSummary } from "@/lib/ide/problems";
+import { problemTitleParts, substitutionSummary } from "@/lib/ide/problems";
 import { sendLogModel } from "@/lib/ide/sends";
 
 import { formatClock } from "./ide-format";
@@ -36,23 +36,23 @@ export function IdeProblemList({
   }
   return (
     <Stack gap="1" role="list">
-      {problems.map((problem) => (
-        <Box role="listitem" key={problem.id}>
-          <ProblemItem
-            severity={problem.severity}
-            layout={layout}
-            size={size}
-            message={
-              problem.line
-                ? t("problemTitle", { kind: t(`kind.${problem.kind}`), line: problem.line })
-                : t(`kind.${problem.kind}`)
-            }
-            detail={problem.message}
-            onJump={problem.line ? () => jumpToTemplateLine(problem.line!) : undefined}
-            labels={{ error: t("severityError"), warning: t("severityWarning"), jump: t("jumpToSource") }}
-          />
-        </Box>
-      ))}
+      {problems.map((problem) => {
+        const { tag, detail } = problemTitleParts(problem);
+        const kind = tag ?? t(`kind.${problem.kind}`);
+        return (
+          <Box role="listitem" key={problem.id}>
+            <ProblemItem
+              severity={problem.severity}
+              layout={layout}
+              size={size}
+              message={problem.line ? t("problemTitle", { kind, line: problem.line }) : kind}
+              detail={detail}
+              onJump={problem.line ? () => jumpToTemplateLine(problem.line!) : undefined}
+              labels={{ error: t("severityError"), warning: t("severityWarning"), jump: t("jumpToSource") }}
+            />
+          </Box>
+        );
+      })}
     </Stack>
   );
 }
@@ -145,9 +145,16 @@ export function IdeConsole({
     <Box as="section" aria-label={t("console")} data-slot="ide-console" id="ide-console">
       <Tabs value={tab} onValueChange={(value) => onTabChange(value as ConsoleTab)}>
         <TabsList className="w-full">
-          <TabsTrigger value="problems">{t("problemsCount", { count: ide.problems.length })}</TabsTrigger>
-          <TabsTrigger value="warnings">{t("warningsCount", { count: ide.warnings.length })}</TabsTrigger>
-          <TabsTrigger value="sent">{t("sentTab")}</TabsTrigger>
+          {/* Three equal tabs across the list (Figma 184:159319, BB-FP-18). */}
+          <TabsTrigger value="problems" className="flex-1">
+            {t("problemsCount", { count: ide.problems.length })}
+          </TabsTrigger>
+          <TabsTrigger value="warnings" className="flex-1">
+            {t("warningsCount", { count: ide.warnings.length })}
+          </TabsTrigger>
+          <TabsTrigger value="sent" className="flex-1">
+            {t("sentTab")}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="problems" className="pt-2">
           <Stack gap="2">
