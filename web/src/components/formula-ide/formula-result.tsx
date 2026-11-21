@@ -51,7 +51,7 @@ export function FormulaResult({ expression }: FormulaResultProps) {
   ].filter(Boolean);
 
   return (
-    <Flex align="center" gap="2" wrap data-testid="formula-result" aria-live="polite">
+    <Flex align="center" gap="2" wrap data-testid="formula-result">
       <Badge variant={tag ? "destructive" : "formula"} className="rounded-full font-mono font-medium">
         {tag ?? t("resultValue", { value: value || '""' })}
       </Badge>

@@ -608,26 +608,27 @@ export function FormulaEditorPanel({
               ))}
             </List>
           ) : (
-            result?.(lastValidExpr)
+            // A persistent live region, so the first result is announced too.
+            <Box aria-live="polite" data-testid="formula-result-region">
+              {result?.(lastValidExpr)}
+            </Box>
           )}
         </Stack>
 
-        <Box className="-mx-4 overflow-x-auto px-4">
-          <SegmentedControl
-            size="touch"
-            aria-label={t("functionsTab")}
-            value={category}
-            onValueChange={(value) => setCategory(String(value))}
-            className="w-max"
-          >
-            {categories.map((cat) => (
-              <SegmentedControlItem key={cat} value={cat}>
-                {categoryLabels[cat] ?? cat}
-              </SegmentedControlItem>
-            ))}
-            <SegmentedControlItem value={VARIABLES}>{t("variablesTab")}</SegmentedControlItem>
-          </SegmentedControl>
-        </Box>
+        {/* The chips wrap rather than scroll, so every category (and Variables) stays in view at 390. */}
+        <SegmentedControl
+          size="touch"
+          aria-label={t("functionsTab")}
+          value={category}
+          onValueChange={(value) => setCategory(String(value))}
+        >
+          {categories.map((cat) => (
+            <SegmentedControlItem key={cat} value={cat}>
+              {categoryLabels[cat] ?? cat}
+            </SegmentedControlItem>
+          ))}
+          <SegmentedControlItem value={VARIABLES}>{t("variablesTab")}</SegmentedControlItem>
+        </SegmentedControl>
 
         {category === VARIABLES ? (
           <Suspense fallback={<Skeleton className="h-24 w-full" />}>

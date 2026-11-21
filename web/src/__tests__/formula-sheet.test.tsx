@@ -123,6 +123,20 @@ describe("phone Formula sheet layout (BB-FP-14)", () => {
     expect(screen.getByRole("button", { name: /ROUND\(n, digits\)/ })).toBeInTheDocument();
   });
 
+  it("wraps the category chips instead of scrolling them out of view", async () => {
+    render(<FormulaEditorPanel layout="sheet" mode="create" onConfirm={vi.fn()} />, { wrapper: Wrapper });
+    const chips = await screen.findByRole("radiogroup", { name: "Functions" });
+    expect(chips).not.toHaveClass("w-max");
+    expect(chips.parentElement).not.toHaveClass("overflow-x-auto");
+  });
+
+  it("announces results from a live region that is always there", () => {
+    render(<FormulaEditorPanel layout="sheet" mode="create" onConfirm={vi.fn()} result={() => null} />, {
+      wrapper: Wrapper,
+    });
+    expect(screen.getByTestId("formula-result-region")).toHaveAttribute("aria-live", "polite");
+  });
+
   it("has one full-width primary action and no Cancel/Done row", async () => {
     render(<FormulaEditorPanel layout="sheet" mode="create" onConfirm={vi.fn()} />, { wrapper: Wrapper });
     const insert = screen.getByRole("button", { name: "Insert formula" });
