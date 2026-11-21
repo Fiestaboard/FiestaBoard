@@ -89,6 +89,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   }, [sendsDisabled]);
   const { data: fleetStatus } = useStatus();
   const phone = useMediaQuery("(max-width: 767px)");
+  const medium = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
   const tPause = useTranslations("displaySettings.pause");
   const navigate = useNavigate();
   const locale = useLocale();
@@ -708,7 +709,12 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           layers={displayLayers}
           isLoading={!boardState && !liveMessageForBoard}
           size="md"
-          layout={phone ? "phone-hero" : undefined}
+          // 07a hero placements (DD-W61): Tile sm edge to edge on a phone;
+          // at medium width the medium hero, whose bezel hugs a board that
+          // fits and settles a near fit to fill it, not a full-width slab
+          // with black side margins (BB-FH-12). Desktop keeps the 02
+          // viewport until DD-W61's >= 1024 hug-vs-fill ask is ruled.
+          layout={phone ? "phone-hero" : medium ? "medium-hero" : undefined}
           fallbackColor={getEffectiveBoardColor(boardSettings)}
           fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
         />
