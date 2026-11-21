@@ -6,6 +6,9 @@ name: 'CI: Integration Tests'
 # branch, so it tests the merged result of everything about to ship. Every
 # Version PR bumps web/package.json, so the `paths` filter below always fires.
 on:
+  # Lets nightly-integration.yml dispatch this workflow on v11 (GitHub reads the
+  # trigger from the default branch; the run uses the ref's copy of this file).
+  workflow_dispatch:
   pull_request:
     branches: [ '**' ]
     paths:
