@@ -115,9 +115,11 @@ test.describe("regression: integrations.installed", () => {
       timeout: 15_000,
     });
 
-    // The header-level "Check for updates" button acts as the retry affordance
-    // (it invalidates the plugins query when run).
-    await expect(page.getByRole("button", { name: /Check for updates/i })).toBeVisible();
+    // The header menu's "Check for updates" acts as the retry affordance (it
+    // invalidates the plugins query when run); BB-FC-8 put it behind "…".
+    await page.locator("[data-slot=page-header]").getByRole("button", { name: "Integration options" }).click();
+    await expect(page.getByRole("menuitem", { name: /Check for updates/i })).toBeVisible();
+    await page.keyboard.press("Escape");
 
     // No plugin toggle rows should be rendered in error state.
     await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toHaveCount(0);
