@@ -18,11 +18,18 @@ import {
   type RenderTarget,
 } from "@/lib/api/formula-debug";
 import { atIsoForTime, buildPreviewContext, referencedRoots, sampleValues } from "@/lib/formula-ide/data-source";
-import { buildHintIndex, findFormula, normalizeSource } from "@/lib/formula-ide/hints";
+import {
+  buildHintIndex,
+  buildVariableHintIndex,
+  findFormula,
+  normalizeSource,
+  templateVariablePaths,
+  variableProbeTemplate,
+} from "@/lib/formula-ide/hints";
 import { cellOrigin, originDetail } from "@/lib/formula-ide/source-map";
 
 import { BoardCellHighlight } from "./board-cell-highlight";
-import type { FormulaIdeBridge, OpenFormulaRequest } from "./formula-ide-context";
+import type { FormulaIdeBridge, FormulaPreviewTarget, OpenFormulaRequest } from "./formula-ide-context";
 import { MissingValuesCard } from "./missing-values-card";
 import { PreviewDataControls } from "./preview-data-controls";
 import type { WorkbenchProps } from "./workbench-types";
@@ -174,6 +181,56 @@ export function useFormulaIde({
   const missingRoots = useMemo(() => (mode === "missing" ? roots : []), [mode, roots]);
   const hints = useMemo(() => buildHintIndex(diagnostics, missingRoots), [diagnostics, missingRoots]);
 
+  // BB-FP-11: variable chips show their value too. One probe render evaluates
+  // every variable path as a formula, for the same board and preview context.
+  const variablePaths = useMemo(() => templateVariablePaths(template), [template]);
+  const probeTarget = useMemo<RenderTarget | null>(
+    () =>
+      target === null || variablePaths.length === 0
+        ? null
+        : {
+            template: variableProbeTemplate(variablePaths),
+            deviceType: target.deviceType,
+            notesWide: target.notesWide,
+            notesTall: target.notesTall,
+            grid: target.grid,
+            boardId: target.boardId,
+          },
+    [target, variablePaths],
+  );
+  const formulaPreview = useMemo<FormulaPreviewTarget | null>(
+    () =>
+      target === null
+        ? null
+        : {
+            target: {
+              deviceType: target.deviceType,
+              notesWide: target.notesWide,
+              notesTall: target.notesTall,
+              grid: target.grid,
+              boardId: target.boardId,
+            },
+            context: previewContext,
+            boardCols,
+          },
+    [target, previewContext, boardCols],
+  );
+  const variableRender = useQuery<FormulaDebugRenderResponse>({
+    queryKey: ["formula-ide", "variables", probeTarget, previewContext],
+    queryFn: ({ signal }) => formulaDebugApi.render({ target: probeTarget!, preview: previewContext }, signal),
+    enabled: probeTarget !== null,
+    placeholderData: keepPreviousData,
+    // Keyed on the variable set, not the text, so an edit doesn't re-probe;
+    // live data is re-read on the preview's own cadence instead.
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    retry: false,
+  });
+  const variableHints = useMemo(
+    () => buildVariableHintIndex(probeTarget ? variableRender.data?.diagnostics : null),
+    [probeTarget, variableRender.data],
+  );
+
   // The formula the inspector, the trace and the line card are about.
   const cellDetail = useMemo(() => {
     if (focus?.kind !== "cell" || !sourceMap) return null;
@@ -239,6 +296,8 @@ export function useFormulaIde({
   const bridge = useMemo<FormulaIdeBridge>(
     () => ({
       hint: (expression) => hints.get(normalizeSource(expression)),
+      variableHint: (path) => variableHints.get(path),
+      preview: formulaPreview,
       openFormula: (request) => {
         if (!desktop || target === null) return false;
         openCounter.current += 1;
@@ -255,7 +314,7 @@ export function useFormulaIde({
         }
       },
     }),
-    [hints, desktop, target],
+    [hints, variableHints, formulaPreview, desktop, target],
   );
 
   const inert = target === null;

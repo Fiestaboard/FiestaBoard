@@ -66,16 +66,47 @@ async function openOnPhone(bridge: FormulaIdeBridge | null = null) {
   setPhone(true);
   const result = renderChip({ bridge });
   fireEvent.mouseDown(screen.getAllByRole("button")[0], { button: 0 });
-  await screen.findByRole("dialog", { name: "Formula editor" });
+  await screen.findByRole("dialog", { name: "Formula" });
   return result;
 }
 
 describe("phone formula editing", () => {
-  it("opens a bottom sheet, not a centred modal", async () => {
+  it("opens a bottom sheet titled Formula, not a centred modal (BB-FP-14)", async () => {
     await openOnPhone();
-    const dialog = screen.getByRole("dialog", { name: "Formula editor" });
+    const dialog = screen.getByRole("dialog", { name: "Formula" });
     expect(dialog).toHaveAttribute("data-slot", "sheet-content");
     expect(dialog).toHaveAttribute("data-side", "bottom");
+  });
+
+  it("stays open through the click that ends the opening tap (BB-FP-13)", async () => {
+    // A tap is pointerdown, touchend, mousedown (opens the sheet), mouseup on
+    // the sheet that is now under the finger, then a click on their common
+    // ancestor: outside the sheet. That click must not dismiss the sheet.
+    const { props } = await openOnPhone();
+    fireEvent.mouseUp(document.body, { button: 0 });
+    fireEvent.click(document.body, { button: 0 });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.getByRole("dialog", { name: "Formula" })).toBeInTheDocument();
+    expect(props.deleteNode).not.toHaveBeenCalled();
+  });
+
+  it("still closes on a later press outside the sheet", async () => {
+    await openOnPhone();
+    fireEvent.pointerDown(document.body, { button: 0, pointerType: "mouse" });
+    fireEvent.mouseDown(document.body, { button: 0 });
+    fireEvent.pointerUp(document.body, { button: 0, pointerType: "mouse" });
+    fireEvent.mouseUp(document.body, { button: 0 });
+    fireEvent.click(document.body, { button: 0 });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Formula" })).toBeNull());
+  });
+
+  it("shows no chip for a formula that is still being inserted (BB-FP-14)", () => {
+    setPhone(true);
+    renderChip({ expression: "" });
+    expect(screen.queryByText(/new formula/i)).toBeNull();
+    expect(screen.getByTestId("formula-pending")).toBeEmptyDOMElement();
   });
 
   it("keeps the centred dialog from 640px", () => {
@@ -109,6 +140,6 @@ describe("phone formula editing", () => {
       fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
     });
     expect(inspectFormula).toHaveBeenCalledWith(EXPR);
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Formula editor" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Formula" })).toBeNull());
   });
 });

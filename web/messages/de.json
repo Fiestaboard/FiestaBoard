@@ -2761,7 +2761,11 @@
     "clickToEditFormula": "Klicken, um Formel zu bearbeiten",
     "newFormula": "neue Formel",
     "loading": "Lädt…",
-    "dialogLabel": "Formeleditor"
+    "dialogLabel": "Formeleditor",
+    "sheetTitle": "Formel",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} ist jetzt {value}",
+    "resultColumns": "{used} von {cols} Spalten"
   },
   "templateEditor": {
     "variables": "Variablen",
