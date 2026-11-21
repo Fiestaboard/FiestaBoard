@@ -288,3 +288,21 @@ for (const width of [390, 768, 900, 1280]) {
     });
   }
 }
+
+// A landscape phone (844 × 390) keeps the phone chrome (BB-A-13), so Displays
+// keeps its phone layout too: "‹ Displays" over the display's name, no card
+// header or tabs above it (07d, BB-A-19/A-24).
+test("Displays on a landscape phone keeps the phone layout", async ({ page }, testInfo) => {
+  await page.clock.install({ time: new Date("2026-11-17T02:18:00Z") });
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/tests/layout/displays.html?theme=light");
+  const main = page.getByRole("main");
+  await expect(main.getByRole("heading", { level: 1, name: "Displays" })).toBeVisible();
+  await page.getByTestId("display-card").filter({ hasText: "Entry clock" }).click();
+  await expect(main.getByRole("link", { name: "Displays", exact: true })).toBeVisible();
+  await expect(main.getByRole("heading", { level: 1, name: "Entry clock" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toHaveCount(0);
+  await settleCapture(page);
+  await page.screenshot({ path: testInfo.outputPath("impl-displays-landscape-844x390.png"), fullPage: true });
+});
