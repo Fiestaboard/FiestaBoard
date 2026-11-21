@@ -51,8 +51,17 @@ function StateDialog({ failed, retry, onClose }: { failed: boolean; retry: () =>
   );
 }
 
-/** Resolve the intended display before mounting any actionable send controls. */
+/** Show a collection now on the current display (the collection editor's Show now). */
 export function CollectionShowNow({ collection, onClose }: { collection: Collection; onClose: () => void }) {
+  return <ShowNow itemId={collection.id} onClose={onClose} />;
+}
+
+/**
+ * Show a page or collection now: the Home Change Page dialog, opened on the
+ * item's duration step for the current display. Resolves the intended display
+ * before mounting any actionable send controls.
+ */
+export function ShowNow({ itemId, onClose }: { itemId: string; onClose: () => void }) {
   const { currentBoardId, currentBoard, boards, isLoading } = useCurrentBoard();
   const settings = useBoardSettings();
   const allBoards = settings.data?.boards ?? boards;
@@ -68,18 +77,10 @@ export function CollectionShowNow({ collection, onClose }: { collection: Collect
       />
     );
   }
-  return <ReadyShowNow key={board.id} board={board} collection={collection} onClose={onClose} />;
+  return <ReadyShowNow key={board.id} board={board} itemId={itemId} onClose={onClose} />;
 }
 
-function ReadyShowNow({
-  board,
-  collection,
-  onClose,
-}: {
-  board: BoardInstance;
-  collection: Collection;
-  onClose: () => void;
-}) {
+function ReadyShowNow({ board, itemId, onClose }: { board: BoardInstance; itemId: string; onClose: () => void }) {
   const tn = useTranslations("home.nowShowing");
   // Entry reads are fresh and explicitly scoped even for the primary board.
   // Unknown override/silence state must never become a guessed false value.
@@ -137,7 +138,7 @@ function ReadyShowNow({
       overrideName={override.active ? (nameOf(override.page_id) ?? tn("composedMessage")) : null}
       nextChange={scheduleNextChange(detail.data, new Date())}
       silence={silence.data!.active ? { until: silenceEndsAtLabel(silence.data) } : null}
-      initialPageId={collection.id}
+      initialPageId={itemId}
     />
   );
 }
