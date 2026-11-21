@@ -73,14 +73,9 @@ function renderPage() {
 beforeEach(() => {
   matchMedia = window.matchMedia;
   localStorage.setItem("schedule-view-mode", "calendar");
-  // The phone agenda opens on today, and the fixture's entry runs on
-  // weekdays: pin a Wednesday so the suite passes on a weekend too.
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date(2026, 10, 18, 12, 0, 0));
 });
 afterEach(() => {
   window.matchMedia = matchMedia;
-  vi.useRealTimers();
 });
 
 it("puts title, Add and one Schedule Mode row above the day chips and agenda (BB-C-3)", async () => {
