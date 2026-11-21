@@ -1764,7 +1764,15 @@
     "textMode": "文本",
     "canvasesMode": "画布",
     "showPreview": "显示预览和实时输出",
-    "hidePreview": "隐藏预览和实时输出"
+    "hidePreview": "隐藏预览和实时输出",
+    "discardDialogClose": "关闭",
+    "discardChangesSince": "自 {time} 以来你更改了 {count} 行。现在离开将丢失这些更改。",
+    "discardChangesLost": "现在离开将丢失你的更改。",
+    "discardChangesBoardKeeps": "{board} 会继续显示已保存的版本。",
+    "discardChangesDisplaysKeep": "显示屏会继续显示已保存的版本。",
+    "discardChangedLabel": "已更改",
+    "discardChangedLine": "第 {line} 行（{text}）",
+    "discardChangedLineEmpty": "第 {line} 行（空白）"
   },
   "displaySettings": {
     "unnamedBoard": "未命名看板",
@@ -3866,7 +3874,9 @@
     "replay": "重播",
     "replayHint": "播放翻牌动画",
     "previewTarget": "预览目标",
-    "previewTargetTrigger": "在 {target} 上预览"
+    "previewTargetTrigger": "在 {target} 上预览",
+    "discardDraft": "放弃",
+    "lastSaved": "上次保存 {time}"
   },
   "phonePairing": {
     "title": "连接手机",
@@ -4240,7 +4250,14 @@
     "replaceDraft": "替换草稿",
     "draftConflictTitle": "替换较新的草稿？",
     "draftConflictDescription": "你打开此页面后，另一台设备保存了它的草稿。替换后只保留此编辑器中的内容。",
-    "legendLabel": "日程条目"
+    "legendLabel": "日程条目",
+    "draftRestored": "已恢复草稿",
+    "draftRestoredStale": "已恢复草稿 · 此后页面已更改",
+    "draftSavedAt": "草稿已保存 {time}",
+    "liveOn": "正在 {board} 上显示",
+    "deletePage": "删除页面…",
+    "deletePageDetail": "将其从所有日程和合集中移除",
+    "autosavePaused": "未保存 · 来自别处的草稿在历史记录中等待"
   },
   "formulaIde": {
     "atomValue": "= {value}",

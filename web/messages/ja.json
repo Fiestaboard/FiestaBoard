@@ -1764,7 +1764,15 @@
     "textMode": "テキスト",
     "canvasesMode": "キャンバス",
     "showPreview": "プレビューとライブ出力を表示",
-    "hidePreview": "プレビューとライブ出力を非表示"
+    "hidePreview": "プレビューとライブ出力を非表示",
+    "discardDialogClose": "閉じる",
+    "discardChangesSince": "{time} 以降に {count} 行を変更しました。今移動すると失われます。",
+    "discardChangesLost": "今移動すると変更は失われます。",
+    "discardChangesBoardKeeps": "{board} には保存済みのバージョンが表示され続けます。",
+    "discardChangesDisplaysKeep": "ディスプレイには保存済みのバージョンが表示され続けます。",
+    "discardChangedLabel": "変更",
+    "discardChangedLine": "{line} 行目（{text}）",
+    "discardChangedLineEmpty": "{line} 行目（空白）"
   },
   "displaySettings": {
     "unnamedBoard": "名前未設定のボード",
@@ -3866,7 +3874,9 @@
     "replay": "再生",
     "replayHint": "フラップのアニメーションを再生",
     "previewTarget": "プレビュー先",
-    "previewTargetTrigger": "{target} でプレビュー"
+    "previewTargetTrigger": "{target} でプレビュー",
+    "discardDraft": "破棄",
+    "lastSaved": "最終保存 {time}"
   },
   "phonePairing": {
     "title": "スマートフォンを接続",
@@ -4240,7 +4250,14 @@
     "replaceDraft": "下書きを置き換える",
     "draftConflictTitle": "新しい下書きを置き換えますか？",
     "draftConflictDescription": "このページを開いた後、別のデバイスが下書きを保存しました。置き換えると、このエディタの内容だけが残ります。",
-    "legendLabel": "スケジュールの項目"
+    "legendLabel": "スケジュールの項目",
+    "draftRestored": "下書きを復元しました",
+    "draftRestoredStale": "下書きを復元しました · その後ページが変更されています",
+    "draftSavedAt": "下書きを保存 {time}",
+    "liveOn": "{board} で表示中",
+    "deletePage": "ページを削除…",
+    "deletePageDetail": "すべてのスケジュールとコレクションから削除されます",
+    "autosavePaused": "未保存 · 別の場所の下書きが履歴にあります"
   },
   "formulaIde": {
     "atomValue": "= {value}",

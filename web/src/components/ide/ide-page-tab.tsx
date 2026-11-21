@@ -36,6 +36,8 @@ import { Link } from "react-router";
 import type { PageBuilderHandle } from "@/components/page-builder";
 import { queryKeys } from "@/hooks/use-board";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { usePluginSettings } from "@/hooks/use-plugin-settings";
+import { useTransitionPlugins } from "@/hooks/use-transition-plugins";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { type PageDuplicateResponse, pageHistoryApi } from "@/lib/api/page-history";
@@ -69,6 +71,23 @@ export function formatDuration(seconds: number, t: (key: string, params?: Record
  * written to the page itself, so they wait until the editor has nothing
  * unsaved (the editor would otherwise save over them with a stale revision).
  */
+const PLUGIN_PREFIX = "plugin:";
+
+/**
+ * Transition plugins (beta, deprecated) for the Page tab, as the editor's
+ * header picker offered them before D6 moved that picker here: installed
+ * ones while the beta is on, and a page's existing `plugin:<id>` override by
+ * name (or raw id when its plugin is gone), so it is never shown as the
+ * display's default.
+ */
+function usePageTransitionPlugins(strategy: string | null | undefined) {
+  const { data: settings } = usePluginSettings();
+  const plugins = useTransitionPlugins(settings?.transition_plugins_enabled ?? false);
+  const pluginId = strategy?.startsWith(PLUGIN_PREFIX) ? strategy.slice(PLUGIN_PREFIX.length) : null;
+  const current = pluginId ? (plugins.find((plugin) => plugin.id === pluginId)?.name ?? pluginId) : null;
+  return { plugins, current, pluginId };
+}
+
 function PageSettingsDialog({
   field,
   onClose,
@@ -88,6 +107,7 @@ function PageSettingsDialog({
   const snapshot = ide.builder.snapshot;
   const [duration, setDuration] = useState<string>(String(snapshot?.duration_seconds ?? 300));
   const [transition, setTransition] = useState<string>(snapshot?.transition_strategy ?? INHERIT);
+  const transitionPlugins = usePageTransitionPlugins(snapshot?.transition_strategy);
   const save = useMutation({
     mutationFn: () =>
       api.updatePage(pageId, {
@@ -136,6 +156,17 @@ function PageSettingsDialog({
                     {tTransitions(`strategies.${option.labelKey}.label`)}
                   </SelectItem>
                 ))}
+                {transitionPlugins.plugins.map((plugin) => (
+                  <SelectItem key={plugin.id} value={`${PLUGIN_PREFIX}${plugin.id}`}>
+                    {plugin.name}
+                  </SelectItem>
+                ))}
+                {transitionPlugins.pluginId &&
+                  !transitionPlugins.plugins.some((plugin) => plugin.id === transitionPlugins.pluginId) && (
+                    <SelectItem value={`${PLUGIN_PREFIX}${transitionPlugins.pluginId}`}>
+                      {transitionPlugins.current}
+                    </SelectItem>
+                  )}
               </SelectContent>
             </Select>
           </Stack>
@@ -292,6 +323,7 @@ export function IdePageTab({
   const fallbacks = templateReferences(snapshot?.template ?? []).fallbacks;
   const boardName = ide.currentBoard?.name ?? t("aDisplay");
   const transitionKey = TRANSITIONS.find((option) => option.value === snapshot?.transition_strategy)?.labelKey;
+  const transitionPlugin = usePageTransitionPlugins(snapshot?.transition_strategy).current;
   return (
     <>
       <List gap="0" role="list" data-slot="ide-page-tab">
@@ -312,7 +344,11 @@ export function IdePageTab({
                 ? t("transitionOverrides", { board: boardName })
                 : t("transitionInherits", { board: boardName })
             }
-            value={transitionKey ? tTransitions(`strategies.${transitionKey}.label`) : t("displayDefault")}
+            value={
+              transitionKey
+                ? tTransitions(`strategies.${transitionKey}.label`)
+                : (transitionPlugin ?? t("displayDefault"))
+            }
             chevron
             onPress={() => setField("transition")}
           />
@@ -329,6 +365,18 @@ export function IdePageTab({
         </ListItem>
         <ListItem>
           <InspectorRow title={t("makeCopy")} detail={t("makeCopyDetail")} chevron onPress={onMakeCopy} />
+        </ListItem>
+        {/* D6: Delete lives here, not beside the title; the editor confirms first. */}
+        <ListItem>
+          <InspectorRow
+            title={
+              <Text as="span" tone="destructive">
+                {t("deletePage")}
+              </Text>
+            }
+            detail={t("deletePageDetail")}
+            onPress={() => builderRef.current?.requestDelete()}
+          />
         </ListItem>
       </List>
       {field && (

@@ -79,11 +79,12 @@ it.each(["Pages breadcrumb", "Settings sidebar"])(
     await user.clear(name);
     await user.type(name, "Unsaved name");
     await user.click(screen.getByRole("link", { name: link }));
-    expect(await screen.findByRole("alertdialog", { name: "Discard unsaved changes?" })).toBeInTheDocument();
+    const guard = await screen.findByRole("alertdialog", { name: /^Discard changes( to .*)?\?$/ });
+    expect(guard).toHaveTextContent("Displays keep showing the saved version.");
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(screen.getByDisplayValue("Unsaved name")).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: link }));
-    await user.click(await screen.findByRole("button", { name: "Discard and leave" }));
+    await user.click(await screen.findByRole("button", { name: "Discard changes" }));
     expect(await screen.findByRole("heading", { name: /destination/ })).toBeInTheDocument();
   },
 );
@@ -95,7 +96,7 @@ it("blocks history back for unsaved edits", async () => {
     await router.navigate(-1);
   });
   expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Discard and leave" }));
+  await user.click(screen.getByRole("button", { name: "Discard changes" }));
   expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
 });
 
@@ -196,7 +197,7 @@ it("does not warn after reverting an edit", async () => {
 it("leaves after confirming deletion without another discard prompt", async () => {
   const { user } = setup();
   await user.type(await screen.findByDisplayValue("Weather Page"), " changed");
-  await user.click(screen.getByRole("button", { name: "Delete Page" }));
+  await user.click(await screen.findByRole("button", { name: /^Delete page…/ }));
   await user.click(await screen.findByRole("button", { name: "Delete" }));
   expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
   expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
@@ -226,7 +227,7 @@ it("does not ask for the deleted page again", async () => {
   };
   server.events.on("request:start", listener);
   try {
-    await user.click(screen.getByRole("button", { name: "Delete Page" }));
+    await user.click(await screen.findByRole("button", { name: /^Delete page…/ }));
     await user.click(await screen.findByRole("button", { name: "Delete" }));
     expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 200));

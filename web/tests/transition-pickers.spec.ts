@@ -133,24 +133,30 @@ test.describe("transition pickers", () => {
     try {
       await page.goto(`/pages/edit?id=${pageId}`);
 
-      const trigger = page.getByRole("button", { name: /transition/i }).first();
-      await expect(trigger, "per-page Transition control missing").toBeVisible();
+      // D6 (bug bash BB-E-13): on a desktop the page transition is the
+      // Inspector Page tab's Transition row, not a header icon.
+      const row = page.getByRole("button", { name: /^Transition/ });
+      await expect(row, "per-page Transition control missing").toBeVisible();
+      const choose = async (option: string | RegExp) => {
+        await row.click();
+        const dialog = page.getByRole("dialog", { name: "Transition" });
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole("combobox", { name: "Transition" }).click();
+        await page.getByRole("option", { name: option }).click();
+        await dialog.getByRole("button", { name: /^Save$/ }).click();
+        await expect(dialog).toBeHidden();
+      };
 
       // --- set an override ---
-      await trigger.click();
-      await page.getByRole("menuitemradio", { name: PLUGIN_NAME }).click();
-      await page.getByRole("button", { name: /save/i }).first().click();
-
+      await choose(PLUGIN_NAME);
       await expect.poll(() => getPageStrategy(pageId), { timeout: 10_000 }).toBe(`plugin:${PLUGIN_ID}`);
 
-      // --- it survives a reload, selected in the menu ---
+      // --- it survives a reload, named on the row ---
       await page.reload();
-      await trigger.click();
-      await expect(page.getByRole("menuitemradio", { name: PLUGIN_NAME })).toHaveAttribute("aria-checked", "true");
+      await expect(row).toContainText(PLUGIN_NAME);
 
       // --- clear it: must persist as null, not stay sticky ---
-      await page.getByRole("menuitemradio", { name: /use the display's transition/i }).click();
-      await page.getByRole("button", { name: /save/i }).first().click();
+      await choose(/use the display's transition/i);
 
       await expect.poll(() => getPageStrategy(pageId), { timeout: 10_000 }).toBeNull();
     } finally {

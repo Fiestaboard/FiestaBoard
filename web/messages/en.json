@@ -1691,7 +1691,15 @@
     "textMode": "Text",
     "canvasesMode": "Canvases",
     "showPreview": "Show preview and live output",
-    "hidePreview": "Hide preview and live output"
+    "hidePreview": "Hide preview and live output",
+    "discardDialogClose": "Close",
+    "discardChangesSince": "You changed {count, plural, one {1 line} other {# lines}} since {time}. If you leave now, they’re lost.",
+    "discardChangesLost": "If you leave now, your changes are lost.",
+    "discardChangesBoardKeeps": "{board} keeps showing the saved version.",
+    "discardChangesDisplaysKeep": "Displays keep showing the saved version.",
+    "discardChangedLabel": "Changed",
+    "discardChangedLine": "Line {line} ({text})",
+    "discardChangedLineEmpty": "Line {line} (blank)"
   },
   "displaySettings": {
     "unnamedBoard": "Unnamed Board",
@@ -3866,7 +3874,9 @@
     "replay": "Replay",
     "replayHint": "Play the split-flap animation",
     "previewTarget": "Preview target",
-    "previewTargetTrigger": "Preview on {target}"
+    "previewTargetTrigger": "Preview on {target}",
+    "discardDraft": "Discard",
+    "lastSaved": "last saved {time}"
   },
   "phonePairing": {
     "title": "Connect a phone",
@@ -4240,7 +4250,14 @@
     "replaceDraft": "Replace draft",
     "draftConflictTitle": "Replace the newer draft?",
     "draftConflictDescription": "Another device saved this page’s draft after you opened it. Replacing it keeps only what’s in this editor.",
-    "legendLabel": "Schedule entries"
+    "legendLabel": "Schedule entries",
+    "draftRestored": "Draft restored",
+    "draftRestoredStale": "Draft restored · the page changed since",
+    "draftSavedAt": "Draft saved {time}",
+    "liveOn": "Live on {board}",
+    "deletePage": "Delete page…",
+    "deletePageDetail": "Removes it from every schedule and collection",
+    "autosavePaused": "Unsaved · a draft from elsewhere is waiting in History"
   },
   "formulaIde": {
     "atomValue": "= {value}",
