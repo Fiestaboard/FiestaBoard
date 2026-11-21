@@ -344,6 +344,7 @@
     "retryLoading": "Seiten erneut laden",
     "cardActions": "Aktionen für {name}",
     "duplicate": "Duplizieren",
+    "exportShareString": "Freigabezeichenfolge exportieren",
     "deletePage": "Seite löschen…",
     "toastDuplicated": "„{name}“ erstellt",
     "actionFailed": "Das hat nicht geklappt. Versuche es erneut."
@@ -1568,6 +1569,7 @@
   "composeDialog": {
     "title": "Nachricht verfassen",
     "description": "Erscheint auf {board}, sobald du „Jetzt anzeigen“ wählst. Vorher erreicht nichts die Tafel.",
+    "descriptionPhone": "Erscheint auf {board} (der Anzeige oben in der Kopfzeile), sobald du „Jetzt anzeigen“ wählst.",
     "messageLabel": "Nachricht",
     "messagePlaceholder": "Nachricht eingeben …",
     "previewLabel": "Vorschau",

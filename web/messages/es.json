@@ -344,6 +344,7 @@
     "retryLoading": "Reintentar cargar páginas",
     "cardActions": "Acciones de {name}",
     "duplicate": "Duplicar",
+    "exportShareString": "Exportar código compartido",
     "deletePage": "Eliminar página…",
     "toastDuplicated": "Se creó «{name}»",
     "actionFailed": "No se pudo hacer. Inténtalo de nuevo."
@@ -1568,6 +1569,7 @@
   "composeDialog": {
     "title": "Redactar un mensaje",
     "description": "Se muestra en {board} cuando pulses Mostrar ahora. Nada llega al tablero antes.",
+    "descriptionPhone": "Se muestra en {board} (la pantalla de la cabecera) cuando pulses Mostrar ahora.",
     "messageLabel": "Mensaje",
     "messagePlaceholder": "Escribe tu mensaje…",
     "previewLabel": "Vista previa",

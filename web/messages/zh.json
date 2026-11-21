@@ -344,6 +344,7 @@
     "retryLoading": "重试加载页面",
     "cardActions": "{name} 的操作",
     "duplicate": "复制",
+    "exportShareString": "导出分享字符串",
     "deletePage": "删除页面…",
     "toastDuplicated": "已创建“{name}”",
     "actionFailed": "操作失败，请重试。"
@@ -1568,6 +1569,7 @@
   "composeDialog": {
     "title": "撰写消息",
     "description": "选择“立即显示”后将显示在 {board} 上。在此之前不会有任何内容送达看板。",
+    "descriptionPhone": "选择“立即显示”后将显示在 {board}（页眉中的显示屏）上。",
     "messageLabel": "消息",
     "messagePlaceholder": "输入你的消息…",
     "previewLabel": "预览",

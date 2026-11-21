@@ -344,6 +344,7 @@
     "retryLoading": "Повторить загрузку страниц",
     "cardActions": "Действия для {name}",
     "duplicate": "Дублировать",
+    "exportShareString": "Экспортировать строку обмена",
     "deletePage": "Удалить страницу…",
     "toastDuplicated": "Создано «{name}»",
     "actionFailed": "Не удалось. Попробуйте ещё раз."
@@ -1568,6 +1569,7 @@
   "composeDialog": {
     "title": "Написать сообщение",
     "description": "Появится на {board}, когда вы нажмёте «Показать сейчас». До этого на табло ничего не попадёт.",
+    "descriptionPhone": "Появится на {board} (дисплей в шапке), когда вы нажмёте «Показать сейчас».",
     "messageLabel": "Сообщение",
     "messagePlaceholder": "Введите сообщение…",
     "previewLabel": "Предпросмотр",
