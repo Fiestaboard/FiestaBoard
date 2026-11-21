@@ -4034,6 +4034,7 @@
     "explorer": "エクスプローラー",
     "showExplorer": "エクスプローラーを表示",
     "hideExplorer": "エクスプローラーを隠す",
+    "explorerAfterSave": "保存すると、このページのディスプレイとパーツがここに表示されます。",
     "inspector": "インスペクター",
     "console": "コンソール",
     "snippetsGroup": "スニペット",

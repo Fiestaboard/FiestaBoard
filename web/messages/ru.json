@@ -4034,6 +4034,7 @@
     "explorer": "Проводник",
     "showExplorer": "Показать проводник",
     "hideExplorer": "Скрыть проводник",
+    "explorerAfterSave": "Экраны и части этой страницы появятся здесь после сохранения.",
     "inspector": "Инспектор",
     "console": "Консоль",
     "snippetsGroup": "Сниппеты",

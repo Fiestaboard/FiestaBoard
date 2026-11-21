@@ -4034,6 +4034,7 @@
     "explorer": "Explorador",
     "showExplorer": "Mostrar el explorador",
     "hideExplorer": "Ocultar el explorador",
+    "explorerAfterSave": "Las pantallas y partes de esta página aparecen aquí cuando la guardes.",
     "inspector": "Inspector",
     "console": "Consola",
     "snippetsGroup": "Fragmentos",

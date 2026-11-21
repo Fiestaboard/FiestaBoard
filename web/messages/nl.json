@@ -4034,6 +4034,7 @@
     "explorer": "Verkenner",
     "showExplorer": "Verkenner tonen",
     "hideExplorer": "Verkenner verbergen",
+    "explorerAfterSave": "De displays en onderdelen van deze pagina verschijnen hier zodra die is opgeslagen.",
     "inspector": "Inspector",
     "console": "Console",
     "snippetsGroup": "Snippets",
