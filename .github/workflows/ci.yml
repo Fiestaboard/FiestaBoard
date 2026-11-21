@@ -381,6 +381,53 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # Date-dependent tests: the vitest suite again with the wall clock started
+  # on a Saturday and an hour before a new year (web/src/__tests__/test-now.ts
+  # reads TEST_NOW). A test that only passes on the day it was written fails
+  # its own PR here instead of every PR that weekend (#2571 broke UI Tests on
+  # 2026-11-20/21 until #2611 pinned its clock). Same path gate as UI Tests;
+  # no coverage, so each leg is the plain suite.
+  test-ui-clock-skew:
+    name: UI Tests (clock skew, ${{ matrix.clock.name }})
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: >-
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+      && (needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        clock:
+          # Fixed instants so a red run reproduces: TEST_NOW=<now> npm run test:run
+          - name: Saturday
+            now: '2026-11-21T12:00:00Z'
+          - name: year end
+            # Dec 31, 23:00 UTC: "tomorrow" is next month and next year; the
+            # suite finishes well before the clock reaches midnight.
+            now: '2026-12-31T23:00:00Z'
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: '24'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+
+    - name: Install UI dependencies
+      working-directory: web
+      run: npm ci --legacy-peer-deps --no-audit
+
+    - name: Run UI tests at ${{ matrix.clock.now }}
+      working-directory: web
+      env:
+        TEST_NOW: ${{ matrix.clock.now }}
+      run: npm run test:run
+
   test-ui-layout:
     name: UI Layout Tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
@@ -1652,7 +1699,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, quick-checks, test-platform, test-ui, test-ui-layout, a11y-tests, build-test-image, e2e-tests, specialized-e2e-tests, release-guards]
+    needs: [detect-changes, quick-checks, test-platform, test-ui, test-ui-clock-skew, test-ui-layout, a11y-tests, build-test-image, e2e-tests, specialized-e2e-tests, release-guards]
     if: always()
     steps:
       - uses: actions/checkout@v7

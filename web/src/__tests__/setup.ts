@@ -1,3 +1,5 @@
+// Must stay first: TEST_NOW skews the clock before anything reads it.
+import "./test-now";
 import "@testing-library/jest-dom/vitest";
 // Eagerly initialize i18next before any component imports run. The
 // `@/i18n/translations` hook delegates to react-i18next + this config;
