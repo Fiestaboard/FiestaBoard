@@ -73,10 +73,6 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
     x: 0,
     y: 0,
   });
-  // Set by the press that opens the editor, cleared by the next press. A tap
-  // ends with a compatibility click on the common ancestor of the chip and the
-  // sheet that is now under the finger; that click is not an outside press.
-  const openingPress = useRef(false);
   // The latest node and IDE for callbacks created at open time.
   const latest = useRef({ node, ide, updateAttributes, deleteNode, editor, getPos });
   useEffect(() => {
@@ -141,7 +137,6 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
         longPress.current.fired = false;
         return;
       }
-      openingPress.current = e.type === "mousedown";
       openEditor();
     },
     [openEditor],
@@ -198,16 +193,6 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
     },
     ...inspectHandlers,
   };
-
-  // A new press starts a new gesture: its click may dismiss the sheet.
-  useEffect(() => {
-    if (!open) return;
-    const endOpeningPress = () => {
-      openingPress.current = false;
-    };
-    document.addEventListener("pointerdown", endOpeningPress, true);
-    return () => document.removeEventListener("pointerdown", endOpeningPress, true);
-  }, [open]);
 
   // Close on Escape — delete node if it was never given an expression
   useEffect(() => {
@@ -306,14 +291,8 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
       {phone ? (
         <Sheet
           open={open}
-          onOpenChange={(next, details) => {
-            if (next) return;
-            // The opening tap's own click lands outside the sheet (BB-FP-13).
-            if (details.reason === "outside-press" && details.event.type === "click" && openingPress.current) {
-              openingPress.current = false;
-              return;
-            }
-            handleCancel();
+          onOpenChange={(next) => {
+            if (!next) handleCancel();
           }}
         >
           <SheetContent
