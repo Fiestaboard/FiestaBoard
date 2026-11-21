@@ -13,7 +13,7 @@ import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { useAppBadge } from "@/hooks/use-app-badge";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
-import { useBelowRail, useRailBreakpoint, useTabletRailCollapse } from "@/hooks/use-below-rail";
+import { useBelowRail, useRailAutoCollapse, useRailBreakpoint } from "@/hooks/use-below-rail";
 import { queryKeys, usePrefetchPagesData, useStatus } from "@/hooks/use-board";
 import { useDisplaysNeedingALook } from "@/hooks/use-displays-needing-a-look";
 import { useHubLine } from "@/hooks/use-hub-connection";
@@ -34,7 +34,9 @@ export function NavigationSidebar() {
   const pathname = usePathname();
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, setCollapsed, onTransitionEnd } = useSidebar();
-  const inTabletBand = useTabletRailCollapse(setCollapsed, readStoredCollapsed);
+  // The editor holds the icon rail for the visit (D1, BB-E-3); a toggle made
+  // there persists, so it becomes the global choice.
+  const inTabletBand = useRailAutoCollapse(setCollapsed, readStoredCollapsed, isPageEditorPath(pathname));
   // In the tablet band the collapse toggle is a session choice: it must not
   // overwrite the reader's wide-screen preference (DD-W46).
   const onToggleCollapsed = inTabletBand ? () => setCollapsed(!collapsed, { persist: false }) : toggle;

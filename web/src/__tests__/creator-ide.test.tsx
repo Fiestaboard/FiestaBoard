@@ -288,6 +288,8 @@ function renderIde(builder = fakeBuilder(), savedTick = 0) {
         pageId={PAGE}
         builderRef={builderRef}
         explorerSlot={slot}
+        // Commute is a FiestaPanel page: its Explorer opens by default (D2).
+        boardKind="panel"
         savedTick={savedTick}
         onSaveActionsChange={onSaveActionsChange}
       />,
@@ -300,6 +302,7 @@ function renderIde(builder = fakeBuilder(), savedTick = 0) {
           pageId={PAGE}
           builderRef={builderRef}
           explorerSlot={slot}
+          boardKind="panel"
           savedTick={tick}
           onSaveActionsChange={onSaveActionsChange}
         />,
@@ -342,7 +345,11 @@ describe("Creator IDE below 1024 px", () => {
 });
 
 describe("Creator IDE at 1024 px and wider", () => {
-  beforeEach(() => setDesktop(true));
+  beforeEach(() => {
+    setDesktop(true);
+    // Each test starts from the per-kind default (D2), not a toggle remembered by the last.
+    localStorage.removeItem("fiestaboard_ide_explorer:panel");
+  });
 
   it("draws five Inspector tabs and docks Problems | Warnings | Sent in the console", async () => {
     mockHub();
@@ -364,23 +371,49 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(legend).toHaveTextContent(/Weekdays 7:30.*8:30.* · Den TV/);
   });
 
-  it("portals the Explorer with the open page selected and its collection facet", async () => {
+  it("scopes the Explorer to the open page: its boards, parts and snippets, no other pages (D2b)", async () => {
     mockHub();
     const { slot } = renderIde();
     const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
-    const current = await within(nav).findByRole("link", { name: /Commute/ });
-    expect(current).toHaveAttribute("aria-current", "page");
-    expect(within(nav).getByRole("link", { name: /Den rotation/ })).toHaveAttribute("href", "/collections/col_den");
+    // This page, and only this page: no list of the hub's pages, no page search, no links away.
+    const thisPage = within(nav).getByRole("group", { name: "This page" });
+    expect(thisPage).toHaveTextContent("Commute");
+    expect(within(nav).queryByText("Weekend brunch")).toBeNull();
+    expect(within(nav).queryByRole("searchbox")).toBeNull();
+    expect(within(nav).queryAllByRole("link")).toHaveLength(0);
+    // Its boards: the display it is live or scheduled on.
+    expect(await within(within(nav).getByRole("group", { name: "Boards" })).findByText("Den TV")).toBeInTheDocument();
+    // Its parts: the data sources and formulas the template reads, by row.
+    const parts = within(nav).getByRole("group", { name: "Parts" });
+    expect(within(parts).getByText("muni")).toBeInTheDocument();
+    expect(within(parts).getByText("Formulas")).toBeInTheDocument();
+    expect(within(parts).getAllByText("Row 2")).toHaveLength(2);
+    expect(within(nav).getByRole("group", { name: "Snippets" })).toBeInTheDocument();
     expect(await within(nav).findByText("Used by Den rotation")).toBeInTheDocument();
-    fireEvent.change(within(nav).getByRole("searchbox", { name: "Filter pages…" }), { target: { value: "brunch" } });
-    expect(within(nav).queryByRole("link", { name: /^Commute/ })).toBeNull();
+  });
+
+  it("hides the Explorer to one Show Explorer button and back, moving focus with it (D2)", async () => {
+    mockHub();
+    const { slot } = renderIde();
+    const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
+    fireEvent.click(within(nav).getByRole("button", { name: "Hide Explorer" }));
+    expect(within(slot).queryByRole("navigation", { name: "Explorer" })).toBeNull();
+    const show = within(slot).getByRole("button", { name: "Show Explorer" });
+    expect(show).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => expect(show).toHaveFocus());
+    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("closed");
+    fireEvent.click(show);
+    const hide = await within(slot).findByRole("button", { name: "Hide Explorer" });
+    await waitFor(() => expect(hide).toHaveFocus());
+    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("open");
   });
 
   it("keeps the Explorer lists' children listitems (BB-B-20: axe aria-required-children)", async () => {
     mockHub();
     const { slot } = renderIde();
     const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
-    await within(nav).findByRole("link", { name: /Commute/ });
+    // D2b: the Explorer lists the open page's own rows (no page links), still in real lists.
+    await within(within(nav).getByRole("group", { name: "This page" })).findByText("Commute");
     const lists = nav.querySelectorAll("ul");
     expect(lists.length).toBeGreaterThan(0);
     for (const list of lists) for (const child of Array.from(list.children)) expect(child.tagName).toBe("LI");
@@ -435,6 +468,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: { "data-ai-anchor": "page-editor.save" },
         })}
       </>,
@@ -489,6 +523,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: {},
         })}
       </>,
@@ -551,6 +586,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: {},
         })}
       </>,
