@@ -201,11 +201,11 @@ test.describe("touch Home actions and viewport controls", () => {
       if (width === 390) expect(previewBox!.y + previewBox!.height).toBeLessThanOrEqual(actionBox!.y);
       else expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(previewBox!.y);
       if (width === 768) {
-        const modes = homeViewport(page).getByRole("group", { name: "Preview size" });
-        await modes.getByRole("button", { name: "Fit", exact: true }).click();
-        await expect(homeViewport(page)).toHaveAttribute("data-mode", "fit");
-        await modes.getByRole("button", { name: "Actual size", exact: true }).click();
-        await expect(homeViewport(page)).toHaveAttribute("data-mode", "actual");
+        // 768-1023 is the medium hero (BB-FH-12, DD-W61): a Flagship that
+        // nearly fits settles to fit, with no scroll and no Fit/Actual pills.
+        await expect(homeViewport(page)).toHaveAttribute("data-layout", "medium-hero");
+        await expect(homeViewport(page)).toHaveAttribute("data-overflow", "false");
+        await expect(homeViewport(page).getByRole("group", { name: "Preview size" })).toHaveCount(0);
       }
       await actions.click();
       await expect(page.getByRole("dialog").getByRole("button", { name: /Refresh board/ })).toBeVisible();
