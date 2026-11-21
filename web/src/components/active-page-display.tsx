@@ -714,6 +714,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           key={(currentBoard ?? boardSettings?.boards?.[0])?.id ?? "primary"}
           board={currentBoard ?? boardSettings?.boards?.[0]}
           geometry={activeGeometry}
+          announceUpdates={readAloud}
           message={displayMessage}
           cells={displayCells}
           layers={displayLayers}
@@ -722,7 +723,6 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           layout={phone ? "phone-hero" : undefined}
           fallbackColor={getEffectiveBoardColor(boardSettings)}
           fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
-          announceUpdates={readAloud}
         />
       </Flex>
     </BoardContextMenu>
