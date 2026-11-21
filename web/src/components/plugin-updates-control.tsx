@@ -93,7 +93,8 @@ export function PluginUpdatesMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" aria-label={t("moreOptionsAriaLabel")}>
+        {/* Its own name: the Marketplace toolbar has a "More options" too. */}
+        <Button variant="outline" size="icon" aria-label={t("sectionMenuAriaLabel")}>
           {checkMutation.isPending ? <Spinner size="sm" label={null} /> : <MoreHorizontal className="h-4 w-4" />}
         </Button>
       </DropdownMenuTrigger>

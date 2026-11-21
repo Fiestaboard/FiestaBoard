@@ -77,7 +77,7 @@ describe("Integrations section — plugin updates", () => {
     // header is not just the settings request still being in flight.
     await screen.findByRole("switch", { name: "Auto-update plugins" });
     // Behind the header's "…" (07d `324:40267`, BB-FC-8).
-    expect(within(header()).getByRole("button", { name: "More options" })).toBeInTheDocument();
+    expect(within(header()).getByRole("button", { name: "Integration options" })).toBeInTheDocument();
     expect(within(header()).queryByRole("switch")).not.toBeInTheDocument();
   });
 

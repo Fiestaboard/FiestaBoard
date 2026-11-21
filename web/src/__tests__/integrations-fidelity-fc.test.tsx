@@ -95,7 +95,7 @@ describe("Integrations list at the desktop (BB-FC-8)", () => {
     expect(classes(card)).toContain("[&_[data-slot=page-subheader]_.border-t]:border-t-0");
   });
 
-  it("puts Check for updates behind the header's More options button", async () => {
+  it("puts Check for updates behind the header's Integration options button", async () => {
     const user = userEvent.setup();
     renderList();
     const header = document.querySelector<HTMLElement>("[data-slot=page-header]")!;
@@ -107,9 +107,17 @@ describe("Integrations list at the desktop (BB-FC-8)", () => {
         return HttpResponse.json({ updates_available: [] });
       }),
     );
-    await user.click(within(header).getByRole("button", { name: "More options" }));
+    await user.click(within(header).getByRole("button", { name: "Integration options" }));
     await user.click(await screen.findByRole("menuitem", { name: /check for updates/i }));
     await waitFor(() => expect(checked).toBe(1));
+  });
+
+  it("names the header menu apart from the Marketplace toolbar's More options", async () => {
+    const user = userEvent.setup();
+    renderList();
+    await user.click(await screen.findByRole("tab", { name: "Marketplace" }));
+    expect(screen.getAllByRole("button", { name: "More options" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Integration options" })).toBeInTheDocument();
   });
 
   it("reads the tabs as Installed · n | Marketplace, without count badges", async () => {
