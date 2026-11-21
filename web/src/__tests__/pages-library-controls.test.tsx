@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CurrentBoardProvider } from "@/components/current-board-context";
 import { PageGridSelector } from "@/components/page-grid-selector";
@@ -639,7 +639,11 @@ describe("Pages library card menu", () => {
     localStorage.setItem("fiestaboard_pages_view_mode", "list");
     server.use(
       http.get("/api/settings/board", () =>
-        HttpResponse.json({ board_type: "black", devices: ["flagship"], boards: [] }),
+        HttpResponse.json({
+          board_type: "black",
+          devices: ["flagship"],
+          boards: [{ id: "board", name: "Main", device_type: "flagship", board_color: "black", paused: false }],
+        }),
       ),
       http.get("/api/v1/pages", () => HttpResponse.json({ pages, total: pages.length })),
       http.get("/api/v1/collections", () => HttpResponse.json({ collections: [], total: 0 })),
@@ -647,9 +651,124 @@ describe("Pages library card menu", () => {
     );
   });
 
-  it("edits, duplicates and deletes a page from its card", async () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stubCoarsePointer() {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(pointer: coarse)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+  }
+
+  function menuItemNames() {
+    return screen.getAllByRole("menuitem").map((item) => item.textContent);
+  }
+
+  // BB-FP-3 (Figma 299:6080): a label with the page's name, then Edit (E) ·
+  // Change Page… · Add to Schedule · Duplicate (⌘D) · Export share string │
+  // Pause <display>. Delete lives in the phone's sheet (303:18724) and the editor.
+  it("lists Figma's desktop items under the page's name, with shortcuts and no Delete", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
+    await user.click(screen.getByRole("button", { name: "Actions for Alpha" }));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByText("Alpha", { selector: "[data-slot=dropdown-menu-label]" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toHaveAttribute("aria-keyshortcuts", "E");
+    expect(screen.getByRole("menuitem", { name: "Duplicate" })).toHaveAttribute(
+      "aria-keyshortcuts",
+      expect.stringMatching(/^(Meta|Control)\+D$/),
+    );
+    expect(menuItemNames()).toEqual([
+      "EditE",
+      "Change Page…",
+      "Add to Schedule",
+      expect.stringMatching(/^Duplicate(⌘D|Ctrl\+D)$/),
+      "Export share string",
+      "Pause Main",
+    ]);
+  });
+
+  it("keeps Delete and drops Pause and the shortcut letters on a coarse pointer (Figma 303:18724)", async () => {
+    stubCoarsePointer();
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
+    await user.click(screen.getByRole("button", { name: "Actions for Alpha" }));
+    await screen.findByRole("menu");
+    expect(menuItemNames()).toEqual([
+      "Edit",
+      "Change Page…",
+      "Add to Schedule",
+      "Duplicate",
+      "Export share string",
+      "Delete page…",
+    ]);
+  });
+
+  it("exports the page's share string from its card", async () => {
+    server.use(
+      http.get("/api/pages/:id/share", ({ params }) => HttpResponse.json({ share_string: `FB1:${params.id}` })),
+    );
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
+    await user.click(screen.getByRole("button", { name: "Actions for Alpha" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Export share string" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("textbox", { name: "Share string" })).toHaveValue("FB1:alpha");
+  });
+
+  it("pauses the current display from a card", async () => {
+    const patched: unknown[] = [];
+    server.use(
+      http.patch("/api/v1/boards/:id", async ({ params, request }) => {
+        patched.push([params.id, await request.json()]);
+        return HttpResponse.json({ id: params.id, paused: true });
+      }),
+    );
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
+    await user.click(screen.getByRole("button", { name: "Actions for Alpha" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Pause Main" }));
+    await waitFor(() => expect(patched).toEqual([["board", { paused: true }]]));
+  });
+
+  it("opens Show now for the page from Change Page…", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
+    await user.click(screen.getByRole("button", { name: "Actions for Alpha" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Change Page…" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  // FABLE-2603 M1: Change Page… shows the page on the current display, so a
+  // page drawn for another size has no Change Page… (nothing to send it to).
+  it("offers no Change Page… for a page that does not fit the current display", async () => {
+    server.use(
+      http.get("/api/v1/pages", () =>
+        HttpResponse.json({
+          pages: [...pages, { ...pages[0], id: "notey", name: "Notey", device_type: "note" }],
+          total: pages.length + 1,
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Notey");
+    await user.click(screen.getByRole("button", { name: "Actions for Notey" }));
+    await screen.findByRole("menu");
+    expect(screen.queryByRole("menuitem", { name: "Change Page…" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeInTheDocument();
+  });
+
+  it("edits with E and duplicates with Mod+D from a focused card", async () => {
     const duplicated: string[] = [];
-    const deleted: string[] = [];
     server.use(
       http.post("/api/pages/:id/duplicate", ({ params }) => {
         duplicated.push(String(params.id));
@@ -658,9 +777,25 @@ describe("Pages library card menu", () => {
           { status: 201 },
         );
       }),
-      http.delete("/api/v1/pages/:id", ({ params }) => {
-        deleted.push(String(params.id));
-        return HttpResponse.json({ status: "deleted" });
+    );
+    renderLibrary();
+    const card = (await screen.findByText("Alpha")).closest("button")!;
+    card.focus();
+    fireEvent.keyDown(card, { key: "d", ctrlKey: true });
+    await waitFor(() => expect(duplicated).toEqual(["alpha"]));
+    fireEvent.keyDown(card, { key: "e" });
+    expect(push).toHaveBeenCalledWith("/pages/edit/alpha");
+  });
+
+  it("edits and duplicates a page from its card", async () => {
+    const duplicated: string[] = [];
+    server.use(
+      http.post("/api/pages/:id/duplicate", ({ params }) => {
+        duplicated.push(String(params.id));
+        return HttpResponse.json(
+          { page: { ...pages[0], id: "alpha-2", name: "Alpha copy" }, report: {} },
+          { status: 201 },
+        );
       }),
     );
     const user = userEvent.setup();
@@ -674,7 +809,20 @@ describe("Pages library card menu", () => {
     await user.click(screen.getByRole("button", { name: "Actions for Alpha" }));
     await user.click(await screen.findByRole("menuitem", { name: "Duplicate" }));
     await waitFor(() => expect(duplicated).toEqual(["alpha"]));
+  });
 
+  it("deletes a page from its card on a coarse pointer", async () => {
+    const deleted: string[] = [];
+    server.use(
+      http.delete("/api/v1/pages/:id", ({ params }) => {
+        deleted.push(String(params.id));
+        return HttpResponse.json({ status: "deleted" });
+      }),
+    );
+    stubCoarsePointer();
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Alpha");
     await user.click(screen.getByRole("button", { name: "Actions for Beta" }));
     await user.click(await screen.findByRole("menuitem", { name: "Delete page…" }));
     const confirm = await screen.findByRole("alertdialog");
@@ -699,6 +847,7 @@ describe("Pages library card menu", () => {
         return HttpResponse.json({ status: "deleted" });
       }),
     );
+    stubCoarsePointer();
     const user = userEvent.setup();
     renderLibrary();
     await screen.findByText("Alpha");

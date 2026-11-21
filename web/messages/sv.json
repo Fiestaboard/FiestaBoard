@@ -344,6 +344,7 @@
     "retryLoading": "Försök läsa in sidorna igen",
     "cardActions": "Åtgärder för {name}",
     "duplicate": "Duplicera",
+    "exportShareString": "Exportera delningssträng",
     "deletePage": "Ta bort sidan…",
     "toastDuplicated": "”{name}” skapad",
     "actionFailed": "Det gick inte. Försök igen."
