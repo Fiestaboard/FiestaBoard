@@ -1191,8 +1191,7 @@
     },
     "panels": {
       "theme": "Thème",
-      "browserTheme": "Pour ce navigateur uniquement.",
-      "motionScope": "Les préférences de mouvement concernent tous les utilisateurs de ce hub."
+      "browserTheme": "Pour ce navigateur uniquement."
     },
     "fiestabot": {
       "title": "Modifications, panneau et historique",
@@ -2413,7 +2412,16 @@
     "accessibilityTitle": "Accessibilité",
     "accessibilityDescription": "Préférences de mouvement et d'animation",
     "reduceMotion": "Réduire les animations",
-    "reduceMotionHint": "Minimise les animations dans toute l'interface",
+    "motionReadingTitle": "Mouvement et lecture",
+    "motionReadingScope": "Pour ce navigateur.",
+    "reduceMotionBrowserHint": "Suit le réglage de votre téléphone. Désactive le basculement des tuiles et l’animation du taco sautillant.",
+    "readAloud": "Lire à voix haute les changements du tableau",
+    "readAloudHint": "Les lecteurs d’écran annoncent ce qui a changé sur le tableau, ligne par ligne.",
+    "largeTargets": "Zones tactiles plus grandes",
+    "largeTargetsHint": "Lignes et boutons de 48 px partout.",
+    "boardContrast": "Texte du tableau à contraste élevé",
+    "boardContrastHint": "Caractères plus lumineux sur le tableau noir.",
+    "hubReduceMotionOn": "Réduire les animations est activé pour tout le monde sur ce hub. Modifiez-le dans Apparence › Détails du mouvement.",
     "welcomeTitle": "Message de bienvenue",
     "welcomeDescription": "Le message d'accueil envoyé à votre board depuis l'assistant de configuration",
     "welcomePlaceholder": "HIYA FROM FIESTABOARD",

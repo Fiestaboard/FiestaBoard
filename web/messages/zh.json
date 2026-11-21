@@ -1191,8 +1191,7 @@
     },
     "panels": {
       "theme": "主题",
-      "browserTheme": "仅适用于此浏览器。",
-      "motionScope": "动态效果偏好适用于此中枢上的所有人。"
+      "browserTheme": "仅适用于此浏览器。"
     },
     "fiestabot": {
       "title": "更改、侧栏和历史记录",
@@ -2413,7 +2412,16 @@
     "accessibilityTitle": "辅助功能",
     "accessibilityDescription": "动作和动画偏好",
     "reduceMotion": "减少动态效果",
-    "reduceMotionHint": "最小化整个界面中的动画",
+    "motionReadingTitle": "动效与朗读",
+    "motionReadingScope": "适用于此浏览器。",
+    "reduceMotionBrowserHint": "跟随手机设置。关闭翻牌和跳跳塔可动画。",
+    "readAloud": "朗读看板变化",
+    "readAloudHint": "屏幕阅读器会逐行播报看板上的变化。",
+    "largeTargets": "更大的触控区域",
+    "largeTargetsHint": "所有行和按钮均为 48 px。",
+    "boardContrast": "高对比度看板文字",
+    "boardContrastHint": "黑色看板上的字符更亮。",
+    "hubReduceMotionOn": "此中枢已为所有人开启减少动效。可在外观 › 动效详情中更改。",
     "welcomeTitle": "欢迎消息",
     "welcomeDescription": "从设置向导发送到您的 board 的问候语",
     "welcomePlaceholder": "HIYA FROM FIESTABOARD",

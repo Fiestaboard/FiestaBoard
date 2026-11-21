@@ -1191,8 +1191,7 @@
     },
     "panels": {
       "theme": "Tema",
-      "browserTheme": "Endast för den här webbläsaren.",
-      "motionScope": "Rörelseinställningar gäller alla på den här hubben."
+      "browserTheme": "Endast för den här webbläsaren."
     },
     "fiestabot": {
       "title": "Ändringar, panel och historik",
@@ -2413,7 +2412,16 @@
     "accessibilityTitle": "Tillgänglighet",
     "accessibilityDescription": "Rörelse- och animationsinställningar",
     "reduceMotion": "Minska rörelse",
-    "reduceMotionHint": "Minimerar animationer i hela gränssnittet",
+    "motionReadingTitle": "Rörelse och läsning",
+    "motionReadingScope": "För den här webbläsaren.",
+    "reduceMotionBrowserHint": "Följer telefonens inställning. Stänger av brickvändningar och den hoppande tacon.",
+    "readAloud": "Läs upp ändringar på tavlan",
+    "readAloudHint": "Skärmläsare berättar rad för rad vad som ändrats på tavlan.",
+    "largeTargets": "Större tryckytor",
+    "largeTargetsHint": "Rader och knappar på 48 px överallt.",
+    "boardContrast": "Tavlans text med hög kontrast",
+    "boardContrastHint": "Ljusare tecken på svart tavla.",
+    "hubReduceMotionOn": "Minska rörelse är på för alla på den här hubben. Ändra det under Utseende › Rörelsedetaljer.",
     "welcomeTitle": "Välkomstmeddelande",
     "welcomeDescription": "Hälsningen som skickas till din board från installationsguiden",
     "welcomePlaceholder": "HIYA FROM FIESTABOARD",

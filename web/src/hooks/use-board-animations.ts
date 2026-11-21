@@ -4,6 +4,7 @@ import { FLAP_SPEED_PRESETS, type FlapSpeed, type FlapSpeedPreset } from "@fiest
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import { useBrowserA11y } from "@/hooks/use-browser-a11y";
 import { api } from "@/lib/api";
 
 const DESKTOP_QUERY = "(min-width: 768px)";
@@ -37,7 +38,8 @@ function useMediaQuery(query: string, fallback: boolean): boolean {
  *
  * Falsy when:
  *   - the OS/browser reports `prefers-reduced-motion: reduce`
- *   - reduce_motion is on (accessibility override)
+ *   - reduce_motion is on (accessibility override), for the hub or in this
+ *     browser (07e Accessibility, BB-FC-12)
  *   - board_animations === "off"
  *   - board_animations === "desktop" AND viewport is below 768px
  *
@@ -62,8 +64,9 @@ export function useBoardAnimationsEnabled(): boolean {
 
   const isDesktop = useMediaQuery(DESKTOP_QUERY, true);
   const prefersReducedMotion = useMediaQuery(REDUCED_MOTION_QUERY, false);
+  const [browserReduce] = useBrowserA11y("reduceMotion");
 
-  if (prefersReducedMotion) return false;
+  if (prefersReducedMotion || browserReduce) return false;
 
   const display = allSettings?.display;
   if (!display) return true;

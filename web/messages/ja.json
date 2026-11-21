@@ -1191,8 +1191,7 @@
     },
     "panels": {
       "theme": "テーマ",
-      "browserTheme": "このブラウザーのみ。",
-      "motionScope": "動きの設定はこのハブの全員に適用されます。"
+      "browserTheme": "このブラウザーのみ。"
     },
     "fiestabot": {
       "title": "変更、パネル、履歴",
@@ -2413,7 +2412,16 @@
     "accessibilityTitle": "アクセシビリティ",
     "accessibilityDescription": "動きとアニメーションの設定",
     "reduceMotion": "動きを減らす",
-    "reduceMotionHint": "インターフェース全体のアニメーションを最小化します",
+    "motionReadingTitle": "モーションと読み上げ",
+    "motionReadingScope": "このブラウザ用。",
+    "reduceMotionBrowserHint": "スマートフォンの設定に従います。タイルのフリップと跳ねるタコのアニメーションをオフにします。",
+    "readAloud": "ボードの変更を読み上げる",
+    "readAloudHint": "スクリーンリーダーがボードの変更内容を1行ずつ読み上げます。",
+    "largeTargets": "タップ領域を大きくする",
+    "largeTargetsHint": "すべての行とボタンを48 pxにします。",
+    "boardContrast": "ボード文字を高コントラストにする",
+    "boardContrastHint": "黒いボード上の文字を明るくします。",
+    "hubReduceMotionOn": "このハブの全員に対してモーションを減らす設定がオンです。外観 › モーションの詳細で変更できます。",
     "welcomeTitle": "ウェルカムメッセージ",
     "welcomeDescription": "セットアップウィザードからボードに送られる挨拶",
     "welcomePlaceholder": "HIYA FROM FIESTABOARD",

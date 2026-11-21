@@ -265,6 +265,21 @@ html {
   display: block;
 }
 
+/* 07e Accessibility › Motion and reading (BB-FC-12): two of this browser's
+   switches, stamped on <html> by ReduceMotionApplier. Both retune a kit token
+   rather than restyle components.
+   - Larger touch targets: the kit's touch floor (--touch-target, 44px, which
+     `coarse:min-h-touch` and friends read inside `.fui-coarse` on a coarse
+     pointer) becomes 48px, 12 steps of the spacing unit.
+   - High-contrast board text: glyphs on board black take the board's own
+     white tile colour instead of the warm #f0f0e8. */
+.a11y-large-targets {
+  --touch-target: calc(var(--spacing) * 12);
+}
+.a11y-board-high-contrast {
+  --color-board-text-on-dark: var(--color-board-white);
+}
+
 /* Board animation kill switch. The board flap structure (4 layers) is
    already gated in JS so the extra DOM never renders when this is set,
    but the CSS belt-and-braces guarantees no leftover transforms animate

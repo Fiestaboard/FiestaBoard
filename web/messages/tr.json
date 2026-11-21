@@ -1191,8 +1191,7 @@
     },
     "panels": {
       "theme": "Tema",
-      "browserTheme": "Yalnızca bu tarayıcı için.",
-      "motionScope": "Hareket tercihleri bu hub üzerindeki herkes için geçerlidir."
+      "browserTheme": "Yalnızca bu tarayıcı için."
     },
     "fiestabot": {
       "title": "Değişiklikler, panel ve geçmiş",
@@ -2413,7 +2412,16 @@
     "accessibilityTitle": "Erişilebilirlik",
     "accessibilityDescription": "Hareket ve animasyon tercihleri",
     "reduceMotion": "Hareketi azalt",
-    "reduceMotionHint": "Arayüz genelinde animasyonları en aza indirir",
+    "motionReadingTitle": "Hareket ve okuma",
+    "motionReadingScope": "Bu tarayıcı için.",
+    "reduceMotionBrowserHint": "Telefonunuzun ayarını izler. Karo çevirmeyi ve zıplayan taco animasyonunu kapatır.",
+    "readAloud": "Pano değişikliklerini sesli oku",
+    "readAloudHint": "Ekran okuyucular panoda neyin değiştiğini satır satır duyurur.",
+    "largeTargets": "Daha büyük dokunma alanları",
+    "largeTargetsHint": "Her yerde 48 px satırlar ve düğmeler.",
+    "boardContrast": "Yüksek kontrastlı pano metni",
+    "boardContrastHint": "Siyah panoda daha parlak karakterler.",
+    "hubReduceMotionOn": "Hareketi azalt bu hub’daki herkes için açık. Görünüm › Hareket ayrıntıları’ndan değiştirin.",
     "welcomeTitle": "Karşılama Mesajı",
     "welcomeDescription": "Kurulum sihirbazından board'unuza gönderilen selamlama",
     "welcomePlaceholder": "HIYA FROM FIESTABOARD",

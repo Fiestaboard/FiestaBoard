@@ -1191,8 +1191,7 @@
     },
     "panels": {
       "theme": "Design",
-      "browserTheme": "Nur für diesen Browser.",
-      "motionScope": "Bewegungseinstellungen gelten für alle an diesem Hub."
+      "browserTheme": "Nur für diesen Browser."
     },
     "fiestabot": {
       "title": "Änderungen, Seitenleiste und Verlauf",
@@ -2413,7 +2412,16 @@
     "accessibilityTitle": "Barrierefreiheit",
     "accessibilityDescription": "Einstellungen für Bewegung und Animationen",
     "reduceMotion": "Bewegung reduzieren",
-    "reduceMotionHint": "Minimiert Animationen in der gesamten Oberfläche",
+    "motionReadingTitle": "Bewegung und Lesen",
+    "motionReadingScope": "Für diesen Browser.",
+    "reduceMotionBrowserHint": "Folgt der Einstellung deines Telefons. Schaltet Kachelwechsel und den hüpfenden Taco aus.",
+    "readAloud": "Board-Änderungen vorlesen",
+    "readAloudHint": "Screenreader sagen Zeile für Zeile an, was sich auf dem Board geändert hat.",
+    "largeTargets": "Größere Tippflächen",
+    "largeTargetsHint": "48 px hohe Zeilen und Schaltflächen überall.",
+    "boardContrast": "Kontrastreicher Board-Text",
+    "boardContrastHint": "Hellere Zeichen auf schwarzem Board.",
+    "hubReduceMotionOn": "Bewegung reduzieren ist für alle auf diesem Hub an. Ändern unter Darstellung › Bewegungsdetails.",
     "welcomeTitle": "Begrüßungsnachricht",
     "welcomeDescription": "Die Begrüßung, die vom Einrichtungsassistenten an dein Board gesendet wird",
     "welcomePlaceholder": "HIYA FROM FIESTABOARD",

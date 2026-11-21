@@ -1191,8 +1191,7 @@
     },
     "panels": {
       "theme": "테마",
-      "browserTheme": "이 브라우저에만 적용됩니다.",
-      "motionScope": "동작 설정은 이 허브의 모든 사용자에게 적용됩니다."
+      "browserTheme": "이 브라우저에만 적용됩니다."
     },
     "fiestabot": {
       "title": "변경, 패널 및 기록",
@@ -2413,7 +2412,16 @@
     "accessibilityTitle": "접근성",
     "accessibilityDescription": "모션 및 애니메이션 환경설정",
     "reduceMotion": "모션 줄이기",
-    "reduceMotionHint": "인터페이스 전체의 애니메이션을 최소화합니다",
+    "motionReadingTitle": "모션 및 읽기",
+    "motionReadingScope": "이 브라우저용.",
+    "reduceMotionBrowserHint": "휴대폰 설정을 따릅니다. 타일 넘김과 뛰는 타코 애니메이션을 끕니다.",
+    "readAloud": "보드 변경 사항 소리 내어 읽기",
+    "readAloudHint": "화면 낭독기가 보드에서 바뀐 내용을 한 줄씩 알려 줍니다.",
+    "largeTargets": "더 큰 터치 영역",
+    "largeTargetsHint": "모든 곳에서 48 px 행과 버튼.",
+    "boardContrast": "고대비 보드 텍스트",
+    "boardContrastHint": "검은 보드 위 글자를 더 밝게 합니다.",
+    "hubReduceMotionOn": "이 허브의 모든 사용자에게 모션 줄이기가 켜져 있습니다. 모양 › 모션 세부 설정에서 바꾸세요.",
     "welcomeTitle": "환영 메시지",
     "welcomeDescription": "설정 마법사에서 보드로 보내는 인사말",
     "welcomePlaceholder": "HIYA FROM FIESTABOARD",
