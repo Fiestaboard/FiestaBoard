@@ -46,9 +46,10 @@ test.describe("regression: settings.general", () => {
     const you = page.getByRole("list", { name: "You" });
 
     // Appearance — the card title "Appearance" must be present, and the
-    // Animation card ("Graphics and previews") sits beside it.
+    // Boards card and the Motion details panel (07e, BB-FC-12) sit below it.
     await expect(main.getByText("Appearance", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText("Graphics and previews").first()).toBeVisible();
+    await expect(main.getByText("Boards", { exact: true }).first()).toBeVisible();
+    await expect(main.getByText("Motion details").first()).toBeVisible();
 
     // Accessibility card — its own section.
     await you.getByRole("link", { name: "Accessibility" }).click();
