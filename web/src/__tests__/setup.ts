@@ -5,7 +5,7 @@ import "@testing-library/jest-dom/vitest";
 // en messages are statically imported so lookups resolve synchronously.
 import "../i18n/i18next";
 
-import { cleanup, configure } from "@testing-library/react";
+import { cleanup, configure, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
@@ -330,7 +330,27 @@ global.ResizeObserver = class ResizeObserver {
 // Setup MSW
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterAll(() => server.close());
-afterEach(() => {
+// A closing Sonner toast (dismissed, auto-closed, swiped or closed by its
+// button) is marked `data-removed="true"` and leaves a real 200ms Node timer
+// (`TIME_BEFORE_UNMOUNT`) that later calls the Toaster's `setToasts`. That
+// timer is neither tied to jsdom nor cleared on unmount, so if it is still
+// pending when the file ends it fires after Vitest has torn the jsdom
+// environment down; React then reads `window.event` and the worker dies with
+// "ReferenceError: window is not defined" (an unhandled error that fails the
+// whole run even though every test passed). Before unmounting, let any
+// closing toasts finish so no Sonner timer outlives the test. This is a no-op
+// when no toast is closing, and under fake timers the timer is fake too, so it
+// is discarded with them instead of leaking.
+const CLOSING_SONNER_TOAST = '[data-sonner-toast][data-removed="true"]';
+async function settleClosingSonnerToasts() {
+  if (vi.isFakeTimers() || !document.querySelector(CLOSING_SONNER_TOAST)) return;
+  await waitFor(() => {
+    if (document.querySelector(CLOSING_SONNER_TOAST)) throw new Error("a Sonner toast is still closing");
+  });
+}
+
+afterEach(async () => {
+  await settleClosingSonnerToasts();
   cleanup();
   server.resetHandlers();
 });
