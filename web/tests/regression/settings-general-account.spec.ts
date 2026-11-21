@@ -54,7 +54,9 @@ test.describe("regression: settings.general", () => {
     await you.getByRole("link", { name: "Accessibility" }).click();
     await expect(page).toHaveURL(/\/settings\/accessibility$/);
     await expect(main.getByText(/accessibility/i).first()).toBeVisible();
-    await expect(main.getByText("Motion and animation preferences")).toBeVisible();
+    // 07e titles a section with the hub line only (BB-FC-1); the card says
+    // who the motion setting applies to.
+    await expect(main.getByText("Motion preferences apply to everyone on this hub.")).toBeVisible();
 
     // Instance Name card — moved to System & backups; the input is keyed by
     // id="instance-name".

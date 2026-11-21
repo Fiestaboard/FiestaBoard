@@ -61,6 +61,8 @@ import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { pushApi } from "@/lib/api/push";
 import { sessionsApi } from "@/lib/api/sessions";
+import { INSET_ROW, INSET_ROW_GROUP } from "@/lib/list-row-inset";
+import { browserHostname } from "@/lib/network-hint";
 import {
   legacySettingsTarget,
   resolveSettingsSection,
@@ -69,6 +71,7 @@ import {
   settingsSectionHref,
   type SettingsSectionId,
 } from "@/lib/settings-sections";
+import { cn } from "@/lib/utils";
 
 /**
  * The tab boards and FiestaPanels used to live in. Displays have their own
@@ -214,12 +217,16 @@ export default function SettingsPage() {
   const detailTitleId = `settings-${active}-title`;
   const detail = (
     <Stack gap="4" aria-labelledby={detailTitleId} role="region" data-slot="settings-detail">
+      {/* 07e `320:8881`: Heading/2xl on a phone (xl beside the list), and
+          under it only the hub it belongs to (Text/xs) — BB-FC-1. */}
       <Stack gap="1">
-        <Heading level={belowRail ? 1 : 2} size={belowRail ? "3xl" : "lg"} id={detailTitleId}>
+        <Heading level={belowRail ? 1 : 2} size={belowRail ? "2xl" : "xl"} id={detailTitleId}>
           {tHub(`sections.${active}.title`)}
         </Heading>
-        <Text size="sm" tone="muted">
-          {tHub(`sections.${active}.description`, { name: hubName })}
+        <Text size="xs" tone="muted" data-slot="settings-detail-meta">
+          {/* Account reads who is signed in (07e `321:9076`); the rest read
+              the hub they belong to. */}
+          {active === "account" && username ? username : [hubName, browserHostname()].filter(Boolean).join(" · ")}
         </Text>
       </Stack>
       {/* Account's cards and its Signed-in devices sit straight on the page
@@ -262,7 +269,8 @@ export default function SettingsPage() {
           1100px leaves no room for a detail column beside the list. Side by
           side from a 36rem content box (280px list), 360px list from 56rem;
           below that the list and the open section stack. */}
-      <Box className="@container mt-6" data-slot="settings-columns">
+      {/* A phone section starts right under its back link (07e `320:8881`). */}
+      <Box className={cn("@container", belowRail && sectionParam ? "mt-0" : "mt-6")} data-slot="settings-columns">
         <Grid
           cols="1"
           gap="6"
@@ -389,10 +397,14 @@ function SettingsGroupList({ label, sections, active, title, meta }: SettingsGro
   if (sections.length === 0) return null;
   return (
     <Stack gap="2">
-      <Text id={labelId} size="xs" tone="muted" weight="medium" className="px-1 uppercase">
+      {/* Flush with the card edge (07e `320:7936`: "YOU" at x 16). */}
+      <Text id={labelId} size="xs" tone="muted" weight="medium" className="uppercase">
         {label}
       </Text>
-      <ListRowGroup aria-labelledby={labelId}>
+      {/* 07e "Settings row": rows sit inset in the card (its border plus 4px),
+          2px apart, each its own rounded hover/selected fill, with no
+          dividers — BB-FC-2. */}
+      <ListRowGroup aria-labelledby={labelId} className={INSET_ROW_GROUP}>
         {sections.map(({ id, icon: Icon }) => {
           const current = active === id;
           return (
@@ -403,9 +415,17 @@ function SettingsGroupList({ label, sections, active, title, meta }: SettingsGro
                 selected={current}
                 render={<Link href={settingsSectionHref(id)} />}
                 leading={<Icon className="size-4 text-foreground" aria-hidden="true" />}
+                className={INSET_ROW}
                 title={title(id)}
                 description={meta[id]?.description}
-                meta={meta[id]?.meta}
+                // Trailing values are Text/xs ("System", "Off").
+                meta={
+                  meta[id]?.meta == null ? undefined : (
+                    <Text as="span" size="xs" tone="muted">
+                      {meta[id]?.meta}
+                    </Text>
+                  )
+                }
                 trailing={<ChevronRight className="size-4" aria-hidden="true" />}
               />
             </ListItem>
@@ -478,11 +498,11 @@ function SettingsSectionBody({ section }: { section: SettingsSectionId }) {
           {!boardsLoading && boards.every(isUntouchedPlaceholder) && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Wand2 className="h-4 w-4" />
+                {/* 07e card scale, as SettingsPanel draws it (BB-FC-1). */}
+                <CardTitle size="base" className="text-sm leading-5">
                   {t("setupWizardTitle")}
                 </CardTitle>
-                <CardDescription>{t("setupWizardDescription")}</CardDescription>
+                <CardDescription className="text-xs">{t("setupWizardDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button variant="brand" onClick={triggerWizard} className="gap-2 btn-lift">

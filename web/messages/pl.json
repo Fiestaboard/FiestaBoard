@@ -3709,6 +3709,7 @@
     "legacyHint": "Starsze aplikacje mogą zapisywać hasło i logować się ponownie po odwołaniu dostępu. Zmień hasło, aby trwale je wykluczyć.",
     "revoke": "Odwołaj",
     "others": "Wyloguj inne urządzenia",
+    "othersAction": "Wyloguj inne urządzenia…",
     "all": "Wyloguj wszędzie",
     "confirmOthers": "Wylogować inne przeglądarki i telewizory? Ta przeglądarka pozostanie zalogowana. Oczekujące kody TV zostaną anulowane.",
     "confirmAll": "Wylogować wszystkie przeglądarki i telewizory, w tym tę przeglądarkę? Oczekujące kody TV zostaną anulowane.",

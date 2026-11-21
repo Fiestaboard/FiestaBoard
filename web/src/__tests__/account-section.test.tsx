@@ -84,8 +84,10 @@ describe("AccountSection", () => {
   it("shows the signed-in username when authenticated", async () => {
     mockAuthStatus(authStatusAuthenticated);
     render(<AccountSection />, { wrapper: TestWrapper });
-    await screen.findByText("Signed in");
-    expect(screen.getByText("admin")).toBeInTheDocument();
+    // The username is the Change username field's value; the "Signed in"
+    // card is gone (07e `321:9076`, BB-FC-13).
+    expect(await screen.findByDisplayValue("admin")).toBeInTheDocument();
+    expect(screen.queryByText("Signed in")).toBeNull();
   });
 
   it("submits a username change with the current password", async () => {
@@ -215,7 +217,7 @@ describe("AccountSection", () => {
     );
 
     render(<AccountSection />, { wrapper: TestWrapper });
-    await screen.findByText("Signed in");
+    await screen.findByDisplayValue("admin");
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /Sign out/i }));
@@ -241,7 +243,7 @@ describe("AccountSection", () => {
       savedAt: 1,
     });
     render(<AccountSection />, { wrapper: TestWrapper });
-    await screen.findByText("Signed in");
+    await screen.findByDisplayValue("admin");
     await userEvent.setup().click(screen.getByRole("button", { name: /Sign out/i }));
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
     expect(await readLastKnownBoard()).toBeNull();
@@ -331,7 +333,7 @@ it("does not pretend to sign out when server revocation fails", async () => {
   mockAuthStatus(authStatusAuthenticated);
   server.use(http.post("/api/auth/logout", () => HttpResponse.json({ detail: "Unavailable" }, { status: 503 })));
   render(<AccountSection />, { wrapper: TestWrapper });
-  await screen.findByText("Signed in");
+  await screen.findByDisplayValue("admin");
   await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
   await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
   expect(replaceMock).not.toHaveBeenCalled();
