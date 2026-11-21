@@ -474,8 +474,8 @@ const PageListItem = memo(
     }, [page.updated_at]);
 
     const buttonClassName = isActive
-      ? "group flex items-center gap-3 w-full px-4 py-3.5 rounded-xl border-2 border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      : "group flex items-center gap-3 w-full px-4 py-3.5 rounded-xl border-2 border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+      ? "group flex items-center gap-3 w-full px-4 py-3.5 rounded-xl border border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left focus-ring"
+      : "group flex items-center gap-3 w-full px-4 py-3.5 rounded-xl border border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left focus-ring";
 
     const iconClassName = isActive
       ? "h-4 w-4 shrink-0 text-brand"
@@ -574,8 +574,8 @@ const CollectionButton = memo(
     );
 
     const buttonClassName = isActive
-      ? "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      : "group relative flex flex-col gap-3 p-4 rounded-xl border-2 border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+      ? "group relative flex flex-col gap-3 p-4 rounded-xl border border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus-ring"
+      : "group relative flex flex-col gap-3 p-4 rounded-xl border border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus-ring";
 
     const iconClassName = isActive
       ? "h-4 w-4 shrink-0 text-brand"

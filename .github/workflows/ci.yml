@@ -331,8 +331,9 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (needs.detect-changes.outputs.ui == 'true'
           || needs.detect-changes.outputs.shared == 'true')
-    # Coverage takes about ten minutes on hosted runners. The full serial
-    # layout suite now exceeds 120 cases; leave time for it and uploads too.
+    # Coverage takes 8-14 minutes on hosted runners. The browser layout
+    # suite runs in its own sharded job (test-ui-layout): together they ran
+    # past this limit and the job was cancelled mid-suite.
     timeout-minutes: 25
 
     steps:
@@ -361,32 +362,6 @@ jobs:
       working-directory: web
       run: npm run test:coverage
 
-    - name: Install layout test browser
-      working-directory: web
-      run: npx playwright install --with-deps chromium
-
-    - name: Browser layout regressions
-      working-directory: web
-      run: npx playwright test --config tests/layout/playwright.config.ts
-
-    - name: Preserve browser layout evidence
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: cx-web-layout-${{ github.run_id }}-${{ github.run_attempt }}
-        path: web/test-results/
-        if-no-files-found: ignore
-        retention-days: 14
-
-    - name: Upload setup parity screenshots
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: web212-parity-shots
-        path: web/test-results/web212-shots/
-        if-no-files-found: ignore
-        retention-days: 7
-
     - name: Write coverage summary
       if: always()
       run: |
@@ -405,6 +380,68 @@ jobs:
         fail_ci_if_error: false
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  test-ui-layout:
+    name: UI Layout Tests (${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    # Same gate as UI Tests: the layout suite covers the same UI paths.
+    if: >-
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+      && (needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
+    # The serial layout suite took 8-11 minutes on one runner and keeps
+    # growing; each of three shards runs about a third of it. 15 minutes
+    # leaves room for setup, the browser install and a slow runner.
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: '24'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+
+    - name: Install UI dependencies
+      working-directory: web
+      run: npm ci --legacy-peer-deps --no-audit
+
+    - name: Install layout test browser
+      working-directory: web
+      run: npx playwright install --with-deps chromium
+
+    - name: Browser layout regressions
+      working-directory: web
+      # Passed through env: a spaced ${{ }} in the command line would read
+      # as spec filters to tests/test_e2e_spec_reachability.py.
+      env:
+        LAYOUT_SHARD: ${{ matrix.shard }}/3
+      run: npx playwright test --config tests/layout/playwright.config.ts --shard="$LAYOUT_SHARD"
+
+    - name: Preserve browser layout evidence
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: cx-web-layout-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+        path: web/test-results/
+        if-no-files-found: ignore
+        retention-days: 14
+
+    - name: Upload setup parity screenshots
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: web212-parity-shots-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+        path: web/test-results/web212-shots/
+        if-no-files-found: ignore
+        retention-days: 7
 
   a11y-tests:
     name: Accessibility Tests (dark and light)
@@ -1615,7 +1652,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, quick-checks, test-platform, test-ui, a11y-tests, build-test-image, e2e-tests, specialized-e2e-tests, release-guards]
+    needs: [detect-changes, quick-checks, test-platform, test-ui, test-ui-layout, a11y-tests, build-test-image, e2e-tests, specialized-e2e-tests, release-guards]
     if: always()
     steps:
       - uses: actions/checkout@v7

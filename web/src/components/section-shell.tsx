@@ -1,18 +1,22 @@
 import {
   Box,
+  Button,
+  Flex,
+  Heading,
   PageCard,
   PageHeader,
   PageLayout,
   PageOutlet,
   PageSubheader,
   type PageSubheaderDetail,
+  Stack,
 } from "@fiestaboard/ui";
-import type { LucideIcon } from "lucide-react";
+import { ChevronLeft, type LucideIcon } from "lucide-react";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import Link from "@/components/smart-link";
-import { useRailBreakpoint } from "@/hooks/use-below-rail";
+import { useBelowRail, useRailBreakpoint } from "@/hooks/use-below-rail";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -40,6 +44,12 @@ interface SectionShellProps {
   detail: SectionDetail | null;
   /** Pin the card to the viewport so the body can scroll inside it (the page editor). */
   fill?: boolean;
+  /**
+   * On a phone, drop the card and the section description: the list is the
+   * title with its action beside it, and an item is "‹ <section>" over its
+   * name (07d `320:17086`, `328:27519`; BB-A-19, BB-A-24).
+   */
+  compactOnPhone?: boolean;
   /**
    * The open item draws its own header (the page editor: back, name, Save), so
    * the section's header, breadcrumb and card are not drawn around it.
@@ -73,11 +83,23 @@ export function SectionShell({
   action,
   detail,
   fill,
+  compactOnPhone,
   bare = false,
   children,
 }: SectionShellProps) {
   const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("common");
+  const phone = useBelowRail();
+  // Drilling in on a phone moves focus to the item's name, as the card's
+  // sub-header does on wider screens; a deep link (first render) keeps it.
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const shownId = useRef(detail?.id ?? null);
+  useEffect(() => {
+    const id = detail?.id ?? null;
+    if (id === shownId.current) return;
+    shownId.current = id;
+    if (id && compactOnPhone && phone) titleRef.current?.focus({ preventScroll: true });
+  }, [detail?.id, compactOnPhone, phone]);
   const pathname = usePathname();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
 
@@ -138,18 +160,62 @@ export function SectionShell({
     );
   }
 
+  // One tree for both layouts: the outlet keeps its place (PageCard → slot →
+  // PageOutlet), so crossing the breakpoint (a rotated tablet, a full-page
+  // capture) never remounts the page and its state (#2568 review).
+  const compact = !!compactOnPhone && phone;
+  const compactHeader = detail ? (
+    <Stack gap="1" className="mb-3">
+      <Button asChild variant="ghost" size="touch" className="-ms-4 self-start gap-1 px-3">
+        <Link href={detail.backHref ?? href}>
+          <ChevronLeft className="size-4" aria-hidden="true" />
+          {title}
+        </Link>
+      </Button>
+      <Heading level={1} size="2xl" ref={titleRef} tabIndex={-1} className="focus-ring rounded-sm">
+        {detail.title}
+      </Heading>
+    </Stack>
+  ) : (
+    <Flex align="center" justify="between" gap="3" className="mb-4">
+      <Heading level={1} size="2xl">
+        {title}
+      </Heading>
+      {action}
+    </Flex>
+  );
+
   return (
     <PageLayout railBreakpoint={railBreakpoint} fillHeight={fill}>
-      <PageCard fillHeight={fill}>
-        <PageHeader icon={icon} title={title} description={description} collapsed={detail != null}>
-          {action}
-        </PageHeader>
-        <PageSubheader
-          detail={subheader}
-          breadcrumbLabel={t("breadcrumb")}
-          renderLink={({ href: to, children: label }) => <Link href={to}>{label}</Link>}
-        />
-        <ActionSlot value={slot}>
+      <PageCard
+        fillHeight={fill}
+        // On a phone the page is the surface (07d): the kit's plain card, and
+        // the page's own sections on the gutter (DD-W135); a section that is a
+        // card's content keeps its inset.
+        surface={compact ? "plain" : "card"}
+        className={
+          compact
+            ? "overflow-visible [&_[data-slot=page-section]:not([data-slot=card]_*)]:px-0 [&_[data-slot=page-toolbar]]:px-0"
+            : undefined
+        }
+      >
+        {compact ? (
+          compactHeader
+        ) : (
+          <PageHeader icon={icon} title={title} description={description} collapsed={detail != null}>
+            {action}
+          </PageHeader>
+        )}
+        {compact ? null : (
+          <PageSubheader
+            detail={subheader}
+            breadcrumbLabel={t("breadcrumb")}
+            renderLink={({ href: to, children: label }) => <Link href={to}>{label}</Link>}
+          />
+        )}
+        {/* On a phone there is no sub-header slot: a detail page's own
+            actions render in place. */}
+        <ActionSlot value={compact ? undefined : slot}>
           <PageOutlet key={pathname} fill={fill}>
             {children}
           </PageOutlet>
