@@ -1,3 +1,5 @@
+// Must stay first: TEST_NOW skews the clock before anything reads it.
+import "./test-now";
 import "@testing-library/jest-dom/vitest";
 // Eagerly initialize i18next before any component imports run. The
 // `@/i18n/translations` hook delegates to react-i18next + this config;
@@ -330,6 +332,43 @@ global.ResizeObserver = class ResizeObserver {
 // Setup MSW
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterAll(() => server.close());
+// A closing Sonner toast (dismissed, auto-closed, swiped or closed by its
+// button) starts a real 200ms Node timer (`TIME_BEFORE_UNMOUNT`) that later
+// calls the Toaster's `setToasts`. Sonner never keeps the timer id, so neither
+// unmounting nor jsdom's `window.close()` cancels it. If it is still pending
+// when the file ends, it fires after Vitest has deleted `window`; React then
+// reads `window.event` and the run fails with "ReferenceError: window is not
+// defined" even though every test passed.
+//
+// The DOM cannot reliably tell us whether such a timer is pending: the timer
+// starts a task before React writes `data-removed`, and a test may unmount its
+// Toaster mid-close. So instead, note whether this file ever showed a Sonner
+// toast, and if it did, outlast the timer once in afterAll. That hook runs
+// after the last test's cleanup(), so no Toaster is left to start a new timer.
+// The wait uses the real setTimeout captured here, so it works even if a test
+// left fake timers installed. It costs ~250ms once per file that shows a toast.
+const realSetTimeout = globalThis.setTimeout;
+const SONNER_TIMER_MS = 200;
+const SONNER_TOAST = "[data-sonner-toaster], [data-sonner-toast]";
+let sawSonnerToast = false;
+const sonnerToastWatcher = new MutationObserver((records) => {
+  for (const record of records) {
+    for (const node of record.addedNodes) {
+      if (node instanceof Element && (node.matches(SONNER_TOAST) || node.querySelector(SONNER_TOAST))) {
+        sawSonnerToast = true;
+        sonnerToastWatcher.disconnect();
+        return;
+      }
+    }
+  }
+});
+sonnerToastWatcher.observe(document.documentElement, { childList: true, subtree: true });
+
+afterAll(async () => {
+  sonnerToastWatcher.disconnect();
+  if (sawSonnerToast) await new Promise((resolve) => realSetTimeout(resolve, SONNER_TIMER_MS + 50));
+});
+
 afterEach(() => {
   cleanup();
   server.resetHandlers();

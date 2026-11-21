@@ -1070,7 +1070,8 @@ export function PageGridSelector({
   if (!showCollectionItems) {
     return (
       <Box>
-        {libraryQuery && (
+        {/* The count reports a search; with no search it would only repeat the toolbar's (BB-FP-7). */}
+        {libraryQuery?.text.trim() && (
           <Text size="xs" tone="muted" className="mb-3 block" role="status">
             {tPages("searchCount", { count: pages.length, total: scopedPages.length })}
           </Text>
