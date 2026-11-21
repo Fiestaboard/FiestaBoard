@@ -13,7 +13,7 @@ import { FormulaCodeCard } from "@/components/formula-ide/formula-code-card";
 import { type FormulaIdeBridge, FormulaIdeContext } from "@/components/formula-ide/formula-ide-context";
 import { FormulaInspectorPane } from "@/components/formula-ide/formula-inspector-pane";
 import { LineProducesCard } from "@/components/formula-ide/line-produces-card";
-import type { OpenFormulaState } from "@/components/formula-ide/use-formula-ide";
+import { activeTemplateLine, type OpenFormulaState } from "@/components/formula-ide/use-formula-ide";
 import { WorkbenchHeader } from "@/components/formula-ide/workbench-header";
 import type { WorkbenchProps } from "@/components/formula-ide/workbench-types";
 import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
@@ -135,6 +135,15 @@ describe("docked formula panel (BB-FP-15)", () => {
 });
 
 describe("Inspect (BB-FP-16)", () => {
+  it("tints the edited or inspected formula's line, else an inspected text cell's line", () => {
+    const base = { desktop: true, editing: false, inspecting: false };
+    expect(activeTemplateLine({ ...base, editing: true, formulaLine: 2 })).toBe(2);
+    expect(activeTemplateLine({ ...base, inspecting: true, cellLine: 4 })).toBe(4);
+    expect(activeTemplateLine({ ...base, inspecting: true, formulaLine: 3, cellLine: 4 })).toBe(3);
+    expect(activeTemplateLine({ ...base, formulaLine: 2 })).toBeNull();
+    expect(activeTemplateLine({ ...base, desktop: false, editing: true, formulaLine: 2 })).toBeNull();
+  });
+
   it("frames the pane with a 2 px amber border", () => {
     wrap(<FormulaInspectorPane {...props({ open: null, inspect: true })} />);
     expect(screen.getByTestId("inspector-pane")).toHaveClass("border-2", "border-ring");
