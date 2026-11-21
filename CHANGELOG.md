@@ -1,5 +1,35 @@
 # fiestaboard
 
+## 11.0.0-alpha.12
+
+### Patch Changes
+
+- [#2605](https://github.com/Fiestaboard/FiestaBoard/pull/2605) [`0635c39`](https://github.com/Fiestaboard/FiestaBoard/commit/0635c397a603aac2ad2dff3eebb8b4422e09c559) Thanks [@jeffredodd](https://github.com/jeffredodd)! - When FiestaBot creates a page on a slow device or with a large Pages list, it now always ends on the saved page: if the new editor opens late, the assistant waits for it before typing, so it no longer stops at a "Discard unsaved changes?" dialog.
+
+- [#2579](https://github.com/Fiestaboard/FiestaBoard/pull/2579) [`f567c73`](https://github.com/Fiestaboard/FiestaBoard/commit/f567c733835eeec8399a6b9d7d56c4b32d5fa8d9) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor's preview card is calmer: its header is one row, the target, board size and board colour sit behind the header's "Kitchen · Flagship 22 × 6" meta instead of a third board picker and a separate size row, and edits update the board instantly. A new Replay button plays the split-flap animation on demand.
+
+- [#2581](https://github.com/Fiestaboard/FiestaBoard/pull/2581) [`3b043f9`](https://github.com/Fiestaboard/FiestaBoard/commit/3b043f9b4fb3b6288ce604b86fa4ee96512e5b1a) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The desktop page editor gets the window: the nav collapses to the icon rail while you edit (your own choice comes back when you leave, and a toggle made in the editor becomes your choice), the Explorer can be hidden, starts closed for single Flagship and Note pages, and now shows only the open page's boards, parts and snippets instead of a list of every page, and the page name always keeps room beside the header actions.
+
+- [#2584](https://github.com/Fiestaboard/FiestaBoard/pull/2584) [`10e5a13`](https://github.com/Fiestaboard/FiestaBoard/commit/10e5a133e197b3ab9dbde6102f9dcd0dbf05205c) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The desktop page editor is one workspace: the Explorer, the template with its Console and Timeline, and the preview with its Inspector sit in three columns under a header and toolbar that stay put while you scroll; a new page has the same layout as a saved one, so the first save moves nothing; and Tab goes column by column.
+
+- [#2576](https://github.com/Fiestaboard/FiestaBoard/pull/2576) [`12a4352`](https://github.com/Fiestaboard/FiestaBoard/commit/12a4352561c21f6b98fd64d8a2cdcdc625aad669) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Home lands a display's board at once on a display switch, and Compose's preview no longer flaps from blank as you type; the display switcher shows each display's type, size and page; the schedule entry sheet on a phone is the short form with Save in view; switching release channel confirms with a destructive button.
+
+- [#2568](https://github.com/Fiestaboard/FiestaBoard/pull/2568) [`8b9c0e4`](https://github.com/Fiestaboard/FiestaBoard/commit/8b9c0e4e742a2cb7e5ea753e2215e82bc6d226d2) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Displays on a phone follow 07d: no card around the section, the list titled "Displays" with Add display beside it, a display page with one "‹ Displays" link over its name and the board edge to edge, causes no longer cut short, and an unknown display reads "Display not found" with Back to Displays and Add a display.
+
+- [#2564](https://github.com/Fiestaboard/FiestaBoard/pull/2564) [`0153d0e`](https://github.com/Fiestaboard/FiestaBoard/commit/0153d0e329c8f6a27b1560e1d8bec6e9b171fd63) Thanks [@jeffredodd](https://github.com/jeffredodd)! - An unknown URL shows a "Page not found" page inside the app shell with a way Home; the app opts into FiestaUI's touch layer so default-sized controls reach 44 px on a phone; Change Page no longer opens the phone keyboard over its list; and the board's scroll hint always reads "swipe" on a touch screen.
+
+- [#2573](https://github.com/Fiestaboard/FiestaBoard/pull/2573) [`db7f641`](https://github.com/Fiestaboard/FiestaBoard/commit/db7f6419ec59861bf3a72e9171990cc531db0b67) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The editor preview on desktop shows a whole Flagship board instead of its first 13 columns, and "Now in this Collection" fits the board to the card instead of cropping it on phones. A new Collection opens on its name and says what Create still needs, and Add page shows each page's size and stays open for several picks. Rule reordering gives touch instructions on touch screens, and a rule's whole expression is readable.
+
+- [#2577](https://github.com/Fiestaboard/FiestaBoard/pull/2577) [`71c87ee`](https://github.com/Fiestaboard/FiestaBoard/commit/71c87ee8ac8aa3b18d5a3020621062e5fb4df9f8) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor measures what the board draws: a colour tile from the rich editor is one column (a 22-tile art row no longer reports "66 of 22 · 44 cut off"), blank padding rows on a smaller board no longer trip the line limit, and an overflow is reported once — one card for every cut line, no repeated banner or status.
+
+- [#2580](https://github.com/Fiestaboard/FiestaBoard/pull/2580) [`4e28410`](https://github.com/Fiestaboard/FiestaBoard/commit/4e2841088d0bf20a2ea2732c6d128dc1605b9752) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The rich template behaves like a text field: multi-line text pasted from another app lands on consecutive rows, copying no longer carries invisible zero-width spaces, Esc from a toolbar picker puts the caret back, the template card shows a focus ring, long rows stay inside the card, and Undo starts disabled on an untouched page.
+
+- [#2592](https://github.com/Fiestaboard/FiestaBoard/pull/2592) [`c25427d`](https://github.com/Fiestaboard/FiestaBoard/commit/c25427df35dccb78b9c0b4c208841546f73263a9) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Pages library cards, list rows and collection cards draw the same three-stop focus ring as every other control, with no white band in dark mode, and list rows use a 1 px border like the grid cards.
+
+- [#2593](https://github.com/Fiestaboard/FiestaBoard/pull/2593) [`6e6a1ed`](https://github.com/Fiestaboard/FiestaBoard/commit/6e6a1ed0d560c0818294aec1453509dda203b9f8) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Variable Collections: each rule row now picks its page from a menu in the row and shows whether the rule is true right now, the Default row says what is showing, and Re-check interval and Pages in Collection open as proper sections.
+
+- [#2585](https://github.com/Fiestaboard/FiestaBoard/pull/2585) [`d94ff42`](https://github.com/Fiestaboard/FiestaBoard/commit/d94ff42402513d827106e691d0e097651453a63d) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Compose a message opens with the caret in the message field, so typing no longer switches the "Show on" display.
+
 ## 11.0.0-alpha.11
 
 ### Patch Changes
