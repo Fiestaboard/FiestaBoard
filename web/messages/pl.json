@@ -4043,7 +4043,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "Punkty: {count}",
     "layerMetaText": "Czcionka {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} uciętych"
   },
   "creatorIde": {
     "regionLabel": "IDE twórcy",
@@ -4377,6 +4378,7 @@
     "fits": "Mieści się",
     "doesNotFit": "Nie mieści się",
     "fitReport": "Linia {line} ma {widest} z {cols} kolumn",
-    "nothingCut": "nic nie ucięto"
+    "nothingCut": "nic nie ucięto",
+    "missingOff": "{plugin} jest wyłączone w Integracjach"
   }
 }

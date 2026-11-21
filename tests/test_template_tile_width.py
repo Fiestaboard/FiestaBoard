@@ -63,3 +63,31 @@ def test_a_22_tile_row_fits_a_22_column_board(engine):
 
 def test_one_tile_past_the_edge_is_one_column_cut(engine):
     assert too_long(engine.validate_template(TILES_22 + "{{red}}", cols=22)) == {1: 23}
+
+
+# BB-E-30: a fill takes only the room left on the row; it never adds width.
+# ``{{fill_space}}`` used to be measured as a whole board width (the fallback
+# for a variable with no declared max length), so any line with one beside
+# other text was reported too long.
+FILL_CASES = [
+    ("{{red}}{{fill_space}}{{red}}", 22, 2),
+    ("LEFT{{fill_space}}RIGHT", 22, 9),
+    ("A{{fill_space}}B{{fill_space}}C", 22, 3),
+    ("{{fill_space_repeat:-}}NEWS{{fill_space_repeat:-}}", 22, 4),
+    ("{{filled:red}}HI", 15, 2),
+]
+
+
+@pytest.mark.parametrize(("line", "cols", "tiles"), FILL_CASES)
+def test_a_fill_adds_no_width(engine, line, cols, tiles):
+    assert engine._calculate_max_line_length(line, cols=cols) == tiles
+
+
+def test_a_fill_line_that_fits_is_not_too_long(engine):
+    errors = engine.validate_template("{{red}}{{fill_space}}{{red}}", cols=22)
+    assert too_long(errors) == {}
+
+
+def test_text_past_the_board_beside_a_fill_is_still_too_long(engine):
+    line = "X" * 20 + "{{fill_space}}" + "Y" * 5
+    assert engine._calculate_max_line_length(line, cols=22) == 25

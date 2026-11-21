@@ -4043,7 +4043,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "Точек: {count}",
     "layerMetaText": "Шрифт {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} обрезано"
   },
   "creatorIde": {
     "regionLabel": "IDE создателя",
@@ -4377,6 +4378,7 @@
     "fits": "Помещается",
     "doesNotFit": "Не помещается",
     "fitReport": "Строка {line}: {widest} из {cols} столбцов",
-    "nothingCut": "ничего не обрезано"
+    "nothingCut": "ничего не обрезано",
+    "missingOff": "{plugin} отключено в разделе «Интеграции»"
   }
 }

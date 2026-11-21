@@ -4043,7 +4043,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} points",
     "layerMetaText": "Font {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} cut off"
   },
   "creatorIde": {
     "regionLabel": "Creator IDE",
@@ -4377,6 +4378,7 @@
     "fits": "Fits",
     "doesNotFit": "Doesn't fit",
     "fitReport": "Line {line} is {widest} of {cols} columns",
-    "nothingCut": "nothing cut"
+    "nothingCut": "nothing cut",
+    "missingOff": "{plugin} is off in Integrations"
   }
 }

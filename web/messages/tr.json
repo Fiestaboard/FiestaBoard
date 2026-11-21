@@ -4043,7 +4043,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} nokta",
     "layerMetaText": "Yazı tipi {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} kesildi"
   },
   "creatorIde": {
     "regionLabel": "Oluşturucu IDE",
@@ -4377,6 +4378,7 @@
     "fits": "Sığıyor",
     "doesNotFit": "Sığmıyor",
     "fitReport": "{line}. satır {cols} sütunun {widest} tanesi",
-    "nothingCut": "hiçbir şey kesilmedi"
+    "nothingCut": "hiçbir şey kesilmedi",
+    "missingOff": "{plugin}, Entegrasyonlar’da kapalı"
   }
 }

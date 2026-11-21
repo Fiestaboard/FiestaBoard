@@ -4043,7 +4043,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} puntos",
     "layerMetaText": "Fuente {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} cortados"
   },
   "creatorIde": {
     "regionLabel": "IDE del creador",
@@ -4377,6 +4378,7 @@
     "fits": "Cabe",
     "doesNotFit": "No cabe",
     "fitReport": "La línea {line} ocupa {widest} de {cols} columnas",
-    "nothingCut": "nada cortado"
+    "nothingCut": "nada cortado",
+    "missingOff": "{plugin} está desactivado en Integraciones"
   }
 }

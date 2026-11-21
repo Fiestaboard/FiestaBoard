@@ -4043,7 +4043,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} punkter",
     "layerMetaText": "Typsnitt {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} avklippta"
   },
   "creatorIde": {
     "regionLabel": "Skaparens IDE",
@@ -4377,6 +4378,7 @@
     "fits": "Ryms",
     "doesNotFit": "Ryms inte",
     "fitReport": "Rad {line} är {widest} av {cols} kolumner",
-    "nothingCut": "inget klipps"
+    "nothingCut": "inget klipps",
+    "missingOff": "{plugin} är avstängt under Integrationer"
   }
 }
