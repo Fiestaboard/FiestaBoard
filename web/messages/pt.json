@@ -2775,7 +2775,11 @@
     "clickToEditFormula": "Clique para editar fórmula",
     "newFormula": "nova fórmula",
     "loading": "A carregar…",
-    "dialogLabel": "Editor de fórmulas"
+    "dialogLabel": "Editor de fórmulas",
+    "sheetTitle": "Fórmula",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} é {value} agora",
+    "resultColumns": "{used} de {cols} colunas"
   },
   "templateEditor": {
     "variables": "Variáveis",

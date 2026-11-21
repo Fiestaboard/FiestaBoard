@@ -2775,7 +2775,11 @@
     "clickToEditFormula": "클릭하여 수식 편집",
     "newFormula": "새 수식",
     "loading": "로드 중…",
-    "dialogLabel": "수식 편집기"
+    "dialogLabel": "수식 편집기",
+    "sheetTitle": "수식",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name}은(는) 지금 {value}",
+    "resultColumns": "{cols}열 중 {used}열"
   },
   "templateEditor": {
     "variables": "변수",

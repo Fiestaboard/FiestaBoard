@@ -2775,7 +2775,11 @@
     "clickToEditFormula": "Kliknij, aby edytować formułę",
     "newFormula": "nowa formuła",
     "loading": "Ładowanie…",
-    "dialogLabel": "Edytor formuł"
+    "dialogLabel": "Edytor formuł",
+    "sheetTitle": "Formuła",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} ma teraz wartość {value}",
+    "resultColumns": "{used} z {cols} kolumn"
   },
   "templateEditor": {
     "variables": "Zmienne",

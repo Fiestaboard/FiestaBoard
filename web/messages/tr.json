@@ -2775,7 +2775,11 @@
     "clickToEditFormula": "Formülü düzenlemek için tıklayın",
     "newFormula": "yeni formül",
     "loading": "Yükleniyor…",
-    "dialogLabel": "Formül düzenleyici"
+    "dialogLabel": "Formül düzenleyici",
+    "sheetTitle": "Formül",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} şu anda {value}",
+    "resultColumns": "{cols} sütundan {used}"
   },
   "templateEditor": {
     "variables": "Değişkenler",

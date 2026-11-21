@@ -2775,7 +2775,11 @@
     "clickToEditFormula": "Klicka för att redigera formel",
     "newFormula": "ny formel",
     "loading": "Laddar…",
-    "dialogLabel": "Formelredigerare"
+    "dialogLabel": "Formelredigerare",
+    "sheetTitle": "Formel",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} är {value} nu",
+    "resultColumns": "{used} av {cols} kolumner"
   },
   "templateEditor": {
     "variables": "Variabler",

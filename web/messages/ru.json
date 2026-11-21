@@ -2775,7 +2775,11 @@
     "clickToEditFormula": "Нажмите для редактирования формулы",
     "newFormula": "новая формула",
     "loading": "Загрузка…",
-    "dialogLabel": "Редактор формул"
+    "dialogLabel": "Редактор формул",
+    "sheetTitle": "Формула",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} сейчас {value}",
+    "resultColumns": "{used} из {cols} столбцов"
   },
   "templateEditor": {
     "variables": "Переменные",
