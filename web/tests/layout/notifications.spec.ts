@@ -313,7 +313,7 @@ test("sign-out removes the browser subscription and badge before navigating away
   );
   await page.goto("/tests/layout/notifications.html");
   await page.getByRole("button", { name: "maya", exact: true }).click();
-  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await page.getByRole("button", { name: "Sign out of this browser", exact: true }).click();
   await expect
     .poll(() =>
       page.evaluate(() => (window as unknown as { pushCalls: { unsubscribe: number } }).pushCalls.unsubscribe),
