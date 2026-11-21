@@ -289,7 +289,8 @@ describe("Settings detail, from the rail breakpoint up", () => {
     renderAt("/settings/appearance");
     expect(await screen.findByRole("heading", { name: "Theme" })).toBeInTheDocument();
     expect(screen.getByText("For this browser only.")).toBeInTheDocument();
-    expect(screen.getByText("Theme for this browser; preview motion for everyone on this hub.")).toBeInTheDocument();
+    // The section's own sentence gave way to the hub meta (07e `333:56102`,
+    // BB-FC-1); the card keeps the browser scope above.
     expect(screen.getByRole("radio", { name: "System" })).toHaveClass("min-h-12");
   });
 

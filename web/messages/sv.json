@@ -989,6 +989,7 @@
     "sourceExternalBadge": "Extern",
     "updateAvailableBadge": "Uppdatering",
     "moreOptionsAriaLabel": "Fler alternativ",
+    "sectionMenuAriaLabel": "Integrationsalternativ",
     "addInstanceAction": "Lägg till instans",
     "instanceNameInlineLabel": "Instansnamn:",
     "addInstanceInlineHelp": "Skapar en ny oberoende instans av denna plugin med egen konfiguration. Använd alfanumeriska tecken, bindestreck eller understreck (1–40 tecken).",

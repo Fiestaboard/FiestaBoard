@@ -989,6 +989,7 @@
     "sourceExternalBadge": "外部",
     "updateAvailableBadge": "更新あり",
     "moreOptionsAriaLabel": "その他のオプション",
+    "sectionMenuAriaLabel": "連携のオプション",
     "addInstanceAction": "インスタンスを追加",
     "instanceNameInlineLabel": "インスタンス名:",
     "addInstanceInlineHelp": "独自の設定を持つ、このプラグインの新しい独立したインスタンスを作成します。英数字、ハイフン、アンダースコアを使用してください (1〜40 文字)。",

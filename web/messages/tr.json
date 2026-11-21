@@ -989,6 +989,7 @@
     "sourceExternalBadge": "Harici",
     "updateAvailableBadge": "Güncelleme",
     "moreOptionsAriaLabel": "Diğer seçenekler",
+    "sectionMenuAriaLabel": "Entegrasyon seçenekleri",
     "addInstanceAction": "Örnek Ekle",
     "instanceNameInlineLabel": "Örnek adı:",
     "addInstanceInlineHelp": "Bu eklentinin kendi yapılandırmasına sahip yeni ve bağımsız bir örneğini oluşturur. Alfasayısal karakterler, tireler veya alt çizgiler kullanın (1-40 karakter).",
