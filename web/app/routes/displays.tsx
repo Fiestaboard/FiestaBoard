@@ -62,9 +62,9 @@ export function DisplaysSection({ children }: { children: React.ReactNode }) {
   const detail = boardId
     ? {
         id: boardId,
-        // A display the list no longer has keeps its id as the name, so the
-        // trail still says where the reader is while the page says it is gone.
-        title: name ?? (displays.isLoading ? tCommon("loading") : boardId),
+        // A display the list no longer has is named as not found, never by
+        // its raw id (BB-A-20).
+        title: name ?? (displays.isLoading ? tCommon("loading") : t("notFoundTitle")),
         // A display named after its output ("Divoom Pixoo 64" on a Divoom
         // Pixoo 64) would read its name three times running; say the output
         // only when it adds something.
@@ -80,6 +80,7 @@ export function DisplaysSection({ children }: { children: React.ReactNode }) {
         description={t("description")}
         href="/displays"
         detail={detail}
+        compactOnPhone
         action={
           <Button onClick={() => openAdd()} data-testid="add-display">
             <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
