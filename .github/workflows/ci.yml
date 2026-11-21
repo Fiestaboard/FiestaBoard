@@ -438,7 +438,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v7
       with:
-        name: web212-parity-shots-${{ matrix.shard }}
+        name: web212-parity-shots-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
         path: web/test-results/web212-shots/
         if-no-files-found: ignore
         retention-days: 7

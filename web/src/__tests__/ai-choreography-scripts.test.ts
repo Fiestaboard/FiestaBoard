@@ -353,6 +353,36 @@ describe("scripts", () => {
     expect(ctx.pageEditor.setLine).toHaveBeenCalled();
   });
 
+  it("create_page waits for a late editor once more, not once per batch, when it never mounts", () => {
+    // Every tool_streaming frame is a batch; a 4 s wait in each would hold
+    // settle (and the saved page) back by a minute when the editor never
+    // comes. After the one extra wait, later batches only check, instantly.
+    const ctx = ctxWith();
+    const script = getScript("create_page");
+    const progress: Record<string, unknown> = {};
+    const batches: Step[][] = [];
+    for (let i = 1; i <= 6; i++) {
+      batches.push(
+        script.draft!(
+          { name: "create_page", strings: { name: "Morning" }, lists: { template_lines: Array(i).fill("HI") } },
+          ctx,
+          progress,
+        ),
+      );
+    }
+    const call = { ...BASE, args: { name: "Morning", template_lines: Array(6).fill("HI") } };
+    batches.push(script.narrate(call, ctx, progress));
+    const waits = batches.flat().flatMap((s) => (s.kind === "waitBridge" ? [s.timeoutMs ?? 0] : []));
+    expect(waits.filter((ms) => ms > 0)).toHaveLength(2); // the opener's, and one more
+    // Every later batch still checks before it types anything.
+    for (const batch of batches.slice(2)) {
+      const firstType = batch.findIndex((s) => s.kind === "type" || s.kind === "set");
+      const check = batch.findIndex((s) => s.kind === "waitBridge");
+      if (firstType >= 0) expect(check).toBeGreaterThanOrEqual(0);
+      if (firstType >= 0) expect(check).toBeLessThan(firstType);
+    }
+  });
+
   it("create_page settles by discarding the staged draft and opening the saved page", () => {
     const ctx = ctxWith();
     const steps = getScript("create_page").settle(BASE, OK, ctx);

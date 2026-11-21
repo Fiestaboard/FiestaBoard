@@ -18,6 +18,8 @@ interface PageProgress {
   started?: boolean;
   /** The fresh editor took the staging snapshot (set when that step runs). */
   staged?: boolean;
+  /** A later batch already carries the one extra wait for a late editor. */
+  rewaited?: boolean;
   name?: string;
   lines?: string[];
   deviceType?: string;
@@ -64,8 +66,12 @@ function openNewEditor(ctx: ChoreographyContext, deviceType: string, progress: P
  * Pages list can mount the fresh editor after the opening batch stopped
  * waiting for it; typing into it then without staging leaves edits that
  * settle's discard cannot clear, and the editor's discard dialog blocks the
- * walk to the saved page. So a batch waits for the editor and stages it
- * first, or (the wait failing) types nothing. `begin` is idempotent.
+ * walk to the saved page. So a batch stages the editor before it types, or
+ * (no editor) skips the rest of its batch. The first such batch waits once
+ * more; later ones only check, so an editor that never comes cannot hold
+ * settle back by a wait per streamed frame. Whatever an abandoned batch
+ * would have revealed is not retyped: settle opens the saved page anyway.
+ * `begin` is idempotent.
  */
 function openOrStaged(ctx: ChoreographyContext, deviceType: string, progress: PageProgress): Step[] {
   if (!progress.started) {
@@ -73,7 +79,9 @@ function openOrStaged(ctx: ChoreographyContext, deviceType: string, progress: Pa
     return openNewEditor(ctx, deviceType, progress);
   }
   if (progress.staged) return [];
-  return [{ kind: "waitBridge", bridge: "page-editor", timeoutMs: 4000 }, stage(progress)];
+  const timeoutMs = progress.rewaited ? 0 : 4000;
+  progress.rewaited = true;
+  return [{ kind: "waitBridge", bridge: "page-editor", timeoutMs }, stage(progress)];
 }
 
 /** Type whatever is new since the last reveal. */
