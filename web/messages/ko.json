@@ -1000,6 +1000,7 @@
     "sourceExternalBadge": "외부",
     "updateAvailableBadge": "업데이트",
     "moreOptionsAriaLabel": "추가 옵션",
+    "sectionMenuAriaLabel": "통합 옵션",
     "addInstanceAction": "인스턴스 추가",
     "instanceNameInlineLabel": "인스턴스 이름:",
     "addInstanceInlineHelp": "이 플러그인의 새로운 독립 인스턴스를 고유한 구성으로 만듭니다. 영숫자, 하이픈 또는 밑줄을 사용하세요 (1-40자).",

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Puzzle } from "lucide-react";
 import { Outlet } from "react-router";
 
-import { PluginUpdateCheckButton } from "@/components/plugin-updates-control";
+import { PluginUpdatesMenu } from "@/components/plugin-updates-control";
 import { SectionShell } from "@/components/section-shell";
 import { useBelowRail } from "@/hooks/use-below-rail";
 import { useParams, useSearchParams } from "@/hooks/use-router";
@@ -97,7 +97,10 @@ export function IntegrationsSection({ children }: { children: React.ReactNode })
       description={phone ? undefined : t("description")}
       href="/integrations"
       detail={detail}
-      action={phone ? undefined : <PluginUpdateCheckButton />}
+      // 07d `324:40267`: a "…" button is the header's one action, and the
+      // list sits on the page rather than in a card (BB-FC-8).
+      action={phone ? undefined : <PluginUpdatesMenu />}
+      surface="plain"
     >
       {children}
     </SectionShell>

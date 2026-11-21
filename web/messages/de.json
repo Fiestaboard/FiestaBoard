@@ -1000,6 +1000,7 @@
     "sourceExternalBadge": "Extern",
     "updateAvailableBadge": "Update",
     "moreOptionsAriaLabel": "Weitere Optionen",
+    "sectionMenuAriaLabel": "Integrationsoptionen",
     "addInstanceAction": "Instanz hinzufügen",
     "instanceNameInlineLabel": "Instanzname:",
     "addInstanceInlineHelp": "Erstellt eine neue unabhängige Instanz dieses Plugins mit eigener Konfiguration. Verwenden Sie alphanumerische Zeichen, Bindestriche oder Unterstriche (1–40 Zeichen).",

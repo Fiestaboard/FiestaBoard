@@ -1000,6 +1000,7 @@
     "sourceExternalBadge": "Extern",
     "updateAvailableBadge": "Update",
     "moreOptionsAriaLabel": "Meer opties",
+    "sectionMenuAriaLabel": "Integratie-opties",
     "addInstanceAction": "Instantie toevoegen",
     "instanceNameInlineLabel": "Instantienaam:",
     "addInstanceInlineHelp": "Maakt een nieuwe onafhankelijke instantie van deze plugin met een eigen configuratie. Gebruik alfanumerieke tekens, koppeltekens of underscores (1–40 tekens).",
