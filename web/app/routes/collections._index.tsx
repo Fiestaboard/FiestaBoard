@@ -11,11 +11,12 @@ import {
   Skeleton,
   Text,
 } from "@fiestaboard/ui";
-import { GalleryHorizontalEnd, LayoutGrid, List, Plus } from "lucide-react";
+import { GalleryHorizontalEnd, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { CollectionPageStack } from "@/components/collection-page-stack";
 import { collectionScheduleSummary, formatDurationLabel, useAllSchedules } from "@/components/collection-schedule";
+import { LibraryViewToggle } from "@/components/library-view-toggle";
 import { useCollections, usePages } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useLocale, useTranslations } from "@/i18n/translations";
@@ -52,28 +53,7 @@ export default function CollectionsIndex() {
         className="!py-3 px-4 sm:px-6"
         left={
           <Flex align="center" gap="3">
-            <Flex className="rounded-md border" role="group" aria-label={t("viewModeLabel")}>
-              <Button
-                size="sm"
-                variant={viewMode === "grid" ? "secondary" : "ghost"}
-                className="h-8 w-8 p-0 rounded-r-none"
-                aria-label={t("gridView")}
-                aria-pressed={viewMode === "grid"}
-                onClick={() => changeView("grid")}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                className="h-8 w-8 p-0 rounded-l-none"
-                aria-label={t("listView")}
-                aria-pressed={viewMode === "list"}
-                onClick={() => changeView("list")}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </Flex>
+            <LibraryViewToggle value={viewMode} onValueChange={changeView} />
             <Text size="xs" tone="muted">
               {t("libraryCount", { count: collections.length })}
             </Text>

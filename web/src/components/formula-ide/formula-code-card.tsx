@@ -13,7 +13,7 @@ import { Decoration, type DecorationSet, EditorView, keymap, lineNumbers, Widget
 import { Badge, Box, Button, Card, CardContent, Flex, List, ListItem, Text } from "@fiestaboard/ui";
 import { tags } from "@lezer/highlight";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Sigma } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
@@ -60,6 +60,8 @@ const highlighter = HighlightStyle.define([
 
 const theme = EditorView.theme({
   "&": { fontFamily: "var(--font-mono-stack)", fontSize: "12px", background: "transparent" },
+  // CodeMirror's base theme sets the scroller (gutter included) to generic monospace (BB-FP-15).
+  ".cm-scroller": { fontFamily: "var(--font-mono-stack)" },
   ".cm-content": {
     padding: "8px 0",
     paddingRight: "9rem",
@@ -311,7 +313,7 @@ export function FormulaCodeCard(props: WorkbenchProps) {
     ) : null;
 
   return (
-    <Card data-testid="formula-code-card" className="gap-2 border-ring py-3">
+    <Card data-testid="formula-code-card" className="gap-2 border-2 border-tag-formula py-3">
       <CardContent className="px-4">
         <WorkbenchHeader line={formula?.line ?? null} tab="code" setOpen={setOpen} status={status} />
         <Text id={labelId} className="sr-only">
@@ -333,7 +335,8 @@ export function FormulaCodeCard(props: WorkbenchProps) {
             ))}
           </List>
         )}
-        <Flex align="center" justify="between" gap="2" wrap className="mt-3">
+        {/* Figma 111:30911: the hint or item stepper on the left, Cancel and Update on the right. */}
+        <Flex align="center" justify="between" gap="3" className="mt-3">
           {total > 1 ? (
             <Flex align="center" gap="1" data-testid="item-stepper">
               <Text size="xs" tone="muted" className="font-mono">
@@ -362,11 +365,11 @@ export function FormulaCodeCard(props: WorkbenchProps) {
               </Button>
             </Flex>
           ) : (
-            <Text size="xs" tone="muted">
+            <Text size="xs" tone="muted" className="min-w-0 flex-1">
               {unedited ? t("hintsNote") : t("hintsStale")}
             </Text>
           )}
-          <Flex gap="2">
+          <Flex gap="2" className="shrink-0">
             <Button
               variant="ghost"
               onClick={() => {
@@ -383,7 +386,6 @@ export function FormulaCodeCard(props: WorkbenchProps) {
                 setOpen(null);
               }}
             >
-              <Sigma aria-hidden />
               {t("updateFormula")}
             </Button>
           </Flex>

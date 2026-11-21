@@ -1,7 +1,7 @@
 "use client";
 
-import { LanguageSelector as UILanguageSelector } from "@fiestaboard/ui";
-import { useTransition } from "react";
+import { Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Stack } from "@fiestaboard/ui";
+import { useId, useTransition } from "react";
 
 import { type Locale, localeNames, locales } from "@/i18n/config";
 import i18n from "@/i18n/i18next";
@@ -11,10 +11,17 @@ function setLocaleCookie(locale: Locale) {
   document.cookie = `NEXT_LOCALE=${locale};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
 }
 
+/**
+ * The Language field of Settings › Language & time (07e `320:6520`): a field
+ * label and a full-width Select, like the Time zone field under it. Not the
+ * kit's LanguageSelector chip — that 130×32 globe control is the docs-site
+ * header's (Figma `26:790`), not a settings field (BB-FS-9).
+ */
 export function LanguageSelector() {
   const locale = useLocale();
   const [isPending, startTransition] = useTransition();
   const t = useTranslations("common");
+  const id = useId();
 
   function handleChange(value: string) {
     const newLocale = value as Locale;
@@ -29,12 +36,22 @@ export function LanguageSelector() {
   }
 
   return (
-    <UILanguageSelector
-      value={locale}
-      options={locales.map((loc) => ({ value: loc, label: localeNames[loc] }))}
-      onChange={handleChange}
-      label={t("language")}
-      disabled={isPending}
-    />
+    <Stack gap="2">
+      <Label htmlFor={id} className="text-sm font-medium">
+        {t("language")}
+      </Label>
+      <Select value={locale} onValueChange={(value) => handleChange(value as string)} disabled={isPending}>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {locales.map((loc) => (
+            <SelectItem key={loc} value={loc}>
+              {localeNames[loc]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Stack>
   );
 }

@@ -48,15 +48,23 @@ describe("Collections library", () => {
       http.post("/api/pages/preview/batch", () => HttpResponse.json({ previews: {} })),
     );
   });
+  // BB-FP-6 (Figma 297:1824): the same text Grid / List segmented control as Pages.
+  it("switches Grid / List with the same segmented control as the Pages library", async () => {
+    renderLibrary();
+    const view = await screen.findByRole("radiogroup", { name: "View mode" });
+    expect(view).toHaveAttribute("data-slot", "segmented-control");
+    expect(within(view).getByRole("radio", { name: "Grid" })).toHaveAttribute("aria-checked", "true");
+    expect(within(view).getByRole("radio", { name: "List" })).toHaveTextContent("List");
+  });
   it("persists list mode across a remount without mounting page previews", async () => {
     const user = userEvent.setup();
     const first = renderLibrary();
-    await user.click(await screen.findByRole("button", { name: "List view" }));
-    expect(screen.getByRole("button", { name: "List view" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(await screen.findByRole("radio", { name: "List" }));
+    expect(screen.getByRole("radio", { name: "List" })).toHaveAttribute("aria-checked", "true");
     first.unmount();
     renderLibrary();
     await screen.findByText("Rotation");
-    expect(screen.getByRole("button", { name: "List view" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("radio", { name: "List" })).toHaveAttribute("aria-checked", "true");
     expect(screen.queryByTestId("collection-page-stack")).not.toBeInTheDocument();
   });
   it("opens the collection's own detail route", async () => {
