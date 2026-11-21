@@ -345,6 +345,7 @@
     "retryLoading": "Reintentar cargar páginas",
     "cardActions": "Acciones de {name}",
     "duplicate": "Duplicar",
+    "exportShareString": "Exportar código compartido",
     "deletePage": "Eliminar página…",
     "toastDuplicated": "Se creó «{name}»",
     "actionFailed": "No se pudo hacer. Inténtalo de nuevo."

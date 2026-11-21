@@ -345,6 +345,7 @@
     "retryLoading": "重试加载页面",
     "cardActions": "{name} 的操作",
     "duplicate": "复制",
+    "exportShareString": "导出分享字符串",
     "deletePage": "删除页面…",
     "toastDuplicated": "已创建“{name}”",
     "actionFailed": "操作失败，请重试。"

@@ -301,6 +301,7 @@
     "retryLoading": "Retry loading pages",
     "cardActions": "Actions for {name}",
     "duplicate": "Duplicate",
+    "exportShareString": "Export share string",
     "deletePage": "Delete page…",
     "toastDuplicated": "Made “{name}”",
     "actionFailed": "Couldn’t do that. Try again."

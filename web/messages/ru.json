@@ -345,6 +345,7 @@
     "retryLoading": "Повторить загрузку страниц",
     "cardActions": "Действия для {name}",
     "duplicate": "Дублировать",
+    "exportShareString": "Экспортировать строку обмена",
     "deletePage": "Удалить страницу…",
     "toastDuplicated": "Создано «{name}»",
     "actionFailed": "Не удалось. Попробуйте ещё раз."
