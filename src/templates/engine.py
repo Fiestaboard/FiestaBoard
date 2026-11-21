@@ -2593,6 +2593,12 @@ class TemplateEngine:
             expr = match.group(1).strip()
             # Remove filters for lookup
             var_part = expr.split("|")[0].strip().lower()
+            # A fill takes only the room the rest of the row leaves (BB-E-30):
+            # it adds no width of its own. It used to fall through to the
+            # no-declared-length default, a whole board, so any line with a
+            # fill beside other text read as too long.
+            if var_part == "fill_space" or var_part.startswith(("filled:", "fill_space_repeat:")):
+                return ""
 
             # Check for color rules (adds 2 chars: color tile + space)
             color_prefix_len = 0

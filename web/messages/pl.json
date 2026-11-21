@@ -536,7 +536,7 @@
     "scheduleMode": "Tryb harmonogramu",
     "scheduleModeEnabledDescription": "Włączony — strony zmieniają się automatycznie według harmonogramu",
     "scheduleModeDisabledDescription": "Wyłączony — strony są kontrolowane ręcznie",
-    "defaultPageLabel": "Domyślna strona dla przerw:",
+    "defaultPageLabel": "Domyślna strona dla przerw",
     "selectDefaultPage": "Wybierz domyślną stronę",
     "noneNoDefault": "Brak (bez domyślnej)",
     "conflictsDetected": "Wykryto konflikty w harmonogramie",
@@ -1851,6 +1851,8 @@
       "overrideUntil": "Ręcznie · do {time}",
       "pauseDisplay": "Wstrzymaj wyświetlacz",
       "pauseHint": "Tablica zachowuje wyświetlaną treść; harmonogram nadal działa na hubie.",
+      "pause": "Wstrzymaj",
+      "resume": "Wznów",
       "diagnostics": "Diagnostyka",
       "changePage": "Zmień stronę…",
       "back": "Wróć do wyświetlaczy",
@@ -2155,7 +2157,7 @@
     "boardUpdateIntervalDescription": "Jak często tablica sprawdza aktualizacje treści (w sekundach)",
     "requiresServiceRestart": "Wymaga ponownego uruchomienia usługi",
     "silenceScheduleLabel": "Harmonogram ciszy",
-    "silenceScheduleDescription": "Zapobiegaj aktualizacjom tablicy w określonych godzinach",
+    "silenceScheduleDescription": "Harmonogram ciszy dla tego ekranu. Wiadomości, które przyjdą w czasie ciszy, są obsługiwane według wyboru poniżej.",
     "startTimeLabel": "Godzina rozpoczęcia",
     "endTimeLabel": "Godzina zakończenia",
     "whenSilenceBegins": "Kiedy cisza się rozpoczyna",
@@ -2182,7 +2184,7 @@
     "silencePageLabel": "Strona wyciszenia",
     "silencePagePlaceholder": "Wybierz stronę...",
     "silencePageHelp": "Ta strona zostanie wyświetlona, gdy harmonogram wyciszenia się rozpocznie. Jej zmienne nie będą odświeżane podczas wyciszenia.",
-    "scheduleBehaviorTitle": "Przełącznik harmonogramu",
+    "scheduleBehaviorTitle": "Zachowanie harmonogramu",
     "scheduleBehaviorDescription": "Jak tablica reaguje na ponowne włączenie trybu harmonogramu",
     "deferOnReenable": "Czekaj na następną zaplanowaną zmianę",
     "deferOnReenableHint": "Po ponownym włączeniu trybu harmonogramu tablica pozostaje na bieżącej stronie, dopóki harmonogram nie osiągnie kolejnego przedziału. Domyślnie wyłączone, więc tablica aktualizuje się od razu.",
@@ -4045,7 +4047,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "Punkty: {count}",
     "layerMetaText": "Czcionka {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} uciętych"
   },
   "creatorIde": {
     "regionLabel": "IDE twórcy",
@@ -4379,6 +4382,7 @@
     "fits": "Mieści się",
     "doesNotFit": "Nie mieści się",
     "fitReport": "Linia {line} ma {widest} z {cols} kolumn",
-    "nothingCut": "nic nie ucięto"
+    "nothingCut": "nic nie ucięto",
+    "missingOff": "{plugin} jest wyłączone w Integracjach"
   }
 }

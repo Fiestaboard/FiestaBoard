@@ -536,7 +536,7 @@
     "scheduleMode": "Zamanlama Modu",
     "scheduleModeEnabledDescription": "Etkin — sayfalar zamanlamaya göre otomatik olarak döner",
     "scheduleModeDisabledDescription": "Devre dışı — sayfalar manuel olarak kontrol edilir",
-    "defaultPageLabel": "Boşluklar için varsayılan sayfa:",
+    "defaultPageLabel": "Boşluklar için varsayılan sayfa",
     "selectDefaultPage": "Varsayılan bir sayfa seçin",
     "noneNoDefault": "Yok (varsayılan yok)",
     "conflictsDetected": "Zamanlama Çakışmaları Tespit Edildi",
@@ -1851,6 +1851,8 @@
       "overrideUntil": "Manuel · {time} saatine kadar",
       "pauseDisplay": "Ekranı duraklat",
       "pauseHint": "Pano mevcut içeriği göstermeye devam eder; zamanlama hub üzerinde çalışmayı sürdürür.",
+      "pause": "Duraklat",
+      "resume": "Devam et",
       "diagnostics": "Tanılama",
       "changePage": "Sayfayı değiştir…",
       "back": "Ekranlara dön",
@@ -2155,7 +2157,7 @@
     "boardUpdateIntervalDescription": "Panonun içerik güncellemelerini ne sıklıkla kontrol edeceği (saniye cinsinden)",
     "requiresServiceRestart": "Hizmetin yeniden başlatılması gerekir",
     "silenceScheduleLabel": "Sessizlik Zamanlaması",
-    "silenceScheduleDescription": "Belirtilen saatlerde pano güncellemelerini engelle",
+    "silenceScheduleDescription": "Bu ekranın sessizlik zamanlaması. Sessizken gelen mesajlar aşağıdaki seçime göre işlenir.",
     "startTimeLabel": "Başlangıç Saati",
     "endTimeLabel": "Bitiş Saati",
     "whenSilenceBegins": "Sessizliğin başladığı saat",
@@ -2182,7 +2184,7 @@
     "silencePageLabel": "Sessizlik Sayfası",
     "silencePagePlaceholder": "Bir sayfa seçin...",
     "silencePageHelp": "Sessizlik zamanlaması başladığında bu sayfa görüntülenir. Değişkenleri sessizlik sırasında yenilenmez.",
-    "scheduleBehaviorTitle": "Zamanlama anahtarı",
+    "scheduleBehaviorTitle": "Zamanlama davranışı",
     "scheduleBehaviorDescription": "Zamanlama modu yeniden açıldığında panonun nasıl davranacağı",
     "deferOnReenable": "Bir sonraki zamanlanmış değişikliği bekle",
     "deferOnReenableHint": "Zamanlama modu yeniden açıldığında pano, zamanlama bir sonraki aralığa ulaşana kadar geçerli sayfasında kalır. Varsayılan olarak kapalıdır, bu nedenle pano hemen güncellenir.",
@@ -2201,7 +2203,7 @@
     "boardReadIntervalWarning": "Bunu 60 saniyenin altına ayarlamak Vestaboard'a aşırı yük bindirebilir.",
     "toastBoardReadIntervalUpdated": "Board okuma aralığı güncellendi",
     "toastBoardReadIntervalFailed": "Board okuma aralığı güncellenemedi: {error}",
-    "updateIntervalsTitle": "Güncelleme Aralıkları",
+    "updateIntervalsTitle": "Güncelleme aralıkları",
     "updateIntervalsDescription": "Panonun yeni içerik için ne sıklıkla sorgulama yaptığı ve mevcut durumunu yeniden okuduğu",
     "silenceShowHeldLabel": "Sessizlik bittiğinde bekletilen mesajları göster",
     "silenceShowHeldHelp": "Sessizlik sırasında bu panoya gönderilen bir mesaj bekletilir ve sessizlik biter bitmez gösterilir. Kapalıyken bunun yerine reddedilir. Sayfa değişiklikleri her zaman korunur ve buna ihtiyaç duymaz.",
@@ -4045,7 +4047,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} nokta",
     "layerMetaText": "Yazı tipi {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} kesildi"
   },
   "creatorIde": {
     "regionLabel": "Oluşturucu IDE",
@@ -4379,6 +4382,7 @@
     "fits": "Sığıyor",
     "doesNotFit": "Sığmıyor",
     "fitReport": "{line}. satır {cols} sütunun {widest} tanesi",
-    "nothingCut": "hiçbir şey kesilmedi"
+    "nothingCut": "hiçbir şey kesilmedi",
+    "missingOff": "{plugin}, Entegrasyonlar’da kapalı"
   }
 }

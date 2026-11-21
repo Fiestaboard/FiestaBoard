@@ -492,7 +492,7 @@
     "scheduleMode": "Schedule Mode",
     "scheduleModeEnabledDescription": "Enabled — pages automatically rotate based on schedule",
     "scheduleModeDisabledDescription": "Disabled — pages are controlled manually",
-    "defaultPageLabel": "Default page for gaps:",
+    "defaultPageLabel": "Default page for gaps",
     "selectDefaultPage": "Select a default page",
     "noneNoDefault": "None (no default)",
     "conflictsDetected": "Schedule Conflicts Detected",
@@ -1778,6 +1778,8 @@
       "overrideUntil": "Override · until {time}",
       "pauseDisplay": "Pause display",
       "pauseHint": "The board keeps what it shows; the Schedule keeps running on the hub.",
+      "pause": "Pause",
+      "resume": "Resume",
       "diagnostics": "Diagnostics",
       "changePage": "Change Page…",
       "back": "Back to Displays",
@@ -2074,7 +2076,7 @@
   "generalSettings": {
     "title": "Schedule & Automation",
     "description": "Control when the board is active and how often it updates",
-    "updateIntervalsTitle": "Update Intervals",
+    "updateIntervalsTitle": "Update intervals",
     "updateIntervalsDescription": "How often the board polls for new content and re-reads its current state",
     "timezoneLabel": "Timezone",
     "timezoneDescription": "All times in the application will be displayed in this timezone",
@@ -2091,7 +2093,7 @@
     "toastBoardReadIntervalUpdated": "Board read interval updated",
     "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
     "silenceScheduleLabel": "Silence Schedule",
-    "silenceScheduleDescription": "Prevent board updates during specified hours",
+    "silenceScheduleDescription": "The Silence Schedule for this display. Messages that arrive while it is silenced follow the choice below.",
     "startTimeLabel": "Start Time",
     "endTimeLabel": "End Time",
     "whenSilenceBegins": "When silence begins",
@@ -2114,7 +2116,7 @@
     "silencePageLabel": "Silence Page",
     "silencePagePlaceholder": "Select a page...",
     "silencePageHelp": "This page will be displayed when the silence schedule starts. Its variables will not refresh while silenced.",
-    "scheduleBehaviorTitle": "Schedule toggle",
+    "scheduleBehaviorTitle": "Schedule behavior",
     "scheduleBehaviorDescription": "How the board reacts when schedule mode is turned back on",
     "deferOnReenable": "Wait for the next scheduled change",
     "deferOnReenableHint": "Leave the board on its current page when schedule mode is turned back on, until the schedule reaches its next window. Off by default, so the board updates straight away.",
@@ -4045,7 +4047,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} points",
     "layerMetaText": "Font {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} cut off"
   },
   "creatorIde": {
     "regionLabel": "Creator IDE",
@@ -4379,6 +4382,7 @@
     "fits": "Fits",
     "doesNotFit": "Doesn't fit",
     "fitReport": "Line {line} is {widest} of {cols} columns",
-    "nothingCut": "nothing cut"
+    "nothingCut": "nothing cut",
+    "missingOff": "{plugin} is off in Integrations"
   }
 }

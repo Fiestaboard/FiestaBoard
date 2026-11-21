@@ -536,7 +536,7 @@
     "scheduleMode": "日程模式",
     "scheduleModeEnabledDescription": "已启用 — 页面根据日程自动轮换",
     "scheduleModeDisabledDescription": "已禁用 — 页面手动控制",
-    "defaultPageLabel": "空档默认页面：",
+    "defaultPageLabel": "空档默认页面",
     "selectDefaultPage": "选择默认页面",
     "noneNoDefault": "无（无默认页面）",
     "conflictsDetected": "检测到日程冲突",
@@ -1851,6 +1851,8 @@
       "overrideUntil": "手动覆盖 · 直到 {time}",
       "pauseDisplay": "暂停显示设备",
       "pauseHint": "看板保留当前显示的内容；日程仍会在中枢上继续运行。",
+      "pause": "暂停",
+      "resume": "继续",
       "diagnostics": "诊断",
       "changePage": "更改页面…",
       "back": "返回显示设备列表",
@@ -2155,7 +2157,7 @@
     "boardUpdateIntervalDescription": "看板检查内容更新的频率（秒）",
     "requiresServiceRestart": "需要重启服务",
     "silenceScheduleLabel": "静默时间表",
-    "silenceScheduleDescription": "在指定时间段内阻止看板更新",
+    "silenceScheduleDescription": "此显示屏的静默日程。静默期间到达的消息按下面的选择处理。",
     "startTimeLabel": "开始时间",
     "endTimeLabel": "结束时间",
     "whenSilenceBegins": "静默开始时间",
@@ -2182,7 +2184,7 @@
     "silencePageLabel": "静音页面",
     "silencePagePlaceholder": "选择页面...",
     "silencePageHelp": "当静音计划开始时,此页面将被显示。其变量在静音期间不会刷新。",
-    "scheduleBehaviorTitle": "日程开关",
+    "scheduleBehaviorTitle": "日程行为",
     "scheduleBehaviorDescription": "重新开启日程模式时展示板的反应方式",
     "deferOnReenable": "等待下一次日程变更",
     "deferOnReenableHint": "重新开启日程模式后，展示板会保持当前页面，直到日程进入下一个时段。默认关闭，此时展示板会立即更新。",
@@ -4045,7 +4047,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} 个点",
     "layerMetaText": "字体 {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} 被截断"
   },
   "creatorIde": {
     "regionLabel": "创作者 IDE",
@@ -4379,6 +4382,7 @@
     "fits": "放得下",
     "doesNotFit": "放不下",
     "fitReport": "第 {line} 行占 {cols} 列中的 {widest} 列",
-    "nothingCut": "无截断"
+    "nothingCut": "无截断",
+    "missingOff": "{plugin} 已在集成中关闭"
   }
 }

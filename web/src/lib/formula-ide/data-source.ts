@@ -58,6 +58,22 @@ export function sampleValues(
   return { values, unsampled };
 }
 
+/**
+ * The catalogue's metadata with each switched-off integration's declared
+ * examples added (BB-E-12), so Sample can fill a plugin the hub leaves blank.
+ */
+export function withDisabledExamples(
+  metadata: Record<string, Record<string, ExampleMeta>> | undefined,
+  disabled: Record<string, { examples: Record<string, string> }> | undefined,
+): Record<string, Record<string, ExampleMeta>> {
+  const merged: Record<string, Record<string, ExampleMeta>> = { ...metadata };
+  for (const [root, { examples }] of Object.entries(disabled ?? {})) {
+    if (merged[root]) continue;
+    merged[root] = Object.fromEntries(Object.entries(examples).map(([field, example]) => [field, { example }]));
+  }
+  return merged;
+}
+
 export interface PreviewContextInput {
   mode: DataSource;
   roots: readonly string[];

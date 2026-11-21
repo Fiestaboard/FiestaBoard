@@ -536,7 +536,7 @@
     "scheduleMode": "Mode planification",
     "scheduleModeEnabledDescription": "Activé — les pages changent automatiquement selon la planification",
     "scheduleModeDisabledDescription": "Désactivé — les pages sont contrôlées manuellement",
-    "defaultPageLabel": "Page par défaut pour les créneaux vides :",
+    "defaultPageLabel": "Page par défaut pour les créneaux vides",
     "selectDefaultPage": "Sélectionner une page par défaut",
     "noneNoDefault": "Aucune (pas de page par défaut)",
     "conflictsDetected": "Conflits de planification détectés",
@@ -1851,6 +1851,8 @@
       "overrideUntil": "Manuel · jusqu’à {time}",
       "pauseDisplay": "Mettre l’écran en pause",
       "pauseHint": "Le tableau conserve son affichage ; la programmation continue de s’exécuter sur le hub.",
+      "pause": "Mettre en pause",
+      "resume": "Reprendre",
       "diagnostics": "Diagnostic",
       "changePage": "Changer de page…",
       "back": "Retour aux écrans",
@@ -2155,7 +2157,7 @@
     "boardUpdateIntervalDescription": "Fréquence à laquelle le tableau vérifie les mises à jour de contenu (en secondes)",
     "requiresServiceRestart": "Nécessite un redémarrage du service",
     "silenceScheduleLabel": "Plage de silence",
-    "silenceScheduleDescription": "Empêcher les mises à jour du tableau pendant les heures spécifiées",
+    "silenceScheduleDescription": "Le planning de silence de cet écran. Les messages qui arrivent pendant le silence suivent le choix ci-dessous.",
     "startTimeLabel": "Heure de début",
     "endTimeLabel": "Heure de fin",
     "whenSilenceBegins": "Début de la période de silence",
@@ -2182,7 +2184,7 @@
     "silencePageLabel": "Page de silence",
     "silencePagePlaceholder": "Sélectionnez une page…",
     "silencePageHelp": "Cette page sera affichée au début du planning de silence. Ses variables ne s'actualiseront pas pendant le silence.",
-    "scheduleBehaviorTitle": "Bascule de la planification",
+    "scheduleBehaviorTitle": "Comportement de la planification",
     "scheduleBehaviorDescription": "Comment le tableau réagit lorsque le mode planification est réactivé",
     "deferOnReenable": "Attendre le prochain changement planifié",
     "deferOnReenableHint": "Laisse le tableau sur sa page actuelle lors de la réactivation du mode planification, jusqu'à ce que la planification atteigne sa prochaine plage. Désactivé par défaut : le tableau se met à jour immédiatement.",
@@ -4045,7 +4047,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} points",
     "layerMetaText": "Police {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} coupés"
   },
   "creatorIde": {
     "regionLabel": "IDE du créateur",
@@ -4379,6 +4382,7 @@
     "fits": "Tient",
     "doesNotFit": "Ne tient pas",
     "fitReport": "La ligne {line} fait {widest} sur {cols} colonnes",
-    "nothingCut": "rien de coupé"
+    "nothingCut": "rien de coupé",
+    "missingOff": "{plugin} est désactivé dans Intégrations"
   }
 }

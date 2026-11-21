@@ -10,11 +10,14 @@ to know to ask both.
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import HTTPException, Query
 
 from src.api_errors import errors
 from src.devices import HardwareDeviceType, geometry_of
 from src.plugins import routes as plugins_routes
+from src.plugins.registry import get_plugin_registry
 from src.service_api import routes as service_routes
 from src.service_api.models import HealthResponse, StatusResponse
 from src.templates import routes as templates_routes
@@ -50,7 +53,11 @@ async def list_variables() -> VariableCatalog:
         if isinstance(length, int):
             max_lengths.setdefault(name, length)
 
+    registry = get_plugin_registry()
+    disabled = await asyncio.to_thread(registry.get_disabled_plugin_samples) if registry else {}
+
     return VariableCatalog(
+        disabled_plugins=disabled,
         variables=variables,
         max_lengths=max_lengths,
         variable_metadata=template_view.variable_metadata,

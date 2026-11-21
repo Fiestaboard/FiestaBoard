@@ -536,7 +536,7 @@
     "scheduleMode": "스케줄 모드",
     "scheduleModeEnabledDescription": "활성화됨 — 스케줄에 따라 페이지가 자동으로 순환됩니다",
     "scheduleModeDisabledDescription": "비활성화됨 — 페이지가 수동으로 제어됩니다",
-    "defaultPageLabel": "빈 시간대 기본 페이지:",
+    "defaultPageLabel": "빈 시간대 기본 페이지",
     "selectDefaultPage": "기본 페이지 선택",
     "noneNoDefault": "없음 (기본값 없음)",
     "conflictsDetected": "스케줄 충돌 감지됨",
@@ -1851,6 +1851,8 @@
       "overrideUntil": "수동 표시 · {time}까지",
       "pauseDisplay": "디스플레이 일시 중지",
       "pauseHint": "보드는 현재 내용을 계속 표시하며, 허브에서는 일정이 계속 실행됩니다.",
+      "pause": "일시 정지",
+      "resume": "재개",
       "diagnostics": "진단",
       "changePage": "페이지 변경…",
       "back": "디스플레이 목록으로 돌아가기",
@@ -2155,7 +2157,7 @@
     "boardUpdateIntervalDescription": "보드가 콘텐츠 업데이트를 확인하는 주기 (초)",
     "requiresServiceRestart": "서비스 재시작이 필요합니다",
     "silenceScheduleLabel": "무음 스케줄",
-    "silenceScheduleDescription": "지정된 시간 동안 보드 업데이트를 방지합니다",
+    "silenceScheduleDescription": "이 디스플레이의 무음 일정입니다. 무음 중에 도착한 메시지는 아래 선택을 따릅니다.",
     "startTimeLabel": "시작 시간",
     "endTimeLabel": "종료 시간",
     "whenSilenceBegins": "무음 시작 시간",
@@ -2182,7 +2184,7 @@
     "silencePageLabel": "묵음 페이지",
     "silencePagePlaceholder": "페이지 선택...",
     "silencePageHelp": "묵음 일정이 시작되면 이 페이지가 표시됩니다. 묵음 중에는 변수가 새로고침되지 않습니다.",
-    "scheduleBehaviorTitle": "일정 전환",
+    "scheduleBehaviorTitle": "일정 동작",
     "scheduleBehaviorDescription": "일정 모드를 다시 켰을 때 보드가 반응하는 방식",
     "deferOnReenable": "다음 예정된 변경까지 대기",
     "deferOnReenableHint": "일정 모드를 다시 켜도 일정이 다음 구간에 도달할 때까지 보드가 현재 페이지를 유지합니다. 기본값은 꺼짐이며, 이 경우 보드가 즉시 업데이트됩니다.",
@@ -4045,7 +4047,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "점 {count}개",
     "layerMetaText": "글꼴 {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} 잘림"
   },
   "creatorIde": {
     "regionLabel": "크리에이터 IDE",
@@ -4379,6 +4382,7 @@
     "fits": "맞음",
     "doesNotFit": "맞지 않음",
     "fitReport": "{line}번째 줄은 {cols}열 중 {widest}열",
-    "nothingCut": "잘린 부분 없음"
+    "nothingCut": "잘린 부분 없음",
+    "missingOff": "{plugin}이(가) 통합에서 꺼져 있습니다"
   }
 }

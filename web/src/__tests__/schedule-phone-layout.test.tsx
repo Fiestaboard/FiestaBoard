@@ -76,6 +76,10 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-17T10:00:00Z") });
   matchMedia = window.matchMedia;
   localStorage.setItem("schedule-view-mode", "calendar");
+  // The phone agenda opens on today, and the fixture's entry runs on
+  // weekdays: pin a Wednesday so the suite passes on a weekend too.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 10, 18, 12, 0, 0));
 });
 afterEach(() => {
   vi.useRealTimers();

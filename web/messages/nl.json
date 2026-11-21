@@ -536,7 +536,7 @@
     "scheduleMode": "Planningsmodus",
     "scheduleModeEnabledDescription": "Ingeschakeld — pagina's roteren automatisch volgens planning",
     "scheduleModeDisabledDescription": "Uitgeschakeld — pagina's worden handmatig bediend",
-    "defaultPageLabel": "Standaardpagina voor tussenpozen:",
+    "defaultPageLabel": "Standaardpagina voor tussenpozen",
     "selectDefaultPage": "Selecteer een standaardpagina",
     "noneNoDefault": "Geen (geen standaard)",
     "conflictsDetected": "Planningsconflicten gedetecteerd",
@@ -1851,6 +1851,8 @@
       "overrideUntil": "Handmatig · tot {time}",
       "pauseDisplay": "Scherm pauzeren",
       "pauseHint": "Het bord blijft de huidige inhoud tonen; het schema blijft op de hub doorlopen.",
+      "pause": "Pauzeren",
+      "resume": "Hervatten",
       "diagnostics": "Diagnostiek",
       "changePage": "Pagina wijzigen…",
       "back": "Terug naar schermen",
@@ -2155,7 +2157,7 @@
     "boardUpdateIntervalDescription": "Hoe vaak het bord op inhoudsupdates controleert (in seconden)",
     "requiresServiceRestart": "Herstart van service vereist",
     "silenceScheduleLabel": "Stilteperiode",
-    "silenceScheduleDescription": "Voorkom bordupdates tijdens opgegeven uren",
+    "silenceScheduleDescription": "Het stilteschema voor dit scherm. Berichten die binnenkomen terwijl het stil is, volgen de keuze hieronder.",
     "startTimeLabel": "Starttijd",
     "endTimeLabel": "Eindtijd",
     "whenSilenceBegins": "Wanneer de stilte begint",
@@ -2182,7 +2184,7 @@
     "silencePageLabel": "Stiltepagina",
     "silencePagePlaceholder": "Selecteer een pagina...",
     "silencePageHelp": "Deze pagina wordt getoond wanneer het stilterooster begint. De variabelen worden niet vernieuwd tijdens stilte.",
-    "scheduleBehaviorTitle": "Planningsschakelaar",
+    "scheduleBehaviorTitle": "Planningsgedrag",
     "scheduleBehaviorDescription": "Hoe het bord reageert wanneer de planningsmodus weer wordt ingeschakeld",
     "deferOnReenable": "Wachten op de volgende geplande wijziging",
     "deferOnReenableHint": "Laat het bord op de huidige pagina staan wanneer de planningsmodus weer wordt ingeschakeld, totdat de planning het volgende tijdvak bereikt. Standaard uit, dus het bord werkt meteen bij.",
@@ -4045,7 +4047,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} punten",
     "layerMetaText": "Lettertype {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} afgekapt"
   },
   "creatorIde": {
     "regionLabel": "Creator-IDE",
@@ -4379,6 +4382,7 @@
     "fits": "Past",
     "doesNotFit": "Past niet",
     "fitReport": "Regel {line} is {widest} van {cols} kolommen",
-    "nothingCut": "niets afgekapt"
+    "nothingCut": "niets afgekapt",
+    "missingOff": "{plugin} staat uit bij Integraties"
   }
 }

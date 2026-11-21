@@ -536,7 +536,7 @@
     "scheduleMode": "Режим расписания",
     "scheduleModeEnabledDescription": "Включено — страницы автоматически сменяются по расписанию",
     "scheduleModeDisabledDescription": "Отключено — страницы управляются вручную",
-    "defaultPageLabel": "Страница по умолчанию для пропусков:",
+    "defaultPageLabel": "Страница по умолчанию для пропусков",
     "selectDefaultPage": "Выберите страницу по умолчанию",
     "noneNoDefault": "Нет (без страницы по умолчанию)",
     "conflictsDetected": "Обнаружены конфликты в расписании",
@@ -1851,6 +1851,8 @@
       "overrideUntil": "Вручную · до {time}",
       "pauseDisplay": "Приостановить дисплей",
       "pauseHint": "Табло сохраняет текущий контент; расписание продолжает работать на хабе.",
+      "pause": "Пауза",
+      "resume": "Продолжить",
       "diagnostics": "Диагностика",
       "changePage": "Сменить страницу…",
       "back": "Назад к дисплеям",
@@ -2155,7 +2157,7 @@
     "boardUpdateIntervalDescription": "Как часто доска проверяет обновления контента (в секундах)",
     "requiresServiceRestart": "Требуется перезапуск сервиса",
     "silenceScheduleLabel": "Расписание тихого режима",
-    "silenceScheduleDescription": "Предотвратить обновления доски в указанные часы",
+    "silenceScheduleDescription": "Расписание тишины для этого экрана. Сообщения, пришедшие во время тишины, обрабатываются по выбору ниже.",
     "startTimeLabel": "Время начала",
     "endTimeLabel": "Время окончания",
     "whenSilenceBegins": "Когда начинается тихий режим",
@@ -2182,7 +2184,7 @@
     "silencePageLabel": "Страница тишины",
     "silencePagePlaceholder": "Выберите страницу...",
     "silencePageHelp": "Эта страница будет отображаться при старте расписания тишины. Её переменные не будут обновляться во время тишины.",
-    "scheduleBehaviorTitle": "Переключатель расписания",
+    "scheduleBehaviorTitle": "Поведение расписания",
     "scheduleBehaviorDescription": "Как ведёт себя доска при повторном включении режима расписания",
     "deferOnReenable": "Ждать следующего запланированного изменения",
     "deferOnReenableHint": "При повторном включении режима расписания доска остаётся на текущей странице, пока расписание не дойдёт до следующего интервала. По умолчанию выключено, поэтому доска обновляется сразу.",
@@ -4045,7 +4047,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "Точек: {count}",
     "layerMetaText": "Шрифт {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} обрезано"
   },
   "creatorIde": {
     "regionLabel": "IDE создателя",
@@ -4379,6 +4382,7 @@
     "fits": "Помещается",
     "doesNotFit": "Не помещается",
     "fitReport": "Строка {line}: {widest} из {cols} столбцов",
-    "nothingCut": "ничего не обрезано"
+    "nothingCut": "ничего не обрезано",
+    "missingOff": "{plugin} отключено в разделе «Интеграции»"
   }
 }
