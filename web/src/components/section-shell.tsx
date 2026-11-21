@@ -19,6 +19,7 @@ import Link from "@/components/smart-link";
 import { useBelowRail, useRailBreakpoint } from "@/hooks/use-below-rail";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { cn } from "@/lib/utils";
 
 /** The item a section's route has drilled into. */
 export interface SectionDetail {
@@ -55,9 +56,23 @@ interface SectionShellProps {
    * the section's header, breadcrumb and card are not drawn around it.
    */
   bare?: boolean;
+  /**
+   * `"plain"` draws the section on the page with no card around it (07d
+   * Integrations `324:40267`, BB-FC-8). @default "card"
+   */
+  surface?: "card" | "plain";
   /** The route outlet. */
   children: React.ReactNode;
 }
+
+// The kit's PageSubheader draws its own `border-t px-6` block whatever the
+// surface; with no card there is no card edge for that rule to divide, and
+// the crumb and the item's h2 belong on the gutter with the h1 (07d
+// `328:30630`).
+const PLAIN_SURFACE_INSET = [
+  "[&_[data-slot=page-header]]:px-0 [&_[data-slot=page-toolbar]]:px-0 [&_[data-slot=page-section]]:px-0",
+  "[&_[data-slot=page-subheader]_.border-t]:border-t-0 [&_[data-slot=page-subheader]_.border-t]:px-0",
+].join(" ");
 
 /** The sub-header's action slot, for a detail page's own buttons. Null outside a shell. */
 const ActionSlot = createContext<HTMLElement | null | undefined>(undefined);
@@ -85,6 +100,7 @@ export function SectionShell({
   fill,
   compactOnPhone,
   bare = false,
+  surface = "card",
   children,
 }: SectionShellProps) {
   const railBreakpoint = useRailBreakpoint();
@@ -192,11 +208,16 @@ export function SectionShell({
         // On a phone the page is the surface (07d): the kit's plain card, and
         // the page's own sections on the gutter (DD-W135); a section that is a
         // card's content keeps its inset.
-        surface={compact ? "plain" : "card"}
+        // A section can also ask for no card at every width (07d Integrations
+        // `324:40267`, BB-FC-8): the header, toolbar and sections then sit on
+        // the page gutter (07d `324:50158` title and list at x 16).
+        surface={compact || surface === "plain" ? "plain" : "card"}
         className={
-          compact
-            ? "overflow-visible [&_[data-slot=page-section]:not([data-slot=card]_*)]:px-0 [&_[data-slot=page-toolbar]]:px-0"
-            : undefined
+          cn(
+            compact &&
+              "overflow-visible [&_[data-slot=page-section]:not([data-slot=card]_*)]:px-0 [&_[data-slot=page-toolbar]]:px-0",
+            surface === "plain" && PLAIN_SURFACE_INSET,
+          ) || undefined
         }
       >
         {compact ? (

@@ -952,6 +952,7 @@
     "sourceExternalBadge": "External",
     "updateAvailableBadge": "Update",
     "moreOptionsAriaLabel": "More options",
+    "sectionMenuAriaLabel": "Integration options",
     "addInstanceAction": "Add Instance",
     "instanceNameInlineLabel": "Instance name:",
     "addInstanceInlineHelp": "Creates a new independent instance of this plugin with its own configuration. Use alphanumeric characters, hyphens, or underscores (1-40 chars).",

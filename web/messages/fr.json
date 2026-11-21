@@ -996,6 +996,7 @@
     "sourceExternalBadge": "Externe",
     "updateAvailableBadge": "Mise à jour",
     "moreOptionsAriaLabel": "Plus d'options",
+    "sectionMenuAriaLabel": "Options des intégrations",
     "addInstanceAction": "Ajouter une instance",
     "instanceNameInlineLabel": "Nom de l'instance :",
     "addInstanceInlineHelp": "Crée une nouvelle instance indépendante de ce plugin avec sa propre configuration. Utilisez des caractères alphanumériques, des tirets ou des soulignements (1 à 40 caractères).",
