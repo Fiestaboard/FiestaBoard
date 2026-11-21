@@ -6,7 +6,6 @@ import {
   addDays,
   eachDayOfInterval,
   endOfDay,
-  endOfWeek,
   format,
   getDay,
   isSameDay,
@@ -17,6 +16,14 @@ import {
 
 import type { Collection, Page, ScheduleEntry, SilenceMode } from "./api";
 import { isCollectionId } from "./api";
+
+/**
+ * The last moment of the 7-day week that begins at `weekStart`, whichever day
+ * that is: the Schedule passes a Sunday, the editor timeline a Monday (BB-FP-19).
+ */
+function weekEndOf(weekStart: Date): Date {
+  return endOfDay(addDays(weekStart, 6));
+}
 
 interface BaseCalendarEvent {
   id: string;
@@ -204,7 +211,7 @@ export function scheduleToCalendarEvents(
   sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
 ): ScheduleCalendarEvent[] {
   const events: ScheduleCalendarEvent[] = [];
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+  const weekEnd = weekEndOf(weekStart);
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const pageName = getPageName(schedule.page_id, pages, collections);
@@ -363,7 +370,7 @@ export function silenceToCalendarEvents(
   if (sH === eH && sM === eM) return [];
 
   const events: SilenceCalendarEvent[] = [];
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+  const weekEnd = weekEndOf(weekStart);
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
   const isMidnightRollover = eH < sH || (eH === sH && eM <= sM);
   const pageName =
@@ -431,7 +438,7 @@ export function getCurrentWeekStart(): Date {
  * Format a date range for the calendar header
  */
 export function formatWeekRange(weekStart: Date): string {
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+  const weekEnd = weekEndOf(weekStart);
   const startMonth = format(weekStart, "MMMM");
   const endMonth = format(weekEnd, "MMMM");
   const year = format(weekStart, "yyyy");
