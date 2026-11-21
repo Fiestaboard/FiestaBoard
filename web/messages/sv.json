@@ -348,6 +348,7 @@
     "retryLoading": "Försök läsa in sidorna igen",
     "cardActions": "Åtgärder för {name}",
     "duplicate": "Duplicera",
+    "exportShareString": "Exportera delningssträng",
     "deletePage": "Ta bort sidan…",
     "toastDuplicated": "”{name}” skapad",
     "actionFailed": "Det gick inte. Försök igen."
@@ -1568,6 +1569,7 @@
   "composeDialog": {
     "title": "Skriv ett meddelande",
     "description": "Visas på {board} när du väljer Visa nu. Inget når tavlan före dess.",
+    "descriptionPhone": "Visas på {board} (skärmen i sidhuvudet) när du väljer Visa nu.",
     "messageLabel": "Meddelande",
     "messagePlaceholder": "Skriv ditt meddelande…",
     "previewLabel": "Förhandsvisning",
