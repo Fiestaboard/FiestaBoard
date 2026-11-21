@@ -44,6 +44,7 @@ import { buildStrokeTransaction } from "./utils/stroke-transaction";
 export type LineAlignment = "left" | "center" | "right";
 import { Box, Flex, Stack, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 
+import { useFormulaIdeBridge } from "@/components/formula-ide/formula-ide-context";
 import { useTranslations } from "@/i18n/translations";
 
 import { TemplateEditorToolbar } from "./components/TemplateEditorToolbar";
@@ -242,6 +243,12 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     const [editorLineCount, setEditorLineCount] = useState(() => (value || "").split("\n").length);
     // Actual rendered pixel height of each board line (for gutter alignment)
     const [lineHeights, setLineHeights] = useState<number[]>(() => Array.from({ length: boardLines }, () => 24));
+    // The line the formula IDE is editing or inspecting (BB-FP-15/16).
+    const activeLine = useFormulaIdeBridge()?.activeLine ?? null;
+    const activeLineTop =
+      activeLine !== null && activeLine >= 1 && !drawMode
+        ? lineHeights.slice(0, activeLine - 1).reduce((sum, height) => sum + height, 0)
+        : null;
     const measureScheduledRef = useRef(false);
     // Ref so onUpdate/onCreate (closed over at mount) can call the latest scheduleMeasure
     const scheduleMeasureRef = useRef<(() => void) | null>(null);
@@ -1389,7 +1396,16 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
               minHeight: `${boardLines * 1.5 + 1.5}rem`,
             }}
           >
-            <Flex gap="2" style={{ minHeight: `${boardLines * 1.5}rem` }}>
+            {activeLineTop !== null && activeLine !== null && (
+              <Box
+                aria-hidden="true"
+                data-testid="template-active-line"
+                className="pointer-events-none absolute inset-x-1.5 rounded-sm bg-tint-selected"
+                style={{ top: `calc(0.75rem + ${activeLineTop}px)`, height: `${lineHeights[activeLine - 1] ?? 24}px` }}
+              />
+            )}
+            {/* Positioned, so it paints over the active-line band. */}
+            <Flex gap="2" className="relative" style={{ minHeight: `${boardLines * 1.5}rem` }}>
               {/* Line numbers gutter */}
               <Box
                 className="select-none shrink-0 text-right"
