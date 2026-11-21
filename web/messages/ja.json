@@ -1223,6 +1223,12 @@
       "computer": "コンピュータ"
     }
   },
+  "notFound": {
+    "title": "ページが見つかりません",
+    "description": "{where} には何もありません。リンクの入力ミスか、ページが移動した可能性があります。",
+    "home": "ホームへ",
+    "help": "ヘルプとドキュメント"
+  },
   "wizard": {
     "welcomeTitle": "FiestaBoard へようこそ",
     "welcomeSubtitle": "簡単なステップでセットアップを完了しましょう",

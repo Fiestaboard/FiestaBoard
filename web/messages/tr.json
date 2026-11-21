@@ -1223,6 +1223,12 @@
       "computer": "bilgisayar"
     }
   },
+  "notFound": {
+    "title": "Sayfa bulunamadı",
+    "description": "{where} adresinde hiçbir şey yok. Bağlantıda yazım hatası olabilir ya da sayfa taşınmış olabilir.",
+    "home": "Ana sayfaya git",
+    "help": "Yardım ve Belgeler"
+  },
   "wizard": {
     "welcomeTitle": "FiestaBoard'a Hoş Geldiniz",
     "welcomeSubtitle": "Birkaç adımda kurulumunuzu tamamlayalım",

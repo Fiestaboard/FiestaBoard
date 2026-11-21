@@ -1223,6 +1223,12 @@
       "computer": "ordinateur"
     }
   },
+  "notFound": {
+    "title": "Page introuvable",
+    "description": "Il n’y a rien à {where}. Le lien contient peut-être une faute de frappe, ou la page a été déplacée.",
+    "home": "Aller à l’accueil",
+    "help": "Aide & Documentation"
+  },
   "wizard": {
     "welcomeTitle": "Bienvenue sur FiestaBoard",
     "welcomeSubtitle": "Configurons tout en quelques étapes",

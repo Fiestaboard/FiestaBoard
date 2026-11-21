@@ -1223,6 +1223,12 @@
       "computer": "computador"
     }
   },
+  "notFound": {
+    "title": "Página não encontrada",
+    "description": "Não há nada em {where}. O link pode ter um erro de digitação ou a página foi movida.",
+    "home": "Ir para o Início",
+    "help": "Ajuda e documentação"
+  },
   "wizard": {
     "welcomeTitle": "Bem-vindo ao FiestaBoard",
     "welcomeSubtitle": "Vamos configurar tudo em apenas alguns passos",

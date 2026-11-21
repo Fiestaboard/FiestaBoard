@@ -1223,6 +1223,12 @@
       "computer": "dator"
     }
   },
+  "notFound": {
+    "title": "Sidan hittades inte",
+    "description": "Det finns inget på {where}. Länken kan ha ett stavfel, eller så har sidan flyttats.",
+    "home": "Gå till Hem",
+    "help": "Hjälp & dokumentation"
+  },
   "wizard": {
     "welcomeTitle": "Välkommen till FiestaBoard",
     "welcomeSubtitle": "Låt oss komma igång med några enkla steg",

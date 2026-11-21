@@ -1223,6 +1223,12 @@
       "computer": "computer"
     }
   },
+  "notFound": {
+    "title": "Pagina niet gevonden",
+    "description": "Er staat niets op {where}. De link bevat misschien een typfout, of de pagina is verplaatst.",
+    "home": "Naar Start",
+    "help": "Help & Documentatie"
+  },
   "wizard": {
     "welcomeTitle": "Welkom bij FiestaBoard",
     "welcomeSubtitle": "Laten we je in een paar stappen instellen",

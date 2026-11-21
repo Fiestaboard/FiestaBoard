@@ -1179,6 +1179,12 @@
       "computer": "computer"
     }
   },
+  "notFound": {
+    "title": "Page not found",
+    "description": "There’s nothing at {where}. The link may have a typo, or the page moved.",
+    "home": "Go to Home",
+    "help": "Help & Docs"
+  },
   "wizard": {
     "welcomeTitle": "Welcome to FiestaBoard",
     "welcomeSubtitle": "Let's get you set up in just a few steps",
