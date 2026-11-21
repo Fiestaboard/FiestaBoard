@@ -76,6 +76,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   window.matchMedia = matchMedia;
+  vi.useRealTimers();
 });
 
 it("puts title, Add and one Schedule Mode row above the day chips and agenda (BB-C-3)", async () => {
@@ -109,6 +110,10 @@ it("keeps the view choice and toolbar on wider screens", async () => {
 });
 
 it("titles the entry sheet with the display and the days it repeats on (BB-C-5)", async () => {
+  // The phone Day agenda opens on today, and the entry runs on weekdays: pin a
+  // Wednesday so the test does not fail every Saturday and Sunday.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 10, 18, 10, 0));
   viewport(true);
   renderPage();
   fireEvent.click((await screen.findAllByRole("button", { name: /Clock & Date/ }))[0]);
