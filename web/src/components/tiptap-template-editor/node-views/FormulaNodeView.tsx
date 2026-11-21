@@ -73,6 +73,10 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
     x: 0,
     y: 0,
   });
+  // Set by the press that opens the editor, cleared by the next press. A tap
+  // ends with a compatibility click on the common ancestor of the chip and the
+  // sheet that is now under the finger; that click is not an outside press.
+  const openingPress = useRef(false);
   // The latest node and IDE for callbacks created at open time.
   const latest = useRef({ node, ide, updateAttributes, deleteNode, editor, getPos });
   useEffect(() => {
@@ -137,6 +141,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
         longPress.current.fired = false;
         return;
       }
+      openingPress.current = e.type === "mousedown";
       openEditor();
     },
     [openEditor],
@@ -193,6 +198,16 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
     },
     ...inspectHandlers,
   };
+
+  // A new press starts a new gesture: its click may dismiss the sheet.
+  useEffect(() => {
+    if (!open) return;
+    const endOpeningPress = () => {
+      openingPress.current = false;
+    };
+    document.addEventListener("pointerdown", endOpeningPress, true);
+    return () => document.removeEventListener("pointerdown", endOpeningPress, true);
+  }, [open]);
 
   // Close on Escape — delete node if it was never given an expression
   useEffect(() => {
@@ -253,7 +268,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
               <span
                 {...triggerProps}
                 data-testid="formula-atom-chip"
-                className="mr-0.5 inline-flex cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+                className="mr-0.5 inline-flex cursor-pointer rounded-sm normal-case focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <FormulaAtom
                   kind="formula"
@@ -265,7 +280,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
             ) : (
               <Badge
                 variant="formula"
-                className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
+                className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed normal-case cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
                 {...triggerProps}
               >
                 <SquareFunction className="w-2.5 h-2.5 flex-shrink-0" />
@@ -291,8 +306,14 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
       {phone ? (
         <Sheet
           open={open}
-          onOpenChange={(next) => {
-            if (!next) handleCancel();
+          onOpenChange={(next, details) => {
+            if (next) return;
+            // The opening tap's own click lands outside the sheet (BB-FP-13).
+            if (details.reason === "outside-press" && details.event.type === "click" && openingPress.current) {
+              openingPress.current = false;
+              return;
+            }
+            handleCancel();
           }}
         >
           <SheetContent
