@@ -82,7 +82,7 @@ test.describe("Settings Page", () => {
     await expect(playback).toBeVisible({ timeout: 10_000 });
     await expect(playback.getByRole("heading", { name: "Silence Schedule", exact: true })).toBeVisible();
     await expect(playback.getByRole("switch", { name: "Silence Schedule", exact: true })).toBeVisible();
-    await expect(playback.getByRole("heading", { name: "Update Intervals", exact: true })).toBeVisible();
+    await expect(playback.getByRole("heading", { name: "Update intervals", exact: true })).toBeVisible();
   });
 
   test("an old ?section=integrations link opens AI provider", async ({ page }) => {
