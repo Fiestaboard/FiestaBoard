@@ -1559,6 +1559,7 @@
   "composeDialog": {
     "title": "Scrivi un messaggio",
     "description": "Compare su {board} quando scegli Mostra ora. Prima di allora nulla arriva al tabellone.",
+    "descriptionPhone": "Compare su {board} (il display nell’intestazione) quando scegli Mostra ora.",
     "messageLabel": "Messaggio",
     "messagePlaceholder": "Scrivi il tuo messaggio…",
     "previewLabel": "Anteprima",

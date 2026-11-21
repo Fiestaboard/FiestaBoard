@@ -1559,6 +1559,7 @@
   "composeDialog": {
     "title": "Rédiger un message",
     "description": "S’affiche sur {board} quand vous choisissez Afficher maintenant. Rien n’atteint le tableau avant.",
+    "descriptionPhone": "S’affiche sur {board} (l’écran de l’en-tête) quand vous choisissez Afficher maintenant.",
     "messageLabel": "Message",
     "messagePlaceholder": "Saisissez votre message…",
     "previewLabel": "Aperçu",

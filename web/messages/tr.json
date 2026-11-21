@@ -1559,6 +1559,7 @@
   "composeDialog": {
     "title": "Mesaj yaz",
     "description": "Şimdi göster’i seçtiğinizde {board} cihazında gösterilir. Ondan önce panoya hiçbir şey ulaşmaz.",
+    "descriptionPhone": "Şimdi göster’i seçtiğinizde {board} (başlıktaki ekran) cihazında gösterilir.",
     "messageLabel": "Mesaj",
     "messagePlaceholder": "Mesajınızı yazın…",
     "previewLabel": "Önizleme",

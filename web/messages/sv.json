@@ -1559,6 +1559,7 @@
   "composeDialog": {
     "title": "Skriv ett meddelande",
     "description": "Visas på {board} när du väljer Visa nu. Inget når tavlan före dess.",
+    "descriptionPhone": "Visas på {board} (skärmen i sidhuvudet) när du väljer Visa nu.",
     "messageLabel": "Meddelande",
     "messagePlaceholder": "Skriv ditt meddelande…",
     "previewLabel": "Förhandsvisning",
