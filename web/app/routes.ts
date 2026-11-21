@@ -39,4 +39,6 @@ export default [
   route("schedule", "routes/schedule.tsx"),
   route("panel/:panelId", "routes/panel.tsx"),
   route("p/:panelId", "routes/panel-short.tsx"),
+  // Anything else: a not-found page inside the app shell (BB-A-9).
+  route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;
