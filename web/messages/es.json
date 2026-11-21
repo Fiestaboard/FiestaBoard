@@ -997,6 +997,7 @@
     "sourceExternalBadge": "Externo",
     "updateAvailableBadge": "Actualización",
     "moreOptionsAriaLabel": "Más opciones",
+    "sectionMenuAriaLabel": "Opciones de integraciones",
     "addInstanceAction": "Añadir instancia",
     "instanceNameInlineLabel": "Nombre de la instancia:",
     "addInstanceInlineHelp": "Crea una nueva instancia independiente de este plugin con su propia configuración. Usa caracteres alfanuméricos, guiones o guiones bajos (1-40 caracteres).",

@@ -997,6 +997,7 @@
     "sourceExternalBadge": "Zewnętrzna",
     "updateAvailableBadge": "Aktualizacja",
     "moreOptionsAriaLabel": "Więcej opcji",
+    "sectionMenuAriaLabel": "Opcje integracji",
     "addInstanceAction": "Dodaj instancję",
     "instanceNameInlineLabel": "Nazwa instancji:",
     "addInstanceInlineHelp": "Tworzy nową, niezależną instancję tej wtyczki z własną konfiguracją. Użyj znaków alfanumerycznych, myślników lub podkreśleń (1-40 znaków).",

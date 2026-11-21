@@ -997,6 +997,7 @@
     "sourceExternalBadge": "Внешний",
     "updateAvailableBadge": "Обновление",
     "moreOptionsAriaLabel": "Другие параметры",
+    "sectionMenuAriaLabel": "Параметры интеграций",
     "addInstanceAction": "Добавить экземпляр",
     "instanceNameInlineLabel": "Имя экземпляра:",
     "addInstanceInlineHelp": "Создаёт новый независимый экземпляр этого плагина с собственной конфигурацией. Используйте буквенно-цифровые символы, дефисы или подчёркивания (1–40 символов).",
