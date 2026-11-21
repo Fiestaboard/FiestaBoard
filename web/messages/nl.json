@@ -1760,7 +1760,15 @@
     "textMode": "Tekst",
     "canvasesMode": "Canvassen",
     "showPreview": "Voorbeeld en live-uitvoer tonen",
-    "hidePreview": "Voorbeeld en live-uitvoer verbergen"
+    "hidePreview": "Voorbeeld en live-uitvoer verbergen",
+    "discardDialogClose": "Sluiten",
+    "discardChangesSince": "Je hebt sinds {time} {count, plural, one {1 regel} other {# regels}} gewijzigd. Als je nu weggaat, gaan ze verloren.",
+    "discardChangesLost": "Als je nu weggaat, gaan je wijzigingen verloren.",
+    "discardChangesBoardKeeps": "{board} blijft de opgeslagen versie tonen.",
+    "discardChangesDisplaysKeep": "Schermen blijven de opgeslagen versie tonen.",
+    "discardChangedLabel": "Gewijzigd",
+    "discardChangedLine": "Regel {line} ({text})",
+    "discardChangedLineEmpty": "Regel {line} (leeg)"
   },
   "displaySettings": {
     "unnamedBoard": "Naamloos bord",
@@ -3862,7 +3870,9 @@
     "replay": "Afspelen",
     "replayHint": "Split-flap-animatie afspelen",
     "previewTarget": "Voorbeelddoel",
-    "previewTargetTrigger": "Voorbeeld op {target}"
+    "previewTargetTrigger": "Voorbeeld op {target}",
+    "discardDraft": "Verwerpen",
+    "lastSaved": "laatst opgeslagen {time}"
   },
   "phonePairing": {
     "title": "Een telefoon verbinden",
@@ -4236,7 +4246,14 @@
     "replaceDraft": "Concept vervangen",
     "draftConflictTitle": "Nieuwer concept vervangen?",
     "draftConflictDescription": "Een ander apparaat heeft het concept van deze pagina opgeslagen nadat je hem opende. Bij vervangen blijft alleen over wat in deze editor staat.",
-    "legendLabel": "Planningsitems"
+    "legendLabel": "Planningsitems",
+    "draftRestored": "Concept hersteld",
+    "draftRestoredStale": "Concept hersteld · de pagina is sindsdien gewijzigd",
+    "draftSavedAt": "Concept opgeslagen {time}",
+    "liveOn": "Live op {board}",
+    "deletePage": "Pagina verwijderen…",
+    "deletePageDetail": "Haalt haar uit alle schema’s en collecties",
+    "autosavePaused": "Niet opgeslagen · een concept van elders wacht in Geschiedenis"
   },
   "formulaIde": {
     "atomValue": "= {value}",

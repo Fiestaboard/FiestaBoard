@@ -37,8 +37,8 @@ export function LineProducesCard({ line, rendered }: { line: LineDiagnostic; ren
   return (
     <Card data-testid="line-produces" className="gap-2 py-4">
       <CardHeader className="px-4">
-        {/* Heading/sm 14/600 (Figma 111:30911). */}
-        <CardTitle as="h3" className="text-sm">
+        {/* Heading/sm 14/600 (Figma 111:30911); level 2 under the editor's h1 (BB-E-23). */}
+        <CardTitle as="h2" className="text-sm">
           {t("lineProduces", { line: line.line })}
         </CardTitle>
       </CardHeader>

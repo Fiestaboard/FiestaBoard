@@ -1760,7 +1760,15 @@
     "textMode": "Tekst",
     "canvasesMode": "Płótna",
     "showPreview": "Pokaż podgląd i wyjście na żywo",
-    "hidePreview": "Ukryj podgląd i wyjście na żywo"
+    "hidePreview": "Ukryj podgląd i wyjście na żywo",
+    "discardDialogClose": "Zamknij",
+    "discardChangesSince": "Od {time} zmieniono {count, plural, one {1 wiersz} few {# wiersze} many {# wierszy} other {# wiersza}}. Jeśli wyjdziesz teraz, zmiany przepadną.",
+    "discardChangesLost": "Jeśli wyjdziesz teraz, zmiany przepadną.",
+    "discardChangesBoardKeeps": "{board} nadal pokazuje zapisaną wersję.",
+    "discardChangesDisplaysKeep": "Wyświetlacze nadal pokazują zapisaną wersję.",
+    "discardChangedLabel": "Zmieniono",
+    "discardChangedLine": "Wiersz {line} ({text})",
+    "discardChangedLineEmpty": "Wiersz {line} (pusty)"
   },
   "displaySettings": {
     "unnamedBoard": "Tablica bez nazwy",
@@ -3862,7 +3870,9 @@
     "replay": "Odtwórz",
     "replayHint": "Odtwórz animację klapek",
     "previewTarget": "Cel podglądu",
-    "previewTargetTrigger": "Podgląd na {target}"
+    "previewTargetTrigger": "Podgląd na {target}",
+    "discardDraft": "Odrzuć",
+    "lastSaved": "ostatni zapis {time}"
   },
   "phonePairing": {
     "title": "Połącz telefon",
@@ -4236,7 +4246,14 @@
     "replaceDraft": "Zastąp szkic",
     "draftConflictTitle": "Zastąpić nowszy szkic?",
     "draftConflictDescription": "Inne urządzenie zapisało szkic tej strony po jej otwarciu. Zastąpienie zachowa tylko zawartość tego edytora.",
-    "legendLabel": "Wpisy harmonogramu"
+    "legendLabel": "Wpisy harmonogramu",
+    "draftRestored": "Przywrócono szkic",
+    "draftRestoredStale": "Przywrócono szkic · strona zmieniła się od tego czasu",
+    "draftSavedAt": "Szkic zapisany {time}",
+    "liveOn": "Na żywo na {board}",
+    "deletePage": "Usuń stronę…",
+    "deletePageDetail": "Usuwa ją ze wszystkich harmonogramów i kolekcji",
+    "autosavePaused": "Niezapisane · szkic z innego miejsca czeka w Historii"
   },
   "formulaIde": {
     "atomValue": "= {value}",
