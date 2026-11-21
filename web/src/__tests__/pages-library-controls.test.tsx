@@ -678,9 +678,19 @@ describe("Pages library card", () => {
     const alpha = card("Alpha");
     expect(alpha.firstElementChild).toHaveAttribute("data-card-preview");
     const meta = alpha.querySelector<HTMLElement>("[data-card-meta]")!;
-    expect(meta).toHaveTextContent(/Main ·\s*Flagship\s*22\s*×\s*6/);
+    expect(meta).toHaveTextContent(/Main\s*·\s*Flagship\s*22\s*×\s*6/);
     expect(meta).toHaveTextContent(/Edited /);
     await waitFor(() => expect(card("Beta").querySelector("[data-card-meta]")).toHaveTextContent(/Schedule 7:00/));
+  });
+
+  // FABLE-2608 M1: a page never edited since it was made reads its creation
+  // time (the hub sets updated_at only on an update).
+  it("dates a never-edited page by when it was created", async () => {
+    renderLibrary();
+    await screen.findByText("Beta");
+    await waitFor(() =>
+      expect(card("Beta").querySelector("[data-card-meta]")).toHaveTextContent(/Edited .+ · Schedule 7:00/),
+    );
   });
 
   it("badges the page on screen as Now showing", async () => {

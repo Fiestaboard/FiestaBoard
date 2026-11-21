@@ -315,7 +315,10 @@ const PageButton = memo(
     );
 
     const deviceType = page.device_type || "flagship";
-    const edited = page.updated_at ? t("cardEdited", { when: formatRelativeTime(page.updated_at, locale) }) : null;
+    // The hub sets updated_at only on an update: a page never edited since it
+    // was made dates from its creation (FABLE-2608 M1).
+    const editedAt = page.updated_at ?? page.created_at;
+    const edited = editedAt ? t("cardEdited", { when: formatRelativeTime(editedAt, locale) }) : null;
     const scheduled = meta?.scheduledAt ? t("cardScheduled", { time: meta.scheduledAt }) : null;
     const lineTwo = [edited, scheduled].filter(Boolean).join(" · ");
 
@@ -332,7 +335,8 @@ const PageButton = memo(
       >
         {/* The board is a picture of the page inside the card's button:
             decorative, so the card is named by its page and size alone
-            whether or not the preview has rendered (BB-B-28). */}
+            whether or not the preview has rendered (BB-B-28). Figma's
+            Thumbnail is 155 px tall; the kit has no token for it (DD-W151). */}
         <Box
           className="hover-stable flex h-[155px] w-full items-center justify-center overflow-hidden bg-muted"
           aria-hidden="true"
@@ -366,9 +370,14 @@ const PageButton = memo(
           </Flex>
           <Text as="span" size="xs" tone="muted" className="flex min-w-0 items-center gap-1 truncate">
             {meta?.displayName && (
-              <Text as="span" size="xs" tone="muted" className="truncate">
-                {meta.displayName} ·
-              </Text>
+              <>
+                <Text as="span" size="xs" tone="muted" className="truncate">
+                  {meta.displayName}
+                </Text>
+                <Text as="span" size="xs" tone="muted" className="shrink-0" aria-hidden="true">
+                  ·
+                </Text>
+              </>
             )}
             <Text as="span" size="xs" tone="muted" className="shrink-0">
               {deviceFamilyLabel(deviceType)}
@@ -413,6 +422,7 @@ const PageButton = memo(
       prevProps.isActive === nextProps.isActive &&
       prevProps.isPending === nextProps.isPending &&
       prevProps.page.updated_at === nextProps.page.updated_at &&
+      prevProps.page.created_at === nextProps.page.created_at &&
       prevProps.showActiveIndicator === nextProps.showActiveIndicator &&
       prevProps.boardType === nextProps.boardType &&
       prevProps.model === nextProps.model &&
