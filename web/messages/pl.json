@@ -1570,6 +1570,7 @@
   "composeDialog": {
     "title": "Napisz wiadomość",
     "description": "Pojawi się na {board} po wybraniu Pokaż teraz. Wcześniej nic nie trafi na tablicę.",
+    "descriptionPhone": "Pojawi się na {board} (wyświetlacz w nagłówku) po wybraniu Pokaż teraz.",
     "messageLabel": "Wiadomość",
     "messagePlaceholder": "Wpisz swoją wiadomość…",
     "previewLabel": "Podgląd",
