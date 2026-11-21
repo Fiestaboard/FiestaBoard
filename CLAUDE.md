@@ -77,6 +77,18 @@ The only code that may run locally:
 - `/qa-a11y-docs` - Audit markdown docs for accessibility issues
 - `/fix-a11y` - Fix accessibility findings on a feature branch and open a PR
 
+### Before Opening a PR
+
+CI no longer runs Claude reviews on PRs — accessibility and docs review happen
+here, before check-in:
+
+- **UI change** (`web/src/**/*.tsx`, `web/messages/**`): run `/qa-a11y <area>`
+  for the routes you touched and fix what it finds (`/fix-a11y`).
+- **Docs change** (`**/*.md`, `plugins/*/docs/**`, excluding `.changeset/`):
+  run `/qa-a11y-docs <path>` and `/improve-docs <path>` on the files you edited.
+  Check facts against the code, keep example data free of real PII, and keep
+  FiestaBoard (this app) distinct from Vestaboard (the hardware).
+
 ### When Suggesting Commands
 
 Always suggest Docker-based commands:

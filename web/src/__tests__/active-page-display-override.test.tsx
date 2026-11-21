@@ -115,6 +115,7 @@ function useSchedule(schedule: Record<string, unknown>, detail: Record<string, u
 afterEach(() => {
   server.resetHandlers();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("ActivePageDisplay - Now showing", () => {
@@ -318,5 +319,71 @@ describe("ActivePageDisplay - Now showing", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
     const hints = await screen.findByTestId("home-key-hints");
     expect(hints).toHaveTextContent("CComposePChange Page");
+  });
+});
+
+// BB-FH-7, BB-FH-9 (07a `302:20841`): the actions are Button lg (40 px) and
+// the card's meta names the hub: "Flagship 22 × 6 · fiestapi.local".
+describe("ActivePageDisplay - 07a desktop details", () => {
+  it("draws Change Page, Cancel override and Edit page at Button lg", async () => {
+    useSchedule({ temporary_override: override(42 * 60) });
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    const card = await screen.findByTestId("now-showing");
+    await within(card).findByText("Override");
+    for (const name of [/Change Page/, /Cancel override/]) {
+      expect(within(card).getByRole("button", { name })).toHaveAttribute("data-size", "lg");
+    }
+    expect(within(card).getByRole("link", { name: /Edit page/ })).toHaveAttribute("data-size", "lg");
+  });
+
+  function atWidth(width: number) {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: (() => {
+            const min = /min-width:\s*(\d+)/.exec(query);
+            const max = /max-width:\s*(\d+)/.exec(query);
+            return (!min || width >= Number(min[1])) && (!max || width <= Number(max[1]));
+          })(),
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+  }
+  function hubNamed(name: string) {
+    server.use(http.get(`${API_BASE}/settings/all`, () => HttpResponse.json({ general: { instance_name: name } })));
+  }
+
+  it("names the hub after the type and size on a desktop", async () => {
+    atWidth(1440);
+    hubNamed("Maya’s FiestaPi");
+    useSchedule({});
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    const card = await screen.findByTestId("now-showing");
+    expect(await within(card).findByText("Flagship 22 × 6 · Maya’s FiestaPi")).toBeInTheDocument();
+  });
+
+  it("says the type and size alone when the hub has no name", async () => {
+    atWidth(1440);
+    hubNamed("");
+    useSchedule({});
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    const card = await screen.findByTestId("now-showing");
+    expect(await within(card).findByText("Flagship 22 × 6")).toBeInTheDocument();
+  });
+
+  it("leaves the hub out at medium width, as the 900 frame does", async () => {
+    atWidth(900);
+    hubNamed("Maya’s FiestaPi");
+    useSchedule({});
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    const card = await screen.findByTestId("now-showing");
+    expect(await within(card).findByText("Flagship 22 × 6")).toBeInTheDocument();
+    expect(within(card).queryByText(/Maya’s FiestaPi/)).toBeNull();
   });
 });
