@@ -344,6 +344,7 @@
     "retryLoading": "Ponów wczytywanie stron",
     "cardActions": "Działania dla {name}",
     "duplicate": "Duplikuj",
+    "exportShareString": "Eksportuj ciąg udostępniania",
     "deletePage": "Usuń stronę…",
     "toastDuplicated": "Utworzono „{name}”",
     "actionFailed": "Nie udało się. Spróbuj ponownie."
@@ -1565,6 +1566,7 @@
   "composeDialog": {
     "title": "Napisz wiadomość",
     "description": "Pojawi się na {board} po wybraniu Pokaż teraz. Wcześniej nic nie trafi na tablicę.",
+    "descriptionPhone": "Pojawi się na {board} (wyświetlacz w nagłówku) po wybraniu Pokaż teraz.",
     "messageLabel": "Wiadomość",
     "messagePlaceholder": "Wpisz swoją wiadomość…",
     "previewLabel": "Podgląd",

@@ -300,6 +300,7 @@
     "retryLoading": "Retry loading pages",
     "cardActions": "Actions for {name}",
     "duplicate": "Duplicate",
+    "exportShareString": "Export share string",
     "deletePage": "Delete page…",
     "toastDuplicated": "Made “{name}”",
     "actionFailed": "Couldn’t do that. Try again."
@@ -1521,6 +1522,7 @@
   "composeDialog": {
     "title": "Compose a message",
     "description": "Shows on {board} when you choose Show now. Nothing reaches the board before that.",
+    "descriptionPhone": "Shows on {board} (the display in the header) when you choose Show now.",
     "messageLabel": "Message",
     "messagePlaceholder": "Type your message…",
     "previewLabel": "Preview",
