@@ -101,7 +101,11 @@
     "about": "FiestaBoard hakkında",
     "signOut": "Oturumu kapat",
     "popoverLabel": "Hesap menüsü",
-    "account": "Hesap"
+    "account": "Hesap",
+    "theme": "Tema",
+    "signOutBrowser": "Bu tarayıcıda oturumu kapat",
+    "ownerLine": "{username} · {hub} sahibi",
+    "updateBadge": "{version} sürümüne güncelle"
   },
   "aboutDialog": {
     "description": "Kendi sunucunuzda. Sizin hub’ınız, ekranlarınız, verileriniz.",

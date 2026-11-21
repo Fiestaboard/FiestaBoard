@@ -101,7 +101,11 @@
     "about": "Sobre o FiestaBoard",
     "signOut": "Terminar sessão",
     "popoverLabel": "Menu da conta",
-    "account": "Conta"
+    "account": "Conta",
+    "theme": "Tema",
+    "signOutBrowser": "Terminar sessão neste navegador",
+    "ownerLine": "{username} · Proprietário de {hub}",
+    "updateBadge": "Atualizar para {version}"
   },
   "aboutDialog": {
     "description": "Auto-alojado. O seu hub, os seus ecrãs, os seus dados.",

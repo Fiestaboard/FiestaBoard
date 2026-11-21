@@ -101,7 +101,11 @@
     "about": "FiestaBoard 정보",
     "signOut": "로그아웃",
     "popoverLabel": "계정 메뉴",
-    "account": "계정"
+    "account": "계정",
+    "theme": "테마",
+    "signOutBrowser": "이 브라우저에서 로그아웃",
+    "ownerLine": "{username} · {hub} 소유자",
+    "updateBadge": "{version}(으)로 업데이트"
   },
   "aboutDialog": {
     "description": "셀프 호스팅. 나의 허브, 나의 디스플레이, 나의 데이터.",
