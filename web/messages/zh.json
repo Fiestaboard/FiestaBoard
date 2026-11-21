@@ -434,8 +434,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -443,7 +441,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "viewModeLabel": "视图模式",
     "gridView": "平铺视图",
@@ -519,7 +516,14 @@
     "safetyUnavailable": "无法加载显示屏状态。请重试后再显示此合集。",
     "selectedBadge": "已选择",
     "defaultHint": "如果没有匹配的规则，则显示",
-    "collectionSettings": "合集设置"
+    "collectionSettings": "合集设置",
+    "everyDuration": "每 {duration}",
+    "cardSchedule": "日程 · {schedule}",
+    "notScheduled": "未安排",
+    "scheduleSummaryMore": "{summary} · 另外 {count} 个",
+    "showingUntil": "{name} · 显示至 {time}",
+    "nextPage": "下一个：{name}（{duration}）",
+    "collectionRuns": "按日程在 {schedule} 显示此合集"
   },
   "schedule": {
     "title": "日程",

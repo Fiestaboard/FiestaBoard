@@ -359,8 +359,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "interval5s": "5 seconds",
     "interval10s": "10 seconds",
     "interval15s": "15 seconds",
@@ -399,7 +397,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "viewModeLabel": "View mode",
     "gridView": "Tile view",
@@ -475,7 +472,14 @@
     "safetyUnavailable": "Display state could not be loaded. Try again before showing this Collection.",
     "selectedBadge": "Selected",
     "defaultHint": "If no rule matches, show",
-    "collectionSettings": "Collection settings"
+    "collectionSettings": "Collection settings",
+    "everyDuration": "every {duration}",
+    "cardSchedule": "Schedule · {schedule}",
+    "notScheduled": "Not scheduled",
+    "scheduleSummaryMore": "{summary} · +{count} more",
+    "showingUntil": "{name} · showing until {time}",
+    "nextPage": "Next: {name} ({duration})",
+    "collectionRuns": "Collection runs {schedule} in the Schedule"
   },
   "schedule": {
     "title": "Schedule",

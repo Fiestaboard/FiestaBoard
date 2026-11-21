@@ -434,8 +434,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -443,7 +441,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "viewModeLabel": "Weergavemodus",
     "gridView": "Tegelweergave",
@@ -519,7 +516,14 @@
     "safetyUnavailable": "De schermstatus kon niet worden geladen. Probeer het opnieuw voordat je deze collectie toont.",
     "selectedBadge": "Geselecteerd",
     "defaultHint": "Als geen regel overeenkomt, toon",
-    "collectionSettings": "Collectie-instellingen"
+    "collectionSettings": "Collectie-instellingen",
+    "everyDuration": "elke {duration}",
+    "cardSchedule": "Planning · {schedule}",
+    "notScheduled": "Niet gepland",
+    "scheduleSummaryMore": "{summary} · +{count} meer",
+    "showingUntil": "{name} · getoond tot {time}",
+    "nextPage": "Hierna: {name} ({duration})",
+    "collectionRuns": "De collectie draait {schedule} volgens de planning"
   },
   "schedule": {
     "title": "Planning",

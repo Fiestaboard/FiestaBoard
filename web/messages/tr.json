@@ -434,8 +434,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -443,7 +441,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "viewModeLabel": "Görünüm modu",
     "gridView": "Kutucuk görünümü",
@@ -519,7 +516,14 @@
     "safetyUnavailable": "Ekran durumu yüklenemedi. Bu koleksiyonu göstermeden önce tekrar deneyin.",
     "selectedBadge": "Seçildi",
     "defaultHint": "Hiçbir kural eşleşmezse göster",
-    "collectionSettings": "Koleksiyon ayarları"
+    "collectionSettings": "Koleksiyon ayarları",
+    "everyDuration": "her {duration}",
+    "cardSchedule": "Program · {schedule}",
+    "notScheduled": "Programlanmadı",
+    "scheduleSummaryMore": "{summary} · +{count} daha",
+    "showingUntil": "{name} · {time} saatine kadar gösteriliyor",
+    "nextPage": "Sıradaki: {name} ({duration})",
+    "collectionRuns": "Koleksiyon programa göre {schedule} gösterilir"
   },
   "schedule": {
     "title": "Zamanlama",
