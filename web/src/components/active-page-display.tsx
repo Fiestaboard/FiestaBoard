@@ -28,6 +28,7 @@ import { useCurrentBoard } from "@/components/current-board-context";
 import { type BoardActions, BoardActionsMenu, BoardContextMenu } from "@/components/home/board-context-menu";
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { boardMeta, HomeBoard } from "@/components/home/home-board";
+import { HomeColorStrip } from "@/components/home/home-color-strip";
 import { formatClock, formatSpan, overrideOnScreen, scheduleNextChange } from "@/components/home/home-status";
 import { HomeSupportingPane } from "@/components/home/home-supporting-pane";
 import {
@@ -690,38 +691,41 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     </Badge>
   ) : null;
   const boardElement = (
-    <BoardContextMenu actions={boardActions}>
-      {/* TODO(FiestaUI G4): add a board-only last-known state. Dim the hardware
+    <Stack gap="3">
+      <BoardContextMenu actions={boardActions}>
+        {/* TODO(FiestaUI G4): add a board-only last-known state. Dim the hardware
                   picture, keeping viewport controls and scroll instructions at full contrast. */}
-      <Flex
-        justify="center"
-        data-testid="home-board-state"
-        className={
-          sendsDisabled
-            ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-50 [&_[data-slot=led-matrix-display]]:opacity-50"
-            : displayOffline
-              ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-60 [&_[data-slot=led-matrix-display]]:opacity-60"
-              : "overflow-x-hidden"
-        }
-        style={{ contain: "layout style paint" }}
-      >
-        {/* Keyed per display (BB-A-2): a switch mounts a fresh board, whose
+        <Flex
+          justify="center"
+          data-testid="home-board-state"
+          className={
+            sendsDisabled
+              ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-50 [&_[data-slot=led-matrix-display]]:opacity-50"
+              : displayOffline
+                ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-60 [&_[data-slot=led-matrix-display]]:opacity-60"
+                : "overflow-x-hidden"
+          }
+          style={{ contain: "layout style paint" }}
+        >
+          {/* Keyed per display (BB-A-2): a switch mounts a fresh board, whose
             first paint lands at once instead of flapping from the last display. */}
-        <HomeBoard
-          key={(currentBoard ?? boardSettings?.boards?.[0])?.id ?? "primary"}
-          board={currentBoard ?? boardSettings?.boards?.[0]}
-          geometry={activeGeometry}
-          message={displayMessage}
-          cells={displayCells}
-          layers={displayLayers}
-          isLoading={!boardState && !liveMessageForBoard}
-          size="md"
-          layout={phone ? "phone-hero" : undefined}
-          fallbackColor={getEffectiveBoardColor(boardSettings)}
-          fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
-        />
-      </Flex>
-    </BoardContextMenu>
+          <HomeBoard
+            key={(currentBoard ?? boardSettings?.boards?.[0])?.id ?? "primary"}
+            board={currentBoard ?? boardSettings?.boards?.[0]}
+            geometry={activeGeometry}
+            message={displayMessage}
+            cells={displayCells}
+            layers={displayLayers}
+            isLoading={!boardState && !liveMessageForBoard}
+            size="md"
+            layout={phone ? "phone-hero" : undefined}
+            fallbackColor={getEffectiveBoardColor(boardSettings)}
+            fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
+          />
+        </Flex>
+      </BoardContextMenu>
+      <HomeColorStrip size={phone ? "sm" : "md"} />
+    </Stack>
   );
 
   return (
