@@ -1565,6 +1565,7 @@
   "composeDialog": {
     "title": "Redactar un mensaje",
     "description": "Se muestra en {board} cuando pulses Mostrar ahora. Nada llega al tablero antes.",
+    "descriptionPhone": "Se muestra en {board} (la pantalla de la cabecera) cuando pulses Mostrar ahora.",
     "messageLabel": "Mensaje",
     "messagePlaceholder": "Escribe tu mensaje…",
     "previewLabel": "Vista previa",
