@@ -323,6 +323,10 @@ export function ComposePageDialog({
   // one, so the duration choice is part of the flow, not below an inner
   // scroller's fold (BB-A-3). Wider screens keep the dialog.
   const buttonSize = isPhone ? ("touch" as const) : undefined;
+  // BB-FH-2 (07a "Typing"): open with the caret in Message. The default lands
+  // on the first control, the Show on select, where typing typeahead-picks
+  // another display.
+  const focusMessage = () => document.getElementById(messageId);
   const header = {
     title: t("title"),
     description: boardLabel ? t("description", { board: boardLabel }) : t("descriptionNoBoard"),
@@ -508,7 +512,7 @@ export function ComposePageDialog({
   if (isPhone) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" grabber className="max-h-[92dvh]">
+        <SheetContent side="bottom" grabber className="max-h-[92dvh]" initialFocus={focusMessage}>
           <SheetHeader className="pe-12 text-start">
             <SheetTitle>{header.title}</SheetTitle>
             <SheetDescription>{header.description}</SheetDescription>
@@ -531,7 +535,7 @@ export function ComposePageDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" initialFocus={focusMessage}>
         <DialogHeader className="shrink-0">
           <DialogTitle>{header.title}</DialogTitle>
           <DialogDescription>{header.description}</DialogDescription>

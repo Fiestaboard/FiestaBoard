@@ -118,3 +118,43 @@ const FORMULA_ATOM = /\{\{=[^}{]*\}\}/;
 export function templateHasFormula(template: readonly string[]): boolean {
   return template.some((line) => FORMULA_ATOM.test(line));
 }
+
+/**
+ * `{{plugin.field}}` and `{{plugin:instance.field|filter}}` variable paths in a
+ * template, in first-seen order (BB-FP-11). Formulas, colours and formatting
+ * tokens have no `root.field` path and are skipped.
+ */
+const VARIABLE_TOKEN = /\{\{\s*([A-Za-z_][\w-]*(?::[\w-]+)?\.[\w.]+)\s*(?:\|[^{}]*)?\}\}/g;
+
+export function templateVariablePaths(template: readonly string[]): string[] {
+  const paths = new Set<string>();
+  for (const line of template) {
+    for (const match of line.matchAll(VARIABLE_TOKEN)) {
+      // A `*_color` field draws a colour tile, not text: the formula evaluator
+      // has no such field, so probing it would show a false #REF.
+      if (!/_color$/i.test(match[1])) paths.add(match[1]);
+    }
+  }
+  return [...paths];
+}
+
+/**
+ * Variable hints from the probe render. Where the formula evaluator reports an
+ * error for a bare path (missing source or field, null, a list), the board's
+ * plain `{{path}}` substitution prints `???`, so the chip says that too.
+ */
+export function buildVariableHintIndex(diagnostics: RenderDiagnostics | null | undefined): Map<string, AtomHint> {
+  const index = buildHintIndex(diagnostics);
+  for (const [path, hint] of index) {
+    if (hint.state === "error") index.set(path, { ...hint, value: { kind: "error", tag: "???" } });
+  }
+  return index;
+}
+
+/**
+ * One template line that evaluates each path as a formula, so the hub's H5
+ * diagnostics report every variable's value in the preview's context.
+ */
+export function variableProbeTemplate(paths: readonly string[]): string[] {
+  return [paths.map((path) => `{{= ${path} }}`).join(" ")];
+}

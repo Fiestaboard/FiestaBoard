@@ -179,7 +179,7 @@ describe("Collection editor layout", () => {
     await user.keyboard(" ");
     expect(screen.getByRole("button", { name: "More actions for rule 1" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "More actions for rule 2" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Add Rule" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add rule" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "Random selection" })).toBeDisabled();
     await user.keyboard("{Escape}");
     expect(screen.getByRole("button", { name: "More actions for rule 1" })).toBeEnabled();

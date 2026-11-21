@@ -34,5 +34,6 @@ export function isChromelessPath(pathname: string): boolean {
  */
 export function isPageEditorPath(pathname: string): boolean {
   const path = normalize(pathname);
-  return path === "/pages/new" || path === "/pages/edit" || path.startsWith("/pages/edit/");
+  // One id segment only: a deeper path is the not-found page, which keeps the nav.
+  return path === "/pages/new" || path === "/pages/edit" || /^\/pages\/edit\/[^/]+\/?$/.test(path);
 }

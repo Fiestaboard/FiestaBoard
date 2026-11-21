@@ -38,6 +38,11 @@ describe("FormulaNodeView with the formula IDE", () => {
     expect(screen.getByTestId("formula-atom-chip")).toHaveTextContent("= 3 of 7 rows");
   });
 
+  it("shows its source as written inside the uppercase editor surface (BB-FP-10)", () => {
+    renderChip(bridge());
+    expect(screen.getByTestId("formula-atom-chip").className).toMatch(/\bnormal-case\b/);
+  });
+
   it("keeps the plain pill without a provider", () => {
     renderChip(null);
     expect(screen.queryByTestId("formula-atom-chip")).toBeNull();
