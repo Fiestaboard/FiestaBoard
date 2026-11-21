@@ -148,6 +148,7 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
             onTestAtTime={collection ? () => setTestOpen(true) : undefined}
             evaluatedPageId={sameSavedGeneration && !evaluation.isError ? evaluation.data?.page_id : null}
             ruleResults={sameSavedGeneration && !evaluation.isError ? (evaluation.data?.rules ?? undefined) : undefined}
+            ruleResultsAt={testAt ? evaluation.data?.at : null}
             preview={
               collection
                 ? (dirty) => (

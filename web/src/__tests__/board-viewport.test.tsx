@@ -109,3 +109,19 @@ describe("boardViewportHint", () => {
     expect(boardViewportHint(t, "flagship", true)).toBe("viewportHintTouch");
   });
 });
+
+describe("the scroll hint on a touch phone (BB-A-21)", () => {
+  it("draws both hints and lets the pointer media query pick, so it never shows the stale one", async () => {
+    const { BoardViewportHint } = await import("@/components/board-viewport");
+    const { container } = render(<BoardViewportHint deviceType="flagship" />);
+    const touch = container.querySelector('[data-hint="touch"]');
+    const keys = container.querySelector('[data-hint="keyboard"]');
+    expect(touch?.textContent).toBe("swipe");
+    expect(touch?.className).toMatch(/\bhidden\b.*\bpointer-coarse:inline\b/);
+    expect(keys?.textContent).toMatch(/Shift \+ scroll/);
+    expect(keys?.className).toMatch(/\bpointer-coarse:hidden\b/);
+    // Review M1 (#2564): the hint keeps the indicator's muted ink.
+    expect(keys?.className).toMatch(/\btext-muted-foreground\b/);
+    expect(touch?.className).toMatch(/\btext-muted-foreground\b/);
+  });
+});

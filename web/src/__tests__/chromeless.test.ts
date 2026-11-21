@@ -60,6 +60,8 @@ describe("isPageEditorPath (BB-B-17: the editor toolbar replaces the phone nav)"
     expect(isPageEditorPath("/pages")).toBe(false);
     expect(isPageEditorPath("/pages/")).toBe(false);
     expect(isPageEditorPath("/pages/newsletter")).toBe(false);
+    // No route matches a deeper path: it is the not-found page, with the nav.
+    expect(isPageEditorPath("/pages/edit/abc/extra")).toBe(false);
     expect(isPageEditorPath("/collections/new")).toBe(false);
     expect(isChromelessPath("/pages/new")).toBe(false);
   });
