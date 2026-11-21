@@ -895,19 +895,23 @@ export async function openDisplay(page: Page, name: string): Promise<Locator> {
 /**
  * Wait out a section's drill-in (section-shell.tsx): the header collapses, the
  * breadcrumb and the item's h2 expand above the page (the kit's Reveal, a
- * grid-template-rows transition) and the body fades in. That moves everything
- * below ~35 px down after the page is already visible, so a click made then
+ * grid-template-rows transition) and the body fades in. That moves the
+ * settings card 35-100 px after it is already visible, so a click made then
  * can press on one control and release on another: the button takes focus but
  * never gets a click (multi-board.spec.ts "Continue saves name…" lost its
  * White click that way). `getAnimations()` flushes style first, so it includes
- * transitions the last render started.
+ * transitions the last render started. Bounded: a paused or very long finite
+ * animation never holds the test for more than 5 s.
  */
 export async function settleSectionDrillIn(page: Page) {
   await page.evaluate(async () => {
     const finite = document
       .getAnimations()
       .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? Infinity));
-    await Promise.all(finite.map((animation) => animation.finished.catch(() => {})));
+    await Promise.race([
+      Promise.all(finite.map((animation) => animation.finished.catch(() => {}))),
+      new Promise((resolve) => setTimeout(resolve, 5_000)),
+    ]);
   });
 }
 
