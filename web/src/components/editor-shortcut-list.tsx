@@ -96,9 +96,9 @@ export function EditorShortcutList({
   const trigger =
     variant === "header" ? (
       <Button
-        variant="secondary"
-        size="sm"
-        className="h-8 gap-1.5 px-3 text-xs"
+        variant="ghost"
+        size="lg"
+        className="gap-1.5 px-4 text-sm"
         aria-keyshortcuts="?"
         aria-label={compactHeader ? t("button") : undefined}
       >

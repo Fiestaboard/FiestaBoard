@@ -19,15 +19,13 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { BoardDisplay } from "@/components/board-display";
+import { SettingSwitchRow } from "@/components/settings/appearance-settings";
 import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import { api, type BoardAnimationsMode, type DisplaySettings, type SiteAnimationsMode } from "@/lib/api";
-
-const BOARD_OPTIONS: BoardAnimationsMode[] = ["on", "desktop", "off"];
-const SITE_OPTIONS: SiteAnimationsMode[] = ["on", "off"];
 
 // Slowest first would bury `standard`; this is the order the presets read in
 // as a spectrum, with the shipped default in the middle.
@@ -72,23 +70,12 @@ function FlapSpeedPreview({ speed, enabled }: { speed: FlapSpeedPreset; enabled:
   );
 }
 
-const BOARD_LABEL_KEY: Record<BoardAnimationsMode, string> = {
-  on: "boardAnimationsOn",
-  desktop: "boardAnimationsDesktop",
-  off: "boardAnimationsOff",
-};
-
-const BOARD_HINT_KEY: Record<BoardAnimationsMode, string> = {
-  on: "boardAnimationsOnHint",
-  desktop: "boardAnimationsDesktopHint",
-  off: "boardAnimationsOffHint",
-};
-
-const SITE_LABEL_KEY: Record<SiteAnimationsMode, string> = {
-  on: "siteAnimationsOn",
-  off: "siteAnimationsOff",
-};
-
+/**
+ * 07e Appearance › Motion details. 07e's Boards card (`333:56102`) has one
+ * "Animate tile flips" switch; the hub's finer motion settings it does not
+ * draw (wider screens only, the rest of the app, hub-wide Reduce motion, flip
+ * speed) live here so nobody loses them (DESIGN-DELTAS DD-W152).
+ */
 export function AnimationSettings() {
   const t = useTranslations("profile");
   const queryClient = useQueryClient();
@@ -123,7 +110,9 @@ export function AnimationSettings() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const reduceMotion = allSettings?.display?.reduce_motion ?? false;
+  // Show a pending write at once rather than after the refetch.
+  const pendingReduce = updateMutation.isPending ? updateMutation.variables?.reduce_motion : undefined;
+  const reduceMotion = pendingReduce ?? allSettings?.display?.reduce_motion ?? false;
 
   const handleBoardChange = (mode: BoardAnimationsMode) => {
     setBoardMode(mode);
@@ -150,8 +139,8 @@ export function AnimationSettings() {
   return (
     <SettingsPanel
       icon={<Sparkles />}
-      title={t("animationsTitle")}
-      description={t("animationsDescription")}
+      title={t("motionDetailsTitle")}
+      description={t("motionDetailsDescription")}
       contentClassName="space-y-5"
       {...anchorProps("settings.display")}
     >
@@ -161,55 +150,29 @@ export function AnimationSettings() {
         <>
           <Grid cols="1" lg="2" gap="6">
             <Stack gap="6">
-              <Stack gap="2">
-                <Box>
-                  <Label className="text-sm font-medium">{t("boardAnimationsLabel")}</Label>
-                  <Text size="xs" tone="muted" className="mt-0.5">
-                    {t("boardAnimationsHint")}
-                  </Text>
-                </Box>
-                <SegmentedControl
-                  size="md"
-                  className="w-fit max-w-full flex-wrap"
-                  aria-label={t("boardAnimationsLabel")}
-                  value={boardMode}
-                  onValueChange={(value) => handleBoardChange(value as BoardAnimationsMode)}
-                  disabled={updateMutation.isPending}
-                  {...anchorProps("settings.display.board_animations")}
-                >
-                  {BOARD_OPTIONS.map((option) => (
-                    <SegmentedControlItem key={option} value={option}>
-                      {t(BOARD_LABEL_KEY[option])}
-                    </SegmentedControlItem>
-                  ))}
-                </SegmentedControl>
-                <Text size="xs" tone="muted">
-                  {t(BOARD_HINT_KEY[boardMode])}
-                </Text>
-              </Stack>
-              <Stack gap="2" className="pt-2 border-t">
-                <Box>
-                  <Label className="text-sm font-medium">{t("siteAnimationsLabel")}</Label>
-                  <Text size="xs" tone="muted" className="mt-0.5">
-                    {t("siteAnimationsHint")}
-                  </Text>
-                </Box>
-                <SegmentedControl
-                  size="md"
-                  className="w-fit max-w-full flex-wrap"
-                  aria-label={t("siteAnimationsLabel")}
-                  value={siteMode}
-                  onValueChange={(value) => handleSiteChange(value as SiteAnimationsMode)}
-                  disabled={updateMutation.isPending}
-                  {...anchorProps("settings.display.site_animations")}
-                >
-                  {SITE_OPTIONS.map((option) => (
-                    <SegmentedControlItem key={option} value={option}>
-                      {t(SITE_LABEL_KEY[option])}
-                    </SegmentedControlItem>
-                  ))}
-                </SegmentedControl>
-              </Stack>
+              <SettingSwitchRow
+                title={t("boardAnimationsDesktopOnly")}
+                hint={t("boardAnimationsDesktopOnlyHint")}
+                checked={boardMode === "desktop"}
+                disabled={boardMode === "off" || updateMutation.isPending}
+                onCheckedChange={(checked) => handleBoardChange(checked ? "desktop" : "on")}
+              />
+              <SettingSwitchRow
+                anchor="settings.display.site_animations"
+                title={t("siteAnimationsSwitch")}
+                hint={t("siteAnimationsHint")}
+                checked={siteMode === "on"}
+                disabled={updateMutation.isPending}
+                onCheckedChange={(checked) => handleSiteChange(checked ? "on" : "off")}
+              />
+              <SettingSwitchRow
+                anchor="settings.display.reduce_motion"
+                title={t("hubReduceMotion")}
+                hint={t("hubReduceMotionHint")}
+                checked={reduceMotion}
+                disabled={updateMutation.isPending}
+                onCheckedChange={(checked) => updateMutation.mutate({ reduce_motion: checked })}
+              />
             </Stack>
             <Stack gap="2">
               <Box>
