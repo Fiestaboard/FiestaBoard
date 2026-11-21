@@ -8,6 +8,7 @@ import { useSyncExternalStore } from "react";
 
 import { useOptionalSpotlight } from "@/components/ai-spotlight/spotlight-provider";
 import { useOptionalGlobalAiPanel } from "@/components/global-ai-panel-context";
+import { useBelowRail } from "@/hooks/use-below-rail";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
 
@@ -82,9 +83,17 @@ const Toaster = ({ containerAriaLabel, labels, ...props }: ToasterProps) => {
   // and leave the bottom to it.
   const walkthroughOnScreen = useOptionalSpotlight()?.active ?? false;
 
+  // BB-FS-7 (07a `311:73476`, 07c `316:91196`, kit Toast "top-right from
+  // sm"): from the rail up a toast drops in at the top right; on a phone it
+  // rises from the bottom, above the tab bar (the kit clears the bar).
+  const belowRail = useBelowRail();
   const position: ToasterProps["position"] =
     props.position ??
-    (walkthroughOnScreen || aiPanel?.isMinimized || (drawerOpen && !isDesktop) ? "top-center" : "bottom-right");
+    (walkthroughOnScreen || aiPanel?.isMinimized || (drawerOpen && !isDesktop)
+      ? "top-center"
+      : belowRail
+        ? "bottom-right"
+        : "top-right");
   // The drawer's live width plus its inset and a gap of the same size.
   const offset =
     props.offset ??
@@ -95,6 +104,8 @@ const Toaster = ({ containerAriaLabel, labels, ...props }: ToasterProps) => {
   return (
     <KitToaster
       variant="snackbar"
+      // Every toast can be dismissed by hand (kit Toast spec; 07a/07c ×).
+      closeButton
       {...props}
       theme={props.theme ?? resolvedTheme}
       labels={{ close: t("close"), ...labels, container: ariaLabel }}

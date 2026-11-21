@@ -57,6 +57,17 @@ describe("/pages section", () => {
     expect(document.querySelector("[data-slot=page-subheader]")).toHaveAttribute("data-state", "closed");
   });
 
+  // BB-FP-9 (Figma 297:1824 PageHeader): a grid icon and the library's own subtitle.
+  it("draws the grid icon and Figma's subtitle in the Pages header", () => {
+    renderSection();
+    expect(
+      screen.getByText("Everything your displays can show. Open one to edit it, or show it now."),
+    ).toBeInTheDocument();
+    const header = document.querySelector("[data-slot=page-header]")!;
+    expect(header.querySelector("svg.lucide-layout-grid")).not.toBeNull();
+    expect(header.querySelector("svg.lucide-file-text")).toBeNull();
+  });
+
   // BB-B-4 / BB-B-19 (Figma 57:64661, 316:90600, 184:159319): the editor draws
   // its own header (back to Pages, the name, Save), so the section's card
   // header, breadcrumb and second h2 title are not drawn above it.

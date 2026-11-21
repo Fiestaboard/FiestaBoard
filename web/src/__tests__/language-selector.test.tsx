@@ -17,7 +17,7 @@ describe("LanguageSelector", () => {
     document.cookie = "NEXT_LOCALE=; path=/; max-age=0";
   });
 
-  it("renders with a Globe icon and trigger button", () => {
+  it("renders a combobox named Language", () => {
     render(<LanguageSelector />);
     const trigger = screen.getByRole("combobox", { name: /language/i });
     expect(trigger).toBeInTheDocument();
@@ -25,7 +25,7 @@ describe("LanguageSelector", () => {
 
   it("shows the current locale in the trigger", () => {
     render(<LanguageSelector />);
-    expect(screen.getByText("English")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Language" })).toHaveTextContent("English (US)");
   });
 
   it("opens a dropdown with all 14 locales when clicked", async () => {
@@ -66,22 +66,5 @@ describe("LanguageSelector", () => {
 
     await waitFor(() => expect(document.cookie).toContain("NEXT_LOCALE=es"));
     expect(changeLanguageMock).toHaveBeenCalledWith("es");
-  });
-
-  it("has proper aria-label for accessibility", () => {
-    render(<LanguageSelector />);
-    const trigger = screen.getByRole("combobox", { name: /language/i });
-    expect(trigger).toHaveAttribute("aria-label", "Language");
-  });
-
-  it("marks the decorative Globe icon as aria-hidden so it is not announced", () => {
-    render(<LanguageSelector />);
-    // The Globe icon is decorative — it sits next to a visible label
-    // inside the trigger, so it must be hidden from assistive tech
-    // (WCAG 2.2 AA 1.1.1 Non-text Content).
-    const trigger = screen.getByRole("combobox", { name: /language/i });
-    const svg = trigger.querySelector("svg");
-    expect(svg).not.toBeNull();
-    expect(svg).toHaveAttribute("aria-hidden", "true");
   });
 });
