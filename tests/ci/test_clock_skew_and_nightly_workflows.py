@@ -23,19 +23,51 @@ def _load(name):
     return data
 
 
-def test_clock_skew_job_covers_a_weekend_and_a_year_boundary():
+SCRIPT = "bash scripts/ci/clock-skew-tests.sh"
+
+
+def _script():
+    return (ROOT / "scripts/ci/clock-skew-tests.sh").read_text()
+
+
+def test_clock_skew_instants_are_a_saturday_and_a_year_end_in_utc():
+    script = _script()
+    assert '"2026-11-21T12:00:00Z 2026-12-31T23:00:00Z"' in script  # Sat; Dec 31
+    assert "export TZ=UTC" in script
+    # The shim is checked under each instant before the suite runs.
+    assert "src/__tests__/test-now.test.ts" in script
+
+
+def test_pr_job_is_one_runner_with_changed_tests_and_full_suite_triggers():
     jobs = _load("ci.yml")["jobs"]
     job = jobs["test-ui-clock-skew"]
-    clocks = {c["name"]: c["now"] for c in job["strategy"]["matrix"]["clock"]}
-    assert clocks["Saturday"].startswith("2026-11-21T")  # a Saturday
-    assert clocks["year end"].startswith("12-31T", 5)
-    assert job["strategy"]["fail-fast"] is False
-    run = next(s for s in job["steps"] if "TEST_NOW" in s.get("env", {}))
-    assert run["env"]["TEST_NOW"] == "${{ matrix.clock.now }}"
-    assert "test:run" in run["run"]
-    # Same path gate as UI Tests, and a red leg fails CI Success.
+    assert "strategy" not in job, "one job: one npm ci, both instants back to back"
+    assert job["env"]["TZ"] == "UTC"
+    checkout = job["steps"][0]
+    assert checkout["with"]["fetch-depth"] == 0, "--changed needs the base branch"
+    run = next(s for s in job["steps"] if s.get("run") == SCRIPT)
+    assert run["env"]["BASE_REF"] == "${{ github.base_ref }}"
+    script = _script()
+    assert '--changed "origin/$BASE_REF"' in script
+    assert "changeset-release/*" in script
+    for trigger in ("setup|test-now", "(vitest|vite)\\.config", "mocks/"):
+        assert trigger in script, trigger
+    # Same path gate as UI Tests, and a red run fails CI Success.
     assert job["if"] == jobs["test-ui"]["if"]
     assert "test-ui-clock-skew" in jobs["ci-success"]["needs"]
+
+
+def test_nightly_dispatch_runs_the_full_clock_skew_suite():
+    job = _load("integration-tests.yml")["jobs"]["clock-skew-full"]
+    assert job["if"] == "github.event_name == 'workflow_dispatch'"
+    assert job["env"] == {"TZ": "UTC", "CLOCK_SKEW_MODE": "full"}
+    assert any(s.get("run") == SCRIPT for s in job["steps"])
+
+
+def test_dispatches_are_never_cancelled_by_concurrency():
+    concurrency = _load("integration-tests.yml")["concurrency"]
+    assert concurrency["cancel-in-progress"] == "${{ github.event_name == 'pull_request' }}"
+    assert "github.run_id" in concurrency["group"]
 
 
 def test_setup_installs_the_skewed_clock_before_anything_else():
@@ -65,4 +97,7 @@ def test_nightly_dispatches_v11_and_mirrors_the_result():
     assert job["env"]["REF"] == "${{ inputs.ref || 'v11' }}"
     runs = "\n".join(s.get("run", "") for s in job["steps"])
     assert 'gh workflow run integration-tests.yml --ref "$REF"' in runs
+    # The run to watch: the id gh prints, else a dispatch by this job's token.
+    assert "/actions/runs/[0-9]+" in runs
+    assert "--user 'github-actions[bot]'" in runs
     assert "gh run watch" in runs and "--exit-status" in runs

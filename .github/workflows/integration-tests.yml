@@ -25,8 +25,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: integration-${{ github.ref }}
-  cancel-in-progress: true
+  # A new push supersedes a PR's run. A dispatch (the nightly v11 run, or a
+  # manual one) gets a group of its own and is never cancelled: sharing the
+  # `refs/heads/v11` group would cancel the run the nightly is watching, and
+  # even without cancel-in-progress a newer queued run replaces a pending one.
+  group: integration-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   integration-tests:
@@ -312,3 +316,33 @@ jobs:
             web/playwright-pwa-http-test-results/
             web/playwright-pwa-http-report.json
           retention-days: 14
+
+  # The nightly v11 run (a dispatch) also runs the whole vitest suite with the
+  # clock on a Saturday and at a year end. PRs run only the affected tests
+  # (ci.yml's "UI Tests (clock skew)"); this catches date bugs in code nobody
+  # touched. Logic and instants: scripts/ci/clock-skew-tests.sh.
+  clock-skew-full:
+    name: UI Tests (clock skew, full suite)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TZ: UTC
+      CLOCK_SKEW_MODE: full
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install UI dependencies
+        working-directory: web
+        run: npm ci --legacy-peer-deps --no-audit
+
+      - name: Run UI tests on a Saturday and at a year end (full suite)
+        run: bash scripts/ci/clock-skew-tests.sh
