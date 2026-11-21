@@ -73,9 +73,16 @@ function renderPage() {
 beforeEach(() => {
   matchMedia = window.matchMedia;
   localStorage.setItem("schedule-view-mode", "calendar");
+  // The phone Day agenda opens on today and the fixture repeats on weekdays,
+  // so pin "today" to a Wednesday: on a Saturday or Sunday the entry isn't in
+  // the agenda and the BB-C-5 test can't find it. Only Date is faked; timers
+  // keep running for React Query and the user-event waits.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 10, 18, 10, 0));
 });
 afterEach(() => {
   window.matchMedia = matchMedia;
+  vi.useRealTimers();
 });
 
 it("puts title, Add and one Schedule Mode row above the day chips and agenda (BB-C-3)", async () => {
