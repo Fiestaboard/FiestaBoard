@@ -235,7 +235,11 @@ for (const width of [390, 768, 1280]) {
             : page.locator('[data-slot="page-outlet"]');
         if (width < 768) {
           await expect(page).toHaveURL(/\/integrations\/cx-calendar\?from=installed/);
-          await expect(page.getByRole("link", { name: "Back to Integrations", exact: true })).toBeVisible();
+          await expect(
+            page
+              .getByRole("navigation", { name: "Breadcrumb" })
+              .getByRole("link", { name: "Integrations", exact: true }),
+          ).toBeVisible();
           await expect(page.getByRole("dialog")).toHaveCount(0);
         }
         await expect(settings.getByTestId("integration-attention-banner")).toContainText(
@@ -273,7 +277,10 @@ for (const width of [390, 768, 1280]) {
         await expect(preview.getByRole("img", { name: /Board display:/i })).toContainText("NOTEFORECAST");
         expect(boardWrites).toBe(0);
         await expectAccessible(page, colorScheme);
-        await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();
+        await page
+          .getByRole("navigation", { name: "Breadcrumb" })
+          .getByRole("link", { name: "Integrations", exact: true })
+          .click();
 
         if (width >= 768) {
           await page
@@ -304,7 +311,10 @@ for (const width of [390, 768, 1280]) {
           await expect(page.getByTestId("integration-attention-banner")).toBeVisible();
           await expectAccessible(page, colorScheme);
           await capture(page, "full-detail-setup", width, colorScheme);
-          await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();
+          await page
+            .getByRole("navigation", { name: "Breadcrumb" })
+            .getByRole("link", { name: "Integrations", exact: true })
+            .click();
           await page
             .getByRole("list", { name: "Needs attention" })
             .getByRole("button", { name: /^CX Transit/ })
@@ -362,7 +372,10 @@ for (const width of [390, 768, 1280]) {
         ).toBe(true);
         await expectAccessible(page, colorScheme);
         await capture(page, "detail-readme", width, colorScheme);
-        await page.getByRole("link", { name: "Back to Integrations", exact: true }).click();
+        await page
+          .getByRole("navigation", { name: "Breadcrumb" })
+          .getByRole("link", { name: "Integrations", exact: true })
+          .click();
         await page.getByRole("tab", { name: /Marketplace/ }).click();
         if (width >= 768) await page.getByRole("button", { name: "List view", exact: true }).click();
         const card = page

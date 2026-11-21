@@ -1,4 +1,8 @@
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -37,7 +41,7 @@ import { ChevronLeft, Clock, Plus, Send, Trash2 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { CollectionPageList } from "@/components/collection-page-list";
+import { CollectionPageList, pageShapeLabel } from "@/components/collection-page-list";
 import { useMediaQuery } from "@/components/home/use-media-query";
 import { VariableRuleRow } from "@/components/variable-rule-row";
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
@@ -166,6 +170,8 @@ interface CollectionFormProps {
   preview?: (dirty: boolean) => ReactNode;
   evaluatedPageId?: string | null;
   ruleResults?: Array<{ index: number; value: string; error: string | null; message: string | null; matched: boolean }>;
+  /** ISO time the rule results were evaluated for, when it is a Test at a time… rather than now. */
+  ruleResultsAt?: string | null;
 }
 
 export function CollectionForm({
@@ -179,6 +185,7 @@ export function CollectionForm({
   onTestAtTime,
   preview,
   ruleResults,
+  ruleResultsAt,
   evaluatedPageId,
 }: CollectionFormProps) {
   const t = useTranslations("collections");
@@ -191,8 +198,14 @@ export function CollectionForm({
     );
   };
   const isEdit = Boolean(collection);
+  const ruleResultsAtTime = ruleResultsAt ? new Date(ruleResultsAt) : null;
+  const ruleResultsAtLabel =
+    ruleResultsAtTime && Number.isFinite(ruleResultsAtTime.getTime())
+      ? ruleResultsAtTime.toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })
+      : null;
   const phone = useMediaQuery("(max-width: 767.98px)");
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // A new Collection opens on its name: Create can't work without one (BB-B-25).
+  const [settingsOpen, setSettingsOpen] = useState(!collection);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const [name, setName] = useState(collection?.name || "");
@@ -321,6 +334,11 @@ export function CollectionForm({
     setEditingRuleIndex(null);
     setEditingRuleDirty(false);
     setNewRuleIndex((n) => (n === index ? null : n));
+  }, []);
+
+  // The row's page Select edits the rule in place; an open editor elsewhere stays open.
+  const handleRuleTargetChange = useCallback((index: number, pageId: string) => {
+    setRules((prev) => prev.map((r, i) => (i === index ? { ...r, page_id: pageId } : r)));
   }, []);
 
   const handleCancelEditRule = useCallback(() => {
@@ -536,6 +554,12 @@ export function CollectionForm({
             {isEdit ? tc("save") : t("createCollection")}
           </Button>
         </Flex>
+        {/* Why Create is off, for a new Collection (BB-B-25). */}
+        {!isEdit && !canSubmit && (name.trim().length === 0 || selectedPageIds.length === 0) && (
+          <Text size="xs" tone="muted" role="status" className="basis-full">
+            {name.trim().length === 0 ? t("createNeedsName") : t("createNeedsPage")}
+          </Text>
+        )}
       </Flex>
       <Box className={`relative min-w-0 ${DESKTOP_PREVIEW_GUTTER}`}>
         <Box className="relative min-w-0">
@@ -565,7 +589,7 @@ export function CollectionForm({
                   </Button>
                 </CollapsibleTrigger>
               )}
-              <CollapsibleContent keepMounted>
+              <CollapsibleContent keepMounted className={phone ? "pt-4" : undefined}>
                 <Stack gap="5">
                   {" "}
                   {/* Name */}
@@ -736,8 +760,18 @@ export function CollectionForm({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
                         {availablePages.map((page) => (
-                          <DropdownMenuItem key={page.id} onClick={() => handleAddPage(page.id)}>
-                            {page.name}
+                          <DropdownMenuItem
+                            key={page.id}
+                            // Stays open to add several; each row says the page's size (BB-B-25).
+                            closeOnClick={false}
+                            onClick={() => handleAddPage(page.id)}
+                          >
+                            <Text as="span" className="min-w-0 flex-1 truncate">
+                              {page.name}
+                            </Text>
+                            <Text as="span" size="xs" tone="muted" className="shrink-0">
+                              {pageShapeLabel(page, t)}
+                            </Text>
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -755,11 +789,14 @@ export function CollectionForm({
             {selectionMode === "variable" && (
               <Stack gap="4" className="">
                 <Stack gap="2">
-                  <Label>{t("variableRulesLabel")}</Label>
-                  <Text id="collection-rule-instructions" size="xs" tone="muted">
-                    {t("sortInstructions")}
+                  {/* Figma 312:78075 opens on the intro alone; the heading and the reorder
+                      keys stay for assistive tech (the rows are described by them). */}
+                  <Label className="sr-only">{t("variableRulesLabel")}</Label>
+                  <Text id="collection-rule-instructions" className="sr-only">
+                    {/* Follows the pointer, like the page list's hint (BB-B-26). */}
+                    {t(coarsePointer ? "sortInstructionsTouch" : "sortInstructions")}
                   </Text>
-                  <Text size="xs" tone="muted">
+                  <Text size="sm" tone="muted">
                     {t("variableRulesDescription")}
                   </Text>
 
@@ -791,6 +828,8 @@ export function CollectionForm({
                           onMoveUp={() => moveRule(index, index - 1)}
                           onMoveDown={() => moveRule(index, index + 1)}
                           result={!dirty ? ruleResults?.find((r) => r.index === index) : undefined}
+                          resultAt={ruleResultsAtLabel}
+                          onTargetChange={(pageId) => handleRuleTargetChange(index, pageId)}
                           onKeyDown={(event) => {
                             if (
                               event.target !== event.currentTarget ||
@@ -843,7 +882,7 @@ export function CollectionForm({
                     <Label htmlFor="collection-default" className="sr-only">
                       {t("variableDefaultLabel")}
                     </Label>
-                    <Text size="xs" tone="muted">
+                    <Text size="sm" tone="muted">
                       {t("defaultHint")}
                     </Text>
                     <Select
@@ -866,7 +905,7 @@ export function CollectionForm({
                       </SelectContent>
                     </Select>
                     {!dirty && evaluatedPageId && evaluatedPageId === defaultPageId && (
-                      <Badge variant="success">{t("selectedBadge")}</Badge>
+                      <Badge variant="success">{t("showingNowBadge")}</Badge>
                     )}
                   </Flex>
 
@@ -874,12 +913,10 @@ export function CollectionForm({
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
                       onClick={handleAddRule}
                       disabled={selectedPageIds.length === 0 || liftedRule !== null}
-                      className="mt-2"
                     >
-                      <Plus className="h-4 w-4 mr-1" />
+                      <Plus aria-hidden="true" />
                       {t("variableAddRule")}
                     </Button>
                     {onTestAtTime && (
@@ -918,94 +955,91 @@ export function CollectionForm({
                     </Text>
                   )}
                 </Stack>
-
-                <Collapsible>
-                  <CollapsibleTrigger asChild>
-                    <Button type="button" variant="ghost" disabled={liftedRule !== null}>
-                      {t("variablePollLabel")}
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    {" "}
-                    <Stack gap="2">
-                      <Label htmlFor="collection-poll">{t("variablePollLabel")}</Label>
-                      <Text size="xs" tone="muted">
-                        {t("variablePollDescription")}
-                      </Text>
-                      <Select value={String(pollSeconds)} onValueChange={(v) => setPollSeconds(Number(v))}>
-                        <SelectTrigger id="collection-poll">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {POLL_PRESETS.map((p) => (
-                            <SelectItem key={p.value} value={String(p.value)}>
-                              {t(p.labelKey)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Stack>
-                    <Text size="xs" tone="muted">
-                      {t("variableModeBetaNote")}
-                    </Text>
-                  </CollapsibleContent>
-                </Collapsible>
               </Stack>
             )}
+            {/* Real disclosures with a chevron and aria-expanded, not bare ghost-button
+                headings that read as orphan section titles (BB-FP-21). */}
             {selectionMode === "variable" && (
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <Button type="button" variant="ghost">
-                    {t("pagesInCollection")}
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  {" "}
-                  {/* Selected Pages (reorderable) */}
-                  <Stack gap="2">
-                    <Label>{t("pagesInCollection")}</Label>
-                    <Text size="xs" tone="muted">
-                      {/* The hint follows the pointer, like the rows (DD-W27): touch copy for a
-              finger at any width, the keyboard copy for a mouse or trackpad. */}
-                      {t("variableMembershipHint")}
-                    </Text>
-
-                    {selectedPageIds.length === 0 ? (
-                      <Text tone="muted" className="border border-dashed rounded-lg p-4 text-center">
-                        {t("noPagesAdded")}
+              <Accordion type="multiple" className="border-t">
+                <AccordionItem value="poll">
+                  <AccordionTrigger disabled={liftedRule !== null}>{t("variablePollLabel")}</AccordionTrigger>
+                  <AccordionContent>
+                    <Stack gap="2">
+                      <Stack gap="2">
+                        <Text size="xs" tone="muted">
+                          {t("variablePollDescription")}
+                        </Text>
+                        <Select value={String(pollSeconds)} onValueChange={(v) => setPollSeconds(Number(v))}>
+                          <SelectTrigger id="collection-poll" aria-label={t("variablePollLabel")}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {POLL_PRESETS.map((p) => (
+                              <SelectItem key={p.value} value={String(p.value)}>
+                                {t(p.labelKey)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Stack>
+                      <Text size="xs" tone="muted">
+                        {t("variableModeBetaNote")}
                       </Text>
-                    ) : (
-                      <CollectionPageList
-                        pageIds={selectedPageIds}
-                        pages={pages}
-                        mode={selectionMode}
-                        onMove={handleMovePage}
-                        evaluatedPageId={!dirty ? evaluatedPageId : null}
-                        onRemove={handleRemovePage}
-                        disabled={liftedRule !== null}
-                      />
-                    )}
+                    </Stack>
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="pages">
+                  <AccordionTrigger>{t("pagesInCollection")}</AccordionTrigger>
+                  <AccordionContent>
+                    <Stack gap="2">
+                      <Text size="xs" tone="muted">
+                        {/* The hint follows the pointer, like the rows (DD-W27): touch copy for a
+              finger at any width, the keyboard copy for a mouse or trackpad. */}
+                        {t("variableMembershipHint")}
+                      </Text>
 
-                    {availablePages.length > 0 && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button type="button" variant="outline" className="self-start" disabled={liftedRule !== null}>
-                            <Plus aria-hidden="true" />
-                            {t("addPageAction")}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          {availablePages.map((page) => (
-                            <DropdownMenuItem key={page.id} onClick={() => handleAddPage(page.id)}>
-                              {page.name}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </Stack>
-                </CollapsibleContent>
-              </Collapsible>
+                      {selectedPageIds.length === 0 ? (
+                        <Text tone="muted" className="border border-dashed rounded-lg p-4 text-center">
+                          {t("noPagesAdded")}
+                        </Text>
+                      ) : (
+                        <CollectionPageList
+                          pageIds={selectedPageIds}
+                          pages={pages}
+                          mode={selectionMode}
+                          onMove={handleMovePage}
+                          evaluatedPageId={!dirty ? evaluatedPageId : null}
+                          onRemove={handleRemovePage}
+                          disabled={liftedRule !== null}
+                        />
+                      )}
+
+                      {availablePages.length > 0 && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="self-start"
+                              disabled={liftedRule !== null}
+                            >
+                              <Plus aria-hidden="true" />
+                              {t("addPageAction")}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            {availablePages.map((page) => (
+                              <DropdownMenuItem key={page.id} onClick={() => handleAddPage(page.id)}>
+                                {page.name}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </Stack>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             )}
           </Stack>
         </Box>

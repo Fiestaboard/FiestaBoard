@@ -1,16 +1,19 @@
 import "../../app/globals.css";
 import "@/i18n/i18next";
 
-import { PageHeader, PageLayout } from "@fiestaboard/ui";
+import { Dialog, PageHeader, PageLayout } from "@fiestaboard/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Settings } from "lucide-react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
+import { AboutDialog } from "@/components/about-dialog";
+import { AddDisplayDialog } from "@/components/displays/add-display-dialog";
 import { SignedInDevices } from "@/components/settings/signed-in-devices";
 import { SetupWizard } from "@/components/wizard/setup-wizard";
 
 import Activate from "../../app/routes/activate";
+import Login from "../../app/routes/login";
 import ResetPassword from "../../app/routes/reset-password";
 
 const params = new URLSearchParams(location.search);
@@ -21,10 +24,18 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={client}>
       {params.get("mode") === "wizard" ? (
         <SetupWizard />
+      ) : params.get("mode") === "add-display" ? (
+        <Dialog open>
+          <AddDisplayDialog onCreated={() => undefined} onCancel={() => undefined} />
+        </Dialog>
       ) : params.get("mode") === "activate" ? (
         <Activate />
       ) : params.get("mode") === "reset" ? (
         <ResetPassword />
+      ) : params.get("mode") === "login" ? (
+        <Login />
+      ) : params.get("mode") === "about" ? (
+        <AboutDialog open onOpenChange={() => undefined} />
       ) : (
         <PageLayout>
           <PageHeader icon={Settings} title="Settings" description="Account" />

@@ -5,11 +5,11 @@ import {
   type BoardViewportLabels,
   type BoardViewportProps as UIBoardViewportProps,
   type DeviceType,
+  Text,
 } from "@fiestaboard/ui";
 import { memo, useMemo } from "react";
 
 import { useBoardChrome } from "@/components/board-display";
-import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useTranslations } from "@/i18n/translations";
 
 /**
@@ -39,6 +39,12 @@ export type BoardViewportProps = Omit<
    * the translated "Board preview".
    */
   regionLabel?: string;
+  /**
+   * `false` snaps every change instead of flapping: the page editor while you
+   * type (D7, BB-E-9). It can only turn animation off; `true` (the default)
+   * still follows the user's animation and reduced-motion settings.
+   */
+  animate?: boolean;
 };
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -54,6 +60,26 @@ type Translate = (key: string, params?: Record<string, unknown>) => string;
 export function boardViewportHint(t: Translate, deviceType: DeviceType | undefined, coarse: boolean): string {
   if (coarse) return t("viewportHintTouch");
   return t(deviceType === "note_array" ? "viewportHintNotes" : "viewportHintColumns");
+}
+
+/**
+ * The hint as rendered: both wordings, and the `pointer: coarse` media query
+ * shows one (BB-A-21). Deciding it in CSS keeps it right on the first paint
+ * and on every remount; picking it in JS left a touch phone on the keyboard
+ * hint whenever the render ran before the pointer was known.
+ */
+export function BoardViewportHint({ deviceType }: { deviceType: DeviceType | undefined }) {
+  const t = useTranslations("boardDisplay");
+  return (
+    <>
+      <Text as="span" size="xs" tone="muted" data-hint="keyboard" className="pointer-coarse:hidden">
+        {boardViewportHint(t, deviceType, false)}
+      </Text>
+      <Text as="span" size="xs" tone="muted" data-hint="touch" className="hidden pointer-coarse:inline">
+        {boardViewportHint(t, deviceType, true)}
+      </Text>
+    </>
+  );
 }
 
 /** Every BoardViewport string, translated. Stable while the language is. */
@@ -76,12 +102,21 @@ export function useBoardViewportLabels(regionLabel?: string): Required<BoardView
   );
 }
 
-export const BoardViewport = memo(function BoardViewport({ flapSpeed, regionLabel, ...props }: BoardViewportProps) {
-  const t = useTranslations("boardDisplay");
+export const BoardViewport = memo(function BoardViewport({
+  flapSpeed,
+  regionLabel,
+  animate = true,
+  ...props
+}: BoardViewportProps) {
   const chrome = useBoardChrome(flapSpeed);
   const labels = useBoardViewportLabels(regionLabel);
-  const coarse = useCoarsePointer();
   return (
-    <UIBoardViewport {...props} {...chrome} labels={labels} hint={boardViewportHint(t, props.deviceType, coarse)} />
+    <UIBoardViewport
+      {...props}
+      {...chrome}
+      animationsEnabled={chrome.animationsEnabled && animate}
+      labels={labels}
+      hint={<BoardViewportHint deviceType={props.deviceType} />}
+    />
   );
 });

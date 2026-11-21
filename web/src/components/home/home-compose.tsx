@@ -46,8 +46,7 @@ export function HomeCompose({ open, onOpenChange }: { open: boolean; onOpenChang
 
   const deviceType = target?.device_type ?? getEffectiveDeviceType(boardSettings);
   const scheduleEnabled = target?.schedule_enabled ?? detail?.schedule_enabled ?? false;
-  const overrideActive = !!detail?.override_expires_at || detail?.override_started_at != null;
-  const nextChange = overrideActive ? null : scheduleNextChange(detail, new Date());
+  const nextChange = scheduleNextChange(detail, new Date());
   const nextPageName = nextChange?.pageId
     ? (pagesData?.pages?.find((p) => p.id === nextChange.pageId)?.name ?? null)
     : null;

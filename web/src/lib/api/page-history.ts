@@ -3,7 +3,8 @@
 // size, and the H4 board-width validate the Problems console reads.
 //
 // Kept in its own module (not spread into the `api` barrel) so only the
-// lazily loaded IDE chunk pulls it in.
+// chunks that use it pull it in: the lazily loaded IDE, and the Pages
+// library's card menu (Duplicate).
 
 import { fetchApi } from "./core";
 import type { Page, PageUpdate, PageUpdateResponse } from "./pages";
@@ -148,6 +149,8 @@ const pagePath = (pageId: string) => `/pages/${encodeURIComponent(pageId)}`;
 
 export const pageHistoryApi = {
   getDraft: (pageId: string) => fetchApi<PageDraft>(`${pagePath(pageId)}/draft`),
+  /** Every page that has a draft (`GET /pages/drafts`), so a page without one is never asked for it. */
+  listDrafts: () => fetchApi<{ drafts: { page_id: string; saved_at: string; stale: boolean }[] }>("/pages/drafts"),
   saveDraft: (pageId: string, body: PageUpdate) =>
     fetchApi<PageDraft>(`${pagePath(pageId)}/draft`, { method: "PUT", body: JSON.stringify(body) }),
   discardDraft: (pageId: string, expectedRevision?: string) =>

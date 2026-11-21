@@ -149,10 +149,10 @@ test.describe("regression: schedule.toolbar", () => {
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle");
     // The validation indicator is an icon-only button whose accessible name
-    // carries the conflict count ("2 schedule conflicts"). Locate it by role,
-    // not by its color classes — those are presentation, and moving them onto
-    // tokens must not break this test.
-    const indicator = page.getByRole("button", { name: /schedule conflicts?$/i }).first();
+    // carries the conflict count, then any gap count ("1 schedule conflict,
+    // 2 schedule gaps"; BB-C-2). Locate it by role, not by its color classes —
+    // those are presentation, and moving them onto tokens must not break this test.
+    const indicator = page.getByRole("button", { name: /^\d+ schedule conflicts?\b/i }).first();
     await expect(indicator).toBeVisible({ timeout: 15_000 });
     await indicator.click();
     await expect(page.getByText(/Schedule Conflicts/i)).toBeVisible({ timeout: 5_000 });

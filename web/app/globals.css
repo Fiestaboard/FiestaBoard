@@ -11,6 +11,15 @@
   --z-select: var(--z-popover);
 }
 
+/* BB-A-4 (WCAG 2.4.11): on a phone the bottom nav and the floating header
+   sit over the page, so focus must scroll clear of both. The kit's Sidebar
+   publishes their sizes on <html> only while they are drawn (0 elsewhere),
+   plus a little air so the focus ring shows too. */
+html {
+  scroll-padding-top: calc(var(--mobile-header-height, 0px) + 0.75rem);
+  scroll-padding-bottom: calc(var(--bottom-nav-offset, 0px) + env(safe-area-inset-bottom) + 0.75rem);
+}
+
 /* FiestaUI alpha.2 reserves a root gutter even behind viewport-wide mobile
    dialogs, clipping their right edge. Keep the page's stable gutter when the
    modal closes and on desktop. TODO(FiestaUI): own this in the overlay scroll

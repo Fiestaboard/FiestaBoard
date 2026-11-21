@@ -23,20 +23,22 @@ import {
   Switch,
   Text,
 } from "@fiestaboard/ui";
-import { Clock, Monitor, QrCode, Smartphone, Tv } from "lucide-react";
+import { AppWindow, Clock, Monitor, QrCode, Smartphone, Tv } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { useRouter } from "@/hooks/use-router";
-import { useTranslations } from "@/i18n/translations";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { SessionApiError, type SessionList, sessionsApi, type SessionSummary } from "@/lib/api/sessions";
+import { formatSessionTime } from "@/lib/relative-time";
 import { sessionDisplayName } from "@/lib/session-display-name";
 
 import { ConnectPhone } from "./connect-phone";
 
 export function SignedInDevices() {
   const t = useTranslations("signedInDevices");
+  const locale = useLocale();
   const router = useRouter();
   const [data, setData] = useState<SessionList | null>(null);
   const [panelNames, setPanelNames] = useState<Record<string, string>>({});
@@ -116,7 +118,14 @@ export function SignedInDevices() {
   const approved = phone
     ? (data?.sessions ?? []).filter((row) => row.kind === "tv" && row.approved_by?.session_id === phone.id)
     : [];
-  const date = (value: string) => new Date(value).toLocaleString();
+  // 07e reads times the way people say them: "just now", "5:38 PM",
+  // "yesterday, 9:12 PM", "Nov 2". `nameToday` says "today, 5:31 PM" where
+  // the time follows a "when it happened" date rather than "Last connected".
+  const timeLabels = {
+    justNow: t("justNow"),
+    dayTime: (day: string, time: string) => t("dayTime", { day, time }),
+  };
+  const date = (value: string, nameToday = false) => formatSessionTime(value, locale, timeLabels, { nameToday });
   function lastShown(session: SessionSummary) {
     return session.last_shown_at
       ? t("lastShown", {
@@ -129,11 +138,11 @@ export function SignedInDevices() {
     { key: "browsers", rows: data?.sessions.filter((row) => row.kind === "browser") ?? [] },
     { key: "phones", rows: data?.sessions.filter((row) => row.kind === "mobile") ?? [] },
     { key: "codeTvs", rows: data?.sessions.filter((row) => row.kind === "tv" && row.method !== "password") ?? [] },
-    {
-      key: "passwordTvs",
-      rows:
-        data?.sessions.filter((row) => row.kind === "legacy" || (row.kind === "tv" && row.method === "password")) ?? [],
-    },
+    { key: "passwordTvs", rows: data?.sessions.filter((row) => row.kind === "tv" && row.method === "password") ?? [] },
+    // A password sign-in from anything that is not a browser: an older TV
+    // app, a script, an API client. The hub cannot tell which (it only sees a
+    // non-browser user agent), so it is not called a TV (BB-C-24).
+    { key: "passwordApps", rows: data?.sessions.filter((row) => row.kind === "legacy") ?? [] },
   ];
   return (
     <Stack gap="4" className="text-foreground">
@@ -187,10 +196,15 @@ export function SignedInDevices() {
                     {[...group.rows]
                       .sort((a, b) => b.created_at.localeCompare(a.created_at))
                       .map((session) => {
-                        const name = sessionDisplayName(session, t("browser"));
+                        const app = session.kind === "legacy";
+                        const name = app
+                          ? t("appName")
+                          : sessionDisplayName(session, t("browser"), (browser, platform) =>
+                              t("browserOn", { browser, platform }),
+                            );
                         const current = session.id === data.current_session_id;
                         const mobile = session.kind === "mobile";
-                        const tv = session.kind === "tv" || session.kind === "legacy";
+                        const tv = session.kind === "tv";
                         const codeTV = session.kind === "tv" && session.method !== "password";
                         const kind = current
                           ? t("current")
@@ -198,10 +212,10 @@ export function SignedInDevices() {
                             ? t("phone")
                             : codeTV
                               ? t("tv")
-                              : tv
+                              : tv || app
                                 ? t("passwordSignIn")
                                 : t("browser");
-                        const Icon = mobile ? Smartphone : tv ? Tv : Monitor;
+                        const Icon = mobile ? Smartphone : tv ? Tv : app ? AppWindow : Monitor;
                         const tvCount = data.sessions.filter(
                           (row) => row.kind === "tv" && row.approved_by?.session_id === session.id,
                         ).length;
@@ -217,21 +231,28 @@ export function SignedInDevices() {
                                   <Text weight="semibold" size="sm" className="break-words">
                                     {name}
                                   </Text>
-                                  <Badge variant={current ? "default" : tv && !codeTV ? "outline" : "secondary"}>
+                                  <Badge
+                                    variant={current ? "default" : (tv && !codeTV) || app ? "outline" : "secondary"}
+                                  >
                                     {kind}
                                   </Badge>
                                 </Flex>
                                 {mobile && (
                                   <Text size="xs" tone="muted">
-                                    {t("phoneConnected", { date: date(session.created_at), count: tvCount })}
+                                    {t("phoneConnected", { date: date(session.created_at, true), count: tvCount })}
                                   </Text>
                                 )}
                                 {session.approved_by && (
                                   <Text size="xs" tone="muted">
                                     {t("approvedBy", {
                                       name: session.approved_by.label,
-                                      date: date(session.created_at),
+                                      date: date(session.created_at, true),
                                     })}
+                                  </Text>
+                                )}
+                                {session.kind === "browser" && (
+                                  <Text size="xs" tone="muted">
+                                    {t("browserSignedIn", { date: date(session.created_at, true) })}
                                   </Text>
                                 )}
                                 {tv && !codeTV && (
@@ -239,12 +260,17 @@ export function SignedInDevices() {
                                     {t("passwordHint")}
                                   </Text>
                                 )}
+                                {app && (
+                                  <Text size="xs" tone="muted">
+                                    {t("appHint", { date: date(session.created_at, true) })}
+                                  </Text>
+                                )}
                                 <Flex gap="3" wrap className="flex-col lg:flex-row">
                                   <Text size="xs" tone="muted" className="flex items-start gap-1">
                                     <Clock className="size-3.5 shrink-0" />
                                     {t("lastConnected", { date: date(session.last_active_at) })}
                                   </Text>
-                                  {tv && (
+                                  {(tv || (app && session.last_shown_at)) && (
                                     <Text size="xs" tone="muted" className="flex items-start gap-1">
                                       <Monitor className="size-3.5 shrink-0" />
                                       {lastShown(session)}

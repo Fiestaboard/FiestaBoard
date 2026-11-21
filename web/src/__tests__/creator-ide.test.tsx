@@ -104,6 +104,13 @@ function mockHub({ draft = null as unknown, restoreConflict = false, live = true
     http.post("/api/collections/col_den/dry-run", () =>
       HttpResponse.json({ collection_id: "col_den", page_id: "brunch", timeline: [], shown_on: [], sources: {} }),
     ),
+    // GET /pages/drafts: the drafts the hub holds; a saved draft joins the list.
+    http.get("/api/pages/drafts", () =>
+      HttpResponse.json({
+        drafts:
+          draft || calls.draftPut.length ? [{ page_id: PAGE, saved_at: "2026-11-17T15:44:00Z", stale: false }] : [],
+      }),
+    ),
     http.get(`/api/pages/${PAGE}/draft`, () => {
       calls.draftGet += 1;
       return draft ? HttpResponse.json(draft) : HttpResponse.json({ detail: "No draft" }, { status: 404 });
@@ -281,6 +288,8 @@ function renderIde(builder = fakeBuilder(), savedTick = 0) {
         pageId={PAGE}
         builderRef={builderRef}
         explorerSlot={slot}
+        // Commute is a FiestaPanel page: its Explorer opens by default (D2).
+        boardKind="panel"
         savedTick={savedTick}
         onSaveActionsChange={onSaveActionsChange}
       />,
@@ -293,6 +302,7 @@ function renderIde(builder = fakeBuilder(), savedTick = 0) {
           pageId={PAGE}
           builderRef={builderRef}
           explorerSlot={slot}
+          boardKind="panel"
           savedTick={tick}
           onSaveActionsChange={onSaveActionsChange}
         />,
@@ -335,7 +345,11 @@ describe("Creator IDE below 1024 px", () => {
 });
 
 describe("Creator IDE at 1024 px and wider", () => {
-  beforeEach(() => setDesktop(true));
+  beforeEach(() => {
+    setDesktop(true);
+    // Each test starts from the per-kind default (D2), not a toggle remembered by the last.
+    localStorage.removeItem("fiestaboard_ide_explorer:panel");
+  });
 
   it("draws five Inspector tabs and docks Problems | Warnings | Sent in the console", async () => {
     mockHub();
@@ -357,16 +371,52 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(legend).toHaveTextContent(/Weekdays 7:30.*8:30.* · Den TV/);
   });
 
-  it("portals the Explorer with the open page selected and its collection facet", async () => {
+  it("scopes the Explorer to the open page: its boards, parts and snippets, no other pages (D2b)", async () => {
     mockHub();
     const { slot } = renderIde();
     const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
-    const current = await within(nav).findByRole("link", { name: /Commute/ });
-    expect(current).toHaveAttribute("aria-current", "page");
-    expect(within(nav).getByRole("link", { name: /Den rotation/ })).toHaveAttribute("href", "/collections/col_den");
+    // This page, and only this page: no list of the hub's pages, no page search, no links away.
+    const thisPage = within(nav).getByRole("group", { name: "This page" });
+    expect(thisPage).toHaveTextContent("Commute");
+    expect(within(nav).queryByText("Weekend brunch")).toBeNull();
+    expect(within(nav).queryByRole("searchbox")).toBeNull();
+    expect(within(nav).queryAllByRole("link")).toHaveLength(0);
+    // Its boards: the display it is live or scheduled on.
+    expect(await within(within(nav).getByRole("group", { name: "Boards" })).findByText("Den TV")).toBeInTheDocument();
+    // Its parts: the data sources and formulas the template reads, by row.
+    const parts = within(nav).getByRole("group", { name: "Parts" });
+    expect(within(parts).getByText("muni")).toBeInTheDocument();
+    expect(within(parts).getByText("Formulas")).toBeInTheDocument();
+    expect(within(parts).getAllByText("Row 2")).toHaveLength(2);
+    expect(within(nav).getByRole("group", { name: "Snippets" })).toBeInTheDocument();
     expect(await within(nav).findByText("Used by Den rotation")).toBeInTheDocument();
-    fireEvent.change(within(nav).getByRole("searchbox", { name: "Filter pages…" }), { target: { value: "brunch" } });
-    expect(within(nav).queryByRole("link", { name: /^Commute/ })).toBeNull();
+  });
+
+  it("hides the Explorer to one Show Explorer button and back, moving focus with it (D2)", async () => {
+    mockHub();
+    const { slot } = renderIde();
+    const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
+    fireEvent.click(within(nav).getByRole("button", { name: "Hide Explorer" }));
+    expect(within(slot).queryByRole("navigation", { name: "Explorer" })).toBeNull();
+    const show = within(slot).getByRole("button", { name: "Show Explorer" });
+    expect(show).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => expect(show).toHaveFocus());
+    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("closed");
+    fireEvent.click(show);
+    const hide = await within(slot).findByRole("button", { name: "Hide Explorer" });
+    await waitFor(() => expect(hide).toHaveFocus());
+    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("open");
+  });
+
+  it("keeps the Explorer lists' children listitems (BB-B-20: axe aria-required-children)", async () => {
+    mockHub();
+    const { slot } = renderIde();
+    const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
+    // D2b: the Explorer lists the open page's own rows (no page links), still in real lists.
+    await within(within(nav).getByRole("group", { name: "This page" })).findByText("Commute");
+    const lists = nav.querySelectorAll("ul");
+    expect(lists.length).toBeGreaterThan(0);
+    for (const list of lists) for (const child of Array.from(list.children)) expect(child.tagName).toBe("LI");
   });
 
   it("validates at the open display's width with the page geometry", async () => {
@@ -418,6 +468,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: { "data-ai-anchor": "page-editor.save" },
         })}
       </>,
@@ -442,8 +493,23 @@ describe("status row and header actions", () => {
       ),
     );
     const { onSaveActionsChange } = renderIde();
-    expect(await screen.findByText("Not on any display’s schedule")).toBeInTheDocument();
-    expect(onSaveActionsChange).toHaveBeenLastCalledWith(undefined);
+    await waitFor(() => expect(onSaveActionsChange).toHaveBeenLastCalledWith(undefined));
+    const status = await waitFor(() => {
+      const row = document.querySelector<HTMLElement>('[data-slot="preview-status"]');
+      expect(row).toHaveAttribute("data-display", "not-scheduled");
+      return row!;
+    });
+    // Said once (BB-E-26): the chip, not the chip and a sentence repeating it.
+    expect(within(status).getByText("Not scheduled")).toBeInTheDocument();
+    expect(within(status).queryByText("Not on any display’s schedule")).not.toBeInTheDocument();
+  });
+
+  it("leaves a saved page's save state to the header, not a second Saved chip (BB-E-26)", async () => {
+    mockHub();
+    renderIde();
+    expect(await screen.findByText(/Showing on Den TV now/)).toBeInTheDocument();
+    const status = document.querySelector<HTMLElement>('[data-slot="preview-status"]')!;
+    expect(within(status).queryByText("Saved")).not.toBeInTheDocument();
   });
 
   it("discards a draft this session saved once the editor saves the page itself", async () => {
@@ -457,6 +523,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: {},
         })}
       </>,
@@ -466,6 +533,16 @@ describe("status row and header actions", () => {
     await screen.findByText(/^Draft /);
     act(() => rerenderTick(1));
     await waitFor(() => expect(calls.draftDelete).toEqual(["d1"]));
+  });
+
+  // BB-B-27: a page without a draft is the usual case, not a failed request:
+  // the IDE reads the drafts list first and asks for no draft that isn't there.
+  it("asks for no draft the hub doesn't hold, so opening a page logs no 404", async () => {
+    const calls = mockHub();
+    renderIde();
+    await screen.findByText(/Showing on Den TV now/);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(calls.draftGet).toBe(0);
   });
 
   it("keeps a draft saved elsewhere (phone, Restore) after the editor saves the page; the hub marks it stale", async () => {
@@ -509,6 +586,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: {},
         })}
       </>,
@@ -558,6 +636,30 @@ describe("Inspector tabs", () => {
     expect(calls.duplicate).toEqual([{ board_id: "hall" }]);
     expect(screen.getByText("2 rows didn’t fit")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open the copy" })).toHaveAttribute("href", "/pages/edit/copy");
+    // BB-B-23: one way to close (the X), not a Close button beside it too.
+    expect(screen.getAllByRole("button", { name: "Close" })).toHaveLength(1);
+  });
+
+  // BB-B-23: on a phone the copy result is a sheet like the rest of the phone
+  // UI, its title clear of the close button.
+  it("shows the copy on a phone as a bottom sheet", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("max-width: 639px") || query.includes("max-width: 1023"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+    mockHub();
+    renderIde();
+    fireEvent.click(await screen.findByRole("button", { name: /Make a copy for another display/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Hall board/ }));
+    await screen.findByText("22 × 6 (was 29 × 12)");
+    const sheet = screen.getByRole("dialog");
+    expect(sheet).toHaveAttribute("data-slot", "sheet-content");
+    expect(sheet).toHaveAttribute("data-side", "bottom");
+    expect(sheet.querySelector('[data-slot="sheet-header"]')).toHaveClass("pr-12");
   });
 });
 

@@ -481,8 +481,26 @@ export interface BoardDetail {
   next_change_reason?: NextChangeReason | null;
   /** The page or collection in force after `next_change_at`, when the hub can know it. */
   next_page_id?: string | null;
+  /**
+   * The Schedule's own next hand-over, as if no override ran (BB-A-7): a
+   * replacing override can still hold "until the next Schedule change".
+   */
+  schedule_next_change_at?: string | null;
+  /** The page or collection the Schedule names after `schedule_next_change_at`; null in a gap. */
+  schedule_next_page_id?: string | null;
+  /** Up to three predicted changes, earliest first; the first is `next_change_at` (BB-A-23). */
+  upcoming_changes?: UpcomingChange[];
+  /** The page or collection the running override shows; null for a composed message or none (BB-A-8). */
+  override_page_id?: string | null;
   /** H3: what the display can draw; `features.lowercase` false means capitals only. */
   drawing?: { source?: string; features?: Record<string, boolean> } | null;
+}
+
+/** One entry of `BoardDetail.upcoming_changes`. Mirrors `UpcomingChange` in src/v1/models.py. */
+export interface UpcomingChange {
+  at: string;
+  reason: NextChangeReason;
+  page_id: string | null;
 }
 
 /** H2's `next_change_reason`. Mirrors the Literal in src/v1/models.py. */

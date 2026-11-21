@@ -7,7 +7,8 @@ read-only, answers which boards already use it, and ``POST
 /config/board/test`` carries the same answer as ``existing_boards``. Hosts
 compare as written (case, scheme, a trailing dot or slash aside; no DNS);
 a port only distinguishes when both sides name one; secrets match but never
-come back.
+come back. A Vestaboard request (``output="vestaboard"``) takes a bare host
+only: with a port, scheme or path it matches nothing (BB-C-15).
 """
 
 from unittest.mock import Mock, patch
@@ -244,3 +245,22 @@ def test_a_broken_duplicate_check_never_fails_a_good_connection_test(mock_get, c
 
 def test_an_overlong_board_id_is_refused(client, boards):
     assert client.post("/config/board/existing", json={"exclude_board_id": "x" * 129}).status_code == 422
+
+
+# ── BB-C-15: a Vestaboard address is a bare host ────────────────────────────
+
+
+@pytest.mark.parametrize("host", ["192.168.1.31:7001", "http://192.168.1.20", "192.168.1.20/", "user@192.168.1.20"])
+def test_a_vestaboard_address_with_a_port_scheme_or_path_matches_no_board(client, boards, host):
+    """The Vestaboard Local API takes a bare IP or hostname; "host:port" is a typing
+    mistake the connection test refuses, never "this board is already connected"."""
+    assert existing(client, output="vestaboard", host=host) == []
+
+
+def test_a_bare_vestaboard_address_still_finds_the_board_already_set_up(client, boards):
+    assert names(client, output="vestaboard", host="192.168.1.20") == [("Kitchen", "host")]
+    assert names(client, output="vestaboard", host="192.168.1.31", port=7001) == [("Array", "host")]
+
+
+def test_a_vestaboard_cloud_key_still_matches_whatever_the_host_says(client, boards):
+    assert names(client, output="vestaboard", host="bad:1", cloud_key=OFFICE_CLOUD) == [("Office", "cloud_key")]

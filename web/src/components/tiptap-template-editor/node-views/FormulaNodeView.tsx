@@ -12,8 +12,13 @@
 import {
   Badge,
   Box,
+  Button,
   Flex,
   FormulaAtom,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
   Skeleton,
   Text,
   Tooltip,
@@ -29,6 +34,7 @@ import { createPortal } from "react-dom";
 
 import { atomValueText } from "@/components/formula-ide/atom-text";
 import { useFormulaIdeBridge } from "@/components/formula-ide/formula-ide-context";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
 
@@ -49,11 +55,14 @@ interface FormulaAttrs {
   autoOpen: boolean;
 }
 
-export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNodeViewProps) {
+export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, getPos }: ReactNodeViewProps) {
   const t = useTranslations("formulaEditor");
   const tIde = useTranslations("formulaIde");
   const { expression, autoOpen } = node.attrs;
   const [open, setOpen] = useState(false);
+  // Phones get the Formula sheet over the docked preview (306:38107), not a
+  // centred modal that covers the whole editor (BB-B-15).
+  const phone = useMediaQuery("(max-width: 639px)");
   // Web 2.10: the page editor's formula IDE, when this editor has one. It
   // supplies H5 value hints, the docked desktop editor and Inspect.
   const ide = useFormulaIdeBridge();
@@ -64,11 +73,31 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
     x: 0,
     y: 0,
   });
+  // Set by the press that opens the editor, cleared by the next press. A tap
+  // ends with a compatibility click on the common ancestor of the chip and the
+  // sheet that is now under the finger; that click is not an outside press.
+  const openingPress = useRef(false);
   // The latest node and IDE for callbacks created at open time.
-  const latest = useRef({ node, ide, updateAttributes, deleteNode });
+  const latest = useRef({ node, ide, updateAttributes, deleteNode, editor, getPos });
   useEffect(() => {
-    latest.current = { node, ide, updateAttributes, deleteNode };
+    latest.current = { node, ide, updateAttributes, deleteNode, editor, getPos };
   });
+
+  /**
+   * After the formula editor closes, the caret goes back into the template
+   * right after this chip (or where it was, when the chip was removed), so
+   * typing carries on and the phone keyboard stays up (BB-B-15).
+   */
+  const returnCaret = useCallback(() => {
+    // After the closing dialog or sheet has handed focus back.
+    setTimeout(() => {
+      const { editor: view, getPos: position, node: current } = latest.current;
+      if (!view || view.isDestroyed) return;
+      const at = typeof position === "function" ? position() : undefined;
+      if (typeof at === "number") view.commands.focus(at + current.nodeSize);
+      else view.commands.focus();
+    }, 0);
+  }, []);
 
   /** Open in the docked desktop editor when there is one; else this chip's dialog. */
   const openEditor = useCallback(() => {
@@ -112,6 +141,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
         longPress.current.fired = false;
         return;
       }
+      openingPress.current = e.type === "mousedown";
       openEditor();
     },
     [openEditor],
@@ -169,6 +199,16 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
     ...inspectHandlers,
   };
 
+  // A new press starts a new gesture: its click may dismiss the sheet.
+  useEffect(() => {
+    if (!open) return;
+    const endOpeningPress = () => {
+      openingPress.current = false;
+    };
+    document.addEventListener("pointerdown", endOpeningPress, true);
+    return () => document.removeEventListener("pointerdown", endOpeningPress, true);
+  }, [open]);
+
   // Close on Escape — delete node if it was never given an expression
   useEffect(() => {
     if (!open) return;
@@ -177,21 +217,37 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
         e.stopPropagation();
         setOpen(false);
         if (node.attrs.expression === "") deleteNode();
+        returnCaret();
       }
     };
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [open, node.attrs.expression, deleteNode]);
+  }, [open, node.attrs.expression, deleteNode, returnCaret]);
 
   const handleConfirm = (newExpr: string) => {
     updateAttributes({ expression: newExpr });
     setOpen(false);
+    returnCaret();
   };
 
   const handleCancel = () => {
     setOpen(false);
     if (node.attrs.expression === "") deleteNode();
+    returnCaret();
   };
+
+  // Inspect is a button in the sheet, not only a 500 ms long-press nothing
+  // hints at (307:45424; BB-B-15).
+  const inspectFromSheet = () => {
+    setOpen(false);
+    inspect();
+  };
+
+  const panel = (
+    <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+      <FormulaEditorPanel mode="edit" initialExpr={expression} onConfirm={handleConfirm} onCancel={handleCancel} />
+    </Suspense>
+  );
 
   return (
     <NodeViewWrapper
@@ -212,7 +268,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
               <span
                 {...triggerProps}
                 data-testid="formula-atom-chip"
-                className="mr-0.5 inline-flex cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+                className="mr-0.5 inline-flex cursor-pointer rounded-sm normal-case focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <FormulaAtom
                   kind="formula"
@@ -224,7 +280,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
             ) : (
               <Badge
                 variant="formula"
-                className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
+                className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed normal-case cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
                 {...triggerProps}
               >
                 <SquareFunction className="w-2.5 h-2.5 flex-shrink-0" />
@@ -247,7 +303,41 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
         </Tooltip>
       </TooltipProvider>
 
-      {open &&
+      {phone ? (
+        <Sheet
+          open={open}
+          onOpenChange={(next, details) => {
+            if (next) return;
+            // The opening tap's own click lands outside the sheet (BB-FP-13).
+            if (details.reason === "outside-press" && details.event.type === "click" && openingPress.current) {
+              openingPress.current = false;
+              return;
+            }
+            handleCancel();
+          }}
+        >
+          <SheetContent
+            side="bottom"
+            grabber
+            scrim={false}
+            detents={["half", "full"]}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <SheetHeader>
+              <Flex align="center" justify="between" gap="2" className="pr-10">
+                <SheetTitle>{t("dialogLabel")}</SheetTitle>
+                {ide && expression && (
+                  <Button variant="outline" size="touch" onClick={inspectFromSheet}>
+                    {tIde("inspect")}
+                  </Button>
+                )}
+              </Flex>
+            </SheetHeader>
+            {panel}
+          </SheetContent>
+        </Sheet>
+      ) : (
+        open &&
         createPortal(
           <Flex
             align="center"
@@ -266,18 +356,12 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNod
               aria-label={t("dialogLabel")}
               className="relative rounded-lg border border-border bg-popover shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-[min(660px,90vw)]"
             >
-              <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-                <FormulaEditorPanel
-                  mode="edit"
-                  initialExpr={expression}
-                  onConfirm={handleConfirm}
-                  onCancel={handleCancel}
-                />
-              </Suspense>
+              {panel}
             </Box>
           </Flex>,
           document.body,
-        )}
+        )
+      )}
     </NodeViewWrapper>
   );
 }

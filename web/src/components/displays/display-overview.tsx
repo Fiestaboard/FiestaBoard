@@ -30,6 +30,8 @@ export function DisplayOverview({
   const ts = useTranslations("generalSettings");
   const td = useTranslations("displays");
   const tc = useTranslations("common");
+  const tn = useTranslations("home.nowShowing");
+  const tnav = useTranslations("navigation");
   const locale = useLocale();
   const displays = useDisplayBoards();
   const { data: detail } = useBoardDetail(board.id);
@@ -66,6 +68,21 @@ export function DisplayOverview({
     detail?.next_change_at && Date.parse(detail.next_change_at) > Date.now()
       ? new Date(detail.next_change_at).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" })
       : null;
+  // BB-A-8: an override beats the Schedule, so say what it shows (as Home
+  // does) and that the Schedule takes back over when it ends.
+  const overrideRunning = !!detail?.override_expires_at || detail?.override_started_at != null;
+  const showing = overrideRunning
+    ? (name(detail?.override_page_id) ?? tn("composedMessage"))
+    : detail
+      ? (name(detail.resolved_page_id) ?? tc("none"))
+      : t("unknown");
+  const nextPage =
+    name(detail?.next_page_id) ?? (detail?.next_change_reason === "override_ends" ? tnav("schedule") : null);
+  const nextText = !next
+    ? t("nothingScheduled")
+    : nextPage
+      ? t("nextChange", { time: next, page: nextPage })
+      : t("nextChangeAt", { time: next });
   return (
     <Stack gap="3" className="mt-4">
       <Flex align="center" gap="2" wrap data-testid="display-health-summary">
@@ -83,15 +100,13 @@ export function DisplayOverview({
       </Flex>
       <Box>
         <Text weight="medium">
-          {td("previewTitle")} · {detail ? (name(detail.resolved_page_id) ?? tc("none")) : t("unknown")}
+          {td("previewTitle")} · {showing}
         </Text>
       </Box>
       <Box>
         <Text weight="medium">{t("nextChangeLabel")}</Text>
         <Text size="sm" tone="muted">
-          {next && name(detail?.next_page_id)
-            ? t("nextChange", { time: next, page: name(detail?.next_page_id)! })
-            : t("nothingScheduled")}
+          {nextText}
         </Text>
       </Box>
       <ListRowGroup variant="plain" size="touch">

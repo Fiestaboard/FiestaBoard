@@ -174,6 +174,8 @@ test.describe("regression: pages.list", () => {
       await page.getByRole("option", { name: note.name, exact: true }).click();
       await page.getByRole("button", { name: "New Page", exact: true }).click();
       await page.waitForURL(`**/pages/new?board=${board2Id}`);
+      // BB-E-6: size and target live behind the preview header's meta.
+      await page.getByTestId("preview-target-trigger").click();
       await expect(page.getByRole("combobox", { name: "Change board size" })).toHaveText("Note");
     } finally {
       await resetToSingleBoard();

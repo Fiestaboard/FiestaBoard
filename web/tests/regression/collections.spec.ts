@@ -323,6 +323,8 @@ test.describe("regression: collections.form", () => {
 
     await addPageCombobox(dialog).click();
     await page.getByRole("menuitem", { name: pageName }).click();
+    // The picker stays open for more picks (BB-B-25); close it.
+    await page.keyboard.press("Escape");
 
     const submit = dialog.getByRole("button", { name: "Create Collection" });
     await expect(submit).toBeEnabled();
@@ -371,6 +373,8 @@ test.describe("regression: collections.form", () => {
 
     await addPageCombobox(dialog).click();
     await page.getByRole("menuitem", { name: pageName }).click();
+    // The picker stays open for more picks (BB-B-25); close it.
+    await page.keyboard.press("Escape");
 
     await dialog.getByRole("button", { name: "Create Collection" }).click();
 

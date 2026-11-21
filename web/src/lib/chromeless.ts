@@ -26,3 +26,14 @@ export function isChromelessPath(pathname: string): boolean {
   const path = normalize(pathname);
   return CHROMELESS_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix));
 }
+
+/**
+ * True on the page editor (`/pages/new`, `/pages/edit/:id`, `/pages/edit?id=`).
+ * Below the rail its own toolbar replaces the phone nav (Figma 57:64661), so
+ * the shell draws no tab bar or phone header there (BB-B-17).
+ */
+export function isPageEditorPath(pathname: string): boolean {
+  const path = normalize(pathname);
+  // One id segment only: a deeper path is the not-found page, which keeps the nav.
+  return path === "/pages/new" || path === "/pages/edit" || /^\/pages\/edit\/[^/]+\/?$/.test(path);
+}

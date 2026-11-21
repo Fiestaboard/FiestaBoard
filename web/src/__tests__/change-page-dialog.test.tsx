@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -218,6 +218,36 @@ describe("ChangePageDialog (phone, two steps)", () => {
         }) as unknown as MediaQueryList,
     );
   }
+
+  it("leaves the search unfocused on a touch phone, so the keyboard does not cover the list (BB-A-17)", async () => {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes("max-width") || query.includes("coarse"),
+          media: query,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+    setup();
+    const sheet = await screen.findByRole("dialog", { name: "Change Page" });
+    await within(sheet).findByRole("button", { name: /Taco Tuesday/ });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(document.activeElement?.tagName).not.toBe("INPUT");
+    expect(sheet.contains(document.activeElement)).toBe(true);
+  });
+
+  it("closes on the browser's Back instead of leaving Home (BB-A-12)", async () => {
+    asPhone();
+    const { onOpenChange } = setup();
+    await screen.findByRole("dialog", { name: "Change Page" });
+    act(() => {
+      // Back: the browser is now on the entry below the sheet's.
+      window.history.replaceState(null, "");
+      window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 
   it("pushes the duration step when a row is tapped, and Back returns to the list", async () => {
     asPhone();

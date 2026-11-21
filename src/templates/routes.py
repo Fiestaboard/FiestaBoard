@@ -178,8 +178,12 @@ async def validate_template(request: TemplateValidateRequest):
     template_engine = get_template_engine()
     if rows_kw:
         rows_kw["rows"] = dims.rows
-    problems = template_engine.validate_template(
-        template, cols=dims.cols, line_metadata=line_metadata, **rows_kw, **check.render_kw
+    # A formula is checked against the render's own data, which may fetch
+    # plugin data: a worker thread, not the event loop (as render does).
+    problems = await asyncio.to_thread(
+        lambda: template_engine.validate_template(
+            template, cols=dims.cols, line_metadata=line_metadata, **rows_kw, **check.render_kw
+        )
     )
 
     return TemplateValidationResponse(

@@ -167,28 +167,14 @@ test.describe("Calendar alignment", () => {
     ).toBe(true);
   });
 
-  test("time labels align with grid ticks on mobile", async ({ page }) => {
+  test("a phone shows the Day agenda instead of the week grid", async ({ page }) => {
+    // 07d draws only Day at 390 and the seven-column week was unreadable there
+    // (BB-C-4), so below the rail neither the kit week nor the legacy grid is offered.
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await page.getByRole("radio", { name: "Week", exact: true }).click();
-    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
-    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveAttribute("aria-checked", "true");
-    await expect(page.locator(".schedule-calendar-container .rbc-calendar")).toBeVisible();
-
-    const calendar = page.locator(".schedule-calendar-container");
-    await expect(calendar).toBeVisible({ timeout: 10_000 });
-    await page.waitForTimeout(1500);
-
-    const result = await measureCalendarAlignment(page);
-    for (const d of result.details) {
-      console.log(`  ${d}`);
-    }
-    expect(
-      result.passed,
-      `Mobile alignment failed: max drift ${result.maxDrift.toFixed(1)}px > ${ALIGNMENT_TOLERANCE_PX}px. ${result.details.join("; ")}`,
-    ).toBe(true);
+    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveCount(0);
+    await expect(page.locator(".schedule-calendar-container")).toHaveCount(0);
   });
 
   test("captures screenshots for visual inspection", async ({ page }) => {
@@ -207,15 +193,6 @@ test.describe("Calendar alignment", () => {
 
     await calendar.screenshot({
       path: `${outputDir}/calendar-desktop.png`,
-    });
-
-    await page.setViewportSize({ width: 375, height: 667 });
-    await expect(calendar).toHaveClass(/schedule-calendar-mobile/);
-    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveAttribute("aria-checked", "true");
-    await expect(page.locator(".schedule-calendar-container .rbc-calendar")).toBeVisible();
-
-    await calendar.screenshot({
-      path: `${outputDir}/calendar-mobile.png`,
     });
 
     const result = await measureCalendarAlignment(page);
@@ -378,21 +355,6 @@ test.describe("Calendar alignment", () => {
     // Full page to capture entire calendar (24h can be tall)
     await page.screenshot({
       path: `${outputDir}/calendar-fullpage-desktop-crossday.png`,
-      fullPage: true,
-    });
-
-    // Mobile: taller viewport to show more of the calendar
-    await page.setViewportSize({ width: 390, height: 900 });
-    await expect(calendar).toHaveClass(/schedule-calendar-mobile/);
-    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveAttribute("aria-checked", "true");
-    await expect(page.locator(".schedule-calendar-container .rbc-calendar")).toBeVisible();
-
-    await calendar.screenshot({
-      path: `${outputDir}/calendar-full-mobile-crossday.png`,
-    });
-
-    await page.screenshot({
-      path: `${outputDir}/calendar-fullpage-mobile-crossday.png`,
       fullPage: true,
     });
 
