@@ -533,7 +533,7 @@
     "scheduleMode": "Modo de horario",
     "scheduleModeEnabledDescription": "Habilitado — las páginas rotan automáticamente según el horario",
     "scheduleModeDisabledDescription": "Deshabilitado — las páginas se controlan manualmente",
-    "defaultPageLabel": "Página predeterminada para intervalos vacíos:",
+    "defaultPageLabel": "Página predeterminada para intervalos vacíos",
     "selectDefaultPage": "Selecciona una página predeterminada",
     "noneNoDefault": "Ninguna (sin predeterminada)",
     "conflictsDetected": "Conflictos de horario detectados",
@@ -1852,6 +1852,8 @@
       "overrideUntil": "Manual · hasta {time}",
       "pauseDisplay": "Pausar pantalla",
       "pauseHint": "El tablero conserva lo que muestra; la programación sigue ejecutándose en el hub.",
+      "pause": "Pausar",
+      "resume": "Reanudar",
       "diagnostics": "Diagnóstico",
       "changePage": "Cambiar página…",
       "back": "Volver a Pantallas",
@@ -2156,7 +2158,7 @@
     "boardUpdateIntervalDescription": "Con qué frecuencia el tablero busca actualizaciones de contenido (en segundos)",
     "requiresServiceRestart": "Requiere reinicio del servicio",
     "silenceScheduleLabel": "Horario de silencio",
-    "silenceScheduleDescription": "Evita actualizaciones del tablero durante las horas especificadas",
+    "silenceScheduleDescription": "El horario de silencio de esta pantalla. Los mensajes que llegan mientras está en silencio siguen la opción de abajo.",
     "startTimeLabel": "Hora de inicio",
     "endTimeLabel": "Hora de fin",
     "whenSilenceBegins": "Cuando comienza el silencio",
@@ -2183,7 +2185,7 @@
     "silencePageLabel": "Página de silencio",
     "silencePagePlaceholder": "Selecciona una página...",
     "silencePageHelp": "Esta página se mostrará cuando inicie la programación de silencio. Sus variables no se actualizarán durante el silencio.",
-    "scheduleBehaviorTitle": "Interruptor de programación",
+    "scheduleBehaviorTitle": "Comportamiento de la programación",
     "scheduleBehaviorDescription": "Cómo reacciona el tablero cuando se vuelve a activar el modo programación",
     "deferOnReenable": "Esperar al próximo cambio programado",
     "deferOnReenableHint": "Deja el tablero en su página actual al volver a activar el modo programación, hasta que la programación llegue a su siguiente franja. Desactivado por defecto, así que el tablero se actualiza de inmediato.",
@@ -4046,7 +4048,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} puntos",
     "layerMetaText": "Fuente {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} cortados"
   },
   "creatorIde": {
     "regionLabel": "IDE del creador",
@@ -4380,6 +4383,7 @@
     "fits": "Cabe",
     "doesNotFit": "No cabe",
     "fitReport": "La línea {line} ocupa {widest} de {cols} columnas",
-    "nothingCut": "nada cortado"
+    "nothingCut": "nada cortado",
+    "missingOff": "{plugin} está desactivado en Integraciones"
   }
 }

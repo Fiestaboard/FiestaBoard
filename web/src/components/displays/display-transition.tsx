@@ -75,8 +75,11 @@ export function DisplayTransition({
   board,
   onChange,
   disabled,
+  showIcon = true,
 }: {
   board: BoardInstance;
+  /** Draw the title's icon. 07d's Playback cards have none (BB-FH-6). */
+  showIcon?: boolean;
   /** Save some of the display's transition fields. */
   onChange: (updates: Partial<DisplayTransitionUpdate>) => void;
   disabled?: boolean;
@@ -86,7 +89,7 @@ export function DisplayTransition({
 
   return (
     <PageSection
-      icon={<Sparkles />}
+      icon={showIcon ? <Sparkles /> : undefined}
       title={t("title")}
       description={t("description")}
       data-testid="display-transition"

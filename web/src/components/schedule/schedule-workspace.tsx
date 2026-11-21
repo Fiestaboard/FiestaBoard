@@ -223,6 +223,9 @@ export function ScheduleWorkspace({
       {!lookupOpen && view === "day" && hasTimeline && (
         <Box ref={strip} className="min-w-0">
           <WeekStrip
+            // Kept on the scrolling pills (alpha.5 made the fixed-width tray
+            // the default, BB-FC-4) until the FC-4 consume fits five days.
+            variant="pills"
             aria-label={t("days")}
             value={format(date, "yyyy-MM-dd")}
             onValueChange={(value) => {

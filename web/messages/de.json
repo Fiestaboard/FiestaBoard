@@ -533,7 +533,7 @@
     "scheduleMode": "Zeitplanmodus",
     "scheduleModeEnabledDescription": "Aktiviert — Seiten wechseln automatisch nach Zeitplan",
     "scheduleModeDisabledDescription": "Deaktiviert — Seiten werden manuell gesteuert",
-    "defaultPageLabel": "Standardseite für Lücken:",
+    "defaultPageLabel": "Standardseite für Lücken",
     "selectDefaultPage": "Standardseite auswählen",
     "noneNoDefault": "Keine (kein Standard)",
     "conflictsDetected": "Zeitplankonflikte erkannt",
@@ -1852,6 +1852,8 @@
       "overrideUntil": "Manuell · bis {time}",
       "pauseDisplay": "Anzeige pausieren",
       "pauseHint": "Die Tafel zeigt weiterhin denselben Inhalt; der Zeitplan läuft auf dem Hub weiter.",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
       "diagnostics": "Diagnose",
       "changePage": "Seite wechseln…",
       "back": "Zurück zu Anzeigen",
@@ -2156,7 +2158,7 @@
     "boardUpdateIntervalDescription": "Wie oft das Board nach Inhaltsaktualisierungen sucht (in Sekunden)",
     "requiresServiceRestart": "Erfordert Neustart des Dienstes",
     "silenceScheduleLabel": "Ruheplan",
-    "silenceScheduleDescription": "Board-Aktualisierungen während bestimmter Stunden verhindern",
+    "silenceScheduleDescription": "Der Ruheplan für dieses Display. Nachrichten, die während der Ruhezeit eintreffen, folgen der Auswahl unten.",
     "startTimeLabel": "Startzeit",
     "endTimeLabel": "Endzeit",
     "whenSilenceBegins": "Wann die Ruhephase beginnt",
@@ -2183,7 +2185,7 @@
     "silencePageLabel": "Stummschaltungsseite",
     "silencePagePlaceholder": "Seite auswählen...",
     "silencePageHelp": "Diese Seite wird angezeigt, wenn der Stummschaltungs-Zeitplan beginnt. Die Variablen werden während der Stummschaltung nicht aktualisiert.",
-    "scheduleBehaviorTitle": "Zeitplan-Schalter",
+    "scheduleBehaviorTitle": "Zeitplanverhalten",
     "scheduleBehaviorDescription": "Wie das Board reagiert, wenn der Zeitplanmodus wieder eingeschaltet wird",
     "deferOnReenable": "Auf die nächste geplante Änderung warten",
     "deferOnReenableHint": "Das Board bleibt beim Wiedereinschalten des Zeitplanmodus auf der aktuellen Seite, bis der Zeitplan sein nächstes Zeitfenster erreicht. Standardmäßig aus, das Board wird also sofort aktualisiert.",
@@ -4046,7 +4048,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} Punkte",
     "layerMetaText": "Schrift {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} abgeschnitten"
   },
   "creatorIde": {
     "regionLabel": "Creator-IDE",
@@ -4380,6 +4383,7 @@
     "fits": "Passt",
     "doesNotFit": "Passt nicht",
     "fitReport": "Zeile {line} ist {widest} von {cols} Spalten",
-    "nothingCut": "nichts abgeschnitten"
+    "nothingCut": "nichts abgeschnitten",
+    "missingOff": "{plugin} ist unter Integrationen ausgeschaltet"
   }
 }

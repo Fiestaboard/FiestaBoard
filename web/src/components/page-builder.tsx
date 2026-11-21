@@ -94,6 +94,7 @@ import { toast } from "sonner";
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { CanvasesPanel, type CanvasesPanelHandle } from "@/components/canvas-editor/canvases-panel";
 import { LineOverflowWarnings } from "@/components/complex-editing/line-overflow-warnings";
+import { PreviewCutMarkers } from "@/components/complex-editing/preview-cut-markers";
 import { useComplexEditing } from "@/components/complex-editing/use-complex-editing";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
@@ -3951,6 +3952,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       className={cn("relative min-w-0", formulaIde.boardProps.className)}
                     >
                       {formulaIde.boardOverlay}
+                      {/* H4: where the board cuts a line (BB-E-10, 307:41698). */}
+                      {!drawMode && !baselineDisplay && (
+                        <PreviewCutMarkers
+                          stage={previewStage}
+                          overflows={lineOverflow.overflows}
+                          rows={dims.rows}
+                          cols={dims.cols}
+                          wrapped={lineWrapEnabled}
+                        />
+                      )}
                       {baselineDisplay ? (
                         <Alert variant="warning" className="w-full">
                           <AlertDescription>

@@ -146,6 +146,11 @@ export function NavigationSidebar() {
     icon: item.icon,
     label: t(item.key),
     external: item.external,
+    // Collections indented inside Pages and the primary/secondary hairline
+    // (07a `302:20841`, BB-FS-2). The rail draws both; the tab bar drops
+    // nested rows (navItemsFor) and never draws a hairline.
+    nested: Boolean(item.nestedUnder),
+    separatorBefore: item.separatorBefore,
     active: isNavItemActive(item, pathname, chrome),
     onPrefetch: !item.external && item.href === "/pages" ? prefetchPages : undefined,
     badge:

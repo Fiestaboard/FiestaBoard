@@ -18,10 +18,13 @@ export function DisplayOverview({
   board,
   onPlayback,
   onDiagnostics,
+  showChangePage = true,
 }: {
   board: BoardInstance;
   onPlayback: () => void;
   onDiagnostics: () => void;
+  /** Off where the page or pane header already offers Change Page… (07d). */
+  showChangePage?: boolean;
 }) {
   const t = useTranslations("displays.fleet");
   const ts = useTranslations("generalSettings");
@@ -137,11 +140,13 @@ export function DisplayOverview({
           />
         </ListItem>
       </ListRowGroup>
-      <Flex justify="end">
-        <Button variant="outline" size="touch" onClick={() => setChanging(true)}>
-          {t("changePage")}
-        </Button>
-      </Flex>
+      {showChangePage && (
+        <Flex justify="end">
+          <Button variant="outline" size="touch" onClick={() => setChanging(true)}>
+            {t("changePage")}
+          </Button>
+        </Flex>
+      )}
       {changing && (
         <ChangePageDialog
           open={changing}

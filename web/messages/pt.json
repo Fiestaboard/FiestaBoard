@@ -533,7 +533,7 @@
     "scheduleMode": "Modo de Agenda",
     "scheduleModeEnabledDescription": "Ativado — as páginas alternam automaticamente conforme a agenda",
     "scheduleModeDisabledDescription": "Desativado — as páginas são controladas manualmente",
-    "defaultPageLabel": "Página padrão para intervalos:",
+    "defaultPageLabel": "Página padrão para intervalos",
     "selectDefaultPage": "Selecione uma página padrão",
     "noneNoDefault": "Nenhuma (sem padrão)",
     "conflictsDetected": "Conflitos na Agenda Detectados",
@@ -1852,6 +1852,8 @@
       "overrideUntil": "Manual · até {time}",
       "pauseDisplay": "Pausar ecrã",
       "pauseHint": "O painel mantém o que está a mostrar; a programação continua a ser executada no hub.",
+      "pause": "Pausar",
+      "resume": "Retomar",
       "diagnostics": "Diagnóstico",
       "changePage": "Mudar de página…",
       "back": "Voltar aos ecrãs",
@@ -2156,7 +2158,7 @@
     "boardUpdateIntervalDescription": "Frequência com que o painel verifica atualizações de conteúdo (em segundos)",
     "requiresServiceRestart": "Requer reinicialização do serviço",
     "silenceScheduleLabel": "Horário de Silêncio",
-    "silenceScheduleDescription": "Impedir atualizações do painel durante os horários especificados",
+    "silenceScheduleDescription": "O horário de silêncio desta tela. Mensagens que chegam enquanto ela está silenciada seguem a opção abaixo.",
     "startTimeLabel": "Hora de Início",
     "endTimeLabel": "Hora de Término",
     "whenSilenceBegins": "Quando o silêncio começa",
@@ -2183,7 +2185,7 @@
     "silencePageLabel": "Página de silêncio",
     "silencePagePlaceholder": "Selecione uma página...",
     "silencePageHelp": "Esta página será mostrada quando o agendamento de silêncio começar. As suas variáveis não serão atualizadas durante o silêncio.",
-    "scheduleBehaviorTitle": "Alternador de agendamento",
+    "scheduleBehaviorTitle": "Comportamento do agendamento",
     "scheduleBehaviorDescription": "Como o painel reage quando o modo de agendamento é ligado novamente",
     "deferOnReenable": "Aguardar a próxima mudança agendada",
     "deferOnReenableHint": "Mantém o painel na página atual ao ligar novamente o modo de agendamento, até que o agendamento chegue à próxima faixa. Desativado por padrão, então o painel atualiza imediatamente.",
@@ -4046,7 +4048,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} pontos",
     "layerMetaText": "Fonte {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} cortados"
   },
   "creatorIde": {
     "regionLabel": "IDE do criador",
@@ -4380,6 +4383,7 @@
     "fits": "Cabe",
     "doesNotFit": "Não cabe",
     "fitReport": "A linha {line} tem {widest} de {cols} colunas",
-    "nothingCut": "nada cortado"
+    "nothingCut": "nada cortado",
+    "missingOff": "{plugin} está desativado em Integrações"
   }
 }

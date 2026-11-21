@@ -54,7 +54,7 @@ describe("GeneralSettings", () => {
     render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     // Card titles render immediately (outside the loading skeleton)
-    expect(screen.getAllByText("Update Intervals").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Update intervals").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Silence Schedule").length).toBeGreaterThan(0);
   });
 
@@ -88,7 +88,7 @@ describe("GeneralSettings", () => {
 
     await waitFor(() => {
       expect(screen.getAllByText("Silence Schedule").length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/Prevent board updates/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/The Silence Schedule for this display/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -171,7 +171,11 @@ describe("GeneralSettings", () => {
     render(<GeneralSettings board={board} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getAllByText(/Prevent board updates during specified hours/i).length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText(
+          /The Silence Schedule for this display\. Messages that arrive while it is silenced follow the choice below\./i,
+        ).length,
+      ).toBeGreaterThan(0);
     });
   });
 

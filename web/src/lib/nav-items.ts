@@ -42,6 +42,12 @@ export interface NavItemDef {
    * it is reached through the parent, and lights the parent's tab.
    */
   nestedUnder?: NavKey;
+  /**
+   * The rail's one hairline sits above this row: the break between the
+   * primary destinations and the rest (07a "Divider · primary / secondary",
+   * BB-FS-2). The rail draws it; the tab bar has no use for it.
+   */
+  separatorBefore?: boolean;
 }
 
 export const HELP_DOCS_URL = "https://fiestaboard.app/docs/intro";
@@ -52,7 +58,7 @@ export const NAV_ITEMS: readonly NavItemDef[] = [
   { key: "collections", href: "/collections", icon: GalleryHorizontalEnd, nestedUnder: "pages" },
   { key: "schedule", href: "/schedule", icon: Calendar },
   { key: "displays", href: "/displays", icon: Monitor },
-  { key: "integrations", href: "/integrations", icon: Puzzle },
+  { key: "integrations", href: "/integrations", icon: Puzzle, separatorBefore: true },
   { key: "picks", href: "/picks", icon: Award },
   { key: "settings", href: "/settings", icon: Settings },
   { key: "helpDocs", href: HELP_DOCS_URL, icon: CircleHelp, external: true },
