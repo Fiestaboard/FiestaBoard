@@ -160,14 +160,25 @@ describe("Preview card (BB-E-5, BB-E-6)", () => {
 describe("Preview animation (BB-E-9, D7)", () => {
   it("does not animate edits, and Replay plays the cascade", async () => {
     const user = userEvent.setup();
+    type Frame = { message: string | null; animate: boolean };
+    const frames = (from = 0) => boardProps.mock.calls.slice(from).map(([p]) => p as Frame);
     renderEditor();
     await screen.findByDisplayValue("Existing Page");
-    await waitFor(() => expect(boardProps).toHaveBeenCalled());
-    expect(boardProps.mock.lastCall![0]).toMatchObject({ animate: false });
+    // Wait for the rendered preview before pressing Replay. The template
+    // render is debounced, so the board first shows a loading (null) message.
+    // Replay plays whatever the board shows when it is pressed, and any later
+    // change to the message ends the replay and snaps (D7). If Replay is
+    // pressed while the board is still loading, the debounced "HELLO" lands
+    // mid-replay and ends it. That only happens when the runner is slow, which
+    // is how this test used to flake.
+    await waitFor(() => expect(boardProps.mock.lastCall![0]).toMatchObject({ message: "HELLO" }));
+    // The rendered preview arrived without flapping: edits snap.
+    expect(frames().every((p) => !p.animate)).toBe(true);
     const card = document.getElementById("page-editor-preview")!;
+    const beforeReplay = boardProps.mock.calls.length;
     await user.click(within(card).getByRole("button", { name: "Replay" }));
-    await waitFor(() => expect(boardProps.mock.lastCall![0]).toMatchObject({ animate: true }));
-    const played = boardProps.mock.calls.map(([p]) => p as { message: string; animate: boolean });
-    expect(played.some((p) => p.message === "" && p.animate)).toBe(true);
+    await waitFor(() => expect(boardProps.mock.lastCall![0]).toMatchObject({ message: "HELLO", animate: true }));
+    // The cascade starts from a blank board with animations on.
+    expect(frames(beforeReplay).some((p) => p.message === "" && p.animate)).toBe(true);
   });
 });
