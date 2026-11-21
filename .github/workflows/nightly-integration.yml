@@ -42,7 +42,7 @@ jobs:
   dispatch:
     name: Dispatch full integration suite on ${{ inputs.ref || 'v11' }}
     runs-on: ubuntu-latest
-    # The dispatched suite's job has a 30-minute timeout (20 of it for the
+    # The dispatched suite's job has a 35-minute timeout (23 of it for the
     # tests). Add up to 5 minutes to find the run and room for queueing.
     timeout-minutes: 60
     permissions:
