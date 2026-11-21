@@ -71,6 +71,9 @@ function renderPage() {
   );
 }
 beforeEach(() => {
+  // A Tuesday: the phone Day view opens on today, and the weekday entry is
+  // only in it Monday to Friday (this failed on weekends).
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-17T10:00:00Z") });
   matchMedia = window.matchMedia;
   localStorage.setItem("schedule-view-mode", "calendar");
   // The phone agenda opens on today, and the fixture's entry runs on
@@ -79,6 +82,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date(2026, 10, 18, 12, 0, 0));
 });
 afterEach(() => {
+  vi.useRealTimers();
   window.matchMedia = matchMedia;
   vi.useRealTimers();
 });
@@ -114,6 +118,10 @@ it("keeps the view choice and toolbar on wider screens", async () => {
 });
 
 it("titles the entry sheet with the display and the days it repeats on (BB-C-5)", async () => {
+  // The entry repeats on weekdays, so the Day agenda lists it only on a
+  // weekday: pin the clock to a Wednesday (the test failed every weekend).
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-18T10:00:00Z"));
   viewport(true);
   renderPage();
   fireEvent.click((await screen.findAllByRole("button", { name: /Clock & Date/ }))[0]);

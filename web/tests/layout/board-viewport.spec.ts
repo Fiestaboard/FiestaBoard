@@ -173,7 +173,9 @@ test.describe("on a touch phone (coarse pointer)", () => {
   test("the hint says 'swipe' (02), not the keyboard hint", async ({ page }) => {
     await page.goto(FIXTURE);
     const row = page.getByTestId("note-array").locator("[data-slot=board-viewport-indicator]");
-    await expect(row).toContainText("Note 1 of 3 · swipe");
-    await expect(row).not.toContainText("Shift + scroll");
+    // What is shown, not textContent: both wordings are in the DOM and the
+    // pointer media query hides one (BB-A-21).
+    await expect(row).toContainText("Note 1 of 3 · swipe", { useInnerText: true });
+    await expect(row).not.toContainText("Shift + scroll", { useInnerText: true });
   });
 });

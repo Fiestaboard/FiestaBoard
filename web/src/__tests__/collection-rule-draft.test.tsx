@@ -49,7 +49,7 @@ async function editRule() {
 describe("Collection rule drafts", () => {
   it("allows Update after removing a fresh draft while another rule is being edited", async () => {
     const { onSubmit } = renderForm();
-    await userEvent.click(screen.getByRole("button", { name: "Add Rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add rule" }));
     await ruleAction(1, "Edit rule 1");
     await ruleAction(2, "Remove rule");
     await userEvent.click(screen.getByRole("button", { name: "Cancel edit" }));
@@ -64,7 +64,7 @@ describe("Collection rule drafts", () => {
 
   it("cancels the fresh draft after removing an earlier rule", async () => {
     const { onSubmit } = renderForm();
-    await userEvent.click(screen.getByRole("button", { name: "Add Rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add rule" }));
     await ruleAction(1, "Remove rule");
     await userEvent.click(screen.getByRole("button", { name: "Cancel edit" }));
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
@@ -76,7 +76,7 @@ describe("Collection rule drafts", () => {
 
   it("keeps fresh draft and editor identity when a collapsed draft is reordered", async () => {
     const { onSubmit } = renderForm();
-    await userEvent.click(screen.getByRole("button", { name: "Add Rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add rule" }));
     await ruleAction(1, "Edit rule 1");
     await ruleAction(2, "Move rule 2 up");
     expect(screen.getByRole("textbox", { name: "Expression for rule 2" })).toHaveValue("1 == 1");
@@ -94,7 +94,7 @@ describe("Collection rule drafts", () => {
 
   it("preserves unsaved expression edits when another rule is dragged across the editor", async () => {
     renderForm();
-    await userEvent.click(screen.getByRole("button", { name: "Add Rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add rule" }));
     await editRule();
     await userEvent.click(screen.getByRole("button", { name: "More actions for rule 2" }));
     expect(await screen.findByRole("menuitem", { name: "Move rule 2 up" })).toHaveAttribute("aria-disabled", "true");
@@ -147,7 +147,7 @@ describe("Collection rule drafts", () => {
 
   it("explains why a fresh empty rule must be saved or canceled before Update", async () => {
     const { onSubmit, form } = renderForm();
-    await userEvent.click(screen.getByRole("button", { name: "Add Rule" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add rule" }));
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(screen.getByText(/Save or cancel the rule edit/i)).toBeInTheDocument();
     fireEvent.submit(form);
