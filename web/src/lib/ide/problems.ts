@@ -53,3 +53,18 @@ export function warningsFromCharset(issues: readonly CharsetIssue[] | null | und
 export function substitutionSummary(warnings: readonly IdeProblem[]): string[] {
   return [...new Set(warnings.filter((w) => w.kind === "substitution").map((w) => w.message))];
 }
+
+/** The hub's formula error wording: "Formula #REF: Unknown source: missing". */
+const FORMULA_ERROR = /^Formula (#[A-Z0-9/?]+(?::\d+)?):\s*(.*)$/s;
+
+/**
+ * Figma 184:159319 titles a formula problem by its error tag ("#REF · Row 12")
+ * with the reason beside it (BB-FP-18). Other problems keep their kind title.
+ */
+export function problemTitleParts(problem: Pick<IdeProblem, "kind" | "message">): {
+  tag: string | null;
+  detail: string;
+} {
+  const match = problem.kind === "formula" ? FORMULA_ERROR.exec(problem.message) : null;
+  return match ? { tag: match[1], detail: match[2] } : { tag: null, detail: problem.message };
+}

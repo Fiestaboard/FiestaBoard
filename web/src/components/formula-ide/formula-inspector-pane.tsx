@@ -61,7 +61,7 @@ export function FormulaInspectorPane(props: WorkbenchProps) {
   }
   if (focus === null) {
     return (
-      <Card data-testid="inspector-pane" className="py-4">
+      <Card data-testid="inspector-pane" className="border-2 border-ring py-4">
         <CardContent className="px-4">
           <Text size="sm" tone="muted">
             {t("inspectHint")}
@@ -75,7 +75,7 @@ export function FormulaInspectorPane(props: WorkbenchProps) {
   const source = cell?.origin?.source;
   if (focus.kind === "cell" && cell && !cell.origin) {
     return (
-      <Card data-testid="inspector-pane" className="py-4">
+      <Card data-testid="inspector-pane" className="border-2 border-ring py-4">
         <CardContent className="px-4">
           <Text size="sm">{t("cellPadding", { row: row ?? 0, col: focus.col + 1 })}</Text>
         </CardContent>
@@ -142,7 +142,7 @@ export function FormulaInspectorPane(props: WorkbenchProps) {
     );
 
   return (
-    <Card data-testid="inspector-pane" className="gap-3 border-ring py-4">
+    <Card data-testid="inspector-pane" className="@container gap-3 border-2 border-ring py-4">
       <CardContent className="px-4">
         <Tabs defaultValue="steps">
           <Flex align="center" justify="between" gap="2" wrap className="mb-3">
@@ -160,7 +160,8 @@ export function FormulaInspectorPane(props: WorkbenchProps) {
               </Button>
             </Flex>
           </Flex>
-          <Box className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+          {/* Side by side only when the pane is wide enough to keep each step on one line (BB-FP-16). */}
+          <Box className="grid gap-4 @2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
             <Box className="min-w-0">
               <TabsContent value="steps">
                 {focus.kind === "formula" && isLoop && (

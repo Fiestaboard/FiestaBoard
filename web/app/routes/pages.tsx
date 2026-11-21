@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Outlet } from "react-router";
 
@@ -53,7 +53,7 @@ export function PagesSection({ children }: { children: React.ReactNode }) {
 
   return (
     <SectionShell
-      icon={FileText}
+      icon={LayoutGrid}
       title={t("title")}
       description={t("description")}
       href="/pages"

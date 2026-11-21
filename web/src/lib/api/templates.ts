@@ -46,6 +46,11 @@ export interface TemplateVariables {
   filters: string[];
   formatting: Record<string, FormattingVariable>;
   syntax_examples: Record<string, string>;
+  /**
+   * Installed integrations that are switched off, with their declared example
+   * values (BB-E-12). Not in `variables`: a template reading one shows ???.
+   */
+  disabled_plugins?: Record<string, { name: string; examples: Record<string, string> }>;
 }
 
 export interface HomeAssistantEntity {

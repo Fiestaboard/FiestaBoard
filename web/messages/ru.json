@@ -101,7 +101,11 @@
     "about": "О FiestaBoard",
     "signOut": "Выйти",
     "popoverLabel": "Меню аккаунта",
-    "account": "Аккаунт"
+    "account": "Аккаунт",
+    "theme": "Тема",
+    "signOutBrowser": "Выйти в этом браузере",
+    "ownerLine": "{username} · Владелец {hub}",
+    "updateBadge": "Обновить до {version}"
   },
   "aboutDialog": {
     "description": "Собственный хостинг. Ваш хаб, ваши дисплеи, ваши данные.",
@@ -303,7 +307,7 @@
   },
   "pages": {
     "title": "Страницы",
-    "description": "Создавайте и управляйте контентом для вашей доски",
+    "description": "Всё, что могут показать ваши дисплеи. Откройте страницу, чтобы изменить её или показать сейчас.",
     "newPage": "Создать",
     "viewModeLabel": "Режим просмотра",
     "gridView": "Сетка",
@@ -328,22 +332,23 @@
     "libraryCount": "{count, plural, one {Страницы: #} other {Страницы: #}}",
     "clearFilter": "Показать все страницы",
     "searchLabel": "Поиск страниц",
-    "searchPlaceholder": "Поиск по названиям и сохранённому содержимому",
+    "searchPlaceholder": "Поиск страниц",
     "searchHint": "Поиск по названиям и сохранённому содержимому в выбранном фильтре дисплея.",
     "clearSearch": "Очистить поиск",
     "sortLabel": "Сортировка страниц",
     "sortNameAsc": "Название А–Я",
     "sortNameDesc": "Название Я–А",
-    "sortCreatedDesc": "Сначала новые",
-    "sortCreatedAsc": "Сначала старые",
-    "sortUpdatedDesc": "Недавно обновлённые",
-    "sortUpdatedAsc": "Давно обновлённые",
+    "sortCreatedDesc": "Создание: сначала новые",
+    "sortCreatedAsc": "Создание: сначала старые",
+    "sortUpdatedDesc": "Изменение: сначала новые",
+    "sortUpdatedAsc": "Изменение: сначала старые",
     "noMatches": "Нет подходящих страниц",
     "searchCount": "{count} из {total} страниц",
     "loadError": "Не удалось загрузить страницы. Условия поиска сохранены.",
     "retryLoading": "Повторить загрузку страниц",
     "cardActions": "Действия для {name}",
     "duplicate": "Дублировать",
+    "exportShareString": "Экспортировать строку обмена",
     "deletePage": "Удалить страницу…",
     "toastDuplicated": "Создано «{name}»",
     "actionFailed": "Не удалось. Попробуйте ещё раз."
@@ -445,9 +450,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Режим просмотра",
-    "gridView": "Плитки",
-    "listView": "Список",
     "libraryCount": "{count, plural, one {Карусели: #} other {Карусели: #}}",
     "removePage": "Убрать {name}",
     "sortLifted": "{name} поднята · позиция {position} из {total} · ↑ ↓ — переместить, Пробел — опустить, Esc — отменить",
@@ -530,7 +532,7 @@
     "scheduleMode": "Режим расписания",
     "scheduleModeEnabledDescription": "Включено — страницы автоматически сменяются по расписанию",
     "scheduleModeDisabledDescription": "Отключено — страницы управляются вручную",
-    "defaultPageLabel": "Страница по умолчанию для пропусков:",
+    "defaultPageLabel": "Страница по умолчанию для пропусков",
     "selectDefaultPage": "Выберите страницу по умолчанию",
     "noneNoDefault": "Нет (без страницы по умолчанию)",
     "conflictsDetected": "Обнаружены конфликты в расписании",
@@ -994,6 +996,7 @@
     "sourceExternalBadge": "Внешний",
     "updateAvailableBadge": "Обновление",
     "moreOptionsAriaLabel": "Другие параметры",
+    "sectionMenuAriaLabel": "Параметры интеграций",
     "addInstanceAction": "Добавить экземпляр",
     "instanceNameInlineLabel": "Имя экземпляра:",
     "addInstanceInlineHelp": "Создаёт новый независимый экземпляр этого плагина с собственной конфигурацией. Используйте буквенно-цифровые символы, дефисы или подчёркивания (1–40 символов).",
@@ -1564,6 +1567,7 @@
   "composeDialog": {
     "title": "Написать сообщение",
     "description": "Появится на {board}, когда вы нажмёте «Показать сейчас». До этого на табло ничего не попадёт.",
+    "descriptionPhone": "Появится на {board} (дисплей в шапке), когда вы нажмёте «Показать сейчас».",
     "messageLabel": "Сообщение",
     "messagePlaceholder": "Введите сообщение…",
     "previewLabel": "Предпросмотр",
@@ -1843,6 +1847,8 @@
       "overrideUntil": "Вручную · до {time}",
       "pauseDisplay": "Приостановить дисплей",
       "pauseHint": "Табло сохраняет текущий контент; расписание продолжает работать на хабе.",
+      "pause": "Пауза",
+      "resume": "Продолжить",
       "diagnostics": "Диагностика",
       "changePage": "Сменить страницу…",
       "back": "Назад к дисплеям",
@@ -2147,7 +2153,7 @@
     "boardUpdateIntervalDescription": "Как часто доска проверяет обновления контента (в секундах)",
     "requiresServiceRestart": "Требуется перезапуск сервиса",
     "silenceScheduleLabel": "Расписание тихого режима",
-    "silenceScheduleDescription": "Предотвратить обновления доски в указанные часы",
+    "silenceScheduleDescription": "Расписание тишины для этого экрана. Сообщения, пришедшие во время тишины, обрабатываются по выбору ниже.",
     "startTimeLabel": "Время начала",
     "endTimeLabel": "Время окончания",
     "whenSilenceBegins": "Когда начинается тихий режим",
@@ -2174,7 +2180,7 @@
     "silencePageLabel": "Страница тишины",
     "silencePagePlaceholder": "Выберите страницу...",
     "silencePageHelp": "Эта страница будет отображаться при старте расписания тишины. Её переменные не будут обновляться во время тишины.",
-    "scheduleBehaviorTitle": "Переключатель расписания",
+    "scheduleBehaviorTitle": "Поведение расписания",
     "scheduleBehaviorDescription": "Как ведёт себя доска при повторном включении режима расписания",
     "deferOnReenable": "Ждать следующего запланированного изменения",
     "deferOnReenableHint": "При повторном включении режима расписания доска остаётся на текущей странице, пока расписание не дойдёт до следующего интервала. По умолчанию выключено, поэтому доска обновляется сразу.",
@@ -2773,7 +2779,11 @@
     "clickToEditFormula": "Нажмите для редактирования формулы",
     "newFormula": "новая формула",
     "loading": "Загрузка…",
-    "dialogLabel": "Редактор формул"
+    "dialogLabel": "Редактор формул",
+    "sheetTitle": "Формула",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} сейчас {value}",
+    "resultColumns": "{used} из {cols} столбцов"
   },
   "templateEditor": {
     "variables": "Переменные",
@@ -4033,7 +4043,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "Точек: {count}",
     "layerMetaText": "Шрифт {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} обрезано"
   },
   "creatorIde": {
     "regionLabel": "IDE создателя",
@@ -4367,6 +4378,7 @@
     "fits": "Помещается",
     "doesNotFit": "Не помещается",
     "fitReport": "Строка {line}: {widest} из {cols} столбцов",
-    "nothingCut": "ничего не обрезано"
+    "nothingCut": "ничего не обрезано",
+    "missingOff": "{plugin} отключено в разделе «Интеграции»"
   }
 }

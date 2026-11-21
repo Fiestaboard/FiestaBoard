@@ -37,14 +37,14 @@ import { localTimeToUTC, utcToLocalTime } from "@/lib/timezone-utils";
 
 type SilenceMode = "indicator" | "freeze" | "page";
 
-export function SilenceSchedule({ boardId }: { boardId?: string } = {}) {
+export function SilenceSchedule({ boardId, showIcon = true }: { boardId?: string; showIcon?: boolean } = {}) {
   const { currentBoardId, isLoading } = useCurrentBoard();
   const scopedBoardId = boardId ?? (currentBoardId || undefined);
   if (isLoading) return <Skeleton className="h-24 w-full" />;
-  return <BoardSilenceSchedule key={scopedBoardId ?? "global"} boardId={scopedBoardId} />;
+  return <BoardSilenceSchedule key={scopedBoardId ?? "global"} boardId={scopedBoardId} showIcon={showIcon} />;
 }
 
-function BoardSilenceSchedule({ boardId }: { boardId?: string }) {
+function BoardSilenceSchedule({ boardId, showIcon }: { boardId?: string; showIcon: boolean }) {
   const t = useTranslations("generalSettings");
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
@@ -260,7 +260,7 @@ function BoardSilenceSchedule({ boardId }: { boardId?: string }) {
     <PageSection
       id="silence-schedule"
       className="scroll-mt-24"
-      icon={<Moon />}
+      icon={showIcon ? <Moon /> : undefined}
       title={t("silenceScheduleLabel")}
       description={t("silenceScheduleDescription")}
     >

@@ -4,6 +4,7 @@
 
 import {
   Avatar,
+  Badge,
   Box,
   Button,
   Flex,
@@ -17,15 +18,17 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpCircle, ChevronRight, Info, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
+import { ArrowUpCircle, ChevronRight, CircleHelp, Info, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AboutDialog } from "@/components/about-dialog";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
+import { useHubIdentity } from "@/hooks/use-hub-identity";
 import { useRouter } from "@/hooks/use-router";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { HELP_DOCS_URL } from "@/lib/nav-items";
 import { moreVisibilityChanged } from "@/lib/pwa/app-badge";
 import { clearAccountDataOnDevice } from "@/lib/pwa/sign-out";
 
@@ -62,6 +65,7 @@ export function SidebarSettingsMenu({
   onSelect,
 }: SidebarSettingsMenuProps) {
   const t = useTranslations("settingsMenu");
+  const tNav = useTranslations("navigation");
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -94,6 +98,9 @@ export function SidebarSettingsMenu({
   // The hook NavigationSidebar decides the dot with, so this item and the dot
   // cannot disagree. Same cache keys, so it costs no second request.
   const updateAvailable = useAvailableUpdate();
+  // The hub's name for the header's "casa · Owner of Casa FiestaPi" line;
+  // desktop only, and only once the menu is open.
+  const hub = useHubIdentity({ enabled: variant === "desktop" && menuOpen });
 
   // The trigger says who you are when the install knows, and what the menu
   // is when it doesn't. An install with auth off has no name to show, so the
@@ -264,6 +271,10 @@ export function SidebarSettingsMenu({
           label={t("popoverLabel")}
           className="w-[304px] max-w-[calc(100vw-24px)] max-h-[var(--available-height)] overflow-y-auto p-0"
         >
+          {/* 07e `343:61586` (BB-FS-5): who you are and whose hub this is,
+              then Theme on one row, then the three destinations, then the
+              way out. The build number lives in About, and an update waiting
+              is a badge on About, whose dialog says how to apply it. */}
           {username && (
             <Flex align="center" gap="3" className="border-b p-3">
               <Avatar size="md" name={username} />
@@ -271,38 +282,27 @@ export function SidebarSettingsMenu({
                 <Text size="sm" weight="medium" className="break-words">
                   {username}
                 </Text>
-                <Button variant="link" className="h-auto p-0 text-xs" onClick={selectDesktop(openAccount)}>
-                  {t("account")}
-                  <ChevronRight className="size-3" aria-hidden="true" />
-                </Button>
+                {hub.name && (
+                  <Text size="xs" tone="muted" className="break-words">
+                    {t("ownerLine", { username, hub: hub.name })}
+                  </Text>
+                )}
               </Box>
             </Flex>
           )}
-          <Stack gap="2" className="border-b p-3">
-            <Text size="xs" tone="muted">
-              {t("appearance")}
-            </Text>
+          <Flex align="center" justify="between" gap="3" className="border-b px-3 py-2">
+            <Text size="sm">{t("theme")}</Text>
             <SegmentedControl
-              aria-label={t("appearance")}
-              size="md"
-              className="w-full"
+              aria-label={t("theme")}
+              size="sm"
               value={theme}
               onValueChange={(value) => setTheme(value as "light" | "dark" | "system")}
             >
-              <SegmentedControlItem value="light">
-                <Sun aria-hidden="true" />
-                {t("light")}
-              </SegmentedControlItem>
-              <SegmentedControlItem value="dark">
-                <Moon aria-hidden="true" />
-                {t("dark")}
-              </SegmentedControlItem>
-              <SegmentedControlItem value="system">
-                <Monitor aria-hidden="true" />
-                {t("system")}
-              </SegmentedControlItem>
+              <SegmentedControlItem value="light">{t("light")}</SegmentedControlItem>
+              <SegmentedControlItem value="dark">{t("dark")}</SegmentedControlItem>
+              <SegmentedControlItem value="system">{t("system")}</SegmentedControlItem>
             </SegmentedControl>
-          </Stack>
+          </Flex>
           <Stack gap="0.5" className="p-1.5">
             <Button variant="ghost" className="w-full justify-start gap-2" onClick={selectDesktop(openSettings)}>
               <Settings className="size-4" aria-hidden="true" />
@@ -315,30 +315,25 @@ export function SidebarSettingsMenu({
             >
               <Info className="size-4" aria-hidden="true" />
               {t("about")}
+              {updateAvailable && (
+                <Badge variant="brand" className="ms-auto">
+                  {t("updateBadge", { version: updateAvailable })}
+                </Badge>
+              )}
             </Button>
-            {versionLine && (
-              <Text size="xs" tone="muted" className="px-3 py-1">
-                {versionLine}
-              </Text>
-            )}
-            {updateLabel && (
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-2 text-brand-emphasis"
-                onClick={selectDesktop(openSettings)}
-              >
-                <ArrowUpCircle className="size-4 shrink-0" aria-hidden="true" />
-                <Text as="span" className="truncate">
-                  {updateLabel}
-                </Text>
-              </Button>
-            )}
+            <Button asChild variant="ghost" className="w-full justify-start gap-2">
+              {/* eslint-disable-next-line react/forbid-elements -- single Slot child of Button asChild; the Button merges its row chrome onto this external anchor */}
+              <a href={HELP_DOCS_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>
+                <CircleHelp className="size-4" aria-hidden="true" />
+                {tNav("helpDocs")}
+              </a>
+            </Button>
           </Stack>
           {signedIn && (
             <Box className="border-t p-1.5">
               <Button variant="ghost" className="w-full justify-start gap-2" onClick={selectDesktop(handleSignOut)}>
                 <LogOut className="size-4" aria-hidden="true" />
-                {t("signOut")}
+                {t("signOutBrowser")}
               </Button>
             </Box>
           )}
