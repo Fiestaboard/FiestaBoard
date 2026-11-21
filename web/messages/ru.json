@@ -1223,6 +1223,12 @@
       "computer": "компьютер"
     }
   },
+  "notFound": {
+    "title": "Страница не найдена",
+    "description": "По адресу {where} ничего нет. Возможно, в ссылке опечатка или страница переехала.",
+    "home": "На главную",
+    "help": "Справка и документация"
+  },
   "wizard": {
     "welcomeTitle": "Добро пожаловать в FiestaBoard",
     "welcomeSubtitle": "Давайте настроим всё за несколько шагов",
@@ -4027,19 +4033,24 @@
   "creatorIde": {
     "regionLabel": "IDE создателя",
     "explorer": "Проводник",
+    "showExplorer": "Показать проводник",
+    "hideExplorer": "Скрыть проводник",
+    "explorerAfterSave": "Экраны и части этой страницы появятся здесь после сохранения.",
     "inspector": "Инспектор",
     "console": "Консоль",
-    "filterPages": "Фильтр страниц…",
-    "pagesGroup": "Страницы",
-    "collectionsGroup": "Коллекции",
     "snippetsGroup": "Сниппеты",
+    "thisPageGroup": "Эта страница",
+    "boardsGroup": "Экраны",
+    "partsGroup": "Части",
+    "noBoards": "Пока ни на одном экране.",
+    "noParts": "Без данных и формул: простой текст.",
+    "partRow": "Строка {rows}",
+    "partRows": "Строки {rows}",
+    "formulasPart": "Формулы",
     "snippetsUnavailable": "Сохранённые сниппеты пока недоступны на этом хабе.",
     "explorerLive": "Сейчас в эфире",
     "explorerScheduled": "По расписанию",
     "explorerNotScheduled": "Вне расписания",
-    "collectionPages": "{count, plural, one {# страница} few {# страницы} many {# страниц} other {# страницы}}",
-    "noMatches": "Ничего не найдено.",
-    "noCollections": "Коллекций пока нет.",
     "usedBy": "Используется: {names}",
     "usedByNone": "Не входит ни в одну коллекцию.",
     "tab": {

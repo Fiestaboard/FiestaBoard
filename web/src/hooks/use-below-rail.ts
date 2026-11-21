@@ -76,30 +76,42 @@ function getTabletSnapshot() {
 }
 
 /**
- * From 768 to 1023px the rail starts collapsed (07 `61:17544`, 07a
- * `307:61752`: the 900 frames draw the 64px rail). It is a default, not a
- * lock: the reader can still expand it there. Nothing done in the band is
- * persisted (the caller's toggle must pass `persist: false` while this
- * returns true), and on leaving the band the rail goes back to the state the
- * reader chose for wide screens.
+ * Where the rail starts collapsed without the reader asking, and gives their
+ * own choice back afterwards. Two holds, either of which collapses it:
  *
- * Runs in a layout effect, so a page opened in the band never paints the
- * 256px rail before collapsing it.
+ * - The tablet band, 768–1023px (07 `61:17544`, 07a `307:61752`: the 900
+ *   frames draw the 64px rail). Nothing toggled in the band is persisted
+ *   (the caller's toggle passes `persist: false` while this returns true,
+ *   DD-W46).
+ * - The page editor (`inEditor`), at any width: every Figma editor frame
+ *   draws the icon rail (53:137378, 184:159319; owner decision D1, BB-E-3).
+ *   A toggle there is the reader's explicit choice and persists through the
+ *   Sidebar's own toggle, so it becomes the global choice.
+ *
+ * Entering either hold collapses the rail for the visit (without persisting).
+ * Moving within the editor (new page to saved page) is not an entry. When the
+ * last hold lets go, the rail goes back to the stored global choice, which
+ * already includes any toggle the reader made in the editor.
+ *
+ * Runs in a layout effect, so a page opened in a hold never paints the 256px
+ * rail before collapsing it.
  *
  * @returns whether the viewport is in the tablet band.
  */
-export function useTabletRailCollapse(
+export function useRailAutoCollapse(
   setCollapsed: (value: boolean, opts?: { persist?: boolean }) => void,
   readStored: () => boolean,
+  inEditor = false,
 ): boolean {
   const inBand = useSyncExternalStore(subscribeTablet, getTabletSnapshot, () => false);
-  const previous = useRef<boolean | null>(null);
+  const previous = useRef<{ band: boolean; editor: boolean } | null>(null);
   useLayoutEffect(() => {
-    if (previous.current === inBand) return;
-    const first = previous.current === null;
-    previous.current = inBand;
-    if (inBand) setCollapsed(true, { persist: false });
-    else if (!first) setCollapsed(readStored(), { persist: false });
-  }, [inBand, setCollapsed, readStored]);
+    const before = previous.current;
+    if (before && before.band === inBand && before.editor === inEditor) return;
+    previous.current = { band: inBand, editor: inEditor };
+    const entered = (inBand && !before?.band) || (inEditor && !before?.editor);
+    if (entered) setCollapsed(true, { persist: false });
+    else if (before && !inBand && !inEditor) setCollapsed(readStored(), { persist: false });
+  }, [inBand, inEditor, setCollapsed, readStored]);
   return inBand;
 }

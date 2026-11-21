@@ -99,8 +99,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // `suppressHydrationWarning` is kept for the theme hook's classList
   // mutation: it adds `light`/`dark` to `<html>` on the client, which React
   // would otherwise try to reconcile away.
+  // `fui-coarse` opts the whole app into FiestaUI's W2 touch layer: on a
+  // coarse pointer default-sized controls get a 44px floor (BB-A-15).
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="fui-coarse" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: ASSET_URL_HELPER }} />
         <Meta />

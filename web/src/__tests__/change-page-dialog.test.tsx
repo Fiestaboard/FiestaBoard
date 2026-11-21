@@ -226,6 +226,24 @@ describe("ChangePageDialog (phone, two steps)", () => {
     );
   }
 
+  it("leaves the search unfocused on a touch phone, so the keyboard does not cover the list (BB-A-17)", async () => {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes("max-width") || query.includes("coarse"),
+          media: query,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+    setup();
+    const sheet = await screen.findByRole("dialog", { name: "Change Page" });
+    await within(sheet).findByRole("button", { name: /Taco Tuesday/ });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(document.activeElement?.tagName).not.toBe("INPUT");
+    expect(sheet.contains(document.activeElement)).toBe(true);
+  });
+
   it("closes on the browser's Back instead of leaving Home (BB-A-12)", async () => {
     asPhone();
     const { onOpenChange } = setup();

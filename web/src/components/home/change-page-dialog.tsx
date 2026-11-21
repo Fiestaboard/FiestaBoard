@@ -26,13 +26,14 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, ChevronLeft, ChevronRight, FileText, GalleryHorizontalEnd } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { HomeConnectionNotice } from "@/components/home/connection-notice";
 import { SilenceNotice } from "@/components/silence-notice";
 import { useCollections, usePagePreview, usePages } from "@/hooks/use-board";
 import { useCloseOnBack } from "@/hooks/use-close-on-back";
+import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useLocale, useTranslations } from "@/i18n/translations";
@@ -107,6 +108,8 @@ export function ChangePageDialog({
   const connection = useHubConnection();
   const sendsDisabled = !connection.deviceOnline || !connection.hubReachable;
   const isPhone = useMediaQuery(PHONE_QUERY);
+  const coarse = useCoarsePointer();
+  const titleRef = useRef<HTMLHeadingElement>(null);
   // Back closes the sheet and stays on the screen (BB-A-12).
   useCloseOnBack(open, () => onOpenChange(false));
   const refresh = useRefreshHomeStatus();
@@ -366,11 +369,16 @@ export function ChangePageDialog({
   if (isPhone) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" grabber className="max-h-[92dvh]">
+        {/* 07a `318:42101`: on a touch phone the search starts unfocused, so
+            the keyboard does not cover the list (BB-A-17). `true` focuses the
+            sheet's title instead. */}
+        <SheetContent side="bottom" grabber className="max-h-[92dvh]" initialFocus={coarse ? titleRef : undefined}>
           {step === "pick" || !selected ? (
             <>
               <SheetHeader className="pe-12 text-start">
-                <SheetTitle>{t("title")}</SheetTitle>
+                <SheetTitle ref={titleRef} tabIndex={-1} className="outline-none">
+                  {t("title")}
+                </SheetTitle>
                 <SheetDescription>{t("stepOne", { board: displayName })}</SheetDescription>
               </SheetHeader>
               <Stack gap="3" className="pb-4">

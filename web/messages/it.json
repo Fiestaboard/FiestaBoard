@@ -1223,6 +1223,12 @@
       "computer": "computer"
     }
   },
+  "notFound": {
+    "title": "Pagina non trovata",
+    "description": "Non c’è niente in {where}. Il link potrebbe contenere un errore, o la pagina è stata spostata.",
+    "home": "Vai alla Home",
+    "help": "Aiuto e documentazione"
+  },
   "wizard": {
     "welcomeTitle": "Benvenuto su FiestaBoard",
     "welcomeSubtitle": "Configuriamoti in pochi semplici passaggi",
@@ -4027,19 +4033,24 @@
   "creatorIde": {
     "regionLabel": "IDE del creatore",
     "explorer": "Esplora",
+    "showExplorer": "Mostra Esplora",
+    "hideExplorer": "Nascondi Esplora",
+    "explorerAfterSave": "I display e le parti di questa pagina appaiono qui dopo averla salvata.",
     "inspector": "Ispettore",
     "console": "Console",
-    "filterPages": "Filtra pagine…",
-    "pagesGroup": "Pagine",
-    "collectionsGroup": "Raccolte",
     "snippetsGroup": "Snippet",
+    "thisPageGroup": "Questa pagina",
+    "boardsGroup": "Display",
+    "partsGroup": "Parti",
+    "noBoards": "Non ancora su un display.",
+    "noParts": "Nessun dato né formula: testo semplice.",
+    "partRow": "Riga {rows}",
+    "partRows": "Righe {rows}",
+    "formulasPart": "Formule",
     "snippetsUnavailable": "Gli snippet salvati non sono ancora disponibili su questo hub.",
     "explorerLive": "In onda ora",
     "explorerScheduled": "Programmate",
     "explorerNotScheduled": "Non programmate",
-    "collectionPages": "{count, plural, one {# pagina} other {# pagine}}",
-    "noMatches": "Nessun risultato.",
-    "noCollections": "Ancora nessuna raccolta.",
     "usedBy": "Usata da {names}",
     "usedByNone": "In nessuna raccolta.",
     "tab": {

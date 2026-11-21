@@ -1223,6 +1223,12 @@
       "computer": "コンピュータ"
     }
   },
+  "notFound": {
+    "title": "ページが見つかりません",
+    "description": "{where} には何もありません。リンクの入力ミスか、ページが移動した可能性があります。",
+    "home": "ホームへ",
+    "help": "ヘルプとドキュメント"
+  },
   "wizard": {
     "welcomeTitle": "FiestaBoard へようこそ",
     "welcomeSubtitle": "簡単なステップでセットアップを完了しましょう",
@@ -4027,19 +4033,24 @@
   "creatorIde": {
     "regionLabel": "クリエイターIDE",
     "explorer": "エクスプローラー",
+    "showExplorer": "エクスプローラーを表示",
+    "hideExplorer": "エクスプローラーを隠す",
+    "explorerAfterSave": "保存すると、このページのディスプレイとパーツがここに表示されます。",
     "inspector": "インスペクター",
     "console": "コンソール",
-    "filterPages": "ページを絞り込む…",
-    "pagesGroup": "ページ",
-    "collectionsGroup": "コレクション",
     "snippetsGroup": "スニペット",
+    "thisPageGroup": "このページ",
+    "boardsGroup": "ディスプレイ",
+    "partsGroup": "パーツ",
+    "noBoards": "まだどのディスプレイにもありません。",
+    "noParts": "データや数式なし：プレーンテキスト。",
+    "partRow": "{rows} 行",
+    "partRows": "{rows} 行",
+    "formulasPart": "数式",
     "snippetsUnavailable": "保存済みスニペットは、このHubではまだ利用できません。",
     "explorerLive": "現在表示中",
     "explorerScheduled": "スケジュール済み",
     "explorerNotScheduled": "スケジュールなし",
-    "collectionPages": "{count, plural, other {#ページ}}",
-    "noMatches": "一致するものはありません。",
-    "noCollections": "コレクションはまだありません。",
     "usedBy": "使用元: {names}",
     "usedByNone": "どのコレクションにも含まれていません。",
     "tab": {

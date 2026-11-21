@@ -1223,6 +1223,12 @@
       "computer": "ordenador"
     }
   },
+  "notFound": {
+    "title": "Página no encontrada",
+    "description": "No hay nada en {where}. Puede que el enlace tenga un error o que la página se haya movido.",
+    "home": "Ir a Inicio",
+    "help": "Ayuda y documentación"
+  },
   "wizard": {
     "welcomeTitle": "Bienvenido a FiestaBoard",
     "welcomeSubtitle": "Vamos a configurarte en solo unos pasos",
@@ -4027,19 +4033,24 @@
   "creatorIde": {
     "regionLabel": "IDE del creador",
     "explorer": "Explorador",
+    "showExplorer": "Mostrar el explorador",
+    "hideExplorer": "Ocultar el explorador",
+    "explorerAfterSave": "Las pantallas y partes de esta página aparecen aquí cuando la guardes.",
     "inspector": "Inspector",
     "console": "Consola",
-    "filterPages": "Filtrar páginas…",
-    "pagesGroup": "Páginas",
-    "collectionsGroup": "Colecciones",
     "snippetsGroup": "Fragmentos",
+    "thisPageGroup": "Esta página",
+    "boardsGroup": "Pantallas",
+    "partsGroup": "Partes",
+    "noBoards": "Aún no está en ninguna pantalla.",
+    "noParts": "Sin datos ni fórmulas: texto simple.",
+    "partRow": "Fila {rows}",
+    "partRows": "Filas {rows}",
+    "formulasPart": "Fórmulas",
     "snippetsUnavailable": "Los fragmentos guardados aún no están disponibles en este hub.",
     "explorerLive": "En vivo ahora",
     "explorerScheduled": "Programadas",
     "explorerNotScheduled": "Sin programar",
-    "collectionPages": "{count, plural, one {# página} other {# páginas}}",
-    "noMatches": "Sin coincidencias.",
-    "noCollections": "Aún no hay colecciones.",
     "usedBy": "Usada por {names}",
     "usedByNone": "No está en ninguna colección.",
     "tab": {

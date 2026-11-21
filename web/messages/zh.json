@@ -1223,6 +1223,12 @@
       "computer": "电脑"
     }
   },
+  "notFound": {
+    "title": "找不到页面",
+    "description": "{where} 没有内容。链接可能有拼写错误，或页面已移动。",
+    "home": "前往首页",
+    "help": "帮助和文档"
+  },
   "wizard": {
     "welcomeTitle": "欢迎使用 FiestaBoard",
     "welcomeSubtitle": "只需几步即可完成设置",
@@ -4027,19 +4033,24 @@
   "creatorIde": {
     "regionLabel": "创作者 IDE",
     "explorer": "资源管理器",
+    "showExplorer": "显示资源管理器",
+    "hideExplorer": "隐藏资源管理器",
+    "explorerAfterSave": "保存后，此页面的显示屏和组成部分会显示在这里。",
     "inspector": "检查器",
     "console": "控制台",
-    "filterPages": "筛选页面…",
-    "pagesGroup": "页面",
-    "collectionsGroup": "合集",
     "snippetsGroup": "代码片段",
+    "thisPageGroup": "此页面",
+    "boardsGroup": "显示屏",
+    "partsGroup": "组成部分",
+    "noBoards": "尚未在任何显示屏上。",
+    "noParts": "没有数据或公式：纯文本。",
+    "partRow": "第 {rows} 行",
+    "partRows": "第 {rows} 行",
+    "formulasPart": "公式",
     "snippetsUnavailable": "此 Hub 暂不支持已保存的代码片段。",
     "explorerLive": "正在播出",
     "explorerScheduled": "已排程",
     "explorerNotScheduled": "未排程",
-    "collectionPages": "{count, plural, other {# 个页面}}",
-    "noMatches": "没有匹配项。",
-    "noCollections": "还没有合集。",
     "usedBy": "使用者：{names}",
     "usedByNone": "不在任何合集中。",
     "tab": {

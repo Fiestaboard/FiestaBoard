@@ -1223,6 +1223,12 @@
       "computer": "computer"
     }
   },
+  "notFound": {
+    "title": "Pagina niet gevonden",
+    "description": "Er staat niets op {where}. De link bevat misschien een typfout, of de pagina is verplaatst.",
+    "home": "Naar Start",
+    "help": "Help & Documentatie"
+  },
   "wizard": {
     "welcomeTitle": "Welkom bij FiestaBoard",
     "welcomeSubtitle": "Laten we je in een paar stappen instellen",
@@ -4027,19 +4033,24 @@
   "creatorIde": {
     "regionLabel": "Creator-IDE",
     "explorer": "Verkenner",
+    "showExplorer": "Verkenner tonen",
+    "hideExplorer": "Verkenner verbergen",
+    "explorerAfterSave": "De displays en onderdelen van deze pagina verschijnen hier zodra die is opgeslagen.",
     "inspector": "Inspector",
     "console": "Console",
-    "filterPages": "Pagina’s filteren…",
-    "pagesGroup": "Pagina’s",
-    "collectionsGroup": "Collecties",
     "snippetsGroup": "Snippets",
+    "thisPageGroup": "Deze pagina",
+    "boardsGroup": "Displays",
+    "partsGroup": "Onderdelen",
+    "noBoards": "Nog op geen display.",
+    "noParts": "Geen gegevens of formules: platte tekst.",
+    "partRow": "Rij {rows}",
+    "partRows": "Rijen {rows}",
+    "formulasPart": "Formules",
     "snippetsUnavailable": "Opgeslagen snippets zijn nog niet beschikbaar op deze hub.",
     "explorerLive": "Nu live",
     "explorerScheduled": "Ingepland",
     "explorerNotScheduled": "Niet ingepland",
-    "collectionPages": "{count, plural, one {# pagina} other {# pagina’s}}",
-    "noMatches": "Geen resultaten.",
-    "noCollections": "Nog geen collecties.",
     "usedBy": "Gebruikt door {names}",
     "usedByNone": "In geen enkele collectie.",
     "tab": {
