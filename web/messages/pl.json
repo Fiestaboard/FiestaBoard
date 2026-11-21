@@ -1894,6 +1894,7 @@
     "pauseLabel": "Wstrzymaj: {name}",
     "resumeLabel": "Wznów: {name}",
     "notFound": "Ten wyświetlacz już nie istnieje.",
+    "notFoundTitle": "Nie znaleziono wyświetlacza",
     "previewTitle": "Teraz wyświetlane",
     "settingsTitle": "Ustawienia",
     "transition": {

@@ -71,10 +71,14 @@ function renderPage() {
   );
 }
 beforeEach(() => {
+  // A Tuesday: the phone Day view opens on today, and the weekday entry is
+  // only in it Monday to Friday (this failed on weekends).
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-17T10:00:00Z") });
   matchMedia = window.matchMedia;
   localStorage.setItem("schedule-view-mode", "calendar");
 });
 afterEach(() => {
+  vi.useRealTimers();
   window.matchMedia = matchMedia;
   vi.useRealTimers();
 });

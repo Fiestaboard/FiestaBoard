@@ -1820,7 +1820,8 @@
     "resume": "Resume",
     "pauseLabel": "Pause {name}",
     "resumeLabel": "Resume {name}",
-    "notFound": "This display doesn't exist anymore.",
+    "notFound": "This display doesn’t exist anymore.",
+    "notFoundTitle": "Display not found",
     "previewTitle": "Now showing",
     "settingsTitle": "Settings",
     "transition": {

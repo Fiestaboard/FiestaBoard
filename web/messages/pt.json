@@ -1894,6 +1894,7 @@
     "pauseLabel": "Pausar {name}",
     "resumeLabel": "Retomar {name}",
     "notFound": "Este ecrã já não existe.",
+    "notFoundTitle": "Ecrã não encontrado",
     "previewTitle": "Em exibição agora",
     "settingsTitle": "Configurações",
     "transition": {

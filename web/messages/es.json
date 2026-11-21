@@ -1894,6 +1894,7 @@
     "pauseLabel": "Pausar {name}",
     "resumeLabel": "Reanudar {name}",
     "notFound": "Esta pantalla ya no existe.",
+    "notFoundTitle": "Pantalla no encontrada",
     "previewTitle": "Mostrando ahora",
     "settingsTitle": "Configuración",
     "transition": {
