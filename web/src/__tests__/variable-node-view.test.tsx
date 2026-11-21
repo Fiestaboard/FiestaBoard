@@ -1,8 +1,8 @@
 /**
  * BB-FP-11 (Figma 111:30911 "Atom · weather.temperature"): a variable chip is
  * the kit FormulaAtom (kind variable: 4 px radius, `{}` glyph, 22 px) with the
- * value the page preview sees, not a 13 px dashed pill, and no hover-only
- * "~max length" span nothing could reveal.
+ * value the page preview sees, not a 13 px dashed pill. Its max length is in
+ * the description, not in a hover-only span nothing can reveal.
  * BB-FP-10 (app half): chips show their source as written, never uppercased by
  * the template editor surface.
  */
