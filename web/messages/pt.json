@@ -344,6 +344,7 @@
     "retryLoading": "Tentar carregar páginas novamente",
     "cardActions": "Ações de {name}",
     "duplicate": "Duplicar",
+    "exportShareString": "Exportar string de partilha",
     "deletePage": "Excluir página…",
     "toastDuplicated": "“{name}” criada",
     "actionFailed": "Não foi possível. Tente novamente."
@@ -1564,6 +1565,7 @@
   "composeDialog": {
     "title": "Escrever uma mensagem",
     "description": "Aparece em {board} quando você escolher Mostrar agora. Nada chega ao quadro antes disso.",
+    "descriptionPhone": "Aparece em {board} (a tela do cabeçalho) quando você escolher Mostrar agora.",
     "messageLabel": "Mensagem",
     "messagePlaceholder": "Digite sua mensagem…",
     "previewLabel": "Pré-visualização",
