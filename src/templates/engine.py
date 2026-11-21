@@ -2268,6 +2268,7 @@ class TemplateEngine:
         extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
         line_metadata: list[Any] | None = None,
         rows: int | None = None,
+        context: dict[str, Any] | None = None,
     ) -> list[TemplateError]:
         """Validate template syntax.
 
@@ -2286,12 +2287,19 @@ class TemplateEngine:
             rows: The board's height, for a page's lines (render keeps the
                 first ``rows``): a non-blank line past it is ``beyond_board``.
                 ``None`` checks no height.
+            context: The data formulas are evaluated against. ``None`` builds
+                the render's own context when the template has a formula, so
+                a formula is measured, and its error reported, exactly as the
+                board renders it (Inspect's evaluation; BB-B-1, BB-B-2).
 
         Returns:
             List of validation errors (empty if valid)
         """
         errors = []
         lines = template.split("\n")
+        if context is None and find_formulas(template):
+            context = self._formula_validation_context(template)
+        formula_context = context or {}
 
         # Get available sources based on system mode
         available_sources = self.get_all_known_sources()
@@ -2318,7 +2326,9 @@ class TemplateEngine:
                     )
                 )
 
-            max_length = self._calculate_max_line_length(line, cols=cols, extended_markup=extended_markup)
+            max_length = self._calculate_max_line_length(
+                line, cols=cols, extended_markup=extended_markup, context=formula_context
+            )
             if max_length > cols and not _metadata_wraps(line_metadata, line_num - 1):
                 errors.append(
                     TemplateError(
@@ -2378,10 +2388,20 @@ class TemplateEngine:
             # errors, unknown function names, unknown variable sources,
             # and obvious arity mistakes at edit time so users don't have
             # to wait for a render to discover problems.
+            #
+            # Each formula is also evaluated as the board renders it: a value
+            # the board draws as an error (``#DIV/0``, ``#VALUE``) is a
+            # problem even when the formula is well formed, and a static
+            # finding the formula itself handles (``IFERROR(nope.x, "…")``
+            # renders its fallback) is not.
             for start, _end, body in find_formulas(line):
                 if not body:
                     continue
-                for issue in validate_expression(body, known_sources=available_sources):
+                issues = validate_expression(body, known_sources=available_sources)
+                outcome = evaluate_detailed(body, formula_context)
+                if issues and outcome.error is None:
+                    continue
+                for issue in issues:
                     errors.append(
                         TemplateError(
                             line=line_num,
@@ -2390,8 +2410,35 @@ class TemplateEngine:
                             code="formula",
                         )
                     )
+                # A ``#REF`` from a known source is missing data right now (a
+                # data state the Data tab reports), not a template problem.
+                if not issues and outcome.error not in (None, "#REF"):
+                    reason = outcome.message or f"the board shows {outcome.error} here"
+                    errors.append(
+                        TemplateError(
+                            line=line_num,
+                            column=start,
+                            message=f"Formula {outcome.error}: {reason}",
+                            code="formula",
+                        )
+                    )
 
         return errors
+
+    def _formula_validation_context(self, template: str) -> dict[str, Any]:
+        """The context a render of *template* evaluates its formulas against.
+
+        Built as :meth:`render` builds it (demand-driven fetch, pinned clock).
+        A failed fetch validates against no data rather than failing.
+        """
+        try:
+            context = self._build_context(plugin_ids=extract_template_plugin_ids(template))
+            if not isinstance(context, dict):
+                context = {}
+        except Exception:
+            logger.debug("Template context unavailable for formula validation", exc_info=True)
+            context = {}
+        return ensure_render_clock(context)
 
     @staticmethod
     def _filter_names_in(body: str) -> list[str]:
@@ -2466,7 +2513,12 @@ class TemplateEngine:
         return set(self._plugin_registry.plugins.keys())
 
     def _calculate_max_line_length(
-        self, line: str, cols: int = 22, *, extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP
+        self,
+        line: str,
+        cols: int = 22,
+        *,
+        extended_markup: bool = SPLIT_FLAP_EXTENDED_MARKUP,
+        context: dict[str, Any] | None = None,
     ) -> int:
         """Calculate maximum possible rendered length of a template line.
 
@@ -2482,6 +2534,8 @@ class TemplateEngine:
             extended_markup: Count drawn tiles under the extended grammar:
                 ``{{red:HOT}}`` is 3, ``{{icon:sun}}`` and ``{sun}`` are 1,
                 ``{heart}`` is 1 (♥), a variable inside a span its max length.
+            context: The data a ``{{= … }}`` formula is evaluated against; the
+                formula counts as the value it renders to.
 
         Returns:
             Maximum possible character count after rendering
@@ -2496,6 +2550,13 @@ class TemplateEngine:
         # long.
         if any("FOREACH(" in body.upper() for _start, _end, body in find_formulas(line)):
             return cols
+
+        # A formula has no declared max length: it is measured by the value it
+        # renders to against *context*, as Inspect measures it (BB-B-1). It
+        # used to count as the whole board, so any formula beside other text
+        # was reported "cut off".
+        if find_formulas(line):
+            line = render_expressions(line, ensure_render_clock(context or {}))
 
         # Start with the line
         result = line
@@ -2516,17 +2577,10 @@ class TemplateEngine:
 
             result = self._normalize_colors(self._rewrite_extended(result, body_of))
         else:
-            # Remove color markers (they become single tiles, count as 1 char each)
-            # Replace {color} with single char placeholder
-            result = re.sub(
-                r"\{(red|orange|yellow|green|blue|violet|purple|white|black|6[3-9]|70)\}",
-                "C",
-                result,
-                flags=re.IGNORECASE,
-            )
-            result = re.sub(
-                r"\{/(red|orange|yellow|green|blue|violet|purple|white|black)?\}", "", result, flags=re.IGNORECASE
-            )
+            # Colour tiles as render() writes them: the rich editor's {{red}} and
+            # {{63}} become {63}, then each marker is one tile in the count
+            # below, as the render report measures the drawn row (BB-E-2).
+            result = self._normalize_colors(result)
 
             # Replace symbols with their character equivalent (usually 1-2 chars)
             for symbol, char in SYMBOL_CHARS.items():
@@ -2566,7 +2620,7 @@ class TemplateEngine:
             # Shortcuts become what the board draws ({sun} -> one icon tile,
             # {heart} -> ♥), then the line is measured in drawn tiles.
             return markup_count_tiles(self._render_symbols(result, extended_markup=True))
-        return len(result)
+        return self._count_tiles(result, extended_markup=False)
 
     @staticmethod
     def _renders_as_color_tile(parts: list[str]) -> bool:

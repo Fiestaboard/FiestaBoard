@@ -423,18 +423,22 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     // Live Mode (the editor's mirror) drives the board, not the Schedule or
     // the pin, so no mode is claimed while it is on.
     mode = liveMessageForBoard ? undefined : scheduleEnabled ? "schedule" : "manual";
-    title =
-      silencePage?.name ??
-      activeCollection?.name ??
-      activePage?.name ??
-      (scheduleEnabled ? t("scheduleGapNoDefault") : tn("noPage"));
+    // BB-A-14: in a Schedule gap the board keeps what it last showed; say
+    // that in plain words rather than the hub's gap reason.
+    const gap = scheduleEnabled && !silencePage && !activeCollection && !activePage;
+    title = silencePage?.name ?? activeCollection?.name ?? activePage?.name ?? (gap ? tn("scheduleGap") : tn("noPage"));
     if (scheduleEnabled) {
       const scheduleChange = boardDetail?.next_change_reason === "schedule" && nextChangeAt && nextChangeAt > now;
-      outcome = scheduleChange
-        ? nextPageName
-          ? tn("scheduleNext", { time: formatClock(nextChangeAt, locale), page: nextPageName })
-          : tn("scheduleUntil", { time: formatClock(nextChangeAt, locale) })
-        : tn("scheduleRunning");
+      if (gap)
+        outcome = scheduleChange
+          ? tn("scheduleGapUntil", { time: formatClock(nextChangeAt, locale) })
+          : tn("scheduleGapKeeps");
+      else
+        outcome = scheduleChange
+          ? nextPageName
+            ? tn("scheduleNext", { time: formatClock(nextChangeAt, locale), page: nextPageName })
+            : tn("scheduleUntil", { time: formatClock(nextChangeAt, locale) })
+          : tn("scheduleRunning");
     } else {
       const page = activeCollection?.name ?? activePage?.name;
       outcome = page ? tn("manual", { page }) : tn("manualNoPage");
@@ -612,8 +616,12 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
     </Flex>
   );
 
+  const modeLabel = (m: NowShowingMode | undefined) =>
+    m === "override" ? tn("modeOverride") : m === "manual" ? tn("modeManual") : m ? tn("modeSchedule") : null;
   const boardActions: BoardActions = {
     boardName: displayName,
+    // 07a `310:33402`: the touch sheet's "<page> · <mode>" line.
+    summary: [title, modeLabel(mode)].filter(Boolean).join(" · "),
     onChangePage: openChangePage,
     onCompose: compose,
     editHref,
@@ -667,6 +675,47 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       </Card>
     ) : null;
 
+  const cardMode = sendsDisabled || displayOffline || silence.active ? undefined : mode;
+  const phoneModeBadge = cardMode ? (
+    <Badge variant={cardMode === "override" ? "default" : "secondary"} className="font-sans">
+      {modeLabel(cardMode)}
+    </Badge>
+  ) : null;
+  const boardElement = (
+    <BoardContextMenu actions={boardActions}>
+      {/* TODO(FiestaUI G4): add a board-only last-known state. Dim the hardware
+                  picture, keeping viewport controls and scroll instructions at full contrast. */}
+      <Flex
+        justify="center"
+        data-testid="home-board-state"
+        className={
+          sendsDisabled
+            ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-50 [&_[data-slot=led-matrix-display]]:opacity-50"
+            : displayOffline
+              ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-60 [&_[data-slot=led-matrix-display]]:opacity-60"
+              : "overflow-x-hidden"
+        }
+        style={{ contain: "layout style paint" }}
+      >
+        {/* Keyed per display (BB-A-2): a switch mounts a fresh board, whose
+            first paint lands at once instead of flapping from the last display. */}
+        <HomeBoard
+          key={(currentBoard ?? boardSettings?.boards?.[0])?.id ?? "primary"}
+          board={currentBoard ?? boardSettings?.boards?.[0]}
+          geometry={activeGeometry}
+          message={displayMessage}
+          cells={displayCells}
+          layers={displayLayers}
+          isLoading={!boardState && !liveMessageForBoard}
+          size="md"
+          layout={phone ? "phone-hero" : undefined}
+          fallbackColor={getEffectiveBoardColor(boardSettings)}
+          fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
+        />
+      </Flex>
+    </BoardContextMenu>
+  );
+
   return (
     <Stack gap="4" {...anchorProps("home.active-display")}>
       {phone && heldCard}
@@ -700,54 +749,36 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
         className="grid grid-cols-1 min-w-0 gap-4 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_274px] items-start"
         data-testid="home-columns"
       >
+        {phone && (
+          // 07a `306:53086`: the board leads on a phone, edge to edge (the
+          // page gutter is bled), in the kit's phone-hero placement so a
+          // 22-column Flagship shows whole (BB-A-6).
+          <Box className="-mx-4 min-w-0" data-testid="home-phone-board">
+            {boardElement}
+          </Box>
+        )}
         <NowShowingCard
           display={displayName}
           meta={
             <Text as="span" size="xs" tone="muted" className="inline-flex items-center gap-2 font-mono">
-              {boardMeta(targetBoard, activeGeometry)}
+              {/* 07a `306:53086`: on a phone the mode sits in the header and
+                  the title takes the whole line below (BB-A-16); the board
+                  needs no type-and-size row there (BB-A-6). */}
+              {phone ? phoneModeBadge : boardMeta(targetBoard, activeGeometry)}
               <BoardActionsMenu actions={boardActions} />
             </Text>
           }
           className="group/home-card min-w-0"
           title={title}
           headingLevel={2}
-          mode={sendsDisabled || displayOffline || silence.active ? undefined : mode}
+          mode={phone ? undefined : cardMode}
           status={sendsDisabled ? "neutral" : displayOffline ? "danger" : recoverableOutOfSync ? "warning" : "success"}
           labels={{
             nowShowing: recoverableOutOfSync ? tb("shouldShow") : tn("label"),
             modes: { schedule: tn("modeSchedule"), manual: tn("modeManual"), override: tn("modeOverride") },
           }}
           data-testid="now-showing"
-          board={
-            <BoardContextMenu actions={boardActions}>
-              {/* TODO(FiestaUI G4): add a board-only last-known state. Dim the hardware
-                  picture, keeping viewport controls and scroll instructions at full contrast. */}
-              <Flex
-                justify="center"
-                data-testid="home-board-state"
-                className={
-                  sendsDisabled
-                    ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-50 [&_[data-slot=led-matrix-display]]:opacity-50"
-                    : displayOffline
-                      ? "overflow-x-hidden [&_[data-slot=board-viewport-bezel]]:opacity-60 [&_[data-slot=led-matrix-display]]:opacity-60"
-                      : "overflow-x-hidden"
-                }
-                style={{ contain: "layout style paint" }}
-              >
-                <HomeBoard
-                  board={currentBoard ?? boardSettings?.boards?.[0]}
-                  geometry={activeGeometry}
-                  message={displayMessage}
-                  cells={displayCells}
-                  layers={displayLayers}
-                  isLoading={!boardState && !liveMessageForBoard}
-                  size="md"
-                  fallbackColor={getEffectiveBoardColor(boardSettings)}
-                  fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
-                />
-              </Flex>
-            </BoardContextMenu>
-          }
+          board={phone ? null : boardElement}
           description={
             sendsDisabled || displayOffline ? (
               <>
@@ -815,7 +846,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
         currentPageId={overrideShowing ? overridePageId : activePageId}
         manualPageName={nameOf(manualPageId)}
         overrideName={overrideActive ? overrideTitle : null}
-        nextChange={overrideActive ? null : scheduleNextChange(boardDetail, now)}
+        nextChange={scheduleNextChange(boardDetail, now)}
         silence={silence.active ? { until: silence.until } : null}
       />
     </Stack>

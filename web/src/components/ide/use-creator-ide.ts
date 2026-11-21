@@ -115,7 +115,13 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
   const collections = useCollections();
   const draft = useQuery({
     queryKey: ideKeys.draft(pageId),
-    queryFn: () => nullOn404(pageHistoryApi.getDraft(pageId)),
+    // Most pages have no draft: check the hub's list first, so opening one
+    // isn't a 404 in the console every time (BB-B-27).
+    queryFn: async () => {
+      const { drafts } = await pageHistoryApi.listDrafts();
+      if (!drafts.some((entry) => entry.page_id === pageId)) return null;
+      return nullOn404(pageHistoryApi.getDraft(pageId));
+    },
     retry: false,
   });
   const revisions = useQuery({

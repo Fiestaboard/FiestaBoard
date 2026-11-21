@@ -295,9 +295,17 @@ class ScheduleUpdate(BaseModel):
 
 
 class ScheduleValidateRequest(BaseModel):
-    """Body of ``POST /schedules/validate``. Optional — omit it for all boards."""
+    """Body of ``POST /schedules/validate``. Optional — omit it for all boards.
+
+    ``candidate`` checks an unsaved entry against the saved ones without
+    storing it (the entry sheet's "this overlaps …" before save). With
+    ``candidate_id`` it replaces that saved entry (an edit); without, it is a
+    new entry and appears in the result as ``"candidate"``.
+    """
 
     board_id: str | None = None
+    candidate: ScheduleCreate | None = None
+    candidate_id: str | None = None
 
 
 class DefaultPageUpdate(BaseModel):
@@ -438,7 +446,15 @@ class Overlap(BaseModel):
 
     schedule1_id: str
     schedule2_id: str
+    #: English fallback for API/MCP readers; the web builds its own localized text.
     conflict_description: str
+    #: Days the two windows overlap on, Monday first.
+    days: list[str] = Field(default_factory=list)
+    #: The overlapping minutes on the first of ``days`` ("HH:MM"; "00:00" end = midnight).
+    start_time: str | None = None
+    end_time: str | None = None
+    #: The entry the hub shows during the overlap (``get_active_schedule_entry``'s rule).
+    winner_id: str | None = None
 
 
 class Gap(BaseModel):

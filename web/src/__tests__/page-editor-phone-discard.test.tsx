@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -12,7 +13,7 @@ vi.mock("@/components/page-builder", async () => {
   return {
     PageBuilder: forwardRef(function DraftEditor(_props, ref) {
       const [name, setName] = useState("Kitchen draft");
-      useImperativeHandle(ref, () => ({ hasUnsavedChanges: () => true }));
+      useImperativeHandle(ref, () => ({ hasUnsavedChanges: () => true, getCurrentPage: () => ({ name }) }));
       return <input aria-label="Page name" value={name} onChange={(event) => setName(event.target.value)} />;
     }),
   };
@@ -39,27 +40,33 @@ function setup() {
     { initialEntries: ["/pages", "/pages/new"], initialIndex: 1 },
   );
   render(
-    <PageEditorBridgeProvider>
-      <RouterProvider router={router} />
-    </PageEditorBridgeProvider>,
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <PageEditorBridgeProvider>
+        <RouterProvider router={router} />
+      </PageEditorBridgeProvider>
+    </QueryClientProvider>,
   );
   return router;
 }
 beforeEach(() => media(true));
 
+// BB-B-22 (Figma 316:91801): "Discard changes to <page>?", the saved version
+// stays on the board, Keep editing / Discard changes, and the title clear of X.
 it("uses a modal bottom sheet with Keep editing before full-width Discard on phones", async () => {
   const router = setup();
   await act(async () => {
     await router.navigate(-1);
   });
-  const dialog = await screen.findByRole("alertdialog", { name: "Discard unsaved changes?" });
+  const dialog = await screen.findByRole("alertdialog", { name: "Discard changes to Kitchen draft?" });
+  expect(within(dialog).getByText(/keep showing the saved version/)).toBeInTheDocument();
+  expect(dialog.querySelector('[data-slot="sheet-header"]')).toHaveClass("pr-12");
   expect(dialog).toHaveAttribute("data-slot", "sheet-content");
   expect(dialog).toHaveAttribute("data-side", "bottom");
   expect(document.querySelector('[data-slot="sheet-overlay"]')).toBeInTheDocument();
   const buttons = within(dialog)
     .getAllByRole("button")
-    .filter((button) => /Keep editing|Discard and leave/.test(button.textContent ?? ""));
-  expect(buttons.map((button) => button.textContent)).toEqual(["Keep editing", "Discard and leave"]);
+    .filter((button) => /Keep editing|Discard changes/.test(button.textContent ?? ""));
+  expect(buttons.map((button) => button.textContent)).toEqual(["Keep editing", "Discard changes"]);
   const footer = dialog.querySelector('[data-slot="sheet-footer"]');
   expect(footer).toHaveClass("flex-col");
   expect(footer).not.toHaveClass("flex-col-reverse");
@@ -95,7 +102,7 @@ it("proceeds with history Back when the phone Discard action is accepted", async
   await act(async () => {
     await router.navigate(-1);
   });
-  await user.click(await screen.findByRole("button", { name: /^Discard and leave$/ }));
+  await user.click(await screen.findByRole("button", { name: /^Discard changes$/ }));
   expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
   expect(router.state.location.pathname).toBe("/pages");
 });

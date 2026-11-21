@@ -30,7 +30,7 @@ export const queryKeys = {
 // catches the fast local-API case; late tick is the safety net once the
 // backend's window closes. Without this, the UI would wait up to 30s for
 // the next board-current-message refetch tick.
-function scheduleBoardStateInvalidations(queryClient: ReturnType<typeof useQueryClient>) {
+export function scheduleBoardStateInvalidations(queryClient: ReturnType<typeof useQueryClient>) {
   // Unscoped key = prefix match, so every board-scoped variant refetches too.
   const key = queryKeys.boardCurrentMessage();
   setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 750);

@@ -174,7 +174,9 @@ for (const width of [390, 768, 1280]) {
           await expect(page.getByRole("link", { name: "Settings", exact: true })).toHaveAttribute("href", "/settings");
           await expect(page.locator('[data-slot="settings-index"]')).toHaveCount(0);
         } else {
-          await expect(page.getByRole("link", { name: title, exact: true })).toHaveAttribute("aria-current", "page");
+          // A row's name is its title, then the value it reads (07e: "Appearance System").
+          const rowName = new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![a-z])`);
+          await expect(page.getByRole("link", { name: rowName })).toHaveAttribute("aria-current", "page");
         }
         // Classic vertical scrollbars reduce the content viewport. Assert no
         // horizontal overflow against that viewport rather than window width.

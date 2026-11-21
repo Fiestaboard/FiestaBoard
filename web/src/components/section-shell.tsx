@@ -16,7 +16,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { createPortal } from "react-dom";
 
 import Link from "@/components/smart-link";
-import { RAIL_BREAKPOINT, useBelowRail } from "@/hooks/use-below-rail";
+import { useBelowRail, useRailBreakpoint } from "@/hooks/use-below-rail";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -50,6 +50,11 @@ interface SectionShellProps {
    * name (07d `320:17086`, `328:27519`; BB-A-19, BB-A-24).
    */
   compactOnPhone?: boolean;
+  /**
+   * The open item draws its own header (the page editor: back, name, Save), so
+   * the section's header, breadcrumb and card are not drawn around it.
+   */
+  bare?: boolean;
   /** The route outlet. */
   children: React.ReactNode;
 }
@@ -79,8 +84,10 @@ export function SectionShell({
   detail,
   fill,
   compactOnPhone,
+  bare = false,
   children,
 }: SectionShellProps) {
+  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("common");
   const phone = useBelowRail();
   // Drilling in on a phone moves focus to the item's name, as the card's
@@ -131,6 +138,28 @@ export function SectionShell({
     (byId ?? byHref)?.focus({ preventScroll: true });
   }, [detail, pathname]);
 
+  if (bare && detail) {
+    // The item fills the viewport and scrolls inside itself at every width,
+    // so its own sticky header (and the editor's docked preview) stay put.
+    // On a phone it runs edge to edge, as the editor frames draw it.
+    return (
+      <PageLayout
+        railBreakpoint={railBreakpoint}
+        fillHeight={fill}
+        outerClassName="flex h-dvh flex-col overflow-hidden sm:h-dvh"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden max-sm:p-0"
+      >
+        <PageCard fillHeight={fill} surface="plain">
+          <ActionSlot value={null}>
+            <PageOutlet key={pathname} fill={fill}>
+              {children}
+            </PageOutlet>
+          </ActionSlot>
+        </PageCard>
+      </PageLayout>
+    );
+  }
+
   // One tree for both layouts: the outlet keeps its place (PageCard → slot →
   // PageOutlet), so crossing the breakpoint (a rotated tablet, a full-page
   // capture) never remounts the page and its state (#2568 review).
@@ -157,7 +186,7 @@ export function SectionShell({
   );
 
   return (
-    <PageLayout railBreakpoint={RAIL_BREAKPOINT} fillHeight={fill}>
+    <PageLayout railBreakpoint={railBreakpoint} fillHeight={fill}>
       <PageCard
         fillHeight={fill}
         // On a phone the page is the surface (07d): the kit's plain card, and

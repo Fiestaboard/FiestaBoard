@@ -388,7 +388,9 @@ test.describe("regression: schedule.calendar", () => {
    * Source refs: web/src/app/schedule/components/schedule-calendar-view.tsx
    * Coverage status: partial  (from .claude/ux-coverage.json)
    */
-  test("schedule.calendar.mobile-view — mobile viewport renders the calendar", async ({ page }) => {
+  test("schedule.calendar.mobile-view — a phone shows the Day agenda, not the week grid", async ({ page }) => {
+    // 07d draws only Day at 390; a seven-column week is unreadable there (BB-C-4),
+    // so a stored "calendar" choice does not apply below the rail.
     await page.setViewportSize({ width: 375, height: 667 });
     await page.addInitScript(() => {
       localStorage.setItem("schedule-view-mode", "calendar");
@@ -397,9 +399,9 @@ test.describe("regression: schedule.calendar", () => {
     await createSchedule(pageId, "09:00", "10:00");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    await page.getByRole("radio", { name: "Week", exact: true }).click();
-    await page.getByRole("button", { name: "Move or resize entries", exact: true }).click();
-    await expect(page.locator(".rbc-calendar").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("radiogroup", { name: "Choose a day" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("radio", { name: "Week", exact: true })).toHaveCount(0);
+    await expect(page.locator(".rbc-calendar, [data-slot^=week-calendar]")).toHaveCount(0);
   });
 
   // ---------------------------------------------------------------------------

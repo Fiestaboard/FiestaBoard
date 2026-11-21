@@ -117,6 +117,33 @@ describe("NavigationSidebar hub line", () => {
   });
 });
 
+describe("the selected display's own state (BB-A-10)", () => {
+  it("marks a display that needs a look, so the header never calls it fine", async () => {
+    setPhone(true);
+    twoBoards();
+    server.use(
+      http.get("/api/v1/status", () =>
+        HttpResponse.json({
+          running: true,
+          initialized: true,
+          config_summary: {},
+          boards: { kitchen: { health: { reachable: false } } },
+        }),
+      ),
+    );
+    render(<NavigationSidebar />, { wrapper: Wrapper });
+    const triggers = await screen.findAllByRole("combobox", { name: /board/i });
+    await waitFor(() => {
+      for (const trigger of triggers) {
+        const described = (trigger.getAttribute("aria-describedby") ?? "")
+          .split(" ")
+          .map((id) => document.getElementById(id)?.textContent ?? "");
+        expect(described).toContain("Needs a look");
+      }
+    });
+  });
+});
+
 describe("one hub-state source", () => {
   const host = () => window.location.hostname;
   const pill = () => document.querySelector<HTMLElement>('[data-slot="board-selector-hub"]');
@@ -184,5 +211,33 @@ describe("one hub-state source", () => {
     expect(status?.state.dataUpdateCount ?? 0).toBe(0);
     expect(status?.state.errorUpdateCount ?? 0).toBe(0);
     expect(status?.state.fetchStatus ?? "idle").toBe("idle");
+  });
+});
+
+describe("each display's line in the switcher (BB-A-11)", () => {
+  it("reads 'Type W×H · page' under each display's name", async () => {
+    twoBoards();
+    server.use(
+      http.get("/api/v1/status", () =>
+        HttpResponse.json({
+          running: true,
+          initialized: true,
+          config_summary: {},
+          boards: { kitchen: { active_page_id: "pizza" }, clock: {} },
+        }),
+      ),
+      http.get("/api/v1/pages", () =>
+        HttpResponse.json({ pages: [{ id: "pizza", name: "Pizza Special", device_type: "flagship" }], total: 1 }),
+      ),
+    );
+    render(<NavigationSidebar />, { wrapper: Wrapper });
+    const [trigger] = await screen.findAllByRole("combobox", { name: /board/i });
+    await userEvent.click(trigger);
+    const kitchen = await screen.findByRole("option", { name: /Kitchen board/ });
+    await waitFor(() => expect(kitchen).toHaveTextContent("Flagship 22 × 6 · Pizza Special"));
+    // No page known: the type and size alone.
+    const clock = screen.getByRole("option", { name: /Entry clock/ });
+    expect(clock).toHaveTextContent("Flagship 22 × 6");
+    expect(clock).not.toHaveTextContent("·");
   });
 });

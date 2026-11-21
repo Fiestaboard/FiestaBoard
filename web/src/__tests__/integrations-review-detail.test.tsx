@@ -137,17 +137,20 @@ describe("Integrations review: supported detail flows", () => {
     expect(within(table).getByText("CALENDAR_EVENT_NAME")).toBeInTheDocument();
   });
 
-  it("opens installed detail absent from registry with Back and a factual reconnect consequence", async () => {
+  it("opens installed detail absent from registry with a breadcrumb back and a factual reconnect consequence", async () => {
     renderView(
       <IntegrationsSection>
         <PluginDetailPage />
       </IntegrationsSection>,
     );
-    expect(await screen.findByRole("link", { name: "Back to Integrations" })).toHaveAttribute(
+    // The section's breadcrumb is the one way back (BB-C-21 dropped a second Back link).
+    const trail = await screen.findByRole("navigation", { name: "Breadcrumb" });
+    expect(within(trail).getByRole("link", { name: "Integrations" })).toHaveAttribute(
       "href",
       "/integrations?tab=installed",
     );
     expect(await screen.findByText("Reconnect Calendar")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Back to Integrations" })).not.toBeInTheDocument();
     expect(
       screen.getByText(/Data for pages using this integration may be unavailable or out of date until you reconnect/),
     ).toBeInTheDocument();

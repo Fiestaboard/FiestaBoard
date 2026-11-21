@@ -1,5 +1,6 @@
 import type { CharsetIssue } from "@/lib/api";
 import type { BoardValidationCode, BoardValidationError } from "@/lib/api/page-history";
+import { drawnDifferently } from "@/lib/charset-issues";
 
 export type IdeProblemKind = BoardValidationCode | "substitution";
 
@@ -38,7 +39,7 @@ function tokenText(token: CharsetIssue["token"]): string {
 export function warningsFromCharset(issues: readonly CharsetIssue[] | null | undefined): IdeProblem[] {
   const seen = new Set<string>();
   const warnings: IdeProblem[] = [];
-  for (const issue of issues ?? []) {
+  for (const issue of drawnDifferently(issues)) {
     const message = `${tokenText(issue.token)} → ${tokenText(issue.fallback)}`;
     const key = `${issue.row}:${message}`;
     if (seen.has(key)) continue;

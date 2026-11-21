@@ -6,6 +6,8 @@
 "use client";
 
 import {
+  Alert,
+  AlertDescription,
   Box,
   Button,
   Card,
@@ -408,10 +410,12 @@ function RecipeFields({
 export function FormulaBuilderCard(props: WorkbenchProps) {
   const { open, setOpen, formula, boardCols } = props;
   const t = useTranslations("formulaIde");
-  const [recipe, setRecipe] = useState<RecipeId>("list");
+  // A hand-written formula has no recipe: none is picked until the author
+  // chooses one to replace it, so it never looks like a blank recipe (BB-B-14).
+  const [recipe, setRecipe] = useState<RecipeId | null>(() => (open?.expression ? null : "list"));
   const [forms, setForms] = useState(DEFAULT_FORMS);
-  const form = forms[recipe];
-  const generated = buildRecipe(form);
+  const form = recipe ? forms[recipe] : null;
+  const generated = form ? buildRecipe(form) : "";
 
   useEffect(() => {
     if (generated) setOpen((current) => (current ? { ...current, draft: generated } : current));
@@ -425,7 +429,7 @@ export function FormulaBuilderCard(props: WorkbenchProps) {
         <Stack gap="3" className="mt-3">
           <ChoiceChipGroup
             aria-label={t("recipesLabel")}
-            value={recipe}
+            value={recipe ?? ""}
             onValueChange={(v) => setRecipe(v as RecipeId)}
             className="flex-wrap"
           >
@@ -433,11 +437,24 @@ export function FormulaBuilderCard(props: WorkbenchProps) {
               <ChoiceChip key={id} value={id} label={t(`recipe_${id}`)} />
             ))}
           </ChoiceChipGroup>
-          <RecipeFields
-            form={form}
-            setForm={(next) => setForms((all) => ({ ...all, [next.recipe]: next }))}
-            boardCols={boardCols}
-          />
+          {form ? (
+            <RecipeFields
+              form={form}
+              setForm={(next) => setForms((all) => ({ ...all, [next.recipe]: next }))}
+              boardCols={boardCols}
+            />
+          ) : (
+            <Alert>
+              <AlertDescription>
+                <Flex align="center" justify="between" gap="2" wrap>
+                  <Text size="sm">{t("builderCannotRead")}</Text>
+                  <Button variant="outline" size="sm" onClick={() => setOpen((c) => (c ? { ...c, tab: "code" } : c))}>
+                    {t("editInCode")}
+                  </Button>
+                </Flex>
+              </AlertDescription>
+            </Alert>
+          )}
           <Flex align="center" justify="between" gap="2" wrap>
             <Text size="xs" tone="muted">
               {t("builderNote")}

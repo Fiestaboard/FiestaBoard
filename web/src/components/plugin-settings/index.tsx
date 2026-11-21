@@ -1,3 +1,4 @@
+export { mapConfigErrors, pluginConfigErrors } from "./config-errors";
 export { isJsonPathMapper, JsonPathMapperField, type JsonPathMapperUiOptions } from "./json-path-mapper-field";
 export {
   findOAuthConnection,

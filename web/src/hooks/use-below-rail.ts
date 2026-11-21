@@ -8,16 +8,52 @@ import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
  * the Sidebar's and MainContent's `railBreakpoint="md"`; keep them together.
  */
 export const RAIL_BREAKPOINT = "md" as const;
-export const BELOW_RAIL_QUERY = "(max-width: 767.98px)";
 
-function subscribe(onChange: () => void) {
-  const query = window.matchMedia?.(BELOW_RAIL_QUERY);
+/**
+ * A viewport too short for the rail to list every destination: a phone on
+ * its side (844×390). It keeps the bottom tab bar up to the `lg` breakpoint
+ * instead (BB-A-13).
+ */
+export const SHORT_VIEWPORT_QUERY = "(max-height: 499.98px)";
+export const BELOW_RAIL_QUERY = "(max-width: 767.98px)";
+/** Below the `lg` rail: with a short viewport, still the tab bar (BB-A-13). */
+const BELOW_LG_QUERY = "(max-width: 1023.98px)";
+
+const matches = (query: string) => window.matchMedia?.(query)?.matches ?? false;
+
+/** Subscribe to several media queries at once. */
+function subscribeAll(queries: string[]) {
+  return (onChange: () => void) => {
+    const lists = queries.map((q) => window.matchMedia?.(q));
+    lists.forEach((list) => list?.addEventListener?.("change", onChange));
+    return () => lists.forEach((list) => list?.removeEventListener?.("change", onChange));
+  };
+}
+
+function subscribeShort(onChange: () => void) {
+  const query = window.matchMedia?.(SHORT_VIEWPORT_QUERY);
   query?.addEventListener?.("change", onChange);
   return () => query?.removeEventListener?.("change", onChange);
 }
 
+/**
+ * The breakpoint the Sidebar, MainContent and PageLayout take: `md` (the tab
+ * bar below 768px), or `lg` on a short viewport so a landscape phone keeps
+ * the tab bar. Keep every chrome piece on this one value.
+ */
+export function useRailBreakpoint(): "md" | "lg" {
+  const short = useSyncExternalStore(
+    subscribeShort,
+    () => window.matchMedia?.(SHORT_VIEWPORT_QUERY)?.matches ?? false,
+    () => false,
+  );
+  return short ? "lg" : RAIL_BREAKPOINT;
+}
+
+const subscribe = subscribeAll([BELOW_RAIL_QUERY, BELOW_LG_QUERY, SHORT_VIEWPORT_QUERY]);
+
 function getSnapshot() {
-  return window.matchMedia?.(BELOW_RAIL_QUERY)?.matches ?? false;
+  return matches(BELOW_RAIL_QUERY) || (matches(SHORT_VIEWPORT_QUERY) && matches(BELOW_LG_QUERY));
 }
 
 /**
@@ -32,41 +68,50 @@ export function useBelowRail(): boolean {
 /** The tablet band: the rail is on screen but a 256px rail would crowd the page. */
 export const TABLET_RAIL_QUERY = "(min-width: 768px) and (max-width: 1023.98px)";
 
-function subscribeTablet(onChange: () => void) {
-  const query = window.matchMedia?.(TABLET_RAIL_QUERY);
-  query?.addEventListener?.("change", onChange);
-  return () => query?.removeEventListener?.("change", onChange);
-}
+const subscribeTablet = subscribeAll([TABLET_RAIL_QUERY, SHORT_VIEWPORT_QUERY]);
 
+/** In the band, and tall enough to have the rail at all (a short one keeps the tab bar). */
 function getTabletSnapshot() {
-  return window.matchMedia?.(TABLET_RAIL_QUERY)?.matches ?? false;
+  return matches(TABLET_RAIL_QUERY) && !matches(SHORT_VIEWPORT_QUERY);
 }
 
 /**
- * From 768 to 1023px the rail starts collapsed (07 `61:17544`, 07a
- * `307:61752`: the 900 frames draw the 64px rail). It is a default, not a
- * lock: the reader can still expand it there. Nothing done in the band is
- * persisted (the caller's toggle must pass `persist: false` while this
- * returns true), and on leaving the band the rail goes back to the state the
- * reader chose for wide screens.
+ * Where the rail starts collapsed without the reader asking, and gives their
+ * own choice back afterwards. Two holds, either of which collapses it:
  *
- * Runs in a layout effect, so a page opened in the band never paints the
- * 256px rail before collapsing it.
+ * - The tablet band, 768–1023px (07 `61:17544`, 07a `307:61752`: the 900
+ *   frames draw the 64px rail). Nothing toggled in the band is persisted
+ *   (the caller's toggle passes `persist: false` while this returns true,
+ *   DD-W46).
+ * - The page editor (`inEditor`), at any width: every Figma editor frame
+ *   draws the icon rail (53:137378, 184:159319; owner decision D1, BB-E-3).
+ *   A toggle there is the reader's explicit choice and persists through the
+ *   Sidebar's own toggle, so it becomes the global choice.
+ *
+ * Entering either hold collapses the rail for the visit (without persisting).
+ * Moving within the editor (new page to saved page) is not an entry. When the
+ * last hold lets go, the rail goes back to the stored global choice, which
+ * already includes any toggle the reader made in the editor.
+ *
+ * Runs in a layout effect, so a page opened in a hold never paints the 256px
+ * rail before collapsing it.
  *
  * @returns whether the viewport is in the tablet band.
  */
-export function useTabletRailCollapse(
+export function useRailAutoCollapse(
   setCollapsed: (value: boolean, opts?: { persist?: boolean }) => void,
   readStored: () => boolean,
+  inEditor = false,
 ): boolean {
   const inBand = useSyncExternalStore(subscribeTablet, getTabletSnapshot, () => false);
-  const previous = useRef<boolean | null>(null);
+  const previous = useRef<{ band: boolean; editor: boolean } | null>(null);
   useLayoutEffect(() => {
-    if (previous.current === inBand) return;
-    const first = previous.current === null;
-    previous.current = inBand;
-    if (inBand) setCollapsed(true, { persist: false });
-    else if (!first) setCollapsed(readStored(), { persist: false });
-  }, [inBand, setCollapsed, readStored]);
+    const before = previous.current;
+    if (before && before.band === inBand && before.editor === inEditor) return;
+    previous.current = { band: inBand, editor: inEditor };
+    const entered = (inBand && !before?.band) || (inEditor && !before?.editor);
+    if (entered) setCollapsed(true, { persist: false });
+    else if (before && !inBand && !inEditor) setCollapsed(readStored(), { persist: false });
+  }, [inBand, inEditor, setCollapsed, readStored]);
   return inBand;
 }

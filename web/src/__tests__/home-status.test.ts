@@ -114,3 +114,34 @@ describe("overrideOnScreen", () => {
     expect(overrideOnScreen({ overrideActive: false, isPrimary: true, triggerActive: false })).toBe(false);
   });
 });
+
+describe("scheduleNextChange while an override runs (BB-A-7)", () => {
+  it("uses the Schedule's own next hand-over, not the override's end", () => {
+    const next = scheduleNextChange(
+      {
+        next_change_at: "2026-11-13T19:00:00Z",
+        next_change_reason: "override_ends",
+        next_page_id: null,
+        schedule_next_change_at: "2026-11-13T21:00:00Z",
+        schedule_next_page_id: "good-night",
+      },
+      NOW,
+    );
+    expect(next).toEqual({ at: new Date("2026-11-13T21:00:00Z"), pageId: "good-night" });
+  });
+
+  it("has no Schedule change in manual mode", () => {
+    expect(
+      scheduleNextChange(
+        {
+          next_change_at: "2026-11-13T19:00:00Z",
+          next_change_reason: "override_ends",
+          next_page_id: null,
+          schedule_next_change_at: null,
+          schedule_next_page_id: null,
+        },
+        NOW,
+      ),
+    ).toBeNull();
+  });
+});

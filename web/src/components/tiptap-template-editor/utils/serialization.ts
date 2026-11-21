@@ -118,8 +118,13 @@ export function serializeTemplateSimple(doc: JSONContent, maxLines = 6): string 
 function serializeNodeContent(node: JSONContent): string {
   switch (node.type) {
     case "text":
-      // Strip end-of-line cursor placeholder and convert to uppercase
-      return (node.text || "").replace(/\u200B/g, "").toUpperCase();
+      // Strip end-of-line cursor placeholder and convert to uppercase. A
+      // space typed before an inline chip comes back as a no-break space,
+      // which no board draws: store a plain one (BB-B-6).
+      return (node.text || "")
+        .replace(/\u200B/g, "")
+        .replace(/\u00A0/g, " ")
+        .toUpperCase();
 
     case "variable":
       const filters = node.attrs?.filters || [];
@@ -357,4 +362,28 @@ function parseVariable(expr: string): { varPath: string; filters: Array<{ name: 
   });
 
   return { varPath, filters };
+}
+
+/**
+ * Text pasted into the template, as nodes for its single paragraph: each
+ * line's markup becomes its chips and a line break becomes a hard break
+ * (with the caret anchors every row carries), so multi-line text from
+ * another app lands on consecutive rows instead of being dropped (BB-E-1).
+ */
+export function parsePastedText(text: string): JSONContent[] {
+  const nodes: JSONContent[] = [];
+  text
+    .replace(/\r\n?/g, "\n")
+    // A copied paragraph's closing line break is not a row of its own.
+    .replace(/\n$/, "")
+    .split("\n")
+    .forEach((line, index) => {
+      if (index > 0) {
+        nodes.push({ type: "text", text: CURSOR_ANCHOR_CHAR });
+        nodes.push({ type: "hardBreak" });
+        nodes.push({ type: "text", text: CURSOR_ANCHOR_CHAR });
+      }
+      nodes.push(...parseLineContent(line));
+    });
+  return nodes;
 }

@@ -26,6 +26,7 @@ import {
   type SetStateAction,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
@@ -34,12 +35,14 @@ import type { PageBuilderHandle, PageBuilderSaveActions } from "@/components/pag
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRouter } from "@/hooks/use-router";
 import { useLocale, useTranslations } from "@/i18n/translations";
+import type { DeviceType } from "@/lib/api";
 import { offersDraft } from "@/lib/ide/edit-state";
+import { useExplorerOpen } from "@/lib/ide/explorer-pref";
 import { IDE_DESKTOP_QUERY, type IdeTabId, inspectorTabIds, resolveInspectorTab } from "@/lib/ide/inspector-tabs";
 import { templateReferences } from "@/lib/ide/references";
 
 import { type ConsoleTab, IdeConsole, IdeProblemList, IdeSentPanel } from "./ide-console";
-import { IdeExplorer } from "./ide-explorer";
+import { IdeExplorer, IdeExplorerShow } from "./ide-explorer";
 import { formatSavedAt, formatWallTime } from "./ide-format";
 import { IdeHistory } from "./ide-history";
 import { DuplicateDialog, IdePageTab } from "./ide-page-tab";
@@ -53,6 +56,8 @@ export interface CreatorIdeProps {
   builderRef: RefObject<PageBuilderHandle | null>;
   /** Where the Explorer column renders (beside the editor). */
   explorerSlot: HTMLElement | null;
+  /** The saved page's board kind: whether the Explorer starts open, and whose remembered choice applies (D2). */
+  boardKind?: DeviceType;
   /** Increments after each successful header Save. */
   savedTick: number;
   /** Supplies the header's Save draft / Save & update board while a display shows the page (a state setter). */
@@ -71,7 +76,9 @@ function useStatusMessage(ide: CreatorIdeState) {
   }
   const next = ide.showsOn.entries.find((entry) => entry.schedule.enabled);
   if (next) return t("scheduledOn", { board: next.boardName });
-  return t("notScheduledMessage");
+  // The "Not scheduled" chip already says it; a sentence repeating it was a
+  // second report of the same state (BB-E-26).
+  return "";
 }
 
 /**
@@ -85,6 +92,7 @@ export default function CreatorIde({
   pageId,
   builderRef,
   explorerSlot,
+  boardKind = "flagship",
   savedTick,
   onSaveActionsChange,
 }: CreatorIdeProps) {
@@ -97,6 +105,20 @@ export default function CreatorIde({
   const [tab, setTab] = useState<IdeTabId>("page");
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>("problems");
   const [copyOpen, setCopyOpen] = useState(false);
+  const [explorerOpen, setExplorerOpen] = useExplorerOpen(boardKind);
+  // Focus follows the toggle to its counterpart, so a keyboard reader isn't dropped on <body>.
+  const showExplorerRef = useRef<HTMLButtonElement>(null);
+  const hideExplorerRef = useRef<HTMLButtonElement>(null);
+  const explorerToggled = useRef(false);
+  const toggleExplorer = (open: boolean) => {
+    explorerToggled.current = true;
+    setExplorerOpen(open);
+  };
+  useEffect(() => {
+    if (!explorerToggled.current) return;
+    explorerToggled.current = false;
+    (explorerOpen ? hideExplorerRef : showExplorerRef).current?.focus();
+  }, [explorerOpen]);
   const activeTab = resolveInspectorTab(tab, desktop);
   const references = useMemo(() => templateReferences(ide.builder.snapshot?.template ?? []), [ide.builder.snapshot]);
 
@@ -127,11 +149,13 @@ export default function CreatorIde({
             variant="secondary"
             size={actions.size}
             className="shrink-0 gap-1.5 px-3 text-sm"
+            aria-label={actions.compact ? t("saveDraft") : undefined}
             disabled={actions.disabled || savingDraft}
             onClick={() => saveDraftMutate({})}
           >
             <Save className="size-3.5" aria-hidden="true" />
-            {savingDraft ? t("savingDraft") : t("saveDraft")}
+            {/* 1024–1279: icon only, so the page name keeps its room (BB-E-4). */}
+            {!actions.compact && (savingDraft ? t("savingDraft") : t("saveDraft"))}
           </Button>
         )}
         <Button
@@ -140,10 +164,13 @@ export default function CreatorIde({
           className="shrink-0 gap-1.5 px-3 text-sm"
           disabled={actions.disabled}
           onClick={actions.save}
+          // Phone, and 1024–1279: a short label so the page name keeps its room
+          // (BB-B-3, BB-E-4); the full words stay the accessible name.
+          aria-label={(phone || actions.compact) && !actions.saving ? t("saveAndUpdate") : undefined}
           {...actions.anchor}
         >
           <Send className="size-4" aria-hidden="true" />
-          {actions.saving ? t("saving") : t("saveAndUpdate")}
+          {actions.saving ? t("saving") : phone || actions.compact ? t("updateBoardShort") : t("saveAndUpdate")}
         </Button>
       </>
     ));
@@ -167,13 +194,32 @@ export default function CreatorIde({
 
   return (
     <>
-      {explorerSlot && desktop && createPortal(<IdeExplorer ide={ide} pageId={pageId} />, explorerSlot)}
+      {explorerSlot &&
+        desktop &&
+        createPortal(
+          explorerOpen ? (
+            <IdeExplorer
+              ide={ide}
+              pageId={pageId}
+              references={references}
+              onHide={() => toggleExplorer(false)}
+              hideRef={hideExplorerRef}
+            />
+          ) : (
+            <IdeExplorerShow onShow={() => toggleExplorer(true)} buttonRef={showExplorerRef} />
+          ),
+          explorerSlot,
+        )}
       <Box
         as="section"
         aria-label={t("regionLabel")}
         data-slot="creator-ide"
         data-layout={desktop ? "desktop" : "compact"}
-        className="grid min-w-0 grid-cols-1 items-start gap-4 px-2 pb-24 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-6 lg:px-4"
+        // The same two equal columns as the builder above (page-builder.tsx):
+        // Console and Timeline under the template, the Inspector under the
+        // preview. At 2fr the console was ~300px at 1440 and wrapped each
+        // problem onto four lines (BB-B-19).
+        className="grid min-w-0 grid-cols-1 items-start gap-4 px-2 pb-24 lg:grid-cols-2 lg:gap-6 lg:px-4"
       >
         {desktop && (
           <Stack gap="3" className="min-w-0">
@@ -198,7 +244,9 @@ export default function CreatorIde({
             display={ide.display}
             displayLabel={t(`display.${ide.display}`)}
             message={statusMessage}
-            editState={ide.editState}
+            // A saved page's state is the header's saved time; a Saved chip
+            // here repeated it (BB-E-26, Figma 184:159319 draws none).
+            editState={ide.editState === "saved" ? undefined : ide.editState}
             editStateLabel={ide.editState === "draft" && draftLabel ? draftLabel : t(`edit.${ide.editState}`)}
             problems={problemCount}
             onOpenProblems={openProblems}

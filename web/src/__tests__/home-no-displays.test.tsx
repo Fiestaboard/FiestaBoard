@@ -53,7 +53,7 @@ describe("Home without displays", () => {
     renderHome();
     await userEvent.click(await screen.findByRole("button", { name: "Add display" }));
     expect(await screen.findByRole("dialog", { name: "Add a display" })).toBeInTheDocument();
-    expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
+    expect(screen.getByText("Step 1 of 2 · What do you want FiestaBoard to show on?")).toBeInTheDocument();
     expect(triggerWizard).not.toHaveBeenCalled();
   });
   it("opens the wizard only from Run setup again", async () => {

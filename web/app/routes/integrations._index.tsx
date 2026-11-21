@@ -38,9 +38,9 @@ import {
   IconTile,
   Input,
   Label,
-  ListItem,
   ListRow,
   ListRowGroup,
+  ListRowItem,
   PageSection,
   PageToolbar,
   PluginCard,
@@ -52,6 +52,7 @@ import {
   SelectValue,
   Skeleton,
   Stack,
+  StatusDot,
   Switch,
   Table,
   TableBody,
@@ -110,7 +111,6 @@ import {
   Check,
   CheckCircle,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   ChevronsUp,
   ChevronUp,
@@ -268,9 +268,10 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode, RefObject } from "react";
+import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { UNSAFE_DataRouterContext, useBeforeUnload, useBlocker } from "react-router";
 import { toast } from "sonner";
 
 import { IntegrationBoardPreview } from "@/components/integrations/integration-board-preview";
@@ -280,14 +281,16 @@ import { PluginProvenance } from "@/components/plugin-provenance";
 import {
   asJSONSchema,
   findOAuthConnection,
+  mapConfigErrors,
   OAUTH_CONNECTIONS_QUERY_KEY,
   oauthAppFieldKeys,
   OAuthConnectionSection,
   oauthReturnErrorKey,
+  pluginConfigErrors,
   readOAuthReturn,
   SchemaForm,
 } from "@/components/plugin-settings";
-import { PluginAutoUpdateSwitch } from "@/components/plugin-updates-control";
+import { PluginAutoUpdateSwitch, PluginUpdateCheckButton } from "@/components/plugin-updates-control";
 import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
@@ -1071,7 +1074,8 @@ function SortHeaderButton({
       onClick={onSort}
       aria-pressed={active}
       aria-label={active ? `${label}, ${t(dir === "asc" ? "sortAscending" : "sortDescending")}` : label}
-      className="flex items-center gap-1 rounded-sm text-left font-medium cursor-pointer select-none hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      // The kit's touch floor: 44 px on a coarse pointer (BB-C-26 app half).
+      className="flex items-center gap-1 rounded-sm text-left font-medium cursor-pointer select-none hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-touch"
     >
       {label}
       {active ? (
@@ -1084,6 +1088,57 @@ function SortHeaderButton({
         <ChevronsUp className="h-3 w-3 opacity-30" aria-hidden="true" />
       )}
     </button>
+  );
+}
+
+/**
+ * Asks before an integration's page is left with edits that were not saved
+ * (BB-C-18). Rendered only on the full-page route inside a data router; the
+ * desktop list-detail pane and jsdom tests without one have no blocker.
+ */
+function UnsavedSettingsGuard({ dirty, leaving }: { dirty: boolean; leaving: RefObject<boolean> }) {
+  const t = useTranslations("integrations");
+  // `leaving` is set just before a deliberate exit (Save Changes, a guided
+  // sign-in leaving for the provider, Uninstall), in the same tick as the
+  // state that clears `dirty` — too soon for this render to see it.
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty && !leaving.current && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useBeforeUnload(
+    useCallback(
+      (event: BeforeUnloadEvent) => {
+        if (!dirty || leaving.current) return;
+        event.preventDefault();
+        event.returnValue = "";
+      },
+      [dirty, leaving],
+    ),
+  );
+  return (
+    <AlertDialog
+      open={blocker.state === "blocked"}
+      onOpenChange={(open) => {
+        if (!open && blocker.state === "blocked") blocker.reset();
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("discardChangesTitle")}</AlertDialogTitle>
+          <AlertDialogDescription>{t("discardChangesDescription")}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t("keepEditing")}</AlertDialogCancel>
+          <Button
+            onClick={() => {
+              if (blocker.state === "blocked") blocker.proceed();
+            }}
+          >
+            {t("discardAndLeave")}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -1117,7 +1172,16 @@ export function InstalledPluginRow({
     else onSelect?.(open ? plugin.id : "");
   };
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
+  // What the form held when it loaded or last saved: edits are the difference.
+  const [savedValues, setSavedValues] = useState<Record<string, unknown>>({});
+  // The hub's reasons for refusing the last save, per field and otherwise.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const hasDataRouter = useContext(UNSAFE_DataRouterContext) != null;
+  // Set before a deliberate exit so the guard lets it through; any new edit
+  // re-arms the guard.
+  const leaving = useRef(false);
   const [isCreatingDemo, setIsCreatingDemo] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
   const [showAddInstance, setShowAddInstance] = useState(false);
@@ -1146,6 +1210,7 @@ export function InstalledPluginRow({
   const hasNoToggle = isTransition || isOutput;
   const needsReconnect = plugin.enabled && connection?.status === "reauthorization_required";
   const needsSetup = plugin.enabled && !hasNoToggle && !plugin.configured;
+  const rowStatus = needsReconnect || needsSetup ? "warning" : hasNoToggle || !plugin.enabled ? "neutral" : "success";
 
   // Fetch plugin details when opening config
   const { data: pluginDetails, isLoading: isLoadingDetails } = useQuery({
@@ -1187,8 +1252,24 @@ export function InstalledPluginRow({
         defaults[key] = prop.default;
       }
     }
-    setConfigValues({ ...defaults, ...(pluginDetails.config ?? {}) });
+    const loaded = { ...defaults, ...(pluginDetails.config ?? {}) };
+    setConfigValues(loaded);
+    setSavedValues(loaded);
   }
+  const isDirty = JSON.stringify(configValues) !== JSON.stringify(savedValues);
+
+  // An edit to a field the hub refused clears that field's message.
+  const updateConfigValues = (next: Record<string, unknown>) => {
+    leaving.current = false;
+    setConfigValues(next);
+    setSaveError(null);
+    setFieldErrors((current) => {
+      const kept = Object.fromEntries(
+        Object.entries(current).filter(([key]) => JSON.stringify(next[key]) === JSON.stringify(configValues[key])),
+      );
+      return Object.keys(kept).length === Object.keys(current).length ? current : kept;
+    });
+  };
 
   // A plugin whose users bring their own OAuth app has its Client ID (and
   // secret) fields inside the Account connection panel's guided setup, not in
@@ -1215,6 +1296,9 @@ export function InstalledPluginRow({
   // open and lets the caller report a failure.
   const saveConfigForSignIn = async () => {
     await api.updatePluginConfig(plugin.id, configValues);
+    // Saved, and the sign-in is about to leave for the provider.
+    setSavedValues(configValues);
+    leaving.current = true;
     onConfigUpdate();
     queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
     queryClient.invalidateQueries({ queryKey: OAUTH_CONNECTIONS_QUERY_KEY });
@@ -1226,9 +1310,14 @@ export function InstalledPluginRow({
 
   const handleSaveConfig = async () => {
     setIsSaving(true);
+    setFieldErrors({});
+    setSaveError(null);
     try {
       await api.updatePluginConfig(plugin.id, configValues);
-      toast.success(`${plugin.name} configuration saved`);
+      // Saved: leaving now must not ask about the edits just written.
+      setSavedValues(configValues);
+      leaving.current = true;
+      toast.success(t("toastConfigSaved", { pluginName: plugin.name }));
       onConfigUpdate();
       // The sheet's own details query. Without this the panel keeps serving the
       // pre-save config for staleTime (1 min), so areDemoRequirementsMet() still
@@ -1242,7 +1331,24 @@ export function InstalledPluginRow({
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setIsConfigOpen(false);
     } catch (error) {
-      toast.error(`Failed to save configuration: ${error instanceof Error ? error.message : "Unknown error"}`);
+      // Said beside Save, not in a toast that lands on top of it (BB-C-18).
+      const messages = pluginConfigErrors(error);
+      if (!messages) {
+        setSaveError(
+          t("toastConfigSaveFailed", { error: error instanceof Error ? error.message : tCommon("unknownError") }),
+        );
+        return;
+      }
+      const mapped = mapConfigErrors(messages, formSchema.properties);
+      setFieldErrors(mapped.fields);
+      setSaveError([t("saveFieldErrors"), ...mapped.general].join(" "));
+      const first = Object.keys(formSchema.properties).find((key) => mapped.fields[key]);
+      if (first) {
+        requestAnimationFrame(() => {
+          const target = document.getElementById(first) ?? document.getElementById(`${first}-0`);
+          target?.focus();
+        });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -1392,21 +1498,25 @@ export function InstalledPluginRow({
 
   // One supported detail body: the same schema, OAuth, variables, colors and
   // mutation state serve the selected desktop pane and installed detail route.
+  const badges = (
+    <Flex gap="2" align="center" wrap className={fullPage ? undefined : "mt-3"}>
+      <Badge variant="outline">{tCommon("versionShort", { version: plugin.version })}</Badge>
+      <PluginProvenance repository={plugin.source?.repository_url} />
+      <Badge variant="outline">
+        {t(
+          plugin.source?.source_type === "builtin"
+            ? "sourceCoreBadge"
+            : plugin.source?.source_type === "git"
+              ? "sourceExternalBadge"
+              : "sourceMarketplaceBadge",
+        )}
+      </Badge>
+    </Flex>
+  );
   const configContent = (
     <>
-      <Flex gap="2" align="center" wrap className="mt-3">
-        <Badge variant="outline">{tCommon("versionShort", { version: plugin.version })}</Badge>
-        <PluginProvenance repository={plugin.source?.repository_url} />
-        <Badge variant="outline">
-          {t(
-            plugin.source?.source_type === "builtin"
-              ? "sourceCoreBadge"
-              : plugin.source?.source_type === "git"
-                ? "sourceExternalBadge"
-                : "sourceMarketplaceBadge",
-          )}
-        </Badge>
-      </Flex>
+      {/* On its own page the badges share the switch's row (BB-C-21). */}
+      {!fullPage && badges}
       <Tabs
         value={detailTab}
         onValueChange={(value) => {
@@ -1440,8 +1550,11 @@ export function InstalledPluginRow({
                 {/* Demo Page Section */}
                 {pluginDetails?.has_demo && (
                   <Stack gap="3" className="rounded-lg border bg-muted/30 p-4">
-                    <Flex align="center" justify="between">
-                      <Box>
+                    {/* The button wraps under the text when both don't fit, so a
+                        long label (German) never squeezes the text to one word
+                        per line (BB-C-21). */}
+                    <Flex align="center" justify="between" gap="3" wrap>
+                      <Box className="min-w-0 flex-1 basis-56">
                         <Heading level={4} size="sm" className="font-medium">
                           {t("demoPage.title")}
                         </Heading>
@@ -1497,7 +1610,10 @@ export function InstalledPluginRow({
                   pluginId={plugin.id}
                   appFields={{
                     values: configValues,
-                    onChange: (key, value) => setConfigValues((current) => ({ ...current, [key]: value })),
+                    onChange: (key, value) => {
+                      leaving.current = false;
+                      setConfigValues((current) => ({ ...current, [key]: value }));
+                    },
                     save: saveConfigForSignIn,
                     setupGuideUrl,
                   }}
@@ -1512,7 +1628,8 @@ export function InstalledPluginRow({
                     <SchemaForm
                       schema={formSchema}
                       values={configValues}
-                      onChange={setConfigValues}
+                      onChange={updateConfigValues}
+                      errors={fieldErrors}
                       disabled={isSaving}
                       // Lets `remote-options` fields ask this plugin — and only
                       // this plugin — for their catalogs.
@@ -1572,9 +1689,7 @@ export function InstalledPluginRow({
                 <ColorRulesEditor
                   pluginId={plugin.id}
                   colorRules={(configValues.color_rules as ColorRulesConfig) || {}}
-                  onChange={(newRules) => {
-                    setConfigValues((prev) => ({ ...prev, color_rules: newRules }));
-                  }}
+                  onChange={(newRules) => updateConfigValues({ ...configValues, color_rules: newRules })}
                   onVarCopied={handleVarCopied}
                 />
 
@@ -1585,6 +1700,12 @@ export function InstalledPluginRow({
               </>
             )}
           </Stack>
+          {saveError && (
+            <Alert variant="destructive" className="mb-3" data-testid="integration-save-error">
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription>{saveError}</AlertDescription>
+            </Alert>
+          )}
           <Flex gap="2" wrap className="justify-end">
             {canUninstall && onUninstall && (
               <Button
@@ -1592,6 +1713,8 @@ export function InstalledPluginRow({
                 className="sm:mr-auto"
                 size="sm"
                 onClick={() => {
+                  // Uninstalling discards the settings anyway: don't ask.
+                  leaving.current = true;
                   setIsConfigOpen(false);
                   onUninstall(plugin.id);
                 }}
@@ -1605,7 +1728,7 @@ export function InstalledPluginRow({
               {tCommon("cancel")}
             </Button>
             <Button onClick={handleSaveConfig} disabled={isSaving || isLoadingDetails}>
-              {isSaving ? "Saving..." : "Save Changes"}
+              {isSaving ? tCommon("saving") : t("saveChanges")}
             </Button>
           </Flex>
         </TabsContent>
@@ -1700,14 +1823,8 @@ export function InstalledPluginRow({
   );
   const detailContent = (
     <Stack gap="4" className="min-w-0">
-      {fullPage && (
-        <Button variant="ghost" className="w-fit min-h-11" asChild>
-          <Link href="/integrations?tab=installed">
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            {t("backToIntegrations")}
-          </Link>
-        </Button>
-      )}
+      {/* On its own page the section's breadcrumb is the way back; a second
+          Back link under it pushed the settings down a screen (BB-C-21). */}
       {(needsReconnect || needsSetup) && (
         <Alert variant="warning" data-testid="integration-attention-banner">
           <AlertCircle className="h-4 w-4" aria-hidden="true" />
@@ -1724,7 +1841,9 @@ export function InstalledPluginRow({
         )}
       >
         <Flex justify="between" align="center" gap="3" wrap>
-          {!fullPage && (
+          {fullPage ? (
+            badges
+          ) : (
             <Heading level={2} size="xl">
               {plugin.name}
             </Heading>
@@ -1859,11 +1978,14 @@ export function InstalledPluginRow({
         )}
         {configContent}
       </Card>
+      {fullPage && hasDataRouter && <UnsavedSettingsGuard dirty={isDirty} leaving={leaving} />}
     </Stack>
   );
   const configPanel = isConfigOpen && detailTarget ? createPortal(detailContent, detailTarget) : null;
   const row = (
-    <ListItem>
+    // ListRowItem, not ListItem: it tells the kit's ListRow it is already
+    // in an item, so the row doesn't wrap itself in a second <li>.
+    <ListRowItem>
       <ListRow
         {...anchorProps(`plugin.${plugin.id}`)}
         data-section-item={plugin.id}
@@ -1876,9 +1998,15 @@ export function InstalledPluginRow({
           )
         }
         leading={
-          <IconTile size="sm" tone="muted">
-            <Icon className="h-4 w-4" />
-          </IconTile>
+          desktop ? (
+            <IconTile size="sm" tone="muted">
+              <Icon className="h-4 w-4" />
+            </IconTile>
+          ) : (
+            // A phone row leads with its state, as in Figma 324:50158; the
+            // status line beside it says the same in words.
+            <StatusDot status={rowStatus} size="md" className="mx-1" />
+          )
         }
         title={plugin.name}
         description={
@@ -1919,7 +2047,7 @@ export function InstalledPluginRow({
           </>
         }
       />
-    </ListItem>
+    </ListRowItem>
   );
 
   // Delete / uninstall confirmation dialog
@@ -2306,12 +2434,15 @@ export default function IntegrationsPage() {
 
   const query = searchQuery.toLowerCase().trim();
 
+  // A phone shows no search on Installed (Figma 324:50158), so a query typed
+  // on Marketplace must not silently filter it.
+  const installedQuery = phone ? "" : query;
   const filteredInstalled = (data?.plugins ?? []).filter(
     (p) =>
-      !query ||
-      p.name.toLowerCase().includes(query) ||
-      p.description?.toLowerCase().includes(query) ||
-      p.id.toLowerCase().includes(query),
+      !installedQuery ||
+      p.name.toLowerCase().includes(installedQuery) ||
+      p.description?.toLowerCase().includes(installedQuery) ||
+      p.id.toLowerCase().includes(installedQuery),
   );
 
   const filteredRegistry = allRegistryEntries.filter(
@@ -2476,45 +2607,51 @@ export default function IntegrationsPage() {
                 : "grid grid-cols-1 gap-3 items-center sm:grid-cols-[auto_minmax(0,1fr)_auto]"
             }
           >
-            <TabsList className="w-fit">
+            {/* A phone gets Figma's full-width pair, "Installed · 6 | Marketplace". */}
+            <TabsList className={phone ? "grid w-full grid-cols-2" : "w-fit"}>
               <TabsTrigger value="installed">
                 {t("tabInstalled")}
-                {data && (
-                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
-                    {data.total}
-                  </Badge>
-                )}
+                {data &&
+                  (phone ? (
+                    ` · ${data.total}`
+                  ) : (
+                    <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
+                      {data.total}
+                    </Badge>
+                  ))}
               </TabsTrigger>
               <TabsTrigger value="marketplace">
                 {t("tabMarketplace")}
-                {availableCount > 0 && (
+                {!phone && availableCount > 0 && (
                   <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
                     {availableCount}
                   </Badge>
                 )}
               </TabsTrigger>
             </TabsList>
-            <Box className="relative min-w-0 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder={
-                  activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
-                }
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setMarketplacePage(0);
-                }}
-                aria-label={
-                  activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
-                }
-                className="pl-9 w-full"
-              />
-            </Box>
+            {!(phone && activeTab === "installed") && (
+              <Box className="relative min-w-0 w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder={
+                    activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
+                  }
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setMarketplacePage(0);
+                  }}
+                  aria-label={
+                    activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
+                  }
+                  className="pl-9 w-full"
+                />
+              </Box>
+            )}
             {/* Auto-update governs the installed plugins, so it rides with
                 their tab: right of the search on a wide screen, a one-line row
                 of its own under it on a phone. */}
-            {activeTab === "installed" && <PluginAutoUpdateSwitch className="sm:justify-self-end" />}
+            {activeTab === "installed" && !phone && <PluginAutoUpdateSwitch className="sm:justify-self-end" />}
             {activeTab === "marketplace" && (
               <Flex align="center" gap="2" className="shrink-0 md:justify-self-end">
                 {!phone && !query && (
@@ -2626,17 +2763,20 @@ export default function IntegrationsPage() {
                     </Button>
                   </Flex>
                 )}
-                <Flex gap="3" wrap role="group" aria-label={t("sortInstalled")}>
-                  {(["name", "category", "status"] as const).map((key) => (
-                    <SortHeaderButton
-                      key={key}
-                      label={t(`${key}Column`)}
-                      active={installedSort.key === key}
-                      dir={installedSort.dir}
-                      onSort={() => handleInstalledSort(key)}
-                    />
-                  ))}
-                </Flex>
+                {/* The groups already sort a phone's list by status (Figma 324:50158). */}
+                {!phone && (
+                  <Flex gap="3" wrap role="group" aria-label={t("sortInstalled")}>
+                    {(["name", "category", "status"] as const).map((key) => (
+                      <SortHeaderButton
+                        key={key}
+                        label={t(`${key}Column`)}
+                        active={installedSort.key === key}
+                        dir={installedSort.dir}
+                        onSort={() => handleInstalledSort(key)}
+                      />
+                    ))}
+                  </Flex>
+                )}
                 <Box className="grid items-start gap-5 md:grid-cols-[minmax(0,0.45fr)_minmax(0,0.55fr)] xl:grid-cols-[minmax(0,0.6fr)_minmax(0,0.4fr)]">
                   <Stack gap="4" className="min-w-0">
                     {[
@@ -2683,6 +2823,22 @@ export default function IntegrationsPage() {
                     <Box as="aside" aria-label={t("integrationSettings")} ref={setDetailTarget} className="min-w-0" />
                   )}
                 </Box>
+                {phone && (
+                  <Box as="section" aria-labelledby="plugin-updates-heading" className="grid gap-3 border-t pt-4">
+                    <Heading
+                      id="plugin-updates-heading"
+                      level={2}
+                      size="sm"
+                      className="px-4 font-mono uppercase tracking-wide text-muted-foreground"
+                    >
+                      {t("pluginUpdatesSection")}
+                    </Heading>
+                    <Flex align="center" justify="between" gap="3" wrap className="px-4">
+                      <PluginAutoUpdateSwitch />
+                      <PluginUpdateCheckButton />
+                    </Flex>
+                  </Box>
+                )}
               </Stack>
             )}
           </TabsContent>
