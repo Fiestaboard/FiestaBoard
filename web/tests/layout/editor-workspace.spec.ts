@@ -201,6 +201,10 @@ test("a new page on a FiestaPanel display: the first save moves nothing either (
   await expect(name).toBeVisible();
   // The new page adopts the display's kind before it is saved, and so does the Explorer (D2: open for panels).
   await expect(page.getByRole("navigation", { name: "Explorer" })).toBeVisible();
+  // The rich editor is lazy-loaded and portals its toolbar into the chrome
+  // above the workspace. Measuring before it arrives takes the frame 50px too
+  // high, and the save then appears to move everything down.
+  await expect(page.locator('[data-slot="page-editor-toolbar"] > *').first()).toBeVisible();
   await name.fill("Den family board");
   const frame = async () => ({
     explorer: await box(column(page, "explorer")),
