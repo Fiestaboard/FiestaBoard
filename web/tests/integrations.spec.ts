@@ -9,6 +9,8 @@
  *
  * NOTE: Tests run sequentially. The wizard must have completed.
  */
+import type { Page } from "@playwright/test";
+
 import { configureBoard, expect, test } from "./helpers";
 
 // Suppress the setup wizard for all tests in this file
@@ -166,6 +168,15 @@ test.describe("Integrations Page", () => {
 // Check for Updates
 // ---------------------------------------------------------------------------
 
+/**
+ * BB-FC-8 (07d `324:40267`): on desktop, Check for updates is an item of the
+ * section header's "…" menu (Integration options), not a labelled button.
+ */
+async function checkForUpdates(page: Page) {
+  await page.locator("[data-slot=page-header]").getByRole("button", { name: "Integration options" }).click();
+  await page.getByRole("menuitem", { name: /check for updates/i }).click();
+}
+
 test.describe("Check for Updates", () => {
   test("saves the auto-update switch from the page toolbar", async ({ page }) => {
     // Plugin updates moved here from Settings in 10.0.
@@ -232,12 +243,14 @@ test.describe("Check for Updates", () => {
     }).toPass({ timeout: 5_000 });
   });
 
-  test("shows Check for updates as the section header's action", async ({ page }) => {
+  test("puts Check for updates in the section header's menu", async ({ page }) => {
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     const header = page.locator("[data-slot=page-header]");
-    await expect(header.getByRole("button", { name: /check for updates/i })).toBeVisible({ timeout: 5_000 });
+    await expect(header.getByRole("button", { name: /check for updates/i })).toHaveCount(0);
+    await header.getByRole("button", { name: "Integration options" }).click();
+    await expect(page.getByRole("menuitem", { name: /check for updates/i })).toBeVisible({ timeout: 5_000 });
   });
 
   test("shows all-up-to-date toast when no updates are found", async ({ page }) => {
@@ -252,7 +265,7 @@ test.describe("Check for Updates", () => {
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: /check for updates/i }).click();
+    await checkForUpdates(page);
 
     await expect(page.getByText("All plugins are up to date")).toBeVisible({ timeout: 5_000 });
   });
@@ -269,7 +282,7 @@ test.describe("Check for Updates", () => {
     await page.goto("/integrations");
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: /check for updates/i }).click();
+    await checkForUpdates(page);
 
     await expect(page.getByText("1 plugin update available")).toBeVisible({ timeout: 5_000 });
   });
@@ -300,7 +313,7 @@ test.describe("Check for Updates", () => {
     await page.waitForLoadState("networkidle").catch(() => {});
     const countAfterLoad = pluginsRequestCount;
 
-    await page.getByRole("button", { name: /check for updates/i }).click();
+    await checkForUpdates(page);
 
     // Error toast should appear
     await expect(page.getByText(/Couldn't check for updates/)).toBeVisible({ timeout: 5_000 });

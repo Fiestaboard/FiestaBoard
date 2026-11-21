@@ -115,9 +115,18 @@ describe("Integrations list at the desktop (BB-FC-8)", () => {
   it("names the header menu apart from the Marketplace toolbar's More options", async () => {
     const user = userEvent.setup();
     renderList();
+    // Let the Installed tab load first: on the desktop its first plugin opens in
+    // the detail pane, whose own row menu is also a "More options".
+    await screen.findByRole("tab", { name: "Installed · 3" });
     await user.click(await screen.findByRole("tab", { name: "Marketplace" }));
-    expect(screen.getAllByRole("button", { name: "More options" })).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Integration options" })).toBeInTheDocument();
+    const header = document.querySelector<HTMLElement>("[data-slot=page-header]")!;
+    expect(within(header).queryByRole("button", { name: "More options" })).toBeNull();
+    expect(within(header).getByRole("button", { name: "Integration options" })).toBeInTheDocument();
+    // The kit's tab panel leaves on a short exit; once Installed (and its
+    // detail pane) is gone, the toolbar's is the page's only "More options".
+    const toolbar = document.querySelector<HTMLElement>("[data-slot=page-toolbar]")!;
+    expect(within(toolbar).getByRole("button", { name: "More options" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "More options" })).toHaveLength(1));
   });
 
   it("reads the tabs as Installed · n | Marketplace, without count badges", async () => {
