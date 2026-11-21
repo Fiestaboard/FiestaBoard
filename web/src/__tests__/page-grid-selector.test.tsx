@@ -574,4 +574,58 @@ describe("PageGridSelector", () => {
       });
     });
   });
+
+  // BB-FP-1: every library card and row draws the kit's 3-stop focus ring
+  // (`.focus-ring` = ring-edge 1 px + amber 3 px + ring-edge 4 px), never the
+  // Tailwind ring with its default white offset band, and a 1 px border.
+  describe("focus ring and border (BB-FP-1)", () => {
+    function expectKitCard(button: HTMLElement | null) {
+      expect(button).not.toBeNull();
+      const classes = button!.className.split(/\s+/);
+      expect(classes).toContain("focus-ring");
+      expect(classes).toContain("border");
+      expect(classes.some((c) => c.includes("ring-offset"))).toBe(false);
+      expect(classes.some((c) => /^focus-visible:ring(-|$)/.test(c))).toBe(false);
+      expect(classes).not.toContain("border-2");
+    }
+
+    it("grid cards use the kit focus ring", async () => {
+      render(<PageGridSelector activePageId="page-1" onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
+      await waitFor(() => expect(screen.getByText("Page 2")).toBeInTheDocument());
+      expectKitCard(screen.getByText("Page 1").closest("button"));
+      expectKitCard(screen.getByText("Page 2").closest("button"));
+    });
+
+    it("list rows use the kit focus ring and a 1 px border like the grid cards", async () => {
+      render(<PageGridSelector activePageId="page-1" onSelectPage={vi.fn()} viewMode="list" />, {
+        wrapper: TestWrapper,
+      });
+      await waitFor(() => expect(screen.getByText("Page 2")).toBeInTheDocument());
+      expectKitCard(screen.getByText("Page 1").closest("button"));
+      expectKitCard(screen.getByText("Page 2").closest("button"));
+    });
+
+    it("collection cards use the kit focus ring and a 1 px border", async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.getCollections).mockResolvedValue({
+        collections: [
+          {
+            id: "collection:c1",
+            name: "My Collection",
+            page_ids: ["page-1"],
+            selection_mode: "time",
+            time: { interval_seconds: 30 },
+            variable: null,
+            random: null,
+            created_at: "2025-01-01T00:00:00Z",
+          },
+        ],
+        total: 1,
+      });
+      render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
+      await waitFor(() => expect(screen.getByRole("tab", { name: /Collections/i })).toBeInTheDocument());
+      await user.click(screen.getByRole("tab", { name: /Collections/i }));
+      expectKitCard(screen.getByText("My Collection").closest("button"));
+    });
+  });
 });

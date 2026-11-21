@@ -1,6 +1,6 @@
 "use client";
 
-import type { BoardCellGrid } from "@fiestaboard/ui";
+import type { BoardCellGrid, ScaledBoardLayout } from "@fiestaboard/ui";
 import { memo } from "react";
 
 import { DevicePreview } from "@/components/device-preview";
@@ -22,9 +22,12 @@ import { resolveBoardModel } from "@/lib/device-preview";
 export const DisplayLivePreview = memo(function DisplayLivePreview({
   board,
   size = "sm",
+  layout,
 }: {
   board: BoardInstance;
   size?: "sm" | "md";
+  /** A kit hero placement (`phone-hero` on a phone's display page, BB-A-19). */
+  layout?: ScaledBoardLayout;
 }) {
   // A paused board is hands-off and may be unplugged: read it once, never poll.
   const t = useTranslations("boardDisplay");
@@ -54,7 +57,8 @@ export const DisplayLivePreview = memo(function DisplayLivePreview({
         isStatic={size === "sm"}
         message={message}
         isLoading={loading}
-        size={size}
+        size={layout ? undefined : size}
+        layout={layout}
         boardType={board.board_color}
         deviceType={board.device_type}
         notesWide={board.notes_wide ?? undefined}
