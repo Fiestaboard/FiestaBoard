@@ -5,7 +5,7 @@ import "@testing-library/jest-dom/vitest";
 // en messages are statically imported so lookups resolve synchronously.
 import "../i18n/i18next";
 
-import { cleanup, configure, waitFor } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import React from "react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
@@ -331,26 +331,43 @@ global.ResizeObserver = class ResizeObserver {
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterAll(() => server.close());
 // A closing Sonner toast (dismissed, auto-closed, swiped or closed by its
-// button) is marked `data-removed="true"` and leaves a real 200ms Node timer
-// (`TIME_BEFORE_UNMOUNT`) that later calls the Toaster's `setToasts`. That
-// timer is neither tied to jsdom nor cleared on unmount, so if it is still
-// pending when the file ends it fires after Vitest has torn the jsdom
-// environment down; React then reads `window.event` and the worker dies with
-// "ReferenceError: window is not defined" (an unhandled error that fails the
-// whole run even though every test passed). Before unmounting, let any
-// closing toasts finish so no Sonner timer outlives the test. This is a no-op
-// when no toast is closing, and under fake timers the timer is fake too, so it
-// is discarded with them instead of leaking.
-const CLOSING_SONNER_TOAST = '[data-sonner-toast][data-removed="true"]';
-async function settleClosingSonnerToasts() {
-  if (vi.isFakeTimers() || !document.querySelector(CLOSING_SONNER_TOAST)) return;
-  await waitFor(() => {
-    if (document.querySelector(CLOSING_SONNER_TOAST)) throw new Error("a Sonner toast is still closing");
-  });
-}
+// button) starts a real 200ms Node timer (`TIME_BEFORE_UNMOUNT`) that later
+// calls the Toaster's `setToasts`. Sonner never keeps the timer id, so neither
+// unmounting nor jsdom's `window.close()` cancels it. If it is still pending
+// when the file ends, it fires after Vitest has deleted `window`; React then
+// reads `window.event` and the run fails with "ReferenceError: window is not
+// defined" even though every test passed.
+//
+// The DOM cannot reliably tell us whether such a timer is pending: the timer
+// starts a task before React writes `data-removed`, and a test may unmount its
+// Toaster mid-close. So instead, note whether this file ever showed a Sonner
+// toast, and if it did, outlast the timer once in afterAll. That hook runs
+// after the last test's cleanup(), so no Toaster is left to start a new timer.
+// The wait uses the real setTimeout captured here, so it works even if a test
+// left fake timers installed. It costs ~250ms once per file that shows a toast.
+const realSetTimeout = globalThis.setTimeout;
+const SONNER_TIMER_MS = 200;
+const SONNER_TOAST = "[data-sonner-toaster], [data-sonner-toast]";
+let sawSonnerToast = false;
+const sonnerToastWatcher = new MutationObserver((records) => {
+  for (const record of records) {
+    for (const node of record.addedNodes) {
+      if (node instanceof Element && (node.matches(SONNER_TOAST) || node.querySelector(SONNER_TOAST))) {
+        sawSonnerToast = true;
+        sonnerToastWatcher.disconnect();
+        return;
+      }
+    }
+  }
+});
+sonnerToastWatcher.observe(document.documentElement, { childList: true, subtree: true });
 
-afterEach(async () => {
-  await settleClosingSonnerToasts();
+afterAll(async () => {
+  sonnerToastWatcher.disconnect();
+  if (sawSonnerToast) await new Promise((resolve) => realSetTimeout(resolve, SONNER_TIMER_MS + 50));
+});
+
+afterEach(() => {
   cleanup();
   server.resetHandlers();
 });
