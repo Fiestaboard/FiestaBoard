@@ -5,9 +5,7 @@ import {
   Flex,
   Grid,
   Heading,
-  PageCard,
   PageHeader,
-  PageLayout,
   PageSection,
   Skeleton,
   Stack,
@@ -26,8 +24,8 @@ import { CircleAlert, CircleCheck, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { FlatPage } from "@/components/section-shell";
 import Link from "@/components/smart-link";
-import { useRailBreakpoint } from "@/hooks/use-below-rail";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useTranslations } from "@/i18n/translations";
@@ -235,7 +233,6 @@ function PicksGrid({ deviceType }: { deviceType: DeviceType }) {
 // ---------------------------------------------------------------------------
 
 export default function PicksPage() {
-  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("picks");
   const { data: boardSettings } = useBoardSettings();
   const configuredDevices = boardSettings?.devices ?? ["flagship"];
@@ -243,41 +240,37 @@ export default function PicksPage() {
   const [activeTab, setActiveTab] = useState<DeviceType>("flagship");
 
   return (
-    <PageLayout railBreakpoint={railBreakpoint}>
-      <PageCard>
-        <PageHeader icon={Sparkles} title={t("title")} description={t("description")} />
+    <FlatPage>
+      <PageHeader icon={Sparkles} title={t("title")} description={t("description")} />
 
-        <PageSection {...anchorProps("picks.root")}>
-          <Flex align="center" gap="2" className="mb-6 -mt-2">
-            <Text as="span" size="xs" tone="muted" className="italic">
-              {t("byline")}
-            </Text>
-          </Flex>
+      <PageSection {...anchorProps("picks.root")}>
+        <Flex align="center" gap="2" className="mb-6">
+          <Text as="span" size="xs" tone="muted" className="italic">
+            {t("byline")}
+          </Text>
+        </Flex>
 
-          {hasMultipleDevices ? (
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
-              <TabsList className="mb-6">
-                {configuredDevices.includes("flagship") && (
-                  <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>
-                )}
-                {configuredDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
-              </TabsList>
-              {configuredDevices.includes("flagship") && (
-                <TabsContent value="flagship">
-                  <PicksGrid deviceType="flagship" />
-                </TabsContent>
-              )}
-              {configuredDevices.includes("note") && (
-                <TabsContent value="note">
-                  <PicksGrid deviceType="note" />
-                </TabsContent>
-              )}
-            </Tabs>
-          ) : (
-            <PicksGrid deviceType={configuredDevices[0] as DeviceType} />
-          )}
-        </PageSection>
-      </PageCard>
-    </PageLayout>
+        {hasMultipleDevices ? (
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
+            <TabsList className="mb-6">
+              {configuredDevices.includes("flagship") && <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>}
+              {configuredDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
+            </TabsList>
+            {configuredDevices.includes("flagship") && (
+              <TabsContent value="flagship">
+                <PicksGrid deviceType="flagship" />
+              </TabsContent>
+            )}
+            {configuredDevices.includes("note") && (
+              <TabsContent value="note">
+                <PicksGrid deviceType="note" />
+              </TabsContent>
+            )}
+          </Tabs>
+        ) : (
+          <PicksGrid deviceType={configuredDevices[0] as DeviceType} />
+        )}
+      </PageSection>
+    </FlatPage>
   );
 }

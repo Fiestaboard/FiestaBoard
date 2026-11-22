@@ -9,7 +9,6 @@ import {
   EmptyState,
   Heading,
   PageHeader,
-  PageLayout,
   Stack,
   Text,
 } from "@fiestaboard/ui";
@@ -19,10 +18,11 @@ import { useEffect, useState } from "react";
 import { ActivePageDisplay } from "@/components/active-page-display";
 import { AddDisplayDialog } from "@/components/displays/add-display-dialog";
 import { HomeCompose } from "@/components/home/home-compose";
+import { FlatPage } from "@/components/section-shell";
 import { StatusBannerHost } from "@/components/status-banners/status-banner-host";
 import { isUntouchedPlaceholder } from "@/components/wizard/default-board";
 import { useWizard } from "@/components/wizard-provider";
-import { useBelowRail, useRailBreakpoint } from "@/hooks/use-below-rail";
+import { useBelowRail } from "@/hooks/use-below-rail";
 import { useBoardSettings } from "@/hooks/use-board";
 import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useHubIdentity } from "@/hooks/use-hub-identity";
@@ -37,7 +37,6 @@ import { getSetupStatus } from "@/lib/setup-detection";
  * (nav, rail, bottom nav) is slice 2.1's.
  */
 export default function Home() {
-  const railBreakpoint = useRailBreakpoint();
   const [boardNotConfigured, setBoardNotConfigured] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [addingDisplay, setAddingDisplay] = useState(false);
@@ -70,7 +69,7 @@ export default function Home() {
   }, []);
 
   return (
-    <PageLayout outerClassName="relative" className="relative z-10" railBreakpoint={railBreakpoint}>
+    <FlatPage outerClassName="relative" className="relative z-10">
       {noDisplays && phone ? (
         // 07e `343:66216`: with no display, a phone's header is just "Home"
         // (no icon, no subtitle), as on the other phone section pages.
@@ -101,7 +100,7 @@ export default function Home() {
         </PageHeader>
       )}
 
-      <Stack gap="4" className="mt-6">
+      <Stack gap="4">
         {noDisplays ? (
           <EmptyState
             icon={Monitor}
@@ -169,6 +168,6 @@ export default function Home() {
           />
         )}
       </Dialog>
-    </PageLayout>
+    </FlatPage>
   );
 }

@@ -2685,7 +2685,7 @@ export default function IntegrationsPage() {
             contributes only the inset, which is what puts this row on the
             content column with the page title above it. `mb-4` moves off the
             grid because PageToolbar already carries it. */}
-        <PageToolbar className="mb-0 py-3">
+        <PageToolbar>
           <Box
             className={
               activeTab === "marketplace"

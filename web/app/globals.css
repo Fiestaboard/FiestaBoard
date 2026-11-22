@@ -106,6 +106,67 @@ html {
   }
 }
 
+/* THE FLAT PAGE GRAMMAR (owner ruling 2026-11-21; FlatPage in section-shell.tsx).
+   Every page is drawn on the page ground: no card around its structure, the
+   title, toolbars and sections on one gutter, and one gap between blocks —
+   12 on a phone, 16 in the tablet band, 20 from 1024 (07d `320:17086`,
+   `320:14392`, `320:9461`; 07c `297:1824`). The header sits 8 below the phone
+   bar, and 24 / 28 from the window's top beside the rail (07a `302:20841`).
+   One place on purpose: the routes set none of this themselves. Unlayered, so
+   it outranks the kit's PageCard block padding and a route's own margins. */
+.page-flat {
+  --page-top: 0px;
+  --page-gap: --spacing(3);
+  /* Blocks sit on the card's edge, so a focus ring would be cut off. */
+  overflow: visible;
+}
+@media (width >= 48rem) {
+  .page-flat {
+    /* PageLayout's own 12 is above this: header tops at 24. */
+    --page-top: --spacing(3);
+    --page-gap: --spacing(4);
+  }
+}
+@media (width >= 64rem) {
+  .page-flat {
+    --page-top: --spacing(4);
+    --page-gap: --spacing(5);
+  }
+}
+.page-flat > :first-child {
+  margin-top: var(--page-top);
+  margin-bottom: var(--page-gap);
+  padding-block: 0;
+}
+.page-flat [data-slot="page-header"] {
+  padding-inline: 0;
+}
+/* The page's own blocks: toolbars and sections, but not the ones inside a
+   card the page draws (a settings group, a list-detail pane), which keep
+   their inset. */
+.page-flat
+  :is([data-slot="page-toolbar"], [data-slot="page-section"]):not(
+    :is([data-slot="card"], [data-slot="page-card"]:not(.page-flat)) *
+  ) {
+  padding: 0;
+  margin-bottom: 0;
+}
+/* An item's crumb and name: on the gutter, no rule, the gap below. */
+.page-flat [data-slot="page-subheader"] .border-t {
+  border-top-width: 0;
+  padding: 0 0 var(--page-gap);
+}
+/* Whatever follows one of the page's blocks, as a sibling, starts one gap
+   below it: the next block, a tab strip's TabsContent, Settings' columns
+   under the update banner. Siblings only, so nothing deeper is pushed. */
+.page-flat
+  :is([data-slot="page-toolbar"], [data-slot="page-section"]):not(
+    :is([data-slot="card"], [data-slot="page-card"]:not(.page-flat)) *
+  )
+  ~ * {
+  margin-top: var(--page-gap);
+}
+
 /* Interactive card hover feedback */
 @layer utilities {
   .card-interactive {

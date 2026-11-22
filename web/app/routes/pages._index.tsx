@@ -199,11 +199,10 @@ export default function PagesPage() {
     push(selectedBoard ? `/pages/new?board=${encodeURIComponent(selectedBoard.id)}` : "/pages/new");
   }, [push, selectedBoard]);
 
-  // The section (pages.tsx) owns the card and the header; this is the body.
+  // The section (pages.tsx) owns the header and the flat grammar's spacing; this is the body.
   return (
     <>
       <PageToolbar
-        className="!py-4 px-4 sm:px-6"
         left={
           <Flex align="center" gap="3" wrap>
             <Select value={displayFilter} onValueChange={handleDisplayFilter}>
@@ -246,7 +245,7 @@ export default function PagesPage() {
       {/* Figma 297:1824: the search field (240) and the Grid / List switch sit
           together on the right of the library row. The sort select is not in the
           frame; it stays on the left (DD-W145) and fills the row on a phone. */}
-      <PageToolbar className="px-4 sm:px-6">
+      <PageToolbar>
         <Flex align="center" gap="3" wrap className="justify-between">
           <Select
             value={libraryQuery.sort}
@@ -298,7 +297,7 @@ export default function PagesPage() {
         </Flex>
       </PageToolbar>
 
-      <PageSection className="px-4 pt-0 pb-4 sm:px-6 [&:not(:first-child)]:border-t-0" {...anchorProps("pages.root")}>
+      <PageSection {...anchorProps("pages.root")}>
         <PageGridSelector
           onSelectPage={handleSelectPage}
           renderPageActions={(page, card) => <PageCardMenu page={page}>{card}</PageCardMenu>}
