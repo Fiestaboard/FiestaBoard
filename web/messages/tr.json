@@ -165,6 +165,7 @@
   "home": {
     "title": "Ana Sayfa",
     "description": "Ekranlarınızda şu an ne var ve sırada ne var.",
+    "descriptionPhone": "Ekranlarınızda şu an olanlar",
     "noBoardConfigured": "Pano yapılandırılmadı",
     "noBoardDescription": "Panonuz henüz kurulmadı. İçerik görüntülemeye başlamak için panonuzu bağlayın.",
     "runSetupWizard": "Kurulum Sihirbazını Çalıştır",
@@ -1526,8 +1527,12 @@
       "finish": "Kurulumu bitir"
     },
     "noDisplays": {
-      "title": "Henüz ekran yok",
-      "description": "Sayfaları göstermeye başlamak için ilk ekranınızı ekleyin. Sayfalar, Program ve Entegrasyonlar siz hazır olduğunuzda hazır.",
+      "title": "Henüz gösterilecek bir yer yok",
+      "switcher": "Henüz ekran yok",
+      "running": "{hub} çalışıyor ancak bağlı bir ekran yok.",
+      "runningNoName": "Hub’ınız çalışıyor ancak bağlı bir ekran yok.",
+      "addHint": "Vestaboard’unuzu, bir TV’yi veya LED ekranı ekleyin; Ana sayfa üzerinde ne olduğunu gösterir.",
+      "footnote": "Sayfaları şimdiden oluşturabilirsiniz; bir ekran eklenene kadar Sayfalar’da beklerler.",
       "add": "Ekran ekle",
       "rerun": "Kurulumu yeniden çalıştır"
     }

@@ -71,8 +71,8 @@ describe("Home page - board not configured banner", () => {
     render(<Home />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("No displays yet")).toBeInTheDocument();
-      expect(screen.getByText(/Add your first display/)).toBeInTheDocument();
+      expect(screen.getByText("Nothing to show on yet")).toBeInTheDocument();
+      expect(screen.getByText(/no display is connected/)).toBeInTheDocument();
     });
   });
 
@@ -107,7 +107,7 @@ describe("Home page - board not configured banner", () => {
       expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeInTheDocument();
     });
 
-    expect(screen.queryByText("No displays yet")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nothing to show on yet")).not.toBeInTheDocument();
   });
 
   it("shows Run Setup Wizard button that triggers wizard", async () => {
@@ -126,7 +126,7 @@ describe("Home page - board not configured banner", () => {
     render(<Home />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByText("No displays yet")).toBeInTheDocument();
+      expect(screen.getByText("Nothing to show on yet")).toBeInTheDocument();
     });
 
     const wizardBtn = screen.getByRole("button", {
@@ -150,7 +150,7 @@ describe("Home page - board not configured banner", () => {
     // Wait a bit to ensure async check has completed
     await new Promise((r) => setTimeout(r, 100));
     expect(screen.queryByText("No board configured")).not.toBeInTheDocument();
-    expect(screen.getByText("No displays yet")).toBeInTheDocument();
+    expect(screen.getByText("Nothing to show on yet")).toBeInTheDocument();
 
     consoleSpy.mockRestore();
   });

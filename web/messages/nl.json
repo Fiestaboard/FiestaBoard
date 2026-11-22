@@ -165,6 +165,7 @@
   "home": {
     "title": "Start",
     "description": "Wat er nu op je schermen staat en wat er daarna komt.",
+    "descriptionPhone": "Wat er nu op je schermen staat",
     "noBoardConfigured": "Geen bord geconfigureerd",
     "noBoardDescription": "Je bord is nog niet ingesteld. Verbind je bord om inhoud weer te geven.",
     "runSetupWizard": "Installatiewizard starten",
@@ -1526,8 +1527,12 @@
       "finish": "Instellen afronden"
     },
     "noDisplays": {
-      "title": "Nog geen schermen",
-      "description": "Voeg je eerste scherm toe om pagina’s te tonen. Pagina’s, Schema en Integraties staan klaar zodra jij zover bent.",
+      "title": "Nog niets om op te tonen",
+      "switcher": "Nog geen schermen",
+      "running": "{hub} draait, maar er is geen scherm verbonden.",
+      "runningNoName": "Je hub draait, maar er is geen scherm verbonden.",
+      "addHint": "Voeg je Vestaboard, een tv of een ledscherm toe en Start laat zien wat erop staat.",
+      "footnote": "Je kunt nu al pagina’s maken; ze wachten in Pagina’s tot er een scherm is toegevoegd.",
       "add": "Scherm toevoegen",
       "rerun": "Opnieuw instellen"
     }

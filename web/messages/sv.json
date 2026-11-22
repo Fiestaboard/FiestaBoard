@@ -165,6 +165,7 @@
   "home": {
     "title": "Hem",
     "description": "Vad som visas på dina skärmar just nu och vad som kommer härnäst.",
+    "descriptionPhone": "Det som visas på dina skärmar nu",
     "noBoardConfigured": "Ingen tavla konfigurerad",
     "noBoardDescription": "Din tavla är inte inställd ännu. Anslut din tavla för att börja visa innehåll.",
     "runSetupWizard": "Kör installationsguiden",
@@ -1526,8 +1527,12 @@
       "finish": "Slutför installationen"
     },
     "noDisplays": {
-      "title": "Inga skärmar ännu",
-      "description": "Lägg till din första skärm för att börja visa sidor. Sidor, Schema och Integrationer är redo när du är det.",
+      "title": "Inget att visa på ännu",
+      "switcher": "Inga skärmar ännu",
+      "running": "{hub} är igång, men ingen skärm är ansluten.",
+      "runningNoName": "Din hubb är igång, men ingen skärm är ansluten.",
+      "addHint": "Lägg till din Vestaboard, en tv eller en LED-skärm så visar Hem vad som syns på den.",
+      "footnote": "Du kan redan skapa sidor; de väntar under Sidor tills en skärm läggs till.",
       "add": "Lägg till skärm",
       "rerun": "Kör installationen igen"
     }

@@ -165,6 +165,7 @@
   "home": {
     "title": "Início",
     "description": "O que está nos seus ecrãs agora e o que vem a seguir.",
+    "descriptionPhone": "O que está nas suas telas agora",
     "noBoardConfigured": "Nenhum painel configurado",
     "noBoardDescription": "Seu painel ainda não foi configurado. Conecte seu painel para começar a exibir conteúdo.",
     "runSetupWizard": "Iniciar Assistente de Configuração",
@@ -1526,8 +1527,12 @@
       "finish": "Concluir configuração"
     },
     "noDisplays": {
-      "title": "Ainda não há telas",
-      "description": "Adicione sua primeira tela para começar a exibir páginas. Páginas, Programação e Integrações estão prontas quando você quiser.",
+      "title": "Ainda não há onde mostrar",
+      "switcher": "Ainda não há telas",
+      "running": "{hub} está em execução, mas nenhuma tela está conectada.",
+      "runningNoName": "Seu hub está em execução, mas nenhuma tela está conectada.",
+      "addHint": "Adicione seu Vestaboard, uma TV ou uma tela de LED e o Início mostrará o que está nela.",
+      "footnote": "Você já pode criar páginas; elas aguardam em Páginas até que uma tela seja adicionada.",
       "add": "Adicionar tela",
       "rerun": "Executar configuração novamente"
     }
