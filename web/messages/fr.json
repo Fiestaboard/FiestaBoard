@@ -349,6 +349,8 @@
     "retryLoading": "Réessayer le chargement",
     "cardActions": "Actions pour {name}",
     "duplicate": "Dupliquer",
+    "cardEdited": "Modifiée {when}",
+    "cardScheduled": "Planning {time}",
     "exportShareString": "Exporter la chaîne de partage",
     "deletePage": "Supprimer la page…",
     "toastDuplicated": "« {name} » créée",

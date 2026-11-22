@@ -349,6 +349,8 @@
     "retryLoading": "Tentar carregar páginas novamente",
     "cardActions": "Ações de {name}",
     "duplicate": "Duplicar",
+    "cardEdited": "Editada {when}",
+    "cardScheduled": "Agenda {time}",
     "exportShareString": "Exportar string de partilha",
     "deletePage": "Excluir página…",
     "toastDuplicated": "“{name}” criada",

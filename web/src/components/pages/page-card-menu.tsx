@@ -196,21 +196,23 @@ export function PageCardMenu({ page, children }: { page: Page; children: ReactNo
   );
 
   return (
-    <Box ref={rootRef} data-page-card-menu="" className="relative min-w-0" onKeyDown={onShortcut}>
+    <Box ref={rootRef} data-page-card-menu="" className="group/card relative h-full min-w-0" onKeyDown={onShortcut}>
       <DropdownMenu trigger="context">
         <DropdownMenuTrigger
-          render={<Box className="min-w-0 select-none [-webkit-touch-callout:none] [&>button]:w-full" />}
+          render={<Box className="h-full min-w-0 select-none [-webkit-touch-callout:none] [&>button]:w-full" />}
         >
           {children}
         </DropdownMenuTrigger>
         <DropdownMenuContent className="min-w-56">{items}</DropdownMenuContent>
       </DropdownMenu>
-      <Box className="absolute right-1.5 top-1.5">
+      {/* A grid card's ··· sits beside its meta block (Figma 297:1824, 40 × 40);
+          a list row's at its top right. */}
+      <Box className="absolute right-1.5 top-1.5 group-has-[[data-card-meta]]/card:top-auto group-has-[[data-card-meta]]/card:bottom-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              size="icon-touch"
+              size="icon-lg"
               data-page-card-actions=""
               aria-label={t("cardActions", { name: page.name })}
             >

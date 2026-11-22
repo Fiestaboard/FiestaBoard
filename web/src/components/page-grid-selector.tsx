@@ -19,12 +19,16 @@ import {
   TabsTrigger,
   Text,
 } from "@fiestaboard/ui";
+import { useQuery } from "@tanstack/react-query";
 import { Clock, FilePlus, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
+import { deviceFamilyLabel } from "@/components/home/home-board";
+import { formatClock } from "@/components/home/home-status";
+import { BOARD_DETAIL_KEY } from "@/components/home/use-home-data";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
@@ -45,6 +49,7 @@ import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { boardForShape, isLedModel, resolveBoardModel } from "@/lib/device-preview";
 import { type PageLibraryQuery, selectLibraryPages } from "@/lib/page-library-query";
+import { formatRelativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 
 // Cache key for batch previews in localStorage
@@ -130,9 +135,12 @@ const PageButtonPreview = memo(
     gridCols,
     model = null,
     ledLayout = null,
+    size = "sm",
   }: {
     preview: PagePreviewResponse | null;
     isLoading: boolean;
+    /** Tile scale before the fit: a library card draws `md` so the board fills its thumbnail (BB-FP-2). */
+    size?: "sm" | "md";
     boardType?: "black" | "white" | null;
     deviceType?: DeviceType;
     /** The page's grid: notes for a note array, characters for a panel. */
@@ -203,7 +211,7 @@ const PageButtonPreview = memo(
             message={preview?.message || null}
             cells={model ? (preview?.cells as BoardCellGrid | undefined) : undefined}
             layers={model ? preview?.layers : undefined}
-            size="sm"
+            size={size}
           >
             <ScaledBoardDisplay
               // A thumbnail, not a viewport: this board sits inside the page
@@ -212,7 +220,7 @@ const PageButtonPreview = memo(
               thumbnail
               isStatic
               message={preview?.message || null}
-              size="sm"
+              size={size}
               boardType={boardType ?? "black"}
               deviceType={deviceType}
               notesWide={notesWide}
@@ -238,10 +246,21 @@ const PageButtonPreview = memo(
       prevProps.gridRows === nextProps.gridRows &&
       prevProps.gridCols === nextProps.gridCols &&
       prevProps.model === nextProps.model &&
-      prevProps.ledLayout === nextProps.ledLayout
+      prevProps.ledLayout === nextProps.ledLayout &&
+      prevProps.size === nextProps.size
     );
   },
 );
+
+/** The library card's meta lines (Figma 297:1824 PageCard › Meta). */
+export interface PageCardMeta {
+  /** The display the page is drawn for, when one is known. */
+  displayName: string | null;
+  /** Today's start on that display's Schedule, already formatted ("7:00 AM"). */
+  scheduledAt: string | null;
+  /** The page is what that display shows right now. */
+  nowShowing: boolean;
+}
 
 // Memoized page button component to prevent unnecessary re-renders
 const PageButton = memo(
@@ -257,6 +276,7 @@ const PageButton = memo(
     model = null,
     ledLayout = null,
     hasActions = false,
+    meta = null,
   }: {
     page: Page;
     preview: PagePreviewResponse | null;
@@ -269,20 +289,20 @@ const PageButton = memo(
     model?: DeviceModel | null;
     /** The board's LED layout choices (`led_layout`), drawn with the model. */
     ledLayout?: BoardLedLayout | null;
-    /** A card menu sits over the top-right corner: keep the header clear of it. */
+    /** A card menu sits over the meta block's right edge: keep the text clear of it. */
     hasActions?: boolean;
+    meta?: PageCardMeta | null;
   }) {
-    const TypeIcon = LayoutTemplate;
+    const t = useTranslations("pages");
+    const tNow = useTranslations("home.nowShowing");
+    const locale = useLocale();
 
-    const buttonClassName = isActive
-      ? "group relative min-w-0 flex flex-col gap-3 p-4 rounded-xl border border-brand bg-brand/10 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus-ring"
-      : "group relative min-w-0 flex flex-col gap-3 p-4 rounded-xl border border-border hover:border-brand/50 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed text-left page-button-container focus-ring";
-
-    const iconClassName = isActive
-      ? "h-4 w-4 shrink-0 text-brand"
-      : "h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground";
-
-    const nameClassName = "text-sm font-medium truncate text-foreground";
+    // Figma 297:1824 PageCard: the board full-bleed on top, then the meta
+    // block (14/10) — no padding around the card, no title row above the board.
+    const buttonClassName = cn(
+      "group relative h-full min-w-0 flex flex-col overflow-hidden rounded-xl border text-left page-button-container focus-ring disabled:opacity-50 disabled:cursor-not-allowed",
+      isActive ? "border-brand bg-brand/10 shadow-sm" : "border-border bg-card hover:border-brand/50",
+    );
 
     const handleClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -293,6 +313,14 @@ const PageButton = memo(
       },
       [page.id, isPending, onSelect],
     );
+
+    const deviceType = page.device_type || "flagship";
+    // The hub sets updated_at only on an update: a page never edited since it
+    // was made dates from its creation (FABLE-2608 M1).
+    const editedAt = page.updated_at ?? page.created_at;
+    const edited = editedAt ? t("cardEdited", { when: formatRelativeTime(editedAt, locale) }) : null;
+    const scheduled = meta?.scheduledAt ? t("cardScheduled", { time: meta.scheduledAt }) : null;
+    const lineTwo = [edited, scheduled].filter(Boolean).join(" · ");
 
     return (
       <button
@@ -305,49 +333,79 @@ const PageButton = memo(
         data-section-item={page.id}
         {...anchorProps(`page.${page.id}`)}
       >
-        <Flex align="center" gap="2.5" className={cn("min-w-0", hasActions && "pr-10")}>
-          <TypeIcon className={iconClassName} aria-hidden="true" />
-          <Text as="span" className={nameClassName}>
-            {page.name}
-          </Text>
-          <BoardSizeIndicator
-            deviceType={page.device_type || "flagship"}
-            notesWide={page.notes_wide}
-            notesTall={page.notes_tall}
-            gridRows={page.grid_rows}
-            gridCols={page.grid_cols}
-            className="ml-auto shrink-0"
-          />
-        </Flex>
-
-        {/* Which FiestaPanel this page's grid fits, if any — the auto-fit
-            dimensions beside it mean nothing to a panel owner on their own. */}
-        <PanelFitNote
-          deviceType={page.device_type || "flagship"}
-          notesWide={page.notes_wide}
-          notesTall={page.notes_tall}
-          gridRows={page.grid_rows}
-          gridCols={page.grid_cols}
-          className="-mt-2 block truncate"
-        />
-
         {/* The board is a picture of the page inside the card's button:
             decorative, so the card is named by its page and size alone
-            whether or not the preview has rendered (BB-B-28). */}
-        <Box className="hover-stable" aria-hidden="true" data-card-preview="">
+            whether or not the preview has rendered (BB-B-28). Figma's
+            Thumbnail is 155 px tall; the kit has no token for it (DD-W151). */}
+        <Box
+          className="hover-stable flex h-[155px] w-full items-center justify-center overflow-hidden bg-muted"
+          aria-hidden="true"
+          data-card-preview=""
+        >
           <PageButtonPreview
             preview={preview}
             isLoading={isLoadingPreview}
             boardType={boardType}
-            deviceType={page.device_type || "flagship"}
+            deviceType={deviceType}
             notesWide={page.notes_wide}
             notesTall={page.notes_tall}
             gridRows={page.grid_rows ?? undefined}
             gridCols={page.grid_cols ?? undefined}
             model={model}
             ledLayout={ledLayout}
+            size="md"
           />
         </Box>
+
+        <Stack gap="0.5" className={cn("min-w-0 px-3.5 py-2.5", hasActions && "pr-12")} data-card-meta="">
+          <Flex align="center" gap="2" className="min-w-0">
+            <Text as="span" size="sm" weight="semibold" className="truncate text-foreground">
+              {page.name}
+            </Text>
+            {meta?.nowShowing && (
+              <Badge variant="success" className="shrink-0">
+                {tNow("label")}
+              </Badge>
+            )}
+          </Flex>
+          <Text as="span" size="xs" tone="muted" className="flex min-w-0 items-center gap-1 truncate">
+            {meta?.displayName && (
+              <>
+                <Text as="span" size="xs" tone="muted" className="truncate">
+                  {meta.displayName}
+                </Text>
+                <Text as="span" size="xs" tone="muted" className="shrink-0" aria-hidden="true">
+                  ·
+                </Text>
+              </>
+            )}
+            <Text as="span" size="xs" tone="muted" className="shrink-0">
+              {deviceFamilyLabel(deviceType)}
+            </Text>
+            <BoardSizeIndicator
+              deviceType={deviceType}
+              notesWide={page.notes_wide}
+              notesTall={page.notes_tall}
+              gridRows={page.grid_rows}
+              gridCols={page.grid_cols}
+              className="shrink-0"
+            />
+          </Text>
+          {/* Which FiestaPanel this page's grid fits, if any. */}
+          <PanelFitNote
+            deviceType={deviceType}
+            notesWide={page.notes_wide}
+            notesTall={page.notes_tall}
+            gridRows={page.grid_rows}
+            gridCols={page.grid_cols}
+            className="block truncate text-xs"
+          />
+          {lineTwo && (
+            <Text as="span" size="xs" tone="muted" className="truncate">
+              {lineTwo}
+            </Text>
+          )}
+        </Stack>
 
         {showActiveIndicator && isActive && (
           <Box className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
@@ -358,16 +416,21 @@ const PageButton = memo(
   (prevProps, nextProps) => {
     return (
       prevProps.page.id === nextProps.page.id &&
+      prevProps.page.name === nextProps.page.name &&
       prevProps.preview === nextProps.preview &&
       prevProps.isLoadingPreview === nextProps.isLoadingPreview &&
       prevProps.isActive === nextProps.isActive &&
       prevProps.isPending === nextProps.isPending &&
       prevProps.page.updated_at === nextProps.page.updated_at &&
+      prevProps.page.created_at === nextProps.page.created_at &&
       prevProps.showActiveIndicator === nextProps.showActiveIndicator &&
       prevProps.boardType === nextProps.boardType &&
       prevProps.model === nextProps.model &&
       prevProps.ledLayout === nextProps.ledLayout &&
-      prevProps.hasActions === nextProps.hasActions
+      prevProps.hasActions === nextProps.hasActions &&
+      prevProps.meta?.displayName === nextProps.meta?.displayName &&
+      prevProps.meta?.scheduledAt === nextProps.meta?.scheduledAt &&
+      prevProps.meta?.nowShowing === nextProps.meta?.nowShowing
     );
   },
 );
@@ -743,7 +806,12 @@ export function PageGridSelector({
   const previewTargets = useMemo(() => {
     const out: Record<
       string,
-      { model: DeviceModel | null; richBoardId: string | null; ledLayout: BoardLedLayout | null }
+      {
+        model: DeviceModel | null;
+        richBoardId: string | null;
+        ledLayout: BoardLedLayout | null;
+        board: BoardInstance | null;
+      }
     > = {};
     for (const page of pages) {
       const board =
@@ -754,10 +822,63 @@ export function PageGridSelector({
         model,
         richBoardId: board && isLedModel(model) ? board.id : null,
         ledLayout: board?.led_layout ?? null,
+        board: board ?? null,
       };
     }
     return out;
   }, [pages, currentBoard, currentBoardModel, boards, compatibleBoard]);
+
+  // The library card's meta lines (BB-FP-2, Figma 297:1824): the display a
+  // page is drawn for, today's start on that display's Schedule and whether it
+  // is on screen now. Schedule and on-screen are read for the current display
+  // only, with the keys Home and Change Page already cache.
+  const libraryCards = !!renderPageActions;
+  const metaBoardId = libraryCards ? currentBoard?.id : undefined;
+  const { data: schedulesData } = useQuery({
+    queryKey: ["schedules", "list", metaBoardId ?? "primary"],
+    queryFn: () => api.getSchedules(metaBoardId),
+    enabled: !!metaBoardId,
+    staleTime: 30_000,
+  });
+  const { data: boardDetail } = useQuery({
+    queryKey: [BOARD_DETAIL_KEY, metaBoardId || "primary"],
+    queryFn: () => api.getBoardDetail(metaBoardId),
+    enabled: !!metaBoardId,
+  });
+  const { data: activeSchedule } = useQuery({
+    queryKey: ["schedules", "active", metaBoardId],
+    queryFn: () => api.getActiveSchedule(metaBoardId),
+    enabled: !!metaBoardId,
+  });
+  const cardMeta = useMemo(() => {
+    const out: Record<string, PageCardMeta> = {};
+    if (!libraryCards) return out;
+    const scheduledAt = new Map<string, string>();
+    for (const entry of schedulesData?.schedules ?? []) {
+      if (!entry.enabled || scheduledAt.has(entry.page_id)) continue;
+      const match = /^(\d{1,2}):(\d{2})/.exec(entry.resolved_start_time ?? entry.start_time ?? "");
+      if (!match) continue;
+      const today = new Date();
+      today.setHours(Number(match[1]), Number(match[2]), 0, 0);
+      scheduledAt.set(entry.page_id, formatClock(today, locale));
+    }
+    const override = activeSchedule?.temporary_override;
+    const onScreen = override?.active
+      ? override.page_id
+      : boardDetail
+        ? (boardDetail.resolved_page_id ?? boardDetail.active_page_id)
+        : null;
+    for (const page of pages) {
+      const board = previewTargets[page.id]?.board ?? null;
+      const onCurrent = !!board && board.id === metaBoardId;
+      out[page.id] = {
+        displayName: board?.name ?? null,
+        scheduledAt: onCurrent ? (scheduledAt.get(page.id) ?? null) : null,
+        nowShowing: onCurrent && onScreen === page.id,
+      };
+    }
+    return out;
+  }, [libraryCards, schedulesData, activeSchedule, boardDetail, pages, previewTargets, metaBoardId, locale]);
 
   // State for batch preview data — only what the network produced. Both
   // outcomes are kept: a failed entry is still an answer for that page, and
@@ -1027,10 +1148,17 @@ export function PageGridSelector({
         ))}
       </Stack>
     ) : (
-      <Grid cols="1" gap="4" className="sm:grid-cols-2" role="group" aria-label={t("pagesAriaLabel")}>
+      <Grid
+        cols="1"
+        gap={libraryCards ? "3" : "4"}
+        className={cn("sm:grid-cols-2", libraryCards && "xl:grid-cols-3")}
+        role="group"
+        aria-label={t("pagesAriaLabel")}
+      >
         {pages.map((page) => (
           <WithPageActions key={page.id} page={page} render={renderPageActions}>
             <PageButton
+              meta={cardMeta[page.id] ?? null}
               hasActions={!!renderPageActions}
               page={page}
               preview={previews[page.id] || null}

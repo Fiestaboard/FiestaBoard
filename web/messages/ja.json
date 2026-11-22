@@ -349,6 +349,8 @@
     "retryLoading": "ページの読み込みを再試行",
     "cardActions": "{name} の操作",
     "duplicate": "複製",
+    "cardEdited": "{when}に編集",
+    "cardScheduled": "スケジュール {time}",
     "exportShareString": "共有文字列をエクスポート",
     "deletePage": "ページを削除…",
     "toastDuplicated": "「{name}」を作成しました",

@@ -349,6 +349,8 @@
     "retryLoading": "Ponów wczytywanie stron",
     "cardActions": "Działania dla {name}",
     "duplicate": "Duplikuj",
+    "cardEdited": "Edytowano {when}",
+    "cardScheduled": "Harmonogram {time}",
     "exportShareString": "Eksportuj ciąg udostępniania",
     "deletePage": "Usuń stronę…",
     "toastDuplicated": "Utworzono „{name}”",

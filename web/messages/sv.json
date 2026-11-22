@@ -349,6 +349,8 @@
     "retryLoading": "Försök läsa in sidorna igen",
     "cardActions": "Åtgärder för {name}",
     "duplicate": "Duplicera",
+    "cardEdited": "Redigerad {when}",
+    "cardScheduled": "Schema {time}",
     "exportShareString": "Exportera delningssträng",
     "deletePage": "Ta bort sidan…",
     "toastDuplicated": "”{name}” skapad",

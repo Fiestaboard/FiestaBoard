@@ -349,6 +349,8 @@
     "retryLoading": "페이지 불러오기 재시도",
     "cardActions": "{name} 작업",
     "duplicate": "복제",
+    "cardEdited": "{when} 편집",
+    "cardScheduled": "일정 {time}",
     "exportShareString": "공유 문자열 내보내기",
     "deletePage": "페이지 삭제…",
     "toastDuplicated": "‘{name}’ 만듦",

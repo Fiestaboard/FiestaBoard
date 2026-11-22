@@ -349,6 +349,8 @@
     "retryLoading": "Seiten erneut laden",
     "cardActions": "Aktionen für {name}",
     "duplicate": "Duplizieren",
+    "cardEdited": "Bearbeitet {when}",
+    "cardScheduled": "Zeitplan {time}",
     "exportShareString": "Freigabezeichenfolge exportieren",
     "deletePage": "Seite löschen…",
     "toastDuplicated": "„{name}“ erstellt",

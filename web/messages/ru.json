@@ -349,6 +349,8 @@
     "retryLoading": "Повторить загрузку страниц",
     "cardActions": "Действия для {name}",
     "duplicate": "Дублировать",
+    "cardEdited": "Изменено {when}",
+    "cardScheduled": "Расписание {time}",
     "exportShareString": "Экспортировать строку обмена",
     "deletePage": "Удалить страницу…",
     "toastDuplicated": "Создано «{name}»",

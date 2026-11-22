@@ -305,6 +305,8 @@
     "retryLoading": "Retry loading pages",
     "cardActions": "Actions for {name}",
     "duplicate": "Duplicate",
+    "cardEdited": "Edited {when}",
+    "cardScheduled": "Schedule {time}",
     "exportShareString": "Export share string",
     "deletePage": "Delete page…",
     "toastDuplicated": "Made “{name}”",
