@@ -50,5 +50,8 @@
     "@changesets/cli": "^3.0.3",
     "cspell": "^10.0.1",
     "markdownlint-cli2": "^0.24.0"
+  },
+  "overrides": {
+    "katex": "^0.18.2"
   }
 }
