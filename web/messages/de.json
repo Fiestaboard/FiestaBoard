@@ -998,7 +998,6 @@
     "moreOptionsAriaLabel": "Weitere Optionen",
     "sectionMenuAriaLabel": "Integrationsoptionen",
     "detail": {
-      "sampleCaption": "Beispielseite mit dieser Integration",
       "unlocks": "Schaltet {count, plural, one {# Variable} other {# Variablen}} frei",
       "useInPage": "Auf einer Seite verwenden…",
       "newPage": "Neue Seite"
@@ -2635,6 +2634,7 @@
     "boardPreviewLabel": "{name} auf einer Fallblattanzeige",
     "boardShapeLabel": "Anzeigeformat",
     "boardColorLabel": "Anzeigefarbe",
+    "sampleCaption": "Beispielseite mit dieser Integration",
     "blackBoard": "Schwarze Anzeige",
     "whiteBoard": "Weiße Anzeige",
     "deviceFlagship": "Flagship",

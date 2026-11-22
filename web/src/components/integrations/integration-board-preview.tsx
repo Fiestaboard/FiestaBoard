@@ -24,20 +24,12 @@ import type { RegistryEntry } from "@/lib/api";
 /** The catalog's literal example remains available after installation. The
  * effective color can load after the catalog; follow it until the user makes
  * a local preview choice, without changing the actual board's settings. */
-export function IntegrationBoardPreview({
-  entry,
-  size,
-  caption,
-  controls = true,
-}: {
-  entry?: RegistryEntry;
-  size?: "sm" | "md" | "lg";
-  /** A line under the board, e.g. 07d's "Sample page using this integration". */
-  caption?: string;
-  /** The shape tabs and board colour pair; 07d's detail pane draws neither (BB-FC-9). */
-  controls?: boolean;
-}) {
+export function IntegrationBoardPreview({ entry, size }: { entry?: RegistryEntry; size?: "sm" | "md" | "lg" }) {
   const t = useTranslations("pluginDetail");
+  // "sm" is the Integrations list-detail pane, which 07d `324:40267` draws
+  // as the bare sample with a caption: no shape tabs or colour pair (BB-FC-9).
+  const pane = size === "sm";
+  const controls = !pane;
   const { isLoading: isLoadingBoard } = useBoardSettings();
   const boardColor = useEffectiveBoardColor();
   const code62Glyph = useEffectiveCode62Glyph();
@@ -88,9 +80,9 @@ export function IntegrationBoardPreview({
           </TabsContent>
         ))}
       </Tabs>
-      {caption && (
+      {pane && (
         <Text size="xs" tone="muted" className="self-start">
-          {caption}
+          {t("sampleCaption")}
         </Text>
       )}
       {controls && (

@@ -954,7 +954,6 @@
     "moreOptionsAriaLabel": "More options",
     "sectionMenuAriaLabel": "Integration options",
     "detail": {
-      "sampleCaption": "Sample page using this integration",
       "unlocks": "Unlocks {count, plural, one {# variable} other {# variables}}",
       "useInPage": "Use in a page…",
       "newPage": "New page"
@@ -2562,6 +2561,7 @@
     "boardPreviewLabel": "{name} displayed on a split-flap board",
     "boardShapeLabel": "Board shape",
     "boardColorLabel": "Board color",
+    "sampleCaption": "Sample page using this integration",
     "blackBoard": "Black Board",
     "whiteBoard": "White Board",
     "deviceFlagship": "Flagship",

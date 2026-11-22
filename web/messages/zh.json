@@ -998,7 +998,6 @@
     "moreOptionsAriaLabel": "更多选项",
     "sectionMenuAriaLabel": "集成选项",
     "detail": {
-      "sampleCaption": "使用此集成的示例页面",
       "unlocks": "解锁 {count, plural, other {# 个变量}}",
       "useInPage": "在页面中使用…",
       "newPage": "新建页面"
@@ -2635,6 +2634,7 @@
     "boardPreviewLabel": "{name} 在翻牌显示屏上的效果",
     "boardShapeLabel": "显示屏形状",
     "boardColorLabel": "显示屏颜色",
+    "sampleCaption": "使用此集成的示例页面",
     "blackBoard": "黑色显示屏",
     "whiteBoard": "白色显示屏",
     "deviceFlagship": "Flagship",

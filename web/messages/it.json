@@ -998,7 +998,6 @@
     "moreOptionsAriaLabel": "Altre opzioni",
     "sectionMenuAriaLabel": "Opzioni integrazioni",
     "detail": {
-      "sampleCaption": "Pagina di esempio con questa integrazione",
       "unlocks": "Sblocca {count, plural, one {# variabile} other {# variabili}}",
       "useInPage": "Usa in una pagina…",
       "newPage": "Nuova pagina"
@@ -2635,6 +2634,7 @@
     "boardPreviewLabel": "{name} su un tabellone split-flap",
     "boardShapeLabel": "Formato del tabellone",
     "boardColorLabel": "Colore del tabellone",
+    "sampleCaption": "Pagina di esempio con questa integrazione",
     "blackBoard": "Tabellone nero",
     "whiteBoard": "Tabellone bianco",
     "deviceFlagship": "Flagship",

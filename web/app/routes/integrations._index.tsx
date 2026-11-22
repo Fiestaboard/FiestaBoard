@@ -1547,13 +1547,7 @@ export function InstalledPluginRow({
           <TabsTrigger value="readme">{t("readmeTab")}</TabsTrigger>
         </TabsList>
         <TabsContent value="settings">
-          {/* 07d's pane draws the sample bare, with its caption (BB-FC-9). */}
-          <IntegrationBoardPreview
-            entry={registryEntry}
-            size={fullPage ? undefined : "sm"}
-            caption={t("detail.sampleCaption")}
-            controls={fullPage}
-          />
+          <IntegrationBoardPreview entry={registryEntry} size={fullPage ? undefined : "sm"} />
           <Stack gap="6" className="py-6">
             {isLoadingDetails ? (
               <Stack gap="4">

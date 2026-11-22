@@ -998,7 +998,6 @@
     "moreOptionsAriaLabel": "その他のオプション",
     "sectionMenuAriaLabel": "連携のオプション",
     "detail": {
-      "sampleCaption": "この連携を使ったサンプルページ",
       "unlocks": "{count, plural, other {# 個の変数}}を利用可能",
       "useInPage": "ページで使う…",
       "newPage": "新しいページ"
@@ -2635,6 +2634,7 @@
     "boardPreviewLabel": "スプリットフラップボードに表示された{name}",
     "boardShapeLabel": "ボードの形状",
     "boardColorLabel": "ボードの色",
+    "sampleCaption": "この連携を使ったサンプルページ",
     "blackBoard": "ブラックボード",
     "whiteBoard": "ホワイトボード",
     "deviceFlagship": "Flagship",

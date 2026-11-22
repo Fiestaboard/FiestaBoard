@@ -998,7 +998,6 @@
     "moreOptionsAriaLabel": "Diğer seçenekler",
     "sectionMenuAriaLabel": "Entegrasyon seçenekleri",
     "detail": {
-      "sampleCaption": "Bu entegrasyonu kullanan örnek sayfa",
       "unlocks": "{count, plural, other {# değişkenin}} kilidini açar",
       "useInPage": "Bir sayfada kullan…",
       "newPage": "Yeni sayfa"
@@ -2635,6 +2634,7 @@
     "boardPreviewLabel": "Split-flap panoda {name}",
     "boardShapeLabel": "Pano biçimi",
     "boardColorLabel": "Pano rengi",
+    "sampleCaption": "Bu entegrasyonu kullanan örnek sayfa",
     "blackBoard": "Siyah pano",
     "whiteBoard": "Beyaz pano",
     "deviceFlagship": "Flagship",

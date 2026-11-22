@@ -998,7 +998,6 @@
     "moreOptionsAriaLabel": "Meer opties",
     "sectionMenuAriaLabel": "Integratie-opties",
     "detail": {
-      "sampleCaption": "Voorbeeldpagina met deze integratie",
       "unlocks": "Ontgrendelt {count, plural, one {# variabele} other {# variabelen}}",
       "useInPage": "Gebruiken op een pagina…",
       "newPage": "Nieuwe pagina"
@@ -2635,6 +2634,7 @@
     "boardPreviewLabel": "{name} op een split-flapbord",
     "boardShapeLabel": "Bordformaat",
     "boardColorLabel": "Bordkleur",
+    "sampleCaption": "Voorbeeldpagina met deze integratie",
     "blackBoard": "Zwart bord",
     "whiteBoard": "Wit bord",
     "deviceFlagship": "Flagship",

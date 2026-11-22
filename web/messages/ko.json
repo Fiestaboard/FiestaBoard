@@ -998,7 +998,6 @@
     "moreOptionsAriaLabel": "추가 옵션",
     "sectionMenuAriaLabel": "통합 옵션",
     "detail": {
-      "sampleCaption": "이 통합을 사용하는 샘플 페이지",
       "unlocks": "{count, plural, other {변수 #개}} 사용 가능",
       "useInPage": "페이지에서 사용…",
       "newPage": "새 페이지"
@@ -2635,6 +2634,7 @@
     "boardPreviewLabel": "스플릿 플랩 보드에 표시된 {name}",
     "boardShapeLabel": "보드 형태",
     "boardColorLabel": "보드 색상",
+    "sampleCaption": "이 통합을 사용하는 샘플 페이지",
     "blackBoard": "블랙 보드",
     "whiteBoard": "화이트 보드",
     "deviceFlagship": "Flagship",

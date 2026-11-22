@@ -998,7 +998,6 @@
     "moreOptionsAriaLabel": "Mais opções",
     "sectionMenuAriaLabel": "Opções de integrações",
     "detail": {
-      "sampleCaption": "Página de exemplo com esta integração",
       "unlocks": "Desbloqueia {count, plural, one {# variável} other {# variáveis}}",
       "useInPage": "Usar em uma página…",
       "newPage": "Nova página"
@@ -2635,6 +2634,7 @@
     "boardPreviewLabel": "{name} num painel split-flap",
     "boardShapeLabel": "Formato do painel",
     "boardColorLabel": "Cor do painel",
+    "sampleCaption": "Página de exemplo com esta integração",
     "blackBoard": "Painel preto",
     "whiteBoard": "Painel branco",
     "deviceFlagship": "Flagship",

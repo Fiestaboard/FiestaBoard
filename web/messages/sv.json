@@ -998,7 +998,6 @@
     "moreOptionsAriaLabel": "Fler alternativ",
     "sectionMenuAriaLabel": "Integrationsalternativ",
     "detail": {
-      "sampleCaption": "Exempelsida med den här integrationen",
       "unlocks": "Låser upp {count, plural, one {# variabel} other {# variabler}}",
       "useInPage": "Använd på en sida…",
       "newPage": "Ny sida"
@@ -2635,6 +2634,7 @@
     "boardPreviewLabel": "{name} på en split-flap-tavla",
     "boardShapeLabel": "Tavelformat",
     "boardColorLabel": "Tavelfärg",
+    "sampleCaption": "Exempelsida med den här integrationen",
     "blackBoard": "Svart tavla",
     "whiteBoard": "Vit tavla",
     "deviceFlagship": "Flagship",
