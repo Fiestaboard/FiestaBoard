@@ -14,7 +14,6 @@ import {
   ListRow,
   ListRowGroup,
   PageHeader,
-  PageLayout,
   Skeleton,
   Stack,
   Text,
@@ -28,6 +27,7 @@ import { AboutDialog } from "@/components/about-dialog";
 import { AccountSection } from "@/components/account-section";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { HubLine } from "@/components/hub-line";
+import { FlatPage } from "@/components/section-shell";
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings";
 import { AiSettings } from "@/components/settings/ai-settings";
 import { AnimationSettings } from "@/components/settings/animation-settings";
@@ -53,7 +53,7 @@ import Link from "@/components/smart-link";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { isUntouchedPlaceholder } from "@/components/wizard/default-board";
 import { useWizard } from "@/components/wizard-provider";
-import { useBelowRail, useRailBreakpoint } from "@/hooks/use-below-rail";
+import { useBelowRail } from "@/hooks/use-below-rail";
 import { useHubIdentity } from "@/hooks/use-hub-identity";
 import { useParams, useSearchParams } from "@/hooks/use-router";
 import { useTheme } from "@/hooks/use-theme";
@@ -71,7 +71,6 @@ import {
   settingsSectionHref,
   type SettingsSectionId,
 } from "@/lib/settings-sections";
-import { cn } from "@/lib/utils";
 
 /**
  * The tab boards and FiestaPanels used to live in. Displays have their own
@@ -88,7 +87,6 @@ const LEGACY_HARDWARE_SECTION = "hardware";
  * with a way back. It replaces six horizontal tabs that overflowed at 375px.
  */
 export default function SettingsPage() {
-  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("settings");
   const tHub = useTranslations("settings.hub");
   const { section: sectionParam } = useParams<{ section?: string }>();
@@ -241,11 +239,11 @@ export default function SettingsPage() {
   );
 
   return (
-    <PageLayout railBreakpoint={railBreakpoint}>
+    <FlatPage>
       {belowRail && !sectionParam ? (
         <PhoneIndexHeader title={t("title")} />
       ) : belowRail && sectionParam ? (
-        <Box className="mb-4">
+        <Box>
           <ViewTransitionLink
             href="/settings"
             className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand focus-ring rounded-md"
@@ -267,8 +265,7 @@ export default function SettingsPage() {
           1100px leaves no room for a detail column beside the list. Side by
           side from a 36rem content box (280px list), 360px list from 56rem;
           below that the list and the open section stack. */}
-      {/* A phone section starts right under its back link (07e `320:8881`). */}
-      <Box className={cn("@container", belowRail && sectionParam ? "mt-0" : "mt-6")} data-slot="settings-columns">
+      <Box className="@container" data-slot="settings-columns">
         <Grid
           cols="1"
           gap="6"
@@ -278,7 +275,7 @@ export default function SettingsPage() {
           {showDetail && detail}
         </Grid>
       </Box>
-    </PageLayout>
+    </FlatPage>
   );
 }
 

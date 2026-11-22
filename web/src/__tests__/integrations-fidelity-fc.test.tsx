@@ -87,12 +87,11 @@ describe("Integrations list at the desktop (BB-FC-8)", () => {
     await screen.findByRole("list", { name: "Installed" });
     const card = document.querySelector("[data-slot=page-card]");
     expect(card?.getAttribute("data-surface")).toBe("plain");
-    // ...so its header and list sit on the page gutter, not a card's inset.
-    expect(classes(card)).toContain("[&_[data-slot=page-header]]:px-0");
-    // The plugin page's crumb and h2 (PageSubheader) lose the card's rule and
-    // inset too, so they stay on the h1's gutter (07d `328:30630`).
-    expect(classes(card)).toContain("[&_[data-slot=page-subheader]_.border-t]:px-0");
-    expect(classes(card)).toContain("[&_[data-slot=page-subheader]_.border-t]:border-t-0");
+    // ...in the flat page grammar: its header, list, and the plugin page's
+    // crumb and h2 sit on the page gutter with no rule (07d `328:30630`).
+    // The insets themselves are `.page-flat` in globals.css, measured by
+    // tests/layout/page-grammar.spec.ts.
+    expect(classes(card)).toContain("page-flat");
   });
 
   it("puts Check for updates behind the header's Integration options button", async () => {

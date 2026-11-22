@@ -88,7 +88,7 @@ export function DisplaysSection({ children }: { children: React.ReactNode }) {
         // Pixoo 64) would read its name three times running; say the output
         // only when it adds something.
         description: meta ? (
-          <Text as="span" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
+          <Text as="span" size="xs" tone="muted" className="block font-mono uppercase tracking-wide">
             {meta}
           </Text>
         ) : undefined,

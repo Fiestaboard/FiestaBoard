@@ -71,7 +71,7 @@ export default function DisplaysPage() {
       {/* 07d `320:17086` draws no tabs on a phone: Add display reaches the
           outputs there (Marketplace stays at ?tab=marketplace). */}
       {!phone && (
-        <PageToolbar className="mb-0 py-6">
+        <PageToolbar>
           <TabsList className="w-fit">
             <TabsTrigger value="displays">
               {t("tabDisplays")}

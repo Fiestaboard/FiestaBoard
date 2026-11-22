@@ -50,7 +50,6 @@ export default function CollectionsIndex() {
   return (
     <>
       <PageToolbar
-        className="!py-3 px-4 sm:px-6"
         left={
           <Flex align="center" gap="3">
             <LibraryViewToggle value={viewMode} onValueChange={changeView} />
@@ -71,10 +70,7 @@ export default function CollectionsIndex() {
           </Button>
         }
       />
-      <PageSection
-        className="px-4 pt-0 pb-4 sm:px-6 [&:not(:first-child)]:border-t-0"
-        {...anchorProps("collections.root")}
-      >
+      <PageSection {...anchorProps("collections.root")}>
         {isLoading ? (
           <Skeleton className="h-48 w-full" />
         ) : isError ? (
