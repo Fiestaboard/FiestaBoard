@@ -1663,61 +1663,70 @@ export function InstalledPluginRow({
                       </List>
                     </>
                   )}
-                  <Box>
-                    {/* A new page, or the plugin's own demo page (the old Demo Page box). */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline">
-                          <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
-                          {t("detail.useInPage")}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuItem onClick={() => router.push("/pages/new")}>
-                          <FilePlus className="h-3.5 w-3.5 mr-2" />
-                          {t("detail.newPage")}
-                        </DropdownMenuItem>
-                        {pluginDetails?.has_demo && (
-                          <>
-                            <DropdownMenuItem
-                              disabled={!demoReady || isCreatingDemo}
-                              onClick={() =>
-                                pluginDetails.demo_page_id ? setShowDemoConfirm(true) : void handleCreateDemoPage()
-                              }
-                            >
-                              <Play className="h-3.5 w-3.5 mr-2" />
-                              {isCreatingDemo
-                                ? t("demoPage.creating")
-                                : pluginDetails.demo_page_id
-                                  ? t("demoPage.recreateAction")
-                                  : t("demoPage.createAction")}
-                            </DropdownMenuItem>
-                            {!demoReady && (
-                              <Text size="xs" tone="warning" className="max-w-60 px-2 pb-1.5">
-                                {t("demoPage.requirementsWarning")}
-                              </Text>
-                            )}
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
-                          <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                          <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
-                            {tCommon("cancel")}
+                  {/* A new page, or the plugin's own demo page (the old Demo Page box).
+                      Outputs and transitions put nothing on a page, so no button. */}
+                  {!hasNoToggle && (
+                    <Box>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline">
+                            <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
+                            {t("detail.useInPage")}
                           </Button>
-                          <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
-                            {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </Box>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={() => router.push("/pages/new")}>
+                            <FilePlus className="h-3.5 w-3.5 mr-2" />
+                            {t("detail.newPage")}
+                          </DropdownMenuItem>
+                          {pluginDetails?.has_demo && (
+                            <>
+                              <DropdownMenuItem
+                                disabled={!demoReady || isCreatingDemo}
+                                aria-describedby={demoReady ? undefined : `demo-requirements-${plugin.id}`}
+                                onClick={() =>
+                                  pluginDetails.demo_page_id ? setShowDemoConfirm(true) : void handleCreateDemoPage()
+                                }
+                              >
+                                <Play className="h-3.5 w-3.5 mr-2" />
+                                {isCreatingDemo
+                                  ? t("demoPage.creating")
+                                  : pluginDetails.demo_page_id
+                                    ? t("demoPage.recreateAction")
+                                    : t("demoPage.createAction")}
+                              </DropdownMenuItem>
+                              {!demoReady && (
+                                <Text
+                                  id={`demo-requirements-${plugin.id}`}
+                                  size="xs"
+                                  tone="warning"
+                                  className="max-w-60 px-2 pb-1.5"
+                                >
+                                  {t("demoPage.requirementsWarning")}
+                                </Text>
+                              )}
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
+                            <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
+                              {tCommon("cancel")}
+                            </Button>
+                            <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
+                              {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </Box>
+                  )}
                 </Stack>
               </>
             )}

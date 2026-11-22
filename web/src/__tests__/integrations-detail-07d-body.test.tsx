@@ -144,4 +144,52 @@ describe("Integration detail body against 07d (BB-FC-9)", () => {
     await user.click(screen.getByRole("menuitem", { name: "Create Demo Page" }));
     await waitFor(() => expect(created).toBe(1));
   });
+
+  it("draws no Settings label when a ui:sections group names every field", async () => {
+    server.use(
+      http.get("/api/v1/plugins/countdown", () => {
+        const base = detail("countdown", "Countdown");
+        return HttpResponse.json({
+          ...base,
+          settings_schema: {
+            ...base.settings_schema,
+            "ui:sections": [{ id: "event", title: "Event", fields: ["event_name"] }],
+          },
+        });
+      }),
+    );
+    const pane = await openPane(userEvent.setup(), "Countdown");
+    expect(within(pane).getByRole("group", { name: "Event" })).toBeInTheDocument();
+    expect(within(pane).queryByRole("heading", { name: "Settings", level: 3 })).toBeNull();
+  });
+
+  it("says why Create Demo Page is unavailable on the disabled item", async () => {
+    server.use(
+      http.get("/api/v1/plugins/countdown", () => {
+        const base = detail("countdown", "Countdown");
+        return HttpResponse.json({ ...base, settings_schema: { ...base.settings_schema, required: ["target_date"] } });
+      }),
+    );
+    const user = userEvent.setup();
+    const pane = await openPane(user, "Countdown");
+    await user.click(within(pane).getByRole("button", { name: "Use in a page…" }));
+    const item = await screen.findByRole("menuitem", { name: "Create Demo Page" });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    expect(item).toHaveAccessibleDescription(/configure the required settings/i);
+  });
+
+  it("offers no Use in a page… for an output or a transition, which put nothing on a page", async () => {
+    server.use(
+      http.get("/api/plugins", () =>
+        HttpResponse.json({
+          plugins: [{ ...plugin("countdown", "Countdown"), plugin_type: "transition" }],
+          total: 1,
+          enabled_count: 1,
+          plugin_system_enabled: true,
+        }),
+      ),
+    );
+    const pane = await openPane(userEvent.setup(), "Countdown");
+    expect(within(pane).queryByRole("button", { name: "Use in a page…" })).toBeNull();
+  });
 });

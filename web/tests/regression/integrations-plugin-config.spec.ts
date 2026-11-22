@@ -433,8 +433,11 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await openConfigSheet(page);
     await expect(page.getByRole("button", { name: "Save Changes" })).toBeEnabled({ timeout: 15_000 });
 
+    // Create Demo Page is an item of the pane's "Use in a page…" menu, which
+    // replaced the Demo Page box (07d, BB-FC-9).
     const dialog = page.getByRole("complementary", { name: "Integration settings" });
-    const createBtn = dialog.getByRole("button", { name: /Create Demo Page/i });
+    await dialog.getByRole("button", { name: "Use in a page…" }).click();
+    const createBtn = page.getByRole("menuitem", { name: /Create Demo Page/i });
     await expect(createBtn).toBeVisible({ timeout: 5_000 });
     await createBtn.click();
 
@@ -478,19 +481,21 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await expect(page.getByRole("button", { name: "Save Changes" })).toBeEnabled({ timeout: 15_000 });
 
     const sheet = page.getByRole("complementary", { name: "Integration settings" }).first();
-    const recreateBtn = sheet.getByRole("button", { name: /^Recreate$/ });
+    // "Use in a page…" › Recreate Demo Page (BB-FC-9).
+    await sheet.getByRole("button", { name: "Use in a page…" }).click();
+    const recreateBtn = page.getByRole("menuitem", { name: "Recreate Demo Page" });
     if (!(await recreateBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
-      test.skip(true, "Recreate button not present");
+      test.skip(true, "Recreate Demo Page not present");
       return;
     }
     await recreateBtn.click();
 
     // Confirmation dialog appears
-    const dialog = page.getByRole("alertdialog");
+    const dialog = page.getByRole("dialog", { name: "Recreate Demo Page?" });
     await expect(dialog).toBeVisible({ timeout: 5_000 });
 
     // Cancel path: closes the dialog without recreating
-    await page.getByTestId("alert-dialog-cancel").click();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
     await expect(dialog).toBeHidden({ timeout: 5_000 });
   });
 
