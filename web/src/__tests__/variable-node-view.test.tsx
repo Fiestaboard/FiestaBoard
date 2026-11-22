@@ -60,9 +60,15 @@ describe("VariableNodeView", () => {
   });
 
   it("hides the value segment when nothing has been rendered for it", () => {
-    renderChip(bridge(() => undefined));
-    expect(atom()?.querySelector('[data-slot="formula-atom-value"]')).toHaveTextContent(/^$/);
-    expect(atom()?.className).toContain("[&>[data-slot=formula-atom-value]]:hidden");
+    // FiestaUI 8.17.0-alpha.5 (FiestaUI#442): an atom with no value draws no value segment at all.
+    for (const b of [bridge(() => undefined), null]) {
+      const { unmount } = renderChip(b);
+      const el = atom();
+      expect(el).not.toBeNull();
+      expect(el?.querySelector('[data-slot="formula-atom-value"]')).toBeNull();
+      expect(el).toHaveTextContent(/^weather\.temperature$/);
+      unmount();
+    }
   });
 
   it("keeps filters in the source as written", () => {
