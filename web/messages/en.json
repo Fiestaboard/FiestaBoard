@@ -1161,8 +1161,7 @@
     },
     "panels": {
       "theme": "Theme",
-      "browserTheme": "For this browser only.",
-      "motionScope": "Motion preferences apply to everyone on this hub."
+      "browserTheme": "For this browser only."
     },
     "fiestabot": {
       "title": "Changes, drawer and history",
@@ -2367,6 +2366,16 @@
     "dateFormatPreview": "Right now: {time} on {date}",
     "accessibilityTitle": "Accessibility",
     "accessibilityDescription": "Motion and animation preferences",
+    "motionReadingTitle": "Motion and reading",
+    "motionReadingScope": "For this browser.",
+    "reduceMotionBrowserHint": "Follows your phone's setting. Turns off tile flips and the hopping-taco animation.",
+    "readAloud": "Read board changes aloud",
+    "readAloudHint": "Screen readers announce what changed on the board, line by line.",
+    "largeTargets": "Larger touch targets",
+    "largeTargetsHint": "48 px rows and buttons everywhere.",
+    "boardContrast": "High-contrast board text",
+    "boardContrastHint": "Brighter glyphs on board black.",
+    "hubReduceMotionOn": "Reduce motion is on for everyone on this hub. Change it in Appearance › Motion details.",
     "reduceMotion": "Reduce motion",
     "reduceMotionHint": "Minimizes animations throughout the interface",
     "siteAnimationsHint": "Transitions, hovers, and other UI motion",

@@ -54,6 +54,7 @@ import {
   usePages,
   useStatus,
 } from "@/hooks/use-board";
+import { useBrowserA11y } from "@/hooks/use-browser-a11y";
 import { useHubConnection } from "@/hooks/use-hub-connection";
 import { useHubIdentity } from "@/hooks/use-hub-identity";
 import { useSilence } from "@/hooks/use-silence";
@@ -91,6 +92,8 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   }, [sendsDisabled]);
   const { data: fleetStatus } = useStatus();
   const phone = useMediaQuery("(max-width: 767px)");
+  // 07e Accessibility "Read board changes aloud", this browser only.
+  const [readAloud] = useBrowserA11y("readAloud");
   const medium = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
   // 07a `302:20841`: "Flagship 22 × 6 · Maya's FiestaPi", the hub's name,
   // from lg up; the 900 frame (`307:61756`) draws the type and size alone.
@@ -713,6 +716,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           key={(currentBoard ?? boardSettings?.boards?.[0])?.id ?? "primary"}
           board={currentBoard ?? boardSettings?.boards?.[0]}
           geometry={activeGeometry}
+          announceUpdates={readAloud}
           message={displayMessage}
           cells={displayCells}
           layers={displayLayers}

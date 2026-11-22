@@ -1205,8 +1205,7 @@
     },
     "panels": {
       "theme": "Motyw",
-      "browserTheme": "Tylko w tej przeglądarce.",
-      "motionScope": "Preferencje ruchu dotyczą wszystkich użytkowników tego huba."
+      "browserTheme": "Tylko w tej przeglądarce."
     },
     "fiestabot": {
       "title": "Zmiany, panel i historia",
@@ -2440,6 +2439,16 @@
     "dateFormatPreview": "Teraz: {time} dnia {date}",
     "accessibilityTitle": "Dostępność",
     "accessibilityDescription": "Preferencje ruchu i animacji",
+    "motionReadingTitle": "Ruch i czytanie",
+    "motionReadingScope": "Dla tej przeglądarki.",
+    "reduceMotionBrowserHint": "Działa jak ustawienie telefonu. Wyłącza obracanie płytek i animację skaczącego taco.",
+    "readAloud": "Czytaj na głos zmiany na tablicy",
+    "readAloudHint": "Czytniki ekranu ogłaszają, co zmieniło się na tablicy, wiersz po wierszu.",
+    "largeTargets": "Większe obszary dotyku",
+    "largeTargetsHint": "Wiersze i przyciski 48 px wszędzie.",
+    "boardContrast": "Tekst tablicy o wysokim kontraście",
+    "boardContrastHint": "Jaśniejsze znaki na czarnej tablicy.",
+    "hubReduceMotionOn": "Ograniczenie ruchu jest włączone dla wszystkich w tym hubie. Zmień to w Wygląd › Szczegóły ruchu.",
     "reduceMotion": "Ogranicz ruch",
     "reduceMotionHint": "Minimalizuje animacje w całym interfejsie",
     "welcomeTitle": "Wiadomość powitalna",

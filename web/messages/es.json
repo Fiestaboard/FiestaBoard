@@ -1205,8 +1205,7 @@
     },
     "panels": {
       "theme": "Tema",
-      "browserTheme": "Solo para este navegador.",
-      "motionScope": "Las preferencias de movimiento se aplican a todos en este hub."
+      "browserTheme": "Solo para este navegador."
     },
     "fiestabot": {
       "title": "Cambios, panel e historial",
@@ -2440,6 +2439,16 @@
     "dateFormatPreview": "Ahora mismo: {time} el {date}",
     "accessibilityTitle": "Accesibilidad",
     "accessibilityDescription": "Preferencias de movimiento y animación",
+    "motionReadingTitle": "Movimiento y lectura",
+    "motionReadingScope": "Para este navegador.",
+    "reduceMotionBrowserHint": "Sigue el ajuste de tu teléfono. Desactiva el giro de las fichas y la animación del taco saltarín.",
+    "readAloud": "Leer en voz alta los cambios del tablero",
+    "readAloudHint": "Los lectores de pantalla anuncian lo que cambió en el tablero, línea por línea.",
+    "largeTargets": "Áreas táctiles más grandes",
+    "largeTargetsHint": "Filas y botones de 48 px en todas partes.",
+    "boardContrast": "Texto del tablero de alto contraste",
+    "boardContrastHint": "Caracteres más brillantes sobre el tablero negro.",
+    "hubReduceMotionOn": "Reducir movimiento está activado para todos en este hub. Cámbialo en Apariencia › Detalles de movimiento.",
     "reduceMotion": "Reducir movimiento",
     "reduceMotionHint": "Minimiza las animaciones en toda la interfaz",
     "welcomeTitle": "Mensaje de bienvenida",

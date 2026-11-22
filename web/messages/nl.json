@@ -1205,8 +1205,7 @@
     },
     "panels": {
       "theme": "Thema",
-      "browserTheme": "Alleen voor deze browser.",
-      "motionScope": "Bewegingsvoorkeuren gelden voor iedereen op deze hub."
+      "browserTheme": "Alleen voor deze browser."
     },
     "fiestabot": {
       "title": "Wijzigingen, paneel en geschiedenis",
@@ -2440,6 +2439,16 @@
     "dateFormatPreview": "Nu: {time} op {date}",
     "accessibilityTitle": "Toegankelijkheid",
     "accessibilityDescription": "Voorkeuren voor beweging en animatie",
+    "motionReadingTitle": "Beweging en lezen",
+    "motionReadingScope": "Voor deze browser.",
+    "reduceMotionBrowserHint": "Volgt de instelling van je telefoon. Zet tegelflips en de springende taco uit.",
+    "readAloud": "Bordwijzigingen voorlezen",
+    "readAloudHint": "Schermlezers melden regel voor regel wat er op het bord veranderde.",
+    "largeTargets": "Grotere aanraakdoelen",
+    "largeTargetsHint": "Overal rijen en knoppen van 48 px.",
+    "boardContrast": "Bordtekst met hoog contrast",
+    "boardContrastHint": "Helderdere tekens op het zwarte bord.",
+    "hubReduceMotionOn": "Beweging beperken staat aan voor iedereen op deze hub. Wijzig het bij Weergave › Bewegingsdetails.",
     "reduceMotion": "Beweging verminderen",
     "reduceMotionHint": "Minimaliseert animaties in de hele interface",
     "welcomeTitle": "Welkomstbericht",
