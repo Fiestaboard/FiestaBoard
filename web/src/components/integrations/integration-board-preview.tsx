@@ -43,7 +43,7 @@ export function IntegrationBoardPreview({ entry, size }: { entry?: RegistryEntry
   });
   const effectiveColor = previewColor ?? boardColor;
   return (
-    <Stack gap="4" className="min-w-0 items-center" data-slot="board-showcase">
+    <Stack gap={pane ? "3" : "4"} className="min-w-0 items-center" data-slot="board-showcase">
       <Tabs defaultValue={0} className="w-full min-w-0">
         {controls && entry.previews.length > 1 && (
           <Flex justify="center">
@@ -57,7 +57,7 @@ export function IntegrationBoardPreview({ entry, size }: { entry?: RegistryEntry
           </Flex>
         )}
         {entry.previews.map((preview, index) => (
-          <TabsContent key={labels[index]} value={index} className={controls ? "mt-4 min-w-0" : "min-w-0"}>
+          <TabsContent key={labels[index]} value={index} className={controls ? "mt-4 min-w-0" : "mt-0 min-w-0"}>
             {/* BoardShowcase's centered static board clips the first columns in
                 a narrow slot. The house viewport retains readable Actual size,
                 reachable edges and the user's optional Fit overview. */}

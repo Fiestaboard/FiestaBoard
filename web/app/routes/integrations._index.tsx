@@ -1548,7 +1548,8 @@ export function InstalledPluginRow({
         </TabsList>
         <TabsContent value="settings">
           <IntegrationBoardPreview entry={registryEntry} size={fullPage ? undefined : "sm"} />
-          <Stack gap="6" className="py-6">
+          {/* 07d's rhythm: 16 under the sample, 20 between sections. */}
+          <Stack gap="5" className="py-4">
             {isLoadingDetails ? (
               <Stack gap="4">
                 <Skeleton className="h-10 w-full" />
@@ -1646,76 +1647,78 @@ export function InstalledPluginRow({
                   Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
                   variableRows.length === 0 && <Text tone="muted">{t("noConfigOptions")}</Text>}
 
-                {/* 07d: "Unlocks N variables", then an outline "Use in a page…". */}
-                {variableRows.length > 0 && (
-                  <Stack gap="2">
-                    <SectionLabel id={`unlocks-${plugin.id}`}>
-                      {t("detail.unlocks", { count: variableRows.length })}
-                    </SectionLabel>
-                    <List gap="0" aria-labelledby={`unlocks-${plugin.id}`} className="flex flex-wrap gap-1">
-                      {variableRows.map((variable) => (
-                        <ListItem key={variable.name}>
-                          <Badge variant="variable">{`${plugin.id}.${variable.name}`}</Badge>
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Stack>
-                )}
-                <Box>
-                  {/* A new page, or the plugin's own demo page (the old Demo Page box). */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline">
-                        <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
-                        {t("detail.useInPage")}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem onClick={() => router.push("/pages/new")}>
-                        <FilePlus className="h-3.5 w-3.5 mr-2" />
-                        {t("detail.newPage")}
-                      </DropdownMenuItem>
-                      {pluginDetails?.has_demo && (
-                        <>
-                          <DropdownMenuItem
-                            disabled={!demoReady || isCreatingDemo}
-                            onClick={() =>
-                              pluginDetails.demo_page_id ? setShowDemoConfirm(true) : void handleCreateDemoPage()
-                            }
-                          >
-                            <Play className="h-3.5 w-3.5 mr-2" />
-                            {isCreatingDemo
-                              ? t("demoPage.creating")
-                              : pluginDetails.demo_page_id
-                                ? t("demoPage.recreateAction")
-                                : t("demoPage.createAction")}
-                          </DropdownMenuItem>
-                          {!demoReady && (
-                            <Text size="xs" tone="warning" className="max-w-60 px-2 pb-1.5">
-                              {t("demoPage.requirementsWarning")}
-                            </Text>
-                          )}
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
-                        <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
-                          {tCommon("cancel")}
+                {/* 07d: "Unlocks N variables", then an outline "Use in a page…", 12 apart. */}
+                <Stack gap="3">
+                  {variableRows.length > 0 && (
+                    <>
+                      <SectionLabel id={`unlocks-${plugin.id}`}>
+                        {t("detail.unlocks", { count: variableRows.length })}
+                      </SectionLabel>
+                      <List gap="0" aria-labelledby={`unlocks-${plugin.id}`} className="flex flex-wrap gap-1">
+                        {variableRows.map((variable) => (
+                          <ListItem key={variable.name}>
+                            <Badge variant="variable">{`${plugin.id}.${variable.name}`}</Badge>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </>
+                  )}
+                  <Box>
+                    {/* A new page, or the plugin's own demo page (the old Demo Page box). */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline">
+                          <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
+                          {t("detail.useInPage")}
                         </Button>
-                        <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
-                          {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </Box>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => router.push("/pages/new")}>
+                          <FilePlus className="h-3.5 w-3.5 mr-2" />
+                          {t("detail.newPage")}
+                        </DropdownMenuItem>
+                        {pluginDetails?.has_demo && (
+                          <>
+                            <DropdownMenuItem
+                              disabled={!demoReady || isCreatingDemo}
+                              onClick={() =>
+                                pluginDetails.demo_page_id ? setShowDemoConfirm(true) : void handleCreateDemoPage()
+                              }
+                            >
+                              <Play className="h-3.5 w-3.5 mr-2" />
+                              {isCreatingDemo
+                                ? t("demoPage.creating")
+                                : pluginDetails.demo_page_id
+                                  ? t("demoPage.recreateAction")
+                                  : t("demoPage.createAction")}
+                            </DropdownMenuItem>
+                            {!demoReady && (
+                              <Text size="xs" tone="warning" className="max-w-60 px-2 pb-1.5">
+                                {t("demoPage.requirementsWarning")}
+                              </Text>
+                            )}
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
+                          <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
+                            {tCommon("cancel")}
+                          </Button>
+                          <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
+                            {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </Box>
+                </Stack>
               </>
             )}
           </Stack>

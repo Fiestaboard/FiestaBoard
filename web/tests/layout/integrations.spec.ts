@@ -95,12 +95,14 @@ test.describe("Integration detail pane at 1440 (BB-FC-9, Figma 324:40267)", () =
       const chips = pane(page).getByRole("list", { name: "Unlocks 3 variables" });
       const use = pane(page).getByRole("button", { name: "Use in a page…" });
       const [b, c, s, u, ch, us] = await Promise.all([board, caption, settings, unlocks, chips, use].map(rect));
-      expect(c.top - b.bottom).toBeGreaterThanOrEqual(8);
-      expect(c.top - b.bottom).toBeLessThanOrEqual(24);
-      expect(s.top).toBeGreaterThan(c.bottom);
+      // 07d `324:40267`: board → caption 12, caption → first label 16,
+      // label → chips 12, chips → button 12 (±2).
+      const near = (gap: number, figma: number) => expect(Math.abs(gap - figma)).toBeLessThanOrEqual(2);
+      near(c.top - b.bottom, 12);
+      near(s.top - c.bottom, 16);
       expect(u.top).toBeGreaterThan(s.bottom);
-      expect(ch.top).toBeGreaterThanOrEqual(u.bottom);
-      expect(us.top).toBeGreaterThan(ch.bottom);
+      near(ch.top - u.bottom, 12);
+      near(us.top - ch.bottom, 12);
       // Labels, chips and the button share the content's left edge.
       for (const left of [s.left, u.left, ch.left, us.left]) expect(Math.abs(left - c.left)).toBeLessThan(2);
       for (const label of [settings, unlocks]) {
