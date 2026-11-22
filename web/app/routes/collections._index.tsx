@@ -11,21 +11,24 @@ import {
   Skeleton,
   Text,
 } from "@fiestaboard/ui";
-import { Clock, GalleryHorizontalEnd, Plus, Shuffle, Sigma } from "lucide-react";
+import { GalleryHorizontalEnd, Plus } from "lucide-react";
 import { useState } from "react";
 
-import { formatInterval } from "@/components/collection-form";
 import { CollectionPageStack } from "@/components/collection-page-stack";
+import { collectionScheduleSummary, formatDurationLabel, useAllSchedules } from "@/components/collection-schedule";
 import { LibraryViewToggle } from "@/components/library-view-toggle";
 import { useCollections, usePages } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";
-import { useTranslations } from "@/i18n/translations";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 
 const VIEW_KEY = "fiestaboard_collections_view_mode";
 export default function CollectionsIndex() {
   const t = useTranslations("collections");
   const tc = useTranslations("common");
+  const tIde = useTranslations("creatorIde");
+  const locale = useLocale();
+  const { data: schedulesData } = useAllSchedules();
   const { push } = useViewTransition();
   const { data, isLoading, isError, refetch } = useCollections();
   const { data: pagesData } = usePages();
@@ -105,8 +108,6 @@ export default function CollectionsIndex() {
             className={viewMode === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : ""}
           >
             {collections.map((collection) => {
-              const Icon =
-                collection.selection_mode === "time" ? Clock : collection.selection_mode === "random" ? Shuffle : Sigma;
               const modeLabel = t(
                 collection.selection_mode === "time"
                   ? "modeTimeLabel"
@@ -114,48 +115,49 @@ export default function CollectionsIndex() {
                     ? "modeRandomLabel"
                     : "modeVariableLabel",
               );
-              const summary =
+              // Figma 342:187593 meta. No display name leads it: a Collection is not
+              // bound to a board (DD-W82).
+              const pageCount = tc("pageCount", { count: collection.page_ids.length });
+              const meta =
                 collection.selection_mode === "variable"
-                  ? t("variableModeBadge", { count: collection.variable?.rules.length ?? 0 })
-                  : `${formatInterval(collection.selection_mode === "random" ? (collection.random?.interval_seconds ?? 30) : collection.time.interval_seconds)} ${t("perPageShort")}`;
+                  ? t("ruleCount", { count: collection.variable?.rules.length ?? 0 })
+                  : collection.selection_mode === "random"
+                    ? `${pageCount} · ${t("everyDuration", {
+                        duration: formatDurationLabel(collection.random?.interval_seconds ?? 30, locale),
+                      })}`
+                    : `${pageCount} · ${t("rotationTotal", {
+                        duration: formatDurationLabel(
+                          collection.time.interval_seconds * collection.page_ids.length,
+                          locale,
+                        ),
+                      })}`;
+              const schedule = collectionScheduleSummary(collection.id, schedulesData?.schedules, t, tIde, locale);
               return (
                 <Card
                   key={collection.id}
                   {...anchorProps(`collection.${collection.id}`)}
-                  className="relative min-w-0 gap-3 p-4 hover:border-brand/50 hover:bg-accent focus-within:ring-2 focus-within:ring-ring"
+                  className="relative min-w-0 gap-0 overflow-hidden p-0 hover:border-brand/50 hover:bg-accent focus-within:ring-2 focus-within:ring-ring"
                 >
+                  {viewMode === "grid" && <CollectionPageStack collection={collection} pages={pages} />}
                   <button
                     type="button"
                     data-section-item={collection.id}
-                    className="text-left min-w-0 outline-none after:absolute after:inset-0 after:rounded-xl"
+                    className="min-w-0 px-3.5 py-3 text-left outline-none after:absolute after:inset-0 after:rounded-xl"
                     onClick={() => push(`/collections/${encodeURIComponent(collection.id)}`)}
                   >
-                    <Flex align="center" gap="3" className="min-w-0">
-                      <GalleryHorizontalEnd className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <Box className="min-w-0 flex-1">
-                        <Text as="span" weight="medium" className="block truncate">
-                          {collection.name}
-                        </Text>
-                        <Text size="xs" tone="muted">
-                          {tc("pageCount", { count: collection.page_ids.length })} · {summary}
-                        </Text>
-                      </Box>
-                      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <Flex align="center" gap="2" className="min-w-0">
+                      <Text as="span" size="sm" weight="semibold" className="truncate">
+                        {collection.name}
+                      </Text>
+                      <Badge variant="outline">{modeLabel}</Badge>
                     </Flex>
+                    <Text size="xs" tone="muted" className="mt-1.5">
+                      {meta}
+                    </Text>
+                    <Text size="xs" tone="muted" className="mt-1">
+                      {schedule ? t("cardSchedule", { schedule }) : t("notScheduled")}
+                    </Text>
                   </button>
-                  {viewMode === "grid" && <CollectionPageStack collection={collection} pages={pages} />}
-                  {viewMode === "grid" && (
-                    <Flex align="center" gap="2">
-                      <Badge variant="secondary" className="text-xs">
-                        {modeLabel}
-                      </Badge>
-                      {collection.selection_mode === "variable" && (
-                        <Badge variant="outline" className="text-xs">
-                          {t("betaBadge")}
-                        </Badge>
-                      )}
-                    </Flex>
-                  )}
                 </Card>
               );
             })}

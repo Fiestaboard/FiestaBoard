@@ -440,8 +440,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -449,7 +447,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "libraryCount": "{count, plural, one {# carosello} other {# caroselli}}",
     "removePage": "Rimuovi {name}",
@@ -522,7 +519,14 @@
     "safetyUnavailable": "Impossibile caricare lo stato del display. Riprova prima di mostrare questa raccolta.",
     "selectedBadge": "Selezionata",
     "defaultHint": "Se nessuna regola corrisponde, mostra",
-    "collectionSettings": "Impostazioni della raccolta"
+    "collectionSettings": "Impostazioni della raccolta",
+    "everyDuration": "ogni {duration}",
+    "cardSchedule": "Programmazione · {schedule}",
+    "notScheduled": "Non programmata",
+    "scheduleSummaryMore": "{summary} · +{count} altri",
+    "showingUntil": "{name} · in mostra fino alle {time}",
+    "nextPage": "Poi: {name} ({duration})",
+    "collectionRuns": "La raccolta va in onda {schedule} nella programmazione"
   },
   "schedule": {
     "title": "Programmazione",

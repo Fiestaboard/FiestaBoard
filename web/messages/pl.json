@@ -440,8 +440,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -449,7 +447,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "libraryCount": "{count, plural, one {Karuzele: #} other {Karuzele: #}}",
     "removePage": "Usuń {name}",
@@ -522,7 +519,14 @@
     "safetyUnavailable": "Nie udało się wczytać stanu wyświetlacza. Spróbuj ponownie przed wyświetleniem tej kolekcji.",
     "selectedBadge": "Wybrano",
     "defaultHint": "Jeśli żadna reguła nie pasuje, pokaż",
-    "collectionSettings": "Ustawienia kolekcji"
+    "collectionSettings": "Ustawienia kolekcji",
+    "everyDuration": "co {duration}",
+    "cardSchedule": "Harmonogram · {schedule}",
+    "notScheduled": "Niezaplanowana",
+    "scheduleSummaryMore": "{summary} · +{count} więcej",
+    "showingUntil": "{name} · wyświetlana do {time}",
+    "nextPage": "Następna: {name} ({duration})",
+    "collectionRuns": "Kolekcja działa {schedule} według harmonogramu"
   },
   "schedule": {
     "title": "Harmonogram",

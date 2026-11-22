@@ -440,8 +440,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -449,7 +447,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "libraryCount": "{count, plural, one {# carrossel} other {# carrosséis}}",
     "removePage": "Remover {name}",
@@ -522,7 +519,14 @@
     "safetyUnavailable": "Não foi possível carregar o estado da tela. Tente novamente antes de mostrar esta coleção.",
     "selectedBadge": "Selecionada",
     "defaultHint": "Se nenhuma regra corresponder, mostrar",
-    "collectionSettings": "Configurações da coleção"
+    "collectionSettings": "Configurações da coleção",
+    "everyDuration": "a cada {duration}",
+    "cardSchedule": "Agenda · {schedule}",
+    "notScheduled": "Não agendada",
+    "scheduleSummaryMore": "{summary} · +{count} mais",
+    "showingUntil": "{name} · exibida até {time}",
+    "nextPage": "A seguir: {name} ({duration})",
+    "collectionRuns": "A coleção é exibida {schedule} na Agenda"
   },
   "schedule": {
     "title": "Agenda",

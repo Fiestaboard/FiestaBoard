@@ -27,6 +27,8 @@ import { useTranslations } from "@/i18n/translations";
 export type ScaledBoardDisplayProps = BoardViewportProps & {
   /** A fit-scaled picture for a card or decorative stack, not a viewport. */
   thumbnail?: boolean;
+  /** Thumbnail only: `false` draws just the tiles, for a cover that supplies its own housing colour. */
+  bezel?: boolean;
 };
 
 const ThumbnailBoard = memo(function ThumbnailBoard({
@@ -44,7 +46,7 @@ const ThumbnailBoard = memo(function ThumbnailBoard({
   showModeToggle: _showModeToggle,
   animate: _animate,
   ...props
-}: BoardViewportProps) {
+}: BoardViewportProps & { bezel?: boolean }) {
   const t = useTranslations("boardDisplay");
   const chrome = useBoardChrome(flapSpeed);
   return (
@@ -63,6 +65,10 @@ const ThumbnailBoard = memo(function ThumbnailBoard({
   );
 });
 
-export const ScaledBoardDisplay = memo(function ScaledBoardDisplay({ thumbnail, ...props }: ScaledBoardDisplayProps) {
-  return thumbnail ? <ThumbnailBoard {...props} /> : <BoardViewport {...props} />;
+export const ScaledBoardDisplay = memo(function ScaledBoardDisplay({
+  thumbnail,
+  bezel,
+  ...props
+}: ScaledBoardDisplayProps) {
+  return thumbnail ? <ThumbnailBoard {...props} bezel={bezel} /> : <BoardViewport {...props} />;
 });

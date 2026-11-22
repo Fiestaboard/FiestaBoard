@@ -440,8 +440,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -449,7 +447,6 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
     "libraryCount": "{count, plural, one {캐러셀 #개} other {캐러셀 #개}}",
     "removePage": "{name} 제거",
@@ -522,7 +519,14 @@
     "safetyUnavailable": "디스플레이 상태를 불러오지 못했습니다. 이 컬렉션을 표시하기 전에 다시 시도하세요.",
     "selectedBadge": "선택됨",
     "defaultHint": "일치하는 규칙이 없으면 표시",
-    "collectionSettings": "컬렉션 설정"
+    "collectionSettings": "컬렉션 설정",
+    "everyDuration": "{duration}마다",
+    "cardSchedule": "일정 · {schedule}",
+    "notScheduled": "일정 없음",
+    "scheduleSummaryMore": "{summary} · 외 {count}개",
+    "showingUntil": "{name} · {time}까지 표시",
+    "nextPage": "다음: {name} ({duration})",
+    "collectionRuns": "일정에 따라 {schedule}에 표시됩니다"
   },
   "schedule": {
     "title": "스케줄",
