@@ -105,7 +105,9 @@ export function IntegrationsSection({ children }: { children: React.ReactNode })
         detail={detail}
         // 07d `324:40267`: a "…" button is the header's one action, and the
         // list sits on the page rather than in a card (BB-FC-8).
-        action={phone ? undefined : <PluginUpdatesMenu paneItems={paneItems} />}
+        // An open detail pane keeps it on a short landscape screen too: the pane
+        // opens from 768 px wide, below the rail's 500 px height (BB-FC-9).
+        action={phone && !paneItems ? undefined : <PluginUpdatesMenu paneItems={paneItems} />}
         surface="plain"
       >
         {children}

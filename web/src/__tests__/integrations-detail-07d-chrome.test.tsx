@@ -157,4 +157,44 @@ describe("Integration detail pane chrome against 07d (BB-FC-9)", () => {
     await user.click(enabled);
     await waitFor(() => expect(toggles).toEqual(["disable countdown"]));
   });
+
+  it("drops the pane's items from the header menu once the pane goes (Marketplace tab)", async () => {
+    const user = userEvent.setup();
+    await openPane(user, "Countdown");
+    await user.click(screen.getByRole("tab", { name: "Marketplace" }));
+    const header = document.querySelector<HTMLElement>("[data-slot=page-header]")!;
+    await user.click(within(header).getByRole("button", { name: "Integration options" }));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: /check for updates/i })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: "README" })).toBeNull();
+    expect(within(menu).queryByText("Countdown · v1.3.1 · Core")).toBeNull();
+  });
+
+  it("names the Enabled item's group after the integration", async () => {
+    const user = userEvent.setup();
+    await openPane(user, "Countdown");
+    const header = document.querySelector<HTMLElement>("[data-slot=page-header]")!;
+    await user.click(within(header).getByRole("button", { name: "Integration options" }));
+    const group = await screen.findByRole("group", { name: "Countdown · v1.3.1 · Core" });
+    expect(within(group).getByRole("menuitemcheckbox", { name: "Enabled" })).toBeInTheDocument();
+  });
+
+  it("keeps the header menu on a short landscape screen, where the pane still opens", async () => {
+    // 844×390: wide enough for the pane (768+), short enough to count as
+    // below the rail (BB-A-13), which hides the header's actions.
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.startsWith("(min-width: 768") || query.includes("max-height") || query.includes("1023.98"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    const user = userEvent.setup();
+    await openPane(user, "Countdown");
+    const header = document.querySelector<HTMLElement>("[data-slot=page-header]")!;
+    await user.click(await within(header).findByRole("button", { name: "Integration options" }));
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Enabled" })).toBeInTheDocument();
+  });
 });

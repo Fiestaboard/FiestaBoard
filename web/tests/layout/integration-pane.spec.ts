@@ -71,3 +71,21 @@ test.describe("Integration detail on a phone (BB-FC-9)", () => {
     });
   }
 });
+
+test.describe("Integration detail pane on a short landscape screen (BB-FC-9, review of #2630)", () => {
+  // 844×390: the pane opens (768+ wide), and the rail rules (BB-A-13) treat it
+  // as below the rail. The pane's controls must still be reachable.
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+
+  test("the header keeps Integration options, with the pane's Enabled and README", async ({ page }) => {
+    await page.goto(fixture("/integrations?tab=installed"));
+    await page.locator("button[data-slot=list-row]", { hasText: "Random" }).click();
+    await expect(pane(page).getByRole("heading", { name: "Random", level: 2 })).toBeVisible();
+    const options = page.getByRole("button", { name: "Integration options" });
+    await expect(options).toBeVisible();
+    await options.click();
+    await expect(page.getByRole("menuitemcheckbox", { name: "Enabled" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "README" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(844);
+  });
+});

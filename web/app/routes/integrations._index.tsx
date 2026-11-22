@@ -30,6 +30,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -272,7 +273,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { ReactNode, RefObject } from "react";
-import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { UNSAFE_DataRouterContext, useBeforeUnload, useBlocker } from "react-router";
 import { toast } from "sonner";
@@ -1586,9 +1587,11 @@ export function InstalledPluginRow({
   );
   // 07d's pane has no switch, version chips or tabs: its name, version and
   // source, its switch, README and live values sit in the header menu.
+  const paneMenuLabelId = useId();
   useIntegrationPaneMenu(!fullPage && isConfigOpen, () => (
-    <>
-      <DropdownMenuLabel className="font-mono text-xs">
+    // One labelled group, so "Enabled" is read as this integration's.
+    <DropdownMenuGroup aria-labelledby={paneMenuLabelId}>
+      <DropdownMenuLabel id={paneMenuLabelId} className="font-mono text-xs">
         {[plugin.name, tCommon("versionShort", { version: plugin.version }), sourceLabel].join(" · ")}
       </DropdownMenuLabel>
       {!hasNoToggle && (
@@ -1609,7 +1612,7 @@ export function InstalledPluginRow({
         {t("paneMenu.liveValues")}
       </DropdownMenuItem>
       {pluginActions}
-    </>
+    </DropdownMenuGroup>
   ));
   const DetailTabs = (fullPage ? Tabs : PaneBody) as typeof Tabs;
   const SettingsPanel = (fullPage ? TabsContent : PaneSettings) as typeof TabsContent;
