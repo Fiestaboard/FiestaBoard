@@ -20,7 +20,6 @@ import {
   Label,
   PageCard,
   PageHeader,
-  PageLayout,
   SegmentedControl,
   SegmentedControlItem,
   Select,
@@ -53,8 +52,9 @@ import { ScheduleEntryAdapter as ScheduleEntryForm } from "@/components/schedule
 import { ScheduleEntryConflict, useOverlapText } from "@/components/schedule/schedule-entry-conflict";
 import { ScheduleWorkspace } from "@/components/schedule/schedule-workspace";
 import { type ScheduleFormHandle, useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
+import { FlatPage } from "@/components/section-shell";
 import Link from "@/components/smart-link";
-import { useBelowRail, useRailBreakpoint } from "@/hooks/use-below-rail";
+import { useBelowRail } from "@/hooks/use-below-rail";
 import { queryKeys } from "@/hooks/use-board";
 import { useCollections } from "@/hooks/use-board";
 import { useFormatPreferences } from "@/hooks/use-format-preferences";
@@ -144,7 +144,6 @@ function readUrlPrefill(searchParams: URLSearchParams): PrefillData | null {
 const NO_DEFAULT_PAGE = "__none__";
 
 export default function SchedulePage() {
-  const railBreakpoint = useRailBreakpoint();
   const t = useTranslations("schedule");
   const tCommon = useTranslations("common");
   const tAgenda = useTranslations("schedule.agenda");
@@ -607,10 +606,10 @@ export default function SchedulePage() {
 
   if (isLoading) {
     return (
-      <PageLayout railBreakpoint={railBreakpoint}>
-        <Skeleton className="h-10 w-48 mb-4" />
+      <FlatPage>
+        <Skeleton className="h-10 w-48" />
         <Skeleton className="h-64 w-full" />
-      </PageLayout>
+      </FlatPage>
     );
   }
 
@@ -799,55 +798,53 @@ export default function SchedulePage() {
   );
 
   return (
-    <PageLayout railBreakpoint={railBreakpoint}>
-      <Box>
-        {/* ── Page header ── On a phone, 07d's Schedule · Day (322:19169): the
-            title with Add beside it, then one Schedule Mode row (BB-C-3). */}
-        {belowRail ? (
-          <Stack gap="3" className="flex-shrink-0 pb-3 pt-2">
-            <Flex align="center" justify="between" gap="3">
-              <Heading level={1} size="3xl">
-                {t("title")}
-              </Heading>
-              {addButton}
-            </Flex>
-            <Flex align="center" justify="between" gap="3">
-              <Label htmlFor="schedule-mode" className="font-semibold">
-                {tAgenda("mode")}
-                {currentBoard?.name && (
-                  <Text as="span" data-testid="active-board-indicator">
-                    {` · ${currentBoard.name}`}
-                  </Text>
-                )}
-              </Label>
-              {modeSwitch}
-            </Flex>
-          </Stack>
-        ) : (
-          // 07d `322:9978`: the title, and on its right "Schedule Mode"
-          // (muted) with its switch and "Add entry" (BB-FC-6).
-          <PageHeader
-            icon={CalendarIcon}
-            title={t("title")}
-            className={cn("flex-shrink-0", isCalendarMode && "mb-2 sm:mb-5")}
-            description={null}
-          >
-            <Flex align="center" gap="3">
-              <Label htmlFor="schedule-mode" className="font-normal text-muted-foreground">
-                {tAgenda("mode")}
-                {/* With more than one display, say whose schedule this is. */}
-                {boards.length > 1 && currentBoard?.name && (
-                  <Text as="span" data-testid="active-board-indicator">
-                    {` · ${currentBoard.name}`}
-                  </Text>
-                )}
-              </Label>
-              {modeSwitch}
-              {addButton}
-            </Flex>
-          </PageHeader>
-        )}
+    // The flat page grammar (BB-FH-13): FlatPage spaces the header and the
+    // gap under it; the route sets none of that itself.
+    <FlatPage>
+      {/* ── Page header ── On a phone, 07d's Schedule · Day (322:19169): the
+          title with Add beside it, then one Schedule Mode row (BB-C-3). */}
+      {belowRail ? (
+        <Stack gap="3" className="flex-shrink-0">
+          <Flex align="center" justify="between" gap="3">
+            <Heading level={1} size="3xl">
+              {t("title")}
+            </Heading>
+            {addButton}
+          </Flex>
+          <Flex align="center" justify="between" gap="3">
+            <Label htmlFor="schedule-mode" className="font-semibold">
+              {tAgenda("mode")}
+              {currentBoard?.name && (
+                <Text as="span" data-testid="active-board-indicator">
+                  {` · ${currentBoard.name}`}
+                </Text>
+              )}
+            </Label>
+            {modeSwitch}
+          </Flex>
+        </Stack>
+      ) : (
+        // 07d `322:9978`: the title, and on its right "Schedule Mode"
+        // (muted) with its switch and "Add entry" (BB-FC-6).
+        <PageHeader icon={CalendarIcon} title={t("title")} className="flex-shrink-0" description={null}>
+          <Flex align="center" gap="3">
+            <Label htmlFor="schedule-mode" className="font-normal text-muted-foreground">
+              {tAgenda("mode")}
+              {/* With more than one display, say whose schedule this is. */}
+              {boards.length > 1 && currentBoard?.name && (
+                <Text as="span" data-testid="active-board-indicator">
+                  {` · ${currentBoard.name}`}
+                </Text>
+              )}
+            </Label>
+            {modeSwitch}
+            {addButton}
+          </Flex>
+        </PageHeader>
+      )}
 
+      {/* The page's body: one grammar gap between the warning and the workspace. */}
+      <Stack className="gap-(--page-gap)">
         {/* ── Location warning (sun schedules without location configured) ── */}
         {hasSunSchedules && !locationConfigured && (
           <Flex
@@ -866,7 +863,7 @@ export default function SchedulePage() {
           </Flex>
         )}
 
-        <Box className="mt-5" {...anchorProps("schedule.root")}>
+        <Box {...anchorProps("schedule.root")}>
           {allSettings ? (
             <>
               {timezoneInfo.fallback && (
@@ -917,7 +914,7 @@ export default function SchedulePage() {
             <Skeleton className="h-64 w-full" />
           )}
         </Box>
-      </Box>
+      </Stack>
 
       {/* Form Tray */}
       <Sheet
@@ -996,6 +993,6 @@ export default function SchedulePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </PageLayout>
+    </FlatPage>
   );
 }

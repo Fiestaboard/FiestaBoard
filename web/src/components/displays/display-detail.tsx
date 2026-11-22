@@ -20,18 +20,20 @@ import { useEffect, useState } from "react";
 import { BoardOutOfSyncBanner } from "@/components/board-out-of-sync-banner";
 import { DisplayDiagnostics } from "@/components/displays/display-diagnostics";
 import { DisplayEditor } from "@/components/displays/display-editor";
+import { DisplayChangePageButton, DisplayPauseButton } from "@/components/displays/display-header-actions";
 import { DisplayLivePreview } from "@/components/displays/display-live-preview";
 import { DisplayOverview } from "@/components/displays/display-overview";
 import { DisplayTransition } from "@/components/displays/display-transition";
+import { SectionAction } from "@/components/section-shell";
 import { BoardEditor, BoardNameField, useDisplayBoards } from "@/components/settings/display-settings";
 import { FiestaPanelSettings } from "@/components/settings/fiestapanel-settings";
 import { isVirtualBoard } from "@/components/settings/output-boards";
 import { ScheduleBehavior } from "@/components/settings/schedule-behavior";
 import { SilenceSchedule } from "@/components/settings/silence-schedule";
 import { UpdateIntervals } from "@/components/settings/update-intervals";
-import Link from "@/components/smart-link";
 import { LastKnownBoard } from "@/components/status-banners/last-known-board";
 import { StatusBannerHost } from "@/components/status-banners/status-banner-host";
+import { useBelowRail } from "@/hooks/use-below-rail";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 
@@ -69,6 +71,10 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
     if (!embedded) router.replace(`/displays/${encodeURIComponent(boardId)}?${params.toString()}`, { scroll: false });
   };
   const displays = useDisplayBoards();
+  // 07d `328:27519`: on a phone the section shell draws "‹ Displays" and the
+  // name; the page drops its own back link and section title, and the board
+  // runs edge to edge (BB-A-19).
+  const phone = useBelowRail();
   const board = displays.boards.find((b) => b.id === boardId);
   const backToList = () => router.push("/displays");
 
@@ -81,11 +87,17 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
 
   return (
     <Tabs value={section} onValueChange={changeSection}>
-      <PageSection className={embedded ? "px-0 py-0" : "py-3"}>
-        {!embedded && (
-          <Button asChild variant="ghost" className="mb-3">
-            <Link href="/displays">{tf("back")}</Link>
-          </Button>
+      <PageSection className={embedded ? "px-0 py-0" : undefined}>
+        {/* 07d `320:18175`: the header row carries the display's Pause and
+            Change Page…; the trail above is the way back, so no back button
+            stacks over the tabs (BB-FH-5). The phone keeps Overview's. */}
+        {!embedded && !phone && (
+          <SectionAction>
+            <Flex gap="2">
+              <DisplayPauseButton board={board} />
+              <DisplayChangePageButton board={board} />
+            </Flex>
+          </SectionAction>
         )}
         <TabsList aria-label={t("tabsLabel")} className="w-full sm:w-fit">
           <TabsTrigger value="overview">{t("tabOverview")}</TabsTrigger>
@@ -100,8 +112,8 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
       <TabsContent keepMounted value="overview" className="mt-0">
         {board && (
           <PageSection
-            icon={embedded ? undefined : <Eye />}
-            title={embedded ? undefined : t("previewTitle")}
+            icon={embedded || phone ? undefined : <Eye />}
+            title={embedded || phone ? undefined : t("previewTitle")}
             className={embedded ? "border-0 px-0 py-3" : undefined}
           >
             {/* Another app wrote to this display (issue #1945) — the banner Home
@@ -128,17 +140,19 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
                 Shared LastKnownBoard behavior belongs to the status-banner slice. */}
             <Flex
               justify="center"
-              className="w-full min-w-0 overflow-x-hidden px-2 [&_[data-slot=last-known-board-preview]]:w-full [&_[data-slot=last-known-board-preview]]:min-w-0 [&_[data-slot=last-known-board-preview]:has([data-slot=board-viewport])]:opacity-100 [&_[data-slot=last-known-board-preview]_[data-slot=board-viewport-bezel]]:opacity-60"
+              className="w-full min-w-0 overflow-x-hidden max-md:-mx-4 max-md:w-[calc(100%+2rem)] md:px-2 [&_[data-slot=last-known-board-preview]]:w-full [&_[data-slot=last-known-board-preview]]:min-w-0 [&_[data-slot=last-known-board-preview]:has([data-slot=board-viewport])]:opacity-100 [&_[data-slot=last-known-board-preview]_[data-slot=board-viewport-bezel]]:opacity-60"
               style={{ contain: "layout style paint" }}
             >
               <LastKnownBoard boardId={board.id}>
-                <DisplayLivePreview board={board} size="md" />
+                <DisplayLivePreview board={board} size="md" layout={phone ? "phone-hero" : undefined} />
               </LastKnownBoard>
             </Flex>
             <DisplayOverview
               board={board}
               onPlayback={() => changeSection("playback")}
               onDiagnostics={() => changeSection("diagnostics")}
+              // On wider screens Change Page… is in the header (07d).
+              showChangePage={phone}
             />
           </PageSection>
         )}
@@ -163,7 +177,7 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
         {/* A FiestaPanel's own controls: TV size and fit, viewer URL / QR,
           live TV preview, the FiestaPi HDMI kiosk. */}
         {board && isVirtualBoard(board) && (
-          <Box data-testid="display-panel-settings" className="p-4">
+          <Box data-testid="display-panel-settings">
             <FiestaPanelSettings
               boardId={board.id}
               onDeleted={backToList}
@@ -192,19 +206,20 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
           </Box>
         )}
       </TabsContent>
+      {/* 07d `320:18175`: the Playback cards' titles carry no icons (BB-FH-6). */}
       <TabsContent keepMounted value="playback" className="mt-0">
         <Grid
           role="region"
           aria-label={t("tabPlayback")}
           gap="5"
-          className="p-4 lg:grid-cols-[minmax(0,1.54fr)_minmax(0,1fr)]"
+          className="lg:grid-cols-[minmax(0,1.54fr)_minmax(0,1fr)]"
         >
           <Stack gap="5" className="min-w-0">
             <Card className="gap-0 py-0">
-              <SilenceSchedule key={board.id} boardId={board.id} />
+              <SilenceSchedule key={board.id} boardId={board.id} showIcon={false} />
             </Card>
             <Card className="gap-0 py-0">
-              <ScheduleBehavior key={`behavior-${board.id}`} board={board} />
+              <ScheduleBehavior key={`behavior-${board.id}`} board={board} showIcon={false} />
             </Card>
           </Stack>
           <Stack gap="5" className="min-w-0">
@@ -213,10 +228,11 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
                 board={board}
                 disabled={displays.saving}
                 onChange={(updates) => displays.updateBoard(board.id, updates)}
+                showIcon={false}
               />
             </Card>
             <Card className="gap-0 py-0">
-              <UpdateIntervals key={`intervals-${board.id}`} board={board} />
+              <UpdateIntervals key={`intervals-${board.id}`} board={board} showIcon={false} />
             </Card>
           </Stack>
         </Grid>

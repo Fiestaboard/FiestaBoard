@@ -26,24 +26,22 @@ import {
   type SetStateAction,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
 
-import type { PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
+import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRouter } from "@/hooks/use-router";
 import { useLocale, useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { offersDraft } from "@/lib/ide/edit-state";
-import { useExplorerOpen } from "@/lib/ide/explorer-pref";
 import { IDE_DESKTOP_QUERY, type IdeTabId, inspectorTabIds, resolveInspectorTab } from "@/lib/ide/inspector-tabs";
 import { templateReferences } from "@/lib/ide/references";
 
 import { type ConsoleTab, IdeConsole, IdeProblemList, IdeSentPanel } from "./ide-console";
-import { IdeExplorer, IdeExplorerShow } from "./ide-explorer";
-import { formatSavedAt, formatWallTime } from "./ide-format";
+import { type ExplorerToggle, IdeExplorer, IdeExplorerShow, useExplorerToggle } from "./ide-explorer";
+import { formatClock, formatSavedAt, formatWallTime } from "./ide-format";
 import { IdeHistory } from "./ide-history";
 import { DuplicateDialog, IdePageTab } from "./ide-page-tab";
 import { IdeReferences } from "./ide-references";
@@ -54,14 +52,28 @@ import { type CreatorIdeState, useCreatorIde } from "./use-creator-ide";
 export interface CreatorIdeProps {
   pageId: string;
   builderRef: RefObject<PageBuilderHandle | null>;
-  /** Where the Explorer column renders (beside the editor). */
+  /** The workspace's Explorer column (page-builder.tsx `workspaceSlots`). */
   explorerSlot: HTMLElement | null;
+  /** The end of the template column: Console and Timeline go there (BB-E-7). Omitted: rendered in place. */
+  templateSlot?: HTMLElement | null;
+  /** The end of the preview column: the status row and Inspector go there. Omitted: rendered in place. */
+  previewSlot?: HTMLElement | null;
+  /** The Explorer's open state when the shell owns it (it draws the same column before the first save). */
+  explorer?: ExplorerToggle;
   /** The saved page's board kind: whether the Explorer starts open, and whose remembered choice applies (D2). */
   boardKind?: DeviceType;
   /** Increments after each successful header Save. */
   savedTick: number;
   /** Supplies the header's Save draft / Save & update board while a display shows the page (a state setter). */
   onSaveActionsChange: Dispatch<SetStateAction<((actions: PageBuilderSaveActions) => ReactNode) | undefined>>;
+  /** D4: the hub draft's state for the header meta ("Draft restored · Discard", "Draft saved 7:44 AM"). */
+  onDraftStateChange?: (state: PageBuilderDraftState | undefined) => void;
+}
+
+/** Portals into a workspace slot when the shell gives one; otherwise renders in place. */
+function inSlot(slot: HTMLElement | null | undefined, node: ReactNode) {
+  if (slot === undefined) return node;
+  return slot ? createPortal(node, slot) : null;
 }
 
 function useStatusMessage(ide: CreatorIdeState) {
@@ -92,9 +104,13 @@ export default function CreatorIde({
   pageId,
   builderRef,
   explorerSlot,
+  templateSlot,
+  previewSlot,
+  explorer: explorerProp,
   boardKind = "flagship",
   savedTick,
   onSaveActionsChange,
+  onDraftStateChange,
 }: CreatorIdeProps) {
   const t = useTranslations("creatorIde");
   const locale = useLocale();
@@ -105,22 +121,51 @@ export default function CreatorIde({
   const [tab, setTab] = useState<IdeTabId>("page");
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>("problems");
   const [copyOpen, setCopyOpen] = useState(false);
-  const [explorerOpen, setExplorerOpen] = useExplorerOpen(boardKind);
-  // Focus follows the toggle to its counterpart, so a keyboard reader isn't dropped on <body>.
-  const showExplorerRef = useRef<HTMLButtonElement>(null);
-  const hideExplorerRef = useRef<HTMLButtonElement>(null);
-  const explorerToggled = useRef(false);
-  const toggleExplorer = (open: boolean) => {
-    explorerToggled.current = true;
-    setExplorerOpen(open);
-  };
-  useEffect(() => {
-    if (!explorerToggled.current) return;
-    explorerToggled.current = false;
-    (explorerOpen ? hideExplorerRef : showExplorerRef).current?.focus();
-  }, [explorerOpen]);
+  const ownExplorer = useExplorerToggle(boardKind);
+  const explorer = explorerProp ?? ownExplorer;
   const activeTab = resolveInspectorTab(tab, desktop);
   const references = useMemo(() => templateReferences(ide.builder.snapshot?.template ?? []), [ide.builder.snapshot]);
+
+  // D4: what the header meta says about the hub draft, and (D6) where the page is
+  // live, which is why Save reads "Save draft / Save & update board".
+  const restoredDraft = ide.restoredDraft;
+  // "Draft saved" only when the draft holds exactly these edits; a draft from
+  // elsewhere that autosave leaves alone says so instead (FABLE-2583).
+  const draftSavedAt = ide.draft && ide.builder.unsaved && ide.draftInStep ? ide.draft.saved_at : null;
+  const autosavePaused = ide.autosavePaused;
+  const liveBoard = ide.showsOn.showingNow[0]?.boardName ?? null;
+  const { discardRestored, discardOwnedDraft } = ide;
+  useEffect(() => {
+    if (!onDraftStateChange) return;
+    const live = liveBoard ? t("liveOn", { board: liveBoard }) : undefined;
+    const label = restoredDraft
+      ? restoredDraft.stale
+        ? t("draftRestoredStale")
+        : t("draftRestored")
+      : draftSavedAt
+        ? t("draftSavedAt", { time: formatClock(draftSavedAt, locale) })
+        : autosavePaused
+          ? t("autosavePaused")
+          : undefined;
+    onDraftStateChange({
+      live,
+      liveBoard: liveBoard ?? undefined,
+      label,
+      onDiscard: restoredDraft ? () => void discardRestored() : undefined,
+      discardDraft: discardOwnedDraft,
+    });
+  }, [
+    onDraftStateChange,
+    restoredDraft,
+    draftSavedAt,
+    autosavePaused,
+    liveBoard,
+    discardRestored,
+    discardOwnedDraft,
+    t,
+    locale,
+  ]);
+  useEffect(() => () => onDraftStateChange?.(undefined), [onDraftStateChange]);
 
   const draftOffered = offersDraft(ide.display);
   const { mutate: saveDraftMutate, isPending: savingDraft } = ide.saveDraft;
@@ -192,115 +237,119 @@ export default function CreatorIde({
   const statusMessage = useStatusMessage(ide);
   const draftLabel = ide.draft ? t("draftAt", { time: formatSavedAt(ide.draft.saved_at, locale) }) : undefined;
 
+  // Console and Timeline: the foot of the template column (184:159319).
+  const consoleRegions = (
+    <Stack gap="3" data-slot="ide-template-regions" className="min-w-0">
+      <Card className="gap-0 py-0">
+        <CardContent className="p-3.5">
+          <IdeConsole ide={ide} tab={consoleTab} onTabChange={setConsoleTab} />
+        </CardContent>
+      </Card>
+      <Card className="gap-0 py-0" data-slot="ide-timeline">
+        <CardContent className="flex flex-col gap-1.5 p-3.5">
+          <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
+            {t("timelineLabel", { page: ide.builder.snapshot?.name ?? "", board: ide.currentBoard?.name ?? "" })}
+          </Text>
+          <IdeWeek ide={ide} />
+        </CardContent>
+      </Card>
+    </Stack>
+  );
+  // The status row and the Inspector: the foot of the preview column. Below
+  // 1024 px the one stack of the docked editor, after the preview.
+  const previewRegions = (
+    <Box
+      as="section"
+      aria-label={t("regionLabel")}
+      data-slot="creator-ide"
+      data-layout={desktop ? "desktop" : "compact"}
+      className="flex min-w-0 flex-col gap-3 px-2 pb-24 lg:px-0 lg:pb-0"
+    >
+      <PreviewStatus
+        data-slot="ide-preview-status"
+        display={ide.display}
+        displayLabel={t(`display.${ide.display}`)}
+        message={statusMessage}
+        // A saved page's state is the header's saved time; a Saved chip
+        // here repeated it (BB-E-26, Figma 184:159319 draws none).
+        editState={ide.editState === "saved" ? undefined : ide.editState}
+        editStateLabel={ide.editState === "draft" && draftLabel ? draftLabel : t(`edit.${ide.editState}`)}
+        problems={problemCount}
+        onOpenProblems={openProblems}
+        problemsLabel={(count) => t("problemsLink", { count })}
+        problemsDirection={desktop ? "down" : "right"}
+      />
+      <Card className="gap-0 py-0" id="ide-inspector">
+        <CardContent className="p-3.5">
+          <InspectorTabs
+            aria-label={t("inspector")}
+            tabs={tabs}
+            value={activeTab}
+            onValueChange={(value) => value && setTab(value as IdeTabId)}
+            counts={desktop ? undefined : { problems: problemCount }}
+          >
+            <InspectorTabsContent value="data" className="pt-2">
+              <IdeReferences references={references.variables} emptyLabel={t("noData")} mono />
+            </InspectorTabsContent>
+            <InspectorTabsContent value="logic" className="pt-2">
+              <IdeReferences references={references.formulas} emptyLabel={t("noLogic")} mono />
+            </InspectorTabsContent>
+            {/* Panels that always hold rows are not a Tab stop of their own (BB-E-22): the
+              first row is, so Page duration isn't announced twice. */}
+            <InspectorTabsContent value="page" className="pt-2" tabIndex={-1}>
+              <IdePageTab ide={ide} pageId={pageId} builderRef={builderRef} onMakeCopy={() => setCopyOpen(true)} />
+            </InspectorTabsContent>
+            <InspectorTabsContent value="shows-on" className="pt-2" tabIndex={-1}>
+              <IdeShowsOn
+                ide={ide}
+                pageId={pageId}
+                showWeek={!desktop}
+                onNavigate={(href) => router.push(href)}
+                onMakeCopy={() => setCopyOpen(true)}
+              />
+            </InspectorTabsContent>
+            {!desktop && (
+              <InspectorTabsContent value="problems" className="pt-2">
+                <Stack gap="3">
+                  <IdeProblemList
+                    problems={[...ide.problems, ...ide.warnings]}
+                    emptyLabel={t("noProblems")}
+                    layout="stacked"
+                    size="touch"
+                  />
+                  <IdeSentPanel ide={ide} size="touch" />
+                </Stack>
+              </InspectorTabsContent>
+            )}
+            <InspectorTabsContent value="history" className="pt-2">
+              <IdeHistory ide={ide} pageId={pageId} />
+            </InspectorTabsContent>
+          </InspectorTabs>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+
   return (
     <>
       {explorerSlot &&
         desktop &&
         createPortal(
-          explorerOpen ? (
+          explorer.open ? (
             <IdeExplorer
               ide={ide}
               pageId={pageId}
               references={references}
-              onHide={() => toggleExplorer(false)}
-              hideRef={hideExplorerRef}
+              onHide={explorer.hide}
+              hideRef={explorer.hideRef}
             />
           ) : (
-            <IdeExplorerShow onShow={() => toggleExplorer(true)} buttonRef={showExplorerRef} />
+            <IdeExplorerShow onShow={explorer.show} buttonRef={explorer.showRef} />
           ),
           explorerSlot,
         )}
-      <Box
-        as="section"
-        aria-label={t("regionLabel")}
-        data-slot="creator-ide"
-        data-layout={desktop ? "desktop" : "compact"}
-        // The same two equal columns as the builder above (page-builder.tsx):
-        // Console and Timeline under the template, the Inspector under the
-        // preview. At 2fr the console was ~300px at 1440 and wrapped each
-        // problem onto four lines (BB-B-19).
-        className="grid min-w-0 grid-cols-1 items-start gap-4 px-2 pb-24 lg:grid-cols-2 lg:gap-6 lg:px-4"
-      >
-        {desktop && (
-          <Stack gap="3" className="min-w-0">
-            <Card className="gap-0 py-0">
-              <CardContent className="p-3.5">
-                <IdeConsole ide={ide} tab={consoleTab} onTabChange={setConsoleTab} />
-              </CardContent>
-            </Card>
-            <Card className="gap-0 py-0" data-slot="ide-timeline">
-              <CardContent className="flex flex-col gap-1.5 p-3.5">
-                <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
-                  {t("timelineLabel", { page: ide.builder.snapshot?.name ?? "", board: ide.currentBoard?.name ?? "" })}
-                </Text>
-                <IdeWeek ide={ide} />
-              </CardContent>
-            </Card>
-          </Stack>
-        )}
-        <Stack gap="3" className="min-w-0">
-          <PreviewStatus
-            data-slot="ide-preview-status"
-            display={ide.display}
-            displayLabel={t(`display.${ide.display}`)}
-            message={statusMessage}
-            // A saved page's state is the header's saved time; a Saved chip
-            // here repeated it (BB-E-26, Figma 184:159319 draws none).
-            editState={ide.editState === "saved" ? undefined : ide.editState}
-            editStateLabel={ide.editState === "draft" && draftLabel ? draftLabel : t(`edit.${ide.editState}`)}
-            problems={problemCount}
-            onOpenProblems={openProblems}
-            problemsLabel={(count) => t("problemsLink", { count })}
-            problemsDirection={desktop ? "down" : "right"}
-          />
-          <Card className="gap-0 py-0" id="ide-inspector">
-            <CardContent className="p-3.5">
-              <InspectorTabs
-                aria-label={t("inspector")}
-                tabs={tabs}
-                value={activeTab}
-                onValueChange={(value) => value && setTab(value as IdeTabId)}
-                counts={desktop ? undefined : { problems: problemCount }}
-              >
-                <InspectorTabsContent value="data" className="pt-2">
-                  <IdeReferences references={references.variables} emptyLabel={t("noData")} mono />
-                </InspectorTabsContent>
-                <InspectorTabsContent value="logic" className="pt-2">
-                  <IdeReferences references={references.formulas} emptyLabel={t("noLogic")} mono />
-                </InspectorTabsContent>
-                <InspectorTabsContent value="page" className="pt-2">
-                  <IdePageTab ide={ide} pageId={pageId} builderRef={builderRef} onMakeCopy={() => setCopyOpen(true)} />
-                </InspectorTabsContent>
-                <InspectorTabsContent value="shows-on" className="pt-2">
-                  <IdeShowsOn
-                    ide={ide}
-                    pageId={pageId}
-                    showWeek={!desktop}
-                    onNavigate={(href) => router.push(href)}
-                    onMakeCopy={() => setCopyOpen(true)}
-                  />
-                </InspectorTabsContent>
-                {!desktop && (
-                  <InspectorTabsContent value="problems" className="pt-2">
-                    <Stack gap="3">
-                      <IdeProblemList
-                        problems={[...ide.problems, ...ide.warnings]}
-                        emptyLabel={t("noProblems")}
-                        layout="stacked"
-                        size="touch"
-                      />
-                      <IdeSentPanel ide={ide} size="touch" />
-                    </Stack>
-                  </InspectorTabsContent>
-                )}
-                <InspectorTabsContent value="history" className="pt-2">
-                  <IdeHistory ide={ide} pageId={pageId} />
-                </InspectorTabsContent>
-              </InspectorTabs>
-            </CardContent>
-          </Card>
-        </Stack>
-      </Box>
+      {desktop && inSlot(templateSlot, consoleRegions)}
+      {inSlot(previewSlot, previewRegions)}
       <AlertDialog open={ide.draftConflict} onOpenChange={(open) => !open && ide.dismissDraftConflict()}>
         <AlertDialogContent>
           <AlertDialogHeader>

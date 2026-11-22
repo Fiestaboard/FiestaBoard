@@ -17,6 +17,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import i18n from "@/i18n/i18next";
 
 import { PagesSection } from "../../app/routes/pages";
+import NewPage from "../../app/routes/pages.new";
 
 // The editor inside the real app chrome (BB-E-3, -4): the nav rail, the main
 // column and the Pages section around the production editor shell, so the
@@ -64,6 +65,14 @@ const router = createMemoryRouter(
       children: [
         { path: "/pages", element: <PagesList /> },
         { path: "/pages/edit/:id", element: <Editor /> },
+        {
+          path: "/pages/new",
+          element: (
+            <PagesSection>
+              <NewPage />
+            </PagesSection>
+          ),
+        },
       ],
     },
   ],

@@ -30,7 +30,7 @@ import {
   TruncationMap,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Code2, Plus, Sigma, Trash2 } from "lucide-react";
+import { Code2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
@@ -423,7 +423,7 @@ export function FormulaBuilderCard(props: WorkbenchProps) {
 
   if (!open) return null;
   return (
-    <Card data-testid="formula-builder-card" className="gap-3 border-ring py-3">
+    <Card data-testid="formula-builder-card" className="gap-3 border-2 border-tag-formula py-3">
       <CardContent className="px-4">
         <WorkbenchHeader line={formula?.line ?? null} tab="builder" setOpen={setOpen} />
         <Stack gap="3" className="mt-3">
@@ -455,11 +455,11 @@ export function FormulaBuilderCard(props: WorkbenchProps) {
               </AlertDescription>
             </Alert>
           )}
-          <Flex align="center" justify="between" gap="2" wrap>
-            <Text size="xs" tone="muted">
+          <Flex align="center" justify="between" gap="3">
+            <Text size="xs" tone="muted" className="min-w-0 flex-1">
               {t("builderNote")}
             </Text>
-            <Flex gap="2">
+            <Flex gap="2" className="shrink-0">
               <Button
                 variant="ghost"
                 onClick={() => {
@@ -476,7 +476,6 @@ export function FormulaBuilderCard(props: WorkbenchProps) {
                   setOpen(null);
                 }}
               >
-                <Sigma aria-hidden />
                 {t("updateFormula")}
               </Button>
             </Flex>
@@ -495,7 +494,7 @@ export function GeneratedCodeCard({ open, setOpen }: WorkbenchProps) {
     <Card data-testid="generated-code" className="gap-2 py-4">
       <CardHeader className="px-4">
         <Flex align="center" justify="between" gap="2">
-          <CardTitle as="h3" icon={<Code2 aria-hidden />}>
+          <CardTitle as="h2" icon={<Code2 aria-hidden />}>
             {t("builderWrote")}
           </CardTitle>
           <Button variant="link" size="sm" onClick={() => setOpen((c) => (c ? { ...c, tab: "code" } : c))}>

@@ -187,6 +187,24 @@ describe("one hub-state source", () => {
   });
 
   it("adds no status poll on a single-board install, where the switcher never shows", async () => {
+    // One real display (it has a connection): not the untouched placeholder.
+    server.use(
+      http.get("/api/settings/board", () =>
+        HttpResponse.json({
+          board_type: "black",
+          boards: [
+            {
+              id: "kitchen",
+              name: "Kitchen board",
+              device_type: "flagship",
+              output: "vestaboard",
+              output_config: { host: "192.0.2.10" },
+            },
+          ],
+          devices: ["flagship"],
+        }),
+      ),
+    );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={queryClient}>
@@ -239,5 +257,60 @@ describe("each display's line in the switcher (BB-A-11)", () => {
     const clock = screen.getByRole("option", { name: /Entry clock/ });
     expect(clock).toHaveTextContent("Flagship 22 × 6");
     expect(clock).not.toHaveTextContent("·");
+  });
+});
+
+// BB-FH-10 (07e `343:65200`, `343:66216`): with no display yet the switcher
+// stays, reading "No displays yet" over the hub line.
+describe("the switcher with no displays (BB-FH-10)", () => {
+  function placeholderOnly() {
+    server.use(
+      http.get("/api/settings/board", () =>
+        HttpResponse.json({
+          board_type: "black",
+          boards: [
+            { id: "default", name: "My Board", device_type: "flagship", output: "vestaboard", output_config: {} },
+          ],
+          devices: ["flagship"],
+        }),
+      ),
+    );
+  }
+
+  it.each([
+    ["rail", false],
+    ["phone header", true],
+  ])("the %s shows “No displays yet” with the hub line", async (_where, phone) => {
+    setPhone(phone);
+    placeholderOnly();
+    render(<NavigationSidebar />, { wrapper: Wrapper });
+    const [trigger] = await screen.findAllByRole("combobox", { name: /board/i });
+    expect(trigger.textContent).toContain("No displays yet");
+    await waitFor(() => expect(hubLines()[0]?.textContent).toContain("Online"));
+  });
+
+  // Fable #2594 M1: a board list that failed to load is not "no displays".
+  it("shows no switcher when the board list fails to load", async () => {
+    server.use(http.get("/api/settings/board", () => new HttpResponse(null, { status: 500 })));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <GlobalAiPanelProvider>
+          <SidebarProvider>
+            <CurrentBoardProvider>
+              <ConfigOverridesProvider>
+                <ThemeProvider attribute="class" defaultTheme="light">
+                  <NavigationSidebar />
+                </ThemeProvider>
+              </ConfigOverridesProvider>
+            </CurrentBoardProvider>
+          </SidebarProvider>
+        </GlobalAiPanelProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findAllByRole("link", { name: "Home" });
+    await waitFor(() => expect(queryClient.getQueryState(["boardSettings"])?.status ?? "error").not.toBe("pending"));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(screen.queryByText("No displays yet")).toBeNull();
   });
 });

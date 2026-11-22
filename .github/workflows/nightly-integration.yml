@@ -1,0 +1,94 @@
+name: 'Nightly: v11 Integration Tests (full)'
+
+# Runs the full four-backend integration suite against `v11` every night, so a
+# failure is found the morning after the PR that caused it instead of on the
+# v11 Version PR (changeset-release/v11), the only PR that runs it otherwise.
+#
+# GitHub runs `schedule` from the copy of this file on the DEFAULT branch
+# (main), not from v11, so this file has to exist on main for the cron to
+# fire. It is deliberately a trampoline: it carries no test steps of its own
+# and dispatches integration-tests.yml with `--ref v11`, so the run uses v11's
+# copy of that workflow (its steps, Playwright config and code). main's copy
+# of integration-tests.yml differs from v11's, which is why the steps are not
+# repeated here. The dispatched run checks out v11 and its job is named
+# "Integration Tests (full)".
+#
+# The dispatched run also runs the whole vitest suite with the clock on a
+# Saturday and at a year end (its "UI Tests (clock skew, full suite)" job).
+#
+# This job waits for that run and fails when it fails, so a red nightly is
+# visible both on main's Actions tab (this run) and on v11's (the dispatched
+# run, with its artifacts and annotations).
+
+on:
+  schedule:
+    # 10:17 UTC: early morning in the US. Off the hour to dodge the cron rush.
+    - cron: '17 10 * * *'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch to run the full integration suite on
+        default: v11
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-integration
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Dispatch full integration suite on ${{ inputs.ref || 'v11' }}
+    runs-on: ubuntu-latest
+    # The dispatched suite's job has a 35-minute timeout (23 of it for the
+    # tests). Add up to 5 minutes to find the run and room for queueing.
+    timeout-minutes: 60
+    permissions:
+      # gh workflow run. A workflow_dispatch made with GITHUB_TOKEN does start
+      # a run (it is one of the two events exempt from the no-recursion rule).
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      REF: ${{ inputs.ref || 'v11' }}
+    steps:
+      - name: Dispatch integration-tests.yml on ${{ env.REF }}
+        id: dispatch
+        run: |
+          # A little slack for clock skew between the runner and the API.
+          since=$(date -u -d "-15 seconds" +%Y-%m-%dT%H:%M:%SZ)
+          out=$(gh workflow run integration-tests.yml --ref "$REF" 2>&1) || { echo "$out"; exit 1; }
+          echo "$out"
+          report() {
+            echo "id=$1" >> "$GITHUB_OUTPUT"
+            echo "Full integration suite on \`$REF\`: https://github.com/$GH_REPO/actions/runs/$1" >> "$GITHUB_STEP_SUMMARY"
+          }
+          # Newer gh prints the created run's URL; use its id when it does.
+          id=$(grep -oE '/actions/runs/[0-9]+' <<<"$out" | head -1 | grep -oE '[0-9]+$' || true)
+          if [ -n "$id" ]; then report "$id"; exit 0; fi
+          # Otherwise find it: a dispatch on $REF made by this job's token
+          # (github-actions[bot], so a person's manual dispatch never matches)
+          # after `since`, the oldest such if several.
+          for _ in $(seq 1 30); do
+            sleep 10
+            id=$(gh run list --workflow integration-tests.yml --branch "$REF" \
+              --event workflow_dispatch --user 'github-actions[bot]' --limit 5 \
+              --json databaseId,createdAt \
+              --jq "[.[] | select(.createdAt >= \"$since\")] | last | .databaseId // empty")
+            if [ -n "$id" ]; then report "$id"; exit 0; fi
+          done
+          echo "::error::Dispatched integration-tests.yml on $REF but no run appeared within 5 minutes"
+          exit 1
+
+      - name: Wait for the full suite and mirror its result
+        run: |
+          id='${{ steps.dispatch.outputs.id }}'
+          if ! gh run watch "$id" --exit-status --interval 30 > /dev/null; then
+            conclusion=$(gh run view "$id" --json conclusion --jq .conclusion)
+            echo "::error title=Nightly integration failed on $REF::the dispatched run (Integration Tests (full), clock-skew full suite) concluded '$conclusion': https://github.com/$GH_REPO/actions/runs/$id"
+            echo "**Failed** ($conclusion). Failing tests and artifacts are on the run above." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Passed." >> "$GITHUB_STEP_SUMMARY"

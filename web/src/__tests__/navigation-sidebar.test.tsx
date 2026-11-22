@@ -358,6 +358,21 @@ describe("NavigationSidebar rail", () => {
     const expandButton = screen.getByLabelText("Expand sidebar");
     expect(expandButton).toBeInTheDocument();
   });
+  it("nests Collections inside Pages and draws the hairline before Integrations (07a, BB-FS-2)", () => {
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    // The nest is drawn on the expanded rail only (the collapsed tiles stay flush).
+    const expand = screen.queryByLabelText("Expand sidebar");
+    if (expand) fireEvent.click(expand);
+    const rail = screen.getByRole("complementary", { name: "Main navigation" });
+    const nav = within(rail).getByRole("navigation");
+    expect(within(nav).getByRole("link", { name: "Collections" })).toHaveClass("ms-4");
+    expect(within(nav).getByRole("link", { name: "Pages" })).not.toHaveClass("ms-4");
+    const separators = nav.querySelectorAll('[data-slot="sidebar-nav-separator"]');
+    expect(separators).toHaveLength(1);
+    expect(separators[0].previousElementSibling).toHaveTextContent("Displays");
+    expect(separators[0].nextElementSibling).toHaveTextContent("Integrations");
+  });
 });
 
 describe("NavigationSidebar tablet band (768–1023px)", () => {

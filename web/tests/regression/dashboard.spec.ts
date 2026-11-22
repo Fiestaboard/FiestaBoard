@@ -266,7 +266,7 @@ test.describe("regression: dashboard", () => {
     await mockEmptyHub(page, false);
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: "No displays yet", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Nothing to show on yet", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Add display", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Add a display", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toHaveCount(0);

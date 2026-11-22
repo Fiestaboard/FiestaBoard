@@ -18,9 +18,10 @@ import { http, HttpResponse } from "msw";
 import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { IntegrationsSection } from "../../app/routes/integrations";
 import IntegrationsPage from "../../app/routes/integrations._index";
 import { PluginAutoUpdateSwitch } from "../components/plugin-updates-control";
-import { integrationDesktop } from "./integrations-test-helpers";
+import { integrationDesktop, openIntegrationOptions } from "./integrations-test-helpers";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -95,12 +96,17 @@ describe("Integrations page — output plugins", () => {
 
   it("keeps the switch for the same plugin as a data plugin (control)", async () => {
     mockInstalled("data");
-    renderWithQuery(<IntegrationsPage />);
+    renderWithQuery(
+      <IntegrationsSection>
+        <IntegrationsPage />
+      </IntegrationsSection>,
+    );
 
     const row = await rowFor("Acme Sign");
-    expect(
-      within(screen.getByRole("complementary", { name: "Integration settings" })).getByRole("switch"),
-    ).toBeInTheDocument();
+    // 07d's pane has no switch of its own; it is in the header's menu (BB-FC-9).
+    await within(screen.getByRole("complementary", { name: "Integration settings" })).findByText("Disabled");
+    await openIntegrationOptions(userEvent.setup());
+    expect(await screen.findByRole("menuitemcheckbox", { name: "Enabled" })).toBeInTheDocument();
     expect(within(row).queryByText("Output")).not.toBeInTheDocument();
   });
 
@@ -152,11 +158,15 @@ describe("Integrations page — uninstalling an output plugin a board uses", () 
         HttpResponse.json({ detail: reason }, { status: 400 }),
       ),
     );
-    renderWithQuery(<IntegrationsPage />);
+    renderWithQuery(
+      <IntegrationsSection>
+        <IntegrationsPage />
+      </IntegrationsSection>,
+    );
     const user = userEvent.setup();
 
     const row = await rowFor("Acme Sign");
-    await user.click(screen.getByRole("button", { name: "More options" }));
+    await openIntegrationOptions(user);
     await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
     await user.click(await screen.findByRole("button", { name: /delete/i }));
 
@@ -168,23 +178,31 @@ describe("Integrations page — uninstalling an output plugin a board uses", () 
 describe("Integrations page — a first-party output (required)", () => {
   it("offers its update but no way to uninstall it", async () => {
     mockInstalled("output", { required: true, update_available: true });
-    renderWithQuery(<IntegrationsPage />);
+    renderWithQuery(
+      <IntegrationsSection>
+        <IntegrationsPage />
+      </IntegrationsSection>,
+    );
     const user = userEvent.setup();
 
     const row = await rowFor("Acme Sign");
     expect(within(row).getByText("Update")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "More options" }));
+    await openIntegrationOptions(user);
     expect(await screen.findByRole("menu")).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /delete/i })).not.toBeInTheDocument();
   });
 
   it("still offers uninstall for an output plugin that is not required (control)", async () => {
     mockInstalled("output", { required: false });
-    renderWithQuery(<IntegrationsPage />);
+    renderWithQuery(
+      <IntegrationsSection>
+        <IntegrationsPage />
+      </IntegrationsSection>,
+    );
     const user = userEvent.setup();
 
     const row = await rowFor("Acme Sign");
-    await user.click(screen.getByRole("button", { name: "More options" }));
+    await openIntegrationOptions(user);
     expect(await screen.findByRole("menuitem", { name: /delete/i })).toBeInTheDocument();
   });
 });

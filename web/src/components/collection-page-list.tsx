@@ -214,6 +214,9 @@ function SortableRow({
     <ListRow
       variant="card"
       size={size}
+      // Figma 312:74870: the lifted row keeps the card surface under its 2 px
+      // amber outline; the kit default turns it muted (BB-FP-22, DD-W147).
+      className="in-data-[lifted]:bg-card"
       leading={
         <>
           <SortableListHandle />

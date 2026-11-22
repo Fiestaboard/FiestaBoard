@@ -36,10 +36,10 @@ test.describe("regression: pages.list", () => {
     const id = await createPage("List View Test", ["HELLO", "", "", "", "", ""]);
     await page.goto("/pages");
 
-    const listBtn = page.getByRole("button", { name: "List view", exact: true });
+    const listBtn = page.getByRole("radio", { name: "List", exact: true });
     await expect(listBtn).toBeVisible();
     await listBtn.click();
-    await expect(listBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(listBtn).toHaveAttribute("aria-checked", "true");
 
     const stored = await page.evaluate(() => localStorage.getItem("fiestaboard_pages_view_mode"));
     expect(stored).toBe("list");
@@ -183,14 +183,14 @@ test.describe("regression: pages.list", () => {
   });
 
   /** UX node: pages.list.grid-view */
-  test("pages.list.grid-view — tile click navigates to editor, Grid is aria-pressed", async ({ page }) => {
+  test("pages.list.grid-view — tile click navigates to editor, Grid is checked", async ({ page }) => {
     const id = await createPage("Grid View Test", ["HELLO", "", "", "", "", ""]);
     await page.goto("/pages");
 
-    const gridBtn = page.getByRole("button", { name: "Grid view", exact: true });
+    const gridBtn = page.getByRole("radio", { name: "Grid", exact: true });
     await expect(gridBtn).toBeVisible();
     await gridBtn.click();
-    await expect(gridBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(gridBtn).toHaveAttribute("aria-checked", "true");
 
     const tile = page.getByRole("button", { name: /Grid View Test/i }).first();
     await tile.click();

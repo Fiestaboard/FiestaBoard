@@ -98,6 +98,7 @@ describe("prop-driven state syncs", () => {
           onKeyDown={vi.fn()}
           onRequestEdit={() => true}
           onSave={vi.fn()}
+          onTargetChange={vi.fn()}
           onCancelEdit={vi.fn()}
           onRemove={vi.fn()}
           onDirtyChange={vi.fn()}

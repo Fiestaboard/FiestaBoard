@@ -30,6 +30,8 @@ export interface DevicePreviewProps {
    * the user's animation and flap-speed settings, the Fit / Actual toggle and
    * draw mode's tile hit-testing stay exactly as they were.
    */
+  /** Announce changes through a polite live region (the live board only). */
+  announceUpdates?: boolean;
   children: ReactNode;
 }
 
@@ -52,6 +54,7 @@ export const DevicePreview = memo(function DevicePreview({
   size,
   previewLabel,
   ledLayout,
+  announceUpdates,
   children,
 }: DevicePreviewProps) {
   const t = useTranslations("boardDisplay");
@@ -69,6 +72,7 @@ export const DevicePreview = memo(function DevicePreview({
       previewLabel={previewLabel}
       messageLabel={messageLabel}
       emptyLabel={t("empty")}
+      announceUpdates={announceUpdates}
     />
   );
 });

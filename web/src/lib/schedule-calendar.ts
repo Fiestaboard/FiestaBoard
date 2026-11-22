@@ -6,7 +6,6 @@ import {
   addDays,
   eachDayOfInterval,
   endOfDay,
-  endOfWeek,
   format,
   getDay,
   isSameDay,
@@ -17,6 +16,19 @@ import {
 
 import type { Collection, Page, ScheduleEntry, SilenceMode } from "./api";
 import { isCollectionId } from "./api";
+
+/**
+ * The last moment of the 7-day week that begins at `weekStart`, whichever day
+ * that is: the Schedule passes a Sunday, the editor timeline a Monday (BB-FP-19).
+ */
+function weekEndOf(weekStart: Date): Date {
+  return endOfDay(lastDayOf(weekStart));
+}
+
+/** The last day of the 7-day week that begins at `weekStart`. */
+function lastDayOf(weekStart: Date): Date {
+  return addDays(weekStart, 6);
+}
 
 interface BaseCalendarEvent {
   id: string;
@@ -204,9 +216,7 @@ export function scheduleToCalendarEvents(
   sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
 ): ScheduleCalendarEvent[] {
   const events: ScheduleCalendarEvent[] = [];
-  // Seven days from whatever day the caller's week starts on (Monday on the
-  // 07d week, BB-FC-6; Sunday in the legacy calendar).
-  const weekEnd = addDays(weekStart, 6);
+  const weekEnd = weekEndOf(weekStart);
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const pageName = getPageName(schedule.page_id, pages, collections);
@@ -241,12 +251,14 @@ export function scheduleToCalendarEvents(
       // Split into two events at the midnight boundary
       const nextDay = addDays(day, 1);
 
-      // For a repeating weekly schedule, the last day's morning continuation
-      // wraps to this week's first day instead of next week's.
+      // For a repeating weekly schedule, the week's last day's morning
+      // continuation wraps to this week's first day instead of next week's
+      // (Saturday → Sunday on the Schedule, Sunday → Monday on the editor
+      // timeline; BB-FP-19).
       // Date-specific (annual / one-off) events don't repeat, so the wrap
       // is just the actual next calendar day.
       const recurrence = schedule.recurrence_type || "weekly";
-      const morningDay = recurrence === "weekly" && isSameDay(day, weekEnd) ? weekStart : nextDay;
+      const morningDay = recurrence === "weekly" && isSameDay(day, lastDayOf(weekStart)) ? weekStart : nextDay;
 
       // Evening part: start_time → end of day (23:59:59.999)
       // Use endOfDay instead of midnight-next-day so react-big-calendar
@@ -364,7 +376,7 @@ export function silenceToCalendarEvents(
   if (sH === eH && sM === eM) return [];
 
   const events: SilenceCalendarEvent[] = [];
-  const weekEnd = addDays(weekStart, 6);
+  const weekEnd = weekEndOf(weekStart);
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
   const isMidnightRollover = eH < sH || (eH === sH && eM <= sM);
   const pageName =
@@ -383,10 +395,10 @@ export function silenceToCalendarEvents(
     const eventStart = setMinutes(setHours(day, sH), sM);
 
     if (isMidnightRollover) {
-      // Saturday's morning continuation wraps to this week's Sunday so the
-      // event stays in the visible template view (same trick as regular
+      // The week's last day's morning continuation wraps to its first day so
+      // the event stays in the visible template view (same trick as regular
       // schedule midnight splits).
-      const morningDay = isSameDay(day, weekEnd) ? weekStart : addDays(day, 1);
+      const morningDay = isSameDay(day, lastDayOf(weekStart)) ? weekStart : addDays(day, 1);
 
       events.push({
         id: `silence-${format(day, "yyyy-MM-dd")}-evening`,
@@ -431,7 +443,7 @@ export function getCurrentWeekStart(): Date {
  * Format a date range for the calendar header
  */
 export function formatWeekRange(weekStart: Date): string {
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+  const weekEnd = weekEndOf(weekStart);
   const startMonth = format(weekStart, "MMMM");
   const endMonth = format(weekEnd, "MMMM");
   const year = format(weekStart, "yyyy");

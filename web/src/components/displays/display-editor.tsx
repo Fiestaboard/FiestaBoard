@@ -1,9 +1,11 @@
 "use client";
 
-import { Box, Flex, PageSection, Skeleton, Text } from "@fiestaboard/ui";
-import { Monitor } from "lucide-react";
+import { Box, Button, Flex, PageSection, Skeleton, Stack, Text } from "@fiestaboard/ui";
+import { Monitor, Plus } from "lucide-react";
 
+import { useAddDisplay } from "@/components/displays/add-display-context";
 import { BoardEditor, BoardStatusBadges, BoardSummary, useDisplayBoards } from "@/components/settings/display-settings";
+import Link from "@/components/smart-link";
 import { useTranslations } from "@/i18n/translations";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 
@@ -15,6 +17,8 @@ export function DisplayEditor({ boardId, onRemoved }: { boardId: string; onRemov
   const displays = useDisplayBoards();
   const t = useTranslations("displaySettings");
   const td = useTranslations("displays");
+  const tf = useTranslations("displays.fleet");
+  const openAdd = useAddDisplay();
   const board = displays.boards.find((b) => b.id === boardId);
 
   if (displays.isLoading) {
@@ -26,11 +30,21 @@ export function DisplayEditor({ boardId, onRemoved }: { boardId: string; onRemov
     );
   }
   if (!board) {
+    // BB-A-20: say it is gone and offer the ways forward.
     return (
       <PageSection>
-        <Text tone="muted" data-testid="display-not-found">
-          {td("notFound")}
-        </Text>
+        <Stack gap="4" data-testid="display-not-found">
+          <Text tone="muted">{td("notFound")}</Text>
+          <Flex gap="3" wrap>
+            <Button asChild variant="outline">
+              <Link href="/displays">{tf("back")}</Link>
+            </Button>
+            <Button onClick={() => openAdd()}>
+              <Plus className="size-4" aria-hidden="true" />
+              {td("addDisplay")}
+            </Button>
+          </Flex>
+        </Stack>
       </PageSection>
     );
   }

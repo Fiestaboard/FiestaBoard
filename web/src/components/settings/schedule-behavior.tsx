@@ -28,11 +28,11 @@ import { api, type BoardInstance, type BoardSettings, type SchedulesResponse } f
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
 /** Schedule re-enabling behavior belongs to the explicitly targeted display. */
-export function ScheduleBehavior({ board }: { board: BoardInstance }) {
-  return <BoardScheduleBehavior key={board.id} board={board} />;
+export function ScheduleBehavior({ board, showIcon = true }: { board: BoardInstance; showIcon?: boolean }) {
+  return <BoardScheduleBehavior key={board.id} board={board} showIcon={showIcon} />;
 }
 
-function BoardScheduleBehavior({ board }: { board: BoardInstance }) {
+function BoardScheduleBehavior({ board, showIcon }: { board: BoardInstance; showIcon: boolean }) {
   const t = useTranslations("generalSettings");
   const queryClient = useQueryClient();
   const ts = useTranslations("schedule");
@@ -132,7 +132,7 @@ function BoardScheduleBehavior({ board }: { board: BoardInstance }) {
 
   return (
     <PageSection
-      icon={<CalendarClock />}
+      icon={showIcon ? <CalendarClock /> : undefined}
       title={t("scheduleBehaviorTitle")}
       description={t("scheduleBehaviorDescription")}
       {...anchorProps("settings.schedule_behavior")}

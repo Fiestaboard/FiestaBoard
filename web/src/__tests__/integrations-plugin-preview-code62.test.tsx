@@ -266,7 +266,10 @@ describe("Installed integration board previews", () => {
     const detail = screen.getByRole("complementary", { name: "Integration settings" });
     const board = await within(detail).findByRole("img", { name: /Board display:/i });
     expect(board).toHaveTextContent("52♥FCLEAR");
-    expect(within(detail).getByRole("group", { name: "Board color" })).toBeInTheDocument();
+    // 07d's pane draws the sample with its caption and no controls (BB-FC-9);
+    // the integration's own page keeps the shape and colour controls.
+    expect(within(detail).getByText("Sample page using this integration")).toBeInTheDocument();
+    expect(within(detail).queryByRole("group", { name: "Board color" })).not.toBeInTheDocument();
   });
 
   it("preserves the showcase and its controls using the selected board’s color and code-62 glyph", async () => {

@@ -289,17 +289,22 @@ describe("Settings detail, from the rail breakpoint up", () => {
     renderAt("/settings/appearance");
     expect(await screen.findByRole("heading", { name: "Theme" })).toBeInTheDocument();
     expect(screen.getByText("For this browser only.")).toBeInTheDocument();
-    expect(screen.getByText("Theme for this browser; preview motion for everyone on this hub.")).toBeInTheDocument();
+    // The section's own sentence gave way to the hub meta (07e `333:56102`,
+    // BB-FC-1); the card keeps the browser scope above.
     expect(screen.getByRole("radio", { name: "System" })).toHaveClass("min-h-12");
   });
 
-  it("describes supported motion scope without unsupported reading controls", async () => {
+  it("scopes the 07e Motion and reading card to this browser", async () => {
     renderAt("/settings/accessibility");
-    expect(await screen.findByText("Motion preferences apply to everyone on this hub.")).toBeInTheDocument();
-    const toggle = await screen.findByRole("switch", { name: "Reduce motion" });
-    expect(screen.queryByText("Motion and reading comfort in this browser.")).not.toBeInTheDocument();
-    expect(toggle).toHaveAccessibleDescription("Minimizes animations throughout the interface");
-    expect(screen.queryByRole("switch", { name: "Read board changes aloud" })).not.toBeInTheDocument();
+    expect(await screen.findByText("For this browser.")).toBeInTheDocument();
+    expect(screen.queryByText("Motion preferences apply to everyone on this hub.")).not.toBeInTheDocument();
+    for (const name of [
+      "Reduce motion",
+      "Read board changes aloud",
+      "Larger touch targets",
+      "High-contrast board text",
+    ])
+      expect(await screen.findByRole("switch", { name })).toBeInTheDocument();
   });
 
   it("keeps board previews and flip speed under Appearance", async () => {

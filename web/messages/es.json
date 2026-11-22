@@ -101,7 +101,11 @@
     "about": "Acerca de FiestaBoard",
     "signOut": "Cerrar sesión",
     "popoverLabel": "Menú de cuenta",
-    "account": "Cuenta"
+    "account": "Cuenta",
+    "theme": "Tema",
+    "signOutBrowser": "Cerrar sesión en este navegador",
+    "ownerLine": "{username} · Propietario de {hub}",
+    "updateBadge": "Actualizar a {version}"
   },
   "aboutDialog": {
     "description": "Autoalojado. Tu hub, tus pantallas, tus datos.",
@@ -161,6 +165,7 @@
   "home": {
     "title": "Inicio",
     "description": "Lo que se muestra ahora en tus pantallas y lo que viene después.",
+    "descriptionPhone": "Lo que hay ahora en tus pantallas",
     "noBoardConfigured": "Ningún tablero configurado",
     "noBoardDescription": "Tu tablero aún no está configurado. Conecta tu tablero para comenzar a mostrar contenido.",
     "runSetupWizard": "Ejecutar asistente de configuración",
@@ -303,11 +308,11 @@
   },
   "pages": {
     "title": "Páginas",
-    "description": "Crea y administra contenido para tu tablero",
+    "description": "Todo lo que pueden mostrar tus pantallas. Abre una para editarla o mostrarla ahora.",
     "newPage": "Nueva página",
     "viewModeLabel": "Modo de vista",
-    "gridView": "Vista de cuadrícula",
-    "listView": "Vista de lista",
+    "gridView": "Cuadrícula",
+    "listView": "Lista",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
@@ -328,22 +333,25 @@
     "libraryCount": "{count, plural, one {# página} other {# páginas}}",
     "clearFilter": "Mostrar todas las páginas",
     "searchLabel": "Buscar páginas",
-    "searchPlaceholder": "Buscar nombres o contenido guardado",
+    "searchPlaceholder": "Buscar páginas",
     "searchHint": "Busca nombres y contenido guardado en el filtro de pantalla seleccionado.",
     "clearSearch": "Borrar búsqueda",
     "sortLabel": "Ordenar páginas",
     "sortNameAsc": "Nombre A–Z",
     "sortNameDesc": "Nombre Z–A",
-    "sortCreatedDesc": "Creación más reciente",
-    "sortCreatedAsc": "Creación más antigua",
-    "sortUpdatedDesc": "Actualización más reciente",
-    "sortUpdatedAsc": "Actualización más antigua",
+    "sortCreatedDesc": "Creación, más recientes primero",
+    "sortCreatedAsc": "Creación, más antiguas primero",
+    "sortUpdatedDesc": "Actualización, más recientes primero",
+    "sortUpdatedAsc": "Actualización, más antiguas primero",
     "noMatches": "No hay páginas coincidentes",
     "searchCount": "{count} de {total} páginas",
     "loadError": "No se pudieron cargar las páginas. Se conserva tu búsqueda.",
     "retryLoading": "Reintentar cargar páginas",
     "cardActions": "Acciones de {name}",
     "duplicate": "Duplicar",
+    "cardEdited": "Editada {when}",
+    "cardScheduled": "Programación {time}",
+    "exportShareString": "Exportar código compartido",
     "deletePage": "Eliminar página…",
     "toastDuplicated": "Se creó «{name}»",
     "actionFailed": "No se pudo hacer. Inténtalo de nuevo."
@@ -410,14 +418,14 @@
     "modeRandomLabel": "Selección aleatoria",
     "variableMembershipHint": "These pages can be selected by your rules below.",
     "randomMembershipHint": "Las páginas se muestran en orden aleatorio; el orden aquí no importa.",
-    "variableDefaultLabel": "Default Page",
+    "variableDefaultLabel": "Default",
     "variableDefaultDescription": "Shown when no rule matches.",
     "variableDefaultPlaceholder": "Pick a fallback page",
     "variableDefaultRequired": "Pick a default page before saving.",
     "variableRulesLabel": "Rules",
-    "variableRulesDescription": "Each rule is an expression. The first rule that evaluates truthy wins.",
+    "variableRulesDescription": "Rules are checked top to bottom whenever their values change. The first rule that is true picks the page; if none match, the Default page shows.",
     "variableNoRules": "No rules yet. The default page will always be shown until you add one.",
-    "variableAddRule": "Add Rule",
+    "variableAddRule": "Add rule",
     "variableRemoveRule": "Remove rule",
     "variableExpressionPlaceholder": "e.g. weather.temperature > 80",
     "variableRuleTargetPlaceholder": "Show this page when the expression is true",
@@ -434,8 +442,6 @@
     "variableDiscardConfirm": "Discard",
     "variablePollLabel": "Re-check Interval",
     "variablePollDescription": "How often to re-evaluate rules.",
-    "variableModeBadge": "{count, plural, one {# rule} other {# rules}}",
-    "perPageShort": "per page",
     "variableRuleEditingLabel": "Editing rule {index}",
     "variableRuleUnknownVars": "Unknown variable(s): {vars} — typo, or not registered yet?",
     "variableRuleSyntaxHelp": "Show expression syntax help",
@@ -443,11 +449,7 @@
     "variableRuleHelpFunctionsTitle": "Common functions",
     "variableRuleHelpExamplesTitle": "Examples (click to insert)",
     "variableRuleApplyFix": "Fix",
-    "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Modo de vista",
-    "gridView": "Vista de mosaicos",
-    "listView": "Vista de lista",
     "libraryCount": "{count, plural, one {# carrusel} other {# carruseles}}",
     "removePage": "Quitar {name}",
     "sortLifted": "{name} levantada · posición {position} de {total} · ↑ ↓ para mover, Espacio para soltar, Esc para cancelar",
@@ -494,7 +496,12 @@
     "ruleWhen": "Cuando",
     "ruleShow": "mostrar",
     "ruleActions": "Más acciones para la regla {number}",
-    "savedRuleResult": "Regla guardada · datos en caché",
+    "showingNowBadge": "Mostrándose ahora",
+    "ruleResultNow": "ahora: «{value}» → {result}",
+    "ruleResultNowPlain": "ahora → {result}",
+    "ruleResultAt": "a las {time}: «{value}» → {result}",
+    "ruleResultAtPlain": "a las {time} → {result}",
+    "variableRuleTargetAriaLabel": "Página para la regla {index}",
     "ruleLifted": "Regla {number} levantada · ↑ ↓ mover, Espacio soltar, Esc cancelar",
     "ruleDropped": "Regla colocada en la posición {number}",
     "ruleMoved": "Moviendo la regla a la posición {number}",
@@ -514,7 +521,14 @@
     "safetyUnavailable": "No se pudo cargar el estado de la pantalla. Inténtalo de nuevo antes de mostrar esta colección.",
     "selectedBadge": "Seleccionada",
     "defaultHint": "Si ninguna regla coincide, mostrar",
-    "collectionSettings": "Configuración de la colección"
+    "collectionSettings": "Configuración de la colección",
+    "everyDuration": "cada {duration}",
+    "cardSchedule": "Programación · {schedule}",
+    "notScheduled": "Sin programar",
+    "scheduleSummaryMore": "{summary} · +{count} más",
+    "showingUntil": "{name} · se muestra hasta las {time}",
+    "nextPage": "Siguiente: {name} ({duration})",
+    "collectionRuns": "La colección se muestra {schedule} según la programación"
   },
   "schedule": {
     "title": "Horario",
@@ -525,7 +539,7 @@
     "scheduleMode": "Modo de horario",
     "scheduleModeEnabledDescription": "Habilitado — las páginas rotan automáticamente según el horario",
     "scheduleModeDisabledDescription": "Deshabilitado — las páginas se controlan manualmente",
-    "defaultPageLabel": "Página predeterminada para intervalos vacíos:",
+    "defaultPageLabel": "Página predeterminada para intervalos vacíos",
     "selectDefaultPage": "Selecciona una página predeterminada",
     "noneNoDefault": "Ninguna (sin predeterminada)",
     "conflictsDetected": "Conflictos de horario detectados",
@@ -776,6 +790,10 @@
   },
   "integrations": {
     "detailTabs": "Detalles de integración",
+    "paneMenu": {
+      "enabled": "Activada",
+      "liveValues": "Variables y valores en vivo"
+    },
     "variablesTab": "Variables",
     "readmeTab": "README",
     "readmeUnavailable": "La documentación no está disponible.",
@@ -808,7 +826,7 @@
     "configureDescription": "Configura los ajustes de esta integración",
     "settingsSection": "Configuración",
     "oauth": {
-      "sectionTitle": "Conexión de la cuenta",
+      "sectionTitle": "Cuenta",
       "statusConnected": "Conectado",
       "statusDisconnected": "No conectado",
       "statusReconnect": "Hay que volver a conectar",
@@ -989,6 +1007,12 @@
     "sourceExternalBadge": "Externo",
     "updateAvailableBadge": "Actualización",
     "moreOptionsAriaLabel": "Más opciones",
+    "sectionMenuAriaLabel": "Opciones de integraciones",
+    "detail": {
+      "unlocks": "Desbloquea {count, plural, one {# variable} other {# variables}}",
+      "useInPage": "Usar en una página…",
+      "newPage": "Nueva página"
+    },
     "addInstanceAction": "Añadir instancia",
     "instanceNameInlineLabel": "Nombre de la instancia:",
     "addInstanceInlineHelp": "Crea una nueva instancia independiente de este plugin con su propia configuración. Usa caracteres alfanuméricos, guiones o guiones bajos (1-40 caracteres).",
@@ -1183,8 +1207,7 @@
     },
     "panels": {
       "theme": "Tema",
-      "browserTheme": "Solo para este navegador.",
-      "motionScope": "Las preferencias de movimiento se aplican a todos en este hub."
+      "browserTheme": "Solo para este navegador."
     },
     "fiestabot": {
       "title": "Cambios, panel e historial",
@@ -1222,6 +1245,12 @@
       "phone": "teléfono",
       "computer": "ordenador"
     }
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "description": "No hay nada en {where}. Puede que el enlace tenga un error o que la página se haya movido.",
+    "home": "Ir a Inicio",
+    "help": "Ayuda y documentación"
   },
   "wizard": {
     "welcomeTitle": "Bienvenido a FiestaBoard",
@@ -1503,8 +1532,12 @@
       "finish": "Finalizar configuración"
     },
     "noDisplays": {
-      "title": "Aún no hay pantallas",
-      "description": "Añade tu primera pantalla para empezar a mostrar páginas. Páginas, Programación e Integraciones están listas para cuando quieras.",
+      "title": "Aún no hay dónde mostrar nada",
+      "switcher": "Aún no hay pantallas",
+      "running": "{hub} está en marcha, pero no hay ninguna pantalla conectada.",
+      "runningNoName": "Tu hub está en marcha, pero no hay ninguna pantalla conectada.",
+      "addHint": "Añade tu Vestaboard, una TV o una pantalla LED e Inicio mostrará lo que hay en ella.",
+      "footnote": "Ya puedes crear páginas; esperan en Páginas hasta que se añada una pantalla.",
       "add": "Añadir pantalla",
       "rerun": "Repetir configuración"
     }
@@ -1553,6 +1586,7 @@
   "composeDialog": {
     "title": "Redactar un mensaje",
     "description": "Se muestra en {board} cuando pulses Mostrar ahora. Nada llega al tablero antes.",
+    "descriptionPhone": "Se muestra en {board} (la pantalla de la cabecera) cuando pulses Mostrar ahora.",
     "messageLabel": "Mensaje",
     "messagePlaceholder": "Escribe tu mensaje…",
     "previewLabel": "Vista previa",
@@ -1745,7 +1779,15 @@
     "textMode": "Texto",
     "canvasesMode": "Lienzos",
     "showPreview": "Mostrar vista previa y salida en vivo",
-    "hidePreview": "Ocultar vista previa y salida en vivo"
+    "hidePreview": "Ocultar vista previa y salida en vivo",
+    "discardDialogClose": "Cerrar",
+    "discardChangesSince": "Cambiaste {count, plural, one {1 línea} other {# líneas}} desde las {time}. Si sales ahora, se perderán.",
+    "discardChangesLost": "Si sales ahora, perderás los cambios.",
+    "discardChangesBoardKeeps": "{board} sigue mostrando la versión guardada.",
+    "discardChangesDisplaysKeep": "Las pantallas siguen mostrando la versión guardada.",
+    "discardChangedLabel": "Cambiado",
+    "discardChangedLine": "Línea {line} ({text})",
+    "discardChangedLineEmpty": "Línea {line} (vacía)"
   },
   "displaySettings": {
     "unnamedBoard": "Tablero sin nombre",
@@ -1832,6 +1874,8 @@
       "overrideUntil": "Manual · hasta {time}",
       "pauseDisplay": "Pausar pantalla",
       "pauseHint": "El tablero conserva lo que muestra; la programación sigue ejecutándose en el hub.",
+      "pause": "Pausar",
+      "resume": "Reanudar",
       "diagnostics": "Diagnóstico",
       "changePage": "Cambiar página…",
       "back": "Volver a Pantallas",
@@ -1883,6 +1927,7 @@
     "pauseLabel": "Pausar {name}",
     "resumeLabel": "Reanudar {name}",
     "notFound": "Esta pantalla ya no existe.",
+    "notFoundTitle": "Pantalla no encontrada",
     "previewTitle": "Mostrando ahora",
     "settingsTitle": "Configuración",
     "transition": {
@@ -2135,7 +2180,7 @@
     "boardUpdateIntervalDescription": "Con qué frecuencia el tablero busca actualizaciones de contenido (en segundos)",
     "requiresServiceRestart": "Requiere reinicio del servicio",
     "silenceScheduleLabel": "Horario de silencio",
-    "silenceScheduleDescription": "Evita actualizaciones del tablero durante las horas especificadas",
+    "silenceScheduleDescription": "El horario de silencio de esta pantalla. Los mensajes que llegan mientras está en silencio siguen la opción de abajo.",
     "startTimeLabel": "Hora de inicio",
     "endTimeLabel": "Hora de fin",
     "whenSilenceBegins": "Cuando comienza el silencio",
@@ -2162,7 +2207,7 @@
     "silencePageLabel": "Página de silencio",
     "silencePagePlaceholder": "Selecciona una página...",
     "silencePageHelp": "Esta página se mostrará cuando inicie la programación de silencio. Sus variables no se actualizarán durante el silencio.",
-    "scheduleBehaviorTitle": "Interruptor de programación",
+    "scheduleBehaviorTitle": "Comportamiento de la programación",
     "scheduleBehaviorDescription": "Cómo reacciona el tablero cuando se vuelve a activar el modo programación",
     "deferOnReenable": "Esperar al próximo cambio programado",
     "deferOnReenableHint": "Deja el tablero en su página actual al volver a activar el modo programación, hasta que la programación llegue a su siguiente franja. Desactivado por defecto, así que el tablero se actualiza de inmediato.",
@@ -2396,6 +2441,16 @@
     "dateFormatPreview": "Ahora mismo: {time} el {date}",
     "accessibilityTitle": "Accesibilidad",
     "accessibilityDescription": "Preferencias de movimiento y animación",
+    "motionReadingTitle": "Movimiento y lectura",
+    "motionReadingScope": "Para este navegador.",
+    "reduceMotionBrowserHint": "Sigue el ajuste de tu teléfono. Desactiva el giro de las fichas y la animación del taco saltarín.",
+    "readAloud": "Leer en voz alta los cambios del tablero",
+    "readAloudHint": "Los lectores de pantalla anuncian lo que cambió en el tablero, línea por línea.",
+    "largeTargets": "Áreas táctiles más grandes",
+    "largeTargetsHint": "Filas y botones de 48 px en todas partes.",
+    "boardContrast": "Texto del tablero de alto contraste",
+    "boardContrastHint": "Caracteres más brillantes sobre el tablero negro.",
+    "hubReduceMotionOn": "Reducir movimiento está activado para todos en este hub. Cámbialo en Apariencia › Detalles de movimiento.",
     "reduceMotion": "Reducir movimiento",
     "reduceMotionHint": "Minimiza las animaciones en toda la interfaz",
     "welcomeTitle": "Mensaje de bienvenida",
@@ -2408,20 +2463,18 @@
     "welcomeSendError": "Error al enviar",
     "welcomeDefault": "Déjalo vacío para usar el saludo predeterminado",
     "timezoneLabel": "Zona horaria",
-    "animationsTitle": "Gráficos y vistas previas",
-    "animationsDescription": "Controla el movimiento en toda la aplicación. Estas preferencias se aplican a todas las vistas previas en pantalla.",
-    "boardAnimationsLabel": "Vistas previas del tablero",
-    "boardAnimationsHint": "El giro de paletas cuando cambian las casillas",
-    "boardAnimationsOn": "Activadas",
-    "boardAnimationsDesktop": "Solo escritorio",
-    "boardAnimationsOff": "Desactivadas",
-    "boardAnimationsOnHint": "Animar en todas partes",
-    "boardAnimationsDesktopHint": "Omitir la animación de paletas en teléfonos y tabletas",
-    "boardAnimationsOffHint": "No animar nunca; las casillas cambian al instante",
-    "siteAnimationsLabel": "Animaciones del sitio",
     "siteAnimationsHint": "Transiciones, efectos al pasar el ratón y otro movimiento de la interfaz",
-    "siteAnimationsOn": "Activadas",
-    "siteAnimationsOff": "Desactivadas",
+    "boardsTitle": "Tableros",
+    "animateTileFlips": "Animar el giro de las fichas",
+    "animateTileFlipsHint": "Las vistas previas giran como el tablero real.",
+    "homeColorStrip": "Mostrar la franja de colores en Inicio",
+    "motionDetailsTitle": "Detalles de movimiento",
+    "motionDetailsDescription": "Para todos en este hub.",
+    "boardAnimationsDesktopOnly": "Solo en pantallas más anchas",
+    "boardAnimationsDesktopOnlyHint": "En móviles y ventanas estrechas, las fichas cambian sin girar.",
+    "siteAnimationsSwitch": "Animar el resto de la app",
+    "hubReduceMotion": "Reducir el movimiento para todos",
+    "hubReduceMotionHint": "Desactiva el giro de fichas y las animaciones de la app en todos los navegadores de este hub.",
     "animationsReduceMotionOverride": "Reducir movimiento está activado, lo que anula estos ajustes.",
     "flapSpeedLabel": "Velocidad de giro",
     "flapSpeedHint": "Elige el ritmo de las vistas previas de paneles de paletas de esta aplicación.",
@@ -2611,6 +2664,7 @@
     "boardPreviewLabel": "{name} en un panel split-flap",
     "boardShapeLabel": "Formato del panel",
     "boardColorLabel": "Color del panel",
+    "sampleCaption": "Página de ejemplo con esta integración",
     "blackBoard": "Panel negro",
     "whiteBoard": "Panel blanco",
     "deviceFlagship": "Flagship",
@@ -2761,7 +2815,11 @@
     "clickToEditFormula": "Haz clic para editar la fórmula",
     "newFormula": "nueva fórmula",
     "loading": "Cargando…",
-    "dialogLabel": "Editor de fórmulas"
+    "dialogLabel": "Editor de fórmulas",
+    "sheetTitle": "Fórmula",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} es {value} ahora",
+    "resultColumns": "{used} de {cols} columnas"
   },
   "templateEditor": {
     "variables": "Variables",
@@ -3840,7 +3898,9 @@
     "replay": "Repetir",
     "replayHint": "Reproducir la animación de paletas",
     "previewTarget": "Destino de la vista previa",
-    "previewTargetTrigger": "Vista previa en {target}"
+    "previewTargetTrigger": "Vista previa en {target}",
+    "discardDraft": "Descartar",
+    "lastSaved": "guardado por última vez {time}"
   },
   "phonePairing": {
     "title": "Conectar un teléfono",
@@ -4021,13 +4081,15 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} puntos",
     "layerMetaText": "Fuente {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} cortados"
   },
   "creatorIde": {
     "regionLabel": "IDE del creador",
     "explorer": "Explorador",
     "showExplorer": "Mostrar el explorador",
     "hideExplorer": "Ocultar el explorador",
+    "explorerAfterSave": "Las pantallas y partes de esta página aparecen aquí cuando la guardes.",
     "inspector": "Inspector",
     "console": "Consola",
     "snippetsGroup": "Fragmentos",
@@ -4212,7 +4274,14 @@
     "replaceDraft": "Reemplazar borrador",
     "draftConflictTitle": "¿Reemplazar el borrador más reciente?",
     "draftConflictDescription": "Otro dispositivo guardó el borrador de esta página después de que la abrieras. Si lo reemplazas, solo se conserva lo que hay en este editor.",
-    "legendLabel": "Entradas de la programación"
+    "legendLabel": "Entradas de la programación",
+    "draftRestored": "Borrador restaurado",
+    "draftRestoredStale": "Borrador restaurado · la página cambió desde entonces",
+    "draftSavedAt": "Borrador guardado {time}",
+    "liveOn": "En vivo en {board}",
+    "deletePage": "Eliminar página…",
+    "deletePageDetail": "La quita de todas las programaciones y colecciones",
+    "autosavePaused": "Sin guardar · un borrador de otro lugar espera en Historial"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4354,6 +4423,7 @@
     "fits": "Cabe",
     "doesNotFit": "No cabe",
     "fitReport": "La línea {line} ocupa {widest} de {cols} columnas",
-    "nothingCut": "nada cortado"
+    "nothingCut": "nada cortado",
+    "missingOff": "{plugin} está desactivado en Integraciones"
   }
 }

@@ -442,7 +442,7 @@ test.describe("regression: schedule.calendar", () => {
    * Expected:
    *   - Calendar week view (Sun-Sat) renders with no events
    *   - Clicking an empty slot seeds prefillData and opens the create form
-   *   - Add Schedule toolbar button works from empty state
+   *   - Add entry toolbar button works from empty state
    *   - View-mode List toggle returns to schedule.list.empty
    * Source refs: web/src/app/schedule/components/schedule-calendar-view.tsx
    * Coverage status: uncovered  (from .claude/ux-coverage.json)
@@ -454,7 +454,7 @@ test.describe("regression: schedule.calendar", () => {
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
     await expect(page.getByText("No schedules created yet", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add Schedule", exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add entry", exact: true }).first()).toBeVisible();
   });
 });
 

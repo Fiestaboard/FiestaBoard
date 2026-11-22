@@ -583,6 +583,15 @@ class PluginData(BaseModel):
     error: str | None = Field(default=None, description="Why the data is unavailable, when it is.")
 
 
+class DisabledPluginSample(BaseModel):
+    """One installed-but-off plugin in ``GET /v1/variables``' ``disabled_plugins``."""
+
+    name: str = Field(description="The plugin's display name, e.g. 'Date & Time'.")
+    examples: dict[str, str] = Field(
+        default_factory=dict, description="Declared example value per scalar field, for Sample previews."
+    )
+
+
 class VariableCatalog(BaseModel):
     """``GET /v1/variables`` — every name a template may use, from both sources.
 
@@ -602,6 +611,13 @@ class VariableCatalog(BaseModel):
     formatting: dict[str, Any] = Field(description="Layout helpers such as fill_space.")
     syntax_examples: dict[str, str] = Field(description="Worked examples of the template syntax.")
     plugin_system_enabled: bool = Field(description="False when the plugin subsystem is unavailable on this install.")
+    disabled_plugins: dict[str, DisabledPluginSample] = Field(
+        default_factory=dict,
+        description=(
+            "Installed plugins that are switched off, with their declared example values. Not part of "
+            "`variables`: a template that reads one renders `???` until it is turned on."
+        ),
+    )
 
 
 class RenderRequest(BaseModel):

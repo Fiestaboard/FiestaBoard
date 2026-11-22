@@ -146,7 +146,10 @@ function serializeNodeContent(node: JSONContent): string {
       return `{{${node.attrs?.text}|wrap}}`;
 
     case "formula":
-      return `{{= ${node.attrs?.expression} }}`;
+      // A formula the user hasn't confirmed yet (the toolbar inserts an empty
+      // one while its editor is open) is not content: it would mark the page
+      // Unsaved before anything was chosen (BB-FP-14).
+      return String(node.attrs?.expression ?? "").trim() ? `{{= ${node.attrs?.expression} }}` : "";
 
     default:
       return "";

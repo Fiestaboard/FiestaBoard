@@ -26,6 +26,7 @@ import {
   SheetTitle,
   Stack,
   Text,
+  Textarea,
 } from "@fiestaboard/ui";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock, Save } from "lucide-react";
@@ -38,7 +39,6 @@ import { defaultDurationChoice, DurationStep } from "@/components/home/duration-
 import { type DurationChoice, durationMinutes, type ScheduleNextChange } from "@/components/home/home-status";
 import { dismissOverrideUndo, nudgeDisplay, useRefreshHomeStatus } from "@/components/home/use-home-data";
 import { PHONE_QUERY, useMediaQuery } from "@/components/home/use-media-query";
-import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { SilenceNotice } from "@/components/silence-notice";
 import Link from "@/components/smart-link";
@@ -149,6 +149,7 @@ export function ComposePageDialog({
   const messageId = useId();
   const pageNameId = useId();
   const showOnId = useId();
+  const countId = useId();
   const refresh = useRefreshHomeStatus();
   const boardLabel = targetBoardLabel ?? "";
 
@@ -323,14 +324,21 @@ export function ComposePageDialog({
   // one, so the duration choice is part of the flow, not below an inner
   // scroller's fold (BB-A-3). Wider screens keep the dialog.
   const buttonSize = isPhone ? ("touch" as const) : undefined;
+  // BB-FH-2 (07a "Typing"): open with the caret in Message. The default lands
+  // on the first control, the Show on select, where typing typeahead-picks
+  // another display.
+  const focusMessage = () => document.getElementById(messageId);
   const header = {
     title: t("title"),
-    description: boardLabel ? t("description", { board: boardLabel }) : t("descriptionNoBoard"),
+    // 07a `310:25531`: a phone has no Show on; it names the header's display.
+    description: boardLabel
+      ? t(isPhone ? "descriptionPhone" : "description", { board: boardLabel })
+      : t("descriptionNoBoard"),
   };
   const body = (
     <Stack gap="4" className={isPhone ? "pb-2" : "min-h-0 overflow-y-auto py-2"}>
       <HomeConnectionNotice composing />
-      {showOn && (
+      {showOn && !isPhone && (
         <Stack gap="2">
           <Label htmlFor={showOnId}>{t("showOn")}</Label>
           <Select value={showOn.value} onValueChange={(v) => showOn.onValueChange(String(v))}>
@@ -373,30 +381,33 @@ export function ComposePageDialog({
 
       <Stack gap="2">
         <Label htmlFor={messageId}>{t("messageLabel")}</Label>
-        <PlainTextEditor
+        {/* 07a `311:72982` / `310:25531`: a plain 3-line Textarea in the
+            app's sans, as typed — not the template editor (BB-FH-1, -3). */}
+        <Textarea
           id={messageId}
           value={text}
-          onChange={setText}
+          onChange={(e) => setText(e.target.value)}
           placeholder={t("messagePlaceholder")}
-          boardLines={dims.rows}
-          boardWidth={dims.cols}
-          help={
-            // 07a's one line: "3 of 6 lines · longest line 12 of 22
-            // characters · board shows capitals".
-            <Text size="xs" tone="muted" className="mt-1">
-              {[
-                t("countLines", { lines: lines.length, max: dims.rows }),
-                t("countLongest", {
-                  longest: lines.reduce((m, l) => Math.max(m, l.length), 0),
-                  width: dims.cols,
-                }),
-                showsCapitals ? t("countCapitals") : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </Text>
-          }
+          rows={3}
+          // 07a's 80 px field (510×80): three 20 px lines plus padding.
+          className="min-h-20"
+          aria-describedby={isPhone ? undefined : countId}
         />
+        {/* 07a's one line on desktop; the phone sheet draws none. */}
+        {!isPhone && (
+          <Text id={countId} size="xs" tone="muted">
+            {[
+              t("countLines", { lines: lines.length, max: dims.rows }),
+              t("countLongest", {
+                longest: lines.reduce((m, l) => Math.max(m, l.length), 0),
+                width: dims.cols,
+              }),
+              showsCapitals ? t("countCapitals") : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </Text>
+        )}
         {isOverLimit && (
           <Text size="xs" className="text-warning font-medium" role="alert">
             {t("tooManyLines", { max: dims.rows })}
@@ -412,14 +423,15 @@ export function ComposePageDialog({
             {boardLabel ? t("notSentYetOn", { board: boardLabel }) : t("notSentYet")}
           </Text>
         </Flex>
-        {/* On a phone the preview runs edge to edge in the kit's phone-hero
-            placement, so a Flagship shows whole without Fit/Actual (BB-A-3). */}
-        <Box className={isPhone ? "-mx-4 min-w-0" : "contents"}>
+        {/* The kit's Tile sm hero placement: on a phone it runs edge to edge
+            so a Flagship shows whole without Fit/Actual (BB-A-3); in the
+            dialog the bezel hugs the board, centred (07a `311:72982`
+            "Board (Tile sm, not scaled)", BB-FH-1). */}
+        <Box className={isPhone ? "-mx-4 min-w-0" : "flex min-w-0 justify-center"}>
           <DevicePreview model={model} ledLayout={ledLayout} message={previewMessage} size="sm">
             <ScaledBoardDisplay
               message={previewMessage}
-              size={isPhone ? undefined : "sm"}
-              layout={isPhone ? "phone-hero" : undefined}
+              layout="phone-hero"
               boardType={boardColor}
               deviceType={deviceType}
               notesWide={notesWide}
@@ -464,51 +476,51 @@ export function ComposePageDialog({
       )}
     </Stack>
   );
-  const actions = (
-    <>
-      <Button
-        variant="ghost"
-        size={buttonSize}
-        onClick={() => onOpenChange(false)}
-        disabled={sendMutation.isPending || holdMutation.isPending}
-      >
-        {t("cancel")}
-      </Button>
-      {!showSaveForm && (
-        <Button variant="outline" size={buttonSize} onClick={() => setShowSaveForm(true)} disabled={isEmpty}>
-          <Save className="mr-1.5 h-4 w-4" />
-          {t("saveAsPage")}
-        </Button>
-      )}
-      {/* During silence the send is named for what it does: it wakes the
-              board (#949). With holds on, Hold is the primary action, last. */}
-      <Button
-        variant={silence?.holds ? "outline" : "default"}
-        size={buttonSize}
-        onClick={handleSend}
-        disabled={sendsDisabled || !canSend || sendMutation.isPending || holdMutation.isPending}
-        data-testid={silence ? "compose-send-anyway" : undefined}
-      >
-        {sendMutation.isPending ? t("sending") : t("send")}
-      </Button>
-      {silence?.holds && (
-        <Button
-          size={buttonSize}
-          onClick={handleHold}
-          disabled={sendsDisabled || !canSend || holdMutation.isPending || sendMutation.isPending}
-          data-testid="compose-hold"
-        >
-          <Clock className="mr-1.5 h-4 w-4" />
-          {holdMutation.isPending ? t("holding") : silence.until ? t("hold", { time: silence.until }) : t("holdNoTime")}
-        </Button>
-      )}
-    </>
+  const cancelButton = (
+    <Button
+      variant="ghost"
+      size={buttonSize}
+      onClick={() => onOpenChange(false)}
+      disabled={sendMutation.isPending || holdMutation.isPending}
+    >
+      {t("cancel")}
+    </Button>
+  );
+  const saveButton = !showSaveForm && (
+    <Button variant="outline" size={buttonSize} onClick={() => setShowSaveForm(true)} disabled={isEmpty}>
+      <Save className="mr-1.5 h-4 w-4" />
+      {t("saveAsPage")}
+    </Button>
+  );
+  // During silence the send is named for what it does: it wakes the board
+  // (#949). With holds on, Hold is the primary action.
+  const sendButton = (
+    <Button
+      variant={silence?.holds ? "outline" : "default"}
+      size={buttonSize}
+      onClick={handleSend}
+      disabled={sendsDisabled || !canSend || sendMutation.isPending || holdMutation.isPending}
+      data-testid={silence ? "compose-send-anyway" : undefined}
+    >
+      {sendMutation.isPending ? t("sending") : t("send")}
+    </Button>
+  );
+  const holdButton = silence?.holds && (
+    <Button
+      size={buttonSize}
+      onClick={handleHold}
+      disabled={sendsDisabled || !canSend || holdMutation.isPending || sendMutation.isPending}
+      data-testid="compose-hold"
+    >
+      <Clock className="mr-1.5 h-4 w-4" />
+      {holdMutation.isPending ? t("holding") : silence.until ? t("hold", { time: silence.until }) : t("holdNoTime")}
+    </Button>
   );
 
   if (isPhone) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" grabber className="max-h-[92dvh]">
+        <SheetContent side="bottom" grabber className="max-h-[92dvh]" initialFocus={focusMessage}>
           <SheetHeader className="pe-12 text-start">
             <SheetTitle>{header.title}</SheetTitle>
             <SheetDescription>{header.description}</SheetDescription>
@@ -519,10 +531,15 @@ export function ComposePageDialog({
               {tb("sendReason")}
             </Text>
           )}
-          {/* 07a `310:25531`: Show now comes last, after the duration
-              choice, in the one scrolling flow — never pinned above it. */}
+          {/* 07a `310:25531`: one full-width Show now after the duration
+              choice, in the one scrolling flow — never pinned above it. The
+              primary comes first so it sits above the fold (BB-FH-3); the
+              sheet's close and grabber dismiss it, so there is no Cancel.
+              Save as Page stays below it (DD-W51). */}
           <Stack gap="2" className="pb-2 [&>button]:w-full" data-slot="compose-actions">
-            {actions}
+            {holdButton}
+            {sendButton}
+            {saveButton}
           </Stack>
         </SheetContent>
       </Sheet>
@@ -531,7 +548,9 @@ export function ComposePageDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      {/* 07a `311:72982`: the 560 px Dialog shell, 20 px title and 40 px close
+          (BB-FH-1, BB-FH-4). */}
+      <DialogContent variant="wide" className="max-h-[90vh] flex flex-col overflow-hidden" initialFocus={focusMessage}>
         <DialogHeader className="shrink-0">
           <DialogTitle>{header.title}</DialogTitle>
           <DialogDescription>{header.description}</DialogDescription>
@@ -544,7 +563,14 @@ export function ComposePageDialog({
             {tb("sendReason")}
           </Text>
         )}
-        <DialogFooter className="shrink-0 flex-wrap pt-2">{actions}</DialogFooter>
+        {/* 07a draws Cancel · Show now at the right edge; the wide shell's
+            footer starts left. */}
+        <DialogFooter className="shrink-0 flex-wrap pt-2 sm:group-data-[variant=wide]/dialog:justify-end">
+          {cancelButton}
+          {saveButton}
+          {sendButton}
+          {holdButton}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
