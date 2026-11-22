@@ -1147,9 +1147,13 @@ function UnsavedSettingsGuard({ dirty, leaving }: { dirty: boolean; leaving: Ref
   );
 }
 
-/** The desktop pane's stand-in for Tabs and the Settings panel: 07d draws it without tabs (BB-FC-9). */
+/** The desktop pane's stand-in for Tabs: 07d draws the pane without tabs (BB-FC-9). */
 function PaneBody({ children }: { children?: ReactNode }) {
   return <>{children}</>;
+}
+/** ...and for the Settings panel: one block under the title, as the panel is on the page. */
+function PaneSettings({ children }: { children?: ReactNode }) {
+  return <Box className="min-w-0">{children}</Box>;
 }
 /** ...and for the Variables and README panels, which live on the integration's own page. */
 function PaneOmitted() {
@@ -1608,7 +1612,7 @@ export function InstalledPluginRow({
     </>
   ));
   const DetailTabs = (fullPage ? Tabs : PaneBody) as typeof Tabs;
-  const SettingsPanel = (fullPage ? TabsContent : PaneBody) as typeof TabsContent;
+  const SettingsPanel = (fullPage ? TabsContent : PaneSettings) as typeof TabsContent;
   const FullPagePanel = (fullPage ? TabsContent : PaneOmitted) as typeof TabsContent;
   const configContent = (
     <>
@@ -1931,6 +1935,8 @@ export function InstalledPluginRow({
         className={cn(
           "min-w-0 overflow-x-auto",
           detailTab === "readme" ? "border-0 bg-transparent shadow-none p-0" : "p-5",
+          // 07d: the sample sits 12 under the pane's title row.
+          !fullPage && "gap-3",
         )}
       >
         <Flex justify="between" align="center" gap="3" wrap>

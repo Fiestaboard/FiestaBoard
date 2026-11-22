@@ -28,6 +28,9 @@ test.describe("Integration detail pane at 1440 (BB-FC-9, Figma 324:40267)", () =
       expect(Math.abs(titleBox.y + titleBox.height / 2 - (badgeBox.y + badgeBox.height / 2))).toBeLessThan(3);
       expect(Math.abs(cardBox.right - 20 - badgeBox.right)).toBeLessThan(3);
       expect(Math.round(badgeBox.height)).toBe(22);
+      // 07d: the sample starts 12 under the title row (Figma 11).
+      const body = await rect(pane(page).locator("[data-slot=card] > :nth-child(2)").first());
+      expect(Math.abs(body.top - Math.max(titleBox.bottom, badgeBox.bottom) - 12)).toBeLessThanOrEqual(2);
       expect(await badge.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/mono/i);
       // No switch, "…", version chips or tab strip in the pane.
       await expect(pane(page).getByRole("tablist")).toHaveCount(0);
