@@ -1,5 +1,13 @@
 # fiestaboard
 
+## 11.0.0-alpha.14
+
+### Minor Changes
+
+- [#2627](https://github.com/Fiestaboard/FiestaBoard/pull/2627) [`a9b3b27`](https://github.com/Fiestaboard/FiestaBoard/commit/a9b3b27e837cbd392f938252bb840638fde18467) Thanks [@jeffredodd](https://github.com/jeffredodd)! - An integration's settings now follow the Integrations design: the sample board carries a "Sample page using this integration" caption, settings groups sit under mono section labels (Account, Settings, a manifest's own sections) with switches at the end of their rows, the variables a plugin unlocks show as chips, and an outline "Use in a page…" button offers a new page or the plugin's demo page in place of the old Demo Page box.
+
+- [#2630](https://github.com/Fiestaboard/FiestaBoard/pull/2630) [`8e4919c`](https://github.com/Fiestaboard/FiestaBoard/commit/8e4919cd860a4a830df891e66dfca356364ecaa9) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The selected integration's panel on the Integrations page is titled with its status as a badge (Configured, Setup Required, …) and drops its tab strip, switch and version chips; the version, the Enabled switch, README, variables and live values, and the integration's other actions are in the page's "Integration options" menu while it is open.
+
 ## 11.0.0-alpha.13
 
 ### Minor Changes
