@@ -156,18 +156,15 @@ html {
   border-top-width: 0;
   padding: 0 0 var(--page-gap);
 }
-/* A block after a block, whether a sibling or the first block inside the
-   next wrapper (a section under a tab strip's TabsContent). */
+/* Whatever follows one of the page's blocks, as a sibling, starts one gap
+   below it: the next block, a tab strip's TabsContent, Settings' columns
+   under the update banner. Siblings only, so nothing deeper is pushed. */
 .page-flat
-  :is([data-slot="page-toolbar"], [data-slot="page-section"])
-  ~ :is([data-slot="page-toolbar"], [data-slot="page-section"]),
-.page-flat
-  :is([data-slot="page-toolbar"], [data-slot="page-section"])
-  ~ *
-  :is([data-slot="page-toolbar"], [data-slot="page-section"]):first-child {
-  &:not(:is([data-slot="card"], [data-slot="page-card"]:not(.page-flat)) *) {
-    margin-top: var(--page-gap);
-  }
+  :is([data-slot="page-toolbar"], [data-slot="page-section"]):not(
+    :is([data-slot="card"], [data-slot="page-card"]:not(.page-flat)) *
+  )
+  ~ * {
+  margin-top: var(--page-gap);
 }
 
 /* Interactive card hover feedback */

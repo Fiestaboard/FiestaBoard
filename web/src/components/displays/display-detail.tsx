@@ -87,7 +87,7 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
 
   return (
     <Tabs value={section} onValueChange={changeSection}>
-      <PageSection className={embedded ? "px-0 py-0" : "py-3"}>
+      <PageSection className={embedded ? "px-0 py-0" : undefined}>
         {/* 07d `320:18175`: the header row carries the display's Pause and
             Change Page…; the trail above is the way back, so no back button
             stacks over the tabs (BB-FH-5). The phone keeps Overview's. */}
@@ -114,7 +114,7 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
           <PageSection
             icon={embedded || phone ? undefined : <Eye />}
             title={embedded || phone ? undefined : t("previewTitle")}
-            className={embedded ? "border-0 px-0 py-3" : phone ? "border-0 px-0" : undefined}
+            className={embedded ? "border-0 px-0 py-3" : undefined}
           >
             {/* Another app wrote to this display (issue #1945) — the banner Home
               shows, for this board. It reads the board-state query the
@@ -177,7 +177,7 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
         {/* A FiestaPanel's own controls: TV size and fit, viewer URL / QR,
           live TV preview, the FiestaPi HDMI kiosk. */}
         {board && isVirtualBoard(board) && (
-          <Box data-testid="display-panel-settings" className="p-4">
+          <Box data-testid="display-panel-settings">
             <FiestaPanelSettings
               boardId={board.id}
               onDeleted={backToList}
@@ -212,7 +212,7 @@ export function DisplayDetail({ boardId, embedded = false }: { boardId: string; 
           role="region"
           aria-label={t("tabPlayback")}
           gap="5"
-          className="p-4 lg:grid-cols-[minmax(0,1.54fr)_minmax(0,1fr)]"
+          className="lg:grid-cols-[minmax(0,1.54fr)_minmax(0,1fr)]"
         >
           <Stack gap="5" className="min-w-0">
             <Card className="gap-0 py-0">

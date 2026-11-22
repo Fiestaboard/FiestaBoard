@@ -90,6 +90,16 @@ window.fetch = async (input, init) => {
   else if (path === "/settings/all")
     value = { display: {}, general: { timezone: "America/Los_Angeles" }, silence_schedule: { config: {} } };
   else if (path === "/staff-picks") value = [];
+  else if (path === "/system/update-check")
+    value = {
+      current_version: "11.0.0",
+      latest_version: params.get("update") ? "11.1.0" : "11.0.0",
+      update_available: !!params.get("update"),
+      package_url: "",
+      error: null,
+      is_production: true,
+    };
+  else if (path === "/system/update/status") value = { updater_available: false, auto_update_enabled: false };
   else if (path.startsWith("/templates/render")) value = { lines: [], rendered: "", line_count: 0 };
   else if (path.endsWith("/current-message"))
     value = { message: "", characters: Array.from({ length: 6 }, () => Array(22).fill(0)), rows: 6, cols: 22 };
