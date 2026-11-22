@@ -69,6 +69,11 @@ describe("Schedule workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Schedule" }));
     expect(props.onCreate).toHaveBeenCalled();
   });
+  it("keeps the seven-day strip on the scrolling pills (kit alpha.5 defaults to the fixed tray, BB-FC-4)", () => {
+    setup(undefined, { view: "day" });
+    const strip = screen.getByRole("radiogroup", { name: "Choose a day" });
+    expect(strip).toHaveClass("overflow-x-auto");
+  });
   it("selects a calendar occurrence and edits the original stored entry", () => {
     const props = setup();
     fireEvent.click(screen.getAllByRole("button", { name: /Morning page/ })[0]);

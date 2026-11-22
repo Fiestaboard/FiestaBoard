@@ -1,5 +1,6 @@
-// Inspect (04c C3): outlines the rows a token fills (dashed) and the clicked
-// tile (solid) over the preview board. Geometry comes from the board's own
+// Inspect (04c C3, Figma 132:20145): outlines the rows a token fills and the clicked
+// tile over the preview board. Both sit above the board (z-10): the board's
+// scaled viewport is a transformed layer that otherwise paints over them (BB-FP-16). Geometry comes from the board's own
 // tiles (`emitCellMetadata`), so the outline follows any scale or layout.
 // TODO(FiestaUI): a BoardDisplay `highlightCells` slot would own this (DD-W row).
 
@@ -72,7 +73,7 @@ export function BoardCellHighlight({ containerRef, cells, selected }: BoardCellH
         <Box
           aria-hidden
           data-testid="inspect-band"
-          className="pointer-events-none absolute rounded-md border-2 border-dashed border-ring"
+          className="pointer-events-none absolute z-10 rounded-md border-2 border-ring"
           style={style(rects.band)}
         />
       )}
@@ -80,7 +81,7 @@ export function BoardCellHighlight({ containerRef, cells, selected }: BoardCellH
         <Box
           aria-hidden
           data-testid="inspect-cell"
-          className="pointer-events-none absolute rounded-sm border-2 border-ring"
+          className="pointer-events-none absolute z-10 rounded-sm border-2 border-ring"
           style={style(rects.cell)}
         />
       )}

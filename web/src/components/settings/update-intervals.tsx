@@ -17,11 +17,11 @@ import { isPluginOutputBoard, isVirtualBoard } from "./output-boards";
 type IntervalFieldName = keyof PollingSettings;
 
 /** A required target keeps these controls independent of the sidebar selection. */
-export function UpdateIntervals({ board }: { board: BoardInstance }) {
-  return <BoardUpdateIntervals key={board.id} board={board} />;
+export function UpdateIntervals({ board, showIcon = true }: { board: BoardInstance; showIcon?: boolean }) {
+  return <BoardUpdateIntervals key={board.id} board={board} showIcon={showIcon} />;
 }
 
-function BoardUpdateIntervals({ board }: { board: BoardInstance }) {
+function BoardUpdateIntervals({ board, showIcon }: { board: BoardInstance; showIcon: boolean }) {
   const t = useTranslations("generalSettings");
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
@@ -115,7 +115,7 @@ function BoardUpdateIntervals({ board }: { board: BoardInstance }) {
 
   return (
     <PageSection
-      icon={<Timer />}
+      icon={showIcon ? <Timer /> : undefined}
       title={t("updateIntervalsTitle")}
       description={t("updateIntervalsDescription")}
       contentClassName="space-y-6"

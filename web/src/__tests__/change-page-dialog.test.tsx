@@ -80,6 +80,13 @@ afterEach(() => {
 });
 
 describe("ChangePageDialog (desktop)", () => {
+  // BB-FH-4 (07a `310:27282`): the 560 px shell with the 20 px title and 40 px close.
+  it("uses the wide Dialog shell", async () => {
+    setup();
+    const dialog = await screen.findByRole("dialog", { name: /change page/i });
+    expect(dialog).toHaveAttribute("data-variant", "wide");
+  });
+
   it("lists the pages that fit the display, marking the one showing now", async () => {
     setup();
     const dialog = await screen.findByRole("dialog", { name: "Change Page" });
@@ -218,6 +225,24 @@ describe("ChangePageDialog (phone, two steps)", () => {
         }) as unknown as MediaQueryList,
     );
   }
+
+  it("leaves the search unfocused on a touch phone, so the keyboard does not cover the list (BB-A-17)", async () => {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes("max-width") || query.includes("coarse"),
+          media: query,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+    setup();
+    const sheet = await screen.findByRole("dialog", { name: "Change Page" });
+    await within(sheet).findByRole("button", { name: /Taco Tuesday/ });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(document.activeElement?.tagName).not.toBe("INPUT");
+    expect(sheet.contains(document.activeElement)).toBe(true);
+  });
 
   it("closes on the browser's Back instead of leaving Home (BB-A-12)", async () => {
     asPhone();

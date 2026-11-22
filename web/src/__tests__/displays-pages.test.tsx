@@ -5,7 +5,7 @@
  * FiestaPanel's own controls.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -235,7 +235,7 @@ describe("/displays", () => {
     server.use(http.get(`${API}/auth/sessions`, () => HttpResponse.json({ sessions: [], total: 0 })));
     renderWith(<DisplaysPage />);
     const group = await screen.findByRole("list", { name: "Needs a look" });
-    expect(within(group).getByText("No viewer", { exact: true })).toHaveClass("text-foreground");
+    expect(within(group).getByText("No viewer", { exact: true })).toHaveClass("text-hue-yellow");
     expect(group.querySelector('[data-slot="status-dot"]')).toHaveAttribute("data-status", "warning");
   });
 
@@ -521,6 +521,110 @@ describe("/displays section", () => {
   });
 });
 
+// BB-FH-5 (07d `320:18175`, `320:9461`): the display's header row carries its
+// mono meta and its two actions, Pause and Change Page…; the pane's header
+// carries Change Page….
+describe("display header (BB-FH-5)", () => {
+  function openKitchen(board: typeof KITCHEN & { paused?: boolean } = KITCHEN) {
+    const calls = setup([board, DESK]);
+    params.boardId = "kitchen";
+    renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    return calls;
+  }
+  const subheader = () => within(document.querySelector<HTMLElement>("[data-slot=page-subheader]")!);
+
+  it("puts Pause and Change Page… in the header row", async () => {
+    openKitchen();
+    await screen.findByRole("heading", { level: 2, name: "Kitchen" });
+    expect(await subheader().findByRole("button", { name: "Pause" })).toBeInTheDocument();
+    expect(subheader().getByRole("button", { name: "Change Page…" })).toBeInTheDocument();
+  });
+
+  it("reads the size, connection and address under the name", async () => {
+    openKitchen();
+    await screen.findByRole("heading", { level: 2, name: "Kitchen" });
+    const meta = subheader().getByText("Flagship 22 × 6 · Local API · 192.0.2.10");
+    expect(meta.className).toContain("font-mono");
+    expect(meta.className).toContain("uppercase");
+  });
+
+  it("pauses from the header, and offers Resume while paused", async () => {
+    const calls = openKitchen();
+    await userEvent.click(await subheader().findByRole("button", { name: "Pause" }));
+    await waitFor(() => expect(calls.pause).toEqual([{ board: "kitchen", paused: true }]));
+  });
+
+  it("names the header action Resume on a paused display", async () => {
+    openKitchen({ ...KITCHEN, paused: true });
+    expect(await subheader().findByRole("button", { name: "Resume" })).toBeInTheDocument();
+  });
+
+  it("stacks no back button over the tabs; the trail is the way back", async () => {
+    openKitchen();
+    await screen.findByRole("heading", { level: 2, name: "Kitchen" });
+    expect(screen.queryByRole("link", { name: "Back to Displays" })).not.toBeInTheDocument();
+  });
+
+  it("gives the list's detail pane a Change Page… in its header, not at the foot of Overview", async () => {
+    setup([KITCHEN]);
+    renderWith(<DisplaysPage />);
+    const pane = await screen.findByTestId("display-detail-pane");
+    const heading = within(pane).getByRole("heading", { level: 2, name: "Kitchen" });
+    const change = within(pane).getByRole("button", { name: "Change Page…" });
+    const header = pane.querySelector<HTMLElement>("[data-slot=display-pane-header]");
+    expect(header).toContainElement(heading);
+    expect(header).toContainElement(change);
+    expect(within(pane).getAllByRole("button", { name: "Change Page…" })).toHaveLength(1);
+  });
+});
+
+// BB-FH-6 (07d `320:18175`): the Playback cards' titles carry no icons and
+// read "Silence Schedule", "Schedule behavior", "Transition", "Update
+// intervals"; the silence copy is 07d's; no label ends in a colon.
+describe("Playback tab copy (BB-FH-6)", () => {
+  async function openPlayback() {
+    setup([KITCHEN]);
+    params.boardId = "kitchen";
+    renderWith(<DisplayPage />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
+    return screen.findByRole("region", { name: "Playback" });
+  }
+
+  it("titles the cards as 07d does, in sentence case", async () => {
+    const region = await openPlayback();
+    for (const name of ["Silence Schedule", "Schedule behavior", "Transition", "Update intervals"]) {
+      expect(await within(region).findByRole("heading", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("draws no icon beside the card titles", async () => {
+    const region = await openPlayback();
+    await within(region).findByRole("heading", { name: "Update intervals" });
+    for (const heading of within(region).getAllByRole("heading")) {
+      expect(heading.parentElement?.querySelector("svg.lucide")).toBeNull();
+    }
+  });
+
+  it("explains the Silence Schedule in 07d's words", async () => {
+    const region = await openPlayback();
+    expect(
+      await within(region).findByText(
+        "The Silence Schedule for this display. Messages that arrive while it is silenced follow the choice below.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("ends no label in a colon", async () => {
+    const region = await openPlayback();
+    await within(region).findByRole("heading", { name: "Schedule behavior" });
+    expect(within(region).queryByText(/:\s*$/)).toBeNull();
+  });
+});
+
 describe("/displays/:boardId", () => {
   it("separates overview, settings and playback without losing the route board", async () => {
     setup([KITCHEN, DESK]);
@@ -590,6 +694,25 @@ describe("/displays/:boardId", () => {
     params.boardId = "gone";
     renderWith(<DisplayPage />);
     expect(await screen.findByTestId("display-not-found")).toBeInTheDocument();
+  });
+
+  // BB-A-20: an unknown id is named as not found (never shown as the title),
+  // with the ways forward.
+  it("titles an unknown display 'Display not found' and offers Back and Add", async () => {
+    setup([KITCHEN]);
+    params.boardId = "does-not-exist";
+    renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    const notFound = await screen.findByTestId("display-not-found");
+    expect(screen.getByRole("heading", { name: "Display not found" })).toBeInTheDocument();
+    expect(screen.queryByText("does-not-exist")).not.toBeInTheDocument();
+    expect(within(notFound).getByText("This display doesn’t exist anymore.")).toBeInTheDocument();
+    expect(within(notFound).getByRole("link", { name: "Back to Displays" })).toHaveAttribute("href", "/displays");
+    await userEvent.click(within(notFound).getByRole("button", { name: /Add a display/ }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 
   it("a split-flap selector offers None and the strategies its output animates", async () => {
@@ -817,5 +940,139 @@ describe("/displays/:boardId", () => {
     expect(within(panel).queryByDisplayValue("Bedroom")).not.toBeInTheDocument();
     // New panels come from Add a display, not from a panel's page.
     expect(within(panel).queryByRole("button", { name: "Create panel" })).not.toBeInTheDocument();
+  });
+});
+
+// 07d `320:17086` / `328:27519` on a phone (BB-A-19, BB-A-24): no card around
+// the section, no section description; the list is "Displays" with Add display
+// beside it; a display is "‹ Displays", its name, then the tabs — one way back.
+describe("Displays on a phone", () => {
+  function asPhone() {
+    const media = originalMatchMedia("");
+    window.matchMedia = vi.fn((query) => ({
+      ...media,
+      media: query,
+      matches: query.includes("max-width: 1023.98px") || query.includes("max-width: 767.98px"),
+    }));
+  }
+
+  it("draws the list without a card or description, causes whole", async () => {
+    asPhone();
+    setup([KITCHEN, TV]);
+    server.use(http.get(`${API}/auth/sessions`, () => HttpResponse.json({ sessions: [], total: 0 })));
+    const { container } = renderWith(
+      <DisplaysSection>
+        <DisplaysPage />
+      </DisplaysSection>,
+    );
+    expect(await screen.findByRole("heading", { level: 1, name: "Displays" })).toBeInTheDocument();
+    expect(container.querySelector('[data-slot="page-card"]')).toHaveAttribute("data-surface", "plain");
+    expect(screen.queryByText(/Every board and screen FiestaBoard shows on/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("add-display")).toBeInTheDocument();
+    // 07d: the status word is tinted, in the kit's text tone (AA on the page).
+    expect(await screen.findByText("No viewer")).toHaveClass("text-hue-yellow");
+    // The mobile frame has no Your displays / Marketplace tabs; Add display
+    // reaches the outputs.
+    expect(screen.queryByRole("tab", { name: /Marketplace/ })).not.toBeInTheDocument();
+    // No card inset or hairline around the outlet.
+    expect(container.querySelector('[data-slot="page-outlet"]')).toHaveAttribute("data-surface", "plain");
+    const cause = await screen.findByText("No signed-in TV is showing this display");
+    expect(cause.className).not.toMatch(/\btruncate\b/);
+  });
+
+  it("opens a display with one way back, its name, then the tabs", async () => {
+    asPhone();
+    setup([KITCHEN]);
+    params.boardId = "kitchen";
+    renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    const back = await screen.findByRole("link", { name: "Displays" });
+    expect(back).toHaveAttribute("href", "/displays");
+    expect(await screen.findByRole("heading", { level: 1, name: "Kitchen" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Back to Displays" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Now showing" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "Overview" })).toBeInTheDocument();
+  });
+
+  // Review (#2568): the flat grammar's inset override (`.page-flat` in
+  // globals.css) must not reach sections that are a card's content (Playback,
+  // Diagnostics), only the page's own sections; the stylesheet excludes
+  // anything inside a `[data-slot=card]`.
+  it("keeps the inset of sections inside cards on the Playback tab", async () => {
+    asPhone();
+    setup([KITCHEN]);
+    params.boardId = "kitchen";
+    const { container } = renderWith(
+      <DisplaysSection>
+        <DisplayPage />
+      </DisplaysSection>,
+    );
+    await userEvent.click(await screen.findByRole("tab", { name: "Playback" }));
+    const wrapper = container.querySelector('[data-slot="page-card"][data-surface="plain"]')!;
+    expect(wrapper).toHaveClass("page-flat");
+    const inCard = wrapper.querySelector('[data-slot="card"] [data-slot="page-section"]');
+    expect(inCard).not.toBeNull();
+    expect(inCard!.matches('[data-slot="page-section"]:not([data-slot="card"] *)')).toBe(false);
+  });
+
+  it("moves focus to the display's name when drilling in, not to the page body", async () => {
+    asPhone();
+    setup([KITCHEN]);
+    const { rerender } = renderWith(
+      <DisplaysSection>
+        <DisplaysPage />
+      </DisplaysSection>,
+    );
+    await screen.findByRole("heading", { level: 1, name: "Displays" });
+    params.boardId = "kitchen";
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <DisplaysSection>
+          <DisplayPage />
+        </DisplaysSection>
+      </QueryClientProvider>,
+    );
+    const heading = await screen.findByRole("heading", { level: 1, name: "Kitchen" });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+  });
+});
+
+// Review (#2568, round 5): crossing the phone breakpoint must not remount the
+// page (a rotated tablet lost the list's selection).
+describe("Displays across the phone breakpoint", () => {
+  it("keeps the same outlet element when the layout switches", async () => {
+    let phone = false;
+    const listeners: EventListener[] = [];
+    window.matchMedia = vi.fn(
+      (query: string) =>
+        ({
+          media: query,
+          get matches() {
+            return query.includes("max-width: 767.98px") ? phone : query.includes("max-width: 1023.98px");
+          },
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: (_type: string, listener: EventListener) => listeners.push(listener),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+    setup([KITCHEN]);
+    const { container } = renderWith(
+      <DisplaysSection>
+        <DisplaysPage />
+      </DisplaysSection>,
+    );
+    await screen.findByTestId("display-card");
+    const outlet = container.querySelector('[data-slot="page-outlet"]');
+    phone = true;
+    act(() => listeners.forEach((listener) => listener(new Event("change"))));
+    await screen.findByRole("heading", { level: 1, name: "Displays" });
+    expect(container.querySelector('[data-slot="page-outlet"]')).toBe(outlet);
   });
 });

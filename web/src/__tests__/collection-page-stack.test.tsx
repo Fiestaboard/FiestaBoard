@@ -32,7 +32,8 @@ vi.mock("@/components/device-preview", () => ({
 }));
 const cells = [[{ kind: "glyph", text: "A", color: "#00ff00", span: 2 }]];
 const layers = [{ x: 0, y: 0, width: 1, height: 1, rgba: "AP8A/w==" }];
-it("limits work to three actual LED members and preserves rich cells and bitmap layers", async () => {
+// BB-FP-20: the card cover is the first member only (Figma 342:187593), not a stack of three.
+it("previews only the first LED member and preserves rich cells and bitmap layers", async () => {
   const requested: { page_ids: string[]; board_id?: string }[] = [];
   server.use(
     http.get("/api/settings/board", () =>
@@ -74,8 +75,8 @@ it("limits work to three actual LED members and preserves rich cells and bitmap 
       <CollectionPageStack collection={collection} pages={pages} />
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(screen.getAllByTestId("led-preview")).toHaveLength(3));
-  expect(requested.at(-1)).toEqual({ page_ids: ["p0", "p1", "p2"], board_id: "led" });
+  await waitFor(() => expect(screen.getAllByTestId("led-preview")).toHaveLength(1));
+  expect(requested.at(-1)).toEqual({ page_ids: ["p0"], board_id: "led" });
   for (const preview of screen.getAllByTestId("led-preview")) {
     expect(preview).toHaveAttribute("data-model", "divoom_pixoo64");
     expect(preview).toHaveAttribute("data-cells", JSON.stringify(cells));
@@ -85,7 +86,7 @@ it("limits work to three actual LED members and preserves rich cells and bitmap 
 
 // Slice 2.4: the stack is decorative and inert, so its split-flap boards are
 // fit-scaled thumbnails, never BoardViewports (no scroll region, no toggle).
-it("draws split-flap members as fit thumbnails, not viewports", async () => {
+it("draws the split-flap cover as a fit thumbnail, not a viewport", async () => {
   server.use(
     http.get("/api/settings/board", () =>
       HttpResponse.json({
@@ -112,7 +113,7 @@ it("draws split-flap members as fit thumbnails, not viewports", async () => {
       <CollectionPageStack collection={collection} pages={pages} />
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(container.querySelectorAll("[data-slot=board-display]").length).toBe(2));
+  await waitFor(() => expect(container.querySelectorAll("[data-slot=board-display]").length).toBe(1));
   expect(container.querySelector("[data-slot=board-viewport]")).toBeNull();
   expect(container.querySelectorAll("button, [role=region]")).toHaveLength(0);
 });

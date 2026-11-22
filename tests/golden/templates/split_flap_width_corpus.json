@@ -6331,43 +6331,43 @@
   {
    "line": "LEFT{{fill_space}}RIGHT",
    "cols": [
-    24,
-    31
+    9,
+    9
    ]
   },
   {
    "line": "A{{fill_space}}B{{fill_space}}C",
    "cols": [
-    33,
-    47
+    3,
+    3
    ]
   },
   {
    "line": "{{red}}{{fill_space_repeat:-}}{{red}}",
    "cols": [
-    17,
-    24
+    2,
+    2
    ]
   },
   {
    "line": "{{fill_space_repeat:blue}}MID{{fill_space_repeat:=}}",
    "cols": [
-    33,
-    47
+    3,
+    3
    ]
   },
   {
    "line": "WAY TOO LONG FOR ANY FILL{{fill_space}}SPACE AT ALL HERE",
    "cols": [
-    57,
-    64
+    42,
+    42
    ]
   },
   {
    "line": "{red:L}{{fill_space}}{blue:R}",
    "cols": [
-    17,
-    24
+    2,
+    2
    ]
   },
   {

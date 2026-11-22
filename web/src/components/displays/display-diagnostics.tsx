@@ -23,7 +23,7 @@ export function DisplayDiagnostics({ board }: { board: BoardInstance }) {
   const time = (iso: string | null | undefined) =>
     iso && !Number.isNaN(Date.parse(iso)) ? new Date(iso).toLocaleString(locale) : t("healthUnknown");
   return (
-    <Grid gap="5" className="p-4 lg:grid-cols-[minmax(0,0.4fr)_minmax(0,1fr)]">
+    <Grid gap="5" className="lg:grid-cols-[minmax(0,0.4fr)_minmax(0,1fr)]">
       <Card className="min-w-0 gap-4 p-5" data-testid="display-frame-comparison">
         <Text weight="medium">{t("preview")}</Text>
         {comparable ? (

@@ -63,7 +63,7 @@ jobs:
           # Required now that the trigger is `pull_request_target`: without
           # an explicit token the action tries the OIDC→claude[bot] App
           # exchange, which returns `401 Invalid OIDC token` on
-          # pull_request_target subs (same finding as claude-docs-review.yml).
+          # pull_request_target subs.
           # Passing a token skips the exchange. The cost is the comment
           # badge — `github-actions[bot]` instead of `claude[bot]` — which
           # nothing depends on: release.yml harvests these by the

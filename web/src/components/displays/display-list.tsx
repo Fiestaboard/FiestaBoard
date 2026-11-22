@@ -29,6 +29,7 @@ import { api, sessionsApi } from "@/lib/api";
 import { isDisplayOffline, panelViewer } from "@/lib/status-banners";
 
 import { DisplayDetail } from "./display-detail";
+import { DisplayChangePageButton } from "./display-header-actions";
 
 /** Fleet facts stay hub-sourced; an absent health report never means Online. */
 export function DisplayList({
@@ -206,7 +207,7 @@ export function DisplayList({
                               as="span"
                               size={compact ? "xs" : "sm"}
                               tone="muted"
-                              className={compact ? (override ? "block" : "block truncate") : undefined}
+                              className={compact ? (override || phone ? "block" : "block truncate") : undefined}
                               title={compact ? compactCause : cause}
                             >
                               {compact ? compactCause : cause}
@@ -224,15 +225,10 @@ export function DisplayList({
                           <Text
                             as="span"
                             size="sm"
-                            className={
-                              compact && override && kind === "online"
-                                ? "sr-only"
-                                : group === "attention"
-                                  ? kind === "noViewer"
-                                    ? "text-foreground"
-                                    : "text-destructive"
-                                  : "text-muted-foreground"
-                            }
+                            // 07d `320:17086`: No viewer in the warning text tone
+                            // (--hue-yellow, AA on the page), errors in destructive.
+                            tone={group === "attention" ? (kind === "noViewer" ? "warning" : "destructive") : "muted"}
+                            className={compact && override && kind === "online" ? "sr-only" : undefined}
                           >
                             {t(kind)}
                           </Text>
@@ -257,9 +253,13 @@ export function DisplayList({
       </Stack>
       {!phone && selected && (
         <Card className="min-w-0 gap-3 self-start p-4" data-testid="display-detail-pane">
-          <Heading level={2} size="lg">
-            {selected.name || td("unnamed")}
-          </Heading>
+          {/* 07d `320:9461`: the pane's header carries Change Page… (BB-FH-5). */}
+          <Flex align="center" justify="between" gap="3" data-slot="display-pane-header">
+            <Heading level={2} size="lg" className="min-w-0">
+              {selected.name || td("unnamed")}
+            </Heading>
+            <DisplayChangePageButton board={selected} />
+          </Flex>
           <DisplayDetail key={selected.id} boardId={selected.id} embedded />
         </Card>
       )}

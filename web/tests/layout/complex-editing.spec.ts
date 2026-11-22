@@ -257,6 +257,14 @@ for (const theme of ["light", "dark"] as const) {
       await expect(warning.getByText("Line 4", { exact: true })).toBeVisible();
       await expect(warning.getByText("24 of 22 columns · 2 cut off")).toBeVisible();
       await expect(warning.getByRole("button", { name: "Wrap line 4" })).toBeVisible();
+      // BB-E-10 / 307:41698: a dashed cut marker on the preview at the cut, on row 4's last tile.
+      const marker = page.getByTestId("preview-cut-marker");
+      await expect(marker).toHaveCount(1);
+      await expect(marker).toContainText("+2 cut off");
+      const tile = page.locator('#page-editor-preview [data-row="3"][data-col="21"]').first();
+      const [box, tileBox] = await Promise.all([marker.boundingBox(), tile.boundingBox()]);
+      expect(Math.abs(box!.x + box!.width / 2 - (tileBox!.x + tileBox!.width / 2))).toBeLessThan(tileBox!.width);
+      expect(Math.abs(box!.y - tileBox!.y)).toBeLessThan(tileBox!.height);
       await finish(page, testInfo, `impl-1440-${theme}-overflow`);
     });
 

@@ -191,10 +191,10 @@ test.describe("regression: collections.list", () => {
     const card = collectionCard(page, name);
     await expect(card).toBeVisible({ timeout: 10_000 });
 
-    // Row shows name as the CardTitle heading and the page-count + interval
-    // summary in the description.
+    // The card names the Collection, then the Figma 342:187593 meta: page count,
+    // one pass through the rotation (2 × 15 s) and "repeats" (BB-FP-20).
     await expect(card.getByRole("button", { name: new RegExp(name) })).toBeVisible();
-    await expect(card.getByText(/2 pages\s*·\s*15s per page/)).toBeVisible();
+    await expect(card.getByText(/2 pages\s*·\s*30 sec\s*·\s*repeats/)).toBeVisible();
 
     // Edit pencil is the only button rendered inside the card.
     await expect(card.getByRole("button").first()).toBeVisible();

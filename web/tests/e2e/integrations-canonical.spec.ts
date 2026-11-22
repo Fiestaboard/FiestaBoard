@@ -331,10 +331,21 @@ for (const width of [390, 768, 1280]) {
           .getByRole(width >= 768 ? "button" : "link", { name: /^CX Transit/ })
           .locator('[data-slot="list-row-description"]')
           .click();
-        await settings.getByRole("tab", { name: "Variables", exact: true }).click();
-        await expect(settings.getByText("CX departure", { exact: true })).toBeVisible();
-        await settings.getByRole("tab", { name: "README", exact: true }).click();
         const documentView = page.locator('[data-slot="page-outlet"]');
+        if (width >= 768) {
+          // 07d's pane has no tabs: its header menu opens the integration's
+          // own page on the Variables tab (BB-FC-9).
+          await page
+            .locator("[data-slot=page-header]")
+            .getByRole("button", { name: "Integration options", exact: true })
+            .click();
+          await page.getByRole("menuitem", { name: "Variables and live values", exact: true }).click();
+          await expect(page).toHaveURL(/\/integrations\/cx-transit\?from=installed&tab=variables/);
+        } else {
+          await settings.getByRole("tab", { name: "Variables", exact: true }).click();
+        }
+        await expect(documentView.getByText("CX departure", { exact: true })).toBeVisible();
+        await documentView.getByRole("tab", { name: "README", exact: true }).click();
         await expect(
           documentView.locator('[data-slot="prose"]').getByRole("heading", { name: "CX integration guide" }),
         ).toBeVisible();
