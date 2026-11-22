@@ -1,5 +1,19 @@
 # fiestaboard
 
+## 11.0.0-alpha.15
+
+### Minor Changes
+
+- [#2625](https://github.com/Fiestaboard/FiestaBoard/pull/2625) [`c040e44`](https://github.com/Fiestaboard/FiestaBoard/commit/c040e44e5b43285e7b2d6c86251a2d4d258a7fbb) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Settings › Accessibility now has a "Motion and reading" card for this browser: Reduce motion (follows your device, and adds to the hub-wide setting), Read board changes aloud on Home, Larger touch targets, and High-contrast board text.
+
+### Patch Changes
+
+- [#2608](https://github.com/Fiestaboard/FiestaBoard/pull/2608) [`a43bc04`](https://github.com/Fiestaboard/FiestaBoard/commit/a43bc043fbb65ced25530ff1234848becf07ef77) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Pages library cards follow the design: the board fills the top of the card, with the name, a Now showing badge, the display and board size, and when the page was edited and is scheduled underneath; wide screens show three cards per row.
+
+- [#2600](https://github.com/Fiestaboard/FiestaBoard/pull/2600) [`cb7dde0`](https://github.com/Fiestaboard/FiestaBoard/commit/cb7dde0c95ccaba02957132bd2f06263bcf9a3f8) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Collections: cards show the first page's board across the top, the mode as an outline chip beside the name, and when the Schedule runs the Collection. The editor's "Now in this Collection" panel says how long the current page shows and what comes next, and a lifted page row keeps its card surface.
+
+- [#2594](https://github.com/Fiestaboard/FiestaBoard/pull/2594) [`bd72dd8`](https://github.com/Fiestaboard/FiestaBoard/commit/bd72dd89398a7afddd9011e9c5219c069375b48f) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Home with no display yet says "Nothing to show on yet", names the running hub, notes that pages can still be made, and keeps the display switcher reading "No displays yet".
+
 ## 11.0.0-alpha.14
 
 ### Minor Changes
