@@ -1,5 +1,11 @@
 # fiestaboard
 
+## 11.0.0-alpha.16
+
+### Patch Changes
+
+- [#2634](https://github.com/Fiestaboard/FiestaBoard/pull/2634) [`19ccbdf`](https://github.com/Fiestaboard/FiestaBoard/commit/19ccbdfb5aadf041f07242f131c58661739f81e4) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Every page now uses the flat page layout with the same spacing: no rounded card around Pages, Collections, Displays or Staff Picks, the title on the same left edge as the content, and one consistent gap under the header (12, 16 or 20 px by screen width), matching the designs.
+
 ## 11.0.0-alpha.15
 
 ### Minor Changes
