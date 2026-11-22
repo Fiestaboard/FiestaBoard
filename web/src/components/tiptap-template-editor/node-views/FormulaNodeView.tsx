@@ -17,6 +17,7 @@ import {
   FormulaAtom,
   Sheet,
   SheetContent,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
   Skeleton,
@@ -34,6 +35,7 @@ import { createPortal } from "react-dom";
 
 import { atomValueText } from "@/components/formula-ide/atom-text";
 import { useFormulaIdeBridge } from "@/components/formula-ide/formula-ide-context";
+import { FormulaResult } from "@/components/formula-ide/formula-result";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
@@ -60,6 +62,8 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
   const tIde = useTranslations("formulaIde");
   const { expression, autoOpen } = node.attrs;
   const [open, setOpen] = useState(false);
+  // The phone sheet's pinned footer, where the panel puts its primary action.
+  const [sheetFooter, setSheetFooter] = useState<HTMLDivElement | null>(null);
   // Phones get the Formula sheet over the docked preview (306:38107), not a
   // centred modal that covers the whole editor (BB-B-15).
   const phone = useMediaQuery("(max-width: 639px)");
@@ -120,8 +124,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
   // remount this component, cancelling the RAF before it fires).
   const shouldAutoOpen = useRef(autoOpen);
 
-  const preview =
-    expression.length > 0 ? (expression.length > 20 ? expression.slice(0, 20) + "…" : expression) : t("newFormula");
+  const preview = expression.length > 20 ? expression.slice(0, 20) + "…" : expression;
 
   // Auto-open on mount when freshly inserted via the toolbar.
   useEffect(() => {
@@ -245,7 +248,15 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
 
   const panel = (
     <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-      <FormulaEditorPanel mode="edit" initialExpr={expression} onConfirm={handleConfirm} onCancel={handleCancel} />
+      <FormulaEditorPanel
+        mode={phone && !expression ? "create" : "edit"}
+        layout={phone ? "sheet" : "panel"}
+        result={(valid) => <FormulaResult expression={valid} />}
+        footer={phone ? sheetFooter : undefined}
+        initialExpr={expression}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </Suspense>
   );
 
@@ -259,49 +270,56 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
         whiteSpace: "nowrap",
       }}
     >
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            {hint ? (
-              // Web 2.10 (04c C1): the chip carries its H5 value, `= 3 of 7 rows`.
-              // eslint-disable-next-line react/forbid-elements -- inline button role around the noninteractive kit FormulaAtom inside TipTap contentEditable
-              <span
-                {...triggerProps}
-                data-testid="formula-atom-chip"
-                className="mr-0.5 inline-flex cursor-pointer rounded-sm normal-case focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                <FormulaAtom
-                  kind="formula"
-                  source={expression}
-                  value={atomValueText(hint.value, tIde)}
-                  state={hint.state}
-                />
-              </span>
-            ) : (
-              <Badge
-                variant="formula"
-                className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed normal-case cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
-                {...triggerProps}
-              >
-                <SquareFunction className="w-2.5 h-2.5 flex-shrink-0" />
-                {/* Raw <span>: colored Badge inside contentEditable; <Text as="span">
+      {expression ? (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {hint ? (
+                // Web 2.10 (04c C1): the chip carries its H5 value, `= 3 of 7 rows`.
+                // eslint-disable-next-line react/forbid-elements -- inline button role around the noninteractive kit FormulaAtom inside TipTap contentEditable
+                <span
+                  {...triggerProps}
+                  data-testid="formula-atom-chip"
+                  className="mr-0.5 inline-flex cursor-pointer rounded-sm normal-case focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  <FormulaAtom
+                    kind="formula"
+                    source={expression}
+                    value={atomValueText(hint.value, tIde)}
+                    state={hint.state}
+                  />
+                </span>
+              ) : (
+                <Badge
+                  variant="formula"
+                  className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed normal-case cursor-pointer hover:bg-amber-500/20 mr-0.5 transition-all duration-150 active:scale-95"
+                  {...triggerProps}
+                >
+                  <SquareFunction className="w-2.5 h-2.5 flex-shrink-0" />
+                  {/* Raw <span>: colored Badge inside contentEditable; <Text as="span">
                     would reset the inherited pill color and text-[11px] is sub-xs
                     grid geometry. Kept raw for correctness. */}
-                {/* eslint-disable-next-line react/forbid-elements -- span inside a colored Badge in TipTap contentEditable; Text as="span" would reset the inherited pill color and text-[11px] is sub-xs grid geometry */}
-                <span className="font-mono text-[11px] leading-none">{preview}</span>
-              </Badge>
-            )}
-          </TooltipTrigger>
-          <TooltipContent>
-            <Text size="xs" className="font-mono">
-              {"{{= " + expression + " }}"}
-            </Text>
-            <Text size="xs" tone="muted" className="mt-0.5">
-              {t("clickToEditFormula")}
-            </Text>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+                  {/* eslint-disable-next-line react/forbid-elements -- span inside a colored Badge in TipTap contentEditable; Text as="span" would reset the inherited pill color and text-[11px] is sub-xs grid geometry */}
+                  <span className="font-mono text-[11px] leading-none">{preview}</span>
+                </Badge>
+              )}
+            </TooltipTrigger>
+            <TooltipContent>
+              <Text size="xs" className="font-mono">
+                {"{{= " + expression + " }}"}
+              </Text>
+              <Text size="xs" tone="muted" className="mt-0.5">
+                {t("clickToEditFormula")}
+              </Text>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        // A formula being inserted has no chip until it is confirmed: nothing
+        // stands in the template for a choice not yet made (BB-FP-14).
+        // eslint-disable-next-line react/forbid-elements -- zero-width anchor for the pending node inside TipTap contentEditable
+        <span data-testid="formula-pending" aria-hidden="true" className="inline-block w-0" />
+      )}
 
       {phone ? (
         <Sheet
@@ -324,8 +342,8 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
             onMouseDown={(e) => e.stopPropagation()}
           >
             <SheetHeader>
-              <Flex align="center" justify="between" gap="2" className="pr-10">
-                <SheetTitle>{t("dialogLabel")}</SheetTitle>
+              <Flex align="center" justify="between" gap="2" className="min-h-touch pr-12">
+                <SheetTitle>{t("sheetTitle")}</SheetTitle>
                 {ide && expression && (
                   <Button variant="outline" size="touch" onClick={inspectFromSheet}>
                     {tIde("inspect")}
@@ -334,6 +352,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
               </Flex>
             </SheetHeader>
             {panel}
+            <SheetFooter ref={setSheetFooter} />
           </SheetContent>
         </Sheet>
       ) : (

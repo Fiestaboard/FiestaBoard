@@ -79,7 +79,7 @@
     "primaryNavigation": "Primary navigation",
     "secondaryNavigation": "Secondary navigation",
     "picks": "Staff Picks",
-    "skipToMainContent": "Skip to main content",
+    "skipToMainContent": "Skip to content",
     "boardSelector": "Select board to manage",
     "selectBoard": "Select board",
     "unnamedBoard": "Unnamed board",
@@ -101,7 +101,11 @@
     "about": "About FiestaBoard",
     "signOut": "Sign out",
     "popoverLabel": "Account menu",
-    "account": "Account"
+    "account": "Account",
+    "theme": "Theme",
+    "signOutBrowser": "Sign out of this browser",
+    "ownerLine": "{username} · Owner of {hub}",
+    "updateBadge": "Update {version}"
   },
   "aboutDialog": {
     "description": "Self-hosted. Your hub, your displays, your data.",
@@ -259,11 +263,11 @@
   },
   "pages": {
     "title": "Pages",
-    "description": "Create and manage content for your board",
+    "description": "Everything your displays can show. Open one to edit it, or show it now.",
     "newPage": "New Page",
     "viewModeLabel": "View mode",
-    "gridView": "Grid view",
-    "listView": "List view",
+    "gridView": "Grid",
+    "listView": "List",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
@@ -284,16 +288,16 @@
     "libraryCount": "{count, plural, one {# page} other {# pages}}",
     "clearFilter": "Show all pages",
     "searchLabel": "Search pages",
-    "searchPlaceholder": "Search names or saved content",
+    "searchPlaceholder": "Search pages",
     "searchHint": "Searches names and saved content in the selected display filter.",
     "clearSearch": "Clear search",
     "sortLabel": "Sort pages",
     "sortNameAsc": "Name A–Z",
     "sortNameDesc": "Name Z–A",
-    "sortCreatedDesc": "Newest created",
-    "sortCreatedAsc": "Oldest created",
-    "sortUpdatedDesc": "Recently updated",
-    "sortUpdatedAsc": "Updated oldest first",
+    "sortCreatedDesc": "Created, newest first",
+    "sortCreatedAsc": "Created, oldest first",
+    "sortUpdatedDesc": "Updated, newest first",
+    "sortUpdatedAsc": "Updated, oldest first",
     "noMatches": "No matching pages",
     "searchCount": "{count} of {total} pages",
     "loadError": "Could not load pages. Your search is kept.",
@@ -302,6 +306,7 @@
     "duplicate": "Duplicate",
     "cardEdited": "Edited {when}",
     "cardScheduled": "Schedule {time}",
+    "exportShareString": "Export share string",
     "deletePage": "Delete page…",
     "toastDuplicated": "Made “{name}”",
     "actionFailed": "Couldn’t do that. Try again."
@@ -403,9 +408,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "View mode",
-    "gridView": "Tile view",
-    "listView": "List view",
     "libraryCount": "{count, plural, one {# collection} other {# collections}}",
     "removePage": "Remove {name}",
     "sortLifted": "{name} lifted · position {position} of {total} · ↑ ↓ to move, Space to drop, Esc to cancel",
@@ -488,7 +490,7 @@
     "scheduleMode": "Schedule Mode",
     "scheduleModeEnabledDescription": "Enabled — pages automatically rotate based on schedule",
     "scheduleModeDisabledDescription": "Disabled — pages are controlled manually",
-    "defaultPageLabel": "Default page for gaps:",
+    "defaultPageLabel": "Default page for gaps",
     "selectDefaultPage": "Select a default page",
     "noneNoDefault": "None (no default)",
     "conflictsDetected": "Schedule Conflicts Detected",
@@ -739,6 +741,10 @@
   },
   "integrations": {
     "detailTabs": "Integration details",
+    "paneMenu": {
+      "enabled": "Enabled",
+      "liveValues": "Variables and live values"
+    },
     "variablesTab": "Variables",
     "readmeTab": "README",
     "readmeUnavailable": "Documentation is not available.",
@@ -771,7 +777,7 @@
     "configureDescription": "Configure settings for this integration",
     "settingsSection": "Settings",
     "oauth": {
-      "sectionTitle": "Account connection",
+      "sectionTitle": "Account",
       "statusConnected": "Connected",
       "statusDisconnected": "Not connected",
       "statusReconnect": "Reconnect needed",
@@ -952,6 +958,12 @@
     "sourceExternalBadge": "External",
     "updateAvailableBadge": "Update",
     "moreOptionsAriaLabel": "More options",
+    "sectionMenuAriaLabel": "Integration options",
+    "detail": {
+      "unlocks": "Unlocks {count, plural, one {# variable} other {# variables}}",
+      "useInPage": "Use in a page…",
+      "newPage": "New page"
+    },
     "addInstanceAction": "Add Instance",
     "instanceNameInlineLabel": "Instance name:",
     "addInstanceInlineHelp": "Creates a new independent instance of this plugin with its own configuration. Use alphanumeric characters, hyphens, or underscores (1-40 chars).",
@@ -1522,6 +1534,7 @@
   "composeDialog": {
     "title": "Compose a message",
     "description": "Shows on {board} when you choose Show now. Nothing reaches the board before that.",
+    "descriptionPhone": "Shows on {board} (the display in the header) when you choose Show now.",
     "messageLabel": "Message",
     "messagePlaceholder": "Type your message…",
     "previewLabel": "Preview",
@@ -1685,7 +1698,15 @@
     "textMode": "Text",
     "canvasesMode": "Canvases",
     "showPreview": "Show preview and live output",
-    "hidePreview": "Hide preview and live output"
+    "hidePreview": "Hide preview and live output",
+    "discardDialogClose": "Close",
+    "discardChangesSince": "You changed {count, plural, one {1 line} other {# lines}} since {time}. If you leave now, they’re lost.",
+    "discardChangesLost": "If you leave now, your changes are lost.",
+    "discardChangesBoardKeeps": "{board} keeps showing the saved version.",
+    "discardChangesDisplaysKeep": "Displays keep showing the saved version.",
+    "discardChangedLabel": "Changed",
+    "discardChangedLine": "Line {line} ({text})",
+    "discardChangedLineEmpty": "Line {line} (blank)"
   },
   "displaySettings": {
     "unnamedBoard": "Unnamed Board",
@@ -1772,6 +1793,8 @@
       "overrideUntil": "Override · until {time}",
       "pauseDisplay": "Pause display",
       "pauseHint": "The board keeps what it shows; the Schedule keeps running on the hub.",
+      "pause": "Pause",
+      "resume": "Resume",
       "diagnostics": "Diagnostics",
       "changePage": "Change Page…",
       "back": "Back to Displays",
@@ -2068,7 +2091,7 @@
   "generalSettings": {
     "title": "Schedule & Automation",
     "description": "Control when the board is active and how often it updates",
-    "updateIntervalsTitle": "Update Intervals",
+    "updateIntervalsTitle": "Update intervals",
     "updateIntervalsDescription": "How often the board polls for new content and re-reads its current state",
     "timezoneLabel": "Timezone",
     "timezoneDescription": "All times in the application will be displayed in this timezone",
@@ -2085,7 +2108,7 @@
     "toastBoardReadIntervalUpdated": "Board read interval updated",
     "toastBoardReadIntervalFailed": "Failed to update board read interval: {error}",
     "silenceScheduleLabel": "Silence Schedule",
-    "silenceScheduleDescription": "Prevent board updates during specified hours",
+    "silenceScheduleDescription": "The Silence Schedule for this display. Messages that arrive while it is silenced follow the choice below.",
     "startTimeLabel": "Start Time",
     "endTimeLabel": "End Time",
     "whenSilenceBegins": "When silence begins",
@@ -2108,7 +2131,7 @@
     "silencePageLabel": "Silence Page",
     "silencePagePlaceholder": "Select a page...",
     "silencePageHelp": "This page will be displayed when the silence schedule starts. Its variables will not refresh while silenced.",
-    "scheduleBehaviorTitle": "Schedule toggle",
+    "scheduleBehaviorTitle": "Schedule behavior",
     "scheduleBehaviorDescription": "How the board reacts when schedule mode is turned back on",
     "deferOnReenable": "Wait for the next scheduled change",
     "deferOnReenableHint": "Leave the board on its current page when schedule mode is turned back on, until the schedule reaches its next window. Off by default, so the board updates straight away.",
@@ -2339,20 +2362,18 @@
     "accessibilityDescription": "Motion and animation preferences",
     "reduceMotion": "Reduce motion",
     "reduceMotionHint": "Minimizes animations throughout the interface",
-    "animationsTitle": "Graphics and previews",
-    "animationsDescription": "Control motion throughout the app. These preferences apply to every on-screen preview.",
-    "boardAnimationsLabel": "Board previews",
-    "boardAnimationsHint": "The split-flap flip when tiles change",
-    "boardAnimationsOn": "On",
-    "boardAnimationsDesktop": "Desktop only",
-    "boardAnimationsOff": "Off",
-    "boardAnimationsOnHint": "Animate everywhere",
-    "boardAnimationsDesktopHint": "Skip the flap animation on phones and tablets",
-    "boardAnimationsOffHint": "Never animate; tiles change instantly",
-    "siteAnimationsLabel": "Site animations",
     "siteAnimationsHint": "Transitions, hovers, and other UI motion",
-    "siteAnimationsOn": "On",
-    "siteAnimationsOff": "Off",
+    "boardsTitle": "Boards",
+    "animateTileFlips": "Animate tile flips",
+    "animateTileFlipsHint": "Board previews flip like the real board.",
+    "homeColorStrip": "Show the color strip on Home",
+    "motionDetailsTitle": "Motion details",
+    "motionDetailsDescription": "For everyone on this hub.",
+    "boardAnimationsDesktopOnly": "Only on wider screens",
+    "boardAnimationsDesktopOnlyHint": "On phones and narrow windows, tiles change without flipping.",
+    "siteAnimationsSwitch": "Animate the rest of the app",
+    "hubReduceMotion": "Reduce motion for everyone",
+    "hubReduceMotionHint": "Turns off tile flips and app animations in every browser on this hub.",
     "animationsReduceMotionOverride": "Reduce motion is enabled, which overrides these settings.",
     "flapSpeedLabel": "Flip speed",
     "flapSpeedHint": "Choose the cadence used by split-flap previews throughout this app.",
@@ -2552,6 +2573,7 @@
     "boardPreviewLabel": "{name} displayed on a split-flap board",
     "boardShapeLabel": "Board shape",
     "boardColorLabel": "Board color",
+    "sampleCaption": "Sample page using this integration",
     "blackBoard": "Black Board",
     "whiteBoard": "White Board",
     "deviceFlagship": "Flagship",
@@ -2702,7 +2724,11 @@
     "clickToEditFormula": "Click to edit formula",
     "newFormula": "new formula",
     "loading": "Loading…",
-    "dialogLabel": "Formula editor"
+    "dialogLabel": "Formula editor",
+    "sheetTitle": "Formula",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} is {value} now",
+    "resultColumns": "{used} of {cols} columns"
   },
   "templateEditor": {
     "variables": "Variables",
@@ -3854,7 +3880,9 @@
     "replay": "Replay",
     "replayHint": "Play the split-flap animation",
     "previewTarget": "Preview target",
-    "previewTargetTrigger": "Preview on {target}"
+    "previewTargetTrigger": "Preview on {target}",
+    "discardDraft": "Discard",
+    "lastSaved": "last saved {time}"
   },
   "phonePairing": {
     "title": "Connect a phone",
@@ -4035,7 +4063,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} points",
     "layerMetaText": "Font {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} cut off"
   },
   "creatorIde": {
     "regionLabel": "Creator IDE",
@@ -4227,7 +4256,14 @@
     "replaceDraft": "Replace draft",
     "draftConflictTitle": "Replace the newer draft?",
     "draftConflictDescription": "Another device saved this page’s draft after you opened it. Replacing it keeps only what’s in this editor.",
-    "legendLabel": "Schedule entries"
+    "legendLabel": "Schedule entries",
+    "draftRestored": "Draft restored",
+    "draftRestoredStale": "Draft restored · the page changed since",
+    "draftSavedAt": "Draft saved {time}",
+    "liveOn": "Live on {board}",
+    "deletePage": "Delete page…",
+    "deletePageDetail": "Removes it from every schedule and collection",
+    "autosavePaused": "Unsaved · a draft from elsewhere is waiting in History"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4369,6 +4405,7 @@
     "fits": "Fits",
     "doesNotFit": "Doesn't fit",
     "fitReport": "Line {line} is {widest} of {cols} columns",
-    "nothingCut": "nothing cut"
+    "nothingCut": "nothing cut",
+    "missingOff": "{plugin} is off in Integrations"
   }
 }

@@ -26,10 +26,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Flex,
@@ -38,6 +40,8 @@ import {
   IconTile,
   Input,
   Label,
+  List,
+  ListItem,
   ListRow,
   ListRowGroup,
   ListRowItem,
@@ -98,6 +102,7 @@ import {
   BookOpen,
   Bot,
   Box as BoxIcon,
+  Braces,
   Bug,
   Building,
   Building2,
@@ -140,6 +145,8 @@ import {
   EyeOff,
   Factory,
   Fan,
+  FilePlus,
+  FileText,
   Film,
   Filter,
   Fish,
@@ -269,12 +276,13 @@ import {
   Zap,
 } from "lucide-react";
 import type { ReactNode, RefObject } from "react";
-import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { UNSAFE_DataRouterContext, useBeforeUnload, useBlocker } from "react-router";
 import { toast } from "sonner";
 
 import { IntegrationBoardPreview } from "@/components/integrations/integration-board-preview";
+import { useIntegrationPaneMenu } from "@/components/integrations/integration-pane-menu";
 import { IntegrationReadme } from "@/components/integrations/integration-readme";
 import { GitInstallFields, useGitPluginInstall } from "@/components/plugin-git-install";
 import { PluginProvenance } from "@/components/plugin-provenance";
@@ -290,6 +298,7 @@ import {
   readOAuthReturn,
   SchemaForm,
 } from "@/components/plugin-settings";
+import { SectionLabel } from "@/components/plugin-settings/section-label";
 import { PluginAutoUpdateSwitch, PluginUpdateCheckButton } from "@/components/plugin-updates-control";
 import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
@@ -303,6 +312,7 @@ import type { OAuthConnection, PluginInfo, RegistryEntry } from "@/lib/api";
 import { api } from "@/lib/api";
 import type { FiestaboardColorName } from "@/lib/board-colors";
 import { ALL_COLOR_CODES, AVAILABLE_COLORS, FIESTABOARD_COLORS } from "@/lib/board-colors";
+import { INSET_ROW, INSET_ROW_GROUP } from "@/lib/list-row-inset";
 import {
   buildVariablesList,
   getVariableGroups,
@@ -690,12 +700,12 @@ function ColorRulesEditor({
     <TooltipProvider>
       <Stack gap="3">
         <Flex align="center" justify="between">
-          <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-            {t("colorRules.title")}
-            <Text as="span" size="xs" tone="muted" className="ml-2">
+          <Flex align="baseline" gap="2" wrap>
+            <SectionLabel>{t("colorRules.title")}</SectionLabel>
+            <Text as="span" size="xs" tone="muted">
               ({t("colorRules.firstMatchWins")})
             </Text>
-          </Heading>
+          </Flex>
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowAddField(!showAddField)}>
             <Plus className="h-3 w-3 mr-1" />
             {t("colorRules.addField")}
@@ -1142,6 +1152,19 @@ function UnsavedSettingsGuard({ dirty, leaving }: { dirty: boolean; leaving: Ref
   );
 }
 
+/** The desktop pane's stand-in for Tabs: 07d draws the pane without tabs (BB-FC-9). */
+function PaneBody({ children }: { children?: ReactNode }) {
+  return <>{children}</>;
+}
+/** ...and for the Settings panel: one block under the title, as the panel is on the page. */
+function PaneSettings({ children }: { children?: ReactNode }) {
+  return <Box className="min-w-0">{children}</Box>;
+}
+/** ...and for the Variables and README panels, which live on the integration's own page. */
+function PaneOmitted() {
+  return null;
+}
+
 export function InstalledPluginRow({
   plugin,
   onToggle,
@@ -1291,6 +1314,10 @@ export function InstalledPluginRow({
     return { ...settingsSchema, properties };
   }, [settingsSchema, oauthFieldKeys]);
 
+  // Fields a `ui:sections` group names sit under that group's own label.
+  const sectioned = new Set((formSchema["ui:sections"] ?? []).flatMap((section) => section.fields));
+  const hasUngroupedFields = Object.keys(formSchema.properties).some((key) => key !== "enabled" && !sectioned.has(key));
+
   // The guided setup's sign-in button saves first, so the Client ID just
   // typed is the one the sign-in uses. Unlike Save Changes it keeps the sheet
   // open and lets the caller report a failure.
@@ -1386,6 +1413,7 @@ export function InstalledPluginRow({
     const config = pluginDetails.config ?? {};
     return required.every((field) => field === "enabled" || Boolean(config[field]));
   };
+  const demoReady = areDemoRequirementsMet();
 
   // Flatten the plugin's manifest variables into table rows, then read the
   // declared groups so the table can be organized the same way the page-builder
@@ -1498,32 +1526,111 @@ export function InstalledPluginRow({
 
   // One supported detail body: the same schema, OAuth, variables, colors and
   // mutation state serve the selected desktop pane and installed detail route.
+  const sourceLabel = t(
+    plugin.source?.source_type === "builtin"
+      ? "sourceCoreBadge"
+      : plugin.source?.source_type === "git"
+        ? "sourceExternalBadge"
+        : "sourceMarketplaceBadge",
+  );
   const badges = (
-    <Flex gap="2" align="center" wrap className={fullPage ? undefined : "mt-3"}>
+    <Flex gap="2" align="center" wrap>
       <Badge variant="outline">{tCommon("versionShort", { version: plugin.version })}</Badge>
       <PluginProvenance repository={plugin.source?.repository_url} />
-      <Badge variant="outline">
-        {t(
-          plugin.source?.source_type === "builtin"
-            ? "sourceCoreBadge"
-            : plugin.source?.source_type === "git"
-              ? "sourceExternalBadge"
-              : "sourceMarketplaceBadge",
-        )}
-      </Badge>
+      <Badge variant="outline">{sourceLabel}</Badge>
     </Flex>
   );
+  // 07d's pane title carries the plugin's state as a mono badge (BB-FC-9).
+  // FiestaUI's Badge has a mono `success` but no mono warning or neutral.
+  const statusBadge = (
+    <Badge variant={rowStatus === "success" ? "success" : "outline"} className="font-mono">
+      {isTransition
+        ? t("transitionBadge")
+        : isOutput
+          ? t("outputBadge")
+          : needsReconnect
+            ? t("oauth.statusReconnect")
+            : !plugin.enabled
+              ? t("disabledBadge")
+              : needsSetup
+                ? t("setupRequiredBadge")
+                : t("configuredBadge")}
+    </Badge>
+  );
+  const openFullPage = (tab: "readme" | "variables") =>
+    router.push(`/integrations/${encodeURIComponent(plugin.id)}?from=installed&tab=${tab}`);
+  // Add instance, Update and Delete: in the full page's "…", and for the pane
+  // in the section header's Integration options.
+  const pluginActions = (
+    <>
+      {!isInstance && (
+        <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
+          <CopyPlus className="h-3.5 w-3.5 mr-2" />
+          {t("addInstanceAction")}
+        </DropdownMenuItem>
+      )}
+      {hasUpdate && onUpdate && (
+        <DropdownMenuItem onClick={() => onUpdate(plugin.id)} disabled={isUpdating}>
+          {isUpdating ? (
+            <Spinner size="sm" className="mr-2" label={null} />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5 mr-2" />
+          )}
+          {isUpdating ? "Updating..." : "Update"}
+        </DropdownMenuItem>
+      )}
+      {(isInstance || (canUninstall && onUninstall)) && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={!isInstance && isUninstalling}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            {isInstance ? tCommon("delete") : isUninstalling ? "Uninstalling..." : "Delete"}
+          </DropdownMenuItem>
+        </>
+      )}
+    </>
+  );
+  // 07d's pane has no switch, version chips or tabs: its name, version and
+  // source, its switch, README and live values sit in the header menu.
+  const paneMenuLabelId = useId();
+  useIntegrationPaneMenu(!fullPage && isConfigOpen, () => (
+    // One labelled group, so "Enabled" is read as this integration's.
+    <DropdownMenuGroup aria-labelledby={paneMenuLabelId}>
+      <DropdownMenuLabel id={paneMenuLabelId} className="font-mono text-xs">
+        {[plugin.name, tCommon("versionShort", { version: plugin.version }), sourceLabel].join(" · ")}
+      </DropdownMenuLabel>
+      {!hasNoToggle && (
+        <DropdownMenuCheckboxItem
+          checked={plugin.enabled}
+          onCheckedChange={(checked) => onToggle(plugin.id, checked)}
+          disabled={isToggling}
+        >
+          {t("paneMenu.enabled")}
+        </DropdownMenuCheckboxItem>
+      )}
+      <DropdownMenuItem onClick={() => openFullPage("readme")}>
+        <BookOpen className="h-3.5 w-3.5 mr-2" />
+        {t("readmeTab")}
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => openFullPage("variables")}>
+        <Braces className="h-3.5 w-3.5 mr-2" />
+        {t("paneMenu.liveValues")}
+      </DropdownMenuItem>
+      {pluginActions}
+    </DropdownMenuGroup>
+  ));
+  const DetailTabs = (fullPage ? Tabs : PaneBody) as typeof Tabs;
+  const SettingsPanel = (fullPage ? TabsContent : PaneSettings) as typeof TabsContent;
+  const FullPagePanel = (fullPage ? TabsContent : PaneOmitted) as typeof TabsContent;
   const configContent = (
     <>
-      {/* On its own page the badges share the switch's row (BB-C-21). */}
-      {!fullPage && badges}
-      <Tabs
+      <DetailTabs
         value={detailTab}
         onValueChange={(value) => {
-          if (!fullPage && value === "readme") {
-            router.push(`/integrations/${encodeURIComponent(plugin.id)}?from=installed&tab=readme`);
-            return;
-          }
           setDetailTab(value);
           if (fullPage)
             router.replace(`/integrations/${encodeURIComponent(plugin.id)}?from=installed&tab=${value}`, {
@@ -1531,14 +1638,17 @@ export function InstalledPluginRow({
             });
         }}
       >
-        <TabsList aria-label={t("detailTabs")} className="mt-4 max-w-full">
-          <TabsTrigger value="settings">{t("settingsSection")}</TabsTrigger>
-          <TabsTrigger value="variables">{t("variablesTab")}</TabsTrigger>
-          <TabsTrigger value="readme">{t("readmeTab")}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="settings">
+        {fullPage && (
+          <TabsList aria-label={t("detailTabs")} className="mt-4 max-w-full">
+            <TabsTrigger value="settings">{t("settingsSection")}</TabsTrigger>
+            <TabsTrigger value="variables">{t("variablesTab")}</TabsTrigger>
+            <TabsTrigger value="readme">{t("readmeTab")}</TabsTrigger>
+          </TabsList>
+        )}
+        <SettingsPanel value="settings">
           <IntegrationBoardPreview entry={registryEntry} size={fullPage ? undefined : "sm"} />
-          <Stack gap="6" className="py-6">
+          {/* 07d's rhythm: 16 under the sample, 20 between sections. */}
+          <Stack gap="5" className="py-4">
             {isLoadingDetails ? (
               <Stack gap="4">
                 <Skeleton className="h-10 w-full" />
@@ -1547,64 +1657,6 @@ export function InstalledPluginRow({
               </Stack>
             ) : (
               <>
-                {/* Demo Page Section */}
-                {pluginDetails?.has_demo && (
-                  <Stack gap="3" className="rounded-lg border bg-muted/30 p-4">
-                    {/* The button wraps under the text when both don't fit, so a
-                        long label (German) never squeezes the text to one word
-                        per line (BB-C-21). */}
-                    <Flex align="center" justify="between" gap="3" wrap>
-                      <Box className="min-w-0 flex-1 basis-56">
-                        <Heading level={4} size="sm" className="font-medium">
-                          {t("demoPage.title")}
-                        </Heading>
-                        <Text size="xs" tone="muted" className="mt-0.5">
-                          {pluginDetails.demo_page_id ? t("demoPage.alreadyExists") : t("demoPage.createDescription")}
-                        </Text>
-                      </Box>
-                      {pluginDetails.demo_page_id ? (
-                        <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={!areDemoRequirementsMet() || isCreatingDemo}>
-                              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                              {t("demoPage.recreateButton")}
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
-                              <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter>
-                              <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
-                                {tCommon("cancel")}
-                              </Button>
-                              <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
-                                {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      ) : (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={handleCreateDemoPage}
-                          disabled={!areDemoRequirementsMet() || isCreatingDemo}
-                        >
-                          <Play className="h-3.5 w-3.5 mr-1.5" />
-                          {isCreatingDemo ? t("demoPage.creating") : t("demoPage.createAction")}
-                        </Button>
-                      )}
-                    </Flex>
-                    {!areDemoRequirementsMet() && (
-                      <Text size="xs" tone="warning">
-                        {t("demoPage.requirementsWarning")}
-                      </Text>
-                    )}
-                  </Stack>
-                )}
-
                 {/* Renders nothing unless the plugin's manifest declares OAuth. */}
                 <OAuthConnectionSection
                   pluginId={plugin.id}
@@ -1622,9 +1674,7 @@ export function InstalledPluginRow({
                 {/* Settings Section */}
                 {Object.keys(formSchema.properties).length > 0 && (
                   <Stack gap="4">
-                    <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                      {t("settingsSection")}
-                    </Heading>
+                    {hasUngroupedFields && <SectionLabel>{t("settingsSection")}</SectionLabel>}
                     <SchemaForm
                       schema={formSchema}
                       values={configValues}
@@ -1641,9 +1691,7 @@ export function InstalledPluginRow({
                 {/* Environment Variables Section */}
                 {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
                   <Stack gap="3">
-                    <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                      {t("environmentVariablesSection")}
-                    </Heading>
+                    <SectionLabel>{t("environmentVariablesSection")}</SectionLabel>
                     <Box className="rounded-md border overflow-hidden">
                       <Table className="text-xs focus-ring" tabIndex={0} aria-label={t("environmentVariablesSection")}>
                         <TableHeader className="bg-muted/50">
@@ -1697,6 +1745,88 @@ export function InstalledPluginRow({
                 {(!pluginDetails?.settings_schema ||
                   Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
                   variableRows.length === 0 && <Text tone="muted">{t("noConfigOptions")}</Text>}
+
+                {/* 07d: "Unlocks N variables", then an outline "Use in a page…", 12 apart. */}
+                <Stack gap="3">
+                  {variableRows.length > 0 && (
+                    <>
+                      <SectionLabel id={`unlocks-${plugin.id}`}>
+                        {t("detail.unlocks", { count: variableRows.length })}
+                      </SectionLabel>
+                      <List gap="0" aria-labelledby={`unlocks-${plugin.id}`} className="flex flex-wrap gap-1">
+                        {variableRows.map((variable) => (
+                          <ListItem key={variable.name}>
+                            <Badge variant="variable">{`${plugin.id}.${variable.name}`}</Badge>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </>
+                  )}
+                  {/* A new page, or the plugin's own demo page (the old Demo Page box).
+                      Outputs and transitions put nothing on a page, so no button. */}
+                  {!hasNoToggle && (
+                    <Box>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline">
+                            <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
+                            {t("detail.useInPage")}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={() => router.push("/pages/new")}>
+                            <FilePlus className="h-3.5 w-3.5 mr-2" />
+                            {t("detail.newPage")}
+                          </DropdownMenuItem>
+                          {pluginDetails?.has_demo && (
+                            <>
+                              <DropdownMenuItem
+                                disabled={!demoReady || isCreatingDemo}
+                                aria-describedby={demoReady ? undefined : `demo-requirements-${plugin.id}`}
+                                onClick={() =>
+                                  pluginDetails.demo_page_id ? setShowDemoConfirm(true) : void handleCreateDemoPage()
+                                }
+                              >
+                                <Play className="h-3.5 w-3.5 mr-2" />
+                                {isCreatingDemo
+                                  ? t("demoPage.creating")
+                                  : pluginDetails.demo_page_id
+                                    ? t("demoPage.recreateAction")
+                                    : t("demoPage.createAction")}
+                              </DropdownMenuItem>
+                              {!demoReady && (
+                                <Text
+                                  id={`demo-requirements-${plugin.id}`}
+                                  size="xs"
+                                  tone="warning"
+                                  className="max-w-60 px-2 pb-1.5"
+                                >
+                                  {t("demoPage.requirementsWarning")}
+                                </Text>
+                              )}
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
+                            <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
+                              {tCommon("cancel")}
+                            </Button>
+                            <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
+                              {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </Box>
+                  )}
+                </Stack>
               </>
             )}
           </Stack>
@@ -1731,8 +1861,8 @@ export function InstalledPluginRow({
               {isSaving ? tCommon("saving") : t("saveChanges")}
             </Button>
           </Flex>
-        </TabsContent>
-        <TabsContent value="variables" className="py-4 min-w-0 overflow-x-auto">
+        </SettingsPanel>
+        <FullPagePanel value="variables" className="py-4 min-w-0 overflow-x-auto">
           {isLoadingDetails && <Skeleton className="h-24 w-full" />}
           {/* Template Variables Section */}
           {variableRows.length > 0 && (
@@ -1807,8 +1937,8 @@ export function InstalledPluginRow({
           )}
 
           {!isLoadingDetails && variableRows.length === 0 && <Text tone="muted">{t("noVariables")}</Text>}
-        </TabsContent>
-        <TabsContent value="readme" className="py-4">
+        </FullPagePanel>
+        <FullPagePanel value="readme" className="py-4">
           <IntegrationReadme
             pluginId={plugin.id}
             repository={repositoryUrl}
@@ -1817,8 +1947,8 @@ export function InstalledPluginRow({
             version={plugin.version}
             author={pluginDetails?.author || plugin.author}
           />
-        </TabsContent>
-      </Tabs>
+        </FullPagePanel>
+      </DetailTabs>
     </>
   );
   const detailContent = (
@@ -1838,6 +1968,8 @@ export function InstalledPluginRow({
         className={cn(
           "min-w-0 overflow-x-auto",
           detailTab === "readme" ? "border-0 bg-transparent shadow-none p-0" : "p-5",
+          // 07d: the sample sits 12 under the pane's title row.
+          !fullPage && "gap-3",
         )}
       >
         <Flex justify="between" align="center" gap="3" wrap>
@@ -1848,83 +1980,40 @@ export function InstalledPluginRow({
               {plugin.name}
             </Heading>
           )}
-          <Flex align="center" justify="end" gap="0.5">
-            {!hasNoToggle && (
-              <Switch
-                checked={plugin.enabled}
-                onCheckedChange={(checked) => onToggle(plugin.id, checked)}
-                disabled={isToggling}
-                aria-label={t("toggleAriaLabel", { pluginName: plugin.name })}
-              />
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("moreOptionsAriaLabel")}>
-                  <MoreHorizontal className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setDetailTab("settings")}>
-                  <Settings className="h-3.5 w-3.5 mr-2" />
-                  {t("configureButton")}
-                </DropdownMenuItem>
-                {!isInstance && (
-                  <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
-                    <CopyPlus className="h-3.5 w-3.5 mr-2" />
-                    {t("addInstanceAction")}
-                  </DropdownMenuItem>
-                )}
-                {!hasNoToggle && (
-                  <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
-                    {plugin.enabled ? (
-                      <XCircle className="h-3.5 w-3.5 mr-2" />
-                    ) : (
-                      <CheckCircle className="h-3.5 w-3.5 mr-2" />
-                    )}
-                    {plugin.enabled ? "Disable" : "Enable"}
-                  </DropdownMenuItem>
-                )}
-                {hasUpdate && onUpdate && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onUpdate(plugin.id)} disabled={isUpdating}>
-                      {isUpdating ? (
-                        <Spinner size="sm" className="mr-2" label={null} />
+          {fullPage ? (
+            <Flex align="center" justify="end" gap="0.5">
+              {!hasNoToggle && (
+                <Switch
+                  checked={plugin.enabled}
+                  onCheckedChange={(checked) => onToggle(plugin.id, checked)}
+                  disabled={isToggling}
+                  aria-label={t("toggleAriaLabel", { pluginName: plugin.name })}
+                />
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("moreOptionsAriaLabel")}>
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {!hasNoToggle && (
+                    <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
+                      {plugin.enabled ? (
+                        <XCircle className="h-3.5 w-3.5 mr-2" />
                       ) : (
-                        <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                        <CheckCircle className="h-3.5 w-3.5 mr-2" />
                       )}
-                      {isUpdating ? "Updating..." : "Update"}
+                      {plugin.enabled ? "Disable" : "Enable"}
                     </DropdownMenuItem>
-                  </>
-                )}
-                {isInstance && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-2" />
-                      {tCommon("delete")}
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {canUninstall && onUninstall && !isInstance && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setShowDeleteConfirm(true)}
-                      disabled={isUninstalling}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-2" />
-                      {isUninstalling ? "Uninstalling..." : "Delete"}
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </Flex>
+                  )}
+                  {pluginActions}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </Flex>
+          ) : (
+            statusBadge
+          )}
         </Flex>
         {showAddInstance && (
           <Box role="group" aria-label={t("addInstanceAction")} className="rounded-lg border p-4">
@@ -1997,18 +2086,15 @@ export function InstalledPluginRow({
             <Link href={`/integrations/${encodeURIComponent(plugin.id)}?from=installed`} />
           )
         }
-        leading={
-          desktop ? (
-            <IconTile size="sm" tone="muted">
-              <Icon className="h-4 w-4" />
-            </IconTile>
-          ) : (
-            // A phone row leads with its state, as in Figma 324:50158; the
-            // status line beside it says the same in words.
-            <StatusDot status={rowStatus} size="md" className="mx-1" />
-          )
+        className={INSET_ROW}
+        // Every row leads with its state, as in Figma 324:50158 and
+        // 324:40267; the status line beside it says the same in words.
+        leading={<StatusDot status={rowStatus} size="md" className="mx-1" />}
+        title={
+          <Text as="span" weight="semibold">
+            {plugin.name}
+          </Text>
         }
-        title={plugin.name}
         description={
           <>
             {isTransition ? (
@@ -2608,29 +2694,24 @@ export default function IntegrationsPage() {
             }
           >
             {/* A phone gets Figma's full-width pair, "Installed · 6 | Marketplace". */}
+            {/* "Installed · 6 | Marketplace" at every width (07d `324:40267`,
+                `324:50158`): the count is words, not a badge. */}
             <TabsList className={phone ? "grid w-full grid-cols-2" : "w-fit"}>
               <TabsTrigger value="installed">
                 {t("tabInstalled")}
-                {data &&
-                  (phone ? (
-                    ` · ${data.total}`
-                  ) : (
-                    <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
-                      {data.total}
-                    </Badge>
-                  ))}
+                {data && ` · ${data.total}`}
               </TabsTrigger>
-              <TabsTrigger value="marketplace">
-                {t("tabMarketplace")}
-                {!phone && availableCount > 0 && (
-                  <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
-                    {availableCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
+              <TabsTrigger value="marketplace">{t("tabMarketplace")}</TabsTrigger>
             </TabsList>
             {!(phone && activeTab === "installed") && (
-              <Box className="relative min-w-0 w-full">
+              // A 280px field at the right of the tabs (07d `324:40267`).
+              <Box
+                className={
+                  activeTab === "installed"
+                    ? "relative min-w-0 w-full sm:w-70 sm:max-w-full sm:justify-self-end"
+                    : "relative min-w-0 w-full"
+                }
+              >
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
                   placeholder={
@@ -2702,11 +2783,12 @@ export default function IntegrationsPage() {
             {isLoading ? (
               <Box role="status" aria-label={tCommon("loading")} aria-busy="true">
                 <Text className="sr-only">{tCommon("loading")}</Text>
-                <ListRowGroup size="touch" aria-hidden="true">
+                <ListRowGroup size="default" aria-hidden="true" className={INSET_ROW_GROUP}>
                   {Array.from({ length: 5 }, (_, i) => (
                     <ListRow
                       key={i}
-                      leading={<Skeleton className="h-8 w-8 rounded-md" />}
+                      className={INSET_ROW}
+                      leading={<Skeleton className="mx-1 size-2 rounded-full" />}
                       title={<Skeleton className="h-4 w-32 max-w-full" />}
                       description={<Skeleton className="h-3 w-20 max-w-full" />}
                     />
@@ -2786,14 +2868,16 @@ export default function IntegrationsPage() {
                       .filter((group) => group.plugins.length > 0)
                       .map((group) => (
                         <Stack gap="2" key={group.label}>
+                          {/* Flush with the list, rows inset in it with no
+                              dividers (07d `324:40267`, DD-W143). */}
                           <Heading
                             level={2}
                             size="sm"
-                            className="px-4 font-mono uppercase tracking-wide text-muted-foreground"
+                            className="font-mono uppercase tracking-wide text-muted-foreground"
                           >
                             {group.label}
                           </Heading>
-                          <ListRowGroup aria-label={group.label} size="touch">
+                          <ListRowGroup aria-label={group.label} size="default" className={INSET_ROW_GROUP}>
                             {group.plugins.map((plugin) => (
                               <InstalledPluginRow
                                 key={plugin.id}
@@ -2829,11 +2913,11 @@ export default function IntegrationsPage() {
                       id="plugin-updates-heading"
                       level={2}
                       size="sm"
-                      className="px-4 font-mono uppercase tracking-wide text-muted-foreground"
+                      className="font-mono uppercase tracking-wide text-muted-foreground"
                     >
                       {t("pluginUpdatesSection")}
                     </Heading>
-                    <Flex align="center" justify="between" gap="3" wrap className="px-4">
+                    <Flex align="center" justify="between" gap="3" wrap>
                       <PluginAutoUpdateSwitch />
                       <PluginUpdateCheckButton />
                     </Flex>

@@ -101,7 +101,11 @@
     "about": "Over FiestaBoard",
     "signOut": "Afmelden",
     "popoverLabel": "Accountmenu",
-    "account": "Account"
+    "account": "Account",
+    "theme": "Thema",
+    "signOutBrowser": "Afmelden in deze browser",
+    "ownerLine": "{username} · Eigenaar van {hub}",
+    "updateBadge": "Update {version}"
   },
   "aboutDialog": {
     "description": "Zelf gehost. Jouw hub, jouw schermen, jouw gegevens.",
@@ -303,11 +307,11 @@
   },
   "pages": {
     "title": "Pagina's",
-    "description": "Maak en beheer inhoud voor je bord",
+    "description": "Alles wat je schermen kunnen tonen. Open er een om te bewerken of nu te tonen.",
     "newPage": "Nieuwe pagina",
     "viewModeLabel": "Weergavemodus",
-    "gridView": "Rasterweergave",
-    "listView": "Lijstweergave",
+    "gridView": "Raster",
+    "listView": "Lijst",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
@@ -328,16 +332,16 @@
     "libraryCount": "{count, plural, one {# pagina} other {# pagina’s}}",
     "clearFilter": "Alle pagina’s tonen",
     "searchLabel": "Pagina’s zoeken",
-    "searchPlaceholder": "Zoek namen of opgeslagen inhoud",
+    "searchPlaceholder": "Pagina’s zoeken",
     "searchHint": "Doorzoekt namen en opgeslagen inhoud binnen het geselecteerde schermfilter.",
     "clearSearch": "Zoekopdracht wissen",
     "sortLabel": "Pagina’s sorteren",
     "sortNameAsc": "Naam A–Z",
     "sortNameDesc": "Naam Z–A",
-    "sortCreatedDesc": "Nieuwste eerst",
-    "sortCreatedAsc": "Oudste eerst",
-    "sortUpdatedDesc": "Laatst bijgewerkt",
-    "sortUpdatedAsc": "Langst niet bijgewerkt",
+    "sortCreatedDesc": "Gemaakt, nieuwste eerst",
+    "sortCreatedAsc": "Gemaakt, oudste eerst",
+    "sortUpdatedDesc": "Bijgewerkt, nieuwste eerst",
+    "sortUpdatedAsc": "Bijgewerkt, oudste eerst",
     "noMatches": "Geen overeenkomende pagina’s",
     "searchCount": "{count} van {total} pagina’s",
     "loadError": "Pagina’s konden niet worden geladen. Je zoekopdracht blijft behouden.",
@@ -346,6 +350,7 @@
     "duplicate": "Dupliceren",
     "cardEdited": "Bewerkt {when}",
     "cardScheduled": "Schema {time}",
+    "exportShareString": "Deelreeks exporteren",
     "deletePage": "Pagina verwijderen…",
     "toastDuplicated": "‘{name}’ gemaakt",
     "actionFailed": "Dat lukte niet. Probeer het opnieuw."
@@ -447,9 +452,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Weergavemodus",
-    "gridView": "Tegelweergave",
-    "listView": "Lijstweergave",
     "libraryCount": "{count, plural, one {# carrousel} other {# carrousels}}",
     "removePage": "{name} verwijderen",
     "sortLifted": "{name} opgetild · positie {position} van {total} · ↑ ↓ om te verplaatsen, Spatie om neer te zetten, Esc om te annuleren",
@@ -532,7 +534,7 @@
     "scheduleMode": "Planningsmodus",
     "scheduleModeEnabledDescription": "Ingeschakeld — pagina's roteren automatisch volgens planning",
     "scheduleModeDisabledDescription": "Uitgeschakeld — pagina's worden handmatig bediend",
-    "defaultPageLabel": "Standaardpagina voor tussenpozen:",
+    "defaultPageLabel": "Standaardpagina voor tussenpozen",
     "selectDefaultPage": "Selecteer een standaardpagina",
     "noneNoDefault": "Geen (geen standaard)",
     "conflictsDetected": "Planningsconflicten gedetecteerd",
@@ -783,6 +785,10 @@
   },
   "integrations": {
     "detailTabs": "Integratiedetails",
+    "paneMenu": {
+      "enabled": "Ingeschakeld",
+      "liveValues": "Variabelen en live waarden"
+    },
     "variablesTab": "Variabelen",
     "readmeTab": "README",
     "readmeUnavailable": "Documentatie is niet beschikbaar.",
@@ -815,7 +821,7 @@
     "configureDescription": "Instellingen configureren voor deze integratie",
     "settingsSection": "Instellingen",
     "oauth": {
-      "sectionTitle": "Accountverbinding",
+      "sectionTitle": "Account",
       "statusConnected": "Verbonden",
       "statusDisconnected": "Niet verbonden",
       "statusReconnect": "Opnieuw verbinden nodig",
@@ -996,6 +1002,12 @@
     "sourceExternalBadge": "Extern",
     "updateAvailableBadge": "Update",
     "moreOptionsAriaLabel": "Meer opties",
+    "sectionMenuAriaLabel": "Integratie-opties",
+    "detail": {
+      "unlocks": "Ontgrendelt {count, plural, one {# variabele} other {# variabelen}}",
+      "useInPage": "Gebruiken op een pagina…",
+      "newPage": "Nieuwe pagina"
+    },
     "addInstanceAction": "Instantie toevoegen",
     "instanceNameInlineLabel": "Instantienaam:",
     "addInstanceInlineHelp": "Maakt een nieuwe onafhankelijke instantie van deze plugin met een eigen configuratie. Gebruik alfanumerieke tekens, koppeltekens of underscores (1–40 tekens).",
@@ -1566,6 +1578,7 @@
   "composeDialog": {
     "title": "Bericht opstellen",
     "description": "Verschijnt op {board} als je Nu tonen kiest. Daarvoor komt er niets op het bord.",
+    "descriptionPhone": "Verschijnt op {board} (het scherm in de kop) als je Nu tonen kiest.",
     "messageLabel": "Bericht",
     "messagePlaceholder": "Typ je bericht…",
     "previewLabel": "Voorbeeld",
@@ -1758,7 +1771,15 @@
     "textMode": "Tekst",
     "canvasesMode": "Canvassen",
     "showPreview": "Voorbeeld en live-uitvoer tonen",
-    "hidePreview": "Voorbeeld en live-uitvoer verbergen"
+    "hidePreview": "Voorbeeld en live-uitvoer verbergen",
+    "discardDialogClose": "Sluiten",
+    "discardChangesSince": "Je hebt sinds {time} {count, plural, one {1 regel} other {# regels}} gewijzigd. Als je nu weggaat, gaan ze verloren.",
+    "discardChangesLost": "Als je nu weggaat, gaan je wijzigingen verloren.",
+    "discardChangesBoardKeeps": "{board} blijft de opgeslagen versie tonen.",
+    "discardChangesDisplaysKeep": "Schermen blijven de opgeslagen versie tonen.",
+    "discardChangedLabel": "Gewijzigd",
+    "discardChangedLine": "Regel {line} ({text})",
+    "discardChangedLineEmpty": "Regel {line} (leeg)"
   },
   "displaySettings": {
     "unnamedBoard": "Naamloos bord",
@@ -1845,6 +1866,8 @@
       "overrideUntil": "Handmatig · tot {time}",
       "pauseDisplay": "Scherm pauzeren",
       "pauseHint": "Het bord blijft de huidige inhoud tonen; het schema blijft op de hub doorlopen.",
+      "pause": "Pauzeren",
+      "resume": "Hervatten",
       "diagnostics": "Diagnostiek",
       "changePage": "Pagina wijzigen…",
       "back": "Terug naar schermen",
@@ -2149,7 +2172,7 @@
     "boardUpdateIntervalDescription": "Hoe vaak het bord op inhoudsupdates controleert (in seconden)",
     "requiresServiceRestart": "Herstart van service vereist",
     "silenceScheduleLabel": "Stilteperiode",
-    "silenceScheduleDescription": "Voorkom bordupdates tijdens opgegeven uren",
+    "silenceScheduleDescription": "Het stilteschema voor dit scherm. Berichten die binnenkomen terwijl het stil is, volgen de keuze hieronder.",
     "startTimeLabel": "Starttijd",
     "endTimeLabel": "Eindtijd",
     "whenSilenceBegins": "Wanneer de stilte begint",
@@ -2176,7 +2199,7 @@
     "silencePageLabel": "Stiltepagina",
     "silencePagePlaceholder": "Selecteer een pagina...",
     "silencePageHelp": "Deze pagina wordt getoond wanneer het stilterooster begint. De variabelen worden niet vernieuwd tijdens stilte.",
-    "scheduleBehaviorTitle": "Planningsschakelaar",
+    "scheduleBehaviorTitle": "Planningsgedrag",
     "scheduleBehaviorDescription": "Hoe het bord reageert wanneer de planningsmodus weer wordt ingeschakeld",
     "deferOnReenable": "Wachten op de volgende geplande wijziging",
     "deferOnReenableHint": "Laat het bord op de huidige pagina staan wanneer de planningsmodus weer wordt ingeschakeld, totdat de planning het volgende tijdvak bereikt. Standaard uit, dus het bord werkt meteen bij.",
@@ -2422,20 +2445,18 @@
     "welcomeSendError": "Versturen mislukt",
     "welcomeDefault": "Laat leeg om de standaardbegroeting te gebruiken",
     "timezoneLabel": "Tijdzone",
-    "animationsTitle": "Grafische weergave en voorbeelden",
-    "animationsDescription": "Beheer bewegingen in de hele app. Deze voorkeuren gelden voor elk voorbeeld op het scherm.",
-    "boardAnimationsLabel": "Bordvoorbeelden",
-    "boardAnimationsHint": "Het omklappen van split-flap-tegels bij wijziging",
-    "boardAnimationsOn": "Aan",
-    "boardAnimationsDesktop": "Alleen desktop",
-    "boardAnimationsOff": "Uit",
-    "boardAnimationsOnHint": "Overal animeren",
-    "boardAnimationsDesktopHint": "Sla flap-animatie over op telefoons en tablets",
-    "boardAnimationsOffHint": "Nooit animeren; tegels wijzigen direct",
-    "siteAnimationsLabel": "Site-animaties",
     "siteAnimationsHint": "Overgangen, hover-effecten en andere UI-beweging",
-    "siteAnimationsOn": "Aan",
-    "siteAnimationsOff": "Uit",
+    "boardsTitle": "Borden",
+    "animateTileFlips": "Tegelflips animeren",
+    "animateTileFlipsHint": "Bordvoorbeelden flippen zoals het echte bord.",
+    "homeColorStrip": "Kleurenstrook op Home tonen",
+    "motionDetailsTitle": "Bewegingsdetails",
+    "motionDetailsDescription": "Voor iedereen op deze hub.",
+    "boardAnimationsDesktopOnly": "Alleen op bredere schermen",
+    "boardAnimationsDesktopOnlyHint": "Op telefoons en in smalle vensters wisselen tegels zonder te flippen.",
+    "siteAnimationsSwitch": "De rest van de app animeren",
+    "hubReduceMotion": "Beweging voor iedereen beperken",
+    "hubReduceMotionHint": "Schakelt tegelflips en app-animaties uit in elke browser op deze hub.",
     "animationsReduceMotionOverride": "\"Beweging verminderen\" is ingeschakeld en overschrijft deze instellingen.",
     "flapSpeedLabel": "Omklapsnelheid",
     "flapSpeedHint": "Kies het ritme voor de voorbeelden van klapborden in deze app.",
@@ -2625,6 +2646,7 @@
     "boardPreviewLabel": "{name} op een split-flapbord",
     "boardShapeLabel": "Bordformaat",
     "boardColorLabel": "Bordkleur",
+    "sampleCaption": "Voorbeeldpagina met deze integratie",
     "blackBoard": "Zwart bord",
     "whiteBoard": "Wit bord",
     "deviceFlagship": "Flagship",
@@ -2775,7 +2797,11 @@
     "clickToEditFormula": "Klik om formule te bewerken",
     "newFormula": "nieuwe formule",
     "loading": "Laden…",
-    "dialogLabel": "Formule-editor"
+    "dialogLabel": "Formule-editor",
+    "sheetTitle": "Formule",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} is nu {value}",
+    "resultColumns": "{used} van {cols} kolommen"
   },
   "templateEditor": {
     "variables": "Variabelen",
@@ -3854,7 +3880,9 @@
     "replay": "Afspelen",
     "replayHint": "Split-flap-animatie afspelen",
     "previewTarget": "Voorbeelddoel",
-    "previewTargetTrigger": "Voorbeeld op {target}"
+    "previewTargetTrigger": "Voorbeeld op {target}",
+    "discardDraft": "Verwerpen",
+    "lastSaved": "laatst opgeslagen {time}"
   },
   "phonePairing": {
     "title": "Een telefoon verbinden",
@@ -4035,7 +4063,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} punten",
     "layerMetaText": "Lettertype {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} afgekapt"
   },
   "creatorIde": {
     "regionLabel": "Creator-IDE",
@@ -4227,7 +4256,14 @@
     "replaceDraft": "Concept vervangen",
     "draftConflictTitle": "Nieuwer concept vervangen?",
     "draftConflictDescription": "Een ander apparaat heeft het concept van deze pagina opgeslagen nadat je hem opende. Bij vervangen blijft alleen over wat in deze editor staat.",
-    "legendLabel": "Planningsitems"
+    "legendLabel": "Planningsitems",
+    "draftRestored": "Concept hersteld",
+    "draftRestoredStale": "Concept hersteld · de pagina is sindsdien gewijzigd",
+    "draftSavedAt": "Concept opgeslagen {time}",
+    "liveOn": "Live op {board}",
+    "deletePage": "Pagina verwijderen…",
+    "deletePageDetail": "Haalt haar uit alle schema’s en collecties",
+    "autosavePaused": "Niet opgeslagen · een concept van elders wacht in Geschiedenis"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4369,6 +4405,7 @@
     "fits": "Past",
     "doesNotFit": "Past niet",
     "fitReport": "Regel {line} is {widest} van {cols} kolommen",
-    "nothingCut": "niets afgekapt"
+    "nothingCut": "niets afgekapt",
+    "missingOff": "{plugin} staat uit bij Integraties"
   }
 }

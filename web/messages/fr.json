@@ -101,7 +101,11 @@
     "about": "À propos de FiestaBoard",
     "signOut": "Se déconnecter",
     "popoverLabel": "Menu du compte",
-    "account": "Compte"
+    "account": "Compte",
+    "theme": "Thème",
+    "signOutBrowser": "Se déconnecter de ce navigateur",
+    "ownerLine": "{username} · Propriétaire de {hub}",
+    "updateBadge": "Mise à jour {version}"
   },
   "aboutDialog": {
     "description": "Auto-hébergé. Votre hub, vos écrans, vos données.",
@@ -303,11 +307,11 @@
   },
   "pages": {
     "title": "Pages",
-    "description": "Créez et gérez le contenu de votre tableau",
+    "description": "Tout ce que vos écrans peuvent afficher. Ouvrez-en une pour la modifier ou l’afficher maintenant.",
     "newPage": "Nouvelle page",
     "viewModeLabel": "Mode d'affichage",
-    "gridView": "Vue en grille",
-    "listView": "Vue en liste",
+    "gridView": "Grille",
+    "listView": "Liste",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
@@ -328,16 +332,16 @@
     "libraryCount": "{count, plural, one {# page} other {# pages}}",
     "clearFilter": "Afficher toutes les pages",
     "searchLabel": "Rechercher des pages",
-    "searchPlaceholder": "Rechercher un nom ou du contenu enregistré",
+    "searchPlaceholder": "Rechercher des pages",
     "searchHint": "Recherche les noms et le contenu enregistré dans le filtre d’affichage sélectionné.",
     "clearSearch": "Effacer la recherche",
     "sortLabel": "Trier les pages",
     "sortNameAsc": "Nom A–Z",
     "sortNameDesc": "Nom Z–A",
-    "sortCreatedDesc": "Création la plus récente",
-    "sortCreatedAsc": "Création la plus ancienne",
-    "sortUpdatedDesc": "Mise à jour la plus récente",
-    "sortUpdatedAsc": "Mise à jour la plus ancienne",
+    "sortCreatedDesc": "Création, plus récentes d’abord",
+    "sortCreatedAsc": "Création, plus anciennes d’abord",
+    "sortUpdatedDesc": "Mise à jour, plus récentes d’abord",
+    "sortUpdatedAsc": "Mise à jour, plus anciennes d’abord",
     "noMatches": "Aucune page correspondante",
     "searchCount": "{count} sur {total} pages",
     "loadError": "Impossible de charger les pages. Votre recherche est conservée.",
@@ -346,6 +350,7 @@
     "duplicate": "Dupliquer",
     "cardEdited": "Modifiée {when}",
     "cardScheduled": "Planning {time}",
+    "exportShareString": "Exporter la chaîne de partage",
     "deletePage": "Supprimer la page…",
     "toastDuplicated": "« {name} » créée",
     "actionFailed": "Impossible pour le moment. Réessayez."
@@ -447,9 +452,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Mode d’affichage",
-    "gridView": "Vue en tuiles",
-    "listView": "Vue en liste",
     "libraryCount": "{count, plural, one {# carrousel} other {# carrousels}}",
     "removePage": "Retirer {name}",
     "sortLifted": "{name} soulevée · position {position} sur {total} · ↑ ↓ pour déplacer, Espace pour déposer, Échap pour annuler",
@@ -532,7 +534,7 @@
     "scheduleMode": "Mode planification",
     "scheduleModeEnabledDescription": "Activé — les pages changent automatiquement selon la planification",
     "scheduleModeDisabledDescription": "Désactivé — les pages sont contrôlées manuellement",
-    "defaultPageLabel": "Page par défaut pour les créneaux vides :",
+    "defaultPageLabel": "Page par défaut pour les créneaux vides",
     "selectDefaultPage": "Sélectionner une page par défaut",
     "noneNoDefault": "Aucune (pas de page par défaut)",
     "conflictsDetected": "Conflits de planification détectés",
@@ -783,6 +785,10 @@
   },
   "integrations": {
     "detailTabs": "Détails de l’intégration",
+    "paneMenu": {
+      "enabled": "Activée",
+      "liveValues": "Variables et valeurs en direct"
+    },
     "variablesTab": "Variables",
     "readmeTab": "README",
     "readmeUnavailable": "La documentation n’est pas disponible.",
@@ -815,7 +821,7 @@
     "configureDescription": "Configurer les paramètres de cette intégration",
     "settingsSection": "Paramètres",
     "oauth": {
-      "sectionTitle": "Connexion au compte",
+      "sectionTitle": "Compte",
       "statusConnected": "Connecté",
       "statusDisconnected": "Non connecté",
       "statusReconnect": "Reconnexion nécessaire",
@@ -996,6 +1002,12 @@
     "sourceExternalBadge": "Externe",
     "updateAvailableBadge": "Mise à jour",
     "moreOptionsAriaLabel": "Plus d'options",
+    "sectionMenuAriaLabel": "Options des intégrations",
+    "detail": {
+      "unlocks": "Débloque {count, plural, one {# variable} other {# variables}}",
+      "useInPage": "Utiliser dans une page…",
+      "newPage": "Nouvelle page"
+    },
     "addInstanceAction": "Ajouter une instance",
     "instanceNameInlineLabel": "Nom de l'instance :",
     "addInstanceInlineHelp": "Crée une nouvelle instance indépendante de ce plugin avec sa propre configuration. Utilisez des caractères alphanumériques, des tirets ou des soulignements (1 à 40 caractères).",
@@ -1566,6 +1578,7 @@
   "composeDialog": {
     "title": "Rédiger un message",
     "description": "S’affiche sur {board} quand vous choisissez Afficher maintenant. Rien n’atteint le tableau avant.",
+    "descriptionPhone": "S’affiche sur {board} (l’écran de l’en-tête) quand vous choisissez Afficher maintenant.",
     "messageLabel": "Message",
     "messagePlaceholder": "Saisissez votre message…",
     "previewLabel": "Aperçu",
@@ -1758,7 +1771,15 @@
     "textMode": "Texte",
     "canvasesMode": "Canevas",
     "showPreview": "Afficher l’aperçu et la sortie en direct",
-    "hidePreview": "Masquer l’aperçu et la sortie en direct"
+    "hidePreview": "Masquer l’aperçu et la sortie en direct",
+    "discardDialogClose": "Fermer",
+    "discardChangesSince": "Vous avez modifié {count, plural, one {1 ligne} other {# lignes}} depuis {time}. Si vous partez maintenant, elles seront perdues.",
+    "discardChangesLost": "Si vous partez maintenant, vos modifications seront perdues.",
+    "discardChangesBoardKeeps": "{board} continue d’afficher la version enregistrée.",
+    "discardChangesDisplaysKeep": "Les écrans continuent d’afficher la version enregistrée.",
+    "discardChangedLabel": "Modifié",
+    "discardChangedLine": "Ligne {line} ({text})",
+    "discardChangedLineEmpty": "Ligne {line} (vide)"
   },
   "displaySettings": {
     "unnamedBoard": "Tableau sans nom",
@@ -1845,6 +1866,8 @@
       "overrideUntil": "Manuel · jusqu’à {time}",
       "pauseDisplay": "Mettre l’écran en pause",
       "pauseHint": "Le tableau conserve son affichage ; la programmation continue de s’exécuter sur le hub.",
+      "pause": "Mettre en pause",
+      "resume": "Reprendre",
       "diagnostics": "Diagnostic",
       "changePage": "Changer de page…",
       "back": "Retour aux écrans",
@@ -2149,7 +2172,7 @@
     "boardUpdateIntervalDescription": "Fréquence à laquelle le tableau vérifie les mises à jour de contenu (en secondes)",
     "requiresServiceRestart": "Nécessite un redémarrage du service",
     "silenceScheduleLabel": "Plage de silence",
-    "silenceScheduleDescription": "Empêcher les mises à jour du tableau pendant les heures spécifiées",
+    "silenceScheduleDescription": "Le planning de silence de cet écran. Les messages qui arrivent pendant le silence suivent le choix ci-dessous.",
     "startTimeLabel": "Heure de début",
     "endTimeLabel": "Heure de fin",
     "whenSilenceBegins": "Début de la période de silence",
@@ -2176,7 +2199,7 @@
     "silencePageLabel": "Page de silence",
     "silencePagePlaceholder": "Sélectionnez une page…",
     "silencePageHelp": "Cette page sera affichée au début du planning de silence. Ses variables ne s'actualiseront pas pendant le silence.",
-    "scheduleBehaviorTitle": "Bascule de la planification",
+    "scheduleBehaviorTitle": "Comportement de la planification",
     "scheduleBehaviorDescription": "Comment le tableau réagit lorsque le mode planification est réactivé",
     "deferOnReenable": "Attendre le prochain changement planifié",
     "deferOnReenableHint": "Laisse le tableau sur sa page actuelle lors de la réactivation du mode planification, jusqu'à ce que la planification atteigne sa prochaine plage. Désactivé par défaut : le tableau se met à jour immédiatement.",
@@ -2422,20 +2445,18 @@
     "welcomeSendError": "Échec de l'envoi",
     "welcomeDefault": "Laisser vide pour utiliser le message par défaut",
     "timezoneLabel": "Fuseau horaire",
-    "animationsTitle": "Graphismes et aperçus",
-    "animationsDescription": "Réglez les animations dans toute l’application. Ces préférences s’appliquent à tous les aperçus à l’écran.",
-    "boardAnimationsLabel": "Aperçus du tableau",
-    "boardAnimationsHint": "Le basculement des split-flaps lorsque les tuiles changent",
-    "boardAnimationsOn": "Activées",
-    "boardAnimationsDesktop": "Bureau uniquement",
-    "boardAnimationsOff": "Désactivées",
-    "boardAnimationsOnHint": "Animer partout",
-    "boardAnimationsDesktopHint": "Ignorer l'animation de basculement sur téléphones et tablettes",
-    "boardAnimationsOffHint": "Ne jamais animer ; les tuiles changent instantanément",
-    "siteAnimationsLabel": "Animations du site",
     "siteAnimationsHint": "Transitions, survols et autres mouvements de l'interface",
-    "siteAnimationsOn": "Activées",
-    "siteAnimationsOff": "Désactivées",
+    "boardsTitle": "Tableaux",
+    "animateTileFlips": "Animer le basculement des tuiles",
+    "animateTileFlipsHint": "Les aperçus basculent comme le vrai tableau.",
+    "homeColorStrip": "Afficher la bande de couleurs sur l’Accueil",
+    "motionDetailsTitle": "Détails du mouvement",
+    "motionDetailsDescription": "Pour tout le monde sur ce hub.",
+    "boardAnimationsDesktopOnly": "Uniquement sur les écrans larges",
+    "boardAnimationsDesktopOnlyHint": "Sur téléphone et dans les fenêtres étroites, les tuiles changent sans basculer.",
+    "siteAnimationsSwitch": "Animer le reste de l’app",
+    "hubReduceMotion": "Réduire les animations pour tous",
+    "hubReduceMotionHint": "Désactive le basculement des tuiles et les animations de l’app dans tous les navigateurs de ce hub.",
     "animationsReduceMotionOverride": "« Réduire les animations » est activé, ce qui remplace ces paramètres.",
     "flapSpeedLabel": "Vitesse de basculement",
     "flapSpeedHint": "Choisissez la cadence des aperçus de tableaux à volets dans toute l’application.",
@@ -2625,6 +2646,7 @@
     "boardPreviewLabel": "{name} sur un tableau split-flap",
     "boardShapeLabel": "Format du tableau",
     "boardColorLabel": "Couleur du tableau",
+    "sampleCaption": "Exemple de page utilisant cette intégration",
     "blackBoard": "Tableau noir",
     "whiteBoard": "Tableau blanc",
     "deviceFlagship": "Flagship",
@@ -2775,7 +2797,11 @@
     "clickToEditFormula": "Cliquez pour modifier la formule",
     "newFormula": "nouvelle formule",
     "loading": "Chargement…",
-    "dialogLabel": "Éditeur de formules"
+    "dialogLabel": "Éditeur de formules",
+    "sheetTitle": "Formule",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} vaut {value} maintenant",
+    "resultColumns": "{used} sur {cols} colonnes"
   },
   "templateEditor": {
     "variables": "Variables",
@@ -3854,7 +3880,9 @@
     "replay": "Rejouer",
     "replayHint": "Lire l’animation des palettes",
     "previewTarget": "Cible de l’aperçu",
-    "previewTargetTrigger": "Aperçu sur {target}"
+    "previewTargetTrigger": "Aperçu sur {target}",
+    "discardDraft": "Ignorer",
+    "lastSaved": "dernier enregistrement {time}"
   },
   "phonePairing": {
     "title": "Connecter un téléphone",
@@ -4035,7 +4063,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} points",
     "layerMetaText": "Police {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} coupés"
   },
   "creatorIde": {
     "regionLabel": "IDE du créateur",
@@ -4227,7 +4256,14 @@
     "replaceDraft": "Remplacer le brouillon",
     "draftConflictTitle": "Remplacer le brouillon plus récent ?",
     "draftConflictDescription": "Un autre appareil a enregistré le brouillon de cette page après son ouverture. Le remplacer ne garde que le contenu de cet éditeur.",
-    "legendLabel": "Entrées du planning"
+    "legendLabel": "Entrées du planning",
+    "draftRestored": "Brouillon restauré",
+    "draftRestoredStale": "Brouillon restauré · la page a changé depuis",
+    "draftSavedAt": "Brouillon enregistré {time}",
+    "liveOn": "En direct sur {board}",
+    "deletePage": "Supprimer la page…",
+    "deletePageDetail": "La retire de tous les plannings et collections",
+    "autosavePaused": "Non enregistré · un brouillon venu d’ailleurs attend dans Historique"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4369,6 +4405,7 @@
     "fits": "Tient",
     "doesNotFit": "Ne tient pas",
     "fitReport": "La ligne {line} fait {widest} sur {cols} colonnes",
-    "nothingCut": "rien de coupé"
+    "nothingCut": "rien de coupé",
+    "missingOff": "{plugin} est désactivé dans Intégrations"
   }
 }

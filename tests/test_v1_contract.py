@@ -1222,6 +1222,7 @@ def test_variables_merges_the_engine_and_plugin_catalogues(client):
         "formatting",
         "syntax_examples",
         "plugin_system_enabled",
+        "disabled_plugins",
     }
 
 

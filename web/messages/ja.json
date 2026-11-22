@@ -101,7 +101,11 @@
     "about": "FiestaBoard について",
     "signOut": "サインアウト",
     "popoverLabel": "アカウントメニュー",
-    "account": "アカウント"
+    "account": "アカウント",
+    "theme": "テーマ",
+    "signOutBrowser": "このブラウザからサインアウト",
+    "ownerLine": "{username} · {hub} のオーナー",
+    "updateBadge": "{version} に更新"
   },
   "aboutDialog": {
     "description": "セルフホスト。あなたのハブ、あなたのディスプレイ、あなたのデータ。",
@@ -303,11 +307,11 @@
   },
   "pages": {
     "title": "ページ",
-    "description": "ボードに表示するコンテンツを作成・管理します",
+    "description": "ディスプレイに表示できるすべてのページです。開いて編集するか、今すぐ表示できます。",
     "newPage": "新規",
     "viewModeLabel": "表示モード",
-    "gridView": "グリッド表示",
-    "listView": "リスト表示",
+    "gridView": "グリッド",
+    "listView": "リスト",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
     "noteArrayTab": "Note Array",
@@ -328,16 +332,16 @@
     "libraryCount": "{count, plural, one {# ページ} other {# ページ}}",
     "clearFilter": "すべてのページを表示",
     "searchLabel": "ページを検索",
-    "searchPlaceholder": "名前や保存済みの内容を検索",
+    "searchPlaceholder": "ページを検索",
     "searchHint": "選択したディスプレイフィルター内の名前と保存されたコンテンツを検索します。",
     "clearSearch": "検索をクリア",
     "sortLabel": "ページの並べ替え",
     "sortNameAsc": "名前 A–Z",
     "sortNameDesc": "名前 Z–A",
-    "sortCreatedDesc": "作成日時が新しい順",
-    "sortCreatedAsc": "作成日時が古い順",
-    "sortUpdatedDesc": "更新日時が新しい順",
-    "sortUpdatedAsc": "更新日時が古い順",
+    "sortCreatedDesc": "作成日時（新しい順）",
+    "sortCreatedAsc": "作成日時（古い順）",
+    "sortUpdatedDesc": "更新日時（新しい順）",
+    "sortUpdatedAsc": "更新日時（古い順）",
     "noMatches": "一致するページがありません",
     "searchCount": "{total} ページ中 {count} ページ",
     "loadError": "ページを読み込めませんでした。検索条件は保持されています。",
@@ -346,6 +350,7 @@
     "duplicate": "複製",
     "cardEdited": "{when}に編集",
     "cardScheduled": "スケジュール {time}",
+    "exportShareString": "共有文字列をエクスポート",
     "deletePage": "ページを削除…",
     "toastDuplicated": "「{name}」を作成しました",
     "actionFailed": "できませんでした。もう一度お試しください。"
@@ -447,9 +452,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "表示形式",
-    "gridView": "タイル表示",
-    "listView": "リスト表示",
     "libraryCount": "{count, plural, one {# 件のカルーセル} other {# 件のカルーセル}}",
     "removePage": "{name}を取り除く",
     "sortLifted": "{name} を持ち上げました · {total} 件中 {position} 番目 · ↑ ↓ で移動、Space で配置、Esc でキャンセル",
@@ -532,7 +534,7 @@
     "scheduleMode": "スケジュールモード",
     "scheduleModeEnabledDescription": "有効 — スケジュールに基づいてページが自動的に切り替わります",
     "scheduleModeDisabledDescription": "無効 — ページは手動で操作します",
-    "defaultPageLabel": "空き時間のデフォルトページ:",
+    "defaultPageLabel": "空き時間のデフォルトページ",
     "selectDefaultPage": "デフォルトページを選択",
     "noneNoDefault": "なし（デフォルトなし）",
     "conflictsDetected": "スケジュールの競合を検出",
@@ -783,6 +785,10 @@
   },
   "integrations": {
     "detailTabs": "連携の詳細",
+    "paneMenu": {
+      "enabled": "有効",
+      "liveValues": "変数とライブ値"
+    },
     "variablesTab": "変数",
     "readmeTab": "README",
     "readmeUnavailable": "ドキュメントを利用できません。",
@@ -815,7 +821,7 @@
     "configureDescription": "この連携の設定を変更します",
     "settingsSection": "設定",
     "oauth": {
-      "sectionTitle": "アカウント接続",
+      "sectionTitle": "アカウント",
       "statusConnected": "接続済み",
       "statusDisconnected": "未接続",
       "statusReconnect": "再接続が必要",
@@ -996,6 +1002,12 @@
     "sourceExternalBadge": "外部",
     "updateAvailableBadge": "更新あり",
     "moreOptionsAriaLabel": "その他のオプション",
+    "sectionMenuAriaLabel": "連携のオプション",
+    "detail": {
+      "unlocks": "{count, plural, other {# 個の変数}}を利用可能",
+      "useInPage": "ページで使う…",
+      "newPage": "新しいページ"
+    },
     "addInstanceAction": "インスタンスを追加",
     "instanceNameInlineLabel": "インスタンス名:",
     "addInstanceInlineHelp": "独自の設定を持つ、このプラグインの新しい独立したインスタンスを作成します。英数字、ハイフン、アンダースコアを使用してください (1〜40 文字)。",
@@ -1566,6 +1578,7 @@
   "composeDialog": {
     "title": "メッセージを作成",
     "description": "今すぐ表示を選ぶと {board} に表示されます。それまでボードには何も届きません。",
+    "descriptionPhone": "今すぐ表示を選ぶと {board}（ヘッダーのディスプレイ）に表示されます。",
     "messageLabel": "メッセージ",
     "messagePlaceholder": "メッセージを入力…",
     "previewLabel": "プレビュー",
@@ -1758,7 +1771,15 @@
     "textMode": "テキスト",
     "canvasesMode": "キャンバス",
     "showPreview": "プレビューとライブ出力を表示",
-    "hidePreview": "プレビューとライブ出力を非表示"
+    "hidePreview": "プレビューとライブ出力を非表示",
+    "discardDialogClose": "閉じる",
+    "discardChangesSince": "{time} 以降に {count} 行を変更しました。今移動すると失われます。",
+    "discardChangesLost": "今移動すると変更は失われます。",
+    "discardChangesBoardKeeps": "{board} には保存済みのバージョンが表示され続けます。",
+    "discardChangesDisplaysKeep": "ディスプレイには保存済みのバージョンが表示され続けます。",
+    "discardChangedLabel": "変更",
+    "discardChangedLine": "{line} 行目（{text}）",
+    "discardChangedLineEmpty": "{line} 行目（空白）"
   },
   "displaySettings": {
     "unnamedBoard": "名前未設定のボード",
@@ -1845,6 +1866,8 @@
       "overrideUntil": "手動表示 · {time}まで",
       "pauseDisplay": "ディスプレイを一時停止",
       "pauseHint": "ボードの表示内容はそのまま維持され、ハブではスケジュールが引き続き実行されます。",
+      "pause": "一時停止",
+      "resume": "再開",
       "diagnostics": "診断",
       "changePage": "ページを変更…",
       "back": "ディスプレイ一覧に戻る",
@@ -2149,7 +2172,7 @@
     "boardUpdateIntervalDescription": "ボードがコンテンツの更新を確認する頻度（秒単位）",
     "requiresServiceRestart": "サービスの再起動が必要です",
     "silenceScheduleLabel": "サイレントスケジュール",
-    "silenceScheduleDescription": "指定した時間帯のボード更新を停止します",
+    "silenceScheduleDescription": "このディスプレイのサイレンススケジュールです。サイレンス中に届いたメッセージは下の選択に従います。",
     "startTimeLabel": "開始時刻",
     "endTimeLabel": "終了時刻",
     "whenSilenceBegins": "サイレントモードの開始時刻",
@@ -2176,7 +2199,7 @@
     "silencePageLabel": "サイレンスページ",
     "silencePagePlaceholder": "ページを選択...",
     "silencePageHelp": "サイレンススケジュールの開始時にこのページが表示されます。サイレンス中は変数は更新されません。",
-    "scheduleBehaviorTitle": "スケジュールの切り替え",
+    "scheduleBehaviorTitle": "スケジュールの動作",
     "scheduleBehaviorDescription": "スケジュールモードを再度オンにしたときのボードの動作",
     "deferOnReenable": "次のスケジュール変更まで待つ",
     "deferOnReenableHint": "スケジュールモードを再度オンにしても、スケジュールが次の時間帯に入るまでボードは現在のページのままになります。既定ではオフで、ボードはすぐに更新されます。",
@@ -2422,20 +2445,18 @@
     "welcomeSendError": "送信に失敗",
     "welcomeDefault": "空のままにするとデフォルトの挨拶が使われます",
     "timezoneLabel": "タイムゾーン",
-    "animationsTitle": "グラフィックスとプレビュー",
-    "animationsDescription": "アプリ全体の動きを調整します。この設定は画面上のすべてのプレビューに適用されます。",
-    "boardAnimationsLabel": "ボードのプレビュー",
-    "boardAnimationsHint": "タイルが変わるときのスプリットフラップの反転",
-    "boardAnimationsOn": "オン",
-    "boardAnimationsDesktop": "デスクトップのみ",
-    "boardAnimationsOff": "オフ",
-    "boardAnimationsOnHint": "どこでもアニメーション",
-    "boardAnimationsDesktopHint": "スマートフォンとタブレットではフラップアニメーションをスキップ",
-    "boardAnimationsOffHint": "アニメーションなし。タイルは即座に変化",
-    "siteAnimationsLabel": "サイトアニメーション",
     "siteAnimationsHint": "トランジション、ホバー、その他の UI の動き",
-    "siteAnimationsOn": "オン",
-    "siteAnimationsOff": "オフ",
+    "boardsTitle": "ボード",
+    "animateTileFlips": "タイルのフリップをアニメーション表示",
+    "animateTileFlipsHint": "ボードのプレビューが実物のようにフリップします。",
+    "homeColorStrip": "ホームにカラーストリップを表示",
+    "motionDetailsTitle": "モーションの詳細",
+    "motionDetailsDescription": "このハブのすべてのユーザーに適用。",
+    "boardAnimationsDesktopOnly": "広い画面でのみ",
+    "boardAnimationsDesktopOnlyHint": "スマートフォンや狭いウィンドウでは、タイルはフリップせずに切り替わります。",
+    "siteAnimationsSwitch": "アプリのその他の部分をアニメーション表示",
+    "hubReduceMotion": "全員のモーションを減らす",
+    "hubReduceMotionHint": "このハブのすべてのブラウザで、タイルのフリップとアプリのアニメーションをオフにします。",
     "animationsReduceMotionOverride": "「動きを減らす」が有効になっており、これらの設定を上書きします。",
     "flapSpeedLabel": "反転速度",
     "flapSpeedHint": "アプリ全体の反転フラップ式プレビューのテンポを選択します。",
@@ -2625,6 +2646,7 @@
     "boardPreviewLabel": "スプリットフラップボードに表示された{name}",
     "boardShapeLabel": "ボードの形状",
     "boardColorLabel": "ボードの色",
+    "sampleCaption": "この連携を使ったサンプルページ",
     "blackBoard": "ブラックボード",
     "whiteBoard": "ホワイトボード",
     "deviceFlagship": "Flagship",
@@ -2775,7 +2797,11 @@
     "clickToEditFormula": "クリックして数式を編集",
     "newFormula": "新しい数式",
     "loading": "読み込み中…",
-    "dialogLabel": "数式エディター"
+    "dialogLabel": "数式エディター",
+    "sheetTitle": "数式",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} は現在 {value}",
+    "resultColumns": "{cols} 列中 {used} 列"
   },
   "templateEditor": {
     "variables": "変数",
@@ -3854,7 +3880,9 @@
     "replay": "再生",
     "replayHint": "フラップのアニメーションを再生",
     "previewTarget": "プレビュー先",
-    "previewTargetTrigger": "{target} でプレビュー"
+    "previewTargetTrigger": "{target} でプレビュー",
+    "discardDraft": "破棄",
+    "lastSaved": "最終保存 {time}"
   },
   "phonePairing": {
     "title": "スマートフォンを接続",
@@ -4035,7 +4063,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} 点",
     "layerMetaText": "フォント {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} 切り捨て"
   },
   "creatorIde": {
     "regionLabel": "クリエイターIDE",
@@ -4227,7 +4256,14 @@
     "replaceDraft": "下書きを置き換える",
     "draftConflictTitle": "新しい下書きを置き換えますか？",
     "draftConflictDescription": "このページを開いた後、別のデバイスが下書きを保存しました。置き換えると、このエディタの内容だけが残ります。",
-    "legendLabel": "スケジュールの項目"
+    "legendLabel": "スケジュールの項目",
+    "draftRestored": "下書きを復元しました",
+    "draftRestoredStale": "下書きを復元しました · その後ページが変更されています",
+    "draftSavedAt": "下書きを保存 {time}",
+    "liveOn": "{board} で表示中",
+    "deletePage": "ページを削除…",
+    "deletePageDetail": "すべてのスケジュールとコレクションから削除されます",
+    "autosavePaused": "未保存 · 別の場所の下書きが履歴にあります"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4369,6 +4405,7 @@
     "fits": "収まる",
     "doesNotFit": "収まらない",
     "fitReport": "{line} 行目は {cols} 列中 {widest} 列",
-    "nothingCut": "切り詰めなし"
+    "nothingCut": "切り詰めなし",
+    "missingOff": "{plugin} は連携でオフになっています"
   }
 }

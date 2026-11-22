@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "11.0.0-alpha.12",
+  "version": "11.0.0-alpha.14",
   "private": true,
   "type": "module",
   "scripts": {
@@ -30,7 +30,7 @@
     "@codemirror/language": "^6.13.1",
     "@codemirror/state": "^6.7.5",
     "@codemirror/view": "^6.43.15",
-    "@fiestaboard/ui": "8.17.0-alpha.4",
+    "@fiestaboard/ui": "8.17.0-alpha.5",
     "@lezer/highlight": "^1.2.5",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@react-router/fs-routes": "^8.5.0",

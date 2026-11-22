@@ -135,11 +135,12 @@ for (const width of [390, 768, 900, 1280]) {
         });
       };
       // On a phone the section shell's "‹ Displays" is the one way back (07d
-      // `328:27519`, BB-A-19); wider screens keep "Back to Displays".
+      // `328:27519`, BB-A-19); wider screens go back through the trail, with
+      // no back button stacked over the tabs (BB-FH-5).
       const backToList = () =>
         width < 768
           ? page.getByRole("main").getByRole("link", { name: "Displays", exact: true })
-          : page.getByRole("link", { name: "Back to Displays" });
+          : page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Displays", exact: true });
       await entry.click();
       if (width < 768) await expect(backToList()).toBeVisible();
       else

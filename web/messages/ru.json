@@ -101,7 +101,11 @@
     "about": "О FiestaBoard",
     "signOut": "Выйти",
     "popoverLabel": "Меню аккаунта",
-    "account": "Аккаунт"
+    "account": "Аккаунт",
+    "theme": "Тема",
+    "signOutBrowser": "Выйти в этом браузере",
+    "ownerLine": "{username} · Владелец {hub}",
+    "updateBadge": "Обновить до {version}"
   },
   "aboutDialog": {
     "description": "Собственный хостинг. Ваш хаб, ваши дисплеи, ваши данные.",
@@ -303,7 +307,7 @@
   },
   "pages": {
     "title": "Страницы",
-    "description": "Создавайте и управляйте контентом для вашей доски",
+    "description": "Всё, что могут показать ваши дисплеи. Откройте страницу, чтобы изменить её или показать сейчас.",
     "newPage": "Создать",
     "viewModeLabel": "Режим просмотра",
     "gridView": "Сетка",
@@ -328,16 +332,16 @@
     "libraryCount": "{count, plural, one {Страницы: #} other {Страницы: #}}",
     "clearFilter": "Показать все страницы",
     "searchLabel": "Поиск страниц",
-    "searchPlaceholder": "Поиск по названиям и сохранённому содержимому",
+    "searchPlaceholder": "Поиск страниц",
     "searchHint": "Поиск по названиям и сохранённому содержимому в выбранном фильтре дисплея.",
     "clearSearch": "Очистить поиск",
     "sortLabel": "Сортировка страниц",
     "sortNameAsc": "Название А–Я",
     "sortNameDesc": "Название Я–А",
-    "sortCreatedDesc": "Сначала новые",
-    "sortCreatedAsc": "Сначала старые",
-    "sortUpdatedDesc": "Недавно обновлённые",
-    "sortUpdatedAsc": "Давно обновлённые",
+    "sortCreatedDesc": "Создание: сначала новые",
+    "sortCreatedAsc": "Создание: сначала старые",
+    "sortUpdatedDesc": "Изменение: сначала новые",
+    "sortUpdatedAsc": "Изменение: сначала старые",
     "noMatches": "Нет подходящих страниц",
     "searchCount": "{count} из {total} страниц",
     "loadError": "Не удалось загрузить страницы. Условия поиска сохранены.",
@@ -346,6 +350,7 @@
     "duplicate": "Дублировать",
     "cardEdited": "Изменено {when}",
     "cardScheduled": "Расписание {time}",
+    "exportShareString": "Экспортировать строку обмена",
     "deletePage": "Удалить страницу…",
     "toastDuplicated": "Создано «{name}»",
     "actionFailed": "Не удалось. Попробуйте ещё раз."
@@ -447,9 +452,6 @@
     "variableRuleApplyFix": "Fix",
     "betaBadge": "Beta",
     "variableModeBetaNote": "Variable mode is in beta — expression syntax, available variables, and editor behavior may still change.",
-    "viewModeLabel": "Режим просмотра",
-    "gridView": "Плитки",
-    "listView": "Список",
     "libraryCount": "{count, plural, one {Карусели: #} other {Карусели: #}}",
     "removePage": "Убрать {name}",
     "sortLifted": "{name} поднята · позиция {position} из {total} · ↑ ↓ — переместить, Пробел — опустить, Esc — отменить",
@@ -532,7 +534,7 @@
     "scheduleMode": "Режим расписания",
     "scheduleModeEnabledDescription": "Включено — страницы автоматически сменяются по расписанию",
     "scheduleModeDisabledDescription": "Отключено — страницы управляются вручную",
-    "defaultPageLabel": "Страница по умолчанию для пропусков:",
+    "defaultPageLabel": "Страница по умолчанию для пропусков",
     "selectDefaultPage": "Выберите страницу по умолчанию",
     "noneNoDefault": "Нет (без страницы по умолчанию)",
     "conflictsDetected": "Обнаружены конфликты в расписании",
@@ -783,6 +785,10 @@
   },
   "integrations": {
     "detailTabs": "Сведения об интеграции",
+    "paneMenu": {
+      "enabled": "Включена",
+      "liveValues": "Переменные и текущие значения"
+    },
     "variablesTab": "Переменные",
     "readmeTab": "README",
     "readmeUnavailable": "Документация недоступна.",
@@ -815,7 +821,7 @@
     "configureDescription": "Настройте параметры этой интеграции",
     "settingsSection": "Настройки",
     "oauth": {
-      "sectionTitle": "Подключение учётной записи",
+      "sectionTitle": "Учётная запись",
       "statusConnected": "Подключено",
       "statusDisconnected": "Не подключено",
       "statusReconnect": "Требуется переподключение",
@@ -996,6 +1002,12 @@
     "sourceExternalBadge": "Внешний",
     "updateAvailableBadge": "Обновление",
     "moreOptionsAriaLabel": "Другие параметры",
+    "sectionMenuAriaLabel": "Параметры интеграций",
+    "detail": {
+      "unlocks": "Открывает {count, plural, one {# переменную} few {# переменные} many {# переменных} other {# переменной}}",
+      "useInPage": "Использовать на странице…",
+      "newPage": "Новая страница"
+    },
     "addInstanceAction": "Добавить экземпляр",
     "instanceNameInlineLabel": "Имя экземпляра:",
     "addInstanceInlineHelp": "Создаёт новый независимый экземпляр этого плагина с собственной конфигурацией. Используйте буквенно-цифровые символы, дефисы или подчёркивания (1–40 символов).",
@@ -1566,6 +1578,7 @@
   "composeDialog": {
     "title": "Написать сообщение",
     "description": "Появится на {board}, когда вы нажмёте «Показать сейчас». До этого на табло ничего не попадёт.",
+    "descriptionPhone": "Появится на {board} (дисплей в шапке), когда вы нажмёте «Показать сейчас».",
     "messageLabel": "Сообщение",
     "messagePlaceholder": "Введите сообщение…",
     "previewLabel": "Предпросмотр",
@@ -1758,7 +1771,15 @@
     "textMode": "Текст",
     "canvasesMode": "Холсты",
     "showPreview": "Показать предпросмотр и прямой вывод",
-    "hidePreview": "Скрыть предпросмотр и прямой вывод"
+    "hidePreview": "Скрыть предпросмотр и прямой вывод",
+    "discardDialogClose": "Закрыть",
+    "discardChangesSince": "С {time} вы изменили {count, plural, one {# строку} few {# строки} many {# строк} other {# строки}}. Если уйти сейчас, они пропадут.",
+    "discardChangesLost": "Если уйти сейчас, изменения пропадут.",
+    "discardChangesBoardKeeps": "{board} продолжает показывать сохранённую версию.",
+    "discardChangesDisplaysKeep": "Дисплеи продолжают показывать сохранённую версию.",
+    "discardChangedLabel": "Изменено",
+    "discardChangedLine": "Строка {line} ({text})",
+    "discardChangedLineEmpty": "Строка {line} (пустая)"
   },
   "displaySettings": {
     "unnamedBoard": "Доска без названия",
@@ -1845,6 +1866,8 @@
       "overrideUntil": "Вручную · до {time}",
       "pauseDisplay": "Приостановить дисплей",
       "pauseHint": "Табло сохраняет текущий контент; расписание продолжает работать на хабе.",
+      "pause": "Пауза",
+      "resume": "Продолжить",
       "diagnostics": "Диагностика",
       "changePage": "Сменить страницу…",
       "back": "Назад к дисплеям",
@@ -2149,7 +2172,7 @@
     "boardUpdateIntervalDescription": "Как часто доска проверяет обновления контента (в секундах)",
     "requiresServiceRestart": "Требуется перезапуск сервиса",
     "silenceScheduleLabel": "Расписание тихого режима",
-    "silenceScheduleDescription": "Предотвратить обновления доски в указанные часы",
+    "silenceScheduleDescription": "Расписание тишины для этого экрана. Сообщения, пришедшие во время тишины, обрабатываются по выбору ниже.",
     "startTimeLabel": "Время начала",
     "endTimeLabel": "Время окончания",
     "whenSilenceBegins": "Когда начинается тихий режим",
@@ -2176,7 +2199,7 @@
     "silencePageLabel": "Страница тишины",
     "silencePagePlaceholder": "Выберите страницу...",
     "silencePageHelp": "Эта страница будет отображаться при старте расписания тишины. Её переменные не будут обновляться во время тишины.",
-    "scheduleBehaviorTitle": "Переключатель расписания",
+    "scheduleBehaviorTitle": "Поведение расписания",
     "scheduleBehaviorDescription": "Как ведёт себя доска при повторном включении режима расписания",
     "deferOnReenable": "Ждать следующего запланированного изменения",
     "deferOnReenableHint": "При повторном включении режима расписания доска остаётся на текущей странице, пока расписание не дойдёт до следующего интервала. По умолчанию выключено, поэтому доска обновляется сразу.",
@@ -2422,20 +2445,18 @@
     "welcomeSendError": "Не удалось отправить",
     "welcomeDefault": "Оставьте пустым, чтобы использовать приветствие по умолчанию",
     "timezoneLabel": "Часовой пояс",
-    "animationsTitle": "Графика и предпросмотр",
-    "animationsDescription": "Управляйте движением во всём приложении. Эти настройки действуют для всех предпросмотров на экране.",
-    "boardAnimationsLabel": "Предпросмотры табло",
-    "boardAnimationsHint": "Поворот split-flap при смене плиток",
-    "boardAnimationsOn": "Вкл",
-    "boardAnimationsDesktop": "Только десктоп",
-    "boardAnimationsOff": "Выкл",
-    "boardAnimationsOnHint": "Анимировать везде",
-    "boardAnimationsDesktopHint": "Пропустить анимацию переворота на телефонах и планшетах",
-    "boardAnimationsOffHint": "Никогда не анимировать; плитки меняются мгновенно",
-    "siteAnimationsLabel": "Анимации сайта",
     "siteAnimationsHint": "Переходы, наведения и другое движение интерфейса",
-    "siteAnimationsOn": "Вкл",
-    "siteAnimationsOff": "Выкл",
+    "boardsTitle": "Табло",
+    "animateTileFlips": "Анимировать перелистывание плиток",
+    "animateTileFlipsHint": "Превью перелистываются как настоящее табло.",
+    "homeColorStrip": "Показывать цветную полосу на главной",
+    "motionDetailsTitle": "Настройки движения",
+    "motionDetailsDescription": "Для всех на этом хабе.",
+    "boardAnimationsDesktopOnly": "Только на широких экранах",
+    "boardAnimationsDesktopOnlyHint": "На телефонах и в узких окнах плитки меняются без перелистывания.",
+    "siteAnimationsSwitch": "Анимировать остальное приложение",
+    "hubReduceMotion": "Уменьшить движение для всех",
+    "hubReduceMotionHint": "Отключает перелистывание плиток и анимации приложения во всех браузерах этого хаба.",
     "animationsReduceMotionOverride": "«Уменьшить движение» включено, что переопределяет эти настройки.",
     "flapSpeedLabel": "Скорость переворота",
     "flapSpeedHint": "Выберите темп предпросмотров перекидных табло во всём приложении.",
@@ -2625,6 +2646,7 @@
     "boardPreviewLabel": "{name} на сплит-флап табло",
     "boardShapeLabel": "Формат табло",
     "boardColorLabel": "Цвет табло",
+    "sampleCaption": "Пример страницы с этой интеграцией",
     "blackBoard": "Чёрное табло",
     "whiteBoard": "Белое табло",
     "deviceFlagship": "Flagship",
@@ -2775,7 +2797,11 @@
     "clickToEditFormula": "Нажмите для редактирования формулы",
     "newFormula": "новая формула",
     "loading": "Загрузка…",
-    "dialogLabel": "Редактор формул"
+    "dialogLabel": "Редактор формул",
+    "sheetTitle": "Формула",
+    "resultValue": "→ {value}",
+    "resultVariableNow": "{name} сейчас {value}",
+    "resultColumns": "{used} из {cols} столбцов"
   },
   "templateEditor": {
     "variables": "Переменные",
@@ -3854,7 +3880,9 @@
     "replay": "Повтор",
     "replayHint": "Воспроизвести анимацию табло",
     "previewTarget": "Цель предпросмотра",
-    "previewTargetTrigger": "Предпросмотр на {target}"
+    "previewTargetTrigger": "Предпросмотр на {target}",
+    "discardDraft": "Отменить",
+    "lastSaved": "последнее сохранение {time}"
   },
   "phonePairing": {
     "title": "Подключить телефон",
@@ -4035,7 +4063,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "Точек: {count}",
     "layerMetaText": "Шрифт {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} обрезано"
   },
   "creatorIde": {
     "regionLabel": "IDE создателя",
@@ -4227,7 +4256,14 @@
     "replaceDraft": "Заменить черновик",
     "draftConflictTitle": "Заменить более новый черновик?",
     "draftConflictDescription": "Другое устройство сохранило черновик этой страницы после того, как вы её открыли. При замене останется только содержимое этого редактора.",
-    "legendLabel": "Записи расписания"
+    "legendLabel": "Записи расписания",
+    "draftRestored": "Черновик восстановлен",
+    "draftRestoredStale": "Черновик восстановлен · страница с тех пор изменилась",
+    "draftSavedAt": "Черновик сохранён {time}",
+    "liveOn": "В эфире на {board}",
+    "deletePage": "Удалить страницу…",
+    "deletePageDetail": "Удаляет её из всех расписаний и коллекций",
+    "autosavePaused": "Не сохранено · черновик с другого устройства ждёт в Истории"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4369,6 +4405,7 @@
     "fits": "Помещается",
     "doesNotFit": "Не помещается",
     "fitReport": "Строка {line}: {widest} из {cols} столбцов",
-    "nothingCut": "ничего не обрезано"
+    "nothingCut": "ничего не обрезано",
+    "missingOff": "{plugin} отключено в разделе «Интеграции»"
   }
 }

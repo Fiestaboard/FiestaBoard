@@ -94,6 +94,7 @@ import { toast } from "sonner";
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { CanvasesPanel, type CanvasesPanelHandle } from "@/components/canvas-editor/canvases-panel";
 import { LineOverflowWarnings } from "@/components/complex-editing/line-overflow-warnings";
+import { PreviewCutMarkers } from "@/components/complex-editing/preview-cut-markers";
 import { useComplexEditing } from "@/components/complex-editing/use-complex-editing";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DevicePreview } from "@/components/device-preview";
@@ -164,6 +165,7 @@ import type {
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/api/core";
 import type { RenderDiagnostics } from "@/lib/api/formula-debug";
+import type { PageContent } from "@/lib/api/page-history";
 import { appUrl } from "@/lib/base-path";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { canvasMarkers, pixelBoardOf } from "@/lib/canvas-editing";
@@ -252,6 +254,8 @@ interface PageBuilderProps {
    * board). `save` runs the header Save exactly as its button does.
    */
   saveActions?: (actions: PageBuilderSaveActions) => ReactNode;
+  /** D4 (Creator IDE): the hub draft's state for the header meta. */
+  draftState?: PageBuilderDraftState;
   /**
    * The workspace columns' slots (BB-E-7): the Explorer column, the end of the
    * template column (Console, Timeline) and the end of the preview column
@@ -273,11 +277,25 @@ export interface PageBuilderWorkspaceSlots {
   preview: (element: HTMLElement | null) => void;
 }
 
+/** What the header meta says about the hub draft ("Draft restored · Discard", "Draft saved 7:44 AM"). */
+export interface PageBuilderDraftState {
+  label?: string;
+  /** Where the page is live ("Live on Kitchen"), which is why Save reads Save draft / Save & update board. */
+  live?: string;
+  /** The display it is live on, by name (the leave guard says it keeps the saved version). */
+  liveBoard?: string;
+  /** Drop the restored draft and its edits. */
+  onDiscard?: () => void;
+  /** Drop the hub draft this session owns (the leave guard's Discard changes). */
+  discardDraft?: () => Promise<void>;
+}
+
 export interface PageBuilderSaveActions {
   save: () => void;
   saving: boolean;
   disabled: boolean;
-  size: "touch" | "sm";
+  /** `lg` is the desktop header's 40 px (Figma 53:137378). */
+  size: "touch" | "sm" | "lg";
   /** A tight desktop header (BB-E-4): show icons or short labels, keep full accessible names. */
   compact: boolean;
   /** The header Save's AI-walkthrough anchor; spread it on the button that publishes. */
@@ -314,6 +332,16 @@ export interface PageBuilderHandle {
   reloadFromServer: () => Promise<void>;
   /** Mirror to board is on: a display shows these edits (the IDE's Testing state). */
   isMirroring: () => boolean;
+  /**
+   * Put a hub draft's content in the editor (D4, "Draft restored"). It is
+   * unsaved against the saved page: Save still sends the page's revision, so
+   * the live page changes only then.
+   */
+  applyContent: (content: PageContent) => void;
+  /** Drop every unsaved edit: the editor shows the saved page again (D4's Discard). */
+  discardContent: () => void;
+  /** Ask to delete the page (D6: the Inspector's Page tab, not the header). */
+  requestDelete: () => void;
 }
 
 interface PageSnapshot {
@@ -413,6 +441,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     onCreated,
     embedded = false,
     saveActions,
+    draftState,
     workspaceSlots,
     onDeviceTypeChange,
   },
@@ -998,6 +1027,33 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     await queryClient.invalidateQueries({ queryKey: ["page", pageId] });
   }, [pageId, queryClient]);
 
+  // The saved page, for discardContent (the query is declared further down).
+  const savedPageRef = useRef<Page | undefined>(undefined);
+  const applyContent = useCallback(
+    (content: PageContent) => {
+      const lines = content.template ?? [];
+      const meta = content.line_metadata ?? [];
+      applySnapshot({
+        name: content.name,
+        deviceType: content.device_type,
+        templateLines: lines,
+        lineAlignments: lines.map((_, index) => meta[index]?.alignment ?? "left"),
+        lineWrapEnabled: lines.map((_, index) => meta[index]?.wrap ?? false),
+      });
+      setNotesWide(content.notes_wide ?? 1);
+      setNotesTall(content.notes_tall ?? 1);
+      setGridRows(content.grid_rows ?? null);
+      setGridCols(content.grid_cols ?? null);
+      if (content.transition_strategy !== undefined) setTransitionStrategy(content.transition_strategy ?? null);
+      if (content.canvases !== undefined) {
+        setCanvases(content.canvases ?? []);
+        setDebouncedCanvases(content.canvases ?? []);
+      }
+      if (content.duration_seconds) durationRef.current = content.duration_seconds;
+    },
+    [applySnapshot],
+  );
+
   // Read by the Creator IDE (Testing state); kept current where the state is declared.
   const ideMirroringRef = useRef(false);
   useImperativeHandle(
@@ -1011,6 +1067,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       stageDeviceType,
       discardStaging,
       reloadFromServer,
+      applyContent,
+      requestDelete: () => setDeleteOpen(true),
+      discardContent: () => {
+        if (savedPageRef.current) applyContent(savedPageRef.current as unknown as PageContent);
+      },
       getCurrentPage: getCurrentPageSnapshot,
       getPageId: () => pageId,
       getDeviceType: () => deviceTypeRef.current,
@@ -1093,6 +1154,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       stageDeviceType,
       discardStaging,
       reloadFromServer,
+      applyContent,
     ],
   );
 
@@ -1414,6 +1476,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     editorContentRef,
     viewportBottom,
   );
+  useEffect(() => {
+    savedPageRef.current = existingPage;
+  }, [existingPage]);
 
   // Transition plugins (beta, deprecated): offered only while the flag is on,
   // since the backend refuses a `plugin:` strategy otherwise. The installed
@@ -1998,6 +2063,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, [name, saveMutation, stagingActive, isShrinkingRetarget]);
 
   // Delete mutation
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const deleteMutation = useMutation({
     mutationFn: () => api.deletePage(pageId!, seededRevisionRef.current),
     onSuccess: (data) => {
@@ -2574,11 +2640,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // previews through DevicePreview (draw mode always paints flaps).
     boardViewport: previewBindsBoardViewportKeys({ ledPreview: !drawMode && isLedModel(previewModel) }),
   };
-  // 07 `57:28704` puts the hint on the toolbar row. The rich flap toolbar
-  // has room from xl up; at tablet widths keep the hint above the template,
-  // sharing the existing preview-toggle row below lg (DD-W59).
+  // D5 (Jev header-only): the header's Shortcuts is the one keyboard list; the
+  // toolbar's "? All shortcuts" duplicate is gone. `?` still opens it.
   const isXlUp = useMediaQuery("(min-width: 1280px)");
-  const hintOnToolbar = isXlUp && editorMode === "rich" && !editorCharset;
 
   // Keyboard shortcuts while drawing: Esc exits; undo/redo work even though
   // the editor itself is visually hidden (and thus not focused) in draw mode.
@@ -2608,124 +2672,109 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const secondaryActions = (
     <TooltipProvider skipDelayDuration={0}>
       <Flex align="center" gap="1.5" className="flex-wrap">
+        {/* Transition: a labelled row in the phone's More sheet; on desktop the
+            Inspector's Page tab has it (D6, Figma 53:137378 draws no header icon). */}
         {/* Per-page transition override. Null (the default) inherits
          *  the global setting; the trigger carries a dot when this
          *  page overrides it. */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size={dockedPreview ? "touch" : "icon"}
-                  // In the phone More sheet a labelled row, not a bare icon (BB-B-24).
-                  className={cn("relative", dockedPreview ? "gap-2" : "h-9 w-9")}
-                  aria-label={t("transitionPickerAriaLabel")}
-                >
-                  <Sparkles className={`h-4 w-4 ${transitionStrategy ? "text-brand" : ""}`} />
-                  {dockedPreview && t("transitionPickerAriaLabel")}
-                  {transitionStrategy && (
-                    <Text
-                      as="span"
-                      aria-hidden="true"
-                      className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand"
-                    />
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent>
-              <Text>{t("transitionPickerTooltip", { strategy: transitionLabel })}</Text>
-            </TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="text-xs font-medium">{t("transitionMenuTitle")}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup
-              value={transitionStrategy ?? TRANSITION_INHERIT}
-              onValueChange={(value) => setTransitionStrategy(value === TRANSITION_INHERIT ? null : String(value))}
-            >
-              {/* Base UI's MenuRadioItem defaults closeOnClick to
-               *  false; without this the menu stays open after a
-               *  pick and its inert backdrop swallows clicks on
-               *  Save. Picking a transition is a one-shot choice,
-               *  so every item closes the menu. */}
-              <DropdownMenuRadioItem value={TRANSITION_INHERIT} className="text-xs" closeOnClick>
-                {t("transitionUseDisplayTransition")}
-              </DropdownMenuRadioItem>
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                {t("transitionBuiltInGroup")}
-              </DropdownMenuLabel>
-              {BUILT_IN_TRANSITIONS.map((strategy) => (
-                <DropdownMenuRadioItem key={strategy.value} value={strategy.value} className="text-xs" closeOnClick>
-                  {tTransitions(`strategies.${strategy.labelKey}.label`)}
-                </DropdownMenuRadioItem>
-              ))}
-              {transitionPlugins.length > 0 && (
-                <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                  {t("transitionPluginsGroup")}
-                </DropdownMenuLabel>
-              )}
-              {transitionPlugins.map((plugin) => (
-                <DropdownMenuRadioItem
-                  key={plugin.id}
-                  value={`${PLUGIN_STRATEGY_PREFIX}${plugin.id}`}
-                  className="text-xs"
-                  closeOnClick
-                >
-                  {plugin.name}
-                </DropdownMenuRadioItem>
-              ))}
-              {unknownPluginStrategy && (
-                <DropdownMenuRadioItem value={transitionStrategy!} className="text-xs" closeOnClick>
-                  {unknownPluginStrategy}
-                </DropdownMenuRadioItem>
-              )}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {/* Delete button - only show when editing */}
-        {pageId && (
-          <AlertDialog>
+        {dockedPreview && (
+          <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
-                <AlertDialogTrigger asChild>
+                <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size={dockedPreview ? "touch" : "icon"}
-                    className={cn(
-                      "text-destructive hover:text-destructive hover:bg-destructive/10",
-                      dockedPreview ? "gap-2" : "h-9 w-9",
-                    )}
-                    aria-label={t("deletePageTooltip")}
+                    // In the phone More sheet a labelled row, not a bare icon (BB-B-24).
+                    className={cn("relative", dockedPreview ? "gap-2" : "h-9 w-9")}
+                    aria-label={t("transitionPickerAriaLabel")}
                   >
-                    <Trash2 className="h-4 w-4" />
-                    {dockedPreview && t("deletePageTooltip")}
+                    <Sparkles className={`h-4 w-4 ${transitionStrategy ? "text-brand" : ""}`} />
+                    {dockedPreview && t("transitionPickerAriaLabel")}
+                    {transitionStrategy && (
+                      <Text
+                        as="span"
+                        aria-hidden="true"
+                        className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand"
+                      />
+                    )}
                   </Button>
-                </AlertDialogTrigger>
+                </DropdownMenuTrigger>
               </TooltipTrigger>
               <TooltipContent>
-                <Text>{t("deletePageTooltip")}</Text>
+                <Text>{t("transitionPickerTooltip", { strategy: transitionLabel })}</Text>
               </TooltipContent>
             </Tooltip>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t("deletePageTitle")}</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {name ? t("deletePageConfirmation", { pageName: name }) : t("deletePageConfirmationGeneric")}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => deleteMutation.mutate()}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  {deleteMutation.isPending ? tCommon("deleting") : tCommon("delete")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-xs font-medium">{t("transitionMenuTitle")}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={transitionStrategy ?? TRANSITION_INHERIT}
+                onValueChange={(value) => setTransitionStrategy(value === TRANSITION_INHERIT ? null : String(value))}
+              >
+                {/* Base UI's MenuRadioItem defaults closeOnClick to
+                 *  false; without this the menu stays open after a
+                 *  pick and its inert backdrop swallows clicks on
+                 *  Save. Picking a transition is a one-shot choice,
+                 *  so every item closes the menu. */}
+                <DropdownMenuRadioItem value={TRANSITION_INHERIT} className="text-xs" closeOnClick>
+                  {t("transitionUseDisplayTransition")}
+                </DropdownMenuRadioItem>
+                <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                  {t("transitionBuiltInGroup")}
+                </DropdownMenuLabel>
+                {BUILT_IN_TRANSITIONS.map((strategy) => (
+                  <DropdownMenuRadioItem key={strategy.value} value={strategy.value} className="text-xs" closeOnClick>
+                    {tTransitions(`strategies.${strategy.labelKey}.label`)}
+                  </DropdownMenuRadioItem>
+                ))}
+                {transitionPlugins.length > 0 && (
+                  <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                    {t("transitionPluginsGroup")}
+                  </DropdownMenuLabel>
+                )}
+                {transitionPlugins.map((plugin) => (
+                  <DropdownMenuRadioItem
+                    key={plugin.id}
+                    value={`${PLUGIN_STRATEGY_PREFIX}${plugin.id}`}
+                    className="text-xs"
+                    closeOnClick
+                  >
+                    {plugin.name}
+                  </DropdownMenuRadioItem>
+                ))}
+                {unknownPluginStrategy && (
+                  <DropdownMenuRadioItem value={transitionStrategy!} className="text-xs" closeOnClick>
+                    {unknownPluginStrategy}
+                  </DropdownMenuRadioItem>
+                )}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {/* Delete: a labelled row in the phone's More sheet; on desktop it is
+            the Inspector's Page tab (D6), never beside the title. */}
+        {pageId && dockedPreview && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size={dockedPreview ? "touch" : "icon"}
+                className={cn(
+                  "text-destructive hover:text-destructive hover:bg-destructive/10",
+                  dockedPreview ? "gap-2" : "h-9 w-9",
+                )}
+                aria-label={t("deletePageTooltip")}
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                {dockedPreview && t("deletePageTooltip")}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <Text>{t("deletePageTooltip")}</Text>
+            </TooltipContent>
+          </Tooltip>
         )}
         {dockedPreview && (
           <Button
@@ -2745,8 +2794,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             <TooltipTrigger asChild>
               <Button
                 variant="secondary"
-                size="sm"
-                className="h-8 gap-1.5 px-3 text-xs"
+                size={dockedPreview ? "sm" : "lg"}
+                className={cn("gap-1.5", dockedPreview ? "h-8 px-3 text-xs" : "px-4 text-sm")}
                 disabled={hasUnsavedChanges}
                 onClick={async () => {
                   try {
@@ -2772,6 +2821,55 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       </Flex>
     </TooltipProvider>
   );
+
+  const deleteDialog = pageId ? (
+    <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("deletePageTitle")}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {name ? t("deletePageConfirmation", { pageName: name }) : t("deletePageConfirmationGeneric")}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => deleteMutation.mutate()}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {deleteMutation.isPending ? tCommon("deleting") : tCommon("delete")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  ) : null;
+  // The header's save state and its mono meta line (BB-E-13, Figma 53:137378):
+  // "Flagship 22 × 6 · Kitchen · Live on Kitchen · Saved 7:28 PM".
+  const clock = (date: Date) => date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const savedStamp = existingPage?.updated_at ?? existingPage?.created_at;
+  const lastSaved = savedAt ?? (savedStamp ? new Date(savedStamp) : null);
+  const saveStateLabel = !pageId
+    ? tTouch("unsaved")
+    : hasUnsavedChanges
+      ? [tTouch("unsaved"), lastSaved && tTouch("lastSaved", { time: clock(lastSaved) })].filter(Boolean).join(" · ")
+      : lastSaved
+        ? `${tTouch("saved")} ${clock(lastSaved)}`
+        : "";
+  const headerMeta = [
+    boardMeta(previewBoard ?? undefined, {
+      deviceType,
+      notesWide,
+      notesTall,
+      gridRows: gridRows ?? undefined,
+      gridCols: gridCols ?? undefined,
+    }),
+    previewBoard?.name,
+    draftState?.live,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  // The save/draft state never truncates: it carries "Draft restored · Discard".
+  const headerState = draftState?.label ?? saveStateLabel;
   const mirrorMoreContent = (
     <Stack gap="3">
       {mirrorControl}
@@ -3256,7 +3354,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <label htmlFor="page-name" className="sr-only">
                     {t("pageNameLabel")}
                   </label>
-                  <CardTitle className="sr-only">{name || (pageId ? t("editPage") : t("createPage"))}</CardTitle>
+                  {/* The page's h1 (BB-E-23): the visible title is the name field. */}
+                  <CardTitle as={embedded ? "h1" : "h3"} className="sr-only">
+                    {name || (pageId ? t("editPage") : t("createPage"))}
+                  </CardTitle>
                   {/* One field at every width, so focus survives a resize. Docked
                   (phone, tablet) the name wraps onto a second line beside Save
                   and Show now, with the save status under it (57:64661;
@@ -3287,20 +3388,53 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         : "h-11 lg:h-12 px-0 pt-0 pb-4 text-base lg:text-2xl",
                     )}
                   />
-                  <Text
-                    size="xs"
-                    tone="muted"
-                    className={cn(
-                      "pointer-events-none truncate font-mono",
-                      dockedPreview ? "block" : "absolute bottom-0 left-0",
-                    )}
-                  >
-                    {hasUnsavedChanges
-                      ? tTouch("unsaved")
-                      : savedAt
-                        ? `${tTouch("saved")} ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-                        : ""}
-                  </Text>
+                  {dockedPreview ? (
+                    <Text size="xs" tone="muted" className="pointer-events-none block truncate font-mono">
+                      {draftState?.label ?? saveStateLabel}
+                    </Text>
+                  ) : (
+                    // BB-E-13: the mono meta line under the name (Figma 53:137378).
+                    <Flex
+                      align="center"
+                      gap="1"
+                      className="absolute bottom-0 left-0 max-w-full min-w-0"
+                      data-testid="page-editor-meta"
+                    >
+                      <Text size="xs" tone="muted" className="min-w-0 truncate font-mono">
+                        {headerMeta}
+                      </Text>
+                      {headerState && (
+                        <>
+                          {/* The separator sits outside the state, so the state's text is
+                              exactly "Saved 7:28 PM" for anything that reads it. */}
+                          {headerMeta && (
+                            <Text
+                              as="span"
+                              size="xs"
+                              tone="muted"
+                              aria-hidden
+                              className="shrink-0 whitespace-pre font-mono"
+                            >
+                              {" · "}
+                            </Text>
+                          )}
+                          <Text size="xs" tone="muted" className="shrink-0 whitespace-nowrap font-mono">
+                            {headerState}
+                          </Text>
+                        </>
+                      )}
+                      {draftState?.onDiscard && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto shrink-0 p-0 font-mono text-xs"
+                          onClick={draftState.onDiscard}
+                        >
+                          {tTouch("discardDraft")}
+                        </Button>
+                      )}
+                    </Flex>
+                  )}
                 </Box>
                 {!dockedPreview && (
                   <Flex align="center" gap="1.5" className="hidden lg:flex shrink-0">
@@ -3319,7 +3453,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       save: requestSave,
                       saving: saveMutation.isPending,
                       disabled: saveMutation.isPending || stagingActive,
-                      size: dockedPreview ? "touch" : "sm",
+                      size: dockedPreview ? "touch" : "lg",
                       compact: compactHeader,
                       anchor: anchorProps("page-editor.save"),
                     })}
@@ -3332,7 +3466,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         <TooltipTrigger asChild>
                           <Button
                             variant="secondary"
-                            size={narrowHeader ? "icon-touch" : dockedPreview ? "touch" : "sm"}
+                            size={narrowHeader ? "icon-touch" : dockedPreview ? "touch" : "lg"}
                             className={cn("shrink-0 text-sm", !narrowHeader && "gap-1.5 px-3")}
                             // A tight desktop header: icon only (BB-E-4).
                             {...anchorProps("page-editor.save")}
@@ -3352,7 +3486,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       </Tooltip>
                       <Button
                         variant="brand"
-                        size={dockedPreview ? "touch" : "sm"}
+                        size={dockedPreview ? "touch" : "lg"}
                         className="shrink-0 gap-1.5 px-3 text-sm"
                         disabled={saveMutation.isPending || stagingActive || !selectedBoardId}
                         onClick={() => requestShowNowRef.current()}
@@ -3367,7 +3501,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               </Flex>
             </CardHeader>
             <Box className="px-0 lg:px-4">
-              {(pixelBoard || (!hintOnToolbar && !dockedPreview)) && (
+              {pixelBoard && (
                 <Flex align="center" justify="between" gap="2" className="flex-wrap">
                   {pixelBoard && (
                     <Flex role="group" aria-label={t("editingSurfaceLabel")} className="rounded-lg border p-1" gap="1">
@@ -3388,13 +3522,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         {t("canvasesMode")}
                       </Button>
                     </Flex>
-                  )}
-                  {/* At tablet widths or without a web toolbar, the hint sits above
-                    the template instead of wrapping onto its own toolbar line (DD-W59). */}
-                  {!hintOnToolbar && !dockedPreview && (
-                    <Box className="ml-auto">
-                      <EditorShortcutList variant="hint" {...shortcutListProps} />
-                    </Box>
                   )}
                 </Flex>
               )}
@@ -3619,11 +3746,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 onDrawHistoryEvent={handleDrawHistoryEvent}
                                 toolbarContainer={toolbarContainer}
                                 toolbarMoreContent={mirrorMoreContent}
-                                toolbarTrailing={
-                                  hintOnToolbar ? (
-                                    <EditorShortcutList variant="hint" {...shortcutListProps} />
-                                  ) : undefined
-                                }
                               />
                             )}
                           </Suspense>
@@ -3951,6 +4073,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       className={cn("relative min-w-0", formulaIde.boardProps.className)}
                     >
                       {formulaIde.boardOverlay}
+                      {/* H4: where the board cuts a line (BB-E-10, 307:41698). */}
+                      {!drawMode && !baselineDisplay && (
+                        <PreviewCutMarkers
+                          stage={previewStage}
+                          overflows={lineOverflow.overflows}
+                          rows={dims.rows}
+                          cols={dims.cols}
+                          wrapped={lineWrapEnabled}
+                        />
+                      )}
                       {baselineDisplay ? (
                         <Alert variant="warning" className="w-full">
                           <AlertDescription>
@@ -4161,6 +4293,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {deleteDialog}
       {formulaIde.overlays}
     </FormulaIdeContext.Provider>
   );

@@ -381,6 +381,52 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # Date-dependent tests: vitest with the wall clock started on a Saturday and
+  # an hour before a new year (web/src/__tests__/test-now.ts reads TEST_NOW).
+  # A test that only passes on the day it was written fails its own PR here
+  # instead of every PR that weekend (#2571 broke UI Tests on 2026-11-20/21
+  # until #2611 pinned its clock). To stay cheap, a PR runs only the tests
+  # `vitest --changed` selects (changed tests plus every test importing a
+  # changed module), both instants back to back on one runner; the full suite
+  # runs when the clock or test setup changes, on changeset-release/* PRs and
+  # nightly on v11 (integration-tests.yml, dispatched by nightly-integration.yml).
+  # Logic and instants: scripts/ci/clock-skew-tests.sh.
+  test-ui-clock-skew:
+    name: UI Tests (clock skew)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: >-
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+      && (needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
+    timeout-minutes: 25
+    env:
+      # The year-end instant is a year boundary only in UTC (and east of it).
+      TZ: UTC
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # `vitest --changed origin/<base>` diffs against the base branch.
+        fetch-depth: 0
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: '24'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+
+    - name: Install UI dependencies
+      working-directory: web
+      run: npm ci --legacy-peer-deps --no-audit
+
+    - name: Run UI tests on a Saturday and at a year end
+      env:
+        BASE_REF: ${{ github.base_ref }}
+        HEAD_REF: ${{ github.head_ref }}
+      run: bash scripts/ci/clock-skew-tests.sh
+
   test-ui-layout:
     name: UI Layout Tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
@@ -1652,7 +1698,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, quick-checks, test-platform, test-ui, test-ui-layout, a11y-tests, build-test-image, e2e-tests, specialized-e2e-tests, release-guards]
+    needs: [detect-changes, quick-checks, test-platform, test-ui, test-ui-clock-skew, test-ui-layout, a11y-tests, build-test-image, e2e-tests, specialized-e2e-tests, release-guards]
     if: always()
     steps:
       - uses: actions/checkout@v7
