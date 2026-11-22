@@ -743,6 +743,10 @@
   },
   "integrations": {
     "detailTabs": "Integration details",
+    "paneMenu": {
+      "enabled": "Enabled",
+      "liveValues": "Variables and live values"
+    },
     "variablesTab": "Variables",
     "readmeTab": "README",
     "readmeUnavailable": "Documentation is not available.",
@@ -775,7 +779,7 @@
     "configureDescription": "Configure settings for this integration",
     "settingsSection": "Settings",
     "oauth": {
-      "sectionTitle": "Account connection",
+      "sectionTitle": "Account",
       "statusConnected": "Connected",
       "statusDisconnected": "Not connected",
       "statusReconnect": "Reconnect needed",
@@ -957,6 +961,11 @@
     "updateAvailableBadge": "Update",
     "moreOptionsAriaLabel": "More options",
     "sectionMenuAriaLabel": "Integration options",
+    "detail": {
+      "unlocks": "Unlocks {count, plural, one {# variable} other {# variables}}",
+      "useInPage": "Use in a page…",
+      "newPage": "New page"
+    },
     "addInstanceAction": "Add Instance",
     "instanceNameInlineLabel": "Instance name:",
     "addInstanceInlineHelp": "Creates a new independent instance of this plugin with its own configuration. Use alphanumeric characters, hyphens, or underscores (1-40 chars).",
@@ -2566,6 +2575,7 @@
     "boardPreviewLabel": "{name} displayed on a split-flap board",
     "boardShapeLabel": "Board shape",
     "boardColorLabel": "Board color",
+    "sampleCaption": "Sample page using this integration",
     "blackBoard": "Black Board",
     "whiteBoard": "White Board",
     "deviceFlagship": "Flagship",

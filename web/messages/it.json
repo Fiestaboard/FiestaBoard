@@ -787,6 +787,10 @@
   },
   "integrations": {
     "detailTabs": "Dettagli integrazione",
+    "paneMenu": {
+      "enabled": "Attiva",
+      "liveValues": "Variabili e valori in tempo reale"
+    },
     "variablesTab": "Variabili",
     "readmeTab": "README",
     "readmeUnavailable": "La documentazione non è disponibile.",
@@ -819,7 +823,7 @@
     "configureDescription": "Configura le impostazioni per questa integrazione",
     "settingsSection": "Impostazioni",
     "oauth": {
-      "sectionTitle": "Connessione dell'account",
+      "sectionTitle": "Account",
       "statusConnected": "Connesso",
       "statusDisconnected": "Non connesso",
       "statusReconnect": "Riconnessione necessaria",
@@ -1001,6 +1005,11 @@
     "updateAvailableBadge": "Aggiornamento",
     "moreOptionsAriaLabel": "Altre opzioni",
     "sectionMenuAriaLabel": "Opzioni integrazioni",
+    "detail": {
+      "unlocks": "Sblocca {count, plural, one {# variabile} other {# variabili}}",
+      "useInPage": "Usa in una pagina…",
+      "newPage": "Nuova pagina"
+    },
     "addInstanceAction": "Aggiungi istanza",
     "instanceNameInlineLabel": "Nome dell'istanza:",
     "addInstanceInlineHelp": "Crea una nuova istanza indipendente di questo plugin con la propria configurazione. Usa caratteri alfanumerici, trattini o underscore (1-40 caratteri).",
@@ -2639,6 +2648,7 @@
     "boardPreviewLabel": "{name} su un tabellone split-flap",
     "boardShapeLabel": "Formato del tabellone",
     "boardColorLabel": "Colore del tabellone",
+    "sampleCaption": "Pagina di esempio con questa integrazione",
     "blackBoard": "Tabellone nero",
     "whiteBoard": "Tabellone bianco",
     "deviceFlagship": "Flagship",

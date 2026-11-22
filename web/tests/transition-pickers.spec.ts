@@ -176,8 +176,14 @@ test.describe("transition pickers", () => {
     await expect(settings.getByRole("heading", { name: PLUGIN_NAME, exact: true })).toBeVisible();
     // The toggle is a no-op for transitions -- get_transition_plugin() ignores
     // the enabled flag -- so it must not be offered in the selected detail.
+    // The pane's toggle is the header menu's Enabled item (BB-FC-9).
+    const options = page.locator("[data-slot=page-header]").getByRole("button", { name: "Integration options" });
     await expect(row.getByRole("switch")).toHaveCount(0);
     await expect(settings.getByRole("switch")).toHaveCount(0);
+    await options.click();
+    await expect(page.getByRole("menuitem", { name: "README" })).toBeVisible();
+    await expect(page.getByRole("menuitemcheckbox", { name: "Enabled" })).toHaveCount(0);
+    await page.keyboard.press("Escape");
 
     // Positive control: opening a data integration still exposes its toggle.
     // Without this, the assertion above could pass if all toggles disappeared.
@@ -186,6 +192,7 @@ test.describe("transition pickers", () => {
     await expect(dataRow.getByText("Transition", { exact: true })).toHaveCount(0);
     await dataRow.getByRole("button").click();
     await expect(settings.getByRole("heading", { name: DATA_PLUGIN_NAME, exact: true })).toBeVisible();
-    await expect(settings.getByRole("switch", { name: `Toggle ${DATA_PLUGIN_NAME}`, exact: true })).toBeVisible();
+    await options.click();
+    await expect(page.getByRole("menuitemcheckbox", { name: "Enabled" })).toBeVisible();
   });
 });
