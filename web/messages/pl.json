@@ -819,7 +819,7 @@
     "configureDescription": "Skonfiguruj ustawienia tej integracji",
     "settingsSection": "Ustawienia",
     "oauth": {
-      "sectionTitle": "Połączenie z kontem",
+      "sectionTitle": "Konto",
       "statusConnected": "Połączono",
       "statusDisconnected": "Nie połączono",
       "statusReconnect": "Wymagane ponowne połączenie",
@@ -1001,6 +1001,11 @@
     "updateAvailableBadge": "Aktualizacja",
     "moreOptionsAriaLabel": "Więcej opcji",
     "sectionMenuAriaLabel": "Opcje integracji",
+    "detail": {
+      "unlocks": "Odblokowuje {count, plural, one {# zmienną} few {# zmienne} many {# zmiennych} other {# zmiennej}}",
+      "useInPage": "Użyj na stronie…",
+      "newPage": "Nowa strona"
+    },
     "addInstanceAction": "Dodaj instancję",
     "instanceNameInlineLabel": "Nazwa instancji:",
     "addInstanceInlineHelp": "Tworzy nową, niezależną instancję tej wtyczki z własną konfiguracją. Użyj znaków alfanumerycznych, myślników lub podkreśleń (1-40 znaków).",
@@ -2639,6 +2644,7 @@
     "boardPreviewLabel": "{name} na tablicy split-flap",
     "boardShapeLabel": "Format tablicy",
     "boardColorLabel": "Kolor tablicy",
+    "sampleCaption": "Przykładowa strona z tą integracją",
     "blackBoard": "Czarna tablica",
     "whiteBoard": "Biała tablica",
     "deviceFlagship": "Flagship",

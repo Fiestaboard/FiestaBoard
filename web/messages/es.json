@@ -819,7 +819,7 @@
     "configureDescription": "Configura los ajustes de esta integración",
     "settingsSection": "Configuración",
     "oauth": {
-      "sectionTitle": "Conexión de la cuenta",
+      "sectionTitle": "Cuenta",
       "statusConnected": "Conectado",
       "statusDisconnected": "No conectado",
       "statusReconnect": "Hay que volver a conectar",
@@ -1001,6 +1001,11 @@
     "updateAvailableBadge": "Actualización",
     "moreOptionsAriaLabel": "Más opciones",
     "sectionMenuAriaLabel": "Opciones de integraciones",
+    "detail": {
+      "unlocks": "Desbloquea {count, plural, one {# variable} other {# variables}}",
+      "useInPage": "Usar en una página…",
+      "newPage": "Nueva página"
+    },
     "addInstanceAction": "Añadir instancia",
     "instanceNameInlineLabel": "Nombre de la instancia:",
     "addInstanceInlineHelp": "Crea una nueva instancia independiente de este plugin con su propia configuración. Usa caracteres alfanuméricos, guiones o guiones bajos (1-40 caracteres).",
@@ -2639,6 +2644,7 @@
     "boardPreviewLabel": "{name} en un panel split-flap",
     "boardShapeLabel": "Formato del panel",
     "boardColorLabel": "Color del panel",
+    "sampleCaption": "Página de ejemplo con esta integración",
     "blackBoard": "Panel negro",
     "whiteBoard": "Panel blanco",
     "deviceFlagship": "Flagship",

@@ -130,6 +130,13 @@ describe("OAuthConnectionSection", () => {
     expect(screen.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
   });
 
+  it("heads the panel with 07d's mono ACCOUNT section label (BB-FC-9)", async () => {
+    serveConnections(RELAY);
+    renderSection("music");
+    const label = await screen.findByRole("heading", { name: "Account", level: 3 });
+    expect(label).toHaveClass("font-mono", "uppercase");
+  });
+
   it("will not sign in until there is a Client ID, and says why", async () => {
     serveConnections({ ...RELAY, configured: false });
     renderSection("music", { values: {} });

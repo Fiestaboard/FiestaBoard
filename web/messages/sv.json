@@ -819,7 +819,7 @@
     "configureDescription": "Konfigurera inställningar för denna integration",
     "settingsSection": "Inställningar",
     "oauth": {
-      "sectionTitle": "Kontoanslutning",
+      "sectionTitle": "Konto",
       "statusConnected": "Ansluten",
       "statusDisconnected": "Inte ansluten",
       "statusReconnect": "Behöver återanslutas",
@@ -1001,6 +1001,11 @@
     "updateAvailableBadge": "Uppdatering",
     "moreOptionsAriaLabel": "Fler alternativ",
     "sectionMenuAriaLabel": "Integrationsalternativ",
+    "detail": {
+      "unlocks": "Låser upp {count, plural, one {# variabel} other {# variabler}}",
+      "useInPage": "Använd på en sida…",
+      "newPage": "Ny sida"
+    },
     "addInstanceAction": "Lägg till instans",
     "instanceNameInlineLabel": "Instansnamn:",
     "addInstanceInlineHelp": "Skapar en ny oberoende instans av denna plugin med egen konfiguration. Använd alfanumeriska tecken, bindestreck eller understreck (1–40 tecken).",
@@ -2639,6 +2644,7 @@
     "boardPreviewLabel": "{name} på en split-flap-tavla",
     "boardShapeLabel": "Tavelformat",
     "boardColorLabel": "Tavelfärg",
+    "sampleCaption": "Exempelsida med den här integrationen",
     "blackBoard": "Svart tavla",
     "whiteBoard": "Vit tavla",
     "deviceFlagship": "Flagship",
