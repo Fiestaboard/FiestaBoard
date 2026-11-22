@@ -1,16 +1,28 @@
-// Clock skew for the whole suite: `TEST_NOW=2026-11-21T12:00:00Z npm test`
-// starts the wall clock at that instant (it keeps ticking from there).
+// Clock skew for the whole suite:
+//   TZ=UTC TEST_NOW=2026-11-21T12:00:00Z npx vitest run
+// starts the wall clock at that instant (it keeps ticking from there). Set
+// TZ=UTC as CI does: the year-end instant (Dec 31 23:00Z) is only a year
+// boundary in UTC and zones east of it.
 //
-// CI's "UI Tests (clock skew)" job runs the suite on a Saturday and at a
-// month/year boundary, so a test that only passes on the day it was written
-// fails on its PR instead of on everyone's PR that weekend (#2571, fixed by
-// #2611). Without TEST_NOW this module does nothing.
+// CI's "UI Tests (clock skew)" job (scripts/ci/clock-skew-tests.sh) runs the
+// suite on a Saturday and at a month/year boundary, so a test that only
+// passes on the day it was written fails on its PR instead of on everyone's
+// PR that weekend (#2571, fixed by #2611). Without TEST_NOW this module does
+// nothing; test-now.test.ts checks both cases.
 //
 // Only `Date` moves. Timers, `performance.now()` and the event loop are real,
 // so nothing runs faster or slower. A test that pins its own clock with
-// `vi.useFakeTimers()` / `vi.setSystemTime()` still wins: the fake clock
-// replaces this `Date` while installed and `vi.useRealTimers()` restores it.
-// setup.ts imports this first, before any module reads the time.
+// `vi.useFakeTimers()` / `vi.setSystemTime()` / `vi.spyOn(Date, "now")` still
+// wins: the fake clock replaces this `Date` while installed and
+// `vi.useRealTimers()` restores it. setup.ts imports this first, before any
+// module reads the time.
+//
+// Known gaps (neither pattern is used in web/src or web/app today):
+// - `Intl.DateTimeFormat#format()` (and `formatToParts()`) called with NO
+//   date reads the engine's real clock, not this one. Pass a date:
+//   `fmt.format(new Date())`.
+// - `new Date().constructor === Date` is false: `Date` is a Proxy and the
+//   prototype's `constructor` is the real Date. `instanceof Date` still holds.
 
 const raw = process.env.TEST_NOW;
 
