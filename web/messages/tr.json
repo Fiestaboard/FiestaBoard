@@ -784,6 +784,10 @@
   },
   "integrations": {
     "detailTabs": "Entegrasyon ayrıntıları",
+    "paneMenu": {
+      "enabled": "Etkin",
+      "liveValues": "Değişkenler ve canlı değerler"
+    },
     "variablesTab": "Değişkenler",
     "readmeTab": "README",
     "readmeUnavailable": "Belgeler kullanılamıyor.",
@@ -816,7 +820,7 @@
     "configureDescription": "Bu entegrasyon için ayarları yapılandırın",
     "settingsSection": "Ayarlar",
     "oauth": {
-      "sectionTitle": "Hesap bağlantısı",
+      "sectionTitle": "Hesap",
       "statusConnected": "Bağlandı",
       "statusDisconnected": "Bağlı değil",
       "statusReconnect": "Yeniden bağlanmak gerekiyor",
@@ -998,6 +1002,11 @@
     "updateAvailableBadge": "Güncelleme",
     "moreOptionsAriaLabel": "Diğer seçenekler",
     "sectionMenuAriaLabel": "Entegrasyon seçenekleri",
+    "detail": {
+      "unlocks": "{count, plural, other {# değişkenin}} kilidini açar",
+      "useInPage": "Bir sayfada kullan…",
+      "newPage": "Yeni sayfa"
+    },
     "addInstanceAction": "Örnek Ekle",
     "instanceNameInlineLabel": "Örnek adı:",
     "addInstanceInlineHelp": "Bu eklentinin kendi yapılandırmasına sahip yeni ve bağımsız bir örneğini oluşturur. Alfasayısal karakterler, tireler veya alt çizgiler kullanın (1-40 karakter).",
@@ -2640,6 +2649,7 @@
     "boardPreviewLabel": "Split-flap panoda {name}",
     "boardShapeLabel": "Pano biçimi",
     "boardColorLabel": "Pano rengi",
+    "sampleCaption": "Bu entegrasyonu kullanan örnek sayfa",
     "blackBoard": "Siyah pano",
     "whiteBoard": "Beyaz pano",
     "deviceFlagship": "Flagship",

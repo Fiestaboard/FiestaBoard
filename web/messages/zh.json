@@ -784,6 +784,10 @@
   },
   "integrations": {
     "detailTabs": "集成详情",
+    "paneMenu": {
+      "enabled": "已启用",
+      "liveValues": "变量和实时值"
+    },
     "variablesTab": "变量",
     "readmeTab": "README",
     "readmeUnavailable": "文档不可用。",
@@ -816,7 +820,7 @@
     "configureDescription": "配置此集成的设置",
     "settingsSection": "设置",
     "oauth": {
-      "sectionTitle": "账户连接",
+      "sectionTitle": "账户",
       "statusConnected": "已连接",
       "statusDisconnected": "未连接",
       "statusReconnect": "需要重新连接",
@@ -998,6 +1002,11 @@
     "updateAvailableBadge": "更新",
     "moreOptionsAriaLabel": "更多选项",
     "sectionMenuAriaLabel": "集成选项",
+    "detail": {
+      "unlocks": "解锁 {count, plural, other {# 个变量}}",
+      "useInPage": "在页面中使用…",
+      "newPage": "新建页面"
+    },
     "addInstanceAction": "添加实例",
     "instanceNameInlineLabel": "实例名称：",
     "addInstanceInlineHelp": "创建此插件的一个新的独立实例，它拥有自己的配置。使用字母数字字符、连字符或下划线（1-40 个字符）。",
@@ -2640,6 +2649,7 @@
     "boardPreviewLabel": "{name} 在翻牌显示屏上的效果",
     "boardShapeLabel": "显示屏形状",
     "boardColorLabel": "显示屏颜色",
+    "sampleCaption": "使用此集成的示例页面",
     "blackBoard": "黑色显示屏",
     "whiteBoard": "白色显示屏",
     "deviceFlagship": "Flagship",

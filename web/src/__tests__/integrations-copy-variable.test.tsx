@@ -7,11 +7,19 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import IntegrationsPage from "../../app/routes/integrations._index";
-import { integrationDesktop, openIntegration } from "./integrations-test-helpers";
+import PluginDetailPage from "../../app/routes/integrations.$pluginId";
 import { server } from "./mocks/server";
+
+// The table lives on the integration's own page, Variables tab: 07d's desktop
+// pane has no tabs, and its header menu links here (BB-FC-9).
+vi.mock("@/hooks/use-router", async (original) => ({
+  ...(await original<typeof import("@/hooks/use-router")>()),
+  useParams: () => ({ pluginId: "date_time" }),
+  useSearchParams: () => new URLSearchParams("from=installed&tab=variables"),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+}));
 
 const API_BASE = "/api";
 const PLUGIN_ID = "date_time";
@@ -89,10 +97,9 @@ function renderPage() {
       mutations: { retry: false },
     },
   });
-  integrationDesktop();
   return render(
     <QueryClientProvider client={queryClient}>
-      <IntegrationsPage />
+      <PluginDetailPage />
     </QueryClientProvider>,
   );
 }
@@ -103,7 +110,6 @@ describe("Integrations — Template Variables copy", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await openIntegration(user, "Variables");
     await user.click(await screen.findByRole("button", { name: /copy date_time\.time/i }));
 
     await expect(navigator.clipboard.readText()).resolves.toBe("{{date_time.time}}");

@@ -25,6 +25,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   Flex,
   Label,
@@ -33,6 +34,7 @@ import {
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MoreHorizontal, RefreshCw } from "lucide-react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { usePluginSettings, useUpdatePluginSettings } from "@/hooks/use-plugin-settings";
@@ -86,7 +88,7 @@ export function PluginUpdateCheckButton() {
  * The section header's "…" (07d `324:40267`): Check for updates, which acts
  * on every plugin, behind one icon button rather than a labelled one.
  */
-export function PluginUpdatesMenu() {
+export function PluginUpdatesMenu({ paneItems }: { paneItems?: (() => ReactNode) | null }) {
   const t = useTranslations("integrations");
   const checkMutation = usePluginUpdateCheck();
 
@@ -99,6 +101,13 @@ export function PluginUpdatesMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        {/* The open detail pane's own actions come first (BB-FC-9). */}
+        {paneItems && (
+          <>
+            {paneItems()}
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem onClick={() => checkMutation.mutate()} disabled={checkMutation.isPending}>
           <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
           {checkMutation.isPending ? t("checking") : t("checkForUpdates")}

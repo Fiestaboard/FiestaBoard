@@ -784,6 +784,10 @@
   },
   "integrations": {
     "detailTabs": "Détails de l’intégration",
+    "paneMenu": {
+      "enabled": "Activée",
+      "liveValues": "Variables et valeurs en direct"
+    },
     "variablesTab": "Variables",
     "readmeTab": "README",
     "readmeUnavailable": "La documentation n’est pas disponible.",
@@ -816,7 +820,7 @@
     "configureDescription": "Configurer les paramètres de cette intégration",
     "settingsSection": "Paramètres",
     "oauth": {
-      "sectionTitle": "Connexion au compte",
+      "sectionTitle": "Compte",
       "statusConnected": "Connecté",
       "statusDisconnected": "Non connecté",
       "statusReconnect": "Reconnexion nécessaire",
@@ -998,6 +1002,11 @@
     "updateAvailableBadge": "Mise à jour",
     "moreOptionsAriaLabel": "Plus d'options",
     "sectionMenuAriaLabel": "Options des intégrations",
+    "detail": {
+      "unlocks": "Débloque {count, plural, one {# variable} other {# variables}}",
+      "useInPage": "Utiliser dans une page…",
+      "newPage": "Nouvelle page"
+    },
     "addInstanceAction": "Ajouter une instance",
     "instanceNameInlineLabel": "Nom de l'instance :",
     "addInstanceInlineHelp": "Crée une nouvelle instance indépendante de ce plugin avec sa propre configuration. Utilisez des caractères alphanumériques, des tirets ou des soulignements (1 à 40 caractères).",
@@ -2640,6 +2649,7 @@
     "boardPreviewLabel": "{name} sur un tableau split-flap",
     "boardShapeLabel": "Format du tableau",
     "boardColorLabel": "Couleur du tableau",
+    "sampleCaption": "Exemple de page utilisant cette intégration",
     "blackBoard": "Tableau noir",
     "whiteBoard": "Tableau blanc",
     "deviceFlagship": "Flagship",

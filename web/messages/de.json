@@ -784,6 +784,10 @@
   },
   "integrations": {
     "detailTabs": "Integrationsdetails",
+    "paneMenu": {
+      "enabled": "Aktiviert",
+      "liveValues": "Variablen und Live-Werte"
+    },
     "variablesTab": "Variablen",
     "readmeTab": "README",
     "readmeUnavailable": "Dokumentation ist nicht verfügbar.",
@@ -816,7 +820,7 @@
     "configureDescription": "Einstellungen für diese Integration konfigurieren",
     "settingsSection": "Einstellungen",
     "oauth": {
-      "sectionTitle": "Kontoverbindung",
+      "sectionTitle": "Konto",
       "statusConnected": "Verbunden",
       "statusDisconnected": "Nicht verbunden",
       "statusReconnect": "Erneute Verbindung erforderlich",
@@ -998,6 +1002,11 @@
     "updateAvailableBadge": "Update",
     "moreOptionsAriaLabel": "Weitere Optionen",
     "sectionMenuAriaLabel": "Integrationsoptionen",
+    "detail": {
+      "unlocks": "Schaltet {count, plural, one {# Variable} other {# Variablen}} frei",
+      "useInPage": "Auf einer Seite verwenden…",
+      "newPage": "Neue Seite"
+    },
     "addInstanceAction": "Instanz hinzufügen",
     "instanceNameInlineLabel": "Instanzname:",
     "addInstanceInlineHelp": "Erstellt eine neue unabhängige Instanz dieses Plugins mit eigener Konfiguration. Verwenden Sie alphanumerische Zeichen, Bindestriche oder Unterstriche (1–40 Zeichen).",
@@ -2640,6 +2649,7 @@
     "boardPreviewLabel": "{name} auf einer Fallblattanzeige",
     "boardShapeLabel": "Anzeigeformat",
     "boardColorLabel": "Anzeigefarbe",
+    "sampleCaption": "Beispielseite mit dieser Integration",
     "blackBoard": "Schwarze Anzeige",
     "whiteBoard": "Weiße Anzeige",
     "deviceFlagship": "Flagship",

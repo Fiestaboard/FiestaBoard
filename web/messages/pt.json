@@ -784,6 +784,10 @@
   },
   "integrations": {
     "detailTabs": "Detalhes da integração",
+    "paneMenu": {
+      "enabled": "Ativada",
+      "liveValues": "Variáveis e valores ao vivo"
+    },
     "variablesTab": "Variáveis",
     "readmeTab": "README",
     "readmeUnavailable": "A documentação não está disponível.",
@@ -816,7 +820,7 @@
     "configureDescription": "Configure as opções desta integração",
     "settingsSection": "Configurações",
     "oauth": {
-      "sectionTitle": "Conexão da conta",
+      "sectionTitle": "Conta",
       "statusConnected": "Conectado",
       "statusDisconnected": "Não conectado",
       "statusReconnect": "É necessário reconectar",
@@ -998,6 +1002,11 @@
     "updateAvailableBadge": "Atualização",
     "moreOptionsAriaLabel": "Mais opções",
     "sectionMenuAriaLabel": "Opções de integrações",
+    "detail": {
+      "unlocks": "Desbloqueia {count, plural, one {# variável} other {# variáveis}}",
+      "useInPage": "Usar em uma página…",
+      "newPage": "Nova página"
+    },
     "addInstanceAction": "Adicionar instância",
     "instanceNameInlineLabel": "Nome da instância:",
     "addInstanceInlineHelp": "Cria uma nova instância independente deste plugin, com a sua própria configuração. Use caracteres alfanuméricos, hífenes ou underscores (1-40 caracteres).",
@@ -2640,6 +2649,7 @@
     "boardPreviewLabel": "{name} num painel split-flap",
     "boardShapeLabel": "Formato do painel",
     "boardColorLabel": "Cor do painel",
+    "sampleCaption": "Página de exemplo com esta integração",
     "blackBoard": "Painel preto",
     "whiteBoard": "Painel branco",
     "deviceFlagship": "Flagship",

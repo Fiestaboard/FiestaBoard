@@ -784,6 +784,10 @@
   },
   "integrations": {
     "detailTabs": "연동 세부 정보",
+    "paneMenu": {
+      "enabled": "사용",
+      "liveValues": "변수 및 실시간 값"
+    },
     "variablesTab": "변수",
     "readmeTab": "README",
     "readmeUnavailable": "문서를 사용할 수 없습니다.",
@@ -816,7 +820,7 @@
     "configureDescription": "이 연동의 설정을 구성하세요",
     "settingsSection": "설정",
     "oauth": {
-      "sectionTitle": "계정 연결",
+      "sectionTitle": "계정",
       "statusConnected": "연결됨",
       "statusDisconnected": "연결되지 않음",
       "statusReconnect": "다시 연결 필요",
@@ -998,6 +1002,11 @@
     "updateAvailableBadge": "업데이트",
     "moreOptionsAriaLabel": "추가 옵션",
     "sectionMenuAriaLabel": "통합 옵션",
+    "detail": {
+      "unlocks": "{count, plural, other {변수 #개}} 사용 가능",
+      "useInPage": "페이지에서 사용…",
+      "newPage": "새 페이지"
+    },
     "addInstanceAction": "인스턴스 추가",
     "instanceNameInlineLabel": "인스턴스 이름:",
     "addInstanceInlineHelp": "이 플러그인의 새로운 독립 인스턴스를 고유한 구성으로 만듭니다. 영숫자, 하이픈 또는 밑줄을 사용하세요 (1-40자).",
@@ -2640,6 +2649,7 @@
     "boardPreviewLabel": "스플릿 플랩 보드에 표시된 {name}",
     "boardShapeLabel": "보드 형태",
     "boardColorLabel": "보드 색상",
+    "sampleCaption": "이 통합을 사용하는 샘플 페이지",
     "blackBoard": "블랙 보드",
     "whiteBoard": "화이트 보드",
     "deviceFlagship": "Flagship",
