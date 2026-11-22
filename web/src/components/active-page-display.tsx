@@ -28,6 +28,7 @@ import { useCurrentBoard } from "@/components/current-board-context";
 import { type BoardActions, BoardActionsMenu, BoardContextMenu } from "@/components/home/board-context-menu";
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { boardMeta, HomeBoard } from "@/components/home/home-board";
+import { HomeColorStrip } from "@/components/home/home-color-strip";
 import { formatClock, formatSpan, overrideOnScreen, scheduleNextChange } from "@/components/home/home-status";
 import { HomeSupportingPane } from "@/components/home/home-supporting-pane";
 import {
@@ -729,6 +730,13 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
       </Flex>
     </BoardContextMenu>
   );
+  // 07e Appearance "Show the color strip on Home": under the board, never in it.
+  const boardWithStrip = (
+    <Stack gap="3">
+      {boardElement}
+      <HomeColorStrip size={phone ? "sm" : "md"} />
+    </Stack>
+  );
 
   return (
     <Stack gap="4" {...anchorProps("home.active-display")}>
@@ -768,7 +776,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           // page gutter is bled), in the kit's phone-hero placement so a
           // 22-column Flagship shows whole (BB-A-6).
           <Box className="-mx-4 min-w-0" data-testid="home-phone-board">
-            {boardElement}
+            {boardWithStrip}
           </Box>
         )}
         <NowShowingCard
@@ -794,7 +802,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
             modes: { schedule: tn("modeSchedule"), manual: tn("modeManual"), override: tn("modeOverride") },
           }}
           data-testid="now-showing"
-          board={phone ? null : boardElement}
+          board={phone ? null : boardWithStrip}
           description={
             sendsDisabled || displayOffline ? (
               <>
