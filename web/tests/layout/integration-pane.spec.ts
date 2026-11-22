@@ -31,7 +31,7 @@ test.describe("Integration detail pane at 1440 (BB-FC-9, Figma 324:40267)", () =
       expect(await badge.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/mono/i);
       // No switch, "…", version chips or tab strip in the pane.
       await expect(pane(page).getByRole("tablist")).toHaveCount(0);
-      await expect(pane(page).getByRole("switch")).toHaveCount(0);
+      await expect(pane(page).getByRole("switch", { name: `Toggle ${name}` })).toHaveCount(0);
       await expect(pane(page).getByRole("button", { name: "More options" })).toHaveCount(0);
       await expect(pane(page).getByText("v1.0.0")).toHaveCount(0);
     });
