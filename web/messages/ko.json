@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "연동 세부 정보",
+    "paneMenu": {
+      "enabled": "사용",
+      "liveValues": "변수 및 실시간 값"
+    },
     "variablesTab": "변수",
     "readmeTab": "README",
     "readmeUnavailable": "문서를 사용할 수 없습니다.",

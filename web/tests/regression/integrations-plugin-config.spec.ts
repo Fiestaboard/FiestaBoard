@@ -69,6 +69,18 @@ async function openConfigSheet(page: Page) {
   await page.getByRole("button", { name: /^Date & Time/ }).click();
 }
 
+/**
+ * The Template Variables table: 07d's desktop pane has no tabs, so the table
+ * is on the integration's own page, Variables tab, which the header's
+ * Integration options › "Variables and live values" opens (BB-FC-9).
+ */
+async function openVariablesTab(page: Page) {
+  await page.goto(`/integrations/${TEST_PLUGIN_ID}?from=installed&tab=variables`);
+  await expect(page.getByRole("tab", { name: "Variables", exact: true })).toHaveAttribute("aria-selected", "true", {
+    timeout: 15_000,
+  });
+}
+
 test.describe("regression: integrations.plugin (config sheet + lifecycle)", () => {
   /**
    * UX node: integrations.plugin.config-sheet.open
@@ -99,7 +111,8 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
 
     await expect(page.getByRole("heading", { name: /Environment Variables/i })).toBeVisible();
     await expect(page.getByText(/Color Rules/i).first()).toBeVisible();
-    await page.getByRole("tab", { name: "Variables", exact: true }).click();
+    // The pane's Variables tab moved to the integration's page (BB-FC-9).
+    await openVariablesTab(page);
     await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible();
   });
 
@@ -253,14 +266,12 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     // which on a cold CI container can take >20s for date_time's first cycle.
     // Triple the default 30s budget so the assertion has room to wait it out.
     test.slow();
-    await openConfigSheet(page);
-
-    await page.getByRole("tab", { name: "Variables", exact: true }).click();
+    await openVariablesTab(page);
     // Wait for template-vars heading
     await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible({ timeout: 15_000 });
 
     // Locate the variables table by its column headers (it includes "Current Value" + "Max").
-    const dialog = page.getByRole("complementary", { name: "Integration settings" });
+    const dialog = page.getByRole("tabpanel", { name: "Variables" });
     const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
     await expect(varsTable).toBeVisible({ timeout: 5_000 });
 
@@ -288,12 +299,11 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/1104
    */
   test("integrations.plugin.config-sheet.template-vars — organized by manifest group", async ({ page }) => {
-    await openConfigSheet(page);
-    await page.getByRole("tab", { name: "Variables", exact: true }).click();
+    await openVariablesTab(page);
 
     await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible({ timeout: 15_000 });
 
-    const dialog = page.getByRole("complementary", { name: "Integration settings" });
+    const dialog = page.getByRole("tabpanel", { name: "Variables" });
     const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
     await expect(varsTable).toBeVisible({ timeout: 5_000 });
 
@@ -340,11 +350,9 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
       });
     });
 
-    await openConfigSheet(page);
-
-    await page.getByRole("tab", { name: "Variables", exact: true }).click();
+    await openVariablesTab(page);
     await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible({ timeout: 15_000 });
-    const dialog = page.getByRole("complementary", { name: "Integration settings" });
+    const dialog = page.getByRole("tabpanel", { name: "Variables" });
     const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
     await expect(varsTable).toBeVisible({ timeout: 5_000 });
 
@@ -378,8 +386,7 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     context,
   }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => {});
-    await openConfigSheet(page);
-    await page.getByRole("tab", { name: "Variables", exact: true }).click();
+    await openVariablesTab(page);
     const varsHeading = page.getByRole("heading", { name: /Template Variables/i });
     await expect(varsHeading).toBeVisible({ timeout: 15_000 });
     const copyButton = page.getByRole("button", { name: `Copy ${TEST_PLUGIN_ID}.time`, exact: true });
@@ -538,11 +545,14 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: /^Mock External Plugin/ }).click();
-    const toggle = page.getByRole("switch", { name: "Toggle Mock External Plugin" });
+    // 07d's pane is titled with the plugin; its "…" actions are in the
+    // section header's Integration options menu (BB-FC-9).
+    const toggle = page
+      .getByRole("complementary", { name: "Integration settings" })
+      .getByRole("heading", { name: "Mock External Plugin", level: 2 });
     await expect(toggle).toBeVisible({ timeout: 15_000 });
-    const row = page.getByRole("complementary", { name: "Integration settings" });
 
-    await row.getByRole("button", { name: "More options" }).click();
+    await page.locator("[data-slot=page-header]").getByRole("button", { name: "Integration options" }).click();
     await page.getByRole("menuitem", { name: /^Delete$/ }).click();
 
     // Confirm dialog appears with the new alert-dialog-cancel testid.

@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "Сведения об интеграции",
+    "paneMenu": {
+      "enabled": "Включена",
+      "liveValues": "Переменные и текущие значения"
+    },
     "variablesTab": "Переменные",
     "readmeTab": "README",
     "readmeUnavailable": "Документация недоступна.",

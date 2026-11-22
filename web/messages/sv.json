@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "Integrationsdetaljer",
+    "paneMenu": {
+      "enabled": "Aktiverad",
+      "liveValues": "Variabler och livevärden"
+    },
     "variablesTab": "Variabler",
     "readmeTab": "README",
     "readmeUnavailable": "Dokumentationen är inte tillgänglig.",
