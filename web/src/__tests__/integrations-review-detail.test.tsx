@@ -228,8 +228,15 @@ describe("Integrations review: supported detail flows", () => {
   it("opens the full README route from the selected desktop detail", async () => {
     navigation.pluginId = "";
     navigation.desktop = true;
-    renderView(<IntegrationsPage />);
-    await userEvent.click(await screen.findByRole("tab", { name: "README" }));
+    renderView(
+      <IntegrationsSection>
+        <IntegrationsPage />
+      </IntegrationsSection>,
+    );
+    // 07d's pane has no tabs: README is in the header's Integration options (BB-FC-9).
+    await screen.findByRole("heading", { name: "Calendar", level: 2 });
+    await userEvent.click(screen.getByRole("button", { name: "Integration options" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "README" }));
     expect(navigation.push).toHaveBeenCalledWith("/integrations/calendar?from=installed&tab=readme");
   });
 
@@ -273,14 +280,20 @@ describe("Integrations review: supported detail flows", () => {
         return HttpResponse.json(plugin);
       }),
     );
-    renderView(<IntegrationsPage />);
+    renderView(
+      <IntegrationsSection>
+        <IntegrationsPage />
+      </IntegrationsSection>,
+    );
     const row = await screen.findByRole("button", { name: /^Calendar/ });
     expect(row.tagName).toBe("BUTTON");
     expect(row.querySelectorAll('button,input,[role="switch"],a')).toHaveLength(0);
     const detail = screen.getByRole("complementary", { name: "Integration settings" });
-    await userEvent.click(await within(detail).findByRole("switch", { name: "Toggle Calendar" }));
+    await within(detail).findByRole("heading", { name: "Calendar", level: 2 });
+    await userEvent.click(screen.getByRole("button", { name: "Integration options" }));
+    await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Enabled" }));
     await waitFor(() => expect(writes).toEqual([{ enabled: false }]));
     expect(navigation.push).not.toHaveBeenCalled();
-    expect(await within(detail).findByRole("tab", { name: "Settings" })).toBeInTheDocument();
+    expect(await within(detail).findByLabelText("Stop")).toBeInTheDocument();
   });
 });

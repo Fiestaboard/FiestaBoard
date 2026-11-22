@@ -1,8 +1,10 @@
 import { Flex, PluginCategoryBadge, Stack, Text } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Puzzle } from "lucide-react";
+import { useCallback, useState } from "react";
 import { Outlet } from "react-router";
 
+import { IntegrationPaneMenuContext } from "@/components/integrations/integration-pane-menu";
 import { PluginUpdatesMenu } from "@/components/plugin-updates-control";
 import { SectionShell } from "@/components/section-shell";
 import { useBelowRail } from "@/hooks/use-below-rail";
@@ -50,6 +52,9 @@ export function IntegrationsSection({ children }: { children: React.ReactNode })
     staleTime: 5 * 60 * 1000,
     enabled: !!pluginId,
   });
+  // The open detail pane's actions, shown in the header menu (BB-FC-9).
+  const [paneItems, setPaneItems] = useState<(() => React.ReactNode) | null>(null);
+  const registerPaneItems = useCallback((render: (() => React.ReactNode) | null) => setPaneItems(() => render), []);
   const entry = installedPlugin || (pluginId ? registry?.entries.find((e) => e.id === pluginId) : undefined);
   const category = entry?.category ?? "utility";
   const categoryLabel = CATEGORY_KEYS.has(category) ? tDetail(`categories.${category}`) : category;
@@ -91,19 +96,21 @@ export function IntegrationsSection({ children }: { children: React.ReactNode })
     : null;
 
   return (
-    <SectionShell
-      icon={Puzzle}
-      title={t("title")}
-      description={phone ? undefined : t("description")}
-      href="/integrations"
-      detail={detail}
-      // 07d `324:40267`: a "…" button is the header's one action, and the
-      // list sits on the page rather than in a card (BB-FC-8).
-      action={phone ? undefined : <PluginUpdatesMenu />}
-      surface="plain"
-    >
-      {children}
-    </SectionShell>
+    <IntegrationPaneMenuContext.Provider value={registerPaneItems}>
+      <SectionShell
+        icon={Puzzle}
+        title={t("title")}
+        description={phone ? undefined : t("description")}
+        href="/integrations"
+        detail={detail}
+        // 07d `324:40267`: a "…" button is the header's one action, and the
+        // list sits on the page rather than in a card (BB-FC-8).
+        action={phone ? undefined : <PluginUpdatesMenu paneItems={paneItems} />}
+        surface="plain"
+      >
+        {children}
+      </SectionShell>
+    </IntegrationPaneMenuContext.Provider>
   );
 }
 

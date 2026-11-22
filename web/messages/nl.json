@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "Integratiedetails",
+    "paneMenu": {
+      "enabled": "Ingeschakeld",
+      "liveValues": "Variabelen en live waarden"
+    },
     "variablesTab": "Variabelen",
     "readmeTab": "README",
     "readmeUnavailable": "Documentatie is niet beschikbaar.",

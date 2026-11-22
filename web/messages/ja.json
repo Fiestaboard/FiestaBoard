@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "連携の詳細",
+    "paneMenu": {
+      "enabled": "有効",
+      "liveValues": "変数とライブ値"
+    },
     "variablesTab": "変数",
     "readmeTab": "README",
     "readmeUnavailable": "ドキュメントを利用できません。",

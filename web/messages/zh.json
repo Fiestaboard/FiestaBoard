@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "集成详情",
+    "paneMenu": {
+      "enabled": "已启用",
+      "liveValues": "变量和实时值"
+    },
     "variablesTab": "变量",
     "readmeTab": "README",
     "readmeUnavailable": "文档不可用。",
