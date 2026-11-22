@@ -5,7 +5,12 @@ name: 'CI: Integration Tests'
 # the last gate before a release. That PR is rebuilt on every push to its base
 # branch, so it tests the merged result of everything about to ship. Every
 # Version PR bumps web/package.json, so the `paths` filter below always fires.
+#
+# workflow_dispatch runs the full suite too, on the ref it is dispatched on.
+# nightly-integration.yml dispatches it on `v11` every night, so a broken full
+# suite shows up the next morning instead of on the Version PR at release time.
 on:
+  workflow_dispatch:
   pull_request:
     branches: [ '**' ]
     paths:
@@ -20,14 +25,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: integration-${{ github.ref }}
-  cancel-in-progress: true
+  # A new push supersedes a PR's run. A dispatch (the nightly v11 run, or a
+  # manual one) gets a group of its own and is never cancelled: sharing the
+  # `refs/heads/v11` group would cancel the run the nightly is watching, and
+  # even without cancel-in-progress a newer queued run replaces a pending one.
+  group: integration-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   integration-tests:
-    name: Integration Tests (${{ startsWith(github.head_ref, 'changeset-release/') && 'full' || 'smoke' }})
+    name: Integration Tests (${{ (startsWith(github.head_ref, 'changeset-release/') || github.event_name == 'workflow_dispatch') && 'full' || 'smoke' }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Sized for the full suite (the smoke path finishes in a few minutes, so
+    # the cap only matters there if it hangs): up to ~4 min of build and
+    # setup, the 23-minute test step, the 3-minute insecure-HTTP step and
+    # teardown.
+    timeout-minutes: 35
 
     steps:
       - name: Checkout code
@@ -103,7 +116,7 @@ jobs:
       # On PRs we only run integration.spec.ts — a single file whose tests
       # execute sequentially — so one backend is sufficient.
       - name: Start mock Vestaboard API (smoke)
-        if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
+        if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'changeset-release/') }}
         run: |
           # python3 is pre-installed on ubuntu-latest; the script is stdlib-only.
           python3 integration-tests/mock-board/server.py &
@@ -111,7 +124,7 @@ jobs:
           echo "Mock board started on port 7000"
 
       - name: Start mock Vestaboard Cloud API (smoke)
-        if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
+        if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'changeset-release/') }}
         env:
           PORT: 9200
           ROWS: 6
@@ -123,7 +136,7 @@ jobs:
           echo "Mock Cloud API started on port 9200"
 
       - name: Start FiestaBoard container (smoke)
-        if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
+        if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'changeset-release/') }}
         run: |
           docker run -d --name fiestaboard-integration \
             --add-host=host.docker.internal:host-gateway \
@@ -147,7 +160,7 @@ jobs:
       # This covers health checks, the setup wizard, navigation, basic page &
       # schedule management — the flows most likely to break on any PR.
       - name: Run integration tests (smoke subset)
-        if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
+        if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'changeset-release/') }}
         working-directory: web
         timeout-minutes: 8
         run: npx playwright test integration.spec.ts --reporter=github
@@ -168,7 +181,7 @@ jobs:
       # cause spurious failures. We start 4 FiestaBoard + 4 mock-board containers
       # and pass WORKER_URLS so each Playwright worker gets its own isolated backend.
       - name: Start 4 mock board + mock cloud + FiestaBoard containers (full suite)
-        if: startsWith(github.head_ref, 'changeset-release/')
+        if: startsWith(github.head_ref, 'changeset-release/') || github.event_name == 'workflow_dispatch'
         run: |
           WORKER_COUNT=4
           WORKER_URLS=""
@@ -236,7 +249,7 @@ jobs:
 
       - name: Wait for all containers to be ready (full suite)
         id: containers_ready
-        if: startsWith(github.head_ref, 'changeset-release/')
+        if: startsWith(github.head_ref, 'changeset-release/') || github.event_name == 'workflow_dispatch'
         timeout-minutes: 3
         run: |
           IFS=',' read -ra URLS <<< "$WORKER_URLS"
@@ -256,11 +269,17 @@ jobs:
             done
           done
 
-      # On the Version PR: run the full integration suite as the release gate.
+      # On the Version PR: run the full integration suite as the release gate
+      # (also on a dispatch, which is how the nightly v11 run gets here).
       - name: Run integration tests (full suite on the Version PR)
-        if: startsWith(github.head_ref, 'changeset-release/')
+        if: startsWith(github.head_ref, 'changeset-release/') || github.event_name == 'workflow_dispatch'
         working-directory: web
-        timeout-minutes: 12
+        # The same 772 tests take ~8-14.8 min (p50 ~10.5) in ci.yml's E2E
+        # Tests job (Nov 20-21 2026; slowest: run 44807209114 on the Version
+        # PR, 14.8 min), and 8.6-10.7 min here when green; the runner, not the
+        # code, sets where in that range a run lands. 12 minutes cut runs off
+        # at test ~720. 23 is ~1.5x the slowest measured run.
+        timeout-minutes: 23
         # Plain HTTP cases run separately below against a genuine insecure origin.
         # Keep the configured JSON reporter as well as GitHub annotations.
         run: |
@@ -273,7 +292,7 @@ jobs:
           MOCK_CLOUD_URLS: ${{ env.MOCK_CLOUD_URLS }}
 
       - name: Run insecure HTTP PWA tests (full suite)
-        if: ${{ !cancelled() && startsWith(github.head_ref, 'changeset-release/') && steps.containers_ready.outcome == 'success' }}
+        if: ${{ !cancelled() && (startsWith(github.head_ref, 'changeset-release/') || github.event_name == 'workflow_dispatch') && steps.containers_ready.outcome == 'success' }}
         working-directory: web
         timeout-minutes: 3
         # No browser override: Docker-IP HTTP must retain its real restrictions.
@@ -299,10 +318,40 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
-          name: integration-results-${{ startsWith(github.head_ref, 'changeset-release/') && 'full' || 'smoke' }}
+          name: integration-results-${{ (startsWith(github.head_ref, 'changeset-release/') || github.event_name == 'workflow_dispatch') && 'full' || 'smoke' }}
           path: |
             web/playwright-test-results/
             web/playwright-report.json
             web/playwright-pwa-http-test-results/
             web/playwright-pwa-http-report.json
           retention-days: 14
+
+  # The nightly v11 run (a dispatch) also runs the whole vitest suite with the
+  # clock on a Saturday and at a year end. PRs run only the affected tests
+  # (ci.yml's "UI Tests (clock skew)"); this catches date bugs in code nobody
+  # touched. Logic and instants: scripts/ci/clock-skew-tests.sh.
+  clock-skew-full:
+    name: UI Tests (clock skew, full suite)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TZ: UTC
+      CLOCK_SKEW_MODE: full
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install UI dependencies
+        working-directory: web
+        run: npm ci --legacy-peer-deps --no-audit
+
+      - name: Run UI tests on a Saturday and at a year end (full suite)
+        run: bash scripts/ci/clock-skew-tests.sh

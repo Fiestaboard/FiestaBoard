@@ -80,6 +80,8 @@ export interface CollectionEvaluation {
     matched: boolean;
   }> | null;
   matched_rule: number | null;
+  /** The dry run's merged windows from `at` on (each `{from, until, page_id}`). */
+  timeline?: { from: string; until: string; page_id: string | null }[];
 }
 
 // No hub protocol advertises an editable no-repeat flag. Random selection
@@ -143,10 +145,11 @@ export const collectionsApi = {
       body: JSON.stringify({ data: "cached", ...request }),
     }),
 
-  evaluateCollection: (collectionId: string, at?: string) =>
+  /** `windowSeconds` adds the timeline after `at` (what shows until when, and what's next). */
+  evaluateCollection: (collectionId: string, at?: string, windowSeconds?: number) =>
     fetchApi<CollectionEvaluation>(`/collections/${encodeURIComponent(collectionId)}/dry-run`, {
       method: "POST",
-      body: JSON.stringify(at ? { at } : {}),
+      body: JSON.stringify({ ...(at && { at }), ...(windowSeconds && { window_seconds: windowSeconds }) }),
     }),
 
   // Collection endpoints

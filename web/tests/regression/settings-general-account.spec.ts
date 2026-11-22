@@ -46,17 +46,18 @@ test.describe("regression: settings.general", () => {
     const you = page.getByRole("list", { name: "You" });
 
     // Appearance — the card title "Appearance" must be present, and the
-    // Animation card ("Graphics and previews") sits beside it.
+    // Boards card and the Motion details panel (07e, BB-FC-12) sit below it.
     await expect(main.getByText("Appearance", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText("Graphics and previews").first()).toBeVisible();
+    await expect(main.getByText("Boards", { exact: true }).first()).toBeVisible();
+    await expect(main.getByText("Motion details").first()).toBeVisible();
 
     // Accessibility card — its own section.
     await you.getByRole("link", { name: "Accessibility" }).click();
     await expect(page).toHaveURL(/\/settings\/accessibility$/);
     await expect(main.getByText(/accessibility/i).first()).toBeVisible();
     // 07e titles a section with the hub line only (BB-FC-1); the card says
-    // who the motion setting applies to.
-    await expect(main.getByText("Motion preferences apply to everyone on this hub.")).toBeVisible();
+    // its settings belong to this browser (BB-FC-12).
+    await expect(main.getByText("For this browser.")).toBeVisible();
 
     // Instance Name card — moved to System & backups; the input is keyed by
     // id="instance-name".

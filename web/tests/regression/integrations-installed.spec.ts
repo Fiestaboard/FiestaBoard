@@ -39,6 +39,23 @@ async function restorePluginEnabled(id: string, enabled: boolean): Promise<void>
   else await disablePlugin(id).catch(() => {});
 }
 
+/**
+ * The selected integration's pane, titled with its name (07d `324:40267`). Its
+ * switch, "…" and tabs moved to the section header's Integration options menu
+ * (BB-FC-9), so the title is what says the pane is open.
+ */
+function paneTitle(page: Page, name = STABLE_PLUGIN_NAME) {
+  return page.getByRole("complementary", { name: "Integration settings" }).getByRole("heading", { name, level: 2 });
+}
+
+async function openPaneMenu(page: Page) {
+  await page.locator("[data-slot=page-header]").getByRole("button", { name: "Integration options" }).click();
+}
+
+function enabledItem(page: Page) {
+  return page.getByRole("menuitemcheckbox", { name: "Enabled" });
+}
+
 async function selectInstalled(page: Page, name = STABLE_PLUGIN_NAME) {
   await page.getByRole("button", { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) }).click();
 }
@@ -86,7 +103,7 @@ test.describe("regression: integrations.installed", () => {
     await nav;
     // Loading finished → real toggle rendered.
     await selectInstalled(page);
-    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 15_000 });
+    await expect(paneTitle(page)).toBeVisible({ timeout: 15_000 });
   });
 
   /**
@@ -115,12 +132,14 @@ test.describe("regression: integrations.installed", () => {
       timeout: 15_000,
     });
 
-    // The header-level "Check for updates" button acts as the retry affordance
-    // (it invalidates the plugins query when run).
-    await expect(page.getByRole("button", { name: /Check for updates/i })).toBeVisible();
+    // The header menu's "Check for updates" acts as the retry affordance (it
+    // invalidates the plugins query when run); BB-FC-8 put it behind "…".
+    await page.locator("[data-slot=page-header]").getByRole("button", { name: "Integration options" }).click();
+    await expect(page.getByRole("menuitem", { name: /Check for updates/i })).toBeVisible();
+    await page.keyboard.press("Escape");
 
     // No plugin toggle rows should be rendered in error state.
-    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toHaveCount(0);
+    await expect(paneTitle(page)).toHaveCount(0);
   });
 
   /**
@@ -166,7 +185,7 @@ test.describe("regression: integrations.installed", () => {
   test("integrations.installed.empty-search — 'no results' state when search misses", async ({ page }) => {
     await page.goto("/integrations");
     await selectInstalled(page);
-    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 15_000 });
+    await expect(paneTitle(page)).toBeVisible({ timeout: 15_000 });
 
     const search = page.getByPlaceholder(/Search installed plugins/i);
     await search.fill("zzz_no_match_query_xyz");
@@ -177,7 +196,7 @@ test.describe("regression: integrations.installed", () => {
     });
 
     // The real plugin row should be hidden by the filter.
-    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toHaveCount(0);
+    await expect(paneTitle(page)).toHaveCount(0);
   });
 
   /**
@@ -194,7 +213,7 @@ test.describe("regression: integrations.installed", () => {
   test("integrations.installed.list — column sort, overflow menu, search input", async ({ page }) => {
     await page.goto("/integrations");
     await selectInstalled(page);
-    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 15_000 });
+    await expect(paneTitle(page)).toBeVisible({ timeout: 15_000 });
 
     // -- Column sort: clicking the Name header should flip chevron direction.
     const nameHeaderTh = page.getByRole("button", { name: /^Name,/ }).first();
@@ -208,9 +227,8 @@ test.describe("regression: integrations.installed", () => {
     await expect(nameHeaderTh.locator("svg")).toBeVisible();
 
     // -- Overflow menu: opens the DropdownMenu with action items.
-    const row = page.getByRole("complementary", { name: "Integration settings" });
-    await row.getByRole("button", { name: "More options" }).click();
-    await expect(page.getByRole("menuitem", { name: /Configure/i })).toBeVisible({
+    await openPaneMenu(page);
+    await expect(page.getByRole("menuitem", { name: "README" })).toBeVisible({
       timeout: 5_000,
     });
     // Close menu so the search input is interactable.
@@ -219,10 +237,10 @@ test.describe("regression: integrations.installed", () => {
     // -- Search input: filtering to a non-matching string hides the row.
     const search = page.getByPlaceholder(/Search installed plugins/i);
     await search.fill("countdown");
-    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toHaveCount(0);
+    await expect(paneTitle(page)).toHaveCount(0);
     await search.fill("");
     await selectInstalled(page);
-    await expect(page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` })).toBeVisible({ timeout: 10_000 });
+    await expect(paneTitle(page)).toBeVisible({ timeout: 10_000 });
   });
 
   /**
@@ -340,18 +358,21 @@ test.describe("regression: integrations.installed", () => {
       });
 
       await page.goto("/integrations");
-      const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
       await selectInstalled(page);
-      await expect(sw).toBeVisible({ timeout: 15_000 });
-      await expect(sw).toBeChecked();
+      await expect(paneTitle(page)).toBeVisible({ timeout: 15_000 });
+      // The pane's switch is the header menu's Enabled item (BB-FC-9); the
+      // item stays open, so it shows the flip and the rollback.
+      await openPaneMenu(page);
+      const sw = enabledItem(page);
+      await expect(sw).toHaveAttribute("aria-checked", "true");
 
       await sw.click();
 
-      // Optimistic flip → switch immediately reports unchecked.
-      await expect(sw).not.toBeChecked({ timeout: 3_000 });
+      // Optimistic flip → the item immediately reports unchecked.
+      await expect(sw).toHaveAttribute("aria-checked", "false", { timeout: 3_000 });
 
       // After the 500 lands, the mutation rolls back to the original state.
-      await expect(sw).toBeChecked({ timeout: 15_000 });
+      await expect(sw).toHaveAttribute("aria-checked", "true", { timeout: 15_000 });
     } finally {
       await restorePluginEnabled(STABLE_PLUGIN_ID, initiallyEnabled);
     }
@@ -381,10 +402,11 @@ test.describe("regression: integrations.installed", () => {
       });
 
       await page.goto("/integrations");
-      const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
       await selectInstalled(page);
-      await expect(sw).toBeVisible({ timeout: 15_000 });
-      await expect(sw).toBeChecked();
+      await expect(paneTitle(page)).toBeVisible({ timeout: 15_000 });
+      await openPaneMenu(page);
+      const sw = enabledItem(page);
+      await expect(sw).toHaveAttribute("aria-checked", "true");
       await sw.click();
 
       // Error toast appears (Sonner Notifications region). i18n template:
@@ -392,8 +414,8 @@ test.describe("regression: integrations.installed", () => {
       const toast = page.getByRole("region", { name: /Notifications/i }).getByText(/Failed to toggle/i);
       await expect(toast).toBeVisible({ timeout: 15_000 });
 
-      // Switch reverts to its prior (enabled) state.
-      await expect(sw).toBeChecked({ timeout: 15_000 });
+      // The item reverts to its prior (enabled) state.
+      await expect(sw).toHaveAttribute("aria-checked", "true", { timeout: 15_000 });
     } finally {
       await restorePluginEnabled(STABLE_PLUGIN_ID, initiallyEnabled);
     }
@@ -410,21 +432,19 @@ test.describe("regression: integrations.installed", () => {
    */
   test("integrations.installed.overflow-menu — row three-dot opens action menu", async ({ page }) => {
     await page.goto("/integrations");
-    const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
     await selectInstalled(page);
-    await expect(sw).toBeVisible({ timeout: 15_000 });
+    await expect(paneTitle(page)).toBeVisible({ timeout: 15_000 });
 
-    const row = page.getByRole("complementary", { name: "Integration settings" });
-    await row.getByRole("button", { name: "More options" }).click();
-
-    // Configure + Add Instance + Enable/Disable are guaranteed for any installed
+    // The pane's actions are in the section header's menu (BB-FC-9):
+    // README + Add Instance + Enabled are guaranteed for any installed
     // non-instance plugin. Uninstall is conditional on source !== builtin so
     // we do NOT assert it here (date_time is builtin).
-    await expect(page.getByRole("menuitem", { name: /Configure/i })).toBeVisible({
+    await openPaneMenu(page);
+    await expect(page.getByRole("menuitem", { name: "README" })).toBeVisible({
       timeout: 5_000,
     });
     await expect(page.getByRole("menuitem", { name: /Add Instance/i })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: /Enable|Disable/i })).toBeVisible();
+    await expect(enabledItem(page)).toBeVisible();
   });
 
   /**
@@ -437,12 +457,10 @@ test.describe("regression: integrations.installed", () => {
    */
   test("integrations.installed.add-instance-row — Add instance row affordance", async ({ page }) => {
     await page.goto("/integrations");
-    const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
     await selectInstalled(page);
-    await expect(sw).toBeVisible({ timeout: 15_000 });
+    await expect(paneTitle(page)).toBeVisible({ timeout: 15_000 });
 
-    const row = page.getByRole("complementary", { name: "Integration settings" });
-    await row.getByRole("button", { name: "More options" }).click();
+    await openPaneMenu(page);
     await page.getByRole("menuitem", { name: /Add Instance/i }).click();
 
     // The Add Instance row is an inline form. Verify the label + input + buttons.
@@ -480,11 +498,9 @@ test.describe("regression: integrations.installed", () => {
     });
 
     await page.goto("/integrations");
-    const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
     await selectInstalled(page);
-    await expect(sw).toBeVisible({ timeout: 15_000 });
-    const row = page.getByRole("complementary", { name: "Integration settings" });
-    await row.getByRole("button", { name: "More options" }).click();
+    await expect(paneTitle(page)).toBeVisible({ timeout: 15_000 });
+    await openPaneMenu(page);
     await page.getByRole("menuitem", { name: /Add Instance/i }).click();
 
     const input = page.getByPlaceholder(/e\.g\. sf, prod, api-2/i);
@@ -537,11 +553,9 @@ test.describe("regression: integrations.installed", () => {
     });
 
     await page.goto("/integrations");
-    const sw = page.getByRole("switch", { name: `Toggle ${STABLE_PLUGIN_NAME}` });
     await selectInstalled(page);
-    await expect(sw).toBeVisible({ timeout: 15_000 });
-    const row = page.getByRole("complementary", { name: "Integration settings" });
-    await row.getByRole("button", { name: "More options" }).click();
+    await expect(paneTitle(page)).toBeVisible({ timeout: 15_000 });
+    await openPaneMenu(page);
 
     const updateItem = page.getByRole("menuitem", { name: /^Update$/ });
     await expect(updateItem).toBeVisible({ timeout: 10_000 });
@@ -555,7 +569,7 @@ test.describe("regression: integrations.installed", () => {
     await expect(updateAllBtn).toBeDisabled({ timeout: 5_000 });
 
     // Reopening the dropdown should now show "Updating..." in place of "Update".
-    await row.getByRole("button", { name: "More options" }).click();
+    await openPaneMenu(page);
     await expect(page.getByRole("menuitem", { name: /Updating/i })).toBeVisible({ timeout: 5_000 });
   });
 
@@ -601,11 +615,9 @@ test.describe("regression: integrations.installed", () => {
       });
     });
     await page.goto("/integrations");
-    const toggle = page.getByRole("switch", { name: "Toggle Uninstall Test Plugin" });
     await selectInstalled(page, "Uninstall Test Plugin");
-    await expect(toggle).toBeVisible({ timeout: 15_000 });
-    const row = page.getByRole("complementary", { name: "Integration settings" });
-    await row.getByRole("button", { name: "More options" }).click();
+    await expect(paneTitle(page, "Uninstall Test Plugin")).toBeVisible({ timeout: 15_000 });
+    await openPaneMenu(page);
     await page.getByRole("menuitem", { name: /^Delete$/ }).click();
     // The new alert-dialog-cancel testid lets us assert the confirm dialog
     // mounted, then close it via Cancel — never actually uninstalling.

@@ -375,3 +375,11 @@ def test_a_preview_at_another_time_keeps_the_render_budget(engine, monkeypatch):
     assert rows[0] == "32768"
     assert rows[-1] == "#VALUE"
     assert expressions.MAX_RENDER_STEPS < 96 * 262_158
+
+
+# BB-E-12: Sample fills a plugin that is installed but switched off. Its
+# variables print ??? live; the editor sends the manifest's examples.
+def test_a_sample_value_fills_a_disabled_plugin(engine, registry):
+    registry._enabled["clock"] = False
+    assert _rows(engine, ["{{clock.time}}"])[0] == "???"
+    assert _rows(engine, ["{{clock.time}}"], Preview(values={"clock.time": "7:00 AM"}))[0] == "7:00 AM"

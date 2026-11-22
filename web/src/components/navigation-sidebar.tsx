@@ -11,10 +11,11 @@ import { MoreSheetExtras } from "@/components/more-sheet";
 import { readStoredCollapsed, useSidebar } from "@/components/sidebar-context";
 import { SidebarSettingsMenu } from "@/components/sidebar-settings-menu";
 import { ViewTransitionLink } from "@/components/view-transition-link";
+import { isUntouchedPlaceholder } from "@/components/wizard/default-board";
 import { useAppBadge } from "@/hooks/use-app-badge";
 import { useAvailableUpdate } from "@/hooks/use-available-update";
-import { useBelowRail, useRailBreakpoint, useTabletRailCollapse } from "@/hooks/use-below-rail";
-import { queryKeys, usePrefetchPagesData, useStatus } from "@/hooks/use-board";
+import { useBelowRail, useRailAutoCollapse, useRailBreakpoint } from "@/hooks/use-below-rail";
+import { queryKeys, useBoardSettings, usePrefetchPagesData, useStatus } from "@/hooks/use-board";
 import { useDisplaysNeedingALook } from "@/hooks/use-displays-needing-a-look";
 import { useHubLine } from "@/hooks/use-hub-connection";
 import { usePathname } from "@/hooks/use-router";
@@ -34,7 +35,9 @@ export function NavigationSidebar() {
   const pathname = usePathname();
   const prefetchPages = usePrefetchPagesData();
   const { collapsed, transitioning, toggle, setCollapsed, onTransitionEnd } = useSidebar();
-  const inTabletBand = useTabletRailCollapse(setCollapsed, readStoredCollapsed);
+  // The editor holds the icon rail for the visit (D1, BB-E-3); a toggle made
+  // there persists, so it becomes the global choice.
+  const inTabletBand = useRailAutoCollapse(setCollapsed, readStoredCollapsed, isPageEditorPath(pathname));
   // In the tablet band the collapse toggle is a session choice: it must not
   // overwrite the reader's wide-screen preference (DD-W46).
   const onToggleCollapsed = inTabletBand ? () => setCollapsed(!collapsed, { persist: false }) : toggle;
@@ -89,10 +92,20 @@ export function NavigationSidebar() {
 
   // The hub line under the switcher (WEB-09, slice 2.3): "host · Online /
   // Remote / Can't reach". The same source as the More drawer's foot line
-  // (useHubLine). The switcher only renders with two or more boards, so a
-  // single-board install adds no status poll for it.
+  // (useHubLine). The switcher renders with two or more boards, or with no
+  // display yet (below), so a single real display adds no status poll for it.
   const tHub = useTranslations("statusBanners");
-  const { host: hubHost, status: hubStatus } = useHubLine({ enabled: !chromeless && boards.length > 1 });
+  // 07e `343:65200` / `343:66216`: with no display yet (none, or only the
+  // untouched placeholder) the switcher stays and reads "No displays yet"
+  // over the hub line (BB-FH-10).
+  const tNone = useTranslations("wizard.noDisplays");
+  // Only from a loaded board list: one that failed or is loading is not "no
+  // displays" (same query and cache key as the board context).
+  const { data: boardSettings } = useBoardSettings({ enabled: !chromeless });
+  const settledBoards = boardSettings?.boards;
+  const noDisplays = !!settledBoards && settledBoards.length <= 1 && settledBoards.every(isUntouchedPlaceholder);
+  const showSwitcher = boards.length > 1 || noDisplays;
+  const { host: hubHost, status: hubStatus } = useHubLine({ enabled: !chromeless && showSwitcher });
   // The hub line says how the hub is reached; each display's own trouble is
   // its dot and words in the switcher, by the Displays list's rules (BB-A-10).
   const tFleet = useTranslations("displays.fleet");
@@ -117,6 +130,7 @@ export function NavigationSidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [boards, flagged, status, pages],
   );
+  const noDisplaysId = boards[0]?.id ?? "no-displays";
 
   // Hide the sidebar on chrome-less screens: auth screens (the user isn't
   // navigating anywhere until they sign in) and the FiestaPanel TV viewer
@@ -132,6 +146,11 @@ export function NavigationSidebar() {
     icon: item.icon,
     label: t(item.key),
     external: item.external,
+    // Collections indented inside Pages and the primary/secondary hairline
+    // (07a `302:20841`, BB-FS-2). The rail draws both; the tab bar drops
+    // nested rows (navItemsFor) and never draws a hairline.
+    nested: Boolean(item.nestedUnder),
+    separatorBefore: item.separatorBefore,
     active: isNavItemActive(item, pathname, chrome),
     onPrefetch: !item.external && item.href === "/pages" ? prefetchPages : undefined,
     badge:
@@ -182,10 +201,10 @@ export function NavigationSidebar() {
       // gear never lights.
       settings={{ href: "/settings", label: t("settings") }}
       boardSelector={
-        boards.length > 1 ? (
+        showSwitcher ? (
           <BoardSelector
-            boards={selectorBoards}
-            value={currentBoardId}
+            boards={noDisplays ? [{ id: noDisplaysId, name: tNone("switcher") }] : selectorBoards}
+            value={noDisplays ? noDisplaysId : currentBoardId}
             onChange={setCurrentBoardId}
             labels={boardSelectorLabels}
             collapsed={collapsed}
@@ -195,10 +214,10 @@ export function NavigationSidebar() {
         ) : undefined
       }
       mobileBoardSelector={
-        boards.length > 1 ? (
+        showSwitcher ? (
           <BoardSelector
-            boards={selectorBoards}
-            value={currentBoardId}
+            boards={noDisplays ? [{ id: noDisplaysId, name: tNone("switcher") }] : selectorBoards}
+            value={noDisplays ? noDisplaysId : currentBoardId}
             onChange={setCurrentBoardId}
             labels={boardSelectorLabels}
             variant="mobileHeader"

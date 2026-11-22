@@ -10,13 +10,17 @@ import type { Collection, Page, PagePreviewResponse } from "@/lib/api";
 import { api } from "@/lib/api";
 import { boardForShape, isLedModel, resolveBoardModel } from "@/lib/device-preview";
 
-/** A resting, bounded stack; this component is never mounted in list mode. */
+/**
+ * The card's cover: the Collection's first page as one full-bleed board across
+ * the top of the card (Figma 342:187593), not a stack of tilted cards in an
+ * inset box (BB-FP-20). Never mounted in list mode.
+ */
 export function CollectionPageStack({ collection, pages }: { collection: Collection; pages: Page[] }) {
   const { data: settings } = useBoardSettings();
   const { currentBoardId } = useCurrentBoard();
   const members = useMemo(
     () =>
-      collection.page_ids.slice(0, 3).flatMap((id) => {
+      collection.page_ids.slice(0, 1).flatMap((id) => {
         const page = pages.find((candidate) => candidate.id === id);
         if (!page) return [];
         const board = boardForShape(settings?.boards, [currentBoardId], page);
@@ -46,22 +50,24 @@ export function CollectionPageStack({ collection, pages }: { collection: Collect
       data-testid="collection-page-stack"
       aria-hidden="true"
       inert
-      className="relative h-40 w-full overflow-hidden pointer-events-none [&_button]:hidden"
+      className="w-full overflow-hidden pointer-events-none [&_button]:hidden"
     >
       {isLoading ? (
-        <Skeleton className="h-28 w-full rounded-md" />
+        <Skeleton className="h-36 w-full rounded-none" />
       ) : (
-        members.map(({ page, board, model }, index) => {
+        members.map(({ page, board, model }) => {
           const preview = previews?.[page.id];
           return (
+            // Edge to edge: the board's own housing colour fills the card's top, with no
+            // shadow margin around a framed board (Figma 342:187593).
             <Box
               key={page.id}
-              className="absolute left-0 right-6 top-0 overflow-hidden rounded-lg border bg-background p-2 shadow-sm"
-              style={{
-                transform: `translate(${index * 10}px, ${index * 13}px) rotate(${index * 2}deg)`,
-                transformOrigin: "center",
-                zIndex: members.length - index,
-              }}
+              data-slot="collection-cover-board"
+              className={
+                getEffectiveBoardColor(settings) === "white"
+                  ? "w-full bg-board-bezel-light p-3"
+                  : "w-full bg-board-bezel-dark p-3"
+              }
             >
               <DevicePreview
                 model={model}
@@ -74,6 +80,7 @@ export function CollectionPageStack({ collection, pages }: { collection: Collect
                 <ScaledBoardDisplay
                   // Decorative and inert: a fit picture, never a scroll region.
                   thumbnail
+                  bezel={false}
                   isStatic
                   message={preview?.message ?? null}
                   boardType={getEffectiveBoardColor(settings)}

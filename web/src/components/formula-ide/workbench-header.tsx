@@ -1,6 +1,6 @@
 "use client";
 
-import { Flex, Text, Toggle, ToggleGroup } from "@fiestaboard/ui";
+import { Flex, Tabs, TabsList, TabsTrigger, Text } from "@fiestaboard/ui";
 import { Sigma } from "lucide-react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 
@@ -31,22 +31,23 @@ export function WorkbenchHeader({
       </Flex>
       <Flex align="center" gap="2">
         {status}
-        <ToggleGroup
-          segmented
-          aria-label={t("editorModeLabel")}
-          value={[tab]}
+        {/* Figma 111:30911: a Tabs list, the active trigger on the background with shadow-sm (BB-FP-15). */}
+        <Tabs
+          value={tab}
           onValueChange={(value) => {
-            const next = value[0] as WorkbenchTab | undefined;
-            if (next) setOpen((current) => (current ? { ...current, tab: next } : current));
+            const next = value as WorkbenchTab;
+            setOpen((current) => (current ? { ...current, tab: next } : current));
           }}
         >
-          <Toggle value="code" size="sm" data-testid="tab-code">
-            {t("code")}
-          </Toggle>
-          <Toggle value="builder" size="sm" data-testid="tab-builder">
-            {t("builder")}
-          </Toggle>
-        </ToggleGroup>
+          <TabsList aria-label={t("editorModeLabel")}>
+            <TabsTrigger value="code" data-testid="tab-code">
+              {t("code")}
+            </TabsTrigger>
+            <TabsTrigger value="builder" data-testid="tab-builder">
+              {t("builder")}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </Flex>
     </Flex>
   );

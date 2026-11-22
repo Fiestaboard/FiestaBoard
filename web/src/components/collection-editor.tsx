@@ -27,16 +27,20 @@ import { toast } from "sonner";
 
 import { CollectionForm } from "@/components/collection-form";
 import { CollectionPreview } from "@/components/collection-preview";
+import { collectionScheduleSummary, useAllSchedules } from "@/components/collection-schedule";
 import { CollectionShowNow } from "@/components/collection-show-now";
 import { queryKeys, useCollections, usePages } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";
-import { useTranslations } from "@/i18n/translations";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import type { Collection, CollectionCreate, CollectionUpdate } from "@/lib/api";
 import { api } from "@/lib/api";
 
 export function CollectionEditor({ collectionId }: { collectionId?: string }) {
   const t = useTranslations("collections");
   const tc = useTranslations("common");
+  const tIde = useTranslations("creatorIde");
+  const locale = useLocale();
+  const { data: schedulesData } = useAllSchedules();
   const { push } = useViewTransition();
   const queryClient = useQueryClient();
   const { data, isLoading, isError } = useCollections();
@@ -59,9 +63,25 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
   const [testInput, setTestInput] = useState("");
   const [testAt, setTestAt] = useState<string | undefined>();
   const sameSavedGeneration = JSON.stringify(collection) === JSON.stringify(loadedCollection);
+  // A rotating Collection asks for two of its intervals of timeline, enough for
+  // "showing until …" and "Next: …" (BB-FP-22); the hub caps a window at 7 days.
+  const interval =
+    collection?.selection_mode === "time"
+      ? collection.time.interval_seconds
+      : collection?.selection_mode === "random"
+        ? collection.random?.interval_seconds
+        : undefined;
+  const windowSeconds = interval ? Math.min(interval * 2, 7 * 86400) : undefined;
   const evaluation = useQuery({
-    queryKey: ["collectionEvaluation", collectionId, loadedCollection?.revision, loadedCollection?.updated_at, testAt],
-    queryFn: () => api.evaluateCollection(collectionId!, testAt),
+    queryKey: [
+      "collectionEvaluation",
+      collectionId,
+      loadedCollection?.revision,
+      loadedCollection?.updated_at,
+      testAt,
+      windowSeconds,
+    ],
+    queryFn: () => api.evaluateCollection(collectionId!, testAt, windowSeconds),
     enabled: !!collectionId && !!collection,
     retry: false,
     staleTime: 15_000,
@@ -148,6 +168,7 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
             onTestAtTime={collection ? () => setTestOpen(true) : undefined}
             evaluatedPageId={sameSavedGeneration && !evaluation.isError ? evaluation.data?.page_id : null}
             ruleResults={sameSavedGeneration && !evaluation.isError ? (evaluation.data?.rules ?? undefined) : undefined}
+            ruleResultsAt={testAt ? evaluation.data?.at : null}
             preview={
               collection
                 ? (dirty) => (
@@ -159,6 +180,8 @@ export function CollectionEditor({ collectionId }: { collectionId?: string }) {
                       loading={evaluation.isLoading}
                       failed={evaluation.isError || !sameSavedGeneration}
                       historical={!!testAt}
+                      intervalSeconds={interval}
+                      schedule={collectionScheduleSummary(collection.id, schedulesData?.schedules, t, tIde, locale)}
                     />
                   )
                 : undefined

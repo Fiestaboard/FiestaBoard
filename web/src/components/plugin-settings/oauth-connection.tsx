@@ -59,7 +59,6 @@ import {
   CopyButton,
   Field,
   Flex,
-  Heading,
   Input,
   List,
   ListItem,
@@ -77,6 +76,8 @@ import { toast } from "sonner";
 
 import { useTranslations } from "@/i18n/translations";
 import { api, type OAuthConnection } from "@/lib/api";
+
+import { SectionLabel } from "./section-label";
 
 export const OAUTH_CONNECTIONS_QUERY_KEY = ["oauth-connections"] as const;
 
@@ -469,9 +470,7 @@ export function OAuthConnectionPanel({
 
   return (
     <Stack gap="3" data-testid="oauth-connection">
-      <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-        {title ?? t("sectionTitle")}
-      </Heading>
+      <SectionLabel>{title ?? t("sectionTitle")}</SectionLabel>
 
       <Stack gap="4" className="rounded-lg border bg-muted/30 p-4">
         <Stack gap="1">

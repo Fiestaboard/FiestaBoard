@@ -66,6 +66,9 @@ async function setup(page: Page, width: number) {
     else if (path === "/api/settings/board") json = { boards: [], active_board_id: "" };
     else if (path === "/api/v1/status") json = { running: true, initialized: true, boards: {} };
     else if (path === "/api/config/general") json = { instance_name: "Example FiestaPi", timezone: "UTC" };
+    // The no-display Home names the hub (07e `343:65200`) via useHubIdentity.
+    else if (path === "/api/settings/all") json = { general: { instance_name: "Example FiestaPi" }, display: {} };
+    else if (path === "/api/version") json = { running_version: "11.0.0-alpha.4" };
     else if (path === "/api/outputs/catalog") json = { outputs: catalog, registry_status: "available" };
     else if (path === "/api/outputs") json = [...firstPartyOutputs, led];
     else if (path === "/api/outputs/led-display/install") json = led;
@@ -97,7 +100,8 @@ for (const width of [390, 768, 1280]) {
     test(`empty Home and two-step Add display ${width} ${theme}`, async ({ page }) => {
       const unexpected = await setup(page, width);
       await page.goto(`/tests/layout/setup-extended.html?mode=home&theme=${theme}`);
-      await expect(page.getByRole("heading", { name: "No displays yet" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Nothing to show on yet" })).toBeVisible();
+      await expect(page.getByText(/Example FiestaPi is running/)).toBeVisible();
       await injectAxe(page);
       await shot(page, "home-no-displays", width, theme);
       await page.getByRole("button", { name: "Add display", exact: true }).click();

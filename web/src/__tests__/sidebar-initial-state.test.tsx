@@ -28,3 +28,26 @@ it("starts collapsed without animation on a tablet even with an expanded desktop
   expect(renders[0]).toEqual({ collapsed: true, transitioning: false });
   expect(localStorage.getItem("fiestaboard_sidebar_collapsed")).toBe("false");
 });
+
+it("starts collapsed without animation when the app opens on the page editor (D1)", () => {
+  localStorage.setItem("fiestaboard_sidebar_collapsed", "false");
+  window.matchMedia = vi.fn().mockImplementation(() => ({ matches: false }));
+  window.history.pushState({}, "", "/pages/edit/p1");
+  const renders: { collapsed: boolean; transitioning: boolean }[] = [];
+  function Probe() {
+    const { collapsed, transitioning } = useSidebar();
+    renders.push({ collapsed, transitioning });
+    return null;
+  }
+  try {
+    render(
+      <SidebarProvider>
+        <Probe />
+      </SidebarProvider>,
+    );
+  } finally {
+    window.history.pushState({}, "", "/");
+  }
+  expect(renders[0]).toEqual({ collapsed: true, transitioning: false });
+  expect(localStorage.getItem("fiestaboard_sidebar_collapsed")).toBe("false");
+});

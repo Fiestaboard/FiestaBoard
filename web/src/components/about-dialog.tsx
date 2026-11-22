@@ -155,7 +155,9 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl" labels={{ close: tCommon("close") }}>
+      {/* 07e "Web / Dialog shell · Desktop" (BB-FS-6): 560 wide, 14px corners,
+          the raised surface and the 40px close — the kit's wide shell. */}
+      <DialogContent variant="wide" labels={{ close: tCommon("close") }}>
         <DialogHeader>
           <DialogTitle>{tMenu("about")}</DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>

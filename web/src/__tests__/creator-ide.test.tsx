@@ -1,12 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CreatorIde from "@/components/ide/creator-ide";
-import type { PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
+import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
 
 import { server } from "./mocks/server";
 
@@ -35,11 +36,23 @@ const snapshot = {
 };
 
 function fakeBuilder(overrides: Partial<{ unsaved: boolean; mirroring: boolean }> = {}) {
+  // applyContent behaves like the editor: the restored content is the editor's, unsaved.
+  let current: typeof snapshot = snapshot;
+  let unsaved = overrides.unsaved ?? false;
   return {
-    hasUnsavedChanges: () => overrides.unsaved ?? false,
+    hasUnsavedChanges: () => unsaved,
     isMirroring: () => overrides.mirroring ?? false,
-    getCurrentPage: () => snapshot,
+    getCurrentPage: () => current,
     reloadFromServer: vi.fn(() => Promise.resolve()),
+    applyContent: vi.fn((content: typeof snapshot) => {
+      current = { ...snapshot, ...content };
+      unsaved = true;
+    }),
+    discardContent: vi.fn(() => {
+      current = snapshot;
+      unsaved = false;
+    }),
+    requestDelete: vi.fn(),
   } as unknown as PageBuilderHandle;
 }
 
@@ -271,7 +284,11 @@ function setDesktop(desktop: boolean) {
   })) as unknown as typeof window.matchMedia;
 }
 
-function renderIde(builder = fakeBuilder(), savedTick = 0) {
+function renderIde(
+  builder = fakeBuilder(),
+  savedTick = 0,
+  onDraftStateChange?: (state: PageBuilderDraftState | undefined) => void,
+) {
   const slot = document.createElement("div");
   document.body.append(slot);
   const onSaveActionsChange = vi.fn();
@@ -288,8 +305,11 @@ function renderIde(builder = fakeBuilder(), savedTick = 0) {
         pageId={PAGE}
         builderRef={builderRef}
         explorerSlot={slot}
+        // Commute is a FiestaPanel page: its Explorer opens by default (D2).
+        boardKind="panel"
         savedTick={savedTick}
         onSaveActionsChange={onSaveActionsChange}
+        onDraftStateChange={onDraftStateChange}
       />,
     ),
   );
@@ -300,8 +320,10 @@ function renderIde(builder = fakeBuilder(), savedTick = 0) {
           pageId={PAGE}
           builderRef={builderRef}
           explorerSlot={slot}
+          boardKind="panel"
           savedTick={tick}
           onSaveActionsChange={onSaveActionsChange}
+          onDraftStateChange={onDraftStateChange}
         />,
       ),
     );
@@ -342,7 +364,11 @@ describe("Creator IDE below 1024 px", () => {
 });
 
 describe("Creator IDE at 1024 px and wider", () => {
-  beforeEach(() => setDesktop(true));
+  beforeEach(() => {
+    setDesktop(true);
+    // Each test starts from the per-kind default (D2), not a toggle remembered by the last.
+    localStorage.removeItem("fiestaboard_ide_explorer:panel");
+  });
 
   it("draws five Inspector tabs and docks Problems | Warnings | Sent in the console", async () => {
     mockHub();
@@ -364,23 +390,49 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(legend).toHaveTextContent(/Weekdays 7:30.*8:30.* · Den TV/);
   });
 
-  it("portals the Explorer with the open page selected and its collection facet", async () => {
+  it("scopes the Explorer to the open page: its boards, parts and snippets, no other pages (D2b)", async () => {
     mockHub();
     const { slot } = renderIde();
     const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
-    const current = await within(nav).findByRole("link", { name: /Commute/ });
-    expect(current).toHaveAttribute("aria-current", "page");
-    expect(within(nav).getByRole("link", { name: /Den rotation/ })).toHaveAttribute("href", "/collections/col_den");
+    // This page, and only this page: no list of the hub's pages, no page search, no links away.
+    const thisPage = within(nav).getByRole("group", { name: "This page" });
+    expect(thisPage).toHaveTextContent("Commute");
+    expect(within(nav).queryByText("Weekend brunch")).toBeNull();
+    expect(within(nav).queryByRole("searchbox")).toBeNull();
+    expect(within(nav).queryAllByRole("link")).toHaveLength(0);
+    // Its boards: the display it is live or scheduled on.
+    expect(await within(within(nav).getByRole("group", { name: "Boards" })).findByText("Den TV")).toBeInTheDocument();
+    // Its parts: the data sources and formulas the template reads, by row.
+    const parts = within(nav).getByRole("group", { name: "Parts" });
+    expect(within(parts).getByText("muni")).toBeInTheDocument();
+    expect(within(parts).getByText("Formulas")).toBeInTheDocument();
+    expect(within(parts).getAllByText("Row 2")).toHaveLength(2);
+    expect(within(nav).getByRole("group", { name: "Snippets" })).toBeInTheDocument();
     expect(await within(nav).findByText("Used by Den rotation")).toBeInTheDocument();
-    fireEvent.change(within(nav).getByRole("searchbox", { name: "Filter pages…" }), { target: { value: "brunch" } });
-    expect(within(nav).queryByRole("link", { name: /^Commute/ })).toBeNull();
+  });
+
+  it("hides the Explorer to one Show Explorer button and back, moving focus with it (D2)", async () => {
+    mockHub();
+    const { slot } = renderIde();
+    const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
+    fireEvent.click(within(nav).getByRole("button", { name: "Hide Explorer" }));
+    expect(within(slot).queryByRole("navigation", { name: "Explorer" })).toBeNull();
+    const show = within(slot).getByRole("button", { name: "Show Explorer" });
+    expect(show).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => expect(show).toHaveFocus());
+    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("closed");
+    fireEvent.click(show);
+    const hide = await within(slot).findByRole("button", { name: "Hide Explorer" });
+    await waitFor(() => expect(hide).toHaveFocus());
+    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("open");
   });
 
   it("keeps the Explorer lists' children listitems (BB-B-20: axe aria-required-children)", async () => {
     mockHub();
     const { slot } = renderIde();
     const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
-    await within(nav).findByRole("link", { name: /Commute/ });
+    // D2b: the Explorer lists the open page's own rows (no page links), still in real lists.
+    await within(within(nav).getByRole("group", { name: "This page" })).findByText("Commute");
     const lists = nav.querySelectorAll("ul");
     expect(lists.length).toBeGreaterThan(0);
     for (const list of lists) for (const child of Array.from(list.children)) expect(child.tagName).toBe("LI");
@@ -435,6 +487,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: { "data-ai-anchor": "page-editor.save" },
         })}
       </>,
@@ -489,6 +542,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: {},
         })}
       </>,
@@ -500,6 +554,32 @@ describe("status row and header actions", () => {
     await waitFor(() => expect(calls.draftDelete).toEqual(["d1"]));
   });
 
+  // E2E page-builder "Saved <time>": once the editor has saved the page, the
+  // header must say Saved, not "Draft saved", even before the hub answers the
+  // draft discard; the draft this session wrote is behind the page now.
+  it("drops the Draft saved label the moment the editor saves the page", async () => {
+    const calls = mockHub();
+    let unsaved = true;
+    const builder = {
+      ...fakeBuilder(),
+      hasUnsavedChanges: () => unsaved,
+    } as unknown as PageBuilderHandle;
+    const onDraftStateChange = vi.fn();
+    const { rerenderTick } = renderIde(builder, 0, onDraftStateChange);
+    // Autosave writes the draft for the dirty editor.
+    await waitFor(() => expect(calls.draftPut).toHaveLength(1), { timeout: 5000 });
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ label: expect.stringMatching(/^Draft saved/) }),
+      ),
+    );
+    // The editor saves the page: it is clean now, and the shell bumps savedTick.
+    unsaved = false;
+    act(() => rerenderTick(1));
+    await waitFor(() => expect(onDraftStateChange.mock.lastCall![0]?.label).toBeUndefined());
+    await waitFor(() => expect(calls.draftDelete).toEqual(["d1"]));
+  }, 10_000);
+
   // BB-B-27: a page without a draft is the usual case, not a failed request:
   // the IDE reads the drafts list first and asks for no draft that isn't there.
   it("asks for no draft the hub doesn't hold, so opening a page logs no 404", async () => {
@@ -510,7 +590,10 @@ describe("status row and header actions", () => {
     expect(calls.draftGet).toBe(0);
   });
 
-  it("keeps a draft saved elsewhere (phone, Restore) after the editor saves the page; the hub marks it stale", async () => {
+  // D4 (BB-E-17): a draft the hub holds when the page opens is restored into the
+  // editor, so once the editor saves the page that draft is behind it and goes.
+  it("restores a hub draft into the editor on open and drops it once the editor saves", async () => {
+    const draftContent = { ...snapshot, type: "template", template: ["FROM THE PHONE"] };
     const calls = mockHub({
       draft: {
         page_id: PAGE,
@@ -518,16 +601,134 @@ describe("status row and header actions", () => {
         via: "phone",
         saved_at: "2026-11-17T15:44:00Z",
         stale: false,
-        content: { ...snapshot, type: "template", template: ["FROM THE PHONE"] },
+        content: draftContent,
       },
     });
-    const { rerenderTick } = renderIde();
-    await screen.findByText(/^Draft /);
-    const reads = calls.draftGet;
+    const builder = fakeBuilder();
+    const onDraftStateChange = vi.fn();
+    const { rerenderTick } = renderIde(builder, 0, onDraftStateChange);
+    await waitFor(() => expect(builder.applyContent).toHaveBeenCalledWith(draftContent));
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ label: "Draft restored", onDiscard: expect.any(Function) }),
+      ),
+    );
     act(() => rerenderTick(1));
-    // The IDE re-reads the draft (for its stale flag) instead of deleting it.
-    await waitFor(() => expect(calls.draftGet).toBeGreaterThan(reads));
-    expect(calls.draftDelete).toEqual([]);
+    await waitFor(() => expect(calls.draftDelete).toEqual(["phone-1"]));
+  });
+
+  it("Discard on a restored draft deletes it and puts the saved page back", async () => {
+    const calls = mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "d7",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: true,
+        content: { ...snapshot, type: "template", template: ["DRAFT"] },
+      },
+    });
+    const builder = fakeBuilder();
+    const onDraftStateChange = vi.fn();
+    renderIde(builder, 0, onDraftStateChange);
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ label: "Draft restored · the page changed since" }),
+      ),
+    );
+    const state = onDraftStateChange.mock.lastCall![0] as { onDiscard: () => void };
+    await act(async () => state.onDiscard());
+    await waitFor(() => expect(calls.draftDelete).toEqual(["d7"]));
+    expect(builder.discardContent).toHaveBeenCalled();
+    await waitFor(() => expect(onDraftStateChange.mock.lastCall![0]).not.toHaveProperty("label", "Draft restored"));
+  });
+
+  it("autosaves unsaved edits to a saved page as the hub draft, never the page", async () => {
+    const calls = mockHub();
+    const pagePuts: unknown[] = [];
+    server.use(
+      http.put(`/api/pages/${PAGE}`, async ({ request }) => {
+        pagePuts.push(await request.json());
+        return HttpResponse.json({});
+      }),
+    );
+    renderIde(fakeBuilder({ unsaved: true }));
+    await waitFor(() => expect(calls.draftPut).toHaveLength(1), { timeout: 5000 });
+    expect(calls.draftPut[0]).toMatchObject({ name: "Commute", template: snapshot.template });
+    expect(pagePuts).toEqual([]);
+  });
+
+  it("does not autosave over a draft this session neither restored nor wrote", async () => {
+    // The editor already differs from both: the draft was made elsewhere after
+    // these edits began, so it is the reader's to resolve (History), not ours.
+    const calls = mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "other",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: false,
+        content: { ...snapshot, type: "template", template: ["ELSEWHERE"] },
+      },
+    });
+    renderIde(fakeBuilder({ unsaved: true }));
+    await waitFor(() => expect(calls.draftGet).toBeGreaterThan(0));
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(calls.draftPut).toEqual([]);
+  }, 10_000);
+
+  // FABLE-2583 must-fixes 1-3.
+  it("writes no draft when the hub's drafts could not be read", async () => {
+    const calls = mockHub();
+    server.use(http.get("/api/pages/drafts", () => HttpResponse.json({ detail: "boom" }, { status: 500 })));
+    renderIde(fakeBuilder({ unsaved: true }));
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(calls.draftPut).toEqual([]);
+  }, 10_000);
+
+  it("autosaves an edit that changes only the transition, not the text", async () => {
+    const calls = mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "d1",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: false,
+        content: { ...snapshot, type: "template" },
+      },
+    });
+    // The open restores nothing (the draft matches), then the transition changes.
+    const builder = fakeBuilder();
+    renderIde(builder);
+    await waitFor(() => expect(calls.draftGet).toBeGreaterThan(0));
+    act(() => builder.applyContent({ ...snapshot, type: "template", transition_strategy: "wave" }));
+    await waitFor(() => expect(calls.draftPut).toHaveLength(1), { timeout: 5000 });
+    expect(calls.draftPut[0]).toMatchObject({ transition_strategy: "wave", expected_revision: "d1" });
+  }, 10_000);
+
+  it("says autosave is paused, not Draft saved, beside a draft from elsewhere", async () => {
+    mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "other",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: false,
+        content: { ...snapshot, type: "template", template: ["ELSEWHERE"] },
+      },
+    });
+    const onDraftStateChange = vi.fn();
+    renderIde(fakeBuilder({ unsaved: true }), 0, onDraftStateChange);
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ label: "Unsaved · a draft from elsewhere is waiting in History" }),
+      ),
+    );
+    expect(onDraftStateChange.mock.calls.some(([state]) => /^Draft saved/.test(state?.label ?? ""))).toBe(false);
+  });
+
+  it("offers Delete page in the Page tab, through the editor's confirmation", async () => {
+    mockHub();
+    const builder = fakeBuilder();
+    renderIde(builder);
+    fireEvent.click(await screen.findByRole("button", { name: /^Delete page…/ }));
+    expect(builder.requestDelete).toHaveBeenCalledOnce();
   });
 
   it("guards Save draft with the draft's revision and asks before overwriting a newer one", async () => {
@@ -551,6 +752,7 @@ describe("status row and header actions", () => {
           saving: false,
           disabled: false,
           size: "sm",
+          compact: false,
           anchor: {},
         })}
       </>,
@@ -580,6 +782,56 @@ describe("Inspector tabs", () => {
     expect(await screen.findByRole("button", { name: /Page duration/ })).toHaveTextContent("30 s");
     expect(screen.getByRole("button", { name: /Transition/ })).toHaveTextContent("Overrides Den TV’s default");
     expect(screen.getByRole("button", { name: /When data is missing/ })).toHaveTextContent("1 formula uses DEFAULT");
+  });
+
+  // D6 moved the desktop page-transition picker out of the header; the
+  // Inspector's Transition row must still offer transition plugins (beta) and
+  // name a page's plugin override, or that override can't be set on desktop.
+  it("offers transition plugins in the Page tab's Transition dialog while the beta is on", async () => {
+    mockHub();
+    const puts: unknown[] = [];
+    server.use(
+      http.get("/api/settings/plugins", () => HttpResponse.json({ transition_plugins_enabled: true })),
+      http.get("/api/plugins", () =>
+        HttpResponse.json({
+          plugins: [{ id: "typewriter", name: "Typewriter", plugin_type: "transition", enabled: true }],
+          total: 1,
+        }),
+      ),
+      http.put(`/api/v1/pages/${PAGE}`, async ({ request }) => {
+        puts.push(await request.json());
+        return HttpResponse.json({
+          page: { ...snapshot, transition_strategy: "plugin:typewriter" },
+          incompatible_references: [],
+        });
+      }),
+    );
+    renderIde();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Transition/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Transition" });
+    await user.click(within(dialog).getByRole("combobox", { name: "Transition" }));
+    await user.click(await screen.findByRole("option", { name: "Typewriter" }));
+    await user.click(within(dialog).getByRole("button", { name: /^Save$/ }));
+    await waitFor(() => expect(puts).toEqual([expect.objectContaining({ transition_strategy: "plugin:typewriter" })]));
+  });
+
+  it("names a page's transition-plugin override on the Transition row", async () => {
+    mockHub();
+    server.use(
+      http.get("/api/settings/plugins", () => HttpResponse.json({ transition_plugins_enabled: true })),
+      http.get("/api/plugins", () =>
+        HttpResponse.json({
+          plugins: [{ id: "typewriter", name: "Typewriter", plugin_type: "transition", enabled: true }],
+          total: 1,
+        }),
+      ),
+    );
+    const builder = fakeBuilder();
+    const original = builder.getCurrentPage;
+    builder.getCurrentPage = () => ({ ...original()!, transition_strategy: "plugin:typewriter" });
+    renderIde(builder);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Transition/ })).toHaveTextContent("Typewriter"));
   });
 
   it("answers Shows on with the hub's Now and the collection's rule dry run", async () => {

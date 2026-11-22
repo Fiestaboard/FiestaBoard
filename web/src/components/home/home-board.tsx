@@ -64,6 +64,9 @@ export interface HomeBoardProps {
   previewLabel?: string;
   /** A hero placement from the kit (`phone-hero` on Home at phone width, BB-A-6). */
   layout?: ScaledBoardLayout;
+  /** Announce each change through the kit's polite live region: only for the
+   *  live board, when this browser asked to hear board changes (07e). */
+  announceUpdates?: boolean;
 }
 
 /**
@@ -83,6 +86,7 @@ export function HomeBoard({
   fallbackGlyph,
   previewLabel,
   layout,
+  announceUpdates = false,
 }: HomeBoardProps) {
   return (
     <DevicePreview
@@ -93,6 +97,7 @@ export function HomeBoard({
       layers={layers}
       size={size}
       previewLabel={previewLabel}
+      announceUpdates={announceUpdates}
     >
       <ScaledBoardDisplay
         message={message}
@@ -108,6 +113,7 @@ export function HomeBoard({
         gridCols={geometry.gridCols}
         // Which code-62 flap this board carries (issue #1657).
         code62Glyph={resolveCode62Glyph(geometry.deviceType, board?.code62_glyph ?? fallbackGlyph)}
+        announceUpdates={announceUpdates}
       />
     </DevicePreview>
   );

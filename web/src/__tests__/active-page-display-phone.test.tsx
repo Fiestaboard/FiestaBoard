@@ -82,3 +82,45 @@ describe("ActivePageDisplay on a phone", () => {
     expect(screen.queryByTestId("home-phone-board")).not.toBeInTheDocument();
   });
 });
+
+// BB-FH-12 (07a `307:61756`, DD-W61): at medium width (768–1023) the Home
+// board is the medium hero, whose bezel hugs a board that fits and settles a
+// near fit to fill it, instead of the 02 viewport's full-width slab. Desktop
+// keeps the 02 viewport until DD-W61's hug-vs-fill ask for >= 1024 is ruled.
+function atWidth(width: number) {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => {
+    const min = /min-width:\s*(\d+)/.exec(query);
+    const max = /max-width:\s*(\d+(?:\.\d+)?)/.exec(query);
+    return {
+      matches: (!min || width >= Number(min[1])) && (!max || width <= Number(max[1])),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    };
+  });
+}
+
+describe("ActivePageDisplay above a phone", () => {
+  afterEach(() => {
+    window.matchMedia = original;
+  });
+
+  it("places the board as the medium hero at medium width", async () => {
+    atWidth(900);
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    const board = await screen.findByTestId("home-board-state");
+    await waitFor(() => expect(board.querySelector('[data-layout="medium-hero"]')).not.toBeNull());
+  });
+
+  it("keeps the desktop board in the 02 viewport", async () => {
+    atWidth(1280);
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    const board = await screen.findByTestId("home-board-state");
+    await waitFor(() => expect(board.querySelector("[data-slot=board-viewport]")).not.toBeNull());
+    expect(board.querySelector("[data-layout]")).toBeNull();
+  });
+});
