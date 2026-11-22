@@ -532,7 +532,7 @@
     "scheduleMode": "스케줄 모드",
     "scheduleModeEnabledDescription": "활성화됨 — 스케줄에 따라 페이지가 자동으로 순환됩니다",
     "scheduleModeDisabledDescription": "비활성화됨 — 페이지가 수동으로 제어됩니다",
-    "defaultPageLabel": "빈 시간대 기본 페이지:",
+    "defaultPageLabel": "빈 시간대 기본 페이지",
     "selectDefaultPage": "기본 페이지 선택",
     "noneNoDefault": "없음 (기본값 없음)",
     "conflictsDetected": "스케줄 충돌 감지됨",
@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "연동 세부 정보",
+    "paneMenu": {
+      "enabled": "사용",
+      "liveValues": "변수 및 실시간 값"
+    },
     "variablesTab": "변수",
     "readmeTab": "README",
     "readmeUnavailable": "문서를 사용할 수 없습니다.",
@@ -815,7 +819,7 @@
     "configureDescription": "이 연동의 설정을 구성하세요",
     "settingsSection": "설정",
     "oauth": {
-      "sectionTitle": "계정 연결",
+      "sectionTitle": "계정",
       "statusConnected": "연결됨",
       "statusDisconnected": "연결되지 않음",
       "statusReconnect": "다시 연결 필요",
@@ -997,6 +1001,11 @@
     "updateAvailableBadge": "업데이트",
     "moreOptionsAriaLabel": "추가 옵션",
     "sectionMenuAriaLabel": "통합 옵션",
+    "detail": {
+      "unlocks": "{count, plural, other {변수 #개}} 사용 가능",
+      "useInPage": "페이지에서 사용…",
+      "newPage": "새 페이지"
+    },
     "addInstanceAction": "인스턴스 추가",
     "instanceNameInlineLabel": "인스턴스 이름:",
     "addInstanceInlineHelp": "이 플러그인의 새로운 독립 인스턴스를 고유한 구성으로 만듭니다. 영숫자, 하이픈 또는 밑줄을 사용하세요 (1-40자).",
@@ -1759,7 +1768,15 @@
     "textMode": "텍스트",
     "canvasesMode": "캔버스",
     "showPreview": "미리보기 및 실시간 출력 표시",
-    "hidePreview": "미리보기 및 실시간 출력 숨기기"
+    "hidePreview": "미리보기 및 실시간 출력 숨기기",
+    "discardDialogClose": "닫기",
+    "discardChangesSince": "{time} 이후 {count}줄을 변경했습니다. 지금 나가면 사라집니다.",
+    "discardChangesLost": "지금 나가면 변경 사항이 사라집니다.",
+    "discardChangesBoardKeeps": "{board}에는 저장된 버전이 계속 표시됩니다.",
+    "discardChangesDisplaysKeep": "디스플레이에는 저장된 버전이 계속 표시됩니다.",
+    "discardChangedLabel": "변경됨",
+    "discardChangedLine": "{line}번째 줄 ({text})",
+    "discardChangedLineEmpty": "{line}번째 줄 (빈 줄)"
   },
   "displaySettings": {
     "unnamedBoard": "이름 없는 보드",
@@ -1846,6 +1863,8 @@
       "overrideUntil": "수동 표시 · {time}까지",
       "pauseDisplay": "디스플레이 일시 중지",
       "pauseHint": "보드는 현재 내용을 계속 표시하며, 허브에서는 일정이 계속 실행됩니다.",
+      "pause": "일시 정지",
+      "resume": "재개",
       "diagnostics": "진단",
       "changePage": "페이지 변경…",
       "back": "디스플레이 목록으로 돌아가기",
@@ -2150,7 +2169,7 @@
     "boardUpdateIntervalDescription": "보드가 콘텐츠 업데이트를 확인하는 주기 (초)",
     "requiresServiceRestart": "서비스 재시작이 필요합니다",
     "silenceScheduleLabel": "무음 스케줄",
-    "silenceScheduleDescription": "지정된 시간 동안 보드 업데이트를 방지합니다",
+    "silenceScheduleDescription": "이 디스플레이의 무음 일정입니다. 무음 중에 도착한 메시지는 아래 선택을 따릅니다.",
     "startTimeLabel": "시작 시간",
     "endTimeLabel": "종료 시간",
     "whenSilenceBegins": "무음 시작 시간",
@@ -2177,7 +2196,7 @@
     "silencePageLabel": "묵음 페이지",
     "silencePagePlaceholder": "페이지 선택...",
     "silencePageHelp": "묵음 일정이 시작되면 이 페이지가 표시됩니다. 묵음 중에는 변수가 새로고침되지 않습니다.",
-    "scheduleBehaviorTitle": "일정 전환",
+    "scheduleBehaviorTitle": "일정 동작",
     "scheduleBehaviorDescription": "일정 모드를 다시 켰을 때 보드가 반응하는 방식",
     "deferOnReenable": "다음 예정된 변경까지 대기",
     "deferOnReenableHint": "일정 모드를 다시 켜도 일정이 다음 구간에 도달할 때까지 보드가 현재 페이지를 유지합니다. 기본값은 꺼짐이며, 이 경우 보드가 즉시 업데이트됩니다.",
@@ -2433,20 +2452,18 @@
     "welcomeSendError": "전송 실패",
     "welcomeDefault": "비워두면 기본 인사말이 사용됩니다",
     "timezoneLabel": "시간대",
-    "animationsTitle": "그래픽 및 미리보기",
-    "animationsDescription": "앱 전체의 동작을 조절합니다. 이 설정은 화면의 모든 미리보기에 적용됩니다.",
-    "boardAnimationsLabel": "보드 미리보기",
-    "boardAnimationsHint": "타일이 변경될 때 split-flap 회전",
-    "boardAnimationsOn": "켜짐",
-    "boardAnimationsDesktop": "데스크톱만",
-    "boardAnimationsOff": "꺼짐",
-    "boardAnimationsOnHint": "모든 곳에서 애니메이션",
-    "boardAnimationsDesktopHint": "휴대전화와 태블릿에서는 플랩 애니메이션 건너뛰기",
-    "boardAnimationsOffHint": "애니메이션 없음; 타일이 즉시 변경",
-    "siteAnimationsLabel": "사이트 애니메이션",
     "siteAnimationsHint": "전환, 호버 및 기타 UI 모션",
-    "siteAnimationsOn": "켜짐",
-    "siteAnimationsOff": "꺼짐",
+    "boardsTitle": "보드",
+    "animateTileFlips": "타일 넘김 애니메이션",
+    "animateTileFlipsHint": "보드 미리보기가 실제 보드처럼 넘어갑니다.",
+    "homeColorStrip": "홈에 색상 띠 표시",
+    "motionDetailsTitle": "모션 세부 설정",
+    "motionDetailsDescription": "이 허브의 모든 사용자에게 적용됩니다.",
+    "boardAnimationsDesktopOnly": "넓은 화면에서만",
+    "boardAnimationsDesktopOnlyHint": "휴대폰과 좁은 창에서는 타일이 넘김 없이 바뀝니다.",
+    "siteAnimationsSwitch": "앱의 나머지 부분 애니메이션",
+    "hubReduceMotion": "모든 사용자의 모션 줄이기",
+    "hubReduceMotionHint": "이 허브의 모든 브라우저에서 타일 넘김과 앱 애니메이션을 끕니다.",
     "animationsReduceMotionOverride": "「모션 줄이기」가 활성화되어 이 설정을 재정의합니다.",
     "flapSpeedLabel": "회전 속도",
     "flapSpeedHint": "앱 전체에서 사용할 플립 보드 미리보기의 전환 속도를 선택하세요.",
@@ -2636,6 +2653,7 @@
     "boardPreviewLabel": "스플릿 플랩 보드에 표시된 {name}",
     "boardShapeLabel": "보드 형태",
     "boardColorLabel": "보드 색상",
+    "sampleCaption": "이 통합을 사용하는 샘플 페이지",
     "blackBoard": "블랙 보드",
     "whiteBoard": "화이트 보드",
     "deviceFlagship": "Flagship",
@@ -3869,7 +3887,9 @@
     "replay": "다시 재생",
     "replayHint": "플랩 애니메이션 재생",
     "previewTarget": "미리보기 대상",
-    "previewTargetTrigger": "{target}에서 미리보기"
+    "previewTargetTrigger": "{target}에서 미리보기",
+    "discardDraft": "버리기",
+    "lastSaved": "마지막 저장 {time}"
   },
   "phonePairing": {
     "title": "휴대폰 연결",
@@ -4050,7 +4070,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "점 {count}개",
     "layerMetaText": "글꼴 {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} 잘림"
   },
   "creatorIde": {
     "regionLabel": "크리에이터 IDE",
@@ -4242,7 +4263,14 @@
     "replaceDraft": "초안 바꾸기",
     "draftConflictTitle": "최신 초안을 바꿀까요?",
     "draftConflictDescription": "이 페이지를 연 뒤 다른 기기에서 초안을 저장했습니다. 바꾸면 이 편집기의 내용만 남습니다.",
-    "legendLabel": "일정 항목"
+    "legendLabel": "일정 항목",
+    "draftRestored": "초안을 복원했습니다",
+    "draftRestoredStale": "초안을 복원했습니다 · 이후 페이지가 변경됨",
+    "draftSavedAt": "초안 저장됨 {time}",
+    "liveOn": "{board}에서 표시 중",
+    "deletePage": "페이지 삭제…",
+    "deletePageDetail": "모든 일정과 컬렉션에서 제거됩니다",
+    "autosavePaused": "저장 안 됨 · 다른 곳의 초안이 기록에서 기다리고 있습니다"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4384,6 +4412,7 @@
     "fits": "맞음",
     "doesNotFit": "맞지 않음",
     "fitReport": "{line}번째 줄은 {cols}열 중 {widest}열",
-    "nothingCut": "잘린 부분 없음"
+    "nothingCut": "잘린 부분 없음",
+    "missingOff": "{plugin}이(가) 통합에서 꺼져 있습니다"
   }
 }

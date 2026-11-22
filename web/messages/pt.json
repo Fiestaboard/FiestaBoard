@@ -532,7 +532,7 @@
     "scheduleMode": "Modo de Agenda",
     "scheduleModeEnabledDescription": "Ativado — as páginas alternam automaticamente conforme a agenda",
     "scheduleModeDisabledDescription": "Desativado — as páginas são controladas manualmente",
-    "defaultPageLabel": "Página padrão para intervalos:",
+    "defaultPageLabel": "Página padrão para intervalos",
     "selectDefaultPage": "Selecione uma página padrão",
     "noneNoDefault": "Nenhuma (sem padrão)",
     "conflictsDetected": "Conflitos na Agenda Detectados",
@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "Detalhes da integração",
+    "paneMenu": {
+      "enabled": "Ativada",
+      "liveValues": "Variáveis e valores ao vivo"
+    },
     "variablesTab": "Variáveis",
     "readmeTab": "README",
     "readmeUnavailable": "A documentação não está disponível.",
@@ -815,7 +819,7 @@
     "configureDescription": "Configure as opções desta integração",
     "settingsSection": "Configurações",
     "oauth": {
-      "sectionTitle": "Conexão da conta",
+      "sectionTitle": "Conta",
       "statusConnected": "Conectado",
       "statusDisconnected": "Não conectado",
       "statusReconnect": "É necessário reconectar",
@@ -997,6 +1001,11 @@
     "updateAvailableBadge": "Atualização",
     "moreOptionsAriaLabel": "Mais opções",
     "sectionMenuAriaLabel": "Opções de integrações",
+    "detail": {
+      "unlocks": "Desbloqueia {count, plural, one {# variável} other {# variáveis}}",
+      "useInPage": "Usar em uma página…",
+      "newPage": "Nova página"
+    },
     "addInstanceAction": "Adicionar instância",
     "instanceNameInlineLabel": "Nome da instância:",
     "addInstanceInlineHelp": "Cria uma nova instância independente deste plugin, com a sua própria configuração. Use caracteres alfanuméricos, hífenes ou underscores (1-40 caracteres).",
@@ -1759,7 +1768,15 @@
     "textMode": "Texto",
     "canvasesMode": "Telas",
     "showPreview": "Mostrar pré-visualização e saída ao vivo",
-    "hidePreview": "Ocultar pré-visualização e saída ao vivo"
+    "hidePreview": "Ocultar pré-visualização e saída ao vivo",
+    "discardDialogClose": "Fechar",
+    "discardChangesSince": "Você alterou {count, plural, one {1 linha} other {# linhas}} desde {time}. Se sair agora, elas serão perdidas.",
+    "discardChangesLost": "Se sair agora, suas alterações serão perdidas.",
+    "discardChangesBoardKeeps": "{board} continua mostrando a versão salva.",
+    "discardChangesDisplaysKeep": "As telas continuam mostrando a versão salva.",
+    "discardChangedLabel": "Alterado",
+    "discardChangedLine": "Linha {line} ({text})",
+    "discardChangedLineEmpty": "Linha {line} (vazia)"
   },
   "displaySettings": {
     "unnamedBoard": "Painel Sem Nome",
@@ -1846,6 +1863,8 @@
       "overrideUntil": "Manual · até {time}",
       "pauseDisplay": "Pausar ecrã",
       "pauseHint": "O painel mantém o que está a mostrar; a programação continua a ser executada no hub.",
+      "pause": "Pausar",
+      "resume": "Retomar",
       "diagnostics": "Diagnóstico",
       "changePage": "Mudar de página…",
       "back": "Voltar aos ecrãs",
@@ -2150,7 +2169,7 @@
     "boardUpdateIntervalDescription": "Frequência com que o painel verifica atualizações de conteúdo (em segundos)",
     "requiresServiceRestart": "Requer reinicialização do serviço",
     "silenceScheduleLabel": "Horário de Silêncio",
-    "silenceScheduleDescription": "Impedir atualizações do painel durante os horários especificados",
+    "silenceScheduleDescription": "O horário de silêncio desta tela. Mensagens que chegam enquanto ela está silenciada seguem a opção abaixo.",
     "startTimeLabel": "Hora de Início",
     "endTimeLabel": "Hora de Término",
     "whenSilenceBegins": "Quando o silêncio começa",
@@ -2177,7 +2196,7 @@
     "silencePageLabel": "Página de silêncio",
     "silencePagePlaceholder": "Selecione uma página...",
     "silencePageHelp": "Esta página será mostrada quando o agendamento de silêncio começar. As suas variáveis não serão atualizadas durante o silêncio.",
-    "scheduleBehaviorTitle": "Alternador de agendamento",
+    "scheduleBehaviorTitle": "Comportamento do agendamento",
     "scheduleBehaviorDescription": "Como o painel reage quando o modo de agendamento é ligado novamente",
     "deferOnReenable": "Aguardar a próxima mudança agendada",
     "deferOnReenableHint": "Mantém o painel na página atual ao ligar novamente o modo de agendamento, até que o agendamento chegue à próxima faixa. Desativado por padrão, então o painel atualiza imediatamente.",
@@ -2433,20 +2452,18 @@
     "welcomeSendError": "Falha ao enviar",
     "welcomeDefault": "Deixe vazio para usar a saudação predefinida",
     "timezoneLabel": "Fuso horário",
-    "animationsTitle": "Gráficos e prévias",
-    "animationsDescription": "Controle o movimento em toda a aplicação. Estas preferências aplicam-se a todas as pré-visualizações no ecrã.",
-    "boardAnimationsLabel": "Pré-visualizações do painel",
-    "boardAnimationsHint": "O virar dos split-flap quando os mosaicos mudam",
-    "boardAnimationsOn": "Ativadas",
-    "boardAnimationsDesktop": "Apenas computador",
-    "boardAnimationsOff": "Desativadas",
-    "boardAnimationsOnHint": "Animar em todo o lado",
-    "boardAnimationsDesktopHint": "Saltar a animação de virar em telefones e tablets",
-    "boardAnimationsOffHint": "Nunca animar; os mosaicos mudam instantaneamente",
-    "siteAnimationsLabel": "Animações do site",
     "siteAnimationsHint": "Transições, efeitos de cursor e outro movimento da UI",
-    "siteAnimationsOn": "Ativadas",
-    "siteAnimationsOff": "Desativadas",
+    "boardsTitle": "Painéis",
+    "animateTileFlips": "Animar a virada dos blocos",
+    "animateTileFlipsHint": "As prévias viram como o painel real.",
+    "homeColorStrip": "Mostrar a faixa de cores no Início",
+    "motionDetailsTitle": "Detalhes de movimento",
+    "motionDetailsDescription": "Para todos neste hub.",
+    "boardAnimationsDesktopOnly": "Só em telas mais largas",
+    "boardAnimationsDesktopOnlyHint": "Em celulares e janelas estreitas, os blocos mudam sem virar.",
+    "siteAnimationsSwitch": "Animar o resto do app",
+    "hubReduceMotion": "Reduzir movimento para todos",
+    "hubReduceMotionHint": "Desativa a virada dos blocos e as animações do app em todos os navegadores deste hub.",
     "animationsReduceMotionOverride": "«Reduzir movimento» está ativado, o que substitui estas definições.",
     "flapSpeedLabel": "Velocidade de viragem",
     "flapSpeedHint": "Escolha o ritmo das pré-visualizações de painéis de palhetas nesta aplicação.",
@@ -2636,6 +2653,7 @@
     "boardPreviewLabel": "{name} num painel split-flap",
     "boardShapeLabel": "Formato do painel",
     "boardColorLabel": "Cor do painel",
+    "sampleCaption": "Página de exemplo com esta integração",
     "blackBoard": "Painel preto",
     "whiteBoard": "Painel branco",
     "deviceFlagship": "Flagship",
@@ -3869,7 +3887,9 @@
     "replay": "Repetir",
     "replayHint": "Reproduzir a animação das palhetas",
     "previewTarget": "Destino da pré-visualização",
-    "previewTargetTrigger": "Pré-visualizar em {target}"
+    "previewTargetTrigger": "Pré-visualizar em {target}",
+    "discardDraft": "Descartar",
+    "lastSaved": "salvo pela última vez {time}"
   },
   "phonePairing": {
     "title": "Conectar um celular",
@@ -4050,7 +4070,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} pontos",
     "layerMetaText": "Fonte {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} cortados"
   },
   "creatorIde": {
     "regionLabel": "IDE do criador",
@@ -4242,7 +4263,14 @@
     "replaceDraft": "Substituir rascunho",
     "draftConflictTitle": "Substituir o rascunho mais recente?",
     "draftConflictDescription": "Outro dispositivo salvou o rascunho desta página depois que você a abriu. Ao substituir, fica apenas o que está neste editor.",
-    "legendLabel": "Entradas da programação"
+    "legendLabel": "Entradas da programação",
+    "draftRestored": "Rascunho restaurado",
+    "draftRestoredStale": "Rascunho restaurado · a página mudou desde então",
+    "draftSavedAt": "Rascunho salvo {time}",
+    "liveOn": "Ao vivo em {board}",
+    "deletePage": "Excluir página…",
+    "deletePageDetail": "Remove-a de todas as programações e coleções",
+    "autosavePaused": "Não salvo · um rascunho de outro lugar aguarda no Histórico"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4384,6 +4412,7 @@
     "fits": "Cabe",
     "doesNotFit": "Não cabe",
     "fitReport": "A linha {line} tem {widest} de {cols} colunas",
-    "nothingCut": "nada cortado"
+    "nothingCut": "nada cortado",
+    "missingOff": "{plugin} está desativado em Integrações"
   }
 }

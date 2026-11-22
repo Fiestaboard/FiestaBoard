@@ -822,3 +822,37 @@ describe("SchemaForm - a refused switch", () => {
     expect(toggle).toHaveAccessibleDescription("Show Album needs a signed-in account");
   });
 });
+
+/*
+ * BB-FC-9: 07d `324:40267` draws a settings group as a mono caps label
+ * (CALENDARS) with its rows on the page, and a boolean as a row with its
+ * switch at the end. Driven by any manifest's `ui:sections`, not per plugin.
+ */
+describe("SchemaForm - 07d section and switch rows", () => {
+  const schema: JSONSchema = {
+    type: "object",
+    properties: {
+      family: { type: "boolean", title: "Family" },
+      work: { type: "boolean", title: "Work" },
+    },
+    "ui:sections": [{ id: "calendars", title: "Calendars", fields: ["family", "work"] }],
+  };
+
+  it("labels a ui:sections group with a mono caps legend and draws no box around it", () => {
+    render(<SchemaForm schema={schema} values={{ family: true }} onChange={vi.fn()} />);
+    const group = screen.getByRole("group", { name: "Calendars" });
+    expect(group.querySelector("legend")).toHaveClass("font-mono", "uppercase", "text-xs");
+    expect(group).not.toHaveClass("border");
+  });
+
+  it("puts a boolean's switch at the end of its label's row", () => {
+    render(<SchemaForm schema={schema} values={{ family: true }} onChange={vi.fn()} />);
+    const toggle = screen.getByRole("switch", { name: "Family" });
+    const row = toggle.parentElement!;
+    expect(row).toHaveClass("justify-between");
+    // Base UI's Switch adds a hidden form input beside the button.
+    const shown = [...row.children].filter((el) => el.getAttribute("aria-hidden") !== "true");
+    expect(shown[0]).toHaveTextContent("Family");
+    expect(shown.at(-1)).toBe(toggle);
+  });
+});

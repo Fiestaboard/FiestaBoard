@@ -532,7 +532,7 @@
     "scheduleMode": "Tryb harmonogramu",
     "scheduleModeEnabledDescription": "Włączony — strony zmieniają się automatycznie według harmonogramu",
     "scheduleModeDisabledDescription": "Wyłączony — strony są kontrolowane ręcznie",
-    "defaultPageLabel": "Domyślna strona dla przerw:",
+    "defaultPageLabel": "Domyślna strona dla przerw",
     "selectDefaultPage": "Wybierz domyślną stronę",
     "noneNoDefault": "Brak (bez domyślnej)",
     "conflictsDetected": "Wykryto konflikty w harmonogramie",
@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "Szczegóły integracji",
+    "paneMenu": {
+      "enabled": "Włączona",
+      "liveValues": "Zmienne i bieżące wartości"
+    },
     "variablesTab": "Zmienne",
     "readmeTab": "README",
     "readmeUnavailable": "Dokumentacja jest niedostępna.",
@@ -815,7 +819,7 @@
     "configureDescription": "Skonfiguruj ustawienia tej integracji",
     "settingsSection": "Ustawienia",
     "oauth": {
-      "sectionTitle": "Połączenie z kontem",
+      "sectionTitle": "Konto",
       "statusConnected": "Połączono",
       "statusDisconnected": "Nie połączono",
       "statusReconnect": "Wymagane ponowne połączenie",
@@ -997,6 +1001,11 @@
     "updateAvailableBadge": "Aktualizacja",
     "moreOptionsAriaLabel": "Więcej opcji",
     "sectionMenuAriaLabel": "Opcje integracji",
+    "detail": {
+      "unlocks": "Odblokowuje {count, plural, one {# zmienną} few {# zmienne} many {# zmiennych} other {# zmiennej}}",
+      "useInPage": "Użyj na stronie…",
+      "newPage": "Nowa strona"
+    },
     "addInstanceAction": "Dodaj instancję",
     "instanceNameInlineLabel": "Nazwa instancji:",
     "addInstanceInlineHelp": "Tworzy nową, niezależną instancję tej wtyczki z własną konfiguracją. Użyj znaków alfanumerycznych, myślników lub podkreśleń (1-40 znaków).",
@@ -1759,7 +1768,15 @@
     "textMode": "Tekst",
     "canvasesMode": "Płótna",
     "showPreview": "Pokaż podgląd i wyjście na żywo",
-    "hidePreview": "Ukryj podgląd i wyjście na żywo"
+    "hidePreview": "Ukryj podgląd i wyjście na żywo",
+    "discardDialogClose": "Zamknij",
+    "discardChangesSince": "Od {time} zmieniono {count, plural, one {1 wiersz} few {# wiersze} many {# wierszy} other {# wiersza}}. Jeśli wyjdziesz teraz, zmiany przepadną.",
+    "discardChangesLost": "Jeśli wyjdziesz teraz, zmiany przepadną.",
+    "discardChangesBoardKeeps": "{board} nadal pokazuje zapisaną wersję.",
+    "discardChangesDisplaysKeep": "Wyświetlacze nadal pokazują zapisaną wersję.",
+    "discardChangedLabel": "Zmieniono",
+    "discardChangedLine": "Wiersz {line} ({text})",
+    "discardChangedLineEmpty": "Wiersz {line} (pusty)"
   },
   "displaySettings": {
     "unnamedBoard": "Tablica bez nazwy",
@@ -1846,6 +1863,8 @@
       "overrideUntil": "Ręcznie · do {time}",
       "pauseDisplay": "Wstrzymaj wyświetlacz",
       "pauseHint": "Tablica zachowuje wyświetlaną treść; harmonogram nadal działa na hubie.",
+      "pause": "Wstrzymaj",
+      "resume": "Wznów",
       "diagnostics": "Diagnostyka",
       "changePage": "Zmień stronę…",
       "back": "Wróć do wyświetlaczy",
@@ -2150,7 +2169,7 @@
     "boardUpdateIntervalDescription": "Jak często tablica sprawdza aktualizacje treści (w sekundach)",
     "requiresServiceRestart": "Wymaga ponownego uruchomienia usługi",
     "silenceScheduleLabel": "Harmonogram ciszy",
-    "silenceScheduleDescription": "Zapobiegaj aktualizacjom tablicy w określonych godzinach",
+    "silenceScheduleDescription": "Harmonogram ciszy dla tego ekranu. Wiadomości, które przyjdą w czasie ciszy, są obsługiwane według wyboru poniżej.",
     "startTimeLabel": "Godzina rozpoczęcia",
     "endTimeLabel": "Godzina zakończenia",
     "whenSilenceBegins": "Kiedy cisza się rozpoczyna",
@@ -2177,7 +2196,7 @@
     "silencePageLabel": "Strona wyciszenia",
     "silencePagePlaceholder": "Wybierz stronę...",
     "silencePageHelp": "Ta strona zostanie wyświetlona, gdy harmonogram wyciszenia się rozpocznie. Jej zmienne nie będą odświeżane podczas wyciszenia.",
-    "scheduleBehaviorTitle": "Przełącznik harmonogramu",
+    "scheduleBehaviorTitle": "Zachowanie harmonogramu",
     "scheduleBehaviorDescription": "Jak tablica reaguje na ponowne włączenie trybu harmonogramu",
     "deferOnReenable": "Czekaj na następną zaplanowaną zmianę",
     "deferOnReenableHint": "Po ponownym włączeniu trybu harmonogramu tablica pozostaje na bieżącej stronie, dopóki harmonogram nie osiągnie kolejnego przedziału. Domyślnie wyłączone, więc tablica aktualizuje się od razu.",
@@ -2433,20 +2452,18 @@
     "welcomeSendError": "Wysłanie nie powiodło się",
     "welcomeDefault": "Pozostaw puste, aby użyć domyślnego powitania",
     "timezoneLabel": "Strefa czasowa",
-    "animationsTitle": "Grafika i podglądy",
-    "animationsDescription": "Steruj ruchem w całej aplikacji. Te preferencje dotyczą wszystkich podglądów na ekranie.",
-    "boardAnimationsLabel": "Podglądy tablicy",
-    "boardAnimationsHint": "Obrót split-flap przy zmianie kafelków",
-    "boardAnimationsOn": "Włączone",
-    "boardAnimationsDesktop": "Tylko desktop",
-    "boardAnimationsOff": "Wyłączone",
-    "boardAnimationsOnHint": "Animuj wszędzie",
-    "boardAnimationsDesktopHint": "Pomiń animację obracania na telefonach i tabletach",
-    "boardAnimationsOffHint": "Nigdy nie animuj; kafelki zmieniają się natychmiast",
-    "siteAnimationsLabel": "Animacje strony",
     "siteAnimationsHint": "Przejścia, najechania i inny ruch interfejsu",
-    "siteAnimationsOn": "Włączone",
-    "siteAnimationsOff": "Wyłączone",
+    "boardsTitle": "Tablice",
+    "animateTileFlips": "Animuj obracanie płytek",
+    "animateTileFlipsHint": "Podglądy obracają się jak prawdziwa tablica.",
+    "homeColorStrip": "Pokaż pasek kolorów na stronie głównej",
+    "motionDetailsTitle": "Szczegóły ruchu",
+    "motionDetailsDescription": "Dla wszystkich w tym hubie.",
+    "boardAnimationsDesktopOnly": "Tylko na szerszych ekranach",
+    "boardAnimationsDesktopOnlyHint": "Na telefonach i w wąskich oknach płytki zmieniają się bez obracania.",
+    "siteAnimationsSwitch": "Animuj resztę aplikacji",
+    "hubReduceMotion": "Ogranicz ruch dla wszystkich",
+    "hubReduceMotionHint": "Wyłącza obracanie płytek i animacje aplikacji w każdej przeglądarce w tym hubie.",
     "animationsReduceMotionOverride": "„Ogranicz ruch\" jest włączone, co zastępuje te ustawienia.",
     "flapSpeedLabel": "Szybkość obrotu",
     "flapSpeedHint": "Wybierz tempo podglądów tablic klapkowych w całej aplikacji.",
@@ -2636,6 +2653,7 @@
     "boardPreviewLabel": "{name} na tablicy split-flap",
     "boardShapeLabel": "Format tablicy",
     "boardColorLabel": "Kolor tablicy",
+    "sampleCaption": "Przykładowa strona z tą integracją",
     "blackBoard": "Czarna tablica",
     "whiteBoard": "Biała tablica",
     "deviceFlagship": "Flagship",
@@ -3869,7 +3887,9 @@
     "replay": "Odtwórz",
     "replayHint": "Odtwórz animację klapek",
     "previewTarget": "Cel podglądu",
-    "previewTargetTrigger": "Podgląd na {target}"
+    "previewTargetTrigger": "Podgląd na {target}",
+    "discardDraft": "Odrzuć",
+    "lastSaved": "ostatni zapis {time}"
   },
   "phonePairing": {
     "title": "Połącz telefon",
@@ -4050,7 +4070,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "Punkty: {count}",
     "layerMetaText": "Czcionka {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} uciętych"
   },
   "creatorIde": {
     "regionLabel": "IDE twórcy",
@@ -4242,7 +4263,14 @@
     "replaceDraft": "Zastąp szkic",
     "draftConflictTitle": "Zastąpić nowszy szkic?",
     "draftConflictDescription": "Inne urządzenie zapisało szkic tej strony po jej otwarciu. Zastąpienie zachowa tylko zawartość tego edytora.",
-    "legendLabel": "Wpisy harmonogramu"
+    "legendLabel": "Wpisy harmonogramu",
+    "draftRestored": "Przywrócono szkic",
+    "draftRestoredStale": "Przywrócono szkic · strona zmieniła się od tego czasu",
+    "draftSavedAt": "Szkic zapisany {time}",
+    "liveOn": "Na żywo na {board}",
+    "deletePage": "Usuń stronę…",
+    "deletePageDetail": "Usuwa ją ze wszystkich harmonogramów i kolekcji",
+    "autosavePaused": "Niezapisane · szkic z innego miejsca czeka w Historii"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4384,6 +4412,7 @@
     "fits": "Mieści się",
     "doesNotFit": "Nie mieści się",
     "fitReport": "Linia {line} ma {widest} z {cols} kolumn",
-    "nothingCut": "nic nie ucięto"
+    "nothingCut": "nic nie ucięto",
+    "missingOff": "{plugin} jest wyłączone w Integracjach"
   }
 }

@@ -1441,6 +1441,37 @@ class PluginRegistry:
 
         return result
 
+    def get_disabled_plugin_samples(self) -> dict[str, dict[str, Any]]:
+        """Installed plugins that are switched off, with their declared scalar examples.
+
+        A page can read a plugin that is off; the board then shows ``???``.
+        The editor's Sample mode fills those values from the examples and its
+        missing-data panel names the plugin as off (bug bash BB-E-12).
+
+        Returns:
+            ``{plugin_id: {"name": str, "examples": {field: example}}}``. Arrays,
+            colour fields and canvases have no scalar example and are left out.
+        """
+        with self._lock:
+            snapshot = [
+                (plugin_id, manifest)
+                for plugin_id, manifest in self._manifests.items()
+                if manifest is not None and not self._enabled.get(plugin_id, False)
+            ]
+        result: dict[str, dict[str, Any]] = {}
+        for plugin_id, manifest in snapshot:
+            examples: dict[str, str] = {}
+            for name in manifest.variables.get_all_variable_names(plugin_id):
+                if ".*." in name or name in manifest.variables.arrays:
+                    continue
+                meta = manifest.variables.get_variable_metadata(name)
+                if meta.type in ("array", "color") or meta.format == "canvas":
+                    continue
+                if isinstance(meta.example, str) and meta.example:
+                    examples[name] = meta.example
+            result[plugin_id] = {"name": manifest.name, "examples": examples}
+        return result
+
     def get_all_variable_groups(self) -> dict[str, dict[str, dict[str, str]]]:
         """Get variable groups for every enabled plugin.
 

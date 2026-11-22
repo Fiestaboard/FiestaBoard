@@ -19,3 +19,8 @@ export async function openIntegration(user: ReturnType<typeof userEvent.setup>, 
   await user.click(document.querySelector<HTMLButtonElement>('button[data-slot="list-row"]')!);
   if (tab) await user.click(await screen.findByRole("tab", { name: tab }));
 }
+
+/** The section header's menu, which also holds the open detail pane's actions (BB-FC-9). */
+export async function openIntegrationOptions(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Integration options" }));
+}

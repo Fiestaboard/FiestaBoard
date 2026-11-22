@@ -28,6 +28,7 @@ import { useCurrentBoard } from "@/components/current-board-context";
 import { type BoardActions, BoardActionsMenu, BoardContextMenu } from "@/components/home/board-context-menu";
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { boardMeta, HomeBoard } from "@/components/home/home-board";
+import { HomeColorStrip } from "@/components/home/home-color-strip";
 import { formatClock, formatSpan, overrideOnScreen, scheduleNextChange } from "@/components/home/home-status";
 import { HomeSupportingPane } from "@/components/home/home-supporting-pane";
 import {
@@ -93,6 +94,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
   const phone = useMediaQuery("(max-width: 767px)");
   // 07e Accessibility "Read board changes aloud", this browser only.
   const [readAloud] = useBrowserA11y("readAloud");
+  const medium = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
   // 07a `302:20841`: "Flagship 22 × 6 · Maya's FiestaPi", the hub's name,
   // from lg up; the 900 frame (`307:61756`) draws the type and size alone.
   const wide = useMediaQuery("(min-width: 1024px)");
@@ -720,12 +722,24 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           layers={displayLayers}
           isLoading={!boardState && !liveMessageForBoard}
           size="md"
-          layout={phone ? "phone-hero" : undefined}
+          // 07a hero placements (DD-W61): Tile sm edge to edge on a phone;
+          // at medium width the medium hero, whose bezel hugs a board that
+          // fits and settles a near fit to fill it, not a full-width slab
+          // with black side margins (BB-FH-12). Desktop keeps the 02
+          // viewport until DD-W61's >= 1024 hug-vs-fill ask is ruled.
+          layout={phone ? "phone-hero" : medium ? "medium-hero" : undefined}
           fallbackColor={getEffectiveBoardColor(boardSettings)}
           fallbackGlyph={getEffectiveCode62Glyph(boardSettings)}
         />
       </Flex>
     </BoardContextMenu>
+  );
+  // 07e Appearance "Show the color strip on Home": under the board, never in it.
+  const boardWithStrip = (
+    <Stack gap="3">
+      {boardElement}
+      <HomeColorStrip size={phone ? "sm" : "md"} />
+    </Stack>
   );
 
   return (
@@ -766,7 +780,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
           // page gutter is bled), in the kit's phone-hero placement so a
           // 22-column Flagship shows whole (BB-A-6).
           <Box className="-mx-4 min-w-0" data-testid="home-phone-board">
-            {boardElement}
+            {boardWithStrip}
           </Box>
         )}
         <NowShowingCard
@@ -792,7 +806,7 @@ export function ActivePageDisplay({ onCompose }: ActivePageDisplayProps = {}) {
             modes: { schedule: tn("modeSchedule"), manual: tn("modeManual"), override: tn("modeOverride") },
           }}
           data-testid="now-showing"
-          board={phone ? null : boardElement}
+          board={phone ? null : boardWithStrip}
           description={
             sendsDisabled || displayOffline ? (
               <>

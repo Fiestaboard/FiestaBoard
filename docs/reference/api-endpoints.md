@@ -1502,6 +1502,15 @@ Request model for updating an existing collection.
 | `variable` | [`VariableModeConfig`](#schema-variablemodeconfig) \| `null` | no | — |
 | `random` | [`RandomModeConfig`](#schema-randommodeconfig) \| `null` | no | — |
 
+### `DisabledPluginSample` {#schema-disabledpluginsample}
+
+One installed-but-off plugin in `GET /v1/variables`' `disabled_plugins`.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | `string` | yes | The plugin's display name, e.g. 'Date & Time'. |
+| `examples` | object of `string` | no | Declared example value per scalar field, for Sample previews. |
+
 ### `DocumentArea` {#schema-documentarea}
 
 | Field | Type | Required | Description |
@@ -2459,6 +2468,7 @@ two endpoints answering one question.
 | `formatting` | `object` | yes | Layout helpers such as fill_space. |
 | `syntax_examples` | object of `string` | yes | Worked examples of the template syntax. |
 | `plugin_system_enabled` | `boolean` | yes | False when the plugin subsystem is unavailable on this install. |
+| `disabled_plugins` | object of [`DisabledPluginSample`](#schema-disabledpluginsample) | no | Installed plugins that are switched off, with their declared example values. Not part of `variables`: a template that reads one renders `???` until it is turned on. |
 
 ### `VariableModeConfig` {#schema-variablemodeconfig}
 

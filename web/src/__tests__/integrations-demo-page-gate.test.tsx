@@ -150,9 +150,11 @@ function renderPage() {
   );
 }
 
+/** Create Demo Page is an item of the pane's "Use in a page…" menu (BB-FC-9). */
 async function openConfigSheet(user: ReturnType<typeof userEvent.setup>) {
   await openIntegration(user);
-  return screen.findByRole("button", { name: /create demo page/i });
+  await user.click(await screen.findByRole("button", { name: "Use in a page…" }));
+  return screen.findByRole("menuitem", { name: /create demo page/i });
 }
 
 describe("Integrations — Create Demo Page gate", () => {
@@ -162,7 +164,7 @@ describe("Integrations — Create Demo Page gate", () => {
     renderPage();
 
     const button = await openConfigSheet(user);
-    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText(/configure the required settings below/i)).toBeInTheDocument();
   });
 
@@ -172,7 +174,8 @@ describe("Integrations — Create Demo Page gate", () => {
     renderPage();
 
     const button = await openConfigSheet(user);
-    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Escape}");
 
     await user.click(await screen.findByRole("button", { name: /save changes/i }));
 
@@ -181,7 +184,7 @@ describe("Integrations — Create Demo Page gate", () => {
     await waitFor(() => expect(screen.queryByRole("button", { name: /save changes/i })).not.toBeInTheDocument());
     const reopened = await openConfigSheet(user);
 
-    await waitFor(() => expect(reopened).toBeEnabled());
+    await waitFor(() => expect(reopened).not.toHaveAttribute("aria-disabled", "true"));
     expect(screen.queryByText(/configure the required settings below/i)).not.toBeInTheDocument();
   });
 
@@ -192,6 +195,7 @@ describe("Integrations — Create Demo Page gate", () => {
 
     await openConfigSheet(user);
     await waitFor(() => expect(detailCount()).toBe(1));
+    await user.keyboard("{Escape}");
 
     await user.click(await screen.findByRole("button", { name: /save changes/i }));
 

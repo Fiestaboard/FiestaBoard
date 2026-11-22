@@ -532,7 +532,7 @@
     "scheduleMode": "Zeitplanmodus",
     "scheduleModeEnabledDescription": "Aktiviert — Seiten wechseln automatisch nach Zeitplan",
     "scheduleModeDisabledDescription": "Deaktiviert — Seiten werden manuell gesteuert",
-    "defaultPageLabel": "Standardseite für Lücken:",
+    "defaultPageLabel": "Standardseite für Lücken",
     "selectDefaultPage": "Standardseite auswählen",
     "noneNoDefault": "Keine (kein Standard)",
     "conflictsDetected": "Zeitplankonflikte erkannt",
@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "Integrationsdetails",
+    "paneMenu": {
+      "enabled": "Aktiviert",
+      "liveValues": "Variablen und Live-Werte"
+    },
     "variablesTab": "Variablen",
     "readmeTab": "README",
     "readmeUnavailable": "Dokumentation ist nicht verfügbar.",
@@ -815,7 +819,7 @@
     "configureDescription": "Einstellungen für diese Integration konfigurieren",
     "settingsSection": "Einstellungen",
     "oauth": {
-      "sectionTitle": "Kontoverbindung",
+      "sectionTitle": "Konto",
       "statusConnected": "Verbunden",
       "statusDisconnected": "Nicht verbunden",
       "statusReconnect": "Erneute Verbindung erforderlich",
@@ -997,6 +1001,11 @@
     "updateAvailableBadge": "Update",
     "moreOptionsAriaLabel": "Weitere Optionen",
     "sectionMenuAriaLabel": "Integrationsoptionen",
+    "detail": {
+      "unlocks": "Schaltet {count, plural, one {# Variable} other {# Variablen}} frei",
+      "useInPage": "Auf einer Seite verwenden…",
+      "newPage": "Neue Seite"
+    },
     "addInstanceAction": "Instanz hinzufügen",
     "instanceNameInlineLabel": "Instanzname:",
     "addInstanceInlineHelp": "Erstellt eine neue unabhängige Instanz dieses Plugins mit eigener Konfiguration. Verwenden Sie alphanumerische Zeichen, Bindestriche oder Unterstriche (1–40 Zeichen).",
@@ -1759,7 +1768,15 @@
     "textMode": "Text",
     "canvasesMode": "Zeichenflächen",
     "showPreview": "Vorschau und Live-Ausgabe anzeigen",
-    "hidePreview": "Vorschau und Live-Ausgabe ausblenden"
+    "hidePreview": "Vorschau und Live-Ausgabe ausblenden",
+    "discardDialogClose": "Schließen",
+    "discardChangesSince": "Du hast seit {time} {count, plural, one {1 Zeile} other {# Zeilen}} geändert. Wenn du jetzt gehst, gehen sie verloren.",
+    "discardChangesLost": "Wenn du jetzt gehst, gehen deine Änderungen verloren.",
+    "discardChangesBoardKeeps": "{board} zeigt weiter die gespeicherte Version.",
+    "discardChangesDisplaysKeep": "Displays zeigen weiter die gespeicherte Version.",
+    "discardChangedLabel": "Geändert",
+    "discardChangedLine": "Zeile {line} ({text})",
+    "discardChangedLineEmpty": "Zeile {line} (leer)"
   },
   "displaySettings": {
     "unnamedBoard": "Unbenanntes Board",
@@ -1846,6 +1863,8 @@
       "overrideUntil": "Manuell · bis {time}",
       "pauseDisplay": "Anzeige pausieren",
       "pauseHint": "Die Tafel zeigt weiterhin denselben Inhalt; der Zeitplan läuft auf dem Hub weiter.",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
       "diagnostics": "Diagnose",
       "changePage": "Seite wechseln…",
       "back": "Zurück zu Anzeigen",
@@ -2150,7 +2169,7 @@
     "boardUpdateIntervalDescription": "Wie oft das Board nach Inhaltsaktualisierungen sucht (in Sekunden)",
     "requiresServiceRestart": "Erfordert Neustart des Dienstes",
     "silenceScheduleLabel": "Ruheplan",
-    "silenceScheduleDescription": "Board-Aktualisierungen während bestimmter Stunden verhindern",
+    "silenceScheduleDescription": "Der Ruheplan für dieses Display. Nachrichten, die während der Ruhezeit eintreffen, folgen der Auswahl unten.",
     "startTimeLabel": "Startzeit",
     "endTimeLabel": "Endzeit",
     "whenSilenceBegins": "Wann die Ruhephase beginnt",
@@ -2177,7 +2196,7 @@
     "silencePageLabel": "Stummschaltungsseite",
     "silencePagePlaceholder": "Seite auswählen...",
     "silencePageHelp": "Diese Seite wird angezeigt, wenn der Stummschaltungs-Zeitplan beginnt. Die Variablen werden während der Stummschaltung nicht aktualisiert.",
-    "scheduleBehaviorTitle": "Zeitplan-Schalter",
+    "scheduleBehaviorTitle": "Zeitplanverhalten",
     "scheduleBehaviorDescription": "Wie das Board reagiert, wenn der Zeitplanmodus wieder eingeschaltet wird",
     "deferOnReenable": "Auf die nächste geplante Änderung warten",
     "deferOnReenableHint": "Das Board bleibt beim Wiedereinschalten des Zeitplanmodus auf der aktuellen Seite, bis der Zeitplan sein nächstes Zeitfenster erreicht. Standardmäßig aus, das Board wird also sofort aktualisiert.",
@@ -2433,20 +2452,18 @@
     "welcomeSendError": "Senden fehlgeschlagen",
     "welcomeDefault": "Leer lassen, um die Standardbegrüßung zu verwenden",
     "timezoneLabel": "Zeitzone",
-    "animationsTitle": "Grafik und Vorschauen",
-    "animationsDescription": "Steuere Bewegungen in der gesamten App. Diese Einstellungen gelten für alle Vorschauen auf dem Bildschirm.",
-    "boardAnimationsLabel": "Tafelvorschauen",
-    "boardAnimationsHint": "Das Umklappen der Split-Flaps beim Wechsel der Kacheln",
-    "boardAnimationsOn": "Ein",
-    "boardAnimationsDesktop": "Nur Desktop",
-    "boardAnimationsOff": "Aus",
-    "boardAnimationsOnHint": "Überall animieren",
-    "boardAnimationsDesktopHint": "Klapp-Animation auf Handys und Tablets überspringen",
-    "boardAnimationsOffHint": "Nie animieren; Kacheln wechseln sofort",
-    "siteAnimationsLabel": "Website-Animationen",
     "siteAnimationsHint": "Übergänge, Hover-Effekte und andere UI-Bewegungen",
-    "siteAnimationsOn": "Ein",
-    "siteAnimationsOff": "Aus",
+    "boardsTitle": "Boards",
+    "animateTileFlips": "Kachelwechsel animieren",
+    "animateTileFlipsHint": "Board-Vorschauen klappen wie das echte Board.",
+    "homeColorStrip": "Farbstreifen auf der Startseite zeigen",
+    "motionDetailsTitle": "Bewegungsdetails",
+    "motionDetailsDescription": "Für alle auf diesem Hub.",
+    "boardAnimationsDesktopOnly": "Nur auf breiteren Bildschirmen",
+    "boardAnimationsDesktopOnlyHint": "Auf Handys und in schmalen Fenstern wechseln Kacheln ohne Klappen.",
+    "siteAnimationsSwitch": "Restliche App animieren",
+    "hubReduceMotion": "Bewegung für alle reduzieren",
+    "hubReduceMotionHint": "Schaltet Kachelwechsel und App-Animationen in jedem Browser auf diesem Hub aus.",
     "animationsReduceMotionOverride": "„Bewegung reduzieren\" ist aktiviert und überschreibt diese Einstellungen.",
     "flapSpeedLabel": "Umklappgeschwindigkeit",
     "flapSpeedHint": "Wähle den Rhythmus der Fallblattvorschauen in dieser App.",
@@ -2636,6 +2653,7 @@
     "boardPreviewLabel": "{name} auf einer Fallblattanzeige",
     "boardShapeLabel": "Anzeigeformat",
     "boardColorLabel": "Anzeigefarbe",
+    "sampleCaption": "Beispielseite mit dieser Integration",
     "blackBoard": "Schwarze Anzeige",
     "whiteBoard": "Weiße Anzeige",
     "deviceFlagship": "Flagship",
@@ -3869,7 +3887,9 @@
     "replay": "Abspielen",
     "replayHint": "Split-Flap-Animation abspielen",
     "previewTarget": "Vorschauziel",
-    "previewTargetTrigger": "Vorschau auf {target}"
+    "previewTargetTrigger": "Vorschau auf {target}",
+    "discardDraft": "Verwerfen",
+    "lastSaved": "zuletzt gespeichert {time}"
   },
   "phonePairing": {
     "title": "Smartphone verbinden",
@@ -4050,7 +4070,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} Punkte",
     "layerMetaText": "Schrift {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} abgeschnitten"
   },
   "creatorIde": {
     "regionLabel": "Creator-IDE",
@@ -4242,7 +4263,14 @@
     "replaceDraft": "Entwurf ersetzen",
     "draftConflictTitle": "Neueren Entwurf ersetzen?",
     "draftConflictDescription": "Ein anderes Gerät hat den Entwurf dieser Seite gespeichert, nachdem du sie geöffnet hast. Beim Ersetzen bleibt nur, was in diesem Editor steht.",
-    "legendLabel": "Zeitplaneinträge"
+    "legendLabel": "Zeitplaneinträge",
+    "draftRestored": "Entwurf wiederhergestellt",
+    "draftRestoredStale": "Entwurf wiederhergestellt · die Seite hat sich seitdem geändert",
+    "draftSavedAt": "Entwurf gespeichert {time}",
+    "liveOn": "Live auf {board}",
+    "deletePage": "Seite löschen…",
+    "deletePageDetail": "Entfernt sie aus allen Zeitplänen und Sammlungen",
+    "autosavePaused": "Nicht gespeichert · ein Entwurf von anderswo wartet im Verlauf"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4384,6 +4412,7 @@
     "fits": "Passt",
     "doesNotFit": "Passt nicht",
     "fitReport": "Zeile {line} ist {widest} von {cols} Spalten",
-    "nothingCut": "nichts abgeschnitten"
+    "nothingCut": "nichts abgeschnitten",
+    "missingOff": "{plugin} ist unter Integrationen ausgeschaltet"
   }
 }

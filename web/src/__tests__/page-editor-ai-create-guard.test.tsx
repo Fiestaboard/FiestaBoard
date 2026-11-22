@@ -77,7 +77,7 @@ it("restores an original dirty draft and keeps same-tick navigation guarded", as
     bridge().staging.discard();
     void router.navigate("/saved");
   });
-  expect(await screen.findByRole("alertdialog", { name: "Discard unsaved changes?" })).toBeInTheDocument();
+  expect(await screen.findByRole("alertdialog", { name: /^Discard changes( to .*)?\?$/ })).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(screen.getByDisplayValue("My original draft")).toBeInTheDocument();
   expect(bridge().getEditorSnapshot()).toEqual(original);

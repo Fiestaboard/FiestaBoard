@@ -15,10 +15,13 @@ import { server } from "./mocks/server";
 
 it("saves theme in this browser", async () => {
   localStorage.setItem("theme", "light");
+  // Appearance also holds the Boards card, which reads the hub's display settings.
   render(
-    <ThemeProvider>
-      <AppearanceSettings />
-    </ThemeProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <ThemeProvider>
+        <AppearanceSettings />
+      </ThemeProvider>
+    </QueryClientProvider>,
   );
   await userEvent.click(screen.getByRole("radio", { name: "Dark" }));
   expect(localStorage.getItem("theme")).toBe("dark");

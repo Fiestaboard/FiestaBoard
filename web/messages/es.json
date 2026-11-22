@@ -532,7 +532,7 @@
     "scheduleMode": "Modo de horario",
     "scheduleModeEnabledDescription": "Habilitado — las páginas rotan automáticamente según el horario",
     "scheduleModeDisabledDescription": "Deshabilitado — las páginas se controlan manualmente",
-    "defaultPageLabel": "Página predeterminada para intervalos vacíos:",
+    "defaultPageLabel": "Página predeterminada para intervalos vacíos",
     "selectDefaultPage": "Selecciona una página predeterminada",
     "noneNoDefault": "Ninguna (sin predeterminada)",
     "conflictsDetected": "Conflictos de horario detectados",
@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "Detalles de integración",
+    "paneMenu": {
+      "enabled": "Activada",
+      "liveValues": "Variables y valores en vivo"
+    },
     "variablesTab": "Variables",
     "readmeTab": "README",
     "readmeUnavailable": "La documentación no está disponible.",
@@ -815,7 +819,7 @@
     "configureDescription": "Configura los ajustes de esta integración",
     "settingsSection": "Configuración",
     "oauth": {
-      "sectionTitle": "Conexión de la cuenta",
+      "sectionTitle": "Cuenta",
       "statusConnected": "Conectado",
       "statusDisconnected": "No conectado",
       "statusReconnect": "Hay que volver a conectar",
@@ -997,6 +1001,11 @@
     "updateAvailableBadge": "Actualización",
     "moreOptionsAriaLabel": "Más opciones",
     "sectionMenuAriaLabel": "Opciones de integraciones",
+    "detail": {
+      "unlocks": "Desbloquea {count, plural, one {# variable} other {# variables}}",
+      "useInPage": "Usar en una página…",
+      "newPage": "Nueva página"
+    },
     "addInstanceAction": "Añadir instancia",
     "instanceNameInlineLabel": "Nombre de la instancia:",
     "addInstanceInlineHelp": "Crea una nueva instancia independiente de este plugin con su propia configuración. Usa caracteres alfanuméricos, guiones o guiones bajos (1-40 caracteres).",
@@ -1759,7 +1768,15 @@
     "textMode": "Texto",
     "canvasesMode": "Lienzos",
     "showPreview": "Mostrar vista previa y salida en vivo",
-    "hidePreview": "Ocultar vista previa y salida en vivo"
+    "hidePreview": "Ocultar vista previa y salida en vivo",
+    "discardDialogClose": "Cerrar",
+    "discardChangesSince": "Cambiaste {count, plural, one {1 línea} other {# líneas}} desde las {time}. Si sales ahora, se perderán.",
+    "discardChangesLost": "Si sales ahora, perderás los cambios.",
+    "discardChangesBoardKeeps": "{board} sigue mostrando la versión guardada.",
+    "discardChangesDisplaysKeep": "Las pantallas siguen mostrando la versión guardada.",
+    "discardChangedLabel": "Cambiado",
+    "discardChangedLine": "Línea {line} ({text})",
+    "discardChangedLineEmpty": "Línea {line} (vacía)"
   },
   "displaySettings": {
     "unnamedBoard": "Tablero sin nombre",
@@ -1846,6 +1863,8 @@
       "overrideUntil": "Manual · hasta {time}",
       "pauseDisplay": "Pausar pantalla",
       "pauseHint": "El tablero conserva lo que muestra; la programación sigue ejecutándose en el hub.",
+      "pause": "Pausar",
+      "resume": "Reanudar",
       "diagnostics": "Diagnóstico",
       "changePage": "Cambiar página…",
       "back": "Volver a Pantallas",
@@ -2150,7 +2169,7 @@
     "boardUpdateIntervalDescription": "Con qué frecuencia el tablero busca actualizaciones de contenido (en segundos)",
     "requiresServiceRestart": "Requiere reinicio del servicio",
     "silenceScheduleLabel": "Horario de silencio",
-    "silenceScheduleDescription": "Evita actualizaciones del tablero durante las horas especificadas",
+    "silenceScheduleDescription": "El horario de silencio de esta pantalla. Los mensajes que llegan mientras está en silencio siguen la opción de abajo.",
     "startTimeLabel": "Hora de inicio",
     "endTimeLabel": "Hora de fin",
     "whenSilenceBegins": "Cuando comienza el silencio",
@@ -2177,7 +2196,7 @@
     "silencePageLabel": "Página de silencio",
     "silencePagePlaceholder": "Selecciona una página...",
     "silencePageHelp": "Esta página se mostrará cuando inicie la programación de silencio. Sus variables no se actualizarán durante el silencio.",
-    "scheduleBehaviorTitle": "Interruptor de programación",
+    "scheduleBehaviorTitle": "Comportamiento de la programación",
     "scheduleBehaviorDescription": "Cómo reacciona el tablero cuando se vuelve a activar el modo programación",
     "deferOnReenable": "Esperar al próximo cambio programado",
     "deferOnReenableHint": "Deja el tablero en su página actual al volver a activar el modo programación, hasta que la programación llegue a su siguiente franja. Desactivado por defecto, así que el tablero se actualiza de inmediato.",
@@ -2433,20 +2452,18 @@
     "welcomeSendError": "Error al enviar",
     "welcomeDefault": "Déjalo vacío para usar el saludo predeterminado",
     "timezoneLabel": "Zona horaria",
-    "animationsTitle": "Gráficos y vistas previas",
-    "animationsDescription": "Controla el movimiento en toda la aplicación. Estas preferencias se aplican a todas las vistas previas en pantalla.",
-    "boardAnimationsLabel": "Vistas previas del tablero",
-    "boardAnimationsHint": "El giro de paletas cuando cambian las casillas",
-    "boardAnimationsOn": "Activadas",
-    "boardAnimationsDesktop": "Solo escritorio",
-    "boardAnimationsOff": "Desactivadas",
-    "boardAnimationsOnHint": "Animar en todas partes",
-    "boardAnimationsDesktopHint": "Omitir la animación de paletas en teléfonos y tabletas",
-    "boardAnimationsOffHint": "No animar nunca; las casillas cambian al instante",
-    "siteAnimationsLabel": "Animaciones del sitio",
     "siteAnimationsHint": "Transiciones, efectos al pasar el ratón y otro movimiento de la interfaz",
-    "siteAnimationsOn": "Activadas",
-    "siteAnimationsOff": "Desactivadas",
+    "boardsTitle": "Tableros",
+    "animateTileFlips": "Animar el giro de las fichas",
+    "animateTileFlipsHint": "Las vistas previas giran como el tablero real.",
+    "homeColorStrip": "Mostrar la franja de colores en Inicio",
+    "motionDetailsTitle": "Detalles de movimiento",
+    "motionDetailsDescription": "Para todos en este hub.",
+    "boardAnimationsDesktopOnly": "Solo en pantallas más anchas",
+    "boardAnimationsDesktopOnlyHint": "En móviles y ventanas estrechas, las fichas cambian sin girar.",
+    "siteAnimationsSwitch": "Animar el resto de la app",
+    "hubReduceMotion": "Reducir el movimiento para todos",
+    "hubReduceMotionHint": "Desactiva el giro de fichas y las animaciones de la app en todos los navegadores de este hub.",
     "animationsReduceMotionOverride": "Reducir movimiento está activado, lo que anula estos ajustes.",
     "flapSpeedLabel": "Velocidad de giro",
     "flapSpeedHint": "Elige el ritmo de las vistas previas de paneles de paletas de esta aplicación.",
@@ -2636,6 +2653,7 @@
     "boardPreviewLabel": "{name} en un panel split-flap",
     "boardShapeLabel": "Formato del panel",
     "boardColorLabel": "Color del panel",
+    "sampleCaption": "Página de ejemplo con esta integración",
     "blackBoard": "Panel negro",
     "whiteBoard": "Panel blanco",
     "deviceFlagship": "Flagship",
@@ -3869,7 +3887,9 @@
     "replay": "Repetir",
     "replayHint": "Reproducir la animación de paletas",
     "previewTarget": "Destino de la vista previa",
-    "previewTargetTrigger": "Vista previa en {target}"
+    "previewTargetTrigger": "Vista previa en {target}",
+    "discardDraft": "Descartar",
+    "lastSaved": "guardado por última vez {time}"
   },
   "phonePairing": {
     "title": "Conectar un teléfono",
@@ -4050,7 +4070,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} puntos",
     "layerMetaText": "Fuente {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} cortados"
   },
   "creatorIde": {
     "regionLabel": "IDE del creador",
@@ -4242,7 +4263,14 @@
     "replaceDraft": "Reemplazar borrador",
     "draftConflictTitle": "¿Reemplazar el borrador más reciente?",
     "draftConflictDescription": "Otro dispositivo guardó el borrador de esta página después de que la abrieras. Si lo reemplazas, solo se conserva lo que hay en este editor.",
-    "legendLabel": "Entradas de la programación"
+    "legendLabel": "Entradas de la programación",
+    "draftRestored": "Borrador restaurado",
+    "draftRestoredStale": "Borrador restaurado · la página cambió desde entonces",
+    "draftSavedAt": "Borrador guardado {time}",
+    "liveOn": "En vivo en {board}",
+    "deletePage": "Eliminar página…",
+    "deletePageDetail": "La quita de todas las programaciones y colecciones",
+    "autosavePaused": "Sin guardar · un borrador de otro lugar espera en Historial"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4384,6 +4412,7 @@
     "fits": "Cabe",
     "doesNotFit": "No cabe",
     "fitReport": "La línea {line} ocupa {widest} de {cols} columnas",
-    "nothingCut": "nada cortado"
+    "nothingCut": "nada cortado",
+    "missingOff": "{plugin} está desactivado en Integraciones"
   }
 }

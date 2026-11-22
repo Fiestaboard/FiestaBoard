@@ -25,14 +25,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: integration-${{ github.ref }}
-  cancel-in-progress: true
+  # A new push supersedes a PR's run. A dispatch (the nightly v11 run, or a
+  # manual one) gets a group of its own and is never cancelled: sharing the
+  # `refs/heads/v11` group would cancel the run the nightly is watching, and
+  # even without cancel-in-progress a newer queued run replaces a pending one.
+  group: integration-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   integration-tests:
     name: Integration Tests (${{ (startsWith(github.head_ref, 'changeset-release/') || github.event_name == 'workflow_dispatch') && 'full' || 'smoke' }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Sized for the full suite (the smoke path finishes in a few minutes, so
+    # the cap only matters there if it hangs): up to ~4 min of build and
+    # setup, the 23-minute test step, the 3-minute insecure-HTTP step and
+    # teardown.
+    timeout-minutes: 35
 
     steps:
       - name: Checkout code
@@ -266,7 +274,12 @@ jobs:
       - name: Run integration tests (full suite on the Version PR)
         if: startsWith(github.head_ref, 'changeset-release/') || github.event_name == 'workflow_dispatch'
         working-directory: web
-        timeout-minutes: 12
+        # The same 772 tests take ~8-14.8 min (p50 ~10.5) in ci.yml's E2E
+        # Tests job (Nov 20-21 2026; slowest: run 44807209114 on the Version
+        # PR, 14.8 min), and 8.6-10.7 min here when green; the runner, not the
+        # code, sets where in that range a run lands. 12 minutes cut runs off
+        # at test ~720. 23 is ~1.5x the slowest measured run.
+        timeout-minutes: 23
         # Plain HTTP cases run separately below against a genuine insecure origin.
         # Keep the configured JSON reporter as well as GitHub annotations.
         run: |
@@ -312,3 +325,33 @@ jobs:
             web/playwright-pwa-http-test-results/
             web/playwright-pwa-http-report.json
           retention-days: 14
+
+  # The nightly v11 run (a dispatch) also runs the whole vitest suite with the
+  # clock on a Saturday and at a year end. PRs run only the affected tests
+  # (ci.yml's "UI Tests (clock skew)"); this catches date bugs in code nobody
+  # touched. Logic and instants: scripts/ci/clock-skew-tests.sh.
+  clock-skew-full:
+    name: UI Tests (clock skew, full suite)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TZ: UTC
+      CLOCK_SKEW_MODE: full
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install UI dependencies
+        working-directory: web
+        run: npm ci --legacy-peer-deps --no-audit
+
+      - name: Run UI tests on a Saturday and at a year end (full suite)
+        run: bash scripts/ci/clock-skew-tests.sh

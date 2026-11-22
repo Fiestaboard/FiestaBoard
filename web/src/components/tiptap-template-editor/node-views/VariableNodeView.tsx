@@ -14,7 +14,6 @@ import React from "react";
 import { atomValueText } from "@/components/formula-ide/atom-text";
 import { useFormulaIdeBridge } from "@/components/formula-ide/formula-ide-context";
 import { useTranslations } from "@/i18n/translations";
-import { cn } from "@/lib/utils";
 
 /** Attributes VariableNode declares (see extensions/variable-node.ts). */
 interface VariableAttrs {
@@ -56,11 +55,9 @@ export function VariableNodeView({ node }: ReactNodeViewProps) {
               <FormulaAtom
                 kind="variable"
                 source={source}
-                value={hint ? atomValueText(hint.value, tIde) : ""}
+                // Outside the page editor nothing renders a value; the kit then draws no value segment.
+                value={hint ? atomValueText(hint.value, tIde) : undefined}
                 state={hint?.state ?? "ok"}
-                // Outside the page editor nothing renders a value: no empty segment.
-                // TODO(FiestaUI#442): pass `value={undefined}` once the kit omits the segment itself.
-                className={cn(!hint && "[&>[data-slot=formula-atom-value]]:hidden")}
               />
             </span>
           </TooltipTrigger>

@@ -1,9 +1,10 @@
 /**
  * Slice 2.7 (WEB-17): the page editor's `?` keyboard-shortcut list.
  *
- * Figma 07 `57:27771`: the header's "Shortcuts" button (`57:28576`), the
- * "? All shortcuts" hint (`57:28704`) and the `?` key all open one list
- * (`57:28953`), hung under the template column. Phones get no trigger
+ * Figma 07 `57:27771`: the header's "Shortcuts" button (`57:28576`) and the
+ * `?` key open one list (`57:28953`), hung under the template column. The
+ * toolbar's "? All shortcuts" hint (`57:28704`) was a second entry point to
+ * the same list and is gone (D5, bug bash BB-E-20). Phones get no trigger
  * (FiestaUI 1.4d hides it without a fine pointer), but a hardware keyboard's
  * `?` still opens the list — the touch-context case below is the CI check the
  * 1.4d parity review asked 2.7 to add.
@@ -145,68 +146,46 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
     await expect(page.getByRole("dialog", LIST)).toHaveCount(0);
   });
 
-  test("the ? All shortcuts hint sits at the right end of the template toolbar", async ({ page }) => {
+  // D5 (bug bash BB-E-13/-20, DESIGN-DELTAS DD-W139): the header's Shortcuts
+  // button is the one entry point on a desktop; the toolbar's "? All shortcuts"
+  // duplicate is gone. The phone and tablet editor keeps its More-sheet row.
+  test("the header Shortcuts button is the only desktop entry point and opens the list", async ({ page }) => {
     await openEditor(page);
-    const hint = page.getByRole("button", { name: /All shortcuts/ });
-    const toolbarButton = page.getByRole("button", { name: "Insert formula" });
-    const [hintBox, toolBox] = await Promise.all([hint.boundingBox(), toolbarButton.boundingBox()]);
-    expect(hintBox && toolBox).toBeTruthy();
-    // Same row as the toolbar's buttons, right of them.
-    expect(Math.abs(hintBox!.y + hintBox!.height / 2 - (toolBox!.y + toolBox!.height / 2))).toBeLessThanOrEqual(4);
-    expect(hintBox!.x).toBeGreaterThan(toolBox!.x);
+    await expect(page.getByRole("button", { name: /All shortcuts/ })).toHaveCount(0);
+    const shortcuts = page.getByRole("button", { name: "Shortcuts", exact: true });
+    await expect(shortcuts).toHaveCount(1);
+    await shortcuts.click();
+    await expect(page.getByRole("dialog", LIST)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", LIST)).toBeHidden();
   });
 
   for (const width of [768, 1024]) {
     test(`at ${width}px shortcut access follows the compact editor layout`, async ({ page }) => {
       await page.setViewportSize({ width, height: 1024 });
       await openEditor(page);
-      const hint = page.getByRole("button", { name: /All shortcuts/ });
-      const formula = page.getByRole("button", { name: "Insert formula" });
       const preview = page.locator('[data-slot="editor-preview"]');
       await expect(preview).toBeVisible();
       await expect(preview).toHaveAttribute("data-variant", width < 1024 ? "docked" : "pane");
       await expect(page.getByRole("button", { name: /show preview|hide preview/i })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /All shortcuts/ })).toHaveCount(0);
       if (width < 1024) {
-        await expect(hint).toHaveCount(0);
         await preview.getByRole("button", { name: "More", exact: true }).click();
         await page.getByRole("button", { name: "Shortcuts", exact: true }).click();
       } else {
-        await expect(hint).toHaveCount(1);
-        const [hintBox, toolBox] = await Promise.all([hint.boundingBox(), formula.boundingBox()]);
-        expect(hintBox && toolBox).toBeTruthy();
-        expect(hintBox!.y + hintBox!.height).toBeLessThanOrEqual(toolBox!.y);
-        await hint.click();
+        await page.getByRole("button", { name: "Shortcuts", exact: true }).click();
       }
       await expect(page.getByRole("dialog", LIST)).toBeVisible();
       await page.keyboard.press("Escape");
       // Close More too, if its nested shortcut popup was opened from there.
       await page.keyboard.press("Escape");
 
-      // Crossing the desktop boundary moves the single hint into the toolbar.
+      // Crossing the desktop boundary keeps exactly one entry point: the header's.
       await page.setViewportSize({ width: 1280, height: 720 });
-      await expect(hint).toHaveCount(1);
-      await expect
-        .poll(async () => {
-          const [h, t] = await Promise.all([hint.boundingBox(), formula.boundingBox()]);
-          // A media-query update reparents the hint between these measurements.
-          // Keep polling until both current elements have layout boxes.
-          if (!h || !t) return Number.POSITIVE_INFINITY;
-          return Math.abs(h.y + h.height / 2 - (t.y + t.height / 2));
-        })
-        .toBeLessThanOrEqual(4);
+      await expect(page.getByRole("button", { name: "Shortcuts", exact: true })).toHaveCount(1);
+      await expect(page.getByRole("button", { name: /All shortcuts/ })).toHaveCount(0);
     });
   }
-
-  test("the header Shortcuts button and the ? All shortcuts hint both open the list", async ({ page }) => {
-    await openEditor(page);
-    await page.getByRole("button", { name: "Shortcuts", exact: true }).click();
-    await expect(page.getByRole("dialog", LIST)).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", LIST)).toBeHidden();
-
-    await page.getByRole("button", { name: /All shortcuts/ }).click();
-    await expect(page.getByRole("dialog", LIST)).toHaveCount(1);
-  });
 
   test("the open list has no critical or serious axe violations", async ({ page }) => {
     await openEditor(page);

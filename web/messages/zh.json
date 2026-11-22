@@ -532,7 +532,7 @@
     "scheduleMode": "日程模式",
     "scheduleModeEnabledDescription": "已启用 — 页面根据日程自动轮换",
     "scheduleModeDisabledDescription": "已禁用 — 页面手动控制",
-    "defaultPageLabel": "空档默认页面：",
+    "defaultPageLabel": "空档默认页面",
     "selectDefaultPage": "选择默认页面",
     "noneNoDefault": "无（无默认页面）",
     "conflictsDetected": "检测到日程冲突",
@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "集成详情",
+    "paneMenu": {
+      "enabled": "已启用",
+      "liveValues": "变量和实时值"
+    },
     "variablesTab": "变量",
     "readmeTab": "README",
     "readmeUnavailable": "文档不可用。",
@@ -815,7 +819,7 @@
     "configureDescription": "配置此集成的设置",
     "settingsSection": "设置",
     "oauth": {
-      "sectionTitle": "账户连接",
+      "sectionTitle": "账户",
       "statusConnected": "已连接",
       "statusDisconnected": "未连接",
       "statusReconnect": "需要重新连接",
@@ -997,6 +1001,11 @@
     "updateAvailableBadge": "更新",
     "moreOptionsAriaLabel": "更多选项",
     "sectionMenuAriaLabel": "集成选项",
+    "detail": {
+      "unlocks": "解锁 {count, plural, other {# 个变量}}",
+      "useInPage": "在页面中使用…",
+      "newPage": "新建页面"
+    },
     "addInstanceAction": "添加实例",
     "instanceNameInlineLabel": "实例名称：",
     "addInstanceInlineHelp": "创建此插件的一个新的独立实例，它拥有自己的配置。使用字母数字字符、连字符或下划线（1-40 个字符）。",
@@ -1759,7 +1768,15 @@
     "textMode": "文本",
     "canvasesMode": "画布",
     "showPreview": "显示预览和实时输出",
-    "hidePreview": "隐藏预览和实时输出"
+    "hidePreview": "隐藏预览和实时输出",
+    "discardDialogClose": "关闭",
+    "discardChangesSince": "自 {time} 以来你更改了 {count} 行。现在离开将丢失这些更改。",
+    "discardChangesLost": "现在离开将丢失你的更改。",
+    "discardChangesBoardKeeps": "{board} 会继续显示已保存的版本。",
+    "discardChangesDisplaysKeep": "显示屏会继续显示已保存的版本。",
+    "discardChangedLabel": "已更改",
+    "discardChangedLine": "第 {line} 行（{text}）",
+    "discardChangedLineEmpty": "第 {line} 行（空白）"
   },
   "displaySettings": {
     "unnamedBoard": "未命名看板",
@@ -1846,6 +1863,8 @@
       "overrideUntil": "手动覆盖 · 直到 {time}",
       "pauseDisplay": "暂停显示设备",
       "pauseHint": "看板保留当前显示的内容；日程仍会在中枢上继续运行。",
+      "pause": "暂停",
+      "resume": "继续",
       "diagnostics": "诊断",
       "changePage": "更改页面…",
       "back": "返回显示设备列表",
@@ -2150,7 +2169,7 @@
     "boardUpdateIntervalDescription": "看板检查内容更新的频率（秒）",
     "requiresServiceRestart": "需要重启服务",
     "silenceScheduleLabel": "静默时间表",
-    "silenceScheduleDescription": "在指定时间段内阻止看板更新",
+    "silenceScheduleDescription": "此显示屏的静默日程。静默期间到达的消息按下面的选择处理。",
     "startTimeLabel": "开始时间",
     "endTimeLabel": "结束时间",
     "whenSilenceBegins": "静默开始时间",
@@ -2177,7 +2196,7 @@
     "silencePageLabel": "静音页面",
     "silencePagePlaceholder": "选择页面...",
     "silencePageHelp": "当静音计划开始时,此页面将被显示。其变量在静音期间不会刷新。",
-    "scheduleBehaviorTitle": "日程开关",
+    "scheduleBehaviorTitle": "日程行为",
     "scheduleBehaviorDescription": "重新开启日程模式时展示板的反应方式",
     "deferOnReenable": "等待下一次日程变更",
     "deferOnReenableHint": "重新开启日程模式后，展示板会保持当前页面，直到日程进入下一个时段。默认关闭，此时展示板会立即更新。",
@@ -2433,20 +2452,18 @@
     "welcomeSendError": "发送失败",
     "welcomeDefault": "留空以使用默认问候语",
     "timezoneLabel": "时区",
-    "animationsTitle": "图形和预览",
-    "animationsDescription": "控制整个应用中的动态效果。这些偏好设置适用于屏幕上的所有预览。",
-    "boardAnimationsLabel": "看板预览",
-    "boardAnimationsHint": "瓦片变化时的 split-flap 翻转",
-    "boardAnimationsOn": "开",
-    "boardAnimationsDesktop": "仅桌面",
-    "boardAnimationsOff": "关",
-    "boardAnimationsOnHint": "随处动画",
-    "boardAnimationsDesktopHint": "在手机和平板上跳过翻转动画",
-    "boardAnimationsOffHint": "从不动画;瓦片即时变化",
-    "siteAnimationsLabel": "站点动画",
     "siteAnimationsHint": "过渡、悬停和其他 UI 动作",
-    "siteAnimationsOn": "开",
-    "siteAnimationsOff": "关",
+    "boardsTitle": "看板",
+    "animateTileFlips": "翻牌动画",
+    "animateTileFlipsHint": "看板预览像真实看板一样翻牌。",
+    "homeColorStrip": "在首页显示彩色条",
+    "motionDetailsTitle": "动效详情",
+    "motionDetailsDescription": "适用于此中枢上的所有人。",
+    "boardAnimationsDesktopOnly": "仅在较宽屏幕上",
+    "boardAnimationsDesktopOnlyHint": "在手机和窄窗口中，字块直接切换，不翻牌。",
+    "siteAnimationsSwitch": "为应用其余部分启用动画",
+    "hubReduceMotion": "为所有人减少动效",
+    "hubReduceMotionHint": "在此中枢的所有浏览器中关闭翻牌和应用动画。",
     "animationsReduceMotionOverride": "\"减少动态效果\" 已启用,它会覆盖这些设置。",
     "flapSpeedLabel": "翻转速度",
     "flapSpeedHint": "选择整个应用中翻页式看板预览的节奏。",
@@ -2636,6 +2653,7 @@
     "boardPreviewLabel": "{name} 在翻牌显示屏上的效果",
     "boardShapeLabel": "显示屏形状",
     "boardColorLabel": "显示屏颜色",
+    "sampleCaption": "使用此集成的示例页面",
     "blackBoard": "黑色显示屏",
     "whiteBoard": "白色显示屏",
     "deviceFlagship": "Flagship",
@@ -3869,7 +3887,9 @@
     "replay": "重播",
     "replayHint": "播放翻牌动画",
     "previewTarget": "预览目标",
-    "previewTargetTrigger": "在 {target} 上预览"
+    "previewTargetTrigger": "在 {target} 上预览",
+    "discardDraft": "放弃",
+    "lastSaved": "上次保存 {time}"
   },
   "phonePairing": {
     "title": "连接手机",
@@ -4050,7 +4070,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} 个点",
     "layerMetaText": "字体 {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} 被截断"
   },
   "creatorIde": {
     "regionLabel": "创作者 IDE",
@@ -4242,7 +4263,14 @@
     "replaceDraft": "替换草稿",
     "draftConflictTitle": "替换较新的草稿？",
     "draftConflictDescription": "你打开此页面后，另一台设备保存了它的草稿。替换后只保留此编辑器中的内容。",
-    "legendLabel": "日程条目"
+    "legendLabel": "日程条目",
+    "draftRestored": "已恢复草稿",
+    "draftRestoredStale": "已恢复草稿 · 此后页面已更改",
+    "draftSavedAt": "草稿已保存 {time}",
+    "liveOn": "正在 {board} 上显示",
+    "deletePage": "删除页面…",
+    "deletePageDetail": "将其从所有日程和合集中移除",
+    "autosavePaused": "未保存 · 来自别处的草稿在历史记录中等待"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4384,6 +4412,7 @@
     "fits": "放得下",
     "doesNotFit": "放不下",
     "fitReport": "第 {line} 行占 {cols} 列中的 {widest} 列",
-    "nothingCut": "无截断"
+    "nothingCut": "无截断",
+    "missingOff": "{plugin} 已在集成中关闭"
   }
 }

@@ -1,4 +1,4 @@
-import { Button, Dialog } from "@fiestaboard/ui";
+import { Button, Dialog, Text } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Monitor, Plus } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -6,6 +6,7 @@ import { Outlet } from "react-router";
 
 import { AddDisplayContext } from "@/components/displays/add-display-context";
 import { AddDisplayDialog } from "@/components/displays/add-display-dialog";
+import { boardGeometry, boardMeta } from "@/components/home/home-board";
 import { SectionShell } from "@/components/section-shell";
 import { useDisplayBoards } from "@/components/settings/display-settings";
 import { AVAILABLE_OUTPUTS_QUERY_KEY, useOutputs } from "@/components/settings/output-boards";
@@ -59,6 +60,24 @@ export function DisplaysSection({ children }: { children: React.ReactNode }) {
   const outputId = board?.output ?? "vestaboard";
   const outputName = outputs?.find((o) => o.id === outputId)?.name ?? outputId;
   const name = board ? board.name || t("unnamed") : undefined;
+  // 07d `320:18175`: the mono meta line, "FLAGSHIP 22 × 6 · LOCAL API ·
+  // FIESTAPI.LOCAL": the size, how the hub reaches it, and its address
+  // (BB-FH-5). The connection is the Vestaboard API mode, else the output.
+  const tMode = useTranslations("outputSettings.vestaboard.fields.api_mode.cards");
+  const config = (board?.output_config ?? {}) as { api_mode?: string; host?: string };
+  const connection =
+    outputId === "vestaboard"
+      ? config.api_mode === "cloud"
+        ? tMode("cloud.title")
+        : config.api_mode === "local" || config.host
+          ? tMode("local.title")
+          : null
+      : outputName !== name
+        ? outputName
+        : null;
+  const meta = board
+    ? [boardMeta(board, boardGeometry(board)), connection, config.host].filter(Boolean).join(" · ")
+    : "";
   const detail = boardId
     ? {
         id: boardId,
@@ -68,7 +87,11 @@ export function DisplaysSection({ children }: { children: React.ReactNode }) {
         // A display named after its output ("Divoom Pixoo 64" on a Divoom
         // Pixoo 64) would read its name three times running; say the output
         // only when it adds something.
-        description: board && outputName !== name ? outputName : undefined,
+        description: meta ? (
+          <Text as="span" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
+            {meta}
+          </Text>
+        ) : undefined,
       }
     : null;
 

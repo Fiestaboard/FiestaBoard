@@ -532,7 +532,7 @@
     "scheduleMode": "Schemaläge",
     "scheduleModeEnabledDescription": "Aktiverat — sidor roterar automatiskt enligt schema",
     "scheduleModeDisabledDescription": "Inaktiverat — sidor styrs manuellt",
-    "defaultPageLabel": "Standardsida för luckor:",
+    "defaultPageLabel": "Standardsida för luckor",
     "selectDefaultPage": "Välj en standardsida",
     "noneNoDefault": "Ingen (ingen standard)",
     "conflictsDetected": "Schemakonflikter upptäckta",
@@ -783,6 +783,10 @@
   },
   "integrations": {
     "detailTabs": "Integrationsdetaljer",
+    "paneMenu": {
+      "enabled": "Aktiverad",
+      "liveValues": "Variabler och livevärden"
+    },
     "variablesTab": "Variabler",
     "readmeTab": "README",
     "readmeUnavailable": "Dokumentationen är inte tillgänglig.",
@@ -815,7 +819,7 @@
     "configureDescription": "Konfigurera inställningar för denna integration",
     "settingsSection": "Inställningar",
     "oauth": {
-      "sectionTitle": "Kontoanslutning",
+      "sectionTitle": "Konto",
       "statusConnected": "Ansluten",
       "statusDisconnected": "Inte ansluten",
       "statusReconnect": "Behöver återanslutas",
@@ -997,6 +1001,11 @@
     "updateAvailableBadge": "Uppdatering",
     "moreOptionsAriaLabel": "Fler alternativ",
     "sectionMenuAriaLabel": "Integrationsalternativ",
+    "detail": {
+      "unlocks": "Låser upp {count, plural, one {# variabel} other {# variabler}}",
+      "useInPage": "Använd på en sida…",
+      "newPage": "Ny sida"
+    },
     "addInstanceAction": "Lägg till instans",
     "instanceNameInlineLabel": "Instansnamn:",
     "addInstanceInlineHelp": "Skapar en ny oberoende instans av denna plugin med egen konfiguration. Använd alfanumeriska tecken, bindestreck eller understreck (1–40 tecken).",
@@ -1759,7 +1768,15 @@
     "textMode": "Text",
     "canvasesMode": "Ritytor",
     "showPreview": "Visa förhandsvisning och liveutmatning",
-    "hidePreview": "Dölj förhandsvisning och liveutmatning"
+    "hidePreview": "Dölj förhandsvisning och liveutmatning",
+    "discardDialogClose": "Stäng",
+    "discardChangesSince": "Du har ändrat {count, plural, one {1 rad} other {# rader}} sedan {time}. Om du lämnar nu försvinner de.",
+    "discardChangesLost": "Om du lämnar nu försvinner dina ändringar.",
+    "discardChangesBoardKeeps": "{board} fortsätter visa den sparade versionen.",
+    "discardChangesDisplaysKeep": "Skärmarna fortsätter visa den sparade versionen.",
+    "discardChangedLabel": "Ändrat",
+    "discardChangedLine": "Rad {line} ({text})",
+    "discardChangedLineEmpty": "Rad {line} (tom)"
   },
   "displaySettings": {
     "unnamedBoard": "Namnlös tavla",
@@ -1846,6 +1863,8 @@
       "overrideUntil": "Manuellt · till {time}",
       "pauseDisplay": "Pausa skärmen",
       "pauseHint": "Tavlan behåller det som visas; schemat fortsätter att köras på hubben.",
+      "pause": "Pausa",
+      "resume": "Återuppta",
       "diagnostics": "Diagnostik",
       "changePage": "Byt sida…",
       "back": "Tillbaka till skärmar",
@@ -2150,7 +2169,7 @@
     "boardUpdateIntervalDescription": "Hur ofta tavlan söker efter innehållsuppdateringar (i sekunder)",
     "requiresServiceRestart": "Kräver omstart av tjänsten",
     "silenceScheduleLabel": "Tyst schema",
-    "silenceScheduleDescription": "Förhindra tavlans uppdateringar under angivna timmar",
+    "silenceScheduleDescription": "Tystnadsschemat för den här skärmen. Meddelanden som kommer medan den är tyst följer valet nedan.",
     "startTimeLabel": "Starttid",
     "endTimeLabel": "Sluttid",
     "whenSilenceBegins": "När tyst läge börjar",
@@ -2177,7 +2196,7 @@
     "silencePageLabel": "Tystnadssida",
     "silencePagePlaceholder": "Välj en sida...",
     "silencePageHelp": "Denna sida visas när tystnadsschemat startar. Dess variabler uppdateras inte under tystnad.",
-    "scheduleBehaviorTitle": "Schemaväxling",
+    "scheduleBehaviorTitle": "Schemabeteende",
     "scheduleBehaviorDescription": "Hur tavlan reagerar när schemaläget slås på igen",
     "deferOnReenable": "Vänta på nästa schemalagda ändring",
     "deferOnReenableHint": "Låter tavlan stanna på sin nuvarande sida när schemaläget slås på igen, tills schemat når nästa tidsfönster. Av som standard, så tavlan uppdateras direkt.",
@@ -2433,20 +2452,18 @@
     "welcomeSendError": "Misslyckades skicka",
     "welcomeDefault": "Lämna tom för att använda standardhälsningen",
     "timezoneLabel": "Tidszon",
-    "animationsTitle": "Grafik och förhandsvisningar",
-    "animationsDescription": "Styr rörelser i hela appen. Dessa inställningar gäller alla förhandsvisningar på skärmen.",
-    "boardAnimationsLabel": "Tavelförhandsvisningar",
-    "boardAnimationsHint": "Split-flap-vändningen när rutor ändras",
-    "boardAnimationsOn": "På",
-    "boardAnimationsDesktop": "Endast skrivbord",
-    "boardAnimationsOff": "Av",
-    "boardAnimationsOnHint": "Animera överallt",
-    "boardAnimationsDesktopHint": "Hoppa över flap-animationen på telefoner och surfplattor",
-    "boardAnimationsOffHint": "Animera aldrig; rutor ändras direkt",
-    "siteAnimationsLabel": "Webbplats-animationer",
     "siteAnimationsHint": "Övergångar, hover-effekter och annan UI-rörelse",
-    "siteAnimationsOn": "På",
-    "siteAnimationsOff": "Av",
+    "boardsTitle": "Tavlor",
+    "animateTileFlips": "Animera brickvändningar",
+    "animateTileFlipsHint": "Förhandsvisningar vänder som den riktiga tavlan.",
+    "homeColorStrip": "Visa färgremsan på Hem",
+    "motionDetailsTitle": "Rörelsedetaljer",
+    "motionDetailsDescription": "För alla på den här hubben.",
+    "boardAnimationsDesktopOnly": "Bara på bredare skärmar",
+    "boardAnimationsDesktopOnlyHint": "På telefoner och i smala fönster byts brickor utan att vända.",
+    "siteAnimationsSwitch": "Animera resten av appen",
+    "hubReduceMotion": "Minska rörelse för alla",
+    "hubReduceMotionHint": "Stänger av brickvändningar och appanimationer i alla webbläsare på den här hubben.",
     "animationsReduceMotionOverride": "”Minska rörelse” är aktiverat, vilket åsidosätter dessa inställningar.",
     "flapSpeedLabel": "Vändhastighet",
     "flapSpeedHint": "Välj rytmen för förhandsvisningar av klafftavlor i hela appen.",
@@ -2636,6 +2653,7 @@
     "boardPreviewLabel": "{name} på en split-flap-tavla",
     "boardShapeLabel": "Tavelformat",
     "boardColorLabel": "Tavelfärg",
+    "sampleCaption": "Exempelsida med den här integrationen",
     "blackBoard": "Svart tavla",
     "whiteBoard": "Vit tavla",
     "deviceFlagship": "Flagship",
@@ -3869,7 +3887,9 @@
     "replay": "Spela upp",
     "replayHint": "Spela upp vändbladsanimationen",
     "previewTarget": "Förhandsvisningsmål",
-    "previewTargetTrigger": "Förhandsvisa på {target}"
+    "previewTargetTrigger": "Förhandsvisa på {target}",
+    "discardDraft": "Släng",
+    "lastSaved": "senast sparad {time}"
   },
   "phonePairing": {
     "title": "Anslut en telefon",
@@ -4050,7 +4070,8 @@
     "layerMetaLine": "{x1}, {y1} → {x2}, {y2}",
     "layerMetaPolygon": "{count} punkter",
     "layerMetaText": "Typsnitt {font} · x {x}, y {y}",
-    "layerMetaGradient": "{from} → {to}"
+    "layerMetaGradient": "{from} → {to}",
+    "cutMarker": "+{count} avklippta"
   },
   "creatorIde": {
     "regionLabel": "Skaparens IDE",
@@ -4242,7 +4263,14 @@
     "replaceDraft": "Ersätt utkast",
     "draftConflictTitle": "Ersätta det nyare utkastet?",
     "draftConflictDescription": "En annan enhet sparade sidans utkast efter att du öppnade den. Om du ersätter det behålls bara det som finns i den här redigeraren.",
-    "legendLabel": "Schemaposter"
+    "legendLabel": "Schemaposter",
+    "draftRestored": "Utkast återställt",
+    "draftRestoredStale": "Utkast återställt · sidan har ändrats sedan dess",
+    "draftSavedAt": "Utkast sparat {time}",
+    "liveOn": "Live på {board}",
+    "deletePage": "Ta bort sidan…",
+    "deletePageDetail": "Tar bort den från alla scheman och samlingar",
+    "autosavePaused": "Inte sparat · ett utkast från annat håll väntar i Historik"
   },
   "formulaIde": {
     "atomValue": "= {value}",
@@ -4384,6 +4412,7 @@
     "fits": "Ryms",
     "doesNotFit": "Ryms inte",
     "fitReport": "Rad {line} är {widest} av {cols} kolumner",
-    "nothingCut": "inget klipps"
+    "nothingCut": "inget klipps",
+    "missingOff": "{plugin} är avstängt under Integrationer"
   }
 }
