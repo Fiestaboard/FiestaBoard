@@ -815,7 +815,7 @@
     "configureDescription": "この連携の設定を変更します",
     "settingsSection": "設定",
     "oauth": {
-      "sectionTitle": "アカウント接続",
+      "sectionTitle": "アカウント",
       "statusConnected": "接続済み",
       "statusDisconnected": "未接続",
       "statusReconnect": "再接続が必要",
@@ -997,6 +997,12 @@
     "updateAvailableBadge": "更新あり",
     "moreOptionsAriaLabel": "その他のオプション",
     "sectionMenuAriaLabel": "連携のオプション",
+    "detail": {
+      "sampleCaption": "この連携を使ったサンプルページ",
+      "unlocks": "{count, plural, other {# 個の変数}}を利用可能",
+      "useInPage": "ページで使う…",
+      "newPage": "新しいページ"
+    },
     "addInstanceAction": "インスタンスを追加",
     "instanceNameInlineLabel": "インスタンス名:",
     "addInstanceInlineHelp": "独自の設定を持つ、このプラグインの新しい独立したインスタンスを作成します。英数字、ハイフン、アンダースコアを使用してください (1〜40 文字)。",

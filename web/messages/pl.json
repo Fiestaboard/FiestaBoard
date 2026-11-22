@@ -815,7 +815,7 @@
     "configureDescription": "Skonfiguruj ustawienia tej integracji",
     "settingsSection": "Ustawienia",
     "oauth": {
-      "sectionTitle": "Połączenie z kontem",
+      "sectionTitle": "Konto",
       "statusConnected": "Połączono",
       "statusDisconnected": "Nie połączono",
       "statusReconnect": "Wymagane ponowne połączenie",
@@ -997,6 +997,12 @@
     "updateAvailableBadge": "Aktualizacja",
     "moreOptionsAriaLabel": "Więcej opcji",
     "sectionMenuAriaLabel": "Opcje integracji",
+    "detail": {
+      "sampleCaption": "Przykładowa strona z tą integracją",
+      "unlocks": "Odblokowuje {count, plural, one {# zmienną} few {# zmienne} many {# zmiennych} other {# zmiennej}}",
+      "useInPage": "Użyj na stronie…",
+      "newPage": "Nowa strona"
+    },
     "addInstanceAction": "Dodaj instancję",
     "instanceNameInlineLabel": "Nazwa instancji:",
     "addInstanceInlineHelp": "Tworzy nową, niezależną instancję tej wtyczki z własną konfiguracją. Użyj znaków alfanumerycznych, myślników lub podkreśleń (1-40 znaków).",

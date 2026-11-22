@@ -815,7 +815,7 @@
     "configureDescription": "Configurer les paramètres de cette intégration",
     "settingsSection": "Paramètres",
     "oauth": {
-      "sectionTitle": "Connexion au compte",
+      "sectionTitle": "Compte",
       "statusConnected": "Connecté",
       "statusDisconnected": "Non connecté",
       "statusReconnect": "Reconnexion nécessaire",
@@ -997,6 +997,12 @@
     "updateAvailableBadge": "Mise à jour",
     "moreOptionsAriaLabel": "Plus d'options",
     "sectionMenuAriaLabel": "Options des intégrations",
+    "detail": {
+      "sampleCaption": "Exemple de page utilisant cette intégration",
+      "unlocks": "Débloque {count, plural, one {# variable} other {# variables}}",
+      "useInPage": "Utiliser dans une page…",
+      "newPage": "Nouvelle page"
+    },
     "addInstanceAction": "Ajouter une instance",
     "instanceNameInlineLabel": "Nom de l'instance :",
     "addInstanceInlineHelp": "Crée une nouvelle instance indépendante de ce plugin avec sa propre configuration. Utilisez des caractères alphanumériques, des tirets ou des soulignements (1 à 40 caractères).",

@@ -815,7 +815,7 @@
     "configureDescription": "Настройте параметры этой интеграции",
     "settingsSection": "Настройки",
     "oauth": {
-      "sectionTitle": "Подключение учётной записи",
+      "sectionTitle": "Учётная запись",
       "statusConnected": "Подключено",
       "statusDisconnected": "Не подключено",
       "statusReconnect": "Требуется переподключение",
@@ -997,6 +997,12 @@
     "updateAvailableBadge": "Обновление",
     "moreOptionsAriaLabel": "Другие параметры",
     "sectionMenuAriaLabel": "Параметры интеграций",
+    "detail": {
+      "sampleCaption": "Пример страницы с этой интеграцией",
+      "unlocks": "Открывает {count, plural, one {# переменную} few {# переменные} many {# переменных} other {# переменной}}",
+      "useInPage": "Использовать на странице…",
+      "newPage": "Новая страница"
+    },
     "addInstanceAction": "Добавить экземпляр",
     "instanceNameInlineLabel": "Имя экземпляра:",
     "addInstanceInlineHelp": "Создаёт новый независимый экземпляр этого плагина с собственной конфигурацией. Используйте буквенно-цифровые символы, дефисы или подчёркивания (1–40 символов).",

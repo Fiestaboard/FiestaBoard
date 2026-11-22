@@ -815,7 +815,7 @@
     "configureDescription": "Configure as opções desta integração",
     "settingsSection": "Configurações",
     "oauth": {
-      "sectionTitle": "Conexão da conta",
+      "sectionTitle": "Conta",
       "statusConnected": "Conectado",
       "statusDisconnected": "Não conectado",
       "statusReconnect": "É necessário reconectar",
@@ -997,6 +997,12 @@
     "updateAvailableBadge": "Atualização",
     "moreOptionsAriaLabel": "Mais opções",
     "sectionMenuAriaLabel": "Opções de integrações",
+    "detail": {
+      "sampleCaption": "Página de exemplo com esta integração",
+      "unlocks": "Desbloqueia {count, plural, one {# variável} other {# variáveis}}",
+      "useInPage": "Usar em uma página…",
+      "newPage": "Nova página"
+    },
     "addInstanceAction": "Adicionar instância",
     "instanceNameInlineLabel": "Nome da instância:",
     "addInstanceInlineHelp": "Cria uma nova instância independente deste plugin, com a sua própria configuração. Use caracteres alfanuméricos, hífenes ou underscores (1-40 caracteres).",

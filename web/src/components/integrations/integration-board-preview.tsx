@@ -10,6 +10,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  Text,
 } from "@fiestaboard/ui";
 import { useState } from "react";
 
@@ -23,7 +24,19 @@ import type { RegistryEntry } from "@/lib/api";
 /** The catalog's literal example remains available after installation. The
  * effective color can load after the catalog; follow it until the user makes
  * a local preview choice, without changing the actual board's settings. */
-export function IntegrationBoardPreview({ entry, size }: { entry?: RegistryEntry; size?: "sm" | "md" | "lg" }) {
+export function IntegrationBoardPreview({
+  entry,
+  size,
+  caption,
+  controls = true,
+}: {
+  entry?: RegistryEntry;
+  size?: "sm" | "md" | "lg";
+  /** A line under the board, e.g. 07d's "Sample page using this integration". */
+  caption?: string;
+  /** The shape tabs and board colour pair; 07d's detail pane draws neither (BB-FC-9). */
+  controls?: boolean;
+}) {
   const t = useTranslations("pluginDetail");
   const { isLoading: isLoadingBoard } = useBoardSettings();
   const boardColor = useEffectiveBoardColor();
@@ -40,7 +53,7 @@ export function IntegrationBoardPreview({ entry, size }: { entry?: RegistryEntry
   return (
     <Stack gap="4" className="min-w-0 items-center" data-slot="board-showcase">
       <Tabs defaultValue={0} className="w-full min-w-0">
-        {entry.previews.length > 1 && (
+        {controls && entry.previews.length > 1 && (
           <Flex justify="center">
             <TabsList aria-label={t("boardShapeLabel")} className="h-auto max-w-full flex-wrap">
               {labels.map((label, index) => (
@@ -52,11 +65,11 @@ export function IntegrationBoardPreview({ entry, size }: { entry?: RegistryEntry
           </Flex>
         )}
         {entry.previews.map((preview, index) => (
-          <TabsContent key={labels[index]} value={index} className="mt-4 min-w-0">
+          <TabsContent key={labels[index]} value={index} className={controls ? "mt-4 min-w-0" : "min-w-0"}>
             {/* BoardShowcase's centered static board clips the first columns in
                 a narrow slot. The house viewport retains readable Actual size,
                 reachable edges and the user's optional Fit overview. */}
-            <Box className="min-w-0 rounded-xl bg-muted/40 p-4 shadow-card">
+            <Box className={controls ? "min-w-0 rounded-xl bg-muted/40 p-4 shadow-card" : "min-w-0"}>
               <BoardViewport
                 message={previewMessage(preview)}
                 size={size}
@@ -75,19 +88,26 @@ export function IntegrationBoardPreview({ entry, size }: { entry?: RegistryEntry
           </TabsContent>
         ))}
       </Tabs>
-      <Flex role="group" aria-label={t("boardColorLabel")} justify="center" gap="1" wrap>
-        {(["black", "white"] as const).map((color) => (
-          <Button
-            key={color}
-            size="sm"
-            variant={effectiveColor === color ? "default" : "outline"}
-            aria-pressed={effectiveColor === color}
-            onClick={() => setPreviewColor(color)}
-          >
-            {t(color === "black" ? "blackBoard" : "whiteBoard")}
-          </Button>
-        ))}
-      </Flex>
+      {caption && (
+        <Text size="xs" tone="muted" className="self-start">
+          {caption}
+        </Text>
+      )}
+      {controls && (
+        <Flex role="group" aria-label={t("boardColorLabel")} justify="center" gap="1" wrap>
+          {(["black", "white"] as const).map((color) => (
+            <Button
+              key={color}
+              size="sm"
+              variant={effectiveColor === color ? "default" : "outline"}
+              aria-pressed={effectiveColor === color}
+              onClick={() => setPreviewColor(color)}
+            >
+              {t(color === "black" ? "blackBoard" : "whiteBoard")}
+            </Button>
+          ))}
+        </Flex>
+      )}
     </Stack>
   );
 }

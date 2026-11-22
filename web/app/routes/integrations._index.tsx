@@ -26,7 +26,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -38,6 +37,8 @@ import {
   IconTile,
   Input,
   Label,
+  List,
+  ListItem,
   ListRow,
   ListRowGroup,
   ListRowItem,
@@ -140,6 +141,8 @@ import {
   EyeOff,
   Factory,
   Fan,
+  FilePlus,
+  FileText,
   Film,
   Filter,
   Fish,
@@ -290,6 +293,7 @@ import {
   readOAuthReturn,
   SchemaForm,
 } from "@/components/plugin-settings";
+import { SectionLabel } from "@/components/plugin-settings/section-label";
 import { PluginAutoUpdateSwitch, PluginUpdateCheckButton } from "@/components/plugin-updates-control";
 import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
@@ -691,12 +695,12 @@ function ColorRulesEditor({
     <TooltipProvider>
       <Stack gap="3">
         <Flex align="center" justify="between">
-          <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-            {t("colorRules.title")}
-            <Text as="span" size="xs" tone="muted" className="ml-2">
+          <Flex align="baseline" gap="2" wrap>
+            <SectionLabel>{t("colorRules.title")}</SectionLabel>
+            <Text as="span" size="xs" tone="muted">
               ({t("colorRules.firstMatchWins")})
             </Text>
-          </Heading>
+          </Flex>
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowAddField(!showAddField)}>
             <Plus className="h-3 w-3 mr-1" />
             {t("colorRules.addField")}
@@ -1292,6 +1296,10 @@ export function InstalledPluginRow({
     return { ...settingsSchema, properties };
   }, [settingsSchema, oauthFieldKeys]);
 
+  // Fields a `ui:sections` group names sit under that group's own label.
+  const sectioned = new Set((formSchema["ui:sections"] ?? []).flatMap((section) => section.fields));
+  const hasUngroupedFields = Object.keys(formSchema.properties).some((key) => key !== "enabled" && !sectioned.has(key));
+
   // The guided setup's sign-in button saves first, so the Client ID just
   // typed is the one the sign-in uses. Unlike Save Changes it keeps the sheet
   // open and lets the caller report a failure.
@@ -1387,6 +1395,7 @@ export function InstalledPluginRow({
     const config = pluginDetails.config ?? {};
     return required.every((field) => field === "enabled" || Boolean(config[field]));
   };
+  const demoReady = areDemoRequirementsMet();
 
   // Flatten the plugin's manifest variables into table rows, then read the
   // declared groups so the table can be organized the same way the page-builder
@@ -1538,7 +1547,13 @@ export function InstalledPluginRow({
           <TabsTrigger value="readme">{t("readmeTab")}</TabsTrigger>
         </TabsList>
         <TabsContent value="settings">
-          <IntegrationBoardPreview entry={registryEntry} size={fullPage ? undefined : "sm"} />
+          {/* 07d's pane draws the sample bare, with its caption (BB-FC-9). */}
+          <IntegrationBoardPreview
+            entry={registryEntry}
+            size={fullPage ? undefined : "sm"}
+            caption={t("detail.sampleCaption")}
+            controls={fullPage}
+          />
           <Stack gap="6" className="py-6">
             {isLoadingDetails ? (
               <Stack gap="4">
@@ -1548,64 +1563,6 @@ export function InstalledPluginRow({
               </Stack>
             ) : (
               <>
-                {/* Demo Page Section */}
-                {pluginDetails?.has_demo && (
-                  <Stack gap="3" className="rounded-lg border bg-muted/30 p-4">
-                    {/* The button wraps under the text when both don't fit, so a
-                        long label (German) never squeezes the text to one word
-                        per line (BB-C-21). */}
-                    <Flex align="center" justify="between" gap="3" wrap>
-                      <Box className="min-w-0 flex-1 basis-56">
-                        <Heading level={4} size="sm" className="font-medium">
-                          {t("demoPage.title")}
-                        </Heading>
-                        <Text size="xs" tone="muted" className="mt-0.5">
-                          {pluginDetails.demo_page_id ? t("demoPage.alreadyExists") : t("demoPage.createDescription")}
-                        </Text>
-                      </Box>
-                      {pluginDetails.demo_page_id ? (
-                        <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={!areDemoRequirementsMet() || isCreatingDemo}>
-                              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                              {t("demoPage.recreateButton")}
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
-                              <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter>
-                              <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
-                                {tCommon("cancel")}
-                              </Button>
-                              <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
-                                {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      ) : (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={handleCreateDemoPage}
-                          disabled={!areDemoRequirementsMet() || isCreatingDemo}
-                        >
-                          <Play className="h-3.5 w-3.5 mr-1.5" />
-                          {isCreatingDemo ? t("demoPage.creating") : t("demoPage.createAction")}
-                        </Button>
-                      )}
-                    </Flex>
-                    {!areDemoRequirementsMet() && (
-                      <Text size="xs" tone="warning">
-                        {t("demoPage.requirementsWarning")}
-                      </Text>
-                    )}
-                  </Stack>
-                )}
-
                 {/* Renders nothing unless the plugin's manifest declares OAuth. */}
                 <OAuthConnectionSection
                   pluginId={plugin.id}
@@ -1623,9 +1580,7 @@ export function InstalledPluginRow({
                 {/* Settings Section */}
                 {Object.keys(formSchema.properties).length > 0 && (
                   <Stack gap="4">
-                    <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                      {t("settingsSection")}
-                    </Heading>
+                    {hasUngroupedFields && <SectionLabel>{t("settingsSection")}</SectionLabel>}
                     <SchemaForm
                       schema={formSchema}
                       values={configValues}
@@ -1642,9 +1597,7 @@ export function InstalledPluginRow({
                 {/* Environment Variables Section */}
                 {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
                   <Stack gap="3">
-                    <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                      {t("environmentVariablesSection")}
-                    </Heading>
+                    <SectionLabel>{t("environmentVariablesSection")}</SectionLabel>
                     <Box className="rounded-md border overflow-hidden">
                       <Table className="text-xs focus-ring" tabIndex={0} aria-label={t("environmentVariablesSection")}>
                         <TableHeader className="bg-muted/50">
@@ -1698,6 +1651,77 @@ export function InstalledPluginRow({
                 {(!pluginDetails?.settings_schema ||
                   Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
                   variableRows.length === 0 && <Text tone="muted">{t("noConfigOptions")}</Text>}
+
+                {/* 07d: "Unlocks N variables", then an outline "Use in a page…". */}
+                {variableRows.length > 0 && (
+                  <Stack gap="2">
+                    <SectionLabel id={`unlocks-${plugin.id}`}>
+                      {t("detail.unlocks", { count: variableRows.length })}
+                    </SectionLabel>
+                    <List gap="0" aria-labelledby={`unlocks-${plugin.id}`} className="flex flex-wrap gap-1">
+                      {variableRows.map((variable) => (
+                        <ListItem key={variable.name}>
+                          <Badge variant="variable">{`${plugin.id}.${variable.name}`}</Badge>
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Stack>
+                )}
+                <Box>
+                  {/* A new page, or the plugin's own demo page (the old Demo Page box). */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
+                        {t("detail.useInPage")}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => router.push("/pages/new")}>
+                        <FilePlus className="h-3.5 w-3.5 mr-2" />
+                        {t("detail.newPage")}
+                      </DropdownMenuItem>
+                      {pluginDetails?.has_demo && (
+                        <>
+                          <DropdownMenuItem
+                            disabled={!demoReady || isCreatingDemo}
+                            onClick={() =>
+                              pluginDetails.demo_page_id ? setShowDemoConfirm(true) : void handleCreateDemoPage()
+                            }
+                          >
+                            <Play className="h-3.5 w-3.5 mr-2" />
+                            {isCreatingDemo
+                              ? t("demoPage.creating")
+                              : pluginDetails.demo_page_id
+                                ? t("demoPage.recreateAction")
+                                : t("demoPage.createAction")}
+                          </DropdownMenuItem>
+                          {!demoReady && (
+                            <Text size="xs" tone="warning" className="max-w-60 px-2 pb-1.5">
+                              {t("demoPage.requirementsWarning")}
+                            </Text>
+                          )}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
+                        <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
+                          {tCommon("cancel")}
+                        </Button>
+                        <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
+                          {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </Box>
               </>
             )}
           </Stack>

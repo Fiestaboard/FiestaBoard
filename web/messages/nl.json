@@ -815,7 +815,7 @@
     "configureDescription": "Instellingen configureren voor deze integratie",
     "settingsSection": "Instellingen",
     "oauth": {
-      "sectionTitle": "Accountverbinding",
+      "sectionTitle": "Account",
       "statusConnected": "Verbonden",
       "statusDisconnected": "Niet verbonden",
       "statusReconnect": "Opnieuw verbinden nodig",
@@ -997,6 +997,12 @@
     "updateAvailableBadge": "Update",
     "moreOptionsAriaLabel": "Meer opties",
     "sectionMenuAriaLabel": "Integratie-opties",
+    "detail": {
+      "sampleCaption": "Voorbeeldpagina met deze integratie",
+      "unlocks": "Ontgrendelt {count, plural, one {# variabele} other {# variabelen}}",
+      "useInPage": "Gebruiken op een pagina…",
+      "newPage": "Nieuwe pagina"
+    },
     "addInstanceAction": "Instantie toevoegen",
     "instanceNameInlineLabel": "Instantienaam:",
     "addInstanceInlineHelp": "Maakt een nieuwe onafhankelijke instantie van deze plugin met een eigen configuratie. Gebruik alfanumerieke tekens, koppeltekens of underscores (1–40 tekens).",

@@ -771,7 +771,7 @@
     "configureDescription": "Configure settings for this integration",
     "settingsSection": "Settings",
     "oauth": {
-      "sectionTitle": "Account connection",
+      "sectionTitle": "Account",
       "statusConnected": "Connected",
       "statusDisconnected": "Not connected",
       "statusReconnect": "Reconnect needed",
@@ -953,6 +953,12 @@
     "updateAvailableBadge": "Update",
     "moreOptionsAriaLabel": "More options",
     "sectionMenuAriaLabel": "Integration options",
+    "detail": {
+      "sampleCaption": "Sample page using this integration",
+      "unlocks": "Unlocks {count, plural, one {# variable} other {# variables}}",
+      "useInPage": "Use in a page…",
+      "newPage": "New page"
+    },
     "addInstanceAction": "Add Instance",
     "instanceNameInlineLabel": "Instance name:",
     "addInstanceInlineHelp": "Creates a new independent instance of this plugin with its own configuration. Use alphanumeric characters, hyphens, or underscores (1-40 chars).",
