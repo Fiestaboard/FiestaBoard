@@ -9,14 +9,15 @@ import { measurePage } from "./page-grammar-measure";
  *
  *   width  header top             left gutter   header → content
  *   390    8 below the phone bar  16            12   (07d `320:17086`, 07c `303:16324`)
- *   900    24                     24 off rail   16   (07d `320:14392`)
+ *   900    24                     16 off rail   16   (07a `307:61756`: rail x 8-72, main x 88; the older 07d
+ *                                                    frames still draw the 12 px rail inset BB-FS-8 replaced)
  *   1440   28                     24 off rail   20   (07a `302:20841`; 07c `297:1824`, 07d `320:9461`)
  *
  * Differences of 2 px or more are bugs (BUGBASH-FIDELITY).
  */
 const GRAMMAR = {
   390: { top: 8, left: 16, headerGap: 12 },
-  900: { top: 24, left: 24, headerGap: 16 },
+  900: { top: 24, left: 16, headerGap: 16 },
   1440: { top: 28, left: 24, headerGap: 20 },
 } as const;
 

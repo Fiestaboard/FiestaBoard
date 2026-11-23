@@ -200,11 +200,23 @@ for (const width of [390, 768, 900, 1280]) {
             board: effectiveOpacity('[data-slot="board-viewport-bezel"]'),
             fit: effectiveOpacity('[data-slot="board-preview-mode-option"][data-value="fit"]'),
             actual: effectiveOpacity('[data-slot="board-preview-mode-option"][data-value="actual"]'),
-            indicator: effectiveOpacity('[data-slot="board-viewport-indicator-text"]'),
+            // The kit draws the "n columns" line only while Fit is an overview
+            // (tiles below the readable size). How wide the pane is decides
+            // that, so the line must exist exactly when the board says so.
+            overview: root.querySelector('[data-slot="board-viewport"]')?.getAttribute("data-overview") === "true",
+            indicator: root.querySelector('[data-slot="board-viewport-indicator-text"]')
+              ? effectiveOpacity('[data-slot="board-viewport-indicator-text"]')
+              : null,
           };
         });
         // Offline imagery stays dim; controls and their explanation stay readable.
-        expect(offlineOpacity).toEqual({ board: 0.6, fit: 1, actual: 1, indicator: 1 });
+        expect(offlineOpacity).toEqual({
+          board: 0.6,
+          fit: 1,
+          actual: 1,
+          overview: offlineOpacity.overview,
+          indicator: offlineOpacity.overview ? 1 : null,
+        });
         await shot("overview-fit");
       }
       await checkA11y(page, undefined, {
