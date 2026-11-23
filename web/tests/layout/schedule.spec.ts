@@ -1,6 +1,8 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { checkA11y, injectAxe } from "axe-playwright";
 
+import { pickTime } from "../time-picker";
+
 async function expectOpaque(target: Locator) {
   await expect(target).toBeVisible();
   await expect
@@ -130,10 +132,12 @@ for (const width of [390, 768, 1280]) {
         await shot("inspector");
         await page.getByRole("button", { name: "Edit entry", exact: true }).click();
       } else await page.getByRole("button", { name: "Add entry", exact: true }).first().click();
-      await expect(page.getByLabel("Start Time", { exact: true })).toHaveAttribute("type", "time");
+      // Start Time is the kit TimePicker (FiestaUI #444, BB-FC-7): a button that names the time.
+      await expect(page.getByLabel("Start Time", { exact: true })).toHaveText(/\d{1,2}:\d{2} [AP]M$/);
       if (width < 768) await expect(page.locator('[data-slot="sheet-grabber"]')).toBeVisible();
       await shot("entry", false);
       await axe();
+      await pickTime(page, page.getByLabel("Start Time", { exact: true }), "07:30");
       if (width < 768) {
         // BB-C-5: the phone sheet is the compact form, Save in view without scrolling.
         await expect(page.locator('[data-slot="schedule-entry-form"]')).toHaveAttribute("data-layout", "compact");

@@ -103,7 +103,7 @@ test.describe("Phone (390): bottom nav and More", () => {
     const offset = await page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue("--bottom-nav-offset").trim(),
     );
-    expect(offset).toBe("88px");
+    expect(offset).toBe("84px");
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     const lastRow = page.getByRole("link", { name: "Language & time" });
     const rowBox = (await lastRow.boundingBox())!;

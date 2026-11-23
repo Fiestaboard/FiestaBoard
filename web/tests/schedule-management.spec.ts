@@ -16,6 +16,7 @@ import {
   suppressWizard,
   test,
 } from "./helpers";
+import { pickTime } from "./time-picker";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
@@ -73,8 +74,8 @@ test.describe("Schedule Management", () => {
     await pageSelect.click();
     await page.getByRole("option", { name: "Schedule Form Test", exact: true }).click();
     await expect(pageSelect).toContainText("Schedule Form Test");
-    await dialog.getByLabel("Start Time", { exact: true }).fill("08:00");
-    await dialog.getByLabel("End Time", { exact: true }).fill("17:00");
+    await pickTime(page, dialog.getByLabel("Start Time", { exact: true }), "08:00");
+    await pickTime(page, dialog.getByLabel("End Time", { exact: true }), "17:00");
     const created = page.waitForResponse(
       (r) => r.url().endsWith("/api/v1/schedules") && r.request().method() === "POST",
     );
@@ -116,8 +117,8 @@ test.describe("Schedule Management", () => {
       .first()
       .click();
     const dialog = page.getByRole("dialog", { name: "Edit Schedule", exact: true });
-    await expect(dialog.getByLabel("Start Time", { exact: true })).toHaveValue("09:00");
-    await dialog.getByLabel("Start Time", { exact: true }).fill("09:30");
+    await expect(dialog.getByLabel("Start Time", { exact: true })).toContainText("9:00 AM");
+    await pickTime(page, dialog.getByLabel("Start Time", { exact: true }), "09:30");
     const updated = page.waitForResponse(
       (r) => r.url().includes(`/api/v1/schedules/${scheduleId}`) && r.request().method() === "PUT",
     );

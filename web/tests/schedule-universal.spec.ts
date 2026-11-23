@@ -189,7 +189,8 @@ for (const width of [390, 768, 1280]) {
         await page.getByRole("button", { name: "More options" }).click();
       }
       await expect(page.getByRole("radiogroup", { name: "Start time type" })).toBeVisible();
-      await expect(page.getByLabel("Start Time", { exact: true })).toHaveAttribute("type", "time");
+      // Start Time is the kit TimePicker (FiestaUI #444, BB-FC-7): a button that names the time.
+      await expect(page.getByLabel("Start Time", { exact: true })).toHaveText(/\d{1,2}:\d{2} [AP]M$/);
       const entryViolations = await getViolations(page, undefined, {
         runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
       });

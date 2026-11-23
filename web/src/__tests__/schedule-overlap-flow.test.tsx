@@ -133,7 +133,8 @@ it("offers a one-tap fix that changes the draft and clears the warning (BB-C-1)"
 
   fireEvent.click(await within(sheet).findByRole("button", { name: "Start at 11:00 AM instead" }));
 
-  expect(within(sheet).getByLabelText("Start Time")).toHaveValue("11:00");
+  // The kit TimePicker (FiestaUI #444, BB-FC-7) is a button that shows the time.
+  expect(within(sheet).getByLabelText("Start Time")).toHaveTextContent("11:00 AM");
   await waitFor(() => expect(within(sheet).queryByTestId("schedule-entry-conflict")).not.toBeInTheDocument());
 });
 

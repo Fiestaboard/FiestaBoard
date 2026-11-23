@@ -1161,30 +1161,6 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       scheduleMeasureRef.current?.();
     }, [value, editor, boardLines, onLineCountChange]);
 
-    // Esc from a toolbar picker (Colors, Formatting, Variables) hands the caret
-    // back to the template where it was. The kit's dropdown stops the Escape
-    // at the document, so this listens on the window, ahead of it (BB-E-15).
-    const rootRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-      if (!editor || !showToolbar) return;
-      const onKeyDown = (event: KeyboardEvent) => {
-        if (event.key !== "Escape") return;
-        // Touch and sheet pickers already hand focus back themselves (and
-        // refocusing the editor there would raise the keyboard).
-        if (window.matchMedia("(max-width: 767px), (pointer: coarse)").matches) return;
-        const target = event.target instanceof Element ? event.target : null;
-        const picker = target?.closest('[data-testid="toolbar-dropdown-panel"], [aria-expanded="true"]');
-        if (!picker) return;
-        const inToolbar = [rootRef.current, toolbarContainer].some((root) => root?.contains(picker));
-        if (!inToolbar) return;
-        setTimeout(() => {
-          if (!editor.isDestroyed) editor.commands.focus();
-        }, 0);
-      };
-      window.addEventListener("keydown", onKeyDown, true);
-      return () => window.removeEventListener("keydown", onKeyDown, true);
-    }, [editor, showToolbar, toolbarContainer]);
-
     // No need to enforce paragraph count - we use line breaks now
 
     // Alignment is now handled at serialization level, not in editor
@@ -1350,7 +1326,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     const isOverLineLimit = usedLines > boardLines;
 
     return (
-      <Box ref={rootRef} className={cn("relative", className)}>
+      <Box className={cn("relative", className)}>
         {/* Toolbar */}
         {showToolbar && (
           <TemplateEditorToolbar

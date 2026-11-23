@@ -256,6 +256,15 @@ describe("ChangePageDialog (phone, two steps)", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("ends each phone row in the kit's ListRow chevron (FK-9)", async () => {
+    asPhone();
+    setup();
+    const row = await within(await screen.findByRole("dialog", { name: "Change Page" })).findByRole("button", {
+      name: /Taco Tuesday/,
+    });
+    expect(row.querySelector('[data-slot="list-row-chevron"]')).not.toBeNull();
+  });
+
   it("pushes the duration step when a row is tapped, and Back returns to the list", async () => {
     asPhone();
     setup();

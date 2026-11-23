@@ -30,6 +30,7 @@ import {
   test,
   waitForFirstRun,
 } from "./helpers";
+import { pickTime } from "./time-picker";
 
 // ---------------------------------------------------------------------------
 // 1. Mock Board API & Backend Health
@@ -232,8 +233,8 @@ test.describe("Schedule Management", () => {
     await dialog.getByRole("combobox", { name: /^Page or Collection/ }).click();
     const target = page.getByRole("option", { name: targetName, exact: true });
     await target.click();
-    await dialog.getByLabel("Start Time", { exact: true }).fill("09:00");
-    await dialog.getByLabel("End Time", { exact: true }).fill("17:00");
+    await pickTime(page, dialog.getByLabel("Start Time", { exact: true }), "09:00");
+    await pickTime(page, dialog.getByLabel("End Time", { exact: true }), "17:00");
     const createdResponse = page.waitForResponse(
       (response) => response.url().includes("/api/v1/schedules") && response.request().method() === "POST",
     );

@@ -6,13 +6,13 @@ import {
   Heading,
   ListItem,
   ListRow,
+  ListRowChevron,
   ListRowGroup,
   Stack,
   StatusDot,
   Text,
 } from "@fiestaboard/ui";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
@@ -242,7 +242,7 @@ export function DisplayList({
                           )}
                         </Flex>
                       }
-                      trailing={<ChevronRight aria-hidden="true" className="size-4" />}
+                      trailing={<ListRowChevron />}
                     />
                   </ListItem>
                 ))}
