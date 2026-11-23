@@ -222,7 +222,6 @@ export function scheduleToCalendarEvents(
   const pageName = getPageName(schedule.page_id, pages, collections);
 
   for (const day of daysInWeek) {
-    const dayOfWeek = getDay(day);
     if (!scheduleAppliesOnDay(schedule, day)) continue;
 
     const dateStr = format(day, "yyyy-MM-dd");
@@ -393,7 +392,6 @@ export function silenceToCalendarEvents(
   };
 
   for (const day of daysInWeek) {
-    const dayOfWeek = getDay(day);
     const eventStart = setMinutes(setHours(day, sH), sM);
 
     if (isMidnightRollover) {

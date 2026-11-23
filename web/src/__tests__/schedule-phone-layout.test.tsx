@@ -91,7 +91,7 @@ it("puts title, Add and one Schedule Mode row above the day chips and agenda (BB
   viewport(true);
   renderPage();
   const title = await screen.findByRole("heading", { level: 1, name: "Schedule" });
-  const add = screen.getByRole("button", { name: "Add Schedule" });
+  const add = screen.getByRole("button", { name: "Add entry" });
   expect(title.parentElement).toContainElement(add);
   expect(screen.getByText("Schedule Mode").closest("label")).toHaveTextContent("Schedule Mode · Kitchen board");
   expect(screen.queryByText(/Automate page rotation/)).not.toBeInTheDocument();
@@ -114,7 +114,8 @@ it("keeps the view choice and toolbar on wider screens", async () => {
   viewport(false);
   renderPage();
   expect(await screen.findByRole("radio", { name: "Week" })).toHaveAttribute("aria-checked", "true");
-  expect(screen.getByText(/Automate page rotation/)).toBeInTheDocument();
+  // 07d `322:9978`: the title alone, no description (BB-FC-6).
+  expect(screen.queryByText(/Automate page rotation/)).not.toBeInTheDocument();
 });
 
 it("titles the entry sheet with the display and the days it repeats on (BB-C-5)", async () => {

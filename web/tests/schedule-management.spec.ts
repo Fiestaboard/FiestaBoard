@@ -63,7 +63,7 @@ test.describe("Schedule Management", () => {
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Click "Add Schedule"
-    await page.getByRole("button", { name: "Add Schedule" }).first().click();
+    await page.getByRole("button", { name: "Add entry" }).first().click();
 
     // Wait for dialog
     await expect(page.getByText("Add Schedule").first()).toBeVisible({ timeout: 10_000 });

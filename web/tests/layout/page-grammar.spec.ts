@@ -27,6 +27,7 @@ const ROUTES = [
   "/displays",
   "/displays/kitchen",
   "/integrations",
+  "/schedule",
   "/settings",
   "/picks",
 ];

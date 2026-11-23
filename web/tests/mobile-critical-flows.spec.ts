@@ -206,7 +206,7 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
 
     await page.goto("/schedule");
     await page
-      .getByRole("button", { name: /add schedule/i })
+      .getByRole("button", { name: /add entry/i })
       .first()
       .click();
 
