@@ -3761,6 +3761,7 @@
     "legacyHint": "Le vecchie app possono salvare la password e accedere di nuovo dopo la revoca. Cambia la password per escluderle definitivamente.",
     "revoke": "Revoca",
     "others": "Disconnetti gli altri dispositivi",
+    "othersAction": "Disconnetti gli altri dispositivi…",
     "all": "Disconnetti ovunque",
     "confirmOthers": "Disconnettere gli altri browser e TV? Questo browser resterà connesso. I codici TV in attesa saranno annullati.",
     "confirmAll": "Disconnettere tutti i browser e TV, incluso questo browser? I codici TV in attesa saranno annullati.",

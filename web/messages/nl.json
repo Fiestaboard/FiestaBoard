@@ -3761,6 +3761,7 @@
     "legacyHint": "Oudere apps kunnen je wachtwoord bewaren en na intrekking opnieuw aanmelden. Wijzig je wachtwoord om ze blijvend uit te sluiten.",
     "revoke": "Intrekken",
     "others": "Andere apparaten afmelden",
+    "othersAction": "Andere apparaten afmelden…",
     "all": "Overal afmelden",
     "confirmOthers": "Alle andere browsers en tv’s afmelden? Deze browser blijft aangemeld. Openstaande tv-codes worden geannuleerd.",
     "confirmAll": "Alle browsers en tv’s afmelden, inclusief deze browser? Openstaande tv-codes worden geannuleerd.",

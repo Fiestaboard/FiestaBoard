@@ -109,7 +109,7 @@ test.describe("regression: schedule.form", () => {
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Open the Add Schedule sheet.
-    await page.getByRole("button", { name: "Add Schedule" }).first().click();
+    await page.getByRole("button", { name: "Add entry" }).first().click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
 
@@ -197,7 +197,7 @@ test.describe("regression: schedule.form", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Add Schedule" }).first().click();
+    await page.getByRole("button", { name: "Add entry" }).first().click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
 
@@ -275,7 +275,7 @@ test.describe("regression: schedule.form", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Add Schedule" }).first().click();
+    await page.getByRole("button", { name: "Add entry" }).first().click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
 
@@ -339,7 +339,7 @@ test.describe("regression: schedule.form", () => {
   test("schedule.form.day-pattern-custom — Custom radio surfaces day toggle row", async ({ page }) => {
     await createPage("Day Custom Page");
     await page.goto("/schedule");
-    await page.getByRole("button", { name: "Add Schedule" }).first().click();
+    await page.getByRole("button", { name: "Add entry" }).first().click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
 
@@ -374,7 +374,7 @@ test.describe("regression: schedule.form", () => {
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Add Schedule" }).first().click();
+    await page.getByRole("button", { name: "Add entry" }).first().click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 15_000 });
 
@@ -426,7 +426,7 @@ test.describe("regression: schedule.form", () => {
     });
     await page.goto("/schedule");
     await page
-      .getByRole("button", { name: /Add Schedule/i })
+      .getByRole("button", { name: /Add entry/i })
       .first()
       .click();
     const sheet = page.getByRole("dialog");
@@ -500,7 +500,7 @@ test.describe("regression: schedule.form", () => {
     await createPage("Sched Default", ["A", "", "", "", "", ""]);
     await page.goto("/schedule");
     await page
-      .getByRole("button", { name: /Add Schedule/i })
+      .getByRole("button", { name: /Add entry/i })
       .first()
       .click();
     const sheet = page.getByRole("dialog");
@@ -560,7 +560,7 @@ test.describe("regression: schedule.form", () => {
     const release = await slowRoute(page, "**/api/v1/schedules", ["POST"]);
     await page.goto("/schedule");
     await page
-      .getByRole("button", { name: /Add Schedule/i })
+      .getByRole("button", { name: /Add entry/i })
       .first()
       .click();
     const sheet = page.getByRole("dialog");

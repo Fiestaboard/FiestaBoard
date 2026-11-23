@@ -1,5 +1,11 @@
 # fiestaboard
 
+## 11.0.0-alpha.17
+
+### Patch Changes
+
+- [#2604](https://github.com/Fiestaboard/FiestaBoard/pull/2604) [`0f5c22c`](https://github.com/Fiestaboard/FiestaBoard/commit/0f5c22c966cf63ed7ad640b3b1f06063e42493e1) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The sign-in, reset and activation cards are 398px wide as designed, and Sign in is 40px tall (44 on a phone).
+
 ## 11.0.0-alpha.16
 
 ### Patch Changes

@@ -4,7 +4,7 @@
  * Account settings — rendered as a stack of sibling cards on the
  * Account tab in Settings:
  *
- *   1. Signed in (identity readout)
+ *   1. Signed-in devices (the username is the Account header's line)
  *   2. Change username
  *   3. Change password
  *   4. Sign out
@@ -36,7 +36,7 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, UserCog } from "lucide-react";
+import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCog } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
@@ -107,24 +107,8 @@ export function AccountSection() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <UserCircle2 className="h-4 w-4 text-muted-foreground" />
-            {t("signedIn.title")}
-          </CardTitle>
-          <CardDescription>
-            {t.rich("signedIn.description", {
-              name: () => (
-                <Text as="span" className="font-mono text-foreground">
-                  {username}
-                </Text>
-              ),
-            })}
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
+      {/* Who is signed in is the Account header's line (07e `321:9076`),
+          not a card of its own (BB-FC-13). */}
       {authStatus.session_management_supported && <SignedInDevices />}
 
       <Card>

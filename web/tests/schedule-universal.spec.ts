@@ -155,12 +155,12 @@ for (const width of [390, 768, 1280]) {
           "true",
         );
       }
-      // PageToolbar fades in independently of the view controls. Scan settled ink.
+      // The controls row fades in with the workspace. Scan settled ink.
       if (theme === "dark") await expect(page.locator("html")).toHaveClass(/dark/);
       else await expect(page.locator("html")).not.toHaveClass(/dark/);
-      await expect(page.locator('[data-slot="page-toolbar"]')).toHaveCSS("opacity", "1");
+      await expect(page.getByTestId("gap-default-select")).toHaveCSS("opacity", "1");
       // On a phone Add sits beside the title rather than in the toolbar.
-      await expect(page.getByRole("button", { name: "Add Schedule", exact: true }).first()).toHaveCSS("opacity", "1");
+      await expect(page.getByRole("button", { name: "Add entry", exact: true }).first()).toHaveCSS("opacity", "1");
       await injectAxe(page);
       const violations = await getViolations(page, "main", {
         runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
@@ -182,7 +182,7 @@ for (const width of [390, 768, 1280]) {
           contentType: "image/png",
         });
         await page.getByRole("button", { name: "Edit entry", exact: true }).click();
-      } else await page.getByRole("button", { name: "Add Schedule", exact: true }).first().click();
+      } else await page.getByRole("button", { name: "Add entry", exact: true }).first().click();
       if (width < 768) {
         // BB-C-5: a phone gets the compact form; Starts, Ends and Repeat sit behind More options.
         await expect(page.locator('[data-slot="schedule-entry-form"]')).toHaveAttribute("data-layout", "compact");

@@ -21,6 +21,8 @@ export function supportsDatedGaps(schedules: ScheduleEntry[]): boolean {
   );
 }
 interface ScheduleAgendaProps {
+  /** The mono date line over the list; off where a day tray already names the day. @default true */
+  showDate?: boolean;
   schedules: ScheduleEntry[];
   pages: Page[];
   collections?: Collection[];
@@ -36,6 +38,7 @@ interface ScheduleAgendaProps {
   sunTimesMap?: Record<string, { sunrise: string; sunset: string }>;
 }
 export function ScheduleAgenda({
+  showDate = true,
   schedules,
   pages,
   collections = [],
@@ -118,9 +121,11 @@ export function ScheduleAgenda({
   const labels = { now: t("now"), gap: t("gap"), conflict: t("overlap") };
   return (
     <Stack gap="2">
-      <Text size="xs" tone="muted" className="font-mono uppercase">
-        {date.toLocaleDateString(locale, { weekday: "long", month: "long", day: "numeric" })}
-      </Text>
+      {showDate && (
+        <Text size="xs" tone="muted" className="font-mono uppercase">
+          {date.toLocaleDateString(locale, { weekday: "long", month: "long", day: "numeric" })}
+        </Text>
+      )}
       {events.length || dayGaps.length || silenceSchedule?.enabled ? (
         <ListRowGroup>
           {timeline.map(({ key, event, gap }) =>

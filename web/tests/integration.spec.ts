@@ -227,7 +227,7 @@ test.describe("Schedule Management", () => {
     const pageId = await createPage(targetName);
     // Reload the page list after creating the independent compatible target.
     await page.reload();
-    await page.getByRole("button", { name: "Add Schedule", exact: true }).first().click();
+    await page.getByRole("button", { name: "Add entry", exact: true }).first().click();
     const dialog = page.getByRole("dialog", { name: "Add Schedule", exact: true });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("combobox", { name: /^Page or Collection/ }).click();

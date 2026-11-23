@@ -3761,6 +3761,7 @@
     "legacyHint": "Apps antigos podem salvar sua senha e entrar novamente após a revogação. Altere sua senha para excluí-los permanentemente.",
     "revoke": "Revogar",
     "others": "Sair dos outros dispositivos",
+    "othersAction": "Sair dos outros dispositivos…",
     "all": "Sair de todos os dispositivos",
     "confirmOthers": "Sair dos outros navegadores e TVs? Este navegador continuará conectado. Os códigos de TV pendentes serão cancelados.",
     "confirmAll": "Sair de todos os navegadores e TVs, incluindo este navegador? Os códigos de TV pendentes serão cancelados.",
