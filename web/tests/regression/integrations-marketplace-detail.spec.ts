@@ -62,10 +62,12 @@ test.describe("regression: integrations.marketplace", () => {
   /** UX node: integrations.marketplace.git-install */
   test("integrations.marketplace.git-install — git URL install dialog opens", async ({ page }) => {
     await page.goto("/integrations");
+    // Wait for the tab rather than peeking at it: a peek on first paint missed
+    // it, and this test then opened the Installed pane's "…" (gone with
+    // BB-FC-9) and skipped. Install from Git is on the Marketplace toolbar's.
     const marketplaceTab = page.getByRole("tab", { name: /Marketplace/i });
-    if (await marketplaceTab.isVisible().catch(() => false)) {
-      await marketplaceTab.click();
-    }
+    await marketplaceTab.click({ timeout: 15_000 });
+    await expect(marketplaceTab).toHaveAttribute("aria-selected", "true");
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
     await page.getByRole("button", { name: "More options" }).click();
     const gitBtn = page.getByRole("menuitem", { name: /install from git|git url|add from git|add custom/i }).first();

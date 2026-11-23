@@ -1,5 +1,109 @@
 # fiestaboard
 
+## 11.0.0-alpha.16
+
+### Patch Changes
+
+- [#2634](https://github.com/Fiestaboard/FiestaBoard/pull/2634) [`19ccbdf`](https://github.com/Fiestaboard/FiestaBoard/commit/19ccbdfb5aadf041f07242f131c58661739f81e4) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Every page now uses the flat page layout with the same spacing: no rounded card around Pages, Collections, Displays or Staff Picks, the title on the same left edge as the content, and one consistent gap under the header (12, 16 or 20 px by screen width), matching the designs.
+
+## 11.0.0-alpha.15
+
+### Minor Changes
+
+- [#2625](https://github.com/Fiestaboard/FiestaBoard/pull/2625) [`c040e44`](https://github.com/Fiestaboard/FiestaBoard/commit/c040e44e5b43285e7b2d6c86251a2d4d258a7fbb) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Settings › Accessibility now has a "Motion and reading" card for this browser: Reduce motion (follows your device, and adds to the hub-wide setting), Read board changes aloud on Home, Larger touch targets, and High-contrast board text.
+
+### Patch Changes
+
+- [#2608](https://github.com/Fiestaboard/FiestaBoard/pull/2608) [`a43bc04`](https://github.com/Fiestaboard/FiestaBoard/commit/a43bc043fbb65ced25530ff1234848becf07ef77) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Pages library cards follow the design: the board fills the top of the card, with the name, a Now showing badge, the display and board size, and when the page was edited and is scheduled underneath; wide screens show three cards per row.
+
+- [#2600](https://github.com/Fiestaboard/FiestaBoard/pull/2600) [`cb7dde0`](https://github.com/Fiestaboard/FiestaBoard/commit/cb7dde0c95ccaba02957132bd2f06263bcf9a3f8) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Collections: cards show the first page's board across the top, the mode as an outline chip beside the name, and when the Schedule runs the Collection. The editor's "Now in this Collection" panel says how long the current page shows and what comes next, and a lifted page row keeps its card surface.
+
+- [#2594](https://github.com/Fiestaboard/FiestaBoard/pull/2594) [`bd72dd8`](https://github.com/Fiestaboard/FiestaBoard/commit/bd72dd89398a7afddd9011e9c5219c069375b48f) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Home with no display yet says "Nothing to show on yet", names the running hub, notes that pages can still be made, and keeps the display switcher reading "No displays yet".
+
+## 11.0.0-alpha.14
+
+### Minor Changes
+
+- [#2627](https://github.com/Fiestaboard/FiestaBoard/pull/2627) [`a9b3b27`](https://github.com/Fiestaboard/FiestaBoard/commit/a9b3b27e837cbd392f938252bb840638fde18467) Thanks [@jeffredodd](https://github.com/jeffredodd)! - An integration's settings now follow the Integrations design: the sample board carries a "Sample page using this integration" caption, settings groups sit under mono section labels (Account, Settings, a manifest's own sections) with switches at the end of their rows, the variables a plugin unlocks show as chips, and an outline "Use in a page…" button offers a new page or the plugin's demo page in place of the old Demo Page box.
+
+- [#2630](https://github.com/Fiestaboard/FiestaBoard/pull/2630) [`8e4919c`](https://github.com/Fiestaboard/FiestaBoard/commit/8e4919cd860a4a830df891e66dfca356364ecaa9) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The selected integration's panel on the Integrations page is titled with its status as a badge (Configured, Setup Required, …) and drops its tab strip, switch and version chips; the version, the Enabled switch, README, variables and live values, and the integration's other actions are in the page's "Integration options" menu while it is open.
+
+## 11.0.0-alpha.13
+
+### Minor Changes
+
+- [#2624](https://github.com/Fiestaboard/FiestaBoard/pull/2624) [`e943dbf`](https://github.com/Fiestaboard/FiestaBoard/commit/e943dbf73a7beedc1e2637d8746a96073dddbe10) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Settings › Appearance now has a Boards card with "Animate tile flips" and "Show the color strip on Home" (a strip of the six board colours under the Now showing board, remembered per browser); the other motion settings move to a Motion details panel.
+
+### Patch Changes
+
+- [#2629](https://github.com/Fiestaboard/FiestaBoard/pull/2629) [`3466ab1`](https://github.com/Fiestaboard/FiestaBoard/commit/3466ab1493bdd806a9f0c3302e1bb0315365b871) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Variable chips outside the page editor leave the value off through the kit's own optional value (FiestaUI 8.17.0-alpha.5) instead of hiding an empty segment.
+
+- [#2613](https://github.com/Fiestaboard/FiestaBoard/pull/2613) [`4f0decd`](https://github.com/Fiestaboard/FiestaBoard/commit/4f0decd0c82402e14c0ba5fd58c6148a45c20647) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The rail matches 07a: Collections sits indented under Pages, a hairline separates the main destinations from Integrations and the rest, the collapse handle is a small tab that shows on hover or keyboard focus, and every rail row gets the same visible focus ring. On phones, opening More lights only More and dims the header too. (FiestaUI 8.17.0-alpha.5.)
+
+- [#2589](https://github.com/Fiestaboard/FiestaBoard/pull/2589) [`8a013fb`](https://github.com/Fiestaboard/FiestaBoard/commit/8a013fb176e9e5d332b76b307691f2f499d4be44) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The account menu, About dialog, toasts, Language field and skip link match the design: Theme on one row, Help & Docs in the menu, the wider About dialog, toasts at the top right with a close button, a full-width Language select reading "English (US)", and "Skip to content".
+
+- [#2582](https://github.com/Fiestaboard/FiestaBoard/pull/2582) [`d9b7c7f`](https://github.com/Fiestaboard/FiestaBoard/commit/d9b7c7f5b090616c5af7738abd6aeb2e567ef85d) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor's preview marks where a too-long line is cut, says which integrations are switched off when a page shows ??? for them (with a link to Integrations), and Sample mode now fills in a switched-off integration's example values. `GET /v1/variables` lists installed-but-off integrations with their examples in a new `disabled_plugins` field. A line with `{{fill_space}}` (or another fill) is no longer reported as too long: a fill only takes the room the rest of the row leaves.
+
+- [#2583](https://github.com/Fiestaboard/FiestaBoard/pull/2583) [`aff2665`](https://github.com/Fiestaboard/FiestaBoard/commit/aff2665c382c07111bd4c54e5908dddba32cd022) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor keeps your unsaved edits to a saved page as a draft on the hub and brings them back when you return ("Draft restored · Discard"); the live page changes only when you press Save. The desktop header gains a mono meta line (type and size, display, live and save state), 40 px buttons and no Transition or Delete icons beside the title (Delete is in the Inspector's Page tab), and the leave dialog names the page and the lines you changed.
+
+- [#2607](https://github.com/Fiestaboard/FiestaBoard/pull/2607) [`6f4ede6`](https://github.com/Fiestaboard/FiestaBoard/commit/6f4ede6371e37a8920959bfd6b55459bb852c679) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The desktop formula panel and Inspect follow the design more closely: Code and Builder are tabs, the formula panel has a 2 px formula-blue frame with Cancel and Update formula on the right, code and line numbers share the mono font, and "Line N produces" uses the smaller heading. The template tints the line being edited or inspected. Inspect's outline of the clicked tile and its rows now shows on the preview instead of hiding behind the board, the Inspect pane has a 2 px amber frame, and its steps keep each expression on one line.
+
+- [#2607](https://github.com/Fiestaboard/FiestaBoard/pull/2607) [`6f4ede6`](https://github.com/Fiestaboard/FiestaBoard/commit/6f4ede6371e37a8920959bfd6b55459bb852c679) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The phone Formula sheet follows the design: it is titled Formula, the expression sits in one box with its live result ("→ NICE", "weather.temp is 72 now · 4 of 22 columns"), functions are grouped under category chips with each signature over its description, and one full-width "Insert formula" or "Update formula" button confirms. Opening it from the toolbar no longer puts a "new formula" chip into the page or marks it Unsaved before you confirm.
+
+- [#2609](https://github.com/Fiestaboard/FiestaBoard/pull/2609) [`16a496a`](https://github.com/Fiestaboard/FiestaBoard/commit/16a496a179223fcec089843302d0ba9106f01801) Thanks [@jeffredodd](https://github.com/jeffredodd)! - In the page editor console, the Problems, Warnings and Sent tabs share the width, and a formula problem is titled by its error ("#REF · Row 2") with the reason beside it. The editor timeline's week now runs Monday to Sunday.
+
+- [#2588](https://github.com/Fiestaboard/FiestaBoard/pull/2588) [`04c76b1`](https://github.com/Fiestaboard/FiestaBoard/commit/04c76b1834a77e4f44760acf4a8c1d11913a1a14) Thanks [@jeffredodd](https://github.com/jeffredodd)! - On a phone, tapping a formula chip in the page editor opens the Formula sheet for it again, so an existing formula can be edited or inspected. The tap's own click no longer closes the sheet the moment it opens.
+
+- [#2591](https://github.com/Fiestaboard/FiestaBoard/pull/2591) [`a6c37d6`](https://github.com/Fiestaboard/FiestaBoard/commit/a6c37d6b27a6323a0807d34b7242d1c27852242e) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Variable chips in the template editor match formula chips: the same 22 px atom with a `{}` glyph and, in the page editor, the value the preview sees ("= 62"). Formula and variable chips show their source as written instead of in capitals. A missing variable reads ??? as it does on the board.
+
+- [#2603](https://github.com/Fiestaboard/FiestaBoard/pull/2603) [`6629cec`](https://github.com/Fiestaboard/FiestaBoard/commit/6629cecfe666bd54dba6559adc2c9ceae8709e1a) Thanks [@jeffredodd](https://github.com/jeffredodd)! - A Pages library card's ··· menu follows the design: the page's name, Edit (E), Change Page… to show it now, Add to Schedule, Duplicate (⌘D / Ctrl+D), Export share string, and Pause or Resume the current display. On touch it keeps Delete page… instead of Pause; on a desktop pages are deleted from the editor.
+
+- [#2595](https://github.com/Fiestaboard/FiestaBoard/pull/2595) [`aa9f67c`](https://github.com/Fiestaboard/FiestaBoard/commit/aa9f67c52f3c304b2dba6dd10e3eeeefb9f32988) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The Pages library header and toolbar follow the design: a grid icon and new subtitle, a "Search pages" field with an in-field clear button and no standing help text, a text Grid / List switch shared with Collections, an outline Import button, and sort options with parallel wording that fill the row on a phone.
+
+- [#2587](https://github.com/Fiestaboard/FiestaBoard/pull/2587) [`b8793ee`](https://github.com/Fiestaboard/FiestaBoard/commit/b8793ee5ba6207e0ad59d1c4f12ca87b115378ca) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Compose a message matches its design: the 560 px dialog with a plain message field and a preview that hugs the board, and on a phone a shorter sheet with no display picker and Show now above the fold.
+
+- [#2596](https://github.com/Fiestaboard/FiestaBoard/pull/2596) [`0bd4352`](https://github.com/Fiestaboard/FiestaBoard/commit/0bd43524292c1d0268645a3dedcb0b501ea73edb) Thanks [@jeffredodd](https://github.com/jeffredodd)! - A display's page puts Pause and Change Page… in its header with a size, connection and address line under the name, and the Displays list's detail pane has Change Page… in its header.
+
+- [#2596](https://github.com/Fiestaboard/FiestaBoard/pull/2596) [`0bd4352`](https://github.com/Fiestaboard/FiestaBoard/commit/0bd43524292c1d0268645a3dedcb0b501ea73edb) Thanks [@jeffredodd](https://github.com/jeffredodd)! - A display's Playback tab uses its design's card titles and Silence Schedule wording, without icons in the titles or a colon after "Default page for gaps".
+
+- [#2599](https://github.com/Fiestaboard/FiestaBoard/pull/2599) [`a938af0`](https://github.com/Fiestaboard/FiestaBoard/commit/a938af041fedcca5ce16862aaa1af58d2a837d7a) Thanks [@jeffredodd](https://github.com/jeffredodd)! - At medium width, Home's board hugs its bezel (or fills it when it nearly fits) instead of sitting in a full-width black slab.
+
+- [#2598](https://github.com/Fiestaboard/FiestaBoard/pull/2598) [`d8a0009`](https://github.com/Fiestaboard/FiestaBoard/commit/d8a00092b0eb01351084d8580c6e6c0211f88834) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Home's Now showing card uses 40 px action buttons on wider screens and, on a desktop, names the hub after the display's type and size.
+
+- [#2590](https://github.com/Fiestaboard/FiestaBoard/pull/2590) [`4c1bf0b`](https://github.com/Fiestaboard/FiestaBoard/commit/4c1bf0bc6f7ffdeb879339838d31b4c1c78d0fd7) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The Integrations list sits on the page without a card, with Check for updates under a "…" button, plain "Installed · n" tabs, a compact search, and inset rows led by a status dot.
+
+- [#2590](https://github.com/Fiestaboard/FiestaBoard/pull/2590) [`4c1bf0b`](https://github.com/Fiestaboard/FiestaBoard/commit/4c1bf0bc6f7ffdeb879339838d31b4c1c78d0fd7) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Settings sections read at the design's scale: a smaller section title with the hub under it, compact card titles without icons, and index rows inset in their card without dividers.
+
+## 11.0.0-alpha.12
+
+### Patch Changes
+
+- [#2605](https://github.com/Fiestaboard/FiestaBoard/pull/2605) [`0635c39`](https://github.com/Fiestaboard/FiestaBoard/commit/0635c397a603aac2ad2dff3eebb8b4422e09c559) Thanks [@jeffredodd](https://github.com/jeffredodd)! - When FiestaBot creates a page on a slow device or with a large Pages list, it now always ends on the saved page: if the new editor opens late, the assistant waits for it before typing, so it no longer stops at a "Discard unsaved changes?" dialog.
+
+- [#2579](https://github.com/Fiestaboard/FiestaBoard/pull/2579) [`f567c73`](https://github.com/Fiestaboard/FiestaBoard/commit/f567c733835eeec8399a6b9d7d56c4b32d5fa8d9) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor's preview card is calmer: its header is one row, the target, board size and board colour sit behind the header's "Kitchen · Flagship 22 × 6" meta instead of a third board picker and a separate size row, and edits update the board instantly. A new Replay button plays the split-flap animation on demand.
+
+- [#2581](https://github.com/Fiestaboard/FiestaBoard/pull/2581) [`3b043f9`](https://github.com/Fiestaboard/FiestaBoard/commit/3b043f9b4fb3b6288ce604b86fa4ee96512e5b1a) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The desktop page editor gets the window: the nav collapses to the icon rail while you edit (your own choice comes back when you leave, and a toggle made in the editor becomes your choice), the Explorer can be hidden, starts closed for single Flagship and Note pages, and now shows only the open page's boards, parts and snippets instead of a list of every page, and the page name always keeps room beside the header actions.
+
+- [#2584](https://github.com/Fiestaboard/FiestaBoard/pull/2584) [`10e5a13`](https://github.com/Fiestaboard/FiestaBoard/commit/10e5a133e197b3ab9dbde6102f9dcd0dbf05205c) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The desktop page editor is one workspace: the Explorer, the template with its Console and Timeline, and the preview with its Inspector sit in three columns under a header and toolbar that stay put while you scroll; a new page has the same layout as a saved one, so the first save moves nothing; and Tab goes column by column.
+
+- [#2576](https://github.com/Fiestaboard/FiestaBoard/pull/2576) [`12a4352`](https://github.com/Fiestaboard/FiestaBoard/commit/12a4352561c21f6b98fd64d8a2cdcdc625aad669) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Home lands a display's board at once on a display switch, and Compose's preview no longer flaps from blank as you type; the display switcher shows each display's type, size and page; the schedule entry sheet on a phone is the short form with Save in view; switching release channel confirms with a destructive button.
+
+- [#2568](https://github.com/Fiestaboard/FiestaBoard/pull/2568) [`8b9c0e4`](https://github.com/Fiestaboard/FiestaBoard/commit/8b9c0e4e742a2cb7e5ea753e2215e82bc6d226d2) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Displays on a phone follow 07d: no card around the section, the list titled "Displays" with Add display beside it, a display page with one "‹ Displays" link over its name and the board edge to edge, causes no longer cut short, and an unknown display reads "Display not found" with Back to Displays and Add a display.
+
+- [#2564](https://github.com/Fiestaboard/FiestaBoard/pull/2564) [`0153d0e`](https://github.com/Fiestaboard/FiestaBoard/commit/0153d0e329c8f6a27b1560e1d8bec6e9b171fd63) Thanks [@jeffredodd](https://github.com/jeffredodd)! - An unknown URL shows a "Page not found" page inside the app shell with a way Home; the app opts into FiestaUI's touch layer so default-sized controls reach 44 px on a phone; Change Page no longer opens the phone keyboard over its list; and the board's scroll hint always reads "swipe" on a touch screen.
+
+- [#2573](https://github.com/Fiestaboard/FiestaBoard/pull/2573) [`db7f641`](https://github.com/Fiestaboard/FiestaBoard/commit/db7f6419ec59861bf3a72e9171990cc531db0b67) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The editor preview on desktop shows a whole Flagship board instead of its first 13 columns, and "Now in this Collection" fits the board to the card instead of cropping it on phones. A new Collection opens on its name and says what Create still needs, and Add page shows each page's size and stays open for several picks. Rule reordering gives touch instructions on touch screens, and a rule's whole expression is readable.
+
+- [#2577](https://github.com/Fiestaboard/FiestaBoard/pull/2577) [`71c87ee`](https://github.com/Fiestaboard/FiestaBoard/commit/71c87ee8ac8aa3b18d5a3020621062e5fb4df9f8) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The page editor measures what the board draws: a colour tile from the rich editor is one column (a 22-tile art row no longer reports "66 of 22 · 44 cut off"), blank padding rows on a smaller board no longer trip the line limit, and an overflow is reported once — one card for every cut line, no repeated banner or status.
+
+- [#2580](https://github.com/Fiestaboard/FiestaBoard/pull/2580) [`4e28410`](https://github.com/Fiestaboard/FiestaBoard/commit/4e2841088d0bf20a2ea2732c6d128dc1605b9752) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The rich template behaves like a text field: multi-line text pasted from another app lands on consecutive rows, copying no longer carries invisible zero-width spaces, Esc from a toolbar picker puts the caret back, the template card shows a focus ring, long rows stay inside the card, and Undo starts disabled on an untouched page.
+
+- [#2592](https://github.com/Fiestaboard/FiestaBoard/pull/2592) [`c25427d`](https://github.com/Fiestaboard/FiestaBoard/commit/c25427df35dccb78b9c0b4c208841546f73263a9) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Pages library cards, list rows and collection cards draw the same three-stop focus ring as every other control, with no white band in dark mode, and list rows use a 1 px border like the grid cards.
+
+- [#2593](https://github.com/Fiestaboard/FiestaBoard/pull/2593) [`6e6a1ed`](https://github.com/Fiestaboard/FiestaBoard/commit/6e6a1ed0d560c0818294aec1453509dda203b9f8) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Variable Collections: each rule row now picks its page from a menu in the row and shows whether the rule is true right now, the Default row says what is showing, and Re-check interval and Pages in Collection open as proper sections.
+
+- [#2585](https://github.com/Fiestaboard/FiestaBoard/pull/2585) [`d94ff42`](https://github.com/Fiestaboard/FiestaBoard/commit/d94ff42402513d827106e691d0e097651453a63d) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Compose a message opens with the caret in the message field, so typing no longer switches the "Show on" display.
+
 ## 11.0.0-alpha.11
 
 ### Patch Changes

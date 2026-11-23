@@ -15,10 +15,13 @@ import { server } from "./mocks/server";
 
 it("saves theme in this browser", async () => {
   localStorage.setItem("theme", "light");
+  // Appearance also holds the Boards card, which reads the hub's display settings.
   render(
-    <ThemeProvider>
-      <AppearanceSettings />
-    </ThemeProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <ThemeProvider>
+        <AppearanceSettings />
+      </ThemeProvider>
+    </QueryClientProvider>,
   );
   await userEvent.click(screen.getByRole("radio", { name: "Dark" }));
   expect(localStorage.getItem("theme")).toBe("dark");
@@ -27,7 +30,7 @@ it("saves theme in this browser", async () => {
   document.documentElement.classList.remove("dark");
 });
 
-it("writes only the supported reduce-motion field to hub display settings", async () => {
+it("keeps Accessibility's Reduce motion in this browser, off the hub (BB-FC-12)", async () => {
   const requests: unknown[] = [];
   server.use(
     http.get("/api/settings/all", () => HttpResponse.json({ display: { reduce_motion: false } })),
@@ -41,15 +44,19 @@ it("writes only the supported reduce-motion field to hub display settings", asyn
       <AccessibilitySettings />
     </QueryClientProvider>,
   );
-  await userEvent.click(await screen.findByRole("switch", { name: "Reduce motion" }));
-  await waitFor(() => expect(requests).toEqual([{ reduce_motion: true }]));
+  const toggle = await screen.findByRole("switch", { name: "Reduce motion" });
+  await waitFor(() => expect(toggle).toBeEnabled());
+  await userEvent.click(toggle);
+  expect(localStorage.getItem("fiestaboard_a11y_reduce_motion")).toBe("on");
+  expect(requests).toEqual([]);
+  localStorage.removeItem("fiestaboard_a11y_reduce_motion");
 });
 
 describe("Settings section locale coverage", () => {
   it.each(locales)("includes the scope, destination and FiestaBot copy in %s", (locale) => {
     const messages = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../../messages/${locale}.json`), "utf-8"));
     for (const [group, keys] of Object.entries({
-      panels: ["theme", "browserTheme", "motionScope"],
+      panels: ["theme", "browserTheme"],
       addresses: ["title", "description", "browser", "ip", "hint"],
       fiestabot: ["title", "scope", "unavailable", "open", "setup", "needsSetup", "checking", "checkFailed", "retry"],
     })) {

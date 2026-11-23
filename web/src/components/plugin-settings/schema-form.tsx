@@ -36,6 +36,7 @@ import { FieldScopeContext, SchemaFormPluginContext, useBoardScreen, useFieldSco
 import { isJsonPathMapper, JsonPathMapperField, type JsonPathMapperUiOptions } from "./json-path-mapper-field";
 import { PagePickerField } from "./page-picker-field";
 import { RemoteOptionsField, type RemoteOptionsUiOptions } from "./remote-options-field";
+import { SECTION_LABEL_CLASS } from "./section-label";
 
 // JSON Schema types (simplified for our use case)
 interface SchemaProperty {
@@ -1217,31 +1218,48 @@ export function SchemaForm({
       [showRequired ? requiredHintId : "", fieldErrors.length > 0 ? errorId : ""].filter(Boolean).join(" ") ||
       undefined;
 
+    const label = (
+      <Label htmlFor={`${idPrefix}${name}`} className="flex items-center gap-1">
+        {property.title || name}
+        {isRequired && (
+          <Text as="span" tone="destructive">
+            *
+          </Text>
+        )}
+      </Label>
+    );
+    const control = (
+      <FormField
+        name={id}
+        fieldKey={name}
+        property={property}
+        value={values[name]}
+        onChange={(val, siblings) => handleFieldChange(name, val, siblings)}
+        required={isRequired}
+        disabled={fieldDisabled}
+        describedBy={describedBy}
+        invalid={fieldErrors.length > 0}
+        onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
+        showLocationButton={showLocationButton}
+        isLocationLoading={false}
+        allValues={values}
+      />
+    );
+
     return (
       <Grid key={name} gap="1.5">
-        <Label htmlFor={`${idPrefix}${name}`} className="flex items-center gap-1">
-          {property.title || name}
-          {isRequired && (
-            <Text as="span" tone="destructive">
-              *
-            </Text>
-          )}
-        </Label>
-        <FormField
-          name={id}
-          fieldKey={name}
-          property={property}
-          value={values[name]}
-          onChange={(val, siblings) => handleFieldChange(name, val, siblings)}
-          required={isRequired}
-          disabled={fieldDisabled}
-          describedBy={describedBy}
-          invalid={fieldErrors.length > 0}
-          onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
-          showLocationButton={showLocationButton}
-          isLocationLoading={false}
-          allValues={values}
-        />
+        {/* 07d `324:40267`: a switch ends its label's row (Family … ◉). */}
+        {property.type === "boolean" ? (
+          <Flex align="center" justify="between" gap="3">
+            {label}
+            {control}
+          </Flex>
+        ) : (
+          <>
+            {label}
+            {control}
+          </>
+        )}
         {property.description && (
           <Text size="xs" tone="muted">
             {property.description}
@@ -1328,12 +1346,9 @@ function SchemaFormSection({ section, children }: { section: SchemaSection; chil
     );
   }
   return (
-    <fieldset
-      className="grid gap-4 rounded-lg border p-3"
-      aria-labelledby={headingId}
-      data-testid={`schema-section-${section.id}`}
-    >
-      <legend id={headingId} className="px-1 text-sm font-medium">
+    // 07d: a group is a mono caps label over its rows, with no box (BB-FC-9).
+    <fieldset className="grid gap-4" aria-labelledby={headingId} data-testid={`schema-section-${section.id}`}>
+      <legend id={headingId} className={`mb-2 ${SECTION_LABEL_CLASS}`}>
         {section.title}
       </legend>
       {section.description && (

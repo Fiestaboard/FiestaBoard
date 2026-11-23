@@ -76,7 +76,9 @@ describe("Toaster beside the FiestaBot drawer", () => {
     );
     const element = await toaster();
     expect(element.style.getPropertyValue("--offset-right")).toBe(DEFAULT_OFFSET);
-    expect(element).toHaveAttribute("data-y-position", "bottom");
+    // BB-FS-7 (07a `311:73476`): from the rail up, toasts sit top-right.
+    expect(element).toHaveAttribute("data-y-position", "top");
+    expect(element).toHaveAttribute("data-x-position", "right");
   });
 
   it("steps left of the open drawer, by the drawer's live width", async () => {
@@ -89,7 +91,7 @@ describe("Toaster beside the FiestaBot drawer", () => {
     const element = await toaster();
     // The drawer's own width variable, so a drag moves the toasts with it.
     expect(element.style.getPropertyValue("--offset-right")).toBe("calc(var(--ai-drawer-width, 384px) + 1.5rem)");
-    expect(element).toHaveAttribute("data-y-position", "bottom");
+    expect(element).toHaveAttribute("data-y-position", "top");
   });
 
   it("goes to the top of the screen on a phone, where the drawer is the screen", async () => {
@@ -175,4 +177,32 @@ describe("Toaster beside the FiestaBot drawer", () => {
       expect(element.style.getPropertyValue("--mobile-offset-right")).toBe("12px");
     },
   );
+});
+
+// BB-FS-7: the kit spec and 07a/07c give every toast a close ×, at the top
+// right from the rail up and at the bottom, above the tab bar, on a phone.
+describe("Toaster placement and dismiss (BB-FS-7)", () => {
+  afterEach(() => {
+    act(() => toast.dismiss());
+  });
+
+  it("gives every toast a close button", async () => {
+    setViewport(true);
+    render(<Toaster />);
+    await toaster();
+    expect(await screen.findByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
+
+  it("sits at the bottom, above the tab bar, below the rail", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(max-width: 767.98px)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    render(<Toaster />);
+    const element = await toaster();
+    expect(element).toHaveAttribute("data-y-position", "bottom");
+    expect(await screen.findByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
 });

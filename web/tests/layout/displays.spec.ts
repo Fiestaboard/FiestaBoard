@@ -134,44 +134,79 @@ for (const width of [390, 768, 900, 1280]) {
           fullPage: true,
         });
       };
+      // On a phone the section shell's "‹ Displays" is the one way back (07d
+      // `328:27519`, BB-A-19); wider screens go back through the trail, with
+      // no back button stacked over the tabs (BB-FH-5).
+      const backToList = () =>
+        width < 768
+          ? page.getByRole("main").getByRole("link", { name: "Displays", exact: true })
+          : page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Displays", exact: true });
       await entry.click();
-      if (width < 768) await expect(page.getByRole("link", { name: "Back to Displays" })).toBeVisible();
+      if (width < 768) await expect(backToList()).toBeVisible();
       else
         await expect(
           page.getByTestId("display-detail-pane").getByRole("heading", { name: "Entry clock", exact: true }),
         ).toBeVisible();
       await shot("overview");
-      // Actual size remains the established default. Capture the user's Fit
-      // overview separately for the fitted board drawn in the reference.
-      const fit = page.getByRole("button", { name: "Fit", exact: true });
-      await expect(fit).toBeVisible({ timeout: 10_000 });
-      const fitBounds = await fit.boundingBox();
-      expect(fitBounds).not.toBeNull();
-      expect(fitBounds!.x).toBeGreaterThanOrEqual(0);
-      expect(fitBounds!.x + fitBounds!.width).toBeLessThanOrEqual(width);
-      await fit.click();
-      await expect(fit).toHaveAttribute("aria-pressed", "true");
-      const offlineOpacity = await page.locator('[data-slot="last-known-board"]').evaluate((root) => {
-        const effectiveOpacity = (selector: string) => {
-          let element = root.querySelector(selector);
-          if (!element) throw new Error(`Missing offline preview element: ${selector}`);
-          let opacity = 1;
-          while (element) {
-            opacity *= Number(getComputedStyle(element).opacity);
-            element = element.parentElement;
-          }
-          return opacity;
-        };
-        return {
-          board: effectiveOpacity('[data-slot="board-viewport-bezel"]'),
-          fit: effectiveOpacity('[data-slot="board-preview-mode-option"][data-value="fit"]'),
-          actual: effectiveOpacity('[data-slot="board-preview-mode-option"][data-value="actual"]'),
-          indicator: effectiveOpacity('[data-slot="board-viewport-indicator-text"]'),
-        };
-      });
-      // Offline imagery stays dim; controls and their explanation stay readable.
-      expect(offlineOpacity).toEqual({ board: 0.6, fit: 1, actual: 1, indicator: 1 });
-      await shot("overview-fit");
+      // On a phone the board runs edge to edge in the phone-hero placement
+      // (BB-A-19); a board that fits there draws no Fit/Actual toggle, and the
+      // offline dim holds for the board alone.
+      // "Entry clock" is a Flagship (22 × 6): at phone width it fits whole in
+      // the phone-hero placement, edge to edge inside the viewport.
+      const heroFits = width < 768;
+      if (heroFits) {
+        const hero = page.locator("[data-slot=board-viewport]").first();
+        await expect(hero).toHaveAttribute("data-layout", "phone-hero");
+        await expect(hero).toHaveAttribute("data-overflow", "false");
+        const bezel = await page.locator('[data-slot="board-viewport-bezel"]').first().boundingBox();
+        expect(bezel).not.toBeNull();
+        expect(bezel!.x).toBeGreaterThanOrEqual(0);
+        expect(bezel!.x + bezel!.width).toBeLessThanOrEqual(width);
+      }
+      if (heroFits) {
+        await expect(page.getByRole("button", { name: "Fit", exact: true })).toHaveCount(0);
+        const dim = await page
+          .locator('[data-slot="last-known-board"] [data-slot="board-viewport-bezel"]')
+          .evaluate((element) => {
+            let opacity = 1;
+            for (let node: Element | null = element; node; node = node.parentElement)
+              opacity *= Number(getComputedStyle(node).opacity);
+            return opacity;
+          });
+        expect(dim).toBe(0.6);
+      } else {
+        // Actual size remains the established default. Capture the user's Fit
+        // overview separately for the fitted board drawn in the reference.
+        const fit = page.getByRole("button", { name: "Fit", exact: true });
+        await expect(fit).toBeVisible({ timeout: 10_000 });
+        const fitBounds = await fit.boundingBox();
+        expect(fitBounds).not.toBeNull();
+        expect(fitBounds!.x).toBeGreaterThanOrEqual(0);
+        expect(fitBounds!.x + fitBounds!.width).toBeLessThanOrEqual(width);
+        await fit.click();
+        await expect(fit).toHaveAttribute("aria-pressed", "true");
+        const offlineOpacity = await page.locator('[data-slot="last-known-board"]').evaluate((root) => {
+          const effectiveOpacity = (selector: string) => {
+            let element = root.querySelector(selector);
+            if (!element) throw new Error(`Missing offline preview element: ${selector}`);
+            let opacity = 1;
+            while (element) {
+              opacity *= Number(getComputedStyle(element).opacity);
+              element = element.parentElement;
+            }
+            return opacity;
+          };
+          return {
+            board: effectiveOpacity('[data-slot="board-viewport-bezel"]'),
+            fit: effectiveOpacity('[data-slot="board-preview-mode-option"][data-value="fit"]'),
+            actual: effectiveOpacity('[data-slot="board-preview-mode-option"][data-value="actual"]'),
+            indicator: effectiveOpacity('[data-slot="board-viewport-indicator-text"]'),
+          };
+        });
+        // Offline imagery stays dim; controls and their explanation stay readable.
+        expect(offlineOpacity).toEqual({ board: 0.6, fit: 1, actual: 1, indicator: 1 });
+        await shot("overview-fit");
+      }
       await checkA11y(page, undefined, {
         detailedReport: true,
         detailedReportOptions: { html: true },
@@ -219,19 +254,23 @@ for (const width of [390, 768, 900, 1280]) {
         detailedReportOptions: { html: true },
         axeOptions: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } },
       });
-      await page.getByRole("link", { name: "Back to Displays" }).click();
+      await backToList().click();
       await page.getByTestId("display-card").filter({ hasText: "Fridge note" }).click();
       await page.getByRole("button", { name: "Diagnostics", exact: true }).click();
       await expect(page.getByTestId("display-detail-pane")).toHaveCount(0);
       await expect(page.getByTestId("display-frame-comparison").getByRole("img")).toHaveCount(2);
       await shot("comparison");
-      await page.getByRole("link", { name: "Back to Displays" }).click();
+      await backToList().click();
       await page.getByTestId("display-card").filter({ hasText: "Living room TV" }).click();
       await page.getByRole("tab", { name: "Settings", exact: true }).click();
       await expect(page.getByTestId("display-panel-settings")).toBeVisible();
       await settleCapture(page);
       // The fixture is a 29×12 panel. A Fit caption alone does not prove its
       // hidden-tab measurements have caught up or that every tile is visible.
+      // On a phone the Overview board fitted on its own (phone-hero), so the
+      // session's Fit is chosen here instead.
+      if (heroFits)
+        await page.getByTestId("display-panel-settings").getByRole("button", { name: "Fit", exact: true }).click();
       await expectPanelFit(page);
       await shot("panel-settings");
       // Keep a truthful preview capture alongside the long page: fixed mobile
@@ -250,3 +289,21 @@ for (const width of [390, 768, 900, 1280]) {
     });
   }
 }
+
+// A landscape phone (844 × 390) keeps the phone chrome (BB-A-13), so Displays
+// keeps its phone layout too: "‹ Displays" over the display's name, no card
+// header or tabs above it (07d, BB-A-19/A-24).
+test("Displays on a landscape phone keeps the phone layout", async ({ page }, testInfo) => {
+  await page.clock.install({ time: new Date("2026-11-17T02:18:00Z") });
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/tests/layout/displays.html?theme=light");
+  const main = page.getByRole("main");
+  await expect(main.getByRole("heading", { level: 1, name: "Displays" })).toBeVisible();
+  await page.getByTestId("display-card").filter({ hasText: "Entry clock" }).click();
+  await expect(main.getByRole("link", { name: "Displays", exact: true })).toBeVisible();
+  await expect(main.getByRole("heading", { level: 1, name: "Entry clock" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toHaveCount(0);
+  await settleCapture(page);
+  await page.screenshot({ path: testInfo.outputPath("impl-displays-landscape-844x390.png"), fullPage: true });
+});

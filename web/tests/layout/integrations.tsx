@@ -10,6 +10,7 @@ import { CurrentBoardProvider } from "@/components/current-board-context";
 import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
 import { NavigationSidebar } from "@/components/navigation-sidebar";
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
+import { useRailBreakpoint } from "@/hooks/use-below-rail";
 import { ThemeProvider } from "@/hooks/use-theme";
 import i18n from "@/i18n/i18next";
 
@@ -61,6 +62,36 @@ const random = {
   demo_page_id: null,
 };
 
+// BB-FC-9: the detail pane's sections, variables and sample (07d `324:40267`).
+const detail = (id: string) => ({
+  ...plugins.find((p) => p.id === id),
+  config: { event_name: "Launch", target_date: "2026-12-25T09:00:00" },
+  settings_schema: {
+    type: "object",
+    required: ["target_date"],
+    properties: {
+      event_name: { type: "string", title: "Event Name" },
+      target_date: { type: "string", title: "Target Date & Time" },
+      show_seconds: { type: "boolean", title: "Show seconds", default: false },
+    },
+  },
+  variables: { simple: { days: { description: "Days left" }, label: { description: "Event" }, time: {} } },
+  env_vars: [],
+  has_demo: true,
+  demo_page_id: null,
+});
+const registry = {
+  entries: ["countdown", "weather"].map((id) => ({
+    id,
+    name: plugins.find((p) => p.id === id)!.name,
+    description: "",
+    repository: "",
+    branch: "main",
+    installed: true,
+    previews: [{ device_type: "flagship", rows: ["", "  LAST DAY OF SCHOOL", "      86 DAYS"] }],
+  })),
+};
+
 const originalFetch = window.fetch;
 window.fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input), location.href);
@@ -68,10 +99,11 @@ window.fetch = async (input, init) => {
   const path = url.pathname.slice(4);
   let value: unknown = {};
   if (path === "/plugins") value = { plugins, total: plugins.length, enabled_count: 4, plugin_system_enabled: true };
-  else if (path === "/plugins/registry") value = { entries: [] };
+  else if (path === "/plugins/registry") value = registry;
   else if (path === "/oauth/connections") value = { connections: [], redirect_uri: "" };
   else if (path === "/v1/plugins/random") value = random;
-  else if (path === "/v1/plugins/random/data") value = { available: true, data: {} };
+  else if (/^\/v1\/plugins\/[a-z_]+\/data$/.test(path)) value = { available: true, data: {} };
+  else if (path === "/v1/plugins/countdown" || path === "/v1/plugins/weather") value = detail(path.split("/")[3]);
   else if (path === "/settings/plugins") value = { auto_update: true };
   else if (path === "/settings/board")
     value = {
@@ -91,10 +123,13 @@ const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mu
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
+  // The app's breakpoint (MainContent): a short landscape phone keeps the
+  // phone chrome, and the room under its bar, up to lg (BB-A-13).
+  const railBreakpoint = useRailBreakpoint();
   return (
     <>
       <NavigationSidebar />
-      <MainContent collapsed={collapsed} railBreakpoint="md" bottomNav>
+      <MainContent collapsed={collapsed} railBreakpoint={railBreakpoint} bottomNav>
         {children}
       </MainContent>
     </>

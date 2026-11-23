@@ -19,13 +19,18 @@ import { schedulesToCalendarEvents } from "@/lib/schedule-calendar";
 import { formatDays, formatWindow } from "./ide-format";
 import type { CreatorIdeState } from "./use-creator-ide";
 
+/** The timeline week runs Monday to Sunday, as Figma 184:159319 draws it (BB-FP-19). */
+export const timelineWeekStart = (date: Date) => startOfWeek(date, { weekStartsOn: 1 });
+/** A date's column in that week: Monday 0 … Sunday 6. */
+export const timelineDayIndex = (date: Date) => (date.getDay() + 6) % 7;
+
 const minuteOf = (date: Date, dayStart: Date) =>
   Math.max(0, Math.min(1440, Math.round((date.getTime() - dayStart.getTime()) / 60000)));
 
 /** This week's blocks for the page's entries (direct and through collections), as WeekCalendar entries. */
 export function useWeekEntries(ide: CreatorIdeState): { entries: WeekCalendarEntry[]; weekStart: Date } {
   return useMemo(() => {
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+    const weekStart = timelineWeekStart(new Date());
     const schedules = ide.showsOn.entries.map((entry) => entry.schedule);
     const events = schedulesToCalendarEvents(schedules, weekStart, ide.pages, ide.collections);
     const entries = events.map((event) => {
@@ -33,7 +38,7 @@ export function useWeekEntries(ide: CreatorIdeState): { entries: WeekCalendarEnt
       dayStart.setHours(0, 0, 0, 0);
       return {
         id: event.id,
-        day: event.start.getDay(),
+        day: timelineDayIndex(event.start),
         start: minuteOf(event.start, dayStart),
         end: Math.max(minuteOf(event.end, dayStart), minuteOf(event.start, dayStart) + 1),
         // Blocks are about 60 px wide here: a page name truncates to "Kitc…",
@@ -82,7 +87,7 @@ export function IdeWeek({ ide }: { ide: CreatorIdeState }) {
         formatTime={formatWeekCalendarTime}
         formatHour={formatWeekCalendarHour}
         labels={{ conflict: t("overlap"), off: t("entryOff") }}
-        now={{ day: today.getDay(), minute: today.getHours() * 60 + today.getMinutes() }}
+        now={{ day: timelineDayIndex(today), minute: today.getHours() * 60 + today.getMinutes() }}
       />
       <List gap="0" role="list" aria-label={t("legendLabel")} data-slot="ide-week-legend">
         {ide.showsOn.entries.map((entry) => (

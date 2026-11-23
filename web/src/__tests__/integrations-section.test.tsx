@@ -71,11 +71,12 @@ beforeEach(() => {
 });
 
 describe("/integrations section", () => {
-  it("offers Check for updates on the section header at the list", () => {
+  it("offers the Integration options (Check for updates) button on the section header at the list", () => {
     mockRegistry();
     renderSection(<p>list</p>);
     expect(screen.getByRole("heading", { level: 1, name: "Integrations" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /check for updates/i }).closest("[inert]")).toBeNull();
+    // 07d `324:40267` draws a "…" here; Check for updates is its item (BB-FC-8).
+    expect(screen.getByRole("button", { name: "Integration options" }).closest("[inert]")).toBeNull();
   });
 
   it("leaves no plugin-settings anchor in the collapsed header on a plugin's page", async () => {

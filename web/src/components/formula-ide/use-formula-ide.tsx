@@ -17,12 +17,25 @@ import {
   type RenderDiagnostics,
   type RenderTarget,
 } from "@/lib/api/formula-debug";
-import { atIsoForTime, buildPreviewContext, referencedRoots, sampleValues } from "@/lib/formula-ide/data-source";
-import { buildHintIndex, findFormula, normalizeSource } from "@/lib/formula-ide/hints";
+import {
+  atIsoForTime,
+  buildPreviewContext,
+  referencedRoots,
+  sampleValues,
+  withDisabledExamples,
+} from "@/lib/formula-ide/data-source";
+import {
+  buildHintIndex,
+  buildVariableHintIndex,
+  findFormula,
+  normalizeSource,
+  templateVariablePaths,
+  variableProbeTemplate,
+} from "@/lib/formula-ide/hints";
 import { cellOrigin, originDetail } from "@/lib/formula-ide/source-map";
 
 import { BoardCellHighlight } from "./board-cell-highlight";
-import type { FormulaIdeBridge, OpenFormulaRequest } from "./formula-ide-context";
+import type { FormulaIdeBridge, FormulaPreviewTarget, OpenFormulaRequest } from "./formula-ide-context";
 import { MissingValuesCard } from "./missing-values-card";
 import { PreviewDataControls } from "./preview-data-controls";
 import type { WorkbenchProps } from "./workbench-types";
@@ -136,13 +149,20 @@ export function useFormulaIde({
   });
 
   const template = useMemo(() => target?.template ?? [], [target]);
+  // Integrations that are switched off still count (BB-E-12): the board shows
+  // ??? for them, Sample fills their declared examples and Live says why.
+  const disabled = variables?.disabled_plugins;
   const roots = useMemo(
-    () => referencedRoots(template, Object.keys(variables?.variables ?? {})),
-    [template, variables],
+    () => referencedRoots(template, [...Object.keys(variables?.variables ?? {}), ...Object.keys(disabled ?? {})]),
+    [template, variables, disabled],
   );
   const sample = useMemo(
-    () => sampleValues(variables?.variable_metadata as Parameters<typeof sampleValues>[0], roots),
-    [variables, roots],
+    () => sampleValues(withDisabledExamples(variables?.variable_metadata, disabled), roots),
+    [variables, disabled, roots],
+  );
+  const offRoots = useMemo(
+    () => roots.filter((root) => disabled?.[root]).map((root) => ({ root, name: disabled![root].name })),
+    [roots, disabled],
   );
   const atIso = atTime ? atIsoForTime(atTime, new Date()) : null;
   const previewContext = useMemo(
@@ -173,6 +193,56 @@ export function useFormulaIde({
 
   const missingRoots = useMemo(() => (mode === "missing" ? roots : []), [mode, roots]);
   const hints = useMemo(() => buildHintIndex(diagnostics, missingRoots), [diagnostics, missingRoots]);
+
+  // BB-FP-11: variable chips show their value too. One probe render evaluates
+  // every variable path as a formula, for the same board and preview context.
+  const variablePaths = useMemo(() => templateVariablePaths(template), [template]);
+  const probeTarget = useMemo<RenderTarget | null>(
+    () =>
+      target === null || variablePaths.length === 0
+        ? null
+        : {
+            template: variableProbeTemplate(variablePaths),
+            deviceType: target.deviceType,
+            notesWide: target.notesWide,
+            notesTall: target.notesTall,
+            grid: target.grid,
+            boardId: target.boardId,
+          },
+    [target, variablePaths],
+  );
+  const formulaPreview = useMemo<FormulaPreviewTarget | null>(
+    () =>
+      target === null
+        ? null
+        : {
+            target: {
+              deviceType: target.deviceType,
+              notesWide: target.notesWide,
+              notesTall: target.notesTall,
+              grid: target.grid,
+              boardId: target.boardId,
+            },
+            context: previewContext,
+            boardCols,
+          },
+    [target, previewContext, boardCols],
+  );
+  const variableRender = useQuery<FormulaDebugRenderResponse>({
+    queryKey: ["formula-ide", "variables", probeTarget, previewContext],
+    queryFn: ({ signal }) => formulaDebugApi.render({ target: probeTarget!, preview: previewContext }, signal),
+    enabled: probeTarget !== null,
+    placeholderData: keepPreviousData,
+    // Keyed on the variable set, not the text, so an edit doesn't re-probe;
+    // live data is re-read every 30 s instead.
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    retry: false,
+  });
+  const variableHints = useMemo(
+    () => buildVariableHintIndex(probeTarget ? variableRender.data?.diagnostics : null),
+    [probeTarget, variableRender.data],
+  );
 
   // The formula the inspector, the trace and the line card are about.
   const cellDetail = useMemo(() => {
@@ -236,9 +306,24 @@ export function useFormulaIde({
     return () => document.removeEventListener("keydown", onKey);
   }, [desktop, target]);
 
+  // The template line the docked editor or Inspect is about (BB-FP-15/16): a
+  // primitive, so a keystroke in the editor (a new `open` draft) doesn't give
+  // the bridge, and every chip, a new identity. A plain-text cell falls back
+  // to its source line.
+  const activeLine = activeTemplateLine({
+    desktop,
+    editing: open !== null,
+    inspecting: inspect && focus !== null,
+    formulaLine: focusFormula?.line,
+    cellLine: cellDetail?.origin?.source.line,
+  });
+
   const bridge = useMemo<FormulaIdeBridge>(
     () => ({
       hint: (expression) => hints.get(normalizeSource(expression)),
+      variableHint: (path) => variableHints.get(path),
+      preview: formulaPreview,
+      activeLine,
       openFormula: (request) => {
         if (!desktop || target === null) return false;
         openCounter.current += 1;
@@ -255,7 +340,7 @@ export function useFormulaIde({
         }
       },
     }),
-    [hints, desktop, target],
+    [hints, variableHints, formulaPreview, desktop, target, activeLine],
   );
 
   const inert = target === null;
@@ -281,7 +366,9 @@ export function useFormulaIde({
       atLabel={atLabel}
       template={template}
       roots={roots}
-      unsampled={sample.unsampled}
+      offRoots={offRoots}
+      // An integration that is off has no hub data to keep: not in this note.
+      unsampled={sample.unsampled.filter((root) => !disabled?.[root])}
       formulas={diagnostics?.formulas ?? []}
       sources={own?.sources ?? null}
       loading={render.isPending && previewContext !== null}
@@ -381,6 +468,27 @@ export function useFormulaIde({
         </Suspense>
       ) : null,
   };
+}
+
+/**
+ * The template line to tint (BB-FP-15/16): the formula being edited or
+ * inspected, else an inspected plain-text cell's source line. Desktop only.
+ */
+export function activeTemplateLine({
+  desktop,
+  editing,
+  inspecting,
+  formulaLine,
+  cellLine,
+}: {
+  desktop: boolean;
+  editing: boolean;
+  inspecting: boolean;
+  formulaLine?: number;
+  cellLine?: number;
+}): number | null {
+  if (!desktop || !(editing || inspecting)) return null;
+  return formulaLine ?? cellLine ?? null;
 }
 
 /** "07:00" → "7:00 AM" in the viewer's locale. */
