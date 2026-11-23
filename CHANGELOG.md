@@ -1,5 +1,11 @@
 # fiestaboard
 
+## 11.0.0-alpha.20
+
+### Patch Changes
+
+- [#2640](https://github.com/Fiestaboard/FiestaBoard/pull/2640) [`0b58b0f`](https://github.com/Fiestaboard/FiestaBoard/commit/0b58b0fc4b7d07179b35180eb9181348ead82bb0) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Picks up FiestaUI 8.17.0-alpha.7: in the tablet band (768–1023) the rail now sits 8px from the window edge with a 16px gutter beside it, and page headers stay 24px from the top. The close button on wide dialogs sits 24px from the top, the scrim behind dialogs, alerts and sheets now dims the scrollbar gutter too, and the toast close button is 16px.
+
 ## 11.0.0-alpha.19
 
 ### Patch Changes
