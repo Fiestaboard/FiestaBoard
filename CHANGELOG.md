@@ -1,5 +1,15 @@
 # fiestaboard
 
+## 11.0.0-alpha.18
+
+### Patch Changes
+
+- [#2601](https://github.com/Fiestaboard/FiestaBoard/pull/2601) [`cc6ea3a`](https://github.com/Fiestaboard/FiestaBoard/commit/cc6ea3a88341b1db67550e3da6f3ab569ed95dcb) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Account settings drop the separate "Signed in" card (the username sits under the Account title), and the Signed-in devices heading carries "Sign out other devices…" and "Connect a phone" on its right, with icons in the legend.
+
+- [#2597](https://github.com/Fiestaboard/FiestaBoard/pull/2597) [`a2f5b53`](https://github.com/Fiestaboard/FiestaBoard/commit/a2f5b53e02d07f575a2ea03bef520a79ac979cc2) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Schedule follows the design more closely: weeks start on Monday, hours read "6 AM", the week view has one toolbar row, and on a phone five day chips move with the chosen day under an "Add entry" button. The page now sits on the shared flat page grammar, like the other pages.
+
+- [#2606](https://github.com/Fiestaboard/FiestaBoard/pull/2606) [`3835f03`](https://github.com/Fiestaboard/FiestaBoard/commit/3835f0382f25509f4a2fe001114c2a7c59855074) Thanks [@jeffredodd](https://github.com/jeffredodd)! - The setup wizard's Back is a quiet text button, as designed.
+
 ## 11.0.0-alpha.17
 
 ### Patch Changes
