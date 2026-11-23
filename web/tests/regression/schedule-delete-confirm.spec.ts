@@ -48,7 +48,7 @@ async function openDeleteConfirmation(page: Page) {
     .first()
     .click();
   const editor = page.getByRole("dialog", { name: "Edit Schedule", exact: true });
-  await expect(editor.getByLabel("Start Time", { exact: true })).toHaveValue("09:00");
+  await expect(editor.getByLabel("Start Time", { exact: true })).toContainText("9:00 AM");
   await editor.getByRole("button", { name: "Delete entry…", exact: true }).click();
   await expect(page.getByRole("alertdialog", { name: "Delete Schedule", exact: true })).toBeVisible();
 }

@@ -28,6 +28,7 @@ import {
   slowRoute,
   test,
 } from "../helpers";
+import { pickTime } from "../time-picker";
 
 test.beforeEach(async ({ context, page }) => {
   await ensureAuthForFetch();
@@ -389,11 +390,11 @@ test.describe("regression: schedule.form", () => {
     await sheet.getByRole("combobox", { name: /^Page or Collection/ }).click();
     await page.getByRole("option", { name: pageName, exact: true }).click();
     await expect(selectPageError).toHaveCount(0);
-    await sheet.getByLabel("End Time", { exact: true }).fill("09:00");
+    await pickTime(page, sheet.getByLabel("End Time", { exact: true }), "09:00");
     await submitBtn.click();
     await expect(sheet.getByText("End time must be different from start time", { exact: true })).toBeVisible();
     expect(writes).toBe(0);
-    await sheet.getByLabel("End Time", { exact: true }).fill("17:00");
+    await pickTime(page, sheet.getByLabel("End Time", { exact: true }), "17:00");
     const response = page.waitForResponse(
       (r) => r.url().endsWith("/api/v1/schedules") && r.request().method() === "POST",
     );
@@ -436,7 +437,7 @@ test.describe("regression: schedule.form", () => {
     await createBtn.click();
     await expect(sheet.getByRole("alert")).toContainText("overlap");
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByLabel("Start Time", { exact: true })).toHaveValue("09:00");
+    await expect(sheet.getByLabel("Start Time", { exact: true })).toContainText("9:00 AM");
   });
 
   /**
@@ -472,7 +473,7 @@ test.describe("regression: schedule.form", () => {
     await updateBtn.click();
     await expect(sheet.getByRole("alert")).toContainText("boom");
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByLabel("Start Time", { exact: true })).toHaveValue("09:00");
+    await expect(sheet.getByLabel("Start Time", { exact: true })).toContainText("9:00 AM");
   });
 
   // ---------------------------------------------------------------------------
@@ -533,8 +534,8 @@ test.describe("regression: schedule.form", () => {
       .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible({ timeout: 10_000 });
-    // Editing preserves the native time input value.
-    await expect(sheet.getByLabel("Start Time", { exact: true })).toHaveValue("09:30");
+    // Editing preserves the time (the kit TimePicker shows it, FiestaUI #444).
+    await expect(sheet.getByLabel("Start Time", { exact: true })).toContainText("9:30 AM");
   });
 
   // ---------------------------------------------------------------------------

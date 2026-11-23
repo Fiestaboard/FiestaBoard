@@ -1,6 +1,17 @@
-import { Box, Button, Flex, ListItem, ListRow, ListRowGroup, Stack, StatusDot, Switch, Text } from "@fiestaboard/ui";
+import {
+  Box,
+  Button,
+  Flex,
+  ListItem,
+  ListRow,
+  ListRowChevron,
+  ListRowGroup,
+  Stack,
+  StatusDot,
+  Switch,
+  Text,
+} from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
@@ -128,7 +139,7 @@ export function DisplayOverview({
             title={ts("silenceScheduleLabel")}
             meta={silenceRange}
             render={<button type="button" onClick={onPlayback} />}
-            trailing={<ChevronRight className="size-4" aria-hidden="true" />}
+            trailing={<ListRowChevron />}
           />
         </ListItem>
         <ListItem>
@@ -136,7 +147,7 @@ export function DisplayOverview({
             title={t("diagnostics")}
             meta={health?.latency_ms != null ? `${health.latency_ms} ms` : t("unknown")}
             render={<button type="button" aria-label={t("diagnostics")} onClick={onDiagnostics} />}
-            trailing={<ChevronRight className="size-4" aria-hidden="true" />}
+            trailing={<ListRowChevron />}
           />
         </ListItem>
       </ListRowGroup>

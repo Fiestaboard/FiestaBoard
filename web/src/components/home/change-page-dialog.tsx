@@ -13,6 +13,7 @@ import {
   Flex,
   Input,
   ListRow,
+  ListRowChevron,
   SegmentedControl,
   SegmentedControlItem,
   Sheet,
@@ -25,7 +26,7 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, ChevronLeft, ChevronRight, FileText, GalleryHorizontalEnd } from "lucide-react";
+import { Check, ChevronLeft, FileText, GalleryHorizontalEnd } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -307,11 +308,7 @@ export function ChangePageDialog({
               title={c.name}
               description={description || undefined}
               trailing={
-                isPhone ? (
-                  <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
-                ) : isSelected ? (
-                  <Check className="size-4" aria-hidden="true" />
-                ) : null
+                isPhone ? <ListRowChevron /> : isSelected ? <Check className="size-4" aria-hidden="true" /> : null
               }
               className={isSelected ? "rounded-lg bg-tint-selected ring-1 ring-foreground/70" : undefined}
             />

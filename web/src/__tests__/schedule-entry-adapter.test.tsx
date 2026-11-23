@@ -33,7 +33,8 @@ describe("Kit schedule entry host adapter", () => {
       ref.current!.setField("end_time", null);
       ref.current!.setField("enabled", false);
     });
-    expect(screen.getByLabelText("Start Time")).toHaveValue("10:15");
+    // The kit TimePicker (FiestaUI #444, BB-FC-7) is a button that shows the time.
+    expect(screen.getByLabelText("Start Time")).toHaveTextContent("10:15 AM");
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(submit).toHaveBeenCalledWith(
@@ -70,7 +71,7 @@ describe("Kit schedule entry host adapter", () => {
     render(<ScheduleEntryAdapter schedule={schedule} pages={pages} onSubmit={submit} onCancel={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Revision changed");
-    expect(screen.getByLabelText("Start Time")).toHaveValue("09:00");
+    expect(screen.getByLabelText("Start Time")).toHaveTextContent("9:00 AM");
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(submit).toHaveBeenCalledTimes(2));
   });

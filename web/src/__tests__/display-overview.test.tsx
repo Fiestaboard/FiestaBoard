@@ -69,3 +69,13 @@ describe("DisplayOverview while an override runs", () => {
     expect(await screen.findByText(/^Changes at /)).toBeInTheDocument();
   });
 });
+
+describe("DisplayOverview rows (FK-9)", () => {
+  it("ends the Silence and Diagnostics rows in the kit's ListRow chevron", async () => {
+    draw({});
+    for (const name of [/Silence/, /Diagnostics/]) {
+      const row = await screen.findByRole("button", { name });
+      expect(row.querySelector('[data-slot="list-row-chevron"]')).not.toBeNull();
+    }
+  });
+});
