@@ -146,14 +146,35 @@ export function SignedInDevices() {
   ];
   return (
     <Stack gap="4" className="text-foreground">
-      <Stack gap="1">
-        <Heading level={3} size="xl">
-          {t("title")}
-        </Heading>
-        <Text size="sm" tone="muted">
-          {t("description")}
-        </Text>
-      </Stack>
+      {/* 07e `321:9076`: the heading row carries both actions on its right —
+          outline "Sign out other devices…" (it opens a confirm), then the
+          primary "Connect a phone" (BB-FC-13). */}
+      <Flex align="start" justify="between" gap="3" wrap data-slot="signed-in-devices-head">
+        <Stack gap="1" className="min-w-0 flex-1 basis-60">
+          <Heading level={3} size="xl">
+            {t("title")}
+          </Heading>
+          <Text size="sm" tone="muted">
+            {t("description")}
+          </Text>
+        </Stack>
+        {data && (
+          <Flex gap="2" wrap className="flex-col sm:flex-row">
+            <Button
+              variant="outline"
+              className="min-h-touch sm:min-h-0"
+              disabled={busy}
+              onClick={() => setConfirm("others")}
+            >
+              {t("othersAction")}
+            </Button>
+            <Button className="min-h-touch sm:min-h-0" disabled={busy} onClick={() => setPairing(true)}>
+              <QrCode className="size-4" />
+              {t("connectPhone")}
+            </Button>
+          </Flex>
+        )}
+      </Flex>
       <Stack gap="4">
         {error && !confirm && (
           <Text role="alert" tone="destructive">
@@ -173,18 +194,30 @@ export function SignedInDevices() {
         )}
         {data && (
           <>
-            <Flex gap="2" wrap className="flex-col sm:flex-row">
-              <Button className="min-h-touch sm:min-h-0" disabled={busy} onClick={() => setPairing(true)}>
-                <QrCode className="size-4" />
-                {t("connectPhone")}
-              </Button>
-              <Button variant="outline" disabled={busy} onClick={() => setConfirm("others")}>
-                {t("others")}
-              </Button>
+            {/* The legend chip: a clock for "Last connected", a monitor for
+                "Last shown", as the rows draw them (07e `321:9076`). */}
+            <Flex
+              align="center"
+              gap="4"
+              wrap
+              className="rounded-md bg-muted px-3 py-2"
+              data-slot="signed-in-devices-legend"
+            >
+              {t("clocksLegend")
+                .split(" · ")
+                .map((part, index) => (
+                  <Flex key={part} align="center" gap="1.5">
+                    {index === 0 ? (
+                      <Clock className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                    ) : (
+                      <Monitor className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                    )}
+                    <Text as="span" size="xs" tone="muted">
+                      {part}
+                    </Text>
+                  </Flex>
+                ))}
             </Flex>
-            <Text size="xs" tone="muted" className="rounded-md bg-muted px-3 py-2">
-              {t("clocksLegend")}
-            </Text>
             {groups
               .filter((group) => group.rows.length)
               .map((group) => (

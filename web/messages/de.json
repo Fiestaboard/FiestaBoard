@@ -3761,6 +3761,7 @@
     "legacyHint": "Ältere Apps können dein Passwort speichern und sich nach einem Widerruf erneut anmelden. Ändere dein Passwort, um sie dauerhaft auszuschließen.",
     "revoke": "Widerrufen",
     "others": "Andere Geräte abmelden",
+    "othersAction": "Andere Geräte abmelden…",
     "all": "Überall abmelden",
     "confirmOthers": "Alle anderen Browser und TVs abmelden? Dieser Browser bleibt angemeldet. Ausstehende TV-Codes werden verworfen.",
     "confirmAll": "Alle Browser und TVs einschließlich dieses Browsers abmelden? Ausstehende TV-Codes werden verworfen.",
