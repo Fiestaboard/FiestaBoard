@@ -1,5 +1,11 @@
 # fiestaboard
 
+## 11.0.0-alpha.19
+
+### Patch Changes
+
+- [#2637](https://github.com/Fiestaboard/FiestaBoard/pull/2637) [`68f769b`](https://github.com/Fiestaboard/FiestaBoard/commit/68f769b83c8c8d95f270d71792128c45c25d1c9a) Thanks [@jeffredodd](https://github.com/jeffredodd)! - Picks up the latest FiestaUI kit: phone list rows are 60px tall with the kit's own chevron, the tab bar reserves 84px, and Esc from a template toolbar picker returns the caret through the kit itself.
+
 ## 11.0.0-alpha.18
 
 ### Patch Changes
