@@ -417,7 +417,7 @@ jobs:
       - name: Generate AI summary with Claude
         if: needs.version.outputs.prerelease != 'true'
         continue-on-error: true
-        uses: anthropics/claude-code-base-action@298ebba052ef5001fd3417bbc6f2cb23788c1df0
+        uses: anthropics/claude-code-base-action@6755bea638d102f3666ab5ef00ea7077fbfc5380
         env:
           NODE_VERSION: '24'
         with:
