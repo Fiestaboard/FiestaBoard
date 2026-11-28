@@ -4174,7 +4174,8 @@
       "unknown_field": "#REF",
       "formula": "公式错误",
       "beyond_board": "超出最后一行",
-      "substitution": "替换"
+      "substitution": "替换",
+      "wrap_stopped": "换行被截断"
     },
     "severityError": "错误",
     "severityWarning": "警告",

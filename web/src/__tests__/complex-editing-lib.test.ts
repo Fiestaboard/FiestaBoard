@@ -197,8 +197,28 @@ describe("rowsPastBoard (W-1)", () => {
           },
         ],
       }),
-    ).toEqual([{ line: 5, message: "Line 5 wraps past the board's 6 rows · 1 row won't show" }]);
+    ).toEqual([{ line: 5, message: "Line 5 wraps past the board's 6 rows · 1 row won't show", kind: "beyond_board" }]);
     expect(rowsPastBoard(undefined)).toEqual([]);
+  });
+
+  // FABLE-2659: a wrap a line typed below stops short loses rows the same way.
+  it("keeps a wrap stopped by a line below as its own kind", () => {
+    expect(
+      rowsPastBoard({
+        valid: false,
+        cols: 22,
+        rows: 6,
+        errors: [
+          {
+            line: 4,
+            column: 0,
+            message: "Line 4 wraps into line 5 · 2 rows won't show",
+            code: "wrap_stopped",
+            max_length: null,
+          },
+        ],
+      }),
+    ).toEqual([{ line: 4, message: "Line 4 wraps into line 5 · 2 rows won't show", kind: "wrap_stopped" }]);
   });
 });
 

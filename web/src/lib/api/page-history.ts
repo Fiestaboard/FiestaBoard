@@ -115,7 +115,8 @@ export type BoardValidationCode =
   | "unknown_source"
   | "unknown_field"
   | "formula"
-  | "beyond_board";
+  | "beyond_board"
+  | "wrap_stopped";
 
 export interface BoardValidationError {
   /** 1-based. */

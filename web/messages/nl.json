@@ -4174,7 +4174,8 @@
       "unknown_field": "#REF",
       "formula": "Formulefout",
       "beyond_board": "Voorbij de laatste rij",
-      "substitution": "Vervanging"
+      "substitution": "Vervanging",
+      "wrap_stopped": "Terugloop afgekapt"
     },
     "severityError": "Fout",
     "severityWarning": "Waarschuwing",

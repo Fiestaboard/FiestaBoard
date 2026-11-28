@@ -4174,7 +4174,8 @@
       "unknown_field": "#REF",
       "formula": "Ошибка формулы",
       "beyond_board": "За последней строкой",
-      "substitution": "Подстановка"
+      "substitution": "Подстановка",
+      "wrap_stopped": "Перенос обрезан"
     },
     "severityError": "Ошибка",
     "severityWarning": "Предупреждение",

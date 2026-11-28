@@ -4174,7 +4174,8 @@
       "unknown_field": "#REF",
       "formula": "Formül hatası",
       "beyond_board": "Son satırın ötesinde",
-      "substitution": "Yer değiştirme"
+      "substitution": "Yer değiştirme",
+      "wrap_stopped": "Kaydırma kesildi"
     },
     "severityError": "Hata",
     "severityWarning": "Uyarı",

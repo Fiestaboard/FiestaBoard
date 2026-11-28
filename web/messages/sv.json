@@ -4174,7 +4174,8 @@
       "unknown_field": "#REF",
       "formula": "Formelfel",
       "beyond_board": "Efter sista raden",
-      "substitution": "Ersättning"
+      "substitution": "Ersättning",
+      "wrap_stopped": "Radbrytning avkortad"
     },
     "severityError": "Fel",
     "severityWarning": "Varning",

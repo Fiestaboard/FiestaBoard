@@ -4174,7 +4174,8 @@
       "unknown_field": "#REF",
       "formula": "Error de fórmula",
       "beyond_board": "Más allá de la última fila",
-      "substitution": "Sustitución"
+      "substitution": "Sustitución",
+      "wrap_stopped": "Ajuste cortado"
     },
     "severityError": "Error",
     "severityWarning": "Advertencia",

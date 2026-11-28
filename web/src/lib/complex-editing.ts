@@ -161,18 +161,25 @@ export function lineOverflows(response: TemplateValidationAtResponse | undefined
   );
 }
 
-/** A line the hub says the board runs out of rows for (`beyond_board`), in the hub's words (W-1). */
+/**
+ * A line the hub says loses rows on the board, in the hub's words: past the last
+ * row (`beyond_board`, W-1), or a wrap a line below stops short (`wrap_stopped`,
+ * FABLE-2659).
+ */
 export interface RowsPastBoard {
   /** One-based template line. */
   line: number;
   message: string;
+  kind: "beyond_board" | "wrap_stopped";
 }
 
-/** The validator's `beyond_board` verdicts: a line past the last row, or a wrap that runs off it. */
+/** The validator's verdicts on rows the board drops: past the last row, or a wrap stopped by a line below. */
 export function rowsPastBoard(response: TemplateValidationAtResponse | undefined): RowsPastBoard[] {
   if (!response) return [];
   return response.errors.flatMap((error) =>
-    error.code === "beyond_board" ? [{ line: error.line, message: error.message }] : [],
+    error.code === "beyond_board" || error.code === "wrap_stopped"
+      ? [{ line: error.line, message: error.message, kind: error.code }]
+      : [],
   );
 }
 

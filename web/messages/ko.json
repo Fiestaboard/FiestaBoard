@@ -4174,7 +4174,8 @@
       "unknown_field": "#REF",
       "formula": "수식 오류",
       "beyond_board": "마지막 행 초과",
-      "substitution": "치환"
+      "substitution": "치환",
+      "wrap_stopped": "줄바꿈이 잘림"
     },
     "severityError": "오류",
     "severityWarning": "경고",
