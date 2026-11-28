@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { IdeConsole, IdeProblemList } from "@/components/ide/ide-console";
 import type { CreatorIdeState } from "@/components/ide/use-creator-ide";
-import { problemTitleParts } from "@/lib/ide/problems";
+import { problemsFromValidation, problemTitleParts } from "@/lib/ide/problems";
 
 describe("console fidelity (BB-FP-18)", () => {
   it("stretches the three tabs across the list", () => {
@@ -41,5 +41,26 @@ describe("console fidelity (BB-FP-18)", () => {
       tag: "#DIV/0",
       detail: "Division by zero",
     });
+  });
+
+  // UX-4-3: the console row says a cut line in the H4 card's words.
+  it("words a too-long line as the H4 card does: columns of the board, and how many are cut off", () => {
+    render(
+      <IdeProblemList
+        layout="inline"
+        emptyLabel="none"
+        problems={problemsFromValidation([
+          {
+            line: 14,
+            column: 34,
+            message: "Line may be too long (up to 85 chars, max 34)",
+            code: "line_too_long",
+            max_length: 85,
+          },
+        ])}
+      />,
+    );
+    expect(screen.getByText("85 of 34 columns · 51 cut off")).toBeInTheDocument();
+    expect(screen.queryByText(/up to 85 chars/)).toBeNull();
   });
 });

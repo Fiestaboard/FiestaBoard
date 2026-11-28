@@ -3861,7 +3861,7 @@
     "showShortcuts": "Pokaż skróty klawiszowe",
     "previewStep": "Przesuń podgląd o jedną notatkę lub kolumnę",
     "previewEnds": "Przejdź na początek lub koniec podglądu",
-    "previewFit": "Dopasuj / Rzeczywisty rozmiar (podgląd aktywny)",
+    "previewFit": "Dopasuj / Rzeczywisty rozmiar",
     "insertFormula": "Wstaw formułę",
     "save": "Zapisz",
     "saveAndShow": "Zapisz i pokaż teraz",
@@ -4462,5 +4462,16 @@
     "caret": "Wiersz {line}, Kol {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Odstępy"
+  },
+  "previewView": {
+    "view": "Widok",
+    "previewAt": "Podgląd o wybranej godzinie…",
+    "zoom": "Powiększenie",
+    "ruler": "Linijka",
+    "at": "O",
+    "inspectCaption": "Inspekcja: kliknij kafelek, aby zobaczyć token i kroki formuły · Esc, aby zakończyć",
+    "missingNoDataTitle": "Brak danych z integracji na tej stronie",
+    "missingFormulaError": "{error} w wierszu {line} to błąd formuły, a nie brakujące dane.",
+    "seeProblems": "Pokaż problemy"
   }
 }

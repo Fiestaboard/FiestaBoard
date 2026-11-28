@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CreatorIde from "@/components/ide/creator-ide";
 import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
+import { openIdeProblems } from "@/lib/ide/open-problems";
 
 import { server } from "./mocks/server";
 
@@ -1399,5 +1400,17 @@ describe("truthful, quiet IDE (FP-2)", () => {
     const line = await within(consoleRegion).findByRole("button", { name: /^No problems/ });
     await waitFor(() => expect(line).toHaveFocus());
     expect(within(consoleRegion).queryByRole("tab")).toBeNull();
+  });
+});
+
+// UX-4-4: the preview's Missing panel names a formula error and links to Problems.
+describe("Creator IDE opens Problems on request", () => {
+  it("shows the Problems list when the preview asks for it", async () => {
+    mockHub();
+    renderIde();
+    const problems = await screen.findByRole("tab", { name: /Problems/ });
+    expect(problems).toHaveAttribute("aria-selected", "false");
+    act(() => openIdeProblems());
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Problems/ })).toHaveAttribute("aria-selected", "true"));
   });
 });

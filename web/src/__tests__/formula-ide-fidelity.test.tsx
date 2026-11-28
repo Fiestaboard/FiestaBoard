@@ -166,7 +166,16 @@ describe("Inspect (BB-FP-16)", () => {
   });
 
   it("frames the pane with a 2 px amber border", () => {
-    wrap(<FormulaInspectorPane {...props({ open: null, inspect: true })} />);
+    wrap(
+      <FormulaInspectorPane
+        {...props({
+          open: null,
+          inspect: true,
+          focus: { kind: "cell", row: 0, col: 0 },
+          cell: { origin: null, detail: null },
+        })}
+      />,
+    );
     expect(screen.getByTestId("inspector-pane")).toHaveClass("border-2", "border-ring");
   });
 

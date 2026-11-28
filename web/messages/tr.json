@@ -3861,7 +3861,7 @@
     "showShortcuts": "Klavye kısayollarını göster",
     "previewStep": "Önizlemeyi bir not veya sütun kaydır",
     "previewEnds": "Önizlemenin başına veya sonuna atla",
-    "previewFit": "Sığdır / Gerçek boyut (önizleme odakta)",
+    "previewFit": "Sığdır / Gerçek boyut",
     "insertFormula": "Formül ekle",
     "save": "Kaydet",
     "saveAndShow": "Kaydet ve şimdi göster",
@@ -4462,5 +4462,16 @@
     "caret": "Sat {line}, Süt {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Boşluk"
+  },
+  "previewView": {
+    "view": "Görünüm",
+    "previewAt": "Belirli bir saatte önizle…",
+    "zoom": "Yakınlaştırma",
+    "ruler": "Cetvel",
+    "at": "Saat",
+    "inspectCaption": "İncele: belirteci ve formül adımlarını görmek için bir karoya tıkla · Çıkmak için Esc",
+    "missingNoDataTitle": "Bu sayfada entegrasyon verisi yok",
+    "missingFormulaError": "{line}. satırdaki {error} eksik veri değil, bir formül hatası.",
+    "seeProblems": "Sorunları göster"
   }
 }

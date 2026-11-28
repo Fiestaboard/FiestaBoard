@@ -3861,7 +3861,7 @@
     "showShortcuts": "Visa kortkommandon",
     "previewStep": "Flytta förhandsvisningen en Note eller kolumn",
     "previewEnds": "Hoppa till början eller slutet av förhandsvisningen",
-    "previewFit": "Anpassa / Verklig storlek (förhandsvisning i fokus)",
+    "previewFit": "Anpassa / Verklig storlek",
     "insertFormula": "Infoga en formel",
     "save": "Spara",
     "saveAndShow": "Spara och visa nu",
@@ -4462,5 +4462,16 @@
     "caret": "Rad {line}, Kol {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Avstånd"
+  },
+  "previewView": {
+    "view": "Visa",
+    "previewAt": "Förhandsgranska vid en tid…",
+    "zoom": "Zoom",
+    "ruler": "Linjal",
+    "at": "Kl.",
+    "inspectCaption": "Inspektera: klicka på en bricka för att se token och formelstegen · Esc för att avsluta",
+    "missingNoDataTitle": "Inga integrationsdata på den här sidan",
+    "missingFormulaError": "{error} på rad {line} är ett formelfel, inte saknade data.",
+    "seeProblems": "Visa problem"
   }
 }

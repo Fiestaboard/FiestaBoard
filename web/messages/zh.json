@@ -3861,7 +3861,7 @@
     "showShortcuts": "显示键盘快捷键",
     "previewStep": "将预览移动一个 Note 或一列",
     "previewEnds": "跳到预览的开头或结尾",
-    "previewFit": "适应 / 实际大小（预览获得焦点时）",
+    "previewFit": "适应 / 实际大小",
     "insertFormula": "插入公式",
     "save": "保存",
     "saveAndShow": "保存并立即显示",
@@ -4462,5 +4462,16 @@
     "caret": "第 {line} 行，第 {column} 列",
     "withShortcut": "{label}（{keys}）",
     "spacing": "间距"
+  },
+  "previewView": {
+    "view": "视图",
+    "previewAt": "在指定时间预览…",
+    "zoom": "缩放",
+    "ruler": "标尺",
+    "at": "时间",
+    "inspectCaption": "检查：点击方块查看其来源标记和公式步骤 · 按 Esc 退出",
+    "missingNoDataTitle": "此页面没有集成数据",
+    "missingFormulaError": "第 {line} 行的 {error} 是公式错误，不是缺少数据。",
+    "seeProblems": "查看问题"
   }
 }

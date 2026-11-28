@@ -3861,7 +3861,7 @@
     "showShortcuts": "キーボードショートカットを表示",
     "previewStep": "プレビューを1ノートまたは1列移動",
     "previewEnds": "プレビューの先頭または末尾へ移動",
-    "previewFit": "全体表示 / 実寸（プレビューにフォーカス時）",
+    "previewFit": "全体表示 / 実寸",
     "insertFormula": "数式を挿入",
     "save": "保存",
     "saveAndShow": "保存して今すぐ表示",
@@ -4462,5 +4462,16 @@
     "caret": "{line} 行、{column} 列",
     "withShortcut": "{label}（{keys}）",
     "spacing": "スペース"
+  },
+  "previewView": {
+    "view": "表示",
+    "previewAt": "時刻を指定してプレビュー…",
+    "zoom": "ズーム",
+    "ruler": "ルーラー",
+    "at": "時刻",
+    "inspectCaption": "検査: タイルをクリックすると元のトークンと数式の手順を表示 · Escで終了",
+    "missingNoDataTitle": "このページには連携データがありません",
+    "missingFormulaError": "{line} 行目の {error} は数式エラーで、データ欠落ではありません。",
+    "seeProblems": "問題を表示"
   }
 }

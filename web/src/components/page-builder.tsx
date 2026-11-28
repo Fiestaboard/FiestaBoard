@@ -13,7 +13,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
   type BoardPreviewMode,
-  BoardPreviewModeToggle,
   Box,
   Button,
   Card,
@@ -104,6 +103,7 @@ import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
 import { EditorShortcutList, useEditorShortcutList } from "@/components/editor-shortcut-list";
 import { EditorAnchoredTool } from "@/components/editor-tablet-tools";
+import { PreviewHeaderControls, type PreviewZoom } from "@/components/formula-ide/preview-data-controls";
 import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { boardMeta } from "@/components/home/home-board";
 import { scheduleNextChange } from "@/components/home/home-status";
@@ -215,11 +215,6 @@ const CharsetTemplateEditor = lazy(() =>
 
 // Web 2.9 (04b) lenses load only for big boards and note arrays on the
 // desktop pane, keeping their kit composites off every other editor load.
-/**
- * The preview board's width (px) under which the header cannot hold the title,
- * the target and the data controls in one row (BB-E-5).
- */
-const PREVIEW_HEADER_MIN_WIDTH = 528;
 type PreviewTools = typeof import("@/components/complex-editing/complex-preview-tools");
 type TemplateTools = typeof import("@/components/complex-editing/complex-template-tools");
 const loadedTools: { preview?: PreviewTools; template?: TemplateTools } = {};
@@ -258,7 +253,6 @@ function chunkComponent<P extends object>(load: () => Promise<unknown>, pick: ()
   return ChunkComponent;
 }
 const TipTapTemplateEditor = chunkComponent(tipTapEditor, () => loadedTipTap?.TipTapTemplateEditor);
-const BigBoardZoom = chunkComponent(previewTools, () => loadedTools.preview?.BigBoardZoom);
 const ComplexPreviewRuler = chunkComponent(previewTools, () => loadedTools.preview?.ComplexPreviewRuler);
 const ComplexPreviewSeams = chunkComponent(previewTools, () => loadedTools.preview?.ComplexPreviewSeams);
 const ComplexPreviewOverview = chunkComponent(previewTools, () => loadedTools.preview?.ComplexPreviewOverview);
@@ -546,7 +540,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, [workspaceElement]);
   const tTouch = useTranslations("editorTouch");
   const tToolbar = useTranslations("templateEditor");
-  const tBoardDisplay = useTranslations("boardDisplay");
   const tShortcuts = useTranslations("editorShortcuts");
   const dockedPreview = useMediaQuery("(max-width: 1023px)");
   // 768 px and up: template | preview side by side (UX-4-5, 61:17544).
@@ -3016,12 +3009,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     .join(" · ");
   // The save/draft state never truncates: it carries "Draft restored · Discard".
   const headerState = draftState?.label ?? saveStateLabel;
-  const mirrorMoreContent = (
-    <Stack gap="3">
-      {mirrorControl}
-      {dockedPreview && secondaryActions}
-    </Stack>
-  );
 
   // Web 2.10 (04c): formula values, Live/Sample/Missing, Inspect and the
   // docked formula workbench. Inert for canvases and plain-text-only boards.
@@ -3072,6 +3059,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setTemplateLines((lines) => lines.map((line, i) => (i === index ? edit(line) : line)));
     },
   });
+  const mirrorMoreContent = (
+    <Stack gap="3">
+      {/* The dock's data modes live here, not in a row over the board (UX-10-2). */}
+      {formulaIde.moreControls}
+      {mirrorControl}
+      {dockedPreview && secondaryActions}
+    </Stack>
+  );
   // What the live preview shows. Keeps the previous message visible during
   // loading/transition, so tiles cycle through characters (like a real board)
   // instead of flashing empty.
@@ -3092,7 +3087,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Sample, Missing or another time render through the formula IDE (hub H6).
   const shownPreviewMessage = drawMode ? editorPreviewMessage : (formulaIde.previewOverride ?? editorPreviewMessage);
 
-  const previewReplay = usePreviewReplay(shownPreviewMessage);
+  // BB-E-33: Replay pressed while the preview's render is in flight (or not yet
+  // sent for a template with content) waits for it. A failed or blank render is
+  // not loading, so nothing stays queued for the next edit.
+  const previewReplay = usePreviewReplay(shownPreviewMessage, {
+    loading:
+      !drawMode &&
+      (previewMutation.isPending ||
+        (previewMutation.isIdle && debouncedTemplateLines.some((line) => line.trim().length > 0))),
+  });
   const boardAnimationsEnabled = useBoardAnimationsEnabled();
   // Nothing to replay when the user's settings (or reduced motion) turn the flaps off.
   const canReplay = boardAnimationsEnabled && !drawMode && !baselineDisplay && !isLedModel(previewModel);
@@ -3301,32 +3304,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Web 2.9 (04b): complex-editing lenses for big boards and note arrays on
   // the desktop pane, and the hub's real-width overflow check (H4) everywhere.
   const [previewStage, setPreviewStage] = useState<HTMLElement | null>(null);
-  // The header is one row (BB-E-5). Figma 53:137378 puts Fit / Actual there;
-  // 307:46094, with Live · Sample · Missing and the clock, has no room for it,
-  // so then the zoom moves to the board.
-  // A pane too narrow for both keeps the header one row by moving the data
-  // controls (and the zoom) onto a row above the board.
-  // Stored as the decision, not the width, so a resize re-renders only when it flips.
-  const [previewStageNarrow, setPreviewStageNarrow] = useState(false);
-  useLayoutEffect(() => {
-    if (!previewStage) return;
-    const measure = () => {
-      const width = previewStage.getBoundingClientRect().width;
-      setPreviewStageNarrow(width > 0 && width < PREVIEW_HEADER_MIN_WIDTH);
-    };
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(previewStage);
-    return () => observer.disconnect();
-  }, [previewStage]);
-  const dataControlsInHeader = dockedPreview || !previewStageNarrow;
-  const hasDataControls = !!formulaIde.headerControls;
-  // Fit / Actual takes the header only when nothing else needs the row; otherwise
-  // it is the viewport's own toggle, shown while the board overflows.
-  const fitToggleInHeader = !hasDataControls && dataControlsInHeader;
-  // The big-board zoom is wide: the header only takes it when it has the row to itself.
-  const bigZoomInHeader = !hasDataControls && dataControlsInHeader;
   // One stage element serves 2.9's lenses and 2.10's Inspect. The ref must be
   // stable: an inline callback runs again on every commit, and its
   // setPreviewStage(null) / (el) pair kept the whole editor re-committing.
@@ -3344,12 +3321,22 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     deviceType,
     notesWide,
     notesTall,
-    enabled: !dockedPreview && !baselineDisplay && !drawMode && !isLedModel(previewModel),
+    enabled: !dockedPreview && !baselineDisplay && !isLedModel(previewModel),
+    paused: drawMode,
     stage: previewStage,
     previewMode,
     onPreviewModeChange: changePreviewMode,
   });
   const complexMinimapId = useId();
+  // The header's zoom (UX-4-2): Fit / Actual size, and Tile sm · md · lg on big boards.
+  const previewZoom: PreviewZoom = complexEditing.ownsZoom
+    ? {
+        mode: complexEditing.previewMode,
+        onModeChange: complexEditing.setMode,
+        tile: complexEditing.tile,
+        onTileChange: complexEditing.setZoom,
+      }
+    : { mode: previewMode, onModeChange: changePreviewMode };
   // A big board's lenses arrive in their own chunks: the editor waits for them
   // (behind the loading skeleton) so they never push the workspace down after
   // the first paint (UX-8-3: CLS 0.346 on Den TV).
@@ -4230,22 +4217,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               {previewTargetControls}
                             </PreviewTargetPopover>
                           )}
-                          {dataControlsInHeader && formulaIde.headerControls}
-                          {bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard && (
-                            <Suspense fallback={null}>
-                              <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
-                            </Suspense>
-                          )}
-                          {fitToggleInHeader && !baselineDisplay && !complexEditing.bigBoard && (
-                            <BoardPreviewModeToggle
-                              mode={previewMode}
-                              onModeChange={changePreviewMode}
+                          {/* UX-4-1: Live | Sample | Missing, the time chip and ⋯ View (DD-W156). */}
+                          {!baselineDisplay && (
+                            <PreviewHeaderControls
+                              data={formulaIde.view}
+                              zoom={previewZoom}
+                              ruler={
+                                complexEditing.bigBoard
+                                  ? { on: complexEditing.rulerOpen, onChange: complexEditing.setRulerOpen }
+                                  : null
+                              }
                               size={dockedPreview ? "touch" : "default"}
-                              labels={{
-                                previewSize: tBoardDisplay("previewSizeLabel"),
-                                fit: tBoardDisplay("fitMode"),
-                                actual: tBoardDisplay("actualMode"),
-                              }}
                             />
                           )}
                           {dockedPreview &&
@@ -4268,18 +4250,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </Flex>
                       }
                     >
-                      {formulaIde.bodyControls}
-                      {((!dataControlsInHeader && hasDataControls) ||
-                        (!bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard)) && (
-                        <Flex justify="end" gap="2" wrap>
-                          {!dataControlsInHeader && formulaIde.headerControls}
-                          {!bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard && (
-                            <Suspense fallback={null}>
-                              <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
-                            </Suspense>
-                          )}
-                        </Flex>
-                      )}
                       {complexEditing.bigBoard && (
                         <Suspense fallback={null}>
                           <ComplexPreviewRuler complex={complexEditing} />
@@ -4353,21 +4323,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 }
                                 isStatic={drawMode}
                                 size={
-                                  complexEditing.bigBoard ? complexEditing.previewSize : dockedPreview ? "sm" : "md"
+                                  complexEditing.ownsZoom ? complexEditing.previewSize : dockedPreview ? "sm" : "md"
                                 }
                                 // Hero layouts settle a board that overflows by a
                                 // little into the pane (tiles stay >= 13 px): a
                                 // Flagship shows whole, Den TV still scrolls (BB-B-11).
                                 layout={dockedPreview ? "phone-hero" : "medium-hero"}
-                                mode={complexEditing.bigBoard ? complexEditing.previewMode : previewMode}
-                                onModeChange={
-                                  complexEditing.bigBoard
-                                    ? (mode) => complexEditing.setZoom(mode === "fit" ? "fit" : "sm")
-                                    : changePreviewMode
-                                }
-                                // With the data controls in the header, Fit / Actual is the
-                                // viewport's own, shown while the board overflows (307:46094).
-                                showModeToggle={!fitToggleInHeader && !complexEditing.bigBoard}
+                                mode={complexEditing.ownsZoom ? complexEditing.previewMode : previewMode}
+                                onModeChange={complexEditing.ownsZoom ? complexEditing.setMode : changePreviewMode}
+                                // Zoom is the header's (Fit / Actual, or the View menu): one place (UX-4-2).
+                                showModeToggle={false}
                                 boardType={effectiveBoardColor}
                                 deviceType={deviceType}
                                 code62Glyph={effectiveCode62Glyph}
@@ -4389,6 +4354,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           </Suspense>
                         )}
                       </Flex>
+                      {formulaIde.caption}
                       {complexEditing.bigBoard && (
                         <Suspense fallback={null}>
                           <ComplexPreviewOverview
@@ -4403,10 +4369,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               gridRows: panelGrid?.rows,
                               gridCols: panelGrid?.cols,
                             }}
-                            rendered={renderedRows}
-                            overflows={lineOverflow.overflows}
                             minimapId={complexMinimapId}
-                            onJump={goToTemplateCell}
                           />
                         </Suspense>
                       )}
