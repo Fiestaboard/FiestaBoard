@@ -2311,7 +2311,7 @@ class TemplateEngine:
                     TemplateError(
                         line=line_num,
                         column=0,
-                        message=f"Line {line_num} is past the board's {rows} rows and will not show",
+                        message=f"Line {line_num} is past the board's {rows} rows · it won't show",
                         code="beyond_board",
                     )
                 )
@@ -2423,6 +2423,79 @@ class TemplateEngine:
                         )
                     )
 
+        if rows is not None:
+            errors.extend(
+                self._wraps_past_board(
+                    lines,
+                    rows=rows,
+                    cols=cols,
+                    line_metadata=line_metadata,
+                    extended_markup=extended_markup,
+                    context=context,
+                )
+            )
+        return errors
+
+    def _wraps_past_board(
+        self,
+        lines: list[str],
+        *,
+        rows: int,
+        cols: int,
+        line_metadata: list[Any] | None,
+        extended_markup: bool,
+        context: dict[str, Any] | None,
+    ) -> list[TemplateError]:
+        """A line that wraps (or spills) past the board's last row: ``beyond_board``.
+
+        Render keeps the rows that fit and drops the rest (its H5 report says
+        ``board_end``), so the board loses that text even though no template
+        line is past the board (W-1). Measured by the render itself at
+        ``rows`` x ``cols``, so the problem is exactly what the board drops.
+        """
+        shown = lines[:rows]
+        if not any(
+            _metadata_wraps(line_metadata, i) or "wrap" in line or "{{=" in line for i, line in enumerate(shown)
+        ):
+            return []
+        try:
+            dims = resolve_dimensions("panel", grid_rows=rows, grid_cols=cols)
+        except ValueError:
+            return []
+        if (dims.rows, dims.cols) != (rows, cols):
+            return []
+        report = RenderReport()
+        if context is None:
+            # Data only matters when a shown line reads some: plain text fetches nothing.
+            joined = "\n".join(shown)
+            context = self._formula_validation_context(joined) if "{{" in joined else {}
+        self.render_lines(
+            shown,
+            context,
+            list(line_metadata) if line_metadata else None,
+            "panel",
+            grid_rows=rows,
+            grid_cols=cols,
+            extended_markup=extended_markup,
+            report=report,
+        )
+        errors = []
+        for entry in report.lines or []:
+            if entry.clip != "board_end" or entry.rows_wanted <= entry.rows_shown:
+                continue
+            lost = entry.rows_wanted - entry.rows_shown
+            verb = (
+                "wraps" if _metadata_wraps(line_metadata, entry.line - 1) or "wrap" in shown[entry.line - 1] else "runs"
+            )
+            noun = "row" if lost == 1 else "rows"
+            errors.append(
+                TemplateError(
+                    line=entry.line,
+                    column=0,
+                    message=f"Line {entry.line} {verb} past the board's {rows} rows · {lost} {noun} won't show",
+                    code="beyond_board",
+                )
+            )
         return errors
 
     def _formula_validation_context(self, template: str) -> dict[str, Any]:

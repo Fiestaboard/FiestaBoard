@@ -263,10 +263,51 @@ describe("NoteSeamSummary", () => {
 describe("LineOverflowWarnings", () => {
   const overflow = { line: 4, columns: 24, maxColumns: 22, cut: 2 };
 
+  it("disables Wrap with the reason when the rows below are full (W-1)", async () => {
+    const onWrap = vi.fn();
+    render(
+      <LineOverflowWarnings
+        overflows={[{ line: 5, columns: 46, maxColumns: 22, cut: 24 }]}
+        lines={["", "", "", "HELLO WORLD", "LUNCH AT NOON TODAY FOR EVERYONE IN THE OFFICE", ""]}
+        rows={6}
+        boardName="Kitchen"
+        checkedAt={null}
+        touch={false}
+        wrapped={[]}
+        onWrap={onWrap}
+      />,
+    );
+    const wrap = screen.getByRole("button", { name: "Wrap line 5" });
+    expect(wrap).toBeDisabled();
+    expect(wrap).toHaveAccessibleDescription("Needs 1 more row");
+    expect(screen.getByText("Needs 1 more row")).toBeVisible();
+  });
+
+  it("names a row past the board as the Problems console does (W-1)", () => {
+    const message = "Line 5 wraps past the board's 6 rows · 1 row won't show";
+    const { container } = render(
+      <LineOverflowWarnings
+        overflows={[]}
+        pastBoard={[{ line: 5, message }]}
+        lines={[]}
+        rows={6}
+        checkedAt={null}
+        touch={false}
+        wrapped={[]}
+        onWrap={vi.fn()}
+      />,
+    );
+    const card = container.querySelector('[data-slot="editor-warning"]');
+    expect(card).toHaveTextContent("Past the last row");
+    expect(card).toHaveTextContent(message);
+  });
+
   it("shows the hub's verdict and offers to wrap the line", async () => {
     const onWrap = vi.fn();
     render(
       <LineOverflowWarnings
+        lines={[]}
+        rows={6}
         overflows={[overflow]}
         boardName="Kitchen board"
         checkedAt={new Date(2026, 10, 17, 18, 5)}
@@ -286,6 +327,8 @@ describe("LineOverflowWarnings", () => {
     const onWrap = vi.fn();
     const { container } = render(
       <LineOverflowWarnings
+        lines={[]}
+        rows={6}
         overflows={[
           { line: 1, columns: 63, maxColumns: 22, cut: 41 },
           { line: 2, columns: 34, maxColumns: 22, cut: 12 },
@@ -310,6 +353,8 @@ describe("LineOverflowWarnings", () => {
   it("drops the wrap action once the line wraps, and renders nothing without overflow", () => {
     const { rerender, container } = render(
       <LineOverflowWarnings
+        lines={[]}
+        rows={6}
         overflows={[overflow]}
         checkedAt={null}
         touch
@@ -318,7 +363,9 @@ describe("LineOverflowWarnings", () => {
       />,
     );
     expect(screen.queryByRole("button", { name: "Wrap line 4" })).toBeNull();
-    rerender(<LineOverflowWarnings overflows={[]} checkedAt={null} touch wrapped={[]} onWrap={vi.fn()} />);
+    rerender(
+      <LineOverflowWarnings overflows={[]} lines={[]} rows={6} checkedAt={null} touch wrapped={[]} onWrap={vi.fn()} />,
+    );
     expect(container).toBeEmptyDOMElement();
   });
 });

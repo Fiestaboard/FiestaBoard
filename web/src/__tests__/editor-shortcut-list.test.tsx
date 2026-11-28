@@ -3,7 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
 
-import { EditorShortcutList, useEditorShortcutList } from "@/components/editor-shortcut-list";
+import {
+  EditorShortcutList,
+  SHORTCUT_LIST_MAX_H,
+  useEditorShortcutList,
+  useListRoomBelow,
+} from "@/components/editor-shortcut-list";
 
 function Harness({ boardViewport = false, anchored = true }: { boardViewport?: boolean; anchored?: boolean }) {
   const shortcuts = useEditorShortcutList();
@@ -127,7 +132,7 @@ describe("EditorShortcutList", () => {
       "Close a picker",
       "Leave draw mode",
       "Save",
-      "Save and show now",
+      "Show now / Save & update board",
       "Inspect the preview",
     ]);
     for (const title of ["Editing", "Page", "Preview"]) expect(within(list).getByText(title)).toBeInTheDocument();
@@ -198,5 +203,36 @@ describe("EditorShortcutList", () => {
     await screen.findByRole("dialog", { name: "Keyboard shortcuts" });
     await user.keyboard("{Escape}");
     await waitFor(() => expect(dialog()).toBeNull());
+  });
+});
+
+// FABLE-2653 §3.1: the shortcut list is capped to the room under its anchor.
+describe("useListRoomBelow", () => {
+  function List({ open, bottom }: { open: boolean; bottom: number }) {
+    const anchorRef = useRef<HTMLElement | null>(null);
+    useListRoomBelow(open, anchorRef);
+    return (
+      <div
+        ref={(el) => {
+          anchorRef.current = el;
+          if (el) el.getBoundingClientRect = () => ({ bottom }) as DOMRect;
+        }}
+      />
+    );
+  }
+  const cap = () => document.documentElement.style.getPropertyValue(SHORTCUT_LIST_MAX_H);
+
+  it("caps the open list at the room under the template header (1024×768)", () => {
+    window.innerHeight = 768;
+    const view = render(<List open bottom={182} />);
+    expect(cap()).toBe(`${768 - 182 - 24}px`);
+    view.rerender(<List open={false} bottom={182} />);
+    expect(cap()).toBe("");
+  });
+
+  it("leaves a list with too little room below to the kit's flip", () => {
+    window.innerHeight = 768;
+    render(<List open bottom={600} />);
+    expect(cap()).toBe("");
   });
 });

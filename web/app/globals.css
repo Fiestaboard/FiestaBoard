@@ -514,3 +514,12 @@ html {
     animation: none;
   }
 }
+
+/* FP-5 (UX-9-2, editor UX W2-A): the kit rings a focused board scroller with
+   a box-shadow on its bezel, but a bezel that draws its own inline shadow
+   overrides it, so the Tab stop showed no ring. An outline doesn't collide.
+   Kit ask in KIT-ASKS.md (W2-A); drop this when the kit's ring survives. */
+[data-slot="board-viewport-bezel"][style*="box-shadow"]:has(> [data-slot="board-viewport-scroller"]:focus-visible) {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}

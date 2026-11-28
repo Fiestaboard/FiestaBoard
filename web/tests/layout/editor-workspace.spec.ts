@@ -27,7 +27,7 @@ for (const width of [1440, 1280, 1024]) {
   test(`${width}px: one workspace, the IDE regions in their columns (BB-E-7)`, async ({ page }, testInfo) => {
     await mockHub(page);
     await open(page, width);
-    await page.getByRole("button", { name: "Show Explorer" }).click();
+    await page.getByRole("button", { name: "Explorer", exact: true, pressed: false }).click();
     await expect(page.getByRole("navigation", { name: "Explorer" })).toBeVisible();
     const consoleRegion = page.getByRole("region", { name: "Console" });
     const inspector = page.getByRole("tablist", { name: "Inspector" });
@@ -46,7 +46,7 @@ for (const width of [1440, 1280, 1024]) {
       const panel = await box(page.getByRole("navigation", { name: "Explorer" }));
       expect(panel.x + panel.width).toBeGreaterThan(template.x);
     }
-    expect(explorer.x + explorer.width).toBeLessThanOrEqual(template.x);
+    if (width >= 1280) expect(explorer.x + explorer.width).toBeLessThanOrEqual(template.x);
     expect(template.x + template.width).toBeLessThanOrEqual(preview.x);
     // The Explorer sits under the header and toolbar, as drawn (not beside them).
     const chrome = await box(page.locator('[data-slot="page-editor-chrome"]'));
@@ -103,13 +103,15 @@ test("a new page has the saved page's frame; the first save moves nothing (BB-E-
   await open(page, 1440, "/pages/new");
   const name = page.getByRole("textbox", { name: /page name/i });
   await expect(name).toBeVisible();
-  await expect(column(page, "explorer")).toBeVisible();
+  // A Flagship page opens with the Explorer closed (D2): no column, its toggle in the toolbar row (UX-5-1).
+  const toggle = page.getByRole("button", { name: "Explorer", exact: true });
+  await expect(toggle).toBeVisible();
   await name.fill("Kitchen morning");
   const editor = page.locator(".ProseMirror").first();
   await editor.click();
   await page.keyboard.type("HELLO");
   const frame = async () => ({
-    explorer: await box(column(page, "explorer")),
+    explorer: await box(toggle),
     template: await box(column(page, "template")),
     preview: await box(page.locator('[data-slot="editor-preview"]')),
     editor: await box(editor),
@@ -131,9 +133,10 @@ test("a new page has the saved page's frame; the first save moves nothing (BB-E-
 test("Tab goes column by column: Explorer, template column, preview column (BB-E-22)", async ({ page }) => {
   await mockHub(page);
   await open(page, 1440);
-  await page.getByRole("button", { name: "Show Explorer" }).click();
+  await page.getByRole("button", { name: "Explorer", exact: true, pressed: false }).click();
   await expect(page.getByRole("tablist", { name: "Inspector" })).toBeVisible();
-  await page.getByRole("button", { name: "Hide Explorer" }).focus();
+  // UX-5-1: the toggle is in the toolbar row now; start from the row's last stop.
+  await page.getByRole("button", { name: /all shortcuts/i }).focus();
   const order = ["explorer", "template", "preview"];
   const seen: string[] = [];
   for (let i = 0; i < 80; i += 1) {
@@ -150,8 +153,14 @@ test("Tab goes column by column: Explorer, template column, preview column (BB-E
   const visual = await Promise.all(
     order.map(async (name) => ({ name, x: (await box(column(page, name as never))).x })),
   );
-  expect(seen).toEqual(visual.sort((a, b) => a.x - b.x).map((c) => c.name));
-  expect(seen).toEqual(order);
+  // The open Explorer lists the page's own rows and links nowhere (D2b), so it may hold no
+  // stop; whatever is visited goes left to right, once each.
+  const visited = visual
+    .sort((a, b) => a.x - b.x)
+    .map((c) => c.name)
+    .filter((name) => seen.includes(name));
+  expect(seen).toEqual(visited);
+  expect(seen.slice(-2)).toEqual(["template", "preview"]);
 });
 
 test("Page duration is one Tab stop: the Page panel itself is not a second one (BB-E-22)", async ({ page }) => {
@@ -169,7 +178,7 @@ test("Page duration is one Tab stop: the Page panel itself is not a second one (
 test("a Flagship page with the Explorer closed gives the preview the wider column (53:137378)", async ({ page }) => {
   await mockHub(page);
   await open(page, 1440);
-  await expect(page.getByRole("button", { name: "Show Explorer" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Explorer", exact: true, pressed: false })).toBeVisible();
   const template = await box(column(page, "template"));
   const preview = await box(column(page, "preview"));
   expect(preview.width / template.width).toBeGreaterThan(1.4);

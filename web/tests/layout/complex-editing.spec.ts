@@ -205,7 +205,9 @@ async function openEditor(page: Page, pageId: PageId, width: number, theme: "lig
   const rendered = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/templates/render");
   await page.goto(`/tests/layout/complex-editing.html?theme=${theme}&page=${pageId}`);
   await rendered;
-  await expect(page.getByRole("textbox", { name: /page name/i })).toHaveValue(pages[pageId].name);
+  // The editor's lazy chunks can still be settling after the first render on a cold CI runner
+  // (seen at 390 dark on several v11 PRs): give the first wait a cold-load budget.
+  await expect(page.getByRole("textbox", { name: /page name/i })).toHaveValue(pages[pageId].name, { timeout: 15_000 });
   await expect(page.locator('[data-slot="editor-preview"] [data-slot="board-viewport"]')).toBeVisible();
 }
 

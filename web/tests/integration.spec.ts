@@ -199,7 +199,7 @@ test.describe("Page Management", () => {
     }
 
     // Save the page
-    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
     // After save the editor stays open (it draws its own header, not the

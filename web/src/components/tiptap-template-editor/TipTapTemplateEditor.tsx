@@ -44,12 +44,13 @@ import { parsePastedText, parseTemplateSimple, serializeTemplateSimple } from ".
 import { buildStrokeTransaction } from "./utils/stroke-transaction";
 import { enterTransaction, isEmptyTemplateDoc } from "./utils/template-rows";
 export type LineAlignment = "left" | "center" | "right";
-import { Box, Flex, Stack, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Box, Flex, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 
 import { useFormulaIdeBridge } from "@/components/formula-ide/formula-ide-context";
 import { useTranslations } from "@/i18n/translations";
 
 import { TemplateEditorToolbar } from "./components/TemplateEditorToolbar";
+import { TemplateCardPlaceholder } from "./template-card-placeholder";
 
 /** A single painted board cell within a stroke, in row/col board coordinates. */
 export interface StrokePaint {
@@ -63,6 +64,12 @@ export interface TipTapTemplateEditorHandle {
   applyStroke(paints: StrokePaint[], brush: DrawBrush): number[];
   undo(): void;
   redo(): void;
+  /**
+   * Replaces the whole template as ONE undo step (Import from board…,
+   * DD-W167), reported like a stroke through onDrawHistoryEvent so the host
+   * can swap its per-row alignment/wrap with it. False when there is no editor.
+   */
+  replaceTemplate(text: string): boolean;
 }
 
 /**
@@ -1013,6 +1020,28 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           if (!ed || ed.isDestroyed) return;
           ed.chain().redo().run();
         },
+        replaceTemplate(text: string): boolean {
+          const ed = editorRef.current;
+          if (!ed || ed.isDestroyed) return false;
+          // Its own history event on both sides, so ⌘Z restores the old rows in one
+          // step even straight after typing, or on a page nobody has edited yet.
+          pendingStrokeRef.current = true;
+          ed.chain()
+            .command(({ tr }) => {
+              closeHistory(tr);
+              return true;
+            })
+            .setContent(parseTemplateSimple(text, boardLines), {
+              emitUpdate: true,
+              parseOptions: { preserveWhitespace: true },
+            })
+            .run();
+          const { view } = ed;
+          view.dispatch(closeHistory(view.state.tr));
+          // A replace that changed nothing recorded no step.
+          pendingStrokeRef.current = false;
+          return true;
+        },
       }),
       [boardLines, boardWidth],
     );
@@ -1201,7 +1230,12 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       // clobbering the cursor during active typing.
       if (!editor.isFocused) {
         const currentSerialized = serializeTemplateSimple(editor.getJSON(), boardLines);
-        if (value !== currentSerialized) {
+        // A value the doc already holds, spelled another way ({blue} for {{blue}}:
+        // a loaded page, or the host restoring its rows after an undo), is no change.
+        if (
+          value !== currentSerialized &&
+          serializeTemplateSimple(parseTemplateSimple(value || "", boardLines), boardLines) !== currentSerialized
+        ) {
           // Defer setContent outside the React lifecycle so TipTap's internal
           // flushSync (in ReactRenderer for NodeViews) doesn't fire inside a
           // useEffect, which React 19 forbids.
@@ -1384,15 +1418,16 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         ? effectiveAlignments[currentLineIndex] || "left"
         : "left";
 
+    // The first render has no editor yet: draw the loaded card's box (title,
+    // meta line, rows) so its height never changes when the editor arrives.
     if (!editor) {
       return (
-        <Box className={cn("min-h-[9rem] border rounded-md p-2 bg-muted/30", className)}>
-          <Stack gap="1">
-            {Array.from({ length: boardLines }).map((_, i) => (
-              <Box key={i} className="h-6 bg-background/50 rounded" />
-            ))}
-          </Stack>
-        </Box>
+        <TemplateCardPlaceholder
+          boardLines={boardLines}
+          cardTitle={cardTitle}
+          roundedTop={!showToolbar}
+          className={className}
+        />
       );
     }
     const currentWrapEnabled =

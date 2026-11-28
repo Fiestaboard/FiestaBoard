@@ -124,7 +124,7 @@ describe("PageBuilder — per-page transition picker", () => {
     await openTransitionMenu(user);
     await user.click(await screen.findByRole("menuitemradio", { name: "Diagonal" }));
 
-    await user.click(await screen.findByRole("button", { name: "Save Page" }));
+    await user.click(await screen.findByRole("button", { name: "Save page" }));
 
     await waitFor(() => expect(captured.body).not.toBeNull());
     expect(captured.body?.transition_strategy).toBe("diagonal");
@@ -140,7 +140,7 @@ describe("PageBuilder — per-page transition picker", () => {
     await openTransitionMenu(user);
     await user.click(await screen.findByRole("menuitemradio", { name: "Use the display's transition" }));
 
-    await user.click(await screen.findByRole("button", { name: "Save Page" }));
+    await user.click(await screen.findByRole("button", { name: "Save page" }));
 
     await waitFor(() => expect(captured.body).not.toBeNull());
     // The key must be PRESENT and null — omitting it leaves the old override
@@ -215,7 +215,7 @@ describe("PageBuilder — per-page transition picker", () => {
     await user.click(await screen.findByRole("menuitemradio", { name: "Typewriter" }));
     expect(screen.queryByRole("menuitemradio", { name: "Weather" })).not.toBeInTheDocument();
 
-    await user.click(await screen.findByRole("button", { name: "Save Page" }));
+    await user.click(await screen.findByRole("button", { name: "Save page" }));
 
     await waitFor(() => expect(captured.body).not.toBeNull());
     expect(captured.body?.transition_strategy).toBe("plugin:typewriter");

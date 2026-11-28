@@ -43,7 +43,7 @@ test.describe("Page Builder", () => {
     await editor.fill("HELLO BUILDER");
 
     // Save the page
-    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
     // Saving keeps the current editor and announces its stored state.
@@ -67,7 +67,7 @@ test.describe("Page Builder", () => {
     await nameInput.fill("Updated Name");
     await page.locator('[contenteditable="true"]').first().fill("UPDATED CONTENT");
 
-    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
     await expect(page.getByText(/^Saved (just now|\d)/)).toBeVisible({ timeout: 15_000 });
@@ -90,7 +90,7 @@ test.describe("Page Builder", () => {
     const name = page.getByPlaceholder("My Custom Page");
     await expect(name).toHaveValue("Untitled page");
     await name.fill("");
-    await page.getByRole("button", { name: "Save Page", exact: true }).click();
+    await page.getByRole("button", { name: "Save page", exact: true }).click();
     await expect(page).toHaveURL(/\/pages\/edit\/[^/]+$/, { timeout: 15_000 });
     await expect(name).toHaveValue("Untitled page");
     await deletePage(page.url().split("/").pop()!);
@@ -220,98 +220,79 @@ test.describe("Page Builder", () => {
   });
 });
 
-test.describe("Sync from Board", () => {
-  test("Sync from Board button is visible on new page, hidden on edit page", async ({ page }) => {
-    // New page: button should appear
+// Import from board… (DD-W167): a dialog step on new and saved pages; Replace
+// template is one ordinary, undoable edit that saves nothing.
+test.describe("Import from board", () => {
+  const IMPORT = "Import from board…";
+
+  test("is offered on a new page and on a saved page", async ({ page }) => {
     await page.goto("/pages/new");
-    await expect(page.locator("#page-name")).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(page.locator("#page-name")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: IMPORT })).toBeVisible({ timeout: 10_000 });
 
-    const syncBtn = page.getByRole("button", {
-      name: "Sync from current board display",
-    });
-    await expect(syncBtn).toBeVisible({ timeout: 10_000 });
-
-    // Edit page: button should NOT appear
-    const pageId = await createPage("Sync Button Hidden Test");
+    const pageId = await createPage("Import Button Saved Page");
     await page.goto(`/pages/edit/${pageId}`);
-    await expect(page.getByPlaceholder("My Custom Page")).toHaveValue("Sync Button Hidden Test", { timeout: 15_000 });
-
-    await expect(page.getByRole("button", { name: "Sync from current board display" })).not.toBeVisible();
-
+    await expect(page.locator("#page-name")).toHaveValue("Import Button Saved Page", { timeout: 15_000 });
+    await expect(page.getByRole("button", { name: IMPORT })).toBeVisible({ timeout: 10_000 });
     await deletePage(pageId);
   });
 
-  test("shows error when no active page is set", async ({ page }) => {
-    // Reaching "no active display" is the whole setup cost of this test, and
-    // it used to be a race: deleting the last page makes the backend
-    // auto-create a Welcome page, and the render loop's "primary never goes
-    // dark" rule (src/main.py) re-promotes the first page to active on every
-    // ~15s tick whenever the active page is null. Clearing active_page_id and
-    // clicking fast enough to beat the next tick is what made this the single
-    // flakiest test in the suite.
-    //
-    // The loop's rule is guarded on manual mode, and GET /pages/current-display
-    // resolves through the schedule when schedule mode is on. So schedule mode
-    // with zero schedules or default pages is a *stable* no-active-display state that neither
-    // side will promote out from under us.
+  test("says the board is showing nothing, with Close only", async ({ page }) => {
+    // Schedule mode with no schedules is a stable no-active-display state (see
+    // the race notes in git history for this spec): nothing re-promotes a page.
     await deleteAllPages({ strict: true, deleteSchedules: true });
     await setScheduleEnabled(true);
-
     try {
       await setActivePage(null);
-      // Now a cheap assertion rather than a race we hope to win.
       await waitForNoActiveDisplay();
-
       await page.goto("/pages/new");
-      await expect(page.locator("#page-name")).toBeVisible({
-        timeout: 15_000,
-      });
-
-      const syncBtn = page.getByRole("button", {
-        name: "Sync from current board display",
-      });
-      await expect(syncBtn).toBeVisible({ timeout: 10_000 });
-
-      // Wait for the sync API response, then verify the error toast.
-      // We match on URL only (not status) so a 200 produces an assertion
-      // failure rather than a cryptic timeout.
+      await expect(page.locator("#page-name")).toBeVisible({ timeout: 15_000 });
       const [response] = await Promise.all([
         page.waitForResponse((res) => res.url().includes("/api/pages/current-display"), { timeout: 10_000 }),
-        syncBtn.click(),
+        page.getByRole("button", { name: IMPORT }).click(),
       ]);
       expect(response.status()).toBe(404);
-
-      // An error toast should be visible — use text-based detection since Sonner
-      // toast attribute structure can vary between versions/configurations.
-      await expect(page.getByText("No active display to sync from").first()).toBeVisible({ timeout: 5_000 });
+      const dialog = page.getByRole("alertdialog");
+      await expect(dialog).toContainText("is showing nothing");
+      await expect(dialog.getByRole("button", { name: "Close" })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "Replace template" })).toHaveCount(0);
     } finally {
-      // Specs in a file run serially against one backend; leaving schedule
-      // mode on would change what every later test in this file sees.
       await setScheduleEnabled(false);
     }
   });
 
-  test("populates template lines from active page on successful sync", async ({ page }) => {
-    // Create a page with known content and make it active
-    const sourcePageId = await createPage("Sync Source Page", ["HELLO SYNC", "LINE TWO", "", "", "", ""]);
-    await setActivePage(sourcePageId);
-
-    await page.goto("/pages/new");
-    await expect(page.locator("#page-name")).toBeVisible({
-      timeout: 15_000,
+  test("replaces a saved page's rows as one undo step, saving nothing", async ({ page }) => {
+    const sourceId = await createPage("Import Source", ["HELLO IMPORT", "LINE TWO", "", "", "", ""]);
+    const targetId = await createPage("Import Target", ["KEEP ME", "SECOND ROW", "", "", "", ""]);
+    await setActivePage(sourceId);
+    const writes: string[] = [];
+    page.on("request", (req) => {
+      if (/\/api\/v1\/pages/.test(req.url()) && ["PUT", "POST"].includes(req.method())) writes.push(req.url());
     });
+    try {
+      await page.goto(`/pages/edit/${targetId}`);
+      const editor = page.getByRole("textbox", { name: "Template editor" });
+      await expect(editor).toContainText("KEEP ME", { timeout: 15_000 });
 
-    const syncBtn = page.getByRole("button", {
-      name: "Sync from current board display",
-    });
-    await expect(syncBtn).toBeVisible({ timeout: 10_000 });
-    await syncBtn.click();
+      await page.getByRole("button", { name: IMPORT }).click();
+      const dialog = page.getByRole("alertdialog");
+      await expect(dialog).toContainText("Replace this template with what");
+      await dialog.getByRole("button", { name: "Replace template" }).click();
+      await expect(editor).toContainText("HELLO IMPORT");
+      await expect(editor).not.toContainText("KEEP ME");
+      await expect(page.getByTestId("page-editor-save-state")).toHaveText("Unsaved changes");
 
-    // Success toast should appear with the source page name
-    await expect(page.getByText(/synced from/i).first()).toBeVisible({ timeout: 10_000 });
-
-    await deletePage(sourcePageId);
+      // ⌘Z / Ctrl+Z: the old rows come back in one step and the page is clean again.
+      await editor.click();
+      await page.keyboard.press("ControlOrMeta+z");
+      await expect(editor).toContainText("KEEP ME");
+      await expect(editor).toContainText("SECOND ROW");
+      await expect(editor).not.toContainText("HELLO IMPORT");
+      await expect(page.getByTestId("page-editor-save-state")).toHaveText(/^Saved /);
+      expect(writes).toEqual([]);
+    } finally {
+      await deletePage(targetId);
+      await deletePage(sourceId);
+    }
   });
 });

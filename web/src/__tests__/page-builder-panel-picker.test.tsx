@@ -271,7 +271,7 @@ describe("PageBuilder size picker — FiestaPanels", () => {
     expect(await screen.findByRole("img", { name: "29 columns by 12 rows, Panel" })).toHaveTextContent("29 × 12");
 
     fireEvent.change(screen.getByLabelText(/page name/i), { target: { value: "Kitchen menu" } });
-    await user.click(screen.getByRole("button", { name: "Save Page" }));
+    await user.click(screen.getByRole("button", { name: "Save page" }));
     await waitFor(() => expect(api.createPage).toHaveBeenCalled());
     const [payload] = vi.mocked(api.createPage).mock.calls[0];
     expect(payload).toMatchObject({ device_type: "panel", grid_rows: 12, grid_cols: 29 });

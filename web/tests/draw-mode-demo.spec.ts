@@ -160,7 +160,7 @@ test("pencil draw mode walkthrough", async ({ page }) => {
   await page.getByPlaceholder("My Custom Page").click();
   await page.getByPlaceholder("My Custom Page").pressSequentially(pageName, { delay: 60 });
   await beat(page, 500);
-  const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+  const saveButton = page.getByRole("button", { name: "Save page" }).or(page.getByRole("button", { name: /save/i }));
   await saveButton.first().click();
   await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
   await beat(page, 800);
@@ -280,7 +280,7 @@ test("pencil draw mode on an 8x8 note array", async ({ page }) => {
   // NOTE: the saved card itself is not asserted here — pages._index.tsx's
   // DEVICE_ORDER omits "note_array", so note-array pages don't (yet) appear
   // on the Pages list. Pre-existing platform gap, tracked outside this spec.
-  const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+  const saveButton = page.getByRole("button", { name: "Save page" }).or(page.getByRole("button", { name: /save/i }));
   await saveButton.first().click();
   await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
   await beat(page, 1_200);

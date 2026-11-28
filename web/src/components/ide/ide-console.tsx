@@ -16,13 +16,13 @@ import {
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useMemo } from "react";
 
-import { useLocale, useTranslations } from "@/i18n/translations";
+import { useTranslations } from "@/i18n/translations";
+import { useFormatEditTime } from "@/lib/edit-time";
 import { jumpToTemplateLine } from "@/lib/ide/jump-to-line";
 import type { IdeProblem } from "@/lib/ide/problems";
 import { problemTitleParts, substitutionSummary } from "@/lib/ide/problems";
 import { sendLogModel } from "@/lib/ide/sends";
 
-import { formatClock } from "./ide-format";
 import type { CreatorIdeState } from "./use-creator-ide";
 
 export type ConsoleTab = "problems" | "warnings" | "sent";
@@ -83,8 +83,8 @@ export function IdeProblemList({
 export function IdeSentPanel({ ide, size }: { ide: CreatorIdeState; size?: "default" | "touch" }) {
   const t = useTranslations("creatorIde");
   const tDisplays = useTranslations("displays");
-  const locale = useLocale();
-  const model = useMemo(() => sendLogModel(ide.sends, (iso) => formatClock(iso, locale)), [ide.sends, locale]);
+  const editTime = useFormatEditTime();
+  const model = useMemo(() => sendLogModel(ide.sends, (iso) => editTime(iso)), [ide.sends, editTime]);
   const items = model.items.map((item) => ({
     ...item,
     message: [
@@ -110,7 +110,7 @@ export function IdeSentPanel({ ide, size }: { ide: CreatorIdeState; size?: "defa
           size={size}
           message={send.outcome === "failed" ? t("sendFailed") : t("sendSilenced")}
           detail={[
-            formatClock(send.at, locale),
+            editTime(send.at),
             send.board_name ? t("sentTo", { board: send.board_name }) : null,
             send.error ? tDisplays(`fleet.healthErrors.${send.error}`) : null,
           ]
@@ -156,7 +156,7 @@ export function IdeConsole({
 }) {
   const t = useTranslations("creatorIde");
   const tq = useTranslations("ideQuiet");
-  const locale = useLocale();
+  const editTime = useFormatEditTime();
   const latest = ide.sends.find((send) => send.outcome === "sent");
   if (quiet) {
     const line = [
@@ -164,7 +164,7 @@ export function IdeConsole({
       ide.warnings.length ? tq("consoleWarnings", { count: ide.warnings.length }) : null,
       latest
         ? tq("consoleSent", {
-            time: formatClock(latest.last_at ?? latest.at, locale),
+            time: editTime(latest.last_at ?? latest.at),
             board: latest.board_name ?? t("aDisplay"),
           })
         : null,
@@ -193,7 +193,7 @@ export function IdeConsole({
   const sentLine = latest
     ? [
         t("sentSummary", {
-          time: formatClock(latest.last_at ?? latest.at, locale),
+          time: editTime(latest.last_at ?? latest.at),
           board: latest.board_name ?? t("aDisplay"),
         }),
         substitutions.length

@@ -1621,6 +1621,20 @@
     "notSentYet": "Ainda não enviado",
     "notSentYetOn": "Ainda não enviado · {board}"
   },
+  "importFromBoard": {
+    "title": "Substituir este modelo pelo que {board} mostra agora?",
+    "showing": "{board} está mostrando “{page}”. As linhas, o alinhamento e a quebra dela substituem os deste modelo; Desfazer traz os seus de volta. Nada é salvo nem mostrado.",
+    "replace": "Substituir modelo",
+    "emptyTitle": "{board} não está mostrando nada",
+    "emptyBody": "Não há nada para importar.",
+    "sizeTitle": "{board} mostra uma página de outro tamanho",
+    "sizeBody": "“{page}” é {theirs}; esta página é {ours}. Um modelo não sobrevive a uma mudança de tamanho.",
+    "sizeCopyHint": "Para usar esta página em {board}, faça uma cópia no tamanho dele em Inspetor › Exibida em.",
+    "errorTitle": "Não foi possível ler o que {board} mostra",
+    "errorBody": "Tente novamente em instantes.",
+    "close": "Fechar",
+    "previewLabel": "O que {board} mostra agora"
+  },
   "changePage": {
     "title": "Trocar página",
     "description": "Escolha o que {board} mostra. Nada muda até você escolher Mostrar agora.",
@@ -1750,7 +1764,7 @@
     "toastNoActiveDisplay": "Sem ecrã ativo para sincronizar",
     "exportPage": "Exportar",
     "exportPageAriaLabel": "Exportar página",
-    "exportPageTooltip": "Exportar página como string de partilha",
+    "exportPageTooltip": "Exportar página",
     "exportDisabledTooltip": "Guarde as suas alterações antes de exportar",
     "exportFailed": "Falha ao obter string de partilha",
     "exportDialogTitle": "Exportar página",
@@ -2848,8 +2862,8 @@
     "alignLeft": "Alinhar à esquerda",
     "alignCenter": "Centrar",
     "alignRight": "Alinhar à direita",
-    "syncFromBoardTooltip": "Preencher o modelo com o que está atualmente no board",
-    "syncFromBoard": "Sincronizar do ecrã atual do board",
+    "syncFromBoardTooltip": "Substituir o modelo pelo que o quadro mostra agora",
+    "syncFromBoard": "Importar do quadro…",
     "alignment": "Alinhamento:",
     "undoAriaLabel": "Anular",
     "redoAriaLabel": "Refazer",
@@ -3839,6 +3853,11 @@
     "offlineMeta": "Última ligação {time} · O horário continua no hub",
     "offlineMetaNever": "Sem contacto desde que o hub arrancou · O horário continua no hub"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Rascunho salvo",
+    "saved": "Salvo",
+    "saveDraftNow": "Salvar rascunho agora"
+  },
   "editorShortcuts": {
     "title": "Atalhos de teclado",
     "platformNote": "⌘ no Mac · Ctrl no Windows e Linux",
@@ -3858,7 +3877,7 @@
     "previewFit": "Ajustar / Tamanho real",
     "insertFormula": "Inserir uma fórmula",
     "save": "Salvar",
-    "saveAndShow": "Salvar e mostrar agora",
+    "saveAndShow": "Mostrar agora / Salvar e atualizar o quadro",
     "inspect": "Inspecionar a pré-visualização",
     "previewActualSize": "Tamanho real (pré-visualização)",
     "groupEditing": "Edição",
@@ -4070,6 +4089,7 @@
     "overflowChecked": "Verificado pelo hub na largura real de {board} · {time}",
     "overflowCheckedNoBoard": "Verificado pelo hub na largura real deste quadro · {time}",
     "overflowWrap": "Quebrar a linha {line}",
+    "overflowWrapNeedsRows": "Precisa de mais {count, plural, one {# linha} other {# linhas}}",
     "overflowMore": "Também cortadas: {lines}",
     "bandsLabel": "Faixas de linhas",
     "bandMoveUp": "Mover para cima",
