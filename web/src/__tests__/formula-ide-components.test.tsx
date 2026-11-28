@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -195,6 +195,25 @@ describe("PreviewHeaderControls (UX-4-1, DD-W156)", () => {
     expect(screen.getByTestId("preview-time-chip")).toHaveTextContent(/^At.*7:00 AM$/);
     await userEvent.click(screen.getByRole("button", { name: "Preview at the current time" }));
     expect(data.onAtTimeChange).toHaveBeenCalledWith("");
+    await waitFor(() => expect(screen.getByRole("button", { name: "View" })).toHaveFocus());
+  });
+
+  // OPUS-2651: closing the picker without a time unmounted the focused trigger.
+  it("returns focus to View when Preview at a time… closes without a time", async () => {
+    wrap(<PreviewHeaderControls data={dataView()} zoom={fitZoom()} size="default" />);
+    const menu = await openView();
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Preview at a time…" }));
+    expect(await screen.findByTestId("preview-time-chip")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("preview-time-chip")).toBeNull());
+    await waitFor(() => expect(screen.getByRole("button", { name: "View" })).toHaveFocus());
+  });
+
+  it("leaves Shift+F alone", async () => {
+    const zoom = fitZoom();
+    wrap(<PreviewHeaderControls data={dataView()} zoom={zoom} size="default" />);
+    await userEvent.keyboard("{Shift>}F{/Shift}");
+    expect(zoom.onModeChange).not.toHaveBeenCalled();
   });
 
   it("is the plain Fit / Actual size toggle on the dock and without the IDE", () => {

@@ -11,15 +11,8 @@ export interface PreviewReplay {
   animate: boolean;
   /** True from Replay until the next change to the message. */
   replaying: boolean;
-  /** Whether there is a message to replay yet (the first render has landed). */
-  ready: boolean;
   /** Play the split-flap cascade from a blank board to the current message. */
   replay: () => void;
-}
-
-/** A message the board can play: not the null or blank placeholder of a render still on its way. */
-function playable(message: string | null): message is string {
-  return message !== null && message !== "";
 }
 
 /**
@@ -32,22 +25,25 @@ function playable(message: string | null): message is string {
  * every tile flaps from blank to its character. The next change to the
  * message ends the replay, so it snaps again.
  *
- * Replay pressed before the first render lands (BB-E-33) waits for it and
- * plays that message, instead of starting on nothing and being snapped off.
+ * Replay pressed while the preview's render is still on its way (`loading`,
+ * BB-E-33) waits for it and plays that message, instead of starting on
+ * nothing and being snapped off. A blank page has nothing loading, so Replay
+ * there plays the blank board and leaves nothing queued for the next edit.
  */
-export function usePreviewReplay(message: string | null): PreviewReplay {
+export function usePreviewReplay(
+  message: string | null,
+  { loading = false }: { loading?: boolean } = {},
+): PreviewReplay {
   const [state, setState] = useState<{ phase: Phase; of: string | null }>({ phase: "idle", of: message });
 
   // A message change during render (a state adjustment, not an effect): the
   // first real message starts a queued replay; any other edit ends a replay
   // for good, even if a later edit brings the same message back.
-  if (state.phase !== "idle" && state.of !== message) {
-    if (state.phase === "queued") {
-      if (playable(message)) setState({ phase: "blank", of: message });
-      else setState({ phase: "queued", of: message });
-    } else {
-      setState({ phase: "idle", of: message });
-    }
+  if (state.phase === "queued") {
+    if (!loading) setState({ phase: "blank", of: message });
+    else if (state.of !== message) setState({ phase: "queued", of: message });
+  } else if (state.phase !== "idle" && state.of !== message) {
+    setState({ phase: "idle", of: message });
   }
 
   // Blank → armed → playing, one frame apart.
@@ -63,13 +59,12 @@ export function usePreviewReplay(message: string | null): PreviewReplay {
   }, [phase]);
 
   const replay = useCallback(() => {
-    setState({ phase: playable(message) ? "blank" : "queued", of: message });
-  }, [message]);
+    setState({ phase: loading ? "queued" : "blank", of: message });
+  }, [message, loading]);
 
-  const ready = playable(message);
   const replaying = state.phase !== "idle" && state.phase !== "queued" && state.of === message;
-  if (!replaying) return { message, animate: false, replaying: false, ready, replay };
-  if (state.phase === "blank") return { message: "", animate: false, replaying, ready, replay };
-  if (state.phase === "armed") return { message: "", animate: true, replaying, ready, replay };
-  return { message, animate: true, replaying, ready, replay };
+  if (!replaying) return { message, animate: false, replaying: false, replay };
+  if (state.phase === "blank") return { message: "", animate: false, replaying, replay };
+  if (state.phase === "armed") return { message: "", animate: true, replaying, replay };
+  return { message, animate: true, replaying, replay };
 }

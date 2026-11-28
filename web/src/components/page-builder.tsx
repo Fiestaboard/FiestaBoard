@@ -2974,7 +2974,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Sample, Missing or another time render through the formula IDE (hub H6).
   const shownPreviewMessage = drawMode ? editorPreviewMessage : (formulaIde.previewOverride ?? editorPreviewMessage);
 
-  const previewReplay = usePreviewReplay(shownPreviewMessage);
+  // BB-E-33: Replay before the first render waits for it.
+  const previewReplay = usePreviewReplay(shownPreviewMessage, {
+    loading: !drawMode && preview === null && debouncedTemplateLines.some((line) => line.trim().length > 0),
+  });
   const boardAnimationsEnabled = useBoardAnimationsEnabled();
   // Nothing to replay when the user's settings (or reduced motion) turn the flaps off.
   const canReplay = boardAnimationsEnabled && !drawMode && !baselineDisplay && !isLedModel(previewModel);

@@ -94,7 +94,7 @@ function useZoomKeys(zoom: PreviewZoom | null, enabled: boolean) {
     const onKey = (event: KeyboardEvent) => {
       const current = latest.current;
       if (!current || event.defaultPrevented || isTypingTarget(event.target) || hasOpenOverlay()) return;
-      if (event.key.toLowerCase() === "f" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (event.key.toLowerCase() === "f" && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
         event.preventDefault();
         current.onModeChange(current.mode === "fit" ? "actual" : "fit");
       } else if (matchesShortcut(event, EDITOR_SHORTCUTS.previewActualSize)) {
@@ -143,7 +143,8 @@ function PreviewTimeChip({
   atTime: string;
   onAtTimeChange: (value: string) => void;
   picking: boolean;
-  onPickingChange: (picking: boolean) => void;
+  /** `cleared`: × reset the time, so the chip goes away. */
+  onPickingChange: (picking: boolean, cleared?: boolean) => void;
 }) {
   const t = useTranslations("formulaIde");
   const tv = useTranslations("previewView");
@@ -166,15 +167,15 @@ function PreviewTimeChip({
         aria-label={t("renderAtLabel")}
         open={picking}
         onOpenChange={(open) => onPickingChange(open)}
-        className="h-6 w-auto border-0 bg-transparent px-1 text-xs text-foreground shadow-none hover:bg-transparent [&>svg]:hidden"
+        className="ml-0.5 h-6 w-auto border-0 bg-transparent px-1 text-xs text-foreground shadow-none hover:bg-transparent [&>svg]:hidden"
       />
       <Button
         variant="ghost"
         size="icon-xs"
         aria-label={t("renderAtReset")}
         onClick={() => {
-          onPickingChange(false);
           onAtTimeChange("");
+          onPickingChange(false, true);
         }}
       >
         <X aria-hidden />
@@ -191,7 +192,15 @@ export function PreviewHeaderControls({ data, zoom, ruler, viewItems, size }: Pr
   const [picking, setPicking] = useState(false);
   // The desktop pane's header carries the View menu when it has more than Fit / Actual to offer.
   const view = size === "default" && (data !== null || zoom?.tile !== undefined || !!ruler || !!viewItems);
-  useZoomKeys(zoom, size === "default" && zoom !== null);
+  // Bound wherever the header zooms, so the list's F and 1 are true on the dock too.
+  useZoomKeys(zoom, zoom !== null);
+  const viewTrigger = useRef<HTMLButtonElement>(null);
+  // The chip unmounts when the picker closes without a time, or on ×: focus
+  // goes back to View, where "Preview at a time…" was chosen (OPUS-2651).
+  const closePicker = (open: boolean, cleared = false) => {
+    setPicking(open);
+    if (!open && (cleared || !data?.atTime)) requestAnimationFrame(() => viewTrigger.current?.focus());
+  };
   const { ref, narrow } = useNarrowHeader(view && data !== null, !!data?.atTime || picking);
 
   if (!view) {
@@ -226,13 +235,13 @@ export function PreviewHeaderControls({ data, zoom, ruler, viewItems, size }: Pr
             atTime={data.atTime}
             onAtTimeChange={data.onAtTimeChange}
             picking={picking}
-            onPickingChange={setPicking}
+            onPickingChange={closePicker}
           />
         </>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" data-testid="preview-view-menu" className="shrink-0">
+          <Button ref={viewTrigger} variant="ghost" size="sm" data-testid="preview-view-menu" className="shrink-0">
             <Ellipsis aria-hidden />
             {tv("view")}
           </Button>
