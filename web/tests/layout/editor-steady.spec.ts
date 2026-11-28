@@ -223,10 +223,12 @@ test("1440px: the toolbar row keeps the Explorer toggle's place at its left end 
   await mockHub(page);
   await open(page, 1440);
   const row = page.locator('[data-slot="page-editor-toolbar-row"]');
-  await expect(row.locator('[data-slot="page-editor-toolbar-start"]')).toBeAttached();
-  const start = await box(row.locator('[data-slot="page-editor-toolbar-start"]'));
+  const start = row.locator('[data-slot="page-editor-toolbar-start"]');
+  await expect(start).toBeAttached();
+  // Empty until the toggle moves in (FP-2): it takes no room, the tools start the row.
+  expect(await start.evaluate((el) => el.previousElementSibling === null)).toBe(true);
   const tools = await box(page.locator('[data-slot="page-editor-toolbar"]'));
-  expect(start.x).toBeLessThanOrEqual(tools.x);
+  expect(Math.round(tools.x)).toBe(Math.round((await box(row)).x));
 });
 
 test.describe("a coarse pointer at desktop width (iPad landscape)", () => {
