@@ -27,6 +27,8 @@ async function openApp(page: Page, width: number, options: { path?: string; them
 const expandRail = (page: Page) => page.getByRole("button", { name: "Expand sidebar" });
 const collapseRail = (page: Page) => page.getByRole("button", { name: "Collapse sidebar" });
 const pageName = (page: Page) => page.getByRole("textbox", { name: /page name/i });
+// The name's room in the header (BB-E-4): the field itself hugs the name (UX-1-5).
+const nameRoom = (page: Page) => page.locator('[data-slot="page-editor-name"]');
 const explorer = (page: Page) => page.getByRole("navigation", { name: "Explorer" });
 const storedCollapsed = (page: Page) => page.evaluate((key) => localStorage.getItem(key), SIDEBAR_KEY);
 
@@ -53,7 +55,7 @@ for (const width of [1440, 1280, 1024]) {
       await expect(page.getByRole("button", { name: "Show Explorer" })).toBeVisible();
 
       // BB-E-4: the name gets at least 240 px and every header action stays on screen.
-      const name = await pageName(page).boundingBox();
+      const name = await nameRoom(page).boundingBox();
       expect(name!.width).toBeGreaterThanOrEqual(240);
       const publish = await page.getByRole("button", { name: "Save & update board" }).boundingBox();
       expect(publish!.x + publish!.width).toBeLessThanOrEqual(width);
@@ -87,7 +89,7 @@ for (const width of [1440, 1280, 1024]) {
       // With the Explorer opened, the name keeps its 240 px and the actions stay on screen.
       await page.getByRole("button", { name: "Show Explorer" }).click();
       await expect(explorer(page)).toBeVisible();
-      expect((await pageName(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
+      expect((await nameRoom(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
       const publishWithExplorer = await page.getByRole("button", { name: "Save & update board" }).boundingBox();
       expect(publishWithExplorer!.x + publishWithExplorer!.width).toBeLessThanOrEqual(width);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -124,11 +126,11 @@ for (const width of [1440, 1280, 1024]) {
         page.getByRole("button", { name: notScheduled ? /show now/i : "Save & update board" }),
       ).toBeVisible();
       await expectHeaderFits(page);
-      expect((await pageName(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
+      expect((await nameRoom(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
       await page.getByRole("button", { name: "Show Explorer" }).click();
       await expect(explorer(page)).toBeVisible();
       await expectHeaderFits(page);
-      expect((await pageName(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
+      expect((await nameRoom(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
     });
   }
 }
@@ -184,11 +186,11 @@ test.describe("D2: the Explorer", () => {
     await mockHub(page);
     await openApp(page, 1440);
     await expect(explorer(page)).toHaveCount(0);
-    const before = await pageName(page).boundingBox();
+    const before = await nameRoom(page).boundingBox();
     await page.getByRole("button", { name: "Show Explorer" }).click();
     await expect(explorer(page)).toBeVisible();
     // Opening it never squeezes the name under 240 px.
-    expect((await pageName(page).boundingBox())!.width).toBeGreaterThanOrEqual(Math.min(240, before!.width));
+    expect((await nameRoom(page).boundingBox())!.width).toBeGreaterThanOrEqual(Math.min(240, before!.width));
     await page.reload();
     await expect(pageName(page)).toHaveValue("Kitchen morning");
     await expect(explorer(page)).toBeVisible();

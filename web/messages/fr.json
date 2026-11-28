@@ -3905,6 +3905,25 @@
     "discardDraft": "Ignorer",
     "lastSaved": "dernier enregistrement {time}"
   },
+  "editorHeader": {
+    "justNow": "à l’instant",
+    "minutesAgo": "il y a {count} min",
+    "yesterday": "hier {time}",
+    "saved": "Enregistré {time}",
+    "unsavedChanges": "Modifications non enregistrées",
+    "saving": "Enregistrement…",
+    "savingDraft": "Enregistrement du brouillon…",
+    "draftSaved": "Brouillon enregistré {time}",
+    "unsaved": "Non enregistré",
+    "newPage": "Nouvelle page",
+    "boardLabel": "Tableau {board}",
+    "untitledPage": "Page sans titre",
+    "draftDiscarded": "Brouillon supprimé",
+    "undo": "Annuler",
+    "deleteTitle": "Supprimer « {name} » ?",
+    "deleteDescription": "Elle sera retirée de tous les plannings et collections qui l’affichent. Cette action est irréversible.",
+    "deleteAction": "Supprimer la page"
+  },
   "phonePairing": {
     "title": "Connecter un téléphone",
     "description": "Scannez ceci avec l’application FiestaBoard. Le code est à usage unique et expire dans 5 minutes.",

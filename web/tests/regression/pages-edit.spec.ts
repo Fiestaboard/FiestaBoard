@@ -63,24 +63,18 @@ test.describe("regression: pages.edit", () => {
     await expect(dialog).toBeVisible();
   });
 
-  /** UX node: pages.edit.export-error */
-  test("pages.edit.export-error — share-string fetch failure toasts", async ({ page }) => {
-    const id = await createPage("Export Err", ["X", "", "", "", "", ""]);
-    await page.route(`**/api/pages/${id}/share`, (route) => route.fulfill({ status: 500 }));
-    await page.goto(`/pages/edit/${id}`);
-    await page.getByRole("button", { name: "Export Page" }).click();
-    const toast = page.locator("[data-sonner-toast]").first();
-    await expect(toast).toBeVisible({ timeout: 10_000 });
-  });
-
-  /** UX node: pages.edit.export-disabled-when-dirty */
-  test("pages.edit.export-disabled-when-dirty — Export disabled when unsaved changes exist", async ({ page }) => {
+  /** UX node: pages.edit.export-dirty (UX-1-4: was export-error / export-disabled-when-dirty) */
+  test("pages.edit.export-dirty — Export stays enabled and exports the unsaved edits", async ({ page }) => {
     const id = await createPage("Dirty Test", ["A", "", "", "", "", ""]);
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
     await page.getByRole("textbox", { name: "Template", exact: true }).fill("MODIFIED\n\n\n\n\n");
     const exportBtn = page.getByRole("button", { name: "Export Page" });
-    await expect(exportBtn).toBeDisabled({ timeout: 5_000 });
+    await expect(exportBtn).toBeEnabled();
+    await exportBtn.click();
+    const share = await page.getByRole("dialog").getByRole("textbox", { name: "Share string" }).inputValue();
+    const json = JSON.parse(Buffer.from(share, "base64url").toString("utf8"));
+    expect(json.page.template[0]).toBe("MODIFIED");
   });
 
   // ---- P1: dirty / saving / save-error / delete-error ----
@@ -139,7 +133,7 @@ test.describe("regression: pages.edit", () => {
     await page.getByRole("button", { name: "Plain Text" }).click();
     await page.getByRole("textbox", { name: "Template", exact: true }).fill("SAVED\n\n\n\n\n");
     await page.getByRole("button", { name: "Save Page" }).click();
-    await expect(page.getByText(/^Saved \d/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/^Saved (just now|\d)/)).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(new RegExp(`/pages/edit/${id}$`));
     await expect(page.getByRole("button", { name: "Export Page", exact: true })).toBeEnabled();
     const stored = await page.request.get(`/api/v1/pages/${id}`);

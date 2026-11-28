@@ -92,8 +92,8 @@ describe("PageBuilder", () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
     // The editor's first paint waits for the rich editor's chunk (UX-8-3).
-    expect(await screen.findByText("Create Page")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("My Custom Page")).toBeInTheDocument();
+    // UX-8-1: a new page is called "Untitled page", a real name, not a placeholder.
+    expect(await screen.findByRole("textbox", { name: /page name/i })).toHaveValue("Untitled page");
   });
 
   it.skip("shows template lines editor", async () => {
@@ -204,7 +204,7 @@ describe("PageBuilder", () => {
     fireEvent.click(screen.getByRole("button", { name: /back to pages/i }));
     expect(mockOnClose).toHaveBeenCalled();
     // The editor's first paint waits for the rich editor's chunk (UX-8-3).
-    expect(await screen.findByText("Create Page")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Untitled page" })).toBeInTheDocument();
   });
 
   // BB-B-11: the desktop preview settles a 22-column board into its pane

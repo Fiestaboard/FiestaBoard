@@ -379,7 +379,8 @@ test.describe("900px fine-pointer nested More actions", () => {
     const popup = await openFinePointerMore(page);
     const openDelete = async () => {
       await popup.getByRole("button", { name: "Delete Page", exact: true }).click();
-      const dialog = page.getByRole("alertdialog", { name: "Delete Page", exact: true });
+      // UX-8-4: the dialog names the page.
+      const dialog = page.getByRole("alertdialog", { name: /^Delete “.+”\?$/ });
       await expect(dialog).toBeVisible();
       return dialog;
     };
@@ -393,7 +394,7 @@ test.describe("900px fine-pointer nested More actions", () => {
     await page.getByRole("button", { name: "More", exact: true }).click();
     await expect(popup).toBeVisible();
     const confirmed = await openDelete();
-    await clickThroughMouseDown(page, confirmed.getByRole("button", { name: "Delete", exact: true }));
+    await clickThroughMouseDown(page, confirmed.getByRole("button", { name: "Delete page", exact: true }));
     await expect.poll(() => deletes.length).toBe(1);
     const url = new URL(deletes[0]);
     expect(url.pathname).toBe("/api/v1/pages/kitchen-morning");

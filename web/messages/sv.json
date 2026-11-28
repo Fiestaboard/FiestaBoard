@@ -3905,6 +3905,25 @@
     "discardDraft": "Släng",
     "lastSaved": "senast sparad {time}"
   },
+  "editorHeader": {
+    "justNow": "nyss",
+    "minutesAgo": "för {count} min sedan",
+    "yesterday": "i går {time}",
+    "saved": "Sparad {time}",
+    "unsavedChanges": "Osparade ändringar",
+    "saving": "Sparar…",
+    "savingDraft": "Sparar utkast…",
+    "draftSaved": "Utkast sparat {time}",
+    "unsaved": "Inte sparad",
+    "newPage": "Ny sida",
+    "boardLabel": "Tavla {board}",
+    "untitledPage": "Namnlös sida",
+    "draftDiscarded": "Utkastet förkastades",
+    "undo": "Ångra",
+    "deleteTitle": "Ta bort ”{name}”?",
+    "deleteDescription": "Den tas bort från alla scheman och samlingar som visar den. Det går inte att ångra.",
+    "deleteAction": "Ta bort sida"
+  },
   "phonePairing": {
     "title": "Anslut en telefon",
     "description": "Skanna detta med FiestaBoard-appen. Koden fungerar en gång och går ut om 5 minuter.",

@@ -144,7 +144,7 @@ import { usePluginSettings } from "@/hooks/use-plugin-settings";
 import { usePreviewReplay } from "@/hooks/use-preview-replay";
 import { useSilence } from "@/hooks/use-silence";
 import { useTransitionPlugins } from "@/hooks/use-transition-plugins";
-import { useTranslations } from "@/i18n/translations";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, EditorToolCall } from "@/lib/ai-chat-types";
 import { anchorProps } from "@/lib/ai-choreography/anchors";
 import type {
@@ -175,17 +175,19 @@ import { charsetTokenText, drawnDifferently } from "@/lib/charset-issues";
 import { seamStraddles, usedLineCount } from "@/lib/complex-editing";
 import { focusTemplateCell } from "@/lib/complex-editing-dom";
 import { boardForShape, isLedModel, ledEditorCharacterSet, resolveBoardModel } from "@/lib/device-preview";
+import { editTimeTitle, formatEditTime, useNow } from "@/lib/edit-time";
 import {
+  ariaKeyShortcuts,
   EDITOR_SHORTCUTS,
   isTypingTarget,
   matchesShortcut,
   previewBindsBoardViewportKeys,
 } from "@/lib/editor-shortcuts";
 import { templateHasFormula } from "@/lib/formula-ide/hints";
-import { COMPACT_EDITOR_HEADER_WIDTH } from "@/lib/layout-constants";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { getDraftKey } from "@/lib/page-draft";
+import { encodePageShareString } from "@/lib/page-share";
 import { panelsFittingGrid, targetValue } from "@/lib/panel-page-fit";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 import { isDisplayOffline } from "@/lib/status-banners";
@@ -193,7 +195,6 @@ import { cn } from "@/lib/utils";
 
 import { FormulaIdeContext } from "./formula-ide/formula-ide-context";
 import { useFormulaIde } from "./formula-ide/use-formula-ide";
-import { TemplateCardMetaContext } from "./template-card-meta";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
 // barrel push this module past 500 kB minified on their own (see #1575).
@@ -287,12 +288,10 @@ interface PageBuilderProps {
    */
   embedded?: boolean;
   /**
-   * Creator IDE seam (web 2.11): replaces the header's Save and Show now while
-   * a display shows the page (04d decision 4: Save draft / Save & update
-   * board). `save` runs the header Save exactly as its button does.
+   * D4/D6 (Creator IDE): the hub draft's state for the header meta, and while a
+   * display shows the page the header's Save draft (04d decision 4: Save draft ·
+   * Save & update board).
    */
-  saveActions?: (actions: PageBuilderSaveActions) => ReactNode;
-  /** D4 (Creator IDE): the hub draft's state for the header meta. */
   draftState?: PageBuilderDraftState;
   /**
    * The workspace columns' slots (BB-E-7): the Explorer column, the end of the
@@ -329,21 +328,15 @@ export interface PageBuilderDraftState {
   /** The display it is live on, by name (the leave guard says it keeps the saved version). */
   liveBoard?: string;
   /** Drop the restored draft and its edits. */
-  onDiscard?: () => void;
+  onDiscard?: () => void | Promise<void>;
   /** Drop the hub draft this session owns (the leave guard's Discard changes). */
   discardDraft?: () => Promise<void>;
-}
-
-export interface PageBuilderSaveActions {
-  save: () => void;
-  saving: boolean;
-  disabled: boolean;
-  /** `lg` is the desktop header's 40 px (Figma 53:137378). */
-  size: "touch" | "sm" | "lg";
-  /** A tight desktop header (BB-E-4): show icons or short labels, keep full accessible names. */
-  compact: boolean;
-  /** The header Save's AI-walkthrough anchor; spread it on the button that publishes. */
-  anchor: Record<string, string>;
+  /** When the hub draft that holds exactly these edits was written ("Draft saved 6:15 AM"). */
+  draftSavedAt?: string;
+  /** Autosave or Save draft is writing the hub draft ("Saving draft…"). */
+  savingDraft?: boolean;
+  /** Save draft: offered while a display shows the page (D6), so the header pair is Save draft · Save & update board. */
+  saveDraft?: () => void;
 }
 
 /**
@@ -498,7 +491,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     onSave,
     onCreated,
     embedded = false,
-    saveActions,
     draftState,
     workspaceSlots,
     explorerOpen = false,
@@ -548,21 +540,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const useTouchToolbar = useMediaQuery("(max-width: 767px), (pointer: coarse)");
   // Under 390px Save is its icon, so the page name keeps two readable lines (BB-B-3).
   const narrowHeader = useMediaQuery("(max-width: 389px)");
-  // The header row's width (BB-E-4): below COMPACT_EDITOR_HEADER_WIDTH the
-  // actions beside the name go icon-only. Measured before the first paint.
-  const [headerRow, setHeaderRow] = useState<HTMLElement | null>(null);
-  const [headerRowWidth, setHeaderRowWidth] = useState(0);
-  // A layout effect with a first synchronous read, so no frame paints the
-  // full labels before the observer's first callback.
-  useLayoutEffect(() => {
-    if (!headerRow) return;
-    setHeaderRowWidth(Math.round(headerRow.clientWidth));
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(([entry]) => setHeaderRowWidth(Math.round(entry.contentRect.width)));
-    observer.observe(headerRow);
-    return () => observer.disconnect();
-  }, [headerRow]);
-  const compactHeader = !dockedPreview && headerRowWidth > 0 && headerRowWidth < COMPACT_EDITOR_HEADER_WIDTH;
+  // D8 (DD-W157): one breakpoint. From 1280 every header button is labelled;
+  // at 1024–1279 Save / Save draft and Export are icon + tooltip, "‹ Pages" is
+  // the chevron and an open Explorer overlays the template. The primary keeps
+  // its full label at every width; no label ever changes with the width.
+  const wideEditor = useMediaQuery("(min-width: 1280px)");
+  const compactHeader = !dockedPreview && !wideEditor;
+  // Save / Save draft is its icon at 1024–1279, under 390 px, and on a phone
+  // while Save draft shares the row with "Save & update board" (BB-B-3).
+  const saveIconOnly = compactHeader || narrowHeader || (sheetPickers && !!draftState?.saveDraft);
   const editorContentRef = useRef<HTMLDivElement>(null);
   const dockPreviewRef = useRef<HTMLElement>(null);
   const viewportBottom = useEditorViewportDock(dockedPreview && useTouchToolbar, editorContentRef, dockPreviewRef);
@@ -582,6 +568,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const requestShowNowRef = useRef<(savedId?: string) => void>(() => {});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const t = useTranslations("pageBuilder");
+  const tHeader = useTranslations("editorHeader");
+  const tIde = useTranslations("creatorIde");
+  const locale = useLocale();
+  // UX-8-1 (306:28127): a new page is called "Untitled page", a real name, so
+  // its first Save never waits on the title.
+  const untitledName = tHeader("untitledPage");
   const tCommon = useTranslations("common");
   const tNav = useTranslations("navigation");
   const tCanvas = useTranslations("canvasEditor");
@@ -690,7 +682,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const defaultWraps = () => Array.from({ length: numLines }, () => false);
 
   // Form state (immediate - for UI responsiveness)
-  const [name, setName] = useState("");
+  const [name, setName] = useState(() => (initialPageId ? "" : untitledName));
   const [templateLines, setTemplateLines] = useState<string[]>(emptyLines());
   const [templateInputStarted, setTemplateInputStarted] = useState(false);
   const [lineAlignments, setLineAlignments] = useState<LineAlignment[]>(defaultAlignments());
@@ -907,7 +899,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (!savedSnapshot)
       return (
         !pageId &&
-        (name.trim().length > 0 || templateLines.some((line) => line.trim().length > 0) || canvases.length > 0)
+        ((name.trim().length > 0 && name !== untitledName) ||
+          templateLines.some((line) => line.trim().length > 0) ||
+          canvases.length > 0)
       );
     return (
       name !== savedSnapshot.name ||
@@ -924,6 +918,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     savedSnapshot,
     pageId,
     name,
+    untitledName,
     deviceType,
     notesWide,
     notesTall,
@@ -1584,7 +1579,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Whether the editor has had its first paint (the loading skeleton is gone):
   // what measures the mounted editor waits for it (UX-8-3 gate below).
   const [editorShown, setEditorShown] = useState(false);
-  const caretScrollMargin = useEditorScrollMargin(dockedPreview && editorShown, editorContentRef, viewportBottom);
+  // Not while the page skeleton is back after the first paint (a reload of the
+  // page query), when there is no editor root to measure (OPUS-2649 nit).
+  const caretScrollMargin = useEditorScrollMargin(
+    dockedPreview && editorShown && !(pageId && loadingPage),
+    editorContentRef,
+    viewportBottom,
+  );
   useEffect(() => {
     savedPageRef.current = existingPage;
   }, [existingPage]);
@@ -1736,7 +1737,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
             if (draftAge < maxAge) {
               const restoredLines = draft.templateLines || ["", "", "", "", "", ""];
-              setName(draft.name || "");
+              setName(draft.name || untitledName);
               setTemplateLines(restoredLines);
               setLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
               setLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
@@ -1994,7 +1995,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (pageId) {
         const payload: PageUpdate = {
           expected_revision: seededRevisionRef.current,
-          name,
+          name: name.trim() || untitledName,
           device_type: deviceType,
           template: cleanedLines,
           line_metadata: metadata,
@@ -2010,7 +2011,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         return { ...(await api.updatePage(pageId, payload)), submitted, showRequested };
       } else {
         const payload: PageCreate = {
-          name,
+          name: name.trim() || untitledName,
           type: "template" as PageType,
           device_type: deviceType,
           template: cleanedLines,
@@ -2105,10 +2106,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   });
 
   requestShowNowRef.current = (savedId) => {
-    if (!name.trim()) {
-      document.getElementById("page-name")?.focus();
-      return;
-    }
     if (saveMutation.isPending || stagingActive) return;
     if (hasUnsavedChangesRef.current || !(pageId ?? savedId)) {
       saveMutation.mutate({ showRequested: true });
@@ -2122,15 +2119,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         event.returnValue = "";
       }
     };
+    // ⌘S is the header's secondary (Save, or Save draft while a display shows
+    // the page, D6); ⌘⇧S its primary (Show now, or Save & update board; UX-9-1).
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        if (!name.trim()) {
-          document.getElementById("page-name")?.focus();
-          return;
-        }
-        if (!saveMutation.isPending && !stagingActive) saveMutation.mutate();
-      }
+      const primary = matchesShortcut(event, EDITOR_SHORTCUTS.saveAndShow);
+      if (!primary && !matchesShortcut(event, EDITOR_SHORTCUTS.save)) return;
+      event.preventDefault();
+      if (saveMutation.isPending || stagingActive || draftState?.savingDraft) return;
+      const saveDraft = draftState?.saveDraft;
+      // Show now needs a display, as its button does.
+      if (primary && !saveDraft) {
+        if (selectedBoardId) requestShowNowRef.current();
+      } else if (!primary && saveDraft) saveDraft();
+      else saveMutation.mutate();
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     window.addEventListener("keydown", onKey);
@@ -2138,7 +2139,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("keydown", onKey);
     };
-  }, [name, saveMutation, stagingActive]);
+  }, [saveMutation, stagingActive, draftState, selectedBoardId]);
 
   // Delete mutation
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -2709,11 +2710,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // in the template column (07 `57:27771`; DD-W30).
   const shortcutList = useEditorShortcutList();
   const templateHeadingRef = useRef<HTMLDivElement>(null);
+  const templateCardAnchorRef = useRef<HTMLDivElement>(null);
   const shortcutListProps = {
     state: shortcutList,
     // Hidden on a pixel board's Canvases surface: the kit then hangs the list
     // from the trigger that opened it (or its gutter on touch).
-    anchorRef: pixelBoard && editingSurface !== "text" ? undefined : templateHeadingRef,
+    // In the rich editor the title sits inside the card's padding, so the list
+    // hangs from the card's header row at its left edge, right of any band
+    // gutter (templateCardAnchorRef); drawing hides the card, then the title row.
+    anchorRef:
+      pixelBoard && editingSurface !== "text"
+        ? undefined
+        : editorMode === "rich" && !baselineDisplay && !editorCharset && !drawMode
+          ? templateCardAnchorRef
+          : templateHeadingRef,
     // Only a split-flap preview can bind BoardViewport's keys; an LED board
     // previews through DevicePreview (draw mode always paints flaps).
     boardViewport: previewBindsBoardViewportKeys({ ledPreview: !drawMode && isLedModel(previewModel) }),
@@ -2737,7 +2747,50 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const richToolbarExpected = !useTouchToolbar && editorMode === "rich" && !baselineDisplay && !editorCharset;
   // The rich editor's card has a square top for a header to sit on (UX-3-3).
   const templateCardHeader = editorMode === "rich" && !baselineDisplay && !editorCharset;
-  const [templateMetaHost, setTemplateMetaHost] = useState<HTMLElement | null>(null);
+  // "Template" and Rich | Plain: the rich editor's card title, or the row above
+  // the plain and LED editors. Also the shortcut list's anchor.
+  const templateTitle = (
+    <Flex
+      ref={templateHeadingRef}
+      data-slot="page-editor-template-title"
+      align="center"
+      gap="2"
+      // In the card the title keeps its width and the count truncates first (Den TV, 1440).
+      className={cn(templateCardHeader && !drawMode ? "shrink-0" : "w-full min-w-0 justify-between")}
+    >
+      <label htmlFor="page-template-plain" className="text-sm font-semibold">
+        {baselineDisplay ? tTouch("plainTemplate") : t("templateLabel")}
+      </label>
+      <Flex
+        align="center"
+        role="group"
+        aria-label={t("editorModeAriaLabel")}
+        className="border rounded-md overflow-hidden"
+      >
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => handleEditorModeChange("rich")}
+          className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+          aria-label={t("richEditorAriaLabel")}
+          disabled={baselineDisplay}
+          aria-pressed={!baselineDisplay && editorMode === "rich"}
+        >
+          {t("richEditor")}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => handleEditorModeChange("plain")}
+          className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+          aria-label={t("plainTextAriaLabel")}
+          aria-pressed={baselineDisplay || editorMode === "plain"}
+        >
+          {t("plainEditor")}
+        </Button>
+      </Flex>
+    </Flex>
+  );
 
   // Keyboard shortcuts while drawing: Esc exits; undo/redo work even though
   // the editor itself is visually hidden (and thus not focused) in draw mode.
@@ -2761,6 +2814,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [drawMode]);
+
+  /** The page as the editor holds it now, for Export (UX-1-4); the saved page fills what the editor doesn't edit. */
+  const currentShareContent = (): Record<string, unknown> => {
+    const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
+    return {
+      ...existingPage,
+      name: name.trim() || untitledName,
+      type: existingPage?.type ?? "template",
+      device_type: deviceType,
+      template: cleanedLines,
+      line_metadata: metadata,
+      transition_strategy: transitionStrategy,
+      ...geometryFields(deviceType, notesWide, notesTall, panelGrid),
+      canvases: canvases.length > 0 ? canvases : undefined,
+      duration_seconds: durationRef.current,
+    };
+  };
 
   // Compact editors keep Save and Show now in the bar. Secondary actions
   // share their original handlers/dialogs between desktop chrome and More.
@@ -2885,36 +2955,28 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             {tShortcuts("button")}
           </Button>
         )}
-        {/* Export button — only on existing pages */}
-        {pageId && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="secondary"
-                size={dockedPreview ? "sm" : "lg"}
-                className={cn("gap-1.5", dockedPreview ? "h-8 px-3 text-xs" : "px-4 text-sm")}
-                disabled={hasUnsavedChanges}
-                onClick={async () => {
-                  try {
-                    const res = await api.getPageShareString(pageId);
-                    setExportShareString(res.share_string);
-                    setExportOpen(true);
-                  } catch {
-                    toast.error(t("exportFailed"));
-                  }
-                }}
-                aria-label={t("exportPageAriaLabel")}
-              >
-                <Upload className="h-3.5 w-3.5" />
-                {/* 1024–1279: icon only, so the page name keeps its room (BB-E-4). */}
-                {!compactHeader && t("exportPage")}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <Text>{hasUnsavedChanges ? t("exportDisabledTooltip") : t("exportPageTooltip")}</Text>
-            </TooltipContent>
-          </Tooltip>
-        )}
+        {/* Export: on every page, saved or not, and it exports the editor's
+            current content, as Docs does (UX-1-4). 1024–1279: icon + tooltip (D8). */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="secondary"
+              size={dockedPreview ? "sm" : "lg"}
+              className={cn("gap-1.5", dockedPreview ? "h-8 px-3 text-xs" : compactHeader ? "px-3" : "px-4 text-sm")}
+              onClick={() => {
+                setExportShareString(encodePageShareString(currentShareContent()));
+                setExportOpen(true);
+              }}
+              aria-label={t("exportPageAriaLabel")}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {!compactHeader && t("exportPage")}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <Text>{t("exportPageTooltip")}</Text>
+          </TooltipContent>
+        </Tooltip>
       </Flex>
     </TooltipProvider>
   );
@@ -2923,10 +2985,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("deletePageTitle")}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {name ? t("deletePageConfirmation", { pageName: name }) : t("deletePageConfirmationGeneric")}
-          </AlertDialogDescription>
+          {/* UX-8-4: the dialog names the page and says what deleting it does. */}
+          <AlertDialogTitle>
+            {tHeader("deleteTitle", { name: existingPage?.name || name.trim() || untitledName })}
+          </AlertDialogTitle>
+          <AlertDialogDescription>{tHeader("deleteDescription")}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
@@ -2934,39 +2997,85 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             onClick={() => deleteMutation.mutate()}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {deleteMutation.isPending ? tCommon("deleting") : tCommon("delete")}
+            {deleteMutation.isPending ? tCommon("deleting") : tHeader("deleteAction")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   ) : null;
-  // The header's save state and its mono meta line (BB-E-13, Figma 53:137378):
-  // "Flagship 22 × 6 · Kitchen · Live on Kitchen · Saved 7:28 PM".
-  const clock = (date: Date) => date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  // The header's mono meta line (BB-E-13, Figma 53:137378): "Flagship 22 × 6 ·
+  // Kitchen · Live on Kitchen · Saved 2 min ago". D6 (DD-W158): it is the one
+  // place for the save state — Unsaved changes → Saving draft… → Draft saved
+  // 6:15 AM while a display shows the page, Unsaved changes → Saved 2 min ago
+  // otherwise — with relative times (UX-1-3).
+  const now = useNow();
+  const editTime = (at: Date | string) =>
+    formatEditTime(at, {
+      locale,
+      now,
+      words: {
+        justNow: () => tHeader("justNow"),
+        minutesAgo: (count) => tHeader("minutesAgo", { count }),
+        yesterday: (time) => tHeader("yesterday", { time }),
+      },
+    });
   const savedStamp = existingPage?.updated_at ?? existingPage?.created_at;
   const lastSaved = savedAt ?? (savedStamp ? new Date(savedStamp) : null);
-  const saveStateLabel = !pageId
-    ? tTouch("unsaved")
-    : hasUnsavedChanges
-      ? [tTouch("unsaved"), lastSaved && tTouch("lastSaved", { time: clock(lastSaved) })].filter(Boolean).join(" · ")
-      : lastSaved
-        ? `${tTouch("saved")} ${clock(lastSaved)}`
-        : "";
-  const headerMeta = [
-    boardMeta(previewBoard ?? undefined, {
-      deviceType,
-      notesWide,
-      notesTall,
-      gridRows: gridRows ?? undefined,
-      gridCols: gridCols ?? undefined,
-    }),
-    previewBoard?.name,
-    draftState?.live,
-  ]
+  const stateAt: Date | string | null = !pageId
+    ? null
+    : saveMutation.isPending || draftState?.savingDraft
+      ? null
+      : draftState?.draftSavedAt && draftState.saveDraft
+        ? draftState.draftSavedAt
+        : hasUnsavedChanges
+          ? null
+          : lastSaved;
+  const saveStateLabel = saveMutation.isPending
+    ? tHeader("saving")
+    : !pageId
+      ? tHeader("unsaved")
+      : draftState?.savingDraft && draftState.saveDraft
+        ? tHeader("savingDraft")
+        : draftState?.draftSavedAt && draftState.saveDraft
+          ? tHeader("draftSaved", { time: editTime(draftState.draftSavedAt) })
+          : hasUnsavedChanges
+            ? tHeader("unsavedChanges")
+            : lastSaved
+              ? tHeader("saved", { time: editTime(lastSaved) })
+              : "";
+  const geometryMeta = boardMeta(previewBoard ?? undefined, {
+    deviceType,
+    notesWide,
+    notesTall,
+    gridRows: gridRows ?? undefined,
+    gridCols: gridCols ?? undefined,
+  });
+  // A new page, as 306:28127 draws it: "New Page · Kitchen board · Flagship 22 × 6 · Unsaved".
+  const headerMeta = (
+    pageId
+      ? [geometryMeta, previewBoard?.name, draftState?.live]
+      : [tHeader("newPage"), previewBoard?.name && tHeader("boardLabel", { board: previewBoard.name }), geometryMeta]
+  )
     .filter(Boolean)
     .join(" · ");
   // The save/draft state never truncates: it carries "Draft restored · Discard".
   const headerState = draftState?.label ?? saveStateLabel;
+  const headerStateTitle = !draftState?.label && stateAt ? editTimeTitle(stateAt, locale) : undefined;
+  // UX-1-7: discarding a restored draft can be undone for a few seconds (Gmail/Docs).
+  const discardRestoredDraft = draftState?.onDiscard
+    ? async () => {
+        // The whole content (text, geometry, transition, canvases, duration), not
+        // just the text; the toast comes once the discard has landed, so an Undo
+        // can't be overwritten by it.
+        const kept = getCurrentPageSnapshot();
+        await draftState.onDiscard?.();
+        if (!kept) return;
+        toast(tHeader("draftDiscarded"), {
+          duration: 8000,
+          action: { label: tHeader("undo"), onClick: () => applyContent(kept as unknown as PageContent) },
+        });
+      }
+    : undefined;
 
   // Web 2.10 (04c): formula values, Live/Sample/Missing, Inspect and the
   // docked formula workbench. Inert for canvases and plain-text-only boards.
@@ -3252,11 +3361,18 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     </>
   );
 
+  // The name as it was when its field took focus: Esc puts it back (UX-1-5).
+  const nameBeforeEditRef = useRef("");
+  /** Hands the caret back to the template (the rich editor, or the plain field). */
+  const focusTemplate = () => {
+    const host = editorMode === "rich" && !baselineDisplay ? richTemplateContainerRef : plainTemplateContainerRef;
+    const field = host.current?.querySelector<HTMLElement>('[contenteditable="true"], textarea');
+    // Nothing to take the caret (draw mode, a hidden surface): leave the name field anyway.
+    if (field && field.offsetParent !== null) field.focus();
+    else (document.activeElement as HTMLElement | null)?.blur();
+  };
+
   const requestSave = () => {
-    if (!name.trim()) {
-      document.getElementById("page-name")?.focus();
-      return;
-    }
     saveMutation.mutate();
   };
 
@@ -3431,7 +3547,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 dockedPreview ? "h-16 py-1" : "h-14 lg:min-h-16 py-0",
               )}
             >
-              <Flex ref={setHeaderRow} align="center" className="h-full min-w-0 flex-nowrap gap-1.5">
+              <Flex align="center" className="h-full min-w-0 flex-nowrap gap-1.5">
                 {/* The editor's own way back: the section draws no breadcrumb
                 around it (BB-B-4, BB-B-19). "‹ Pages" on desktop (184:159319). */}
                 {dockedPreview ? (
@@ -3458,7 +3574,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 )}
                 {/* Desktop: the name never gets less than 240 px; the actions beside it
                   go icon-only below 1280 to make the room (BB-E-4). */}
-                <Box className={cn("relative min-w-0 flex-1", !dockedPreview && "h-11 lg:h-12 lg:min-w-60")}>
+                <Box
+                  data-slot="page-editor-name"
+                  className={cn("relative min-w-0 flex-1", !dockedPreview && "h-11 lg:h-12 lg:min-w-60")}
+                >
                   <label htmlFor="page-name" className="sr-only">
                     {t("pageNameLabel")}
                   </label>
@@ -3476,29 +3595,45 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     wrap={dockedPreview ? "soft" : "off"}
                     value={name}
                     onChange={(event) => setName(event.target.value.replace(/[\r\n]+/g, " "))}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-                        event.preventDefault();
-                        event.currentTarget.blur();
-                      }
+                    // UX-1-5, Docs-style title: Enter keeps the name, Esc restores it,
+                    // and both hand the caret back to the template.
+                    onFocus={(event) => {
+                      nameBeforeEditRef.current = name;
+                      // A new page's "Untitled page" is selected, so typing replaces it (UX-8-1).
+                      if (!pageId && name === untitledName) event.currentTarget.select();
                     }}
-                    // Show the name from its start again once editing ends.
+                    onKeyDown={(event) => {
+                      if (event.nativeEvent.isComposing) return;
+                      if (event.key !== "Enter" && event.key !== "Escape") return;
+                      event.preventDefault();
+                      if (event.key === "Escape") setName(nameBeforeEditRef.current);
+                      focusTemplate();
+                    }}
+                    // Show the name from its start again once editing ends; a blank name
+                    // goes back to the one it had (a page always has a name).
                     onBlur={(event) => {
                       event.currentTarget.scrollTop = 0;
                       event.currentTarget.scrollLeft = 0;
+                      if (!name.trim()) setName(nameBeforeEditRef.current.trim() || untitledName);
                     }}
                     placeholder={t("pageNamePlaceholder")}
                     enterKeyHint="done"
                     className={cn(
-                      "block min-h-0 w-full min-w-0 resize-none overflow-hidden rounded-none border-transparent bg-transparent font-semibold shadow-none",
+                      "block min-h-0 min-w-0 resize-none overflow-hidden border-transparent bg-transparent font-semibold shadow-none",
                       dockedPreview
-                        ? "max-h-[2lh] p-0 text-base leading-tight [field-sizing:content]"
-                        : "h-11 lg:h-12 px-0 pt-0 pb-4 text-base lg:text-2xl",
+                        ? "w-full max-h-[2lh] rounded-none p-0 text-base leading-tight [field-sizing:content]"
+                        : // The ring hugs the name only (8 px in, --radius-sm); the meta stays outside it.
+                          "-ml-2 h-8 w-auto max-w-[calc(100%+0.5rem)] rounded-sm px-2 py-0 text-2xl leading-8 [field-sizing:content]",
                     )}
                   />
                   {dockedPreview ? (
-                    <Text size="xs" tone="muted" className="pointer-events-none block truncate font-mono">
-                      {draftState?.label ?? saveStateLabel}
+                    <Text
+                      size="xs"
+                      tone="muted"
+                      className="pointer-events-none block truncate font-mono"
+                      title={headerStateTitle}
+                    >
+                      {headerState}
                     </Text>
                   ) : (
                     // BB-E-13: the mono meta line under the name (Figma 53:137378).
@@ -3526,7 +3661,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               {" · "}
                             </Text>
                           )}
-                          <Text size="xs" tone="muted" className="shrink-0 whitespace-nowrap font-mono">
+                          <Text
+                            size="xs"
+                            tone="muted"
+                            className="shrink-0 whitespace-nowrap font-mono"
+                            title={headerStateTitle}
+                            data-testid="page-editor-save-state"
+                          >
                             {headerState}
                           </Text>
                         </>
@@ -3536,7 +3677,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           variant="link"
                           size="sm"
                           className="h-auto shrink-0 p-0 font-mono text-xs"
-                          onClick={draftState.onDiscard}
+                          onClick={discardRestoredDraft}
                         >
                           {tTouch("discardDraft")}
                         </Button>
@@ -3556,57 +3697,48 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 <Box hidden className="hidden">
                   <EditorShortcutList variant="header" {...shortcutListProps} />
                 </Box>
-                {saveActions ? (
+                {/* Figma's two pairs (D6): Save · Show now, or Save draft · Save & update
+                  board while a display shows the page. The labels never change with
+                  the state or the width (D8, DD-W157): at 1024–1279 Save / Save draft
+                  is its icon with a tooltip; the primary keeps its words everywhere. */}
+                <TooltipProvider skipDelayDuration={0}>
                   <Flex align="center" gap="1.5" className="shrink-0 flex-nowrap">
-                    {saveActions({
-                      save: requestSave,
-                      saving: saveMutation.isPending,
-                      disabled: saveMutation.isPending || stagingActive,
-                      size: dockedPreview ? "touch" : "lg",
-                      compact: compactHeader,
-                      anchor: anchorProps("page-editor.save"),
-                    })}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size={
+                            saveIconOnly ? (dockedPreview ? "icon-touch" : "icon-lg") : dockedPreview ? "touch" : "lg"
+                          }
+                          className={cn("shrink-0 text-sm", !saveIconOnly && "gap-1.5 px-3")}
+                          {...(!draftState?.saveDraft && anchorProps("page-editor.save"))}
+                          onClick={draftState?.saveDraft ?? requestSave}
+                          disabled={saveMutation.isPending || stagingActive || !!draftState?.savingDraft}
+                          aria-label={draftState?.saveDraft ? tIde("saveDraft") : t("savePageAriaLabel")}
+                          aria-keyshortcuts={ariaKeyShortcuts(EDITOR_SHORTCUTS.save)}
+                        >
+                          <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                          {!saveIconOnly && (draftState?.saveDraft ? tIde("saveDraft") : t("savePage"))}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <Text>{draftState?.saveDraft ? tIde("saveDraft") : t("savePageTooltip")}</Text>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Button
+                      variant="brand"
+                      size={dockedPreview ? "touch" : "lg"}
+                      className="shrink-0 gap-1.5 px-3 text-sm"
+                      {...(draftState?.saveDraft && anchorProps("page-editor.save"))}
+                      disabled={saveMutation.isPending || stagingActive || (!draftState?.saveDraft && !selectedBoardId)}
+                      onClick={draftState?.saveDraft ? requestSave : () => requestShowNowRef.current()}
+                      aria-keyshortcuts={ariaKeyShortcuts(EDITOR_SHORTCUTS.saveAndShow)}
+                    >
+                      <Send className="size-4" aria-hidden="true" />
+                      {draftState?.saveDraft ? tIde("saveAndUpdate") : tTouch("showNow")}
+                    </Button>
                   </Flex>
-                ) : (
-                  <TooltipProvider skipDelayDuration={0}>
-                    <Flex align="center" gap="1.5" className="shrink-0 flex-nowrap">
-                      {/* Save button */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="secondary"
-                            size={narrowHeader ? "icon-touch" : dockedPreview ? "touch" : "lg"}
-                            className={cn("shrink-0 text-sm", !narrowHeader && "gap-1.5 px-3")}
-                            // A tight desktop header: icon only (BB-E-4).
-                            {...anchorProps("page-editor.save")}
-                            onClick={requestSave}
-                            disabled={saveMutation.isPending || stagingActive}
-                            aria-label={t("savePageAriaLabel")}
-                          >
-                            <Save className="h-3.5 w-3.5" />
-                            {!narrowHeader &&
-                              !compactHeader &&
-                              (saveMutation.isPending ? tCommon("saving") : t("savePage"))}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <Text>{t("savePageTooltip")}</Text>
-                        </TooltipContent>
-                      </Tooltip>
-                      <Button
-                        variant="brand"
-                        size={dockedPreview ? "touch" : "lg"}
-                        className="shrink-0 gap-1.5 px-3 text-sm"
-                        disabled={saveMutation.isPending || stagingActive || !selectedBoardId}
-                        onClick={() => requestShowNowRef.current()}
-                        aria-label={compactHeader ? tTouch("showNow") : undefined}
-                      >
-                        <Send className="size-4" />
-                        {!compactHeader && tTouch("showNow")}
-                      </Button>
-                    </Flex>
-                  </TooltipProvider>
-                )}
+                </TooltipProvider>
               </Flex>
             </CardHeader>
             <Box className="px-0 lg:px-4">
@@ -3702,7 +3834,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     ? // The preview gets the wider column (53:137378) until the Explorer opens (184:159319).
                       // From the shell's state, not `:has()`: Chrome re-matched that a frame
                       // late when the IDE's Explorer replaced the placeholder (UX-8-3).
-                      explorerOpen
+                      // Below 1280 an open Explorer overlays the template instead (D8).
+                      explorerOpen && wideEditor
                       ? "lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]"
                       : "lg:grid-cols-[auto_minmax(0,2fr)_minmax(0,3fr)]"
                     : "lg:grid-cols-2",
@@ -3712,7 +3845,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <Box
                     ref={workspaceSlots.explorer}
                     data-slot="page-editor-explorer-column"
-                    className="hidden min-w-0 lg:col-start-1 lg:row-start-1 lg:block lg:self-stretch"
+                    data-overlay={explorerOpen && !wideEditor ? "" : undefined}
+                    className={cn(
+                      "hidden min-w-0 lg:col-start-1 lg:row-start-1 lg:block lg:self-stretch",
+                      // D8 (DD-W157): at 1024–1279 the open Explorer is a panel over the
+                      // template column, not a third column (three columns in ~900 px
+                      // starve the template). The column keeps the closed toggle's width,
+                      // so the template never moves when it opens or closes.
+                      explorerOpen && !wideEditor && "lg:w-9 lg:*:z-30 lg:*:shadow-lg",
+                    )}
                   />
                 )}
                 <Box
@@ -3737,64 +3878,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 ? richTemplateContainerRef
                                 : plainTemplateContainerRef
                             }
-                            onGo={goToTemplateCell}
                           />
                         </Suspense>
                       )}
-                      {/* The template card's header ("Template", the count, Rich | Plain) sits
-                        flush on the rich editor's square top, as 184:159319 draws it (UX-3-3),
-                        and comes before the field at every width (UX-10-1). */}
-                      <Flex
-                        ref={templateHeadingRef}
-                        data-slot="page-editor-template-card-header"
-                        align="center"
-                        justify="between"
-                        gap="2"
-                        className={cn(
-                          "min-w-0",
-                          templateCardHeader && "-mb-3 rounded-t-md border border-b-0 bg-background py-1.5 pl-3 pr-1.5",
-                          // The band gutter stands left of the card (DD-W131): the header tops the card only.
-                          templateCardHeader && rowBandsEnabled && "ml-38",
-                        )}
-                      >
-                        <label htmlFor="page-template-plain" className="text-sm font-semibold">
-                          {baselineDisplay ? tTouch("plainTemplate") : t("templateLabel")}
-                        </label>
-                        {/* The editor portals its line count and caret here (template-card-meta.tsx). */}
-                        <Box
-                          ref={setTemplateMetaHost}
-                          data-slot="template-card-meta"
-                          className="ml-auto min-w-0 truncate font-mono text-xs text-muted-foreground empty:hidden"
-                        />
-                        <Flex
-                          align="center"
-                          role="group"
-                          aria-label={t("editorModeAriaLabel")}
-                          className="border rounded-md overflow-hidden"
-                        >
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditorModeChange("rich")}
-                            className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
-                            aria-label={t("richEditorAriaLabel")}
-                            disabled={baselineDisplay}
-                            aria-pressed={!baselineDisplay && editorMode === "rich"}
-                          >
-                            {t("richEditor")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditorModeChange("plain")}
-                            className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
-                            aria-label={t("plainTextAriaLabel")}
-                            aria-pressed={baselineDisplay || editorMode === "plain"}
-                          >
-                            {t("plainEditor")}
-                          </Button>
-                        </Flex>
-                      </Flex>
+                      {/* The rich editor owns its card header (FABLE-2648 ruling): "Template"
+                        and Rich | Plain go in as its title, the count and caret are its own,
+                        all in one card row (184:159319, UX-3-3). The other editors keep the
+                        title row above the field, before it at every width (UX-10-1). */}
+                      {/* Draw mode hides the card, so its title (the shortcut list's anchor) comes out above. */}
+                      {(!templateCardHeader || drawMode) && templateTitle}
                       {editorMode === "rich" && !baselineDisplay ? (
                         <Box
                           ref={richTemplateContainerRef}
@@ -3802,6 +3894,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           {...anchorProps("page-editor.template")}
                           className={cn("relative", rowBandsEnabled && "pl-38")}
                         >
+                          {/* The card's header row, right of the band gutter: the shortcut list's anchor. */}
+                          <Box
+                            ref={templateCardAnchorRef}
+                            aria-hidden
+                            className={cn(
+                              "pointer-events-none absolute right-0 top-0 h-10",
+                              rowBandsEnabled ? "left-38" : "left-0",
+                            )}
+                          />
                           {rowBandsEnabled && (
                             <Suspense fallback={null}>
                               <RowBandGutter
@@ -3866,50 +3967,49 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 syncFromBoardPending={syncFromBoardMutation.isPending}
                               />
                             ) : (
-                              <TemplateCardMetaContext.Provider value={templateCardHeader ? templateMetaHost : null}>
-                                <TipTapTemplateEditor
-                                  ref={tipTapRef}
-                                  scrollMargin={caretScrollMargin}
-                                  value={newPageEmpty ? "" : templateLines.join("\n")}
-                                  onChange={handleRichEditorChange}
-                                  lineAlignments={lineAlignments}
-                                  lineWrapEnabled={lineWrapEnabled}
-                                  onLineAlignmentChange={(lineIndex, alignment) => {
-                                    setLineAlignments((prev) => {
-                                      const newAlignments = [...prev];
-                                      newAlignments[lineIndex] = alignment;
-                                      return newAlignments;
-                                    });
-                                  }}
-                                  onLineWrapChange={(lineIndex, wrapEnabled) => {
-                                    setLineWrapEnabled((prev) => {
-                                      const newWrapStates = [...prev];
-                                      newWrapStates[lineIndex] = wrapEnabled;
-                                      return newWrapStates;
-                                    });
-                                  }}
-                                  placeholder={
-                                    newPageEmpty
-                                      ? tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })
-                                      : t("richEditorPlaceholder")
-                                  }
-                                  showAlignmentControls={true}
-                                  showToolbar={true}
-                                  boardWidth={dims.cols}
-                                  boardLines={numLines}
-                                  deviceType={deviceType}
-                                  code62Glyph={effectiveCode62Glyph}
-                                  onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                                  syncFromBoardPending={syncFromBoardMutation.isPending}
-                                  drawMode={drawMode}
-                                  onDrawModeToggle={() => setDrawMode((v) => !v)}
-                                  drawBrush={drawBrush}
-                                  onDrawBrushChange={setDrawBrush}
-                                  onDrawHistoryEvent={handleDrawHistoryEvent}
-                                  toolbarContainer={toolbarContainer}
-                                  toolbarMoreContent={mirrorMoreContent}
-                                />
-                              </TemplateCardMetaContext.Provider>
+                              <TipTapTemplateEditor
+                                cardTitle={drawMode ? undefined : templateTitle}
+                                ref={tipTapRef}
+                                scrollMargin={caretScrollMargin}
+                                value={newPageEmpty ? "" : templateLines.join("\n")}
+                                onChange={handleRichEditorChange}
+                                lineAlignments={lineAlignments}
+                                lineWrapEnabled={lineWrapEnabled}
+                                onLineAlignmentChange={(lineIndex, alignment) => {
+                                  setLineAlignments((prev) => {
+                                    const newAlignments = [...prev];
+                                    newAlignments[lineIndex] = alignment;
+                                    return newAlignments;
+                                  });
+                                }}
+                                onLineWrapChange={(lineIndex, wrapEnabled) => {
+                                  setLineWrapEnabled((prev) => {
+                                    const newWrapStates = [...prev];
+                                    newWrapStates[lineIndex] = wrapEnabled;
+                                    return newWrapStates;
+                                  });
+                                }}
+                                placeholder={
+                                  newPageEmpty
+                                    ? tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })
+                                    : t("richEditorPlaceholder")
+                                }
+                                showAlignmentControls={true}
+                                showToolbar={true}
+                                boardWidth={dims.cols}
+                                boardLines={numLines}
+                                deviceType={deviceType}
+                                code62Glyph={effectiveCode62Glyph}
+                                onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                                syncFromBoardPending={syncFromBoardMutation.isPending}
+                                drawMode={drawMode}
+                                onDrawModeToggle={() => setDrawMode((v) => !v)}
+                                drawBrush={drawBrush}
+                                onDrawBrushChange={setDrawBrush}
+                                onDrawHistoryEvent={handleDrawHistoryEvent}
+                                toolbarContainer={toolbarContainer}
+                                toolbarMoreContent={mirrorMoreContent}
+                              />
                             )}
                           </Suspense>
                         </Box>

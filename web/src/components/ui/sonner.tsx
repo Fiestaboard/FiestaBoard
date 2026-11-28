@@ -4,13 +4,15 @@ import {
   Toaster as KitToaster,
   type ToasterProps as KitToasterProps,
 } from "@fiestaboard/ui/components/feedback/toaster";
-import { useSyncExternalStore } from "react";
+import { useContext, useSyncExternalStore } from "react";
+import { UNSAFE_LocationContext } from "react-router";
 
 import { useOptionalSpotlight } from "@/components/ai-spotlight/spotlight-provider";
 import { useOptionalGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { useBelowRail } from "@/hooks/use-below-rail";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
+import { cn } from "@/lib/utils";
 
 /** Where the drawer stops being a panel beside the page and becomes the page. */
 const DESKTOP_QUERY = "(min-width: 1024px)";
@@ -35,6 +37,18 @@ function isDesktopNow(): boolean {
 
 function useMatchesDesktop(): boolean {
   return useSyncExternalStore(subscribeToDesktop, isDesktopNow, () => false);
+}
+
+/** The page editor (a new page, or one being edited). */
+const EDITOR_ROUTE = /\/pages\/(new|edit)(\/|$)/;
+
+/**
+ * Whether the page editor is on screen. Read from the router's context
+ * without `useLocation`, which throws outside a router (Storybook, tests).
+ */
+function useOnEditorRoute(): boolean {
+  const pathname = useContext(UNSAFE_LocationContext)?.location?.pathname ?? "";
+  return EDITOR_ROUTE.test(pathname);
 }
 
 /** Public kit props, plus the existing app live-region label alias.
@@ -87,11 +101,15 @@ const Toaster = ({ containerAriaLabel, labels, ...props }: ToasterProps) => {
   // sm"): from the rail up a toast drops in at the top right; on a phone it
   // rises from the bottom, above the tab bar (the kit clears the bar).
   const belowRail = useBelowRail();
+  // UX-8-2 (306:30304): in the page editor a toast is a bottom-right card, clear
+  // of Export · Save · Show now in the header, and under the modal layer so it
+  // never sits on a dialog's scrim.
+  const onEditor = useOnEditorRoute();
   const position: ToasterProps["position"] =
     props.position ??
     (walkthroughOnScreen || aiPanel?.isMinimized || (drawerOpen && !isDesktop)
       ? "top-center"
-      : belowRail
+      : belowRail || onEditor
         ? "bottom-right"
         : "top-right");
   // The drawer's live width plus its inset and a gap of the same size.
@@ -99,7 +117,9 @@ const Toaster = ({ containerAriaLabel, labels, ...props }: ToasterProps) => {
     props.offset ??
     (drawerOpen && isDesktop && !walkthroughOnScreen
       ? { right: "calc(var(--ai-drawer-width, 384px) + 1.5rem)" }
-      : undefined);
+      : onEditor && !belowRail && position === "bottom-right"
+        ? 24
+        : undefined);
 
   return (
     <KitToaster
@@ -111,6 +131,8 @@ const Toaster = ({ containerAriaLabel, labels, ...props }: ToasterProps) => {
       labels={{ close: t("close"), ...labels, container: ariaLabel }}
       position={position}
       offset={offset}
+      // Sonner's own layer is above everything; the editor's sits just under --z-modal.
+      className={cn(props.className, onEditor && "z-[calc(var(--z-modal)-1)]!")}
     />
   );
 };

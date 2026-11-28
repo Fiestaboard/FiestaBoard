@@ -3905,6 +3905,25 @@
     "discardDraft": "Discard",
     "lastSaved": "last saved {time}"
   },
+  "editorHeader": {
+    "justNow": "just now",
+    "minutesAgo": "{count} min ago",
+    "yesterday": "yesterday {time}",
+    "saved": "Saved {time}",
+    "unsavedChanges": "Unsaved changes",
+    "saving": "Saving…",
+    "savingDraft": "Saving draft…",
+    "draftSaved": "Draft saved {time}",
+    "unsaved": "Unsaved",
+    "newPage": "New Page",
+    "boardLabel": "{board} board",
+    "untitledPage": "Untitled page",
+    "draftDiscarded": "Draft discarded",
+    "undo": "Undo",
+    "deleteTitle": "Delete “{name}”?",
+    "deleteDescription": "It comes off every schedule and collection that shows it. You can't undo this.",
+    "deleteAction": "Delete page"
+  },
   "phonePairing": {
     "title": "Connect a phone",
     "description": "Scan this with the FiestaBoard app. The code works once and expires in 5 minutes.",

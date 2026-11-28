@@ -3905,6 +3905,25 @@
     "discardDraft": "버리기",
     "lastSaved": "마지막 저장 {time}"
   },
+  "editorHeader": {
+    "justNow": "방금",
+    "minutesAgo": "{count}분 전",
+    "yesterday": "어제 {time}",
+    "saved": "저장됨 {time}",
+    "unsavedChanges": "저장되지 않은 변경 사항",
+    "saving": "저장 중…",
+    "savingDraft": "초안 저장 중…",
+    "draftSaved": "초안 저장됨 {time}",
+    "unsaved": "저장 안 됨",
+    "newPage": "새 페이지",
+    "boardLabel": "{board} 보드",
+    "untitledPage": "제목 없는 페이지",
+    "draftDiscarded": "초안을 삭제했습니다",
+    "undo": "실행 취소",
+    "deleteTitle": "“{name}”을(를) 삭제할까요?",
+    "deleteDescription": "이 페이지를 표시하는 모든 일정과 컬렉션에서 빠집니다. 되돌릴 수 없습니다.",
+    "deleteAction": "페이지 삭제"
+  },
   "phonePairing": {
     "title": "휴대폰 연결",
     "description": "FiestaBoard 앱으로 스캔하세요. 코드는 한 번만 사용할 수 있으며 5분 후에 만료됩니다.",

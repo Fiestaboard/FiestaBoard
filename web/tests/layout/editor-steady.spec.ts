@@ -163,22 +163,86 @@ test("the ? key still opens the shortcut list once the header button is gone (UX
 });
 
 for (const width of [1440, 900, 390]) {
-  test(`${width}px: "Template" heads its card, above the field (UX-3-3, UX-10-1)`, async ({ page }) => {
+  test(`${width}px: "Template" heads its card in one row with the count, above the rows (UX-3-3, UX-10-1, FABLE-2648)`, async ({
+    page,
+  }) => {
     await mockHub(page);
     await open(page, width);
-    const header = page.locator('[data-slot="page-editor-template-card-header"]');
-    await expect(header).toBeVisible();
+    const card = page.locator('[data-slot="template-card"]');
+    await expect(card).toBeVisible();
+    // One header row, the editor's own: no second strip above the card.
+    await expect(page.locator('[data-slot="page-editor-template-card-header"]')).toHaveCount(0);
+    const header = card.locator('[data-slot="template-card-header"]');
     await expect(header).toContainText("Template");
-    const field = page.locator('[data-slot="template-card"]');
-    await expect(field).toBeVisible();
-    const headerBox = await box(header);
-    const fieldBox = await box(field);
-    // Flush on the field: one card, header then rows.
-    expect(Math.abs(headerBox.y + headerBox.height - fieldBox.y)).toBeLessThanOrEqual(1);
-    expect(Math.abs(headerBox.x - fieldBox.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(headerBox.width - fieldBox.width)).toBeLessThanOrEqual(1);
+    await expect(header.getByRole("group", { name: /editor mode/i })).toBeVisible();
+    const title = await box(header.locator('[data-slot="page-editor-template-title"]'));
+    const meta = await box(header.getByTestId("template-card-meta"));
+    expect(Math.abs(title.y + title.height / 2 - (meta.y + meta.height / 2))).toBeLessThanOrEqual(2);
+    expect(meta.x).toBeGreaterThan(title.x + title.width);
+    const cardBox = await box(card);
+    const rows = await box(card.locator('[data-slot="template-rows"]'));
+    expect(title.y).toBeGreaterThanOrEqual(cardBox.y);
+    expect(title.y + title.height).toBeLessThanOrEqual(rows.y);
   });
 }
+
+test("a narrow template column: the card title keeps Rich | Plain whole, the count truncates first", async ({
+  page,
+}) => {
+  await mockHub(page);
+  await open(page, 1024);
+  const show = page.getByRole("button", { name: "Show Explorer" });
+  if (await show.count()) await show.click();
+  const header = page.locator('[data-slot="template-card"] [data-slot="template-card-header"]');
+  const title = header.locator('[data-slot="page-editor-template-title"]');
+  await expect(title).toBeVisible();
+  expect(await title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  const plain = await box(title.getByRole("button", { name: /plain/i }));
+  const meta = await box(header.getByTestId("template-card-meta"));
+  expect(plain.x + plain.width).toBeLessThanOrEqual(meta.x);
+});
+
+for (const [name, deviceType] of [
+  ["Flagship", undefined],
+  ["band (panel)", "panel"],
+] as const) {
+  test(`${name}: the shortcut list hangs at the template card's left edge, under its header (DD-W30)`, async ({
+    page,
+  }) => {
+    await mockHub(page, deviceType ? { deviceType } : {});
+    await open(page, 1440);
+    const card = page.locator('[data-slot="template-card"]');
+    await expect(card).toBeVisible();
+    await page.locator('[data-slot="page-editor-chrome"]').click({ position: { x: 4, y: 4 } });
+    await page.keyboard.press("?");
+    const list = page.getByRole("dialog", { name: /keyboard shortcuts/i });
+    await expect(list).toBeVisible();
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
+    const [listBox, cardBox, column] = await Promise.all([box(list), box(card), box(templateColumn(page))]);
+    expect(Math.abs(listBox.x - cardBox.x)).toBeLessThanOrEqual(2);
+    // Under the card's header row (not under the whole card, not beside the column), on screen.
+    expect(listBox.y).toBeLessThan(cardBox.y + 64);
+    expect(listBox.x).toBeGreaterThanOrEqual(column.x);
+    expect(listBox.x + listBox.width).toBeLessThanOrEqual(1440);
+  });
+}
+
+test("draw mode: the template title stays on screen and anchors the shortcut list (OPUS-2653)", async ({ page }) => {
+  await mockHub(page);
+  await open(page, 1440);
+  await page.getByRole("button", { name: "Draw on board", exact: true }).click();
+  await expect(page.locator('[data-slot="template-card"]')).toBeHidden();
+  const title = page.locator('[data-slot="page-editor-template-title"]');
+  await expect(title).toBeVisible();
+  await page.locator('[data-slot="page-editor-chrome"]').click({ position: { x: 4, y: 4 } });
+  await page.keyboard.press("?");
+  const list = page.getByRole("dialog", { name: /keyboard shortcuts/i });
+  await expect(list).toBeVisible();
+  const titleBox = await box(title);
+  const listBox = await box(list);
+  expect(listBox.x).toBeGreaterThanOrEqual(titleBox.x - 1);
+  expect(listBox.y).toBeGreaterThanOrEqual(titleBox.y);
+});
 
 test("900px: the template and the preview side by side, the Inspector under both (UX-4-5, Figma 61:17544)", async ({
   page,

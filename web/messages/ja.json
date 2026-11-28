@@ -3905,6 +3905,25 @@
     "discardDraft": "破棄",
     "lastSaved": "最終保存 {time}"
   },
+  "editorHeader": {
+    "justNow": "たった今",
+    "minutesAgo": "{count}分前",
+    "yesterday": "昨日 {time}",
+    "saved": "保存 {time}",
+    "unsavedChanges": "未保存の変更",
+    "saving": "保存中…",
+    "savingDraft": "下書きを保存中…",
+    "draftSaved": "下書き保存 {time}",
+    "unsaved": "未保存",
+    "newPage": "新しいページ",
+    "boardLabel": "{board}ボード",
+    "untitledPage": "無題のページ",
+    "draftDiscarded": "下書きを破棄しました",
+    "undo": "元に戻す",
+    "deleteTitle": "「{name}」を削除しますか？",
+    "deleteDescription": "表示しているすべてのスケジュールとコレクションから外れます。元に戻せません。",
+    "deleteAction": "ページを削除"
+  },
   "phonePairing": {
     "title": "スマートフォンを接続",
     "description": "FiestaBoardアプリでスキャンしてください。コードは1回のみ使用でき、5分で有効期限が切れます。",

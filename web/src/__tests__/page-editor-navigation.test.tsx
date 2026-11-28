@@ -189,7 +189,7 @@ it("leaves after confirming deletion without another discard prompt", async () =
   const { user } = setup();
   await user.type(await screen.findByDisplayValue("Weather Page"), " changed");
   await user.click(await screen.findByRole("button", { name: /^Delete page…/ }));
-  await user.click(await screen.findByRole("button", { name: "Delete" }));
+  await user.click(await screen.findByRole("button", { name: "Delete page" }));
   expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
   expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 });
@@ -219,7 +219,7 @@ it("does not ask for the deleted page again", async () => {
   server.events.on("request:start", listener);
   try {
     await user.click(await screen.findByRole("button", { name: /^Delete page…/ }));
-    await user.click(await screen.findByRole("button", { name: "Delete" }));
+    await user.click(await screen.findByRole("button", { name: "Delete page" }));
     expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(deleted).toBe(true);

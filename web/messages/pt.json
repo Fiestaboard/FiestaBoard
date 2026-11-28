@@ -3905,6 +3905,25 @@
     "discardDraft": "Descartar",
     "lastSaved": "salvo pela última vez {time}"
   },
+  "editorHeader": {
+    "justNow": "agora mesmo",
+    "minutesAgo": "há {count} min",
+    "yesterday": "ontem {time}",
+    "saved": "Salvo {time}",
+    "unsavedChanges": "Alterações não salvas",
+    "saving": "Salvando…",
+    "savingDraft": "Salvando rascunho…",
+    "draftSaved": "Rascunho salvo {time}",
+    "unsaved": "Não salvo",
+    "newPage": "Nova página",
+    "boardLabel": "Quadro {board}",
+    "untitledPage": "Página sem título",
+    "draftDiscarded": "Rascunho descartado",
+    "undo": "Desfazer",
+    "deleteTitle": "Excluir “{name}”?",
+    "deleteDescription": "Ela sai de todas as programações e coleções que a exibem. Não é possível desfazer.",
+    "deleteAction": "Excluir página"
+  },
   "phonePairing": {
     "title": "Conectar um celular",
     "description": "Leia este código com o app FiestaBoard. O código funciona uma vez e expira em 5 minutos.",

@@ -60,6 +60,31 @@ async function editorOf(): Promise<Editor> {
 
 const meta = () => screen.getByTestId("template-card-meta");
 
+describe("the stretched card (UX-3-1, FP-4b)", () => {
+  it("puts the caret at the end on a click in the empty space under the last row", async () => {
+    renderEditor({ value: "HELLO\nWORLD" });
+    const editor = await editorOf();
+    act(() => {
+      editor.commands.setTextSelection(1);
+    });
+    const area = document.querySelector<HTMLElement>('[data-slot="template-rows-area"]')!;
+    // jsdom lays nothing out: the rows end at y 0, so any y > 0 is under them.
+    fireEvent.mouseDown(area, { button: 0, clientY: 40 });
+    expect(editor.state.selection.from).toBe(editor.state.doc.content.size - 1);
+    await waitFor(() => expect(editor.isFocused).toBe(true));
+  });
+
+  it("leaves a click on a row to the editor", async () => {
+    renderEditor({ value: "HELLO\nWORLD" });
+    const editor = await editorOf();
+    act(() => {
+      editor.commands.setTextSelection(1);
+    });
+    fireEvent.mouseDown(document.querySelector(".ProseMirror")!, { button: 0, clientY: 40 });
+    expect(editor.state.selection.from).toBe(1);
+  });
+});
+
 describe("template card header", () => {
   it("reads the count first and the caret second, inside the card, with no caption", async () => {
     renderEditor({ cardTitle: <span>Template</span> });
