@@ -38,8 +38,14 @@ for (const width of [1440, 1280, 1024]) {
     const explorer = await box(column(page, "explorer"));
     const template = await box(column(page, "template"));
     const preview = await box(column(page, "preview"));
-    // Explorer open (184:159319): template and preview share the width evenly.
-    expect(Math.abs(template.width - preview.width)).toBeLessThanOrEqual(2);
+    if (width >= 1280) {
+      // Explorer open (184:159319): template and preview share the width evenly.
+      expect(Math.abs(template.width - preview.width)).toBeLessThanOrEqual(2);
+    } else {
+      // D8 (DD-W157): below 1280 the open Explorer is a panel over the template.
+      const panel = await box(page.getByRole("navigation", { name: "Explorer" }));
+      expect(panel.x + panel.width).toBeGreaterThan(template.x);
+    }
     expect(explorer.x + explorer.width).toBeLessThanOrEqual(template.x);
     expect(template.x + template.width).toBeLessThanOrEqual(preview.x);
     // The Explorer sits under the header and toolbar, as drawn (not beside them).
