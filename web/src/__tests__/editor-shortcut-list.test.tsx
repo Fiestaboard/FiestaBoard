@@ -30,6 +30,11 @@ function Harness({ boardViewport = false, anchored = true }: { boardViewport?: b
 
 const dialog = () => screen.queryByRole("dialog", { name: "Keyboard shortcuts" });
 
+function HeaderOnly() {
+  const shortcuts = useEditorShortcutList();
+  return <EditorShortcutList variant="header" state={shortcuts} />;
+}
+
 describe("EditorShortcutList", () => {
   it("opens the list when ? is pressed outside a text field", async () => {
     render(<Harness />);
@@ -114,7 +119,17 @@ describe("EditorShortcutList", () => {
     const terms = within(list)
       .getAllByRole("term")
       .map((dt) => dt.textContent);
-    expect(terms).toEqual(["Undo", "Redo", "Apply a formula (formula editor)", "Close a picker", "Leave draw mode"]);
+    expect(terms).toEqual([
+      "Undo",
+      "Redo",
+      "Insert a formula",
+      "Apply a formula (formula editor)",
+      "Close a picker",
+      "Leave draw mode",
+      "Save",
+      "Inspect the preview",
+    ]);
+    for (const title of ["Editing", "Page", "Preview"]) expect(within(list).getByText(title)).toBeInTheDocument();
     expect(within(list).getByText(/No single-key shortcuts while typing/)).toBeInTheDocument();
   });
 
@@ -130,7 +145,7 @@ describe("EditorShortcutList", () => {
     const user = userEvent.setup();
     render(<Harness />);
     const button = screen.getByRole("button", { name: "Shortcuts" });
-    expect(button).toHaveAttribute("aria-keyshortcuts", "?");
+    expect(button).toHaveAttribute("aria-keyshortcuts", "? Control+/ Meta+/");
     await user.click(button);
     expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
   });
@@ -142,6 +157,35 @@ describe("EditorShortcutList", () => {
     await screen.findByRole("dialog", { name: "Keyboard shortcuts" });
     fireEvent.keyDown(document.body, { key: "?" });
     await waitFor(() => expect(screen.getAllByRole("dialog", { name: "Keyboard shortcuts" })).toHaveLength(1));
+  });
+
+  it("opens with ⌘/ or Ctrl+/, from the template too (UX-9-1)", async () => {
+    render(<Harness />);
+    const chord = fireEvent.keyDown(screen.getByLabelText("Template"), { key: "/", metaKey: true });
+    expect(chord).toBe(false);
+    expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
+  });
+
+  it("leaves ⌘/ to another open dialog", async () => {
+    render(<Harness />);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Cancel" }), { key: "/", ctrlKey: true });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(dialog()).toBeNull();
+  });
+
+  it("opens the toolbar hint's list when the hint is mounted, the header's otherwise (DD-W161)", async () => {
+    const { unmount } = render(<Harness />);
+    const hint = screen.getByRole("button", { name: /All shortcuts/ });
+    const header = screen.getByRole("button", { name: "Shortcuts" });
+    fireEvent.keyDown(document.body, { key: "?" });
+    await screen.findByRole("dialog", { name: "Keyboard shortcuts" });
+    expect(hint).toHaveAttribute("aria-expanded", "true");
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    unmount();
+
+    render(<HeaderOnly />);
+    fireEvent.keyDown(document.body, { key: "/", ctrlKey: true });
+    expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
   });
 
   it("closes on Escape", async () => {

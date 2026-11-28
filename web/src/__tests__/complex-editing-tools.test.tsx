@@ -3,6 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { measureLineBoxes } from "@/lib/complex-editing-dom";
+
+vi.mock("@/lib/complex-editing-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/complex-editing-dom")>();
+  return { ...actual, measureLineBoxes: vi.fn(actual.measureLineBoxes) };
+});
+
 import {
   BigBoardZoom,
   ComplexPreviewOverview,
@@ -198,28 +205,11 @@ describe("BigBoardZoom", () => {
 });
 
 describe("ComplexTemplateHeader", () => {
-  it("goes to a typed row and column on a big board", async () => {
-    const onGo = vi.fn();
-    render(<ComplexTemplateHeader complex={fakeComplex()} editorRootRef={createRef()} onGo={onGo} />);
-    const input = screen.getByRole("textbox", { name: "Go to row and column" });
-    await userEvent.type(input, "4 10{Enter}");
-    expect(onGo).toHaveBeenCalledWith({ row: 4, column: 10 });
-  });
-
-  it("adds no ⌘J/Ctrl+J binding or kbd outside the editor's shortcut registry (DD-W130)", () => {
-    render(<ComplexTemplateHeader complex={fakeComplex()} editorRootRef={createRef()} onGo={vi.fn()} />);
-    const input = screen.getByRole("textbox", { name: "Go to row and column" });
-    expect(document.querySelector("kbd")).toBeNull();
-    const event = new KeyboardEvent("keydown", {
-      key: "j",
-      code: "KeyJ",
-      ctrlKey: true,
-      bubbles: true,
-      cancelable: true,
-    });
-    document.body.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(false);
-    expect(document.activeElement).not.toBe(input);
+  it("adds no Row · Col pill or explanatory caption on a big board (UX-3-2)", () => {
+    const { container } = render(<ComplexTemplateHeader complex={fakeComplex()} editorRootRef={createRef()} />);
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole("textbox", { name: "Go to row and column" })).toBeNull();
+    expect(screen.queryByText(/rendered length per row/)).toBeNull();
   });
 
   it("focuses a Note and scrolls the preview to it", async () => {
@@ -347,6 +337,79 @@ describe("RowBandGutter", () => {
       expect.objectContaining({ lines: ["TONIGHT", "OPEN MIC", "", "HEADER", "", "", "", ""] }),
     );
     vi.restoreAllMocks();
+  });
+
+  it("names an unnamed band by its rows once, and keeps every label to one clamped line (UX-3-1)", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    setup(["A REALLY LONG BAND LABEL THAT WRAPPED", "", "", "", "", "{63}", "", "x"]);
+    const list = screen.getByRole("list", { name: "Row bands" });
+    const bands = within(list).getAllByTestId("row-band");
+    // Row 6 holds only a character code, so it has no name: "Row 6", never "Rows 6–6" over "Row 6".
+    expect(within(list).queryByText("Rows 6–6")).toBeNull();
+    expect(within(list).getAllByText("Row 6")).toHaveLength(1);
+    for (const band of bands) {
+      expect(band).toHaveClass("min-h-0", "overflow-hidden", "[&_[data-slot=row-band-label]]:truncate");
+      expect(band.getAttribute("title")).toBeTruthy();
+    }
+    expect(bands[0].getAttribute("title")).toBe("A REALLY LONG BAND LABEL THAT WRAPPED · Row 1");
+    vi.restoreAllMocks();
+  });
+
+  it("re-measures for template edits only, and not while the editor is hidden (BB-E-31)", async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    const flush = () => frames.splice(0).forEach((cb) => cb(0));
+    const measure = vi.mocked(measureLineBoxes);
+    measure.mockClear();
+    setup(["HEADER", "", "TONIGHT", ""]);
+    flush();
+    expect(measure).toHaveBeenCalledTimes(1);
+    const root = document.querySelector('[contenteditable="true"]')!.parentElement!;
+
+    // A sibling of the template (a placeholder, the host's own chrome) changing.
+    const sibling = document.createElement("span");
+    root.appendChild(sibling);
+    await new Promise((r) => setTimeout(r, 0));
+    flush();
+    expect(measure).toHaveBeenCalledTimes(1);
+
+    // The template text changing.
+    document.querySelector('[contenteditable="true"] p')!.appendChild(document.createTextNode("!"));
+    await new Promise((r) => setTimeout(r, 0));
+    flush();
+    expect(measure).toHaveBeenCalledTimes(2);
+
+    // Hidden under draw mode: no measurement at all.
+    const editable = document.querySelector('[contenteditable="true"]') as HTMLElement & {
+      checkVisibility?: () => boolean;
+    };
+    editable.checkVisibility = () => false;
+    editable.querySelector("p")!.appendChild(document.createTextNode("?"));
+    await new Promise((r) => setTimeout(r, 0));
+    flush();
+    expect(measure).toHaveBeenCalledTimes(2);
+    vi.restoreAllMocks();
+  });
+
+  it("watches the editable's own size, so it re-measures when draw mode shows it again (BB-E-31)", () => {
+    const observed: Element[] = [];
+    const Original = window.ResizeObserver;
+    window.ResizeObserver = class {
+      observe(el: Element) {
+        observed.push(el);
+      }
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+    setup(["HEADER", ""]);
+    expect(observed).toContain(document.querySelector('[contenteditable="true"]'));
+    window.ResizeObserver = Original;
   });
 
   it("renders no gutter when off", () => {

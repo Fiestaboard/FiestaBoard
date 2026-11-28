@@ -6,6 +6,7 @@ import {
   TemplateEditorToolbar as KitToolbar,
   type TemplateEditorToolbarProps,
   type ToolbarTemplateVariables,
+  useKbdPlatform,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
@@ -17,6 +18,7 @@ import { useEditorToolbarPortal } from "@/hooks/use-editor-toolbar-portal";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { chordText, EDITOR_SHORTCUTS, primaryChord } from "@/lib/editor-shortcuts";
 
 import type { DrawBrush } from "../utils/draw-mode";
 
@@ -37,9 +39,32 @@ export function TemplateEditorToolbar(
   const sheets = useMediaQuery("(max-width: 639px)");
   const portalHost = useEditorToolbarPortal(touch, t("tools"));
   const { data, isLoading } = useQuery({ queryKey: ["template-variables"], queryFn: api.getTemplateVariables });
-  const labels = Object.fromEntries(
-    Object.keys(DEFAULT_TEMPLATE_EDITOR_TOOLBAR_LABELS).map((key) => [key, key === "drawColors" ? t.raw(key) : t(key)]),
-  );
+  const tCard = useTranslations("templateCard");
+  const platform = useKbdPlatform();
+  // Every desktop tooltip names its shortcut, "Undo (⌘Z)" (UX-2-3). Where the
+  // kit has a separate aria-label (undo, redo, cut, copy, paste) the name stays
+  // plain; Insert formula and Exit drawing mode use one string for both, so
+  // their names carry the chord until the kit takes a `shortcut` (KIT-ASKS).
+  // Touch tools are labelled buttons with no keyboard.
+  const withKeys = (label: string, chord: readonly string[]) =>
+    touch ? label : tCard("withShortcut", { label, keys: chordText(chord, platform) });
+  const labels = {
+    ...Object.fromEntries(
+      Object.keys(DEFAULT_TEMPLATE_EDITOR_TOOLBAR_LABELS).map((key) => [
+        key,
+        key === "drawColors" ? t.raw(key) : t(key),
+      ]),
+    ),
+    undo: withKeys(t("undoAriaLabel"), primaryChord(EDITOR_SHORTCUTS.undo)),
+    redo: withKeys(t("redoAriaLabel"), primaryChord(EDITOR_SHORTCUTS.redo)),
+    cut: withKeys(t("cutAriaLabel"), ["Mod", "X"]),
+    copy: withKeys(t("copyAriaLabel"), ["Mod", "C"]),
+    paste: withKeys(t("pasteAriaLabel"), ["Mod", "V"]),
+    insertFormula: withKeys(t("insertFormula"), primaryChord(EDITOR_SHORTCUTS.insertFormula)),
+    drawModeActive: withKeys(t("drawModeActive"), primaryChord(EDITOR_SHORTCUTS.exitDrawMode)),
+    // The T menu holds Fill space and Fill space repeat: "Spacing", not "Formatting" (UX-2-4).
+    formatting: tCard("spacing"),
+  };
   const toolbarProps: TemplateEditorToolbarProps = {
     ...props,
     drawBrush:

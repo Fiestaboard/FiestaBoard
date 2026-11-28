@@ -3861,7 +3861,15 @@
     "showShortcuts": "Mostrar atajos de teclado",
     "previewStep": "Mover la vista previa una nota o columna",
     "previewEnds": "Saltar al inicio o al final de la vista previa",
-    "previewFit": "Ajustar / Tamaño real (vista previa enfocada)"
+    "previewFit": "Ajustar / Tamaño real (vista previa enfocada)",
+    "insertFormula": "Insertar una fórmula",
+    "save": "Guardar",
+    "saveAndShow": "Guardar y mostrar ahora",
+    "inspect": "Inspeccionar la vista previa",
+    "previewActualSize": "Tamaño real (vista previa)",
+    "groupEditing": "Edición",
+    "groupDocument": "Página",
+    "groupPreview": "Vista previa"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "Dónde se cortan las líneas",
     "truncationEmpty": "Todas las filas caben en el tablero.",
     "truncationOverflow": "Fila {row} · {columns} de {max} columnas · {cut} cortadas",
-    "templateMeta": "{rows} filas · longitud renderizada por fila · bandas en el margen",
     "goToInput": "Ir a fila y columna",
     "goToHint": "Escribe una fila y una columna, p. ej. 4 10",
     "goToFormat": "Fila {row} · Col. {column}",
@@ -4426,5 +4433,12 @@
     "fitReport": "La línea {line} ocupa {widest} de {cols} columnas",
     "nothingCut": "nada cortado",
     "missingOff": "{plugin} está desactivado en Integraciones"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} líneas",
+    "rowsPastBoard": "{rows} > {max} filas",
+    "caret": "Lín {line}, Col {column}",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "Espaciado"
   }
 }

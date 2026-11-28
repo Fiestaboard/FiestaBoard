@@ -14,8 +14,10 @@
  *
  * Only shortcuts that exist are listed (audit in
  * docs/internal/plans/2026-11-13-universal-web-2.7.md). 07 `57:28953` also
- * draws `/` (Insert), ⌘⇧L/E/R (align), ⌘S (Save) and ⌘↵ (Show now); they
- * join this registry with their bindings, not before.
+ * draws `/` (Insert) and ⌘⇧L/E/R (align); they join this registry with
+ * their bindings, not before. `saveAndShow` (⌘⇧S) and `previewActualSize`
+ * (1) are registered for the handlers that will bind them (editor UX FP-1
+ * and FP-3) and join `LISTED` in the same change as their binding.
  */
 import type { ShortcutChord, ShortcutGroup } from "@fiestaboard/ui";
 
@@ -40,17 +42,36 @@ export const EDITOR_SHORTCUTS = {
   applyFormula: { id: "applyFormula", labelKey: "applyFormula", keys: ["Mod", "Enter"] },
   closePicker: { id: "closePicker", labelKey: "closePicker", keys: ["Esc"] },
   exitDrawMode: { id: "exitDrawMode", labelKey: "exitDrawMode", keys: ["Esc"] },
-  /** Opens the list itself. Bound by `EditorShortcuts`; not a row of the list. */
-  showShortcuts: { id: "showShortcuts", labelKey: "showShortcuts", keys: ["?"] },
+  /** Inserts a formula at the caret (the template editor; Docs' ⌘E-style chord). */
+  insertFormula: { id: "insertFormula", labelKey: "insertFormula", keys: ["Mod", "E"] },
+  /** Save / Save draft (PageBuilder's key handler). */
+  save: { id: "save", labelKey: "save", keys: ["Mod", "S"] },
+  /** Show now / Save & update board. Not bound yet: FP-1 binds it, then lists it. */
+  saveAndShow: { id: "saveAndShow", labelKey: "saveAndShow", keys: ["Mod", "Shift", "S"] },
+  /** Toggles Inspect on the desktop preview (`use-formula-ide`). */
+  inspect: { id: "inspect", labelKey: "inspect", keys: ["I"] },
+  /** Actual size. Not bound yet: FP-3's View menu binds it, then lists it. */
+  previewActualSize: { id: "previewActualSize", labelKey: "previewActualSize", keys: ["1"] },
+  /**
+   * Opens the list itself; not a row of the list. `?` outside text, and
+   * ⌘/ anywhere, the Docs convention (UX-9-1).
+   */
+  showShortcuts: { id: "showShortcuts", labelKey: "showShortcuts", keys: [["?"], ["Mod", "/"]] },
 } as const satisfies Record<string, EditorShortcut>;
 
+/** The list's groups, as Docs groups its list (UX-9-1). */
+type ListGroupId = "editing" | "document" | "preview";
+
 /** The rows of the list, in 07's order where 07 draws them. */
-const LISTED: readonly EditorShortcut[] = [
-  EDITOR_SHORTCUTS.undo,
-  EDITOR_SHORTCUTS.redo,
-  EDITOR_SHORTCUTS.applyFormula,
-  EDITOR_SHORTCUTS.closePicker,
-  EDITOR_SHORTCUTS.exitDrawMode,
+const LISTED: readonly { group: ListGroupId; shortcut: EditorShortcut }[] = [
+  { group: "editing", shortcut: EDITOR_SHORTCUTS.undo },
+  { group: "editing", shortcut: EDITOR_SHORTCUTS.redo },
+  { group: "editing", shortcut: EDITOR_SHORTCUTS.insertFormula },
+  { group: "editing", shortcut: EDITOR_SHORTCUTS.applyFormula },
+  { group: "editing", shortcut: EDITOR_SHORTCUTS.closePicker },
+  { group: "editing", shortcut: EDITOR_SHORTCUTS.exitDrawMode },
+  { group: "document", shortcut: EDITOR_SHORTCUTS.save },
+  { group: "preview", shortcut: EDITOR_SHORTCUTS.inspect },
 ];
 
 /**
@@ -169,6 +190,23 @@ export function ariaKeyShortcuts(shortcut: EditorShortcut): string {
     .join(" ");
 }
 
+const CHORD_TEXT: Record<string, { apple: string; generic: string }> = {
+  mod: { apple: "⌘", generic: "Ctrl" },
+  shift: { apple: "⇧", generic: "Shift" },
+  alt: { apple: "⌥", generic: "Alt" },
+  enter: { apple: "⏎", generic: "Enter" },
+  esc: { apple: "Esc", generic: "Esc" },
+};
+
+/**
+ * A chord as tooltip text, in `Kbd`'s spelling: "⌘⇧Z" on Apple, "Ctrl+Shift+Z"
+ * elsewhere ("Undo (⌘Z)", the Word/Docs grammar of UX-2-3).
+ */
+export function chordText(chord: ShortcutChord, platform: "apple" | "generic"): string {
+  const keys = chord.map((k) => CHORD_TEXT[k.toLowerCase()]?.[platform] ?? (k.length === 1 ? k.toUpperCase() : k));
+  return platform === "apple" ? keys.join("") : keys.join("+");
+}
+
 /** The first chord, for a single inline hint (a tooltip or a button). */
 export function primaryChord(shortcut: EditorShortcut): ShortcutChord {
   return toChords(shortcut.keys)[0];
@@ -203,11 +241,29 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   return editable !== null && editable.getAttribute("contenteditable") !== "false";
 }
 
-/** The list's data: the registry's rows, labelled through `t`. */
+const GROUP_ORDER: readonly ListGroupId[] = ["editing", "document", "preview"];
+const GROUP_TITLE_KEYS: Record<ListGroupId, string> = {
+  editing: "groupEditing",
+  document: "groupDocument",
+  preview: "groupPreview",
+};
+
+/**
+ * The list's data: the registry's rows, labelled through `t`, in Editing ·
+ * Document · Preview groups (empty groups are left out).
+ */
 export function editorShortcutGroups(
   t: (key: string) => string,
   { boardViewport = false }: { boardViewport?: boolean } = {},
 ): ShortcutGroup[] {
-  const rows = boardViewport ? [...LISTED, ...BOARD_VIEWPORT_SHORTCUTS] : LISTED;
-  return [{ id: "editor", items: rows.map((s) => ({ id: s.id, label: t(s.labelKey), keys: s.keys })) }];
+  const rows = boardViewport
+    ? [...LISTED, ...BOARD_VIEWPORT_SHORTCUTS.map((shortcut) => ({ group: "preview" as const, shortcut }))]
+    : LISTED;
+  return GROUP_ORDER.map((group) => ({
+    id: group,
+    title: t(GROUP_TITLE_KEYS[group]),
+    items: rows
+      .filter((row) => row.group === group)
+      .map(({ shortcut: s }) => ({ id: s.id, label: t(s.labelKey), keys: s.keys })),
+  })).filter((group) => group.items.length > 0);
 }

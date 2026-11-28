@@ -19,6 +19,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import type { FunctionSignatureEntry } from "@/lib/api/templates";
+import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
 import { completionContext, matchFunctions } from "@/lib/formula-ide/autocomplete";
 import { flattenFormula, iterationCount, lineValueHints, prettyPrint } from "@/lib/formula-ide/pretty";
 
@@ -176,6 +177,7 @@ export function FormulaCodeCard(props: WorkbenchProps) {
       : null;
   const t = useTranslations("formulaIde");
   const tEditor = useTranslations("formulaEditor");
+  const tTemplate = useTranslations("templateEditor");
   const labelId = useId();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
@@ -313,7 +315,19 @@ export function FormulaCodeCard(props: WorkbenchProps) {
     ) : null;
 
   return (
-    <Card data-testid="formula-code-card" className="gap-2 border-2 border-tag-formula py-3">
+    <Card
+      data-testid="formula-code-card"
+      className="gap-2 border-2 border-tag-formula py-3"
+      // Esc cancels the docked editor, as it closes the chip's own dialog; the
+      // chip then puts the caret back after it (UX-2-5). CodeMirror's own Esc
+      // (closing a completion) prevents the default first and wins.
+      onKeyDown={(event) => {
+        if (event.defaultPrevented || !matchesShortcut(event.nativeEvent, EDITOR_SHORTCUTS.closePicker)) return;
+        event.preventDefault();
+        open.cancel();
+        setOpen(null);
+      }}
+    >
       <CardContent className="px-4">
         <WorkbenchHeader line={formula?.line ?? null} tab="code" setOpen={setOpen} status={status} />
         <Text id={labelId} className="sr-only">
@@ -386,7 +400,8 @@ export function FormulaCodeCard(props: WorkbenchProps) {
                 setOpen(null);
               }}
             >
-              {t("updateFormula")}
+              {/* A new formula is inserted, an existing one updated (Figma 111:30911; UX-2-5). */}
+              {open.expression ? t("updateFormula") : tTemplate("insertFormula")}
             </Button>
           </Flex>
         </Flex>

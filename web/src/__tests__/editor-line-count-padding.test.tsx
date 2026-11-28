@@ -49,7 +49,34 @@ describe("rich editor line caption", () => {
       />,
     );
     await waitFor(() => expect(screen.getByText(/5 \/ 3 lines/)).toBeInTheDocument());
-    expect(screen.getByText(/exceeds the 3-line board limit/)).toBeInTheDocument();
+    // Content past the board: the count and the rows past it turn to the warning tone.
+    expect(screen.getByText("5 / 3 lines")).toHaveClass("text-warning");
+    expect(screen.getByTestId("template-rows-past-board")).toHaveTextContent("6 > 3 rows");
+    expect(screen.getByTestId("template-rows-past-board")).toHaveClass("text-warning");
+    // Content past the board: the kit's warning tint on those rows.
+    expect(screen.getByTestId("template-overflow-rows")).toHaveClass("bg-tint-warning");
+  });
+
+  it("counts blank padding rows past the board without warning about them (BB-E-18, UX-3-4)", async () => {
+    render(
+      <TipTapTemplateEditor
+        value={"HELLO\n\n\n\n\n"}
+        onChange={vi.fn()}
+        showToolbar={false}
+        boardLines={3}
+        boardWidth={15}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId("template-rows-past-board")).toHaveTextContent("6 > 3 rows"));
+    expect(screen.getByTestId("template-rows-past-board")).not.toHaveClass("text-warning");
+    expect(screen.getByText("1 / 3 lines")).not.toHaveClass("text-warning");
+    expect(document.querySelector('[data-slot="template-card"]')).not.toHaveClass("border-warning");
+    // The rows past the board get the quiet tint, not the warning one, and their numbers stay muted.
+    expect(screen.getByTestId("template-overflow-rows")).toHaveClass("bg-muted");
+    expect(screen.getByTestId("template-overflow-rows")).not.toHaveClass("bg-tint-warning");
+    const past = document.querySelectorAll<HTMLElement>("[data-past-board]");
+    expect(past).toHaveLength(3);
+    expect(past[0].style.color).toBe("var(--muted-foreground)");
   });
 });
 
