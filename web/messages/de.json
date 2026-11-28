@@ -1635,11 +1635,6 @@
     "close": "Schließen",
     "previewLabel": "Was {board} gerade zeigt"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "Entwurf gespeichert",
-    "saved": "Gespeichert",
-    "saveDraftNow": "Entwurf jetzt speichern"
-  },
   "changePage": {
     "title": "Seite wechseln",
     "description": "Wählen, was {board} zeigt. Nichts ändert sich, bis „Jetzt anzeigen“ gewählt wird.",

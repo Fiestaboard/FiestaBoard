@@ -1635,11 +1635,6 @@
     "close": "닫기",
     "previewLabel": "{board}이(가) 지금 표시하는 내용"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "초안 저장됨",
-    "saved": "저장됨",
-    "saveDraftNow": "지금 초안 저장"
-  },
   "changePage": {
     "title": "페이지 변경",
     "description": "{board}에 표시할 내용을 선택하세요. 지금 표시를 선택하기 전까지는 아무것도 바뀌지 않습니다.",

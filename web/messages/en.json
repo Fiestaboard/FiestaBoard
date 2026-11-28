@@ -3830,11 +3830,6 @@
     "close": "Close",
     "previewLabel": "What {board} shows now"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "Draft saved",
-    "saved": "Saved",
-    "saveDraftNow": "Save draft now"
-  },
   "changePage": {
     "title": "Change Page",
     "description": "Pick what {board} shows. Nothing changes until you choose Show now.",

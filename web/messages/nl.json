@@ -1635,11 +1635,6 @@
     "close": "Sluiten",
     "previewLabel": "Wat {board} nu toont"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "Concept opgeslagen",
-    "saved": "Opgeslagen",
-    "saveDraftNow": "Concept nu opslaan"
-  },
   "changePage": {
     "title": "Pagina wisselen",
     "description": "Kies wat {board} toont. Er verandert niets tot je Nu tonen kiest.",

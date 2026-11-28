@@ -1635,11 +1635,6 @@
     "close": "关闭",
     "previewLabel": "{board} 当前显示的内容"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "草稿已保存",
-    "saved": "已保存",
-    "saveDraftNow": "立即保存草稿"
-  },
   "changePage": {
     "title": "更换页面",
     "description": "选择 {board} 要显示的内容。选择“立即显示”之前不会有任何更改。",

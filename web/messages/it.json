@@ -1635,11 +1635,6 @@
     "close": "Chiudi",
     "previewLabel": "Ciò che {board} mostra ora"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "Bozza salvata",
-    "saved": "Salvato",
-    "saveDraftNow": "Salva bozza ora"
-  },
   "changePage": {
     "title": "Cambia pagina",
     "description": "Scegli cosa mostra {board}. Non cambia nulla finché non scegli Mostra ora.",

@@ -1635,11 +1635,6 @@
     "close": "Fermer",
     "previewLabel": "Ce qu’affiche {board} maintenant"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "Brouillon enregistré",
-    "saved": "Enregistré",
-    "saveDraftNow": "Enregistrer le brouillon"
-  },
   "changePage": {
     "title": "Changer de page",
     "description": "Choisissez ce qu’affiche {board}. Rien ne change tant que vous n’avez pas choisi Afficher maintenant.",

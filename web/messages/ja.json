@@ -1635,11 +1635,6 @@
     "close": "閉じる",
     "previewLabel": "{board} の現在の表示"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "下書きを保存しました",
-    "saved": "保存済み",
-    "saveDraftNow": "今すぐ下書きを保存"
-  },
   "changePage": {
     "title": "ページを変更",
     "description": "{board} に表示する内容を選びます。今すぐ表示を選ぶまで何も変わりません。",

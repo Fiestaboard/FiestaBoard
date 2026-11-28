@@ -1635,11 +1635,6 @@
     "close": "Zamknij",
     "previewLabel": "Co {board} pokazuje teraz"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "Szkic zapisany",
-    "saved": "Zapisano",
-    "saveDraftNow": "Zapisz szkic teraz"
-  },
   "changePage": {
     "title": "Zmień stronę",
     "description": "Wybierz, co pokazuje {board}. Nic się nie zmieni, dopóki nie wybierzesz Pokaż teraz.",

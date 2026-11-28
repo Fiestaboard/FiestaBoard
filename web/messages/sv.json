@@ -1635,11 +1635,6 @@
     "close": "Stäng",
     "previewLabel": "Det {board} visar nu"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "Utkast sparat",
-    "saved": "Sparad",
-    "saveDraftNow": "Spara utkast nu"
-  },
   "changePage": {
     "title": "Byt sida",
     "description": "Välj vad {board} visar. Inget ändras förrän du väljer Visa nu.",

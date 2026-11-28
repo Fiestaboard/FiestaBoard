@@ -1635,11 +1635,6 @@
     "close": "Kapat",
     "previewLabel": "{board} panosunun şu anda gösterdiği"
   },
-  "editorHeaderPhone": {
-    "draftSaved": "Taslak kaydedildi",
-    "saved": "Kaydedildi",
-    "saveDraftNow": "Taslağı şimdi kaydet"
-  },
   "changePage": {
     "title": "Sayfa Değiştir",
     "description": "{board} cihazında neyin gösterileceğini seçin. Şimdi göster’i seçene kadar hiçbir şey değişmez.",
