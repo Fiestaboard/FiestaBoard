@@ -4310,6 +4310,28 @@
     "deletePageDetail": "Usuwa ją ze wszystkich harmonogramów i kolekcji",
     "autosavePaused": "Niezapisane · szkic z innego miejsca czeka w Historii"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} na {board}",
+    "nextAt": "następnie {when}",
+    "consoleClear": "Brak problemów",
+    "consoleWarnings": "{count, plural, one {# ostrzeżenie} few {# ostrzeżenia} many {# ostrzeżeń} other {# ostrzeżenia}}",
+    "consoleSent": "Wysłano {time} do {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} więcej",
+    "notThisWeek": "Nie zaplanowano w tym tygodniu",
+    "addToSchedule": "Dodaj do harmonogramu",
+    "fallbackHint": "Dodaj wartość zastępczą do formuły, aby to ustawić",
+    "displayGroup": "Wyświetlacz",
+    "displayRetarget": "Ten sam rozmiar · podgląd i lustro tutaj",
+    "copySizedFor": "Utwórz kopię w rozmiarze {board}",
+    "makeTheCopy": "Utwórz kopię",
+    "settingDuration": "Czas wyświetlania strony",
+    "settingTransition": "Przejście",
+    "copyWillMake": "Tworzy nową stronę w rozmiarze {board} ({cols} × {rows}); ta strona się nie zmienia.",
+    "collapseConsole": "Zwiń konsolę",
+    "scheduleGroup": "Harmonogram",
+    "collectionsGroup": "Kolekcje"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} z {wanted} wierszy",

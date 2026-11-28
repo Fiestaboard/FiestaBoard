@@ -4310,6 +4310,28 @@
     "deletePageDetail": "La retire de tous les plannings et collections",
     "autosavePaused": "Non enregistré · un brouillon venu d’ailleurs attend dans Historique"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} sur {board}",
+    "nextAt": "prochaine {when}",
+    "consoleClear": "Aucun problème",
+    "consoleWarnings": "{count, plural, one {# avertissement} other {# avertissements}}",
+    "consoleSent": "Envoyée {time} à {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} de plus",
+    "notThisWeek": "Non programmée cette semaine",
+    "addToSchedule": "Ajouter au planning",
+    "fallbackHint": "Ajoutez une valeur de repli à une formule pour le définir",
+    "displayGroup": "Écran",
+    "displayRetarget": "Même taille · aperçu et miroir ici",
+    "copySizedFor": "Faire une copie à la taille de {board}",
+    "makeTheCopy": "Faire la copie",
+    "settingDuration": "Durée de la page",
+    "settingTransition": "Transition",
+    "copyWillMake": "Crée une nouvelle page à la taille de {board} ({cols} × {rows}) ; cette page reste inchangée.",
+    "collapseConsole": "Replier la console",
+    "scheduleGroup": "Planning",
+    "collectionsGroup": "Collections"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} sur {wanted} rangées",

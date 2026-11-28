@@ -32,12 +32,12 @@ import { templateReferences } from "@/lib/ide/references";
 
 import { type ConsoleTab, IdeConsole, IdeProblemList, IdeSentPanel } from "./ide-console";
 import { type ExplorerToggle, IdeExplorer, IdeExplorerShow, useExplorerToggle } from "./ide-explorer";
-import { formatWallTime } from "./ide-format";
+import { formatDays, formatWallTime, formatWindow } from "./ide-format";
 import { IdeHistory } from "./ide-history";
 import { DuplicateDialog, IdePageTab } from "./ide-page-tab";
 import { IdeReferences } from "./ide-references";
 import { IdeShowsOn } from "./ide-shows-on";
-import { IdeWeek } from "./ide-timeline";
+import { formatNext, IdeWeekLine, nextShowing } from "./ide-timeline";
 import { type CreatorIdeState, useCreatorIde } from "./use-creator-ide";
 
 export interface CreatorIdeProps {
@@ -79,6 +79,7 @@ function inSlot(slot: HTMLElement | null | undefined, node: ReactNode) {
 
 function useStatusMessage(ide: CreatorIdeState) {
   const t = useTranslations("creatorIde");
+  const tq = useTranslations("ideQuiet");
   const locale = useLocale();
   const showing = ide.showsOn.showingNow[0];
   if (showing) {
@@ -87,8 +88,17 @@ function useStatusMessage(ide: CreatorIdeState) {
       ? t("showingUntil", { board: showing.boardName, time: until })
       : t("showingNow", { board: showing.boardName });
   }
-  const next = ide.showsOn.entries.find((entry) => entry.schedule.enabled);
-  if (next) return t("scheduledOn", { board: next.boardName });
+  // UX-6-2: the pill says "Scheduled"; the sentence adds when and where, never the state again.
+  const next = nextShowing(ide.showsOn.entries, ide.pages, ide.collections);
+  const entry = next?.entry ?? ide.showsOn.entries.find((candidate) => candidate.schedule.enabled);
+  if (entry) {
+    const where = tq("scheduledWindow", {
+      days: formatDays(entry.schedule, t, locale),
+      window: formatWindow(entry.schedule, locale),
+      board: entry.boardName,
+    });
+    return next ? `${where} · ${tq("nextAt", { when: formatNext(next.at, locale) })}` : where;
+  }
   // The "Not scheduled" chip already says it; a sentence repeating it was a
   // second report of the same state (BB-E-26).
   return "";
@@ -121,6 +131,8 @@ export default function CreatorIde({
   const [tab, setTab] = useState<IdeTabId>("page");
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>("problems");
   const [copyOpen, setCopyOpen] = useState(false);
+  // D3: "Make a copy sized for X" from Shows on names its display.
+  const [copyFor, setCopyFor] = useState<string | null>(null);
   const ownExplorer = useExplorerToggle(boardKind);
   const explorer = explorerProp ?? ownExplorer;
   const activeTab = resolveInspectorTab(tab, desktop);
@@ -180,10 +192,21 @@ export default function CreatorIde({
   useEffect(() => () => onDraftStateChange?.(undefined), [onDraftStateChange]);
 
   const problemCount = ide.problems.length;
+  const [consoleOpened, setConsoleOpened] = useState(false);
+  const consoleQuiet = problemCount === 0 && !consoleOpened;
+  /** Opens the docked console on Problems and puts keyboard focus there (the line or tabs swap under it). */
+  const openConsole = () => {
+    setConsoleOpened(true);
+    setConsoleTab("problems");
+    requestAnimationFrame(() => {
+      const region = document.getElementById("ide-console");
+      region?.scrollIntoView({ block: "nearest" });
+      region?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
+    });
+  };
   const openProblems = () => {
     if (desktop) {
-      setConsoleTab("problems");
-      document.getElementById("ide-console")?.scrollIntoView({ block: "nearest" });
+      openConsole();
       return;
     }
     setTab("problems");
@@ -197,16 +220,34 @@ export default function CreatorIde({
   const consoleRegions = (
     <Stack gap="3" data-slot="ide-template-regions" className="min-w-0">
       <Card className="gap-0 py-0">
-        <CardContent className="p-3.5">
-          <IdeConsole ide={ide} tab={consoleTab} onTabChange={setConsoleTab} />
+        {/* M1: with no problems the console is one 40 px line until opened. */}
+        <CardContent className={consoleQuiet ? "p-0" : "p-3.5"}>
+          <IdeConsole
+            ide={ide}
+            tab={consoleTab}
+            onTabChange={setConsoleTab}
+            quiet={consoleQuiet}
+            onOpen={() => openConsole()}
+            onCollapse={
+              problemCount === 0
+                ? () => {
+                    setConsoleOpened(false);
+                    // The tabs unmount as the line mounts: focus follows to the line.
+                    requestAnimationFrame(() =>
+                      document.querySelector<HTMLElement>('#ide-console [data-slot="ide-console-line"]')?.focus(),
+                    );
+                  }
+                : undefined
+            }
+          />
         </CardContent>
       </Card>
       <Card className="gap-0 py-0" data-slot="ide-timeline">
-        <CardContent className="flex flex-col gap-1.5 p-3.5">
+        <CardContent className="flex flex-col gap-1 px-3.5 py-2.5">
           <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
             {t("timelineLabel", { page: ide.builder.snapshot?.name ?? "", board: ide.pageBoard?.name ?? "" })}
           </Text>
-          <IdeWeek ide={ide} />
+          <IdeWeekLine ide={ide} pageId={pageId} />
         </CardContent>
       </Card>
     </Stack>
@@ -256,7 +297,14 @@ export default function CreatorIde({
             {/* Panels that always hold rows are not a Tab stop of their own (BB-E-22): the
               first row is, so Page duration isn't announced twice. */}
             <InspectorTabsContent value="page" className="pt-2" tabIndex={-1}>
-              <IdePageTab ide={ide} pageId={pageId} builderRef={builderRef} onMakeCopy={() => setCopyOpen(true)} />
+              <IdePageTab
+                ide={ide}
+                builderRef={builderRef}
+                onMakeCopy={() => {
+                  setCopyFor(null);
+                  setCopyOpen(true);
+                }}
+              />
             </InspectorTabsContent>
             <InspectorTabsContent value="shows-on" className="pt-2" tabIndex={-1}>
               <IdeShowsOn
@@ -264,7 +312,11 @@ export default function CreatorIde({
                 pageId={pageId}
                 showWeek={!desktop}
                 onNavigate={(href) => router.push(href)}
-                onMakeCopy={() => setCopyOpen(true)}
+                onRetarget={(boardId) => builderRef.current?.setPreviewBoard(boardId)}
+                onCopyFor={(boardId) => {
+                  setCopyFor(boardId);
+                  setCopyOpen(true);
+                }}
               />
             </InspectorTabsContent>
             {!desktop && (
@@ -324,7 +376,7 @@ export default function CreatorIde({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <DuplicateDialog open={copyOpen} onOpenChange={setCopyOpen} ide={ide} pageId={pageId} />
+      <DuplicateDialog open={copyOpen} onOpenChange={setCopyOpen} ide={ide} pageId={pageId} boardId={copyFor} />
     </>
   );
 }

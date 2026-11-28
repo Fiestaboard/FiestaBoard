@@ -392,6 +392,13 @@ export interface PageBuilderHandle {
   discardContent: () => void;
   /** Ask to delete the page (D6: the Inspector's Page tab, not the header). */
   requestDelete: () => void;
+  /**
+   * Stage the Inspector Page tab's settings (UX-7-1): they are page content,
+   * so they join the unsaved changes and Save writes them.
+   */
+  setPageSettings: (settings: { duration_seconds?: number; transition_strategy?: string | null }) => void;
+  /** Preview and mirror on another display of the page's size (D3: Inspector › Shows on). */
+  setPreviewBoard: (boardId: string) => void;
 }
 
 interface PageSnapshot {
@@ -826,6 +833,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     lineAlignments: LineAlignment[];
     lineWrapEnabled: boolean[];
     transitionStrategy: string | null;
+    /** UX-7-1: the Page tab's duration is page content, saved by Save like the rest. */
+    durationSeconds: number;
     canvases: Canvas[];
   } | null>(null);
 
@@ -863,7 +872,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const notesWideRef = useRef(notesWide);
   const notesTallRef = useRef(notesTall);
   const panelGridRef = useRef(panelGrid);
-  const durationRef = useRef(300);
+  // The Inspector's Page duration (UX-7-1): staged like any edit, saved by Save.
+  const [durationSeconds, setDurationSeconds] = useState(300);
+  const durationRef = useRef(durationSeconds);
+  const applyDuration = useCallback((seconds: number) => {
+    durationRef.current = seconds;
+    setDurationSeconds(seconds);
+  }, []);
   const draftDisplayRef = useRef({ canvases, transitionStrategy, targetBoardId });
   useEffect(() => {
     draftDisplayRef.current = { canvases, transitionStrategy, targetBoardId };
@@ -909,6 +924,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       JSON.stringify(lineAlignments) !== JSON.stringify(savedSnapshot.lineAlignments) ||
       JSON.stringify(lineWrapEnabled) !== JSON.stringify(savedSnapshot.lineWrapEnabled) ||
       transitionStrategy !== savedSnapshot.transitionStrategy ||
+      durationSeconds !== savedSnapshot.durationSeconds ||
       JSON.stringify(canvases) !== JSON.stringify(savedSnapshot.canvases)
     );
   }, [
@@ -924,6 +940,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     lineAlignments,
     lineWrapEnabled,
     transitionStrategy,
+    durationSeconds,
     canvases,
   ]);
 
@@ -1131,9 +1148,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         setCanvases(content.canvases ?? []);
         setDebouncedCanvases(content.canvases ?? []);
       }
-      if (content.duration_seconds) durationRef.current = content.duration_seconds;
+      if (content.duration_seconds) applyDuration(content.duration_seconds);
     },
-    [applySnapshot],
+    [applySnapshot, applyDuration],
   );
 
   // Read by the Creator IDE (Testing state; the page's display); kept current where the state is declared.
@@ -1152,6 +1169,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       reloadFromServer,
       applyContent,
       requestDelete: () => setDeleteOpen(true),
+      setPageSettings: (settings) => {
+        if (settings.duration_seconds !== undefined) applyDuration(settings.duration_seconds);
+        if (settings.transition_strategy !== undefined) setTransitionStrategy(settings.transition_strategy);
+      },
+      setPreviewBoard: (boardId) => setChosenLiveBoardId(boardId),
       discardContent: () => {
         if (savedPageRef.current) applyContent(savedPageRef.current as unknown as PageContent);
       },
@@ -1187,6 +1209,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   ...noteArrayDims,
                   canvases: draftDisplayRef.current.canvases.length ? draftDisplayRef.current.canvases : null,
                   transition_strategy: draftDisplayRef.current.transitionStrategy,
+                  duration_seconds: durationRef.current,
                 })
               ).page
             : await api.createPage({
@@ -1198,6 +1221,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 ...noteArrayDims,
                 canvases: draftDisplayRef.current.canvases,
                 transition_strategy: draftDisplayRef.current.transitionStrategy,
+                duration_seconds: durationRef.current,
               });
           seededRevisionRef.current = saved.revision;
           seededProtocolsRef.current = {
@@ -1239,6 +1263,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       discardStaging,
       reloadFromServer,
       applyContent,
+      applyDuration,
     ],
   );
 
@@ -1649,7 +1674,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         edit_protocol: existingPage.edit_protocol,
         document_protocol: existingPage.document_protocol,
       };
-      durationRef.current = existingPage.duration_seconds;
+      applyDuration(existingPage.duration_seconds);
       // Clear draft when loading existing page
       const draftKey = getDraftKey(pageId);
       localStorage.removeItem(draftKey);
@@ -1715,6 +1740,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         lineAlignments: alignments,
         lineWrapEnabled: wrapStates,
         transitionStrategy: savedTransition,
+        durationSeconds: existingPage.duration_seconds,
         canvases: savedCanvases,
       });
     } else if (!pageId && !loadingPage) {
@@ -1758,7 +1784,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         }
       }
     }
-  }, [existingPage, pageId, loadingPage, skipDraft]);
+  }, [existingPage, pageId, loadingPage, skipDraft, applyDuration]);
 
   // Seed note-array grid dimensions for a NEW note_array page from the
   // configured note_array board, so the editor previews at the board's real
@@ -1971,6 +1997,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     lineAlignments: [...lineAlignments],
     lineWrapEnabled: [...lineWrapEnabled],
     transitionStrategy,
+    durationSeconds,
     canvases: structuredClone(canvases),
   });
 
@@ -1999,6 +2026,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           // for keys it actually receives, so omitting this would silently keep
           // a previous per-page transition after the user chose "Use the display's transition".
           transition_strategy: transitionStrategy,
+          duration_seconds: durationSeconds,
           ...geometryFields(deviceType, notesWide, notesTall, panelGrid),
           // Always sent: null clears canvases the user deleted.
           canvases: canvases.length > 0 ? canvases : null,
@@ -2012,6 +2040,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           template: cleanedLines,
           line_metadata: metadata,
           transition_strategy: transitionStrategy,
+          duration_seconds: durationSeconds,
           ...geometryFields(deviceType, notesWide, notesTall, panelGrid),
           ...(canvases.length > 0 && { canvases }),
         };

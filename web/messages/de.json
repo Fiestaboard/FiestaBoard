@@ -4310,6 +4310,28 @@
     "deletePageDetail": "Entfernt sie aus allen Zeitplänen und Sammlungen",
     "autosavePaused": "Nicht gespeichert · ein Entwurf von anderswo wartet im Verlauf"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} auf {board}",
+    "nextAt": "nächste {when}",
+    "consoleClear": "Keine Probleme",
+    "consoleWarnings": "{count, plural, one {# Warnung} other {# Warnungen}}",
+    "consoleSent": "Gesendet {time} an {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} weitere",
+    "notThisWeek": "Diese Woche nicht geplant",
+    "addToSchedule": "Zum Zeitplan hinzufügen",
+    "fallbackHint": "Füge einer Formel einen Ersatzwert hinzu, um dies festzulegen",
+    "displayGroup": "Anzeige",
+    "displayRetarget": "Gleiche Größe · hier Vorschau und Spiegelung",
+    "copySizedFor": "Kopie in der Größe für {board} erstellen",
+    "makeTheCopy": "Kopie erstellen",
+    "settingDuration": "Seitendauer",
+    "settingTransition": "Übergang",
+    "copyWillMake": "Erstellt eine neue Seite in der Größe für {board} ({cols} × {rows}); diese Seite bleibt unverändert.",
+    "collapseConsole": "Konsole einklappen",
+    "scheduleGroup": "Zeitplan",
+    "collectionsGroup": "Sammlungen"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} von {wanted} Reihen",

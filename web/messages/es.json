@@ -4310,6 +4310,28 @@
     "deletePageDetail": "La quita de todas las programaciones y colecciones",
     "autosavePaused": "Sin guardar · un borrador de otro lugar espera en Historial"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} en {board}",
+    "nextAt": "próxima {when}",
+    "consoleClear": "Sin problemas",
+    "consoleWarnings": "{count, plural, one {# advertencia} other {# advertencias}}",
+    "consoleSent": "Enviado {time} a {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} más",
+    "notThisWeek": "No programada esta semana",
+    "addToSchedule": "Añadir a la programación",
+    "fallbackHint": "Añade un valor alternativo a una fórmula para configurarlo",
+    "displayGroup": "Pantalla",
+    "displayRetarget": "Mismo tamaño · vista previa y espejo aquí",
+    "copySizedFor": "Hacer una copia del tamaño de {board}",
+    "makeTheCopy": "Hacer la copia",
+    "settingDuration": "Duración de la página",
+    "settingTransition": "Transición",
+    "copyWillMake": "Crea una página nueva del tamaño de {board} ({cols} × {rows}); esta página no cambia.",
+    "collapseConsole": "Contraer la consola",
+    "scheduleGroup": "Programación",
+    "collectionsGroup": "Colecciones"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} de {wanted} filas",
