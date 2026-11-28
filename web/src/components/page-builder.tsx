@@ -1568,11 +1568,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // at once instead of after the app's retries (BB-B-16).
     retry: (failures, error) => !(error instanceof ApiError && error.status === 404) && failures < 2,
   });
-  const caretScrollMargin = useEditorScrollMargin(
-    dockedPreview && !(pageId && loadingPage),
-    editorContentRef,
-    viewportBottom,
-  );
+  // Whether the editor has had its first paint (the loading skeleton is gone):
+  // what measures the mounted editor waits for it (UX-8-3 gate below).
+  const [editorShown, setEditorShown] = useState(false);
+  const caretScrollMargin = useEditorScrollMargin(dockedPreview && editorShown, editorContentRef, viewportBottom);
   useEffect(() => {
     savedPageRef.current = existingPage;
   }, [existingPage]);
@@ -2744,7 +2743,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // and "? All shortcuts" (≥ 1024 px, any pointer). Where it shows, its hint is
   // the list's one entry, so `?` opens the list from there (D5, UX-1-6).
   const toolbarRowShown = !useTouchToolbar || !dockedPreview;
-  if (toolbarRowShown && shortcutList.openFrom === "header") shortcutList.setOpenFrom("hint");
+  // Only at the moment it opens: a list already open (from More) stays the same
+  // popup, with its focus, when a resize brings the row in.
+  const [shortcutOpenedFrom, setShortcutOpenedFrom] = useState(shortcutList.openFrom);
+  if (shortcutList.openFrom !== shortcutOpenedFrom) {
+    setShortcutOpenedFrom(shortcutList.openFrom);
+    if (shortcutOpenedFrom === null && shortcutList.openFrom === "header" && toolbarRowShown) {
+      shortcutList.setOpenFrom("hint");
+    }
+  }
   // The rich editor (lazy) portals its toolbar into the chrome's toolbar row:
   // the row keeps that height from the first paint (BB-E-32).
   const richToolbarExpected = !useTouchToolbar && editorMode === "rich" && !baselineDisplay && !editorCharset;
@@ -2884,7 +2891,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             </TooltipContent>
           </Tooltip>
         )}
-        {dockedPreview && (
+        {/* Only where the toolbar row (and its "? All shortcuts") is not shown:
+            the list keeps one entry (D5 as Fable ruled it). */}
+        {dockedPreview && !toolbarRowShown && (
           <Button
             variant="secondary"
             size="sm"
@@ -3318,7 +3327,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const complexToolsReady = useChunkReady(complexTools, complexEditing.active);
   // The rich editor too: its card and toolbar are the page's first paint (BB-E-32).
   const richEditorReady = useChunkReady(tipTapEditor, templateCardHeader);
-  const [editorShown, setEditorShown] = useState(false);
   const overflowTarget = useMemo(() => {
     const { cleanedLines, metadata } = processLinesWithPrefixes(
       debouncedTemplateLines,
