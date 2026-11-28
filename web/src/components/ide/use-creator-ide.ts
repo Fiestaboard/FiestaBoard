@@ -99,6 +99,13 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced;
 }
 
+/**
+ * A query has its answer for this editing session: loaded, and not re-asking.
+ * Cached data is not pending, but a reopened editor refetches it on mount; the
+ * page's displays are held once, so they wait for that answer (OPUS-2647 M1).
+ */
+const answered = (query: { isPending: boolean; isFetching: boolean }) => !query.isPending && !query.isFetching;
+
 const nullOn404 = <T>(promise: Promise<T>) =>
   promise.catch((error: unknown) => {
     if (error instanceof ApiError && error.status === 404) return null;
@@ -112,7 +119,7 @@ const nullOn404 = <T>(promise: Promise<T>) =>
  */
 export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderHandle | null>, savedTick: number) {
   const queryClient = useQueryClient();
-  const { boards } = useCurrentBoard();
+  const { boards, isLoading: boardsLoading } = useCurrentBoard();
   const [builder, setBuilder] = useState<BuilderState>({
     unsaved: false,
     mirroring: false,
@@ -173,14 +180,17 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     queryFn: () => api.getSchedules("*"),
     retry: false,
   });
-  const activeAnswers = useQueries({
+  const { answers: activeAnswers, settled: activeSettled } = useQueries({
     queries: boards.map((board) => ({
       queryKey: ideKeys.active(board.id),
       queryFn: () => api.getActiveSchedule(board.id),
       refetchInterval: HUB_REFRESH_MS,
       retry: false,
     })),
-    combine: (results) => results.map((result) => result.data),
+    combine: (results) => ({
+      answers: results.map((result) => result.data),
+      settled: results.every(answered),
+    }),
   });
 
   const snapshot = builder.snapshot;
@@ -240,8 +250,17 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     [pageId, schedules.data, collections.data, boards, activeByBoard],
   );
   // Handed to the editor so it previews the page as a display that shows it
-  // (UX-6-1); a string key keeps the array stable between polls.
-  const pageDisplaysKey = pageDisplayIds(showsOn).join("\n");
+  // (UX-6-1); a string key keeps the array stable between polls. Chosen once
+  // per page, from the first settled answers (fresh ones: a reopened editor
+  // re-asks for what it cached, see `answered`): "showing now" changes with the
+  // clock (re-asked every minute), and the preview, its checks and the default
+  // Mirror target must not move while you edit (OPUS-2645 S2). Picking a
+  // live-output target or a retarget in the editor still wins over these.
+  const displaysSettled = !boardsLoading && answered(schedules) && answered(collections) && activeSettled;
+  const liveDisplaysKey = pageDisplayIds(showsOn).join("\n");
+  const [heldDisplays, setHeldDisplays] = useState<{ pageId: string; key: string } | null>(null);
+  if (displaysSettled && heldDisplays?.pageId !== pageId) setHeldDisplays({ pageId, key: liveDisplaysKey });
+  const pageDisplaysKey = heldDisplays?.pageId === pageId ? heldDisplays.key : "";
   const pageDisplays = useMemo(() => (pageDisplaysKey ? pageDisplaysKey.split("\n") : []), [pageDisplaysKey]);
 
   const hubDraft: PageDraft | null = draft.data ?? null;
