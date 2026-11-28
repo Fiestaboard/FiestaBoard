@@ -15,8 +15,10 @@
  *    selector UI, but only ever with two Flagship boards.
  *
  * This spec is the missing combination: sidebar board selector -> Dashboard
- * + Schedule -> page-picker size filtering -> editor retarget warning, all
- * with one Flagship + one Note Array board.
+ * + Schedule -> page-picker size filtering -> the editor's "copy sized for"
+ * the other display, all with one Flagship + one Note Array board. (A saved
+ * page is never resized in place any more, D3 / DD-W159: #1250's resize and
+ * its "no longer fits" warning gave way to Inspector › Shows on's copy.)
  */
 import {
   API_URL,
@@ -31,7 +33,6 @@ import {
   expect,
   getMockBoardState,
   getMockCloudState,
-  getToastsRegion,
   gridToText,
   loginIfNeeded,
   resetMockBoard,
@@ -276,33 +277,46 @@ test.describe("regression: multi-board — mixed fleet through the real UI", () 
     await expect(officeDialog.getByText("Kitchen Only", { exact: true })).toHaveCount(0);
   });
 
-  test("retargeting a board's active page to an incompatible size surfaces the stale-reference warning", async ({
-    page,
-  }) => {
-    const pageId = await createFlagshipPage("Retarget Active Page", uniq("KIT"));
+  test("a saved page live on one board is copied, not resized, for a display of another size", async ({ page }) => {
+    const pageId = await createFlagshipPage(uniq("Kitchen Live "), uniq("KIT"));
     await setActivePage(pageId, kitchenId);
 
     await page.goto(`/pages/edit/${pageId}`);
-    await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 15_000 });
+    // The preview meta states the page's display and size as plain text: no size picker (DD-W159).
+    const meta = page.locator("#page-editor-preview").getByTestId("preview-target-meta");
+    await expect(meta).toHaveText(/^Kitchen · .*22 × 6$/, { timeout: 15_000 });
+    await expect(page.getByTestId("preview-target-trigger")).toHaveCount(0);
+    await expect(page.getByLabel("Change board size")).toHaveCount(0);
 
-    // Flagship (6x22) -> Note (3x15): a shrinking retarget confirms first.
-    // BB-E-6: size and target live behind the preview header's meta.
-    await page.getByTestId("preview-target-trigger").click();
-    await page.getByLabel("Change board size").click();
-    await page.getByRole("option", { name: "Note", exact: true }).click();
-    await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });
+    // Inspector › Shows on: Kitchen is this page's display; Office (30 × 3) offers a copy sized for it.
+    await page.getByRole("tab", { name: "Shows on" }).click();
+    const displays = page.getByRole("group", { name: "Display" });
+    await expect(displays.getByText("Kitchen", { exact: true })).toBeVisible({ timeout: 10_000 });
+    const office = displays.getByRole("button", { name: /Office/ });
+    await expect(office).toContainText("Make a copy sized for Office");
+    await office.click();
+    const dialog = page.getByRole("dialog", { name: "Make a copy sized for Office" });
+    await expect(dialog).toContainText(`Makes a new page sized for Office (${ARRAY_COLS} × ${ARRAY_ROWS})`);
+    const duplicated = page.waitForResponse(
+      (res) => res.request().method() === "POST" && new URL(res.url()).pathname.endsWith(`/${pageId}/duplicate`),
+    );
+    await dialog.getByRole("button", { name: "Make the copy" }).click();
+    const response = await duplicated;
+    expect(response.ok()).toBe(true);
+    const copy = ((await response.json()) as { page: { id: string } }).page;
+    await expect(page.getByRole("dialog")).toContainText("Made", { timeout: 10_000 });
+    await expect(page.getByRole("dialog").getByRole("link", { name: "Open the copy" })).toBeVisible();
 
-    // The page is live on Kitchen, so the header offers Save draft and
-    // Save & update board (04d decision 4, web 2.11); publishing is the latter.
-    await page.getByRole("button", { name: "Save & update board" }).click();
-    await expect(page.getByRole("heading", { name: "Change board size?" })).toBeVisible({ timeout: 10_000 });
-    await page.getByRole("button", { name: "Resize and save" }).click();
-
-    // The toast names the board and the "active page" surface (issue #1250),
-    // proving the per-board active-page reference (not just a schedule) is tracked.
-    const toast = getToastsRegion(page);
-    await expect(toast).toContainText("This page no longer fits", { timeout: 10_000 });
-    await expect(toast).toContainText("Kitchen");
-    await expect(toast).toContainText("active page");
+    // The copy is a note-array page of Office's size; the original keeps its size and stays live on Kitchen.
+    const saved = await (await fetch(`${API_URL}/pages/${copy.id}`, { headers: authHeaders() })).json();
+    expect(saved).toMatchObject({
+      device_type: "note_array",
+      notes_wide: ARRAY_NOTES_WIDE,
+      notes_tall: ARRAY_NOTES_TALL,
+    });
+    const original = await (await fetch(`${API_URL}/pages/${pageId}`, { headers: authHeaders() })).json();
+    expect(original.device_type).toBe("flagship");
+    const kitchen = await (await fetch(`${API_URL}/v1/boards/${kitchenId}`, { headers: authHeaders() })).json();
+    expect(kitchen.active_page_id).toBe(pageId);
   });
 });

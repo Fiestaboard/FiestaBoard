@@ -363,15 +363,18 @@ for (const width of [1280, 1440]) {
     await expect(header).toContainText("Live preview");
     expect(await height()).toBeLessThanOrEqual(40);
 
-    // No size row on the canvas; the meta opens it.
+    // D3 (DD-W159): a saved page's meta is plain text that truncates; no popup, no size row.
     await expect(page.getByRole("combobox", { name: "Change board size" })).toHaveCount(0);
-    const target = header.getByTestId("preview-target-trigger");
-    await expect(target).toContainText("Kitchen board · Flagship 22 × 6");
-    await target.click();
-    await expect(
-      page.getByRole("dialog", { name: "Preview target" }).getByRole("combobox", { name: "Change board size" }),
-    ).toBeVisible();
-    await page.keyboard.press("Escape");
+    await expect(header.getByTestId("preview-target-trigger")).toHaveCount(0);
+    const target = header.getByTestId("preview-target-meta");
+    await expect(target).toHaveText("Kitchen board · Flagship 22 × 6");
+    await expect(target).toHaveAttribute("title", "Kitchen board · Flagship 22 × 6");
+    expect(await target.evaluate((el) => getComputedStyle(el).textOverflow)).toBe("ellipsis");
+    // Board colour is a View choice, and the choice closes the menu.
+    await header.getByRole("button", { name: "View", exact: true }).click();
+    await page.getByRole("group", { name: "Board color" }).getByRole("menuitemradio", { name: "White" }).click();
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    expect(await height()).toBeLessThanOrEqual(40);
 
     const live = card.locator('[data-slot="editor-preview-live"]');
     await expect(live.getByRole("button", { name: "Replay" })).toBeVisible();

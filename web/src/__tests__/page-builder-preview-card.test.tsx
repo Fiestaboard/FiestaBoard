@@ -3,9 +3,10 @@
  * 307:46094).
  *
  * - The card states its target once, in the header's mono meta
- *   ("Living Room · Flagship 22 × 6"). That meta is the one control for the
- *   preview target, the board size and the board colour (D3): no live-output
- *   picker inside the card, no detached size and colour row under the template.
+ *   ("Living Room · Flagship 22 × 6"). On a saved page it is plain text: the
+ *   display is Inspector › Shows on's, the board colour is ⋯ View's (D3,
+ *   DD-W159). A new page (no Inspector yet) keeps the meta as the popover for
+ *   the target, the size and the colour.
  * - Under the board: Mirror and Replay only.
  * - The board never flaps while you edit (D7); Replay plays the cascade.
  */
@@ -123,29 +124,82 @@ beforeEach(() => {
 });
 
 describe("Preview card (BB-E-5, BB-E-6)", () => {
-  it("states the target once, as the header meta, with no picker or size row on the canvas", async () => {
+  it("states a saved page's target once, as plain-text meta: no popup, no picker or size row (D3, DD-W159)", async () => {
     renderEditor();
     await screen.findByDisplayValue("Existing Page");
     const card = document.getElementById("page-editor-preview")!;
-    const target = await within(card).findByRole("button", { name: /Preview on Living Room · Flagship 22 × 6/ });
-    expect(target).toBeInTheDocument();
-    // The AI walkthrough spotlights the size control through this anchor; it must stay in the DOM.
-    expect(resolveAnchor("page-editor.device")).toBe(target);
+    const meta = await within(card).findByTestId("preview-target-meta");
+    expect(meta).toHaveTextContent("Living Room · Flagship 22 × 6");
+    expect(meta).toHaveAttribute("title", "Living Room · Flagship 22 × 6");
+    expect(meta.closest("button")).toBeNull();
+    expect(meta).toHaveClass("truncate", "min-w-0");
+    // The AI walkthrough spotlights the page's display through this anchor; it stays in the DOM.
+    expect(resolveAnchor("page-editor.device")).toBe(meta);
+    // Inspector › Shows on is the one display picker; the in-place resize of #1250 is retired.
+    expect(screen.queryByTestId("preview-target-trigger")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Preview on/ })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Select board for live output" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Change board size" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Preview as black board" })).toBeNull();
   });
 
-  it("opens target, size and colour from the meta", async () => {
+  it("offers a saved page's board colour in ⋯ View, and the choice closes the menu", async () => {
     const user = userEvent.setup();
     renderEditor();
     await screen.findByDisplayValue("Existing Page");
     const card = document.getElementById("page-editor-preview")!;
-    await user.click(await within(card).findByRole("button", { name: /Preview on Living Room/ }));
+    await user.click(within(card).getByRole("button", { name: "View" }));
+    const menu = await screen.findByRole("menu");
+    const colour = within(menu).getByRole("group", { name: "Board color" });
+    expect(within(colour).getByRole("menuitemradio", { name: "Black" })).toHaveAttribute("aria-checked", "true");
+    await user.click(within(colour).getByRole("menuitemradio", { name: "White" }));
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    await waitFor(() => expect(boardProps.mock.lastCall![0]).toMatchObject({ boardType: "white" }));
+  });
+
+  it("opens Fit by default on a Flagship pane (UX-4-2); a stored choice still wins", async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderEditor();
+    await screen.findByDisplayValue("Existing Page");
+    const card = document.getElementById("page-editor-preview")!;
+    await user.click(within(card).getByRole("button", { name: "View" }));
+    expect(await screen.findByRole("menuitemradio", { name: /^Fit/ })).toHaveAttribute("aria-checked", "true");
+    await user.click(screen.getByRole("menuitemradio", { name: /^Actual size/ }));
+    unmount();
+    renderEditor();
+    await screen.findByDisplayValue("Existing Page");
+    await user.click(within(document.getElementById("page-editor-preview")!).getByRole("button", { name: "View" }));
+    expect(await screen.findByRole("menuitemradio", { name: /^Actual size/ })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("keeps the target popover (board, size, colour) on a new page until it has an Inspector", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ConfigOverridesProvider>
+          <ThemeProvider attribute="class" defaultTheme="light">
+            <PageBuilder onClose={vi.fn()} />
+          </ThemeProvider>
+        </ConfigOverridesProvider>
+      </QueryClientProvider>,
+    );
+    const trigger = await screen.findByRole("button", { name: /Preview on Living Room/ });
+    const card = document.getElementById("page-editor-preview")!;
+    expect(card).toContainElement(trigger);
+    expect(resolveAnchor("page-editor.device")).toBe(trigger);
+    await user.click(trigger);
     const panel = await screen.findByRole("dialog", { name: "Preview target" });
     expect(within(panel).getByRole("combobox", { name: "Select board for live output" })).toBeInTheDocument();
     expect(within(panel).getByRole("combobox", { name: "Change board size" })).toBeInTheDocument();
     expect(within(panel).getByRole("button", { name: "Preview as white board" })).toBeInTheDocument();
+    // One place per fact: the new page's colour is the popover's, not View's too.
+    await user.keyboard("{Escape}");
+    const view = within(card).queryByRole("button", { name: "View" });
+    if (view) {
+      await user.click(view);
+      expect(within(await screen.findByRole("menu")).queryByRole("group", { name: "Board color" })).toBeNull();
+    }
   });
 
   it("puts Replay beside Mirror", async () => {

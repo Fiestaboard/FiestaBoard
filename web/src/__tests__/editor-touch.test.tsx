@@ -327,40 +327,6 @@ it("opens Add to Schedule in the editor's display context after a first save", a
   kitToast.dismiss();
 });
 
-it("keeps Show now intent after confirming a shrinking page retarget", async () => {
-  const note = { ...board, id: "desk", name: "Desk", device_type: "note" };
-  let saved: Record<string, unknown> | undefined;
-  server.use(
-    http.get("/api/settings/board", () =>
-      HttpResponse.json({ boards: [board, note], devices: ["flagship", "note"], board_type: "black" }),
-    ),
-    http.put("/api/v1/pages/page-1", async ({ request }) => {
-      saved = (await request.json()) as Record<string, unknown>;
-      return HttpResponse.json({ page: { ...saved, id: "page-1", revision: 2 }, incompatible_references: [] });
-    }),
-    http.get("/api/v1/pages", () =>
-      HttpResponse.json({
-        pages: [
-          saved
-            ? { ...saved, id: "page-1", revision: 2 }
-            : { id: "page-1", name: "Weather Page", device_type: "flagship", template: ["HELLO"] },
-        ],
-      }),
-    ),
-  );
-  const user = userEvent.setup();
-  render(<PageBuilder pageId="page-1" onClose={vi.fn()} />, { wrapper: Wrapper });
-  await screen.findByDisplayValue("Weather Page");
-  await user.click(screen.getByRole("combobox", { name: "Change board size" }));
-  await user.click(await screen.findByRole("option", { name: "Note" }));
-  await user.click(screen.getByRole("button", { name: "Show now" }));
-  const { within } = await import("@testing-library/react");
-  const guard = await screen.findByRole("alertdialog", { name: "Change board size?" });
-  await user.click(within(guard).getByRole("button", { name: "Resize and save" }));
-  await waitFor(() => expect(saved?.device_type).toBe("note"));
-  expect(await screen.findByRole("dialog", { name: "Change Page" })).toBeInTheDocument();
-});
-
 // BB-B-24 (Figma 303:18724): in the phone More sheet, Delete and the page
 // transition are labelled rows, not bare icons.
 it("labels Delete and Page transition in the phone More sheet", async () => {
@@ -381,4 +347,33 @@ it("labels Delete and Page transition in the phone More sheet", async () => {
   const remove = await screen.findByRole("button", { name: "Delete Page" });
   expect(remove).toHaveTextContent("Delete Page");
   expect(screen.getByRole("button", { name: "Page transition" })).toHaveTextContent("Page transition");
+});
+
+// D3 (DD-W159): a saved page's dock has no target icon; its board colour is a
+// row in ⋯ More under the data modes. A new page keeps the target popover.
+it("moves a saved page's board colour into the dock's More and drops the target icon", async () => {
+  vi.spyOn(window, "matchMedia").mockImplementation(
+    (q) =>
+      ({
+        matches: q.includes("max-width"),
+        media: q,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }) as unknown as MediaQueryList,
+  );
+  const user = userEvent.setup();
+  const { unmount } = render(<PageBuilder pageId="page-1" onClose={vi.fn()} />, { wrapper: Wrapper });
+  await screen.findByDisplayValue("Weather Page");
+  expect(screen.queryByTestId("preview-target-inline")).toBeNull();
+  expect(screen.queryByRole("combobox", { name: "Change board size" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Plain Text" }));
+  await user.click(screen.getByRole("button", { name: "More" }));
+  const white = await screen.findByRole("button", { name: "Preview as white board" });
+  expect(screen.getByRole("button", { name: "Preview as black board" })).toHaveAttribute("aria-pressed", "true");
+  await user.click(white);
+  expect(white).toHaveAttribute("aria-pressed", "true");
+  unmount();
+
+  render(<PageBuilder onClose={vi.fn()} />, { wrapper: Wrapper });
+  expect(await screen.findByTestId("preview-target-inline")).toBeInTheDocument();
 });

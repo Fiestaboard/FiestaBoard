@@ -184,11 +184,9 @@ describe("PageBuilder — note-array dimensions", () => {
 
     render(<PageBuilder pageId="na-page" onClose={vi.fn()} />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(screen.getByRole("img", { name: /30 columns by 6 rows/i })).toBeInTheDocument();
-    });
-    const indicator = screen.getByRole("img", { name: /30 columns by 6 rows/i });
-    expect(indicator).toHaveTextContent("30 × 6");
+    // A saved page states its size in the preview's plain-text meta (D3, DD-W159).
+    const meta = await screen.findByTestId("preview-target-meta");
+    await waitFor(() => expect(meta).toHaveTextContent(/30 × 6$/));
   });
 
   it("leaves a flagship page at its fixed 22 × 6 size", async () => {
