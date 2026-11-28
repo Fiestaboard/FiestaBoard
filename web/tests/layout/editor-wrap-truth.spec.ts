@@ -92,17 +92,18 @@ test("a wrap past the last row is one problem, in the same words everywhere (W-1
   await page.screenshot({ path: path.join(shots, "wrap-past-board-1440.png") });
 });
 
-for (const width of [1440, 1024]) {
+for (const width of [1440, 1024, 390]) {
   test(`${width}px: the first save's toast sits bottom-right, clear of the header actions (W-3)`, async ({
     page,
   }, testInfo) => {
     await mockHub(page, { noProblems: true });
-    await page.setViewportSize({ width, height: width >= 1440 ? 900 : 768 });
+    await page.setViewportSize({ width, height: width >= 1440 ? 900 : width >= 1024 ? 768 : 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(`/tests/layout/editor-window.html?${new URLSearchParams({ path: "/pages/new" })}`);
-    await expect(page.locator('[data-slot="page-editor-toolbar"] > *').first()).toBeVisible();
+    const editor = page.locator(".ProseMirror").first();
+    await expect(editor).toBeVisible();
     await page.getByRole("textbox", { name: /page name/i }).fill("Kitchen morning");
-    await page.locator(".ProseMirror").first().click();
+    await editor.click();
     await page.keyboard.type("HELLO");
     await page.getByRole("button", { name: /save page/i }).click();
 
@@ -111,16 +112,23 @@ for (const width of [1440, 1024]) {
     const toaster = page.locator("[data-sonner-toaster]").filter({ has: toast });
     await expect(toaster).toHaveAttribute("data-y-position", "bottom");
     await expect(toaster).toHaveAttribute("data-x-position", "right");
-    // Settled (no motion), it sits in the bottom half and over none of the header's actions.
+    // Settled (no motion), it sits low and over none of the header's (or phone toolbar's) actions.
     await expect
       .poll(async () => {
         const box = (await toast.boundingBox())!;
         return box.y + box.height;
       })
-      .toBeGreaterThan((width >= 1440 ? 900 : 768) * 0.75);
+      .toBeGreaterThan((width >= 1440 ? 900 : width >= 1024 ? 768 : 844) * 0.6);
     const toastBox = (await toast.boundingBox())!;
     const header = page.locator('[data-slot="card-header"]').first();
-    for (const button of await header.getByRole("button").all()) {
+    // On a phone the editor's touch toolbar sits at the bottom: the toast rises above it.
+    const covered = [...(await header.getByRole("button").all())];
+    if (width < 768) {
+      const toolbar = page.locator('[data-slot="editor-toolbar"]').last();
+      await expect(toolbar).toBeVisible();
+      covered.push(...(await toolbar.getByRole("button").all()));
+    }
+    for (const button of covered) {
       const box = await button.boundingBox();
       if (!box) continue;
       const overlaps =
@@ -128,7 +136,9 @@ for (const width of [1440, 1024]) {
         toastBox.x < box.x + box.width &&
         box.y < toastBox.y + toastBox.height &&
         toastBox.y < box.y + box.height;
-      expect(overlaps, `toast covers ${await button.getAttribute("aria-label")}`).toBe(false);
+      expect(overlaps, `toast covers ${(await button.getAttribute("aria-label")) ?? (await button.innerText())}`).toBe(
+        false,
+      );
     }
     const shots = process.env.W3A1_SHOTS || testInfo.outputPath("shots");
     await mkdir(shots, { recursive: true });

@@ -215,6 +215,14 @@ describe("wrapRowsShort (W-1)", () => {
     expect(wrapRowsShort({ ...overflow, line: 2 }, ["", lines[4], "", "", "", ""], [], 6)).toBe(0);
   });
 
+  it("never refuses a line whose variables may be shorter today", () => {
+    expect(wrapRowsShort({ ...overflow, line: 6 }, ["", "", "", "", "", "{{news.headline}} TODAY"], [], 6)).toBe(0);
+  });
+
+  it("lets the wrap take a row with a variable below, which may render blank", () => {
+    expect(wrapRowsShort({ ...overflow, line: 2 }, ["", lines[4], "{{weather.alert}}", "", "", ""], [], 6)).toBe(0);
+  });
+
   it("stops at a row with content below, as the hub's wrap does", () => {
     // Row 3 holds text: line 2 keeps one row of the three it needs.
     expect(wrapRowsShort({ ...overflow, line: 2 }, ["", lines[4], "FOOTER", "", "", ""], [], 6)).toBe(2);

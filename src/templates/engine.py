@@ -2466,7 +2466,9 @@ class TemplateEngine:
             return []
         report = RenderReport()
         if context is None:
-            context = self._formula_validation_context("\n".join(shown))
+            # Data only matters when a shown line reads some: plain text fetches nothing.
+            joined = "\n".join(shown)
+            context = self._formula_validation_context(joined) if "{{" in joined else {}
         self.render_lines(
             shown,
             context,

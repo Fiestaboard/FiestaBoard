@@ -179,8 +179,10 @@ export function rowsPastBoard(response: TemplateValidationAtResponse | undefined
 /**
  * How many rows a Wrap of a too-long line needs that the board cannot give it.
  * A wrap fills the rows below while they are blank or wrap themselves, up to
- * the board's last row (the hub's `_overflow_budget`); the line needs at least
- * `columns / maxColumns` rows (word breaks only add to it). 0: the wrap fits.
+ * the board's last row (the hub's `_overflow_budget`; a row with a variable
+ * counts as free, as it may render blank); a plain-text line needs at least
+ * `columns / maxColumns` rows (word breaks only add to it). 0: the wrap fits,
+ * or may: the hub still reports a wrap that runs off the board (W-1).
  */
 export function wrapRowsShort(
   overflow: Pick<LineOverflow, "line" | "columns" | "maxColumns">,
@@ -188,10 +190,16 @@ export function wrapRowsShort(
   wraps: readonly boolean[],
   rows: number,
 ): number {
+  // A variable's measured length is its longest possible value, not today's:
+  // only a line of plain text is known to need the rows (never a false "no").
+  if ((lines[overflow.line - 1] ?? "").includes("{{")) return 0;
   const needed = Math.ceil(overflow.columns / Math.max(1, overflow.maxColumns));
   let available = 1;
   for (let index = overflow.line; index < rows; index++) {
-    if ((lines[index] ?? "").trim() !== "" && !wraps[index]) break;
+    const below = lines[index] ?? "";
+    // A row with a variable may render blank, which the hub lets the wrap take.
+    const free = below.trim() === "" || wraps[index] || below.includes("{{");
+    if (!free) break;
     available++;
   }
   return Math.max(0, needed - available);

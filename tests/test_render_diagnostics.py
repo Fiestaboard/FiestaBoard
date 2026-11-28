@@ -356,6 +356,15 @@ def test_validate_passes_a_wrap_that_fits_the_rows_below(client):
     assert body == {"valid": True, "errors": [], "rows": 6, "cols": 22}
 
 
+def test_validate_measures_a_plain_text_wrap_without_fetching_data(engine, monkeypatch):
+    fetches = []
+    monkeypatch.setattr(TemplateEngine, "_build_context", lambda self, *a, **k: fetches.append(k) or {})
+    errors = engine.validate_template("\n".join(["", "", "", "", "", LUNCH]), rows=6, line_metadata=_wrapped_at(6))
+
+    assert [(e.line, e.code) for e in errors] == [(6, "beyond_board")]
+    assert fetches == []
+
+
 def test_validate_flags_a_wrap_filter_that_runs_off_the_board(engine):
     errors = engine.validate_template("A\nB\nC\n{{demo.words|wrap}}", cols=15, rows=4, context=dict(CTX))
 

@@ -39,6 +39,9 @@ function useMatchesDesktop(): boolean {
   return useSyncExternalStore(subscribeToDesktop, isDesktopNow, () => false);
 }
 
+/** Clears the phone editor's bottom touch toolbar. */
+const EDITOR_PHONE_OFFSET = { bottom: "calc(64px + env(safe-area-inset-bottom))" };
+
 /** The page editor (a new page, or one being edited). */
 const EDITOR_ROUTE = /\/pages\/(new|edit)(\/|$)/;
 
@@ -119,7 +122,12 @@ const Toaster = ({ containerAriaLabel, labels, ...props }: ToasterProps) => {
       ? { right: "calc(var(--ai-drawer-width, 384px) + 1.5rem)" }
       : onEditor && !belowRail && position === "bottom-right"
         ? 24
-        : undefined);
+        : onEditor && belowRail && position === "bottom-right"
+          ? EDITOR_PHONE_OFFSET
+          : undefined);
+  // A phone editor keeps its touch toolbar at the bottom: toasts rise above it (W-3).
+  const mobileOffset =
+    props.mobileOffset ?? (onEditor && belowRail && position === "bottom-right" ? EDITOR_PHONE_OFFSET : undefined);
 
   return (
     <KitToaster
@@ -131,6 +139,7 @@ const Toaster = ({ containerAriaLabel, labels, ...props }: ToasterProps) => {
       labels={{ close: t("close"), ...labels, container: ariaLabel }}
       position={position}
       offset={offset}
+      mobileOffset={mobileOffset}
       // Sonner's own layer is above everything; the editor's sits just under --z-modal.
       className={cn(props.className, onEditor && "z-[calc(var(--z-modal)-1)]!")}
     />
