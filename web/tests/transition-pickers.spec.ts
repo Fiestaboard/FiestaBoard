@@ -145,10 +145,10 @@ test.describe("transition pickers", () => {
       await expect(row, "per-page Transition control missing").toBeVisible();
       // UX-7-1 (FP-2): an inline menu on the row stages the choice like any
       // edit; the header's save writes it with the page. Which save the header
-      // offers depends on whether a display shows the page (D6): "Save" on a
-      // page no display shows, "Save & update board" on a live one ("Save
-      // draft" only writes the hub draft, so it is not the one that persists).
-      const save = page.getByRole("button", { name: /^(Save|Save & update board)$/ });
+      // offers depends on whether a display shows the page (D6): "Save" (named
+      // "Save Page") on a page no display shows, "Save & update board" on a
+      // live one ("Save draft" only writes the hub draft, so never that one).
+      const save = page.getByRole("button", { name: /^(Save Page|Save & update board)$/ });
       const choose = async (option: string | RegExp, rowText: string | RegExp) => {
         await row.click();
         await page.getByRole("menuitemradio", { name: option }).click();
