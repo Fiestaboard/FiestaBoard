@@ -2770,7 +2770,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       data-slot="page-editor-template-title"
       align="center"
       gap="2"
-      className={cn("min-w-0", !templateCardHeader && "w-full justify-between")}
+      // In the card the title keeps its width and the count truncates first (Den TV, 1440).
+      className={cn(templateCardHeader ? "shrink-0" : "w-full min-w-0 justify-between")}
     >
       <label htmlFor="page-template-plain" className="text-sm font-semibold">
         {baselineDisplay ? tTouch("plainTemplate") : t("templateLabel")}

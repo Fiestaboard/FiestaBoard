@@ -186,6 +186,22 @@ for (const width of [1440, 900, 390]) {
   });
 }
 
+test("a narrow template column: the card title keeps Rich | Plain whole, the count truncates first", async ({
+  page,
+}) => {
+  await mockHub(page);
+  await open(page, 1024);
+  const show = page.getByRole("button", { name: "Show Explorer" });
+  if (await show.count()) await show.click();
+  const header = page.locator('[data-slot="template-card"] [data-slot="template-card-header"]');
+  const title = header.locator('[data-slot="page-editor-template-title"]');
+  await expect(title).toBeVisible();
+  expect(await title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  const plain = await box(title.getByRole("button", { name: /plain/i }));
+  const meta = await box(header.getByTestId("template-card-meta"));
+  expect(plain.x + plain.width).toBeLessThanOrEqual(meta.x);
+});
+
 test("900px: the template and the preview side by side, the Inspector under both (UX-4-5, Figma 61:17544)", async ({
   page,
 }) => {
