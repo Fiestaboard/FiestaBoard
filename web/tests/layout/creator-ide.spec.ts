@@ -47,7 +47,8 @@ for (const theme of ["light", "dark"] as const) {
           const console = page.getByRole("region", { name: "Console" });
           await expect(console.getByRole("tab", { name: "Problems 1" })).toBeVisible();
           await expect(console.getByText("Too long · Row 3")).toBeVisible();
-          await expect(page.locator('[data-slot="ide-week"]')).toBeVisible();
+          // UX-6-3 (FP-2): one line in the Timeline slot until the kit's WeekStrip.
+          await expect(page.locator('[data-slot="ide-week-line"]')).toBeVisible();
         } else {
           await expect(page.getByRole("navigation", { name: "Explorer" })).toHaveCount(0);
           await expect(page.getByRole("region", { name: "Console" })).toHaveCount(0);

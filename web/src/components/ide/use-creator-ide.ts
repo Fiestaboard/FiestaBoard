@@ -50,7 +50,7 @@ export function contentKey(content: Pick<PageContent, "name" | "template" | "lin
 /**
  * Everything a draft holds, for deciding whether the editor and a draft agree
  * (D4): text and line metadata, and also geometry, transition and canvases,
- * so a draw-mode or retarget edit is autosaved too (FABLE-2583).
+ * so a draw-mode, retarget or Page-tab edit is autosaved too (FABLE-2583, UX-7-1).
  */
 export function draftContentKey(content: CurrentPageSnapshot | PageContent | null | undefined): string {
   if (!content) return "";
@@ -66,6 +66,7 @@ export function draftContentKey(content: CurrentPageSnapshot | PageContent | nul
     body.grid_cols ?? null,
     body.canvases ?? null,
     body.transition_strategy ?? null,
+    body.duration_seconds ?? null,
   ]);
 }
 
@@ -87,6 +88,8 @@ export function draftBodyFromSnapshot(snapshot: CurrentPageSnapshot): PageUpdate
   }
   if (snapshot.canvases) body.canvases = snapshot.canvases.length ? snapshot.canvases : null;
   if (snapshot.transition_strategy !== undefined) body.transition_strategy = snapshot.transition_strategy;
+  // UX-7-1: the Page tab's duration is staged page content, so the draft holds it too.
+  if (snapshot.duration_seconds !== undefined) body.duration_seconds = snapshot.duration_seconds;
   return body;
 }
 

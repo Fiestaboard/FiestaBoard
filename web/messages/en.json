@@ -4291,6 +4291,28 @@
     "deletePageDetail": "Removes it from every schedule and collection",
     "autosavePaused": "Unsaved · a draft from elsewhere is waiting in History"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} on {board}",
+    "nextAt": "next {when}",
+    "consoleClear": "No problems",
+    "consoleWarnings": "{count, plural, one {# warning} other {# warnings}}",
+    "consoleSent": "Sent {time} to {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} more",
+    "notThisWeek": "Not scheduled this week",
+    "addToSchedule": "Add to schedule",
+    "fallbackHint": "Add a fallback to a formula to set this",
+    "displayGroup": "Display",
+    "displayRetarget": "Same size · preview and mirror here",
+    "copySizedFor": "Make a copy sized for {board}",
+    "makeTheCopy": "Make the copy",
+    "settingDuration": "Page duration",
+    "settingTransition": "Transition",
+    "copyWillMake": "Makes a new page sized for {board} ({cols} × {rows}); this page is unchanged.",
+    "collapseConsole": "Collapse the console",
+    "scheduleGroup": "Schedule",
+    "collectionsGroup": "Collections"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} of {wanted} rows",

@@ -82,7 +82,7 @@ function ExplorerCard({
   return (
     <Card
       data-slot="ide-explorer"
-      className="hidden lg:flex sticky top-[var(--editor-chrome-h,8rem)] w-[220px] shrink-0 self-start overflow-y-auto gap-0 py-0 max-h-[calc(100dvh-var(--editor-chrome-h,8rem)-2rem)]"
+      className="hidden lg:flex sticky top-[var(--editor-chrome-h,8rem)] w-[220px] shrink-0 self-start overflow-y-auto gap-0 py-0 h-[calc(100dvh-var(--editor-chrome-h,8rem)-2rem)]"
     >
       <Box as="nav" aria-label={t("explorer")} className="flex flex-col gap-2 p-3.5">
         <Flex align="center" justify="between" gap="2">
@@ -199,28 +199,28 @@ export function IdeExplorer({
 
   return (
     <ExplorerCard onHide={onHide} hideRef={hideRef}>
-      <ExplorerGroup label={t("thisPageGroup")}>
-        <ListRowGroup variant="plain">
-          <ListRow title={pageName} description={pageState} selected />
-        </ListRowGroup>
-      </ExplorerGroup>
-      <ExplorerGroup label={t("boardsGroup")}>
-        {boards.length ? (
-          <ListRowGroup variant="plain">
-            {boards.map((board) => (
-              <ListRow
-                key={board.id}
-                title={board.name}
-                description={board.live ? t("explorerLive") : t("explorerScheduled")}
-              />
-            ))}
-          </ListRowGroup>
-        ) : (
-          <Text size="sm" tone="muted">
-            {t("noBoards")}
-          </Text>
-        )}
-      </ExplorerGroup>
+      {/* UX-5-2: on a page that shows on one display (or none) the page and its
+          display are the header's facts; the Explorer is then a Parts outline. */}
+      {boards.length > 1 && (
+        <>
+          <ExplorerGroup label={t("thisPageGroup")}>
+            <ListRowGroup variant="plain">
+              <ListRow title={pageName} description={pageState} selected />
+            </ListRowGroup>
+          </ExplorerGroup>
+          <ExplorerGroup label={t("boardsGroup")}>
+            <ListRowGroup variant="plain">
+              {boards.map((board) => (
+                <ListRow
+                  key={board.id}
+                  title={board.name}
+                  description={board.live ? t("explorerLive") : t("explorerScheduled")}
+                />
+              ))}
+            </ListRowGroup>
+          </ExplorerGroup>
+        </>
+      )}
       <ExplorerGroup label={t("partsGroup")}>
         {parts.length ? (
           <ListRowGroup variant="plain">
@@ -238,16 +238,15 @@ export function IdeExplorer({
           </Text>
         )}
       </ExplorerGroup>
-      <ExplorerGroup label={t("snippetsGroup")}>
-        <Text size="sm" tone="muted">
-          {t("snippetsUnavailable")}
-        </Text>
-      </ExplorerGroup>
-      <Stack className="mt-auto pt-2">
-        <Text size="xs" tone="muted">
-          {usedBy.length ? t("usedBy", { names: usedBy.join(", "), count: usedBy.length }) : t("usedByNone")}
-        </Text>
-      </Stack>
+      {/* M2: Snippets is hidden while the hub has none to offer, and "not in any
+          collection" is said by saying nothing. */}
+      {usedBy.length > 0 && (
+        <Stack className="mt-auto pt-2">
+          <Text size="xs" tone="muted">
+            {t("usedBy", { names: usedBy.join(", "), count: usedBy.length })}
+          </Text>
+        </Stack>
+      )}
     </ExplorerCard>
   );
 }
