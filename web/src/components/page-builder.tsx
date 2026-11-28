@@ -2771,7 +2771,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       align="center"
       gap="2"
       // In the card the title keeps its width and the count truncates first (Den TV, 1440).
-      className={cn(templateCardHeader ? "shrink-0" : "w-full min-w-0 justify-between")}
+      className={cn(templateCardHeader && !drawMode ? "shrink-0" : "w-full min-w-0 justify-between")}
     >
       <label htmlFor="page-template-plain" className="text-sm font-semibold">
         {baselineDisplay ? tTouch("plainTemplate") : t("templateLabel")}
@@ -3817,7 +3817,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         and Rich | Plain go in as its title, the count and caret are its own,
                         all in one card row (184:159319, UX-3-3). The other editors keep the
                         title row above the field, before it at every width (UX-10-1). */}
-                      {!templateCardHeader && templateTitle}
+                      {/* Draw mode hides the card, so its title (the shortcut list's anchor) comes out above. */}
+                      {(!templateCardHeader || drawMode) && templateTitle}
                       {editorMode === "rich" && !baselineDisplay ? (
                         <Box
                           ref={richTemplateContainerRef}
@@ -3885,12 +3886,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 boardLines={numLines}
                                 deviceType={deviceType}
                                 code62Glyph={effectiveCode62Glyph}
-                                onSyncFromBoard={() => syncFromBoardMutation.mutate()}
+                                onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
                                 syncFromBoardPending={syncFromBoardMutation.isPending}
                               />
                             ) : (
                               <TipTapTemplateEditor
-                                cardTitle={templateTitle}
+                                cardTitle={drawMode ? undefined : templateTitle}
                                 ref={tipTapRef}
                                 scrollMargin={caretScrollMargin}
                                 value={newPageEmpty ? "" : templateLines.join("\n")}
@@ -3922,7 +3923,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 boardLines={numLines}
                                 deviceType={deviceType}
                                 code62Glyph={effectiveCode62Glyph}
-                                onSyncFromBoard={() => syncFromBoardMutation.mutate()}
+                                onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
                                 syncFromBoardPending={syncFromBoardMutation.isPending}
                                 drawMode={drawMode}
                                 onDrawModeToggle={() => setDrawMode((v) => !v)}

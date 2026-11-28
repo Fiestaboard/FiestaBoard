@@ -202,6 +202,23 @@ test("a narrow template column: the card title keeps Rich | Plain whole, the cou
   expect(plain.x + plain.width).toBeLessThanOrEqual(meta.x);
 });
 
+test("draw mode: the template title stays on screen and anchors the shortcut list (OPUS-2653)", async ({ page }) => {
+  await mockHub(page);
+  await open(page, 1440);
+  await page.getByRole("button", { name: "Draw on board", exact: true }).click();
+  await expect(page.locator('[data-slot="template-card"]')).toBeHidden();
+  const title = page.locator('[data-slot="page-editor-template-title"]');
+  await expect(title).toBeVisible();
+  await page.locator('[data-slot="page-editor-chrome"]').click({ position: { x: 4, y: 4 } });
+  await page.keyboard.press("?");
+  const list = page.getByRole("dialog", { name: /keyboard shortcuts/i });
+  await expect(list).toBeVisible();
+  const titleBox = await box(title);
+  const listBox = await box(list);
+  expect(listBox.x).toBeGreaterThanOrEqual(titleBox.x - 1);
+  expect(listBox.y).toBeGreaterThanOrEqual(titleBox.y);
+});
+
 test("900px: the template and the preview side by side, the Inspector under both (UX-4-5, Figma 61:17544)", async ({
   page,
 }) => {

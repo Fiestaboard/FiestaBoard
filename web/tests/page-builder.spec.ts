@@ -219,7 +219,7 @@ test.describe("Page Builder", () => {
 });
 
 test.describe("Sync from Board", () => {
-  test("Sync from Board button is visible on new and saved pages (UX-2-2)", async ({ page }) => {
+  test("Sync from Board button is visible on new page, hidden on edit page", async ({ page }) => {
     // New page: button should appear
     await page.goto("/pages/new");
     await expect(page.locator("#page-name")).toBeVisible({
@@ -231,12 +231,12 @@ test.describe("Sync from Board", () => {
     });
     await expect(syncBtn).toBeVisible({ timeout: 10_000 });
 
-    // Edit page: the same toolbar set, Import included (UX-2-2)
-    const pageId = await createPage("Sync Button Saved Test");
+    // Edit page: button should NOT appear
+    const pageId = await createPage("Sync Button Hidden Test");
     await page.goto(`/pages/edit/${pageId}`);
-    await expect(page.getByPlaceholder("My Custom Page")).toHaveValue("Sync Button Saved Test", { timeout: 15_000 });
+    await expect(page.getByPlaceholder("My Custom Page")).toHaveValue("Sync Button Hidden Test", { timeout: 15_000 });
 
-    await expect(page.getByRole("button", { name: "Sync from current board display" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sync from current board display" })).not.toBeVisible();
 
     await deletePage(pageId);
   });
