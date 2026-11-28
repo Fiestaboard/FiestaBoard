@@ -11,13 +11,19 @@ import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions }
 
 import { server } from "./mocks/server";
 
+// The sidebar's global current board. A test may point it at another display
+// than the page's own (UX-6-1).
+const sidebar = vi.hoisted(() => ({ currentBoardId: "den" }));
 vi.mock("@/components/current-board-context", () => {
   const boards = [
     { id: "den", name: "Den TV", device_type: "panel" },
     { id: "hall", name: "Hall board", device_type: "flagship" },
   ];
   return {
-    useCurrentBoard: () => ({ boards, currentBoardId: "den", currentBoard: boards[0], isLoading: false }),
+    useCurrentBoard: () => {
+      const currentBoard = boards.find((board) => board.id === sidebar.currentBoardId);
+      return { boards, currentBoardId: sidebar.currentBoardId, currentBoard, isLoading: false };
+    },
   };
 });
 
@@ -42,6 +48,8 @@ function fakeBuilder(overrides: Partial<{ unsaved: boolean; mirroring: boolean }
   return {
     hasUnsavedChanges: () => unsaved,
     isMirroring: () => overrides.mirroring ?? false,
+    // The editor previews this FiestaPanel page as Den TV, the display it fits.
+    getPreviewBoardId: () => "den",
     getCurrentPage: () => current,
     reloadFromServer: vi.fn(() => Promise.resolve()),
     applyContent: vi.fn((content: typeof snapshot) => {
@@ -337,6 +345,7 @@ const latestRenderer = (spy: ReturnType<typeof vi.fn>) => {
 
 beforeEach(() => setDesktop(false));
 afterEach(() => {
+  sidebar.currentBoardId = "den";
   cleanup();
   document.body.innerHTML = "";
 });
@@ -443,6 +452,44 @@ describe("Creator IDE at 1024 px and wider", () => {
     renderIde();
     await waitFor(() => expect(calls.validate.length).toBeGreaterThan(0));
     expect(calls.validate[0]).toMatchObject({ board_id: "den", device_type: "panel", grid_rows: 12, grid_cols: 29 });
+  });
+});
+
+// UX-6-1: the IDE speaks for the page's own display (the one the editor
+// previews it as), not the sidebar's global current board.
+describe("the page's own display, with another board current in the sidebar", () => {
+  beforeEach(() => {
+    sidebar.currentBoardId = "hall";
+  });
+
+  it("names the page's display on the timeline", async () => {
+    setDesktop(true);
+    mockHub();
+    renderIde();
+    expect(await screen.findByText("Timeline · Commute this week · Den TV")).toBeInTheDocument();
+    expect(screen.queryByText(/Hall board/)).not.toBeInTheDocument();
+  });
+
+  it("says whose default the Transition row overrides", async () => {
+    mockHub();
+    renderIde();
+    expect(await screen.findByRole("button", { name: /Transition/ })).toHaveTextContent("Overrides Den TV’s default");
+  });
+
+  it("validates at the page's display, not the sidebar's", async () => {
+    const calls = mockHub();
+    renderIde();
+    await waitFor(() => expect(calls.validate.length).toBeGreaterThan(0));
+    expect(calls.validate.every((body) => (body as { board_id?: string }).board_id === "den")).toBe(true);
+  });
+
+  it("marks the page's display as this display in Make a copy", async () => {
+    mockHub();
+    renderIde();
+    fireEvent.click(await screen.findByRole("button", { name: /Make a copy for another display/ }));
+    expect(await screen.findByRole("button", { name: /Den TV/ })).toHaveTextContent("Den TV");
+    expect(screen.getByRole("button", { name: /Den TV/ })).toHaveTextContent(/This display/i);
+    expect(screen.getByRole("button", { name: /Hall board/ })).not.toHaveTextContent(/This display/i);
   });
 });
 

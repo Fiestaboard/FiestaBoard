@@ -94,8 +94,8 @@ export function IdeHistory({ ide, pageId }: { ide: CreatorIdeState; pageId: stri
   const live = ide.revisions.find((revision) => revision.current);
   const liveDetail = useRevisionContent(pageId, live?.id ?? null);
   const compared = useRevisionContent(pageId, compareId);
-  const boardId = ide.currentBoardId || undefined;
-  const boardName = ide.currentBoard?.name ?? t("aDisplay");
+  const boardId = ide.pageBoardId ?? undefined;
+  const boardName = ide.pageBoard?.name ?? t("aDisplay");
 
   const restore = useMutation({
     mutationFn: ({ id, replace }: { id: string; replace: boolean }) =>

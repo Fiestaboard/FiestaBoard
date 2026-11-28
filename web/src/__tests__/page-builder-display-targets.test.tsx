@@ -15,11 +15,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import type { ReactNode } from "react";
+import { createRef, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CurrentBoardProvider } from "@/components/current-board-context";
-import { PageBuilder } from "@/components/page-builder";
+import { PageBuilder, type PageBuilderHandle } from "@/components/page-builder";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
 import type { BoardInstance, BoardSettings, Page } from "@/lib/api";
@@ -564,6 +564,31 @@ describe("PageBuilder live output target", () => {
     renderExisting();
     await expectTarget(PIXOO_OPTION);
     await startLive(user, PIXOO.id);
+  });
+
+  // UX-6-1: the Creator IDE names and checks against the display the editor
+  // previews the page as, never the sidebar's board the page doesn't fit.
+  it("tells the IDE the display it previews the page as, not the sidebar's board", async () => {
+    localStorage.setItem(CURRENT_BOARD_KEY, FLAGSHIP.id);
+    const ref = createRef<PageBuilderHandle>();
+    render(<PageBuilder ref={ref} pageId="page-1" onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+    await expectTarget(PIXOO_OPTION);
+    await waitFor(() => expect(ref.current?.getPreviewBoardId()).toBe(PIXOO.id));
+  });
+
+  it("tells the IDE the live-output display once one is chosen", async () => {
+    vi.mocked(api.getBoardSettings).mockResolvedValue(
+      settings([FLAGSHIP, { ...PIXOO, id: "pixoo-2", name: "Pixoo 2" }, PIXOO]),
+    );
+    localStorage.setItem(CURRENT_BOARD_KEY, PIXOO.id);
+    const user = userEvent.setup();
+    const ref = createRef<PageBuilderHandle>();
+    render(<PageBuilder ref={ref} pageId="page-1" onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+    await expectTarget(PIXOO_OPTION);
+    await waitFor(() => expect(ref.current?.getPreviewBoardId()).toBe(PIXOO.id));
+    await user.click(screen.getByRole("combobox", { name: "Select board for live output" }));
+    await user.click(await screen.findByRole("option", { name: "Pixoo 2" }));
+    await waitFor(() => expect(ref.current?.getPreviewBoardId()).toBe("pixoo-2"));
   });
 
   it("keeps an explicit live target when the page target changes", async () => {

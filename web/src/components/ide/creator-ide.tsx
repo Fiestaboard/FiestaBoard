@@ -248,7 +248,7 @@ export default function CreatorIde({
       <Card className="gap-0 py-0" data-slot="ide-timeline">
         <CardContent className="flex flex-col gap-1.5 p-3.5">
           <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
-            {t("timelineLabel", { page: ide.builder.snapshot?.name ?? "", board: ide.currentBoard?.name ?? "" })}
+            {t("timelineLabel", { page: ide.builder.snapshot?.name ?? "", board: ide.pageBoard?.name ?? "" })}
           </Text>
           <IdeWeek ide={ide} />
         </CardContent>

@@ -333,6 +333,12 @@ export interface PageBuilderHandle {
   /** Mirror to board is on: a display shows these edits (the IDE's Testing state). */
   isMirroring: () => boolean;
   /**
+   * The display the editor previews and checks the page as (`previewBoard`):
+   * the page's own display for the Creator IDE, not the sidebar's (UX-6-1).
+   * `null` while no display fits the page.
+   */
+  getPreviewBoardId: () => string | null;
+  /**
    * Put a hub draft's content in the editor (D4, "Draft restored"). It is
    * unsaved against the saved page: Save still sends the page's revision, so
    * the live page changes only then.
@@ -1054,8 +1060,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     [applySnapshot],
   );
 
-  // Read by the Creator IDE (Testing state); kept current where the state is declared.
+  // Read by the Creator IDE (Testing state; the page's display); kept current where the state is declared.
   const ideMirroringRef = useRef(false);
+  const previewBoardIdRef = useRef<string | null>(null);
   useImperativeHandle(
     ref,
     (): PageBuilderHandle => ({
@@ -1135,6 +1142,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       undo: handleUndoAi,
       canUndo: () => undoStackRef.current.length > 0,
       isMirroring: () => ideMirroringRef.current,
+      getPreviewBoardId: () => previewBoardIdRef.current,
     }),
     // undoVersion is intentionally a dep so the host re-reads canUndo()
     // when the stack changes (the function returned by canUndo always
@@ -1202,6 +1210,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     ],
   );
   const previewBoardId = previewBoard?.id ?? null;
+  useEffect(() => {
+    previewBoardIdRef.current = previewBoardId;
+  }, [previewBoardId]);
   // Follow the compatible preview until the user chooses a live target or
   // starts sending. Deriving this during render also handles late settings
   // and sidebar context without first selecting the primary board.
