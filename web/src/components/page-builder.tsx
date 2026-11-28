@@ -3620,16 +3620,27 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     <ArrowLeft className="size-4" />
                   </Button>
                 ) : (
-                  <Button
-                    variant="ghost"
-                    className="h-11 shrink-0 gap-1 px-2"
-                    onClick={onClose}
-                    aria-label={t("backToPages")}
-                  >
-                    <ChevronLeft className="size-4" aria-hidden="true" />
-                    {/* A tight header: the chevron alone, so the name keeps 240 px (BB-E-4). */}
-                    {!compactHeader && tNav("pages")}
-                  </Button>
+                  // At 1024–1279 the chevron is alone, so it says where it goes on
+                  // hover like Export and Save draft beside it (FABLE-2652 §5).
+                  <TooltipProvider skipDelayDuration={0}>
+                    <Tooltip open={compactHeader ? undefined : false}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="h-11 shrink-0 gap-1 px-2"
+                          onClick={onClose}
+                          aria-label={t("backToPages")}
+                        >
+                          <ChevronLeft className="size-4" aria-hidden="true" />
+                          {/* A tight header: the chevron alone, so the name keeps 240 px (BB-E-4). */}
+                          {!compactHeader && tNav("pages")}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <Text>{tNav("pages")}</Text>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
                 {/* Desktop: the name never gets less than 240 px; the actions beside it
                   go icon-only below 1280 to make the room (BB-E-4). */}
