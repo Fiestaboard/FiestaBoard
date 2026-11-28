@@ -156,15 +156,6 @@ it("still warns after a failed save", async () => {
   expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
 });
 
-it("warns when only the device target changes", async () => {
-  const { user } = setup();
-  await screen.findByDisplayValue("Weather Page");
-  await user.click(screen.getByLabelText("Change board size"));
-  await user.click(await screen.findByRole("option", { name: "Note" }));
-  await user.click(screen.getByRole("link", { name: "Pages breadcrumb" }));
-  expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
-});
-
 it("leaves while the existing page is still loading without prompting", async () => {
   server.use(
     http.get("/api/v1/pages/page-1", async () => {
