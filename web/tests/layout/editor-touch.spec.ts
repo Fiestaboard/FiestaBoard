@@ -192,7 +192,9 @@ for (const theme of ["light", "dark"] as const) {
             });
           expect.soft(headerBounds!.height).toBeLessThanOrEqual(64);
           expect.soft(Math.abs(previewBounds!.y - (headerBounds!.y + headerBounds!.height))).toBeLessThanOrEqual(8);
-          await expect.soft(viewport).toHaveAttribute("data-mode", "actual");
+          // Fit by default on every geometry (UX-4-2, FABLE-2651 should-fix 1); a Flagship
+          // at 390 fits either way (57:64661 draws Actual, where the two coincide).
+          await expect.soft(viewport).toHaveAttribute("data-mode", "fit");
           await expect.soft(viewport).toHaveAttribute("data-overflow", "false");
           const scroller = viewport.locator('[data-slot="board-viewport-scroller"]');
           expect.soft(await scroller.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);

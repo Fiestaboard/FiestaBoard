@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import type { ReactNode } from "react";
+import { createRef, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PageBuilder } from "@/components/page-builder";
+import { PageBuilder, type PageBuilderHandle } from "@/components/page-builder";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
 import type { BoardInstance, Page } from "@/lib/api";
@@ -91,6 +91,7 @@ describe("PageBuilder paused Live Output target", () => {
 
   afterEach(() => server.resetHandlers());
 
+  const builder = createRef<PageBuilderHandle>();
   function setup(boards: BoardInstance[]) {
     vi.mocked(api.getBoardSettings).mockResolvedValue({ board_type: "black", boards, devices: ["flagship"] });
     const liveRequests: unknown[] = [];
@@ -106,7 +107,9 @@ describe("PageBuilder paused Live Output target", () => {
         });
       }),
     );
-    render(<PageBuilder pageId="page-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+    render(<PageBuilder ref={builder} pageId="page-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
+      wrapper: TestWrapper,
+    });
     return liveRequests;
   }
 
@@ -133,14 +136,12 @@ describe("PageBuilder paused Live Output target", () => {
       { ...BOARD, paused: false },
       { ...BOARD, id: "board-2", name: "Bedroom", paused: true },
     ]);
-    const user = userEvent.setup();
     await screen.findByLabelText(/HI THERE/);
     expect(screen.queryByText(/This display is paused/)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("combobox", { name: /select board/i }));
-    await user.click(await screen.findByRole("option", { name: "Bedroom" }));
+    // A saved page retargets from Inspector › Shows on (D3, DD-W159).
+    act(() => builder.current?.setPreviewBoard("board-2"));
     expect(await screen.findByText(/This display is paused/)).toBeVisible();
-    await user.click(screen.getByRole("combobox", { name: /select board/i }));
-    await user.click(await screen.findByRole("option", { name: "Hall" }));
+    act(() => builder.current?.setPreviewBoard(BOARD.id));
     await waitFor(() => expect(screen.queryByText(/This display is paused/)).not.toBeInTheDocument());
     expect(screen.getByRole("switch", { name: /mirror to board while editing/i })).not.toHaveAttribute(
       "aria-describedby",
