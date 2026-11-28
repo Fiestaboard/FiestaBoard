@@ -97,7 +97,13 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
     setTimeout(() => {
       const { editor: view, getPos: position, node: current } = latest.current;
       if (!view || view.isDestroyed) return;
-      const at = typeof position === "function" ? position() : undefined;
+      let at: number | undefined;
+      try {
+        // A chip removed by Cancel has no position any more.
+        at = typeof position === "function" ? position() : undefined;
+      } catch {
+        at = undefined;
+      }
       if (typeof at === "number") view.commands.focus(at + current.nodeSize);
       else view.commands.focus();
     }, 0);
@@ -108,13 +114,18 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode, editor, ge
     const { ide: bridge } = latest.current;
     const docked = bridge?.openFormula({
       expression: latest.current.node.attrs.expression,
-      apply: (next) => latest.current.updateAttributes({ expression: next }),
+      // The docked editor hands the caret back too (UX-2-5), as the dialog does.
+      apply: (next) => {
+        latest.current.updateAttributes({ expression: next });
+        returnCaret();
+      },
       cancel: () => {
         if (latest.current.node.attrs.expression === "") latest.current.deleteNode();
+        returnCaret();
       },
     });
     if (!docked) setOpen(true);
-  }, []);
+  }, [returnCaret]);
 
   const inspect = useCallback(() => {
     latest.current.ide?.inspectFormula(latest.current.node.attrs.expression);

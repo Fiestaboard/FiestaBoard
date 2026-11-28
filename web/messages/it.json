@@ -3861,7 +3861,15 @@
     "showShortcuts": "Mostra le scorciatoie da tastiera",
     "previewStep": "Sposta l’anteprima di una nota o colonna",
     "previewEnds": "Vai all’inizio o alla fine dell’anteprima",
-    "previewFit": "Adatta / Dimensione reale (anteprima attiva)"
+    "previewFit": "Adatta / Dimensione reale (anteprima attiva)",
+    "insertFormula": "Inserisci una formula",
+    "save": "Salva",
+    "saveAndShow": "Salva e mostra ora",
+    "inspect": "Ispeziona l’anteprima",
+    "previewActualSize": "Dimensione reale (anteprima)",
+    "groupEditing": "Modifica",
+    "groupDocument": "Pagina",
+    "groupPreview": "Anteprima"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "Dove vengono tagliate le righe",
     "truncationEmpty": "Ogni riga sta nella bacheca.",
     "truncationOverflow": "Riga {row} · {columns} di {max} colonne · {cut} tagliate",
-    "templateMeta": "{rows} righe · lunghezza resa per riga · fasce nel margine",
     "goToInput": "Vai a riga e colonna",
     "goToHint": "Digita riga e colonna, ad es. 4 10",
     "goToFormat": "Riga {row} · Col. {column}",
@@ -4444,5 +4451,12 @@
     "fitReport": "La riga {line} è {widest} di {cols} colonne",
     "nothingCut": "nulla tagliato",
     "missingOff": "{plugin} è disattivato in Integrazioni"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} righe",
+    "rowsPastBoard": "{rows} > {max} righe",
+    "caret": "Riga {line}, Col {column}",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "Spaziatura"
   }
 }

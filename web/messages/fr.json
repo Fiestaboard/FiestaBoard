@@ -3861,7 +3861,15 @@
     "showShortcuts": "Afficher les raccourcis clavier",
     "previewStep": "Déplacer l’aperçu d’une Note ou d’une colonne",
     "previewEnds": "Aller au début ou à la fin de l’aperçu",
-    "previewFit": "Ajuster / Taille réelle (aperçu actif)"
+    "previewFit": "Ajuster / Taille réelle (aperçu actif)",
+    "insertFormula": "Insérer une formule",
+    "save": "Enregistrer",
+    "saveAndShow": "Enregistrer et afficher maintenant",
+    "inspect": "Inspecter l’aperçu",
+    "previewActualSize": "Taille réelle (aperçu)",
+    "groupEditing": "Édition",
+    "groupDocument": "Page",
+    "groupPreview": "Aperçu"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "Où les lignes sont coupées",
     "truncationEmpty": "Chaque ligne tient sur le tableau.",
     "truncationOverflow": "Ligne {row} · {columns} sur {max} colonnes · {cut} coupées",
-    "templateMeta": "{rows} lignes · longueur rendue par ligne · bandes dans la marge",
     "goToInput": "Aller à la ligne et à la colonne",
     "goToHint": "Saisissez une ligne et une colonne, par ex. 4 10",
     "goToFormat": "Ligne {row} · Col. {column}",
@@ -4444,5 +4451,12 @@
     "fitReport": "La ligne {line} fait {widest} sur {cols} colonnes",
     "nothingCut": "rien de coupé",
     "missingOff": "{plugin} est désactivé dans Intégrations"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} lignes",
+    "rowsPastBoard": "{rows} > {max} rangées",
+    "caret": "Lig {line}, Col {column}",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "Espacement"
   }
 }

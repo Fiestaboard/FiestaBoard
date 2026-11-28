@@ -53,7 +53,13 @@ const pages = {
       "",
       "THIS WEEK",
       "THU  POETRY SLAM",
-      ...blank(15),
+      "",
+      // A variable-named band two rows above the next: its long name wrapped
+      // and overlapped its neighbour before UX-3-1 (Den TV rows 8/10).
+      "{{date_time.day_of_week_name_in_full}}",
+      "",
+      "FRIDAY FISH FRY",
+      ...blank(11),
       "NOW POURING COLD BREW  HOUSE CHAI  OAT LATTE  SPECIALS",
     ],
     line_metadata: meta(24),
@@ -217,9 +223,7 @@ const indicator = (page: Page) =>
 
 for (const theme of ["light", "dark"] as const) {
   test.describe(`complex editing in ${theme}`, () => {
-    test("1440: big board opens with zoom, ruler, minimap, truncation map, Go to and bands", async ({
-      page,
-    }, testInfo) => {
+    test("1440: big board opens with zoom, ruler, minimap, truncation map and bands", async ({ page }, testInfo) => {
       await openEditor(page, "lobby-this-week", 1440, theme);
       const preview = page.locator('[data-slot="editor-preview"]');
       await expect(preview.getByRole("group", { name: "Preview zoom" })).toBeVisible();
@@ -228,7 +232,9 @@ for (const theme of ["light", "dark"] as const) {
       await expect(indicator(page)).toContainText(/Columns 1–\d+ of 96/);
       await expect(preview.getByText("Where lines are cut")).toBeVisible();
       await expect(preview.locator('[data-slot="board-minimap"], [aria-label="Board overview"]').first()).toBeVisible();
-      await expect(page.getByRole("textbox", { name: "Go to row and column" })).toBeVisible();
+      // UX-3-2: the card header's caret readout replaced the Row · Col pill and its caption.
+      await expect(page.getByRole("textbox", { name: "Go to row and column" })).toHaveCount(0);
+      await expect(page.getByText(/rendered length per row/)).toHaveCount(0);
       const bands = page.getByRole("list", { name: "Row bands" });
       await expect(bands).toBeVisible();
       await expect(bands.getByText("THIS WEEK", { exact: true })).toBeVisible();
@@ -237,6 +243,78 @@ for (const theme of ["light", "dark"] as const) {
       await expect(preview.locator('[data-slot="board-viewport"]')).toHaveAttribute("data-mode", "actual");
       await expect(preview.getByRole("radio", { name: "Tile md" })).toBeChecked();
       await finish(page, testInfo, `impl-1440-${theme}-big-board`);
+    });
+
+    for (const width of [1440, 1024]) {
+      test(`${width}: the template card header counts lines and follows the caret (UX-3-2)`, async ({ page }) => {
+        await openEditor(page, "kitchen-morning", width, theme);
+        const meta = page.getByTestId("template-card-meta");
+        const card = page.locator('[data-slot="template-card"]');
+        // Inside the card, above the first row.
+        const [metaBox, cardBox, rowBox] = await Promise.all([
+          meta.boundingBox(),
+          card.boundingBox(),
+          page.locator(".ProseMirror p").boundingBox(),
+        ]);
+        expect(metaBox!.y).toBeGreaterThan(cardBox!.y);
+        expect(metaBox!.y + metaBox!.height).toBeLessThanOrEqual(rowBox!.y);
+        await expect(meta).toHaveText("4 / 6 lines · Ln 1, Col 1");
+        await page.locator('[contenteditable="true"]').click();
+        await page.keyboard.press("Control+Home");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("End");
+        await expect(meta).toHaveText(/4 \/ 6 lines · Ln 4, Col \d+/);
+        // The header never changes height as the caret moves.
+        expect((await meta.boundingBox())!.height).toBe(metaBox!.height);
+      });
+    }
+
+    test("1440: the template card stretches to the height its host gives it (card fill, UX-3-1)", async ({ page }) => {
+      await openEditor(page, "kitchen-morning", 1440, theme);
+      const editor = page.locator('[data-slot="template-editor"]');
+      const card = page.locator('[data-slot="template-card"]');
+      const natural = (await card.boundingBox())!.height;
+      // FP-1's column gives the editor's host a height (down to the IDE row); stand in for it.
+      await editor.evaluate((el) => {
+        (el.parentElement as HTMLElement).style.height = "640px";
+      });
+      const [host, filled] = await Promise.all([
+        editor.evaluate((el) => el.parentElement!.getBoundingClientRect().toJSON() as DOMRect),
+        card.boundingBox(),
+      ]);
+      expect(filled!.height).toBeGreaterThan(natural + 100);
+      expect(Math.abs(filled!.y + filled!.height - (host.y + host.height))).toBeLessThanOrEqual(2);
+    });
+
+    test("1440: band labels are one clamped line, never overlap, and the gutters stay on Ctrl+End (UX-3-1)", async ({
+      page,
+    }) => {
+      await openEditor(page, "lobby-this-week", 1440, theme);
+      const bands = page.getByRole("list", { name: "Row bands" }).getByTestId("row-band");
+      await expect(bands.first()).toBeVisible();
+      const boxes = await bands.evaluateAll((els) =>
+        els.map((el) => {
+          const r = el.getBoundingClientRect();
+          const label = el.querySelector('[data-slot="row-band-label"]')!.getBoundingClientRect();
+          return { top: r.top, bottom: r.bottom, label: label.height, title: el.getAttribute("title") };
+        }),
+      );
+      for (const box of boxes) {
+        expect(box.label).toBeLessThanOrEqual(16);
+        expect(box.title).toBeTruthy();
+      }
+      for (let i = 1; i < boxes.length; i++) expect(boxes[i].top).toBeGreaterThanOrEqual(boxes[i - 1].bottom);
+      await page.locator('[contenteditable="true"]').click();
+      await page.keyboard.press("Control+End");
+      await expect(page.getByTestId("template-card-meta")).toContainText("Ln 24");
+      const gutter = await page.getByRole("list", { name: "Row bands" }).boundingBox();
+      const number = await page.locator('[data-slot="template-card"] .select-none').first().boundingBox();
+      for (const box of [gutter!, number!]) {
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(1440);
+      }
     });
 
     test("1440: note array has Note focus and a clear seam check", async ({ page }, testInfo) => {

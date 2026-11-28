@@ -3,7 +3,7 @@
  * Inspect): the docked formula panel and Inspect, detail by detail.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -89,6 +89,27 @@ describe("docked formula panel (BB-FP-15)", () => {
     expect(update.parentElement?.parentElement).not.toHaveClass("flex-wrap");
   });
 
+  it("reads Insert formula for a new formula, and Esc cancels it (UX-2-5)", () => {
+    const cancel = vi.fn();
+    const setOpen = vi.fn();
+    wrap(<FormulaCodeCard {...props({ open: { ...open, expression: "", cancel }, setOpen })} />);
+    expect(screen.getByRole("button", { name: "Insert formula" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Update formula" })).toBeNull();
+    fireEvent.keyDown(screen.getByTestId("formula-code-card"), { key: "Escape" });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(setOpen).toHaveBeenCalledWith(null);
+  });
+
+  it("leaves Esc to a control that already handled it (CodeMirror closing a completion)", () => {
+    const cancel = vi.fn();
+    wrap(<FormulaCodeCard {...props({ open: { ...open, cancel } })} />);
+    const card = screen.getByTestId("formula-code-card");
+    const handled = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    handled.preventDefault();
+    card.dispatchEvent(handled);
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
   it("sets the gutter and code in the mono stack, not generic monospace", () => {
     wrap(<FormulaCodeCard {...props()} />);
     const css = [...document.querySelectorAll("style")].map((style) => style.textContent ?? "").join("\n");
@@ -124,8 +145,8 @@ describe("docked formula panel (BB-FP-15)", () => {
     );
     const band = screen.getByTestId("template-active-line");
     expect(band).toHaveClass("bg-tint-selected");
-    // Line 2 starts one (24 px) line below the card's 0.75rem padding.
-    expect(band.style.top).toMatch(/^calc\((0\.75rem \+ 24px|24px \+ 0\.75rem)\)$/);
+    // Line 2 starts one (24 px) line below the text box's 0.5rem top padding (under the card header).
+    expect(band.style.top).toMatch(/^calc\((0\.5rem \+ 24px|24px \+ 0\.5rem)\)$/);
   });
 
   it("draws no band without an active line", () => {

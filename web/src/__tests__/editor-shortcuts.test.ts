@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ariaKeyShortcuts,
   BOARD_VIEWPORT_SHORTCUTS,
+  chordText,
   codeMirrorKey,
   EDITOR_SHORTCUTS,
   editorShortcutGroups,
@@ -46,6 +47,13 @@ describe("matchesShortcut", () => {
     expect(matchesShortcut(key("?", { metaKey: true }), EDITOR_SHORTCUTS.showShortcuts)).toBe(false);
     expect(matchesShortcut(key("?", { altKey: true }), EDITOR_SHORTCUTS.showShortcuts)).toBe(false);
     expect(matchesShortcut(key("/"), EDITOR_SHORTCUTS.showShortcuts)).toBe(false);
+  });
+
+  it("matches ⌘/ or Ctrl+/ for the list (Docs), and ⌘E / Ctrl+E for a formula", () => {
+    expect(matchesShortcut(key("/", { metaKey: true }), EDITOR_SHORTCUTS.showShortcuts)).toBe(true);
+    expect(matchesShortcut(key("/", { ctrlKey: true }), EDITOR_SHORTCUTS.showShortcuts)).toBe(true);
+    expect(matchesShortcut(key("e", { metaKey: true }), EDITOR_SHORTCUTS.insertFormula)).toBe(true);
+    expect(matchesShortcut(key("e"), EDITOR_SHORTCUTS.insertFormula)).toBe(false);
   });
 });
 
@@ -92,11 +100,32 @@ describe("isTypingTarget", () => {
 describe("editorShortcutGroups", () => {
   const t = (k: string) => `t:${k}`;
 
-  it("lists the editor's bound shortcuts, in order, with their registry keys", () => {
-    const [group] = editorShortcutGroups(t);
-    expect(group.items.map((i) => i.id)).toEqual(["undo", "redo", "applyFormula", "closePicker", "exitDrawMode"]);
-    expect(group.items[0]).toEqual({ id: "undo", label: "t:undo", keys: EDITOR_SHORTCUTS.undo.keys });
-    expect(group.items[1].keys).toBe(EDITOR_SHORTCUTS.redo.keys);
+  it("lists the editor's bound shortcuts in Editing · Page · Preview groups, with their registry keys", () => {
+    const groups = editorShortcutGroups(t);
+    expect(groups.map((g) => [g.id, g.title])).toEqual([
+      ["editing", "t:groupEditing"],
+      ["document", "t:groupDocument"],
+      ["preview", "t:groupPreview"],
+    ]);
+    expect(groups.map((g) => g.items.map((i) => i.id))).toEqual([
+      ["undo", "redo", "insertFormula", "applyFormula", "closePicker", "exitDrawMode"],
+      ["save"],
+      ["inspect"],
+    ]);
+    expect(groups[0].items[0]).toEqual({ id: "undo", label: "t:undo", keys: EDITOR_SHORTCUTS.undo.keys });
+    expect(groups[0].items[1].keys).toBe(EDITOR_SHORTCUTS.redo.keys);
+  });
+
+  it("does not list a registered chord until a handler binds it (Show now, Actual size)", () => {
+    const ids = editorShortcutGroups(t, { boardViewport: true }).flatMap((g) => g.items.map((i) => i.id));
+    expect(ids).not.toContain("saveAndShow");
+    expect(ids).not.toContain("previewActualSize");
+  });
+
+  it("spells a chord for a tooltip the way Kbd does", () => {
+    expect(chordText(["Mod", "Shift", "Z"], "apple")).toBe("⌘⇧Z");
+    expect(chordText(["Mod", "Shift", "Z"], "generic")).toBe("Ctrl+Shift+Z");
+    expect(chordText(["Mod", "E"], "generic")).toBe("Ctrl+E");
   });
 
   it("never lists the ? key or the BoardViewport keys while the preview has no BoardViewport", () => {
@@ -121,7 +150,7 @@ describe("ariaKeyShortcuts and primaryChord", () => {
     expect(ariaKeyShortcuts(EDITOR_SHORTCUTS.redo)).toBe("Control+Shift+Z Meta+Shift+Z Control+Y Meta+Y");
     expect(ariaKeyShortcuts(EDITOR_SHORTCUTS.applyFormula)).toBe("Control+Enter Meta+Enter");
     expect(ariaKeyShortcuts(EDITOR_SHORTCUTS.closePicker)).toBe("Escape");
-    expect(ariaKeyShortcuts(EDITOR_SHORTCUTS.showShortcuts)).toBe("?");
+    expect(ariaKeyShortcuts(EDITOR_SHORTCUTS.showShortcuts)).toBe("? Control+/ Meta+/");
   });
 
   it("returns the first chord of a shortcut", () => {

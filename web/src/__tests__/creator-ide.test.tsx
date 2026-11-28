@@ -13,7 +13,7 @@ import { server } from "./mocks/server";
 
 // The sidebar's global current board. A test may point it at another display
 // than the page's own (UX-6-1).
-const sidebar = vi.hoisted(() => ({ currentBoardId: "den" }));
+const sidebar = vi.hoisted(() => ({ currentBoardId: "den", loading: false }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/components/current-board-context", () => {
@@ -25,6 +25,7 @@ vi.mock("@/components/current-board-context", () => {
   ];
   return {
     useCurrentBoard: () => {
+      if (sidebar.loading) return { boards: [], currentBoardId: null, currentBoard: undefined, isLoading: true };
       const currentBoard = boards.find((board) => board.id === sidebar.currentBoardId);
       return { boards, currentBoardId: sidebar.currentBoardId, currentBoard, isLoading: false };
     },
@@ -308,12 +309,12 @@ function renderIde(
   savedTick = 0,
   onDraftStateChange?: (state: PageBuilderDraftState | undefined) => void,
   onPageDisplaysChange?: (ids: readonly string[]) => void,
+  client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }),
 ) {
   const slot = document.createElement("div");
   document.body.append(slot);
   const onSaveActionsChange = vi.fn();
   const builderRef = { current: builder };
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const wrap = (node: ReactNode) => (
     <MemoryRouter>
       <QueryClientProvider client={client}>{node}</QueryClientProvider>
@@ -334,11 +335,11 @@ function renderIde(
       />,
     ),
   );
-  const rerenderTick = (tick: number) =>
+  const rerenderTick = (tick: number, pageId = PAGE) =>
     view.rerender(
       wrap(
         <CreatorIde
-          pageId={PAGE}
+          pageId={pageId}
           builderRef={builderRef}
           explorerSlot={slot}
           boardKind="panel"
@@ -349,7 +350,7 @@ function renderIde(
         />,
       ),
     );
-  return { slot, onSaveActionsChange, rerenderTick, client };
+  return { slot, onSaveActionsChange, rerenderTick, client, unmount: view.unmount };
 }
 
 const latestRenderer = (spy: ReturnType<typeof vi.fn>) => {
@@ -541,6 +542,192 @@ describe("the page's own display, with another board current in the sidebar", ()
     const onPageDisplaysChange = vi.fn();
     renderIde(fakeBuilder(), 0, undefined, onPageDisplaysChange);
     await waitFor(() => expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["den"]));
+  });
+
+  // OPUS-2645 S1: a client-side move to another page unmounts the IDE while
+  // the next page loads; the editor must not keep previewing this page's displays.
+  it("takes its displays back when it closes", async () => {
+    mockHub();
+    const onPageDisplaysChange = vi.fn();
+    const { unmount } = renderIde(fakeBuilder(), 0, undefined, onPageDisplaysChange);
+    await waitFor(() => expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["den"]));
+    unmount();
+    expect(onPageDisplaysChange).toHaveBeenLastCalledWith([]);
+  });
+
+  it("names another page's displays, not this one's, when the page changes under it", async () => {
+    mockHub();
+    // Weekend brunch is showing now on the Hall board.
+    server.use(
+      http.get("/api/schedules/active/page", ({ request }) =>
+        HttpResponse.json({
+          page_id: new URL(request.url).searchParams.get("board_id") === "den" ? PAGE : "brunch",
+          source: "manual",
+          schedule_enabled: true,
+          current_time: "07:41",
+          current_day: "friday",
+          default_page_id: null,
+          temporary_override: { active: false },
+        }),
+      ),
+    );
+    const onPageDisplaysChange = vi.fn();
+    const { rerenderTick } = renderIde(fakeBuilder(), 0, undefined, onPageDisplaysChange);
+    await waitFor(() => expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["den"]));
+    rerenderTick(0, "brunch");
+    await waitFor(() => expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["hall"]));
+  });
+
+  // OPUS-2645 S2: "showing now" changes with the clock (the IDE re-asks every
+  // 60 s); the display the editor previews as must not move while you edit.
+  it("holds the displays it first settled on while showing-now changes", async () => {
+    mockHub();
+    const hub = { denShowsPage: true };
+    server.use(
+      http.get("/api/v1/schedules", () =>
+        HttpResponse.json({
+          schedules: [
+            {
+              id: "s0",
+              page_id: PAGE,
+              board_id: "hall",
+              start_time: "18:00",
+              end_time: "19:00",
+              day_pattern: "daily",
+              enabled: true,
+              created_at: "",
+            },
+            {
+              id: "s1",
+              page_id: PAGE,
+              board_id: "den",
+              start_time: "07:30",
+              end_time: "08:30",
+              day_pattern: "weekdays",
+              enabled: true,
+              created_at: "",
+            },
+          ],
+          total: 2,
+          default_page_id: null,
+          enabled: null,
+        }),
+      ),
+      http.get("/api/schedules/active/page", ({ request }) => {
+        const board = new URL(request.url).searchParams.get("board_id");
+        return HttpResponse.json({
+          page_id: board === "den" && hub.denShowsPage ? PAGE : "other",
+          source: "schedule",
+          schedule_enabled: true,
+          current_time: "08:29",
+          current_day: "friday",
+          default_page_id: null,
+          temporary_override: { active: false },
+        });
+      }),
+    );
+    const onPageDisplaysChange = vi.fn();
+    const { client } = renderIde(fakeBuilder(), 0, undefined, onPageDisplaysChange);
+    await waitFor(() => expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["den", "hall"]));
+    await screen.findByText(/Showing on Den TV now/);
+    // Den's window ends: by the hub's answer the page now shows nowhere, and the
+    // schedule lists Hall first.
+    hub.denShowsPage = false;
+    await act(() => client.refetchQueries({ queryKey: ["ide", "active"] }));
+    await waitFor(() => expect(screen.queryByText(/Showing on Den TV now/)).not.toBeInTheDocument());
+    expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["den", "hall"]);
+    expect(onPageDisplaysChange).not.toHaveBeenCalledWith(["hall", "den"]);
+  });
+
+  it("waits for the displays themselves to load", async () => {
+    mockHub();
+    // On no schedule: only the hub's answer per display says Den TV shows it.
+    server.use(
+      http.get("/api/v1/schedules", () =>
+        HttpResponse.json({ schedules: [], total: 0, default_page_id: null, enabled: null }),
+      ),
+    );
+    sidebar.loading = true;
+    const seen: string[] = [];
+    const listener = ({ request }: { request: Request }) => {
+      seen.push(new URL(request.url).pathname);
+    };
+    server.events.on("response:mocked", listener);
+    const onPageDisplaysChange = vi.fn();
+    try {
+      const { rerenderTick } = renderIde(fakeBuilder(), 0, undefined, onPageDisplaysChange);
+      // Schedules and collections answer while settings are still loading.
+      await waitFor(() => expect(seen).toEqual(expect.arrayContaining(["/api/v1/schedules", "/api/v1/collections"])));
+      await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+      sidebar.loading = false;
+      rerenderTick(0);
+      await waitFor(() => expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["den"]));
+    } finally {
+      sidebar.loading = false;
+      server.events.removeListener("response:mocked", listener);
+    }
+  });
+
+  // OPUS-2647 M1: reopening the editor within the cache's lifetime must pick
+  // from the hub's fresh answers, not the cached ones it is re-asking for.
+  it("picks from fresh answers, not cached ones, when the editor reopens", async () => {
+    mockHub({ live: false });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const first = vi.fn();
+    const { unmount } = renderIde(fakeBuilder(), 0, undefined, first, client);
+    await waitFor(() => expect(first).toHaveBeenLastCalledWith(["den"]));
+    unmount();
+    // Meanwhile the page's schedule entry moved to the Hall board.
+    server.use(
+      http.get("/api/v1/schedules", () =>
+        HttpResponse.json({
+          schedules: [
+            {
+              id: "s1",
+              page_id: PAGE,
+              board_id: "hall",
+              start_time: "07:30",
+              end_time: "08:30",
+              day_pattern: "weekdays",
+              enabled: true,
+              created_at: "",
+            },
+          ],
+          total: 1,
+          default_page_id: null,
+          enabled: null,
+        }),
+      ),
+    );
+    const reopened = vi.fn();
+    renderIde(fakeBuilder(), 0, undefined, reopened, client);
+    await waitFor(() => expect(reopened).toHaveBeenLastCalledWith(["hall"]));
+    expect(reopened).not.toHaveBeenCalledWith(["den"]);
+  });
+
+  it.each([
+    ["its schedules", "/api/v1/schedules", "/api/schedules/active/page"],
+    ["its collections", "/api/v1/collections", "/api/schedules/active/page"],
+    ["the hub's showing-now answers", "/api/schedules/active/page", "/api/v1/schedules"],
+  ])("names no display before %s load", async (_what, hanging, served) => {
+    mockHub();
+    server.use(http.get(hanging, () => new Promise<never>(() => {})));
+    const seen: string[] = [];
+    const listener = ({ request }: { request: Request }) => {
+      seen.push(new URL(request.url).pathname);
+    };
+    server.events.on("response:mocked", listener);
+    const onPageDisplaysChange = vi.fn();
+    try {
+      renderIde(fakeBuilder(), 0, undefined, onPageDisplaysChange);
+      // The other half has answered (either alone would name Den TV)…
+      await waitFor(() => expect(seen).toContain(served));
+      await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+      // …but the editor is told nothing until both have.
+      expect(onPageDisplaysChange).not.toHaveBeenCalledWith(["den"]);
+    } finally {
+      server.events.removeListener("response:mocked", listener);
+    }
   });
 
   it("says the page's display keeps the live version after a restore", async () => {

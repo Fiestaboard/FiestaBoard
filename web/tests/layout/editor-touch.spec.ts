@@ -423,7 +423,7 @@ for (const { width, coarse } of [
       const toolbar = page.locator('[data-slot="editor-toolbar"][data-size="touch"][data-capabilities="plain-text"]');
       await expect(toolbar).toBeVisible();
       await expect(toolbar.getByRole("button", { name: "Colors", exact: true })).toBeDisabled();
-      await expect(toolbar.getByRole("button", { name: "Formatting", exact: true })).toBeDisabled();
+      await expect(toolbar.getByRole("button", { name: "Spacing", exact: true })).toBeDisabled();
       const trigger = toolbar.getByRole("button", { name: "More", exact: true });
       await trigger.click();
       const popup = page.getByTestId("toolbar-dropdown-panel");

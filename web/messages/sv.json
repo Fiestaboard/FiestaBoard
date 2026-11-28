@@ -3861,7 +3861,15 @@
     "showShortcuts": "Visa kortkommandon",
     "previewStep": "Flytta förhandsvisningen en Note eller kolumn",
     "previewEnds": "Hoppa till början eller slutet av förhandsvisningen",
-    "previewFit": "Anpassa / Verklig storlek (förhandsvisning i fokus)"
+    "previewFit": "Anpassa / Verklig storlek (förhandsvisning i fokus)",
+    "insertFormula": "Infoga en formel",
+    "save": "Spara",
+    "saveAndShow": "Spara och visa nu",
+    "inspect": "Granska förhandsvisningen",
+    "previewActualSize": "Verklig storlek (förhandsvisning)",
+    "groupEditing": "Redigering",
+    "groupDocument": "Sida",
+    "groupPreview": "Förhandsvisning"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "Var rader kapas",
     "truncationEmpty": "Varje rad får plats på tavlan.",
     "truncationOverflow": "Rad {row} · {columns} av {max} kolumner · {cut} kapade",
-    "templateMeta": "{rows} rader · renderad längd per rad · band i marginalen",
     "goToInput": "Gå till rad och kolumn",
     "goToHint": "Skriv en rad och kolumn, t.ex. 4 10",
     "goToFormat": "Rad {row} · Kol. {column}",
@@ -4444,5 +4451,12 @@
     "fitReport": "Rad {line} är {widest} av {cols} kolumner",
     "nothingCut": "inget klipps",
     "missingOff": "{plugin} är avstängt under Integrationer"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} rader",
+    "rowsPastBoard": "{rows} > {max} rader",
+    "caret": "Rad {line}, Kol {column}",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "Avstånd"
   }
 }

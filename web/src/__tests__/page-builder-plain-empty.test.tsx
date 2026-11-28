@@ -86,7 +86,7 @@ it.each([390, 1440])("keeps supported H3 tools and explains disabled tools at %i
   await screen.findByText("Can’t tell what this display draws");
   expect(await screen.findByRole("button", { name: "Variables" })).toBeEnabled();
   expect(screen.getByRole("button", { name: "Formula" })).toBeEnabled();
-  for (const name of ["Colors", "Formatting"]) {
+  for (const name of ["Colors", "Spacing"]) {
     const tool = screen.getByRole("button", { name });
     expect(tool).toBeDisabled();
     expect(tool).toHaveAccessibleDescription(/display type unknown/i);

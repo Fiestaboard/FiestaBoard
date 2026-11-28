@@ -1,6 +1,6 @@
 /**
  * Web 2.9 (04b) wiring in the real page editor: a big board opens with the
- * zoom control, Go to and the truncation map; a note array gets Note focus;
+ * zoom control, a caret readout and the truncation map; a note array gets Note focus;
  * and every board shows the hub's real-width overflow (H4) with a fix.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -128,7 +128,7 @@ describe("page editor complex editing (2.9)", () => {
     expect(screen.queryByRole("group", { name: "Preview zoom" })).toBeNull();
   });
 
-  it("opens a 96 × 24 panel with zoom, Go to and the truncation map", async () => {
+  it("opens a 96 × 24 panel with zoom, a caret readout and the truncation map", async () => {
     stubValidate([]);
     renderEditor({
       ...basePage,
@@ -144,9 +144,11 @@ describe("page editor complex editing (2.9)", () => {
     // default. Wait for the first lens as long as the editor wait below; the
     // assertions themselves are unchanged.
     expect(await screen.findByRole("group", { name: "Preview zoom" }, { timeout: 10_000 })).toBeInTheDocument();
-    expect(
-      await screen.findByRole("textbox", { name: "Go to row and column" }, { timeout: 10_000 }),
-    ).toBeInTheDocument();
+    // UX-3-2: the card header's caret readout replaced the Go to pill.
+    expect(await screen.findByTestId("template-card-meta", {}, { timeout: 10_000 })).toHaveTextContent(
+      /Ln \d+, Col \d+/,
+    );
+    expect(screen.queryByRole("textbox", { name: "Go to row and column" })).toBeNull();
     expect(await screen.findByText("Where lines are cut")).toBeInTheDocument();
     // The template's line numbers keep AA contrast on a tall board (axe in the
     // 2.9 layout spec): muted colour, not muted colour at 40 % opacity.

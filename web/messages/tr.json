@@ -3861,7 +3861,15 @@
     "showShortcuts": "Klavye kısayollarını göster",
     "previewStep": "Önizlemeyi bir not veya sütun kaydır",
     "previewEnds": "Önizlemenin başına veya sonuna atla",
-    "previewFit": "Sığdır / Gerçek boyut (önizleme odakta)"
+    "previewFit": "Sığdır / Gerçek boyut (önizleme odakta)",
+    "insertFormula": "Formül ekle",
+    "save": "Kaydet",
+    "saveAndShow": "Kaydet ve şimdi göster",
+    "inspect": "Önizlemeyi incele",
+    "previewActualSize": "Gerçek boyut (önizleme)",
+    "groupEditing": "Düzenleme",
+    "groupDocument": "Sayfa",
+    "groupPreview": "Önizleme"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "Satırların kesildiği yerler",
     "truncationEmpty": "Her satır panoya sığıyor.",
     "truncationOverflow": "Satır {row} · {columns}/{max} sütun · {cut} kesildi",
-    "templateMeta": "{rows} satır · satır başına işlenmiş uzunluk · kenar boşluğunda bantlar",
     "goToInput": "Satır ve sütuna git",
     "goToHint": "Bir satır ve sütun yazın, ör. 4 10",
     "goToFormat": "Satır {row} · Süt. {column}",
@@ -4444,5 +4451,12 @@
     "fitReport": "{line}. satır {cols} sütunun {widest} tanesi",
     "nothingCut": "hiçbir şey kesilmedi",
     "missingOff": "{plugin}, Entegrasyonlar’da kapalı"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} satır",
+    "rowsPastBoard": "{rows} > {max} satır",
+    "caret": "Sat {line}, Süt {column}",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "Boşluk"
   }
 }

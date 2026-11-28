@@ -35,6 +35,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
 import { prettyPrint } from "@/lib/formula-ide/pretty";
 import {
   buildRecipe,
@@ -410,6 +411,7 @@ function RecipeFields({
 export function FormulaBuilderCard(props: WorkbenchProps) {
   const { open, setOpen, formula, boardCols } = props;
   const t = useTranslations("formulaIde");
+  const tTemplate = useTranslations("templateEditor");
   // A hand-written formula has no recipe: none is picked until the author
   // chooses one to replace it, so it never looks like a blank recipe (BB-B-14).
   const [recipe, setRecipe] = useState<RecipeId | null>(() => (open?.expression ? null : "list"));
@@ -423,7 +425,19 @@ export function FormulaBuilderCard(props: WorkbenchProps) {
 
   if (!open) return null;
   return (
-    <Card data-testid="formula-builder-card" className="gap-3 border-2 border-tag-formula py-3">
+    <Card
+      data-testid="formula-builder-card"
+      className="gap-3 border-2 border-tag-formula py-3"
+      // Esc cancels the docked editor, as it closes the chip's own dialog; the
+      // chip then puts the caret back after it (UX-2-5). CodeMirror's own Esc
+      // (closing a completion) prevents the default first and wins.
+      onKeyDown={(event) => {
+        if (event.defaultPrevented || !matchesShortcut(event.nativeEvent, EDITOR_SHORTCUTS.closePicker)) return;
+        event.preventDefault();
+        open.cancel();
+        setOpen(null);
+      }}
+    >
       <CardContent className="px-4">
         <WorkbenchHeader line={formula?.line ?? null} tab="builder" setOpen={setOpen} />
         <Stack gap="3" className="mt-3">
@@ -476,7 +490,8 @@ export function FormulaBuilderCard(props: WorkbenchProps) {
                   setOpen(null);
                 }}
               >
-                {t("updateFormula")}
+                {/* A new formula is inserted, an existing one updated (Figma 111:30911; UX-2-5). */}
+                {open.expression ? t("updateFormula") : tTemplate("insertFormula")}
               </Button>
             </Flex>
           </Flex>

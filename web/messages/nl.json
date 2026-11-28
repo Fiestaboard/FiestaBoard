@@ -3861,7 +3861,15 @@
     "showShortcuts": "Sneltoetsen tonen",
     "previewStep": "Voorbeeld één Note of kolom verschuiven",
     "previewEnds": "Naar het begin of einde van het voorbeeld springen",
-    "previewFit": "Passend / Ware grootte (voorbeeld met focus)"
+    "previewFit": "Passend / Ware grootte (voorbeeld met focus)",
+    "insertFormula": "Formule invoegen",
+    "save": "Opslaan",
+    "saveAndShow": "Opslaan en nu tonen",
+    "inspect": "Voorbeeld inspecteren",
+    "previewActualSize": "Werkelijke grootte (voorbeeld)",
+    "groupEditing": "Bewerken",
+    "groupDocument": "Pagina",
+    "groupPreview": "Voorbeeld"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "Waar regels worden afgekapt",
     "truncationEmpty": "Elke rij past op het bord.",
     "truncationOverflow": "Rij {row} · {columns} van {max} kolommen · {cut} afgekapt",
-    "templateMeta": "{rows} rijen · weergegeven lengte per rij · banden in de marge",
     "goToInput": "Ga naar rij en kolom",
     "goToHint": "Typ een rij en kolom, bijv. 4 10",
     "goToFormat": "Rij {row} · Kol. {column}",
@@ -4444,5 +4451,12 @@
     "fitReport": "Regel {line} is {widest} van {cols} kolommen",
     "nothingCut": "niets afgekapt",
     "missingOff": "{plugin} staat uit bij Integraties"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} regels",
+    "rowsPastBoard": "{rows} > {max} rijen",
+    "caret": "Rg {line}, Kol {column}",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "Ruimte"
   }
 }
