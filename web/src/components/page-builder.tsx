@@ -195,7 +195,6 @@ import { cn } from "@/lib/utils";
 
 import { FormulaIdeContext } from "./formula-ide/formula-ide-context";
 import { useFormulaIde } from "./formula-ide/use-formula-ide";
-import { TemplateCardMetaContext } from "./template-card-meta";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
 // barrel push this module past 500 kB minified on their own (see #1575).
@@ -1585,7 +1584,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Whether the editor has had its first paint (the loading skeleton is gone):
   // what measures the mounted editor waits for it (UX-8-3 gate below).
   const [editorShown, setEditorShown] = useState(false);
-  const caretScrollMargin = useEditorScrollMargin(dockedPreview && editorShown, editorContentRef, viewportBottom);
+  // Not while the page skeleton is back after the first paint (a reload of the
+  // page query), when there is no editor root to measure (OPUS-2649 nit).
+  const caretScrollMargin = useEditorScrollMargin(
+    dockedPreview && editorShown && !(pageId && loadingPage),
+    editorContentRef,
+    viewportBottom,
+  );
   useEffect(() => {
     savedPageRef.current = existingPage;
   }, [existingPage]);
@@ -2745,11 +2750,20 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // in the template column (07 `57:27771`; DD-W30).
   const shortcutList = useEditorShortcutList();
   const templateHeadingRef = useRef<HTMLDivElement>(null);
+  const templateCardAnchorRef = useRef<HTMLDivElement>(null);
   const shortcutListProps = {
     state: shortcutList,
     // Hidden on a pixel board's Canvases surface: the kit then hangs the list
     // from the trigger that opened it (or its gutter on touch).
-    anchorRef: pixelBoard && editingSurface !== "text" ? undefined : templateHeadingRef,
+    // In the rich editor the title sits inside the card's padding, so the list
+    // hangs from the card's header row at its left edge, right of any band
+    // gutter (templateCardAnchorRef); drawing hides the card, then the title row.
+    anchorRef:
+      pixelBoard && editingSurface !== "text"
+        ? undefined
+        : editorMode === "rich" && !baselineDisplay && !editorCharset && !drawMode
+          ? templateCardAnchorRef
+          : templateHeadingRef,
     // Only a split-flap preview can bind BoardViewport's keys; an LED board
     // previews through DevicePreview (draw mode always paints flaps).
     boardViewport: previewBindsBoardViewportKeys({ ledPreview: !drawMode && isLedModel(previewModel) }),
@@ -2773,7 +2787,50 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const richToolbarExpected = !useTouchToolbar && editorMode === "rich" && !baselineDisplay && !editorCharset;
   // The rich editor's card has a square top for a header to sit on (UX-3-3).
   const templateCardHeader = editorMode === "rich" && !baselineDisplay && !editorCharset;
-  const [templateMetaHost, setTemplateMetaHost] = useState<HTMLElement | null>(null);
+  // "Template" and Rich | Plain: the rich editor's card title, or the row above
+  // the plain and LED editors. Also the shortcut list's anchor.
+  const templateTitle = (
+    <Flex
+      ref={templateHeadingRef}
+      data-slot="page-editor-template-title"
+      align="center"
+      gap="2"
+      // In the card the title keeps its width and the count truncates first (Den TV, 1440).
+      className={cn(templateCardHeader && !drawMode ? "shrink-0" : "w-full min-w-0 justify-between")}
+    >
+      <label htmlFor="page-template-plain" className="text-sm font-semibold">
+        {baselineDisplay ? tTouch("plainTemplate") : t("templateLabel")}
+      </label>
+      <Flex
+        align="center"
+        role="group"
+        aria-label={t("editorModeAriaLabel")}
+        className="border rounded-md overflow-hidden"
+      >
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => handleEditorModeChange("rich")}
+          className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+          aria-label={t("richEditorAriaLabel")}
+          disabled={baselineDisplay}
+          aria-pressed={!baselineDisplay && editorMode === "rich"}
+        >
+          {t("richEditor")}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => handleEditorModeChange("plain")}
+          className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
+          aria-label={t("plainTextAriaLabel")}
+          aria-pressed={baselineDisplay || editorMode === "plain"}
+        >
+          {t("plainEditor")}
+        </Button>
+      </Flex>
+    </Flex>
+  );
 
   // Keyboard shortcuts while drawing: Esc exits; undo/redo work even though
   // the editor itself is visually hidden (and thus not focused) in draw mode.
@@ -3860,64 +3917,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 ? richTemplateContainerRef
                                 : plainTemplateContainerRef
                             }
-                            onGo={goToTemplateCell}
                           />
                         </Suspense>
                       )}
-                      {/* The template card's header ("Template", the count, Rich | Plain) sits
-                        flush on the rich editor's square top, as 184:159319 draws it (UX-3-3),
-                        and comes before the field at every width (UX-10-1). */}
-                      <Flex
-                        ref={templateHeadingRef}
-                        data-slot="page-editor-template-card-header"
-                        align="center"
-                        justify="between"
-                        gap="2"
-                        className={cn(
-                          "min-w-0",
-                          templateCardHeader && "-mb-3 rounded-t-md border border-b-0 bg-background py-1.5 pl-3 pr-1.5",
-                          // The band gutter stands left of the card (DD-W131): the header tops the card only.
-                          templateCardHeader && rowBandsEnabled && "ml-38",
-                        )}
-                      >
-                        <label htmlFor="page-template-plain" className="text-sm font-semibold">
-                          {baselineDisplay ? tTouch("plainTemplate") : t("templateLabel")}
-                        </label>
-                        {/* The editor portals its line count and caret here (template-card-meta.tsx). */}
-                        <Box
-                          ref={setTemplateMetaHost}
-                          data-slot="template-card-meta"
-                          className="ml-auto min-w-0 truncate font-mono text-xs text-muted-foreground empty:hidden"
-                        />
-                        <Flex
-                          align="center"
-                          role="group"
-                          aria-label={t("editorModeAriaLabel")}
-                          className="border rounded-md overflow-hidden"
-                        >
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditorModeChange("rich")}
-                            className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
-                            aria-label={t("richEditorAriaLabel")}
-                            disabled={baselineDisplay}
-                            aria-pressed={!baselineDisplay && editorMode === "rich"}
-                          >
-                            {t("richEditor")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditorModeChange("plain")}
-                            className={`h-7 pointer-coarse:h-11 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
-                            aria-label={t("plainTextAriaLabel")}
-                            aria-pressed={baselineDisplay || editorMode === "plain"}
-                          >
-                            {t("plainEditor")}
-                          </Button>
-                        </Flex>
-                      </Flex>
+                      {/* The rich editor owns its card header (FABLE-2648 ruling): "Template"
+                        and Rich | Plain go in as its title, the count and caret are its own,
+                        all in one card row (184:159319, UX-3-3). The other editors keep the
+                        title row above the field, before it at every width (UX-10-1). */}
+                      {/* Draw mode hides the card, so its title (the shortcut list's anchor) comes out above. */}
+                      {(!templateCardHeader || drawMode) && templateTitle}
                       {editorMode === "rich" && !baselineDisplay ? (
                         <Box
                           ref={richTemplateContainerRef}
@@ -3925,6 +3933,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           {...anchorProps("page-editor.template")}
                           className={cn("relative", rowBandsEnabled && "pl-38")}
                         >
+                          {/* The card's header row, right of the band gutter: the shortcut list's anchor. */}
+                          <Box
+                            ref={templateCardAnchorRef}
+                            aria-hidden
+                            className={cn(
+                              "pointer-events-none absolute right-0 top-0 h-10",
+                              rowBandsEnabled ? "left-38" : "left-0",
+                            )}
+                          />
                           {rowBandsEnabled && (
                             <Suspense fallback={null}>
                               <RowBandGutter
@@ -3989,50 +4006,49 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 syncFromBoardPending={syncFromBoardMutation.isPending}
                               />
                             ) : (
-                              <TemplateCardMetaContext.Provider value={templateCardHeader ? templateMetaHost : null}>
-                                <TipTapTemplateEditor
-                                  ref={tipTapRef}
-                                  scrollMargin={caretScrollMargin}
-                                  value={newPageEmpty ? "" : templateLines.join("\n")}
-                                  onChange={handleRichEditorChange}
-                                  lineAlignments={lineAlignments}
-                                  lineWrapEnabled={lineWrapEnabled}
-                                  onLineAlignmentChange={(lineIndex, alignment) => {
-                                    setLineAlignments((prev) => {
-                                      const newAlignments = [...prev];
-                                      newAlignments[lineIndex] = alignment;
-                                      return newAlignments;
-                                    });
-                                  }}
-                                  onLineWrapChange={(lineIndex, wrapEnabled) => {
-                                    setLineWrapEnabled((prev) => {
-                                      const newWrapStates = [...prev];
-                                      newWrapStates[lineIndex] = wrapEnabled;
-                                      return newWrapStates;
-                                    });
-                                  }}
-                                  placeholder={
-                                    newPageEmpty
-                                      ? tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })
-                                      : t("richEditorPlaceholder")
-                                  }
-                                  showAlignmentControls={true}
-                                  showToolbar={true}
-                                  boardWidth={dims.cols}
-                                  boardLines={numLines}
-                                  deviceType={deviceType}
-                                  code62Glyph={effectiveCode62Glyph}
-                                  onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                                  syncFromBoardPending={syncFromBoardMutation.isPending}
-                                  drawMode={drawMode}
-                                  onDrawModeToggle={() => setDrawMode((v) => !v)}
-                                  drawBrush={drawBrush}
-                                  onDrawBrushChange={setDrawBrush}
-                                  onDrawHistoryEvent={handleDrawHistoryEvent}
-                                  toolbarContainer={toolbarContainer}
-                                  toolbarMoreContent={mirrorMoreContent}
-                                />
-                              </TemplateCardMetaContext.Provider>
+                              <TipTapTemplateEditor
+                                cardTitle={drawMode ? undefined : templateTitle}
+                                ref={tipTapRef}
+                                scrollMargin={caretScrollMargin}
+                                value={newPageEmpty ? "" : templateLines.join("\n")}
+                                onChange={handleRichEditorChange}
+                                lineAlignments={lineAlignments}
+                                lineWrapEnabled={lineWrapEnabled}
+                                onLineAlignmentChange={(lineIndex, alignment) => {
+                                  setLineAlignments((prev) => {
+                                    const newAlignments = [...prev];
+                                    newAlignments[lineIndex] = alignment;
+                                    return newAlignments;
+                                  });
+                                }}
+                                onLineWrapChange={(lineIndex, wrapEnabled) => {
+                                  setLineWrapEnabled((prev) => {
+                                    const newWrapStates = [...prev];
+                                    newWrapStates[lineIndex] = wrapEnabled;
+                                    return newWrapStates;
+                                  });
+                                }}
+                                placeholder={
+                                  newPageEmpty
+                                    ? tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })
+                                    : t("richEditorPlaceholder")
+                                }
+                                showAlignmentControls={true}
+                                showToolbar={true}
+                                boardWidth={dims.cols}
+                                boardLines={numLines}
+                                deviceType={deviceType}
+                                code62Glyph={effectiveCode62Glyph}
+                                onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                                syncFromBoardPending={syncFromBoardMutation.isPending}
+                                drawMode={drawMode}
+                                onDrawModeToggle={() => setDrawMode((v) => !v)}
+                                drawBrush={drawBrush}
+                                onDrawBrushChange={setDrawBrush}
+                                onDrawHistoryEvent={handleDrawHistoryEvent}
+                                toolbarContainer={toolbarContainer}
+                                toolbarMoreContent={mirrorMoreContent}
+                              />
                             )}
                           </Suspense>
                         </Box>
