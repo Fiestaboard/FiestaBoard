@@ -271,6 +271,23 @@ for (const theme of ["light", "dark"] as const) {
       });
     }
 
+    test("1440: the template card stretches to the height its host gives it (card fill, UX-3-1)", async ({ page }) => {
+      await openEditor(page, "kitchen-morning", 1440, theme);
+      const editor = page.locator('[data-slot="template-editor"]');
+      const card = page.locator('[data-slot="template-card"]');
+      const natural = (await card.boundingBox())!.height;
+      // FP-1's column gives the editor's host a height (down to the IDE row); stand in for it.
+      await editor.evaluate((el) => {
+        (el.parentElement as HTMLElement).style.height = "640px";
+      });
+      const [host, filled] = await Promise.all([
+        editor.evaluate((el) => el.parentElement!.getBoundingClientRect().toJSON() as DOMRect),
+        card.boundingBox(),
+      ]);
+      expect(filled!.height).toBeGreaterThan(natural + 100);
+      expect(Math.abs(filled!.y + filled!.height - (host.y + host.height))).toBeLessThanOrEqual(2);
+    });
+
     test("1440: band labels are one clamped line, never overlap, and the gutters stay on Ctrl+End (UX-3-1)", async ({
       page,
     }) => {

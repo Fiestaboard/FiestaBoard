@@ -1398,7 +1398,9 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     );
 
     return (
-      <Box className={cn("relative", className)}>
+      // A flex column: when the host gives the editor a height (the card filling
+      // its column down to the IDE row, UX-3-1), the card stretches to it.
+      <Box data-slot="template-editor" className={cn("relative flex h-full min-h-0 flex-col", className)}>
         {/* Toolbar */}
         {showToolbar && (
           <TemplateEditorToolbar
@@ -1429,11 +1431,11 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           mounted) while draw mode is active so applyStroke can keep
           operating on the live ProseMirror doc without the user seeing the
           rich-text view underneath the drawing canvas. */}
-        <Box className={cn("flex-1", drawMode && "hidden")}>
+        <Box className={drawMode ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
           <Box
             data-slot="template-card"
             className={cn(
-              "border bg-background relative rounded-md transition-[color,box-shadow]",
+              "border bg-background relative flex flex-1 flex-col rounded-md transition-[color,box-shadow]",
               // The field's focus ring, as the kit's Input and Textarea draw it (BB-E-16).
               "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
               showToolbar ? "rounded-t-none" : "",
@@ -1481,7 +1483,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
               </Text>
             </Flex>
             <Box
-              className="relative"
+              className="relative flex-1"
               style={{
                 padding: "0.75rem",
                 paddingTop: "0.5rem",
