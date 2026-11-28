@@ -30,12 +30,16 @@ for (const theme of ["light", "dark"] as const) {
         const inspector = page.getByRole("tablist", { name: "Inspector" });
         await expect(inspector.getByRole("tab")).toHaveCount(desktop ? 5 : 6);
         await expect(page.getByText(/Showing on Kitchen board now · until 8:30/)).toBeVisible();
-        // Live: the header offers Save draft beside Save & update board (04d decision 4).
-        await expect(page.getByRole("button", { name: "Save draft" })).toBeVisible();
+        // Live: the header offers Save draft beside Save & update board (04d decision 4);
+        // on a phone the primary is alone and Save draft is a row in More (DD-W166).
+        if (width < 640) await expect(page.getByRole("button", { name: "Save draft" })).toHaveCount(0);
+        else await expect(page.getByRole("button", { name: "Save draft" })).toBeVisible();
         await expect(page.getByRole("button", { name: "Save & update board" })).toBeVisible();
-        // The page name keeps usable room beside the header actions, and they stay on screen.
+        // The page name keeps usable room beside the header actions, and they stay on screen
+        // (on a phone the freed Save draft width goes to it, DD-W166: 124 px on the
+        // bug-bash instance at 390; this fixture's fonts draw the primary wider, 109).
         const nameBox = await page.locator('[data-slot="page-editor-name"]').boundingBox();
-        expect(nameBox!.width).toBeGreaterThanOrEqual(width < 640 ? 56 : 200);
+        expect(nameBox!.width).toBeGreaterThanOrEqual(width < 640 ? 100 : 200);
         const publishBox = await page.getByRole("button", { name: "Save & update board" }).boundingBox();
         expect(publishBox!.x + publishBox!.width).toBeLessThanOrEqual(width);
 

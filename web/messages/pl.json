@@ -3853,6 +3853,11 @@
     "offlineMeta": "Ostatnie połączenie {time} · Harmonogram działa dalej na hubie",
     "offlineMetaNever": "Brak połączenia od uruchomienia huba · Harmonogram działa dalej na hubie"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Szkic zapisany",
+    "saved": "Zapisano",
+    "saveDraftNow": "Zapisz szkic teraz"
+  },
   "editorShortcuts": {
     "title": "Skróty klawiszowe",
     "platformNote": "⌘ na Macu · Ctrl w Windows i Linux",

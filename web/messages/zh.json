@@ -3853,6 +3853,11 @@
     "offlineMeta": "上次连接 {time} · 日程仍在中枢上运行",
     "offlineMetaNever": "中枢启动后未连接 · 日程仍在中枢上运行"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "草稿已保存",
+    "saved": "已保存",
+    "saveDraftNow": "立即保存草稿"
+  },
   "editorShortcuts": {
     "title": "键盘快捷键",
     "platformNote": "Mac 上为 ⌘ · Windows 和 Linux 上为 Ctrl",

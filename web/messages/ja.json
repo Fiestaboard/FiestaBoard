@@ -3853,6 +3853,11 @@
     "offlineMeta": "最終接続 {time}・スケジュールはハブで動作中",
     "offlineMetaNever": "ハブの起動以来未接続・スケジュールはハブで動作中"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "下書きを保存しました",
+    "saved": "保存済み",
+    "saveDraftNow": "今すぐ下書きを保存"
+  },
   "editorShortcuts": {
     "title": "キーボードショートカット",
     "platformNote": "Mac は ⌘ · Windows と Linux は Ctrl",

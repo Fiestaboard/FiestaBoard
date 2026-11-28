@@ -3853,6 +3853,11 @@
     "offlineMeta": "Última conexión {time} · El horario sigue en el hub",
     "offlineMetaNever": "Sin contacto desde que arrancó el hub · El horario sigue en el hub"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Borrador guardado",
+    "saved": "Guardado",
+    "saveDraftNow": "Guardar borrador ahora"
+  },
   "editorShortcuts": {
     "title": "Atajos de teclado",
     "platformNote": "⌘ en Mac · Ctrl en Windows y Linux",
