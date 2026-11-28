@@ -2734,7 +2734,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // in the template column (07 `57:27771`; DD-W30).
   const shortcutList = useEditorShortcutList();
   const templateHeadingRef = useRef<HTMLDivElement>(null);
-  const templateCardAnchorRef = useRef<HTMLSpanElement>(null);
+  const templateCardAnchorRef = useRef<HTMLDivElement>(null);
   const shortcutListProps = {
     state: shortcutList,
     // Hidden on a pixel board's Canvases surface: the kit then hangs the list
@@ -3836,7 +3836,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           className={cn("relative", rowBandsEnabled && "pl-38")}
                         >
                           {/* The card's header row, right of the band gutter: the shortcut list's anchor. */}
-                          <span
+                          <Box
                             ref={templateCardAnchorRef}
                             aria-hidden
                             className={cn(
