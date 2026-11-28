@@ -119,6 +119,7 @@ export function PlainTemplateToolbar({
   onRedo?: () => void;
 }) {
   const t = useTranslations("templateEditor");
+  const tCard = useTranslations("templateCard");
   const tTouch = useTranslations("editorTouch");
   const touch = useMediaQuery("(max-width: 767px), (pointer: coarse)");
   const sheets = useMediaQuery("(max-width: 639px)");
@@ -159,7 +160,8 @@ export function PlainTemplateToolbar({
     >
       <PlainTemplateVariablePicker trigger={tool(t("variables"), <Variable />)} onInsert={onInsert} />
       {tool(t("colors"), <Palette />, true)}
-      {tool(t("formatting"), <Type />, true)}
+      {/* "Spacing", as the rich toolbar calls the same menu (UX-2-4). */}
+      {tool(tCard("spacing"), <Type />, true)}
       {touch ? (
         <EditorTool ref={formulaTriggerRef} label={t("formula")} icon={<Sigma />} onClick={openFormula} />
       ) : (

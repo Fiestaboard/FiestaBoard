@@ -3861,7 +3861,15 @@
     "showShortcuts": "Показать сочетания клавиш",
     "previewStep": "Сдвинуть превью на одну заметку или столбец",
     "previewEnds": "Перейти к началу или концу превью",
-    "previewFit": "Вписать / Реальный размер (превью в фокусе)"
+    "previewFit": "Вписать / Реальный размер (превью в фокусе)",
+    "insertFormula": "Вставить формулу",
+    "save": "Сохранить",
+    "saveAndShow": "Сохранить и показать сейчас",
+    "inspect": "Проверить предпросмотр",
+    "previewActualSize": "Реальный размер (предпросмотр)",
+    "groupEditing": "Правка",
+    "groupDocument": "Страница",
+    "groupPreview": "Предпросмотр"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "Где обрезаются строки",
     "truncationEmpty": "Все строки помещаются на табло.",
     "truncationOverflow": "Строка {row} · {columns} из {max} столбцов · обрезано {cut}",
-    "templateMeta": "{rows} строк · отрисованная длина строки · полосы на поле",
     "goToInput": "Перейти к строке и столбцу",
     "goToHint": "Введите строку и столбец, например 4 10",
     "goToFormat": "Строка {row} · Столб. {column}",
@@ -4426,5 +4433,12 @@
     "fitReport": "Строка {line}: {widest} из {cols} столбцов",
     "nothingCut": "ничего не обрезано",
     "missingOff": "{plugin} отключено в разделе «Интеграции»"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} строк",
+    "rowsPastBoard": "{rows} > {max} строк",
+    "caret": "Стр {line}, Стлб {column}",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "Интервалы"
   }
 }

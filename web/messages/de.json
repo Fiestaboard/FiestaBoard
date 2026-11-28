@@ -3861,7 +3861,15 @@
     "showShortcuts": "Tastenkürzel anzeigen",
     "previewStep": "Vorschau um eine Note oder Spalte verschieben",
     "previewEnds": "Zum Anfang oder Ende der Vorschau springen",
-    "previewFit": "Einpassen / Originalgröße (Vorschau fokussiert)"
+    "previewFit": "Einpassen / Originalgröße (Vorschau fokussiert)",
+    "insertFormula": "Formel einfügen",
+    "save": "Speichern",
+    "saveAndShow": "Speichern und jetzt anzeigen",
+    "inspect": "Vorschau untersuchen",
+    "previewActualSize": "Originalgröße (Vorschau)",
+    "groupEditing": "Bearbeiten",
+    "groupDocument": "Seite",
+    "groupPreview": "Vorschau"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "Wo Zeilen abgeschnitten werden",
     "truncationEmpty": "Jede Zeile passt auf das Board.",
     "truncationOverflow": "Zeile {row} · {columns} von {max} Spalten · {cut} abgeschnitten",
-    "templateMeta": "{rows} Zeilen · gerenderte Länge pro Zeile · Bänder am Rand",
     "goToInput": "Zu Zeile und Spalte springen",
     "goToHint": "Zeile und Spalte eingeben, z. B. 4 10",
     "goToFormat": "Zeile {row} · Sp. {column}",
@@ -4426,5 +4433,12 @@
     "fitReport": "Zeile {line} ist {widest} von {cols} Spalten",
     "nothingCut": "nichts abgeschnitten",
     "missingOff": "{plugin} ist unter Integrationen ausgeschaltet"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} Zeilen",
+    "rowsPastBoard": "{rows} > {max} Zeilen",
+    "caret": "Z {line}, Sp {column}",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "Abstand"
   }
 }

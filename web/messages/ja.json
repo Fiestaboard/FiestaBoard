@@ -3861,7 +3861,15 @@
     "showShortcuts": "キーボードショートカットを表示",
     "previewStep": "プレビューを1ノートまたは1列移動",
     "previewEnds": "プレビューの先頭または末尾へ移動",
-    "previewFit": "全体表示 / 実寸（プレビューにフォーカス時）"
+    "previewFit": "全体表示 / 実寸（プレビューにフォーカス時）",
+    "insertFormula": "数式を挿入",
+    "save": "保存",
+    "saveAndShow": "保存して今すぐ表示",
+    "inspect": "プレビューを検査",
+    "previewActualSize": "実寸（プレビュー）",
+    "groupEditing": "編集",
+    "groupDocument": "ページ",
+    "groupPreview": "プレビュー"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "行が切れる位置",
     "truncationEmpty": "すべての行がボードに収まります。",
     "truncationOverflow": "行 {row} · {columns} / {max} 列 · {cut} 文字が切れます",
-    "templateMeta": "{rows} 行 · 行ごとの描画長 · 余白にバンド",
     "goToInput": "行と列へ移動",
     "goToHint": "行と列を入力（例: 4 10）",
     "goToFormat": "行 {row} · 列 {column}",
@@ -4426,5 +4433,12 @@
     "fitReport": "{line} 行目は {cols} 列中 {widest} 列",
     "nothingCut": "切り詰めなし",
     "missingOff": "{plugin} は連携でオフになっています"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} 行",
+    "rowsPastBoard": "{rows} > {max} 行",
+    "caret": "{line} 行、{column} 列",
+    "withShortcut": "{label}（{keys}）",
+    "spacing": "スペース"
   }
 }

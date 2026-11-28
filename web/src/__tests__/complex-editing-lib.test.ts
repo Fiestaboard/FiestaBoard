@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   bandLabel,
+  bandText,
   BIG_BOARD_MAX_FIT_COLUMNS,
   deriveRowBands,
   duplicateBand,
@@ -37,6 +38,12 @@ describe("bandLabel", () => {
   it("falls back to the first variable name, then null", () => {
     expect(bandLabel("{{weather.temp}} {{weather.rain}}")).toBe("weather.temp");
     expect(bandLabel("{63}{64}")).toBeNull();
+  });
+
+  it("shortens a long variable name like any label, and bandText keeps it whole for the tooltip (UX-3-1)", () => {
+    expect(bandLabel("{{date_time.day_of_week}}")).toBe("date_time.da…");
+    expect(bandText("{{date_time.day_of_week}}")).toBe("date_time.day_of_week");
+    expect(bandText("{red} NOW POURING COLD BREW")).toBe("NOW POURING COLD BREW");
   });
 });
 

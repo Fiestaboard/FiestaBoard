@@ -141,6 +141,16 @@ describe("PageBuilder draw mode wiring", () => {
     expect(textbox.closest(".hidden")).toBeTruthy();
   });
 
+  it("binds Mod+S to Save, taking it from the browser's own Save", async () => {
+    render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+    await screen.findByTestId("draw-mode-toggle");
+    // binding: save
+    const plain = fireEvent.keyDown(window, { key: "s" });
+    expect(plain).toBe(true);
+    const chord = fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+    expect(chord).toBe(false); // preventDefault: the editor's Save, not the browser's
+  });
+
   it("exits draw mode on Escape", async () => {
     const user = userEvent.setup();
     const { container } = render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });

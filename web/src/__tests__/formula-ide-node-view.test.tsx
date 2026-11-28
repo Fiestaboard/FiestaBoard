@@ -10,11 +10,17 @@ vi.mock("@/components/tiptap-template-editor/components/FormulaEditorPanel", () 
 
 const EXPR = 'IF(weather.temp > 80, "HOT", "NICE")';
 
-function renderChip(bridge: FormulaIdeBridge | null, updateAttributes = vi.fn()) {
+function renderChip(
+  bridge: FormulaIdeBridge | null,
+  updateAttributes = vi.fn(),
+  extra: { editor?: unknown; getPos?: () => number; expression?: string } = {},
+) {
   const props = {
-    node: { attrs: { expression: EXPR, autoOpen: false } },
+    node: { attrs: { expression: extra.expression ?? EXPR, autoOpen: false }, nodeSize: 1 },
     updateAttributes,
     deleteNode: vi.fn(),
+    editor: extra.editor,
+    getPos: extra.getPos,
   } as unknown as Parameters<typeof FormulaNodeView>[0];
   return render(
     <FormulaIdeContext.Provider value={bridge}>
@@ -59,6 +65,35 @@ describe("FormulaNodeView with the formula IDE", () => {
     request.apply("1 + 1");
     expect(updateAttributes).toHaveBeenCalledWith({ expression: "1 + 1" });
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("puts the caret back after the chip when the docked editor applies (UX-2-5)", async () => {
+    vi.useFakeTimers();
+    const ide = bridge();
+    const focus = vi.fn();
+    renderChip(ide, vi.fn(), { editor: { isDestroyed: false, commands: { focus } }, getPos: () => 5 });
+    fireEvent.mouseDown(screen.getByTestId("formula-atom-chip"), { button: 0 });
+    vi.mocked(ide.openFormula).mock.calls[0][0].apply("1 + 1");
+    act(() => vi.runAllTimers());
+    expect(focus).toHaveBeenCalledWith(6);
+    vi.useRealTimers();
+  });
+
+  it("puts the caret back where a new chip was when the docked editor cancels (Esc)", () => {
+    vi.useFakeTimers();
+    const ide = bridge();
+    const focus = vi.fn();
+    renderChip(ide, vi.fn(), {
+      editor: { isDestroyed: false, commands: { focus } },
+      getPos: () => {
+        throw new Error("removed");
+      },
+    });
+    fireEvent.mouseDown(screen.getByTestId("formula-atom-chip"), { button: 0 });
+    vi.mocked(ide.openFormula).mock.calls[0][0].cancel();
+    act(() => vi.runAllTimers());
+    expect(focus).toHaveBeenCalledWith();
+    vi.useRealTimers();
   });
 
   it("falls back to its own dialog when there is no docked editor", () => {

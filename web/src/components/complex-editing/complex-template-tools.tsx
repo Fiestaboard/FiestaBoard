@@ -3,8 +3,6 @@
 import {
   Box,
   ColumnRuler,
-  Flex,
-  GoToCell,
   type GoToCellPosition,
   NoteFocus,
   RowBand,
@@ -17,6 +15,7 @@ import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import type { ComplexEditing } from "@/components/complex-editing/use-complex-editing";
 import { useTranslations } from "@/i18n/translations";
 import {
+  bandText,
   deriveRowBands,
   duplicateBand,
   moveBand,
@@ -25,50 +24,30 @@ import {
   type TemplateRowsState,
 } from "@/lib/complex-editing";
 import { type LineBox, measureLineBoxes } from "@/lib/complex-editing-dom";
+import { cn } from "@/lib/utils";
 
 const RULER_TICK_INSET = 14;
 
 /**
- * The template pane's header lenses: Go to (big board, 04b `126:149604`) and
- * Note focus with a seam ruler (note array, 04b `127:135751`).
+ * The template pane's header lens: Note focus with a seam ruler (note array,
+ * 04b `127:135751`). A big board has none: the card header's caret readout
+ * replaced the "Row · Col" Go to pill and its caption (editor UX UX-3-2;
+ * Figma 184:159319 draws neither).
  */
 export function ComplexTemplateHeader({
   complex,
   editorRootRef,
-  onGo,
 }: {
   complex: ComplexEditing;
   /** The template editor's container: the ruler lines up with its text. */
   editorRootRef: RefObject<HTMLElement | null>;
-  onGo: (position: GoToCellPosition) => void;
+  /** Unused since the Go to pill left (UX-3-2); kept until the host stops passing it. */
+  onGo?: (position: GoToCellPosition) => void;
 }) {
   const t = useTranslations("complexEditing");
-  if (!complex.active) return null;
+  if (!complex.noteArray) return null;
   return (
     <Stack gap="2" data-slot="complex-template-header">
-      {complex.bigBoard && (
-        <Flex align="center" justify="between" gap="2" className="flex-wrap">
-          <Text size="xs" tone="muted">
-            {t("templateMeta", { rows: complex.rows })}
-          </Text>
-          <GoToCell
-            className="w-[210px]"
-            columns={complex.cols}
-            rows={complex.rows}
-            onGo={onGo}
-            // ⌘J joins EDITOR_SHORTCUTS (shared with 2.10/2.11) before it is bound; no
-            // document listener or kbd outside the registry until then (DD-W130).
-            shortcut={false}
-            labels={{
-              input: t("goToInput"),
-              hint: t("goToHint"),
-              format: (row, column) => t("goToFormat", { row, column }),
-              invalid: t("goToInvalid"),
-              range: (rows, columns) => t("goToRange", { rows, columns }),
-            }}
-          />
-        </Flex>
-      )}
       {complex.noteArray && (
         <>
           <NoteFocus
@@ -171,6 +150,23 @@ export function NoteSeamSummary({ straddles }: { straddles: readonly SeamStraddl
   );
 }
 
+/** The template's editable text: TipTap's ProseMirror element (what `measureLineBoxes` reads). */
+const TEMPLATE_TEXT = '[contenteditable="true"], .ProseMirror';
+
+/** Whether an element takes part in layout (not under display:none). */
+function isRendered(element: Element | null): boolean {
+  if (element === null) return false;
+  // Without checkVisibility (jsdom, old engines) assume it is: measuring is still correct.
+  return typeof element.checkVisibility === "function" ? element.checkVisibility() : true;
+}
+
+function sameBoxes(a: readonly LineBox[], b: readonly LineBox[]): boolean {
+  return a.length === b.length && a.every((box, i) => box.top === b[i].top && box.height === b[i].height);
+}
+
+/** Below this band height the row range is dropped and only the label shows (UX-3-1). */
+const BAND_META_MIN_HEIGHT = 36;
+
 /**
  * C37 row bands in the template gutter (04b `126:149604`): an editor lens over
  * runs of non-blank rows, with Move up / Move down / Duplicate. Bands are
@@ -202,21 +198,39 @@ export function RowBandGutter<A>({
     const gutter = gutterRef.current;
     if (!enabled || !root || !gutter) return;
     let frame = 0;
+    let editable: Element | null = root.querySelector(TEMPLATE_TEXT);
     const measure = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
+        // Hidden (draw mode keeps the editor mounted under display:none): a
+        // measurement would force a layout of the whole page for nothing.
+        // The root's ResizeObserver fires again when the editor reappears
+        // (BB-E-31).
+        if (!isRendered(root.querySelector(TEMPLATE_TEXT))) return;
         const next = measureLineBoxes(root, gutter, lineCount);
-        setBoxes((previous) => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next));
+        setBoxes((previous) => (sameBoxes(previous, next) ? previous : next));
       });
     };
     measure();
-    // The editor's own edits move rows; the gutter's re-renders must not re-trigger it.
-    const mutations = new MutationObserver((records) => {
-      if (records.some((record) => !gutter.contains(record.target))) measure();
-    });
-    mutations.observe(root, { childList: true, subtree: true, characterData: true });
+    // Only the template text moves rows: the gutter's own re-renders, the
+    // placeholder and anything else under the root must not re-measure it
+    // (BB-E-31: every unrelated mutation forced a full layout per frame).
+    // The editable itself is observed too: it goes from no box to a box when
+    // draw mode shows it again, even when the root keeps its size.
     const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
     resize?.observe(root);
+    if (editable) resize?.observe(editable);
+    const mutations = new MutationObserver((records) => {
+      const current = root.querySelector(TEMPLATE_TEXT);
+      const remounted = current !== editable;
+      if (remounted) {
+        if (editable) resize?.unobserve(editable);
+        if (current) resize?.observe(current);
+      }
+      editable = current;
+      if (remounted || records.some((record) => current?.contains(record.target))) measure();
+    });
+    mutations.observe(root, { childList: true, subtree: true, characterData: true });
     return () => {
       cancelAnimationFrame(frame);
       mutations.disconnect();
@@ -253,12 +267,31 @@ export function RowBandGutter<A>({
         // rows, as 04b draws it), so a one-row band still fits its label.
         const nextTop = bands[index + 1] ? boxes[bands[index + 1].start - 1]?.top : undefined;
         const bottom = Math.max(last.top + last.height, (nextTop ?? last.top + last.height) - 4);
+        // Clamped to the band (UX-3-1): never taller than the rows it brackets,
+        // so neighbours never overlap; the label is one line with an
+        // ellipsis and its full text on hover.
+        const height = Math.max(20, bottom - top);
+        const rowsText =
+          band.start === band.end
+            ? t("bandRow", { row: band.start })
+            : t("bandRows", { start: band.start, end: band.end });
+        // An unnamed band is named by its rows; the row line would repeat it.
+        const label = band.label ?? rowsText;
         return (
           <Box key={band.id} role="listitem" className="absolute inset-x-0" style={{ top }}>
             <RowBand
-              className="w-full"
-              style={{ height: Math.max(24, bottom - top) }}
-              label={band.label ?? t("bandFallback", { start: band.start, end: band.end })}
+              data-testid="row-band"
+              title={
+                band.label ? `${bandText(state.lines[band.start - 1] ?? "") ?? band.label} · ${rowsText}` : rowsText
+              }
+              className={cn(
+                "w-full min-h-0 overflow-hidden",
+                "[&_[data-slot=row-band-label]]:truncate [&_[data-slot=row-band-meta]]:truncate",
+                height < BAND_META_MIN_HEIGHT && "[&_[data-slot=row-band-meta]]:hidden",
+              )}
+              style={{ height }}
+              label={label}
+              meta={band.label ? undefined : ""}
               rows={[band.start, band.end]}
               formatRows={(start, end) =>
                 start === end ? t("bandRow", { row: start }) : t("bandRows", { start, end })

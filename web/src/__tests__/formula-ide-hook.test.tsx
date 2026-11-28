@@ -276,6 +276,7 @@ describe("useFormulaIde", () => {
   });
 
   it("toggles Inspect with I outside text inputs on desktop", async () => {
+    // binding: inspect
     renderHarness(true);
     const toggle = await screen.findByRole("button", { name: /Inspect/ });
     expect(toggle).toHaveAttribute("aria-pressed", "false");
