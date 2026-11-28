@@ -4307,7 +4307,11 @@
     "copySizedFor": "Kopie maken op het formaat van {board}",
     "makeTheCopy": "Kopie maken",
     "settingDuration": "Paginaduur",
-    "settingTransition": "Overgang"
+    "settingTransition": "Overgang",
+    "copyWillMake": "Maakt een nieuwe pagina op het formaat van {board} ({cols} × {rows}); deze pagina blijft ongewijzigd.",
+    "collapseConsole": "Console inklappen",
+    "scheduleGroup": "Schema",
+    "collectionsGroup": "Collecties"
   },
   "formulaIde": {
     "atomValue": "= {value}",

@@ -4307,7 +4307,11 @@
     "copySizedFor": "{board} boyutunda bir kopya oluştur",
     "makeTheCopy": "Kopyayı oluştur",
     "settingDuration": "Sayfa süresi",
-    "settingTransition": "Geçiş"
+    "settingTransition": "Geçiş",
+    "copyWillMake": "{board} boyutunda ({cols} × {rows}) yeni bir sayfa oluşturur; bu sayfa değişmez.",
+    "collapseConsole": "Konsolu daralt",
+    "scheduleGroup": "Program",
+    "collectionsGroup": "Koleksiyonlar"
   },
   "formulaIde": {
     "atomValue": "= {value}",

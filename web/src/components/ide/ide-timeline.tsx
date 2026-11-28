@@ -159,20 +159,20 @@ export function IdeWeekLine({ ide, pageId }: { ide: CreatorIdeState; pageId: str
   const first = next?.entry ?? ide.showsOn.entries.find((entry) => entry.schedule.enabled);
   if (!first || (!entries.length && !next)) {
     return (
-      <Flex align="center" gap="1" data-slot="ide-week-line" className="min-w-0">
-        <Text as="span" size="sm" tone="muted">
+      <Flex align="center" gap="1" data-slot="ide-week-line" className="min-w-0 flex-nowrap whitespace-nowrap">
+        <Text as="span" size="sm" tone="muted" className="truncate">
           {tq("notThisWeek")} ·
         </Text>
-        <Button asChild variant="link" size="sm" className="h-auto p-0">
+        <Button asChild variant="link" size="sm" className="h-auto shrink-0 p-0">
           <Link to={`/schedule?prefill_page_id=${encodeURIComponent(pageId)}`}>{tq("addToSchedule")}</Link>
         </Button>
       </Flex>
     );
   }
   const more = ide.showsOn.entries.filter((entry) => entry.schedule.enabled).length - 1;
+  // One line that truncates: "+N more" goes last, so it is the first thing cut, never "next …".
   const parts = [
     tq("weekLine", { days: formatDays(first.schedule, t, locale), window: formatWindow(first.schedule, locale) }),
-    more > 0 ? tq("weekMore", { count: more }) : null,
     next
       ? tq("nextAt", {
           // Later today reads as a time, so "next Fri" on a Friday never means a week out.
@@ -182,6 +182,7 @@ export function IdeWeekLine({ ide, pageId }: { ide: CreatorIdeState; pageId: str
               : next.at.toLocaleDateString(locale, { weekday: "short" }),
         })
       : null,
+    more > 0 ? tq("weekMore", { count: more }) : null,
   ];
   return (
     <Text as="p" size="sm" tone="muted" data-slot="ide-week-line" className="truncate">

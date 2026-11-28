@@ -4307,7 +4307,11 @@
     "copySizedFor": "{board} 크기로 사본 만들기",
     "makeTheCopy": "사본 만들기",
     "settingDuration": "페이지 표시 시간",
-    "settingTransition": "전환 효과"
+    "settingTransition": "전환 효과",
+    "copyWillMake": "{board} 크기({cols} × {rows})로 새 페이지를 만듭니다. 이 페이지는 바뀌지 않습니다.",
+    "collapseConsole": "콘솔 접기",
+    "scheduleGroup": "일정",
+    "collectionsGroup": "컬렉션"
   },
   "formulaIde": {
     "atomValue": "= {value}",

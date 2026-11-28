@@ -561,7 +561,7 @@ describe("the page's own display, with another board current in the sidebar", ()
     server.use(
       http.get("/api/schedules/active/page", ({ request }) =>
         HttpResponse.json({
-          page_id: new URL(request.url).searchParams.get("board_id") === "den" ? PAGE : "brunch",
+          page_id: { den: PAGE, hall: "brunch" }[new URL(request.url).searchParams.get("board_id") ?? ""] ?? "other",
           source: "manual",
           schedule_enabled: true,
           current_time: "07:41",
@@ -1358,15 +1358,46 @@ describe("truthful, quiet IDE (FP-2)", () => {
     renderIde(builder);
     fireEvent.click(await screen.findByRole("tab", { name: "Shows on" }));
     const group = await screen.findByRole("group", { name: "Display" });
-    expect(within(group).getByRole("button", { name: /Den TV/ })).toHaveTextContent("This display");
+    // The page's own display is a fact, not a control (Fable FABLE-2650).
+    expect(within(group).queryByRole("button", { name: /Den TV/ })).toBeNull();
+    expect(within(group).getByText("Den TV").closest('[aria-current="true"]')).toHaveTextContent("This display");
     fireEvent.click(within(group).getByRole("button", { name: /Office TV/ }));
     expect(builder.setPreviewBoard).toHaveBeenCalledWith("office");
     const hall = within(group).getByRole("button", { name: /Hall board/ });
     expect(hall).toHaveTextContent("Make a copy sized for Hall board");
     fireEvent.click(hall);
     const dialog = await screen.findByRole("dialog", { name: "Make a copy sized for Hall board" });
+    // Before the copy it says what the copy will be; the report caption waits for the report (FABLE-2650).
+    expect(dialog).toHaveTextContent("Makes a new page sized for Hall board (22 × 6); this page is unchanged.");
+    expect(dialog).not.toHaveTextContent("What changed for the new size:");
     fireEvent.click(within(dialog).getByRole("button", { name: "Make the copy" }));
     await waitFor(() => expect(calls.duplicate).toEqual([{ board_id: "hall" }]));
     expect(await screen.findByText("22 × 6 (was 29 × 12)")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toHaveTextContent("What changed for the new size:");
+  });
+
+  it("groups Shows on as Display, Schedule and Collections, with copies only per display", async () => {
+    mockHub();
+    renderIde();
+    fireEvent.click(await screen.findByRole("tab", { name: "Shows on" }));
+    expect(await screen.findByRole("group", { name: "Schedule" })).toHaveTextContent(/Weekdays/);
+    expect(await screen.findByRole("group", { name: "Collections" })).toHaveTextContent("Den rotation");
+    const panel = document.querySelector<HTMLElement>('[data-slot="ide-shows-on"]')!;
+    expect(within(panel).queryByRole("button", { name: "Make a copy…" })).toBeNull();
+  });
+
+  it("moves focus into the console from the problems link, and folds an opened quiet console back", async () => {
+    setDesktop(true);
+    mockHub();
+    quietHub();
+    renderIde();
+    const status = await waitFor(() => document.querySelector<HTMLElement>('[data-slot="preview-status"]')!);
+    fireEvent.click(await within(status).findByRole("button", { name: "0 problems" }));
+    const consoleRegion = screen.getByRole("region", { name: "Console" });
+    await waitFor(() => expect(within(consoleRegion).getByRole("tab", { name: "Problems 0" })).toHaveFocus());
+    fireEvent.click(within(consoleRegion).getByRole("button", { name: "Collapse the console" }));
+    const line = await within(consoleRegion).findByRole("button", { name: /^No problems/ });
+    await waitFor(() => expect(line).toHaveFocus());
+    expect(within(consoleRegion).queryByRole("tab")).toBeNull();
   });
 });

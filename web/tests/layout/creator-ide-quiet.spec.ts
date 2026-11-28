@@ -66,3 +66,15 @@ for (const width of [1440, 1024]) {
     await page.screenshot({ path: path.join(shots, `quiet-${width}-duration.png`), fullPage: true });
   });
 }
+
+test("1024px: the one-line week truncates instead of wrapping on an unscheduled page", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockHub(page, { notScheduled: true });
+  await page.goto("/tests/layout/creator-ide.html?theme=light");
+  const line = page.locator('[data-slot="ide-week-line"]');
+  await expect(line).toContainText("Not scheduled this week");
+  await expect(line.getByRole("link", { name: "Add to schedule" })).toBeVisible();
+  expect(height(await line.boundingBox())).toBeLessThanOrEqual(24);
+  expect(height(await page.locator('[data-slot="ide-timeline"]').boundingBox())).toBeLessThanOrEqual(80);
+});

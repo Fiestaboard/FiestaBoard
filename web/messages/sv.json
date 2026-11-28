@@ -4307,7 +4307,11 @@
     "copySizedFor": "Gör en kopia i storleken för {board}",
     "makeTheCopy": "Gör kopian",
     "settingDuration": "Sidans visningstid",
-    "settingTransition": "Övergång"
+    "settingTransition": "Övergång",
+    "copyWillMake": "Skapar en ny sida i storleken för {board} ({cols} × {rows}); den här sidan ändras inte.",
+    "collapseConsole": "Fäll ihop konsolen",
+    "scheduleGroup": "Schema",
+    "collectionsGroup": "Samlingar"
   },
   "formulaIde": {
     "atomValue": "= {value}",

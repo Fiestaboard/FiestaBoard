@@ -4307,7 +4307,11 @@
     "copySizedFor": "Hacer una copia del tamaño de {board}",
     "makeTheCopy": "Hacer la copia",
     "settingDuration": "Duración de la página",
-    "settingTransition": "Transición"
+    "settingTransition": "Transición",
+    "copyWillMake": "Crea una página nueva del tamaño de {board} ({cols} × {rows}); esta página no cambia.",
+    "collapseConsole": "Contraer la consola",
+    "scheduleGroup": "Programación",
+    "collectionsGroup": "Colecciones"
   },
   "formulaIde": {
     "atomValue": "= {value}",

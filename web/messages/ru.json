@@ -4307,7 +4307,11 @@
     "copySizedFor": "Сделать копию под размер {board}",
     "makeTheCopy": "Сделать копию",
     "settingDuration": "Длительность страницы",
-    "settingTransition": "Переход"
+    "settingTransition": "Переход",
+    "copyWillMake": "Создаёт новую страницу под размер {board} ({cols} × {rows}); эта страница не меняется.",
+    "collapseConsole": "Свернуть консоль",
+    "scheduleGroup": "Расписание",
+    "collectionsGroup": "Коллекции"
   },
   "formulaIde": {
     "atomValue": "= {value}",

@@ -4307,7 +4307,11 @@
     "copySizedFor": "{board} のサイズでコピーを作成",
     "makeTheCopy": "コピーを作成",
     "settingDuration": "ページの表示時間",
-    "settingTransition": "トランジション"
+    "settingTransition": "トランジション",
+    "copyWillMake": "{board} のサイズ（{cols} × {rows}）で新しいページを作成します。このページは変更されません。",
+    "collapseConsole": "コンソールを折りたたむ",
+    "scheduleGroup": "スケジュール",
+    "collectionsGroup": "コレクション"
   },
   "formulaIde": {
     "atomValue": "= {value}",

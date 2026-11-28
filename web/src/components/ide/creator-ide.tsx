@@ -246,11 +246,19 @@ export default function CreatorIde({
   const problemCount = ide.problems.length;
   const [consoleOpened, setConsoleOpened] = useState(false);
   const consoleQuiet = problemCount === 0 && !consoleOpened;
+  /** Opens the docked console on Problems and puts keyboard focus there (the line or tabs swap under it). */
+  const openConsole = () => {
+    setConsoleOpened(true);
+    setConsoleTab("problems");
+    requestAnimationFrame(() => {
+      const region = document.getElementById("ide-console");
+      region?.scrollIntoView({ block: "nearest" });
+      region?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
+    });
+  };
   const openProblems = () => {
     if (desktop) {
-      setConsoleOpened(true);
-      setConsoleTab("problems");
-      document.getElementById("ide-console")?.scrollIntoView({ block: "nearest" });
+      openConsole();
       return;
     }
     setTab("problems");
@@ -271,13 +279,18 @@ export default function CreatorIde({
             tab={consoleTab}
             onTabChange={setConsoleTab}
             quiet={consoleQuiet}
-            onOpen={() => {
-              setConsoleOpened(true);
-              // The line unmounts as the tabs mount: keep keyboard focus in the console.
-              requestAnimationFrame(() =>
-                document.querySelector<HTMLElement>('#ide-console [role="tab"][aria-selected="true"]')?.focus(),
-              );
-            }}
+            onOpen={() => openConsole()}
+            onCollapse={
+              problemCount === 0
+                ? () => {
+                    setConsoleOpened(false);
+                    // The tabs unmount as the line mounts: focus follows to the line.
+                    requestAnimationFrame(() =>
+                      document.querySelector<HTMLElement>('#ide-console [data-slot="ide-console-line"]')?.focus(),
+                    );
+                  }
+                : undefined
+            }
           />
         </CardContent>
       </Card>
@@ -336,7 +349,6 @@ export default function CreatorIde({
             <InspectorTabsContent value="page" className="pt-2" tabIndex={-1}>
               <IdePageTab
                 ide={ide}
-                pageId={pageId}
                 builderRef={builderRef}
                 onMakeCopy={() => {
                   setCopyFor(null);
@@ -350,10 +362,6 @@ export default function CreatorIde({
                 pageId={pageId}
                 showWeek={!desktop}
                 onNavigate={(href) => router.push(href)}
-                onMakeCopy={() => {
-                  setCopyFor(null);
-                  setCopyOpen(true);
-                }}
                 onRetarget={(boardId) => builderRef.current?.setPreviewBoard(boardId)}
                 onCopyFor={(boardId) => {
                   setCopyFor(boardId);

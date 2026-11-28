@@ -40,6 +40,7 @@ import { usePluginSettings } from "@/hooks/use-plugin-settings";
 import { useTransitionPlugins } from "@/hooks/use-transition-plugins";
 import { useTranslations } from "@/i18n/translations";
 import { type PageDuplicateResponse, pageHistoryApi } from "@/lib/api/page-history";
+import { dimensionsOf } from "@/lib/board-dimensions";
 import { jumpToTemplateLine } from "@/lib/ide/jump-to-line";
 import { templateReferences } from "@/lib/ide/references";
 
@@ -199,7 +200,14 @@ export function DuplicateDialog({
                 ? tq("copySizedFor", { board: sizedFor.name })
                 : t("makeCopy")}
           </Title>
-          <Description>{result || sizedFor ? t("cropReport") : t("pickDisplay")}</Description>
+          <Description>
+            {/* Before the copy, say what it will be; the crop report caption comes with the report. */}
+            {result
+              ? t("cropReport")
+              : sizedFor
+                ? tq("copyWillMake", { board: sizedFor.name, ...dimensionsOf(sizedFor) })
+                : t("pickDisplay")}
+          </Description>
         </Header>
         {report ? (
           <Stack gap="1" data-slot="ide-crop-report">
@@ -280,7 +288,6 @@ export function IdePageTab({
   onMakeCopy,
 }: {
   ide: CreatorIdeState;
-  pageId: string;
   builderRef: RefObject<PageBuilderHandle | null>;
   onMakeCopy: () => void;
 }) {

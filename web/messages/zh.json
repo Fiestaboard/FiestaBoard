@@ -4307,7 +4307,11 @@
     "copySizedFor": "按 {board} 的尺寸制作副本",
     "makeTheCopy": "制作副本",
     "settingDuration": "页面时长",
-    "settingTransition": "过渡效果"
+    "settingTransition": "过渡效果",
+    "copyWillMake": "按 {board} 的尺寸（{cols} × {rows}）新建一个页面；此页面保持不变。",
+    "collapseConsole": "收起控制台",
+    "scheduleGroup": "日程",
+    "collectionsGroup": "合集"
   },
   "formulaIde": {
     "atomValue": "= {value}",

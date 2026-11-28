@@ -3,6 +3,7 @@
 import {
   Box,
   Button,
+  Flex,
   ProblemItem,
   SentLog,
   Stack,
@@ -12,7 +13,7 @@ import {
   TabsTrigger,
   Text,
 } from "@fiestaboard/ui";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useMemo } from "react";
 
 import { useLocale, useTranslations } from "@/i18n/translations";
@@ -133,6 +134,7 @@ export function IdeConsole({
   onTabChange,
   quiet = false,
   onOpen,
+  onCollapse,
 }: {
   ide: CreatorIdeState;
   tab: ConsoleTab;
@@ -140,6 +142,8 @@ export function IdeConsole({
   /** M1: nothing is wrong, so the console is one line ("No problems · Sent 4:57 PM to Kitchen") until opened. */
   quiet?: boolean;
   onOpen?: () => void;
+  /** Folds an opened, problem-free console back to its one line (M1). */
+  onCollapse?: () => void;
 }) {
   const t = useTranslations("creatorIde");
   const tq = useTranslations("ideQuiet");
@@ -163,6 +167,7 @@ export function IdeConsole({
         <Button
           variant="ghost"
           aria-expanded={false}
+          data-slot="ide-console-line"
           onClick={onOpen}
           // The card is 40 px with its 1 px borders (M1).
           className="h-[38px] w-full justify-between gap-2 rounded-[inherit] px-3.5 text-sm font-normal text-muted-foreground"
@@ -192,18 +197,32 @@ export function IdeConsole({
   return (
     <Box as="section" aria-label={t("console")} data-slot="ide-console" id="ide-console">
       <Tabs value={tab} onValueChange={(value) => onTabChange(value as ConsoleTab)}>
-        <TabsList className="w-full">
-          {/* Three equal tabs across the list (Figma 184:159319, BB-FP-18). */}
-          <TabsTrigger value="problems" className="flex-1">
-            {t("problemsCount", { count: ide.problems.length })}
-          </TabsTrigger>
-          <TabsTrigger value="warnings" className="flex-1">
-            {t("warningsCount", { count: ide.warnings.length })}
-          </TabsTrigger>
-          <TabsTrigger value="sent" className="flex-1">
-            {t("sentTab")}
-          </TabsTrigger>
-        </TabsList>
+        <Flex align="center" gap="1">
+          <TabsList className="w-full">
+            {/* Three equal tabs across the list (Figma 184:159319, BB-FP-18). */}
+            <TabsTrigger value="problems" className="flex-1">
+              {t("problemsCount", { count: ide.problems.length })}
+            </TabsTrigger>
+            <TabsTrigger value="warnings" className="flex-1">
+              {t("warningsCount", { count: ide.warnings.length })}
+            </TabsTrigger>
+            <TabsTrigger value="sent" className="flex-1">
+              {t("sentTab")}
+            </TabsTrigger>
+          </TabsList>
+          {onCollapse && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={tq("collapseConsole")}
+              aria-expanded={true}
+              data-slot="ide-console-collapse"
+              onClick={onCollapse}
+            >
+              <ChevronUp aria-hidden="true" className="size-4" />
+            </Button>
+          )}
+        </Flex>
         <TabsContent value="problems" className="pt-2">
           <Stack gap="2">
             <IdeProblemList problems={ide.problems} emptyLabel={t("noProblems")} layout="inline" />
