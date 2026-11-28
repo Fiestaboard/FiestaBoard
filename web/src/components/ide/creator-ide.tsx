@@ -26,6 +26,7 @@ import {
   type SetStateAction,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
@@ -37,16 +38,17 @@ import { useLocale, useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { offersDraft } from "@/lib/ide/edit-state";
 import { IDE_DESKTOP_QUERY, type IdeTabId, inspectorTabIds, resolveInspectorTab } from "@/lib/ide/inspector-tabs";
+import { OPEN_PROBLEMS_EVENT } from "@/lib/ide/open-problems";
 import { templateReferences } from "@/lib/ide/references";
 
 import { type ConsoleTab, IdeConsole, IdeProblemList, IdeSentPanel } from "./ide-console";
 import { type ExplorerToggle, IdeExplorer, IdeExplorerShow, useExplorerToggle } from "./ide-explorer";
-import { formatClock, formatSavedAt, formatWallTime } from "./ide-format";
+import { formatClock, formatDays, formatWallTime, formatWindow } from "./ide-format";
 import { IdeHistory } from "./ide-history";
 import { DuplicateDialog, IdePageTab } from "./ide-page-tab";
 import { IdeReferences } from "./ide-references";
 import { IdeShowsOn } from "./ide-shows-on";
-import { IdeWeek } from "./ide-timeline";
+import { formatNext, IdeWeekLine, nextShowing } from "./ide-timeline";
 import { type CreatorIdeState, useCreatorIde } from "./use-creator-ide";
 
 export interface CreatorIdeProps {
@@ -87,6 +89,7 @@ function inSlot(slot: HTMLElement | null | undefined, node: ReactNode) {
 
 function useStatusMessage(ide: CreatorIdeState) {
   const t = useTranslations("creatorIde");
+  const tq = useTranslations("ideQuiet");
   const locale = useLocale();
   const showing = ide.showsOn.showingNow[0];
   if (showing) {
@@ -95,8 +98,17 @@ function useStatusMessage(ide: CreatorIdeState) {
       ? t("showingUntil", { board: showing.boardName, time: until })
       : t("showingNow", { board: showing.boardName });
   }
-  const next = ide.showsOn.entries.find((entry) => entry.schedule.enabled);
-  if (next) return t("scheduledOn", { board: next.boardName });
+  // UX-6-2: the pill says "Scheduled"; the sentence adds when and where, never the state again.
+  const next = nextShowing(ide.showsOn.entries, ide.pages, ide.collections);
+  const entry = next?.entry ?? ide.showsOn.entries.find((candidate) => candidate.schedule.enabled);
+  if (entry) {
+    const where = tq("scheduledWindow", {
+      days: formatDays(entry.schedule, t, locale),
+      window: formatWindow(entry.schedule, locale),
+      board: entry.boardName,
+    });
+    return next ? `${where} · ${tq("nextAt", { when: formatNext(next.at, locale) })}` : where;
+  }
   // The "Not scheduled" chip already says it; a sentence repeating it was a
   // second report of the same state (BB-E-26).
   return "";
@@ -132,6 +144,8 @@ export default function CreatorIde({
   const [tab, setTab] = useState<IdeTabId>("page");
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>("problems");
   const [copyOpen, setCopyOpen] = useState(false);
+  // D3: "Make a copy sized for X" from Shows on names its display.
+  const [copyFor, setCopyFor] = useState<string | null>(null);
   const ownExplorer = useExplorerToggle(boardKind);
   const explorer = explorerProp ?? ownExplorer;
   const activeTab = resolveInspectorTab(tab, desktop);
@@ -240,34 +254,73 @@ export default function CreatorIde({
   useEffect(() => () => onSaveActionsChange(undefined), [onSaveActionsChange]);
 
   const problemCount = ide.problems.length;
+  const [consoleOpened, setConsoleOpened] = useState(false);
+  const consoleQuiet = problemCount === 0 && !consoleOpened;
+  /** Opens the docked console on Problems and puts keyboard focus there (the line or tabs swap under it). */
+  const openConsole = () => {
+    setConsoleOpened(true);
+    setConsoleTab("problems");
+    requestAnimationFrame(() => {
+      const region = document.getElementById("ide-console");
+      region?.scrollIntoView({ block: "nearest" });
+      region?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
+    });
+  };
   const openProblems = () => {
     if (desktop) {
-      setConsoleTab("problems");
-      document.getElementById("ide-console")?.scrollIntoView({ block: "nearest" });
+      openConsole();
       return;
     }
     setTab("problems");
     document.getElementById("ide-inspector")?.scrollIntoView({ block: "nearest" });
   };
 
+  // The preview's Missing panel links here too (UX-4-4).
+  const openProblemsRef = useRef(openProblems);
+  useEffect(() => {
+    openProblemsRef.current = openProblems;
+  });
+  useEffect(() => {
+    const open = () => openProblemsRef.current();
+    window.addEventListener(OPEN_PROBLEMS_EVENT, open);
+    return () => window.removeEventListener(OPEN_PROBLEMS_EVENT, open);
+  }, []);
+
   const tabs = inspectorTabIds(desktop).map((id) => ({ value: id, label: t(`tab.${id}`) }));
   const statusMessage = useStatusMessage(ide);
-  const draftLabel = ide.draft ? t("draftAt", { time: formatSavedAt(ide.draft.saved_at, locale) }) : undefined;
 
   // Console and Timeline: the foot of the template column (184:159319).
   const consoleRegions = (
     <Stack gap="3" data-slot="ide-template-regions" className="min-w-0">
       <Card className="gap-0 py-0">
-        <CardContent className="p-3.5">
-          <IdeConsole ide={ide} tab={consoleTab} onTabChange={setConsoleTab} />
+        {/* M1: with no problems the console is one 40 px line until opened. */}
+        <CardContent className={consoleQuiet ? "p-0" : "p-3.5"}>
+          <IdeConsole
+            ide={ide}
+            tab={consoleTab}
+            onTabChange={setConsoleTab}
+            quiet={consoleQuiet}
+            onOpen={() => openConsole()}
+            onCollapse={
+              problemCount === 0
+                ? () => {
+                    setConsoleOpened(false);
+                    // The tabs unmount as the line mounts: focus follows to the line.
+                    requestAnimationFrame(() =>
+                      document.querySelector<HTMLElement>('#ide-console [data-slot="ide-console-line"]')?.focus(),
+                    );
+                  }
+                : undefined
+            }
+          />
         </CardContent>
       </Card>
       <Card className="gap-0 py-0" data-slot="ide-timeline">
-        <CardContent className="flex flex-col gap-1.5 p-3.5">
+        <CardContent className="flex flex-col gap-1 px-3.5 py-2.5">
           <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
             {t("timelineLabel", { page: ide.builder.snapshot?.name ?? "", board: ide.pageBoard?.name ?? "" })}
           </Text>
-          <IdeWeek ide={ide} />
+          <IdeWeekLine ide={ide} pageId={pageId} />
         </CardContent>
       </Card>
     </Stack>
@@ -279,9 +332,10 @@ export default function CreatorIde({
       displayLabel={t(`display.${ide.display}`)}
       message={statusMessage}
       // A saved page's state is the header's saved time; a Saved chip
-      // here repeated it (BB-E-26, Figma 184:159319 draws none).
-      editState={ide.editState === "saved" ? undefined : ide.editState}
-      editStateLabel={ide.editState === "draft" && draftLabel ? draftLabel : t(`edit.${ide.editState}`)}
+      // here repeated it (BB-E-26, Figma 184:159319 draws none). The draft
+      // is the header meta's too ("Draft saved 6:15 AM"): no Draft pill (UX-1-1).
+      editState={ide.editState === "saved" || ide.editState === "draft" ? undefined : ide.editState}
+      editStateLabel={t(`edit.${ide.editState}`)}
       problems={problemCount}
       onOpenProblems={openProblems}
       problemsLabel={(count) => t("problemsLink", { count })}
@@ -317,7 +371,14 @@ export default function CreatorIde({
             {/* Panels that always hold rows are not a Tab stop of their own (BB-E-22): the
               first row is, so Page duration isn't announced twice. */}
             <InspectorTabsContent value="page" className="pt-2" tabIndex={-1}>
-              <IdePageTab ide={ide} pageId={pageId} builderRef={builderRef} onMakeCopy={() => setCopyOpen(true)} />
+              <IdePageTab
+                ide={ide}
+                builderRef={builderRef}
+                onMakeCopy={() => {
+                  setCopyFor(null);
+                  setCopyOpen(true);
+                }}
+              />
             </InspectorTabsContent>
             <InspectorTabsContent value="shows-on" className="pt-2" tabIndex={-1}>
               <IdeShowsOn
@@ -325,7 +386,11 @@ export default function CreatorIde({
                 pageId={pageId}
                 showWeek={!desktop}
                 onNavigate={(href) => router.push(href)}
-                onMakeCopy={() => setCopyOpen(true)}
+                onRetarget={(boardId) => builderRef.current?.setPreviewBoard(boardId)}
+                onCopyFor={(boardId) => {
+                  setCopyFor(boardId);
+                  setCopyOpen(true);
+                }}
               />
             </InspectorTabsContent>
             {!desktop && (
@@ -385,7 +450,7 @@ export default function CreatorIde({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <DuplicateDialog open={copyOpen} onOpenChange={setCopyOpen} ide={ide} pageId={pageId} />
+      <DuplicateDialog open={copyOpen} onOpenChange={setCopyOpen} ide={ide} pageId={pageId} boardId={copyFor} />
     </>
   );
 }

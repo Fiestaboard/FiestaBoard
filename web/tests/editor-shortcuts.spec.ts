@@ -47,7 +47,8 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
       "Inspect the preview",
       "Move the preview by one Note or column",
       "Jump to the start or end of the preview",
-      "Fit / Actual size (preview focused)",
+      "Fit / Actual size",
+      "Actual size (preview)",
     ]);
 
     // 07 hangs the list in the template column, at its left edge (DD-W30).

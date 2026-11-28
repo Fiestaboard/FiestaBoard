@@ -15,9 +15,10 @@
  * Only shortcuts that exist are listed (audit in
  * docs/internal/plans/2026-11-13-universal-web-2.7.md). 07 `57:28953` also
  * draws `/` (Insert) and ⌘⇧L/E/R (align); they join this registry with
- * their bindings, not before. `saveAndShow` (⌘⇧S) and `previewActualSize`
- * (1) are registered for the handlers that will bind them (editor UX FP-1
- * and FP-3) and join `LISTED` in the same change as their binding.
+ * their bindings, not before. `saveAndShow` (⌘⇧S) is registered for the
+ * handler that will bind it (editor UX FP-1) and joins `LISTED` in the same
+ * change as its binding. `previewActualSize` (1) is bound by the preview's
+ * View menu (FP-3, `PreviewHeaderControls`) and listed with the preview keys.
  */
 import type { ShortcutChord, ShortcutGroup } from "@fiestaboard/ui";
 
@@ -50,7 +51,7 @@ export const EDITOR_SHORTCUTS = {
   saveAndShow: { id: "saveAndShow", labelKey: "saveAndShow", keys: ["Mod", "Shift", "S"] },
   /** Toggles Inspect on the desktop preview (`use-formula-ide`). */
   inspect: { id: "inspect", labelKey: "inspect", keys: ["I"] },
-  /** Actual size. Not bound yet: FP-3's View menu binds it, then lists it. */
+  /** Actual size: the preview View menu's key (`PreviewHeaderControls`, FP-3), outside text. */
   previewActualSize: { id: "previewActualSize", labelKey: "previewActualSize", keys: ["1"] },
   /**
    * Opens the list itself; not a row of the list. `?` outside text, and
@@ -256,8 +257,11 @@ export function editorShortcutGroups(
   t: (key: string) => string,
   { boardViewport = false }: { boardViewport?: boolean } = {},
 ): ShortcutGroup[] {
+  // The View menu binds F (Fit / Actual size, as BoardViewport does while
+  // focused) and 1 (Actual size) outside text wherever the preview zooms (FP-3).
+  const previewKeys = [...BOARD_VIEWPORT_SHORTCUTS, EDITOR_SHORTCUTS.previewActualSize];
   const rows = boardViewport
-    ? [...LISTED, ...BOARD_VIEWPORT_SHORTCUTS.map((shortcut) => ({ group: "preview" as const, shortcut }))]
+    ? [...LISTED, ...previewKeys.map((shortcut) => ({ group: "preview" as const, shortcut }))]
     : LISTED;
   return GROUP_ORDER.map((group) => ({
     id: group,

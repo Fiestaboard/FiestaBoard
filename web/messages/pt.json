@@ -3861,7 +3861,7 @@
     "showShortcuts": "Mostrar atalhos de teclado",
     "previewStep": "Mover a pré-visualização uma nota ou coluna",
     "previewEnds": "Ir para o início ou o fim da pré-visualização",
-    "previewFit": "Ajustar / Tamanho real (pré-visualização em foco)",
+    "previewFit": "Ajustar / Tamanho real",
     "insertFormula": "Inserir uma fórmula",
     "save": "Salvar",
     "saveAndShow": "Salvar e mostrar agora",
@@ -4291,6 +4291,28 @@
     "deletePageDetail": "Remove-a de todas as programações e coleções",
     "autosavePaused": "Não salvo · um rascunho de outro lugar aguarda no Histórico"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} em {board}",
+    "nextAt": "próxima {when}",
+    "consoleClear": "Sem problemas",
+    "consoleWarnings": "{count, plural, one {# aviso} other {# avisos}}",
+    "consoleSent": "Enviada {time} para {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} mais",
+    "notThisWeek": "Não agendada esta semana",
+    "addToSchedule": "Adicionar à programação",
+    "fallbackHint": "Adicione um valor alternativo a uma fórmula para definir isto",
+    "displayGroup": "Ecrã",
+    "displayRetarget": "Mesmo tamanho · pré-visualização e espelho aqui",
+    "copySizedFor": "Fazer uma cópia no tamanho de {board}",
+    "makeTheCopy": "Fazer a cópia",
+    "settingDuration": "Duração da página",
+    "settingTransition": "Transição",
+    "copyWillMake": "Cria uma nova página no tamanho de {board} ({cols} × {rows}); esta página não muda.",
+    "collapseConsole": "Recolher a consola",
+    "scheduleGroup": "Programação",
+    "collectionsGroup": "Coleções"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} de {wanted} linhas",
@@ -4440,5 +4462,16 @@
     "caret": "Lin {line}, Col {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Espaçamento"
+  },
+  "previewView": {
+    "view": "Visualização",
+    "previewAt": "Pré-visualizar num horário…",
+    "zoom": "Zoom",
+    "ruler": "Régua",
+    "at": "Às",
+    "inspectCaption": "Inspecionar: clique num bloco para ver o token e os passos da fórmula · Esc para sair",
+    "missingNoDataTitle": "Sem dados de integrações nesta página",
+    "missingFormulaError": "{error} na linha {line} é um erro de fórmula, não dados em falta.",
+    "seeProblems": "Ver problemas"
   }
 }

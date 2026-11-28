@@ -21,6 +21,9 @@ interface TimePickerProps {
   disabled?: boolean;
   id?: string;
   "aria-label"?: string;
+  /** Controlled open state (the preview's "Preview at a time…" opens it). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function TimePicker({ value, onChange, placeholder = "00:00", ...props }: TimePickerProps) {

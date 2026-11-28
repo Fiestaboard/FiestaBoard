@@ -3861,7 +3861,7 @@
     "showShortcuts": "Show keyboard shortcuts",
     "previewStep": "Move the preview by one Note or column",
     "previewEnds": "Jump to the start or end of the preview",
-    "previewFit": "Fit / Actual size (preview focused)",
+    "previewFit": "Fit / Actual size",
     "insertFormula": "Insert a formula",
     "save": "Save",
     "saveAndShow": "Save and show now",
@@ -4291,6 +4291,28 @@
     "deletePageDetail": "Removes it from every schedule and collection",
     "autosavePaused": "Unsaved · a draft from elsewhere is waiting in History"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} on {board}",
+    "nextAt": "next {when}",
+    "consoleClear": "No problems",
+    "consoleWarnings": "{count, plural, one {# warning} other {# warnings}}",
+    "consoleSent": "Sent {time} to {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} more",
+    "notThisWeek": "Not scheduled this week",
+    "addToSchedule": "Add to schedule",
+    "fallbackHint": "Add a fallback to a formula to set this",
+    "displayGroup": "Display",
+    "displayRetarget": "Same size · preview and mirror here",
+    "copySizedFor": "Make a copy sized for {board}",
+    "makeTheCopy": "Make the copy",
+    "settingDuration": "Page duration",
+    "settingTransition": "Transition",
+    "copyWillMake": "Makes a new page sized for {board} ({cols} × {rows}); this page is unchanged.",
+    "collapseConsole": "Collapse the console",
+    "scheduleGroup": "Schedule",
+    "collectionsGroup": "Collections"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} of {wanted} rows",
@@ -4440,5 +4462,16 @@
     "caret": "Ln {line}, Col {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Spacing"
+  },
+  "previewView": {
+    "view": "View",
+    "previewAt": "Preview at a time…",
+    "zoom": "Zoom",
+    "ruler": "Ruler",
+    "at": "At",
+    "inspectCaption": "Inspect: click a tile to see the token and formula steps behind it · Esc to leave",
+    "missingNoDataTitle": "No integration data on this page",
+    "missingFormulaError": "{error} on line {line} is a formula error, not missing data.",
+    "seeProblems": "See Problems"
   }
 }

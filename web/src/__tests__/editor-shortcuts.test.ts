@@ -116,10 +116,9 @@ describe("editorShortcutGroups", () => {
     expect(groups[0].items[1].keys).toBe(EDITOR_SHORTCUTS.redo.keys);
   });
 
-  it("does not list a registered chord until a handler binds it (Show now, Actual size)", () => {
+  it("does not list a registered chord until a handler binds it (Show now)", () => {
     const ids = editorShortcutGroups(t, { boardViewport: true }).flatMap((g) => g.items.map((i) => i.id));
     expect(ids).not.toContain("saveAndShow");
-    expect(ids).not.toContain("previewActualSize");
   });
 
   it("spells a chord for a tooltip the way Kbd does", () => {
@@ -134,9 +133,9 @@ describe("editorShortcutGroups", () => {
     for (const s of BOARD_VIEWPORT_SHORTCUTS) expect(ids).not.toContain(s.id);
   });
 
-  it("appends BoardViewport's own keys when the preview renders one", () => {
+  it("appends the preview's zoom keys when the preview renders a BoardViewport (F, and 1 from the View menu, FP-3)", () => {
     const ids = editorShortcutGroups(t, { boardViewport: true }).flatMap((g) => g.items.map((i) => i.id));
-    expect(ids.slice(-3)).toEqual(["previewStep", "previewEnds", "previewFit"]);
+    expect(ids.slice(-4)).toEqual(["previewStep", "previewEnds", "previewFit", "previewActualSize"]);
   });
 
   it("documents BoardViewport's keys exactly as FiestaUI 1.5a binds them", () => {

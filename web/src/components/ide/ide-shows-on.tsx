@@ -1,14 +1,84 @@
 "use client";
 
-import { Button, Flex, InspectorRow, List, ListItem, Stack, Text } from "@fiestaboard/ui";
+import { Box, Button, Flex, InspectorRow, List, ListItem, ListRow, Stack, Text } from "@fiestaboard/ui";
 import { useQueries } from "@tanstack/react-query";
+import { type ReactNode, useId } from "react";
 
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
 import { formatDays, formatWindow } from "./ide-format";
 import { IdeWeek } from "./ide-timeline";
 import type { CreatorIdeState } from "./use-creator-ide";
+
+/** A Shows on group: a mono caps heading over its rows (DISPLAY, SCHEDULE, COLLECTIONS). */
+function ShowsOnGroup({ label, children }: { label: string; children: ReactNode }) {
+  const id = useId();
+  return (
+    <Box role="group" aria-labelledby={id} className="flex flex-col">
+      <Text as="p" id={id} size="xs" tone="muted" className="font-mono uppercase tracking-wide">
+        {label}
+      </Text>
+      <List gap="0" role="list">
+        {children}
+      </List>
+    </Box>
+  );
+}
+
+/**
+ * D3 (DD-W159): the one control for the page's target display. A display of
+ * the page's size retargets the preview and mirror; another size cannot take
+ * the template as is, so it offers "Make a copy sized for X" (Figma's Page-tab row).
+ */
+function IdeDisplayPicker({
+  ide,
+  onRetarget,
+  onCopyFor,
+}: {
+  ide: CreatorIdeState;
+  onRetarget: (boardId: string) => void;
+  onCopyFor: (boardId: string) => void;
+}) {
+  const t = useTranslations("creatorIde");
+  const tq = useTranslations("ideQuiet");
+  const page = ide.builder.snapshot;
+  if (!page || !ide.boards.length) return null;
+  return (
+    <Box data-slot="ide-display-picker">
+      <ShowsOnGroup label={tq("displayGroup")}>
+        {ide.boards.map((board) => {
+          if (board.id === ide.pageBoardId) {
+            // The page's own display: a fact, not an action.
+            return (
+              <ListItem key={board.id}>
+                <ListRow
+                  title={board.name}
+                  meta={t("thisDisplay")}
+                  aria-current="true"
+                  variant="plain"
+                  className="border-b border-border px-0"
+                />
+              </ListItem>
+            );
+          }
+          const fits = pagesCompatibleWithBoard(page, board);
+          return (
+            <ListItem key={board.id}>
+              <InspectorRow
+                title={board.name}
+                detail={fits ? tq("displayRetarget") : tq("copySizedFor", { board: board.name })}
+                chevron={!fits}
+                onPress={() => (fits ? onRetarget(board.id) : onCopyFor(board.id))}
+              />
+            </ListItem>
+          );
+        })}
+      </ShowsOnGroup>
+    </Box>
+  );
+}
 
 /**
  * Shows on (04d 1.6b, H8): when and where this page shows. Schedule entries
@@ -20,15 +90,18 @@ export function IdeShowsOn({
   pageId,
   showWeek,
   onNavigate,
-  onMakeCopy,
+  onRetarget,
+  onCopyFor,
 }: {
   ide: CreatorIdeState;
   pageId: string;
   showWeek: boolean;
   onNavigate: (href: string) => void;
-  onMakeCopy: () => void;
+  onRetarget: (boardId: string) => void;
+  onCopyFor: (boardId: string) => void;
 }) {
   const t = useTranslations("creatorIde");
+  const tq = useTranslations("ideQuiet");
   const locale = useLocale();
   const dryRuns = useQueries({
     queries: ide.showsOn.collections.map(({ collection }) => ({
@@ -43,13 +116,15 @@ export function IdeShowsOn({
 
   return (
     <Stack gap="3" data-slot="ide-shows-on">
+      <IdeDisplayPicker ide={ide} onRetarget={onRetarget} onCopyFor={onCopyFor} />
       {showWeek && <IdeWeek ide={ide} />}
-      {empty ? (
+      {empty && (
         <Text size="sm" tone="muted">
           {t("showsOnEmpty")}
         </Text>
-      ) : (
-        <List gap="0" role="list">
+      )}
+      {ide.showsOn.entries.length > 0 && (
+        <ShowsOnGroup label={tq("scheduleGroup")}>
           {ide.showsOn.entries.map((entry) => (
             <ListItem key={entry.schedule.id}>
               <InspectorRow
@@ -65,6 +140,10 @@ export function IdeShowsOn({
               />
             </ListItem>
           ))}
+        </ShowsOnGroup>
+      )}
+      {ide.showsOn.collections.length > 0 && (
+        <ShowsOnGroup label={tq("collectionsGroup")}>
           {ide.showsOn.collections.map(({ collection, position, size }, index) => {
             const run = dryRuns[index]?.data;
             const nowShowing = run?.page_id;
@@ -88,8 +167,9 @@ export function IdeShowsOn({
               </ListItem>
             );
           })}
-        </List>
+        </ShowsOnGroup>
       )}
+      {/* Copies are per display in the Display group above (D3); no third entry point here. */}
       <Flex gap="2" className="flex-wrap">
         <Button
           variant="secondary"
@@ -99,9 +179,6 @@ export function IdeShowsOn({
         </Button>
         <Button variant="outline" onClick={() => onNavigate("/collections")}>
           {t("addToCollection")}
-        </Button>
-        <Button variant="ghost" onClick={onMakeCopy}>
-          {t("makeCopyShort")}
         </Button>
       </Flex>
     </Stack>

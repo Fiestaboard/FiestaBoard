@@ -56,6 +56,12 @@ async function getPageStrategy(pageId: string): Promise<string | null> {
   return (await res.json()).transition_strategy ?? null;
 }
 
+async function getPageDuration(pageId: string): Promise<number | null> {
+  const res = await fetch(`${API_URL}/pages/${pageId}`, { headers: authHeaders() });
+  expect(res.ok).toBe(true);
+  return (await res.json()).duration_seconds ?? null;
+}
+
 test.describe("transition pickers", () => {
   let priorTransition: DisplayTransitionFields = {};
 
@@ -137,18 +143,23 @@ test.describe("transition pickers", () => {
       // Inspector Page tab's Transition row, not a header icon.
       const row = page.getByRole("button", { name: /^Transition/ });
       await expect(row, "per-page Transition control missing").toBeVisible();
-      const choose = async (option: string | RegExp) => {
+      // UX-7-1 (FP-2): an inline menu on the row stages the choice like any
+      // edit; the header's save writes it with the page. Which save the header
+      // offers depends on whether a display shows the page (D6): "Save" (named
+      // "Save Page") on a page no display shows, "Save & update board" on a
+      // live one ("Save draft" only writes the hub draft, so never that one).
+      const save = page.getByRole("button", { name: /^(Save Page|Save & update board)$/ });
+      const choose = async (option: string | RegExp, rowText: string | RegExp) => {
         await row.click();
-        const dialog = page.getByRole("dialog", { name: "Transition" });
-        await expect(dialog).toBeVisible();
-        await dialog.getByRole("combobox", { name: "Transition" }).click();
-        await page.getByRole("option", { name: option }).click();
-        await dialog.getByRole("button", { name: /^Save$/ }).click();
-        await expect(dialog).toBeHidden();
+        await page.getByRole("menuitemradio", { name: option }).click();
+        await expect(page.getByRole("menu")).toBeHidden();
+        // Staged: the row reads the new choice before anything is written.
+        await expect(row).toContainText(rowText);
+        await save.click();
       };
 
       // --- set an override ---
-      await choose(PLUGIN_NAME);
+      await choose(PLUGIN_NAME, PLUGIN_NAME);
       await expect.poll(() => getPageStrategy(pageId), { timeout: 10_000 }).toBe(`plugin:${PLUGIN_ID}`);
 
       // --- it survives a reload, named on the row ---
@@ -156,9 +167,18 @@ test.describe("transition pickers", () => {
       await expect(row).toContainText(PLUGIN_NAME);
 
       // --- clear it: must persist as null, not stay sticky ---
-      await choose(/use the display's transition/i);
+      await choose(/use the display's transition/i, /display default/i);
 
       await expect.poll(() => getPageStrategy(pageId), { timeout: 10_000 }).toBeNull();
+
+      // --- Page duration is staged the same way and persists on save (UX-7-1) ---
+      const duration = page.getByRole("button", { name: /^Page duration/ });
+      await duration.click();
+      await page.getByRole("menuitemradio", { name: "1 min" }).click();
+      await expect(duration).toContainText("1 min");
+      expect(await getPageDuration(pageId)).not.toBe(60);
+      await save.click();
+      await expect.poll(() => getPageDuration(pageId), { timeout: 10_000 }).toBe(60);
     } finally {
       await deletePage(pageId);
     }

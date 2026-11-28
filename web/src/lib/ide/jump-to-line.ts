@@ -68,3 +68,18 @@ export function jumpToTemplateLine(line: number, root: ParentNode = document): b
   }
   return false;
 }
+
+/**
+ * Returns focus to the template, keeping its caret (Esc leaving Inspect,
+ * UX-9-3). Returns false when no editor is mounted.
+ */
+export function focusTemplate(root: ParentNode = document): boolean {
+  const rich = root.querySelector<HTMLElement & { editor?: { commands: { focus: () => boolean } } }>(
+    '[aria-label="Template editor"]',
+  );
+  if (rich?.editor) return rich.editor.commands.focus();
+  const plain = root.querySelector<HTMLTextAreaElement>("#page-template-plain");
+  if (!plain) return false;
+  plain.focus();
+  return true;
+}

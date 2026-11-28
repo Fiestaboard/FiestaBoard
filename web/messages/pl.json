@@ -3861,7 +3861,7 @@
     "showShortcuts": "Pokaż skróty klawiszowe",
     "previewStep": "Przesuń podgląd o jedną notatkę lub kolumnę",
     "previewEnds": "Przejdź na początek lub koniec podglądu",
-    "previewFit": "Dopasuj / Rzeczywisty rozmiar (podgląd aktywny)",
+    "previewFit": "Dopasuj / Rzeczywisty rozmiar",
     "insertFormula": "Wstaw formułę",
     "save": "Zapisz",
     "saveAndShow": "Zapisz i pokaż teraz",
@@ -4291,6 +4291,28 @@
     "deletePageDetail": "Usuwa ją ze wszystkich harmonogramów i kolekcji",
     "autosavePaused": "Niezapisane · szkic z innego miejsca czeka w Historii"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} na {board}",
+    "nextAt": "następnie {when}",
+    "consoleClear": "Brak problemów",
+    "consoleWarnings": "{count, plural, one {# ostrzeżenie} few {# ostrzeżenia} many {# ostrzeżeń} other {# ostrzeżenia}}",
+    "consoleSent": "Wysłano {time} do {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} więcej",
+    "notThisWeek": "Nie zaplanowano w tym tygodniu",
+    "addToSchedule": "Dodaj do harmonogramu",
+    "fallbackHint": "Dodaj wartość zastępczą do formuły, aby to ustawić",
+    "displayGroup": "Wyświetlacz",
+    "displayRetarget": "Ten sam rozmiar · podgląd i lustro tutaj",
+    "copySizedFor": "Utwórz kopię w rozmiarze {board}",
+    "makeTheCopy": "Utwórz kopię",
+    "settingDuration": "Czas wyświetlania strony",
+    "settingTransition": "Przejście",
+    "copyWillMake": "Tworzy nową stronę w rozmiarze {board} ({cols} × {rows}); ta strona się nie zmienia.",
+    "collapseConsole": "Zwiń konsolę",
+    "scheduleGroup": "Harmonogram",
+    "collectionsGroup": "Kolekcje"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} z {wanted} wierszy",
@@ -4440,5 +4462,16 @@
     "caret": "Wiersz {line}, Kol {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Odstępy"
+  },
+  "previewView": {
+    "view": "Widok",
+    "previewAt": "Podgląd o wybranej godzinie…",
+    "zoom": "Powiększenie",
+    "ruler": "Linijka",
+    "at": "O",
+    "inspectCaption": "Inspekcja: kliknij kafelek, aby zobaczyć token i kroki formuły · Esc, aby zakończyć",
+    "missingNoDataTitle": "Brak danych z integracji na tej stronie",
+    "missingFormulaError": "{error} w wierszu {line} to błąd formuły, a nie brakujące dane.",
+    "seeProblems": "Pokaż problemy"
   }
 }

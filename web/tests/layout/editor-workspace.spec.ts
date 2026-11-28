@@ -153,7 +153,8 @@ test("Page duration is one Tab stop: the Page panel itself is not a second one (
   await open(page, 1440);
   await page.getByRole("tab", { name: "Page" }).focus();
   await page.keyboard.press("Tab");
-  await expect(page.locator(":focus")).toHaveAttribute("data-slot", "list-row");
+  // The row itself (UX-7-1: it is also its inline menu's trigger).
+  await expect(page.locator(":focus")).toHaveAttribute("data-inspector-row", "");
   await expect(page.locator(":focus")).toContainText("Page duration");
   await page.keyboard.press("Tab");
   await expect(page.locator(":focus")).toContainText("Transition");

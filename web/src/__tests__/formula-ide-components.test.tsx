@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -7,10 +7,16 @@ import { describe, expect, it, vi } from "vitest";
 import { FormulaInspectorPane } from "@/components/formula-ide/formula-inspector-pane";
 import { InspectSheet } from "@/components/formula-ide/inspect-sheet";
 import { LineProducesCard } from "@/components/formula-ide/line-produces-card";
-import { MissingValuesCard } from "@/components/formula-ide/missing-values-card";
-import { PreviewDataControls } from "@/components/formula-ide/preview-data-controls";
+import { MissingValuesCard, PreviewCaption } from "@/components/formula-ide/missing-values-card";
+import {
+  PreviewDataControls,
+  type PreviewDataView,
+  PreviewHeaderControls,
+  type PreviewZoom,
+} from "@/components/formula-ide/preview-data-controls";
 import type { WorkbenchProps } from "@/components/formula-ide/workbench-types";
 import type { FormulaDiagnostic, FormulaTrace, LineDiagnostic, RenderDiagnostics } from "@/lib/api/formula-debug";
+import { OPEN_PROBLEMS_EVENT } from "@/lib/ide/open-problems";
 
 function wrap(node: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -78,60 +84,189 @@ const fitsLine: LineDiagnostic = {
   hidden: [],
 };
 
-describe("PreviewDataControls", () => {
+function dataView(overrides: Partial<PreviewDataView> = {}): PreviewDataView {
+  return {
+    mode: "live",
+    onModeChange: vi.fn(),
+    atTime: "",
+    onAtTimeChange: vi.fn(),
+    inspect: false,
+    onInspectChange: vi.fn(),
+    ...overrides,
+  };
+}
+const fitZoom = (overrides: Partial<PreviewZoom> = {}): PreviewZoom => ({
+  mode: "fit",
+  onModeChange: vi.fn(),
+  ...overrides,
+});
+
+async function openView() {
+  await userEvent.click(screen.getByRole("button", { name: "View" }));
+  return screen.findByRole("menu");
+}
+
+describe("PreviewHeaderControls (UX-4-1, DD-W156)", () => {
   it("switches the preview data source as a radio group", async () => {
-    const onModeChange = vi.fn();
-    wrap(
-      <PreviewDataControls mode="live" onModeChange={onModeChange} atTime="" onAtTimeChange={vi.fn()} size="default" />,
-    );
+    const data = dataView();
+    wrap(<PreviewHeaderControls data={data} zoom={fitZoom()} size="default" />);
     const group = screen.getByRole("radiogroup", { name: "Preview data" });
     await userEvent.click(within(group).getByRole("radio", { name: "Missing" }));
-    expect(onModeChange).toHaveBeenCalledWith("missing");
+    expect(data.onModeChange).toHaveBeenCalledWith("missing");
   });
-  it("offers Inspect only when the host passes it", async () => {
-    const onInspectChange = vi.fn();
-    const { rerender } = wrap(
-      <PreviewDataControls mode="live" onModeChange={vi.fn()} atTime="" onAtTimeChange={vi.fn()} size="touch" />,
-    );
+
+  it("keeps only the data modes and ⋯ View in the row: no Inspect, clock or zoom buttons", () => {
+    wrap(<PreviewHeaderControls data={dataView()} zoom={fitZoom()} size="default" />);
     expect(screen.queryByRole("button", { name: /Inspect/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Preview formulas at a time/ })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Preview size" })).toBeNull();
+    expect(screen.getByRole("button", { name: "View" })).toBeInTheDocument();
+  });
+
+  it("lists Preview at a time…, Inspect (I), Fit (F), Actual size (1) in View", async () => {
+    wrap(<PreviewHeaderControls data={dataView()} zoom={fitZoom()} size="default" />);
+    const menu = await openView();
+    expect(within(menu).getByRole("menuitem", { name: "Preview at a time…" })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitemcheckbox", { name: /Inspect/ })).toHaveTextContent("I");
+    expect(within(menu).getByRole("menuitemradio", { name: /Fit/ })).toHaveAttribute("aria-checked", "true");
+    expect(within(menu).getByRole("menuitemradio", { name: /Actual size/ })).toHaveTextContent("1");
+    expect(within(menu).queryByRole("menuitemradio", { name: "Tile md" })).toBeNull();
+    expect(within(menu).queryByRole("menuitemcheckbox", { name: "Ruler" })).toBeNull();
+  });
+
+  it("turns Inspect on from the View menu", async () => {
+    const data = dataView();
+    wrap(<PreviewHeaderControls data={data} zoom={fitZoom()} size="default" />);
+    const menu = await openView();
+    await userEvent.click(within(menu).getByRole("menuitemcheckbox", { name: /Inspect/ }));
+    expect(data.onInspectChange).toHaveBeenCalledWith(true);
+  });
+
+  it("offers tile sizes and the ruler on a big board", async () => {
+    const zoom = fitZoom({ tile: "sm", onTileChange: vi.fn() });
+    const ruler = { on: false, onChange: vi.fn() };
+    wrap(<PreviewHeaderControls data={dataView()} zoom={zoom} ruler={ruler} size="default" />);
+    let menu = await openView();
+    await userEvent.click(within(menu).getByRole("menuitemradio", { name: "Tile md" }));
+    expect(zoom.onTileChange).toHaveBeenCalledWith("md");
+    menu = await openView();
+    await userEvent.click(within(menu).getByRole("menuitemcheckbox", { name: "Ruler" }));
+    expect(ruler.onChange).toHaveBeenCalledWith(true);
+  });
+
+  it("binds F (Fit / Actual size) and 1 (Actual size) outside text", async () => {
+    const zoom = fitZoom();
+    const { rerender } = wrap(<PreviewHeaderControls data={dataView()} zoom={zoom} size="default" />);
+    await userEvent.keyboard("1");
+    expect(zoom.onModeChange).toHaveBeenLastCalledWith("actual");
+    await userEvent.keyboard("f");
+    expect(zoom.onModeChange).toHaveBeenLastCalledWith("actual");
+    const actual = fitZoom({ mode: "actual" });
     rerender(
       <QueryClientProvider client={new QueryClient()}>
-        <PreviewDataControls
-          mode="live"
-          onModeChange={vi.fn()}
-          atTime=""
-          onAtTimeChange={vi.fn()}
-          size="default"
-          inspect={false}
-          onInspectChange={onInspectChange}
-        />
+        <PreviewHeaderControls data={dataView()} zoom={actual} size="default" />
       </QueryClientProvider>,
     );
-    await userEvent.click(screen.getByRole("button", { name: /Inspect/ }));
-    expect(onInspectChange).toHaveBeenCalledWith(true);
+    await userEvent.keyboard("f");
+    expect(actual.onModeChange).toHaveBeenLastCalledWith("fit");
   });
-  it("resets a chosen render time to now", async () => {
-    const onAtTimeChange = vi.fn();
+
+  it("leaves F and 1 to a typed field", async () => {
+    const zoom = fitZoom();
     wrap(
-      <PreviewDataControls
-        mode="live"
-        onModeChange={vi.fn()}
-        atTime="07:00"
-        onAtTimeChange={onAtTimeChange}
-        size="default"
-      />,
+      <>
+        <input aria-label="name" />
+        <PreviewHeaderControls data={dataView()} zoom={zoom} size="default" />
+      </>,
     );
+    await userEvent.type(screen.getByRole("textbox", { name: "name" }), "f1");
+    expect(zoom.onModeChange).not.toHaveBeenCalled();
+  });
+
+  it("shows the At chip only once a time is set, and resets it to now", async () => {
+    const data = dataView({ atTime: "07:00" });
+    const { rerender } = wrap(<PreviewHeaderControls data={dataView()} zoom={fitZoom()} size="default" />);
+    expect(screen.queryByTestId("preview-time-chip")).toBeNull();
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <PreviewHeaderControls data={data} zoom={fitZoom()} size="default" />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByTestId("preview-time-chip")).toHaveTextContent(/^At.*7:00 AM$/);
     await userEvent.click(screen.getByRole("button", { name: "Preview at the current time" }));
-    expect(onAtTimeChange).toHaveBeenCalledWith("");
+    expect(data.onAtTimeChange).toHaveBeenCalledWith("");
+    await waitFor(() => expect(screen.getByRole("button", { name: "View" })).toHaveFocus());
+  });
+
+  // OPUS-2651: closing the picker without a time unmounted the focused trigger.
+  it("returns focus to View when Preview at a time… closes without a time", async () => {
+    wrap(<PreviewHeaderControls data={dataView()} zoom={fitZoom()} size="default" />);
+    const menu = await openView();
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Preview at a time…" }));
+    expect(await screen.findByTestId("preview-time-chip")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("preview-time-chip")).toBeNull());
+    await waitFor(() => expect(screen.getByRole("button", { name: "View" })).toHaveFocus());
+  });
+
+  it("leaves Shift+F alone", async () => {
+    const zoom = fitZoom();
+    wrap(<PreviewHeaderControls data={dataView()} zoom={zoom} size="default" />);
+    await userEvent.keyboard("{Shift>}F{/Shift}");
+    expect(zoom.onModeChange).not.toHaveBeenCalled();
+  });
+
+  it("is the plain Fit / Actual size toggle on the dock and without the IDE", () => {
+    wrap(<PreviewHeaderControls data={null} zoom={fitZoom()} size="touch" />);
+    expect(screen.getByRole("group", { name: "Preview size" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View" })).toBeNull();
+  });
+});
+
+describe("PreviewDataControls (the dock's More, UX-10-2)", () => {
+  it("switches the data source and resets a chosen time", async () => {
+    const data = dataView({ atTime: "07:00" });
+    wrap(<PreviewDataControls data={data} />);
+    await userEvent.click(screen.getByRole("radio", { name: "Sample" }));
+    expect(data.onModeChange).toHaveBeenCalledWith("sample");
+    await userEvent.click(screen.getByRole("button", { name: "Preview at the current time" }));
+    expect(data.onAtTimeChange).toHaveBeenCalledWith("");
+  });
+});
+
+describe("PreviewCaption (UX-4-4)", () => {
+  const caption = { reserved: true, inspecting: false, mode: "live" as const, atLabel: null, unsampled: [] };
+  it("keeps its one line on desktop even when it has nothing to say", () => {
+    wrap(<PreviewCaption {...caption} />);
+    const slot = document.querySelector('[data-slot="preview-caption"]');
+    expect(slot).not.toBeNull();
+    expect(slot).toHaveClass("h-4", "truncate");
+    expect(slot).toBeEmptyDOMElement();
+  });
+  it("renders nothing on the dock when empty", () => {
+    wrap(<PreviewCaption {...caption} reserved={false} />);
+    expect(document.querySelector('[data-slot="preview-caption"]')).toBeNull();
+  });
+  it("says how to Inspect, and that Esc leaves it", () => {
+    wrap(<PreviewCaption {...caption} inspecting mode="sample" />);
+    expect(screen.getByTestId("inspect-hint")).toHaveTextContent(/click a tile.*Esc to leave/);
+  });
+  it("names integrations without example values in Sample", () => {
+    wrap(<PreviewCaption {...caption} mode="sample" unsampled={["muni"]} />);
+    expect(screen.getByTestId("sample-note")).toHaveTextContent("No example values for muni");
+  });
+  it("explains the render-at clock in Live", () => {
+    wrap(<PreviewCaption {...caption} atLabel="7:00 AM" />);
+    expect(screen.getByTestId("render-at-note")).toHaveTextContent(
+      "“At 7:00 AM” evaluates formulas as if it were 7:00 AM",
+    );
   });
 });
 
 describe("MissingValuesCard", () => {
   const base = {
-    atLabel: null,
     template: ["GOOD MORNING", "{{weather.temp}}°", '{{= IF(weather.temp > 80, "HOT", "NICE") }} OUT'],
     roots: ["weather"],
-    unsampled: [],
     formulas: [{ ...ifFormula, error: "#REF", value: "#REF" }],
     sources: { weather: { state: "none" as const, updated_at: null } },
     loading: false,
@@ -165,15 +300,22 @@ describe("MissingValuesCard", () => {
     wrap(<MissingValuesCard {...base} roots={[]} formulas={[]} mode="missing" onAddFallback={vi.fn()} />);
     expect(screen.getByText("Nothing missing")).toBeInTheDocument();
   });
-  it("names integrations without example values in Sample", () => {
-    wrap(<MissingValuesCard {...base} unsampled={["muni"]} mode="sample" onAddFallback={vi.fn()} />);
-    expect(screen.getByTestId("sample-note")).toHaveTextContent("No example values for muni");
+  // UX-4-4: Pizza showed "Nothing missing" over a #REF on its board.
+  it("names a formula error as one, not as nothing missing, and links to Problems", async () => {
+    const opened = vi.fn();
+    window.addEventListener(OPEN_PROBLEMS_EVENT, opened);
+    wrap(<MissingValuesCard {...base} roots={[]} sources={{}} mode="missing" onAddFallback={vi.fn()} />);
+    const card = screen.getByTestId("missing-values");
+    expect(card).toHaveTextContent("No integration data on this page");
+    expect(card).toHaveTextContent("#REF on line 3 is a formula error, not missing data.");
+    expect(screen.queryByText("Nothing missing")).toBeNull();
+    await userEvent.click(within(card).getByRole("button", { name: "See Problems" }));
+    expect(opened).toHaveBeenCalledTimes(1);
+    window.removeEventListener(OPEN_PROBLEMS_EVENT, opened);
   });
-  it("explains the render-at clock in Live", () => {
-    wrap(<MissingValuesCard {...base} atLabel="7:00 AM" mode="live" onAddFallback={vi.fn()} />);
-    expect(screen.getByTestId("render-at-note")).toHaveTextContent(
-      "“At 7:00 AM” evaluates formulas as if it were 7:00 AM",
-    );
+  it("leaves Live and Sample to the caption slot", () => {
+    const { container } = wrap(<MissingValuesCard {...base} mode="sample" onAddFallback={vi.fn()} />);
+    expect(container).toBeEmptyDOMElement();
   });
   it("reports a failed preview instead of stale data", () => {
     wrap(<MissingValuesCard {...base} failed mode="missing" onAddFallback={vi.fn()} />);
@@ -258,9 +400,9 @@ function paneProps(overrides: Partial<WorkbenchProps>): WorkbenchProps {
 }
 
 describe("FormulaInspectorPane", () => {
-  it("asks for a tile before anything is selected", () => {
-    wrap(<FormulaInspectorPane {...paneProps({})} />);
-    expect(screen.getByText(/Click a tile on the preview/)).toBeInTheDocument();
+  it("draws no pane before a tile is picked: the caption slot asks for one (UX-4-4)", () => {
+    const { container } = wrap(<FormulaInspectorPane {...paneProps({})} />);
+    expect(container).toBeEmptyDOMElement();
   });
   it("shows the clicked row, its formula's steps and a one-tap limit", async () => {
     const foreach: FormulaDiagnostic = {
@@ -337,5 +479,27 @@ describe("FormulaInspectorPane", () => {
   it("says when the page is too large to map", () => {
     wrap(<FormulaInspectorPane {...paneProps({ sourceMapStatus: "limit" })} />);
     expect(screen.getByTestId("inspector-limit")).toBeInTheDocument();
+  });
+});
+
+// A 1024 px window with the Explorer open leaves the card about 290 px: the
+// modes move into View instead of wrapping the header (UX-4-1).
+describe("PreviewHeaderControls in a narrow card", () => {
+  it("moves Live | Sample | Missing into View when the header is too narrow", async () => {
+    const width = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(290);
+    try {
+      const data = dataView();
+      wrap(
+        <div data-slot="editor-preview-header">
+          <PreviewHeaderControls data={data} zoom={fitZoom()} size="default" />
+        </div>,
+      );
+      expect(screen.queryByRole("radiogroup", { name: "Preview data" })).toBeNull();
+      const menu = await openView();
+      await userEvent.click(within(menu).getByRole("menuitemradio", { name: "Sample" }));
+      expect(data.onModeChange).toHaveBeenCalledWith("sample");
+    } finally {
+      width.mockRestore();
+    }
   });
 });

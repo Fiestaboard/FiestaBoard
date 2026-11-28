@@ -3861,7 +3861,7 @@
     "showShortcuts": "Afficher les raccourcis clavier",
     "previewStep": "Déplacer l’aperçu d’une Note ou d’une colonne",
     "previewEnds": "Aller au début ou à la fin de l’aperçu",
-    "previewFit": "Ajuster / Taille réelle (aperçu actif)",
+    "previewFit": "Ajuster / Taille réelle",
     "insertFormula": "Insérer une formule",
     "save": "Enregistrer",
     "saveAndShow": "Enregistrer et afficher maintenant",
@@ -4291,6 +4291,28 @@
     "deletePageDetail": "La retire de tous les plannings et collections",
     "autosavePaused": "Non enregistré · un brouillon venu d’ailleurs attend dans Historique"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} sur {board}",
+    "nextAt": "prochaine {when}",
+    "consoleClear": "Aucun problème",
+    "consoleWarnings": "{count, plural, one {# avertissement} other {# avertissements}}",
+    "consoleSent": "Envoyée {time} à {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} de plus",
+    "notThisWeek": "Non programmée cette semaine",
+    "addToSchedule": "Ajouter au planning",
+    "fallbackHint": "Ajoutez une valeur de repli à une formule pour le définir",
+    "displayGroup": "Écran",
+    "displayRetarget": "Même taille · aperçu et miroir ici",
+    "copySizedFor": "Faire une copie à la taille de {board}",
+    "makeTheCopy": "Faire la copie",
+    "settingDuration": "Durée de la page",
+    "settingTransition": "Transition",
+    "copyWillMake": "Crée une nouvelle page à la taille de {board} ({cols} × {rows}) ; cette page reste inchangée.",
+    "collapseConsole": "Replier la console",
+    "scheduleGroup": "Planning",
+    "collectionsGroup": "Collections"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} sur {wanted} rangées",
@@ -4440,5 +4462,16 @@
     "caret": "Lig {line}, Col {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Espacement"
+  },
+  "previewView": {
+    "view": "Affichage",
+    "previewAt": "Aperçu à une heure…",
+    "zoom": "Zoom",
+    "ruler": "Règle",
+    "at": "À",
+    "inspectCaption": "Inspecter : cliquez sur une case pour voir le jeton et les étapes de la formule · Échap pour quitter",
+    "missingNoDataTitle": "Aucune donnée d’intégration sur cette page",
+    "missingFormulaError": "{error} à la ligne {line} est une erreur de formule, pas une donnée manquante.",
+    "seeProblems": "Voir les problèmes"
   }
 }

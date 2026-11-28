@@ -12,6 +12,8 @@ export interface CreatorIdeHubOptions {
   notScheduled?: boolean;
   /** The selected display is a 34×14 FiestaPanel: a new page adopts its kind (BB-E-11). */
   panelBoard?: boolean;
+  /** The hub finds nothing wrong with the template (FP-2 M1: the quiet console). */
+  noProblems?: boolean;
 }
 
 export const board = {
@@ -126,12 +128,16 @@ export async function mockHub(page: Page, options: CreatorIdeHubOptions = {}) {
           }),
         };
       } else if (pathname === "/templates/validate") {
-        response = {
-          valid: false,
-          rows: 6,
-          cols: 22,
-          errors: [{ line: 3, column: 22, code: "line_too_long", message: "Needs 25 of 22 columns", max_length: 25 }],
-        };
+        response = options.noProblems
+          ? { valid: true, rows: 6, cols: 22, errors: [] }
+          : {
+              valid: false,
+              rows: 6,
+              cols: 22,
+              errors: [
+                { line: 3, column: 22, code: "line_too_long", message: "Needs 25 of 22 columns", max_length: 25 },
+              ],
+            };
       } else if (pathname === `/pages/${kitchenMorning.id}/draft`) {
         status = 404;
         response = { detail: "No draft" };

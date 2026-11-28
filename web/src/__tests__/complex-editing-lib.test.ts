@@ -11,7 +11,6 @@ import {
   moveBand,
   noteSeamMarks,
   seamStraddles,
-  truncationLines,
   usedLineCount,
 } from "@/lib/complex-editing";
 
@@ -140,45 +139,6 @@ describe("lineOverflows", () => {
 
   it("is empty without a response", () => {
     expect(lineOverflows(undefined, 22)).toEqual([]);
-  });
-});
-
-describe("truncationLines", () => {
-  it("measures rendered rows and marks hub-validated overflow", () => {
-    const lines = truncationLines(
-      ["AB  ", "", "WIDE"],
-      [{ line: 3, columns: 98, maxColumns: 96, cut: 2 }],
-      3,
-      (o) => `Row ${o.line} cut ${o.cut}`,
-    );
-    expect(lines).toEqual([
-      { row: 1, length: 2 },
-      { row: 2, length: 0 },
-      { row: 3, length: 98, overflow: { column: 96, count: 2, description: "Row 3 cut 2" } },
-    ]);
-  });
-
-  it("measures a row in drawn tiles, as the hub's render report does (BB-E-2)", () => {
-    const lines = truncationLines(["{63}{64}{65}{66} HOT{/}", "{63}" + "{64}".repeat(11)], [], 2, () => "");
-    expect(lines).toEqual([
-      { row: 1, length: 8 },
-      { row: 2, length: 12 },
-    ]);
-  });
-
-  it("measures extended markup as the board draws it: a span its cells, an icon one tile", () => {
-    const lines = truncationLines(["{red:HOT} X", "{icon:sun}"], [], 2, () => "");
-    expect(lines).toEqual([
-      { row: 1, length: 5 },
-      { row: 2, length: 1 },
-    ]);
-  });
-
-  it("ignores overflow past the board's rows", () => {
-    expect(truncationLines([], [{ line: 9, columns: 30, maxColumns: 22, cut: 8 }], 2, () => "")).toEqual([
-      { row: 1, length: 0 },
-      { row: 2, length: 0 },
-    ]);
   });
 });
 

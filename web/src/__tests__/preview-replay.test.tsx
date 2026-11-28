@@ -112,4 +112,46 @@ describe("usePreviewReplay", () => {
     expect(result.current.animate).toBe(false);
     expect(result.current.replaying).toBe(false);
   });
+
+  // BB-E-33: Replay before the first render used to start on the null message
+  // and be snapped off when the real one landed (D7), dropping the press.
+  it("waits for the first render and then replays it, instead of dropping an early press", async () => {
+    const { result, rerender } = renderHook(({ message, loading }) => usePreviewReplay(message, { loading }), {
+      initialProps: { message: null as string | null, loading: true },
+    });
+    act(() => result.current.replay());
+    expect(result.current.animate).toBe(false);
+    rerender({ message: "", loading: true });
+    expect(result.current.animate).toBe(false);
+    rerender({ message: "HELLO", loading: false });
+    await waitFor(() => expect(result.current.animate).toBe(true));
+    await waitFor(() => expect(result.current.message).toBe("HELLO"));
+    expect(result.current.replaying).toBe(true);
+  });
+
+  it("plays a queued replay once only: a later edit snaps", async () => {
+    const { result, rerender } = renderHook(({ message, loading }) => usePreviewReplay(message, { loading }), {
+      initialProps: { message: null as string | null, loading: true },
+    });
+    act(() => result.current.replay());
+    rerender({ message: "HELLO", loading: false });
+    await waitFor(() => expect(result.current.message).toBe("HELLO"));
+    rerender({ message: "HELLO!", loading: false });
+    expect(result.current.animate).toBe(false);
+    expect(result.current.replaying).toBe(false);
+  });
+
+  // D7: a blank page has nothing loading; Replay there must not leave a hidden
+  // replay that flaps the user's first edit (OPUS-2651).
+  it("does not queue on a blank page: the first edit still snaps", async () => {
+    const { result, rerender } = renderHook(({ message, loading }) => usePreviewReplay(message, { loading }), {
+      initialProps: { message: "" as string | null, loading: false },
+    });
+    act(() => result.current.replay());
+    rerender({ message: "", loading: true });
+    rerender({ message: "HI", loading: false });
+    expect(result.current.message).toBe("HI");
+    expect(result.current.animate).toBe(false);
+    expect(result.current.replaying).toBe(false);
+  });
 });

@@ -3861,7 +3861,7 @@
     "showShortcuts": "Mostra le scorciatoie da tastiera",
     "previewStep": "Sposta l’anteprima di una nota o colonna",
     "previewEnds": "Vai all’inizio o alla fine dell’anteprima",
-    "previewFit": "Adatta / Dimensione reale (anteprima attiva)",
+    "previewFit": "Adatta / Dimensione reale",
     "insertFormula": "Inserisci una formula",
     "save": "Salva",
     "saveAndShow": "Salva e mostra ora",
@@ -4291,6 +4291,28 @@
     "deletePageDetail": "La rimuove da tutte le programmazioni e raccolte",
     "autosavePaused": "Non salvato · una bozza da altrove attende in Cronologia"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} su {board}",
+    "nextAt": "prossima {when}",
+    "consoleClear": "Nessun problema",
+    "consoleWarnings": "{count, plural, one {# avviso} other {# avvisi}}",
+    "consoleSent": "Inviata {time} a {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} altri",
+    "notThisWeek": "Non programmata questa settimana",
+    "addToSchedule": "Aggiungi alla programmazione",
+    "fallbackHint": "Aggiungi un valore di riserva a una formula per impostarlo",
+    "displayGroup": "Display",
+    "displayRetarget": "Stessa dimensione · anteprima e mirroring qui",
+    "copySizedFor": "Crea una copia nella dimensione di {board}",
+    "makeTheCopy": "Crea la copia",
+    "settingDuration": "Durata della pagina",
+    "settingTransition": "Transizione",
+    "copyWillMake": "Crea una nuova pagina nella dimensione di {board} ({cols} × {rows}); questa pagina non cambia.",
+    "collapseConsole": "Comprimi la console",
+    "scheduleGroup": "Programmazione",
+    "collectionsGroup": "Raccolte"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} di {wanted} file",
@@ -4440,5 +4462,16 @@
     "caret": "Riga {line}, Col {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Spaziatura"
+  },
+  "previewView": {
+    "view": "Vista",
+    "previewAt": "Anteprima a un orario…",
+    "zoom": "Zoom",
+    "ruler": "Righello",
+    "at": "Alle",
+    "inspectCaption": "Ispeziona: fai clic su una tessera per vedere il token e i passaggi della formula · Esc per uscire",
+    "missingNoDataTitle": "Nessun dato di integrazione in questa pagina",
+    "missingFormulaError": "{error} alla riga {line} è un errore di formula, non un dato mancante.",
+    "seeProblems": "Vedi problemi"
   }
 }

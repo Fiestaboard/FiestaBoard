@@ -3861,7 +3861,7 @@
     "showShortcuts": "Sneltoetsen tonen",
     "previewStep": "Voorbeeld één Note of kolom verschuiven",
     "previewEnds": "Naar het begin of einde van het voorbeeld springen",
-    "previewFit": "Passend / Ware grootte (voorbeeld met focus)",
+    "previewFit": "Passend / Ware grootte",
     "insertFormula": "Formule invoegen",
     "save": "Opslaan",
     "saveAndShow": "Opslaan en nu tonen",
@@ -4291,6 +4291,28 @@
     "deletePageDetail": "Haalt haar uit alle schema’s en collecties",
     "autosavePaused": "Niet opgeslagen · een concept van elders wacht in Geschiedenis"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} op {board}",
+    "nextAt": "volgende {when}",
+    "consoleClear": "Geen problemen",
+    "consoleWarnings": "{count, plural, one {# waarschuwing} other {# waarschuwingen}}",
+    "consoleSent": "Verzonden {time} naar {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} meer",
+    "notThisWeek": "Deze week niet gepland",
+    "addToSchedule": "Aan schema toevoegen",
+    "fallbackHint": "Voeg een terugvalwaarde toe aan een formule om dit in te stellen",
+    "displayGroup": "Scherm",
+    "displayRetarget": "Zelfde formaat · hier voorvertonen en spiegelen",
+    "copySizedFor": "Kopie maken op het formaat van {board}",
+    "makeTheCopy": "Kopie maken",
+    "settingDuration": "Paginaduur",
+    "settingTransition": "Overgang",
+    "copyWillMake": "Maakt een nieuwe pagina op het formaat van {board} ({cols} × {rows}); deze pagina blijft ongewijzigd.",
+    "collapseConsole": "Console inklappen",
+    "scheduleGroup": "Schema",
+    "collectionsGroup": "Collecties"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} van {wanted} rijen",
@@ -4440,5 +4462,16 @@
     "caret": "Rg {line}, Kol {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Ruimte"
+  },
+  "previewView": {
+    "view": "Weergave",
+    "previewAt": "Voorbeeld op een tijdstip…",
+    "zoom": "Zoom",
+    "ruler": "Liniaal",
+    "at": "Om",
+    "inspectCaption": "Inspecteren: klik op een tegel om het token en de formulestappen te zien · Esc om te stoppen",
+    "missingNoDataTitle": "Geen integratiegegevens op deze pagina",
+    "missingFormulaError": "{error} op regel {line} is een formulefout, geen ontbrekende gegevens.",
+    "seeProblems": "Problemen bekijken"
   }
 }

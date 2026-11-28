@@ -448,7 +448,9 @@ test.describe("Draw mode", () => {
     // Paint the full array in overview: Actual preserves real tiles and scrolls.
     // A 120-column array is a big board, so the desktop preview's zoom control
     // (2.9, 04b) owns Fit; the overview carries into draw mode.
-    await page.getByRole("group", { name: "Preview zoom" }).getByRole("radio", { name: "Fit · overview" }).click();
+    // It opens at Fit (UX-4-2); View › Fit keeps it there.
+    await page.getByRole("button", { name: "View", exact: true }).click();
+    await page.getByRole("menuitemradio", { name: /Fit/ }).click();
     await enterDrawMode(page);
     await pickBrush(page, "blue");
 

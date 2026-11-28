@@ -223,26 +223,45 @@ const indicator = (page: Page) =>
 
 for (const theme of ["light", "dark"] as const) {
   test.describe(`complex editing in ${theme}`, () => {
-    test("1440: big board opens with zoom, ruler, minimap, truncation map and bands", async ({ page }, testInfo) => {
+    // UX-4-2 / UX-4-3 (DD-W156): a big board opens at Fit with no chip row, ruler,
+    // minimap or cut chart; zoom and the ruler live in the header's View menu.
+    test("1440: big board opens at Fit; zoom, ruler and minimap come from View", async ({ page }, testInfo) => {
       await openEditor(page, "lobby-this-week", 1440, theme);
       const preview = page.locator('[data-slot="editor-preview"]');
-      await expect(preview.getByRole("group", { name: "Preview zoom" })).toBeVisible();
+      const viewport = preview.locator('[data-slot="board-viewport"]');
+      await expect(viewport).toHaveAttribute("data-mode", "fit");
+      await expect(preview.getByRole("group", { name: "Preview zoom" })).toHaveCount(0);
       await expect(preview.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(0);
-      await expect(preview.getByRole("img", { name: /Column ruler · 96 columns/ })).toBeVisible();
-      await expect(indicator(page)).toContainText(/Columns 1–\d+ of 96/);
-      await expect(preview.getByText("Where lines are cut")).toBeVisible();
-      await expect(preview.locator('[data-slot="board-minimap"], [aria-label="Board overview"]').first()).toBeVisible();
+      await expect(preview.locator('[data-slot="complex-preview-ruler"]')).toHaveCount(0);
+      await expect(preview.locator('[data-slot="complex-preview-overview"]')).toHaveCount(0);
+      await expect(preview.getByText("Where lines are cut")).toHaveCount(0);
+      const header = preview.locator('[data-slot="editor-preview-header"]');
+      expect((await header.boundingBox())!.height).toBeLessThanOrEqual(40);
       // UX-3-2: the card header's caret readout replaced the Row · Col pill and its caption.
       await expect(page.getByRole("textbox", { name: "Go to row and column" })).toHaveCount(0);
       await expect(page.getByText(/rendered length per row/)).toHaveCount(0);
       const bands = page.getByRole("list", { name: "Row bands" });
       await expect(bands).toBeVisible();
       await expect(bands.getByText("THIS WEEK", { exact: true })).toBeVisible();
-      // Zoom to Tile md keeps the page inside the viewport.
-      await preview.getByRole("radio", { name: "Tile md" }).click();
-      await expect(preview.locator('[data-slot="board-viewport"]')).toHaveAttribute("data-mode", "actual");
-      await expect(preview.getByRole("radio", { name: "Tile md" })).toBeChecked();
       await finish(page, testInfo, `impl-1440-${theme}-big-board`);
+
+      // Tile md crops the board: the minimap appears, the page stays inside the viewport.
+      const view = header.getByRole("button", { name: "View", exact: true });
+      await view.click();
+      await page.getByRole("menuitemradio", { name: "Tile md" }).click();
+      await expect(viewport).toHaveAttribute("data-mode", "actual");
+      await expect(indicator(page)).toContainText(/Columns 1–\d+ of 96/);
+      await expect(preview.locator('[data-slot="complex-preview-overview"]')).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+      await view.click();
+      await page.getByRole("menuitemcheckbox", { name: "Ruler" }).click();
+      await expect(preview.getByRole("img", { name: /Column ruler · 96 columns/ })).toBeVisible();
+      // F returns to Fit, and the minimap goes with the crop.
+      await page.locator("body").click({ position: { x: 2, y: 2 } });
+      await page.keyboard.press("f");
+      await expect(viewport).toHaveAttribute("data-mode", "fit");
+      await expect(preview.locator('[data-slot="complex-preview-overview"]')).toHaveCount(0);
+      await finish(page, testInfo, `impl-1440-${theme}-big-board-zoomed`);
     });
 
     for (const width of [1440, 1024]) {
