@@ -3531,7 +3531,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 )}
                 {/* Desktop: the name never gets less than 240 px; the actions beside it
                   go icon-only below 1280 to make the room (BB-E-4). */}
-                <Box className={cn("relative min-w-0 flex-1", !dockedPreview && "h-11 lg:h-12 lg:min-w-60")}>
+                <Box
+                  data-slot="page-editor-name"
+                  className={cn("relative min-w-0 flex-1", !dockedPreview && "h-11 lg:h-12 lg:min-w-60")}
+                >
                   <label htmlFor="page-name" className="sr-only">
                     {t("pageNameLabel")}
                   </label>

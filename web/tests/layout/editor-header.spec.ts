@@ -42,12 +42,12 @@ for (const notScheduled of [false, true]) {
       await expect(save).toHaveText("");
       await expect(exportButton).toHaveText("");
       await save.hover();
-      await expect(page.locator('[data-slot="tooltip-content"]').last()).toContainText(notScheduled ? "Save Page" : "Save draft");
+      await expect(page.locator('[data-slot="tooltip-content"]').last()).toContainText(
+        notScheduled ? "Save Page" : "Save draft",
+      );
       const box = (await primaryButton.boundingBox())!;
       expect(box.x + box.width).toBeLessThanOrEqual(width);
-      expect((await page.getByRole("textbox", { name: /page name/i }).boundingBox())!.width).toBeGreaterThanOrEqual(
-        200,
-      );
+      expect((await page.locator('[data-slot="page-editor-name"]').boundingBox())!.width).toBeGreaterThanOrEqual(240);
     }
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(header(page).getByRole("button", { name: "Export Page" })).toHaveText("Export");

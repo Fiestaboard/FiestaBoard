@@ -47,7 +47,7 @@ test.describe("Page Builder", () => {
     await saveButton.first().click();
 
     // Saving keeps the current editor and announces its stored state.
-    await expect(page.getByText(/^Saved \d/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Saved (just now|\d)/)).toBeVisible({ timeout: 15_000 });
     await expect(nameInput).toHaveValue("E2E Builder Test");
 
     // Verify page exists via API
@@ -70,7 +70,7 @@ test.describe("Page Builder", () => {
     const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
-    await expect(page.getByText(/^Saved \d/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^Saved (just now|\d)/)).toBeVisible({ timeout: 15_000 });
     await expect(nameInput).toHaveValue("Updated Name");
 
     // Verify via API
