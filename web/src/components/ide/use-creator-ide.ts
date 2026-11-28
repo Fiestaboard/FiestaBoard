@@ -99,6 +99,13 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced;
 }
 
+/**
+ * A query has its answer for this editing session: loaded, and not re-asking.
+ * Cached data is not pending, but a reopened editor refetches it on mount; the
+ * page's displays are held once, so they wait for that answer (OPUS-2647 M1).
+ */
+const answered = (query: { isPending: boolean; isFetching: boolean }) => !query.isPending && !query.isFetching;
+
 const nullOn404 = <T>(promise: Promise<T>) =>
   promise.catch((error: unknown) => {
     if (error instanceof ApiError && error.status === 404) return null;
@@ -182,7 +189,7 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     })),
     combine: (results) => ({
       answers: results.map((result) => result.data),
-      settled: results.every((result) => !result.isPending),
+      settled: results.every(answered),
     }),
   });
 
@@ -244,11 +251,12 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
   );
   // Handed to the editor so it previews the page as a display that shows it
   // (UX-6-1); a string key keeps the array stable between polls. Chosen once
-  // per page, from the first settled answers: "showing now" changes with the
+  // per page, from the first settled answers (fresh ones: a reopened editor
+  // re-asks for what it cached, see `answered`): "showing now" changes with the
   // clock (re-asked every minute), and the preview, its checks and the default
   // Mirror target must not move while you edit (OPUS-2645 S2). Picking a
   // live-output target or a retarget in the editor still wins over these.
-  const displaysSettled = !boardsLoading && !schedules.isPending && !collections.isPending && activeSettled;
+  const displaysSettled = !boardsLoading && answered(schedules) && answered(collections) && activeSettled;
   const liveDisplaysKey = pageDisplayIds(showsOn).join("\n");
   const [heldDisplays, setHeldDisplays] = useState<{ pageId: string; key: string } | null>(null);
   if (displaysSettled && heldDisplays?.pageId !== pageId) setHeldDisplays({ pageId, key: liveDisplaysKey });

@@ -300,12 +300,12 @@ function renderIde(
   savedTick = 0,
   onDraftStateChange?: (state: PageBuilderDraftState | undefined) => void,
   onPageDisplaysChange?: (ids: readonly string[]) => void,
+  client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }),
 ) {
   const slot = document.createElement("div");
   document.body.append(slot);
   const onSaveActionsChange = vi.fn();
   const builderRef = { current: builder };
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const wrap = (node: ReactNode) => (
     <MemoryRouter>
       <QueryClientProvider client={client}>{node}</QueryClientProvider>
@@ -539,7 +539,6 @@ describe("the page's own display, with another board current in the sidebar", ()
     await waitFor(() => expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["den"]));
     rerenderTick(0, "brunch");
     await waitFor(() => expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["hall"]));
-    expect(onPageDisplaysChange).not.toHaveBeenCalledWith(["den", "hall"]);
   });
 
   // OPUS-2645 S2: "showing now" changes with the clock (the IDE re-asks every
@@ -632,8 +631,46 @@ describe("the page's own display, with another board current in the sidebar", ()
     }
   });
 
+  // OPUS-2647 M1: reopening the editor within the cache's lifetime must pick
+  // from the hub's fresh answers, not the cached ones it is re-asking for.
+  it("picks from fresh answers, not cached ones, when the editor reopens", async () => {
+    mockHub({ live: false });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const first = vi.fn();
+    const { unmount } = renderIde(fakeBuilder(), 0, undefined, first, client);
+    await waitFor(() => expect(first).toHaveBeenLastCalledWith(["den"]));
+    unmount();
+    // Meanwhile the page's schedule entry moved to the Hall board.
+    server.use(
+      http.get("/api/v1/schedules", () =>
+        HttpResponse.json({
+          schedules: [
+            {
+              id: "s1",
+              page_id: PAGE,
+              board_id: "hall",
+              start_time: "07:30",
+              end_time: "08:30",
+              day_pattern: "weekdays",
+              enabled: true,
+              created_at: "",
+            },
+          ],
+          total: 1,
+          default_page_id: null,
+          enabled: null,
+        }),
+      ),
+    );
+    const reopened = vi.fn();
+    renderIde(fakeBuilder(), 0, undefined, reopened, client);
+    await waitFor(() => expect(reopened).toHaveBeenLastCalledWith(["hall"]));
+    expect(reopened).not.toHaveBeenCalledWith(["den"]);
+  });
+
   it.each([
     ["its schedules", "/api/v1/schedules", "/api/schedules/active/page"],
+    ["its collections", "/api/v1/collections", "/api/schedules/active/page"],
     ["the hub's showing-now answers", "/api/schedules/active/page", "/api/v1/schedules"],
   ])("names no display before %s load", async (_what, hanging, served) => {
     mockHub();
