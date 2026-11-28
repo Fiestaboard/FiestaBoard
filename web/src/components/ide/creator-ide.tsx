@@ -161,7 +161,7 @@ export default function CreatorIde({
       draftSavedAt: draftSavedAt ?? undefined,
       savingDraft,
       saveDraft: draftOffered ? () => saveDraftMutate({}) : undefined,
-      onDiscard: restoredDraft ? () => void discardRestored() : undefined,
+      onDiscard: restoredDraft ? () => discardRestored() : undefined,
       discardDraft: discardOwnedDraft,
     });
   }, [

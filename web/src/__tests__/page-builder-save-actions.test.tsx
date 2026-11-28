@@ -135,15 +135,34 @@ describe("editor header meta line (D6, UX-1-3)", () => {
     expect(saveState()).toHaveTextContent(/^Saved Jan 1, 2024/);
   });
 
-  it("offers Undo after Discard drops a restored draft (UX-1-7)", async () => {
-    const onDiscard = vi.fn();
-    await renderSaved({ label: "Draft restored", onDiscard });
-    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
-    expect(onDiscard).toHaveBeenCalledOnce();
-    expect(toastMock).toHaveBeenCalledWith(
-      "Draft discarded",
-      expect.objectContaining({ action: expect.objectContaining({ label: "Undo" }) }),
+  it("offers Undo after Discard drops a restored draft, and Undo brings the whole draft back (UX-1-7)", async () => {
+    const ref = createRef<PageBuilderHandle>();
+    const onDiscard = vi.fn(async () => ref.current!.discardContent());
+    render(
+      <PageBuilder ref={ref} pageId="page-1" onClose={vi.fn()} draftState={{ label: "Draft restored", onDiscard }} />,
+      { wrapper: TestWrapper },
     );
+    await waitFor(() => expect(nameField()).toHaveValue("Weather Page"));
+    // The restored draft: other text and a non-text field (duration).
+    act(() =>
+      ref.current!.applyContent({
+        ...ref.current!.getCurrentPage()!,
+        name: "From the draft",
+        duration_seconds: 60,
+      } as never),
+    );
+    expect(nameField()).toHaveValue("From the draft");
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    await waitFor(() => expect(toastMock).toHaveBeenCalled());
+    expect(onDiscard).toHaveBeenCalledOnce();
+    expect(nameField()).toHaveValue("Weather Page");
+    expect(ref.current!.getCurrentPage()?.duration_seconds).toBe(300);
+    const [message, options] = toastMock.mock.lastCall as [string, { action: { label: string; onClick: () => void } }];
+    expect(message).toBe("Draft discarded");
+    expect(options.action.label).toBe("Undo");
+    act(() => options.action.onClick());
+    expect(nameField()).toHaveValue("From the draft");
+    expect(ref.current!.getCurrentPage()?.duration_seconds).toBe(60);
   });
 });
 
@@ -154,6 +173,15 @@ describe("new page and rename (UX-8-1, UX-1-5)", () => {
     expect(screen.getByTestId("page-editor-meta")).toHaveTextContent(/^New Page · .*Unsaved$/);
     fireEvent.click(screen.getByRole("button", { name: /^Save page$/i }));
     await waitFor(() => expect(requestStore.lastPageCreate?.name).toBe("Untitled page"));
+  });
+
+  it("starts a new page clean: Untitled page alone is not an unsaved change", async () => {
+    const ref = createRef<PageBuilderHandle>();
+    render(<PageBuilder ref={ref} onClose={vi.fn()} />, { wrapper: TestWrapper });
+    await waitFor(() => expect(nameField()).toHaveValue("Untitled page"));
+    expect(ref.current!.hasUnsavedChanges()).toBe(false);
+    fireEvent.change(nameField(), { target: { value: "Kitchen morning" } });
+    await waitFor(() => expect(ref.current!.hasUnsavedChanges()).toBe(true));
   });
 
   it("restores the name on Esc and keeps it on Enter", async () => {

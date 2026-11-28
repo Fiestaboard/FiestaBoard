@@ -335,7 +335,7 @@ export interface PageBuilderDraftState {
   /** The display it is live on, by name (the leave guard says it keeps the saved version). */
   liveBoard?: string;
   /** Drop the restored draft and its edits. */
-  onDiscard?: () => void;
+  onDiscard?: () => void | Promise<void>;
   /** Drop the hub draft this session owns (the leave guard's Discard changes). */
   discardDraft?: () => Promise<void>;
   /** When the hub draft that holds exactly these edits was written ("Draft saved 6:15 AM"). */
@@ -2137,10 +2137,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       const primary = matchesShortcut(event, EDITOR_SHORTCUTS.saveAndShow);
       if (!primary && !matchesShortcut(event, EDITOR_SHORTCUTS.save)) return;
       event.preventDefault();
-      if (saveMutation.isPending || stagingActive) return;
+      if (saveMutation.isPending || stagingActive || draftState?.savingDraft) return;
       const saveDraft = draftState?.saveDraft;
-      if (primary && !saveDraft) requestShowNowRef.current();
-      else if (!primary && saveDraft) saveDraft();
+      // Show now needs a display, as its button does.
+      if (primary && !saveDraft) {
+        if (selectedBoardId) requestShowNowRef.current();
+      } else if (!primary && saveDraft) saveDraft();
       else if (isShrinkingRetarget) setConfirmRetargetOpen(true);
       else saveMutation.mutate();
     };
@@ -2150,7 +2152,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("keydown", onKey);
     };
-  }, [saveMutation, stagingActive, isShrinkingRetarget, draftState]);
+  }, [saveMutation, stagingActive, isShrinkingRetarget, draftState, selectedBoardId]);
 
   // Delete mutation
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -2989,10 +2991,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         : hasUnsavedChanges
           ? null
           : lastSaved;
-  const saveStateLabel = !pageId
-    ? tHeader("unsaved")
-    : saveMutation.isPending
-      ? tHeader("saving")
+  const saveStateLabel = saveMutation.isPending
+    ? tHeader("saving")
+    : !pageId
+      ? tHeader("unsaved")
       : draftState?.savingDraft && draftState.saveDraft
         ? tHeader("savingDraft")
         : draftState?.draftSavedAt && draftState.saveDraft
@@ -3022,12 +3024,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const headerStateTitle = !draftState?.label && stateAt ? editTimeTitle(stateAt, locale) : undefined;
   // UX-1-7: discarding a restored draft can be undone for a few seconds (Gmail/Docs).
   const discardRestoredDraft = draftState?.onDiscard
-    ? () => {
-        const kept = takeSnapshot();
-        draftState.onDiscard?.();
+    ? async () => {
+        // The whole content (text, geometry, transition, canvases, duration), not
+        // just the text; the toast comes once the discard has landed, so an Undo
+        // can't be overwritten by it.
+        const kept = getCurrentPageSnapshot();
+        await draftState.onDiscard?.();
+        if (!kept) return;
         toast(tHeader("draftDiscarded"), {
           duration: 8000,
-          action: { label: tHeader("undo"), onClick: () => applySnapshot(kept) },
+          action: { label: tHeader("undo"), onClick: () => applyContent(kept as unknown as PageContent) },
         });
       }
     : undefined;
@@ -3305,7 +3311,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   /** Hands the caret back to the template (the rich editor, or the plain field). */
   const focusTemplate = () => {
     const host = editorMode === "rich" && !baselineDisplay ? richTemplateContainerRef : plainTemplateContainerRef;
-    host.current?.querySelector<HTMLElement>('[contenteditable="true"], textarea')?.focus();
+    const field = host.current?.querySelector<HTMLElement>('[contenteditable="true"], textarea');
+    // Nothing to take the caret (draw mode, a hidden surface): leave the name field anyway.
+    if (field && field.offsetParent !== null) field.focus();
+    else (document.activeElement as HTMLElement | null)?.blur();
   };
 
   const requestSave = () => {
