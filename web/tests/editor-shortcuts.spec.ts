@@ -137,18 +137,22 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
     await expect(page.getByRole("dialog", LIST)).toHaveCount(0);
   });
 
-  test("? inside the formula modal belongs to the modal, and Esc then closes only the modal", async ({ page }) => {
+  // W-5 (DD-W169): an empty new page opens the docked formula editor too, not
+  // a modal. `?` typed in its code is a character, and Esc closes only it.
+  test("? inside the formula editor is typed there, and Esc then closes only the editor", async ({ page }) => {
     await openEditor(page);
     await page.locator('[contenteditable="true"]').first().click();
     await page.getByRole("button", { name: "Insert formula" }).click();
-    const modal = page.getByRole("dialog", { name: "Formula editor" });
-    await expect(modal).toBeVisible();
-    const tab = modal.getByRole("tab", { name: "Functions" });
-    await tab.focus();
+    const card = page.getByTestId("formula-code-card");
+    await expect(card).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Formula editor" })).toHaveCount(0);
+    const code = card.locator(".cm-content");
+    await expect(code).toBeFocused();
     await page.keyboard.press("?");
+    await expect(code).toContainText("?");
     await expect(page.getByRole("dialog", LIST)).toHaveCount(0);
     await page.keyboard.press("Escape");
-    await expect(modal).toBeHidden();
+    await expect(card).toBeHidden();
     await expect(page.getByRole("dialog", LIST)).toHaveCount(0);
   });
 

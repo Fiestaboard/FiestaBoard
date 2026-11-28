@@ -24,6 +24,8 @@ export interface WorkbenchProps {
   sourceMapStatus: "complete" | "limit" | "not_requested" | null;
   renderFailed: boolean;
   boardCols: number;
+  /** Docked under the preview (≥1024) or in the bottom sheet (640–1023); one editor, two placements (W-5). */
+  placement?: "docked" | "sheet";
   /** Replace a formula body on a template line (one-tap fixes). */
   onReplaceFormula: (line: number, from: string, to: string) => void;
 }

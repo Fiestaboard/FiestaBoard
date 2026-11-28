@@ -141,10 +141,13 @@ function Harness({
       {ide.caption}
       {ide.previewFooter}
       <Chip onOpen={onOpen} />
+      {ide.rightSlot}
       {ide.overlays}
     </FormulaIdeContext.Provider>
   );
 }
+
+const chipCancel = vi.fn();
 
 function Chip({ onOpen }: { onOpen?: () => void }) {
   const bridge = useFormulaIdeBridge();
@@ -157,7 +160,7 @@ function Chip({ onOpen }: { onOpen?: () => void }) {
       <button
         type="button"
         onClick={() => {
-          const docked = bridge?.openFormula({ expression: "x", apply: vi.fn(), cancel: vi.fn() });
+          const docked = bridge?.openFormula({ expression: "x", apply: vi.fn(), cancel: chipCancel });
           if (!docked) onOpen?.();
         }}
       >
@@ -271,11 +274,99 @@ describe("useFormulaIde", () => {
     expect(bodies).toHaveLength(0);
   });
 
-  it("opens the docked editor only on desktop", async () => {
+  // W-5: one formula editor, two placements. Below 1024 it is the same Code |
+  // Builder editor in a bottom sheet with no scrim, so the board stays in view.
+  it("opens the same editor in a bottom sheet below 1024, not the chip's own dialog (W-5)", async () => {
     const onOpen = vi.fn();
     renderHarness(false, onOpen);
     await userEvent.click(screen.getByRole("button", { name: "open" }));
-    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+    const sheet = await screen.findByTestId("formula-sheet");
+    const card = await within(sheet).findByTestId("formula-code-card");
+    expect(card).toHaveAttribute("data-placement", "sheet");
+    expect(within(sheet).getByRole("tab", { name: "Code" })).toBeInTheDocument();
+    expect(within(sheet).getByRole("tab", { name: "Builder" })).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Update formula" })).toBeInTheDocument();
+  });
+
+  it("cancels the sheet once on Esc, and keeps it open on a press outside (W-5)", async () => {
+    chipCancel.mockClear();
+    renderHarness(false);
+    await userEvent.click(screen.getByRole("button", { name: "open" }));
+    const sheet = await screen.findByTestId("formula-sheet");
+    await within(sheet).findByTestId("formula-code-card");
+    await userEvent.click(screen.getByTestId("override"));
+    expect(screen.getByTestId("formula-sheet")).toBeInTheDocument();
+    expect(chipCancel).not.toHaveBeenCalled();
+    // The editor's Esc and the sheet's own Esc both report the one close.
+    const code = sheet.querySelector<HTMLElement>(".cm-content")!;
+    code.focus();
+    expect(code).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("formula-sheet")).toBeNull());
+    expect(chipCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves an Esc the editor used (closing autocomplete) to the editor (W-5)", async () => {
+    chipCancel.mockClear();
+    renderHarness(false);
+    await userEvent.click(screen.getByRole("button", { name: "open" }));
+    const sheet = await screen.findByTestId("formula-sheet");
+    await within(sheet).findByTestId("formula-code-card");
+    const code = sheet.querySelector<HTMLElement>(".cm-content")!;
+    code.focus();
+    // CodeMirror's completion keymap: Esc closes the list and prevents the default.
+    const closeCompletion = (event: KeyboardEvent) => {
+      if (event.key === "Escape") event.preventDefault();
+    };
+    code.addEventListener("keydown", closeCompletion);
+    await userEvent.keyboard("{Escape}");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByTestId("formula-sheet")).toBeInTheDocument();
+    expect(chipCancel).not.toHaveBeenCalled();
+    code.removeEventListener("keydown", closeCompletion);
+  });
+
+  it("docks the editor on an empty page at desktop width (W-5)", async () => {
+    const onOpen = vi.fn();
+    renderHarness(true, onOpen, true);
+    await userEvent.click(screen.getByRole("button", { name: "open" }));
+    expect(onOpen).not.toHaveBeenCalled();
+    const card = await screen.findByTestId("formula-code-card");
+    expect(card).toHaveAttribute("data-placement", "docked");
+    expect(screen.queryByTestId("formula-sheet")).toBeNull();
+  });
+
+  it("leaves a phone to the chip's own Formula sheet (306:38107)", async () => {
+    const original = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("max-width: 639px"),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    try {
+      const onOpen = vi.fn();
+      renderHarness(false, onOpen);
+      await userEvent.click(screen.getByRole("button", { name: "open" }));
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      expect(screen.queryByTestId("formula-sheet")).toBeNull();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it("opens the editor on an empty page too, before there is a render target (W-5)", async () => {
+    const onOpen = vi.fn();
+    renderHarness(false, onOpen, true);
+    await userEvent.click(screen.getByRole("button", { name: "open" }));
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("formula-sheet")).toBeInTheDocument();
   });
 
   it("toggles Inspect with I outside text inputs on desktop", async () => {

@@ -5,10 +5,16 @@
 
 "use client";
 
-import { autocompletion, type Completion, type CompletionContext } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  closeCompletion,
+  type Completion,
+  type CompletionContext,
+  completionStatus,
+} from "@codemirror/autocomplete";
 import { history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
-import { EditorState, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
+import { EditorState, Prec, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, keymap, lineNumbers, WidgetType } from "@codemirror/view";
 import { Badge, Box, Button, Card, CardContent, Flex, List, ListItem, Text } from "@fiestaboard/ui";
 import { tags } from "@lezer/highlight";
@@ -22,6 +28,7 @@ import type { FunctionSignatureEntry } from "@/lib/api/templates";
 import { EDITOR_SHORTCUTS, matchesShortcut } from "@/lib/editor-shortcuts";
 import { completionContext, matchFunctions } from "@/lib/formula-ide/autocomplete";
 import { flattenFormula, iterationCount, lineValueHints, prettyPrint } from "@/lib/formula-ide/pretty";
+import { cn } from "@/lib/utils";
 
 import { WorkbenchHeader } from "./workbench-header";
 import type { WorkbenchProps } from "./workbench-types";
@@ -108,21 +115,26 @@ const theme = EditorView.theme({
 });
 
 class HintWidget extends WidgetType {
-  constructor(readonly text: string) {
+  constructor(
+    readonly text: string,
+    readonly note: string,
+  ) {
     super();
   }
   eq(other: HintWidget) {
-    return other.text === this.text;
+    return other.text === this.text && other.note === this.note;
   }
   toDOM() {
     const span = document.createElement("span");
     span.className = "cm-value-hint";
     span.textContent = this.text;
+    // Where the values come from is the values' tooltip, not a caption (W-5).
+    span.title = this.note;
     return span;
   }
 }
 
-const setHints = StateEffect.define<Array<string | null>>();
+const setHints = StateEffect.define<{ hints: Array<string | null>; note: string }>();
 const hintField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update(value, tr) {
@@ -130,10 +142,10 @@ const hintField = StateField.define<DecorationSet>({
     for (const effect of tr.effects) {
       if (!effect.is(setHints)) continue;
       const builder = new RangeSetBuilder<Decoration>();
-      effect.value.forEach((hint, index) => {
+      effect.value.hints.forEach((hint, index) => {
         if (hint === null || index >= tr.state.doc.lines) return;
         const line = tr.state.doc.line(index + 1);
-        builder.add(line.to, line.to, Decoration.widget({ widget: new HintWidget(hint), side: 1 }));
+        builder.add(line.to, line.to, Decoration.widget({ widget: new HintWidget(hint, effect.value.note), side: 1 }));
       });
       next = builder.finish();
     }
@@ -179,6 +191,7 @@ export function FormulaCodeCard(props: WorkbenchProps) {
   const tEditor = useTranslations("formulaEditor");
   const tTemplate = useTranslations("templateEditor");
   const labelId = useId();
+  const noteId = useId();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const original = open?.expression ?? "";
@@ -257,7 +270,22 @@ export function FormulaCodeCard(props: WorkbenchProps) {
           theme,
           hintField,
           history(),
-          EditorView.contentAttributes.of({ "aria-labelledby": labelId }),
+          EditorView.contentAttributes.of({ "aria-labelledby": labelId, "aria-describedby": noteId }),
+          // Esc closes a completion list that shows. A query still pending
+          // just after a keystroke shows nothing, so Esc there is the editor's
+          // Cancel, not a swallowed key (completion's own Esc would eat it). Before
+          // autocompletion(), so this runs first at the same precedence.
+          Prec.highest(
+            keymap.of([
+              {
+                key: "Escape",
+                run: (target) => {
+                  if (completionStatus(target.state) === "pending") closeCompletion(target);
+                  return false;
+                },
+              },
+            ]),
+          ),
           autocompletion({
             override: [
               completionSource(
@@ -301,9 +329,10 @@ export function FormulaCodeCard(props: WorkbenchProps) {
     () => (trace && unedited ? lineValueHints(trace.events, printed.lines, iteration) : []),
     [trace, unedited, printed, iteration],
   );
+  const hintsNote = t("hintsNote");
   useEffect(() => {
-    view.current?.dispatch({ effects: setHints.of(hints) });
-  }, [hints]);
+    view.current?.dispatch({ effects: setHints.of({ hints, note: hintsNote }) });
+  }, [hints, hintsNote]);
 
   if (!open) return null;
   const canApply = expression.trim().length > 0 && validation.state === "valid";
@@ -317,7 +346,12 @@ export function FormulaCodeCard(props: WorkbenchProps) {
   return (
     <Card
       data-testid="formula-code-card"
-      className="gap-2 border-2 border-tag-formula py-3"
+      data-placement={props.placement ?? "docked"}
+      className={cn(
+        "gap-2 py-3",
+        // In the sheet the sheet is the surface: no second frame inside it (W-5).
+        props.placement === "sheet" ? "border-0 bg-transparent py-0 shadow-none" : "border-2 border-tag-formula",
+      )}
       // Esc cancels the docked editor, as it closes the chip's own dialog; the
       // chip then puts the caret back after it (UX-2-5). CodeMirror's own Esc
       // (closing a completion) prevents the default first and wins.
@@ -328,8 +362,18 @@ export function FormulaCodeCard(props: WorkbenchProps) {
         setOpen(null);
       }}
     >
-      <CardContent className="px-4">
-        <WorkbenchHeader line={formula?.line ?? null} tab="code" setOpen={setOpen} status={status} />
+      <CardContent className={props.placement === "sheet" ? "px-0" : "px-4"}>
+        <WorkbenchHeader
+          line={formula?.line ?? null}
+          tab="code"
+          setOpen={setOpen}
+          status={status}
+          inSheet={props.placement === "sheet"}
+        />
+        {/* Where the margin values come from: their hover title, and the editor's description. */}
+        <Text id={noteId} className="sr-only">
+          {t("hintsNote")}
+        </Text>
         <Text id={labelId} className="sr-only">
           {t("codeLabel")}
         </Text>
@@ -379,8 +423,9 @@ export function FormulaCodeCard(props: WorkbenchProps) {
               </Button>
             </Flex>
           ) : (
+            // Only when there were values to hide; where they come from is their tooltip (W-5).
             <Text size="xs" tone="muted" className="min-w-0 flex-1">
-              {unedited ? t("hintsNote") : t("hintsStale")}
+              {trace && !unedited ? t("hintsStale") : null}
             </Text>
           )}
           <Flex gap="2" className="shrink-0">

@@ -32,8 +32,9 @@ export interface FormulaIdeBridge {
   /** The H5 value hint for a chip's expression, if the last render saw it. */
   hint: (expression: string) => AtomHint | undefined;
   /**
-   * Opens the docked formula editor (desktop, ≥1024 px). Returns false when
-   * there is no docked editor, so the chip falls back to its own dialog.
+   * Opens the page editor's formula editor: docked from 1024 px, a bottom
+   * sheet from 640 to 1023 (W-5). Returns false on a phone or where the IDE
+   * is unavailable, so the chip falls back to its own sheet or dialog.
    */
   openFormula: (request: OpenFormulaRequest) => boolean;
   /** Long-press / context menu › Inspect: steps and fit for one formula. */

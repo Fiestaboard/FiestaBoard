@@ -107,7 +107,7 @@ describe("Apply a formula (Mod+Enter)", () => {
     render(<FormulaEditorPanel mode="edit" initialExpr="1 + 1" onConfirm={onConfirm} />, {
       wrapper: Wrapper,
     });
-    const done = await screen.findByRole("button", { name: /Done/ }, { timeout: 5000 });
+    const done = await screen.findByRole("button", { name: /Update formula/ }, { timeout: 5000 });
     await waitFor(() => expect(done).toBeEnabled(), { timeout: 3000 });
     const content = screen.getByRole("textbox", { name: "Formula expression" });
     expect(content).toHaveFocus();
@@ -116,10 +116,10 @@ describe("Apply a formula (Mod+Enter)", () => {
     expect(onConfirm).toHaveBeenCalledWith("1 + 1");
   });
 
-  it("spells the Done button's chord from the registry with the kit Kbd", async () => {
+  it("spells the Update formula button's chord from the registry with the kit Kbd", async () => {
     vi.mocked(api.validateTemplate).mockResolvedValue({ valid: true, errors: [], warnings: [] } as never);
     render(<FormulaEditorPanel mode="edit" initialExpr="1 + 1" onConfirm={vi.fn()} />, { wrapper: Wrapper });
-    const done = await screen.findByRole("button", { name: /Done/ }, { timeout: 5000 });
+    const done = await screen.findByRole("button", { name: /Update formula/ }, { timeout: 5000 });
     expect(done).toHaveAttribute("aria-keyshortcuts", "Control+Enter Meta+Enter");
     const caps = done.querySelector('kbd[aria-hidden="true"]');
     expect(caps?.textContent?.replace(/\s+/g, "")).toBe("CtrlEnter");
