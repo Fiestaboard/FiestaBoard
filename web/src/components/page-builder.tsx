@@ -552,7 +552,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const editorContentRef = useRef<HTMLDivElement>(null);
   const dockPreviewRef = useRef<HTMLElement>(null);
   const viewportBottom = useEditorViewportDock(dockedPreview && useTouchToolbar, editorContentRef, dockPreviewRef);
-  const [previewMode, setPreviewMode] = useState<BoardPreviewMode>(() => readStoredBoardPreviewMode() ?? "actual");
+  const [previewMode, setPreviewMode] = useState<BoardPreviewMode>(() => readStoredBoardPreviewMode() ?? "fit");
   const changePreviewMode = (mode: BoardPreviewMode) => {
     setPreviewMode(mode);
     writeStoredBoardPreviewMode(mode);
@@ -565,7 +565,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     reportedCreatedRef.current = true;
     onCreated?.(createdPageId);
   }, [createdPageId, initialPageId, onCreated]);
-  const showAfterSaveRef = useRef(false);
   const requestShowNowRef = useRef<(savedId?: string) => void>(() => {});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const t = useTranslations("pageBuilder");
@@ -833,10 +832,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Export dialog
   const [exportOpen, setExportOpen] = useState(false);
   const [exportShareString, setExportShareString] = useState("");
-
-  // Shrinking-retarget confirmation (issue #1250). Converting a saved page
-  // to a smaller geometry is lossy, so the save is gated behind a confirm.
-  const [confirmRetargetOpen, setConfirmRetargetOpen] = useState(false);
 
   // Snapshot stack so the AI chat panel can offer a one-click Undo
   // after the model applies a change. Bounded to keep the editor
@@ -1624,21 +1619,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     return builtIn ? tTransitions(`strategies.${builtIn.labelKey}.label`) : transitionStrategy;
   }, [transitionStrategy, unknownPluginStrategy, transitionPlugins, t, tTransitions]);
 
-  // Device/size retarget (issue #1250): compare the saved geometry with the
-  // editor's current one. A shrink on either axis is lossy (content that
-  // doesn't fit is cut off), so the save asks for confirmation first.
-  const originalDims = existingPage
-    ? resolveDimensions(
-        existingPage.device_type,
-        existingPage.notes_wide ?? 1,
-        existingPage.notes_tall ?? 1,
-        existingPage.grid_rows,
-        existingPage.grid_cols,
-      )
-    : null;
-  const isShrinkingRetarget =
-    !!pageId && !!originalDims && (dims.rows < originalDims.rows || dims.cols < originalDims.cols);
-
   // Refetches of the page (the AI drawer invalidates ["page"] after an
   // update_page) must not overwrite what the user is typing: seed once per
   // page, and re-seed later only while the editor is clean. Read through a
@@ -2011,7 +1991,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     ): Promise<PageUpdateResponse & { submitted: SubmittedForm; showRequested: boolean }> => {
       const submitted = snapshotForm();
       const showRequested = intent?.showRequested ?? false;
-      showAfterSaveRef.current = false;
       const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
         const payload: PageUpdate = {
@@ -2119,25 +2098,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         setShowPageId(data.page.id);
       }
 
-      // Stale-reference warning after a device/size retarget (issue #1250):
-      // list the schedules / active pages now pointing this page at a board
-      // it no longer fits. Non-blocking — the save already succeeded and
-      // nothing is auto-removed.
-      const incompatibleRefs = data.incompatible_references;
-      if (incompatibleRefs.length > 0) {
-        const list = incompatibleRefs
-          .map(
-            (ref) =>
-              `${ref.board_name} (${ref.surface === "schedule" ? t("retargetSurfaceSchedule") : t("retargetSurfaceActivePage")})`,
-          )
-          .join(", ");
-        toast.warning(t("retargetIncompatibleWarning", { list }), { duration: 10000 });
-      }
-
       onSave?.();
     },
     onError: (error: Error) => {
-      showAfterSaveRef.current = false;
       toast.error(error.message);
     },
   });
@@ -2145,9 +2108,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   requestShowNowRef.current = (savedId) => {
     if (saveMutation.isPending || stagingActive) return;
     if (hasUnsavedChangesRef.current || !(pageId ?? savedId)) {
-      showAfterSaveRef.current = true;
-      if (isShrinkingRetarget) setConfirmRetargetOpen(true);
-      else saveMutation.mutate({ showRequested: true });
+      saveMutation.mutate({ showRequested: true });
     } else setShowPageId(pageId ?? savedId ?? null);
   };
 
@@ -2170,7 +2131,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (primary && !saveDraft) {
         if (selectedBoardId) requestShowNowRef.current();
       } else if (!primary && saveDraft) saveDraft();
-      else if (isShrinkingRetarget) setConfirmRetargetOpen(true);
       else saveMutation.mutate();
     };
     window.addEventListener("beforeunload", onBeforeUnload);
@@ -2179,7 +2139,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("keydown", onKey);
     };
-  }, [saveMutation, stagingActive, isShrinkingRetarget, draftState, selectedBoardId]);
+  }, [saveMutation, stagingActive, draftState, selectedBoardId]);
 
   // Delete mutation
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -3166,10 +3126,41 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setTemplateLines((lines) => lines.map((line, i) => (i === index ? edit(line) : line)));
     },
   });
+  // The preview's board colour: in the new page's target popover and the phone
+  // dock's More (a saved page's pane has it in View, D3).
+  const boardColorControl = (
+    <Flex align="center" gap="1.5" className="shrink-0">
+      <Text as="span" size="xs" tone="muted" className="mr-0.5">
+        {t("boardColorLabel")}
+      </Text>
+      <button
+        onClick={() => setPreviewBoardColor("black")}
+        aria-label={t("previewAsBlack")}
+        aria-pressed={effectiveBoardColor === "black"}
+        className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+          effectiveBoardColor === "black"
+            ? "border-primary ring-1 ring-primary/30"
+            : "border-border hover:border-muted-foreground"
+        }`}
+      />
+      <button
+        onClick={() => setPreviewBoardColor("white")}
+        aria-label={t("previewAsWhite")}
+        aria-pressed={effectiveBoardColor === "white"}
+        className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+          effectiveBoardColor === "white"
+            ? "border-primary ring-1 ring-primary/30"
+            : "border-border hover:border-muted-foreground"
+        }`}
+      />
+    </Flex>
+  );
   const mirrorMoreContent = (
     <Stack gap="3">
       {/* The dock's data modes live here, not in a row over the board (UX-10-2). */}
       {formulaIde.moreControls}
+      {/* A saved page's board colour, under the data modes (D3: no target icon in the dock). */}
+      {dockedPreview && !!pageId && boardColorControl}
       {mirrorControl}
       {dockedPreview && secondaryActions}
     </Stack>
@@ -3218,8 +3209,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   ]
     .filter(Boolean)
     .join(" · ");
-  // D3 (BB-E-6): the preview's target, the board size and the board colour,
-  // behind the preview header's meta instead of on the canvas.
+  // D3 (BB-E-6): a NEW page's target, board size and board colour, behind the
+  // preview header's meta. A saved page has none of this: its display is
+  // Inspector › Shows on's, where another size is a copy (DD-W159).
   const previewTargetControls = (
     <>
       {boardSettings?.boards && boardSettings.boards.length > 1 && (
@@ -3256,10 +3248,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             gridRows={gridRows}
             gridCols={gridCols}
           />
-          {/* Device/size retarget (issue #1250): both new AND saved
-              pages can change board size. Converting a saved page is
-              lossy (shrinks truncate), so saving a shrinking retarget
-              asks for confirmation first. */}
+          {/* A new page picks its board size here; a saved page keeps
+              its size (another size is a copy, DD-W159). */}
           <Select value={sizeSelectValue} onValueChange={handleSizeChange}>
             <SelectTrigger
               className="h-7 pointer-coarse:h-11 w-auto gap-1 px-2 text-xs"
@@ -3366,31 +3356,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             </>
           )}
         </Flex>
-        <Flex align="center" gap="1.5" className="shrink-0">
-          <Text as="span" size="xs" tone="muted" className="mr-0.5">
-            {t("boardColorLabel")}
-          </Text>
-          <button
-            onClick={() => setPreviewBoardColor("black")}
-            aria-label={t("previewAsBlack")}
-            aria-pressed={effectiveBoardColor === "black"}
-            className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-              effectiveBoardColor === "black"
-                ? "border-primary ring-1 ring-primary/30"
-                : "border-border hover:border-muted-foreground"
-            }`}
-          />
-          <button
-            onClick={() => setPreviewBoardColor("white")}
-            aria-label={t("previewAsWhite")}
-            aria-pressed={effectiveBoardColor === "white"}
-            className={`h-5 w-5 pointer-coarse:size-11 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-              effectiveBoardColor === "white"
-                ? "border-primary ring-1 ring-primary/30"
-                : "border-border hover:border-muted-foreground"
-            }`}
-          />
-        </Flex>
+        {boardColorControl}
       </Stack>
     </>
   );
@@ -3407,12 +3373,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   };
 
   const requestSave = () => {
-    // A shrinking retarget loses content — confirm first.
-    if (isShrinkingRetarget) {
-      setConfirmRetargetOpen(true);
-    } else {
-      saveMutation.mutate();
-    }
+    saveMutation.mutate();
   };
 
   // Web 2.9 (04b): complex-editing lenses for big boards and note arrays on
@@ -4265,10 +4226,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       // by renaming the card, so the header never reflows.
                       title={baselineDisplay ? tTouch("plainText") : tTouch("livePreview")}
                       dotStatus={baselineDisplay ? "warning" : (formulaIde.dotStatus ?? "success")}
-                      // The pane's meta is the target control (D3); the dock keeps the name.
+                      // D3 (DD-W159): a saved page's meta is plain text (its display is
+                      // Inspector › Shows on's); a new page's is the target popover. The dock keeps the name.
                       boardName={dockedPreview ? previewBoard?.name : undefined}
                       details={
-                        dockedPreview ? undefined : (
+                        dockedPreview ? undefined : pageId ? (
+                          <Text
+                            as="span"
+                            size="xs"
+                            tone="muted"
+                            weight="medium"
+                            {...anchorProps("page-editor.device")}
+                            title={previewTargetLabel}
+                            data-testid="preview-target-meta"
+                            className="block min-w-0 truncate font-mono"
+                          >
+                            {previewTargetLabel}
+                          </Text>
+                        ) : (
                           <PreviewTargetPopover
                             target={previewTargetLabel}
                             triggerProps={anchorProps("page-editor.device")}
@@ -4306,7 +4281,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       headerAction={
                         // One row (BB-E-5): the meta truncates, the controls never wrap.
                         <Flex align="center" gap="1" className="shrink-0 flex-nowrap justify-end">
-                          {dockedPreview && (
+                          {dockedPreview && !pageId && (
                             <PreviewTargetPopover
                               target={previewTargetLabel}
                               variant="icon"
@@ -4323,6 +4298,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               ruler={
                                 complexEditing.bigBoard
                                   ? { on: complexEditing.rulerOpen, onChange: complexEditing.setRulerOpen }
+                                  : null
+                              }
+                              boardColor={
+                                pageId && !dockedPreview
+                                  ? { value: effectiveBoardColor, onChange: setPreviewBoardColor }
                                   : null
                               }
                               size={dockedPreview ? "touch" : "default"}
@@ -4559,39 +4539,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         </DialogContent>
       </Dialog>
 
-      {/* Shrinking-retarget confirmation (issue #1250). Conversion between
-          geometries is lossy: content that doesn't fit the smaller board is
-          cut off, so the save is gated behind an explicit confirm. */}
-      <AlertDialog
-        open={confirmRetargetOpen}
-        onOpenChange={(open) => {
-          setConfirmRetargetOpen(open);
-          if (!open) showAfterSaveRef.current = false;
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("retargetConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("retargetConfirmDescription", {
-                oldSize: originalDims ? `${originalDims.rows} × ${originalDims.cols}` : "",
-                newSize: `${dims.rows} × ${dims.cols}`,
-              })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setConfirmRetargetOpen(false);
-                saveMutation.mutate({ showRequested: showAfterSaveRef.current });
-              }}
-            >
-              {t("retargetConfirmAction")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       {deleteDialog}
       {formulaIde.overlays}
     </FormulaIdeContext.Provider>

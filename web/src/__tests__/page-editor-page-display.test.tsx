@@ -154,9 +154,9 @@ function renderShell() {
 
 it("previews, names and checks the page as the display that shows it, not the sidebar's or the first", async () => {
   renderShell();
-  // The editor's preview target (the size picker names the display).
-  const picker = await screen.findByLabelText("Change board size");
-  await waitFor(() => expect(picker).toHaveTextContent("Den Pixoo"), { timeout: 4000 });
+  // The editor's preview target (the preview header's plain-text meta names the display).
+  const meta = await screen.findByTestId("preview-target-meta");
+  await waitFor(() => expect(meta.textContent).toMatch(/^Den Pixoo · /), { timeout: 4000 });
   await waitFor(() => expect(vi.mocked(api.renderTemplate).mock.calls.at(-1)?.[6]).toBe("den"));
   // The Creator IDE speaks for the same display (it reads the editor's on its 1 s poll).
   const transition = await screen.findByRole("button", { name: /Transition/ });

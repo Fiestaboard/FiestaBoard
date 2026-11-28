@@ -96,7 +96,8 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
     const { id } = await response.json();
     try {
       await page.setViewportSize({ width: 390, height: 844 });
-      await page.addInitScript(() => localStorage.setItem("fiestaboard:boardPreviewMode", "actual"));
+      // The preview opens at Fit by default (UX-4-2); a stored choice (session storage) still wins.
+      await page.addInitScript(() => sessionStorage.setItem("fiestaboard:boardPreviewMode", "actual"));
       await page.goto(`/pages/edit/${id}`);
       await expect(page.getByPlaceholder("My Custom Page")).toHaveValue("Keyboard viewport array");
       const viewport = page.locator("[data-slot=board-viewport]").first();
