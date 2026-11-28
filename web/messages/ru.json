@@ -1648,7 +1648,9 @@
     "toastShown": "Сейчас на {board}: «{page}»",
     "toastPaused": "Сохранено. «{page}» появится, когда вы возобновите {board}.",
     "toastNotSent": "Сохранено, но отправить на {board} не удалось.",
-    "toastError": "Не удалось сменить страницу"
+    "toastError": "Не удалось сменить страницу",
+    "showPageTitle": "Показать {page} на {board}",
+    "showPageDescription": "Как долго?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Не удаётся подключиться к приложению. Проверьте сеть или запущен ли FiestaBoard.",
@@ -4325,7 +4327,11 @@
     "copyWillMake": "Создаёт новую страницу под размер {board} ({cols} × {rows}); эта страница не меняется.",
     "collapseConsole": "Свернуть консоль",
     "scheduleGroup": "Расписание",
-    "collectionsGroup": "Коллекции"
+    "collectionsGroup": "Коллекции",
+    "showingNowGroup": "Показывается сейчас",
+    "overrideUntil": "На {board} до {time}",
+    "overrideUntilCancel": "На {board}, пока вы не остановите",
+    "stopShowing": "Остановить"
   },
   "formulaIde": {
     "atomValue": "= {value}",

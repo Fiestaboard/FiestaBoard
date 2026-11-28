@@ -1,14 +1,15 @@
 "use client";
 
 import { Box, Button, Flex, InspectorRow, List, ListItem, ListRow, Stack, Text } from "@fiestaboard/ui";
-import { useQueries } from "@tanstack/react-query";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId } from "react";
 
 import { useLocale, useTranslations } from "@/i18n/translations";
+import { nudgeDisplay, useRefreshHomeStatus } from "@/components/home/use-home-data";
 import { api } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
-import { formatDays, formatWindow } from "./ide-format";
+import { formatDays, formatWallTime, formatWindow } from "./ide-format";
 import { IdeWeek } from "./ide-timeline";
 import type { CreatorIdeState } from "./use-creator-ide";
 
@@ -81,6 +82,57 @@ function IdeDisplayPicker({
 }
 
 /**
+ * W-2: a running Show now (the display's temporary override) leads Shows on,
+ * with its end and a Stop, so the page's live state has one place to end it.
+ */
+function IdeShowingNow({ ide }: { ide: CreatorIdeState }) {
+  const tq = useTranslations("ideQuiet");
+  const locale = useLocale();
+  const queryClient = useQueryClient();
+  const refresh = useRefreshHomeStatus();
+  const stop = useMutation({
+    mutationFn: (boardId: string) => api.clearTemporaryOverride(boardId),
+    onSuccess: (_result, boardId) => {
+      nudgeDisplay(boardId);
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: ["ide", "active"] });
+    },
+  });
+  const held = ide.showsOn.showingNow.filter((showing) => showing.override);
+  if (!held.length) return null;
+  return (
+    <ShowsOnGroup label={tq("showingNowGroup")}>
+      {held.map((showing) => {
+        const until = formatWallTime(showing.until, locale);
+        return (
+          <ListItem key={showing.boardId}>
+            <ListRow
+              variant="plain"
+              className="border-b border-border px-0"
+              title={
+                until
+                  ? tq("overrideUntil", { board: showing.boardName, time: until })
+                  : tq("overrideUntilCancel", { board: showing.boardName })
+              }
+              trailing={
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={stop.isPending}
+                  onClick={() => stop.mutate(showing.boardId)}
+                >
+                  {tq("stopShowing")}
+                </Button>
+              }
+            />
+          </ListItem>
+        );
+      })}
+    </ShowsOnGroup>
+  );
+}
+
+/**
  * Shows on (04d 1.6b, H8): when and where this page shows. Schedule entries
  * (direct or through a collection) with "Now" from the hub's instant answer,
  * and each collection's rule dry run at this moment.
@@ -112,10 +164,12 @@ export function IdeShowsOn({
     })),
   });
   const pageName = (id: string | null | undefined) => ide.pages.find((page) => page.id === id)?.name;
-  const empty = !ide.showsOn.entries.length && !ide.showsOn.collections.length;
+  const empty =
+    !ide.showsOn.entries.length && !ide.showsOn.collections.length && !ide.showsOn.showingNow.length;
 
   return (
     <Stack gap="3" data-slot="ide-shows-on">
+      <IdeShowingNow ide={ide} />
       <IdeDisplayPicker ide={ide} onRetarget={onRetarget} onCopyFor={onCopyFor} />
       {showWeek && <IdeWeek ide={ide} />}
       {empty && (

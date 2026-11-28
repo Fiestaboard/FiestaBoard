@@ -3837,7 +3837,9 @@
     "toastShown": "On {board} now: {page}",
     "toastPaused": "Saved. {page} shows when you resume {board}.",
     "toastNotSent": "Saved, but sending to {board} failed.",
-    "toastError": "Couldn’t change the page"
+    "toastError": "Couldn’t change the page",
+    "showPageTitle": "Show {page} on {board}",
+    "showPageDescription": "How long?"
   },
   "editorShortcuts": {
     "title": "Keyboard shortcuts",
@@ -4325,7 +4327,11 @@
     "copyWillMake": "Makes a new page sized for {board} ({cols} × {rows}); this page is unchanged.",
     "collapseConsole": "Collapse the console",
     "scheduleGroup": "Schedule",
-    "collectionsGroup": "Collections"
+    "collectionsGroup": "Collections",
+    "showingNowGroup": "Showing now",
+    "overrideUntil": "On {board} until {time}",
+    "overrideUntilCancel": "On {board} until you stop it",
+    "stopShowing": "Stop"
   },
   "formulaIde": {
     "atomValue": "= {value}",

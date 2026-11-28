@@ -22,6 +22,11 @@ export interface ShowingNow {
   boardName: string;
   /** "HH:MM" end of the window showing it, or null when open-ended / manual. */
   until: string | null;
+  /**
+   * Set when a Show now (the display's H1 temporary override) is what shows it:
+   * its ISO end, null when it runs until cancelled (W-2).
+   */
+  override?: { expiresAt: string | null };
 }
 
 export interface ShowsOnModel {
@@ -41,6 +46,14 @@ export interface ShowsOnInput {
   active: Readonly<Record<string, ActiveScheduleResponse | undefined>>;
   /** Fallback board for entries saved without one (the primary). */
   defaultBoardId?: string;
+}
+
+/** "HH:MM" on this device's clock for an ISO instant; null when absent or unreadable. */
+function wallClock(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return null;
+  return `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
 }
 
 const minutes = (hhmm: string | null | undefined): number | null => {
@@ -96,14 +109,31 @@ export function showsOnModel({
     if (schedule.page_id !== pageId && !collection) continue;
     const boardId = schedule.board_id || defaultBoardId || "";
     const answer = active[boardId];
+    // A running Show now holds the board over its schedule (H1).
     const answersThisPage =
-      !!answer && (answer.page_id === pageId || answer.resolved_page_id === pageId) && answer.source === "schedule";
+      !!answer &&
+      !answer.temporary_override?.active &&
+      (answer.page_id === pageId || answer.resolved_page_id === pageId) &&
+      answer.source === "schedule";
     const now = answersThisPage && schedule.enabled && windowHolds(schedule, answer.current_time);
     entries.push({ schedule, boardId, boardName: boardName(boardId), collection, now });
   }
 
   for (const [boardId, answer] of Object.entries(active)) {
     if (!answer || answer.silenced) continue;
+    const override = answer.temporary_override;
+    if (override?.active) {
+      // W-2: the board shows the Show now page until it ends, whatever the schedule says.
+      if (override.page_id === pageId) {
+        showingNow.push({
+          boardId,
+          boardName: boardName(boardId),
+          until: wallClock(override.expires_at),
+          override: { expiresAt: override.expires_at ?? null },
+        });
+      }
+      continue;
+    }
     if (answer.page_id !== pageId && answer.resolved_page_id !== pageId) continue;
     const window = entries.find((entry) => entry.boardId === boardId && entry.now);
     const end = window

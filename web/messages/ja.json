@@ -1648,7 +1648,9 @@
     "toastShown": "{board} に表示中: {page}",
     "toastPaused": "保存しました。{board} を再開すると {page} が表示されます。",
     "toastNotSent": "保存しましたが、{board} への送信に失敗しました。",
-    "toastError": "ページを変更できませんでした"
+    "toastError": "ページを変更できませんでした",
+    "showPageTitle": "{page} を {board} に表示",
+    "showPageDescription": "表示する時間は?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "アプリに接続できません。ネットワークまたは FiestaBoard の起動を確認してください。",
@@ -4325,7 +4327,11 @@
     "copyWillMake": "{board} のサイズ（{cols} × {rows}）で新しいページを作成します。このページは変更されません。",
     "collapseConsole": "コンソールを折りたたむ",
     "scheduleGroup": "スケジュール",
-    "collectionsGroup": "コレクション"
+    "collectionsGroup": "コレクション",
+    "showingNowGroup": "表示中",
+    "overrideUntil": "{board} に {time} まで",
+    "overrideUntilCancel": "{board} に停止するまで",
+    "stopShowing": "停止"
   },
   "formulaIde": {
     "atomValue": "= {value}",

@@ -1648,7 +1648,9 @@
     "toastShown": "Ora su {board}: {page}",
     "toastPaused": "Salvato. {page} compare quando riprendi {board}.",
     "toastNotSent": "Salvato, ma l’invio a {board} non è riuscito.",
-    "toastError": "Impossibile cambiare la pagina"
+    "toastError": "Impossibile cambiare la pagina",
+    "showPageTitle": "Mostra {page} su {board}",
+    "showPageDescription": "Per quanto tempo?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Impossibile raggiungere l'app. Controlla la rete o che FiestaBoard sia in esecuzione.",
@@ -4325,7 +4327,11 @@
     "copyWillMake": "Crea una nuova pagina nella dimensione di {board} ({cols} × {rows}); questa pagina non cambia.",
     "collapseConsole": "Comprimi la console",
     "scheduleGroup": "Programmazione",
-    "collectionsGroup": "Raccolte"
+    "collectionsGroup": "Raccolte",
+    "showingNowGroup": "In mostra ora",
+    "overrideUntil": "Su {board} fino alle {time}",
+    "overrideUntilCancel": "Su {board} finché non la interrompi",
+    "stopShowing": "Interrompi"
   },
   "formulaIde": {
     "atomValue": "= {value}",

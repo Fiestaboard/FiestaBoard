@@ -207,6 +207,31 @@ describe("ChangePageDialog (desktop)", () => {
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText("Not sent yet · Good night on Kitchen board")).toBeInTheDocument();
   });
+
+  // W-2: the editor's Show now asks one question about its own page: how long.
+  it("from the editor, shows only that page: no list, no search, the page and board in the title", async () => {
+    const seen = captureOverride();
+    const onShown = vi.fn();
+    setup({ initialPageId: "taco", pageScoped: true, pageName: "Taco Tuesday", onShown });
+    const dialog = await screen.findByRole("dialog", { name: "Show Taco Tuesday on Kitchen board" });
+    expect(within(dialog).getByText("How long?")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("radio", { name: "Collections" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /Good night/ })).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Show now" }));
+    await waitFor(() => expect(seen).toHaveLength(1));
+    expect(seen[0]).toMatchObject({ board_id: "kitchen", page_id: "taco" });
+    await waitFor(() => expect(onShown).toHaveBeenCalledTimes(1));
+  });
+
+  it("from the editor, can show a page the cached list does not have yet (a page just saved)", async () => {
+    const seen = captureOverride();
+    setup({ initialPageId: "brand-new", pageScoped: true, pageName: "Fable Walk" });
+    const dialog = await screen.findByRole("dialog", { name: "Show Fable Walk on Kitchen board" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Show now" }));
+    await waitFor(() => expect(seen).toHaveLength(1));
+    expect(seen[0]).toMatchObject({ page_id: "brand-new" });
+  });
 });
 
 describe("ChangePageDialog (phone, two steps)", () => {
@@ -279,6 +304,15 @@ describe("ChangePageDialog (phone, two steps)", () => {
     expect(within(step2).getByRole("button", { name: "Show now" })).toBeEnabled();
     fireEvent.click(within(step2).getByRole("button", { name: "Back" }));
     expect(await screen.findByRole("dialog", { name: "Change Page" })).toBeInTheDocument();
+  });
+
+  it("from the editor, is one step with no Back to a list", async () => {
+    asPhone();
+    setup({ initialPageId: "taco", pageScoped: true, pageName: "Taco Tuesday" });
+    const sheet = await screen.findByRole("dialog", { name: "Show Taco Tuesday on Kitchen board" });
+    expect(within(sheet).getByText("How long?")).toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: "Back" })).not.toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Show now" })).toBeEnabled();
   });
 });
 

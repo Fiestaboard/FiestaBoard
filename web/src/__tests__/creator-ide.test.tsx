@@ -1119,6 +1119,51 @@ describe("Inspector tabs", () => {
     expect(await screen.findByText(/Collection · 2 of 2 · showing Weekend brunch now/)).toBeInTheDocument();
   });
 
+  // W-2: Show now from the editor is a timed override; the editor reads it back.
+  it("reads a running Show now: live until it ends, Save draft offered, and Stop in Shows on", async () => {
+    mockHub({ live: false });
+    const expires = new Date(2026, 10, 28, 16, 0, 0).toISOString();
+    const hub = { override: true };
+    const cleared: string[] = [];
+    server.use(
+      http.get("/api/schedules/active/page", ({ request }) => {
+        const board = new URL(request.url).searchParams.get("board_id");
+        const mine = board === "den" && hub.override;
+        return HttpResponse.json({
+          page_id: "other",
+          source: "schedule",
+          schedule_enabled: true,
+          current_time: "13:10",
+          current_day: "friday",
+          default_page_id: null,
+          temporary_override: mine
+            ? { active: true, page_id: PAGE, expires_at: expires, board_id: "den" }
+            : { active: false },
+        });
+      }),
+      http.delete("/api/settings/temporary-override", ({ request }) => {
+        cleared.push(new URL(request.url).searchParams.get("board_id") ?? "primary");
+        hub.override = false;
+        return HttpResponse.json({ active: false });
+      }),
+    );
+    const onDraftStateChange = vi.fn();
+    renderIde(fakeBuilder(), 0, onDraftStateChange);
+    expect(await screen.findByText("Showing on Den TV now · until 4:00 PM")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ live: "Live on Den TV", saveDraft: expect.any(Function) }),
+      ),
+    );
+    fireEvent.click(await screen.findByRole("tab", { name: "Shows on" }));
+    const group = await screen.findByRole("group", { name: "Showing now" });
+    expect(within(group).getByText("On Den TV until 4:00 PM")).toBeInTheDocument();
+    expect(screen.queryByText("Not on any schedule or collection yet.")).not.toBeInTheDocument();
+    fireEvent.click(within(group).getByRole("button", { name: "Stop" }));
+    await waitFor(() => expect(cleared).toEqual(["den"]));
+    await waitFor(() => expect(screen.queryByText("Showing on Den TV now · until 4:00 PM")).not.toBeInTheDocument());
+  });
+
   it("makes a copy for another display and shows the crop report", async () => {
     const calls = mockHub();
     renderIde();

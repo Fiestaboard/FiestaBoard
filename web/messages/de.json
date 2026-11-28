@@ -1648,7 +1648,9 @@
     "toastShown": "Jetzt auf {board}: {page}",
     "toastPaused": "Gespeichert. {page} erscheint, sobald {board} fortgesetzt wird.",
     "toastNotSent": "Gespeichert, aber das Senden an {board} ist fehlgeschlagen.",
-    "toastError": "Seite konnte nicht gewechselt werden"
+    "toastError": "Seite konnte nicht gewechselt werden",
+    "showPageTitle": "{page} auf {board} zeigen",
+    "showPageDescription": "Wie lange?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "App nicht erreichbar. Netzwerk prüfen oder prüfen, ob FiestaBoard läuft.",
@@ -4325,7 +4327,11 @@
     "copyWillMake": "Erstellt eine neue Seite in der Größe für {board} ({cols} × {rows}); diese Seite bleibt unverändert.",
     "collapseConsole": "Konsole einklappen",
     "scheduleGroup": "Zeitplan",
-    "collectionsGroup": "Sammlungen"
+    "collectionsGroup": "Sammlungen",
+    "showingNowGroup": "Wird jetzt gezeigt",
+    "overrideUntil": "Auf {board} bis {time}",
+    "overrideUntilCancel": "Auf {board}, bis du es beendest",
+    "stopShowing": "Beenden"
   },
   "formulaIde": {
     "atomValue": "= {value}",

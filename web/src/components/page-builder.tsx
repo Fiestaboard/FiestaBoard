@@ -4510,6 +4510,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           if (!open) setShowPageId(null);
         }}
         initialPageId={showPageId}
+        // W-2 (DD-W162): the editor's Show now is about this page only, and the
+        // editor re-reads its display so the state line and pair say it is live.
+        pageScoped
+        pageName={name}
+        onShown={() => void queryClient.invalidateQueries({ queryKey: ["ide", "active"] })}
         board={boardSettings?.boards?.find((board) => board.id === selectedBoardId)}
         isPrimary={boardSettings?.boards?.[0]?.id === selectedBoardId}
         scheduleEnabled={targetDetail?.schedule_enabled ?? previewBoard?.schedule_enabled ?? false}

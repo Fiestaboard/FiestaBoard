@@ -303,6 +303,31 @@ describe("shows on (H8)", () => {
     expect(pageDisplayIds(model)).toEqual(["hall", "office", "den"]);
   });
 
+  // W-2: "Show now" is a timed H1 override; the editor reads it, so the page is live
+  // there until it ends, and an override of another page means this one is not showing.
+  it("is showing now while a Show now override runs it, until the override ends", () => {
+    const expires = new Date(2026, 10, 28, 16, 0, 0).toISOString();
+    const override = (page_id: string | null, expires_at: string | null) =>
+      ({ active: true, page_id, expires_at }) as ActiveScheduleResponse["temporary_override"];
+    const model = showsOnModel({
+      pageId: "commute",
+      schedules: [entry({ board_id: "hall" })],
+      collections: [],
+      boards: [board("kitchen", "Kitchen"), board("hall", "Hall board"), board("den", "Den TV")],
+      active: {
+        kitchen: answer({ page_id: "other", temporary_override: override("commute", expires) }),
+        // The schedule says this page, but another page's Show now holds the board.
+        hall: answer({ temporary_override: override("brunch", null) }),
+        den: answer({ page_id: "other", source: "manual", temporary_override: override("commute", null) }),
+      },
+    });
+    expect(model.showingNow).toEqual([
+      { boardId: "kitchen", boardName: "Kitchen", until: "16:00", override: { expiresAt: expires } },
+      { boardId: "den", boardName: "Den TV", until: null, override: { expiresAt: null } },
+    ]);
+    expect(model.entries[0].now).toBe(false);
+  });
+
   it("is not showing while silenced and not scheduled when its entries are off", () => {
     const model = showsOnModel({
       pageId: "commute",

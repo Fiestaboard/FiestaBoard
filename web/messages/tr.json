@@ -1648,7 +1648,9 @@
     "toastShown": "Şu an {board} üzerinde: {page}",
     "toastPaused": "Kaydedildi. {board} devam ettirildiğinde {page} gösterilir.",
     "toastNotSent": "Kaydedildi ama {board} cihazına gönderilemedi.",
-    "toastError": "Sayfa değiştirilemedi"
+    "toastError": "Sayfa değiştirilemedi",
+    "showPageTitle": "{page} sayfasını {board} üzerinde göster",
+    "showPageDescription": "Ne kadar süre?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Uygulamaya ulaşılamıyor. Ağınızı veya FiestaBoard'un çalışıp çalışmadığını kontrol edin.",
@@ -4325,7 +4327,11 @@
     "copyWillMake": "{board} boyutunda ({cols} × {rows}) yeni bir sayfa oluşturur; bu sayfa değişmez.",
     "collapseConsole": "Konsolu daralt",
     "scheduleGroup": "Program",
-    "collectionsGroup": "Koleksiyonlar"
+    "collectionsGroup": "Koleksiyonlar",
+    "showingNowGroup": "Şu an gösteriliyor",
+    "overrideUntil": "{board} üzerinde {time} saatine kadar",
+    "overrideUntilCancel": "{board} üzerinde sen durdurana kadar",
+    "stopShowing": "Durdur"
   },
   "formulaIde": {
     "atomValue": "= {value}",

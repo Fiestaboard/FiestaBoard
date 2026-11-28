@@ -1648,7 +1648,9 @@
     "toastShown": "Nu op {board}: {page}",
     "toastPaused": "Opgeslagen. {page} verschijnt als je {board} hervat.",
     "toastNotSent": "Opgeslagen, maar verzenden naar {board} is mislukt.",
-    "toastError": "Pagina wisselen mislukt"
+    "toastError": "Pagina wisselen mislukt",
+    "showPageTitle": "{page} tonen op {board}",
+    "showPageDescription": "Hoe lang?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Kan de app niet bereiken. Controleer je netwerk of of FiestaBoard draait.",
@@ -4325,7 +4327,11 @@
     "copyWillMake": "Maakt een nieuwe pagina op het formaat van {board} ({cols} × {rows}); deze pagina blijft ongewijzigd.",
     "collapseConsole": "Console inklappen",
     "scheduleGroup": "Schema",
-    "collectionsGroup": "Collecties"
+    "collectionsGroup": "Collecties",
+    "showingNowGroup": "Nu getoond",
+    "overrideUntil": "Op {board} tot {time}",
+    "overrideUntilCancel": "Op {board} tot je het stopt",
+    "stopShowing": "Stoppen"
   },
   "formulaIde": {
     "atomValue": "= {value}",

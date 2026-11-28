@@ -1648,7 +1648,9 @@
     "toastShown": "지금 {board}에 표시 중: {page}",
     "toastPaused": "저장했습니다. {board}을(를) 재개하면 {page}이(가) 표시됩니다.",
     "toastNotSent": "저장했지만 {board}(으)로 보내지 못했습니다.",
-    "toastError": "페이지를 변경하지 못했습니다"
+    "toastError": "페이지를 변경하지 못했습니다",
+    "showPageTitle": "{board}에 {page} 표시",
+    "showPageDescription": "얼마 동안?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "앱에 연결할 수 없습니다. 네트워크 또는 FiestaBoard 실행 여부를 확인하세요.",
@@ -4325,7 +4327,11 @@
     "copyWillMake": "{board} 크기({cols} × {rows})로 새 페이지를 만듭니다. 이 페이지는 바뀌지 않습니다.",
     "collapseConsole": "콘솔 접기",
     "scheduleGroup": "일정",
-    "collectionsGroup": "컬렉션"
+    "collectionsGroup": "컬렉션",
+    "showingNowGroup": "지금 표시 중",
+    "overrideUntil": "{board}에 {time}까지",
+    "overrideUntilCancel": "{board}에 중지할 때까지",
+    "stopShowing": "중지"
   },
   "formulaIde": {
     "atomValue": "= {value}",
