@@ -1621,6 +1621,20 @@
     "notSentYet": "Henüz gönderilmedi",
     "notSentYetOn": "Henüz gönderilmedi · {board}"
   },
+  "importFromBoard": {
+    "title": "Bu şablon {board} panosunun şu anda gösterdiğiyle değiştirilsin mi?",
+    "showing": "{board} “{page}” sayfasını gösteriyor. Onun satırları, hizalaması ve kaydırması bu şablonunkilerin yerine geçer; Geri al seninkileri geri getirir. Hiçbir şey kaydedilmez veya gösterilmez.",
+    "replace": "Şablonu değiştir",
+    "emptyTitle": "{board} hiçbir şey göstermiyor",
+    "emptyBody": "İçe aktarılacak bir şey yok.",
+    "sizeTitle": "{board} başka boyutta bir sayfa gösteriyor",
+    "sizeBody": "“{page}” {theirs}; bu sayfa {ours}. Bir şablon boyut değişikliğine dayanmaz.",
+    "sizeCopyHint": "Bu sayfayı {board} üzerinde kullanmak için Denetçi › Gösterildiği yer bölümünden o boyutta bir kopya oluştur.",
+    "errorTitle": "{board} panosunun ne gösterdiği okunamadı",
+    "errorBody": "Biraz sonra yeniden dene.",
+    "close": "Kapat",
+    "previewLabel": "{board} panosunun şu anda gösterdiği"
+  },
   "changePage": {
     "title": "Sayfa Değiştir",
     "description": "{board} cihazında neyin gösterileceğini seçin. Şimdi göster’i seçene kadar hiçbir şey değişmez.",
@@ -1751,8 +1765,8 @@
     "toastSyncedFrom": "\"{name}\" ile senkronize edildi",
     "toastNoActiveDisplay": "Senkronize edilecek aktif ekran yok",
     "exportPage": "Dışa Aktar",
-    "exportPageAriaLabel": "Sayfayı Dışa Aktar",
-    "exportPageTooltip": "Sayfayı paylaşım dizgesi olarak dışa aktar",
+    "exportPageAriaLabel": "Sayfayı dışa aktar",
+    "exportPageTooltip": "Sayfayı dışa aktar",
     "exportDisabledTooltip": "Dışa aktarmadan önce değişikliklerinizi kaydedin",
     "exportFailed": "Paylaşım dizgesi alınamadı",
     "exportDialogTitle": "Sayfayı Dışa Aktar",
@@ -2850,8 +2864,8 @@
     "alignLeft": "Sola hizala",
     "alignCenter": "Ortala",
     "alignRight": "Sağa hizala",
-    "syncFromBoardTooltip": "Şablonu şu anda board'da gösterilenden doldur",
-    "syncFromBoard": "Mevcut board ekranından senkronize et",
+    "syncFromBoardTooltip": "Şablonu panonun şu anda gösterdiğiyle değiştir",
+    "syncFromBoard": "Panodan içe aktar…",
     "alignment": "Hizalama:",
     "undoAriaLabel": "Geri al",
     "redoAriaLabel": "Yinele",
@@ -3841,6 +3855,11 @@
     "offlineMeta": "Son bağlantı {time} · Program hub üzerinde çalışmaya devam ediyor",
     "offlineMetaNever": "Hub başladığından beri ulaşılamadı · Program hub üzerinde çalışmaya devam ediyor"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Taslak kaydedildi",
+    "saved": "Kaydedildi",
+    "saveDraftNow": "Taslağı şimdi kaydet"
+  },
   "editorShortcuts": {
     "title": "Klavye kısayolları",
     "platformNote": "Mac'te ⌘ · Windows ve Linux'ta Ctrl",
@@ -3860,7 +3879,7 @@
     "previewFit": "Sığdır / Gerçek boyut",
     "insertFormula": "Formül ekle",
     "save": "Kaydet",
-    "saveAndShow": "Kaydet ve şimdi göster",
+    "saveAndShow": "Şimdi göster / Kaydet ve panoyu güncelle",
     "inspect": "Önizlemeyi incele",
     "previewActualSize": "Gerçek boyut (önizleme)",
     "groupEditing": "Düzenleme",

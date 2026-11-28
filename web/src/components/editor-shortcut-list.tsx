@@ -19,7 +19,7 @@
  */
 import { Button, Kbd, ShortcutListPopover, useKbdPlatform } from "@fiestaboard/ui";
 import { Zap } from "lucide-react";
-import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import {
@@ -79,6 +79,33 @@ export function useEditorShortcutList(): EditorShortcutListState {
   return { openFrom, setOpenFrom, register };
 }
 
+/** The kit popover's side offset and collision padding (8 + 8 px), and 8 px of slack so a sub-pixel never flips it. */
+const LIST_GAP = 24;
+/** Under this much room below the anchor the list may flip as the kit decides. */
+const MIN_LIST_HEIGHT = 240;
+export const SHORTCUT_LIST_MAX_H = "--editor-shortcut-list-max-h";
+
+/**
+ * DD-W30 hangs the list under the template's header row. In a short window
+ * (1024×768) it is taller than the room there and the kit flipped it over the
+ * preview (FABLE-2653 §3.1), so while it is open it is capped to the room
+ * under the anchor and scrolls inside. The popup is portalled, so the cap is a
+ * custom property on the root that its class reads.
+ */
+export function useListRoomBelow(open: boolean, anchorRef: RefObject<HTMLElement | null> | undefined) {
+  useLayoutEffect(() => {
+    const anchor = anchorRef?.current;
+    if (!open || !anchor) return;
+    const root = document.documentElement;
+    const room = window.innerHeight - anchor.getBoundingClientRect().bottom - LIST_GAP;
+    if (room < MIN_LIST_HEIGHT) return;
+    root.style.setProperty(SHORTCUT_LIST_MAX_H, `${Math.floor(room)}px`);
+    return () => {
+      root.style.removeProperty(SHORTCUT_LIST_MAX_H);
+    };
+  }, [open, anchorRef]);
+}
+
 export interface EditorShortcutListProps {
   variant: EditorShortcutListVariant;
   state: EditorShortcutListState;
@@ -107,6 +134,7 @@ export function EditorShortcutList({
   const { openFrom, setOpenFrom, register } = state;
   const compactHeader = variant === "header" && compact;
   useEffect(() => register(variant), [register, variant]);
+  useListRoomBelow(openFrom === variant, anchorRef);
 
   const trigger =
     variant === "header" ? (
@@ -140,6 +168,7 @@ export function EditorShortcutList({
       onOpenChange={(open) => setOpenFrom(open ? variant : null)}
       anchor={anchorRef ? anchor : undefined}
       groups={groups}
+      className="max-h-[var(--editor-shortcut-list-max-h,var(--available-height))]"
       footnote={t("footnote")}
       labels={{ title: t("title"), platformNote: t("platformNote"), or: t("or"), close: t("close") }}
     />

@@ -1621,6 +1621,20 @@
     "notSentYet": "Nog niet verzonden",
     "notSentYetOn": "Nog niet verzonden · {board}"
   },
+  "importFromBoard": {
+    "title": "Deze sjabloon vervangen door wat {board} nu toont?",
+    "showing": "{board} toont “{page}”. De regels, uitlijning en terugloop daarvan vervangen die van deze sjabloon; Ongedaan maken haalt de jouwe terug. Er wordt niets opgeslagen of getoond.",
+    "replace": "Sjabloon vervangen",
+    "emptyTitle": "{board} toont niets",
+    "emptyBody": "Er is niets om te importeren.",
+    "sizeTitle": "{board} toont een pagina van een ander formaat",
+    "sizeBody": "“{page}” is {theirs}; deze pagina is {ours}. Een sjabloon overleeft geen formaatwijziging.",
+    "sizeCopyHint": "Om deze pagina op {board} te gebruiken, maak je een kopie op dat formaat via Inspector › Getoond op.",
+    "errorTitle": "Kon niet lezen wat {board} toont",
+    "errorBody": "Probeer het zo meteen opnieuw.",
+    "close": "Sluiten",
+    "previewLabel": "Wat {board} nu toont"
+  },
   "changePage": {
     "title": "Pagina wisselen",
     "description": "Kies wat {board} toont. Er verandert niets tot je Nu tonen kiest.",
@@ -1752,7 +1766,7 @@
     "toastNoActiveDisplay": "Geen actieve weergave om vanaf te synchroniseren",
     "exportPage": "Exporteren",
     "exportPageAriaLabel": "Pagina exporteren",
-    "exportPageTooltip": "Pagina exporteren als deelreeks",
+    "exportPageTooltip": "Pagina exporteren",
     "exportDisabledTooltip": "Sla je wijzigingen op voordat je exporteert",
     "exportFailed": "Deelreeks ophalen mislukt",
     "exportDialogTitle": "Pagina exporteren",
@@ -2850,8 +2864,8 @@
     "alignLeft": "Links uitlijnen",
     "alignCenter": "Centreren",
     "alignRight": "Rechts uitlijnen",
-    "syncFromBoardTooltip": "Vul sjabloon in vanaf wat momenteel op het board wordt getoond",
-    "syncFromBoard": "Synchroniseren vanaf huidige board-weergave",
+    "syncFromBoardTooltip": "De sjabloon vervangen door wat het bord nu toont",
+    "syncFromBoard": "Importeren van bord…",
     "alignment": "Uitlijning:",
     "undoAriaLabel": "Ongedaan maken",
     "redoAriaLabel": "Opnieuw",
@@ -3841,6 +3855,11 @@
     "offlineMeta": "Laatst verbonden {time} · Het schema loopt door op de hub",
     "offlineMetaNever": "Niet bereikt sinds de hub startte · Het schema loopt door op de hub"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Concept opgeslagen",
+    "saved": "Opgeslagen",
+    "saveDraftNow": "Concept nu opslaan"
+  },
   "editorShortcuts": {
     "title": "Sneltoetsen",
     "platformNote": "⌘ op Mac · Ctrl op Windows en Linux",
@@ -3860,7 +3879,7 @@
     "previewFit": "Passend / Ware grootte",
     "insertFormula": "Formule invoegen",
     "save": "Opslaan",
-    "saveAndShow": "Opslaan en nu tonen",
+    "saveAndShow": "Nu weergeven / Opslaan en bord bijwerken",
     "inspect": "Voorbeeld inspecteren",
     "previewActualSize": "Werkelijke grootte (voorbeeld)",
     "groupEditing": "Bewerken",

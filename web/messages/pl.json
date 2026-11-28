@@ -1621,6 +1621,20 @@
     "notSentYet": "Jeszcze nie wysłano",
     "notSentYetOn": "Jeszcze nie wysłano · {board}"
   },
+  "importFromBoard": {
+    "title": "Zastąpić ten szablon tym, co {board} pokazuje teraz?",
+    "showing": "{board} pokazuje „{page}”. Jej wiersze, wyrównanie i zawijanie zastąpią te z szablonu; Cofnij przywróci Twoje. Nic nie zostanie zapisane ani pokazane.",
+    "replace": "Zastąp szablon",
+    "emptyTitle": "{board} nic nie pokazuje",
+    "emptyBody": "Nie ma nic do zaimportowania.",
+    "sizeTitle": "{board} pokazuje stronę innego rozmiaru",
+    "sizeBody": "„{page}” ma {theirs}; ta strona ma {ours}. Szablon nie przetrwa zmiany rozmiaru.",
+    "sizeCopyHint": "Aby użyć tej strony na {board}, utwórz kopię w jej rozmiarze w Inspektor › Wyświetlana na.",
+    "errorTitle": "Nie udało się odczytać, co pokazuje {board}",
+    "errorBody": "Spróbuj ponownie za chwilę.",
+    "close": "Zamknij",
+    "previewLabel": "Co {board} pokazuje teraz"
+  },
   "changePage": {
     "title": "Zmień stronę",
     "description": "Wybierz, co pokazuje {board}. Nic się nie zmieni, dopóki nie wybierzesz Pokaż teraz.",
@@ -1752,7 +1766,7 @@
     "toastNoActiveDisplay": "Brak aktywnego wyświetlacza do synchronizacji",
     "exportPage": "Eksportuj",
     "exportPageAriaLabel": "Eksportuj stronę",
-    "exportPageTooltip": "Eksportuj stronę jako ciąg udostępniania",
+    "exportPageTooltip": "Eksportuj stronę",
     "exportDisabledTooltip": "Zapisz zmiany przed eksportem",
     "exportFailed": "Nie udało się pobrać ciągu udostępniania",
     "exportDialogTitle": "Eksportuj stronę",
@@ -2850,8 +2864,8 @@
     "alignLeft": "Wyrównaj do lewej",
     "alignCenter": "Wyśrodkuj",
     "alignRight": "Wyrównaj do prawej",
-    "syncFromBoardTooltip": "Wypełnij szablon na podstawie tego, co aktualnie wyświetlane na boardzie",
-    "syncFromBoard": "Synchronizuj z aktualnego wyświetlacza boarda",
+    "syncFromBoardTooltip": "Zastąp szablon tym, co tablica pokazuje teraz",
+    "syncFromBoard": "Importuj z tablicy…",
     "alignment": "Wyrównanie:",
     "undoAriaLabel": "Cofnij",
     "redoAriaLabel": "Ponów",
@@ -3841,6 +3855,11 @@
     "offlineMeta": "Ostatnie połączenie {time} · Harmonogram działa dalej na hubie",
     "offlineMetaNever": "Brak połączenia od uruchomienia huba · Harmonogram działa dalej na hubie"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Szkic zapisany",
+    "saved": "Zapisano",
+    "saveDraftNow": "Zapisz szkic teraz"
+  },
   "editorShortcuts": {
     "title": "Skróty klawiszowe",
     "platformNote": "⌘ na Macu · Ctrl w Windows i Linux",
@@ -3860,7 +3879,7 @@
     "previewFit": "Dopasuj / Rzeczywisty rozmiar",
     "insertFormula": "Wstaw formułę",
     "save": "Zapisz",
-    "saveAndShow": "Zapisz i pokaż teraz",
+    "saveAndShow": "Wyświetl teraz / Zapisz i zaktualizuj tablicę",
     "inspect": "Zbadaj podgląd",
     "previewActualSize": "Rzeczywisty rozmiar (podgląd)",
     "groupEditing": "Edycja",

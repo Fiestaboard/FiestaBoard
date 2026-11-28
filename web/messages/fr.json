@@ -1621,6 +1621,20 @@
     "notSentYet": "Pas encore envoyé",
     "notSentYetOn": "Pas encore envoyé · {board}"
   },
+  "importFromBoard": {
+    "title": "Remplacer ce modèle par ce qu’affiche {board} maintenant ?",
+    "showing": "{board} affiche « {page} ». Ses lignes, son alignement et son retour à la ligne remplacent ceux de ce modèle ; Annuler rétablit les vôtres. Rien n’est enregistré ni affiché.",
+    "replace": "Remplacer le modèle",
+    "emptyTitle": "{board} n’affiche rien",
+    "emptyBody": "Il n’y a rien à importer.",
+    "sizeTitle": "{board} affiche une page d’une autre taille",
+    "sizeBody": "« {page} » fait {theirs} ; cette page fait {ours}. Un modèle ne survit pas à un changement de taille.",
+    "sizeCopyHint": "Pour utiliser cette page sur {board}, faites-en une copie à sa taille depuis Inspecteur › Affichée sur.",
+    "errorTitle": "Impossible de lire ce qu’affiche {board}",
+    "errorBody": "Réessayez dans un instant.",
+    "close": "Fermer",
+    "previewLabel": "Ce qu’affiche {board} maintenant"
+  },
   "changePage": {
     "title": "Changer de page",
     "description": "Choisissez ce qu’affiche {board}. Rien ne change tant que vous n’avez pas choisi Afficher maintenant.",
@@ -1752,7 +1766,7 @@
     "toastNoActiveDisplay": "Aucun affichage actif à synchroniser",
     "exportPage": "Exporter",
     "exportPageAriaLabel": "Exporter la page",
-    "exportPageTooltip": "Exporter la page sous forme de chaîne de partage",
+    "exportPageTooltip": "Exporter la page",
     "exportDisabledTooltip": "Enregistrez vos modifications avant d'exporter",
     "exportFailed": "Impossible d'obtenir la chaîne de partage",
     "exportDialogTitle": "Exporter la page",
@@ -2850,8 +2864,8 @@
     "alignLeft": "Aligner à gauche",
     "alignCenter": "Centrer",
     "alignRight": "Aligner à droite",
-    "syncFromBoardTooltip": "Remplir le modèle à partir de ce qui est actuellement affiché sur le board",
-    "syncFromBoard": "Synchroniser depuis l'affichage actuel du board",
+    "syncFromBoardTooltip": "Remplacer le modèle par ce qu’affiche le tableau maintenant",
+    "syncFromBoard": "Importer depuis le tableau…",
     "alignment": "Alignement :",
     "undoAriaLabel": "Annuler",
     "redoAriaLabel": "Rétablir",
@@ -3841,6 +3855,11 @@
     "offlineMeta": "Dernière connexion {time} · Le programme continue sur le hub",
     "offlineMetaNever": "Pas joint depuis le démarrage du hub · Le programme continue sur le hub"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Brouillon enregistré",
+    "saved": "Enregistré",
+    "saveDraftNow": "Enregistrer le brouillon"
+  },
   "editorShortcuts": {
     "title": "Raccourcis clavier",
     "platformNote": "⌘ sur Mac · Ctrl sous Windows et Linux",
@@ -3860,7 +3879,7 @@
     "previewFit": "Ajuster / Taille réelle",
     "insertFormula": "Insérer une formule",
     "save": "Enregistrer",
-    "saveAndShow": "Enregistrer et afficher maintenant",
+    "saveAndShow": "Afficher maintenant / Enregistrer et mettre à jour le board",
     "inspect": "Inspecter l’aperçu",
     "previewActualSize": "Taille réelle (aperçu)",
     "groupEditing": "Édition",

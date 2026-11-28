@@ -145,7 +145,7 @@ describe("Page editor board-size switching", () => {
     act(() => {
       queryClient.setQueryData(["page", "existing-1"], { ...existingFlagshipPage, revision: "other-editor" });
     });
-    await user.click(screen.getByRole("button", { name: "Save Page" }));
+    await user.click(screen.getByRole("button", { name: "Save page" }));
     await waitFor(() => {
       expect(api.updatePage).toHaveBeenCalledWith(
         "existing-1",
@@ -296,7 +296,7 @@ describe("Page editor board-size switching", () => {
     await waitFor(() => expect(meta).toHaveTextContent(/22 × 6$/));
     expect(screen.queryByLabelText("Change board size")).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Save Page" }));
+    await user.click(screen.getByRole("button", { name: "Save page" }));
     await waitFor(() =>
       expect(api.updatePage).toHaveBeenCalledWith("existing-1", expect.objectContaining({ device_type: "flagship" })),
     );

@@ -191,7 +191,7 @@ test("a narrow template column: the card title keeps Rich | Plain whole, the cou
 }) => {
   await mockHub(page);
   await open(page, 1024);
-  const show = page.getByRole("button", { name: "Show Explorer" });
+  const show = page.getByRole("button", { name: "Explorer", exact: true, pressed: false });
   if (await show.count()) await show.click();
   const header = page.locator('[data-slot="template-card"] [data-slot="template-card-header"]');
   const title = header.locator('[data-slot="page-editor-template-title"]');
@@ -283,16 +283,18 @@ test("1440px: the status line sits in the preview card's foot (UX-6-2 placement)
   expect(statusBox.y).toBeGreaterThanOrEqual(tilesBottom - 1);
 });
 
-test("1440px: the toolbar row keeps the Explorer toggle's place at its left end (UX-5-1)", async ({ page }) => {
+test("1440px: the toolbar row holds the Explorer toggle at its left end (UX-5-1)", async ({ page }) => {
   await mockHub(page);
   await open(page, 1440);
   const row = page.locator('[data-slot="page-editor-toolbar-row"]');
   const start = row.locator('[data-slot="page-editor-toolbar-start"]');
-  await expect(start).toBeAttached();
-  // Empty until the toggle moves in (FP-2): it takes no room, the tools start the row.
   expect(await start.evaluate((el) => el.previousElementSibling === null)).toBe(true);
+  const toggle = start.getByRole("button", { name: "Explorer", exact: true });
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  // The toggle starts the row; the tools follow it.
+  expect(Math.round((await box(toggle)).x)).toBe(Math.round((await box(row)).x));
   const tools = await box(page.locator('[data-slot="page-editor-toolbar"]'));
-  expect(Math.round(tools.x)).toBe(Math.round((await box(row)).x));
+  expect(tools.x).toBeGreaterThan((await box(toggle)).x);
 });
 
 test.describe("a coarse pointer at desktop width (iPad landscape)", () => {

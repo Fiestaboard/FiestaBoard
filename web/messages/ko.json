@@ -1621,6 +1621,20 @@
     "notSentYet": "아직 보내지 않음",
     "notSentYetOn": "아직 보내지 않음 · {board}"
   },
+  "importFromBoard": {
+    "title": "이 템플릿을 {board}이(가) 지금 표시하는 내용으로 바꿀까요?",
+    "showing": "{board}이(가) “{page}”을(를) 표시하고 있습니다. 그 행, 정렬, 줄바꿈이 이 템플릿을 대체하며, 실행 취소로 되돌릴 수 있습니다. 저장되거나 표시되는 것은 없습니다.",
+    "replace": "템플릿 바꾸기",
+    "emptyTitle": "{board}에 표시된 내용이 없습니다",
+    "emptyBody": "가져올 내용이 없습니다.",
+    "sizeTitle": "{board}이(가) 다른 크기의 페이지를 표시하고 있습니다",
+    "sizeBody": "“{page}”은(는) {theirs}이고 이 페이지는 {ours}입니다. 템플릿은 크기 변경을 견디지 못합니다.",
+    "sizeCopyHint": "이 페이지를 {board}에서 쓰려면 인스펙터 › 표시 위치에서 그 크기의 사본을 만드세요.",
+    "errorTitle": "{board}의 표시 내용을 읽지 못했습니다",
+    "errorBody": "잠시 후 다시 시도하세요.",
+    "close": "닫기",
+    "previewLabel": "{board}이(가) 지금 표시하는 내용"
+  },
   "changePage": {
     "title": "페이지 변경",
     "description": "{board}에 표시할 내용을 선택하세요. 지금 표시를 선택하기 전까지는 아무것도 바뀌지 않습니다.",
@@ -1752,7 +1766,7 @@
     "toastNoActiveDisplay": "동기화할 활성 디스플레이가 없습니다",
     "exportPage": "내보내기",
     "exportPageAriaLabel": "페이지 내보내기",
-    "exportPageTooltip": "페이지를 공유 문자열로 내보내기",
+    "exportPageTooltip": "페이지 내보내기",
     "exportDisabledTooltip": "내보내기 전에 변경사항을 저장하세요",
     "exportFailed": "공유 문자열 가져오기 실패",
     "exportDialogTitle": "페이지 내보내기",
@@ -2850,8 +2864,8 @@
     "alignLeft": "왼쪽 정렬",
     "alignCenter": "가운데 정렬",
     "alignRight": "오른쪽 정렬",
-    "syncFromBoardTooltip": "현재 보드에 표시되어 있는 내용으로 템플릿 채우기",
-    "syncFromBoard": "현재 보드 디스플레이에서 동기화",
+    "syncFromBoardTooltip": "템플릿을 보드가 지금 표시하는 내용으로 바꿉니다",
+    "syncFromBoard": "보드에서 가져오기…",
     "alignment": "정렬:",
     "undoAriaLabel": "실행 취소",
     "redoAriaLabel": "다시 실행",
@@ -3841,6 +3855,11 @@
     "offlineMeta": "마지막 연결 {time} · 일정은 허브에서 계속 실행됨",
     "offlineMetaNever": "허브 시작 후 연결되지 않음 · 일정은 허브에서 계속 실행됨"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "초안 저장됨",
+    "saved": "저장됨",
+    "saveDraftNow": "지금 초안 저장"
+  },
   "editorShortcuts": {
     "title": "키보드 단축키",
     "platformNote": "Mac은 ⌘ · Windows와 Linux는 Ctrl",
@@ -3860,7 +3879,7 @@
     "previewFit": "맞춤 / 실제 크기",
     "insertFormula": "수식 삽입",
     "save": "저장",
-    "saveAndShow": "저장하고 지금 표시",
+    "saveAndShow": "지금 표시 / 저장하고 보드 업데이트",
     "inspect": "미리보기 검사",
     "previewActualSize": "실제 크기(미리보기)",
     "groupEditing": "편집",

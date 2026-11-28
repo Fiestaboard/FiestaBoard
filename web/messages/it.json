@@ -1621,6 +1621,20 @@
     "notSentYet": "Non ancora inviato",
     "notSentYetOn": "Non ancora inviato · {board}"
   },
+  "importFromBoard": {
+    "title": "Sostituire questo modello con ciò che {board} mostra ora?",
+    "showing": "{board} mostra “{page}”. Le sue righe, l’allineamento e l’a capo sostituiscono quelli di questo modello; Annulla ripristina i tuoi. Nulla viene salvato o mostrato.",
+    "replace": "Sostituisci modello",
+    "emptyTitle": "{board} non mostra nulla",
+    "emptyBody": "Non c’è nulla da importare.",
+    "sizeTitle": "{board} mostra una pagina di un’altra dimensione",
+    "sizeBody": "“{page}” è {theirs}; questa pagina è {ours}. Un modello non sopravvive a un cambio di dimensione.",
+    "sizeCopyHint": "Per usare questa pagina su {board}, creane una copia della sua dimensione da Ispettore › Mostrata su.",
+    "errorTitle": "Impossibile leggere ciò che mostra {board}",
+    "errorBody": "Riprova tra un momento.",
+    "close": "Chiudi",
+    "previewLabel": "Ciò che {board} mostra ora"
+  },
   "changePage": {
     "title": "Cambia pagina",
     "description": "Scegli cosa mostra {board}. Non cambia nulla finché non scegli Mostra ora.",
@@ -1752,7 +1766,7 @@
     "toastNoActiveDisplay": "Nessun display attivo da cui sincronizzare",
     "exportPage": "Esporta",
     "exportPageAriaLabel": "Esporta pagina",
-    "exportPageTooltip": "Esporta la pagina come stringa di condivisione",
+    "exportPageTooltip": "Esporta pagina",
     "exportDisabledTooltip": "Salva le modifiche prima di esportare",
     "exportFailed": "Impossibile ottenere la stringa di condivisione",
     "exportDialogTitle": "Esporta pagina",
@@ -2850,8 +2864,8 @@
     "alignLeft": "Allinea a sinistra",
     "alignCenter": "Centra",
     "alignRight": "Allinea a destra",
-    "syncFromBoardTooltip": "Riempi il modello da ciò che è attualmente mostrato sul board",
-    "syncFromBoard": "Sincronizza dal display attuale del board",
+    "syncFromBoardTooltip": "Sostituisci il modello con ciò che la bacheca mostra ora",
+    "syncFromBoard": "Importa dalla bacheca…",
     "alignment": "Allineamento:",
     "undoAriaLabel": "Annulla",
     "redoAriaLabel": "Ripristina",
@@ -3841,6 +3855,11 @@
     "offlineMeta": "Ultima connessione {time} · Il programma continua sull'hub",
     "offlineMetaNever": "Non raggiunto dall'avvio dell'hub · Il programma continua sull'hub"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Bozza salvata",
+    "saved": "Salvato",
+    "saveDraftNow": "Salva bozza ora"
+  },
   "editorShortcuts": {
     "title": "Scorciatoie da tastiera",
     "platformNote": "⌘ su Mac · Ctrl su Windows e Linux",
@@ -3860,7 +3879,7 @@
     "previewFit": "Adatta / Dimensione reale",
     "insertFormula": "Inserisci una formula",
     "save": "Salva",
-    "saveAndShow": "Salva e mostra ora",
+    "saveAndShow": "Mostra ora / Salva e aggiorna la board",
     "inspect": "Ispeziona l’anteprima",
     "previewActualSize": "Dimensione reale (anteprima)",
     "groupEditing": "Modifica",

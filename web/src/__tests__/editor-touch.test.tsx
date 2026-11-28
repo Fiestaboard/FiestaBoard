@@ -95,11 +95,11 @@ it("saves in place and updates rather than creates twice", async () => {
   const user = userEvent.setup();
   render(<PageBuilder onClose={onClose} />, { wrapper: Wrapper });
   fireEvent.change(await screen.findByLabelText(/page name/i), { target: { value: "Kitchen morning" } });
-  await user.click(screen.getByRole("button", { name: "Save Page" }));
+  await user.click(screen.getByRole("button", { name: "Save page" }));
   await waitFor(() => expect(creates).toBe(1));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled());
   expect(onClose).not.toHaveBeenCalled();
-  await user.click(screen.getByRole("button", { name: "Save Page" }));
+  await user.click(screen.getByRole("button", { name: "Save page" }));
   await waitFor(() => expect(updates).toBe(1));
   expect(creates).toBe(1);
 });
@@ -176,7 +176,7 @@ it.each(["create", "update"] as const)("keeps newer edits dirty during a pending
   await waitFor(() => expect(submitted?.name).toBe("Submitted morning"));
   fireEvent.change(screen.getByLabelText(/page name/i), { target: { value: "Newer morning" } });
   release();
-  await waitFor(() => expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled());
   expect(screen.getByDisplayValue("Newer morning")).toBeInTheDocument();
   expect(ref.current?.hasUnsavedChanges()).toBe(true);
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -283,7 +283,7 @@ it("renders the kit first-save toast actions in Show now then Add to Schedule or
     { wrapper: Wrapper },
   );
   fireEvent.change(await screen.findByLabelText(/page name/i), { target: { value: "Toast morning" } });
-  await user.click(screen.getByRole("button", { name: "Save Page" }));
+  await user.click(screen.getByRole("button", { name: "Save page" }));
   await waitFor(() => expect(container.querySelector("[data-sonner-toast]")).toHaveTextContent("Saved to Pages"));
   const toastElement = container.querySelector("[data-sonner-toast]")!;
   expect(toastElement.querySelector("[data-description]")).toHaveTextContent("Toast morning is in your page library.");
@@ -321,7 +321,7 @@ it("opens Add to Schedule in the editor's display context after a first save", a
     { wrapper: Wrapper },
   );
   fireEvent.change(await screen.findByLabelText(/page name/i), { target: { value: "Scheduled morning" } });
-  await user.click(screen.getByRole("button", { name: "Save Page" }));
+  await user.click(screen.getByRole("button", { name: "Save page" }));
   await waitFor(() => expect(container.querySelector("[data-sonner-toast]")).toHaveTextContent("Saved to Pages"));
   expect(localStorage.getItem("fiestaboard_current_board")).toBe("hall");
   await user.click(screen.getByRole("button", { name: "Add to Schedule" }));
@@ -346,8 +346,8 @@ it("labels Delete and Page transition in the phone More sheet", async () => {
   await screen.findByDisplayValue("Weather Page");
   await user.click(screen.getByRole("button", { name: "Plain Text" }));
   await user.click(screen.getByRole("button", { name: "More" }));
-  const remove = await screen.findByRole("button", { name: "Delete Page" });
-  expect(remove).toHaveTextContent("Delete Page");
+  const remove = await screen.findByRole("button", { name: "Delete page" });
+  expect(remove).toHaveTextContent("Delete page");
   expect(screen.getByRole("button", { name: "Page transition" })).toHaveTextContent("Page transition");
 });
 
