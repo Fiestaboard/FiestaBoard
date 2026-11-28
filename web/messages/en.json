@@ -3861,7 +3861,7 @@
     "showShortcuts": "Show keyboard shortcuts",
     "previewStep": "Move the preview by one Note or column",
     "previewEnds": "Jump to the start or end of the preview",
-    "previewFit": "Fit / Actual size (preview focused)",
+    "previewFit": "Fit / Actual size",
     "insertFormula": "Insert a formula",
     "save": "Save",
     "saveAndShow": "Save and show now",
@@ -4440,5 +4440,16 @@
     "caret": "Ln {line}, Col {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Spacing"
+  },
+  "previewView": {
+    "view": "View",
+    "previewAt": "Preview at a time…",
+    "zoom": "Zoom",
+    "ruler": "Ruler",
+    "at": "At",
+    "inspectCaption": "Inspect: click a tile to see the token and formula steps behind it · Esc to leave",
+    "missingNoDataTitle": "No integration data on this page",
+    "missingFormulaError": "{error} on line {line} is a formula error, not missing data.",
+    "seeProblems": "See Problems"
   }
 }

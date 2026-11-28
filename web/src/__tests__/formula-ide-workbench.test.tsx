@@ -168,9 +168,10 @@ describe("FormulaCodeCard", () => {
     expect(apply).toHaveBeenCalledWith('IF(weather.temp > 80, "HOT", "NICE")');
   });
 
-  // BB-B-13: the docked editor opens under the preview, often below the fold;
-  // opening a chip brings it into view as well as focusing it.
-  it("scrolls the whole opened formula card into view", () => {
+  // BB-B-13: the docked editor opens under the preview, sometimes below the
+  // fold; opening a chip brings the line being edited into view. Not the whole
+  // card: its foot scrolled the board off screen (FABLE-2649, FP-3).
+  it("scrolls the edited line into view, not the whole card", () => {
     const original = Element.prototype.scrollIntoView;
     const scrolled: Element[] = [];
     Element.prototype.scrollIntoView = function (this: Element) {
@@ -180,8 +181,11 @@ describe("FormulaCodeCard", () => {
       wrap(
         <Workbench card={(p) => <FormulaCodeCard {...p} />} initial={opened({ tab: "code", expression: "1 / 0" })} />,
       );
-      // The card, with its validation line and Update / Cancel, not just the one-line editor.
-      expect(scrolled).toContain(screen.getByTestId("formula-code-card"));
+      const card = screen.getByTestId("formula-code-card");
+      expect(scrolled).not.toContain(card);
+      expect(scrolled).toHaveLength(1);
+      expect(card.contains(scrolled[0])).toBe(true);
+      expect(scrolled[0].querySelector(".cm-editor")).not.toBeNull();
     } finally {
       Element.prototype.scrollIntoView = original;
     }

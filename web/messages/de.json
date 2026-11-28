@@ -3861,7 +3861,7 @@
     "showShortcuts": "Tastenkürzel anzeigen",
     "previewStep": "Vorschau um eine Note oder Spalte verschieben",
     "previewEnds": "Zum Anfang oder Ende der Vorschau springen",
-    "previewFit": "Einpassen / Originalgröße (Vorschau fokussiert)",
+    "previewFit": "Einpassen / Originalgröße",
     "insertFormula": "Formel einfügen",
     "save": "Speichern",
     "saveAndShow": "Speichern und jetzt anzeigen",
@@ -4440,5 +4440,16 @@
     "caret": "Z {line}, Sp {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Abstand"
+  },
+  "previewView": {
+    "view": "Ansicht",
+    "previewAt": "Vorschau zu einer Uhrzeit…",
+    "zoom": "Zoom",
+    "ruler": "Lineal",
+    "at": "Um",
+    "inspectCaption": "Untersuchen: Klicke auf eine Kachel, um Token und Formelschritte dahinter zu sehen · Esc zum Beenden",
+    "missingNoDataTitle": "Keine Integrationsdaten auf dieser Seite",
+    "missingFormulaError": "{error} in Zeile {line} ist ein Formelfehler, keine fehlenden Daten.",
+    "seeProblems": "Probleme anzeigen"
   }
 }

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CreatorIde from "@/components/ide/creator-ide";
 import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
+import { openIdeProblems } from "@/lib/ide/open-problems";
 
 import { server } from "./mocks/server";
 
@@ -1171,5 +1172,17 @@ describe("History", () => {
     // The kit appends the version's time to the Restore label itself: it must appear once.
     const restore = within(diff).getByRole("button", { name: /^Restore/ });
     expect(restore.textContent?.match(/\d:\d\d/g)).toHaveLength(1);
+  });
+});
+
+// UX-4-4: the preview's Missing panel names a formula error and links to Problems.
+describe("Creator IDE opens Problems on request", () => {
+  it("shows the Problems list when the preview asks for it", async () => {
+    mockHub();
+    renderIde();
+    const problems = await screen.findByRole("tab", { name: /Problems/ });
+    expect(problems).toHaveAttribute("aria-selected", "false");
+    act(() => openIdeProblems());
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Problems/ })).toHaveAttribute("aria-selected", "true"));
   });
 });

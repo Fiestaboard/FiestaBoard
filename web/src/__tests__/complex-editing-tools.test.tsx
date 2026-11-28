@@ -11,7 +11,6 @@ vi.mock("@/lib/complex-editing-dom", async (importOriginal) => {
 });
 
 import {
-  BigBoardZoom,
   ComplexPreviewOverview,
   ComplexPreviewRuler,
   ComplexPreviewSeams,
@@ -28,6 +27,7 @@ function fakeComplex(overrides: Partial<ComplexEditing> = {}): ComplexEditing {
   return {
     active: true,
     bigBoard: true,
+    ownsZoom: true,
     noteArray: false,
     rows: 24,
     cols: 96,
@@ -37,8 +37,10 @@ function fakeComplex(overrides: Partial<ComplexEditing> = {}): ComplexEditing {
     setZoom: vi.fn(),
     previewMode: "actual",
     previewSize: "sm",
-    minimapOpen: true,
-    setMinimapOpen: vi.fn(),
+    tile: "sm",
+    setMode: vi.fn(),
+    rulerOpen: true,
+    setRulerOpen: vi.fn(),
     note: null,
     setNote: vi.fn(),
     geometry: {
@@ -89,6 +91,7 @@ describe("useComplexEditing", () => {
       },
     });
     expect(result.current.noteArray).toBe(true);
+    act(() => result.current.setZoom("sm"));
     expect(result.current.previewSize).toBe("sm");
     act(() => result.current.setZoom("fit"));
     expect(result.current.previewMode).toBe("fit");
@@ -102,6 +105,38 @@ describe("useComplexEditing", () => {
 describe("useComplexEditing zoom and the session preview mode", () => {
   const big = { rows: 24, cols: 96, deviceType: "panel", notesWide: 1, notesTall: 1, enabled: true, stage: null };
 
+  // UX-4-2: Den TV opened at Tile sm, cropped at column 28, when Fit shows all 34.
+  it("opens a big board at Fit, even when the session last chose Actual size", () => {
+    expect(renderHook(() => useComplexEditing(big)).result.current.zoom).toBe("fit");
+    expect(renderHook(() => useComplexEditing({ ...big, previewMode: "actual" })).result.current.zoom).toBe("fit");
+  });
+
+  it("returns to the last tile size for Actual size", () => {
+    const { result } = renderHook(() => useComplexEditing({ ...big, previewMode: "fit" }));
+    act(() => result.current.setZoom("lg"));
+    act(() => result.current.setMode("fit"));
+    expect(result.current.zoom).toBe("fit");
+    act(() => result.current.setMode("actual"));
+    expect(result.current.zoom).toBe("lg");
+  });
+
+  it("keeps a big board's zoom through draw mode while the lenses step aside", () => {
+    const { result, rerender } = renderHook((props) => useComplexEditing(props), {
+      initialProps: { ...big, paused: false },
+    });
+    act(() => result.current.setZoom("md"));
+    rerender({ ...big, paused: true });
+    expect(result.current.bigBoard).toBe(false);
+    expect(result.current.ownsZoom).toBe(true);
+    expect(result.current.previewSize).toBe("md");
+  });
+
+  it("keeps the ruler off by default except over a note array (DD-W131 seams)", () => {
+    expect(renderHook(() => useComplexEditing(big)).result.current.rulerOpen).toBe(false);
+    const notes = { ...big, deviceType: "note_array", notesWide: 4, notesTall: 4 };
+    expect(renderHook(() => useComplexEditing(notes)).result.current.rulerOpen).toBe(true);
+  });
+
   it("starts from the session's Fit and reports Fit-or-Actual intent back", () => {
     const onPreviewModeChange = vi.fn();
     const { result } = renderHook(() => useComplexEditing({ ...big, previewMode: "fit", onPreviewModeChange }));
@@ -114,7 +149,8 @@ describe("useComplexEditing zoom and the session preview mode", () => {
   it("does not report a mode the session already has", () => {
     const onPreviewModeChange = vi.fn();
     const { result } = renderHook(() => useComplexEditing({ ...big, previewMode: "actual", onPreviewModeChange }));
-    expect(result.current.zoom).toBe("sm");
+    act(() => result.current.setZoom("sm"));
+    onPreviewModeChange.mockClear();
     act(() => result.current.setZoom("lg"));
     expect(onPreviewModeChange).not.toHaveBeenCalled();
     act(() => result.current.setZoom("fit"));
@@ -125,7 +161,7 @@ describe("useComplexEditing zoom and the session preview mode", () => {
 describe("complex preview tools", () => {
   const board = { message: "HELLO", deviceType: "panel" as const, gridRows: 24, gridCols: 96 };
 
-  function Preview({ complex, onJump = vi.fn() }: { complex: ComplexEditing; onJump?: () => void }) {
+  function Preview({ complex }: { complex: ComplexEditing }) {
     return (
       <>
         <ComplexPreviewRuler complex={complex} />
@@ -133,14 +169,7 @@ describe("complex preview tools", () => {
           <div>board</div>
           <ComplexPreviewSeams complex={complex} />
         </div>
-        <ComplexPreviewOverview
-          complex={complex}
-          board={board}
-          rendered={["ROSA'S CAFE"]}
-          overflows={[{ line: 24, columns: 98, maxColumns: 96, cut: 2 }]}
-          minimapId="map"
-          onJump={onJump}
-        />
+        <ComplexPreviewOverview complex={complex} board={board} minimapId="map" />
       </>
     );
   }
@@ -151,26 +180,31 @@ describe("complex preview tools", () => {
     expect(document.querySelector('[data-slot^="complex-preview"]')).toBeNull();
   });
 
-  it("adds the ruler, caption, minimap and truncation map around a big board", async () => {
-    const onJump = vi.fn();
-    render(<Preview complex={fakeComplex()} onJump={onJump} />);
+  it("adds the ruler and the minimap around a big board the zoom crops, and no cut chart (UX-4-3)", () => {
+    render(<Preview complex={fakeComplex()} />);
     expect(screen.getByRole("img", { name: "Column ruler · 96 columns" })).toBeInTheDocument();
     expect(screen.getByText("Overview · 96 × 24")).toBeInTheDocument();
     expect(document.getElementById("map")).not.toBeNull();
-    expect(screen.getByText("Where lines are cut")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Row 24 · 98 of 96 columns · 2 cut off/ }));
-    expect(onJump).toHaveBeenCalledWith(expect.objectContaining({ row: 24 }));
+    expect(screen.queryByText("Where lines are cut")).toBeNull();
+  });
+
+  it("shows the minimap only while the zoom crops the board (UX-4-2)", () => {
+    const complex = fakeComplex();
+    const { rerender } = render(<Preview complex={{ ...complex, zoom: "fit" }} />);
+    expect(document.getElementById("map")).toBeNull();
+    rerender(<Preview complex={{ ...complex, geometry: { ...complex.geometry, first: 1, last: 96 } }} />);
+    expect(document.getElementById("map")).toBeNull();
+  });
+
+  it("draws the ruler only when the View menu turns it on", () => {
+    render(<Preview complex={fakeComplex({ rulerOpen: false })} />);
+    expect(document.querySelector('[data-slot="complex-preview-ruler"]')).toBeNull();
   });
 
   it("waits for the board to be measured before drawing the ruler", () => {
     const complex = fakeComplex();
     render(<Preview complex={{ ...complex, geometry: { ...complex.geometry, pitch: 0 } }} />);
     expect(document.querySelector('[data-slot="complex-preview-ruler"]')).toBeNull();
-  });
-
-  it("hides the minimap when the zoom control closes it", () => {
-    render(<Preview complex={fakeComplex({ minimapOpen: false })} />);
-    expect(document.getElementById("map")).toBeNull();
   });
 
   it("draws Note seams over a measured note array, without big-board tools", () => {
@@ -190,17 +224,6 @@ describe("complex preview tools", () => {
     expect(document.querySelector('[data-slot="complex-preview-seams"]')).not.toBeNull();
     expect(screen.queryByText("Where lines are cut")).toBeNull();
     expect(document.querySelector('[data-slot="complex-preview-ruler"]')).toBeNull();
-  });
-});
-
-describe("BigBoardZoom", () => {
-  it("reports zoom intent and minimap visibility to the host", async () => {
-    const complex = fakeComplex();
-    render(<BigBoardZoom complex={complex} minimapId="map" />);
-    await userEvent.click(screen.getByRole("radio", { name: "Tile md" }));
-    expect(complex.setZoom).toHaveBeenCalledWith("md");
-    await userEvent.click(screen.getByRole("button", { name: "Show overview map" }));
-    expect(complex.setMinimapOpen).toHaveBeenCalledWith(false);
   });
 });
 

@@ -112,4 +112,34 @@ describe("usePreviewReplay", () => {
     expect(result.current.animate).toBe(false);
     expect(result.current.replaying).toBe(false);
   });
+
+  // BB-E-33: Replay before the first render used to start on the null message
+  // and be snapped off when the real one landed (D7), dropping the press.
+  it("waits for the first message and then replays it, instead of dropping an early press", async () => {
+    const { result, rerender } = renderHook(({ message }) => usePreviewReplay(message), {
+      initialProps: { message: null as string | null },
+    });
+    expect(result.current.ready).toBe(false);
+    act(() => result.current.replay());
+    expect(result.current.animate).toBe(false);
+    rerender({ message: "" });
+    expect(result.current.animate).toBe(false);
+    rerender({ message: "HELLO" });
+    expect(result.current.ready).toBe(true);
+    await waitFor(() => expect(result.current.animate).toBe(true));
+    await waitFor(() => expect(result.current.message).toBe("HELLO"));
+    expect(result.current.replaying).toBe(true);
+  });
+
+  it("plays a queued replay once only: a later edit snaps", async () => {
+    const { result, rerender } = renderHook(({ message }) => usePreviewReplay(message), {
+      initialProps: { message: null as string | null },
+    });
+    act(() => result.current.replay());
+    rerender({ message: "HELLO" });
+    await waitFor(() => expect(result.current.message).toBe("HELLO"));
+    rerender({ message: "HELLO!" });
+    expect(result.current.animate).toBe(false);
+    expect(result.current.replaying).toBe(false);
+  });
 });

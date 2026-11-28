@@ -17,6 +17,7 @@ import {
   type RenderDiagnostics,
   type RenderTarget,
 } from "@/lib/api/formula-debug";
+import { hasOpenOverlay } from "@/lib/editor-shortcuts";
 import {
   atIsoForTime,
   buildPreviewContext,
@@ -33,11 +34,12 @@ import {
   variableProbeTemplate,
 } from "@/lib/formula-ide/hints";
 import { cellOrigin, originDetail } from "@/lib/formula-ide/source-map";
+import { focusTemplate } from "@/lib/ide/jump-to-line";
 
 import { BoardCellHighlight } from "./board-cell-highlight";
 import type { FormulaIdeBridge, FormulaPreviewTarget, OpenFormulaRequest } from "./formula-ide-context";
-import { MissingValuesCard } from "./missing-values-card";
-import { PreviewDataControls } from "./preview-data-controls";
+import { MissingValuesCard, PreviewCaption } from "./missing-values-card";
+import { PreviewDataControls, type PreviewDataView } from "./preview-data-controls";
 import type { WorkbenchProps } from "./workbench-types";
 
 const FormulaWorkbenchLeft = lazy(() =>
@@ -99,8 +101,12 @@ export interface FormulaIde {
   mirrorLocked: boolean;
   /** The render behind the hints failed: the IDE's own, or the editor's preview in Live. */
   renderFailed: boolean;
-  headerControls: ReactNode;
-  bodyControls: ReactNode;
+  /** The desktop header's data controls and View rows (UX-4-1); null on the dock or without the IDE. */
+  view: PreviewDataView | null;
+  /** The dock's data controls, for its ⋯ More (UX-10-2); null on desktop. */
+  moreControls: ReactNode;
+  /** The one-line caption slot under the board (UX-4-4): reserved on desktop, empty when unused. */
+  caption: ReactNode;
   previewFooter: ReactNode;
   boardProps: {
     ref: React.RefObject<HTMLDivElement | null>;
@@ -293,12 +299,26 @@ export function useFormulaIde({
     [mirroring, stopMirroring],
   );
 
-  // `I` toggles Inspect on desktop, outside text inputs (04c C3).
+  // `I` toggles Inspect on desktop, outside text inputs (04c C3). Esc leaves
+  // it and returns the caret to the template (UX-9-3), after anything open
+  // (a menu, a popover, a dialog) has had the key.
+  const inspectingRef = useRef(inspect);
+  useEffect(() => {
+    inspectingRef.current = inspect;
+  }, [inspect]);
   useEffect(() => {
     if (!desktop || target === null) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "i" || event.metaKey || event.ctrlKey || event.altKey) return;
-      if (isTypingTarget(event.target)) return;
+      if (event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return;
+      if (event.key === "Escape") {
+        if (!inspectingRef.current || event.defaultPrevented || hasOpenOverlay()) return;
+        event.preventDefault();
+        setInspect(false);
+        setFocus(null);
+        focusTemplate();
+        return;
+      }
+      if (event.key.toLowerCase() !== "i") return;
       event.preventDefault();
       setInspect((value) => !value);
     };
@@ -347,28 +367,18 @@ export function useFormulaIde({
   const previewOverride = !inert && previewContext !== null ? (own?.rendered ?? null) : null;
   const atLabel = atTime ? formatClock(atTime) : null;
 
-  const controls = (size: "default" | "touch") =>
-    !available ? null : (
-      <PreviewDataControls
-        mode={mode}
-        onModeChange={setMode}
-        atTime={atTime}
-        onAtTimeChange={setAt}
-        size={size}
-        inspect={desktop ? inspect : undefined}
-        onInspectChange={desktop ? setInspect : undefined}
-      />
-    );
+  const dataView: PreviewDataView | null = available
+    ? { mode, onModeChange: setMode, atTime, onAtTimeChange: setAt, inspect, onInspectChange: setInspect }
+    : null;
+  // An integration that is off has no hub data to keep: not in the Sample note.
+  const unsampled = sample.unsampled.filter((root) => !disabled?.[root]);
 
   const footer = inert ? null : (
     <MissingValuesCard
       mode={mode}
-      atLabel={atLabel}
       template={template}
       roots={roots}
       offRoots={offRoots}
-      // An integration that is off has no hub data to keep: not in this note.
-      unsampled={sample.unsampled.filter((root) => !disabled?.[root])}
       formulas={diagnostics?.formulas ?? []}
       sources={own?.sources ?? null}
       loading={render.isPending && previewContext !== null}
@@ -393,11 +403,15 @@ export function useFormulaIde({
     setFocus({ kind: "cell", row: Number(tile.dataset.row), col: Number(tile.dataset.col) });
   };
 
-  const showWorkbench = desktop && !inert && (open !== null || inspect);
   // A failed render means no hints: the IDE's own in Sample/Missing/at/Inspect;
   // the editor's preview in Live. While mirroring the live render is the one
   // behind the hints, so a stale preview error does not count (FABLE-2541 N15).
   const renderFailed = ownRender ? render.isError : !mirroring && (live?.failed ?? false);
+  // Inspect with nothing picked yet says so in the caption slot, not in a pane
+  // that would push the column (UX-4-4); a picked tile, or a reason Inspect
+  // can't work, opens the pane.
+  const inspectPane = focus !== null || renderFailed || own?.debug?.source_map_status === "limit";
+  const showWorkbench = desktop && !inert && (open !== null || (inspect && inspectPane));
   const workbenchProps = {
     open,
     setOpen,
@@ -427,8 +441,17 @@ export function useFormulaIde({
     dotStatus: !inert && mode === "sample" ? "neutral" : undefined,
     mirrorLocked: !inert && previewContext !== null,
     renderFailed,
-    headerControls: desktop ? controls("default") : null,
-    bodyControls: desktop ? null : controls("touch"),
+    view: desktop ? dataView : null,
+    moreControls: !desktop && dataView ? <PreviewDataControls data={dataView} /> : null,
+    caption: !available ? null : (
+      <PreviewCaption
+        reserved={desktop}
+        inspecting={desktop && inspect && !inert}
+        mode={mode}
+        atLabel={atLabel}
+        unsampled={unsampled}
+      />
+    ),
     previewFooter: footer,
     boardProps: {
       ref: boardRef,

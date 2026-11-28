@@ -13,6 +13,8 @@ export interface IdeProblem {
   line: number | null;
   /** Hub wording (H4 validate) or the substitution itself ("é → E"). */
   message: string;
+  /** A too-long line: its width and the board's, worded as the H4 card words them (UX-4-3). */
+  overflow?: { columns: number; maxColumns: number };
 }
 
 /** Every H4 board-width validation error is an error: the board would show the page wrong. */
@@ -23,6 +25,10 @@ export function problemsFromValidation(errors: readonly BoardValidationError[]):
     kind: error.code,
     line: error.line,
     message: error.message,
+    // The hub reports a too-long line at the board's last column, with its width.
+    ...(error.code === "line_too_long" && error.max_length && error.column > 0
+      ? { overflow: { columns: error.max_length, maxColumns: error.column } }
+      : {}),
   }));
 }
 

@@ -5,6 +5,7 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FormulaIdeContext, useFormulaIdeBridge } from "@/components/formula-ide/formula-ide-context";
+import { PreviewHeaderControls } from "@/components/formula-ide/preview-data-controls";
 import { useFormulaIde } from "@/components/formula-ide/use-formula-ide";
 import type { RenderTarget } from "@/lib/api/formula-debug";
 
@@ -134,8 +135,10 @@ function Harness({
     <FormulaIdeContext.Provider value={ide.bridge}>
       <div data-testid="override">{ide.previewOverride ?? "ordinary"}</div>
       <div data-testid="render-failed">{String(ide.renderFailed)}</div>
-      {ide.headerControls}
-      {ide.bodyControls}
+      <div data-testid="inspecting">{String(ide.view?.inspect ?? false)}</div>
+      {ide.view && <PreviewHeaderControls data={ide.view} zoom={null} size="default" />}
+      {ide.moreControls}
+      {ide.caption}
       {ide.previewFooter}
       <Chip onOpen={onOpen} />
       {ide.overlays}
@@ -278,11 +281,39 @@ describe("useFormulaIde", () => {
   it("toggles Inspect with I outside text inputs on desktop", async () => {
     // binding: inspect
     renderHarness(true);
-    const toggle = await screen.findByRole("button", { name: /Inspect/ });
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(await screen.findByTestId("inspecting")).toHaveTextContent("false");
     await act(async () => {
       await userEvent.keyboard("i");
     });
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("inspecting")).toHaveTextContent("true");
+    await userEvent.click(screen.getByRole("button", { name: "View" }));
+    expect(await screen.findByRole("menuitemcheckbox", { name: /Inspect/ })).toHaveAttribute("aria-checked", "true");
+  });
+
+  // UX-9-3: Esc leaves Inspect and puts the caret back in the template.
+  it("leaves Inspect with Esc and returns focus to the template", async () => {
+    renderHarness(true);
+    const editor = document.createElement("textarea");
+    editor.id = "page-template-plain";
+    document.body.appendChild(editor);
+    await screen.findByTestId("inspecting");
+    await act(async () => {
+      await userEvent.keyboard("i");
+    });
+    expect(screen.getByTestId("inspect-hint")).toBeInTheDocument();
+    await act(async () => {
+      await userEvent.keyboard("{Escape}");
+    });
+    expect(screen.getByTestId("inspecting")).toHaveTextContent("false");
+    expect(screen.queryByTestId("inspect-hint")).toBeNull();
+    expect(document.activeElement).toBe(editor);
+    editor.remove();
+  });
+
+  it("puts the dock's data modes in its More, not in the preview (UX-10-2)", async () => {
+    renderHarness(false);
+    expect(await screen.findByRole("radiogroup", { name: "Preview data" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View" })).toBeNull();
+    expect(document.querySelector('[data-slot="preview-caption"]')).toBeNull();
   });
 });

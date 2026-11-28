@@ -18,6 +18,11 @@ export interface ComplexEditingOptions {
    * desktop; the 900 and 390 frames scroll the docked preview instead (DD-W).
    */
   enabled: boolean;
+  /**
+   * Draw mode: the lenses step aside, but a big board keeps the zoom it had,
+   * so the overview carries into draw mode (`ownsZoom`).
+   */
+  paused?: boolean;
   /** The element around the preview board, measured for the ruler, minimap and seams. */
   stage: HTMLElement | null;
   /**
@@ -40,20 +45,28 @@ export function useComplexEditing({
   notesWide,
   notesTall,
   enabled,
+  paused = false,
   stage,
   previewMode: sessionMode = "actual",
   onPreviewModeChange,
 }: ComplexEditingOptions) {
-  const bigBoard = enabled && isBigBoard({ rows, cols });
-  const noteArray = enabled && deviceType === "note_array" && notesWide * notesTall > 1;
-  // 04b `126:149604` opens a big board at Tile sm, the editable floor.
-  const [zoom, setZoomState] = useState<ZoomValue>(() => (sessionMode === "fit" ? "fit" : "sm"));
+  const ownsZoom = enabled && isBigBoard({ rows, cols });
+  const bigBoard = ownsZoom && !paused;
+  const noteArray = enabled && !paused && deviceType === "note_array" && notesWide * notesTall > 1;
+  // A big board opens at Fit (UX-4-2, DD-W156): 04b `126:149604`'s Tile sm
+  // opened Den TV cropped at column 28 when Fit shows all 34. Actual size
+  // uses the last tile size chosen (Tile sm until one is).
+  const [zoom, setZoomState] = useState<ZoomValue>("fit");
+  const [tile, setTile] = useState<"sm" | "md" | "lg">("sm");
   const setZoom = (next: ZoomValue) => {
     setZoomState(next);
+    if (next !== "fit") setTile(next);
     const mode = next === "fit" ? "fit" : "actual";
     if (mode !== sessionMode) onPreviewModeChange?.(mode);
   };
-  const [minimapOpen, setMinimapOpen] = useState(true);
+  // The ruler is off by default except over a note array, where it marks the
+  // Note seams (DD-W131); the View menu turns it on (UX-4-2).
+  const [rulerOpen, setRulerOpen] = useState(() => deviceType === "note_array");
   const [focusedNote, setFocusedNote] = useState<number | null>(null);
   const viewport = useBoardViewportScroll(stage, cols, bigBoard || noteArray);
   // A resized array keeps the focus only while that Note still exists.
@@ -62,6 +75,8 @@ export function useComplexEditing({
   return {
     active: bigBoard || noteArray,
     bigBoard,
+    /** A big board on the desktop pane, in draw mode too: the preview's mode and size follow the zoom. */
+    ownsZoom,
     noteArray,
     rows,
     cols,
@@ -69,11 +84,15 @@ export function useComplexEditing({
     notesTall,
     zoom,
     setZoom,
+    /** The tile size Actual size uses. */
+    tile,
+    /** Fit, or Actual size at the last tile size. */
+    setMode: (mode: "fit" | "actual") => setZoom(mode === "fit" ? "fit" : tile),
     /** The preview's mode and tile size while the zoom control owns them. */
     previewMode: zoom === "fit" ? ("fit" as const) : ("actual" as const),
     previewSize: zoom === "fit" ? ("sm" as const) : zoom,
-    minimapOpen,
-    setMinimapOpen,
+    rulerOpen,
+    setRulerOpen,
     note,
     setNote: setFocusedNote,
     geometry: viewport.geometry,

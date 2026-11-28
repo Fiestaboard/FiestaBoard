@@ -5,7 +5,7 @@
  * template lines and their per-line metadata, the rendered preview rows and
  * the hub's real-width validation, H4) — it never changes the page model.
  */
-import { type ColumnRulerMark, parseLine, type TruncationMapLine } from "@fiestaboard/ui";
+import type { ColumnRulerMark } from "@fiestaboard/ui";
 
 import type { TemplateValidationAtResponse } from "@/lib/api/template-validation";
 
@@ -162,17 +162,6 @@ export function lineOverflows(response: TemplateValidationAtResponse | undefined
 }
 
 /**
- * The columns a rendered row draws: a colour code (`{63}`) or icon is one
- * tile and a closing tag none, as the board parses it and as the hub's render
- * report measures it (BB-E-2). Trailing blanks are not counted.
- */
-export function drawnWidth(row: string): number {
-  // The parser defaults extended markup off; the hub and every renderer draw
-  // with it on, so `{red:HOT}` is 3 cells and `{icon:sun}` one.
-  return parseLine(row.trimEnd(), Infinity, { extendedMarkup: true }).length;
-}
-
-/**
  * Template rows the board will draw something on: up to the last row with
  * content. Blank rows after it (a smaller board's padding) are not lines the
  * board limit applies to (BB-E-18), as the hub's `beyond_board` check counts.
@@ -182,28 +171,6 @@ export function usedLineCount(lines: readonly string[]): number {
     if (lines[i].trim() !== "") return i + 1;
   }
   return 0;
-}
-
-/** Rows for the truncation map: each rendered row's length, and the hub's overflow verdict on its line. */
-export function truncationLines(
-  rendered: readonly string[],
-  overflows: readonly LineOverflow[],
-  rows: number,
-  describe: (overflow: LineOverflow) => string,
-): TruncationMapLine[] {
-  const byLine = new Map(overflows.map((o) => [o.line, o]));
-  return Array.from({ length: rows }, (_, i) => {
-    const row = i + 1;
-    const overflow = byLine.get(row);
-    if (overflow) {
-      return {
-        row,
-        length: overflow.columns,
-        overflow: { column: overflow.maxColumns, count: overflow.cut, description: describe(overflow) },
-      };
-    }
-    return { row, length: drawnWidth(rendered[i] ?? "") };
-  });
 }
 
 /** Ruler marks after each Note column of a note array (04b `127:135751`). */

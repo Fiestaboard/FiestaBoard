@@ -261,11 +261,25 @@ for (const theme of ["light", "dark"] as const) {
         await expect(chip).toContainText("= NICE");
         expect(renders.some((body) => body.diagnostics === true)).toBe(true);
 
-        // H6: Live · Sample · Missing is one radio group (DataSourceSwitch).
+        // H6: Live · Sample · Missing is one radio group (DataSourceSwitch): in the
+        // header on desktop, in the dock's ⋯ More below 1024 px (UX-10-2).
+        const docked = width < 1024;
+        const openMore = async () => {
+          if (docked) await page.getByRole("button", { name: "More", exact: true }).last().click();
+        };
+        const closeMore = async () => {
+          if (docked) await page.keyboard.press("Escape");
+        };
+        if (docked) {
+          const preview = page.locator("#page-editor-preview");
+          await expect(preview.getByRole("radiogroup", { name: "Preview data" })).toHaveCount(0);
+        }
+        await openMore();
         const sources = page.getByRole("radiogroup", { name: "Preview data" });
         await expect(sources).toBeVisible();
         expect(await sources.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
         await sources.getByRole("radio", { name: "Missing" }).click();
+        await closeMore();
         const missing = page.getByTestId("missing-values");
         await expect(missing).toContainText("2 missing");
         await expect(missing).toContainText("weather.temperature");
@@ -277,7 +291,9 @@ for (const theme of ["light", "dark"] as const) {
         await injectAxe(page);
         await checkA11y(page, "main");
         await page.screenshot({ path: path.join(shots, `impl-${width}-${theme}-missing.png`), fullPage: true });
+        await openMore();
         await sources.getByRole("radio", { name: "Live" }).click();
+        await closeMore();
         await expect(missing).toHaveCount(0);
 
         if (width >= 1024) {
@@ -298,7 +314,8 @@ for (const theme of ["light", "dark"] as const) {
           await page.screenshot({ path: path.join(shots, `impl-${width}-${theme}-builder.png`), fullPage: true });
           await page.getByRole("button", { name: "Cancel" }).click();
 
-          // 04c C3: Inspect, click a tile.
+          // 04c C3: Inspect (the View menu, DD-W156), click a tile.
+          await page.getByRole("button", { name: "View", exact: true }).click();
           await page.getByTestId("inspect-toggle").click();
           await page.locator('[data-inspecting] [data-row="2"][data-col="1"]').first().click();
           const inspector = page.getByTestId("inspector-pane");
@@ -358,5 +375,77 @@ for (const width of [1280, 1440]) {
 
     const live = card.locator('[data-slot="editor-preview-live"]');
     await expect(live.getByRole("button", { name: "Replay" })).toBeVisible();
+  });
+}
+
+// Editor UX FP-3 (UX-4-1, UX-4-4, UX-9-3; DD-W156): the header is one 40 px row
+// of `Live | Sample | Missing` and ⋯ View; the caption slot under the board
+// keeps its height in every mode, so nothing moves; Esc leaves Inspect.
+for (const width of [1024, 1440]) {
+  test(`calm preview card at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockEditorApi(page);
+    await page.goto(`/tests/layout/formula-ide.html?theme=light`);
+    const card = page.locator("#page-editor-preview");
+    const header = card.locator('[data-slot="editor-preview-header"]');
+    const sources = header.getByRole("radiogroup", { name: "Preview data" });
+    await expect(sources).toBeVisible();
+    const height = async () => (await header.boundingBox())!.height;
+    expect(await height()).toBeLessThanOrEqual(40);
+    expect(await header.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    // No Inspect button, clock or zoom toggle in the row: they are View's.
+    await expect(header.getByRole("button", { name: /^Inspect/ })).toHaveCount(0);
+    await expect(header.locator('[data-slot="board-preview-mode-toggle"]')).toHaveCount(0);
+
+    const view = header.getByRole("button", { name: "View", exact: true });
+    await view.click();
+    const menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem", { name: "Preview at a time…" })).toBeVisible();
+    await expect(menu.getByRole("menuitemcheckbox", { name: /Inspect/ })).toContainText("I");
+    await expect(menu.getByRole("menuitemradio", { name: /Fit/ })).toContainText("F");
+    await expect(menu.getByRole("menuitemradio", { name: /Actual size/ })).toContainText("1");
+    await page.keyboard.press("Escape");
+
+    // The caption slot: same place and height in Live, Sample and Inspect.
+    const caption = card.locator('[data-slot="preview-caption"]');
+    const board = card.locator("[data-row]").first();
+    const editor = page.getByRole("textbox", { name: "Template editor" });
+    const measure = async () => ({
+      caption: await caption.boundingBox(),
+      board: (await board.boundingBox())!.y,
+      editor: (await editor.boundingBox())!.y,
+    });
+    await expect(caption).toHaveCount(1);
+    const live = await measure();
+    await sources.getByRole("radio", { name: "Sample" }).click();
+    await expect(caption).toContainText("Sample shows");
+    expect(await measure()).toEqual(live);
+    await sources.getByRole("radio", { name: "Live" }).click();
+    await page.locator("body").click({ position: { x: 2, y: 2 } });
+    await page.keyboard.press("i");
+    await expect(caption).toContainText("Esc to leave");
+    expect(await measure()).toEqual(live);
+    await expect(card.locator("[data-inspecting]")).toHaveCount(1);
+    await page.keyboard.press("Escape");
+    await expect(card.locator("[data-inspecting]")).toHaveCount(0);
+    await expect(editor).toBeFocused();
+
+    // A preview time shows Figma's `At 7:00 AM ×` chip in the same row.
+    await view.click();
+    await page.getByRole("menuitem", { name: "Preview at a time…" }).click();
+    await page.getByRole("option", { name: "7 AM" }).click();
+    await page.keyboard.press("Escape");
+    await expect(header.getByTestId("preview-time-chip")).toContainText("7:00 AM");
+    expect(await height()).toBeLessThanOrEqual(40);
+    await header.getByRole("button", { name: "Preview at the current time" }).click();
+    await expect(header.getByTestId("preview-time-chip")).toHaveCount(0);
+
+    // 1 is Actual size, F toggles back to Fit (outside text).
+    const mode = card.locator('[data-slot="board-viewport"]');
+    await page.locator("body").click({ position: { x: 2, y: 2 } });
+    await page.keyboard.press("1");
+    await expect(mode).toHaveAttribute("data-mode", "actual");
+    await page.keyboard.press("f");
+    await expect(mode).toHaveAttribute("data-mode", "fit");
   });
 }

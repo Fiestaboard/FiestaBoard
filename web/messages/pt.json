@@ -3861,7 +3861,7 @@
     "showShortcuts": "Mostrar atalhos de teclado",
     "previewStep": "Mover a pré-visualização uma nota ou coluna",
     "previewEnds": "Ir para o início ou o fim da pré-visualização",
-    "previewFit": "Ajustar / Tamanho real (pré-visualização em foco)",
+    "previewFit": "Ajustar / Tamanho real",
     "insertFormula": "Inserir uma fórmula",
     "save": "Salvar",
     "saveAndShow": "Salvar e mostrar agora",
@@ -4440,5 +4440,16 @@
     "caret": "Lin {line}, Col {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Espaçamento"
+  },
+  "previewView": {
+    "view": "Visualização",
+    "previewAt": "Pré-visualizar num horário…",
+    "zoom": "Zoom",
+    "ruler": "Régua",
+    "at": "Às",
+    "inspectCaption": "Inspecionar: clique num bloco para ver o token e os passos da fórmula · Esc para sair",
+    "missingNoDataTitle": "Sem dados de integrações nesta página",
+    "missingFormulaError": "{error} na linha {line} é um erro de fórmula, não dados em falta.",
+    "seeProblems": "Ver problemas"
   }
 }

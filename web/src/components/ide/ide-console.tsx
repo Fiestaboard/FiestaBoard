@@ -27,6 +27,7 @@ export function IdeProblemList({
   size?: "default" | "touch";
 }) {
   const t = useTranslations("creatorIde");
+  const tc = useTranslations("complexEditing");
   if (!problems.length) {
     return (
       <Text size="sm" tone="muted" data-slot="ide-problems-empty">
@@ -37,7 +38,15 @@ export function IdeProblemList({
   return (
     <Stack gap="1" role="list">
       {problems.map((problem) => {
-        const { tag, detail } = problemTitleParts(problem);
+        const { tag, detail: hubDetail } = problemTitleParts(problem);
+        // A cut line in the H4 card's words, so every place says it the same way (UX-4-3).
+        const detail = problem.overflow
+          ? tc("overflowTitle", {
+              columns: problem.overflow.columns,
+              maxColumns: problem.overflow.maxColumns,
+              cut: problem.overflow.columns - problem.overflow.maxColumns,
+            })
+          : hubDetail;
         const kind = tag ?? t(`kind.${problem.kind}`);
         return (
           <Box role="listitem" key={problem.id}>
