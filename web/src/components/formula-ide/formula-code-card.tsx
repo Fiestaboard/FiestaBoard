@@ -185,6 +185,7 @@ export function FormulaCodeCard(props: WorkbenchProps) {
   const tEditor = useTranslations("formulaEditor");
   const tTemplate = useTranslations("templateEditor");
   const labelId = useId();
+  const noteId = useId();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const original = open?.expression ?? "";
@@ -263,7 +264,7 @@ export function FormulaCodeCard(props: WorkbenchProps) {
           theme,
           hintField,
           history(),
-          EditorView.contentAttributes.of({ "aria-labelledby": labelId }),
+          EditorView.contentAttributes.of({ "aria-labelledby": labelId, "aria-describedby": noteId }),
           autocompletion({
             override: [
               completionSource(
@@ -348,6 +349,10 @@ export function FormulaCodeCard(props: WorkbenchProps) {
           status={status}
           inSheet={props.placement === "sheet"}
         />
+        {/* Where the margin values come from: their hover title, and the editor's description. */}
+        <Text id={noteId} className="sr-only">
+          {t("hintsNote")}
+        </Text>
         <Text id={labelId} className="sr-only">
           {t("codeLabel")}
         </Text>

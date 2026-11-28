@@ -484,7 +484,10 @@ for (const width of [900, 1440]) {
     await expect(card.getByRole("button", { name: "Insert formula" })).toBeVisible();
     // No second editor, no blurred page, no explanatory caption.
     await expect(page.getByRole("dialog", { name: "Formula editor" })).toHaveCount(0);
-    await expect(page.getByText("Values on the right are from the current preview.")).toHaveCount(0);
+    // (It is the values' tooltip and the code's description, not a visible caption.)
+    await expect(
+      page.getByText("Values on the right are from the current preview.").and(page.locator(":not(.sr-only)")),
+    ).toHaveCount(0);
     const blurred = await page.evaluate(() =>
       [...document.querySelectorAll("body *")].some((el) => getComputedStyle(el).backdropFilter.includes("blur")),
     );
@@ -497,9 +500,37 @@ for (const width of [900, 1440]) {
     expect(board.y + board.height).toBeLessThanOrEqual(editor.y);
     await page.screenshot({ path: testInfo.outputPath(`formula-${width}.png`) });
 
+    // The caret is in the code, not on the Code tab: a tablet keeps its keyboard.
+    await expect(card.locator(".cm-content")).toBeFocused();
+
     // Esc cancels and hands the caret back to the template.
     await page.keyboard.press("Escape");
     await expect(card).toHaveCount(0);
+    await expect(template).toBeFocused();
+
+    // Clicking an existing chip opens the same editor with the caret in its code.
+    const chips = page.getByTestId("formula-atom-chip");
+    await expect(chips).toHaveCount(1);
+    await chips.first().click();
+    await expect(card).toBeVisible();
+    await expect(card.getByText("Formula · line 3")).toBeVisible();
+    await expect(card.getByRole("button", { name: "Update formula" })).toBeVisible();
+    await page.waitForTimeout(100);
+    await expect(card.locator(".cm-content")).toBeFocused();
+    await card.getByRole("button", { name: "Cancel" }).click();
+    await expect(card).toHaveCount(0);
+
+    // Inserting: a new formula goes in at the caret and the template has the caret again.
+    await template.click();
+    await page.keyboard.press("End");
+    await page.keyboard.press("Control+e");
+    await expect(card).toBeVisible();
+    await page.keyboard.type("1 + 1");
+    const insert = card.getByRole("button", { name: "Insert formula" });
+    await expect(insert).toBeEnabled();
+    await insert.click();
+    await expect(card).toHaveCount(0);
+    await expect(template).toContainText("1 + 1");
     await expect(template).toBeFocused();
   });
 }

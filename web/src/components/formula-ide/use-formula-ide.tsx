@@ -502,6 +502,8 @@ export function useFormulaIde({
     ) : null,
     overlays: (
       <>
+        {/* A sheet opened at tablet width stays open if the window narrows past
+            640: it is the same editor; new opens there use the phone sheet. */}
         {!desktop && available && open !== null && (
           <Suspense fallback={null}>
             <FormulaWorkbenchSheet {...workbenchProps} />

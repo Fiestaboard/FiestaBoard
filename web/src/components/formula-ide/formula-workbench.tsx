@@ -67,8 +67,17 @@ export function FormulaWorkbenchSheet(props: WorkbenchProps) {
         side="bottom"
         grabber
         scrim={false}
-        // The chip hands the caret back to the template itself.
-        finalFocus={() => false}
+        // The code editor focuses itself on mount; the kit's default would move
+        // focus to the first tab and drop a tablet's keyboard. The chip hands the
+        // caret back to the template itself on close.
+        initialFocus={false}
+        finalFocus={false}
+        // An Esc the editor already used (closing autocomplete) must not also
+        // close the sheet: the kit stops a prevented Esc from reaching the
+        // document, and Base UI's own popup handler is skipped for it.
+        onEscapeKeyDown={(event) => {
+          if (event.defaultPrevented) (event as { preventBaseUIHandler?: () => void }).preventBaseUIHandler?.();
+        }}
         data-testid="formula-sheet"
       >
         <SheetHeader className="sr-only">
