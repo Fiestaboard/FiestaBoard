@@ -113,14 +113,21 @@ describe("Desktop editor header (BB-E-13)", () => {
     expect(onDiscard).toHaveBeenCalledOnce();
   });
 
+  it("names the board once when the IDE's state names it (FABLE-2652 §3.2)", async () => {
+    renderBuilder({ draftState: { live: "Scheduled on Kitchen", liveBoardMeta: "Kitchen" } });
+    await screen.findByDisplayValue("Kitchen morning");
+    const meta = await screen.findByTestId("page-editor-meta");
+    expect(meta).toHaveTextContent(`Flagship 22 × 6 · Scheduled on Kitchen · Saved ${savedTime}`);
+  });
+
   it("keeps Transition and Delete out of the header (D6) and draws 40 px buttons", async () => {
     renderBuilder();
     await screen.findByDisplayValue("Kitchen morning");
     expect(screen.queryByRole("button", { name: "Page transition" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Delete Page" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete page" })).toBeNull();
     // 40 px tall, labelled (h-10) or, at 1024–1279, icon-only (size-10; D8).
-    expect(screen.getByRole("button", { name: "Export Page" }).className).toMatch(/\b(h|size)-10\b/);
-    expect(screen.getByRole("button", { name: "Save Page" }).className).toMatch(/\b(h|size)-10\b/);
+    expect(screen.getByRole("button", { name: "Export page" }).className).toMatch(/\b(h|size)-10\b/);
+    expect(screen.getByRole("button", { name: "Save page" }).className).toMatch(/\b(h|size)-10\b/);
   });
 
   it("keeps the save state whole when the meta truncates (FABLE-2583)", async () => {

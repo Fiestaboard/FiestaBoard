@@ -330,6 +330,8 @@ export interface PageBuilderDraftState {
   live?: string;
   /** The display it is live on, by name (the leave guard says it keeps the saved version). */
   liveBoard?: string;
+  /** The board `live` names ("Live on Kitchen", "Scheduled on Kitchen"): the meta then doesn't name it twice. */
+  liveBoardMeta?: string;
   /** Drop the restored draft and its edits. */
   onDiscard?: () => void | Promise<void>;
   /** Drop the hub draft this session owns (the leave guard's Discard changes). */
@@ -3082,7 +3084,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // A new page, as 306:28127 draws it: "New Page · Kitchen board · Flagship 22 × 6 · Unsaved".
   const headerMeta = (
     pageId
-      ? [geometryMeta, previewBoard?.name, draftState?.live]
+      ? // FABLE-2652 §3.2: "Live on Den TV (Panel)" already names the board.
+        [geometryMeta, previewBoard?.name !== draftState?.liveBoardMeta && previewBoard?.name, draftState?.live]
       : [tHeader("newPage"), previewBoard?.name && tHeader("boardLabel", { board: previewBoard.name }), geometryMeta]
   )
     .filter(Boolean)

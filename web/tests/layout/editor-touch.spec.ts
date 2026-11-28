@@ -378,7 +378,7 @@ test.describe("900px fine-pointer nested More actions", () => {
     });
     const popup = await openFinePointerMore(page);
     const openDelete = async () => {
-      await popup.getByRole("button", { name: "Delete Page", exact: true }).click();
+      await popup.getByRole("button", { name: "Delete page", exact: true }).click();
       // UX-8-4: the dialog names the page.
       const dialog = page.getByRole("alertdialog", { name: /^Delete “.+”\?$/ });
       await expect(dialog).toBeVisible();

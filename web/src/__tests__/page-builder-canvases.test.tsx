@@ -209,7 +209,7 @@ describe("PageBuilder — pixel canvases", () => {
       expect(screen.queryByRole("textbox", { name: "Template" })).not.toBeInTheDocument();
       fireEvent.change(screen.getByRole("textbox", { name: "Canvas ID" }), { target: { value: "draft-sky" } });
       await user.click(screen.getByRole("tab", { name: "Shapes" }));
-      expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled();
       expect(screen.getByRole("switch", { name: "Mirror to board while editing" })).toBeInTheDocument();
       await user.click(textMode);
       expect(screen.getByRole("textbox", { name: "Template" })).toHaveValue("Draft text");
@@ -220,7 +220,7 @@ describe("PageBuilder — pixel canvases", () => {
       await user.click(textMode);
       expect(screen.getByRole("textbox", { name: "Template editor" })).toBe(retainedEditor);
       expect(retainedEditor).toHaveTextContent("Draft text");
-      await user.click(screen.getByRole("button", { name: "Save Page" }));
+      await user.click(screen.getByRole("button", { name: "Save page" }));
       await waitFor(() => expect(api.updatePage).toHaveBeenCalled());
       expect(vi.mocked(api.updatePage).mock.calls[0][1]).toMatchObject({
         template: ["Draft text"],

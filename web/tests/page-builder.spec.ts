@@ -43,7 +43,7 @@ test.describe("Page Builder", () => {
     await editor.fill("HELLO BUILDER");
 
     // Save the page
-    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
     // Saving keeps the current editor and announces its stored state.
@@ -67,7 +67,7 @@ test.describe("Page Builder", () => {
     await nameInput.fill("Updated Name");
     await page.locator('[contenteditable="true"]').first().fill("UPDATED CONTENT");
 
-    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
     await expect(page.getByText(/^Saved (just now|\d)/)).toBeVisible({ timeout: 15_000 });
@@ -90,7 +90,7 @@ test.describe("Page Builder", () => {
     const name = page.getByPlaceholder("My Custom Page");
     await expect(name).toHaveValue("Untitled page");
     await name.fill("");
-    await page.getByRole("button", { name: "Save Page", exact: true }).click();
+    await page.getByRole("button", { name: "Save page", exact: true }).click();
     await expect(page).toHaveURL(/\/pages\/edit\/[^/]+$/, { timeout: 15_000 });
     await expect(name).toHaveValue("Untitled page");
     await deletePage(page.url().split("/").pop()!);

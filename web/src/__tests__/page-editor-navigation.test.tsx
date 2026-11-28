@@ -111,8 +111,8 @@ it("leaves an unchanged page without prompting", async () => {
 it("stays after Save, then leaves without prompting", async () => {
   const { user } = setup();
   await user.type(await screen.findByDisplayValue("Weather Page"), " changed");
-  await user.click(screen.getByRole("button", { name: "Save Page" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled());
+  await user.click(screen.getByRole("button", { name: "Save page" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled());
   expect(screen.getByDisplayValue("Weather Page changed")).toBeInTheDocument();
   await user.click(screen.getByRole("link", { name: "Pages breadcrumb" }));
   expect(await screen.findByRole("heading", { name: "Pages destination" })).toBeInTheDocument();
@@ -150,8 +150,8 @@ it("still warns after a failed save", async () => {
   server.use(http.put("/api/v1/pages/page-1", () => HttpResponse.json({ detail: "Save failed" }, { status: 500 })));
   const { user } = setup();
   await user.type(await screen.findByDisplayValue("Weather Page"), " changed");
-  await user.click(screen.getByRole("button", { name: "Save Page" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Save Page" })).not.toBeDisabled());
+  await user.click(screen.getByRole("button", { name: "Save page" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save page" })).not.toBeDisabled());
   await user.click(screen.getByRole("link", { name: "Pages breadcrumb" }));
   expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
 });

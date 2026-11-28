@@ -165,11 +165,11 @@ it("reveals Text before the AI spotlight and staged text update when a clean edi
   expect(shown).toContainEqual({ caption: "typingLines", visible: true });
   expect(screen.getByRole("button", { name: "Text" })).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByRole("textbox", { name: "Template" })).toHaveValue(["AI text", ...Array(9).fill("")].join("\n"));
-  expect(screen.getByRole("button", { name: "Save Page" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Save page" })).toBeDisabled();
   savedPage = { ...savedPage, template: ["AI text"] };
   await play(getScript("update_page").settle(CALL, OK, ctx));
   expect(pulses).toEqual([true]);
-  await waitFor(() => expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled());
 });
 
 it("shows the dirty-draft notice from Canvases and retains every draft value after the AI succeeds", async () => {
@@ -183,7 +183,7 @@ it("shows the dirty-draft notice from Canvases and retains every draft value aft
   await play(getScript("update_page").narrate(CALL, ctx));
   expect(shown).toContainEqual({ caption: "updatingBehindEdits", visible: true });
   expect(bridge.getEditorSnapshot()).toEqual(draft);
-  expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled();
   savedPage = { ...savedPage, name: "AI saved name", template: ["AI text"] };
   await play(getScript("update_page").settle(CALL, OK, ctx));
   expect(pulses).toEqual([true]);
