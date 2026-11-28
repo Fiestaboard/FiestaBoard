@@ -1214,6 +1214,30 @@ describe("History", () => {
     expect(calls.restore[1]).toEqual({ id: "r1", body: { replace_draft: true } });
   });
 
+  // W-8: the draft *is* the template edits; publishing it is the header's Save &
+  // update board. History keeps only Discard draft, with no disabled twin and no excuse.
+  it("offers Discard draft for a draft, and no second Publish next to the header's Save", async () => {
+    mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "d1",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: false,
+        content: { ...snapshot, type: "template" },
+      },
+    });
+    renderIde(fakeBuilder({ unsaved: true }));
+    fireEvent.click(await screen.findByRole("tab", { name: "History" }));
+    const draft = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>('[data-slot="ide-draft"]');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(within(draft).getByRole("button", { name: "Discard draft" })).toBeEnabled();
+    expect(within(draft).queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
+    expect(draft).not.toHaveTextContent(/Save or discard/);
+  });
+
   it("compares a version against the live page", async () => {
     mockHub();
     renderIde();
