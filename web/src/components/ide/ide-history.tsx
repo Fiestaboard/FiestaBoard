@@ -166,23 +166,13 @@ export function IdeHistory({ ide, pageId }: { ide: CreatorIdeState; pageId: stri
               ? t("draftStale", { time: editTime(ide.draft.saved_at) })
               : t("draftSaved", { time: editTime(ide.draft.saved_at), board: boardName })}
           </Text>
+          {/* W-8: publishing the draft is the header's Save & update board (one
+            place for it); History keeps the one action only it offers. */}
           <Flex gap="2" className="flex-wrap">
-            <Button
-              variant="secondary"
-              disabled={ide.publishDraft.isPending || ide.builder.unsaved}
-              onClick={() => ide.publishDraft.mutate()}
-            >
-              {t("publishDraft")}
-            </Button>
             <Button variant="outline" disabled={ide.discardDraft.isPending} onClick={() => ide.discardDraft.mutate()}>
               {t("discardDraft")}
             </Button>
           </Flex>
-          {ide.builder.unsaved && (
-            <Text size="xs" tone="muted">
-              {t("publishNeedsSavedEdits")}
-            </Text>
-          )}
         </Stack>
       )}
       {compareId && comparedRevision && (

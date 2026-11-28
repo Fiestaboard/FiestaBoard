@@ -1662,7 +1662,9 @@
     "toastShown": "Şu an {board} üzerinde: {page}",
     "toastPaused": "Kaydedildi. {board} devam ettirildiğinde {page} gösterilir.",
     "toastNotSent": "Kaydedildi ama {board} cihazına gönderilemedi.",
-    "toastError": "Sayfa değiştirilemedi"
+    "toastError": "Sayfa değiştirilemedi",
+    "showPageTitle": "{page} sayfasını {board} üzerinde göster",
+    "showPageDescription": "Ne kadar süre?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Uygulamaya ulaşılamıyor. Ağınızı veya FiestaBoard'un çalışıp çalışmadığını kontrol edin.",
@@ -4191,7 +4193,8 @@
       "unknown_field": "#REF",
       "formula": "Formül hatası",
       "beyond_board": "Son satırın ötesinde",
-      "substitution": "Yer değiştirme"
+      "substitution": "Yer değiştirme",
+      "wrap_stopped": "Kaydırma kesildi"
     },
     "severityError": "Hata",
     "severityWarning": "Uyarı",
@@ -4306,9 +4309,7 @@
     "historyUnavailable": "Geçmiş bu hub’da kullanılamıyor.",
     "draftSaved": "Taslak kaydedildi {time} · {board} canlı sürümü korur",
     "draftStale": "{time} tarihli taslak · canlı sayfa o zamandan beri değişti",
-    "publishDraft": "Taslağı yayımla",
     "discardDraft": "Taslağı at",
-    "publishNeedsSavedEdits": "Taslağı yayımlamadan önce şablon düzenlemelerinizi kaydedin veya atın.",
     "replaceDraftTitle": "Taslak değiştirilsin mi?",
     "replaceDraftDescription": "Bu sayfanın zaten bir taslağı var. Bu sürümü geri yüklemek onu değiştirir.",
     "keepDraft": "Taslağı koru",
@@ -4344,7 +4345,11 @@
     "copyWillMake": "{board} boyutunda ({cols} × {rows}) yeni bir sayfa oluşturur; bu sayfa değişmez.",
     "collapseConsole": "Konsolu daralt",
     "scheduleGroup": "Program",
-    "collectionsGroup": "Koleksiyonlar"
+    "collectionsGroup": "Koleksiyonlar",
+    "showingNowGroup": "Şu an gösteriliyor",
+    "overrideUntil": "{board} üzerinde {time} saatine kadar",
+    "overrideUntilCancel": "{board} üzerinde sen durdurana kadar",
+    "stopShowing": "Durdur"
   },
   "formulaIde": {
     "atomValue": "= {value}",

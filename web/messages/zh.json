@@ -1662,7 +1662,9 @@
     "toastShown": "现在显示在 {board} 上：{page}",
     "toastPaused": "已保存。继续 {board} 后将显示 {page}。",
     "toastNotSent": "已保存，但发送到 {board} 失败。",
-    "toastError": "无法更换页面"
+    "toastError": "无法更换页面",
+    "showPageTitle": "在 {board} 上显示 {page}",
+    "showPageDescription": "显示多久?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "无法连接应用。请检查网络或 FiestaBoard 是否在运行。",
@@ -4191,7 +4193,8 @@
       "unknown_field": "#REF",
       "formula": "公式错误",
       "beyond_board": "超出最后一行",
-      "substitution": "替换"
+      "substitution": "替换",
+      "wrap_stopped": "换行被截断"
     },
     "severityError": "错误",
     "severityWarning": "警告",
@@ -4306,9 +4309,7 @@
     "historyUnavailable": "此 Hub 不提供历史记录。",
     "draftSaved": "草稿已保存 {time} · {board} 保持当前线上版本",
     "draftStale": "{time} 的草稿 · 此后线上页面已发生变化",
-    "publishDraft": "发布草稿",
     "discardDraft": "放弃草稿",
-    "publishNeedsSavedEdits": "发布草稿前，请先保存或放弃你的模板修改。",
     "replaceDraftTitle": "替换草稿？",
     "replaceDraftDescription": "此页面已有草稿。恢复此版本将替换它。",
     "keepDraft": "保留草稿",
@@ -4344,7 +4345,11 @@
     "copyWillMake": "按 {board} 的尺寸（{cols} × {rows}）新建一个页面；此页面保持不变。",
     "collapseConsole": "收起控制台",
     "scheduleGroup": "日程",
-    "collectionsGroup": "合集"
+    "collectionsGroup": "合集",
+    "showingNowGroup": "正在显示",
+    "overrideUntil": "在 {board} 上显示至 {time}",
+    "overrideUntilCancel": "在 {board} 上显示,直到你停止",
+    "stopShowing": "停止"
   },
   "formulaIde": {
     "atomValue": "= {value}",

@@ -1662,7 +1662,9 @@
     "toastShown": "Sur {board} maintenant : {page}",
     "toastPaused": "Enregistré. {page} s’affichera à la reprise de {board}.",
     "toastNotSent": "Enregistré, mais l’envoi vers {board} a échoué.",
-    "toastError": "Impossible de changer la page"
+    "toastError": "Impossible de changer la page",
+    "showPageTitle": "Afficher {page} sur {board}",
+    "showPageDescription": "Pendant combien de temps ?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Application inaccessible. Vérifiez votre réseau ou que FiestaBoard est en cours d'exécution.",
@@ -4191,7 +4193,8 @@
       "unknown_field": "#REF",
       "formula": "Erreur de formule",
       "beyond_board": "Après la dernière ligne",
-      "substitution": "Substitution"
+      "substitution": "Substitution",
+      "wrap_stopped": "Retour à la ligne coupé"
     },
     "severityError": "Erreur",
     "severityWarning": "Avertissement",
@@ -4306,9 +4309,7 @@
     "historyUnavailable": "L’historique n’est pas disponible sur ce hub.",
     "draftSaved": "Brouillon enregistré {time} · {board} garde la version en direct",
     "draftStale": "Brouillon de {time} · la page en direct a changé depuis",
-    "publishDraft": "Publier le brouillon",
     "discardDraft": "Abandonner le brouillon",
-    "publishNeedsSavedEdits": "Enregistrez ou annulez vos modifications du modèle avant de publier le brouillon.",
     "replaceDraftTitle": "Remplacer le brouillon ?",
     "replaceDraftDescription": "Cette page a déjà un brouillon. La restauration de cette version le remplace.",
     "keepDraft": "Garder le brouillon",
@@ -4344,7 +4345,11 @@
     "copyWillMake": "Crée une nouvelle page à la taille de {board} ({cols} × {rows}) ; cette page reste inchangée.",
     "collapseConsole": "Replier la console",
     "scheduleGroup": "Planning",
-    "collectionsGroup": "Collections"
+    "collectionsGroup": "Collections",
+    "showingNowGroup": "Affichée en ce moment",
+    "overrideUntil": "Sur {board} jusqu’à {time}",
+    "overrideUntilCancel": "Sur {board} jusqu’à ce que vous l’arrêtiez",
+    "stopShowing": "Arrêter"
   },
   "formulaIde": {
     "atomValue": "= {value}",

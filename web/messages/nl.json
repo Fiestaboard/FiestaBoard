@@ -1662,7 +1662,9 @@
     "toastShown": "Nu op {board}: {page}",
     "toastPaused": "Opgeslagen. {page} verschijnt als je {board} hervat.",
     "toastNotSent": "Opgeslagen, maar verzenden naar {board} is mislukt.",
-    "toastError": "Pagina wisselen mislukt"
+    "toastError": "Pagina wisselen mislukt",
+    "showPageTitle": "{page} tonen op {board}",
+    "showPageDescription": "Hoe lang?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Kan de app niet bereiken. Controleer je netwerk of of FiestaBoard draait.",
@@ -4191,7 +4193,8 @@
       "unknown_field": "#REF",
       "formula": "Formulefout",
       "beyond_board": "Voorbij de laatste rij",
-      "substitution": "Vervanging"
+      "substitution": "Vervanging",
+      "wrap_stopped": "Terugloop afgekapt"
     },
     "severityError": "Fout",
     "severityWarning": "Waarschuwing",
@@ -4306,9 +4309,7 @@
     "historyUnavailable": "Geschiedenis is niet beschikbaar op deze hub.",
     "draftSaved": "Concept opgeslagen {time} · {board} houdt de live versie",
     "draftStale": "Concept van {time} · de live pagina is sindsdien gewijzigd",
-    "publishDraft": "Concept publiceren",
     "discardDraft": "Concept verwerpen",
-    "publishNeedsSavedEdits": "Sla je sjabloonwijzigingen op of verwerp ze voordat je het concept publiceert.",
     "replaceDraftTitle": "Het concept vervangen?",
     "replaceDraftDescription": "Deze pagina heeft al een concept. Als je deze versie herstelt, wordt het vervangen.",
     "keepDraft": "Concept behouden",
@@ -4344,7 +4345,11 @@
     "copyWillMake": "Maakt een nieuwe pagina op het formaat van {board} ({cols} × {rows}); deze pagina blijft ongewijzigd.",
     "collapseConsole": "Console inklappen",
     "scheduleGroup": "Schema",
-    "collectionsGroup": "Collecties"
+    "collectionsGroup": "Collecties",
+    "showingNowGroup": "Nu getoond",
+    "overrideUntil": "Op {board} tot {time}",
+    "overrideUntilCancel": "Op {board} tot je het stopt",
+    "stopShowing": "Stoppen"
   },
   "formulaIde": {
     "atomValue": "= {value}",

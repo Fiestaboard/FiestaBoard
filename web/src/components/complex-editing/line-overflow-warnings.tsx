@@ -111,11 +111,11 @@ export function LineOverflowWarnings({
         <EditorWarning
           kind="line-overflow"
           size={touch ? "touch" : "default"}
-          data-problem="beyond_board"
+          data-problem={firstPast.kind}
           line={firstPast.line}
           columns={rows}
           maxColumns={rows}
-          labels={{ line: () => tIde("kind.beyond_board"), lineOverflow: () => firstPast.message }}
+          labels={{ line: () => tIde(`kind.${firstPast.kind}`), lineOverflow: () => firstPast.message }}
         >
           {morePast.length > 0 &&
             morePast.map((past) => (

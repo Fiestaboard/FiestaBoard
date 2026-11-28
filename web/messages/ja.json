@@ -1662,7 +1662,9 @@
     "toastShown": "{board} に表示中: {page}",
     "toastPaused": "保存しました。{board} を再開すると {page} が表示されます。",
     "toastNotSent": "保存しましたが、{board} への送信に失敗しました。",
-    "toastError": "ページを変更できませんでした"
+    "toastError": "ページを変更できませんでした",
+    "showPageTitle": "{page} を {board} に表示",
+    "showPageDescription": "表示する時間は?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "アプリに接続できません。ネットワークまたは FiestaBoard の起動を確認してください。",
@@ -4191,7 +4193,8 @@
       "unknown_field": "#REF",
       "formula": "数式エラー",
       "beyond_board": "最終行を超えています",
-      "substitution": "置換"
+      "substitution": "置換",
+      "wrap_stopped": "折り返しが途中で切れる"
     },
     "severityError": "エラー",
     "severityWarning": "警告",
@@ -4306,9 +4309,7 @@
     "historyUnavailable": "このHubでは履歴を利用できません。",
     "draftSaved": "下書きを保存しました {time} · {board}はライブ版のままです",
     "draftStale": "{time}の下書き · その後ライブページが変更されました",
-    "publishDraft": "下書きを公開",
     "discardDraft": "下書きを破棄",
-    "publishNeedsSavedEdits": "下書きを公開する前に、テンプレートの編集内容を保存するか破棄してください。",
     "replaceDraftTitle": "下書きを置き換えますか?",
     "replaceDraftDescription": "このページにはすでに下書きがあります。このバージョンを復元すると置き換えられます。",
     "keepDraft": "下書きを残す",
@@ -4344,7 +4345,11 @@
     "copyWillMake": "{board} のサイズ（{cols} × {rows}）で新しいページを作成します。このページは変更されません。",
     "collapseConsole": "コンソールを折りたたむ",
     "scheduleGroup": "スケジュール",
-    "collectionsGroup": "コレクション"
+    "collectionsGroup": "コレクション",
+    "showingNowGroup": "表示中",
+    "overrideUntil": "{board} に {time} まで",
+    "overrideUntilCancel": "{board} に停止するまで",
+    "stopShowing": "停止"
   },
   "formulaIde": {
     "atomValue": "= {value}",

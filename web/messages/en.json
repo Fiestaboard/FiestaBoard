@@ -3851,7 +3851,9 @@
     "toastShown": "On {board} now: {page}",
     "toastPaused": "Saved. {page} shows when you resume {board}.",
     "toastNotSent": "Saved, but sending to {board} failed.",
-    "toastError": "Couldn’t change the page"
+    "toastError": "Couldn’t change the page",
+    "showPageTitle": "Show {page} on {board}",
+    "showPageDescription": "How long?"
   },
   "editorHeaderPhone": {
     "draftSaved": "Draft saved",
@@ -4191,7 +4193,8 @@
       "unknown_field": "#REF",
       "formula": "Formula error",
       "beyond_board": "Past the last row",
-      "substitution": "Substitution"
+      "substitution": "Substitution",
+      "wrap_stopped": "Wrap cut short"
     },
     "severityError": "Error",
     "severityWarning": "Warning",
@@ -4306,9 +4309,7 @@
     "historyUnavailable": "History isn’t available on this hub.",
     "draftSaved": "Draft saved {time} · {board} keeps the live version",
     "draftStale": "Draft from {time} · the live page changed since",
-    "publishDraft": "Publish draft",
     "discardDraft": "Discard draft",
-    "publishNeedsSavedEdits": "Save or discard your template edits before publishing the draft.",
     "replaceDraftTitle": "Replace the draft?",
     "replaceDraftDescription": "This page already has a draft. Restoring this version replaces it.",
     "keepDraft": "Keep draft",
@@ -4344,7 +4345,11 @@
     "copyWillMake": "Makes a new page sized for {board} ({cols} × {rows}); this page is unchanged.",
     "collapseConsole": "Collapse the console",
     "scheduleGroup": "Schedule",
-    "collectionsGroup": "Collections"
+    "collectionsGroup": "Collections",
+    "showingNowGroup": "Showing now",
+    "overrideUntil": "On {board} until {time}",
+    "overrideUntilCancel": "On {board} until you stop it",
+    "stopShowing": "Stop"
   },
   "formulaIde": {
     "atomValue": "= {value}",

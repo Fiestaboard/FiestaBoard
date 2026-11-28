@@ -451,3 +451,37 @@ def test_a_missing_loop_field_is_not_reported_as_a_plugin_path(engine):
     formula = report.formulas[0].to_json()
     assert formula["error"] == "#REF"
     assert formula["message"] is None
+
+
+# FABLE-2659 deferral: a wrap that fit when it was made, then a line typed on a
+# row below it stops it (``stopped_by_line``). The board drops the tail; validate
+# says so in the words the card and the Console show.
+def test_validate_flags_a_wrap_stopped_by_a_line_typed_below_it(client):
+    template = ["", "", "", LUNCH, "FOOTER", ""]
+    body = client.post(
+        "/templates/validate", json={"template": template, "line_metadata": _wrapped_at(4), "device_type": "flagship"}
+    ).json()
+
+    assert body["valid"] is False
+    assert [(e["line"], e["code"], e["message"]) for e in body["errors"]] == [
+        (4, "wrap_stopped", "Line 4 wraps into line 5 · 2 rows won't show")
+    ]
+
+
+def test_validate_counts_only_the_rows_a_stopped_wrap_loses(client):
+    template = ["", "", LUNCH, "", "FOOTER", ""]
+    body = client.post(
+        "/templates/validate", json={"template": template, "line_metadata": _wrapped_at(3), "device_type": "flagship"}
+    ).json()
+
+    assert [(e["line"], e["code"], e["message"]) for e in body["errors"]] == [
+        (3, "wrap_stopped", "Line 3 wraps into line 5 · 1 row won't show")
+    ]
+
+
+def test_validate_leaves_a_list_that_a_footer_stops_alone(engine):
+    # A spill (not a wrap) stopped by the next line is the layout the author chose.
+    ctx = {"demo": {"rows": "ONE\nTWO\nTHREE"}}
+    errors = engine.validate_template("{{= demo.rows }}\nFOOTER\nC", cols=15, rows=3, context=ctx)
+
+    assert [e.code for e in errors if e.code == "wrap_stopped"] == []

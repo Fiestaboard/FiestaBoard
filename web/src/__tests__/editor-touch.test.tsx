@@ -235,7 +235,9 @@ it("shows the saved page on the explicitly selected compatible board", async () 
   await user.click(await screen.findByRole("option", { name: "Display B" }));
   await user.click(screen.getByRole("button", { name: "Show now" }));
   const { within } = await import("@testing-library/react");
-  const dialog = await screen.findByRole("dialog", { name: "Change Page" });
+  // W-2: the editor asks about its own page and display only.
+  const dialog = await screen.findByRole("dialog", { name: "Show New morning on Display B" });
+  expect(within(dialog).queryByRole("searchbox")).not.toBeInTheDocument();
   await user.click(within(dialog).getByRole("button", { name: "Show now" }));
   await waitFor(() => expect(activation?.board_id).toBe("board-b"));
 });

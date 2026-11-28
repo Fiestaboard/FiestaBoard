@@ -322,15 +322,6 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     mutationFn: () => pageHistoryApi.discardDraft(pageId, hubDraft?.revision),
     onSuccess: () => queryClient.setQueryData(ideKeys.draft(pageId), null),
   });
-  const publishDraft = useMutation({
-    mutationFn: () =>
-      pageHistoryApi.publishDraft(pageId, hubDraft ? { expected_draft_revision: hubDraft.revision } : {}),
-    onSuccess: async () => {
-      queryClient.setQueryData(ideKeys.draft(pageId), null);
-      invalidateHistory();
-      await builderRef.current?.reloadFromServer();
-    },
-  });
 
   // D4 (BB-E-17): a draft the hub holds when the page opens is restored into
   // the editor ("Draft restored · Discard"); from then on this session owns it.
@@ -452,7 +443,6 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     draftConflict,
     dismissDraftConflict: () => setDraftConflict(false),
     discardDraft,
-    publishDraft,
     invalidateHistory,
     /** D4: the draft restored into the editor when the page opened, until it is saved or discarded. */
     restoredDraft: restored,

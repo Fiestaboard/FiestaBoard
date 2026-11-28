@@ -15,7 +15,8 @@ export type TemplateProblemCode =
   | "unknown_source"
   | "unknown_field"
   | "formula"
-  | "beyond_board";
+  | "beyond_board"
+  | "wrap_stopped";
 
 export interface TemplateProblem {
   /** One-based template line. */

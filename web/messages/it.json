@@ -1662,7 +1662,9 @@
     "toastShown": "Ora su {board}: {page}",
     "toastPaused": "Salvato. {page} compare quando riprendi {board}.",
     "toastNotSent": "Salvato, ma l’invio a {board} non è riuscito.",
-    "toastError": "Impossibile cambiare la pagina"
+    "toastError": "Impossibile cambiare la pagina",
+    "showPageTitle": "Mostra {page} su {board}",
+    "showPageDescription": "Per quanto tempo?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Impossibile raggiungere l'app. Controlla la rete o che FiestaBoard sia in esecuzione.",
@@ -4191,7 +4193,8 @@
       "unknown_field": "#REF",
       "formula": "Errore di formula",
       "beyond_board": "Oltre l’ultima riga",
-      "substitution": "Sostituzione"
+      "substitution": "Sostituzione",
+      "wrap_stopped": "A capo interrotto"
     },
     "severityError": "Errore",
     "severityWarning": "Avviso",
@@ -4306,9 +4309,7 @@
     "historyUnavailable": "La cronologia non è disponibile su questo hub.",
     "draftSaved": "Bozza salvata {time} · {board} mantiene la versione live",
     "draftStale": "Bozza del {time} · la pagina live è cambiata da allora",
-    "publishDraft": "Pubblica bozza",
     "discardDraft": "Scarta bozza",
-    "publishNeedsSavedEdits": "Salva o annulla le modifiche al modello prima di pubblicare la bozza.",
     "replaceDraftTitle": "Sostituire la bozza?",
     "replaceDraftDescription": "Questa pagina ha già una bozza. Ripristinare questa versione la sostituisce.",
     "keepDraft": "Mantieni bozza",
@@ -4344,7 +4345,11 @@
     "copyWillMake": "Crea una nuova pagina nella dimensione di {board} ({cols} × {rows}); questa pagina non cambia.",
     "collapseConsole": "Comprimi la console",
     "scheduleGroup": "Programmazione",
-    "collectionsGroup": "Raccolte"
+    "collectionsGroup": "Raccolte",
+    "showingNowGroup": "In mostra ora",
+    "overrideUntil": "Su {board} fino alle {time}",
+    "overrideUntilCancel": "Su {board} finché non la interrompi",
+    "stopShowing": "Interrompi"
   },
   "formulaIde": {
     "atomValue": "= {value}",

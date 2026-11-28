@@ -288,7 +288,7 @@ describe("LineOverflowWarnings", () => {
     const { container } = render(
       <LineOverflowWarnings
         overflows={[]}
-        pastBoard={[{ line: 5, message }]}
+        pastBoard={[{ line: 5, message, kind: "beyond_board" }]}
         lines={[]}
         rows={6}
         checkedAt={null}
@@ -299,6 +299,27 @@ describe("LineOverflowWarnings", () => {
     );
     const card = container.querySelector('[data-slot="editor-warning"]');
     expect(card).toHaveTextContent("Past the last row");
+    expect(card).toHaveTextContent(message);
+  });
+
+  // FABLE-2659: a wrap a line below stops short is named for what happened.
+  it("names a wrap stopped by a line below in the hub's words", () => {
+    const message = "Line 4 wraps into line 5 · 2 rows won't show";
+    const { container } = render(
+      <LineOverflowWarnings
+        overflows={[]}
+        pastBoard={[{ line: 4, message, kind: "wrap_stopped" }]}
+        lines={[]}
+        rows={6}
+        checkedAt={null}
+        touch={false}
+        wrapped={[]}
+        onWrap={vi.fn()}
+      />,
+    );
+    const card = container.querySelector('[data-slot="editor-warning"]');
+    expect(card).toHaveTextContent("Wrap cut short");
+    expect(card).not.toHaveTextContent("Past the last row");
     expect(card).toHaveTextContent(message);
   });
 

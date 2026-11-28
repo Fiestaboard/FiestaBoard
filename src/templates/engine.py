@@ -2446,7 +2446,8 @@ class TemplateEngine:
         extended_markup: bool,
         context: dict[str, Any] | None,
     ) -> list[TemplateError]:
-        """A line that wraps (or spills) past the board's last row: ``beyond_board``.
+        """A line that wraps (or spills) past the board's last row: ``beyond_board``;
+        a wrap a non-blank line below stops short: ``wrap_stopped``.
 
         Render keeps the rows that fit and drops the rest (its H5 report says
         ``board_end``), so the board loses that text even though no template
@@ -2481,13 +2482,28 @@ class TemplateEngine:
         )
         errors = []
         for entry in report.lines or []:
-            if entry.clip != "board_end" or entry.rows_wanted <= entry.rows_shown:
+            if entry.clip not in ("board_end", "stopped_by_line") or entry.rows_wanted <= entry.rows_shown:
                 continue
             lost = entry.rows_wanted - entry.rows_shown
-            verb = (
-                "wraps" if _metadata_wraps(line_metadata, entry.line - 1) or "wrap" in shown[entry.line - 1] else "runs"
-            )
             noun = "row" if lost == 1 else "rows"
+            wraps = _metadata_wraps(line_metadata, entry.line - 1) or "wrap" in shown[entry.line - 1]
+            if entry.clip == "stopped_by_line":
+                # A line typed below a wrap that fit stops it there (FABLE-2659):
+                # the board drops the tail just the same, so it is the same harm.
+                # A list that spills until a footer stops it is laid out that way
+                # on purpose, so only a wrap is reported.
+                if not wraps:
+                    continue
+                errors.append(
+                    TemplateError(
+                        line=entry.line,
+                        column=0,
+                        message=f"Line {entry.line} wraps into line {entry.clip_line} · {lost} {noun} won't show",
+                        code="wrap_stopped",
+                    )
+                )
+                continue
+            verb = "wraps" if wraps else "runs"
             errors.append(
                 TemplateError(
                     line=entry.line,

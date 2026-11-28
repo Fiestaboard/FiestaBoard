@@ -1662,7 +1662,9 @@
     "toastShown": "Ahora en {board}: {page}",
     "toastPaused": "Guardado. {page} se mostrará cuando reanudes {board}.",
     "toastNotSent": "Guardado, pero falló el envío a {board}.",
-    "toastError": "No se pudo cambiar la página"
+    "toastError": "No se pudo cambiar la página",
+    "showPageTitle": "Mostrar {page} en {board}",
+    "showPageDescription": "¿Cuánto tiempo?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "No se puede conectar con la aplicación. Comprueba tu red o que FiestaBoard esté en ejecución.",
@@ -4191,7 +4193,8 @@
       "unknown_field": "#REF",
       "formula": "Error de fórmula",
       "beyond_board": "Más allá de la última fila",
-      "substitution": "Sustitución"
+      "substitution": "Sustitución",
+      "wrap_stopped": "Ajuste cortado"
     },
     "severityError": "Error",
     "severityWarning": "Advertencia",
@@ -4306,9 +4309,7 @@
     "historyUnavailable": "El historial no está disponible en este hub.",
     "draftSaved": "Borrador guardado {time} · {board} conserva la versión en vivo",
     "draftStale": "Borrador de {time} · la página en vivo ha cambiado desde entonces",
-    "publishDraft": "Publicar borrador",
     "discardDraft": "Descartar borrador",
-    "publishNeedsSavedEdits": "Guarda o descarta los cambios de tu plantilla antes de publicar el borrador.",
     "replaceDraftTitle": "¿Reemplazar el borrador?",
     "replaceDraftDescription": "Esta página ya tiene un borrador. Al restaurar esta versión se reemplaza.",
     "keepDraft": "Conservar borrador",
@@ -4344,7 +4345,11 @@
     "copyWillMake": "Crea una página nueva del tamaño de {board} ({cols} × {rows}); esta página no cambia.",
     "collapseConsole": "Contraer la consola",
     "scheduleGroup": "Programación",
-    "collectionsGroup": "Colecciones"
+    "collectionsGroup": "Colecciones",
+    "showingNowGroup": "Se muestra ahora",
+    "overrideUntil": "En {board} hasta {time}",
+    "overrideUntilCancel": "En {board} hasta que lo detengas",
+    "stopShowing": "Detener"
   },
   "formulaIde": {
     "atomValue": "= {value}",

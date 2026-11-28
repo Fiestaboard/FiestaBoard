@@ -1662,7 +1662,9 @@
     "toastShown": "Nu på {board}: {page}",
     "toastPaused": "Sparat. {page} visas när du återupptar {board}.",
     "toastNotSent": "Sparat, men det gick inte att skicka till {board}.",
-    "toastError": "Det gick inte att byta sida"
+    "toastError": "Det gick inte att byta sida",
+    "showPageTitle": "Visa {page} på {board}",
+    "showPageDescription": "Hur länge?"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Kan inte nå appen. Kontrollera nätverket eller att FiestaBoard körs.",
@@ -4191,7 +4193,8 @@
       "unknown_field": "#REF",
       "formula": "Formelfel",
       "beyond_board": "Efter sista raden",
-      "substitution": "Ersättning"
+      "substitution": "Ersättning",
+      "wrap_stopped": "Radbrytning avkortad"
     },
     "severityError": "Fel",
     "severityWarning": "Varning",
@@ -4306,9 +4309,7 @@
     "historyUnavailable": "Historik är inte tillgänglig på den här hubben.",
     "draftSaved": "Utkast sparat {time} · {board} behåller liveversionen",
     "draftStale": "Utkast från {time} · livesidan har ändrats sedan dess",
-    "publishDraft": "Publicera utkast",
     "discardDraft": "Förkasta utkast",
-    "publishNeedsSavedEdits": "Spara eller förkasta dina malländringar innan du publicerar utkastet.",
     "replaceDraftTitle": "Ersätta utkastet?",
     "replaceDraftDescription": "Den här sidan har redan ett utkast. Om du återställer den här versionen ersätts det.",
     "keepDraft": "Behåll utkast",
@@ -4344,7 +4345,11 @@
     "copyWillMake": "Skapar en ny sida i storleken för {board} ({cols} × {rows}); den här sidan ändras inte.",
     "collapseConsole": "Fäll ihop konsolen",
     "scheduleGroup": "Schema",
-    "collectionsGroup": "Samlingar"
+    "collectionsGroup": "Samlingar",
+    "showingNowGroup": "Visas nu",
+    "overrideUntil": "På {board} till {time}",
+    "overrideUntilCancel": "På {board} tills du stoppar den",
+    "stopShowing": "Stoppa"
   },
   "formulaIde": {
     "atomValue": "= {value}",

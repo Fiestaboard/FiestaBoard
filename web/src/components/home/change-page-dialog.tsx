@@ -69,6 +69,16 @@ export interface ChangePageDialogProps {
   silence?: { until: string | null } | null;
   /** Open with this page already picked (the context menu, a page's "Show on…"). */
   initialPageId?: string | null;
+  /**
+   * W-2 (DD-W172): the editor's Show now. Only `initialPageId` is offered: the
+   * title names it and the display, and the one question is how long. No list,
+   * no search, no Back.
+   */
+  pageScoped?: boolean;
+  /** The page's name, for `pageScoped` before (or without) the page list. */
+  pageName?: string;
+  /** After the page is on the display (the editor re-reads what the display shows). */
+  onShown?: () => void;
   /** Injectable clock, for tests. */
   now?: () => Date;
 }
@@ -103,6 +113,9 @@ export function ChangePageDialog({
   nextChange,
   silence = null,
   initialPageId = null,
+  pageScoped = false,
+  pageName,
+  onShown,
   now = () => new Date(),
 }: ChangePageDialogProps) {
   const t = useTranslations("changePage");
@@ -198,11 +211,15 @@ export function ChangePageDialog({
 
   const selected = useMemo(() => {
     if (!selectedId) return null;
+    // The editor's page and name are the truth: the cached list may not have a
+    // page just saved, or may still carry its old name.
+    if (pageScoped && pageName) return { id: selectedId, name: pageName, isCollection: false };
     const page = pagesData?.pages?.find((p) => p.id === selectedId);
     if (page) return { id: page.id, name: page.name, isCollection: false };
     const collection = collections.find((c) => c.id === selectedId);
     return collection ? { id: collection.id, name: collection.name, isCollection: true } : null;
-  }, [selectedId, pagesData, collections]);
+  }, [selectedId, pagesData, collections, pageScoped, pageName]);
+  const scopedTitle = pageScoped ? t("showPageTitle", { page: selected?.name ?? "", board: displayName }) : null;
 
   // Never carry a chip that is no longer offered: "next-change" with no next
   // change would send no duration, an indefinite hold nobody chose (review
@@ -246,6 +263,7 @@ export function ChangePageDialog({
       if (notSent) toast.error(t("toastNotSent", { board: displayName }));
       else if (paused) toast.info(t("toastPaused", { page: picked.name, board: displayName }));
       else toast.success(t("toastShown", { page: picked.name, board: displayName }));
+      onShown?.();
       onOpenChange(false);
     },
     onError: () => {
@@ -370,7 +388,7 @@ export function ChangePageDialog({
             the keyboard does not cover the list (BB-A-17). `true` focuses the
             sheet's title instead. */}
         <SheetContent side="bottom" grabber className="max-h-[92dvh]" initialFocus={coarse ? titleRef : undefined}>
-          {step === "pick" || !selected ? (
+          {!pageScoped && (step === "pick" || !selected) ? (
             <>
               <SheetHeader className="pe-12 text-start">
                 <SheetTitle ref={titleRef} tabIndex={-1} className="outline-none">
@@ -391,18 +409,22 @@ export function ChangePageDialog({
             <>
               <SheetHeader className="pe-12 text-start">
                 <Flex align="start" gap="2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setStep("pick")}
-                    aria-label={t("back")}
-                    className="-ms-2 size-11 shrink-0"
-                  >
-                    <ChevronLeft className="size-5" aria-hidden="true" />
-                  </Button>
+                  {!pageScoped && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setStep("pick")}
+                      aria-label={t("back")}
+                      className="-ms-2 size-11 shrink-0"
+                    >
+                      <ChevronLeft className="size-5" aria-hidden="true" />
+                    </Button>
+                  )}
                   <Stack gap="1" className="min-w-0 text-start">
-                    <SheetTitle>{selected.name}</SheetTitle>
-                    <SheetDescription>{t("stepTwo", { board: displayName })}</SheetDescription>
+                    <SheetTitle>{scopedTitle ?? selected?.name}</SheetTitle>
+                    <SheetDescription>
+                      {pageScoped ? t("showPageDescription") : t("stepTwo", { board: displayName })}
+                    </SheetDescription>
                   </Stack>
                 </Flex>
               </SheetHeader>
@@ -424,13 +446,15 @@ export function ChangePageDialog({
       {/* 07a `310:27282`: the 560 px Dialog shell, 20 px title and 40 px close (BB-FH-4). */}
       <DialogContent variant="wide" className="max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{t("title")}</DialogTitle>
-          <DialogDescription>{t("description", { board: displayName })}</DialogDescription>
+          <DialogTitle>{scopedTitle ?? t("title")}</DialogTitle>
+          <DialogDescription>
+            {pageScoped ? t("showPageDescription") : t("description", { board: displayName })}
+          </DialogDescription>
         </DialogHeader>
         <Stack gap="4" className="min-h-0 overflow-y-auto">
           <HomeConnectionNotice />
-          {search}
-          <Box className="max-h-64 overflow-y-auto">{rows}</Box>
+          {!pageScoped && search}
+          {!pageScoped && <Box className="max-h-64 overflow-y-auto">{rows}</Box>}
           {durationAndPreview}
           {silenceNotice}
         </Stack>

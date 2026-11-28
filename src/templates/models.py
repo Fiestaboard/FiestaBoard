@@ -224,6 +224,7 @@ class TemplateValidationError(BaseModel):
         "unknown_field",
         "formula",
         "beyond_board",
+        "wrap_stopped",
     ] = Field(description="The kind of problem, for the editor's marker and wording.")
     max_length: int | None = Field(
         default=None,
