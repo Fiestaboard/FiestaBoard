@@ -1,14 +1,66 @@
 "use client";
 
-import { Button, Flex, InspectorRow, List, ListItem, Stack, Text } from "@fiestaboard/ui";
+import { Box, Button, Flex, InspectorRow, List, ListItem, Stack, Text } from "@fiestaboard/ui";
 import { useQueries } from "@tanstack/react-query";
+import { useId } from "react";
 
 import { useLocale, useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
 import { formatDays, formatWindow } from "./ide-format";
 import { IdeWeek } from "./ide-timeline";
 import type { CreatorIdeState } from "./use-creator-ide";
+
+/**
+ * D3 (DD-W159): the one control for the page's target display. A display of
+ * the page's size retargets the preview and mirror; another size cannot take
+ * the template as is, so it offers "Make a copy sized for X" (Figma's Page-tab row).
+ */
+function IdeDisplayPicker({
+  ide,
+  onRetarget,
+  onCopyFor,
+}: {
+  ide: CreatorIdeState;
+  onRetarget: (boardId: string) => void;
+  onCopyFor: (boardId: string) => void;
+}) {
+  const t = useTranslations("creatorIde");
+  const tq = useTranslations("ideQuiet");
+  const id = useId();
+  const page = ide.builder.snapshot;
+  if (!page || !ide.boards.length) return null;
+  return (
+    <Box role="group" aria-labelledby={id} data-slot="ide-display-picker" className="flex flex-col">
+      <Text as="p" id={id} size="xs" tone="muted" className="font-mono uppercase tracking-wide">
+        {tq("displayGroup")}
+      </Text>
+      <List gap="0" role="list">
+        {ide.boards.map((board) => {
+          const current = board.id === ide.pageBoardId;
+          const fits = pagesCompatibleWithBoard(page, board);
+          return (
+            <ListItem key={board.id}>
+              <InspectorRow
+                title={board.name}
+                detail={current ? undefined : fits ? tq("displayRetarget") : tq("copySizedFor", { board: board.name })}
+                value={current ? t("thisDisplay") : undefined}
+                chevron={!current && !fits}
+                aria-current={current ? "true" : undefined}
+                onPress={() => {
+                  if (current) return;
+                  if (fits) onRetarget(board.id);
+                  else onCopyFor(board.id);
+                }}
+              />
+            </ListItem>
+          );
+        })}
+      </List>
+    </Box>
+  );
+}
 
 /**
  * Shows on (04d 1.6b, H8): when and where this page shows. Schedule entries
@@ -21,12 +73,16 @@ export function IdeShowsOn({
   showWeek,
   onNavigate,
   onMakeCopy,
+  onRetarget,
+  onCopyFor,
 }: {
   ide: CreatorIdeState;
   pageId: string;
   showWeek: boolean;
   onNavigate: (href: string) => void;
   onMakeCopy: () => void;
+  onRetarget: (boardId: string) => void;
+  onCopyFor: (boardId: string) => void;
 }) {
   const t = useTranslations("creatorIde");
   const locale = useLocale();
@@ -43,6 +99,7 @@ export function IdeShowsOn({
 
   return (
     <Stack gap="3" data-slot="ide-shows-on">
+      <IdeDisplayPicker ide={ide} onRetarget={onRetarget} onCopyFor={onCopyFor} />
       {showWeek && <IdeWeek ide={ide} />}
       {empty ? (
         <Text size="sm" tone="muted">

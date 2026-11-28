@@ -4284,6 +4284,24 @@
     "deletePageDetail": "Tüm programlardan ve koleksiyonlardan kaldırır",
     "autosavePaused": "Kaydedilmedi · başka yerden bir taslak Geçmiş’te bekliyor"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} · {board}",
+    "nextAt": "sonraki {when}",
+    "consoleClear": "Sorun yok",
+    "consoleWarnings": "{count, plural, one {# uyarı} other {# uyarı}}",
+    "consoleSent": "{time} {board} ekranına gönderildi",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} daha",
+    "notThisWeek": "Bu hafta planlanmadı",
+    "addToSchedule": "Programa ekle",
+    "fallbackHint": "Bunu ayarlamak için bir formüle yedek değer ekleyin",
+    "displayGroup": "Ekran",
+    "displayRetarget": "Aynı boyut · önizleme ve yansıtma burada",
+    "copySizedFor": "{board} boyutunda bir kopya oluştur",
+    "makeTheCopy": "Kopyayı oluştur",
+    "settingDuration": "Sayfa süresi",
+    "settingTransition": "Geçiş"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {wanted} sıradan {shown}",

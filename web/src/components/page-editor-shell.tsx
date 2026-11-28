@@ -39,6 +39,7 @@ import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 import { IDE_DESKTOP_QUERY } from "@/lib/ide/inspector-tabs";
+import { changedPageSettings, type PageSettings } from "@/lib/ide/page-settings";
 import { cn } from "@/lib/utils";
 
 // The Creator IDE (web 2.11) only exists for a saved page; its chunk loads
@@ -104,6 +105,7 @@ export function PageEditorShell({
   const t = useTranslations("pageBuilder");
   const [blockedName, setBlockedName] = useState<string | null>(null);
   const [blockedTemplate, setBlockedTemplate] = useState<string[] | null>(null);
+  const [blockedSettings, setBlockedSettings] = useState<PageSettings | null>(null);
   const shouldBlock = useCallback<BlockerFunction>(({ currentLocation, nextLocation }) => {
     // Query/hash updates within this editor do not discard its form state.
     const staysOnPage =
@@ -115,6 +117,7 @@ export function PageEditorShell({
       const current = builderRef.current?.getCurrentPage?.();
       setBlockedName(current?.name?.trim() || null);
       setBlockedTemplate(current?.template ?? null);
+      setBlockedSettings(current ?? null);
     }
     return block;
   }, []);
@@ -178,6 +181,11 @@ export function PageEditorShell({
     blocker.state === "blocked" ? blockedTemplate : undefined,
     loadedPage?.template,
     loadedPage?.updated_at ?? loadedPage?.created_at,
+  );
+  // UX-7-1: Page-tab settings are unsaved edits too, so the list names them.
+  const tq = useTranslations("ideQuiet");
+  const changedSettings = changedPageSettings(blocker.state === "blocked" ? blockedSettings : null, loadedPage).map(
+    (key) => (key === "duration" ? tq("settingDuration") : tq("settingTransition")),
   );
   const [savedTick, setSavedTick] = useState(0);
   // UX-6-1: the displays that show the page (from the IDE), so the editor previews it as one of them.
@@ -274,13 +282,14 @@ export function PageEditorShell({
                     : t("discardChangesDisplaysKeep"))}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            {discardSummary.lines.length > 0 && (
+            {(discardSummary.lines.length > 0 || changedSettings.length > 0) && (
               <Text size="xs" className="font-mono uppercase" data-testid="discard-changed-lines">
                 {[
                   t("discardChangedLabel"),
                   ...discardSummary.lines.map(({ line, text }) =>
                     text ? t("discardChangedLine", { line, text }) : t("discardChangedLineEmpty", { line }),
                   ),
+                  ...changedSettings,
                 ].join(" · ")}
               </Text>
             )}

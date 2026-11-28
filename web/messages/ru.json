@@ -4284,6 +4284,24 @@
     "deletePageDetail": "Удаляет её из всех расписаний и коллекций",
     "autosavePaused": "Не сохранено · черновик с другого устройства ждёт в Истории"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} на {board}",
+    "nextAt": "следующий {when}",
+    "consoleClear": "Проблем нет",
+    "consoleWarnings": "{count, plural, one {# предупреждение} few {# предупреждения} many {# предупреждений} other {# предупреждения}}",
+    "consoleSent": "Отправлено {time} на {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "ещё {count}",
+    "notThisWeek": "На этой неделе не запланировано",
+    "addToSchedule": "Добавить в расписание",
+    "fallbackHint": "Добавьте запасное значение в формулу, чтобы задать это",
+    "displayGroup": "Дисплей",
+    "displayRetarget": "Тот же размер · предпросмотр и зеркало здесь",
+    "copySizedFor": "Сделать копию под размер {board}",
+    "makeTheCopy": "Сделать копию",
+    "settingDuration": "Длительность страницы",
+    "settingTransition": "Переход"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} из {wanted} рядов",

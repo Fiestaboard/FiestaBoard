@@ -8,18 +8,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DurationChipGroup,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   InspectorRow,
-  Label,
   List,
   ListItem,
   ListRow,
   ListRowGroup,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Sheet,
   SheetContent,
   SheetDescription,
@@ -30,7 +30,7 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type RefObject, useState } from "react";
+import { type ComponentProps, Fragment, type MouseEventHandler, type RefObject, useState } from "react";
 import { Link } from "react-router";
 
 import type { PageBuilderHandle } from "@/components/page-builder";
@@ -39,7 +39,6 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePluginSettings } from "@/hooks/use-plugin-settings";
 import { useTransitionPlugins } from "@/hooks/use-transition-plugins";
 import { useTranslations } from "@/i18n/translations";
-import { api } from "@/lib/api";
 import { type PageDuplicateResponse, pageHistoryApi } from "@/lib/api/page-history";
 import { jumpToTemplateLine } from "@/lib/ide/jump-to-line";
 import { templateReferences } from "@/lib/ide/references";
@@ -66,11 +65,6 @@ export function formatDuration(seconds: number, t: (key: string, params?: Record
   return t("seconds", { count: seconds });
 }
 
-/**
- * Page settings that live on the page rather than in the template. They are
- * written to the page itself, so they wait until the editor has nothing
- * unsaved (the editor would otherwise save over them with a stale revision).
- */
 const PLUGIN_PREFIX = "plugin:";
 
 /**
@@ -88,104 +82,61 @@ function usePageTransitionPlugins(strategy: string | null | undefined) {
   return { plugins, current, pluginId };
 }
 
-function PageSettingsDialog({
-  field,
-  onClose,
-  ide,
-  pageId,
-  builderRef,
+/**
+ * An Inspector row that opens a menu (UX-7-1): Base UI's trigger hands the row
+ * its press handler as `onClick`; InspectorRow calls it `onPress`.
+ */
+function MenuRow({
+  onClick,
+  ...props
+}: Omit<ComponentProps<typeof InspectorRow>, "onPress"> & { onClick?: MouseEventHandler<HTMLButtonElement> }) {
+  return <InspectorRow {...props} onPress={(event) => onClick?.(event)} />;
+}
+
+/**
+ * A Page-tab setting as an inline menu on its row (UX-7-1, Photoshop's
+ * properties panel): the choice is staged in the editor like any other edit,
+ * so it joins the unsaved changes, shows in the discard list and Save writes it.
+ */
+function PageSettingMenu({
+  row,
+  label,
+  value,
+  options,
+  onChange,
 }: {
-  field: "duration" | "transition" | null;
-  onClose: () => void;
-  ide: CreatorIdeState;
-  pageId: string;
-  builderRef: RefObject<PageBuilderHandle | null>;
+  row: Omit<ComponentProps<typeof InspectorRow>, "onPress">;
+  label: string;
+  value: string;
+  options: { value: string; label: string; group?: string }[];
+  onChange: (value: string) => void;
 }) {
-  const t = useTranslations("creatorIde");
-  const tTransitions = useTranslations("transitionSettings");
-  const tBuilder = useTranslations("pageBuilder");
-  const snapshot = ide.builder.snapshot;
-  const [duration, setDuration] = useState<string>(String(snapshot?.duration_seconds ?? 300));
-  const [transition, setTransition] = useState<string>(snapshot?.transition_strategy ?? INHERIT);
-  const transitionPlugins = usePageTransitionPlugins(snapshot?.transition_strategy);
-  const save = useMutation({
-    mutationFn: () =>
-      api.updatePage(pageId, {
-        expected_revision: snapshot?.revision ?? undefined,
-        ...(field === "duration"
-          ? { duration_seconds: Number(duration) }
-          : { transition_strategy: transition === INHERIT ? null : transition }),
-      }),
-    onSuccess: async () => {
-      await builderRef.current?.reloadFromServer();
-      ide.invalidateHistory();
-      onClose();
-    },
-  });
-  const blocked = ide.builder.unsaved;
   return (
-    <Dialog open={!!field} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{field === "duration" ? t("pageDuration") : t("transition")}</DialogTitle>
-          <DialogDescription>{blocked ? t("settingsNeedSavedEdits") : t("settingsSavedWithPage")}</DialogDescription>
-        </DialogHeader>
-        {field === "duration" ? (
-          <DurationChipGroup
-            aria-label={t("pageDuration")}
-            layout="grid"
-            value={duration}
-            onValueChange={(value) => setDuration(String(value))}
-            options={DURATION_CHOICES.map((seconds) => ({
-              value: String(seconds),
-              label: formatDuration(seconds, t),
-              disabled: blocked,
-            }))}
-          />
-        ) : (
-          <Stack gap="2">
-            <Label htmlFor="ide-transition">{t("transition")}</Label>
-            <Select value={transition} onValueChange={(value) => setTransition(String(value))} disabled={blocked}>
-              <SelectTrigger id="ide-transition">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={INHERIT}>{tBuilder("transitionUseDisplayTransition")}</SelectItem>
-                {TRANSITIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {tTransitions(`strategies.${option.labelKey}.label`)}
-                  </SelectItem>
-                ))}
-                {transitionPlugins.plugins.map((plugin) => (
-                  <SelectItem key={plugin.id} value={`${PLUGIN_PREFIX}${plugin.id}`}>
-                    {plugin.name}
-                  </SelectItem>
-                ))}
-                {transitionPlugins.pluginId &&
-                  !transitionPlugins.plugins.some((plugin) => plugin.id === transitionPlugins.pluginId) && (
-                    <SelectItem value={`${PLUGIN_PREFIX}${transitionPlugins.pluginId}`}>
-                      {transitionPlugins.current}
-                    </SelectItem>
-                  )}
-              </SelectContent>
-            </Select>
-          </Stack>
-        )}
-        {save.isError && (
-          <Text size="sm" tone="destructive" role="alert">
-            {t("settingsFailed")}
-          </Text>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {t("cancel")}
-          </Button>
-          <Button disabled={blocked || save.isPending} onClick={() => save.mutate()}>
-            {t("saveToPage")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <MenuRow {...row} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="text-xs font-medium">{label}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuRadioGroup value={value} onValueChange={(next) => onChange(String(next))}>
+          {options.map((option, index) => {
+            const heading = option.group && option.group !== options[index - 1]?.group ? option.group : null;
+            return (
+              <Fragment key={option.value}>
+                {heading && (
+                  <DropdownMenuLabel className="text-[11px] text-muted-foreground">{heading}</DropdownMenuLabel>
+                )}
+                {/* Base UI's radio items stay open by default; a pick is one-shot. */}
+                <DropdownMenuRadioItem value={option.value} className="text-xs" closeOnClick>
+                  {option.label}
+                </DropdownMenuRadioItem>
+              </Fragment>
+            );
+          })}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -198,12 +149,17 @@ export function DuplicateDialog({
   onOpenChange,
   ide,
   pageId,
+  boardId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   ide: CreatorIdeState;
   pageId: string;
+  /** D3: "Make a copy sized for X" from Shows on, for one display of another size. */
+  boardId?: string | null;
 }) {
+  const tq = useTranslations("ideQuiet");
+  const sizedFor = boardId ? ide.boards.find((board) => board.id === boardId) : undefined;
   const t = useTranslations("creatorIde");
   const queryClient = useQueryClient();
   const [result, setResult] = useState<PageDuplicateResponse | null>(null);
@@ -236,8 +192,14 @@ export function DuplicateDialog({
     <Root open={open} onOpenChange={close}>
       <Content {...contentProps}>
         <Header className="pr-12 text-start">
-          <Title>{result ? t("copyMade", { name: result.page.name }) : t("makeCopy")}</Title>
-          <Description>{result ? t("cropReport") : t("pickDisplay")}</Description>
+          <Title>
+            {result
+              ? t("copyMade", { name: result.page.name })
+              : sizedFor
+                ? tq("copySizedFor", { board: sizedFor.name })
+                : t("makeCopy")}
+          </Title>
+          <Description>{result || sizedFor ? t("cropReport") : t("pickDisplay")}</Description>
         </Header>
         {report ? (
           <Stack gap="1" data-slot="ide-crop-report">
@@ -265,7 +227,7 @@ export function DuplicateDialog({
               </Text>
             )}
           </Stack>
-        ) : ide.boards.length ? (
+        ) : sizedFor ? null : ide.boards.length ? (
           <ListRowGroup>
             {ide.boards.map((board) => (
               <ListRow
@@ -294,9 +256,16 @@ export function DuplicateDialog({
               <Link to={`/pages/edit/${encodeURIComponent(result.page.id)}`}>{t("openCopy")}</Link>
             </Button>
           ) : (
-            <Button variant="outline" onClick={() => close(false)}>
-              {t("cancel")}
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => close(false)}>
+                {t("cancel")}
+              </Button>
+              {sizedFor && (
+                <Button disabled={duplicate.isPending} onClick={() => duplicate.mutate(sizedFor.id)}>
+                  {tq("makeTheCopy")}
+                </Button>
+              )}
+            </>
           )}
         </Footer>
       </Content>
@@ -307,7 +276,6 @@ export function DuplicateDialog({
 /** The Page tab (04d 4.3 Inspector, drawn): duration, transition, missing-data fallback, copy. */
 export function IdePageTab({
   ide,
-  pageId,
   builderRef,
   onMakeCopy,
 }: {
@@ -317,77 +285,91 @@ export function IdePageTab({
   onMakeCopy: () => void;
 }) {
   const t = useTranslations("creatorIde");
+  const tq = useTranslations("ideQuiet");
   const tTransitions = useTranslations("transitionSettings");
-  const [field, setField] = useState<"duration" | "transition" | null>(null);
+  const tBuilder = useTranslations("pageBuilder");
   const snapshot = ide.builder.snapshot;
-  const fallbacks = templateReferences(snapshot?.template ?? []).fallbacks;
+  const references = templateReferences(snapshot?.template ?? []);
+  const fallbacks = references.fallbacks;
   const boardName = ide.pageBoard?.name ?? t("aDisplay");
-  const transitionKey = TRANSITIONS.find((option) => option.value === snapshot?.transition_strategy)?.labelKey;
-  const transitionPlugin = usePageTransitionPlugins(snapshot?.transition_strategy).current;
+  const strategy = snapshot?.transition_strategy ?? null;
+  const transitionKey = TRANSITIONS.find((option) => option.value === strategy)?.labelKey;
+  const transitionPlugins = usePageTransitionPlugins(strategy);
+  const stage = (settings: { duration_seconds?: number; transition_strategy?: string | null }) =>
+    builderRef.current?.setPageSettings(settings);
+  const transitionOptions = [
+    { value: INHERIT, label: tBuilder("transitionUseDisplayTransition") },
+    ...TRANSITIONS.map((option) => ({
+      value: option.value,
+      label: tTransitions(`strategies.${option.labelKey}.label`),
+      group: tBuilder("transitionBuiltInGroup"),
+    })),
+    ...transitionPlugins.plugins.map((plugin) => ({ value: `${PLUGIN_PREFIX}${plugin.id}`, label: plugin.name })),
+    ...(transitionPlugins.pluginId &&
+    !transitionPlugins.plugins.some((plugin) => plugin.id === transitionPlugins.pluginId)
+      ? [{ value: `${PLUGIN_PREFIX}${transitionPlugins.pluginId}`, label: transitionPlugins.current ?? "" }]
+      : []),
+  ];
   return (
-    <>
-      <List gap="0" role="list" data-slot="ide-page-tab">
-        <ListItem>
-          <InspectorRow
-            title={t("pageDuration")}
-            detail={t("pageDurationDetail")}
-            value={formatDuration(snapshot?.duration_seconds ?? 300, t)}
-            chevron
-            onPress={() => setField("duration")}
-          />
-        </ListItem>
-        <ListItem>
-          <InspectorRow
-            title={t("transition")}
-            detail={
-              snapshot?.transition_strategy
-                ? t("transitionOverrides", { board: boardName })
-                : t("transitionInherits", { board: boardName })
-            }
-            value={
-              transitionKey
-                ? tTransitions(`strategies.${transitionKey}.label`)
-                : (transitionPlugin ?? t("displayDefault"))
-            }
-            chevron
-            onPress={() => setField("transition")}
-          />
-        </ListItem>
-        <ListItem>
-          <InspectorRow
-            title={t("whenMissing")}
-            detail={fallbacks.length ? t("fallbackCount", { count: fallbacks.length }) : t("fallbackNone")}
-            value={fallbacks.length ? t("fallbackText") : undefined}
-            chevron={fallbacks.length > 0}
-            disabled={!fallbacks.length}
-            onPress={() => fallbacks[0] && jumpToTemplateLine(fallbacks[0].line)}
-          />
-        </ListItem>
-        <ListItem>
-          <InspectorRow title={t("makeCopy")} detail={t("makeCopyDetail")} chevron onPress={onMakeCopy} />
-        </ListItem>
-        {/* D6: Delete lives here, not beside the title; the editor confirms first. */}
-        <ListItem>
-          <InspectorRow
-            title={
-              <Text as="span" tone="destructive">
-                {t("deletePage")}
-              </Text>
-            }
-            detail={t("deletePageDetail")}
-            onPress={() => builderRef.current?.requestDelete()}
-          />
-        </ListItem>
-      </List>
-      {field && (
-        <PageSettingsDialog
-          field={field}
-          onClose={() => setField(null)}
-          ide={ide}
-          pageId={pageId}
-          builderRef={builderRef}
+    <List gap="0" role="list" data-slot="ide-page-tab">
+      <ListItem>
+        <PageSettingMenu
+          label={t("pageDuration")}
+          row={{
+            title: t("pageDuration"),
+            detail: t("pageDurationDetail"),
+            value: formatDuration(snapshot?.duration_seconds ?? 300, t),
+            chevron: true,
+          }}
+          value={String(snapshot?.duration_seconds ?? 300)}
+          options={DURATION_CHOICES.map((seconds) => ({ value: String(seconds), label: formatDuration(seconds, t) }))}
+          onChange={(value) => stage({ duration_seconds: Number(value) })}
         />
-      )}
-    </>
+      </ListItem>
+      <ListItem>
+        <PageSettingMenu
+          label={t("transition")}
+          row={{
+            title: t("transition"),
+            detail: strategy
+              ? t("transitionOverrides", { board: boardName })
+              : t("transitionInherits", { board: boardName }),
+            value: transitionKey
+              ? tTransitions(`strategies.${transitionKey}.label`)
+              : (transitionPlugins.current ?? t("displayDefault")),
+            chevron: true,
+          }}
+          value={strategy ?? INHERIT}
+          options={transitionOptions}
+          onChange={(value) => stage({ transition_strategy: value === INHERIT ? null : value })}
+        />
+      </ListItem>
+      <ListItem>
+        <InspectorRow
+          title={t("whenMissing")}
+          // UX-7-2: a disabled row says what to do, not that nothing is there.
+          detail={fallbacks.length ? t("fallbackCount", { count: fallbacks.length }) : tq("fallbackHint")}
+          value={fallbacks.length ? t("fallbackText") : undefined}
+          chevron={fallbacks.length > 0}
+          disabled={!fallbacks.length}
+          onPress={() => fallbacks[0] && jumpToTemplateLine(fallbacks[0].line)}
+        />
+      </ListItem>
+      <ListItem>
+        <InspectorRow title={t("makeCopy")} detail={t("makeCopyDetail")} chevron onPress={onMakeCopy} />
+      </ListItem>
+      {/* D6: Delete lives here, not beside the title; the editor confirms first. */}
+      <ListItem>
+        <InspectorRow
+          title={
+            <Text as="span" tone="destructive">
+              {t("deletePage")}
+            </Text>
+          }
+          detail={t("deletePageDetail")}
+          onPress={() => builderRef.current?.requestDelete()}
+        />
+      </ListItem>
+    </List>
   );
 }

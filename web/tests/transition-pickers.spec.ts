@@ -137,14 +137,13 @@ test.describe("transition pickers", () => {
       // Inspector Page tab's Transition row, not a header icon.
       const row = page.getByRole("button", { name: /^Transition/ });
       await expect(row, "per-page Transition control missing").toBeVisible();
+      // UX-7-1 (FP-2): an inline menu on the row stages the choice like any
+      // edit; the header's Save writes it with the page.
       const choose = async (option: string | RegExp) => {
         await row.click();
-        const dialog = page.getByRole("dialog", { name: "Transition" });
-        await expect(dialog).toBeVisible();
-        await dialog.getByRole("combobox", { name: "Transition" }).click();
-        await page.getByRole("option", { name: option }).click();
-        await dialog.getByRole("button", { name: /^Save$/ }).click();
-        await expect(dialog).toBeHidden();
+        await page.getByRole("menuitemradio", { name: option }).click();
+        await expect(page.getByRole("menu")).toBeHidden();
+        await page.getByRole("button", { name: "Save", exact: true }).click();
       };
 
       // --- set an override ---

@@ -4284,6 +4284,24 @@
     "deletePageDetail": "すべてのスケジュールとコレクションから削除されます",
     "autosavePaused": "未保存 · 別の場所の下書きが履歴にあります"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window}・{board}",
+    "nextAt": "次回 {when}",
+    "consoleClear": "問題なし",
+    "consoleWarnings": "{count, plural, other {警告 # 件}}",
+    "consoleSent": "{time} に {board} へ送信",
+    "weekLine": "{days} {window}",
+    "weekMore": "ほか {count} 件",
+    "notThisWeek": "今週の予定なし",
+    "addToSchedule": "スケジュールに追加",
+    "fallbackHint": "設定するには数式にフォールバックを追加してください",
+    "displayGroup": "ディスプレイ",
+    "displayRetarget": "同じサイズ・ここでプレビューとミラー",
+    "copySizedFor": "{board} のサイズでコピーを作成",
+    "makeTheCopy": "コピーを作成",
+    "settingDuration": "ページの表示時間",
+    "settingTransition": "トランジション"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {wanted} 段中 {shown} 段",

@@ -1,6 +1,18 @@
 "use client";
 
-import { Box, ProblemItem, SentLog, Stack, Tabs, TabsContent, TabsList, TabsTrigger, Text } from "@fiestaboard/ui";
+import {
+  Box,
+  Button,
+  ProblemItem,
+  SentLog,
+  Stack,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Text,
+} from "@fiestaboard/ui";
+import { ChevronDown } from "lucide-react";
 import { useMemo } from "react";
 
 import { useLocale, useTranslations } from "@/i18n/translations";
@@ -119,14 +131,50 @@ export function IdeConsole({
   ide,
   tab,
   onTabChange,
+  quiet = false,
+  onOpen,
 }: {
   ide: CreatorIdeState;
   tab: ConsoleTab;
   onTabChange: (tab: ConsoleTab) => void;
+  /** M1: nothing is wrong, so the console is one line ("No problems · Sent 4:57 PM to Kitchen") until opened. */
+  quiet?: boolean;
+  onOpen?: () => void;
 }) {
   const t = useTranslations("creatorIde");
+  const tq = useTranslations("ideQuiet");
   const locale = useLocale();
   const latest = ide.sends.find((send) => send.outcome === "sent");
+  if (quiet) {
+    const line = [
+      tq("consoleClear"),
+      ide.warnings.length ? tq("consoleWarnings", { count: ide.warnings.length }) : null,
+      latest
+        ? tq("consoleSent", {
+            time: formatClock(latest.last_at ?? latest.at, locale),
+            board: latest.board_name ?? t("aDisplay"),
+          })
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return (
+      <Box as="section" aria-label={t("console")} data-slot="ide-console" data-quiet="" id="ide-console">
+        <Button
+          variant="ghost"
+          aria-expanded={false}
+          onClick={onOpen}
+          // The card is 40 px with its 1 px borders (M1).
+          className="h-[38px] w-full justify-between gap-2 rounded-[inherit] px-3.5 text-sm font-normal text-muted-foreground"
+        >
+          <Text as="span" size="sm" tone="muted" className="truncate">
+            {line}
+          </Text>
+          <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
+        </Button>
+      </Box>
+    );
+  }
   const substitutions = substitutionSummary(ide.warnings);
   const sentLine = latest
     ? [
