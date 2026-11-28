@@ -42,6 +42,7 @@ import type { CellPaint, DrawBrush } from "./utils/draw-mode";
 import { brushToCell } from "./utils/draw-mode";
 import { parsePastedText, parseTemplateSimple, serializeTemplateSimple } from "./utils/serialization";
 import { buildStrokeTransaction } from "./utils/stroke-transaction";
+import { enterTransaction, isEmptyTemplateDoc } from "./utils/template-rows";
 export type LineAlignment = "left" | "center" | "right";
 import { Box, Flex, Stack, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 
@@ -293,6 +294,13 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     const editorRef = useRef<ReturnType<typeof useEditor> | null>(null);
     // Track drag state to handle moves properly
     const dragStateRef = useRef<{ from: number; to: number } | null>(null);
+    // An empty template shows its prompt on row 1 and takes every click there (W-4).
+    const [empty, setEmptyState] = useState(() => (value || "").replace(/\n/g, "") === "");
+    // Read inside the editor's mount-time handlers (Enter), so a resized board counts.
+    const boardLinesRef = useRef(boardLines);
+    useEffect(() => {
+      boardLinesRef.current = boardLines;
+    }, [boardLines]);
     // Track line count for validation display
     const [editorLineCount, setEditorLineCount] = useState(() => (value || "").split("\n").length);
     // Actual rendered pixel height of each board line (for gutter alignment)
@@ -350,7 +358,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             "[&_.ProseMirror_p]:min-h-[1.5rem]",
             className,
           ),
-          "data-placeholder": placeholder,
+          "aria-placeholder": placeholder,
           role: "textbox",
           "aria-label": "Template editor",
           "aria-multiline": "true",
@@ -368,10 +376,9 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           if (event.key === "Enter" && !event.ctrlKey && !event.metaKey) {
             event.preventDefault();
             if (event.shiftKey) return true; // block Shift-Enter
-            const hardBreakType = view.state.schema.nodes.hardBreak;
-            if (hardBreakType) {
-              view.dispatch(view.state.tr.replaceSelectionWith(hardBreakType.create()).scrollIntoView());
-            }
+            // A fixed grid: the new row takes a blank one off the end (W-4).
+            const tr = enterTransaction(view.state, boardLinesRef.current);
+            if (tr) view.dispatch(tr);
             return true;
           }
 
@@ -864,7 +871,14 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         }
         scheduleMeasureRef.current?.();
       },
-      onFocus: () => {
+      onTransaction: ({ editor }) => {
+        setEmptyState(isEmptyTemplateDoc(editor.state.doc));
+      },
+      onFocus: ({ editor }) => {
+        // Tabbing into an empty template starts on row 1, as a click does (W-4).
+        if (isEmptyTemplateDoc(editor.state.doc) && caretPosition(editor.state).line !== 1) {
+          editor.commands.setTextSelection(1);
+        }
         onFocus?.();
       },
     });
@@ -1210,6 +1224,11 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                 emitUpdate: false,
                 parseOptions: { preserveWhitespace: true },
               })
+              // An empty template's caret waits on row 1, not after the padding (W-4).
+              .command(({ tr }) => {
+                if (isEmptyTemplateDoc(tr.doc)) tr.setSelection(TextSelection.atStart(tr.doc));
+                return true;
+              })
               .run();
           });
         }
@@ -1453,18 +1472,28 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
               className="min-h-8 px-3 pt-2"
             >
               {cardTitle}
+              {/* A drop order, not an ellipsis (W-7): squeezed, the line count goes
+                  first, then the rows past the board; the caret stays. The row is
+                  reversed and `order` puts the parts to drop last, so they wrap onto
+                  a second line the fixed height clips; the reading order is unchanged. */}
               <Text
                 as="p"
                 size="xs"
                 data-testid="template-card-meta"
-                className="min-w-0 truncate font-mono tabular-nums text-muted-foreground"
+                className="flex h-4 min-w-0 flex-1 flex-row-reverse flex-wrap overflow-hidden whitespace-pre font-mono leading-4 tabular-nums text-muted-foreground"
               >
-                <Text as="span" size="xs" className={cn(isOverLineLimit && "text-warning font-medium")}>
-                  {tCard("lines", { used: usedLines, max: boardLines })}
+                {/* Separators trail the part before the caret, so a dropped part takes its
+                    own; phones have no caret, so there the rows-past part leads with one. */}
+                <Text as="span" size="xs" data-testid="template-line-count" className="order-3">
+                  <Text as="span" size="xs" className={cn(isOverLineLimit && "text-warning font-medium")}>
+                    {tCard("lines", { used: usedLines, max: boardLines })}
+                  </Text>
+                  <Text as="span" size="xs" className={rowsPastBoard > 0 ? undefined : "max-md:hidden"}>
+                    {" · "}
+                  </Text>
                 </Text>
                 {rowsPastBoard > 0 && (
-                  <>
-                    {" · "}
+                  <Text as="span" size="xs" className="order-2">
                     <Text
                       as="span"
                       size="xs"
@@ -1473,11 +1502,13 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                     >
                       {tCard("rowsPastBoard", { rows: totalRows, max: boardLines })}
                     </Text>
-                  </>
+                    <Text as="span" size="xs" className="max-md:hidden">
+                      {" · "}
+                    </Text>
+                  </Text>
                 )}
                 {/* A keyboard readout: phones (57:64661) draw the count alone. */}
-                <Text as="span" size="xs" data-testid="template-caret" className="max-md:hidden">
-                  {" · "}
+                <Text as="span" size="xs" data-testid="template-caret" className="order-1 max-md:hidden">
                   {tCard("caret", { line: caret.line, column: caret.column })}
                 </Text>
               </Text>
@@ -1489,6 +1520,16 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                 padding: "0.75rem",
                 paddingTop: "0.5rem",
                 minHeight: `${boardLines * 1.5 + 1.25}rem`,
+              }}
+              // An empty template is one blank page: a click anywhere in it starts on
+              // row 1, so the first line is row 1 (W-4, 306:28127).
+              onMouseDownCapture={(event) => {
+                if (event.button !== 0 || !empty || !editor) return;
+                event.preventDefault();
+                // Synchronously: TipTap's focus() waits a frame, and keys typed
+                // in that frame would land nowhere.
+                editor.view.focus();
+                editor.commands.setTextSelection(1);
               }}
               // The card fills its column (UX-3-1): a click in the empty stretch under
               // the last row puts the caret at the end, as Docs and VS Code do.
@@ -1557,17 +1598,35 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                       }}
                     >
                       {i + 1}
+                      {/* A row that soft-wraps carries the wrap glyph on its next visual line (W-6). */}
+                      {/* A chip makes a row a pixel or two taller; only a second visual line counts. */}
+                      {(lineHeights[i] ?? 24) >= 40 && (
+                        <Box data-testid="template-row-wraps" className="text-muted-foreground">
+                          ↪
+                        </Box>
+                      )}
                     </Box>
                   ))}
                 </Box>
 
                 {/* Editor content */}
-                {/* Rows stay one line each inside the card: a long row scrolls
-                    here instead of running under the preview (BB-E-8). */}
+                {/* A long row soft-wraps at the card's width (W-6, Docs), so the other
+                    rows never scroll out of view; the scroller only guards a chip wider
+                    than the card. Nothing runs under the preview (BB-E-8). */}
                 <Box
                   data-slot="template-rows"
                   className="relative -m-[3px] min-w-0 flex-1 overflow-x-auto overflow-y-hidden p-[3px]"
                 >
+                  {/* The empty template's prompt, on row 1 inside the grid (W-4, 306:28127). */}
+                  {empty && (
+                    <Text
+                      aria-hidden
+                      data-testid="template-placeholder"
+                      className="pointer-events-none absolute left-[3px] top-[3px] whitespace-nowrap font-mono text-sm leading-6 text-muted-foreground"
+                    >
+                      {placeholder}
+                    </Text>
+                  )}
                   <EditorContent editor={editor} />
                 </Box>
               </Flex>
@@ -1660,19 +1719,8 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             outline: none;
           }
 
-          /* Placeholder for first empty line only - textarea-like */
-          .ProseMirror[data-placeholder] > p:first-child:empty::before {
-            content: attr(data-placeholder);
-            color: var(--muted-foreground);
-            pointer-events: none;
-            position: absolute;
-          }
-
-          .ProseMirror:focus[data-placeholder] > p:first-child:empty::before {
-            opacity: 0.5;
-          }
-
-          /* Standard paragraph - no wrapping, fixed line height */
+          /* The rows: one board row each, soft-wrapped at the card's width (W-6);
+             spaces are kept as typed, so columns line up. */
           .ProseMirror > p {
             margin: 0;
             padding: 0;
@@ -1681,8 +1729,8 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             font-size: 0.875rem;
             letter-spacing: 0;
             line-height: 1.5rem;
-            white-space: nowrap;
-            overflow: visible; /* Let content flow naturally, limit via input handling */
+            white-space: break-spaces;
+            overflow-wrap: anywhere;
             display: block;
           }
 
@@ -1736,11 +1784,6 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
              ProseMirror's own CSS sets to white-space: normal; that reopened
              a break between tiles, so a row of colour tiles wrapped (BB-E-8). */
           .ProseMirror .react-renderer {
-            white-space: nowrap;
-          }
-
-          /* Ensure text nodes also don't wrap */
-          .ProseMirror p > span {
             white-space: nowrap;
           }
 

@@ -15,7 +15,6 @@ import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import type { ComplexEditing } from "@/components/complex-editing/use-complex-editing";
 import { useTranslations } from "@/i18n/translations";
 import {
-  bandText,
   deriveRowBands,
   duplicateBand,
   moveBand,
@@ -169,7 +168,8 @@ const BAND_META_MIN_HEIGHT = 36;
 
 /**
  * C37 row bands in the template gutter (04b `126:149604`): an editor lens over
- * runs of non-blank rows, with Move up / Move down / Duplicate. Bands are
+ * runs of non-blank rows that hold data (W-10), with Move up / Move down /
+ * Duplicate. Bands are
  * derived from the template on every render; the page stores no bands.
  */
 export function RowBandGutter<A>({
@@ -281,9 +281,7 @@ export function RowBandGutter<A>({
           <Box key={band.id} role="listitem" className="absolute inset-x-0" style={{ top }}>
             <RowBand
               data-testid="row-band"
-              title={
-                band.label ? `${bandText(state.lines[band.start - 1] ?? "") ?? band.label} · ${rowsText}` : rowsText
-              }
+              title={band.name ? `${band.name} · ${rowsText}` : rowsText}
               className={cn(
                 "w-full min-h-0 overflow-hidden",
                 "[&_[data-slot=row-band-label]]:truncate [&_[data-slot=row-band-meta]]:truncate",

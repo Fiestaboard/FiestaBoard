@@ -58,7 +58,8 @@ const pages = {
       // and overlapped its neighbour before UX-3-1 (Den TV rows 8/10).
       "{{date_time.day_of_week_name_in_full}}",
       "",
-      "FRIDAY FISH FRY",
+      // Data bands two rows apart (W-10: only rows with data get a band).
+      "{{red}} FRIDAY FISH FRY",
       ...blank(11),
       "NOW POURING COLD BREW  HOUSE CHAI  OAT LATTE  SPECIALS",
     ],
@@ -242,7 +243,9 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByText(/rendered length per row/)).toHaveCount(0);
       const bands = page.getByRole("list", { name: "Row bands" });
       await expect(bands).toBeVisible();
-      await expect(bands.getByText("THIS WEEK", { exact: true })).toBeVisible();
+      // W-10: data rows only, named for the part; plain text such as THIS WEEK gets no band.
+      await expect(bands.getByText("date_time", { exact: true })).toBeVisible();
+      await expect(bands.getByText("THIS WEEK", { exact: true })).toHaveCount(0);
       await finish(page, testInfo, `impl-1440-${theme}-big-board`);
 
       // Tile md crops the board: the minimap appears, the page stays inside the viewport.

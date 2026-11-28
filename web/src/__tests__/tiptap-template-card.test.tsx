@@ -182,3 +182,71 @@ describe("toolbar labels", () => {
     expect(screen.queryByRole("button", { name: "Formatting" })).toBeNull();
   });
 });
+
+// W-4: a new page's template is ready before the first keystroke.
+describe("the empty template (W-4)", () => {
+  it("shows its prompt on row 1 inside the grid, and drops it once there is content", async () => {
+    renderEditor({ value: "", placeholder: "Type what the Kitchen should say…" });
+    const editor = await editorOf();
+    const prompt = await screen.findByTestId("template-placeholder");
+    expect(prompt).toHaveTextContent("Type what the Kitchen should say…");
+    expect(prompt.closest('[data-slot="template-rows"]')).not.toBeNull();
+    act(() => {
+      editor.commands.focus("start");
+      editor.commands.insertContent("HI");
+    });
+    await waitFor(() => expect(screen.queryByTestId("template-placeholder")).toBeNull());
+  });
+
+  it("reads Ln 1, Col 1 before focus, after the host pads the empty template", async () => {
+    const { rerender } = renderEditor({ value: "" });
+    await editorOf();
+    const client = new QueryClient();
+    rerender(
+      <QueryClientProvider client={client}>
+        <TipTapTemplateEditor value={"\n\n\n\n\n"} onChange={vi.fn()} showToolbar={false} boardLines={6} />
+      </QueryClientProvider>,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(meta()).toHaveTextContent("Ln 1, Col 1");
+  });
+
+  it("puts the caret on row 1 wherever the empty template is clicked", async () => {
+    renderEditor({ value: "\n\n\n\n\n" });
+    const editor = await editorOf();
+    act(() => {
+      editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    });
+    await waitFor(() => expect(meta()).toHaveTextContent("Ln 6"));
+    const area = document.querySelector('[data-slot="template-rows-area"]')!;
+    fireEvent.mouseDown(area.querySelector(".ProseMirror")!, { button: 0 });
+    await waitFor(() => expect(meta()).toHaveTextContent("Ln 1, Col 1"));
+  });
+
+  it("leaves a click on a template with content to the editor", async () => {
+    renderEditor({ value: "\n\nHELLO\n\n\n" });
+    const editor = await editorOf();
+    act(() => {
+      editor.commands.focus("end");
+    });
+    await waitFor(() => expect(meta()).toHaveTextContent("Ln 6"));
+    const area = document.querySelector('[data-slot="template-rows-area"]')!;
+    const event = fireEvent.mouseDown(area.querySelector(".ProseMirror")!, { button: 0 });
+    expect(event).toBe(true);
+    expect(meta()).toHaveTextContent("Ln 6");
+  });
+
+  it("takes Enter's new row from the blank rows below, so no row lands past the board", async () => {
+    renderEditor({ value: "HELLO\n\n\n\n\n" });
+    const editor = await editorOf();
+    act(() => {
+      editor.commands.focus();
+      editor.commands.setTextSelection(7);
+    });
+    fireEvent.keyDown(editor.view.dom, { key: "Enter" });
+    await waitFor(() => expect(meta()).toHaveTextContent("Ln 2, Col 1"));
+    expect(screen.queryByTestId("template-rows-past-board")).toBeNull();
+    expect(screen.queryByTestId("template-overflow-rows")).toBeNull();
+    expect(editor.getText({ blockSeparator: "\n" }).replace(/​/g, "")).toContain("HELLO");
+  });
+});

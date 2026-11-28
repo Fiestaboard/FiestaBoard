@@ -345,19 +345,24 @@ describe("RowBandGutter", () => {
     return { onChange, ...view };
   }
 
-  it("names each band and moves it down from its menu", async () => {
+  it("names each data band for its part and moves it down from its menu (W-10)", async () => {
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
       cb(0);
       return 0;
     });
-    const { onChange } = setup(["HEADER", "", "TONIGHT", "OPEN MIC", "", "", "", ""]);
+    const header = "HI {{weather.temp}}";
+    const { onChange } = setup([header, "", "TONIGHT", "{{red}} OPEN MIC", "", "PLAIN TEXT", "", ""]);
     const list = await screen.findByRole("list", { name: "Row bands" });
-    expect(within(list).getByText("HEADER")).toBeInTheDocument();
+    expect(within(list).getByText("weather")).toBeInTheDocument();
+    expect(within(list).getByText("red")).toBeInTheDocument();
     expect(within(list).getByText("Rows 3–4")).toBeInTheDocument();
-    fireEvent.contextMenu(within(list).getByText("HEADER"));
+    // A plain-text row gets no band: it would only repeat the row beside it.
+    expect(within(list).getAllByTestId("row-band")).toHaveLength(2);
+    expect(within(list).queryByText(/PLAIN|TONIGHT|HI/)).toBeNull();
+    fireEvent.contextMenu(within(list).getByText("weather"));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Move down" }));
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ lines: ["TONIGHT", "OPEN MIC", "", "HEADER", "", "", "", ""] }),
+      expect.objectContaining({ lines: ["TONIGHT", "{{red}} OPEN MIC", "", header, "", "PLAIN TEXT", "", ""] }),
     );
     vi.restoreAllMocks();
   });
@@ -367,7 +372,7 @@ describe("RowBandGutter", () => {
       cb(0);
       return 0;
     });
-    setup(["A REALLY LONG BAND LABEL THAT WRAPPED", "", "", "", "", "{63}", "", "x"]);
+    setup(["A REALLY LONG ROW {{a_really_long_integration.field}}", "", "", "", "", "{63}", "", "x"]);
     const list = screen.getByRole("list", { name: "Row bands" });
     const bands = within(list).getAllByTestId("row-band");
     // Row 6 holds only a character code, so it has no name: "Row 6", never "Rows 6–6" over "Row 6".
@@ -377,7 +382,7 @@ describe("RowBandGutter", () => {
       expect(band).toHaveClass("min-h-0", "overflow-hidden", "[&_[data-slot=row-band-label]]:truncate");
       expect(band.getAttribute("title")).toBeTruthy();
     }
-    expect(bands[0].getAttribute("title")).toBe("A REALLY LONG BAND LABEL THAT WRAPPED · Row 1");
+    expect(bands[0].getAttribute("title")).toBe("a_really_long_integration · Row 1");
     vi.restoreAllMocks();
   });
 
