@@ -1621,6 +1621,25 @@
     "notSentYet": "Nog niet verzonden",
     "notSentYetOn": "Nog niet verzonden · {board}"
   },
+  "importFromBoard": {
+    "title": "Deze sjabloon vervangen door wat {board} nu toont?",
+    "showing": "{board} toont “{page}”. De regels, uitlijning en terugloop daarvan vervangen die van deze sjabloon; Ongedaan maken haalt de jouwe terug. Er wordt niets opgeslagen of getoond.",
+    "replace": "Sjabloon vervangen",
+    "emptyTitle": "{board} toont niets",
+    "emptyBody": "Er is niets om te importeren.",
+    "sizeTitle": "{board} toont een pagina van een ander formaat",
+    "sizeBody": "“{page}” is {theirs}; deze pagina is {ours}. Een sjabloon overleeft geen formaatwijziging.",
+    "sizeCopyHint": "Om deze pagina op {board} te gebruiken, maak je een kopie op dat formaat via Inspector › Getoond op.",
+    "errorTitle": "Kon niet lezen wat {board} toont",
+    "errorBody": "Probeer het zo meteen opnieuw.",
+    "close": "Sluiten",
+    "previewLabel": "Wat {board} nu toont"
+  },
+  "editorHeaderPhone": {
+    "draftSaved": "Concept opgeslagen",
+    "saved": "Opgeslagen",
+    "saveDraftNow": "Concept nu opslaan"
+  },
   "changePage": {
     "title": "Pagina wisselen",
     "description": "Kies wat {board} toont. Er verandert niets tot je Nu tonen kiest.",
@@ -2854,8 +2873,8 @@
     "alignLeft": "Links uitlijnen",
     "alignCenter": "Centreren",
     "alignRight": "Rechts uitlijnen",
-    "syncFromBoardTooltip": "Vul sjabloon in vanaf wat momenteel op het board wordt getoond",
-    "syncFromBoard": "Synchroniseren vanaf huidige board-weergave",
+    "syncFromBoardTooltip": "De sjabloon vervangen door wat het bord nu toont",
+    "syncFromBoard": "Importeren van bord…",
     "alignment": "Uitlijning:",
     "undoAriaLabel": "Ongedaan maken",
     "redoAriaLabel": "Opnieuw",

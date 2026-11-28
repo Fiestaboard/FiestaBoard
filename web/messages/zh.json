@@ -1621,6 +1621,25 @@
     "notSentYet": "尚未发送",
     "notSentYetOn": "尚未发送 · {board}"
   },
+  "importFromBoard": {
+    "title": "用 {board} 当前显示的内容替换此模板？",
+    "showing": "{board} 正在显示“{page}”。它的行、对齐和换行将替换此模板的；撤销可恢复你的内容。不会保存或显示任何内容。",
+    "replace": "替换模板",
+    "emptyTitle": "{board} 未显示任何内容",
+    "emptyBody": "没有可导入的内容。",
+    "sizeTitle": "{board} 显示的是另一尺寸的页面",
+    "sizeBody": "“{page}”为 {theirs}；此页面为 {ours}。模板无法在尺寸变化后保留。",
+    "sizeCopyHint": "要在 {board} 上使用此页面，请在 检查器 › 显示于 中创建适合其尺寸的副本。",
+    "errorTitle": "无法读取 {board} 显示的内容",
+    "errorBody": "请稍后重试。",
+    "close": "关闭",
+    "previewLabel": "{board} 当前显示的内容"
+  },
+  "editorHeaderPhone": {
+    "draftSaved": "草稿已保存",
+    "saved": "已保存",
+    "saveDraftNow": "立即保存草稿"
+  },
   "changePage": {
     "title": "更换页面",
     "description": "选择 {board} 要显示的内容。选择“立即显示”之前不会有任何更改。",
@@ -2854,8 +2873,8 @@
     "alignLeft": "左对齐",
     "alignCenter": "居中对齐",
     "alignRight": "右对齐",
-    "syncFromBoardTooltip": "从当前 board 上显示的内容填充模板",
-    "syncFromBoard": "从当前 board 显示同步",
+    "syncFromBoardTooltip": "用展板当前显示的内容替换模板",
+    "syncFromBoard": "从展板导入…",
     "alignment": "对齐:",
     "undoAriaLabel": "撤销",
     "redoAriaLabel": "重做",

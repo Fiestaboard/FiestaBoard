@@ -1621,6 +1621,25 @@
     "notSentYet": "Inte skickat än",
     "notSentYetOn": "Inte skickat än · {board}"
   },
+  "importFromBoard": {
+    "title": "Ersätta den här mallen med det {board} visar nu?",
+    "showing": "{board} visar ”{page}”. Dess rader, justering och radbrytning ersätter mallens; Ångra tar tillbaka dina. Inget sparas eller visas.",
+    "replace": "Ersätt mall",
+    "emptyTitle": "{board} visar ingenting",
+    "emptyBody": "Det finns inget att importera.",
+    "sizeTitle": "{board} visar en sida av en annan storlek",
+    "sizeBody": "”{page}” är {theirs}; den här sidan är {ours}. En mall överlever inte en storleksändring.",
+    "sizeCopyHint": "För att använda sidan på {board}, gör en kopia i dess storlek under Inspektör › Visas på.",
+    "errorTitle": "Kunde inte läsa vad {board} visar",
+    "errorBody": "Försök igen om en stund.",
+    "close": "Stäng",
+    "previewLabel": "Det {board} visar nu"
+  },
+  "editorHeaderPhone": {
+    "draftSaved": "Utkast sparat",
+    "saved": "Sparad",
+    "saveDraftNow": "Spara utkast nu"
+  },
   "changePage": {
     "title": "Byt sida",
     "description": "Välj vad {board} visar. Inget ändras förrän du väljer Visa nu.",
@@ -2854,8 +2873,8 @@
     "alignLeft": "Vänsterjustera",
     "alignCenter": "Centrera",
     "alignRight": "Högerjustera",
-    "syncFromBoardTooltip": "Fyll mall från det som visas på board just nu",
-    "syncFromBoard": "Synka från aktuell board-display",
+    "syncFromBoardTooltip": "Ersätt mallen med det tavlan visar nu",
+    "syncFromBoard": "Importera från tavlan…",
     "alignment": "Justering:",
     "undoAriaLabel": "Ångra",
     "redoAriaLabel": "Gör om",

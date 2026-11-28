@@ -1621,6 +1621,25 @@
     "notSentYet": "Noch nicht gesendet",
     "notSentYetOn": "Noch nicht gesendet · {board}"
   },
+  "importFromBoard": {
+    "title": "Diese Vorlage durch das ersetzen, was {board} gerade zeigt?",
+    "showing": "{board} zeigt „{page}“. Dessen Zeilen, Ausrichtung und Umbruch ersetzen die dieser Vorlage; Rückgängig holt deine zurück. Nichts wird gespeichert oder angezeigt.",
+    "replace": "Vorlage ersetzen",
+    "emptyTitle": "{board} zeigt nichts",
+    "emptyBody": "Es gibt nichts zu importieren.",
+    "sizeTitle": "{board} zeigt eine Seite anderer Größe",
+    "sizeBody": "„{page}“ ist {theirs}; diese Seite ist {ours}. Eine Vorlage übersteht keine Größenänderung.",
+    "sizeCopyHint": "Um diese Seite auf {board} zu nutzen, erstelle unter Inspektor › Angezeigt auf eine passende Kopie.",
+    "errorTitle": "Konnte nicht lesen, was {board} zeigt",
+    "errorBody": "Versuch es gleich noch einmal.",
+    "close": "Schließen",
+    "previewLabel": "Was {board} gerade zeigt"
+  },
+  "editorHeaderPhone": {
+    "draftSaved": "Entwurf gespeichert",
+    "saved": "Gespeichert",
+    "saveDraftNow": "Entwurf jetzt speichern"
+  },
   "changePage": {
     "title": "Seite wechseln",
     "description": "Wählen, was {board} zeigt. Nichts ändert sich, bis „Jetzt anzeigen“ gewählt wird.",
@@ -2854,8 +2873,8 @@
     "alignLeft": "Linksbündig",
     "alignCenter": "Zentriert",
     "alignRight": "Rechtsbündig",
-    "syncFromBoardTooltip": "Vorlage mit dem füllen, was gerade auf dem Board angezeigt wird",
-    "syncFromBoard": "Mit aktueller Board-Anzeige synchronisieren",
+    "syncFromBoardTooltip": "Die Vorlage durch das ersetzen, was das Board gerade zeigt",
+    "syncFromBoard": "Vom Board importieren…",
     "alignment": "Ausrichtung:",
     "undoAriaLabel": "Rückgängig",
     "redoAriaLabel": "Wiederholen",

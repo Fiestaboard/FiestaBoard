@@ -252,7 +252,11 @@ export const pagesApi = {
   // same handlers `/pages*` does — same models, same 404 wording — so this is
   // a path change with no response-shape change.
   getPages: () => fetchApi<PagesResponse>("/v1/pages"),
-  getCurrentDisplay: () => fetchApi<CurrentDisplayResponse>("/pages/current-display"),
+  /** What a board shows now (omitted: the primary board). 404 when it shows nothing. */
+  getCurrentDisplay: (boardId?: string) =>
+    fetchApi<CurrentDisplayResponse>(
+      `/pages/current-display${boardId ? `?board_id=${encodeURIComponent(boardId)}` : ""}`,
+    ),
   getPage: (pageId: string) => fetchApi<Page>(`/v1/pages/${pageId}`),
   /** 201 with the created page itself — no envelope. */
   createPage: (page: PageCreate) =>

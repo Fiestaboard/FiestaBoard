@@ -108,12 +108,14 @@ import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { boardMeta } from "@/components/home/home-board";
 import { scheduleNextChange } from "@/components/home/home-status";
 import { useBoardDetail } from "@/components/home/use-home-data";
+import { ImportFromBoardDialog } from "@/components/import-from-board-dialog";
 import { LiveOutputSilenceStrip } from "@/components/live-output-silence-strip";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { PlainTemplateToolbar, PlainTemplateVariablePicker } from "@/components/plain-template-toolbar";
 import { PlainTextEditor, type PlainTextEditorHandle } from "@/components/plain-text-editor";
 import { PreviewTargetPopover } from "@/components/preview-target-popover";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import { TemplateCardPlaceholder } from "@/components/tiptap-template-editor/template-card-placeholder";
 import type {
   DrawHistoryEvent,
   TipTapTemplateEditorHandle,
@@ -153,6 +155,7 @@ import type {
   CanvasIssue,
   CanvasLayerJson,
   CharsetIssue,
+  CurrentDisplayResponse,
   DeviceType,
   GridSize,
   LineAlignment,
@@ -412,6 +415,19 @@ interface StrokeMetaSnapshot {
   rows: number[];
   alignments: LineAlignment[];
   wraps: boolean[];
+  /**
+   * Import from board… (DD-W167) replaced every row: undo puts `before` back,
+   * redo `after`, whole arrays (the row count can change), instead of the
+   * stroke's forced left/no-wrap rows.
+   */
+  replace?: { before: RowMeta; after: RowMeta };
+}
+
+interface RowMeta {
+  /** The rows as the host held them: the editor's history restores the same doc, spelled its own way ({{blue}}). */
+  lines: string[];
+  alignments: LineAlignment[];
+  wraps: boolean[];
 }
 
 const UNDO_STACK_LIMIT = 5;
@@ -548,7 +564,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const compactHeader = !dockedPreview && !wideEditor;
   // Save / Save draft is its icon at 1024–1279, under 390 px, and on a phone
   // while Save draft shares the row with "Save & update board" (BB-B-3).
-  const saveIconOnly = compactHeader || narrowHeader || (sheetPickers && !!draftState?.saveDraft);
+  const saveIconOnly = compactHeader || narrowHeader;
+  // DD-W166: a phone's live-page header keeps the primary alone; autosave writes
+  // the draft, and "Save draft now" (the early flush) is a row in the dock's More.
+  const phoneDraftInMore = sheetPickers && !!draftState?.saveDraft;
   const editorContentRef = useRef<HTMLDivElement>(null);
   const dockPreviewRef = useRef<HTMLElement>(null);
   const viewportBottom = useEditorViewportDock(dockedPreview && useTouchToolbar, editorContentRef, dockPreviewRef);
@@ -570,6 +589,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const t = useTranslations("pageBuilder");
   const tHeader = useTranslations("editorHeader");
+  const tPhone = useTranslations("editorHeaderPhone");
   const tIde = useTranslations("creatorIde");
   const locale = useLocale();
   // UX-8-1 (306:28127): a new page is called "Untitled page", a real name, so
@@ -2227,47 +2247,35 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     },
   });
 
-  // Sync from current board display mutation (new pages only)
-  const syncFromBoardMutation = useMutation({
-    mutationFn: () => api.getCurrentDisplay(),
-    retry: false, // No-active-page (404) is not a transient error; don't retry
-    onSuccess: (data) => {
-      const lines = data.template || [];
-      setTemplateLines(lines);
-      setDebouncedTemplateLines(lines);
-
-      if (data.line_metadata) {
-        const alignments = data.line_metadata.map((m) => m.alignment);
-        const wraps = data.line_metadata.map((m) => m.wrap);
-        setLineAlignments(alignments);
-        setLineWrapEnabled(wraps);
-        setDebouncedLineAlignments(alignments);
-        setDebouncedLineWrapEnabled(wraps);
-      } else {
-        const defaults = lines.map(() => "left" as LineAlignment);
-        const defaultWraps = lines.map(() => false);
-        setLineAlignments(defaults);
-        setLineWrapEnabled(defaultWraps);
-        setDebouncedLineAlignments(defaults);
-        setDebouncedLineWrapEnabled(defaultWraps);
-      }
-
-      if (data.device_type) {
-        setDeviceType(data.device_type);
-      }
-      // Mirror the synced page's note-array / panel geometry so the preview
-      // matches the source board.
-      if (data.notes_wide != null) setNotesWide(data.notes_wide);
-      if (data.notes_tall != null) setNotesTall(data.notes_tall);
-      if (data.grid_rows != null) setGridRows(data.grid_rows);
-      if (data.grid_cols != null) setGridCols(data.grid_cols);
-
-      toast.success(t("toastSyncedFrom", { name: data.page_name }));
-    },
-    onError: () => {
-      toast.error(t("toastNoActiveDisplay"));
-    },
-  });
+  // Import from board… (DD-W167): a dialog shows what the board shows now; Replace
+  // template swaps the rows in as ONE undo step (the editor's history carries the
+  // text, the stroke-meta stack the alignment/wrap) and marks the page unsaved.
+  // Nothing is saved or shown, the page's geometry stays, and there is no toast:
+  // the meta line and ⌘Z are the undo story, as a paste is.
+  const [importOpen, setImportOpen] = useState(false);
+  const replaceFromBoard = useCallback((data: CurrentDisplayResponse) => {
+    setImportOpen(false);
+    const lines = data.template.length > 0 ? data.template : [""];
+    const after: RowMeta = {
+      lines,
+      alignments: lines.map((_, i) => (data.line_metadata?.[i]?.alignment as LineAlignment) ?? "left"),
+      wraps: lines.map((_, i) => Boolean(data.line_metadata?.[i]?.wrap)),
+    };
+    const before: RowMeta = {
+      lines: templateLinesRef.current.slice(),
+      alignments: lineAlignmentsRef.current.slice(),
+      wraps: lineWrapEnabledRef.current.slice(),
+    };
+    if (!tipTapRef.current?.replaceTemplate(lines.join("\n"))) return;
+    const hist = strokeMetaHistoryRef.current;
+    hist.done.push({ rows: [], alignments: [], wraps: [], replace: { before, after } });
+    hist.undone = [];
+    // After the editor's own change callback, so the imported rows (as the board
+    // spells them) and their metadata win.
+    setTemplateLines(after.lines);
+    setLineAlignments(after.alignments);
+    setLineWrapEnabled(after.wraps);
+  }, []);
 
   // Preview mutation
   const previewMutation = useMutation({
@@ -2666,10 +2674,22 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const handleDrawHistoryEvent = useCallback((event: DrawHistoryEvent) => {
     if (!event.stroke) return;
     const hist = strokeMetaHistoryRef.current;
+    const replaced = (entry: StrokeMetaSnapshot | undefined) => {
+      if (!entry?.replace) return false;
+      const meta = event.action === "undo" ? entry.replace.before : entry.replace.after;
+      // After this transaction's change callback, whose row splicing would win otherwise.
+      queueMicrotask(() => {
+        setTemplateLines(meta.lines);
+        setLineAlignments(meta.alignments);
+        setLineWrapEnabled(meta.wraps);
+      });
+      return true;
+    };
     if (event.action === "undo") {
       const entry = hist.done.pop();
       if (!entry) return;
       hist.undone.push(entry);
+      if (replaced(entry)) return;
       setLineAlignments((prev) => {
         const next = [...prev];
         entry.rows.forEach((r, i) => {
@@ -2688,6 +2708,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       const entry = hist.undone.pop();
       if (!entry) return;
       hist.done.push(entry);
+      if (replaced(entry)) return;
       setLineAlignments((prev) => {
         const next = [...prev];
         for (const r of entry.rows) next[r] = "left";
@@ -3070,19 +3091,26 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         : hasUnsavedChanges
           ? null
           : lastSaved;
-  const saveStateLabel = saveMutation.isPending
-    ? tHeader("saving")
-    : !pageId
-      ? tHeader("unsaved")
-      : draftState?.savingDraft && draftState.saveDraft
-        ? tHeader("savingDraft")
-        : draftState?.draftSavedAt && draftState.saveDraft
-          ? tHeader("draftSaved", { time: editTime(draftState.draftSavedAt) })
-          : hasUnsavedChanges
-            ? tHeader("unsavedChanges")
-            : lastSaved
-              ? tHeader("saved", { time: editTime(lastSaved) })
-              : "";
+  // `timed: false` is the phone's line under the name (DD-W166): the state without its time.
+  const saveStateText = (timed: boolean) =>
+    saveMutation.isPending
+      ? tHeader("saving")
+      : !pageId
+        ? tHeader("unsaved")
+        : draftState?.savingDraft && draftState.saveDraft
+          ? tHeader("savingDraft")
+          : draftState?.draftSavedAt && draftState.saveDraft
+            ? timed
+              ? tHeader("draftSaved", { time: editTime(draftState.draftSavedAt) })
+              : tPhone("draftSaved")
+            : hasUnsavedChanges
+              ? tHeader("unsavedChanges")
+              : lastSaved
+                ? timed
+                  ? tHeader("saved", { time: editTime(lastSaved) })
+                  : tPhone("saved")
+                : "";
+  const saveStateLabel = saveStateText(true);
   const geometryMeta = boardMeta(previewBoard ?? undefined, {
     deviceType,
     notesWide,
@@ -3101,6 +3129,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // The save/draft state never truncates: it carries "Draft restored · Discard".
   const headerState = draftState?.label ?? saveStateLabel;
   const headerStateTitle = !draftState?.label && stateAt ? editTimeTitle(stateAt, locale) : undefined;
+  // Under the name on a phone: no time, which never fits; the timed state and the
+  // full timestamp are its title and the first line of the dock's More.
+  const phoneState = draftState?.label ?? saveStateText(false);
+  const phoneStateTitle = draftState?.label
+    ? undefined
+    : [saveStateLabel, headerStateTitle].filter(Boolean).join(" · ") || undefined;
   // UX-1-7: discarding a restored draft can be undone for a few seconds (Gmail/Docs).
   const discardRestoredDraft = draftState?.onDiscard
     ? async () => {
@@ -3168,6 +3202,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   });
   const mirrorMoreContent = (
     <Stack gap="3">
+      {/* DD-W166: a phone says the full save state here, and offers the early draft flush. */}
+      {sheetPickers && pageId && (draftState?.label ?? saveStateLabel) && (
+        <Text size="xs" tone="muted" className="font-mono" data-testid="more-save-state">
+          {draftState?.label ?? saveStateLabel}
+        </Text>
+      )}
+      {phoneDraftInMore && (
+        <Button
+          variant="ghost"
+          size="touch"
+          className="justify-start gap-2"
+          disabled={saveMutation.isPending || stagingActive || !!draftState?.savingDraft}
+          onClick={draftState?.saveDraft}
+        >
+          <Save className="h-4 w-4" aria-hidden="true" />
+          {tPhone("saveDraftNow")}
+        </Button>
+      )}
       {/* The dock's data modes live here, not in a row over the board (UX-10-2). */}
       {formulaIde.moreControls}
       {mirrorControl}
@@ -3539,7 +3591,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     !editorShown &&
     (Boolean(existingPage && seededPageId !== existingPage.id) ||
       (complexEditing.active && !complexToolsReady) ||
-      (templateCardHeader && !richEditorReady));
+      (templateCardHeader && !richEditorReady) ||
+      // The H4 card above the IDE row: wait for the hub's first width check, so a
+      // cut page (Den TV) doesn't push the Console down after the first paint.
+      !lineOverflow.settled);
   if (!editorShown && !pageSettling && !(pageId && loadingPage)) setEditorShown(true);
   if ((pageId && loadingPage) || pageSettling) {
     return (
@@ -3670,9 +3725,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       size="xs"
                       tone="muted"
                       className="pointer-events-none block truncate font-mono"
-                      title={headerStateTitle}
+                      title={sheetPickers ? phoneStateTitle : headerStateTitle}
+                      data-testid="page-editor-save-state"
                     >
-                      {headerState}
+                      {sheetPickers ? phoneState : headerState}
                     </Text>
                   ) : (
                     // BB-E-13: the mono meta line under the name (Figma 53:137378).
@@ -3750,6 +3806,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             saveIconOnly ? (dockedPreview ? "icon-touch" : "icon-lg") : dockedPreview ? "touch" : "lg"
                           }
                           className={cn("shrink-0 text-sm", !saveIconOnly && "gap-1.5 px-3")}
+                          // DD-W166: a phone's live page has it in More ("Save draft now").
+                          hidden={phoneDraftInMore || undefined}
                           {...(!draftState?.saveDraft && anchorProps("page-editor.save"))}
                           onClick={draftState?.saveDraft ?? requestSave}
                           disabled={saveMutation.isPending || stagingActive || !!draftState?.savingDraft}
@@ -3962,7 +4020,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             </Text>
                           )}
                           {/* Template editor with device-specific dimensions */}
-                          <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
+                          <Suspense
+                            fallback={
+                              <TemplateCardPlaceholder
+                                boardLines={numLines}
+                                cardTitle={templateCardHeader && !drawMode ? templateTitle : undefined}
+                              />
+                            }
+                          >
                             {editorCharset ? (
                               // An LED target: its own character set decides what the
                               // editor reads, offers and keeps (spans, icons, case).
@@ -4002,8 +4067,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 boardLines={numLines}
                                 deviceType={deviceType}
                                 code62Glyph={effectiveCode62Glyph}
-                                onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                                syncFromBoardPending={syncFromBoardMutation.isPending}
+                                // No Import here: the LED editor (kit) has no one-step replace
+                                // to undo it with (DD-W167, KIT-ASKS).
                               />
                             ) : (
                               <TipTapTemplateEditor
@@ -4039,8 +4104,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 boardLines={numLines}
                                 deviceType={deviceType}
                                 code62Glyph={effectiveCode62Glyph}
-                                onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                                syncFromBoardPending={syncFromBoardMutation.isPending}
+                                onSyncFromBoard={() => setImportOpen(true)}
                                 drawMode={drawMode}
                                 onDrawModeToggle={() => setDrawMode((v) => !v)}
                                 drawBrush={drawBrush}
@@ -4593,6 +4657,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         </AlertDialogContent>
       </AlertDialog>
       {deleteDialog}
+      <ImportFromBoardDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        boardId={previewBoard?.id}
+        boardName={previewBoard?.name ?? tTouch("thisDisplay")}
+        geometry={{ deviceType, notesWide, notesTall, gridRows, gridCols }}
+        savedPage={!!pageId}
+        onReplace={replaceFromBoard}
+      />
       {formulaIde.overlays}
     </FormulaIdeContext.Provider>
   );

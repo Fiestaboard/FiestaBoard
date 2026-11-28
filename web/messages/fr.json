@@ -1621,6 +1621,25 @@
     "notSentYet": "Pas encore envoyé",
     "notSentYetOn": "Pas encore envoyé · {board}"
   },
+  "importFromBoard": {
+    "title": "Remplacer ce modèle par ce qu’affiche {board} maintenant ?",
+    "showing": "{board} affiche « {page} ». Ses lignes, son alignement et son retour à la ligne remplacent ceux de ce modèle ; Annuler rétablit les vôtres. Rien n’est enregistré ni affiché.",
+    "replace": "Remplacer le modèle",
+    "emptyTitle": "{board} n’affiche rien",
+    "emptyBody": "Il n’y a rien à importer.",
+    "sizeTitle": "{board} affiche une page d’une autre taille",
+    "sizeBody": "« {page} » fait {theirs} ; cette page fait {ours}. Un modèle ne survit pas à un changement de taille.",
+    "sizeCopyHint": "Pour utiliser cette page sur {board}, faites-en une copie à sa taille depuis Inspecteur › Affichée sur.",
+    "errorTitle": "Impossible de lire ce qu’affiche {board}",
+    "errorBody": "Réessayez dans un instant.",
+    "close": "Fermer",
+    "previewLabel": "Ce qu’affiche {board} maintenant"
+  },
+  "editorHeaderPhone": {
+    "draftSaved": "Brouillon enregistré",
+    "saved": "Enregistré",
+    "saveDraftNow": "Enregistrer le brouillon"
+  },
   "changePage": {
     "title": "Changer de page",
     "description": "Choisissez ce qu’affiche {board}. Rien ne change tant que vous n’avez pas choisi Afficher maintenant.",
@@ -2854,8 +2873,8 @@
     "alignLeft": "Aligner à gauche",
     "alignCenter": "Centrer",
     "alignRight": "Aligner à droite",
-    "syncFromBoardTooltip": "Remplir le modèle à partir de ce qui est actuellement affiché sur le board",
-    "syncFromBoard": "Synchroniser depuis l'affichage actuel du board",
+    "syncFromBoardTooltip": "Remplacer le modèle par ce qu’affiche le tableau maintenant",
+    "syncFromBoard": "Importer depuis le tableau…",
     "alignment": "Alignement :",
     "undoAriaLabel": "Annuler",
     "redoAriaLabel": "Rétablir",

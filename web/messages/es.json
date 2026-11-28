@@ -1621,6 +1621,25 @@
     "notSentYet": "Aún no enviado",
     "notSentYetOn": "Aún no enviado · {board}"
   },
+  "importFromBoard": {
+    "title": "¿Reemplazar esta plantilla por lo que muestra ahora {board}?",
+    "showing": "{board} muestra «{page}». Sus filas, alineación y ajuste reemplazan los de esta plantilla; Deshacer recupera los tuyos. No se guarda ni se muestra nada.",
+    "replace": "Reemplazar plantilla",
+    "emptyTitle": "{board} no muestra nada",
+    "emptyBody": "No hay nada que importar.",
+    "sizeTitle": "{board} muestra una página de otro tamaño",
+    "sizeBody": "«{page}» es {theirs}; esta página es {ours}. Una plantilla no sobrevive a un cambio de tamaño.",
+    "sizeCopyHint": "Para usar esta página en {board}, haz una copia a su tamaño desde Inspector › Se muestra en.",
+    "errorTitle": "No se pudo leer lo que muestra {board}",
+    "errorBody": "Inténtalo de nuevo en un momento.",
+    "close": "Cerrar",
+    "previewLabel": "Lo que muestra ahora {board}"
+  },
+  "editorHeaderPhone": {
+    "draftSaved": "Borrador guardado",
+    "saved": "Guardado",
+    "saveDraftNow": "Guardar borrador ahora"
+  },
   "changePage": {
     "title": "Cambiar página",
     "description": "Elige qué muestra {board}. No cambia nada hasta que pulses Mostrar ahora.",
@@ -2854,8 +2873,8 @@
     "alignLeft": "Alinear a la izquierda",
     "alignCenter": "Centrar",
     "alignRight": "Alinear a la derecha",
-    "syncFromBoardTooltip": "Rellenar la plantilla con lo que se muestra actualmente en la pantalla",
-    "syncFromBoard": "Sincronizar desde la pantalla actual",
+    "syncFromBoardTooltip": "Reemplazar la plantilla por lo que muestra ahora el tablero",
+    "syncFromBoard": "Importar del tablero…",
     "alignment": "Alineación:",
     "undoAriaLabel": "Deshacer",
     "redoAriaLabel": "Rehacer",
