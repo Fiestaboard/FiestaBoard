@@ -3658,7 +3658,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 <Flex align="center" gap="2" data-slot="page-editor-toolbar-row" className="min-w-0 py-1">
                   {/* The Explorer toggle's fixed place, open or closed (UX-5-1). */}
                   {workspaceSlots?.toolbarStart && !dockedPreview && (
-                    <Box ref={workspaceSlots.toolbarStart} data-slot="page-editor-toolbar-start" className="shrink-0" />
+                    <Box
+                      ref={workspaceSlots.toolbarStart}
+                      data-slot="page-editor-toolbar-start"
+                      className="shrink-0 empty:hidden"
+                    />
                   )}
                   {/* A coarse pointer's tools dock at the bottom of the screen instead. */}
                   {!useTouchToolbar && (
@@ -4400,10 +4404,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         />
                       )}
                     </EditorPreview>
-                    {formulaIde.rightSlot && (
-                      <Box className="order-2 min-w-0 lg:order-none">{formulaIde.rightSlot}</Box>
-                    )}
                   </Box>
+                  {/* After the stack, so the sticky preview never travels over it (FABLE-2649). */}
+                  {formulaIde.rightSlot && (
+                    <Box data-slot="page-editor-workbench" className="order-2 min-w-0 lg:order-none">
+                      {formulaIde.rightSlot}
+                    </Box>
+                  )}
                   {/* The foot of the preview column: the Inspector (desktop). */}
                   {workspaceSlots && !dockedPreview && <Box ref={workspaceSlots.preview} className="min-w-0" />}
                 </Box>

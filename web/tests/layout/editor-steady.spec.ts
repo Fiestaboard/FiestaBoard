@@ -245,3 +245,22 @@ test.describe("a coarse pointer at desktop width (iPad landscape)", () => {
     await expect(page.getByRole("dialog", { name: /keyboard shortcuts/i })).toBeVisible();
   });
 });
+
+test("1440px: the sticky preview stops above the formula workbench while the page scrolls (FABLE-2649)", async ({
+  page,
+}) => {
+  // A tall template (a FiestaPanel) gives the sticky preview room to travel.
+  await mockHub(page, { deviceType: "panel" });
+  await open(page, 1440);
+  await expect(page.getByRole("tablist", { name: "Inspector" })).toBeVisible();
+  await templateCard(page).locator('[class*="formula"]').first().click();
+  const workbench = page.locator('[data-slot="page-editor-workbench"]');
+  await expect(workbench).toBeVisible();
+  const scroller = page.locator('[data-slot="page-editor-scroll"]');
+  for (const dy of [0, 300, 300, 300]) {
+    await scroller.evaluate((el, by) => el.scrollBy(0, by), dy);
+    const preview = await box(page.locator('[data-slot="editor-preview"]'));
+    const bench = await box(workbench);
+    expect(preview.y + preview.height).toBeLessThanOrEqual(bench.y + 1);
+  }
+});
