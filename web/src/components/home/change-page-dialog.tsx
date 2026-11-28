@@ -219,9 +219,7 @@ export function ChangePageDialog({
     const collection = collections.find((c) => c.id === selectedId);
     return collection ? { id: collection.id, name: collection.name, isCollection: true } : null;
   }, [selectedId, pagesData, collections, pageScoped, pageName]);
-  const scopedTitle = pageScoped
-    ? t("showPageTitle", { page: selected?.name ?? "", board: displayName })
-    : null;
+  const scopedTitle = pageScoped ? t("showPageTitle", { page: selected?.name ?? "", board: displayName }) : null;
 
   // Never carry a chip that is no longer offered: "next-change" with no next
   // change would send no duration, an indefinite hold nobody chose (review
