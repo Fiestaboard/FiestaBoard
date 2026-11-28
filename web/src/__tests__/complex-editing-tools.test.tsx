@@ -413,19 +413,24 @@ describe("RowBandGutter", () => {
     return { onChange, ...view };
   }
 
-  it("names each band and moves it down from its menu", async () => {
+  it("names each data band for its part and moves it down from its menu (W-10)", async () => {
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
       cb(0);
       return 0;
     });
-    const { onChange } = setup(["HEADER", "", "TONIGHT", "OPEN MIC", "", "", "", ""]);
+    const header = "HI {{weather.temp}}";
+    const { onChange } = setup([header, "", "TONIGHT", "{{red}} OPEN MIC", "", "PLAIN TEXT", "", ""]);
     const list = await screen.findByRole("list", { name: "Row bands" });
-    expect(within(list).getByText("HEADER")).toBeInTheDocument();
+    expect(within(list).getByText("weather")).toBeInTheDocument();
+    expect(within(list).getByText("red")).toBeInTheDocument();
     expect(within(list).getByText("Rows 3–4")).toBeInTheDocument();
-    fireEvent.contextMenu(within(list).getByText("HEADER"));
+    // A plain-text row gets no band: it would only repeat the row beside it.
+    expect(within(list).getAllByTestId("row-band")).toHaveLength(2);
+    expect(within(list).queryByText(/PLAIN|TONIGHT|HI/)).toBeNull();
+    fireEvent.contextMenu(within(list).getByText("weather"));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Move down" }));
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ lines: ["TONIGHT", "OPEN MIC", "", "HEADER", "", "", "", ""] }),
+      expect.objectContaining({ lines: ["TONIGHT", "{{red}} OPEN MIC", "", header, "", "PLAIN TEXT", "", ""] }),
     );
     vi.restoreAllMocks();
   });
@@ -435,7 +440,7 @@ describe("RowBandGutter", () => {
       cb(0);
       return 0;
     });
-    setup(["A REALLY LONG BAND LABEL THAT WRAPPED", "", "", "", "", "{63}", "", "x"]);
+    setup(["A REALLY LONG ROW {{a_really_long_integration.field}}", "", "", "", "", "{63}", "", "x"]);
     const list = screen.getByRole("list", { name: "Row bands" });
     const bands = within(list).getAllByTestId("row-band");
     // Row 6 holds only a character code, so it has no name: "Row 6", never "Rows 6–6" over "Row 6".
@@ -445,7 +450,24 @@ describe("RowBandGutter", () => {
       expect(band).toHaveClass("min-h-0", "overflow-hidden", "[&_[data-slot=row-band-label]]:truncate");
       expect(band.getAttribute("title")).toBeTruthy();
     }
-    expect(bands[0].getAttribute("title")).toBe("A REALLY LONG BAND LABEL THAT WRAPPED · Row 1");
+    expect(bands[0].getAttribute("title")).toBe("a_really_long_integration · Row 1");
+    vi.restoreAllMocks();
+  });
+
+  it("stops a band's bracket at the next row with text, not at the next band (W-10)", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    const actual = vi.mocked(measureLineBoxes).getMockImplementation()!;
+    vi.mocked(measureLineBoxes).mockImplementation((_root, _gutter, count) =>
+      Array.from({ length: count }, (_, i) => ({ top: i * 24, height: 24 })),
+    );
+    setup(["{{a.b}}", "", "PLAIN HEADLINE", "", "", "{{c.d}}"]);
+    const [first] = within(screen.getByRole("list", { name: "Row bands" })).getAllByTestId("row-band");
+    // Rows 1–2 (the band and its blank row), stopping 4 px above row 3's text.
+    expect(first.style.height).toBe("44px");
+    vi.mocked(measureLineBoxes).mockImplementation(actual);
     vi.restoreAllMocks();
   });
 

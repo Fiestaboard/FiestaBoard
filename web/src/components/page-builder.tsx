@@ -3992,14 +3992,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                               />
                             </Suspense>
                           )}
-                          {newPageEmpty && (
-                            <Text
-                              aria-hidden
-                              className="pointer-events-none absolute left-12 top-2 z-10 font-mono text-sm text-muted-foreground"
-                            >
-                              {tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })}
-                            </Text>
-                          )}
                           {/* Template editor with device-specific dimensions */}
                           <Suspense
                             fallback={

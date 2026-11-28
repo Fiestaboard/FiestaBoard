@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  bandLabel,
-  bandText,
+  bandPartName,
   BIG_BOARD_MAX_FIT_COLUMNS,
   deriveRowBands,
   duplicateBand,
@@ -29,38 +28,48 @@ describe("isBigBoard", () => {
   });
 });
 
-describe("bandLabel", () => {
-  it("strips template markup and keeps readable words", () => {
-    expect(bandLabel('{{= PAD("TONIGHT AT ROSA\'S", 48) }} OUTSIDE')).toBe("OUTSIDE");
-    expect(bandLabel("  THIS WEEK  ")).toBe("THIS WEEK");
-    expect(bandLabel("{red}{red} NOW POURING COLD BREW")).toBe("NOW POURING…");
+describe("bandPartName (W-10)", () => {
+  it("names a run for its first data part: integration, formula, colour", () => {
+    expect(bandPartName(["COUNTDOWN: {{countdown.days}}"])).toBe("countdown");
+    expect(bandPartName(["{{date_time.day_of_week}}"])).toBe("date_time");
+    expect(bandPartName(["{{weather:home.temp|pad:3}}"])).toBe("weather");
+    expect(bandPartName(["{{news.headline|wrap}}"])).toBe("news");
+    expect(bandPartName(["{{ rss.title | wrap }}"])).toBe("rss");
+    expect(bandPartName(["TONIGHT", '{{= "LUNCH: " & random.pick }}'])).toBe("random");
+    expect(bandPartName(['{{= FOREACH(FILTER(x, y), "z") }}'])).toBe("FOREACH");
+    expect(bandPartName(["{{red}}{{orange}}"])).toBe("red");
+    expect(bandPartName(["{red} NOW POURING"])).toBe("red");
   });
 
-  it("falls back to the first variable name, then null", () => {
-    expect(bandLabel("{{weather.temp}} {{weather.rain}}")).toBe("weather.temp");
-    expect(bandLabel("{63}{64}")).toBeNull();
-  });
-
-  it("shortens a long variable name like any label, and bandText keeps it whole for the tooltip (UX-3-1)", () => {
-    expect(bandLabel("{{date_time.day_of_week}}")).toBe("date_time.da…");
-    expect(bandText("{{date_time.day_of_week}}")).toBe("date_time.day_of_week");
-    expect(bandText("{red} NOW POURING COLD BREW")).toBe("NOW POURING COLD BREW");
+  it("has no name for a character code, and is null for plain text, spacing and wrapped text", () => {
+    expect(bandPartName(["{63}{64}"])).toBe("");
+    expect(bandPartName(["DEN TV · FAMILY BOARD"])).toBeNull();
+    expect(bandPartName(["A{{fill_space}}B", "{{HELLO THERE|wrap}}"])).toBeNull();
   });
 });
 
 describe("deriveRowBands", () => {
-  it("groups consecutive non-blank rows within the board", () => {
-    const bands = deriveRowBands(["HEADER", "", "A", "B", "C", "", "", "TICKER", "OVER"], 8);
-    expect(bands.map((b) => [b.start, b.end, b.label])).toEqual([
-      [1, 1, "HEADER"],
-      [3, 5, "A"],
-      [8, 8, "TICKER"],
+  it("bands only the runs of non-blank rows that hold data, named for the part (W-10)", () => {
+    const bands = deriveRowBands(
+      ["HEADER", "", "A {{weather.temp}}", "B", "C", "", "", "TICKER", "{{red}}", "OVER {{x.y}}"],
+      9,
+    );
+    expect(bands.map((b) => [b.start, b.end, b.label, b.name])).toEqual([
+      [3, 5, "weather", "weather"],
+      [8, 9, "red", "red"],
     ]);
-    expect(new Set(bands.map((b) => b.id)).size).toBe(3);
+    expect(new Set(bands.map((b) => b.id)).size).toBe(2);
   });
 
-  it("returns nothing for an empty template", () => {
+  it("shortens a long part name for the gutter and keeps it whole for the tooltip", () => {
+    const [band] = deriveRowBands(["{{date_time_long_name.day}}"], 1);
+    expect(band.label).toBe("date_time_lo…");
+    expect(band.name).toBe("date_time_long_name");
+  });
+
+  it("returns nothing for an empty or plain-text template", () => {
     expect(deriveRowBands(["", "  ", ""], 3)).toEqual([]);
+    expect(deriveRowBands(["HELLO", "", "WORLD"], 3)).toEqual([]);
   });
 });
 
@@ -71,13 +80,14 @@ const state = (lines: string[]) => ({
 });
 
 describe("moveBand", () => {
-  const lines = ["H", "", "A1", "A2", "", "B1"];
+  // Bands are data rows (W-10).
+  const lines = ["{{h.x}}", "", "{{a1.x}}", "{{a2.x}}", "", "{{b1.x}}"];
   const bands = deriveRowBands(lines, 6);
 
   it("swaps a band with the band above, keeping the gap and per-line metadata", () => {
     const s = state(lines);
     const next = moveBand(s, bands, bands[1].id, "up")!;
-    expect(next.lines).toEqual(["A1", "A2", "", "H", "", "B1"]);
+    expect(next.lines).toEqual(["{{a1.x}}", "{{a2.x}}", "", "{{h.x}}", "", "{{b1.x}}"]);
     expect(next.alignments).toEqual([
       s.alignments[2],
       s.alignments[3],
@@ -92,7 +102,7 @@ describe("moveBand", () => {
 
   it("swaps with the band below", () => {
     const next = moveBand(state(lines), bands, bands[1].id, "down")!;
-    expect(next.lines).toEqual(["H", "", "B1", "", "A1", "A2"]);
+    expect(next.lines).toEqual(["{{h.x}}", "", "{{b1.x}}", "", "{{a1.x}}", "{{a2.x}}"]);
   });
 
   it("returns null at the edges or for an unknown band", () => {
@@ -104,16 +114,16 @@ describe("moveBand", () => {
 
 describe("duplicateBand", () => {
   it("inserts a copy after the band when trailing blank rows can absorb it", () => {
-    const lines = ["A1", "A2", "", "B", "", "", "", ""];
+    const lines = ["{{a1.x}}", "{{a2.x}}", "", "{{b.x}}", "", "", "", ""];
     const bands = deriveRowBands(lines, 8);
     const next = duplicateBand(state(lines), bands, bands[0].id, 8)!;
-    expect(next.lines).toEqual(["A1", "A2", "", "A1", "A2", "", "B", ""]);
+    expect(next.lines).toEqual(["{{a1.x}}", "{{a2.x}}", "", "{{a1.x}}", "{{a2.x}}", "", "{{b.x}}", ""]);
     expect(next.lines).toHaveLength(8);
     expect(next.wraps.slice(0, 5)).toEqual([true, false, false, true, false]);
   });
 
   it("refuses when the board has no room", () => {
-    const lines = ["A1", "A2", "", "B"];
+    const lines = ["{{a1.x}}", "{{a2.x}}", "", "{{b.x}}"];
     const bands = deriveRowBands(lines, 4);
     expect(duplicateBand(state(lines), bands, bands[0].id, 4)).toBeNull();
     expect(duplicateBand(state(lines), bands, "missing", 4)).toBeNull();

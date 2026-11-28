@@ -501,29 +501,95 @@ test.describe("1280px template field (BB-E-8, BB-E-16)", () => {
     await expect(page.locator('[contenteditable="true"]')).toBeVisible();
   }
 
-  test("a row of tiles stays on one line in the template", async ({ page }) => {
+  // W-6 (DD-W170): a long row soft-wraps at the card's width, Docs-style, with a
+  // wrap glyph in the gutter; nothing scrolls the other rows out of view, and
+  // nothing is painted past the card (BB-E-8).
+  test("a row of tiles wraps inside the card, marked in the gutter", async ({ page }) => {
     await openTemplate(page, [longTileRow, "", "", "", "", ""]);
     const chips = page.locator(".ProseMirror .react-renderer");
     await expect(chips).toHaveCount(66);
-    const tops = await chips.evaluateAll(
-      (els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().top))).size,
-    );
-    expect(tops).toBe(1);
+    const card = (await page.locator('[data-slot="template-card"]').boundingBox())!;
+    const rights = await chips.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().right));
+    expect(Math.max(...rights)).toBeLessThanOrEqual(card.x + card.width);
+    await expect(page.getByTestId("template-row-wraps")).toHaveCount(1);
   });
 
-  test("a long text row scrolls inside the card instead of painting past it", async ({ page }) => {
-    await openTemplate(page, ["THIS LINE IS DEFINITELY FAR TOO LONG ".repeat(4), "", "", "", "", ""]);
+  test("with the caret at column 86 every other row still shows its text", async ({ page }) => {
+    const long = "A REALLY LONG LINE AT THE BOTTOM THAT RUNS WELL PAST THE RIGHT EDGE OF THE PANEL GRID!";
+    expect(long.length).toBe(86);
+    // Rows 2 and 4 carry chips: a chip makes a row a little taller, which is not a wrap.
+    await openTemplate(page, [
+      "ROW ONE",
+      "ROW TWO {{weather.temperature}}",
+      "ROW THREE",
+      'ROW FOUR {{= IF(weather.temperature > 80, "HOT", "NICE") }}',
+      "ROW FIVE",
+      long,
+    ]);
+    await page.locator('[contenteditable="true"]').click();
+    await page.keyboard.press("Control+End");
+    await expect(page.getByTestId("template-card-meta")).toContainText("Ln 6, Col 87");
+    const rows = page.locator('[data-slot="template-rows"]');
+    expect(await rows.evaluate((el) => el.scrollLeft)).toBe(0);
+    expect(await rows.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const box = (await rows.boundingBox())!;
+    for (const text of ["ROW ONE", "ROW TWO", "ROW THREE", "ROW FOUR", "ROW FIVE"]) {
+      const first = await page.evaluate((needle) => {
+        const p = document.querySelector(".ProseMirror p")!;
+        const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          const at = node.textContent!.indexOf(needle);
+          if (at < 0) continue;
+          const range = document.createRange();
+          range.setStart(node, at);
+          range.setEnd(node, at + 1);
+          return range.getBoundingClientRect().toJSON() as DOMRect;
+        }
+        return null;
+      }, text);
+      expect(first, text).not.toBeNull();
+      expect(first!.left).toBeGreaterThanOrEqual(box.x);
+      expect(first!.right).toBeLessThanOrEqual(box.x + box.width);
+    }
+    await expect(page.getByTestId("template-row-wraps")).toHaveCount(1);
+    // Nothing of the template is painted right of the card.
     const card = (await page.locator('[data-slot="template-card"]').boundingBox())!;
-    const row = (await page.locator(".ProseMirror p").boundingBox())!;
-    // Just right of the card, on the first row: nothing of the template is painted there.
     const outside = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest(".ProseMirror"), {
       x: card.x + card.width + 12,
-      y: row.y + 12,
+      y: box.y + 12,
     });
     expect(outside).toBe(false);
-    await expect
-      .poll(() => page.locator('[data-slot="template-rows"]').evaluate((el) => el.scrollWidth > el.clientWidth))
-      .toBe(true);
+  });
+
+  // W-7: squeezed, the card header drops the line count, never the caret.
+  test("a narrow template card keeps the caret and drops the line count", async ({ page }) => {
+    await openTemplate(page, kitchenMorning.template);
+    const meta = page.getByTestId("template-card-meta");
+    const caret = page.getByTestId("template-caret");
+    const lines = page.getByTestId("template-line-count");
+    const shown = (locator: typeof meta) =>
+      locator.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const m = el.closest('[data-testid="template-card-meta"]')!.getBoundingClientRect();
+        return (
+          r.width > 0 &&
+          r.top >= m.top - 1 &&
+          r.bottom <= m.bottom + 1 &&
+          r.left >= m.left - 1 &&
+          r.right <= m.right + 1
+        );
+      });
+    expect(await shown(caret)).toBe(true);
+    expect(await shown(lines)).toBe(true);
+    // Squeeze the card as the Explorer or a 1024 px window does.
+    await page.locator('[data-slot="template-card"]').evaluate((el) => {
+      (el as HTMLElement).style.width = "300px";
+    });
+    await expect.poll(() => shown(lines)).toBe(false);
+    expect(await shown(caret)).toBe(true);
+    // Dropped, not ellipsised.
+    expect(await meta.evaluate((el) => getComputedStyle(el).textOverflow)).not.toBe("ellipsis");
   });
 
   test("the template card shows a focus ring while the template has focus", async ({ page }) => {

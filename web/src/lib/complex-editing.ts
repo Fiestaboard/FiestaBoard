@@ -33,34 +33,58 @@ export interface RowBandModel {
   /** One-based, inclusive. */
   start: number;
   end: number;
-  /** Readable words from the first row, or null when it has none. */
+  /** The band's part name, shortened for the gutter, or null when it has none. */
   label: string | null;
+  /** The part name in full (the gutter's tooltip), or null. */
+  name: string | null;
+}
+
+const TEMPLATE_PART = /\{\{\s*(=)?([\s\S]*?)\}\}|\{([^{}]*)\}/g;
+
+/**
+ * The name of one `{{…}}` / `{…}` part when it is a data part (W-10): a
+ * variable's integration (`weather`), a formula's first integration or else
+ * its first function (`FOREACH`), a colour tile's colour (`red`). A `{63}`
+ * tile is a part without a name (""); spacing and wrapped text are not data
+ * parts (null).
+ */
+function partName(formula: boolean, body: string): string | null {
+  const text = body.trim();
+  if (formula) {
+    const root = /\b([a-z_][a-z0-9_]*)(?::[\w-]+)?\.[a-z0-9_]/.exec(text);
+    if (root) return root[1];
+    const fn = /\b([A-Z][A-Z0-9_]*)\s*\(/.exec(text);
+    return fn ? fn[1] : "";
+  }
+  if (/^fill_space/.test(text)) return null;
+  // A variable keeps its name through any filter (`{{news.headline|wrap}}`).
+  const root = /^([a-z_][a-z0-9_]*)(?::[\w-]+)?\./.exec(text);
+  if (root) return root[1];
+  // `{{SOME TEXT|wrap}}` is wrapped text, not data.
+  if (text.includes("|")) return null;
+  if (/^[a-z]+$/.test(text)) return text;
+  return /^\d+$/.test(text) ? "" : null;
+}
+
+/** The first data part's name in these rows: "" for an unnamed one, null when they hold none. */
+export function bandPartName(lines: readonly string[]): string | null {
+  let unnamed = false;
+  for (const line of lines) {
+    for (const match of line.matchAll(TEMPLATE_PART)) {
+      const name = match[3] !== undefined ? partName(false, match[3]) : partName(match[1] === "=", match[2]);
+      if (name) return name;
+      if (name === "") unnamed = true;
+    }
+  }
+  return unnamed ? "" : null;
 }
 
 /**
- * The words a band is named for: its first row's literal text, without
- * `{{…}}` expressions or `{…}` tile codes. A row that is only variables is
- * named for its first variable; a row of colour tiles has no name.
+ * Bands are the runs of non-blank rows the board shows; blank rows separate
+ * them. Only runs with a data part (a variable, a formula or a colour) get a
+ * band, named for that part (W-10, 184:159319 draws data bands): a band over
+ * plain text only repeated the row beside it.
  */
-export function bandLabel(line: string): string | null {
-  const text = bandText(line);
-  if (text === null) return null;
-  return text.length > BAND_LABEL_MAX ? `${text.slice(0, BAND_LABEL_MAX).trimEnd()}…` : text;
-}
-
-/** A band's whole name, untruncated (the gutter's tooltip): its text, else its first variable. */
-export function bandText(line: string): string | null {
-  const text = line
-    .replace(/\{\{[\s\S]*?\}\}/g, " ")
-    .replace(/\{[^{}]*\}/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (text) return text;
-  const variable = /\{\{\s*([A-Za-z_][\w.]*)/.exec(line);
-  return variable ? variable[1] : null;
-}
-
-/** Bands are the runs of non-blank rows the board shows; blank rows separate them. */
 export function deriveRowBands(lines: readonly string[], rows: number): RowBandModel[] {
   const bands: RowBandModel[] = [];
   let start = -1;
@@ -69,7 +93,11 @@ export function deriveRowBands(lines: readonly string[], rows: number): RowBandM
     const filled = i < limit && lines[i].trim().length > 0;
     if (filled && start < 0) start = i;
     if (!filled && start >= 0) {
-      bands.push({ id: `band-${start + 1}-${i}`, start: start + 1, end: i, label: bandLabel(lines[start]) });
+      const name = bandPartName(lines.slice(start, i));
+      if (name !== null) {
+        const label = name ? (name.length > BAND_LABEL_MAX ? `${name.slice(0, BAND_LABEL_MAX)}…` : name) : null;
+        bands.push({ id: `band-${start + 1}-${i}`, start: start + 1, end: i, label, name: name || null });
+      }
       start = -1;
     }
   }
@@ -95,7 +123,11 @@ function range(from: number, to: number): number[] {
   return Array.from({ length: Math.max(0, to - from) }, (_, k) => from + k);
 }
 
-/** Swap a band with its neighbour; the blank rows between them stay where they are. Null when it cannot move. */
+/**
+ * Swap a band with its neighbouring band; the rows between them (blank, or
+ * plain text with no band of its own, W-10) stay where they are. Null when it
+ * cannot move.
+ */
 export function moveBand<A>(
   state: TemplateRowsState<A>,
   bands: readonly RowBandModel[],

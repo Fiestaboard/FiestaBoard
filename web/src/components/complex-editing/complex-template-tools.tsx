@@ -15,7 +15,6 @@ import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import type { ComplexEditing } from "@/components/complex-editing/use-complex-editing";
 import { useTranslations } from "@/i18n/translations";
 import {
-  bandText,
   deriveRowBands,
   duplicateBand,
   moveBand,
@@ -169,7 +168,8 @@ const BAND_META_MIN_HEIGHT = 36;
 
 /**
  * C37 row bands in the template gutter (04b `126:149604`): an editor lens over
- * runs of non-blank rows, with Move up / Move down / Duplicate. Bands are
+ * runs of non-blank rows that hold data (W-10), with Move up / Move down /
+ * Duplicate. Bands are
  * derived from the template on every render; the page stores no bands.
  */
 export function RowBandGutter<A>({
@@ -263,9 +263,12 @@ export function RowBandGutter<A>({
         const top = boxes[band.start - 1]?.top;
         const last = boxes[band.end - 1];
         if (top === undefined || !last) return null;
-        // A band's bracket runs down to the next band (over its trailing blank
-        // rows, as 04b draws it), so a one-row band still fits its label.
-        const nextTop = bands[index + 1] ? boxes[bands[index + 1].start - 1]?.top : undefined;
+        // A band's bracket runs over its trailing blank rows (as 04b draws it),
+        // so a one-row band still fits its label, and stops at the next row with
+        // content: a plain-text row has no band of its own to stop it (W-10).
+        let next = band.end;
+        while (next < lineCount && !(state.lines[next] ?? "").trim()) next++;
+        const nextTop = next < lineCount ? boxes[next]?.top : undefined;
         const bottom = Math.max(last.top + last.height, (nextTop ?? last.top + last.height) - 4);
         // Clamped to the band (UX-3-1): never taller than the rows it brackets,
         // so neighbours never overlap; the label is one line with an
@@ -281,9 +284,7 @@ export function RowBandGutter<A>({
           <Box key={band.id} role="listitem" className="absolute inset-x-0" style={{ top }}>
             <RowBand
               data-testid="row-band"
-              title={
-                band.label ? `${bandText(state.lines[band.start - 1] ?? "") ?? band.label} · ${rowsText}` : rowsText
-              }
+              title={band.name ? `${band.name} · ${rowsText}` : rowsText}
               className={cn(
                 "w-full min-h-0 overflow-hidden",
                 "[&_[data-slot=row-band-label]]:truncate [&_[data-slot=row-band-meta]]:truncate",
