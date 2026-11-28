@@ -271,7 +271,13 @@ export default function CreatorIde({
             tab={consoleTab}
             onTabChange={setConsoleTab}
             quiet={consoleQuiet}
-            onOpen={() => setConsoleOpened(true)}
+            onOpen={() => {
+              setConsoleOpened(true);
+              // The line unmounts as the tabs mount: keep keyboard focus in the console.
+              requestAnimationFrame(() =>
+                document.querySelector<HTMLElement>('#ide-console [role="tab"][aria-selected="true"]')?.focus(),
+              );
+            }}
           />
         </CardContent>
       </Card>

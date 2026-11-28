@@ -304,10 +304,20 @@ export function IdePageTab({
       label: tTransitions(`strategies.${option.labelKey}.label`),
       group: tBuilder("transitionBuiltInGroup"),
     })),
-    ...transitionPlugins.plugins.map((plugin) => ({ value: `${PLUGIN_PREFIX}${plugin.id}`, label: plugin.name })),
+    ...transitionPlugins.plugins.map((plugin) => ({
+      value: `${PLUGIN_PREFIX}${plugin.id}`,
+      label: plugin.name,
+      group: tBuilder("transitionPluginsGroup"),
+    })),
     ...(transitionPlugins.pluginId &&
     !transitionPlugins.plugins.some((plugin) => plugin.id === transitionPlugins.pluginId)
-      ? [{ value: `${PLUGIN_PREFIX}${transitionPlugins.pluginId}`, label: transitionPlugins.current ?? "" }]
+      ? [
+          {
+            value: `${PLUGIN_PREFIX}${transitionPlugins.pluginId}`,
+            label: transitionPlugins.current ?? "",
+            group: tBuilder("transitionPluginsGroup"),
+          },
+        ]
       : []),
   ];
   return (

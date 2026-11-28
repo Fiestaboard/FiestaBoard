@@ -829,6 +829,24 @@ describe("status row and header actions", () => {
     expect(calls.draftPut[0]).toMatchObject({ transition_strategy: "wave", expected_revision: "d1" });
   }, 10_000);
 
+  it("autosaves an edit that changes only the page duration (UX-7-1)", async () => {
+    const calls = mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "d1",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: false,
+        content: { ...snapshot, type: "template" },
+      },
+    });
+    const builder = fakeBuilder();
+    renderIde(builder);
+    await waitFor(() => expect(calls.draftGet).toBeGreaterThan(0));
+    act(() => builder.setPageSettings({ duration_seconds: 60 }));
+    await waitFor(() => expect(calls.draftPut).toHaveLength(1), { timeout: 5000 });
+    expect(calls.draftPut[0]).toMatchObject({ duration_seconds: 60, expected_revision: "d1" });
+  }, 10_000);
+
   it("says autosave is paused, not Draft saved, beside a draft from elsewhere", async () => {
     mockHub({
       draft: {

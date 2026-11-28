@@ -51,6 +51,8 @@ export function nextShowing(
   );
   let best: { at: Date; entry: ShowsOnEntry } | null = null;
   for (const event of events) {
+    // The 00:00 half of an overnight window continues it; it is not a start.
+    if (event.resource.splitPart === "morning") continue;
     const at = new Date(event.start);
     if (at.getTime() <= now.getTime() || (best && at.getTime() >= best.at.getTime())) continue;
     const entry = enabled.find((candidate) => candidate.schedule.id === event.resource.scheduleId);
@@ -152,10 +154,8 @@ export function IdeWeekLine({ ide, pageId }: { ide: CreatorIdeState; pageId: str
   const tq = useTranslations("ideQuiet");
   const locale = useLocale();
   const { entries } = useWeekEntries(ide);
-  const next = useMemo(
-    () => nextShowing(ide.showsOn.entries, ide.pages, ide.collections),
-    [ide.showsOn.entries, ide.pages, ide.collections],
-  );
+  // Recomputed with the hub refresh (showsOn), so "next …" does not go stale for long.
+  const next = nextShowing(ide.showsOn.entries, ide.pages, ide.collections);
   const first = next?.entry ?? ide.showsOn.entries.find((entry) => entry.schedule.enabled);
   if (!first || (!entries.length && !next)) {
     return (
@@ -173,7 +173,15 @@ export function IdeWeekLine({ ide, pageId }: { ide: CreatorIdeState; pageId: str
   const parts = [
     tq("weekLine", { days: formatDays(first.schedule, t, locale), window: formatWindow(first.schedule, locale) }),
     more > 0 ? tq("weekMore", { count: more }) : null,
-    next ? tq("nextAt", { when: next.at.toLocaleDateString(locale, { weekday: "short" }) }) : null,
+    next
+      ? tq("nextAt", {
+          // Later today reads as a time, so "next Fri" on a Friday never means a week out.
+          when:
+            next.at.toDateString() === new Date().toDateString()
+              ? next.at.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" })
+              : next.at.toLocaleDateString(locale, { weekday: "short" }),
+        })
+      : null,
   ];
   return (
     <Text as="p" size="sm" tone="muted" data-slot="ide-week-line" className="truncate">
