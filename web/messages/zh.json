@@ -3861,7 +3861,15 @@
     "showShortcuts": "显示键盘快捷键",
     "previewStep": "将预览移动一个 Note 或一列",
     "previewEnds": "跳到预览的开头或结尾",
-    "previewFit": "适应 / 实际大小（预览获得焦点时）"
+    "previewFit": "适应 / 实际大小（预览获得焦点时）",
+    "insertFormula": "插入公式",
+    "save": "保存",
+    "saveAndShow": "保存并立即显示",
+    "inspect": "检查预览",
+    "previewActualSize": "实际大小（预览）",
+    "groupEditing": "编辑",
+    "groupDocument": "页面",
+    "groupPreview": "预览"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "行被截断的位置",
     "truncationEmpty": "每一行都能放进看板。",
     "truncationOverflow": "第 {row} 行 · {columns}/{max} 列 · 截掉 {cut} 个",
-    "templateMeta": "{rows} 行 · 每行渲染长度 · 边栏中的分段",
     "goToInput": "跳转到行和列",
     "goToHint": "输入行和列，例如 4 10",
     "goToFormat": "第 {row} 行 · 第 {column} 列",
@@ -4426,5 +4433,12 @@
     "fitReport": "第 {line} 行占 {cols} 列中的 {widest} 列",
     "nothingCut": "无截断",
     "missingOff": "{plugin} 已在集成中关闭"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} 行",
+    "rowsPastBoard": "{rows} > {max} 行",
+    "caret": "第 {line} 行，第 {column} 列",
+    "withShortcut": "{label}（{keys}）",
+    "spacing": "间距"
   }
 }

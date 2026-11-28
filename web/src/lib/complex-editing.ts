@@ -43,12 +43,19 @@ export interface RowBandModel {
  * named for its first variable; a row of colour tiles has no name.
  */
 export function bandLabel(line: string): string | null {
+  const text = bandText(line);
+  if (text === null) return null;
+  return text.length > BAND_LABEL_MAX ? `${text.slice(0, BAND_LABEL_MAX).trimEnd()}…` : text;
+}
+
+/** A band's whole name, untruncated (the gutter's tooltip): its text, else its first variable. */
+export function bandText(line: string): string | null {
   const text = line
     .replace(/\{\{[\s\S]*?\}\}/g, " ")
     .replace(/\{[^{}]*\}/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  if (text) return text.length > BAND_LABEL_MAX ? `${text.slice(0, BAND_LABEL_MAX).trimEnd()}…` : text;
+  if (text) return text;
   const variable = /\{\{\s*([A-Za-z_][\w.]*)/.exec(line);
   return variable ? variable[1] : null;
 }

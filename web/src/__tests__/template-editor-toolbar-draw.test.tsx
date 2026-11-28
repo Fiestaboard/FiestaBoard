@@ -74,7 +74,8 @@ describe("TemplateEditorToolbar draw mode", () => {
     expect(screen.getByLabelText("Copy")).toBeInTheDocument();
     expect(screen.getByLabelText("Paste")).toBeInTheDocument();
     expect(await screen.findByLabelText("Variables")).toBeInTheDocument();
-    expect(screen.getByLabelText("Insert formula")).toBeInTheDocument();
+    // The kit uses the tooltip text as the name, so it carries the chord (UX-2-3).
+    expect(screen.getByLabelText(/^Insert formula/)).toBeInTheDocument();
     expect(screen.getByLabelText("Align left")).toBeInTheDocument();
   });
 
@@ -96,8 +97,8 @@ describe("TemplateEditorToolbar draw mode", () => {
     expect(screen.queryByLabelText("Paste")).toBeNull();
     expect(screen.queryByLabelText("Variables")).toBeNull();
     expect(screen.queryByLabelText("Colors")).toBeNull();
-    expect(screen.queryByLabelText("Formatting")).toBeNull();
-    expect(screen.queryByLabelText("Insert formula")).toBeNull();
+    expect(screen.queryByLabelText("Spacing")).toBeNull();
+    expect(screen.queryByLabelText(/^Insert formula/)).toBeNull();
     expect(screen.queryByLabelText("Toggle wrap for current line")).toBeNull();
     expect(screen.queryByLabelText("Align left")).toBeNull();
     expect(screen.queryByLabelText("Align center")).toBeNull();

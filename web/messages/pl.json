@@ -3861,7 +3861,15 @@
     "showShortcuts": "Pokaż skróty klawiszowe",
     "previewStep": "Przesuń podgląd o jedną notatkę lub kolumnę",
     "previewEnds": "Przejdź na początek lub koniec podglądu",
-    "previewFit": "Dopasuj / Rzeczywisty rozmiar (podgląd aktywny)"
+    "previewFit": "Dopasuj / Rzeczywisty rozmiar (podgląd aktywny)",
+    "insertFormula": "Wstaw formułę",
+    "save": "Zapisz",
+    "saveAndShow": "Zapisz i pokaż teraz",
+    "inspect": "Zbadaj podgląd",
+    "previewActualSize": "Rzeczywisty rozmiar (podgląd)",
+    "groupEditing": "Edycja",
+    "groupDocument": "Strona",
+    "groupPreview": "Podgląd"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "Gdzie wiersze są ucinane",
     "truncationEmpty": "Każdy wiersz mieści się na tablicy.",
     "truncationOverflow": "Wiersz {row} · {columns} z {max} kolumn · ucięto {cut}",
-    "templateMeta": "{rows} wierszy · długość po renderowaniu · pasma na marginesie",
     "goToInput": "Przejdź do wiersza i kolumny",
     "goToHint": "Wpisz wiersz i kolumnę, np. 4 10",
     "goToFormat": "Wiersz {row} · Kol. {column}",
@@ -4426,5 +4433,12 @@
     "fitReport": "Linia {line} ma {widest} z {cols} kolumn",
     "nothingCut": "nic nie ucięto",
     "missingOff": "{plugin} jest wyłączone w Integracjach"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} wierszy",
+    "rowsPastBoard": "{rows} > {max} wierszy",
+    "caret": "Wiersz {line}, Kol {column}",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "Odstępy"
   }
 }

@@ -3861,7 +3861,15 @@
     "showShortcuts": "Show keyboard shortcuts",
     "previewStep": "Move the preview by one Note or column",
     "previewEnds": "Jump to the start or end of the preview",
-    "previewFit": "Fit / Actual size (preview focused)"
+    "previewFit": "Fit / Actual size (preview focused)",
+    "insertFormula": "Insert a formula",
+    "save": "Save",
+    "saveAndShow": "Save and show now",
+    "inspect": "Inspect the preview",
+    "previewActualSize": "Actual size (preview)",
+    "groupEditing": "Editing",
+    "groupDocument": "Page",
+    "groupPreview": "Preview"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "Where lines are cut",
     "truncationEmpty": "Every row fits the board.",
     "truncationOverflow": "Row {row} · {columns} of {max} columns · {cut} cut off",
-    "templateMeta": "{rows} rows · rendered length per row · bands in the gutter",
     "goToInput": "Go to row and column",
     "goToHint": "Type a row and column, like 4 10",
     "goToFormat": "Row {row} · Col {column}",
@@ -4426,5 +4433,12 @@
     "fitReport": "Line {line} is {widest} of {cols} columns",
     "nothingCut": "nothing cut",
     "missingOff": "{plugin} is off in Integrations"
+  },
+  "templateCard": {
+    "lines": "{used} / {max} lines",
+    "rowsPastBoard": "{rows} > {max} rows",
+    "caret": "Ln {line}, Col {column}",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "Spacing"
   }
 }

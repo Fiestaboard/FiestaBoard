@@ -3861,7 +3861,15 @@
     "showShortcuts": "키보드 단축키 보기",
     "previewStep": "미리보기를 노트 또는 열 하나만큼 이동",
     "previewEnds": "미리보기의 처음 또는 끝으로 이동",
-    "previewFit": "맞춤 / 실제 크기(미리보기 포커스 시)"
+    "previewFit": "맞춤 / 실제 크기(미리보기 포커스 시)",
+    "insertFormula": "수식 삽입",
+    "save": "저장",
+    "saveAndShow": "저장하고 지금 표시",
+    "inspect": "미리보기 검사",
+    "previewActualSize": "실제 크기(미리보기)",
+    "groupEditing": "편집",
+    "groupDocument": "페이지",
+    "groupPreview": "미리보기"
   },
   "pwa": {
     "https": {
@@ -4031,7 +4039,6 @@
     "truncationTitle": "줄이 잘리는 위치",
     "truncationEmpty": "모든 행이 보드에 맞습니다.",
     "truncationOverflow": "행 {row} · {columns}/{max}열 · {cut}개 잘림",
-    "templateMeta": "{rows}행 · 행별 렌더링 길이 · 여백의 밴드",
     "goToInput": "행과 열로 이동",
     "goToHint": "행과 열을 입력하세요(예: 4 10)",
     "goToFormat": "행 {row} · 열 {column}",
@@ -4426,5 +4433,12 @@
     "fitReport": "{line}번째 줄은 {cols}열 중 {widest}열",
     "nothingCut": "잘린 부분 없음",
     "missingOff": "{plugin}이(가) 통합에서 꺼져 있습니다"
+  },
+  "templateCard": {
+    "lines": "{used} / {max}줄",
+    "rowsPastBoard": "{rows} > {max}행",
+    "caret": "{line}줄, {column}열",
+    "withShortcut": "{label} ({keys})",
+    "spacing": "간격"
   }
 }

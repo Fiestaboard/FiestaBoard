@@ -80,7 +80,8 @@ describe("FormulaBuilderCard", () => {
     await waitFor(() =>
       expect(screen.getByTestId("generated-code-text")).toHaveTextContent('DEFAULT( weather.temp, "--" )'),
     );
-    await userEvent.click(screen.getByRole("button", { name: /Update formula/ }));
+    // A new formula (empty chip) is inserted, not updated (UX-2-5).
+    await userEvent.click(screen.getByRole("button", { name: /Insert formula/ }));
     expect(apply).toHaveBeenCalledWith('DEFAULT(weather.temp, "--")');
   });
 

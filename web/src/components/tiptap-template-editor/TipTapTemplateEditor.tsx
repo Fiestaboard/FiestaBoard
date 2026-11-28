@@ -7,8 +7,9 @@
 
 import { closeHistory, redoDepth, undoDepth } from "@tiptap/pm/history";
 import { Fragment, type Node as PMNode, Slice } from "@tiptap/pm/model";
-import type { Transaction } from "@tiptap/pm/state";
+import type { EditorState, Transaction } from "@tiptap/pm/state";
 import { TextSelection } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
@@ -78,6 +79,15 @@ export interface DrawHistoryEvent {
 /** Inline atom node types that this editor renders as click-targets. Excludes
  *  hardBreak so a click resolving to a line break doesn't jump the caret past it. */
 const CUSTOM_INLINE_ATOMS = new Set(["variable", "colorTile", "fillSpace", "formula", "wrappedText"]);
+
+/** A new, empty formula chip at the caret that opens its editor, as the toolbar's Formula does. */
+function insertFormulaAtCaret(view: EditorView): void {
+  const formula = view.state.schema.nodes.formula;
+  if (!formula) return;
+  view.dispatch(
+    view.state.tr.replaceSelectionWith(formula.create({ expression: "", autoOpen: true })).scrollIntoView(),
+  );
+}
 
 /**
  * Serialize a TipTap slice to template string format
@@ -190,6 +200,40 @@ interface TipTapTemplateEditorProps {
   toolbarTrailing?: ReactNode; // Pinned to the toolbar row's right end (the "? All shortcuts" hint)
   /** Room to keep around the caret when it scrolls into view: what docked bars cover (BB-B-5). */
   scrollMargin?: { top: number; bottom: number };
+  /**
+   * The card header's leading content (the "Template" title and the mode
+   * switch, Figma 184:159319 / 53:137378). The header's trailing meta, the
+   * line count and the caret, is the editor's own.
+   */
+  cardTitle?: ReactNode;
+}
+
+/** The caret as a one-based line and column; atoms count as one column, as the caret steps over them. */
+export interface CaretPosition {
+  line: number;
+  column: number;
+}
+
+/** Where the selection head sits in the template's single paragraph. */
+export function caretPosition(state: EditorState): CaretPosition {
+  const head = state.selection.$head;
+  const paragraph = head.parent;
+  const offset = head.parentOffset;
+  let line = 1;
+  let column = 1;
+  paragraph.forEach((child, childOffset) => {
+    if (childOffset >= offset) return;
+    if (child.type.name === "hardBreak") {
+      line++;
+      column = 1;
+    } else if (child.isText) {
+      const before = (child.text ?? "").slice(0, offset - childOffset);
+      column += before.replace(/\u200B/g, "").length;
+    } else {
+      column++;
+    }
+  });
+  return { line, column };
 }
 
 /**
@@ -225,10 +269,14 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       toolbarMoreContent,
       toolbarContainer,
       scrollMargin,
+      cardTitle,
     },
     ref,
   ) {
     const t = useTranslations("templateEditor");
+    const tCard = useTranslations("templateCard");
+    // The caret readout in the card header (UX-3-2): it follows the selection.
+    const [caret, setCaret] = useState<CaretPosition>({ line: 1, column: 1 });
     // Use device-aware defaults when props not provided
     const effectiveAlignments = lineAlignments || Array.from({ length: boardLines }, () => "left" as LineAlignment);
     const effectiveWrapEnabled = lineWrapEnabled || Array.from({ length: boardLines }, () => false);
@@ -302,6 +350,12 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           "aria-multiline": "true",
         },
         handleKeyDown: (view, event) => {
+          // ⌘E inserts a formula at the caret, as the toolbar's Formula does (UX-9-1).
+          if (matchesShortcut(event, EDITOR_SHORTCUTS.insertFormula)) {
+            event.preventDefault();
+            insertFormulaAtCaret(view);
+            return true;
+          }
           // Enter: insert a hardBreak directly via ProseMirror's view.
           // This runs BEFORE any plugin keymap, so it's the most reliable
           // place to intercept Enter and prevent splitBlock from firing.
@@ -754,6 +808,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         },
       },
       onSelectionUpdate: ({ editor }) => {
+        setCaret(caretPosition(editor.state));
         // Toggle .selected-inline on atom node DOM elements that are inside the
         // current range selection so color tiles etc. get a visible highlight.
         const container = editor.view.dom;
@@ -781,6 +836,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         if (!editor || !editor.state) {
           return;
         }
+        setCaret(caretPosition(editor.state));
         const doc = editor.getJSON();
         const templateString = serializeTemplateSimple(doc, boardLines);
         const lineCount = templateString.split("\n").length;
@@ -1324,6 +1380,16 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     // numbers every row.
     const usedLines = usedLineCount((value || "").split("\n"));
     const isOverLineLimit = usedLines > boardLines;
+    // Every row the editor holds, blank ones included: rows past the board's
+    // height are tinted and counted ("7 > 6 rows") but only warn when they
+    // hold content (BB-E-18, UX-3-4).
+    const totalRows = Math.max(editorLineCount, boardLines);
+    const rowsPastBoard = totalRows - boardLines;
+    const pastBoardTop = lineHeights.slice(0, boardLines).reduce((sum, height) => sum + height, 0);
+    const pastBoardHeight = Array.from({ length: rowsPastBoard }, (_, i) => lineHeights[boardLines + i] ?? 24).reduce(
+      (sum, height) => sum + height,
+      0,
+    );
 
     return (
       <Box className={cn("relative", className)}>
@@ -1367,66 +1433,124 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
               showToolbar ? "rounded-t-none" : "",
               isOverLineLimit && "border-warning",
             )}
-            style={{
-              padding: "0.75rem",
-              minHeight: `${boardLines * 1.5 + 1.5}rem`,
-            }}
           >
-            {activeLineTop !== null && activeLine !== null && (
-              <Box
-                aria-hidden="true"
-                data-testid="template-active-line"
-                className="pointer-events-none absolute inset-x-1.5 rounded-sm bg-tint-selected"
-                style={{ top: `calc(0.75rem + ${activeLineTop}px)`, height: `${lineHeights[activeLine - 1] ?? 24}px` }}
-              />
-            )}
-            {/* Positioned, so it paints over the active-line band. */}
-            <Flex gap="2" className="relative" style={{ minHeight: `${boardLines * 1.5}rem` }}>
-              {/* Line numbers gutter */}
-              <Box
-                className="select-none shrink-0 text-right"
-                style={{
-                  fontSize: "0.75rem",
-                  lineHeight: "1.5rem",
-                  minWidth: "1.25rem",
-                }}
-                aria-hidden="true"
+            {/* The card header (Figma 184:159319): the host's title on the left,
+                the line count and the caret on the right, Word's status-bar
+                grammar; no caption explains the card (UX-3-2). */}
+            <Flex
+              data-slot="template-card-header"
+              align="center"
+              justify={cardTitle ? "between" : "end"}
+              gap="3"
+              className="min-h-8 px-3 pt-2"
+            >
+              {cardTitle}
+              <Text
+                as="p"
+                size="xs"
+                data-testid="template-card-meta"
+                className="min-w-0 truncate font-mono tabular-nums text-muted-foreground"
               >
-                {Array.from({ length: Math.max(editorLineCount, boardLines) }, (_, i) => (
-                  <Box
-                    key={i}
-                    style={{
-                      height: `${lineHeights[i] ?? 24}px`,
-                      lineHeight: "1.5rem",
-                      // Muted, not faded: 40 % opacity failed AA contrast (axe, 2.9).
-                      color: i === currentLineIndex ? "var(--foreground)" : "var(--muted-foreground)",
-                    }}
-                  >
-                    {i + 1}
-                  </Box>
-                ))}
-              </Box>
-
-              {/* Editor content */}
-              {/* Rows stay one line each inside the card: a long row scrolls
-                  here instead of running under the preview (BB-E-8). */}
-              <Box
-                data-slot="template-rows"
-                className="relative -m-[3px] min-w-0 flex-1 overflow-x-auto overflow-y-hidden p-[3px]"
-              >
-                <EditorContent editor={editor} />
-              </Box>
+                <Text as="span" size="xs" className={cn(isOverLineLimit && "text-warning font-medium")}>
+                  {tCard("lines", { used: usedLines, max: boardLines })}
+                </Text>
+                {rowsPastBoard > 0 && (
+                  <>
+                    {" · "}
+                    <Text
+                      as="span"
+                      size="xs"
+                      data-testid="template-rows-past-board"
+                      className={cn(isOverLineLimit ? "text-warning font-medium" : "text-foreground")}
+                    >
+                      {tCard("rowsPastBoard", { rows: totalRows, max: boardLines })}
+                    </Text>
+                  </>
+                )}
+                {/* A keyboard readout: phones (57:64661) draw the count alone. */}
+                <Text as="span" size="xs" data-testid="template-caret" className="max-md:hidden">
+                  {" · "}
+                  {tCard("caret", { line: caret.line, column: caret.column })}
+                </Text>
+              </Text>
             </Flex>
-          </Box>
+            <Box
+              className="relative"
+              style={{
+                padding: "0.75rem",
+                paddingTop: "0.5rem",
+                minHeight: `${boardLines * 1.5 + 1.25}rem`,
+              }}
+            >
+              {/* Rows past the board's height (UX-3-4): tinted, as cut-off text is,
+                  so a row made by Enter on the last line reads as off the board. */}
+              {rowsPastBoard > 0 && (
+                <Box
+                  aria-hidden="true"
+                  data-testid="template-overflow-rows"
+                  className="pointer-events-none absolute inset-x-1.5 rounded-sm bg-warning/10"
+                  style={{
+                    top: `calc(0.5rem + ${pastBoardTop}px)`,
+                    height: `${pastBoardHeight}px`,
+                  }}
+                />
+              )}
+              {activeLineTop !== null && activeLine !== null && (
+                <Box
+                  aria-hidden="true"
+                  data-testid="template-active-line"
+                  className="pointer-events-none absolute inset-x-1.5 rounded-sm bg-tint-selected"
+                  style={{
+                    top: `calc(0.5rem + ${activeLineTop}px)`,
+                    height: `${lineHeights[activeLine - 1] ?? 24}px`,
+                  }}
+                />
+              )}
+              {/* Positioned, so it paints over the active-line band. */}
+              <Flex gap="2" className="relative" style={{ minHeight: `${boardLines * 1.5}rem` }}>
+                {/* Line numbers gutter */}
+                <Box
+                  className="select-none shrink-0 text-right"
+                  style={{
+                    fontSize: "0.75rem",
+                    lineHeight: "1.5rem",
+                    minWidth: "1.25rem",
+                  }}
+                  aria-hidden="true"
+                >
+                  {Array.from({ length: totalRows }, (_, i) => (
+                    <Box
+                      key={i}
+                      data-past-board={i >= boardLines || undefined}
+                      style={{
+                        height: `${lineHeights[i] ?? 24}px`,
+                        lineHeight: "1.5rem",
+                        // Muted, not faded: 40 % opacity failed AA contrast (axe, 2.9).
+                        color:
+                          i >= boardLines
+                            ? "var(--warning)"
+                            : i === currentLineIndex
+                              ? "var(--foreground)"
+                              : "var(--muted-foreground)",
+                      }}
+                    >
+                      {i + 1}
+                    </Box>
+                  ))}
+                </Box>
 
-          {/* Line counter */}
-          <Text
-            size="xs"
-            className={cn("mt-1", isOverLineLimit ? "text-warning font-medium" : "text-muted-foreground")}
-          >
-            {t("lineCount", { used: usedLines, max: boardLines })}
-            {isOverLineLimit && t("overLineLimit", { max: boardLines })}
-          </Text>
+                {/* Editor content */}
+                {/* Rows stay one line each inside the card: a long row scrolls
+                    here instead of running under the preview (BB-E-8). */}
+                <Box
+                  data-slot="template-rows"
+                  className="relative -m-[3px] min-w-0 flex-1 overflow-x-auto overflow-y-hidden p-[3px]"
+                >
+                  <EditorContent editor={editor} />
+                </Box>
+              </Flex>
+            </Box>
+          </Box>
 
           {/* Alignment controls - only show if toolbar is hidden */}
           {!showToolbar && showAlignmentControls && (

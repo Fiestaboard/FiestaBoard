@@ -70,7 +70,7 @@ test.describe("Editor coarse pointer", () => {
     await openEditor(page);
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     await expect(page.locator(PREVIEW)).toHaveAttribute("data-variant", "pane");
-    for (const label of ["Variables", "Colors", "Formatting", "Formula", "More"]) {
+    for (const label of ["Variables", "Colors", "Spacing", "Formula", "More"]) {
       await expect(page.locator(TOUCH_TOOLS).getByRole("button", { name: label, exact: true })).toBeVisible();
     }
   });

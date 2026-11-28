@@ -50,6 +50,9 @@ const BINDING_PROOF: Record<string, string> = {
   applyFormula: "editor-shortcut-bindings.test.tsx",
   closePicker: "editor-shortcut-bindings.test.tsx",
   exitDrawMode: "page-builder-draw-mode.test.tsx",
+  insertFormula: "tiptap-template-card.test.tsx",
+  save: "page-builder-draw-mode.test.tsx",
+  inspect: "formula-ide-hook.test.tsx",
 };
 
 describe("every listed shortcut has a binding test", () => {
