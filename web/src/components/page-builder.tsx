@@ -2734,17 +2734,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // in the template column (07 `57:27771`; DD-W30).
   const shortcutList = useEditorShortcutList();
   const templateHeadingRef = useRef<HTMLDivElement>(null);
+  const templateCardAnchorRef = useRef<HTMLSpanElement>(null);
   const shortcutListProps = {
     state: shortcutList,
     // Hidden on a pixel board's Canvases surface: the kit then hangs the list
     // from the trigger that opened it (or its gutter on touch).
-    // In the rich editor's card the title sits inside the card's padding, so the
-    // list hangs from the card itself; drawing hides the card, then the title row.
+    // In the rich editor the title sits inside the card's padding, so the list
+    // hangs from the card's header row at its left edge, right of any band
+    // gutter (templateCardAnchorRef); drawing hides the card, then the title row.
     anchorRef:
       pixelBoard && editingSurface !== "text"
         ? undefined
         : editorMode === "rich" && !baselineDisplay && !editorCharset && !drawMode
-          ? richTemplateContainerRef
+          ? templateCardAnchorRef
           : templateHeadingRef,
     // Only a split-flap preview can bind BoardViewport's keys; an LED board
     // previews through DevicePreview (draw mode always paints flaps).
@@ -3833,6 +3835,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           {...anchorProps("page-editor.template")}
                           className={cn("relative", rowBandsEnabled && "pl-38")}
                         >
+                          {/* The card's header row, right of the band gutter: the shortcut list's anchor. */}
+                          <span
+                            ref={templateCardAnchorRef}
+                            aria-hidden
+                            className={cn(
+                              "pointer-events-none absolute right-0 top-0 h-10",
+                              rowBandsEnabled ? "left-38" : "left-0",
+                            )}
+                          />
                           {rowBandsEnabled && (
                             <Suspense fallback={null}>
                               <RowBandGutter

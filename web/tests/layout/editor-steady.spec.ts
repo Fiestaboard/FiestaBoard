@@ -202,18 +202,30 @@ test("a narrow template column: the card title keeps Rich | Plain whole, the cou
   expect(plain.x + plain.width).toBeLessThanOrEqual(meta.x);
 });
 
-test("the shortcut list hangs at the template card's left edge (DD-W30)", async ({ page }) => {
-  await mockHub(page);
-  await open(page, 1440);
-  await expect(page.locator('[data-slot="template-card"]')).toBeVisible();
-  await page.locator('[data-slot="page-editor-chrome"]').click({ position: { x: 4, y: 4 } });
-  await page.keyboard.press("?");
-  const list = page.getByRole("dialog", { name: /keyboard shortcuts/i });
-  await expect(list).toBeVisible();
-  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
-  const template = await box(page.locator('[data-ai-anchor="page-editor.template"]').first());
-  expect(Math.abs((await box(list)).x - template.x)).toBeLessThanOrEqual(2);
-});
+for (const [name, deviceType] of [
+  ["Flagship", undefined],
+  ["band (panel)", "panel"],
+] as const) {
+  test(`${name}: the shortcut list hangs at the template card's left edge, under its header (DD-W30)`, async ({
+    page,
+  }) => {
+    await mockHub(page, deviceType ? { deviceType } : {});
+    await open(page, 1440);
+    const card = page.locator('[data-slot="template-card"]');
+    await expect(card).toBeVisible();
+    await page.locator('[data-slot="page-editor-chrome"]').click({ position: { x: 4, y: 4 } });
+    await page.keyboard.press("?");
+    const list = page.getByRole("dialog", { name: /keyboard shortcuts/i });
+    await expect(list).toBeVisible();
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
+    const [listBox, cardBox, column] = await Promise.all([box(list), box(card), box(templateColumn(page))]);
+    expect(Math.abs(listBox.x - cardBox.x)).toBeLessThanOrEqual(2);
+    // Under the card's header row (not under the whole card, not beside the column), on screen.
+    expect(listBox.y).toBeLessThan(cardBox.y + 64);
+    expect(listBox.x).toBeGreaterThanOrEqual(column.x);
+    expect(listBox.x + listBox.width).toBeLessThanOrEqual(1440);
+  });
+}
 
 test("draw mode: the template title stays on screen and anchors the shortcut list (OPUS-2653)", async ({ page }) => {
   await mockHub(page);
