@@ -2,8 +2,11 @@
  * FormulaEditorPanel — tabbed formula expression editor.
  *
  * Used in two contexts:
- *  1. Toolbar "Formulas" button  (mode="create") — Confirm button reads "Insert"
- *  2. Formula pill click          (mode="edit")   — Confirm button reads "Done", Cancel shown
+ *  1. Toolbar "Formulas" button  (mode="create")
+ *  2. Formula pill click          (mode="edit")   — Cancel shown
+ *
+ * The confirm button reads "Insert formula" for a new formula and "Update
+ * formula" for an existing one, as the page editor's formula editor does (W-5).
  *
  * Tabs:
  *  - Functions: collapsible, by category — click scaffolds NAME() into the input
@@ -244,7 +247,7 @@ const CATEGORY_META: Record<string, { icon: LucideIcon; border: string }> = {
 interface FormulaEditorPanelProps {
   /** Pre-populated expression body (no {{= }}). Used in edit mode. */
   initialExpr?: string;
-  /** "create" → Insert button; "edit" → Done button + Cancel */
+  /** "create" → no Cancel (the host closes it); "edit" → Cancel */
   mode: "create" | "edit";
   /** Called with the bare expression when the user confirms. */
   onConfirm: (expr: string) => void;
@@ -898,7 +901,7 @@ export function FormulaEditorPanel({
                 onClick={onCancel}
                 className="px-3 py-1.5 rounded-md text-xs font-medium transition-colors border border-border hover:bg-muted/50"
               >
-                {initialExpr ? t("close") : t("cancel")}
+                {t("cancel")}
               </button>
             )}
             <button
@@ -913,7 +916,8 @@ export function FormulaEditorPanel({
                 "flex items-center gap-1.5",
               )}
             >
-              {mode === "create" ? t("insert") : t("done")}
+              {/* One vocabulary with the page editor's formula editor (W-5). */}
+              {initialExpr ? tIde("updateFormula") : tTemplate("insertFormula")}
               <ShortcutKeys shortcut={EDITOR_SHORTCUTS.applyFormula} className="hidden sm:inline-flex" />
             </button>
           </Flex>

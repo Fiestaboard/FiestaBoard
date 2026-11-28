@@ -9,6 +9,7 @@ import type { DataSource, StatusDotProps } from "@fiestaboard/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import {
@@ -48,6 +49,9 @@ const FormulaWorkbenchLeft = lazy(() =>
 const FormulaWorkbenchRight = lazy(() =>
   import("./formula-workbench").then((m) => ({ default: m.FormulaWorkbenchRight })),
 );
+const FormulaWorkbenchSheet = lazy(() =>
+  import("./formula-workbench").then((m) => ({ default: m.FormulaWorkbenchSheet })),
+);
 const InspectSheet = lazy(() => import("./inspect-sheet").then((m) => ({ default: m.InspectSheet })));
 
 export type WorkbenchTab = "code" | "builder";
@@ -82,7 +86,11 @@ export interface UseFormulaIdeOptions {
    * not two.
    */
   live?: { diagnostics: RenderDiagnostics | null; lines: string[]; failed?: boolean };
-  /** ≥1024 px: docked workbench, inspector and header controls. */
+  /**
+   * ≥1024 px: docked workbench, inspector and header controls. Below it the
+   * formula editor is the same workbench in a bottom sheet (W-5), except on
+   * a phone, which keeps its Formula sheet (306:38107).
+   */
   desktop: boolean;
   mirroring: boolean;
   stopMirroring: () => void;
@@ -146,6 +154,7 @@ export function useFormulaIde({
   const [open, setOpen] = useState<OpenFormulaState | null>(null);
   const [sheetExpression, setSheetExpression] = useState<string | null>(null);
   const openCounter = useRef(0);
+  const phone = useMediaQuery("(max-width: 639px)");
   const boardRef = useRef<HTMLDivElement | null>(null);
 
   const { data: variables } = useQuery({
@@ -345,9 +354,27 @@ export function useFormulaIde({
       preview: formulaPreview,
       activeLine,
       openFormula: (request) => {
-        if (!desktop || target === null) return false;
+        // `available`, not `target`: an empty new page has no render target yet,
+        // and its first formula opens the same editor (W-5).
+        if (!available || (!desktop && phone)) return false;
         openCounter.current += 1;
-        setOpen({ ...request, key: openCounter.current, tab: "code", draft: null });
+        // Apply or cancel once: the sheet's own close and the editor's Esc can both report one close.
+        let settled = false;
+        const once =
+          <A extends unknown[]>(fn: (...args: A) => void) =>
+          (...args: A) => {
+            if (settled) return;
+            settled = true;
+            fn(...args);
+          };
+        setOpen({
+          ...request,
+          apply: once(request.apply),
+          cancel: once(request.cancel),
+          key: openCounter.current,
+          tab: "code",
+          draft: null,
+        });
         setFocus(null);
         return true;
       },
@@ -360,7 +387,7 @@ export function useFormulaIde({
         }
       },
     }),
-    [hints, variableHints, formulaPreview, desktop, target, activeLine],
+    [hints, variableHints, formulaPreview, desktop, phone, available, target, activeLine],
   );
 
   const inert = target === null;
@@ -411,7 +438,7 @@ export function useFormulaIde({
   // that would push the column (UX-4-4); a picked tile, or a reason Inspect
   // can't work, opens the pane.
   const inspectPane = focus !== null || renderFailed || own?.debug?.source_map_status === "limit";
-  const showWorkbench = desktop && !inert && (open !== null || (inspect && inspectPane));
+  const showWorkbench = desktop && (open !== null ? available : !inert && inspect && inspectPane);
   const workbenchProps = {
     open,
     setOpen,
@@ -473,23 +500,31 @@ export function useFormulaIde({
         <FormulaWorkbenchRight {...workbenchProps} />
       </Suspense>
     ) : null,
-    overlays:
-      sheetExpression !== null ? (
-        <Suspense fallback={null}>
-          <InspectSheet
-            expression={sheetExpression}
-            formula={sheetFormula}
-            diagnostics={diagnostics}
-            trace={trace.data ?? null}
-            loading={(ownRender && render.isPending) || trace.isFetching}
-            failed={trace.isError}
-            mode={mode}
-            atLabel={atLabel}
-            boardCols={boardCols}
-            onClose={() => setSheetExpression(null)}
-          />
-        </Suspense>
-      ) : null,
+    overlays: (
+      <>
+        {!desktop && available && open !== null && (
+          <Suspense fallback={null}>
+            <FormulaWorkbenchSheet {...workbenchProps} />
+          </Suspense>
+        )}
+        {sheetExpression !== null ? (
+          <Suspense fallback={null}>
+            <InspectSheet
+              expression={sheetExpression}
+              formula={sheetFormula}
+              diagnostics={diagnostics}
+              trace={trace.data ?? null}
+              loading={(ownRender && render.isPending) || trace.isFetching}
+              failed={trace.isError}
+              mode={mode}
+              atLabel={atLabel}
+              boardCols={boardCols}
+              onClose={() => setSheetExpression(null)}
+            />
+          </Suspense>
+        ) : null}
+      </>
+    ),
   };
 }
 

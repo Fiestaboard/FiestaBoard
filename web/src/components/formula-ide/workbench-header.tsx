@@ -14,15 +14,18 @@ export function WorkbenchHeader({
   tab,
   setOpen,
   status,
+  inSheet = false,
 }: {
   line: number | null;
   tab: WorkbenchTab;
   setOpen: Dispatch<SetStateAction<OpenFormulaState | null>>;
   status?: ReactNode;
+  /** In the bottom sheet (W-5): clear of the sheet's own close button. */
+  inSheet?: boolean;
 }) {
   const t = useTranslations("formulaIde");
   return (
-    <Flex align="center" justify="between" gap="2" wrap>
+    <Flex align="center" justify="between" gap="2" wrap className={inSheet ? "min-h-touch pr-12" : undefined}>
       <Flex align="center" gap="2">
         <Sigma aria-hidden className="size-4 text-tag-formula" />
         <Text as="p" weight="semibold">

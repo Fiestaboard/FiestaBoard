@@ -45,6 +45,7 @@ import {
   type RecipeForm,
   type RecipeId,
 } from "@/lib/formula-ide/recipes";
+import { cn } from "@/lib/utils";
 
 import { WorkbenchHeader } from "./workbench-header";
 import type { WorkbenchProps } from "./workbench-types";
@@ -427,7 +428,12 @@ export function FormulaBuilderCard(props: WorkbenchProps) {
   return (
     <Card
       data-testid="formula-builder-card"
-      className="gap-3 border-2 border-tag-formula py-3"
+      data-placement={props.placement ?? "docked"}
+      className={cn(
+        "gap-3 py-3",
+        // In the sheet the sheet is the surface: no second frame inside it (W-5).
+        props.placement === "sheet" ? "border-0 bg-transparent py-0 shadow-none" : "border-2 border-tag-formula",
+      )}
       // Esc cancels the docked editor, as it closes the chip's own dialog; the
       // chip then puts the caret back after it (UX-2-5). CodeMirror's own Esc
       // (closing a completion) prevents the default first and wins.
@@ -438,8 +444,13 @@ export function FormulaBuilderCard(props: WorkbenchProps) {
         setOpen(null);
       }}
     >
-      <CardContent className="px-4">
-        <WorkbenchHeader line={formula?.line ?? null} tab="builder" setOpen={setOpen} />
+      <CardContent className={props.placement === "sheet" ? "px-0" : "px-4"}>
+        <WorkbenchHeader
+          line={formula?.line ?? null}
+          tab="builder"
+          setOpen={setOpen}
+          inSheet={props.placement === "sheet"}
+        />
         <Stack gap="3" className="mt-3">
           <ChoiceChipGroup
             aria-label={t("recipesLabel")}
