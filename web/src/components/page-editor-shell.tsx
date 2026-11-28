@@ -25,7 +25,12 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from "react-dom";
 import { type BlockerFunction, useBlocker } from "react-router";
 
-import { IdeExplorerPlaceholder, useExplorerToggle } from "@/components/ide/ide-explorer";
+import {
+  IdeExplorerPlaceholder,
+  IdeExplorerToggle,
+  useExplorerOverlayDismiss,
+  useExplorerToggle,
+} from "@/components/ide/ide-explorer";
 import {
   PageBuilder,
   type PageBuilderDraftState,
@@ -170,6 +175,12 @@ export function PageEditorShell({
   const [builderKind, setBuilderKind] = useState<DeviceType>();
   const explorer = useExplorerToggle(builderKind ?? loadedPage?.device_type ?? deviceType ?? "flagship");
   const desktop = useMediaQuery(IDE_DESKTOP_QUERY);
+  // D8: below 1280 the open Explorer lies over the template and dismisses like a panel.
+  const explorerOverlay = useMediaQuery("(min-width: 1024px) and (max-width: 1279px)");
+  useExplorerOverlayDismiss(explorer, explorerSlot, explorerOverlay);
+  // UX-5-1: one toggle at the toolbar row's left end, before and after the first save.
+  const explorerToggle =
+    toolbarStartSlot && desktop ? createPortal(<IdeExplorerToggle toggle={explorer} />, toolbarStartSlot) : null;
   const ideMounted = Boolean(editorPageId && loadedPage);
   const explorerPlaceholder =
     explorerSlot && desktop
@@ -337,6 +348,7 @@ export function PageEditorShell({
           {/* Until the IDE is up (a new page, or its chunk still loading), the
               Explorer column keeps its frame so nothing moves (BB-E-11). */}
           {!ideMounted && explorerPlaceholder}
+          {explorerToggle}
           {editorPageId && loadedPage && (
             <Suspense fallback={explorerPlaceholder}>
               <CreatorIde
@@ -346,7 +358,6 @@ export function PageEditorShell({
                 templateSlot={templateSlot}
                 previewSlot={previewSlot}
                 statusSlot={statusSlot}
-                toolbarStartSlot={toolbarStartSlot}
                 explorer={explorer}
                 boardKind={loadedPage.device_type}
                 savedTick={savedTick}

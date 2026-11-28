@@ -32,7 +32,7 @@ import { OPEN_PROBLEMS_EVENT } from "@/lib/ide/open-problems";
 import { templateReferences } from "@/lib/ide/references";
 
 import { type ConsoleTab, IdeConsole, IdeProblemList, IdeSentPanel } from "./ide-console";
-import { type ExplorerToggle, IdeExplorer, IdeExplorerShow, useExplorerToggle } from "./ide-explorer";
+import { type ExplorerToggle, IdeExplorer, useExplorerToggle } from "./ide-explorer";
 import { formatDays, formatWallTime, formatWindow } from "./ide-format";
 import { IdeHistory } from "./ide-history";
 import { DuplicateDialog, IdePageTab } from "./ide-page-tab";
@@ -53,11 +53,9 @@ export interface CreatorIdeProps {
   /** The preview card's foot (≥ 768 px, UX-6-2): the status line goes there. Null: it heads the Inspector stack. */
   statusSlot?: HTMLElement | null;
   /**
-   * The toolbar row's left end (≥ 1024 px, UX-5-1): the Explorer toggle's one
-   * place, open or closed. Unused until the toggle moves there (FP-2).
+   * The Explorer's open state when the shell owns it: the shell draws the
+   * column before the first save and the toolbar's one toggle (UX-5-1).
    */
-  toolbarStartSlot?: HTMLElement | null;
-  /** The Explorer's open state when the shell owns it (it draws the same column before the first save). */
   explorer?: ExplorerToggle;
   /** The saved page's board kind: whether the Explorer starts open, and whose remembered choice applies (D2). */
   boardKind?: DeviceType;
@@ -357,20 +355,8 @@ export default function CreatorIde({
     <>
       {explorerSlot &&
         desktop &&
-        createPortal(
-          explorer.open ? (
-            <IdeExplorer
-              ide={ide}
-              pageId={pageId}
-              references={references}
-              onHide={explorer.hide}
-              hideRef={explorer.hideRef}
-            />
-          ) : (
-            <IdeExplorerShow onShow={explorer.show} buttonRef={explorer.showRef} />
-          ),
-          explorerSlot,
-        )}
+        explorer.open &&
+        createPortal(<IdeExplorer ide={ide} pageId={pageId} references={references} />, explorerSlot)}
       {desktop && inSlot(templateSlot, consoleRegions)}
       {inSlot(previewSlot, previewRegions)}
       {statusSlot && createPortal(status, statusSlot)}

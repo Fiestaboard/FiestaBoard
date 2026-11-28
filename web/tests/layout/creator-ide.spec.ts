@@ -42,7 +42,7 @@ for (const theme of ["light", "dark"] as const) {
         if (desktop) {
           // A Flagship page opens with the Explorer closed (D2); it opens on request.
           await expect(page.getByRole("navigation", { name: "Explorer" })).toHaveCount(0);
-          await page.getByRole("button", { name: "Show Explorer" }).click();
+          await page.getByRole("button", { name: "Explorer", exact: true, pressed: false }).click();
           await expect(page.getByRole("navigation", { name: "Explorer" })).toBeVisible();
           const console = page.getByRole("region", { name: "Console" });
           await expect(console.getByRole("tab", { name: "Problems 1" })).toBeVisible();

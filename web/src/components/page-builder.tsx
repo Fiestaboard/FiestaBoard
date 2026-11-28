@@ -545,6 +545,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // the chevron and an open Explorer overlays the template. The primary keeps
   // its full label at every width; no label ever changes with the width.
   const wideEditor = useMediaQuery("(min-width: 1280px)");
+  // ≥ 1280 an open Explorer is the workspace's first column (184:159319); closed, or
+  // below 1280 (an overlay, D8), it takes none.
+  const explorerColumn = explorerOpen && wideEditor;
   const compactHeader = !dockedPreview && !wideEditor;
   // Save / Save draft is its icon at 1024–1279, under 390 px, and on a phone
   // while Save draft shares the row with "Save & update board" (BB-B-3).
@@ -3868,15 +3871,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 ref={setWorkspaceElement}
                 data-slot="page-editor-workspace"
                 className={cn(
-                  "grid min-w-0 grid-cols-1 items-start gap-0 md:grid-cols-2 md:gap-4 lg:gap-6",
+                  "grid min-w-0 grid-cols-1 items-start gap-0 md:grid-cols-2 md:gap-4 lg:relative lg:gap-6",
                   workspaceSlots
                     ? // The preview gets the wider column (53:137378) until the Explorer opens (184:159319).
                       // From the shell's state, not `:has()`: Chrome re-matched that a frame
                       // late when the IDE's Explorer replaced the placeholder (UX-8-3).
+                      // Closed, the Explorer takes no column: its toggle is in the toolbar row (UX-5-1).
                       // Below 1280 an open Explorer overlays the template instead (D8).
-                      explorerOpen && wideEditor
+                      explorerColumn
                       ? "lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]"
-                      : "lg:grid-cols-[auto_minmax(0,2fr)_minmax(0,3fr)]"
+                      : "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
                     : "lg:grid-cols-2",
                 )}
               >
@@ -3886,12 +3890,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     data-slot="page-editor-explorer-column"
                     data-overlay={explorerOpen && !wideEditor ? "" : undefined}
                     className={cn(
-                      "hidden min-w-0 lg:col-start-1 lg:row-start-1 lg:block lg:self-stretch",
+                      "hidden min-w-0",
+                      explorerColumn && "lg:col-start-1 lg:row-start-1 lg:block lg:self-stretch",
                       // D8 (DD-W157): at 1024–1279 the open Explorer is a panel over the
                       // template column, not a third column (three columns in ~900 px
-                      // starve the template). The column keeps the closed toggle's width,
-                      // so the template never moves when it opens or closes.
-                      explorerOpen && !wideEditor && "lg:w-9 lg:*:z-30 lg:*:shadow-lg",
+                      // starve the template). Out of the grid's flow, so the template
+                      // never moves when it opens or closes.
+                      explorerOpen &&
+                        !wideEditor &&
+                        "lg:absolute lg:inset-y-0 lg:left-0 lg:z-30 lg:block lg:*:shadow-lg",
                     )}
                   />
                 )}
@@ -3899,7 +3906,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   data-slot="page-editor-template-column"
                   className={cn(
                     "contents md:flex md:min-w-0 md:flex-col md:gap-4",
-                    workspaceSlots && "lg:col-start-2 lg:row-start-1",
+                    workspaceSlots && (explorerColumn ? "lg:col-start-2" : "lg:col-start-1"),
+                    workspaceSlots && "lg:row-start-1",
                   )}
                 >
                   {/* Keep both surfaces mounted so switching preserves selection, undo and canvas tools. */}
@@ -4238,7 +4246,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   data-slot="page-editor-preview-column"
                   className={cn(
                     "contents md:flex md:min-w-0 md:flex-col md:gap-4",
-                    workspaceSlots && "lg:col-start-3 lg:row-start-1",
+                    workspaceSlots && (explorerColumn ? "lg:col-start-3" : "lg:col-start-2"),
+                    workspaceSlots && "lg:row-start-1",
                   )}
                 >
                   {/* The sticky preview travels within this stack, as far as the template
