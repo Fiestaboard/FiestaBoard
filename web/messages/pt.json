@@ -4291,6 +4291,28 @@
     "deletePageDetail": "Remove-a de todas as programações e coleções",
     "autosavePaused": "Não salvo · um rascunho de outro lugar aguarda no Histórico"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} em {board}",
+    "nextAt": "próxima {when}",
+    "consoleClear": "Sem problemas",
+    "consoleWarnings": "{count, plural, one {# aviso} other {# avisos}}",
+    "consoleSent": "Enviada {time} para {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} mais",
+    "notThisWeek": "Não agendada esta semana",
+    "addToSchedule": "Adicionar à programação",
+    "fallbackHint": "Adicione um valor alternativo a uma fórmula para definir isto",
+    "displayGroup": "Ecrã",
+    "displayRetarget": "Mesmo tamanho · pré-visualização e espelho aqui",
+    "copySizedFor": "Fazer uma cópia no tamanho de {board}",
+    "makeTheCopy": "Fazer a cópia",
+    "settingDuration": "Duração da página",
+    "settingTransition": "Transição",
+    "copyWillMake": "Cria uma nova página no tamanho de {board} ({cols} × {rows}); esta página não muda.",
+    "collapseConsole": "Recolher a consola",
+    "scheduleGroup": "Programação",
+    "collectionsGroup": "Coleções"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} de {wanted} linhas",

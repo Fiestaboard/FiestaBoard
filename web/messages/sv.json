@@ -4291,6 +4291,28 @@
     "deletePageDetail": "Tar bort den från alla scheman och samlingar",
     "autosavePaused": "Inte sparat · ett utkast från annat håll väntar i Historik"
   },
+  "ideQuiet": {
+    "scheduledWindow": "{days} {window} på {board}",
+    "nextAt": "nästa {when}",
+    "consoleClear": "Inga problem",
+    "consoleWarnings": "{count, plural, one {# varning} other {# varningar}}",
+    "consoleSent": "Skickad {time} till {board}",
+    "weekLine": "{days} {window}",
+    "weekMore": "+{count} till",
+    "notThisWeek": "Inte schemalagd den här veckan",
+    "addToSchedule": "Lägg till i schemat",
+    "fallbackHint": "Lägg till ett reservvärde i en formel för att ställa in detta",
+    "displayGroup": "Skärm",
+    "displayRetarget": "Samma storlek · förhandsgranska och spegla här",
+    "copySizedFor": "Gör en kopia i storleken för {board}",
+    "makeTheCopy": "Gör kopian",
+    "settingDuration": "Sidans visningstid",
+    "settingTransition": "Övergång",
+    "copyWillMake": "Skapar en ny sida i storleken för {board} ({cols} × {rows}); den här sidan ändras inte.",
+    "collapseConsole": "Fäll ihop konsolen",
+    "scheduleGroup": "Schema",
+    "collectionsGroup": "Samlingar"
+  },
   "formulaIde": {
     "atomValue": "= {value}",
     "atomRows": "= {shown} av {wanted} rader",

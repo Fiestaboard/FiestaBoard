@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  Button,
+  Flex,
   formatWeekCalendarHour,
   formatWeekCalendarTime,
   List,
@@ -12,8 +14,11 @@ import {
 } from "@fiestaboard/ui";
 import { addDays, format, startOfWeek } from "date-fns";
 import { useMemo } from "react";
+import { Link } from "react-router";
 
 import { useLocale, useTranslations } from "@/i18n/translations";
+import type { Collection, Page, ScheduleEntry } from "@/lib/api";
+import type { ShowsOnEntry } from "@/lib/ide/shows-on";
 import { schedulesToCalendarEvents } from "@/lib/schedule-calendar";
 
 import { formatDays, formatWindow } from "./ide-format";
@@ -26,6 +31,40 @@ export const timelineDayIndex = (date: Date) => (date.getDay() + 6) % 7;
 
 const minuteOf = (date: Date, dayStart: Date) =>
   Math.max(0, Math.min(1440, Math.round((date.getTime() - dayStart.getTime()) / 60000)));
+
+/**
+ * When the page next starts showing (this week or next): the earliest
+ * enabled window that starts after `now`, with the entry it comes from.
+ */
+export function nextShowing(
+  entries: readonly ShowsOnEntry[],
+  pages: Page[],
+  collections: Collection[],
+  now: Date = new Date(),
+): { at: Date; entry: ShowsOnEntry } | null {
+  const enabled = entries.filter((entry) => entry.schedule.enabled);
+  if (!enabled.length) return null;
+  const schedules: ScheduleEntry[] = enabled.map((entry) => entry.schedule);
+  const thisWeek = timelineWeekStart(now);
+  const events = [thisWeek, addDays(thisWeek, 7)].flatMap((weekStart) =>
+    schedulesToCalendarEvents(schedules, weekStart, pages, collections),
+  );
+  let best: { at: Date; entry: ShowsOnEntry } | null = null;
+  for (const event of events) {
+    // The 00:00 half of an overnight window continues it; it is not a start.
+    if (event.resource.splitPart === "morning") continue;
+    const at = new Date(event.start);
+    if (at.getTime() <= now.getTime() || (best && at.getTime() >= best.at.getTime())) continue;
+    const entry = enabled.find((candidate) => candidate.schedule.id === event.resource.scheduleId);
+    if (entry) best = { at, entry };
+  }
+  return best;
+}
+
+/** "Mon 7:30 AM" for the next start, in the reader's locale. */
+export function formatNext(at: Date, locale: string): string {
+  return at.toLocaleString(locale, { weekday: "short", hour: "numeric", minute: "2-digit" });
+}
 
 /** This week's blocks for the page's entries (direct and through collections), as WeekCalendar entries. */
 export function useWeekEntries(ide: CreatorIdeState): { entries: WeekCalendarEntry[]; weekStart: Date } {
@@ -102,5 +141,52 @@ export function IdeWeek({ ide }: { ide: CreatorIdeState }) {
         ))}
       </List>
     </Stack>
+  );
+}
+
+/**
+ * The Timeline slot until the kit's 80 px WeekStrip ships (UX-6-3, M1): one
+ * line, "Weekdays 7:30 AM–8:30 AM · next Mon", or "Not scheduled this week ·
+ * Add to schedule".
+ */
+export function IdeWeekLine({ ide, pageId }: { ide: CreatorIdeState; pageId: string }) {
+  const t = useTranslations("creatorIde");
+  const tq = useTranslations("ideQuiet");
+  const locale = useLocale();
+  const { entries } = useWeekEntries(ide);
+  // Recomputed with the hub refresh (showsOn), so "next …" does not go stale for long.
+  const next = nextShowing(ide.showsOn.entries, ide.pages, ide.collections);
+  const first = next?.entry ?? ide.showsOn.entries.find((entry) => entry.schedule.enabled);
+  if (!first || (!entries.length && !next)) {
+    return (
+      <Flex align="center" gap="1" data-slot="ide-week-line" className="min-w-0 flex-nowrap whitespace-nowrap">
+        <Text as="span" size="sm" tone="muted" className="truncate">
+          {tq("notThisWeek")} ·
+        </Text>
+        <Button asChild variant="link" size="sm" className="h-auto shrink-0 p-0">
+          <Link to={`/schedule?prefill_page_id=${encodeURIComponent(pageId)}`}>{tq("addToSchedule")}</Link>
+        </Button>
+      </Flex>
+    );
+  }
+  const more = ide.showsOn.entries.filter((entry) => entry.schedule.enabled).length - 1;
+  // One line that truncates: "+N more" goes last, so it is the first thing cut, never "next …".
+  const parts = [
+    tq("weekLine", { days: formatDays(first.schedule, t, locale), window: formatWindow(first.schedule, locale) }),
+    next
+      ? tq("nextAt", {
+          // Later today reads as a time, so "next Fri" on a Friday never means a week out.
+          when:
+            next.at.toDateString() === new Date().toDateString()
+              ? next.at.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" })
+              : next.at.toLocaleDateString(locale, { weekday: "short" }),
+        })
+      : null,
+    more > 0 ? tq("weekMore", { count: more }) : null,
+  ];
+  return (
+    <Text as="p" size="sm" tone="muted" data-slot="ide-week-line" className="truncate">
+      {parts.filter(Boolean).join(" · ")}
+    </Text>
   );
 }

@@ -19,8 +19,10 @@ const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/components/current-board-context", () => {
   const boards = [
-    { id: "den", name: "Den TV", device_type: "panel" },
+    { id: "den", name: "Den TV", device_type: "panel", grid_rows: 12, grid_cols: 29 },
     { id: "hall", name: "Hall board", device_type: "flagship" },
+    // Another display the page's 29 × 12 grid fits as is (D3: retarget, no copy).
+    { id: "office", name: "Office TV", device_type: "panel", grid_rows: 12, grid_cols: 29 },
   ];
   return {
     useCurrentBoard: () => {
@@ -47,7 +49,7 @@ const snapshot = {
 
 function fakeBuilder(overrides: Partial<{ unsaved: boolean; mirroring: boolean; previewBoardId: string }> = {}) {
   // applyContent behaves like the editor: the restored content is the editor's, unsaved.
-  let current: typeof snapshot = snapshot;
+  let current: Omit<typeof snapshot, "transition_strategy"> & { transition_strategy: string | null } = snapshot;
   let unsaved = overrides.unsaved ?? false;
   return {
     hasUnsavedChanges: () => unsaved,
@@ -65,6 +67,13 @@ function fakeBuilder(overrides: Partial<{ unsaved: boolean; mirroring: boolean; 
       unsaved = false;
     }),
     requestDelete: vi.fn(),
+    // FP-2: Page-tab settings are staged in the editor like any other edit (UX-7-1).
+    setPageSettings: vi.fn((settings: { duration_seconds?: number; transition_strategy?: string | null }) => {
+      current = { ...current, ...settings };
+      unsaved = true;
+    }),
+    // D3: Shows on retargets the preview to a display of the same size.
+    setPreviewBoard: vi.fn(),
   } as unknown as PageBuilderHandle;
 }
 
@@ -402,30 +411,58 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(within(console).getByRole("tab", { name: "Sent" })).toBeInTheDocument();
     expect(await within(console).findByText("#REF · Row 2")).toBeInTheDocument();
     expect(await within(console).findByText(/Sent: .* to Den TV · 1 substitution \(é → E\)/)).toBeInTheDocument();
-    // The week legend names each entry; the narrow blocks only carry their start time.
-    const legend = await screen.findByRole("list", { name: "Schedule entries" });
-    expect(legend).toHaveTextContent(/Weekdays 7:30.*8:30.* · Den TV/);
   });
 
-  it("scopes the Explorer to the open page: its boards, parts and snippets, no other pages (D2b)", async () => {
+  it("is a Parts outline on a single-display page: no rows that repeat the header, no apologies (UX-5-2, M2)", async () => {
     mockHub();
     const { slot } = renderIde();
     const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
-    // This page, and only this page: no list of the hub's pages, no page search, no links away.
-    const thisPage = within(nav).getByRole("group", { name: "This page" });
-    expect(thisPage).toHaveTextContent("Commute");
-    expect(within(nav).queryByText("Weekend brunch")).toBeNull();
-    expect(within(nav).queryByRole("searchbox")).toBeNull();
-    expect(within(nav).queryAllByRole("link")).toHaveLength(0);
-    // Its boards: the display it is live or scheduled on.
-    expect(await within(within(nav).getByRole("group", { name: "Boards" })).findByText("Den TV")).toBeInTheDocument();
     // Its parts: the data sources and formulas the template reads, by row.
     const parts = within(nav).getByRole("group", { name: "Parts" });
     expect(within(parts).getByText("muni")).toBeInTheDocument();
     expect(within(parts).getByText("Formulas")).toBeInTheDocument();
     expect(within(parts).getAllByText("Row 2")).toHaveLength(2);
-    expect(within(nav).getByRole("group", { name: "Snippets" })).toBeInTheDocument();
     expect(await within(nav).findByText("Used by Den rotation")).toBeInTheDocument();
+    // The page's name and its one display are the header's; Snippets is unsupported here.
+    expect(within(nav).queryByRole("group", { name: "This page" })).toBeNull();
+    expect(within(nav).queryByRole("group", { name: "Boards" })).toBeNull();
+    expect(within(nav).queryByRole("group", { name: "Snippets" })).toBeNull();
+    expect(within(nav).queryByText(/aren’t available/)).toBeNull();
+    // No other page, no page search, no links away (D2b).
+    expect(within(nav).queryByText("Weekend brunch")).toBeNull();
+    expect(within(nav).queryByRole("searchbox")).toBeNull();
+    expect(within(nav).queryAllByRole("link")).toHaveLength(0);
+  });
+
+  it("lists the page and its displays when it shows on more than one, and says nothing of no collection", async () => {
+    mockHub();
+    server.use(
+      http.get("/api/v1/collections", () => HttpResponse.json({ collections: [], total: 0 })),
+      http.get("/api/v1/schedules", () =>
+        HttpResponse.json({
+          schedules: ["den", "hall"].map((board_id) => ({
+            id: `s-${board_id}`,
+            page_id: PAGE,
+            board_id,
+            start_time: "07:30",
+            end_time: "08:30",
+            day_pattern: "weekdays",
+            enabled: true,
+            created_at: "",
+          })),
+          total: 2,
+          default_page_id: null,
+          enabled: null,
+        }),
+      ),
+    );
+    const { slot } = renderIde();
+    const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
+    const boards = await within(nav).findByRole("group", { name: "Boards" });
+    expect(within(boards).getByText("Den TV")).toBeInTheDocument();
+    expect(within(boards).getByText("Hall board")).toBeInTheDocument();
+    expect(within(nav).getByRole("group", { name: "This page" })).toHaveTextContent("Commute");
+    expect(within(nav).queryByText("Not in any collection.")).toBeNull();
   });
 
   it("hides the Explorer to one Show Explorer button and back, moving focus with it (D2)", async () => {
@@ -449,7 +486,7 @@ describe("Creator IDE at 1024 px and wider", () => {
     const { slot } = renderIde();
     const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
     // D2b: the Explorer lists the open page's own rows (no page links), still in real lists.
-    await within(within(nav).getByRole("group", { name: "This page" })).findByText("Commute");
+    await within(within(nav).getByRole("group", { name: "Parts" })).findByText("muni");
     const lists = nav.querySelectorAll("ul");
     expect(lists.length).toBeGreaterThan(0);
     for (const list of lists) for (const child of Array.from(list.children)) expect(child.tagName).toBe("LI");
@@ -525,7 +562,7 @@ describe("the page's own display, with another board current in the sidebar", ()
     server.use(
       http.get("/api/schedules/active/page", ({ request }) =>
         HttpResponse.json({
-          page_id: new URL(request.url).searchParams.get("board_id") === "den" ? PAGE : "brunch",
+          page_id: { den: PAGE, hall: "brunch" }[new URL(request.url).searchParams.get("board_id") ?? ""] ?? "other",
           source: "manual",
           schedule_enabled: true,
           current_time: "07:41",
@@ -739,8 +776,17 @@ describe("status row and header actions", () => {
         content: { ...snapshot, type: "template" },
       },
     });
-    renderIde(fakeBuilder({ unsaved: true }));
-    expect(await screen.findByText(/^Draft /)).toBeInTheDocument();
+    const onDraftStateChange = vi.fn();
+    renderIde(fakeBuilder({ unsaved: true }), 0, onDraftStateChange);
+    // UX-1-1: the draft is said once, in the header meta ("Draft saved 3:44 PM"),
+    // never again as an orange Draft pill in the status row.
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ label: expect.stringMatching(/^Draft saved/) }),
+      ),
+    );
+    const status = document.querySelector<HTMLElement>('[data-slot="preview-status"]')!;
+    expect(status).not.toHaveTextContent(/Draft/);
   });
 
   it("offers Save draft beside Save & update board while live, and saves the editor content as the draft", async () => {
@@ -801,7 +847,7 @@ describe("status row and header actions", () => {
 
   it("discards a draft this session saved once the editor saves the page itself", async () => {
     const calls = mockHub();
-    const { onSaveActionsChange, rerenderTick } = renderIde();
+    const { onSaveActionsChange, rerenderTick, client } = renderIde();
     await waitFor(() => expect(latestRenderer(onSaveActionsChange)).toBeDefined());
     render(
       <>
@@ -817,7 +863,7 @@ describe("status row and header actions", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
     await waitFor(() => expect(calls.draftPut).toHaveLength(1));
-    await screen.findByText(/^Draft /);
+    await waitFor(() => expect(client.getQueryData(["ide", "draft", PAGE])).toBeTruthy());
     act(() => rerenderTick(1));
     await waitFor(() => expect(calls.draftDelete).toEqual(["d1"]));
   });
@@ -971,6 +1017,24 @@ describe("status row and header actions", () => {
     expect(calls.draftPut[0]).toMatchObject({ transition_strategy: "wave", expected_revision: "d1" });
   }, 10_000);
 
+  it("autosaves an edit that changes only the page duration (UX-7-1)", async () => {
+    const calls = mockHub({
+      draft: {
+        page_id: PAGE,
+        revision: "d1",
+        saved_at: "2026-11-17T15:44:00Z",
+        stale: false,
+        content: { ...snapshot, type: "template" },
+      },
+    });
+    const builder = fakeBuilder();
+    renderIde(builder);
+    await waitFor(() => expect(calls.draftGet).toBeGreaterThan(0));
+    act(() => builder.setPageSettings({ duration_seconds: 60 }));
+    await waitFor(() => expect(calls.draftPut).toHaveLength(1), { timeout: 5000 });
+    expect(calls.draftPut[0]).toMatchObject({ duration_seconds: 60, expected_revision: "d1" });
+  }, 10_000);
+
   it("says autosave is paused, not Draft saved, beside a draft from elsewhere", async () => {
     mockHub({
       draft: {
@@ -1011,7 +1075,7 @@ describe("status row and header actions", () => {
       },
     });
     const { onSaveActionsChange } = renderIde();
-    await screen.findByText(/^Draft /);
+    await waitFor(() => expect(calls.draftGet).toBe(1));
     await waitFor(() => expect(latestRenderer(onSaveActionsChange)).toBeDefined());
     render(
       <>
@@ -1055,9 +1119,8 @@ describe("Inspector tabs", () => {
   // D6 moved the desktop page-transition picker out of the header; the
   // Inspector's Transition row must still offer transition plugins (beta) and
   // name a page's plugin override, or that override can't be set on desktop.
-  it("offers transition plugins in the Page tab's Transition dialog while the beta is on", async () => {
+  it("offers transition plugins in the Page tab's Transition menu while the beta is on", async () => {
     mockHub();
-    const puts: unknown[] = [];
     server.use(
       http.get("/api/settings/plugins", () => HttpResponse.json({ transition_plugins_enabled: true })),
       http.get("/api/plugins", () =>
@@ -1066,22 +1129,14 @@ describe("Inspector tabs", () => {
           total: 1,
         }),
       ),
-      http.put(`/api/v1/pages/${PAGE}`, async ({ request }) => {
-        puts.push(await request.json());
-        return HttpResponse.json({
-          page: { ...snapshot, transition_strategy: "plugin:typewriter" },
-          incompatible_references: [],
-        });
-      }),
     );
-    renderIde();
+    const builder = fakeBuilder();
+    renderIde(builder);
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /Transition/ }));
-    const dialog = await screen.findByRole("dialog", { name: "Transition" });
-    await user.click(within(dialog).getByRole("combobox", { name: "Transition" }));
-    await user.click(await screen.findByRole("option", { name: "Typewriter" }));
-    await user.click(within(dialog).getByRole("button", { name: /^Save$/ }));
-    await waitFor(() => expect(puts).toEqual([expect.objectContaining({ transition_strategy: "plugin:typewriter" })]));
+    await user.click(await screen.findByRole("menuitemradio", { name: "Typewriter" }));
+    // Staged in the editor like any edit; Save writes it (UX-7-1).
+    expect(builder.setPageSettings).toHaveBeenCalledWith({ transition_strategy: "plugin:typewriter" });
   });
 
   it("names a page's transition-plugin override on the Transition row", async () => {
@@ -1172,6 +1227,179 @@ describe("History", () => {
     // The kit appends the version's time to the Restore label itself: it must appear once.
     const restore = within(diff).getByRole("button", { name: /^Restore/ });
     expect(restore.textContent?.match(/\d:\d\d/g)).toHaveLength(1);
+  });
+});
+
+// FP-2 (UX-AUDIT-1 + FABLE-AUDIT-REVIEW-1): a truthful, quiet IDE.
+describe("truthful, quiet IDE (FP-2)", () => {
+  beforeEach(() => {
+    // Friday 27 Nov 2026, 10:00 local: the next weekday window is Monday's.
+    vi.useFakeTimers({ toFake: ["Date"], shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(2026, 10, 27, 10, 0));
+    localStorage.removeItem("fiestaboard_ide_explorer:panel");
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const quietHub = () =>
+    server.use(
+      http.post("/api/templates/validate", () => HttpResponse.json({ valid: true, rows: 12, cols: 29, errors: [] })),
+      http.post("/api/templates/render", () =>
+        HttpResponse.json({ rendered: "", lines: [], line_count: 0, charset: "x", charset_issues: [] }),
+      ),
+    );
+  const noSchedules = () =>
+    server.use(
+      http.get("/api/v1/schedules", () =>
+        HttpResponse.json({ schedules: [], total: 0, default_page_id: null, enabled: null }),
+      ),
+    );
+
+  it("says when and where a scheduled page shows next, in words the pill doesn't repeat (UX-6-2)", async () => {
+    mockHub({ live: false });
+    renderIde();
+    const status = await waitFor(() => {
+      const row = document.querySelector<HTMLElement>('[data-slot="preview-status"]');
+      expect(row).toHaveAttribute("data-display", "scheduled");
+      return row!;
+    });
+    await waitFor(() =>
+      expect(within(status).getByText(/^Weekdays 7:30.*8:30.* on Den TV · next Mon 7:30/)).toBeInTheDocument(),
+    );
+    expect(status).not.toHaveTextContent(/Scheduled on/);
+    expect(await within(status).findByRole("button", { name: "1 problem" })).toBeInTheDocument();
+  });
+
+  it("shows a zero-problem console as one line that opens on click (M1)", async () => {
+    setDesktop(true);
+    mockHub();
+    quietHub();
+    renderIde();
+    const consoleRegion = await screen.findByRole("region", { name: "Console" });
+    const line = await within(consoleRegion).findByRole("button", { name: /^No problems · Sent .* to Den TV$/ });
+    expect(line).toHaveAttribute("aria-expanded", "false");
+    expect(within(consoleRegion).queryByRole("tab")).toBeNull();
+    fireEvent.click(line);
+    expect(await within(consoleRegion).findByRole("tab", { name: "Problems 0" })).toBeInTheDocument();
+  });
+
+  it("keeps the console open while there are problems", async () => {
+    setDesktop(true);
+    mockHub();
+    renderIde();
+    const consoleRegion = await screen.findByRole("region", { name: "Console" });
+    expect(await within(consoleRegion).findByRole("tab", { name: "Problems 1" })).toBeInTheDocument();
+    expect(within(consoleRegion).queryByRole("button", { name: /^No problems/ })).toBeNull();
+  });
+
+  it("draws the week as one line, not a calendar (UX-6-3 app side)", async () => {
+    setDesktop(true);
+    mockHub({ live: false });
+    renderIde();
+    const timeline = await waitFor(() => {
+      const card = document.querySelector<HTMLElement>('[data-slot="ide-timeline"]');
+      expect(card).not.toBeNull();
+      return card!;
+    });
+    await waitFor(() => expect(timeline).toHaveTextContent(/Weekdays 7:30.*8:30.* · next Mon$/));
+    expect(timeline.querySelector('[data-slot="ide-week"]')).toBeNull();
+  });
+
+  it("offers Add to schedule on the one-line week of an unscheduled page", async () => {
+    setDesktop(true);
+    mockHub({ live: false });
+    noSchedules();
+    renderIde();
+    const timeline = await waitFor(() => {
+      const card = document.querySelector<HTMLElement>('[data-slot="ide-timeline"]');
+      expect(card).toHaveTextContent("Not scheduled this week");
+      return card!;
+    });
+    expect(within(timeline).getByRole("link", { name: "Add to schedule" })).toHaveAttribute(
+      "href",
+      `/schedule?prefill_page_id=${PAGE}`,
+    );
+  });
+
+  it("stages Page duration from an inline menu on its row: no modal, no save (UX-7-1)", async () => {
+    const calls = mockHub();
+    const puts: unknown[] = [];
+    server.use(
+      http.put(`/api/v1/pages/${PAGE}`, async ({ request }) => {
+        puts.push(await request.json());
+        return HttpResponse.json({ page: snapshot, incompatible_references: [] });
+      }),
+    );
+    const builder = fakeBuilder();
+    renderIde(builder);
+    const user = userEvent.setup();
+    const row = await screen.findByRole("button", { name: /Page duration/ });
+    expect(row).not.toHaveTextContent(/right away/);
+    await user.click(row);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(await screen.findByRole("menuitemradio", { name: "1 min" }));
+    expect(builder.setPageSettings).toHaveBeenCalledWith({ duration_seconds: 60 });
+    expect(puts).toEqual([]);
+    expect(calls.draftPut).toEqual([]);
+  });
+
+  it("says what to do on a disabled When data is missing row (UX-7-2)", async () => {
+    mockHub();
+    const builder = fakeBuilder();
+    const original = builder.getCurrentPage;
+    builder.getCurrentPage = () => ({ ...original()!, template: ["NEXT DEPARTURES", "{{muni.next}}"] });
+    renderIde(builder);
+    const row = await screen.findByRole("button", { name: /When data is missing/ });
+    await waitFor(() => expect(row).toHaveTextContent("Add a fallback to a formula to set this"));
+    expect(row).toBeDisabled();
+  });
+
+  it("puts the display picker in Shows on: same size retargets, another size offers a copy sized for it (D3)", async () => {
+    const calls = mockHub();
+    const builder = fakeBuilder();
+    renderIde(builder);
+    fireEvent.click(await screen.findByRole("tab", { name: "Shows on" }));
+    const group = await screen.findByRole("group", { name: "Display" });
+    // The page's own display is a fact, not a control (Fable FABLE-2650).
+    expect(within(group).queryByRole("button", { name: /Den TV/ })).toBeNull();
+    expect(within(group).getByText("Den TV").closest('[aria-current="true"]')).toHaveTextContent("This display");
+    fireEvent.click(within(group).getByRole("button", { name: /Office TV/ }));
+    expect(builder.setPreviewBoard).toHaveBeenCalledWith("office");
+    const hall = within(group).getByRole("button", { name: /Hall board/ });
+    expect(hall).toHaveTextContent("Make a copy sized for Hall board");
+    fireEvent.click(hall);
+    const dialog = await screen.findByRole("dialog", { name: "Make a copy sized for Hall board" });
+    // Before the copy it says what the copy will be; the report caption waits for the report (FABLE-2650).
+    expect(dialog).toHaveTextContent("Makes a new page sized for Hall board (22 × 6); this page is unchanged.");
+    expect(dialog).not.toHaveTextContent("What changed for the new size:");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Make the copy" }));
+    await waitFor(() => expect(calls.duplicate).toEqual([{ board_id: "hall" }]));
+    expect(await screen.findByText("22 × 6 (was 29 × 12)")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toHaveTextContent("What changed for the new size:");
+  });
+
+  it("groups Shows on as Display, Schedule and Collections, with copies only per display", async () => {
+    mockHub();
+    renderIde();
+    fireEvent.click(await screen.findByRole("tab", { name: "Shows on" }));
+    expect(await screen.findByRole("group", { name: "Schedule" })).toHaveTextContent(/Weekdays/);
+    expect(await screen.findByRole("group", { name: "Collections" })).toHaveTextContent("Den rotation");
+    const panel = document.querySelector<HTMLElement>('[data-slot="ide-shows-on"]')!;
+    expect(within(panel).queryByRole("button", { name: "Make a copy…" })).toBeNull();
+  });
+
+  it("moves focus into the console from the problems link, and folds an opened quiet console back", async () => {
+    setDesktop(true);
+    mockHub();
+    quietHub();
+    renderIde();
+    const status = await waitFor(() => document.querySelector<HTMLElement>('[data-slot="preview-status"]')!);
+    fireEvent.click(await within(status).findByRole("button", { name: "0 problems" }));
+    const consoleRegion = screen.getByRole("region", { name: "Console" });
+    await waitFor(() => expect(within(consoleRegion).getByRole("tab", { name: "Problems 0" })).toHaveFocus());
+    fireEvent.click(within(consoleRegion).getByRole("button", { name: "Collapse the console" }));
+    const line = await within(consoleRegion).findByRole("button", { name: /^No problems/ });
+    await waitFor(() => expect(line).toHaveFocus());
+    expect(within(consoleRegion).queryByRole("tab")).toBeNull();
   });
 });
 
