@@ -3911,6 +3911,25 @@
     "discardDraft": "At",
     "lastSaved": "son kayıt {time}"
   },
+  "editorHeader": {
+    "justNow": "az önce",
+    "minutesAgo": "{count} dk önce",
+    "yesterday": "dün {time}",
+    "saved": "Kaydedildi {time}",
+    "unsavedChanges": "Kaydedilmemiş değişiklikler",
+    "saving": "Kaydediliyor…",
+    "savingDraft": "Taslak kaydediliyor…",
+    "draftSaved": "Taslak kaydedildi {time}",
+    "unsaved": "Kaydedilmedi",
+    "newPage": "Yeni Sayfa",
+    "boardLabel": "{board} panosu",
+    "untitledPage": "Adsız sayfa",
+    "draftDiscarded": "Taslak atıldı",
+    "undo": "Geri al",
+    "deleteTitle": "“{name}” silinsin mi?",
+    "deleteDescription": "Onu gösteren tüm programlardan ve koleksiyonlardan çıkarılır. Bu işlem geri alınamaz.",
+    "deleteAction": "Sayfayı sil"
+  },
   "phonePairing": {
     "title": "Telefon bağla",
     "description": "Bunu FiestaBoard uygulamasıyla tarayın. Kod tek kullanımlıktır ve 5 dakika içinde sona erer.",

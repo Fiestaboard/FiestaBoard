@@ -3911,6 +3911,25 @@
     "discardDraft": "Odrzuć",
     "lastSaved": "ostatni zapis {time}"
   },
+  "editorHeader": {
+    "justNow": "przed chwilą",
+    "minutesAgo": "{count} min temu",
+    "yesterday": "wczoraj {time}",
+    "saved": "Zapisano {time}",
+    "unsavedChanges": "Niezapisane zmiany",
+    "saving": "Zapisywanie…",
+    "savingDraft": "Zapisywanie wersji roboczej…",
+    "draftSaved": "Wersja robocza zapisana {time}",
+    "unsaved": "Niezapisane",
+    "newPage": "Nowa strona",
+    "boardLabel": "Tablica {board}",
+    "untitledPage": "Strona bez tytułu",
+    "draftDiscarded": "Odrzucono wersję roboczą",
+    "undo": "Cofnij",
+    "deleteTitle": "Usunąć „{name}”?",
+    "deleteDescription": "Zniknie ze wszystkich harmonogramów i kolekcji, które ją pokazują. Tego nie można cofnąć.",
+    "deleteAction": "Usuń stronę"
+  },
   "phonePairing": {
     "title": "Połącz telefon",
     "description": "Zeskanuj ten kod aplikacją FiestaBoard. Kod jest jednorazowy i wygasa za 5 minut.",

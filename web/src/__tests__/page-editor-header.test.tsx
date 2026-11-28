@@ -26,6 +26,7 @@ import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
 import type { BoardSettings, Page } from "@/lib/api";
 import { api } from "@/lib/api";
+import { formatEditTime } from "@/lib/edit-time";
 
 const boards: BoardSettings = {
   board_type: "black",
@@ -87,7 +88,11 @@ beforeEach(() => {
   vi.mocked(api.getPage).mockResolvedValue(page);
 });
 
-const savedTime = new Date(page.updated_at!).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+// UX-1-3: a save that wasn't today carries its day.
+const savedTime = formatEditTime(page.updated_at!, {
+  locale: "en",
+  words: { justNow: () => "just now", minutesAgo: (n) => `${n} min ago`, yesterday: (time) => `yesterday ${time}` },
+});
 
 describe("Desktop editor header (BB-E-13)", () => {
   it("states type, size, display and save state in the mono meta line", async () => {
@@ -113,8 +118,9 @@ describe("Desktop editor header (BB-E-13)", () => {
     await screen.findByDisplayValue("Kitchen morning");
     expect(screen.queryByRole("button", { name: "Page transition" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Delete Page" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Export Page" })).toHaveClass("h-10");
-    expect(screen.getByRole("button", { name: "Save Page" })).toHaveClass("h-10");
+    // 40 px tall, labelled (h-10) or, at 1024–1279, icon-only (size-10; D8).
+    expect(screen.getByRole("button", { name: "Export Page" }).className).toMatch(/\b(h|size)-10\b/);
+    expect(screen.getByRole("button", { name: "Save Page" }).className).toMatch(/\b(h|size)-10\b/);
   });
 
   it("keeps the save state whole when the meta truncates (FABLE-2583)", async () => {
@@ -151,7 +157,9 @@ describe("Discard guard summary (BB-E-19)", () => {
       { line: 2, text: "weather.temp°" },
       { line: 4, text: "N JUDAH" },
     ]);
-    expect(summary.since).toBe(savedTime);
+    expect(summary.since).toBe(
+      new Date("2026-11-17T18:05:00Z").toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    );
   });
 
   it("shows at most three lines but counts them all", () => {

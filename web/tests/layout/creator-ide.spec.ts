@@ -34,7 +34,7 @@ for (const theme of ["light", "dark"] as const) {
         await expect(page.getByRole("button", { name: "Save draft" })).toBeVisible();
         await expect(page.getByRole("button", { name: "Save & update board" })).toBeVisible();
         // The page name keeps usable room beside the header actions, and they stay on screen.
-        const nameBox = await page.getByRole("textbox", { name: /page name/i }).boundingBox();
+        const nameBox = await page.locator('[data-slot="page-editor-name"]').boundingBox();
         expect(nameBox!.width).toBeGreaterThanOrEqual(width < 640 ? 56 : 200);
         const publishBox = await page.getByRole("button", { name: "Save & update board" }).boundingBox();
         expect(publishBox!.x + publishBox!.width).toBeLessThanOrEqual(width);

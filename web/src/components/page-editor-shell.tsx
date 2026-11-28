@@ -21,7 +21,7 @@ import {
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { type BlockerFunction, useBlocker } from "react-router";
 
@@ -30,7 +30,6 @@ import {
   PageBuilder,
   type PageBuilderDraftState,
   type PageBuilderHandle,
-  type PageBuilderSaveActions,
   type PageBuilderWorkspaceSlots,
 } from "@/components/page-builder";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
@@ -69,8 +68,6 @@ export function changedLinesSummary(
   const since = savedAt ? new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
   return { count: lines.length, lines: lines.slice(0, CHANGED_LINES_SHOWN), since };
 }
-
-export type SaveActionsRenderer = (actions: PageBuilderSaveActions) => ReactNode;
 
 export interface PageEditorShellProps {
   pageId?: string;
@@ -178,7 +175,6 @@ export function PageEditorShell({
     explorerSlot && desktop
       ? createPortal(<IdeExplorerPlaceholder toggle={explorer} saved={Boolean(editorPageId)} />, explorerSlot)
       : null;
-  const [saveActions, setSaveActions] = useState<SaveActionsRenderer | undefined>(undefined);
   const [draftState, setDraftState] = useState<PageBuilderDraftState | undefined>(undefined);
   const draftStateRef = useRef(draftState);
   useEffect(() => {
@@ -333,7 +329,6 @@ export function PageEditorShell({
             onClose={onClose}
             onSave={handleSave}
             onCreated={handleCreated}
-            saveActions={saveActions}
             draftState={draftState}
             workspaceSlots={workspaceSlots}
             explorerOpen={explorer.open}
@@ -355,7 +350,6 @@ export function PageEditorShell({
                 explorer={explorer}
                 boardKind={loadedPage.device_type}
                 savedTick={savedTick}
-                onSaveActionsChange={setSaveActions}
                 onDraftStateChange={setDraftState}
                 onPageDisplaysChange={setPageDisplayIds}
               />

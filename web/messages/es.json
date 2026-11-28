@@ -3911,6 +3911,25 @@
     "discardDraft": "Descartar",
     "lastSaved": "guardado por última vez {time}"
   },
+  "editorHeader": {
+    "justNow": "justo ahora",
+    "minutesAgo": "hace {count} min",
+    "yesterday": "ayer {time}",
+    "saved": "Guardado {time}",
+    "unsavedChanges": "Cambios sin guardar",
+    "saving": "Guardando…",
+    "savingDraft": "Guardando borrador…",
+    "draftSaved": "Borrador guardado {time}",
+    "unsaved": "Sin guardar",
+    "newPage": "Página nueva",
+    "boardLabel": "Tablero {board}",
+    "untitledPage": "Página sin título",
+    "draftDiscarded": "Borrador descartado",
+    "undo": "Deshacer",
+    "deleteTitle": "¿Eliminar «{name}»?",
+    "deleteDescription": "Se quitará de todas las programaciones y colecciones que la muestran. No se puede deshacer.",
+    "deleteAction": "Eliminar página"
+  },
   "phonePairing": {
     "title": "Conectar un teléfono",
     "description": "Escanea esto con la app FiestaBoard. El código solo se puede usar una vez y caduca en 5 minutos.",

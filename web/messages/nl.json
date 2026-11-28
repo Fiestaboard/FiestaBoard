@@ -3911,6 +3911,25 @@
     "discardDraft": "Verwerpen",
     "lastSaved": "laatst opgeslagen {time}"
   },
+  "editorHeader": {
+    "justNow": "zojuist",
+    "minutesAgo": "{count} min geleden",
+    "yesterday": "gisteren {time}",
+    "saved": "Opgeslagen {time}",
+    "unsavedChanges": "Niet-opgeslagen wijzigingen",
+    "saving": "Opslaan…",
+    "savingDraft": "Concept opslaan…",
+    "draftSaved": "Concept opgeslagen {time}",
+    "unsaved": "Niet opgeslagen",
+    "newPage": "Nieuwe pagina",
+    "boardLabel": "Bord {board}",
+    "untitledPage": "Naamloze pagina",
+    "draftDiscarded": "Concept verwijderd",
+    "undo": "Ongedaan maken",
+    "deleteTitle": "‘{name}’ verwijderen?",
+    "deleteDescription": "Hij verdwijnt uit elk schema en elke collectie die hem toont. Dit kun je niet ongedaan maken.",
+    "deleteAction": "Pagina verwijderen"
+  },
   "phonePairing": {
     "title": "Een telefoon verbinden",
     "description": "Scan dit met de FiestaBoard-app. De code werkt één keer en verloopt over 5 minuten.",

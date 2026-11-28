@@ -44,6 +44,7 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
       "Close a picker",
       "Leave draw mode",
       "Save",
+      "Save and show now",
       "Inspect the preview",
       "Move the preview by one Note or column",
       "Jump to the start or end of the preview",

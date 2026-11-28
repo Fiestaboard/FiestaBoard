@@ -3911,6 +3911,25 @@
     "discardDraft": "Отменить",
     "lastSaved": "последнее сохранение {time}"
   },
+  "editorHeader": {
+    "justNow": "только что",
+    "minutesAgo": "{count} мин назад",
+    "yesterday": "вчера {time}",
+    "saved": "Сохранено {time}",
+    "unsavedChanges": "Несохранённые изменения",
+    "saving": "Сохранение…",
+    "savingDraft": "Сохранение черновика…",
+    "draftSaved": "Черновик сохранён {time}",
+    "unsaved": "Не сохранено",
+    "newPage": "Новая страница",
+    "boardLabel": "Табло {board}",
+    "untitledPage": "Страница без названия",
+    "draftDiscarded": "Черновик удалён",
+    "undo": "Отменить",
+    "deleteTitle": "Удалить «{name}»?",
+    "deleteDescription": "Она исчезнет из всех расписаний и коллекций, где показывается. Это действие нельзя отменить.",
+    "deleteAction": "Удалить страницу"
+  },
   "phonePairing": {
     "title": "Подключить телефон",
     "description": "Отсканируйте этот код в приложении FiestaBoard. Код одноразовый и истекает через 5 минут.",

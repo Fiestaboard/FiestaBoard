@@ -109,16 +109,16 @@ describe("editorShortcutGroups", () => {
     ]);
     expect(groups.map((g) => g.items.map((i) => i.id))).toEqual([
       ["undo", "redo", "insertFormula", "applyFormula", "closePicker", "exitDrawMode"],
-      ["save"],
+      ["save", "saveAndShow"],
       ["inspect"],
     ]);
     expect(groups[0].items[0]).toEqual({ id: "undo", label: "t:undo", keys: EDITOR_SHORTCUTS.undo.keys });
     expect(groups[0].items[1].keys).toBe(EDITOR_SHORTCUTS.redo.keys);
   });
 
-  it("does not list a registered chord until a handler binds it (Show now)", () => {
+  it("lists ⌘⇧S with its binding (Show now / Save & update board)", () => {
     const ids = editorShortcutGroups(t, { boardViewport: true }).flatMap((g) => g.items.map((i) => i.id));
-    expect(ids).not.toContain("saveAndShow");
+    expect(ids).toContain("saveAndShow");
   });
 
   it("spells a chord for a tooltip the way Kbd does", () => {

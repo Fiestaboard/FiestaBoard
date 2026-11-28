@@ -3911,6 +3911,25 @@
     "discardDraft": "Scarta",
     "lastSaved": "ultimo salvataggio {time}"
   },
+  "editorHeader": {
+    "justNow": "proprio ora",
+    "minutesAgo": "{count} min fa",
+    "yesterday": "ieri {time}",
+    "saved": "Salvato {time}",
+    "unsavedChanges": "Modifiche non salvate",
+    "saving": "Salvataggio…",
+    "savingDraft": "Salvataggio bozza…",
+    "draftSaved": "Bozza salvata {time}",
+    "unsaved": "Non salvato",
+    "newPage": "Nuova pagina",
+    "boardLabel": "Bacheca {board}",
+    "untitledPage": "Pagina senza titolo",
+    "draftDiscarded": "Bozza eliminata",
+    "undo": "Annulla",
+    "deleteTitle": "Eliminare «{name}»?",
+    "deleteDescription": "Verrà rimossa da tutte le programmazioni e raccolte che la mostrano. Non è possibile annullare.",
+    "deleteAction": "Elimina pagina"
+  },
   "phonePairing": {
     "title": "Collega un telefono",
     "description": "Scansiona questo codice con l’app FiestaBoard. Il codice è monouso e scade tra 5 minuti.",

@@ -52,6 +52,7 @@ const BINDING_PROOF: Record<string, string> = {
   exitDrawMode: "page-builder-draw-mode.test.tsx",
   insertFormula: "tiptap-template-card.test.tsx",
   save: "page-builder-draw-mode.test.tsx",
+  saveAndShow: "page-builder-save-actions.test.tsx",
   inspect: "formula-ide-hook.test.tsx",
 };
 

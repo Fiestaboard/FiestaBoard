@@ -127,6 +127,7 @@ describe("EditorShortcutList", () => {
       "Close a picker",
       "Leave draw mode",
       "Save",
+      "Save and show now",
       "Inspect the preview",
     ]);
     for (const title of ["Editing", "Page", "Preview"]) expect(within(list).getByText(title)).toBeInTheDocument();
