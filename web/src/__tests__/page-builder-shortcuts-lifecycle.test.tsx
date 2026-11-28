@@ -73,7 +73,9 @@ describe("PageBuilder shortcut popup lifecycle", () => {
   });
 
   it("opens the same stable popup from More and retains it and its focus through resize", async () => {
-    const resize = mediaAt(900, false);
+    // A touch tablet: with a fine pointer the toolbar row's "? All shortcuts" is
+    // the entry instead of More's row (D5 as Fable ruled it).
+    const resize = mediaAt(900, true);
     const user = userEvent.setup();
     render(<PageBuilder onClose={vi.fn()} />, { wrapper: Wrapper });
     const name = await screen.findByRole("textbox", { name: "Page Name" });

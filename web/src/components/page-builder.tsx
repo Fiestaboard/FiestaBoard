@@ -75,6 +75,8 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  type ComponentType,
+  createElement,
   type CSSProperties,
   forwardRef,
   lazy,
@@ -191,6 +193,7 @@ import { cn } from "@/lib/utils";
 
 import { FormulaIdeContext } from "./formula-ide/formula-ide-context";
 import { useFormulaIde } from "./formula-ide/use-formula-ide";
+import { TemplateCardMetaContext } from "./template-card-meta";
 
 // Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
 // barrel push this module past 500 kB minified on their own (see #1575).
@@ -199,11 +202,9 @@ import { useFormulaIde } from "./formula-ide/use-formula-ide";
 // behind a Suspense fallback instead of blocking the whole page-builder
 // chunk's parse/eval. TipTap's useEditor({ immediatelyRender: false })
 // handles SSR safely, so deferring the import is safe under RR7 SPA mode.
-const TipTapTemplateEditor = lazy(() =>
-  import("@/components/tiptap-template-editor/TipTapTemplateEditor").then((m) => ({
-    default: m.TipTapTemplateEditor,
-  })),
-);
+let loadedTipTap: typeof import("@/components/tiptap-template-editor/TipTapTemplateEditor") | undefined;
+const tipTapEditor = () =>
+  import("@/components/tiptap-template-editor/TipTapTemplateEditor").then((m) => (loadedTipTap = m));
 
 // The rich editor for a board whose character set draws more than flaps (an
 // LED matrix): colour/block spans, icons, mixed case. Split out the same way,
@@ -219,15 +220,52 @@ const CharsetTemplateEditor = lazy(() =>
  * the target and the data controls in one row (BB-E-5).
  */
 const PREVIEW_HEADER_MIN_WIDTH = 528;
-const previewTools = () => import("@/components/complex-editing/complex-preview-tools");
-const templateTools = () => import("@/components/complex-editing/complex-template-tools");
-const BigBoardZoom = lazy(() => previewTools().then((m) => ({ default: m.BigBoardZoom })));
-const ComplexPreviewRuler = lazy(() => previewTools().then((m) => ({ default: m.ComplexPreviewRuler })));
-const ComplexPreviewSeams = lazy(() => previewTools().then((m) => ({ default: m.ComplexPreviewSeams })));
-const ComplexPreviewOverview = lazy(() => previewTools().then((m) => ({ default: m.ComplexPreviewOverview })));
-const ComplexTemplateHeader = lazy(() => templateTools().then((m) => ({ default: m.ComplexTemplateHeader })));
-const NoteSeamSummary = lazy(() => templateTools().then((m) => ({ default: m.NoteSeamSummary })));
-const RowBandGutter = lazy(() => templateTools().then((m) => ({ default: m.RowBandGutter })));
+type PreviewTools = typeof import("@/components/complex-editing/complex-preview-tools");
+type TemplateTools = typeof import("@/components/complex-editing/complex-template-tools");
+const loadedTools: { preview?: PreviewTools; template?: TemplateTools } = {};
+const previewTools = () =>
+  import("@/components/complex-editing/complex-preview-tools").then((m) => (loadedTools.preview = m));
+const templateTools = () =>
+  import("@/components/complex-editing/complex-template-tools").then((m) => (loadedTools.template = m));
+/** Whether a chunk the first paint needs is here (loaded on demand). A failed load counts as here. */
+function useChunkReady(load: () => Promise<unknown>, needed: boolean) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (!needed || ready) return;
+    let current = true;
+    const done = () => current && setReady(true);
+    void load().then(done, done);
+    return () => {
+      current = false;
+    };
+  }, [load, needed, ready]);
+  return ready;
+}
+/**
+ * Lazy until its chunk is here, then the component itself: once the editor has
+ * waited for the chunk, the lenses render in its first paint, with no Suspense
+ * round that would push the workspace down a frame later (UX-8-3).
+ */
+function chunkComponent<P extends object>(load: () => Promise<unknown>, pick: () => ComponentType<P> | undefined) {
+  const Lazy = lazy(() => load().then(() => ({ default: pick() as ComponentType<P> })));
+  // The loaded export is a module constant, never a component made per render.
+  // Chosen once per instance: switching a mounted Lazy to the loaded export
+  // would remount it (losing the editor's undo history and focus).
+  function ChunkComponent(props: P) {
+    const [component] = useState<ComponentType<P>>(() => pick() ?? Lazy);
+    return createElement(component, props);
+  }
+  return ChunkComponent;
+}
+const TipTapTemplateEditor = chunkComponent(tipTapEditor, () => loadedTipTap?.TipTapTemplateEditor);
+const BigBoardZoom = chunkComponent(previewTools, () => loadedTools.preview?.BigBoardZoom);
+const ComplexPreviewRuler = chunkComponent(previewTools, () => loadedTools.preview?.ComplexPreviewRuler);
+const ComplexPreviewSeams = chunkComponent(previewTools, () => loadedTools.preview?.ComplexPreviewSeams);
+const ComplexPreviewOverview = chunkComponent(previewTools, () => loadedTools.preview?.ComplexPreviewOverview);
+const ComplexTemplateHeader = chunkComponent(templateTools, () => loadedTools.template?.ComplexTemplateHeader);
+const NoteSeamSummary = chunkComponent(templateTools, () => loadedTools.template?.NoteSeamSummary);
+const RowBandGutter = chunkComponent(templateTools, () => loadedTools.template?.RowBandGutter);
+const complexTools = () => Promise.all([previewTools(), templateTools()]);
 
 interface PageBuilderProps {
   pageId?: string; // If provided, edit existing page
@@ -269,6 +307,8 @@ interface PageBuilderProps {
    * holds the whole workspace. Omitted, the builder is its two columns.
    */
   workspaceSlots?: PageBuilderWorkspaceSlots;
+  /** The Explorer column is open (the shell's D2 state): template and preview then share the width. */
+  explorerOpen?: boolean;
   /**
    * The page's board kind as the editor has it, including a new page's
    * adopted display kind (BB-E-11): the shell keys the Explorer's D2 state on
@@ -281,6 +321,10 @@ export interface PageBuilderWorkspaceSlots {
   explorer: (element: HTMLElement | null) => void;
   template: (element: HTMLElement | null) => void;
   preview: (element: HTMLElement | null) => void;
+  /** The preview card's foot, ≥ 768 px: the IDE's status line (UX-6-2). */
+  status?: (element: HTMLElement | null) => void;
+  /** The toolbar row's left end, ≥ 1024 px: the Explorer toggle's fixed place (UX-5-1). */
+  toolbarStart?: (element: HTMLElement | null) => void;
 }
 
 /** What the header meta says about the hub draft ("Draft restored · Discard", "Draft saved 7:44 AM"). */
@@ -463,6 +507,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     saveActions,
     draftState,
     workspaceSlots,
+    explorerOpen = false,
     onDeviceTypeChange,
   },
   ref,
@@ -482,11 +527,30 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     observer.observe(chromeElement);
     return () => observer.disconnect();
   }, [chromeElement]);
+  // The sticky preview travels as far down as the template card reaches (BB-E-7).
+  // Measured on the card alone, so the formula workbench opening under the
+  // card never stretches the preview column (UX-8-3). A CSS variable: no render.
+  const [workspaceElement, setWorkspaceElement] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const column = workspaceElement?.querySelector<HTMLElement>('[data-slot="page-editor-template-column"]');
+    if (!workspaceElement || !column || typeof ResizeObserver === "undefined") return;
+    const update = () => {
+      const card = column.querySelector<HTMLElement>('[data-slot="page-editor-template-card"]');
+      const reach = card ? card.getBoundingClientRect().bottom - column.getBoundingClientRect().top : 0;
+      workspaceElement.style.setProperty("--template-card-reach", `${Math.max(0, Math.round(reach))}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(column);
+    return () => observer.disconnect();
+  }, [workspaceElement]);
   const tTouch = useTranslations("editorTouch");
   const tToolbar = useTranslations("templateEditor");
   const tBoardDisplay = useTranslations("boardDisplay");
   const tShortcuts = useTranslations("editorShortcuts");
   const dockedPreview = useMediaQuery("(max-width: 1023px)");
+  // 768 px and up: template | preview side by side (UX-4-5, 61:17544).
+  const splitWorkspace = useMediaQuery("(min-width: 768px)");
   const sheetPickers = useMediaQuery("(max-width: 639px)");
   const useTouchToolbar = useMediaQuery("(max-width: 767px), (pointer: coarse)");
   // Under 390px Save is its icon, so the page name keeps two readable lines (BB-B-3).
@@ -1529,11 +1593,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // at once instead of after the app's retries (BB-B-16).
     retry: (failures, error) => !(error instanceof ApiError && error.status === 404) && failures < 2,
   });
-  const caretScrollMargin = useEditorScrollMargin(
-    dockedPreview && !(pageId && loadingPage),
-    editorContentRef,
-    viewportBottom,
-  );
+  // Whether the editor has had its first paint (the loading skeleton is gone):
+  // what measures the mounted editor waits for it (UX-8-3 gate below).
+  const [editorShown, setEditorShown] = useState(false);
+  const caretScrollMargin = useEditorScrollMargin(dockedPreview && editorShown, editorContentRef, viewportBottom);
   useEffect(() => {
     savedPageRef.current = existingPage;
   }, [existingPage]);
@@ -1591,6 +1654,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     hasUnsavedChangesRef.current = hasUnsavedChanges;
   }, [hasUnsavedChanges]);
   const seededPageIdRef = useRef<string | null>(null);
+  const [seededPageId, setSeededPageId] = useState<string | null>(null);
   // A reload the walkthrough asked for re-seeds even though staging left
   // the editor looking dirty.
   const forceReseedRef = useRef(false);
@@ -1608,6 +1672,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
       forceReseedRef.current = false;
       seededPageIdRef.current = existingPage.id;
+      setSeededPageId(existingPage.id);
       seededRevisionRef.current = existingPage.revision;
       seededProtocolsRef.current = {
         edit_protocol: existingPage.edit_protocol,
@@ -2702,9 +2767,26 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     // previews through DevicePreview (draw mode always paints flaps).
     boardViewport: previewBindsBoardViewportKeys({ ledPreview: !drawMode && isLedModel(previewModel) }),
   };
-  // D5 (Jev header-only): the header's Shortcuts is the one keyboard list; the
-  // toolbar's "? All shortcuts" duplicate is gone. `?` still opens it.
   const isXlUp = useMediaQuery("(min-width: 1280px)");
+  // The toolbar row: the rich tools (fine pointer), the Explorer toggle's place
+  // and "? All shortcuts" (≥ 1024 px, any pointer). Where it shows, its hint is
+  // the list's one entry, so `?` opens the list from there (D5, UX-1-6).
+  const toolbarRowShown = !useTouchToolbar || !dockedPreview;
+  // Only at the moment it opens: a list already open (from More) stays the same
+  // popup, with its focus, when a resize brings the row in.
+  const [shortcutOpenedFrom, setShortcutOpenedFrom] = useState(shortcutList.openFrom);
+  if (shortcutList.openFrom !== shortcutOpenedFrom) {
+    setShortcutOpenedFrom(shortcutList.openFrom);
+    if (shortcutOpenedFrom === null && shortcutList.openFrom === "header" && toolbarRowShown) {
+      shortcutList.setOpenFrom("hint");
+    }
+  }
+  // The rich editor (lazy) portals its toolbar into the chrome's toolbar row:
+  // the row keeps that height from the first paint (BB-E-32).
+  const richToolbarExpected = !useTouchToolbar && editorMode === "rich" && !baselineDisplay && !editorCharset;
+  // The rich editor's card has a square top for a header to sit on (UX-3-3).
+  const templateCardHeader = editorMode === "rich" && !baselineDisplay && !editorCharset;
+  const [templateMetaHost, setTemplateMetaHost] = useState<HTMLElement | null>(null);
 
   // Keyboard shortcuts while drawing: Esc exits; undo/redo work even though
   // the editor itself is visually hidden (and thus not focused) in draw mode.
@@ -2838,7 +2920,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             </TooltipContent>
           </Tooltip>
         )}
-        {dockedPreview && (
+        {/* Only where the toolbar row (and its "? All shortcuts") is not shown:
+            the list keeps one entry (D5 as Fable ruled it). */}
+        {dockedPreview && !toolbarRowShown && (
           <Button
             variant="secondary"
             size="sm"
@@ -3266,6 +3350,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     onPreviewModeChange: changePreviewMode,
   });
   const complexMinimapId = useId();
+  // A big board's lenses arrive in their own chunks: the editor waits for them
+  // (behind the loading skeleton) so they never push the workspace down after
+  // the first paint (UX-8-3: CLS 0.346 on Den TV).
+  const complexToolsReady = useChunkReady(complexTools, complexEditing.active);
+  // The rich editor too: its card and toolbar are the page's first paint (BB-E-32).
+  const richEditorReady = useChunkReady(tipTapEditor, templateCardHeader);
   const overflowTarget = useMemo(() => {
     const { cleanedLines, metadata } = processLinesWithPrefixes(
       debouncedTemplateLines,
@@ -3340,7 +3430,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // After every hook above (the 2.9 lenses included), so a loading render
   // calls the same hooks as a loaded one.
-  if (pageId && loadingPage) {
+  // Loading, and until the loaded page is in the editor (its board size included)
+  // and the chunks its first paint needs are here: that first paint is the
+  // page's own layout (UX-8-3). Only before the editor first shows: a later
+  // switch (a new page turned into a note array) never blanks it.
+  const pageSettling =
+    !editorShown &&
+    (Boolean(existingPage && seededPageId !== existingPage.id) ||
+      (complexEditing.active && !complexToolsReady) ||
+      (templateCardHeader && !richEditorReady));
+  if (!editorShown && !pageSettling && !(pageId && loadingPage)) setEditorShown(true);
+  if ((pageId && loadingPage) || pageSettling) {
     return (
       <Card>
         <CardContent className="p-4 sm:p-6">
@@ -3503,11 +3603,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     {secondaryActions}
                   </Flex>
                 )}
-                {/* Keep the header popup mounted while compact More is closed.
-                  Only its trigger hides; the kit portals the single controlled
-                  popup and anchors it to the template for hardware `?`. */}
-                <Box hidden={dockedPreview} className={dockedPreview ? "hidden" : "contents"}>
-                  <EditorShortcutList variant="header" compact={compactHeader} {...shortcutListProps} />
+                {/* D5 as Fable ruled it (UX-1-6): the toolbar row's "? All shortcuts" is
+                  the one visible entry, so the header has no ⚡ Shortcuts. This popup
+                  stays mounted with its trigger hidden: `?` and the phone's More open
+                  it, anchored to the template. */}
+                <Box hidden className="hidden">
+                  <EditorShortcutList variant="header" {...shortcutListProps} />
                 </Box>
                 {saveActions ? (
                   <Flex align="center" gap="1.5" className="shrink-0 flex-nowrap">
@@ -3587,8 +3688,31 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   )}
                 </Flex>
               )}
-              {!useTouchToolbar && (
-                <Box ref={setToolbarContainer} data-slot="page-editor-toolbar" className="min-w-0" />
+              {toolbarRowShown && (
+                // One row (UX-2-1, 53:137378): the tools hug their width at the left,
+                // "? All shortcuts" sits at the right. The tools' host keeps the
+                // lazy rich toolbar's height from the first paint (BB-E-32).
+                <Flex align="center" gap="2" data-slot="page-editor-toolbar-row" className="min-w-0 py-1">
+                  {/* The Explorer toggle's fixed place, open or closed (UX-5-1). */}
+                  {workspaceSlots?.toolbarStart && !dockedPreview && (
+                    <Box
+                      ref={workspaceSlots.toolbarStart}
+                      data-slot="page-editor-toolbar-start"
+                      className="shrink-0 empty:hidden"
+                    />
+                  )}
+                  {/* A coarse pointer's tools dock at the bottom of the screen instead. */}
+                  {!useTouchToolbar && (
+                    <Box
+                      ref={setToolbarContainer}
+                      data-slot="page-editor-toolbar"
+                      className={cn("min-w-0 *:rounded-md", richToolbarExpected && "min-h-12.5")}
+                    />
+                  )}
+                  <Box className="ml-auto shrink-0">
+                    <EditorShortcutList variant="hint" {...shortcutListProps} />
+                  </Box>
+                </Flex>
               )}
               {baselineDisplay && (
                 <PlainTemplateToolbar
@@ -3616,18 +3740,25 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 </Alert>
               )}
 
-              {/* One workspace (184:159319; BB-E-7): Explorer | template, then the
-                Console and Timeline | preview, then the status row and Inspector. The
-                Creator IDE portals its regions into the column slots, so the DOM (and
-                Tab) order follows the columns (BB-E-22). Below 1024 px the columns
+              {/* One workspace (184:159319; BB-E-7): Explorer | template, Console and
+                Timeline | preview and Inspector. Each column is its own stack (UX-8-3),
+                so nothing that opens in one column moves the other. The Creator IDE
+                portals its regions into the column slots, so the DOM (and Tab) order
+                follows the columns (BB-E-22). 768–1023 px: template | preview side by
+                side, the Inspector under both (61:17544). Below 768 px the columns
                 dissolve (display: contents) into the one docked stack. */}
               <Box
+                ref={setWorkspaceElement}
                 data-slot="page-editor-workspace"
                 className={cn(
-                  "grid min-w-0 grid-cols-1 items-start gap-0 lg:gap-6",
+                  "grid min-w-0 grid-cols-1 items-start gap-0 md:grid-cols-2 md:gap-4 lg:gap-6",
                   workspaceSlots
                     ? // The preview gets the wider column (53:137378) until the Explorer opens (184:159319).
-                      "lg:grid-cols-[auto_minmax(0,2fr)_minmax(0,3fr)] lg:has-[[data-slot=ide-explorer]]:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]"
+                      // From the shell's state, not `:has()`: Chrome re-matched that a frame
+                      // late when the IDE's Explorer replaced the placeholder (UX-8-3).
+                      explorerOpen
+                      ? "lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]"
+                      : "lg:grid-cols-[auto_minmax(0,2fr)_minmax(0,3fr)]"
                     : "lg:grid-cols-2",
                 )}
               >
@@ -3635,13 +3766,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <Box
                     ref={workspaceSlots.explorer}
                     data-slot="page-editor-explorer-column"
-                    className="hidden min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:block lg:self-stretch"
+                    className="hidden min-w-0 lg:col-start-1 lg:row-start-1 lg:block lg:self-stretch"
                   />
                 )}
                 <Box
                   data-slot="page-editor-template-column"
                   className={cn(
-                    "contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4",
+                    "contents md:flex md:min-w-0 md:flex-col md:gap-4",
                     workspaceSlots && "lg:col-start-2 lg:row-start-1",
                   )}
                 >
@@ -3651,10 +3782,44 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     className="order-1 min-w-0 px-2 lg:order-none lg:px-0"
                   >
                     <Stack gap="3" className="min-w-0">
-                      <Flex ref={templateHeadingRef} align="center" justify="between" className="order-2 lg:order-none">
-                        <label htmlFor="page-template-plain" className="text-xs sm:text-sm font-medium">
+                      {complexEditing.active && (
+                        <Suspense fallback={null}>
+                          <ComplexTemplateHeader
+                            complex={complexEditing}
+                            editorRootRef={
+                              editorMode === "rich" && !baselineDisplay
+                                ? richTemplateContainerRef
+                                : plainTemplateContainerRef
+                            }
+                            onGo={goToTemplateCell}
+                          />
+                        </Suspense>
+                      )}
+                      {/* The template card's header ("Template", the count, Rich | Plain) sits
+                        flush on the rich editor's square top, as 184:159319 draws it (UX-3-3),
+                        and comes before the field at every width (UX-10-1). */}
+                      <Flex
+                        ref={templateHeadingRef}
+                        data-slot="page-editor-template-card-header"
+                        align="center"
+                        justify="between"
+                        gap="2"
+                        className={cn(
+                          "min-w-0",
+                          templateCardHeader && "-mb-3 rounded-t-md border border-b-0 bg-background py-1.5 pl-3 pr-1.5",
+                          // The band gutter stands left of the card (DD-W131): the header tops the card only.
+                          templateCardHeader && rowBandsEnabled && "ml-38",
+                        )}
+                      >
+                        <label htmlFor="page-template-plain" className="text-sm font-semibold">
                           {baselineDisplay ? tTouch("plainTemplate") : t("templateLabel")}
                         </label>
+                        {/* The editor portals its line count and caret here (template-card-meta.tsx). */}
+                        <Box
+                          ref={setTemplateMetaHost}
+                          data-slot="template-card-meta"
+                          className="ml-auto min-w-0 truncate font-mono text-xs text-muted-foreground empty:hidden"
+                        />
                         <Flex
                           align="center"
                           role="group"
@@ -3684,22 +3849,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           </Button>
                         </Flex>
                       </Flex>
-                      {complexEditing.active && (
-                        <Suspense fallback={null}>
-                          <ComplexTemplateHeader
-                            complex={complexEditing}
-                            editorRootRef={
-                              editorMode === "rich" && !baselineDisplay
-                                ? richTemplateContainerRef
-                                : plainTemplateContainerRef
-                            }
-                            onGo={goToTemplateCell}
-                          />
-                        </Suspense>
-                      )}
                       {editorMode === "rich" && !baselineDisplay ? (
                         <Box
                           ref={richTemplateContainerRef}
+                          data-slot="page-editor-template-card"
                           {...anchorProps("page-editor.template")}
                           className={cn("relative", rowBandsEnabled && "pl-38")}
                         >
@@ -3767,53 +3920,59 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 syncFromBoardPending={syncFromBoardMutation.isPending}
                               />
                             ) : (
-                              <TipTapTemplateEditor
-                                ref={tipTapRef}
-                                scrollMargin={caretScrollMargin}
-                                value={newPageEmpty ? "" : templateLines.join("\n")}
-                                onChange={handleRichEditorChange}
-                                lineAlignments={lineAlignments}
-                                lineWrapEnabled={lineWrapEnabled}
-                                onLineAlignmentChange={(lineIndex, alignment) => {
-                                  setLineAlignments((prev) => {
-                                    const newAlignments = [...prev];
-                                    newAlignments[lineIndex] = alignment;
-                                    return newAlignments;
-                                  });
-                                }}
-                                onLineWrapChange={(lineIndex, wrapEnabled) => {
-                                  setLineWrapEnabled((prev) => {
-                                    const newWrapStates = [...prev];
-                                    newWrapStates[lineIndex] = wrapEnabled;
-                                    return newWrapStates;
-                                  });
-                                }}
-                                placeholder={
-                                  newPageEmpty
-                                    ? tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })
-                                    : t("richEditorPlaceholder")
-                                }
-                                showAlignmentControls={true}
-                                showToolbar={true}
-                                boardWidth={dims.cols}
-                                boardLines={numLines}
-                                deviceType={deviceType}
-                                code62Glyph={effectiveCode62Glyph}
-                                onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                                syncFromBoardPending={syncFromBoardMutation.isPending}
-                                drawMode={drawMode}
-                                onDrawModeToggle={() => setDrawMode((v) => !v)}
-                                drawBrush={drawBrush}
-                                onDrawBrushChange={setDrawBrush}
-                                onDrawHistoryEvent={handleDrawHistoryEvent}
-                                toolbarContainer={toolbarContainer}
-                                toolbarMoreContent={mirrorMoreContent}
-                              />
+                              <TemplateCardMetaContext.Provider value={templateCardHeader ? templateMetaHost : null}>
+                                <TipTapTemplateEditor
+                                  ref={tipTapRef}
+                                  scrollMargin={caretScrollMargin}
+                                  value={newPageEmpty ? "" : templateLines.join("\n")}
+                                  onChange={handleRichEditorChange}
+                                  lineAlignments={lineAlignments}
+                                  lineWrapEnabled={lineWrapEnabled}
+                                  onLineAlignmentChange={(lineIndex, alignment) => {
+                                    setLineAlignments((prev) => {
+                                      const newAlignments = [...prev];
+                                      newAlignments[lineIndex] = alignment;
+                                      return newAlignments;
+                                    });
+                                  }}
+                                  onLineWrapChange={(lineIndex, wrapEnabled) => {
+                                    setLineWrapEnabled((prev) => {
+                                      const newWrapStates = [...prev];
+                                      newWrapStates[lineIndex] = wrapEnabled;
+                                      return newWrapStates;
+                                    });
+                                  }}
+                                  placeholder={
+                                    newPageEmpty
+                                      ? tTouch("emptyPrompt", { board: previewBoard?.name ?? tTouch("thisDisplay") })
+                                      : t("richEditorPlaceholder")
+                                  }
+                                  showAlignmentControls={true}
+                                  showToolbar={true}
+                                  boardWidth={dims.cols}
+                                  boardLines={numLines}
+                                  deviceType={deviceType}
+                                  code62Glyph={effectiveCode62Glyph}
+                                  onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                                  syncFromBoardPending={syncFromBoardMutation.isPending}
+                                  drawMode={drawMode}
+                                  onDrawModeToggle={() => setDrawMode((v) => !v)}
+                                  drawBrush={drawBrush}
+                                  onDrawBrushChange={setDrawBrush}
+                                  onDrawHistoryEvent={handleDrawHistoryEvent}
+                                  toolbarContainer={toolbarContainer}
+                                  toolbarMoreContent={mirrorMoreContent}
+                                />
+                              </TemplateCardMetaContext.Provider>
                             )}
                           </Suspense>
                         </Box>
                       ) : (
-                        <Box ref={plainTemplateContainerRef} {...anchorProps("page-editor.template")}>
+                        <Box
+                          ref={plainTemplateContainerRef}
+                          data-slot="page-editor-template-card"
+                          {...anchorProps("page-editor.template")}
+                        >
                           <PlainTextEditor
                             ref={plainTextRef}
                             onHistoryChange={setPlainHistory}
@@ -3916,7 +4075,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
                       {/* Cells the target board's character set draws differently
                       (the server's charset_issues for the rendered page). */}
-                      {charsetIssues.length > 0 && (
+                      {/* Where the Creator IDE is, these are its Warnings: said once, there (UX-6-2). */}
+                      {charsetIssues.length > 0 && !(workspaceSlots && pageId) && (
                         <Flex
                           align="start"
                           gap="2"
@@ -3986,298 +4146,314 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       </Alert>
                     )
                   )}
+                  {/* The foot of the template column: the Console and Timeline. */}
+                  {workspaceSlots && <Box ref={workspaceSlots.template} className="order-4 min-w-0 md:order-none" />}
                 </Box>
-                {/* Row 2 of the template column: the Console and Timeline (DOM order
-                    keeps the column together for Tab, BB-E-22). */}
-                {workspaceSlots && (
-                  <Box
-                    ref={workspaceSlots.template}
-                    className="order-4 min-w-0 lg:order-none lg:col-start-2 lg:row-start-2"
-                  />
-                )}
                 <Box
                   data-slot="page-editor-preview-column"
                   className={cn(
-                    "contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4",
-                    // Its own row's full height: the sticky preview travels within
-                    // row 1 and never over the status row or Inspector below.
-                    workspaceSlots && "lg:col-start-3 lg:row-start-1 lg:self-stretch",
+                    "contents md:flex md:min-w-0 md:flex-col md:gap-4",
+                    workspaceSlots && "lg:col-start-3 lg:row-start-1",
                   )}
                 >
-                  {/* Preview is shared by both modes; the dock stays visible below 1024 px. */}
-                  <EditorPreview
-                    ref={dockPreviewRef}
-                    id="page-editor-preview"
-                    variant={dockedPreview ? "docked" : "pane"}
-                    className={cn(
-                      "@container/preview order-first lg:order-none min-w-0",
-                      dockedPreview
-                        ? "top-16 scroll-mt-16 px-0"
-                        : "top-[var(--editor-chrome-h,4rem)] scroll-mt-[var(--editor-chrome-h,4rem)]",
-                      // A landscape phone has no height for a docked board: it
-                      // scrolls with the template instead (BB-B-4).
-                      dockedPreview && "[@media(max-height:500px)]:static",
-                    )}
-                    // One stable title (BB-E-5): Sample shows in the switch and the dot, not
-                    // by renaming the card, so the header never reflows.
-                    title={baselineDisplay ? tTouch("plainText") : tTouch("livePreview")}
-                    dotStatus={baselineDisplay ? "warning" : (formulaIde.dotStatus ?? "success")}
-                    // The pane's meta is the target control (D3); the dock keeps the name.
-                    boardName={dockedPreview ? previewBoard?.name : undefined}
-                    details={
-                      dockedPreview ? undefined : (
-                        <PreviewTargetPopover
-                          target={previewTargetLabel}
-                          triggerProps={anchorProps("page-editor.device")}
-                        >
-                          {previewTargetControls}
-                        </PreviewTargetPopover>
-                      )
-                    }
-                    liveAction={
-                      canReplay ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={previewReplay.replay}
-                          title={tTouch("replayHint")}
-                          data-testid="preview-replay"
-                        >
-                          <Play aria-hidden />
-                          {tTouch("replay")}
-                        </Button>
-                      ) : undefined
-                    }
-                    live={liveOutputEnabled}
-                    onLiveChange={changeMirroring}
-                    liveDisabled={(mirrorUnavailable && !liveOutputEnabled) || formulaIde.mirrorLocked}
-                    liveLabel={tTouch("mirror")}
-                    mirroringLabel={tTouch("mirroring")}
-                    statusLine={
-                      mirrorUnavailable
-                        ? tTouch("targetUnavailable")
-                        : liveOutputEnabled
-                          ? tTouch("mirrorHint")
-                          : undefined
-                    }
-                    headerAction={
-                      // One row (BB-E-5): the meta truncates, the controls never wrap.
-                      <Flex align="center" gap="1" className="shrink-0 flex-nowrap justify-end">
-                        {dockedPreview && (
+                  {/* The sticky preview travels within this stack, as far as the template
+                    card reaches, and never over the Inspector under it (BB-E-7). */}
+                  <Box
+                    data-slot="page-editor-preview-stack"
+                    className="contents md:flex md:min-w-0 md:flex-col md:gap-4 lg:min-h-(--template-card-reach)"
+                  >
+                    {/* Preview is shared by both modes; the dock stays visible below 1024 px. */}
+                    <EditorPreview
+                      ref={dockPreviewRef}
+                      id="page-editor-preview"
+                      variant={dockedPreview ? "docked" : "pane"}
+                      className={cn(
+                        "@container/preview order-first lg:order-none min-w-0",
+                        dockedPreview
+                          ? "top-16 scroll-mt-16 px-0"
+                          : "top-[var(--editor-chrome-h,4rem)] scroll-mt-[var(--editor-chrome-h,4rem)]",
+                        // A landscape phone has no height for a docked board: it
+                        // scrolls with the template instead (BB-B-4).
+                        dockedPreview && "[@media(max-height:500px)]:static",
+                      )}
+                      // One stable title (BB-E-5): Sample shows in the switch and the dot, not
+                      // by renaming the card, so the header never reflows.
+                      title={baselineDisplay ? tTouch("plainText") : tTouch("livePreview")}
+                      dotStatus={baselineDisplay ? "warning" : (formulaIde.dotStatus ?? "success")}
+                      // The pane's meta is the target control (D3); the dock keeps the name.
+                      boardName={dockedPreview ? previewBoard?.name : undefined}
+                      details={
+                        dockedPreview ? undefined : (
                           <PreviewTargetPopover
                             target={previewTargetLabel}
-                            variant="icon"
                             triggerProps={anchorProps("page-editor.device")}
                           >
                             {previewTargetControls}
                           </PreviewTargetPopover>
-                        )}
-                        {dataControlsInHeader && formulaIde.headerControls}
-                        {bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard && (
-                          <Suspense fallback={null}>
-                            <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
-                          </Suspense>
-                        )}
-                        {fitToggleInHeader && !baselineDisplay && !complexEditing.bigBoard && (
-                          <BoardPreviewModeToggle
-                            mode={previewMode}
-                            onModeChange={changePreviewMode}
-                            size={dockedPreview ? "touch" : "default"}
-                            labels={{
-                              previewSize: tBoardDisplay("previewSizeLabel"),
-                              fit: tBoardDisplay("fitMode"),
-                              actual: tBoardDisplay("actualMode"),
-                            }}
-                          />
-                        )}
-                        {dockedPreview &&
-                          !baselineDisplay &&
-                          (editorMode === "plain" || !useTouchToolbar) &&
-                          (sheetPickers ? (
-                            <ToolbarDropdown
-                              label={tToolbar("more")}
-                              icon={<Ellipsis />}
-                              size="touch"
-                              presentation="sheet"
-                            >
-                              {mirrorMoreContent}
-                            </ToolbarDropdown>
-                          ) : (
-                            <EditorAnchoredTool label={tToolbar("more")} icon={<Ellipsis />}>
-                              {() => mirrorMoreContent}
-                            </EditorAnchoredTool>
-                          ))}
-                      </Flex>
-                    }
-                  >
-                    {formulaIde.bodyControls}
-                    {((!dataControlsInHeader && hasDataControls) ||
-                      (!bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard)) && (
-                      <Flex justify="end" gap="2" wrap>
-                        {!dataControlsInHeader && formulaIde.headerControls}
-                        {!bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard && (
-                          <Suspense fallback={null}>
-                            <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
-                          </Suspense>
-                        )}
-                      </Flex>
-                    )}
-                    {complexEditing.bigBoard && (
-                      <Suspense fallback={null}>
-                        <ComplexPreviewRuler complex={complexEditing} />
-                      </Suspense>
-                    )}
-                    {/* One stage element serves 2.9's lenses (previewStage) and 2.10's Inspect (board ref). */}
-                    <Flex
-                      justify="center"
-                      {...formulaIde.boardProps}
-                      ref={setPreviewStageElement}
-                      className={cn("relative min-w-0", formulaIde.boardProps.className)}
-                    >
-                      {formulaIde.boardOverlay}
-                      {/* H4: where the board cuts a line (BB-E-10, 307:41698). */}
-                      {!drawMode && !baselineDisplay && (
-                        <PreviewCutMarkers
-                          stage={previewStage}
-                          overflows={lineOverflow.overflows}
-                          rows={dims.rows}
-                          cols={dims.cols}
-                          wrapped={lineWrapEnabled}
-                        />
-                      )}
-                      {baselineDisplay ? (
-                        <Alert variant="warning" className="w-full">
-                          <AlertDescription>
-                            <Stack gap="2">
-                              <Text weight="semibold">{tTouch("unknownDisplay")}</Text>
-                              <Text>{tTouch("plainTextOnly")}</Text>
-                              <Box className="rounded-lg border bg-background p-3">
-                                <Text className="whitespace-pre-wrap font-mono">{editorPreviewMessage}</Text>
-                              </Box>
-                            </Stack>
-                          </AlertDescription>
-                        </Alert>
-                      ) : (
-                        <DrawableBoardPreview
-                          active={drawMode}
-                          onStrokePreview={setStrokePreviewCells}
-                          onStrokeCommit={handleStrokeCommit}
-                        >
-                          {/* An LED target board previews as its LED matrix; draw
-                            mode hit-tests flap tiles, so it stays on the flaps. */}
-                          <DevicePreview
-                            model={drawMode ? null : previewModel}
-                            ledLayout={previewBoard?.led_layout}
-                            layers={drawMode ? undefined : previewLayers}
-                            message={shownPreviewMessage}
-                            size={dockedPreview ? "sm" : "md"}
+                        )
+                      }
+                      liveAction={
+                        canReplay ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={previewReplay.replay}
+                            title={tTouch("replayHint")}
+                            data-testid="preview-replay"
                           >
-                            <ScaledBoardDisplay
-                              message={previewReplay.message}
-                              // D7: edits snap; only Replay flaps.
-                              animate={previewReplay.animate}
-                              isLoading={
-                                drawMode
-                                  ? false
-                                  : (() => {
-                                      const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                                      const isPending = previewMutation.isPending;
-                                      const shouldIgnore = shouldIgnoreNextResponse.current;
-
-                                      if (isTransitioning) return true;
-                                      if (preview !== null) return false;
-                                      if (!hasContent) return false;
-                                      if (shouldIgnore) return false;
-                                      return isPending && hasContent;
-                                    })()
-                              }
-                              isStatic={drawMode}
-                              size={complexEditing.bigBoard ? complexEditing.previewSize : dockedPreview ? "sm" : "md"}
-                              // Hero layouts settle a board that overflows by a
-                              // little into the pane (tiles stay >= 13 px): a
-                              // Flagship shows whole, Den TV still scrolls (BB-B-11).
-                              layout={dockedPreview ? "phone-hero" : "medium-hero"}
-                              mode={complexEditing.bigBoard ? complexEditing.previewMode : previewMode}
-                              onModeChange={
-                                complexEditing.bigBoard
-                                  ? (mode) => complexEditing.setZoom(mode === "fit" ? "fit" : "sm")
-                                  : changePreviewMode
-                              }
-                              // With the data controls in the header, Fit / Actual is the
-                              // viewport's own, shown while the board overflows (307:46094).
-                              showModeToggle={!fitToggleInHeader && !complexEditing.bigBoard}
-                              boardType={effectiveBoardColor}
-                              deviceType={deviceType}
-                              code62Glyph={effectiveCode62Glyph}
-                              notesWide={notesWide}
-                              notesTall={notesTall}
-                              gridRows={panelGrid?.rows}
-                              gridCols={panelGrid?.cols}
-                              // DrawableBoardPreview hit-tests strokes through the
-                              // tiles' data-row/data-col attributes; only this
-                              // editor preview opts into emitting them.
-                              emitCellMetadata
+                            <Play aria-hidden />
+                            {tTouch("replay")}
+                          </Button>
+                        ) : undefined
+                      }
+                      live={liveOutputEnabled}
+                      onLiveChange={changeMirroring}
+                      liveDisabled={(mirrorUnavailable && !liveOutputEnabled) || formulaIde.mirrorLocked}
+                      liveLabel={tTouch("mirror")}
+                      mirroringLabel={tTouch("mirroring")}
+                      statusLine={
+                        mirrorUnavailable
+                          ? tTouch("targetUnavailable")
+                          : liveOutputEnabled
+                            ? tTouch("mirrorHint")
+                            : undefined
+                      }
+                      headerAction={
+                        // One row (BB-E-5): the meta truncates, the controls never wrap.
+                        <Flex align="center" gap="1" className="shrink-0 flex-nowrap justify-end">
+                          {dockedPreview && (
+                            <PreviewTargetPopover
+                              target={previewTargetLabel}
+                              variant="icon"
+                              triggerProps={anchorProps("page-editor.device")}
+                            >
+                              {previewTargetControls}
+                            </PreviewTargetPopover>
+                          )}
+                          {dataControlsInHeader && formulaIde.headerControls}
+                          {bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard && (
+                            <Suspense fallback={null}>
+                              <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
+                            </Suspense>
+                          )}
+                          {fitToggleInHeader && !baselineDisplay && !complexEditing.bigBoard && (
+                            <BoardPreviewModeToggle
+                              mode={previewMode}
+                              onModeChange={changePreviewMode}
+                              size={dockedPreview ? "touch" : "default"}
+                              labels={{
+                                previewSize: tBoardDisplay("previewSizeLabel"),
+                                fit: tBoardDisplay("fitMode"),
+                                actual: tBoardDisplay("actualMode"),
+                              }}
                             />
-                          </DevicePreview>
-                        </DrawableBoardPreview>
+                          )}
+                          {dockedPreview &&
+                            !baselineDisplay &&
+                            (editorMode === "plain" || !useTouchToolbar) &&
+                            (sheetPickers ? (
+                              <ToolbarDropdown
+                                label={tToolbar("more")}
+                                icon={<Ellipsis />}
+                                size="touch"
+                                presentation="sheet"
+                              >
+                                {mirrorMoreContent}
+                              </ToolbarDropdown>
+                            ) : (
+                              <EditorAnchoredTool label={tToolbar("more")} icon={<Ellipsis />}>
+                                {() => mirrorMoreContent}
+                              </EditorAnchoredTool>
+                            ))}
+                        </Flex>
+                      }
+                    >
+                      {formulaIde.bodyControls}
+                      {((!dataControlsInHeader && hasDataControls) ||
+                        (!bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard)) && (
+                        <Flex justify="end" gap="2" wrap>
+                          {!dataControlsInHeader && formulaIde.headerControls}
+                          {!bigZoomInHeader && !baselineDisplay && complexEditing.bigBoard && (
+                            <Suspense fallback={null}>
+                              <BigBoardZoom complex={complexEditing} minimapId={complexMinimapId} />
+                            </Suspense>
+                          )}
+                        </Flex>
                       )}
-                      {complexEditing.noteArray && (
+                      {complexEditing.bigBoard && (
                         <Suspense fallback={null}>
-                          <ComplexPreviewSeams complex={complexEditing} />
+                          <ComplexPreviewRuler complex={complexEditing} />
                         </Suspense>
                       )}
-                    </Flex>
-                    {complexEditing.bigBoard && (
-                      <Suspense fallback={null}>
-                        <ComplexPreviewOverview
-                          complex={complexEditing}
-                          board={{
-                            message: shownPreviewMessage,
-                            boardType: effectiveBoardColor,
-                            deviceType,
-                            code62Glyph: effectiveCode62Glyph,
-                            notesWide,
-                            notesTall,
-                            gridRows: panelGrid?.rows,
-                            gridCols: panelGrid?.cols,
-                          }}
-                          rendered={renderedRows}
-                          overflows={lineOverflow.overflows}
-                          minimapId={complexMinimapId}
-                          onJump={goToTemplateCell}
-                        />
-                      </Suspense>
-                    )}
-                    {drawMode && (
-                      <Text tone="muted" size="xs" className="mt-1 text-center">
-                        {t("drawModeHint")}
-                      </Text>
-                    )}
+                      {/* One stage element serves 2.9's lenses (previewStage) and 2.10's Inspect (board ref). */}
+                      <Flex
+                        justify="center"
+                        {...formulaIde.boardProps}
+                        ref={setPreviewStageElement}
+                        className={cn("relative min-w-0", formulaIde.boardProps.className)}
+                      >
+                        {formulaIde.boardOverlay}
+                        {/* H4: where the board cuts a line (BB-E-10, 307:41698). */}
+                        {!drawMode && !baselineDisplay && (
+                          <PreviewCutMarkers
+                            stage={previewStage}
+                            overflows={lineOverflow.overflows}
+                            rows={dims.rows}
+                            cols={dims.cols}
+                            wrapped={lineWrapEnabled}
+                          />
+                        )}
+                        {baselineDisplay ? (
+                          <Alert variant="warning" className="w-full">
+                            <AlertDescription>
+                              <Stack gap="2">
+                                <Text weight="semibold">{tTouch("unknownDisplay")}</Text>
+                                <Text>{tTouch("plainTextOnly")}</Text>
+                                <Box className="rounded-lg border bg-background p-3">
+                                  <Text className="whitespace-pre-wrap font-mono">{editorPreviewMessage}</Text>
+                                </Box>
+                              </Stack>
+                            </AlertDescription>
+                          </Alert>
+                        ) : (
+                          <DrawableBoardPreview
+                            active={drawMode}
+                            onStrokePreview={setStrokePreviewCells}
+                            onStrokeCommit={handleStrokeCommit}
+                          >
+                            {/* An LED target board previews as its LED matrix; draw
+                            mode hit-tests flap tiles, so it stays on the flaps. */}
+                            <DevicePreview
+                              model={drawMode ? null : previewModel}
+                              ledLayout={previewBoard?.led_layout}
+                              layers={drawMode ? undefined : previewLayers}
+                              message={shownPreviewMessage}
+                              size={dockedPreview ? "sm" : "md"}
+                            >
+                              <ScaledBoardDisplay
+                                message={previewReplay.message}
+                                // D7: edits snap; only Replay flaps.
+                                animate={previewReplay.animate}
+                                isLoading={
+                                  drawMode
+                                    ? false
+                                    : (() => {
+                                        const hasContent = debouncedTemplateLines.some(
+                                          (line) => line.trim().length > 0,
+                                        );
+                                        const isPending = previewMutation.isPending;
+                                        const shouldIgnore = shouldIgnoreNextResponse.current;
 
-                    {liveTargetPaused && (
-                      <Alert id="live-output-paused-notice" className="mt-2">
-                        <AlertDescription>{t("livePausedNotice")}</AlertDescription>
-                      </Alert>
-                    )}
-                    <LiveOutputSilenceStrip
-                      liveOutputEnabled={liveOutputEnabled}
-                      lastSilenced={liveSilenced}
-                      silenceActive={liveSilence.active || liveSilenced}
-                      overriding={liveOverrideSilence}
-                      until={liveSilence.until}
-                      onSendAnyway={() => setLiveOverrideSilence(true)}
-                      onStopOverriding={() => setLiveOverrideSilence(false)}
-                    />
-                    {formulaIde.previewFooter}
-                  </EditorPreview>
-                  {formulaIde.rightSlot && <Box className="order-2 min-w-0 lg:order-none">{formulaIde.rightSlot}</Box>}
+                                        if (isTransitioning) return true;
+                                        if (preview !== null) return false;
+                                        if (!hasContent) return false;
+                                        if (shouldIgnore) return false;
+                                        return isPending && hasContent;
+                                      })()
+                                }
+                                isStatic={drawMode}
+                                size={
+                                  complexEditing.bigBoard ? complexEditing.previewSize : dockedPreview ? "sm" : "md"
+                                }
+                                // Hero layouts settle a board that overflows by a
+                                // little into the pane (tiles stay >= 13 px): a
+                                // Flagship shows whole, Den TV still scrolls (BB-B-11).
+                                layout={dockedPreview ? "phone-hero" : "medium-hero"}
+                                mode={complexEditing.bigBoard ? complexEditing.previewMode : previewMode}
+                                onModeChange={
+                                  complexEditing.bigBoard
+                                    ? (mode) => complexEditing.setZoom(mode === "fit" ? "fit" : "sm")
+                                    : changePreviewMode
+                                }
+                                // With the data controls in the header, Fit / Actual is the
+                                // viewport's own, shown while the board overflows (307:46094).
+                                showModeToggle={!fitToggleInHeader && !complexEditing.bigBoard}
+                                boardType={effectiveBoardColor}
+                                deviceType={deviceType}
+                                code62Glyph={effectiveCode62Glyph}
+                                notesWide={notesWide}
+                                notesTall={notesTall}
+                                gridRows={panelGrid?.rows}
+                                gridCols={panelGrid?.cols}
+                                // DrawableBoardPreview hit-tests strokes through the
+                                // tiles' data-row/data-col attributes; only this
+                                // editor preview opts into emitting them.
+                                emitCellMetadata
+                              />
+                            </DevicePreview>
+                          </DrawableBoardPreview>
+                        )}
+                        {complexEditing.noteArray && (
+                          <Suspense fallback={null}>
+                            <ComplexPreviewSeams complex={complexEditing} />
+                          </Suspense>
+                        )}
+                      </Flex>
+                      {complexEditing.bigBoard && (
+                        <Suspense fallback={null}>
+                          <ComplexPreviewOverview
+                            complex={complexEditing}
+                            board={{
+                              message: shownPreviewMessage,
+                              boardType: effectiveBoardColor,
+                              deviceType,
+                              code62Glyph: effectiveCode62Glyph,
+                              notesWide,
+                              notesTall,
+                              gridRows: panelGrid?.rows,
+                              gridCols: panelGrid?.cols,
+                            }}
+                            rendered={renderedRows}
+                            overflows={lineOverflow.overflows}
+                            minimapId={complexMinimapId}
+                            onJump={goToTemplateCell}
+                          />
+                        </Suspense>
+                      )}
+                      {drawMode && (
+                        <Text tone="muted" size="xs" className="mt-1 text-center">
+                          {t("drawModeHint")}
+                        </Text>
+                      )}
+
+                      {liveTargetPaused && (
+                        <Alert id="live-output-paused-notice" className="mt-2">
+                          <AlertDescription>{t("livePausedNotice")}</AlertDescription>
+                        </Alert>
+                      )}
+                      <LiveOutputSilenceStrip
+                        liveOutputEnabled={liveOutputEnabled}
+                        lastSilenced={liveSilenced}
+                        silenceActive={liveSilence.active || liveSilenced}
+                        overriding={liveOverrideSilence}
+                        until={liveSilence.until}
+                        onSendAnyway={() => setLiveOverrideSilence(true)}
+                        onStopOverriding={() => setLiveOverrideSilence(false)}
+                      />
+                      {formulaIde.previewFooter}
+                      {/* The IDE's status line, in the card's foot (UX-6-2, 184:159319). Its
+                      height is kept before the IDE loads, so the card never grows. */}
+                      {workspaceSlots && splitWorkspace && (
+                        <Box
+                          ref={workspaceSlots.status}
+                          data-slot="page-editor-status-slot"
+                          className="min-h-7 min-w-0"
+                        />
+                      )}
+                    </EditorPreview>
+                  </Box>
+                  {/* After the stack, so the sticky preview never travels over it (FABLE-2649). */}
+                  {formulaIde.rightSlot && (
+                    <Box data-slot="page-editor-workbench" className="order-2 min-w-0 lg:order-none">
+                      {formulaIde.rightSlot}
+                    </Box>
+                  )}
+                  {/* The foot of the preview column: the Inspector (desktop). */}
+                  {workspaceSlots && !dockedPreview && <Box ref={workspaceSlots.preview} className="min-w-0" />}
                 </Box>
-                {/* Row 2 of the preview column: the status row and the Inspector. */}
-                {workspaceSlots && (
-                  <Box
-                    ref={workspaceSlots.preview}
-                    className="order-5 min-w-0 lg:order-none lg:col-start-3 lg:row-start-2"
-                  />
+                {/* Below 1024 px the IDE stacks under the pair, across both columns (M5). */}
+                {workspaceSlots && dockedPreview && (
+                  <Box ref={workspaceSlots.preview} className="order-5 min-w-0 md:col-span-2" />
                 )}
               </Box>
             </Box>
