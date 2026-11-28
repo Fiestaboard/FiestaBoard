@@ -369,7 +369,14 @@ for (const width of [1280, 1440]) {
     const target = header.getByTestId("preview-target-meta");
     await expect(target).toHaveText("Kitchen board · Flagship 22 × 6");
     await expect(target).toHaveAttribute("title", "Kitchen board · Flagship 22 × 6");
-    expect(await target.evaluate((el) => getComputedStyle(el).textOverflow)).toBe("ellipsis");
+    const style = await target.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { overflow: cs.textOverflow, size: cs.fontSize, family: cs.fontFamily };
+    });
+    expect(style.overflow).toBe("ellipsis");
+    // The header meta's 12 px mono (307:46094), not body text.
+    expect(style.size).toBe("12px");
+    expect(style.family).toMatch(/mono/i);
     // Board colour is a View choice, and the choice closes the menu.
     await header.getByRole("button", { name: "View", exact: true }).click();
     await page.getByRole("group", { name: "Board color" }).getByRole("menuitemradio", { name: "White" }).click();

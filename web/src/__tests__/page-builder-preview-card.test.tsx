@@ -133,6 +133,9 @@ describe("Preview card (BB-E-5, BB-E-6)", () => {
     expect(meta).toHaveAttribute("title", "Living Room · Flagship 22 × 6");
     expect(meta.closest("button")).toBeNull();
     expect(meta).toHaveClass("truncate", "min-w-0");
+    // The header meta's type (307:46094): 12 px muted mono, as the new page's popover trigger draws it.
+    expect(meta).toHaveClass("font-mono", "text-xs", "text-muted-foreground", "font-medium");
+    expect(meta).not.toHaveClass("text-sm");
     // The AI walkthrough spotlights the page's display through this anchor; it stays in the DOM.
     expect(resolveAnchor("page-editor.device")).toBe(meta);
     // Inspector › Shows on is the one display picker; the in-place resize of #1250 is retired.

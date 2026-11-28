@@ -4133,10 +4133,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         dockedPreview ? undefined : pageId ? (
                           <Text
                             as="span"
+                            size="xs"
+                            tone="muted"
+                            weight="medium"
                             {...anchorProps("page-editor.device")}
                             title={previewTargetLabel}
                             data-testid="preview-target-meta"
-                            className="block min-w-0 truncate"
+                            className="block min-w-0 truncate font-mono"
                           >
                             {previewTargetLabel}
                           </Text>
