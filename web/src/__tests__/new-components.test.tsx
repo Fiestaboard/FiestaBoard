@@ -91,7 +91,8 @@ describe("PageBuilder", () => {
   it("renders create page form", async () => {
     render(<PageBuilder onClose={mockOnClose} onSave={mockOnSave} />, { wrapper: TestWrapper });
 
-    expect(screen.getByText("Create Page")).toBeInTheDocument();
+    // The editor's first paint waits for the rich editor's chunk (UX-8-3).
+    expect(await screen.findByText("Create Page")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("My Custom Page")).toBeInTheDocument();
   });
 
@@ -202,7 +203,8 @@ describe("PageBuilder", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /back to pages/i }));
     expect(mockOnClose).toHaveBeenCalled();
-    expect(screen.getByText("Create Page")).toBeInTheDocument();
+    // The editor's first paint waits for the rich editor's chunk (UX-8-3).
+    expect(await screen.findByText("Create Page")).toBeInTheDocument();
   });
 
   // BB-B-11: the desktop preview settles a 22-column board into its pane

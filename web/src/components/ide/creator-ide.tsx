@@ -58,6 +58,13 @@ export interface CreatorIdeProps {
   templateSlot?: HTMLElement | null;
   /** The end of the preview column: the status row and Inspector go there. Omitted: rendered in place. */
   previewSlot?: HTMLElement | null;
+  /** The preview card's foot (≥ 768 px, UX-6-2): the status line goes there. Null: it heads the Inspector stack. */
+  statusSlot?: HTMLElement | null;
+  /**
+   * The toolbar row's left end (≥ 1024 px, UX-5-1): the Explorer toggle's one
+   * place, open or closed. Unused until the toggle moves there (FP-2).
+   */
+  toolbarStartSlot?: HTMLElement | null;
   /** The Explorer's open state when the shell owns it (it draws the same column before the first save). */
   explorer?: ExplorerToggle;
   /** The saved page's board kind: whether the Explorer starts open, and whose remembered choice applies (D2). */
@@ -108,6 +115,7 @@ export default function CreatorIde({
   explorerSlot,
   templateSlot,
   previewSlot,
+  statusSlot,
   explorer: explorerProp,
   boardKind = "flagship",
   savedTick,
@@ -264,8 +272,24 @@ export default function CreatorIde({
       </Card>
     </Stack>
   );
-  // The status row and the Inspector: the foot of the preview column. Below
-  // 1024 px the one stack of the docked editor, after the preview.
+  const status = (
+    <PreviewStatus
+      data-slot="ide-preview-status"
+      display={ide.display}
+      displayLabel={t(`display.${ide.display}`)}
+      message={statusMessage}
+      // A saved page's state is the header's saved time; a Saved chip
+      // here repeated it (BB-E-26, Figma 184:159319 draws none).
+      editState={ide.editState === "saved" ? undefined : ide.editState}
+      editStateLabel={ide.editState === "draft" && draftLabel ? draftLabel : t(`edit.${ide.editState}`)}
+      problems={problemCount}
+      onOpenProblems={openProblems}
+      problemsLabel={(count) => t("problemsLink", { count })}
+      problemsDirection={desktop ? "down" : "right"}
+    />
+  );
+  // The Inspector (and the status line on a phone): the foot of the preview
+  // column. Below 1024 px the stack under the template and the preview.
   const previewRegions = (
     <Box
       as="section"
@@ -274,20 +298,7 @@ export default function CreatorIde({
       data-layout={desktop ? "desktop" : "compact"}
       className="flex min-w-0 flex-col gap-3 px-2 pb-24 lg:px-0 lg:pb-0"
     >
-      <PreviewStatus
-        data-slot="ide-preview-status"
-        display={ide.display}
-        displayLabel={t(`display.${ide.display}`)}
-        message={statusMessage}
-        // A saved page's state is the header's saved time; a Saved chip
-        // here repeated it (BB-E-26, Figma 184:159319 draws none).
-        editState={ide.editState === "saved" ? undefined : ide.editState}
-        editStateLabel={ide.editState === "draft" && draftLabel ? draftLabel : t(`edit.${ide.editState}`)}
-        problems={problemCount}
-        onOpenProblems={openProblems}
-        problemsLabel={(count) => t("problemsLink", { count })}
-        problemsDirection={desktop ? "down" : "right"}
-      />
+      {!statusSlot && status}
       <Card className="gap-0 py-0" id="ide-inspector">
         <CardContent className="p-3.5">
           <InspectorTabs
@@ -359,6 +370,7 @@ export default function CreatorIde({
         )}
       {desktop && inSlot(templateSlot, consoleRegions)}
       {inSlot(previewSlot, previewRegions)}
+      {statusSlot && createPortal(status, statusSlot)}
       <AlertDialog open={ide.draftConflict} onOpenChange={(open) => !open && ide.dismissDraftConflict()}>
         <AlertDialogContent>
           <AlertDialogHeader>
