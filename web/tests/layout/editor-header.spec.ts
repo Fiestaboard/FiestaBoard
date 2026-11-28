@@ -58,7 +58,7 @@ test("1024–1279: an open Explorer overlays the template; from 1280 it is a col
   await openEditor(page, 1024);
   const template = page.locator('[data-slot="page-editor-template-column"]');
   const before = (await template.boundingBox())!;
-  await page.getByRole("button", { name: "Show Explorer" }).click();
+  await page.getByRole("button", { name: "Explorer", exact: true, pressed: false }).click();
   const explorer = page.getByRole("navigation", { name: "Explorer" });
   await expect(explorer).toBeVisible();
   const after = (await template.boundingBox())!;

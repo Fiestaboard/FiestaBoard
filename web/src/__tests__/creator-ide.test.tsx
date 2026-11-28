@@ -460,20 +460,13 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(within(nav).queryByText("Not in any collection.")).toBeNull();
   });
 
-  it("hides the Explorer to one Show Explorer button and back, moving focus with it (D2)", async () => {
+  it("leaves the Explorer column empty when it is closed: the toggle is the toolbar's (UX-5-1)", async () => {
+    localStorage.setItem("fiestaboard_ide_explorer:panel", "closed");
     mockHub();
     const { slot } = renderIde();
-    const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
-    fireEvent.click(within(nav).getByRole("button", { name: "Hide Explorer" }));
-    expect(within(slot).queryByRole("navigation", { name: "Explorer" })).toBeNull();
-    const show = within(slot).getByRole("button", { name: "Show Explorer" });
-    expect(show).toHaveAttribute("aria-expanded", "false");
-    await waitFor(() => expect(show).toHaveFocus());
-    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("closed");
-    fireEvent.click(show);
-    const hide = await within(slot).findByRole("button", { name: "Hide Explorer" });
-    await waitFor(() => expect(hide).toHaveFocus());
-    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("open");
+    await screen.findByRole("tablist", { name: "Inspector" });
+    expect(slot.childElementCount).toBe(0);
+    expect(screen.queryByRole("button", { name: /explorer/i })).toBeNull();
   });
 
   it("keeps the Explorer lists' children listitems (BB-B-20: axe aria-required-children)", async () => {
