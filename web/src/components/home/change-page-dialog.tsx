@@ -411,15 +411,15 @@ export function ChangePageDialog({
               <SheetHeader className="pe-12 text-start">
                 <Flex align="start" gap="2">
                   {!pageScoped && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setStep("pick")}
-                    aria-label={t("back")}
-                    className="-ms-2 size-11 shrink-0"
-                  >
-                    <ChevronLeft className="size-5" aria-hidden="true" />
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setStep("pick")}
+                      aria-label={t("back")}
+                      className="-ms-2 size-11 shrink-0"
+                    >
+                      <ChevronLeft className="size-5" aria-hidden="true" />
+                    </Button>
                   )}
                   <Stack gap="1" className="min-w-0 text-start">
                     <SheetTitle>{scopedTitle ?? selected?.name}</SheetTitle>

@@ -4,8 +4,8 @@ import { Box, Button, Flex, InspectorRow, List, ListItem, ListRow, Stack, Text }
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId } from "react";
 
-import { useLocale, useTranslations } from "@/i18n/translations";
 import { nudgeDisplay, useRefreshHomeStatus } from "@/components/home/use-home-data";
+import { useLocale, useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
@@ -164,8 +164,7 @@ export function IdeShowsOn({
     })),
   });
   const pageName = (id: string | null | undefined) => ide.pages.find((page) => page.id === id)?.name;
-  const empty =
-    !ide.showsOn.entries.length && !ide.showsOn.collections.length && !ide.showsOn.showingNow.length;
+  const empty = !ide.showsOn.entries.length && !ide.showsOn.collections.length && !ide.showsOn.showingNow.length;
 
   return (
     <Stack gap="3" data-slot="ide-shows-on">
