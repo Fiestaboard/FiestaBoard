@@ -4070,7 +4070,7 @@
     "overflowChecked": "Merkez tarafından {board} gerçek genişliğinde denetlendi · {time}",
     "overflowCheckedNoBoard": "Merkez tarafından bu panonun gerçek genişliğinde denetlendi · {time}",
     "overflowWrap": "{line}. satırı kaydır",
-    "overflowWrapNeedsRows": "{count} satır daha gerekiyor",
+    "overflowWrapNeedsRows": "{count, plural, one {# satır} other {# satır}} daha gerekiyor",
     "overflowMore": "Ayrıca kesilenler: {lines}",
     "bandsLabel": "Satır bantları",
     "bandMoveUp": "Yukarı taşı",

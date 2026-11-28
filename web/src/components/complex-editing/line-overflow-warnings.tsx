@@ -1,7 +1,6 @@
 "use client";
 
 import { EditorWarning, EditorWarningAction, Stack, Text } from "@fiestaboard/ui";
-
 import { useId } from "react";
 
 import { useTranslations } from "@/i18n/translations";

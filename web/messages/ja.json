@@ -4070,7 +4070,7 @@
     "overflowChecked": "ハブが {board} の実際の幅で確認 · {time}",
     "overflowCheckedNoBoard": "ハブがこのボードの実際の幅で確認 · {time}",
     "overflowWrap": "行 {line} を折り返す",
-    "overflowWrapNeedsRows": "あと {count} 行必要です",
+    "overflowWrapNeedsRows": "あと {count, plural, one {# 行} other {# 行}}必要です",
     "overflowMore": "ほかに切れる行: {lines}",
     "bandsLabel": "行バンド",
     "bandMoveUp": "上へ移動",

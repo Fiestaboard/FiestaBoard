@@ -4070,7 +4070,7 @@
     "overflowChecked": "허브가 {board}의 실제 너비로 확인함 · {time}",
     "overflowCheckedNoBoard": "허브가 이 보드의 실제 너비로 확인함 · {time}",
     "overflowWrap": "줄 {line} 줄바꿈",
-    "overflowWrapNeedsRows": "{count}행이 더 필요합니다",
+    "overflowWrapNeedsRows": "{count, plural, one {#행} other {#행}}이 더 필요합니다",
     "overflowMore": "함께 잘리는 줄: {lines}",
     "bandsLabel": "행 밴드",
     "bandMoveUp": "위로 이동",
