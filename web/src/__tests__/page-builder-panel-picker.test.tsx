@@ -10,7 +10,7 @@
  * resolving to a note_array page.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -44,6 +44,7 @@ vi.mock("@/lib/api", async () => {
       getBoardSettings: vi.fn(),
       getPage: vi.fn(),
       updatePage: vi.fn(),
+      createPage: vi.fn(),
     },
   };
 });
@@ -229,12 +230,11 @@ describe("PageBuilder size picker — FiestaPanels", () => {
 
   it("previews a panel page with the panel's grid", async () => {
     servePanels(panel("p1", "Kitchen TV", 12, 29));
-    vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
     const user = userEvent.setup();
-    render(<PageBuilder pageId="existing-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
-      wrapper: TestWrapper,
-    });
-    await screen.findByText("22 × 6");
+    render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+    const editor = await screen.findByRole("textbox", { name: "Template editor" });
+    await user.click(editor);
+    await user.type(editor, "HELLO");
 
     await openSizePicker(user);
     await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
@@ -256,25 +256,24 @@ describe("PageBuilder size picker — FiestaPanels", () => {
 
   it("saves a panel page as device_type panel with the panel's grid_rows and grid_cols", async () => {
     servePanels(panel("p1", "Kitchen TV", 12, 29));
-    vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
-    vi.mocked(api.updatePage).mockResolvedValue({
-      page: { ...existingFlagshipPage, device_type: "panel", grid_rows: 12, grid_cols: 29 },
-      incompatible_references: [],
+    vi.mocked(api.createPage).mockResolvedValue({
+      ...existingFlagshipPage,
+      id: "created-1",
+      device_type: "panel",
+      grid_rows: 12,
+      grid_cols: 29,
     });
     const user = userEvent.setup();
-    render(<PageBuilder pageId="existing-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
-      wrapper: TestWrapper,
-    });
-    await screen.findByText("22 × 6");
+    render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
 
     await openSizePicker(user);
     await user.click(await screen.findByRole("option", { name: "Kitchen TV · 29×12" }));
     expect(await screen.findByRole("img", { name: "29 columns by 12 rows, Panel" })).toHaveTextContent("29 × 12");
 
-    // 6 × 22 → 12 × 29 grows on both axes, so no confirmation gate.
+    fireEvent.change(screen.getByLabelText(/page name/i), { target: { value: "Kitchen menu" } });
     await user.click(screen.getByRole("button", { name: "Save page" }));
-    await waitFor(() => expect(api.updatePage).toHaveBeenCalled());
-    const [, payload] = vi.mocked(api.updatePage).mock.calls[0];
+    await waitFor(() => expect(api.createPage).toHaveBeenCalled());
+    const [payload] = vi.mocked(api.createPage).mock.calls[0];
     expect(payload).toMatchObject({ device_type: "panel", grid_rows: 12, grid_cols: 29 });
     expect(payload).not.toHaveProperty("notes_wide");
     expect(payload).not.toHaveProperty("notes_tall");
@@ -303,8 +302,9 @@ describe("PageBuilder size picker — FiestaPanels", () => {
   });
 
   it("names an unmatched panel page by its own grid when no panel fits it any more", async () => {
-    // The page's panel was re-fit to another size (or deleted): the trigger
-    // must still say what the page is rather than go blank.
+    // The page's panel was re-fit to another size (or deleted): the meta must
+    // still say what the page is rather than go blank. A saved page has no
+    // size picker (D3, DD-W159), so its preview meta is where it is said.
     servePanels(panel("p1", "Kitchen TV", 14, 34));
     vi.mocked(api.getPage).mockResolvedValue({
       ...existingFlagshipPage,
@@ -317,8 +317,9 @@ describe("PageBuilder size picker — FiestaPanels", () => {
       wrapper: TestWrapper,
     });
 
-    const switcher = await screen.findByLabelText("Change board size");
-    await waitFor(() => expect(switcher).toHaveTextContent("Panel · 29×12"));
+    const meta = await screen.findByTestId("preview-target-meta");
+    await waitFor(() => expect(meta).toHaveTextContent(/29 × 12/));
+    expect(screen.queryByLabelText("Change board size")).toBeNull();
   });
 
   it("still sizes a legacy note-array panel's page as a note array", async () => {

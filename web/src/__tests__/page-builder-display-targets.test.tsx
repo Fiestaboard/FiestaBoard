@@ -12,7 +12,7 @@
  */
 import { tryResolveDeviceModel } from "@fiestaboard/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { createRef, type ReactNode } from "react";
@@ -169,6 +169,17 @@ async function expectTarget(name: string) {
   await waitFor(() => expect(trigger).toHaveTextContent(name));
 }
 
+/**
+ * A saved page has no size picker (D3, DD-W159): its preview header's
+ * plain-text meta names the display it previews as.
+ */
+async function expectMeta(boardName: string) {
+  const meta = await screen.findByTestId("preview-target-meta");
+  await waitFor(() => expect(meta.textContent).toMatch(new RegExp(`^${boardName} · `)));
+  expect(screen.queryByLabelText("Change board size")).toBeNull();
+  return meta;
+}
+
 describe("PageBuilder — any custom-grid display is a page target", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -233,8 +244,8 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
       const user = userEvent.setup();
       renderExisting();
 
-      // An existing page of the Pixoo's grid is named for the Pixoo.
-      expect(await screen.findByLabelText("Change board size")).toHaveTextContent(PIXOO_OPTION);
+      // An existing page of the Pixoo's grid previews as the Pixoo.
+      await expectMeta("Pixoo");
       await user.click(await screen.findByRole("button", { name: /^Save/ }));
       await waitFor(() => expect(api.updatePage).toHaveBeenCalled());
       expect(vi.mocked(api.updatePage).mock.calls[0][1]).toMatchObject({
@@ -470,7 +481,7 @@ describe("PageBuilder — any custom-grid display is a page target", () => {
       renderExisting();
 
       await waitFor(() => expect(api.renderTemplate).toHaveBeenCalled(), { timeout: 5000 });
-      expect(screen.getByLabelText("Change board size")).toHaveTextContent("Flagship");
+      expect(await expectMeta("Hall")).toHaveTextContent("Flagship");
       expect(lastRenderBoardId()).toBe("flag-1");
     });
   });
@@ -527,14 +538,16 @@ describe("PageBuilder live output target", () => {
     if (kind === "new") renderNew();
     else renderExisting();
 
-    await expectTarget(PIXOO_OPTION);
     if (kind === "new") {
+      await expectTarget(PIXOO_OPTION);
       const editor = await screen.findByRole("textbox", { name: "Template editor" });
       await user.click(editor);
       await user.type(editor, "Hello");
-    }
+    } else await expectMeta("Pixoo");
     await startLive(user, PIXOO.id);
-    expect(screen.getByRole("combobox", { name: "Select board for live output" })).toHaveTextContent("Pixoo");
+    if (kind === "new") {
+      expect(screen.getByRole("combobox", { name: "Select board for live output" })).toHaveTextContent("Pixoo");
+    }
   });
 
   it("uses the selected compatible board when settings arrive asynchronously", async () => {
@@ -554,7 +567,7 @@ describe("PageBuilder live output target", () => {
     expect(liveBodies).toHaveLength(0);
     resolveSettings(settings([FLAGSHIP, PIXOO]));
 
-    await expectTarget(PIXOO_OPTION);
+    await expectMeta("Pixoo");
     await startLive(user, PIXOO.id);
   });
 
@@ -562,7 +575,7 @@ describe("PageBuilder live output target", () => {
     localStorage.setItem(CURRENT_BOARD_KEY, FLAGSHIP.id);
     const user = userEvent.setup();
     renderExisting();
-    await expectTarget(PIXOO_OPTION);
+    await expectMeta("Pixoo");
     await startLive(user, PIXOO.id);
   });
 
@@ -572,7 +585,7 @@ describe("PageBuilder live output target", () => {
     localStorage.setItem(CURRENT_BOARD_KEY, FLAGSHIP.id);
     const ref = createRef<PageBuilderHandle>();
     render(<PageBuilder ref={ref} pageId="page-1" onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
-    await expectTarget(PIXOO_OPTION);
+    await expectMeta("Pixoo");
     await waitFor(() => expect(ref.current?.getPreviewBoardId()).toBe(PIXOO.id));
   });
 
@@ -581,14 +594,14 @@ describe("PageBuilder live output target", () => {
       settings([FLAGSHIP, { ...PIXOO, id: "pixoo-2", name: "Pixoo 2" }, PIXOO]),
     );
     localStorage.setItem(CURRENT_BOARD_KEY, PIXOO.id);
-    const user = userEvent.setup();
     const ref = createRef<PageBuilderHandle>();
     render(<PageBuilder ref={ref} pageId="page-1" onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
-    await expectTarget(PIXOO_OPTION);
+    await expectMeta("Pixoo");
     await waitFor(() => expect(ref.current?.getPreviewBoardId()).toBe(PIXOO.id));
-    await user.click(screen.getByRole("combobox", { name: "Select board for live output" }));
-    await user.click(await screen.findByRole("option", { name: "Pixoo 2" }));
+    // Inspector › Shows on › a same-size display ("Same size · preview and mirror here", DD-W159).
+    act(() => ref.current?.setPreviewBoard("pixoo-2"));
     await waitFor(() => expect(ref.current?.getPreviewBoardId()).toBe("pixoo-2"));
+    await expectMeta("Pixoo 2");
   });
 
   // UX-6-1: of the displays the page fits, it previews as one that shows it,
@@ -604,15 +617,24 @@ describe("PageBuilder live output target", () => {
     render(<PageBuilder ref={ref} pageId="page-1" pageDisplayIds={[PIXOO.id]} onClose={vi.fn()} onSave={vi.fn()} />, {
       wrapper: TestWrapper,
     });
-    await expectTarget(PIXOO_OPTION);
+    await expectMeta("Pixoo");
     await waitFor(() => expect(ref.current?.getPreviewBoardId()).toBe(PIXOO.id));
     await waitFor(() => expect(lastRenderBoardId()).toBe(PIXOO.id));
   });
 
-  it("keeps an explicit live target when the page target changes", async () => {
-    const user = userEvent.setup();
-    renderExisting();
+  // A new page's size can still change (a saved page's cannot, DD-W159).
+  async function newPixooPage(user: ReturnType<typeof userEvent.setup>) {
+    localStorage.setItem(CURRENT_BOARD_KEY, PIXOO.id);
+    renderNew();
     await expectTarget(PIXOO_OPTION);
+    const editor = await screen.findByRole("textbox", { name: "Template editor" });
+    await user.click(editor);
+    await user.type(editor, "Hello");
+  }
+
+  it("keeps an explicit live target when a new page's target changes", async () => {
+    const user = userEvent.setup();
+    await newPixooPage(user);
     await user.click(screen.getByRole("combobox", { name: "Select board for live output" }));
     await user.click(await screen.findByRole("option", { name: "Hall" }));
     await openSizePicker(user);
@@ -622,10 +644,9 @@ describe("PageBuilder live output target", () => {
     await startLive(user, FLAGSHIP.id);
     expect(screen.getByRole("combobox", { name: "Select board for live output" })).toHaveTextContent("Hall");
   });
-  it("does not silently retarget an active live session when the preview target changes", async () => {
+  it("does not silently retarget an active live session when a new page's target changes", async () => {
     const user = userEvent.setup();
-    renderExisting();
-    await expectTarget(PIXOO_OPTION);
+    await newPixooPage(user);
     await startLive(user, PIXOO.id);
     await openSizePicker(user);
     await user.click(await screen.findByRole("option", { name: "Flagship" }));

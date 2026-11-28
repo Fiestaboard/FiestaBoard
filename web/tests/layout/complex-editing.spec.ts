@@ -365,30 +365,56 @@ for (const theme of ["light", "dark"] as const) {
       await finish(page, testInfo, `impl-1440-${theme}-overflow`);
     });
 
+    // UX-4-2 (FABLE-2651 should-fix 1): the dock opens at Fit on every geometry, so a big
+    // board shows all its columns; Actual size (the dock's toggle) is for reading.
+    const actualSize = (page: Page) =>
+      page
+        .locator('[data-slot="editor-preview"] [data-slot="board-preview-mode-toggle"]')
+        .getByRole("button", { name: "Actual size" });
+
     for (const width of [900, 390]) {
-      test(`${width}: big board scrolls in the docked preview without desktop lenses`, async ({ page }, testInfo) => {
+      test(`${width}: big board opens at Fit in the docked preview, and scrolls at Actual size`, async ({
+        page,
+      }, testInfo) => {
         await openEditor(page, "lobby-this-week", width, theme);
         await expect(page.getByRole("group", { name: "Preview zoom" })).toHaveCount(0);
         await expect(page.getByRole("textbox", { name: "Go to row and column" })).toHaveCount(0);
-        await expect(indicator(page)).toContainText("of 96");
+        const viewport = page.locator('[data-slot="editor-preview"] [data-slot="board-viewport"]');
+        await expect(viewport).toHaveAttribute("data-mode", "fit");
+        await expect(indicator(page)).toContainText("Overview · 96 columns");
         await finish(page, testInfo, `impl-${width}-${theme}-big-board`);
+        await actualSize(page).click();
+        await expect(viewport).toHaveAttribute("data-mode", "actual");
+        await expect(indicator(page)).toContainText("of 96");
       });
 
-      test(`${width}: note array scrolls a column of Notes at a time`, async ({ page }, testInfo) => {
+      test(`${width}: note array opens at Fit, and scrolls a column of Notes at a time at Actual size`, async ({
+        page,
+      }, testInfo) => {
         await openEditor(page, "lobby-menu", width, theme);
         await expect(page.getByRole("radiogroup", { name: "Note focus" })).toHaveCount(0);
+        await expect(indicator(page)).toContainText("Overview · 4 notes");
         // At 900 the preview is the right half (UX-4-5, 61:17544), as on a phone it
-        // is the screen's width: the 2 × 2 wall scrolls a column of Notes at a time.
+        // is the screen's width: at Actual size the 2 × 2 wall scrolls a column of Notes at a time.
+        await actualSize(page).click();
         await expect(indicator(page)).toContainText("Column 1 of 2");
         await finish(page, testInfo, `impl-${width}-${theme}-note-array`);
       });
-    }
 
-    test("390: Den TV 29 × 12 shows its first columns and swipes", async ({ page }, testInfo) => {
-      await openEditor(page, "cafe-menu", 390, theme);
-      await expect(indicator(page)).toContainText(/Columns 1–\d+ of 29/);
-      await finish(page, testInfo, `impl-390-${theme}-den-tv`);
-    });
+      test(`${width}: Den TV 29 × 12 opens showing all 29 columns, and swipes at Actual size`, async ({
+        page,
+      }, testInfo) => {
+        await openEditor(page, "cafe-menu", width, theme);
+        await expect(page.locator('[data-slot="editor-preview"] [data-slot="board-viewport"]')).toHaveAttribute(
+          "data-mode",
+          "fit",
+        );
+        await expect(indicator(page)).toContainText("Overview · 29 columns");
+        await finish(page, testInfo, `impl-${width}-${theme}-den-tv`);
+        await actualSize(page).click();
+        await expect(indicator(page)).toContainText(/Columns 1–\d+ of 29/);
+      });
+    }
 
     test("390: hub-validated overflow card uses touch actions (H4)", async ({ page }, testInfo) => {
       await openEditor(page, "kitchen-morning", 390, theme);

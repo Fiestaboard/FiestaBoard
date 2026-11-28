@@ -118,20 +118,23 @@ test.describe("Editor phone flows", () => {
     expect(requests).toHaveLength(count);
   });
 
-  test("has one controlled size toggle, persists Fit and restores it on reopen", async ({ page }) => {
+  test("has one controlled size toggle, opens at Fit, persists Actual size and restores it on reopen", async ({
+    page,
+  }) => {
     await openEditor(page);
     await expect(page.locator(MODE_TOGGLE)).toHaveCount(1);
     const toggle = page.locator(MODE_TOGGLE);
+    // Fit by default on every geometry (UX-4-2, FABLE-2651 should-fix 1).
+    await expect(toggle.getByRole("button", { name: "Fit", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await toggle.getByRole("button", { name: "Actual size", exact: true }).click();
     await expect(toggle.getByRole("button", { name: "Actual size", exact: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    await toggle.getByRole("button", { name: "Fit", exact: true }).click();
-    await expect(toggle.getByRole("button", { name: "Fit", exact: true })).toHaveAttribute("aria-pressed", "true");
-    expect(await page.evaluate(() => sessionStorage.getItem("fiestaboard:boardPreviewMode"))).toBe("fit");
+    expect(await page.evaluate(() => sessionStorage.getItem("fiestaboard:boardPreviewMode"))).toBe("actual");
     await page.reload();
     await expect(page.locator(MODE_TOGGLE)).toHaveCount(1);
-    await expect(page.locator(MODE_TOGGLE).getByRole("button", { name: "Fit", exact: true })).toHaveAttribute(
+    await expect(page.locator(MODE_TOGGLE).getByRole("button", { name: "Actual size", exact: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

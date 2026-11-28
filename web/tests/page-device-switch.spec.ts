@@ -4,9 +4,10 @@
  * A new page's device type used to be locked to the Pages tab the user came
  * from (`/pages/new?device=…`). The editor now offers a board-size switcher
  * for NEW pages, so starting on the wrong tab is recoverable without
- * recreating the page. Since #1250, existing (saved) pages can also be
- * retargeted — converting saved content between geometries is lossy, so a
- * shrinking retarget asks for confirmation before saving.
+ * recreating the page. A SAVED page keeps its size: #1250's in-place resize
+ * is retired (D3, DD-W159) for Inspector › Shows on › "Make a copy sized for
+ * X" (regression/multi-board-e2e.spec.ts drives that copy), so its preview
+ * meta is plain text and its board colour moves into ⋯ View.
  */
 import {
   API_URL,
@@ -69,34 +70,23 @@ test.describe("Page creator board-size switching", () => {
       .toBe("note");
   });
 
-  test("editing an existing page offers a size switcher, gated by a shrink-confirm dialog", async ({ page }) => {
-    const id = await createPage(`Retarget Page ${Date.now() % 1_000_000}`, ["RETARGET", "", "", "", "", ""]);
+  test("a saved page keeps its size: plain-text meta, no size switcher, board colour in View", async ({ page }) => {
+    const id = await createPage(`Fixed Size Page ${Date.now() % 1_000_000}`, ["FIXED", "", "", "", "", ""]);
 
     await page.goto(`/pages/edit/${id}`);
-    await expect(page.getByText("22 × 6").first()).toBeVisible({ timeout: 15_000 });
+    const preview = page.locator("#page-editor-preview");
+    const meta = preview.getByTestId("preview-target-meta");
+    await expect(meta).toContainText("22 × 6", { timeout: 15_000 });
+    await expect(page.getByTestId("preview-target-trigger")).toHaveCount(0);
+    await expect(page.getByLabel("Change board size")).toHaveCount(0);
 
-    // The switcher is now available for saved pages (#1250).
-    // BB-E-6: size and target live behind the preview header's meta.
-    await page.getByTestId("preview-target-trigger").click();
-    await page.getByLabel("Change board size").click();
-    await page.getByRole("option", { name: "Note", exact: true }).click();
-    await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });
-
-    // Flagship (6×22) -> Note (3×15) shrinks both axes, so saving asks for
-    // confirmation before converting the saved page.
-    await page.getByRole("button", { name: "Save" }).first().click();
-    await expect(page.getByRole("heading", { name: "Change board size?" })).toBeVisible({ timeout: 10_000 });
-    await page.getByRole("button", { name: "Resize and save" }).click();
-
-    await expect
-      .poll(
-        async () => {
-          const res = await fetch(`${API_URL}/pages/${id}`, { headers: authHeaders() });
-          const data = await res.json();
-          return data.device_type ?? null;
-        },
-        { timeout: 10_000 },
-      )
-      .toBe("note");
+    await preview.getByRole("button", { name: "View", exact: true }).click();
+    await page.getByRole("group", { name: "Board color" }).getByRole("menuitemradio", { name: "White" }).click();
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await preview.getByRole("button", { name: "View", exact: true }).click();
+    await expect(
+      page.getByRole("group", { name: "Board color" }).getByRole("menuitemradio", { name: "White" }),
+    ).toHaveAttribute("aria-checked", "true");
+    await page.keyboard.press("Escape");
   });
 });

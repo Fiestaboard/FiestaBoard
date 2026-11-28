@@ -1,11 +1,10 @@
 /**
  * Device/size switching in the page editor.
  *
- * New pages can pick their board size before saving. Since issue #1250,
- * EXISTING pages can be retargeted too: the switcher stays available, a
- * shrinking retarget asks for confirmation (conversion is lossy), and a
- * save whose response lists stale references (schedules / active pages on
- * boards the page no longer fits) surfaces a non-blocking warning.
+ * New pages can pick their board size before saving. A SAVED page keeps its
+ * size: #1250's in-place resize (size picker, shrink confirm, "no longer
+ * fits" warning) is retired for Inspector › Shows on › "Make a copy sized
+ * for X" (D3, DD-W159), since a template does not survive a geometry change.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -95,13 +94,6 @@ const existingFlagshipPage: Page = {
   template: ["HELLO", "", "", "", "", ""],
   duration_seconds: 300,
   created_at: new Date().toISOString(),
-};
-
-const existingNotePage: Page = {
-  ...existingFlagshipPage,
-  id: "existing-2",
-  device_type: "note",
-  template: ["HI", "", ""],
 };
 
 async function switchDeviceTo(user: ReturnType<typeof userEvent.setup>, optionName: string) {
@@ -291,105 +283,25 @@ describe("Page editor board-size switching", () => {
     expect(screen.queryByText("22 × 6")).not.toBeInTheDocument();
   });
 
-  it("offers the switcher on an existing page and confirms a shrinking retarget before saving", async () => {
+  it("keeps a saved page at its own size: no size switcher, and Save sends its own geometry (DD-W159)", async () => {
     const user = userEvent.setup();
     vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
-    vi.mocked(api.updatePage).mockResolvedValue({
-      page: { ...existingFlagshipPage, device_type: "note" },
-      incompatible_references: [],
-    });
+    vi.mocked(api.updatePage).mockResolvedValue({ page: existingFlagshipPage, incompatible_references: [] });
 
     render(<PageBuilder pageId="existing-1" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
       wrapper: TestWrapper,
     });
 
-    await waitFor(() => {
-      expect(screen.getByText("22 × 6")).toBeInTheDocument();
-    });
-
-    // The switcher is no longer hidden for saved pages.
-    await switchDeviceTo(user, "Note");
-    await waitFor(() => {
-      expect(screen.getByText("15 × 3")).toBeInTheDocument();
-    });
-
-    // Saving a 6×22 -> 3×15 retarget is lossy: a confirmation gate appears
-    // and nothing is saved until it is accepted.
-    await user.click(screen.getByRole("button", { name: "Save page" }));
-    expect(api.updatePage).not.toHaveBeenCalled();
-    expect(await screen.findByText("Change board size?")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Resize and save" }));
-    await waitFor(() => {
-      expect(api.updatePage).toHaveBeenCalledWith("existing-1", expect.objectContaining({ device_type: "note" }));
-    });
-  });
-
-  it("saves a growing retarget without a confirmation gate", async () => {
-    const user = userEvent.setup();
-    vi.mocked(api.getPage).mockResolvedValue(existingNotePage);
-    vi.mocked(api.updatePage).mockResolvedValue({
-      page: { ...existingNotePage, device_type: "flagship" },
-      incompatible_references: [],
-    });
-
-    render(<PageBuilder pageId="existing-2" skipDraft onClose={vi.fn()} onSave={vi.fn()} />, {
-      wrapper: TestWrapper,
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("15 × 3")).toBeInTheDocument();
-    });
-
-    await switchDeviceTo(user, "Flagship");
-    await waitFor(() => {
-      expect(screen.getByText("22 × 6")).toBeInTheDocument();
-    });
+    const meta = await screen.findByTestId("preview-target-meta");
+    await waitFor(() => expect(meta).toHaveTextContent(/22 × 6$/));
+    expect(screen.queryByLabelText("Change board size")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Save page" }));
-    await waitFor(() => {
-      expect(api.updatePage).toHaveBeenCalledWith("existing-2", expect.objectContaining({ device_type: "flagship" }));
-    });
-    expect(screen.queryByText("Change board size?")).not.toBeInTheDocument();
-  });
-
-  it("warns (non-blocking) when the save response lists now-incompatible references", async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    vi.mocked(api.getPage).mockResolvedValue(existingFlagshipPage);
-    vi.mocked(api.updatePage).mockResolvedValue({
-      page: { ...existingFlagshipPage, device_type: "note" },
-      incompatible_references: [
-        { board_id: "board-1", board_name: "Kitchen", surface: "schedule", schedule_id: "sched-1" },
-        { board_id: "board-2", board_name: "Office", surface: "active_page", schedule_id: null },
-      ],
-    });
-
-    render(<PageBuilder pageId="existing-1" skipDraft onClose={onClose} onSave={vi.fn()} />, {
-      wrapper: TestWrapper,
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("22 × 6")).toBeInTheDocument();
-    });
-
-    await switchDeviceTo(user, "Note");
-    await user.click(screen.getByRole("button", { name: "Save page" }));
-    await user.click(await screen.findByRole("button", { name: "Resize and save" }));
-
-    // The save succeeds in place and the stale refs surface as
-    // a warning listing each board and where the page is referenced.
-    await waitFor(() => {
-      expect(api.updatePage).toHaveBeenCalledWith("existing-1", expect.objectContaining({ device_type: "note" }));
-      expect(toast.warning).toHaveBeenCalledTimes(1);
-    });
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByDisplayValue("Existing Page")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled();
-    const warned = vi.mocked(toast.warning).mock.calls[0][0] as string;
-    expect(warned).toContain("Kitchen");
-    expect(warned).toContain("schedule entry");
-    expect(warned).toContain("Office");
-    expect(warned).toContain("active page");
+    await waitFor(() =>
+      expect(api.updatePage).toHaveBeenCalledWith("existing-1", expect.objectContaining({ device_type: "flagship" })),
+    );
+    // No resize gate and no stale-reference warning on a saved page's save.
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(toast.warning).not.toHaveBeenCalled();
   });
 });
