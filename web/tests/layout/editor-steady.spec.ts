@@ -218,3 +218,30 @@ test("1440px: the status line sits in the preview card's foot (UX-6-2 placement)
   );
   expect(statusBox.y).toBeGreaterThanOrEqual(tilesBottom - 1);
 });
+
+test("1440px: the toolbar row keeps the Explorer toggle's place at its left end (UX-5-1)", async ({ page }) => {
+  await mockHub(page);
+  await open(page, 1440);
+  const row = page.locator('[data-slot="page-editor-toolbar-row"]');
+  await expect(row.locator('[data-slot="page-editor-toolbar-start"]')).toBeAttached();
+  const start = await box(row.locator('[data-slot="page-editor-toolbar-start"]'));
+  const tools = await box(page.locator('[data-slot="page-editor-toolbar"]'));
+  expect(start.x).toBeLessThanOrEqual(tools.x);
+});
+
+test.describe("a coarse pointer at desktop width (iPad landscape)", () => {
+  test.use({ hasTouch: true });
+  // Playwright's touch emulation has no fine pointer at all; the kit hides the
+  // hint then (`not-any-pointer-fine:hidden`: no keyboard, no shortcuts). With a
+  // trackpad or a keyboard case (any-pointer: fine) it shows.
+  test("1280px: the toolbar row still carries the shortcut list's entry, and `?` opens it (D5)", async ({ page }) => {
+    await mockHub(page);
+    await open(page, 1280);
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const hint = page.locator('[data-slot="page-editor-toolbar-row"] button', { hasText: "All shortcuts" });
+    await expect(hint).toBeAttached();
+    await page.locator('[data-slot="page-editor-chrome"]').click({ position: { x: 4, y: 4 } });
+    await page.keyboard.press("?");
+    await expect(page.getByRole("dialog", { name: /keyboard shortcuts/i })).toBeVisible();
+  });
+});

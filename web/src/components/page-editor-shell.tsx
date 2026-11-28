@@ -152,8 +152,15 @@ export function PageEditorShell({
   const [templateSlot, setTemplateSlot] = useState<HTMLElement | null>(null);
   const [previewSlot, setPreviewSlot] = useState<HTMLElement | null>(null);
   const [statusSlot, setStatusSlot] = useState<HTMLElement | null>(null);
+  const [toolbarStartSlot, setToolbarStartSlot] = useState<HTMLElement | null>(null);
   const workspaceSlots = useMemo<PageBuilderWorkspaceSlots>(
-    () => ({ explorer: setExplorerSlot, template: setTemplateSlot, preview: setPreviewSlot, status: setStatusSlot }),
+    () => ({
+      explorer: setExplorerSlot,
+      template: setTemplateSlot,
+      preview: setPreviewSlot,
+      status: setStatusSlot,
+      toolbarStart: setToolbarStartSlot,
+    }),
     [],
   );
   // The Explorer's open state lives here, so the column is the same before
@@ -335,6 +342,7 @@ export function PageEditorShell({
                 templateSlot={templateSlot}
                 previewSlot={previewSlot}
                 statusSlot={statusSlot}
+                toolbarStartSlot={toolbarStartSlot}
                 explorer={explorer}
                 boardKind={loadedPage.device_type}
                 savedTick={savedTick}

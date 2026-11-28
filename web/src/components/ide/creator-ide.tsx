@@ -60,6 +60,11 @@ export interface CreatorIdeProps {
   previewSlot?: HTMLElement | null;
   /** The preview card's foot (≥ 768 px, UX-6-2): the status line goes there. Null: it heads the Inspector stack. */
   statusSlot?: HTMLElement | null;
+  /**
+   * The toolbar row's left end (≥ 1024 px, UX-5-1): the Explorer toggle's one
+   * place, open or closed. Unused until the toggle moves there (FP-2).
+   */
+  toolbarStartSlot?: HTMLElement | null;
   /** The Explorer's open state when the shell owns it (it draws the same column before the first save). */
   explorer?: ExplorerToggle;
   /** The saved page's board kind: whether the Explorer starts open, and whose remembered choice applies (D2). */

@@ -249,8 +249,11 @@ function useChunkReady(load: () => Promise<unknown>, needed: boolean) {
 function chunkComponent<P extends object>(load: () => Promise<unknown>, pick: () => ComponentType<P> | undefined) {
   const Lazy = lazy(() => load().then(() => ({ default: pick() as ComponentType<P> })));
   // The loaded export is a module constant, never a component made per render.
+  // Chosen once per instance: switching a mounted Lazy to the loaded export
+  // would remount it (losing the editor's undo history and focus).
   function ChunkComponent(props: P) {
-    return createElement(pick() ?? Lazy, props);
+    const [component] = useState<ComponentType<P>>(() => pick() ?? Lazy);
+    return createElement(component, props);
   }
   return ChunkComponent;
 }
@@ -2737,6 +2740,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     boardViewport: previewBindsBoardViewportKeys({ ledPreview: !drawMode && isLedModel(previewModel) }),
   };
   const isXlUp = useMediaQuery("(min-width: 1280px)");
+  // The toolbar row: the rich tools (fine pointer), the Explorer toggle's place
+  // and "? All shortcuts" (≥ 1024 px, any pointer). Where it shows, its hint is
+  // the list's one entry, so `?` opens the list from there (D5, UX-1-6).
+  const toolbarRowShown = !useTouchToolbar || !dockedPreview;
+  if (toolbarRowShown && shortcutList.openFrom === "header") shortcutList.setOpenFrom("hint");
   // The rich editor (lazy) portals its toolbar into the chrome's toolbar row:
   // the row keeps that height from the first paint (BB-E-32).
   const richToolbarExpected = !useTouchToolbar && editorMode === "rich" && !baselineDisplay && !editorCharset;
@@ -3643,7 +3651,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   )}
                 </Flex>
               )}
-              {!useTouchToolbar && (
+              {toolbarRowShown && (
                 // One row (UX-2-1, 53:137378): the tools hug their width at the left,
                 // "? All shortcuts" sits at the right. The tools' host keeps the
                 // lazy rich toolbar's height from the first paint (BB-E-32).
@@ -3652,11 +3660,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   {workspaceSlots?.toolbarStart && !dockedPreview && (
                     <Box ref={workspaceSlots.toolbarStart} data-slot="page-editor-toolbar-start" className="shrink-0" />
                   )}
-                  <Box
-                    ref={setToolbarContainer}
-                    data-slot="page-editor-toolbar"
-                    className={cn("min-w-0 *:rounded-md", richToolbarExpected && "min-h-12.5")}
-                  />
+                  {/* A coarse pointer's tools dock at the bottom of the screen instead. */}
+                  {!useTouchToolbar && (
+                    <Box
+                      ref={setToolbarContainer}
+                      data-slot="page-editor-toolbar"
+                      className={cn("min-w-0 *:rounded-md", richToolbarExpected && "min-h-12.5")}
+                    />
+                  )}
                   <Box className="ml-auto shrink-0">
                     <EditorShortcutList variant="hint" {...shortcutListProps} />
                   </Box>
