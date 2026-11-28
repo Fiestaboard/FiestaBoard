@@ -11,7 +11,7 @@ import { api, ApiError, type PageUpdate } from "@/lib/api";
 import { type IdeTemplateTarget, type PageContent, type PageDraft, pageHistoryApi } from "@/lib/api/page-history";
 import { deriveEditState, derivePreviewDisplay } from "@/lib/ide/edit-state";
 import { problemsFromValidation, warningsFromCharset } from "@/lib/ide/problems";
-import { showsOnModel } from "@/lib/ide/shows-on";
+import { pageDisplayIds, showsOnModel } from "@/lib/ide/shows-on";
 
 export const ideKeys = {
   draft: (pageId: string) => ["ide", "draft", pageId] as const,
@@ -37,6 +37,8 @@ interface BuilderState {
   unsaved: boolean;
   mirroring: boolean;
   snapshot: CurrentPageSnapshot | null;
+  /** The display the editor previews the page as: the page's own display (UX-6-1). */
+  previewBoardId: string | null;
 }
 
 /** The content a draft and the editor are compared on. */
@@ -110,8 +112,13 @@ const nullOn404 = <T>(promise: Promise<T>) =>
  */
 export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderHandle | null>, savedTick: number) {
   const queryClient = useQueryClient();
-  const { boards, currentBoardId, currentBoard } = useCurrentBoard();
-  const [builder, setBuilder] = useState<BuilderState>({ unsaved: false, mirroring: false, snapshot: null });
+  const { boards } = useCurrentBoard();
+  const [builder, setBuilder] = useState<BuilderState>({
+    unsaved: false,
+    mirroring: false,
+    snapshot: null,
+    previewBoardId: null,
+  });
 
   useEffect(() => {
     const read = () => {
@@ -121,10 +128,12 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
         unsaved: handle.hasUnsavedChanges(),
         mirroring: handle.isMirroring(),
         snapshot: handle.getCurrentPage() ?? null,
+        previewBoardId: handle.getPreviewBoardId(),
       };
       setBuilder((previous) =>
         previous.unsaved === next.unsaved &&
         previous.mirroring === next.mirroring &&
+        previous.previewBoardId === next.previewBoardId &&
         JSON.stringify(previous.snapshot) === JSON.stringify(next.snapshot)
           ? previous
           : next,
@@ -175,6 +184,12 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
   });
 
   const snapshot = builder.snapshot;
+  // The page's own display is the one the editor previews it as (its
+  // retarget, live-output target, else the sidebar's board when the page fits
+  // it, else a display it fits), so the IDE never speaks for the sidebar's
+  // board on a page that isn't on it (UX-6-1).
+  const pageBoard = boards.find((board) => board.id === builder.previewBoardId) ?? null;
+  const pageBoardId = pageBoard?.id ?? null;
   const target: IdeTemplateTarget | null = useMemo(
     () =>
       snapshot
@@ -187,10 +202,10 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
               notes_tall: snapshot.notes_tall,
             }),
             ...(snapshot.device_type === "panel" && { grid_rows: snapshot.grid_rows, grid_cols: snapshot.grid_cols }),
-            ...(currentBoardId && { board_id: currentBoardId }),
+            ...(pageBoardId && { board_id: pageBoardId }),
           }
         : null,
-    [snapshot, currentBoardId],
+    [snapshot, pageBoardId],
   );
   const targetKey = useDebounced(target ? JSON.stringify(target) : "", VALIDATE_DEBOUNCE_MS);
   const validation = useQuery({
@@ -203,7 +218,7 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
   const render = useQuery({
     queryKey: ideKeys.render(targetKey),
     queryFn: () => pageHistoryApi.renderAtBoard(JSON.parse(targetKey) as IdeTemplateTarget),
-    enabled: !!targetKey && !!currentBoardId,
+    enabled: !!targetKey && !!pageBoardId,
     placeholderData: (previous) => previous,
     retry: false,
   });
@@ -224,6 +239,10 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
       }),
     [pageId, schedules.data, collections.data, boards, activeByBoard],
   );
+  // Handed to the editor so it previews the page as a display that shows it
+  // (UX-6-1); a string key keeps the array stable between polls.
+  const pageDisplaysKey = pageDisplayIds(showsOn).join("\n");
+  const pageDisplays = useMemo(() => (pageDisplaysKey ? pageDisplaysKey.split("\n") : []), [pageDisplaysKey]);
 
   const hubDraft: PageDraft | null = draft.data ?? null;
   const unsavedBeyondDraft =
@@ -388,8 +407,11 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
   return {
     builder,
     boards,
-    currentBoard,
-    currentBoardId,
+    /** The page's own display (UX-6-1): what the Timeline, Transition and copy name, and where it is checked. */
+    pageBoard,
+    pageBoardId,
+    /** The displays that show the page (now, then scheduled): the editor previews it as the first it fits. */
+    pageDisplays,
     pages: pages.data?.pages ?? [],
     collections: collections.data?.collections ?? [],
     schedules: schedules.data?.schedules ?? [],

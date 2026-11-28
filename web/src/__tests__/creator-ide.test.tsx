@@ -11,13 +11,21 @@ import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions }
 
 import { server } from "./mocks/server";
 
+// The sidebar's global current board. A test may point it at another display
+// than the page's own (UX-6-1).
+const sidebar = vi.hoisted(() => ({ currentBoardId: "den" }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
+vi.mock("sonner", () => ({ toast }));
 vi.mock("@/components/current-board-context", () => {
   const boards = [
     { id: "den", name: "Den TV", device_type: "panel" },
     { id: "hall", name: "Hall board", device_type: "flagship" },
   ];
   return {
-    useCurrentBoard: () => ({ boards, currentBoardId: "den", currentBoard: boards[0], isLoading: false }),
+    useCurrentBoard: () => {
+      const currentBoard = boards.find((board) => board.id === sidebar.currentBoardId);
+      return { boards, currentBoardId: sidebar.currentBoardId, currentBoard, isLoading: false };
+    },
   };
 });
 
@@ -35,13 +43,15 @@ const snapshot = {
   line_metadata: [],
 };
 
-function fakeBuilder(overrides: Partial<{ unsaved: boolean; mirroring: boolean }> = {}) {
+function fakeBuilder(overrides: Partial<{ unsaved: boolean; mirroring: boolean; previewBoardId: string }> = {}) {
   // applyContent behaves like the editor: the restored content is the editor's, unsaved.
   let current: typeof snapshot = snapshot;
   let unsaved = overrides.unsaved ?? false;
   return {
     hasUnsavedChanges: () => unsaved,
     isMirroring: () => overrides.mirroring ?? false,
+    // The editor previews this FiestaPanel page as Den TV, the display it fits.
+    getPreviewBoardId: () => overrides.previewBoardId ?? "den",
     getCurrentPage: () => current,
     reloadFromServer: vi.fn(() => Promise.resolve()),
     applyContent: vi.fn((content: typeof snapshot) => {
@@ -288,6 +298,7 @@ function renderIde(
   builder = fakeBuilder(),
   savedTick = 0,
   onDraftStateChange?: (state: PageBuilderDraftState | undefined) => void,
+  onPageDisplaysChange?: (ids: readonly string[]) => void,
 ) {
   const slot = document.createElement("div");
   document.body.append(slot);
@@ -310,6 +321,7 @@ function renderIde(
         savedTick={savedTick}
         onSaveActionsChange={onSaveActionsChange}
         onDraftStateChange={onDraftStateChange}
+        onPageDisplaysChange={onPageDisplaysChange}
       />,
     ),
   );
@@ -324,6 +336,7 @@ function renderIde(
           savedTick={tick}
           onSaveActionsChange={onSaveActionsChange}
           onDraftStateChange={onDraftStateChange}
+          onPageDisplaysChange={onPageDisplaysChange}
         />,
       ),
     );
@@ -337,6 +350,8 @@ const latestRenderer = (spy: ReturnType<typeof vi.fn>) => {
 
 beforeEach(() => setDesktop(false));
 afterEach(() => {
+  sidebar.currentBoardId = "den";
+  toast.success.mockClear();
   cleanup();
   document.body.innerHTML = "";
 });
@@ -443,6 +458,71 @@ describe("Creator IDE at 1024 px and wider", () => {
     renderIde();
     await waitFor(() => expect(calls.validate.length).toBeGreaterThan(0));
     expect(calls.validate[0]).toMatchObject({ board_id: "den", device_type: "panel", grid_rows: 12, grid_cols: 29 });
+  });
+});
+
+// UX-6-1: the IDE speaks for the page's own display (the one the editor
+// previews it as), not the sidebar's global current board.
+describe("the page's own display, with another board current in the sidebar", () => {
+  beforeEach(() => {
+    sidebar.currentBoardId = "hall";
+  });
+
+  it("names the page's display on the timeline", async () => {
+    setDesktop(true);
+    mockHub();
+    renderIde();
+    expect(await screen.findByText("Timeline · Commute this week · Den TV")).toBeInTheDocument();
+    expect(screen.queryByText(/Hall board/)).not.toBeInTheDocument();
+  });
+
+  it("says whose default the Transition row overrides", async () => {
+    mockHub();
+    renderIde();
+    expect(await screen.findByRole("button", { name: /Transition/ })).toHaveTextContent("Overrides Den TV’s default");
+  });
+
+  it("validates at the page's display, not the sidebar's", async () => {
+    const calls = mockHub();
+    renderIde();
+    await waitFor(() => expect(calls.validate.length).toBeGreaterThan(0));
+    expect(calls.validate.every((body) => (body as { board_id?: string }).board_id === "den")).toBe(true);
+  });
+
+  it("follows the editor when it previews the page as another display", async () => {
+    mockHub();
+    const overrides = { previewBoardId: "den" };
+    renderIde(fakeBuilder(overrides));
+    const transition = await screen.findByRole("button", { name: /Transition/ });
+    await waitFor(() => expect(transition).toHaveTextContent("Overrides Den TV’s default"));
+    overrides.previewBoardId = "hall";
+    await waitFor(() => expect(transition).toHaveTextContent("Overrides Hall board’s default"), { timeout: 3000 });
+  });
+
+  it("tells the editor the displays that show the page", async () => {
+    mockHub();
+    const onPageDisplaysChange = vi.fn();
+    renderIde(fakeBuilder(), 0, undefined, onPageDisplaysChange);
+    await waitFor(() => expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["den"]));
+  });
+
+  it("says the page's display keeps the live version after a restore", async () => {
+    mockHub();
+    renderIde();
+    fireEvent.click(await screen.findByRole("tab", { name: "History" }));
+    fireEvent.click((await screen.findAllByRole("button", { name: /Restore/ }))[0]);
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(toast.success).toHaveBeenLastCalledWith(expect.any(String), {
+      description: "Den TV keeps the live version until you publish.",
+    });
+  });
+
+  it("marks the page's display as this display in Make a copy", async () => {
+    mockHub();
+    renderIde();
+    fireEvent.click(await screen.findByRole("button", { name: /Make a copy for another display/ }));
+    expect(await screen.findByRole("button", { name: /Den TV/ })).toHaveTextContent(/This display/i);
+    expect(screen.getByRole("button", { name: /Hall board/ })).not.toHaveTextContent(/This display/i);
   });
 });
 

@@ -271,7 +271,7 @@ export function DuplicateDialog({
               <ListRow
                 key={board.id}
                 title={board.name}
-                description={board.id === ide.currentBoardId ? t("thisDisplay") : undefined}
+                description={board.id === ide.pageBoardId ? t("thisDisplay") : undefined}
                 render={<button type="button" disabled={duplicate.isPending} />}
                 onClick={() => duplicate.mutate(board.id)}
               />
@@ -321,7 +321,7 @@ export function IdePageTab({
   const [field, setField] = useState<"duration" | "transition" | null>(null);
   const snapshot = ide.builder.snapshot;
   const fallbacks = templateReferences(snapshot?.template ?? []).fallbacks;
-  const boardName = ide.currentBoard?.name ?? t("aDisplay");
+  const boardName = ide.pageBoard?.name ?? t("aDisplay");
   const transitionKey = TRANSITIONS.find((option) => option.value === snapshot?.transition_strategy)?.labelKey;
   const transitionPlugin = usePageTransitionPlugins(snapshot?.transition_strategy).current;
   return (

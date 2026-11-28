@@ -180,6 +180,8 @@ export function PageEditorShell({
     loadedPage?.updated_at ?? loadedPage?.created_at,
   );
   const [savedTick, setSavedTick] = useState(0);
+  // UX-6-1: the displays that show the page (from the IDE), so the editor previews it as one of them.
+  const [pageDisplayIds, setPageDisplayIds] = useState<readonly string[]>();
   const handleSave = () => {
     setSavedTick((tick) => tick + 1);
     onSave();
@@ -309,6 +311,7 @@ export function PageEditorShell({
             pageId={pageId}
             deviceType={deviceType}
             targetBoardId={targetBoardId}
+            pageDisplayIds={pageDisplayIds}
             skipDraft={skipDraft}
             onClose={onClose}
             onSave={handleSave}
@@ -334,6 +337,7 @@ export function PageEditorShell({
                 savedTick={savedTick}
                 onSaveActionsChange={setSaveActions}
                 onDraftStateChange={setDraftState}
+                onPageDisplaysChange={setPageDisplayIds}
               />
             </Suspense>
           )}
