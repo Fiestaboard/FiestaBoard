@@ -1621,6 +1621,20 @@
     "notSentYet": "Non ancora inviato",
     "notSentYetOn": "Non ancora inviato · {board}"
   },
+  "importFromBoard": {
+    "title": "Sostituire questo modello con ciò che {board} mostra ora?",
+    "showing": "{board} mostra “{page}”. Le sue righe, l’allineamento e l’a capo sostituiscono quelli di questo modello; Annulla ripristina i tuoi. Nulla viene salvato o mostrato.",
+    "replace": "Sostituisci modello",
+    "emptyTitle": "{board} non mostra nulla",
+    "emptyBody": "Non c’è nulla da importare.",
+    "sizeTitle": "{board} mostra una pagina di un’altra dimensione",
+    "sizeBody": "“{page}” è {theirs}; questa pagina è {ours}. Un modello non sopravvive a un cambio di dimensione.",
+    "sizeCopyHint": "Per usare questa pagina su {board}, creane una copia della sua dimensione da Ispettore › Mostrata su.",
+    "errorTitle": "Impossibile leggere ciò che mostra {board}",
+    "errorBody": "Riprova tra un momento.",
+    "close": "Chiudi",
+    "previewLabel": "Ciò che {board} mostra ora"
+  },
   "changePage": {
     "title": "Cambia pagina",
     "description": "Scegli cosa mostra {board}. Non cambia nulla finché non scegli Mostra ora.",
@@ -2848,8 +2862,8 @@
     "alignLeft": "Allinea a sinistra",
     "alignCenter": "Centra",
     "alignRight": "Allinea a destra",
-    "syncFromBoardTooltip": "Riempi il modello da ciò che è attualmente mostrato sul board",
-    "syncFromBoard": "Sincronizza dal display attuale del board",
+    "syncFromBoardTooltip": "Sostituisci il modello con ciò che la bacheca mostra ora",
+    "syncFromBoard": "Importa dalla bacheca…",
     "alignment": "Allineamento:",
     "undoAriaLabel": "Annulla",
     "redoAriaLabel": "Ripristina",

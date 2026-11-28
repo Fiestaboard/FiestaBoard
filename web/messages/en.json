@@ -2775,8 +2775,8 @@
     "alignLeft": "Align left",
     "alignCenter": "Align center",
     "alignRight": "Align right",
-    "syncFromBoardTooltip": "Populate template from what's currently displayed on the board",
-    "syncFromBoard": "Sync from current board display",
+    "syncFromBoardTooltip": "Replace the template with what the board shows now",
+    "syncFromBoard": "Import from board…",
     "alignment": "Alignment:",
     "undoAriaLabel": "Undo",
     "redoAriaLabel": "Redo",
@@ -3809,6 +3809,20 @@
     "offlineBadge": "Offline",
     "offlineMeta": "Last connected {time} · Schedule keeps running on the hub",
     "offlineMetaNever": "Not reached since the hub started · Schedule keeps running on the hub"
+  },
+  "importFromBoard": {
+    "title": "Replace this template with what {board} shows now?",
+    "showing": "{board} is showing “{page}”. Its rows, alignment and wrap replace this template’s; Undo brings yours back. Nothing is saved or shown.",
+    "replace": "Replace template",
+    "emptyTitle": "{board} is showing nothing",
+    "emptyBody": "There’s nothing on it to import.",
+    "sizeTitle": "{board} shows a page of another size",
+    "sizeBody": "“{page}” is {theirs}; this page is {ours}. A template doesn’t survive a size change.",
+    "sizeCopyHint": "To use this page on {board}, make a copy sized for it from Inspector › Shows on.",
+    "errorTitle": "Couldn’t read what {board} shows",
+    "errorBody": "Try again in a moment.",
+    "close": "Close",
+    "previewLabel": "What {board} shows now"
   },
   "changePage": {
     "title": "Change Page",

@@ -108,6 +108,7 @@ import { ChangePageDialog } from "@/components/home/change-page-dialog";
 import { boardMeta } from "@/components/home/home-board";
 import { scheduleNextChange } from "@/components/home/home-status";
 import { useBoardDetail } from "@/components/home/use-home-data";
+import { ImportFromBoardDialog } from "@/components/import-from-board-dialog";
 import { LiveOutputSilenceStrip } from "@/components/live-output-silence-strip";
 import { PanelFitNote } from "@/components/panel-fit-note";
 import { PlainTemplateToolbar, PlainTemplateVariablePicker } from "@/components/plain-template-toolbar";
@@ -153,6 +154,7 @@ import type {
   CanvasIssue,
   CanvasLayerJson,
   CharsetIssue,
+  CurrentDisplayResponse,
   DeviceType,
   GridSize,
   LineAlignment,
@@ -410,6 +412,19 @@ interface PageSnapshot {
  */
 interface StrokeMetaSnapshot {
   rows: number[];
+  alignments: LineAlignment[];
+  wraps: boolean[];
+  /**
+   * Import from board… (DD-W167) replaced every row: undo puts `before` back,
+   * redo `after`, whole arrays (the row count can change), instead of the
+   * stroke's forced left/no-wrap rows.
+   */
+  replace?: { before: RowMeta; after: RowMeta };
+}
+
+interface RowMeta {
+  /** The rows as the host held them: the editor's history restores the same doc, spelled its own way ({{blue}}). */
+  lines: string[];
   alignments: LineAlignment[];
   wraps: boolean[];
 }
@@ -2186,47 +2201,35 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     },
   });
 
-  // Sync from current board display mutation (new pages only)
-  const syncFromBoardMutation = useMutation({
-    mutationFn: () => api.getCurrentDisplay(),
-    retry: false, // No-active-page (404) is not a transient error; don't retry
-    onSuccess: (data) => {
-      const lines = data.template || [];
-      setTemplateLines(lines);
-      setDebouncedTemplateLines(lines);
-
-      if (data.line_metadata) {
-        const alignments = data.line_metadata.map((m) => m.alignment);
-        const wraps = data.line_metadata.map((m) => m.wrap);
-        setLineAlignments(alignments);
-        setLineWrapEnabled(wraps);
-        setDebouncedLineAlignments(alignments);
-        setDebouncedLineWrapEnabled(wraps);
-      } else {
-        const defaults = lines.map(() => "left" as LineAlignment);
-        const defaultWraps = lines.map(() => false);
-        setLineAlignments(defaults);
-        setLineWrapEnabled(defaultWraps);
-        setDebouncedLineAlignments(defaults);
-        setDebouncedLineWrapEnabled(defaultWraps);
-      }
-
-      if (data.device_type) {
-        setDeviceType(data.device_type);
-      }
-      // Mirror the synced page's note-array / panel geometry so the preview
-      // matches the source board.
-      if (data.notes_wide != null) setNotesWide(data.notes_wide);
-      if (data.notes_tall != null) setNotesTall(data.notes_tall);
-      if (data.grid_rows != null) setGridRows(data.grid_rows);
-      if (data.grid_cols != null) setGridCols(data.grid_cols);
-
-      toast.success(t("toastSyncedFrom", { name: data.page_name }));
-    },
-    onError: () => {
-      toast.error(t("toastNoActiveDisplay"));
-    },
-  });
+  // Import from board… (DD-W167): a dialog shows what the board shows now; Replace
+  // template swaps the rows in as ONE undo step (the editor's history carries the
+  // text, the stroke-meta stack the alignment/wrap) and marks the page unsaved.
+  // Nothing is saved or shown, the page's geometry stays, and there is no toast:
+  // the meta line and ⌘Z are the undo story, as a paste is.
+  const [importOpen, setImportOpen] = useState(false);
+  const replaceFromBoard = useCallback((data: CurrentDisplayResponse) => {
+    setImportOpen(false);
+    const lines = data.template.length > 0 ? data.template : [""];
+    const after: RowMeta = {
+      lines,
+      alignments: lines.map((_, i) => (data.line_metadata?.[i]?.alignment as LineAlignment) ?? "left"),
+      wraps: lines.map((_, i) => Boolean(data.line_metadata?.[i]?.wrap)),
+    };
+    const before: RowMeta = {
+      lines: templateLinesRef.current.slice(),
+      alignments: lineAlignmentsRef.current.slice(),
+      wraps: lineWrapEnabledRef.current.slice(),
+    };
+    if (!tipTapRef.current?.replaceTemplate(lines.join("\n"))) return;
+    const hist = strokeMetaHistoryRef.current;
+    hist.done.push({ rows: [], alignments: [], wraps: [], replace: { before, after } });
+    hist.undone = [];
+    // After the editor's own change callback, so the imported rows (as the board
+    // spells them) and their metadata win.
+    setTemplateLines(after.lines);
+    setLineAlignments(after.alignments);
+    setLineWrapEnabled(after.wraps);
+  }, []);
 
   // Preview mutation
   const previewMutation = useMutation({
@@ -2625,10 +2628,22 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const handleDrawHistoryEvent = useCallback((event: DrawHistoryEvent) => {
     if (!event.stroke) return;
     const hist = strokeMetaHistoryRef.current;
+    const replaced = (entry: StrokeMetaSnapshot | undefined) => {
+      if (!entry?.replace) return false;
+      const meta = event.action === "undo" ? entry.replace.before : entry.replace.after;
+      // After this transaction's change callback, whose row splicing would win otherwise.
+      queueMicrotask(() => {
+        setTemplateLines(meta.lines);
+        setLineAlignments(meta.alignments);
+        setLineWrapEnabled(meta.wraps);
+      });
+      return true;
+    };
     if (event.action === "undo") {
       const entry = hist.done.pop();
       if (!entry) return;
       hist.undone.push(entry);
+      if (replaced(entry)) return;
       setLineAlignments((prev) => {
         const next = [...prev];
         entry.rows.forEach((r, i) => {
@@ -2647,6 +2662,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       const entry = hist.undone.pop();
       if (!entry) return;
       hist.done.push(entry);
+      if (replaced(entry)) return;
       setLineAlignments((prev) => {
         const next = [...prev];
         for (const r of entry.rows) next[r] = "left";
@@ -3962,8 +3978,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 boardLines={numLines}
                                 deviceType={deviceType}
                                 code62Glyph={effectiveCode62Glyph}
-                                onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                                syncFromBoardPending={syncFromBoardMutation.isPending}
+                                // No Import here: the LED editor (kit) has no one-step replace
+                                // to undo it with (DD-W167, KIT-ASKS).
                               />
                             ) : (
                               <TipTapTemplateEditor
@@ -3999,8 +4015,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                                 boardLines={numLines}
                                 deviceType={deviceType}
                                 code62Glyph={effectiveCode62Glyph}
-                                onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                                syncFromBoardPending={syncFromBoardMutation.isPending}
+                                onSyncFromBoard={() => setImportOpen(true)}
                                 drawMode={drawMode}
                                 onDrawModeToggle={() => setDrawMode((v) => !v)}
                                 drawBrush={drawBrush}
@@ -4542,6 +4557,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       </Dialog>
 
       {deleteDialog}
+      <ImportFromBoardDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        boardId={previewBoard?.id}
+        boardName={previewBoard?.name ?? tTouch("thisDisplay")}
+        geometry={{ deviceType, notesWide, notesTall, gridRows, gridCols }}
+        savedPage={!!pageId}
+        onReplace={replaceFromBoard}
+      />
       {formulaIde.overlays}
     </FormulaIdeContext.Provider>
   );

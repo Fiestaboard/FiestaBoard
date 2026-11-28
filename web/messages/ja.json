@@ -1621,6 +1621,20 @@
     "notSentYet": "未送信",
     "notSentYetOn": "未送信 · {board}"
   },
+  "importFromBoard": {
+    "title": "このテンプレートを {board} の現在の表示で置き換えますか？",
+    "showing": "{board} は「{page}」を表示中です。その行・配置・折り返しでこのテンプレートを置き換えます。元に戻すで復元できます。保存や表示は行われません。",
+    "replace": "テンプレートを置き換え",
+    "emptyTitle": "{board} は何も表示していません",
+    "emptyBody": "取り込むものがありません。",
+    "sizeTitle": "{board} は別のサイズのページを表示中です",
+    "sizeBody": "「{page}」は {theirs}、このページは {ours} です。テンプレートはサイズ変更に耐えられません。",
+    "sizeCopyHint": "このページを {board} で使うには、インスペクター › 表示先 からそのサイズのコピーを作成してください。",
+    "errorTitle": "{board} の表示を読み取れませんでした",
+    "errorBody": "しばらくしてからもう一度お試しください。",
+    "close": "閉じる",
+    "previewLabel": "{board} の現在の表示"
+  },
   "changePage": {
     "title": "ページを変更",
     "description": "{board} に表示する内容を選びます。今すぐ表示を選ぶまで何も変わりません。",
@@ -2848,8 +2862,8 @@
     "alignLeft": "左揃え",
     "alignCenter": "中央揃え",
     "alignRight": "右揃え",
-    "syncFromBoardTooltip": "現在ボードに表示されている内容からテンプレートを設定",
-    "syncFromBoard": "現在のボード表示から同期",
+    "syncFromBoardTooltip": "テンプレートをボードの現在の表示で置き換えます",
+    "syncFromBoard": "ボードから取り込む…",
     "alignment": "配置:",
     "undoAriaLabel": "元に戻す",
     "redoAriaLabel": "やり直し",

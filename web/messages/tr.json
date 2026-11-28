@@ -1621,6 +1621,20 @@
     "notSentYet": "Henüz gönderilmedi",
     "notSentYetOn": "Henüz gönderilmedi · {board}"
   },
+  "importFromBoard": {
+    "title": "Bu şablon {board} panosunun şu anda gösterdiğiyle değiştirilsin mi?",
+    "showing": "{board} “{page}” sayfasını gösteriyor. Onun satırları, hizalaması ve kaydırması bu şablonunkilerin yerine geçer; Geri al seninkileri geri getirir. Hiçbir şey kaydedilmez veya gösterilmez.",
+    "replace": "Şablonu değiştir",
+    "emptyTitle": "{board} hiçbir şey göstermiyor",
+    "emptyBody": "İçe aktarılacak bir şey yok.",
+    "sizeTitle": "{board} başka boyutta bir sayfa gösteriyor",
+    "sizeBody": "“{page}” {theirs}; bu sayfa {ours}. Bir şablon boyut değişikliğine dayanmaz.",
+    "sizeCopyHint": "Bu sayfayı {board} üzerinde kullanmak için Denetçi › Gösterildiği yer bölümünden o boyutta bir kopya oluştur.",
+    "errorTitle": "{board} panosunun ne gösterdiği okunamadı",
+    "errorBody": "Biraz sonra yeniden dene.",
+    "close": "Kapat",
+    "previewLabel": "{board} panosunun şu anda gösterdiği"
+  },
   "changePage": {
     "title": "Sayfa Değiştir",
     "description": "{board} cihazında neyin gösterileceğini seçin. Şimdi göster’i seçene kadar hiçbir şey değişmez.",
@@ -2848,8 +2862,8 @@
     "alignLeft": "Sola hizala",
     "alignCenter": "Ortala",
     "alignRight": "Sağa hizala",
-    "syncFromBoardTooltip": "Şablonu şu anda board'da gösterilenden doldur",
-    "syncFromBoard": "Mevcut board ekranından senkronize et",
+    "syncFromBoardTooltip": "Şablonu panonun şu anda gösterdiğiyle değiştir",
+    "syncFromBoard": "Panodan içe aktar…",
     "alignment": "Hizalama:",
     "undoAriaLabel": "Geri al",
     "redoAriaLabel": "Yinele",

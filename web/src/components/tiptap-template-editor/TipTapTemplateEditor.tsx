@@ -62,6 +62,12 @@ export interface TipTapTemplateEditorHandle {
   applyStroke(paints: StrokePaint[], brush: DrawBrush): number[];
   undo(): void;
   redo(): void;
+  /**
+   * Replaces the whole template as ONE undo step (Import from board…,
+   * DD-W167), reported like a stroke through onDrawHistoryEvent so the host
+   * can swap its per-row alignment/wrap with it. False when there is no editor.
+   */
+  replaceTemplate(text: string): boolean;
 }
 
 /**
@@ -999,6 +1005,28 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           if (!ed || ed.isDestroyed) return;
           ed.chain().redo().run();
         },
+        replaceTemplate(text: string): boolean {
+          const ed = editorRef.current;
+          if (!ed || ed.isDestroyed) return false;
+          // Its own history event on both sides, so ⌘Z restores the old rows in one
+          // step even straight after typing, or on a page nobody has edited yet.
+          pendingStrokeRef.current = true;
+          ed.chain()
+            .command(({ tr }) => {
+              closeHistory(tr);
+              return true;
+            })
+            .setContent(parseTemplateSimple(text, boardLines), {
+              emitUpdate: true,
+              parseOptions: { preserveWhitespace: true },
+            })
+            .run();
+          const { view } = ed;
+          view.dispatch(closeHistory(view.state.tr));
+          // A replace that changed nothing recorded no step.
+          pendingStrokeRef.current = false;
+          return true;
+        },
       }),
       [boardLines, boardWidth],
     );
@@ -1187,7 +1215,12 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       // clobbering the cursor during active typing.
       if (!editor.isFocused) {
         const currentSerialized = serializeTemplateSimple(editor.getJSON(), boardLines);
-        if (value !== currentSerialized) {
+        // A value the doc already holds, spelled another way ({blue} for {{blue}}:
+        // a loaded page, or the host restoring its rows after an undo), is no change.
+        if (
+          value !== currentSerialized &&
+          serializeTemplateSimple(parseTemplateSimple(value || "", boardLines), boardLines) !== currentSerialized
+        ) {
           // Defer setContent outside the React lifecycle so TipTap's internal
           // flushSync (in ReactRenderer for NodeViews) doesn't fire inside a
           // useEffect, which React 19 forbids.
