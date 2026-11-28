@@ -386,6 +386,23 @@ describe("RowBandGutter", () => {
     vi.restoreAllMocks();
   });
 
+  it("stops a band's bracket at the next row with text, not at the next band (W-10)", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    const actual = vi.mocked(measureLineBoxes).getMockImplementation()!;
+    vi.mocked(measureLineBoxes).mockImplementation((_root, _gutter, count) =>
+      Array.from({ length: count }, (_, i) => ({ top: i * 24, height: 24 })),
+    );
+    setup(["{{a.b}}", "", "PLAIN HEADLINE", "", "", "{{c.d}}"]);
+    const [first] = within(screen.getByRole("list", { name: "Row bands" })).getAllByTestId("row-band");
+    // Rows 1–2 (the band and its blank row), stopping 4 px above row 3's text.
+    expect(first.style.height).toBe("44px");
+    vi.mocked(measureLineBoxes).mockImplementation(actual);
+    vi.restoreAllMocks();
+  });
+
   it("re-measures for template edits only, and not while the editor is hidden (BB-E-31)", async () => {
     const frames: FrameRequestCallback[] = [];
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {

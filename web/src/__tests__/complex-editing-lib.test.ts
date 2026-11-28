@@ -31,6 +31,8 @@ describe("bandPartName (W-10)", () => {
     expect(bandPartName(["COUNTDOWN: {{countdown.days}}"])).toBe("countdown");
     expect(bandPartName(["{{date_time.day_of_week}}"])).toBe("date_time");
     expect(bandPartName(["{{weather:home.temp|pad:3}}"])).toBe("weather");
+    expect(bandPartName(["{{news.headline|wrap}}"])).toBe("news");
+    expect(bandPartName(["{{ rss.title | wrap }}"])).toBe("rss");
     expect(bandPartName(["TONIGHT", '{{= "LUNCH: " & random.pick }}'])).toBe("random");
     expect(bandPartName(['{{= FOREACH(FILTER(x, y), "z") }}'])).toBe("FOREACH");
     expect(bandPartName(["{{red}}{{orange}}"])).toBe("red");

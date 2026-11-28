@@ -263,9 +263,12 @@ export function RowBandGutter<A>({
         const top = boxes[band.start - 1]?.top;
         const last = boxes[band.end - 1];
         if (top === undefined || !last) return null;
-        // A band's bracket runs down to the next band (over its trailing blank
-        // rows, as 04b draws it), so a one-row band still fits its label.
-        const nextTop = bands[index + 1] ? boxes[bands[index + 1].start - 1]?.top : undefined;
+        // A band's bracket runs over its trailing blank rows (as 04b draws it),
+        // so a one-row band still fits its label, and stops at the next row with
+        // content: a plain-text row has no band of its own to stop it (W-10).
+        let next = band.end;
+        while (next < lineCount && !(state.lines[next] ?? "").trim()) next++;
+        const nextTop = next < lineCount ? boxes[next]?.top : undefined;
         const bottom = Math.max(last.top + last.height, (nextTop ?? last.top + last.height) - 4);
         // Clamped to the band (UX-3-1): never taller than the rows it brackets,
         // so neighbours never overlap; the label is one line with an

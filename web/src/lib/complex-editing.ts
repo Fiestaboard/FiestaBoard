@@ -56,9 +56,12 @@ function partName(formula: boolean, body: string): string | null {
     const fn = /\b([A-Z][A-Z0-9_]*)\s*\(/.exec(text);
     return fn ? fn[1] : "";
   }
-  if (/^fill_space/.test(text) || text.includes("|wrap")) return null;
+  if (/^fill_space/.test(text)) return null;
+  // A variable keeps its name through any filter (`{{news.headline|wrap}}`).
   const root = /^([a-z_][a-z0-9_]*)(?::[\w-]+)?\./.exec(text);
   if (root) return root[1];
+  // `{{SOME TEXT|wrap}}` is wrapped text, not data.
+  if (text.includes("|")) return null;
   if (/^[a-z]+$/.test(text)) return text;
   return /^\d+$/.test(text) ? "" : null;
 }
@@ -120,7 +123,11 @@ function range(from: number, to: number): number[] {
   return Array.from({ length: Math.max(0, to - from) }, (_, k) => from + k);
 }
 
-/** Swap a band with its neighbour; the blank rows between them stay where they are. Null when it cannot move. */
+/**
+ * Swap a band with its neighbouring band; the rows between them (blank, or
+ * plain text with no band of its own, W-10) stay where they are. Null when it
+ * cannot move.
+ */
 export function moveBand<A>(
   state: TemplateRowsState<A>,
   bands: readonly RowBandModel[],

@@ -1534,7 +1534,9 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
               // The card fills its column (UX-3-1): a click in the empty stretch under
               // the last row puts the caret at the end, as Docs and VS Code do.
               onMouseDown={(event) => {
-                if (event.button !== 0 || event.target !== event.currentTarget || !editor) return;
+                // An empty template's click was already put on row 1 above.
+                if (event.button !== 0 || event.defaultPrevented || event.target !== event.currentTarget || !editor)
+                  return;
                 const rows = event.currentTarget.querySelector('[data-slot="template-rows"]');
                 if (!rows || event.clientY <= rows.getBoundingClientRect().bottom) return;
                 event.preventDefault();
@@ -1622,7 +1624,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                     <Text
                       aria-hidden
                       data-testid="template-placeholder"
-                      className="pointer-events-none absolute left-[3px] top-[3px] whitespace-nowrap font-mono text-sm leading-6 text-muted-foreground"
+                      className="pointer-events-none absolute inset-x-[3px] top-[3px] truncate font-mono text-sm leading-6 text-muted-foreground"
                     >
                       {placeholder}
                     </Text>

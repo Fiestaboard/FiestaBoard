@@ -517,7 +517,15 @@ test.describe("1280px template field (BB-E-8, BB-E-16)", () => {
   test("with the caret at column 86 every other row still shows its text", async ({ page }) => {
     const long = "A REALLY LONG LINE AT THE BOTTOM THAT RUNS WELL PAST THE RIGHT EDGE OF THE PANEL GRID!";
     expect(long.length).toBe(86);
-    await openTemplate(page, ["ROW ONE", "ROW TWO", "ROW THREE", "ROW FOUR", "ROW FIVE", long]);
+    // Rows 2 and 4 carry chips: a chip makes a row a little taller, which is not a wrap.
+    await openTemplate(page, [
+      "ROW ONE",
+      "ROW TWO {{weather.temperature}}",
+      "ROW THREE",
+      'ROW FOUR {{= IF(weather.temperature > 80, "HOT", "NICE") }}',
+      "ROW FIVE",
+      long,
+    ]);
     await page.locator('[contenteditable="true"]').click();
     await page.keyboard.press("Control+End");
     await expect(page.getByTestId("template-card-meta")).toContainText("Ln 6, Col 87");

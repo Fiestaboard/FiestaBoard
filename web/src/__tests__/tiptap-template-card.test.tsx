@@ -250,3 +250,35 @@ describe("the empty template (W-4)", () => {
     expect(editor.getText({ blockSeparator: "\n" }).replace(/​/g, "")).toContain("HELLO");
   });
 });
+
+describe("the empty template, more (W-4)", () => {
+  it("puts a click under the rows of an empty template on row 1 too", async () => {
+    renderEditor({ value: "\n\n\n\n\n" });
+    const editor = await editorOf();
+    act(() => {
+      editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    });
+    await waitFor(() => expect(meta()).toHaveTextContent("Ln 6"));
+    const area = document.querySelector('[data-slot="template-rows-area"]')!;
+    fireEvent.mouseDown(area, { button: 0, clientY: 10_000 });
+    await waitFor(() => expect(meta()).toHaveTextContent("Ln 1, Col 1"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(meta()).toHaveTextContent("Ln 1, Col 1");
+  });
+
+  it("undoes Enter's new row in one step, blank row and all", async () => {
+    renderEditor({ value: "HELLO\n\n\n\n\n" });
+    const editor = await editorOf();
+    const before = editor.getJSON();
+    act(() => {
+      editor.commands.focus();
+      editor.commands.setTextSelection(7);
+    });
+    fireEvent.keyDown(editor.view.dom, { key: "Enter" });
+    await waitFor(() => expect(meta()).toHaveTextContent("Ln 2, Col 1"));
+    act(() => {
+      editor.commands.undo();
+    });
+    expect(editor.getJSON()).toEqual(before);
+  });
+});
