@@ -211,15 +211,16 @@ export function ChangePageDialog({
 
   const selected = useMemo(() => {
     if (!selectedId) return null;
+    // The editor's page and name are the truth: the cached list may not have a
+    // page just saved, or may still carry its old name.
+    if (pageScoped && pageName) return { id: selectedId, name: pageName, isCollection: false };
     const page = pagesData?.pages?.find((p) => p.id === selectedId);
     if (page) return { id: page.id, name: page.name, isCollection: false };
     const collection = collections.find((c) => c.id === selectedId);
-    if (collection) return { id: collection.id, name: collection.name, isCollection: true };
-    // The editor's page may be newer than the cached list (a page just saved).
-    return pageScoped && pageName ? { id: selectedId, name: pageName, isCollection: false } : null;
+    return collection ? { id: collection.id, name: collection.name, isCollection: true } : null;
   }, [selectedId, pagesData, collections, pageScoped, pageName]);
   const scopedTitle = pageScoped
-    ? t("showPageTitle", { page: selected?.name ?? pageName ?? "", board: displayName })
+    ? t("showPageTitle", { page: selected?.name ?? "", board: displayName })
     : null;
 
   // Never carry a chip that is no longer offered: "next-change" with no next
