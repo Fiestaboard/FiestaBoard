@@ -4070,6 +4070,7 @@
     "overflowChecked": "Проверено хабом по реальной ширине {board} · {time}",
     "overflowCheckedNoBoard": "Проверено хабом по реальной ширине этого табло · {time}",
     "overflowWrap": "Перенести строку {line}",
+    "overflowWrapNeedsRows": "Нужно ещё {count, plural, one {# строка} few {# строки} many {# строк} other {# строки}}",
     "overflowMore": "Также обрезаны: {lines}",
     "bandsLabel": "Полосы строк",
     "bandMoveUp": "Переместить вверх",

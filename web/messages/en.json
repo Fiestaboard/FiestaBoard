@@ -4070,6 +4070,7 @@
     "overflowChecked": "Checked by the hub at {board}'s real width · {time}",
     "overflowCheckedNoBoard": "Checked by the hub at this board's real width · {time}",
     "overflowWrap": "Wrap line {line}",
+    "overflowWrapNeedsRows": "Needs {count, plural, one {# more row} other {# more rows}}",
     "overflowMore": "Also cut off: {lines}",
     "bandsLabel": "Row bands",
     "bandMoveUp": "Move up",

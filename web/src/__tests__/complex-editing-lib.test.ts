@@ -10,8 +10,10 @@ import {
   lineOverflows,
   moveBand,
   noteSeamMarks,
+  rowsPastBoard,
   seamStraddles,
   usedLineCount,
+  wrapRowsShort,
 } from "@/lib/complex-editing";
 
 describe("isBigBoard", () => {
@@ -174,5 +176,59 @@ describe("usedLineCount (BB-E-18)", () => {
   it("is zero for an empty template", () => {
     expect(usedLineCount([])).toBe(0);
     expect(usedLineCount(["", " ", ""])).toBe(0);
+  });
+});
+
+describe("rowsPastBoard (W-1)", () => {
+  it("keeps the hub's beyond_board problems in its own words", () => {
+    expect(
+      rowsPastBoard({
+        valid: false,
+        cols: 22,
+        rows: 6,
+        errors: [
+          { line: 4, column: 22, message: "too long", code: "line_too_long", max_length: 24 },
+          {
+            line: 5,
+            column: 0,
+            message: "Line 5 wraps past the board's 6 rows · 1 row won't show",
+            code: "beyond_board",
+            max_length: null,
+          },
+        ],
+      }),
+    ).toEqual([{ line: 5, message: "Line 5 wraps past the board's 6 rows · 1 row won't show" }]);
+    expect(rowsPastBoard(undefined)).toEqual([]);
+  });
+});
+
+describe("wrapRowsShort (W-1)", () => {
+  const overflow = { line: 5, columns: 46, maxColumns: 22, cut: 24 };
+  const lines = ["", "", "", "HELLO WORLD", "LUNCH AT NOON TODAY FOR EVERYONE IN THE OFFICE", ""];
+
+  it("counts the rows a wrap needs that the board does not have", () => {
+    // 46 columns need 3 rows; line 5 has itself and the blank row 6.
+    expect(wrapRowsShort(overflow, lines, [], 6)).toBe(1);
+  });
+
+  it("is 0 when blank rows below take the whole wrap", () => {
+    expect(wrapRowsShort({ ...overflow, line: 2 }, ["", lines[4], "", "", "", ""], [], 6)).toBe(0);
+  });
+
+  it("never refuses a line whose variables may be shorter today", () => {
+    expect(wrapRowsShort({ ...overflow, line: 6 }, ["", "", "", "", "", "{{news.headline}} TODAY"], [], 6)).toBe(0);
+  });
+
+  it("lets the wrap take a row with a variable below, which may render blank", () => {
+    expect(wrapRowsShort({ ...overflow, line: 2 }, ["", lines[4], "{{weather.alert}}", "", "", ""], [], 6)).toBe(0);
+  });
+
+  it("stops at a row with content below, as the hub's wrap does", () => {
+    // Row 3 holds text: line 2 keeps one row of the three it needs.
+    expect(wrapRowsShort({ ...overflow, line: 2 }, ["", lines[4], "FOOTER", "", "", ""], [], 6)).toBe(2);
+    // ...unless that row wraps too.
+    expect(wrapRowsShort({ ...overflow, line: 2 }, ["", lines[4], "FOOTER", "", "", ""], [false, false, true], 6)).toBe(
+      0,
+    );
   });
 });

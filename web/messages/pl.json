@@ -4070,6 +4070,7 @@
     "overflowChecked": "Sprawdzone przez hub przy rzeczywistej szerokości {board} · {time}",
     "overflowCheckedNoBoard": "Sprawdzone przez hub przy rzeczywistej szerokości tej tablicy · {time}",
     "overflowWrap": "Zawiń wiersz {line}",
+    "overflowWrapNeedsRows": "Potrzeba {count, plural, one {# wiersza więcej} few {# wierszy więcej} many {# wierszy więcej} other {# wiersza więcej}}",
     "overflowMore": "Obcięte także: {lines}",
     "bandsLabel": "Pasma wierszy",
     "bandMoveUp": "Przenieś w górę",

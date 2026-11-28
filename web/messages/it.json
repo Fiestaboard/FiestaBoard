@@ -4070,6 +4070,7 @@
     "overflowChecked": "Verificato dall’hub alla larghezza reale di {board} · {time}",
     "overflowCheckedNoBoard": "Verificato dall’hub alla larghezza reale di questa bacheca · {time}",
     "overflowWrap": "Manda a capo la riga {line}",
+    "overflowWrapNeedsRows": "Servono {count, plural, one {# riga in più} other {# righe in più}}",
     "overflowMore": "Tagliate anche: {lines}",
     "bandsLabel": "Fasce di righe",
     "bandMoveUp": "Sposta su",

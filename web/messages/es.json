@@ -4070,6 +4070,7 @@
     "overflowChecked": "Comprobado por el hub al ancho real de {board} · {time}",
     "overflowCheckedNoBoard": "Comprobado por el hub al ancho real de este tablero · {time}",
     "overflowWrap": "Ajustar línea {line}",
+    "overflowWrapNeedsRows": "Necesita {count, plural, one {# fila más} other {# filas más}}",
     "overflowMore": "También se cortan: {lines}",
     "bandsLabel": "Bandas de filas",
     "bandMoveUp": "Subir",

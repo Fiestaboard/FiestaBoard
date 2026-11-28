@@ -2066,8 +2066,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           description: tTouch("savedToPagesDescription", { name: data.page.name }),
           closeButton: true,
           duration: 6000,
-          position: dockedPreview ? "bottom-center" : "top-right",
-          style: dockedPreview ? { bottom: "calc(64px + env(safe-area-inset-bottom))" } : { width: "380px" },
+          // No position of its own: the toast host puts editor toasts bottom-right (UX-8-2, W-3).
           action: { label: tTouch("showNow"), onClick: () => requestShowNowRef.current(data.page.id) },
           cancel: {
             label: tTouch("addToSchedule"),
@@ -4155,6 +4154,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       {/* H4: lines the hub measured past the board's real width. */}
                       <LineOverflowWarnings
                         overflows={lineOverflow.overflows}
+                        pastBoard={lineOverflow.pastBoard}
+                        lines={templateLines}
+                        rows={dims.rows}
                         boardName={previewBoard?.name}
                         checkedAt={lineOverflow.checkedAt}
                         touch={useTouchToolbar}
