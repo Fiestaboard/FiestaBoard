@@ -148,7 +148,7 @@ describe("Phone live-page header (DD-W166)", () => {
   it("leaves a non-live phone page's Save · Show now pair alone", async () => {
     renderBuilder();
     const bar = await waitFor(header);
-    expect(await within(bar).findByRole("button", { name: "Save Page" })).toBeVisible();
+    expect(await within(bar).findByRole("button", { name: /^Save page$/i })).toBeVisible();
     expect(within(bar).getByRole("button", { name: /Show now/ })).toBeVisible();
     expect(await within(bar).findByTestId("page-editor-save-state")).toHaveTextContent(/^Saved$/);
   });
