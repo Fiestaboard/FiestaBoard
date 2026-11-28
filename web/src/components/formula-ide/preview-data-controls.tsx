@@ -25,7 +25,7 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { Clock, Ellipsis, X } from "lucide-react";
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { TimePicker } from "@/components/ui/time-picker";
 import { useTranslations } from "@/i18n/translations";
@@ -64,14 +64,22 @@ export interface PreviewToggle {
   onChange: (on: boolean) => void;
 }
 
+export type BoardColor = "black" | "white";
+
+/** The preview's board colour: View › Board color on a saved page (D3). */
+export interface PreviewBoardColor {
+  value: BoardColor;
+  onChange: (value: BoardColor) => void;
+}
+
 export interface PreviewHeaderControlsProps {
   /** The formula IDE's data controls; null where the IDE is off (canvases, the dock). */
   data: PreviewDataView | null;
   zoom: PreviewZoom | null;
   /** The column ruler (big boards). */
   ruler?: PreviewToggle | null;
-  /** More View rows from the host (board colour, D3). */
-  viewItems?: ReactNode;
+  /** A saved page's preview board colour (D3, DD-W159: from the retired target popover). */
+  boardColor?: PreviewBoardColor | null;
   size: "default" | "touch";
 }
 
@@ -184,14 +192,16 @@ function PreviewTimeChip({
   );
 }
 
-export function PreviewHeaderControls({ data, zoom, ruler, viewItems, size }: PreviewHeaderControlsProps) {
+export function PreviewHeaderControls({ data, zoom, ruler, boardColor, size }: PreviewHeaderControlsProps) {
   const t = useTranslations("formulaIde");
+  const tc = useTranslations("common");
+  const tp = useTranslations("pageBuilder");
   const tv = useTranslations("previewView");
   const tz = useTranslations("complexEditing");
   const tb = useTranslations("boardDisplay");
   const [picking, setPicking] = useState(false);
   // The desktop pane's header carries the View menu when it has more than Fit / Actual to offer.
-  const view = size === "default" && (data !== null || zoom?.tile !== undefined || !!ruler || !!viewItems);
+  const view = size === "default" && (data !== null || zoom?.tile !== undefined || !!ruler || !!boardColor);
   // Bound wherever the header zooms, so the list's F and 1 are true on the dock too.
   useZoomKeys(zoom, zoom !== null);
   const viewTrigger = useRef<HTMLButtonElement>(null);
@@ -328,7 +338,25 @@ export function PreviewHeaderControls({ data, zoom, ruler, viewItems, size }: Pr
               {tv("ruler")}
             </DropdownMenuCheckboxItem>
           )}
-          {viewItems}
+          {boardColor && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>{tp("boardColorLabel")}</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  aria-label={tp("boardColorLabel")}
+                  value={boardColor.value}
+                  onValueChange={(value) => boardColor.onChange(value as BoardColor)}
+                >
+                  {(["black", "white"] as const).map((colour) => (
+                    <DropdownMenuRadioItem closeOnClick key={colour} value={colour}>
+                      {tc(colour)}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuGroup>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </Flex>
