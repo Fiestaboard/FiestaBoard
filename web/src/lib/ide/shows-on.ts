@@ -49,6 +49,18 @@ const minutes = (hhmm: string | null | undefined): number | null => {
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 };
 
+/**
+ * The displays that show the page, for the editor to preview it as (UX-6-1):
+ * those showing it now, then those an enabled entry schedules it on, each once.
+ */
+export function pageDisplayIds(model: Pick<ShowsOnModel, "showingNow" | "entries">): string[] {
+  const ids = [
+    ...model.showingNow.map((showing) => showing.boardId),
+    ...model.entries.filter((entry) => entry.schedule.enabled).map((entry) => entry.boardId),
+  ];
+  return [...new Set(ids.filter(Boolean))];
+}
+
 /** The entry's window (resolved sun times when present) holds `hhmm`. Overnight windows wrap. */
 export function windowHolds(schedule: ScheduleEntry, hhmm: string | null): boolean {
   const now = minutes(hhmm);

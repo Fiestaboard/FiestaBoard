@@ -591,6 +591,24 @@ describe("PageBuilder live output target", () => {
     await waitFor(() => expect(ref.current?.getPreviewBoardId()).toBe("pixoo-2"));
   });
 
+  // UX-6-1: of the displays the page fits, it previews as one that shows it,
+  // not the first in settings or the sidebar's.
+  const PIXOO_TOO = { ...PIXOO, id: "pixoo-0", name: "Pixoo Kitchen" } as BoardInstance;
+  it.each([
+    ["the first fitting display", FLAGSHIP.id],
+    ["the sidebar's display", PIXOO_TOO.id],
+  ])("previews as the display that shows the page before %s", async (_case, sidebar) => {
+    vi.mocked(api.getBoardSettings).mockResolvedValue(settings([FLAGSHIP, PIXOO_TOO, PIXOO]));
+    localStorage.setItem(CURRENT_BOARD_KEY, sidebar);
+    const ref = createRef<PageBuilderHandle>();
+    render(<PageBuilder ref={ref} pageId="page-1" pageDisplayIds={[PIXOO.id]} onClose={vi.fn()} onSave={vi.fn()} />, {
+      wrapper: TestWrapper,
+    });
+    await expectTarget(PIXOO_OPTION);
+    await waitFor(() => expect(ref.current?.getPreviewBoardId()).toBe(PIXOO.id));
+    await waitFor(() => expect(lastRenderBoardId()).toBe(PIXOO.id));
+  });
+
   it("keeps an explicit live target when the page target changes", async () => {
     const user = userEvent.setup();
     renderExisting();

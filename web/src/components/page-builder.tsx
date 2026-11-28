@@ -234,6 +234,12 @@ interface PageBuilderProps {
   deviceType?: DeviceType; // Device type for new pages
   /** Explicit display chosen in the Pages filter; takes precedence over the sidebar for new pages. */
   targetBoardId?: string;
+  /**
+   * The displays that show this saved page (Creator IDE, UX-6-1): of the
+   * displays it fits, it previews as the first of these, after a live-output
+   * target or retarget and before the sidebar's board.
+   */
+  pageDisplayIds?: readonly string[];
   skipDraft?: boolean; // If true, ignore and clear any saved draft
   onClose: () => void;
   onSave?: () => void;
@@ -441,6 +447,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     pageId: initialPageId,
     deviceType: deviceTypeProp,
     targetBoardId: targetBoardIdProp,
+    pageDisplayIds,
     skipDraft = false,
     onClose,
     onSave,
@@ -722,16 +729,25 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
    * page's shape. A panel page no panel matches any more (its TV was resized
    * or the panel deleted) shows as the bare "panel" option at its own grid.
    * Of several displays with the same grid, the one the page is being
-   * authored for wins, then the board selected in the sidebar.
+   * authored for wins, then one that shows it (UX-6-1), then the board
+   * selected in the sidebar.
    */
   const sizeSelectValue = useMemo(() => {
     const fits = panelsFittingGrid(panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols);
-    const fit =
-      (targetBoardId ? fits.find((p) => p.boardId === targetBoardId) : undefined) ??
-      fits.find((p) => !!p.boardId && p.boardId === currentBoardId) ??
-      fits[0];
+    const preferred = [targetBoardId, ...(pageDisplayIds ?? []), currentBoardId].filter(Boolean);
+    const fit = preferred.map((id) => fits.find((p) => p.boardId === id)).find(Boolean) ?? fits[0];
     return fit ? targetValue(fit) : deviceType;
-  }, [panelTargets, deviceType, notesWide, notesTall, gridRows, gridCols, targetBoardId, currentBoardId]);
+  }, [
+    panelTargets,
+    deviceType,
+    notesWide,
+    notesTall,
+    gridRows,
+    gridCols,
+    targetBoardId,
+    pageDisplayIds,
+    currentBoardId,
+  ]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
   const plainTextRef = useRef<PlainTextEditorHandle>(null);
   const [plainHistory, setPlainHistory] = useState({ canUndo: false, canRedo: false });
@@ -1186,22 +1202,28 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, [liveOutputEnabled]);
   const [chosenLiveBoardId, setChosenLiveBoardId] = useState<string>("");
   // The board this page is previewed as: the live-output target, else the
-  // board in context, when the page fits it; else any board it fits. Its
+  // retarget, else a display that shows it (UX-6-1), else the board in
+  // context, when the page fits it; else any board it fits. Its
   // model draws the preview (an LED board as an LED matrix) and its
   // character set is what the render is checked against.
   const previewBoard = useMemo(
     () =>
-      boardForShape(boardSettings?.boards, [chosenLiveBoardId, targetBoardId, currentBoardId], {
-        device_type: deviceType,
-        notes_wide: notesWide,
-        notes_tall: notesTall,
-        grid_rows: panelGrid?.rows ?? null,
-        grid_cols: panelGrid?.cols ?? null,
-      }),
+      boardForShape(
+        boardSettings?.boards,
+        [chosenLiveBoardId, targetBoardId, ...(pageDisplayIds ?? []), currentBoardId],
+        {
+          device_type: deviceType,
+          notes_wide: notesWide,
+          notes_tall: notesTall,
+          grid_rows: panelGrid?.rows ?? null,
+          grid_cols: panelGrid?.cols ?? null,
+        },
+      ),
     [
       boardSettings?.boards,
       targetBoardId,
       chosenLiveBoardId,
+      pageDisplayIds,
       currentBoardId,
       deviceType,
       notesWide,

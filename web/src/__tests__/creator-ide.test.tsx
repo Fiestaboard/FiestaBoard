@@ -14,6 +14,8 @@ import { server } from "./mocks/server";
 // The sidebar's global current board. A test may point it at another display
 // than the page's own (UX-6-1).
 const sidebar = vi.hoisted(() => ({ currentBoardId: "den" }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
+vi.mock("sonner", () => ({ toast }));
 vi.mock("@/components/current-board-context", () => {
   const boards = [
     { id: "den", name: "Den TV", device_type: "panel" },
@@ -41,7 +43,7 @@ const snapshot = {
   line_metadata: [],
 };
 
-function fakeBuilder(overrides: Partial<{ unsaved: boolean; mirroring: boolean }> = {}) {
+function fakeBuilder(overrides: Partial<{ unsaved: boolean; mirroring: boolean; previewBoardId: string }> = {}) {
   // applyContent behaves like the editor: the restored content is the editor's, unsaved.
   let current: typeof snapshot = snapshot;
   let unsaved = overrides.unsaved ?? false;
@@ -49,7 +51,7 @@ function fakeBuilder(overrides: Partial<{ unsaved: boolean; mirroring: boolean }
     hasUnsavedChanges: () => unsaved,
     isMirroring: () => overrides.mirroring ?? false,
     // The editor previews this FiestaPanel page as Den TV, the display it fits.
-    getPreviewBoardId: () => "den",
+    getPreviewBoardId: () => overrides.previewBoardId ?? "den",
     getCurrentPage: () => current,
     reloadFromServer: vi.fn(() => Promise.resolve()),
     applyContent: vi.fn((content: typeof snapshot) => {
@@ -296,6 +298,7 @@ function renderIde(
   builder = fakeBuilder(),
   savedTick = 0,
   onDraftStateChange?: (state: PageBuilderDraftState | undefined) => void,
+  onPageDisplaysChange?: (ids: readonly string[]) => void,
 ) {
   const slot = document.createElement("div");
   document.body.append(slot);
@@ -318,6 +321,7 @@ function renderIde(
         savedTick={savedTick}
         onSaveActionsChange={onSaveActionsChange}
         onDraftStateChange={onDraftStateChange}
+        onPageDisplaysChange={onPageDisplaysChange}
       />,
     ),
   );
@@ -332,6 +336,7 @@ function renderIde(
           savedTick={tick}
           onSaveActionsChange={onSaveActionsChange}
           onDraftStateChange={onDraftStateChange}
+          onPageDisplaysChange={onPageDisplaysChange}
         />,
       ),
     );
@@ -346,6 +351,7 @@ const latestRenderer = (spy: ReturnType<typeof vi.fn>) => {
 beforeEach(() => setDesktop(false));
 afterEach(() => {
   sidebar.currentBoardId = "den";
+  toast.success.mockClear();
   cleanup();
   document.body.innerHTML = "";
 });
@@ -483,12 +489,39 @@ describe("the page's own display, with another board current in the sidebar", ()
     expect(calls.validate.every((body) => (body as { board_id?: string }).board_id === "den")).toBe(true);
   });
 
+  it("follows the editor when it previews the page as another display", async () => {
+    mockHub();
+    const overrides = { previewBoardId: "den" };
+    renderIde(fakeBuilder(overrides));
+    const transition = await screen.findByRole("button", { name: /Transition/ });
+    await waitFor(() => expect(transition).toHaveTextContent("Overrides Den TV’s default"));
+    overrides.previewBoardId = "hall";
+    await waitFor(() => expect(transition).toHaveTextContent("Overrides Hall board’s default"), { timeout: 3000 });
+  });
+
+  it("tells the editor the displays that show the page", async () => {
+    mockHub();
+    const onPageDisplaysChange = vi.fn();
+    renderIde(fakeBuilder(), 0, undefined, onPageDisplaysChange);
+    await waitFor(() => expect(onPageDisplaysChange).toHaveBeenLastCalledWith(["den"]));
+  });
+
+  it("says the page's display keeps the live version after a restore", async () => {
+    mockHub();
+    renderIde();
+    fireEvent.click(await screen.findByRole("tab", { name: "History" }));
+    fireEvent.click((await screen.findAllByRole("button", { name: /Restore/ }))[0]);
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(toast.success).toHaveBeenLastCalledWith(expect.any(String), {
+      description: "Den TV keeps the live version until you publish.",
+    });
+  });
+
   it("marks the page's display as this display in Make a copy", async () => {
     mockHub();
     renderIde();
     fireEvent.click(await screen.findByRole("button", { name: /Make a copy for another display/ }));
-    expect(await screen.findByRole("button", { name: /Den TV/ })).toHaveTextContent("Den TV");
-    expect(screen.getByRole("button", { name: /Den TV/ })).toHaveTextContent(/This display/i);
+    expect(await screen.findByRole("button", { name: /Den TV/ })).toHaveTextContent(/This display/i);
     expect(screen.getByRole("button", { name: /Hall board/ })).not.toHaveTextContent(/This display/i);
   });
 });

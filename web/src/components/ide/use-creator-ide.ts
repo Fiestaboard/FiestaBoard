@@ -11,7 +11,7 @@ import { api, ApiError, type PageUpdate } from "@/lib/api";
 import { type IdeTemplateTarget, type PageContent, type PageDraft, pageHistoryApi } from "@/lib/api/page-history";
 import { deriveEditState, derivePreviewDisplay } from "@/lib/ide/edit-state";
 import { problemsFromValidation, warningsFromCharset } from "@/lib/ide/problems";
-import { showsOnModel } from "@/lib/ide/shows-on";
+import { pageDisplayIds, showsOnModel } from "@/lib/ide/shows-on";
 
 export const ideKeys = {
   draft: (pageId: string) => ["ide", "draft", pageId] as const,
@@ -239,6 +239,10 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
       }),
     [pageId, schedules.data, collections.data, boards, activeByBoard],
   );
+  // Handed to the editor so it previews the page as a display that shows it
+  // (UX-6-1); a string key keeps the array stable between polls.
+  const pageDisplaysKey = pageDisplayIds(showsOn).join("\n");
+  const pageDisplays = useMemo(() => (pageDisplaysKey ? pageDisplaysKey.split("\n") : []), [pageDisplaysKey]);
 
   const hubDraft: PageDraft | null = draft.data ?? null;
   const unsavedBeyondDraft =
@@ -406,6 +410,8 @@ export function useCreatorIde(pageId: string, builderRef: RefObject<PageBuilderH
     /** The page's own display (UX-6-1): what the Timeline, Transition and copy name, and where it is checked. */
     pageBoard,
     pageBoardId,
+    /** The displays that show the page (now, then scheduled): the editor previews it as the first it fits. */
+    pageDisplays,
     pages: pages.data?.pages ?? [],
     collections: collections.data?.collections ?? [],
     schedules: schedules.data?.schedules ?? [],

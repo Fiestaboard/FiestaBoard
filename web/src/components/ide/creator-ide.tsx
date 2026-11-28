@@ -68,6 +68,8 @@ export interface CreatorIdeProps {
   onSaveActionsChange: Dispatch<SetStateAction<((actions: PageBuilderSaveActions) => ReactNode) | undefined>>;
   /** D4: the hub draft's state for the header meta ("Draft restored · Discard", "Draft saved 7:44 AM"). */
   onDraftStateChange?: (state: PageBuilderDraftState | undefined) => void;
+  /** UX-6-1: the displays that show the page, for the editor's preview target (page-builder.tsx `pageDisplayIds`). */
+  onPageDisplaysChange?: (ids: readonly string[]) => void;
 }
 
 /** Portals into a workspace slot when the shell gives one; otherwise renders in place. */
@@ -111,6 +113,7 @@ export default function CreatorIde({
   savedTick,
   onSaveActionsChange,
   onDraftStateChange,
+  onPageDisplaysChange,
 }: CreatorIdeProps) {
   const t = useTranslations("creatorIde");
   const locale = useLocale();
@@ -125,6 +128,12 @@ export default function CreatorIde({
   const explorer = explorerProp ?? ownExplorer;
   const activeTab = resolveInspectorTab(tab, desktop);
   const references = useMemo(() => templateReferences(ide.builder.snapshot?.template ?? []), [ide.builder.snapshot]);
+  const { pageDisplays } = ide;
+  useEffect(() => {
+    onPageDisplaysChange?.(pageDisplays);
+    // Another page, or no IDE (a new page): its displays no longer apply.
+    return () => onPageDisplaysChange?.([]);
+  }, [onPageDisplaysChange, pageDisplays]);
 
   // D4: what the header meta says about the hub draft, and (D6) where the page is
   // live, which is why Save reads "Save draft / Save & update board".
