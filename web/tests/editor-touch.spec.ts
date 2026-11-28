@@ -157,7 +157,7 @@ test.describe("Editor phone flows", () => {
       await openEditor(page, id);
       const editor = page.locator('[contenteditable="true"]').first();
       await editor.fill("SAVED ONLY");
-      await page.getByRole("button", { name: "Save Page", exact: true }).click();
+      await page.getByRole("button", { name: "Save page", exact: true }).click();
       await expect.poll(() => events.filter((event) => event.kind === "save").length).toBe(1);
       expect(events.map((event) => event.kind)).toEqual(["save"]);
       await expect(editor).toBeVisible();
@@ -192,7 +192,7 @@ test.describe("Editor phone flows", () => {
         (response) =>
           /\/api\/v1\/pages$/.test(new URL(response.url()).pathname) && response.request().method() === "POST",
       );
-      await page.getByRole("button", { name: "Save Page", exact: true }).click();
+      await page.getByRole("button", { name: "Save page", exact: true }).click();
       const response = await created;
       expect(response.status()).toBe(201);
       const stored = await response.json();

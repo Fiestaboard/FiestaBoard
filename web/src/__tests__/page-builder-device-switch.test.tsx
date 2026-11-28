@@ -153,7 +153,7 @@ describe("Page editor board-size switching", () => {
     act(() => {
       queryClient.setQueryData(["page", "existing-1"], { ...existingFlagshipPage, revision: "other-editor" });
     });
-    await user.click(screen.getByRole("button", { name: "Save Page" }));
+    await user.click(screen.getByRole("button", { name: "Save page" }));
     await waitFor(() => {
       expect(api.updatePage).toHaveBeenCalledWith(
         "existing-1",
@@ -315,7 +315,7 @@ describe("Page editor board-size switching", () => {
 
     // Saving a 6×22 -> 3×15 retarget is lossy: a confirmation gate appears
     // and nothing is saved until it is accepted.
-    await user.click(screen.getByRole("button", { name: "Save Page" }));
+    await user.click(screen.getByRole("button", { name: "Save page" }));
     expect(api.updatePage).not.toHaveBeenCalled();
     expect(await screen.findByText("Change board size?")).toBeInTheDocument();
 
@@ -346,7 +346,7 @@ describe("Page editor board-size switching", () => {
       expect(screen.getByText("22 × 6")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: "Save Page" }));
+    await user.click(screen.getByRole("button", { name: "Save page" }));
     await waitFor(() => {
       expect(api.updatePage).toHaveBeenCalledWith("existing-2", expect.objectContaining({ device_type: "flagship" }));
     });
@@ -374,7 +374,7 @@ describe("Page editor board-size switching", () => {
     });
 
     await switchDeviceTo(user, "Note");
-    await user.click(screen.getByRole("button", { name: "Save Page" }));
+    await user.click(screen.getByRole("button", { name: "Save page" }));
     await user.click(await screen.findByRole("button", { name: "Resize and save" }));
 
     // The save succeeds in place and the stale refs surface as
@@ -385,7 +385,7 @@ describe("Page editor board-size switching", () => {
     });
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByDisplayValue("Existing Page")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled();
     const warned = vi.mocked(toast.warning).mock.calls[0][0] as string;
     expect(warned).toContain("Kitchen");
     expect(warned).toContain("schedule entry");

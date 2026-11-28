@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+import { useLocale, useTranslations } from "@/i18n/translations";
 
 /**
  * When an edit was saved, the way Docs says it (UX-1-3): "just now", "2 min
@@ -59,4 +61,28 @@ export function useNow(intervalMs = 30_000): Date {
     return () => clearInterval(timer);
   }, [intervalMs]);
   return now;
+}
+
+/**
+ * `formatEditTime` with the editor's words and a clock that keeps counting:
+ * the same "2 min ago" / "yesterday 7:16 AM" for Sent and History as the
+ * header's "Saved …" (UX-1-3, FABLE-2650).
+ */
+export function useFormatEditTime(): (at: Date | string) => string {
+  const t = useTranslations("editorHeader");
+  const locale = useLocale();
+  const now = useNow();
+  return useCallback(
+    (at: Date | string) =>
+      formatEditTime(at, {
+        locale,
+        now,
+        words: {
+          justNow: () => t("justNow"),
+          minutesAgo: (count) => t("minutesAgo", { count }),
+          yesterday: (time) => t("yesterday", { time }),
+        },
+      }),
+    [t, locale, now],
+  );
 }

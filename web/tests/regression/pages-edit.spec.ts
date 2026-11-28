@@ -32,7 +32,7 @@ test.describe("regression: pages.edit", () => {
   test("pages.edit.export-dialog — Export opens dialog with pre-filled share string", async ({ page }) => {
     const id = await createPage("Export Test", ["HELLO", "WORLD", "", "", "", ""]);
     await page.goto(`/pages/edit/${id}`);
-    await page.getByRole("button", { name: "Export Page" }).click();
+    await page.getByRole("button", { name: "Export page" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await expect(dialog.getByText("Export Page", { exact: true })).toBeVisible();
@@ -53,7 +53,7 @@ test.describe("regression: pages.edit", () => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => {});
     const id = await createPage("Copy Test", ["COPY", "", "", "", "", ""]);
     await page.goto(`/pages/edit/${id}`);
-    await page.getByRole("button", { name: "Export Page" }).click();
+    await page.getByRole("button", { name: "Export page" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     const copyBtn = dialog.getByRole("button", { name: "Copy share string" });
@@ -69,7 +69,7 @@ test.describe("regression: pages.edit", () => {
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
     await page.getByRole("textbox", { name: "Template", exact: true }).fill("MODIFIED\n\n\n\n\n");
-    const exportBtn = page.getByRole("button", { name: "Export Page" });
+    const exportBtn = page.getByRole("button", { name: "Export page" });
     await expect(exportBtn).toBeEnabled();
     await exportBtn.click();
     const share = await page.getByRole("dialog").getByRole("textbox", { name: "Share string" }).inputValue();
@@ -85,7 +85,7 @@ test.describe("regression: pages.edit", () => {
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
     await page.getByRole("textbox", { name: "Template", exact: true }).fill("CHANGED\n\n\n\n\n");
-    const saveBtn = page.getByRole("button", { name: "Save Page" });
+    const saveBtn = page.getByRole("button", { name: "Save page" });
     await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
   });
 
@@ -104,7 +104,7 @@ test.describe("regression: pages.edit", () => {
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
     await page.getByRole("textbox", { name: "Template", exact: true }).fill("CHANGED\n\n\n\n\n");
-    const saveBtn = page.getByRole("button", { name: "Save Page" });
+    const saveBtn = page.getByRole("button", { name: "Save page" });
     await saveBtn.click();
     await expect(saveBtn).toBeDisabled({ timeout: 5_000 });
     release();
@@ -122,7 +122,7 @@ test.describe("regression: pages.edit", () => {
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
     await page.getByRole("textbox", { name: "Template", exact: true }).fill("X\n\n\n\n\n");
-    await page.getByRole("button", { name: "Save Page" }).click();
+    await page.getByRole("button", { name: "Save page" }).click();
     await expect(page.locator("[data-sonner-toast]").first()).toBeVisible({ timeout: 10_000 });
   });
 
@@ -132,10 +132,10 @@ test.describe("regression: pages.edit", () => {
     await page.goto(`/pages/edit/${id}`);
     await page.getByRole("button", { name: "Plain Text" }).click();
     await page.getByRole("textbox", { name: "Template", exact: true }).fill("SAVED\n\n\n\n\n");
-    await page.getByRole("button", { name: "Save Page" }).click();
+    await page.getByRole("button", { name: "Save page" }).click();
     await expect(page.getByText(/^Saved (just now|\d)/)).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(new RegExp(`/pages/edit/${id}$`));
-    await expect(page.getByRole("button", { name: "Export Page", exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Export page", exact: true })).toBeEnabled();
     const stored = await page.request.get(`/api/v1/pages/${id}`);
     expect(stored.ok()).toBe(true);
     expect((await stored.json()).template).toContain("SAVED");
@@ -187,7 +187,7 @@ test.describe("regression: pages.edit", () => {
     // Editor mounts with Save button visible. The disabled-when-clean contract
     // races with savedSnapshot initialization; we assert the button is present
     // (not its disabled state).
-    await expect(page.getByRole("button", { name: "Save Page" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Save page" })).toBeVisible({ timeout: 10_000 });
   });
 
   /** UX node: pages.edit.loading */
@@ -223,7 +223,7 @@ test.describe("regression: pages.edit", () => {
     const id = await createPage("Legacy", ["A", "", "", "", "", ""]);
     await page.goto(`/pages/edit?id=${id}`);
     // Legacy route renders the editor at the same URL (no redirect).
-    await expect(page.getByRole("button", { name: "Save Page" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Save page" })).toBeVisible({ timeout: 10_000 });
     expect(page.url()).toContain("/pages/edit");
   });
 

@@ -53,7 +53,7 @@ test.describe("Page creator board-size switching", () => {
 
     // Name it and save.
     await page.getByPlaceholder("My Custom Page").fill(name);
-    await page.getByRole("button", { name: "Save Page" }).first().click();
+    await page.getByRole("button", { name: "Save page" }).first().click();
 
     // The saved page is a NOTE page.
     await expect

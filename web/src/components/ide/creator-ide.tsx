@@ -156,10 +156,19 @@ export default function CreatorIde({
   const draftOffered = offersDraft(ide.display);
   const { mutate: saveDraftMutate, isPending: savingDraft } = ide.saveDraft;
   const liveBoard = ide.showsOn.showingNow[0]?.boardName ?? null;
+  // FABLE-2652 §3.1: the pair shows while the page is scheduled too, so the meta
+  // says which board a save would update when nothing shows it yet.
+  const scheduledBoard = liveBoard
+    ? null
+    : (ide.showsOn.entries.find((entry) => entry.schedule.enabled)?.boardName ?? null);
   const { discardRestored, discardOwnedDraft } = ide;
   useEffect(() => {
     if (!onDraftStateChange) return;
-    const live = liveBoard ? t("liveOn", { board: liveBoard }) : undefined;
+    const live = liveBoard
+      ? t("liveOn", { board: liveBoard })
+      : scheduledBoard
+        ? t("scheduledOn", { board: scheduledBoard })
+        : undefined;
     const label = restoredDraft
       ? restoredDraft.stale
         ? t("draftRestoredStale")
@@ -170,6 +179,7 @@ export default function CreatorIde({
     onDraftStateChange({
       live,
       liveBoard: liveBoard ?? undefined,
+      liveBoardMeta: liveBoard ?? scheduledBoard ?? undefined,
       label,
       draftSavedAt: draftSavedAt ?? undefined,
       savingDraft,
@@ -183,6 +193,7 @@ export default function CreatorIde({
     draftSavedAt,
     autosavePaused,
     liveBoard,
+    scheduledBoard,
     discardRestored,
     discardOwnedDraft,
     draftOffered,
@@ -298,7 +309,7 @@ export default function CreatorIde({
             tabs={tabs}
             value={activeTab}
             onValueChange={(value) => value && setTab(value as IdeTabId)}
-            counts={desktop ? undefined : { problems: problemCount }}
+            counts={desktop || problemCount === 0 ? undefined : { problems: problemCount }}
           >
             <InspectorTabsContent value="data" className="pt-2">
               <IdeReferences references={references.variables} emptyLabel={t("noData")} mono />

@@ -37,20 +37,20 @@ for (const notScheduled of [false, true]) {
       await expect(primaryButton).toHaveText(primary);
       await expect(header(page)).not.toContainText(/\bUpdate\b/);
       // Save / Save draft and Export are icons, named and with a tooltip.
-      const save = header(page).getByRole("button", { name: notScheduled ? "Save Page" : "Save draft" });
-      const exportButton = header(page).getByRole("button", { name: "Export Page" });
+      const save = header(page).getByRole("button", { name: notScheduled ? "Save page" : "Save draft" });
+      const exportButton = header(page).getByRole("button", { name: "Export page" });
       await expect(save).toHaveText("");
       await expect(exportButton).toHaveText("");
       await save.hover();
       await expect(page.locator('[data-slot="tooltip-content"]').last()).toContainText(
-        notScheduled ? "Save Page" : "Save draft",
+        notScheduled ? "Save page" : "Save draft",
       );
       const box = (await primaryButton.boundingBox())!;
       expect(box.x + box.width).toBeLessThanOrEqual(width);
       expect((await page.locator('[data-slot="page-editor-name"]').boundingBox())!.width).toBeGreaterThanOrEqual(240);
     }
     await page.setViewportSize({ width: 1280, height: 800 });
-    await expect(header(page).getByRole("button", { name: "Export Page" })).toHaveText("Export");
+    await expect(header(page).getByRole("button", { name: "Export page" })).toHaveText("Export");
   });
 }
 

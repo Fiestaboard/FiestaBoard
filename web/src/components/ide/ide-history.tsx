@@ -22,12 +22,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
-import { useLocale, useTranslations } from "@/i18n/translations";
+import { useTranslations } from "@/i18n/translations";
 import { ApiError } from "@/lib/api";
 import { type PageContent, pageHistoryApi, type PageRevisionSummary } from "@/lib/api/page-history";
+import { useFormatEditTime } from "@/lib/edit-time";
 import { changedRows, changeRegions } from "@/lib/ide/revision-diff";
 
-import { formatSavedAt } from "./ide-format";
 import { type CreatorIdeState, ideKeys } from "./use-creator-ide";
 
 /** A version's OVERVIEW: its content rendered with cached data at the open display. */
@@ -87,7 +87,7 @@ function RevisionThumbnail({ pageId, id, boardId }: { pageId: string; id: string
  */
 export function IdeHistory({ ide, pageId }: { ide: CreatorIdeState; pageId: string }) {
   const t = useTranslations("creatorIde");
-  const locale = useLocale();
+  const editTime = useFormatEditTime();
   const queryClient = useQueryClient();
   const [compareId, setCompareId] = useState<string | null>(null);
   const [confirmReplace, setConfirmReplace] = useState<string | null>(null);
@@ -119,7 +119,7 @@ export function IdeHistory({ ide, pageId }: { ide: CreatorIdeState; pageId: stri
   const summary = (revision: PageRevisionSummary) => {
     if (revision.restored_from) {
       const from = ide.revisions.find((other) => other.id === revision.restored_from);
-      return t("restoredFrom", { time: from ? formatSavedAt(from.saved_at, locale) : t("anEarlierVersion") });
+      return t("restoredFrom", { time: from ? editTime(from.saved_at) : t("anEarlierVersion") });
     }
     return t(`origin.${revision.origin}`);
   };
@@ -163,8 +163,8 @@ export function IdeHistory({ ide, pageId }: { ide: CreatorIdeState; pageId: stri
         <Stack gap="2" data-slot="ide-draft">
           <Text size="sm" weight="medium">
             {ide.draft.stale
-              ? t("draftStale", { time: formatSavedAt(ide.draft.saved_at, locale) })
-              : t("draftSaved", { time: formatSavedAt(ide.draft.saved_at, locale), board: boardName })}
+              ? t("draftStale", { time: editTime(ide.draft.saved_at) })
+              : t("draftSaved", { time: editTime(ide.draft.saved_at), board: boardName })}
           </Text>
           <Flex gap="2" className="flex-wrap">
             <Button
@@ -189,12 +189,12 @@ export function IdeHistory({ ide, pageId }: { ide: CreatorIdeState; pageId: stri
         <RevisionDiff
           data-slot="ide-revision-diff"
           before={{
-            label: formatSavedAt(comparedRevision.saved_at, locale),
+            label: editTime(comparedRevision.saved_at),
             status: comparedRevision.current ? "live" : undefined,
             thumbnail: <IdeThumbnail content={compared.data?.content} boardId={boardId} />,
           }}
           after={{
-            label: ide.draft ? t("now") : formatSavedAt(live?.saved_at ?? "", locale),
+            label: ide.draft ? t("now") : editTime(live?.saved_at ?? ""),
             status: ide.draft ? "draft" : "live",
             thumbnail: <IdeThumbnail content={afterContent} boardId={boardId} />,
           }}
@@ -215,7 +215,7 @@ export function IdeHistory({ ide, pageId }: { ide: CreatorIdeState; pageId: stri
             <RevisionRow
               key={revision.id}
               thumbnail={<RevisionThumbnail pageId={pageId} id={revision.id} boardId={boardId} />}
-              savedAt={formatSavedAt(revision.saved_at, locale)}
+              savedAt={editTime(revision.saved_at)}
               dateTime={revision.saved_at}
               author={author(revision)}
               summary={summary(revision)}

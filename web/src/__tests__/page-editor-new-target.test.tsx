@@ -83,9 +83,9 @@ it("creates a page for the URL's display while the sidebar selects another displ
   await waitFor(() => expect(screen.getByLabelText("Change board size")).toHaveTextContent("Note"));
   expect(screen.getByRole("combobox", { name: "Select board for live output" })).toHaveTextContent("Desk");
   await user.type(screen.getByLabelText(/page name/i), "Desk page");
-  await user.click(screen.getByRole("button", { name: "Save Page" }));
+  await user.click(screen.getByRole("button", { name: "Save page" }));
   await waitFor(() => expect(saved).toMatchObject({ name: "Desk page", device_type: "note" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Save Page" })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save page" })).toBeEnabled());
   expect(router.state.location.pathname).toBe("/pages/new");
   expect(screen.getByLabelText(/page name/i)).toHaveValue("Desk page");
   expect(screen.queryByRole("heading", { name: "Pages destination" })).not.toBeInTheDocument();
@@ -156,7 +156,7 @@ it("identifies the saved new page through the live AI bridge and protects later 
   });
   const user = userEvent.setup();
   await user.type(await screen.findByLabelText(/page name/i), "Saved kitchen page");
-  await user.click(screen.getByRole("button", { name: "Save Page" }));
+  await user.click(screen.getByRole("button", { name: "Save page" }));
   await waitFor(() => expect(bridge.getEditorSnapshot()?.id).toBe("created-page"));
   expect(bridge.staging.pageId()).toBe("created-page");
   await user.type(screen.getByLabelText(/page name/i), " with my draft");
