@@ -60,8 +60,9 @@ test("1024px: the Explorer overlay closes on Esc (focus back on the toggle) and 
   const before = await box(template);
   await toggle(page).click();
   await expect(explorer(page)).toBeVisible();
-  // It lies over the template, which neither moves nor narrows.
-  expect(await box(template)).toEqual(before);
+  // It lies over the template, which neither moves nor narrows (its height may grow as the IDE loads).
+  const after = await box(template);
+  expect({ x: after.x, y: after.y, width: after.width }).toEqual({ x: before.x, y: before.y, width: before.width });
 
   await page.keyboard.press("Escape");
   await expect(explorer(page)).toHaveCount(0);
@@ -89,43 +90,82 @@ test("1440px: the open Explorer is a column there, so Esc and a press outside le
   await expect(explorer(page)).toBeVisible();
 });
 
-test("1440px: Tab runs nav → header → toolbar → template column → preview column (FP-5)", async ({ page }) => {
-  await open(page, 1440);
+/** Tab through the page once; every stop's region, name and whether it shows a ring. */
+async function tabStops(page: Page) {
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  const regions = [
-    ["nav", '[data-slot="sidebar"], nav[aria-label]:not([aria-label="Explorer"])'],
-    ["header", '[data-slot="card-header"]'],
-    ["toolbar", '[data-slot="page-editor-toolbar-row"]'],
-    ["template", '[data-slot="page-editor-template-column"]'],
-    ["preview", '[data-slot="page-editor-preview-column"]'],
-  ] as const;
-  const seen: string[] = [];
-  for (let i = 0; i < 120; i += 1) {
+  const stops: { where: string; name: string; ring: boolean; scroller: boolean }[] = [];
+  for (let i = 0; i < 150; i += 1) {
     await page.keyboard.press("Tab");
-    const stop = await page.evaluate(
-      (list) => {
-        const el = document.activeElement;
-        if (!el || el === document.body) return { where: "end", ring: true, name: "" };
-        const where = list.find(([, selector]) => el.closest(selector))?.[0] ?? "other";
-        const style = getComputedStyle(el);
-        // A visible ring: an outline, a ring shadow, or the kit board bezel's :has() ring.
-        const ring =
-          (style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0) ||
-          style.boxShadow !== "none" ||
-          !!el.parentElement?.matches(":has(> :focus-visible)");
-        const name = (el.getAttribute("aria-label") || el.textContent || el.tagName).trim().slice(0, 40);
-        return {
-          where,
-          ring,
-          name,
-          tabStopOnly: el.tagName === "DIV" && !el.getAttribute("role")?.match(/textbox|tab|button/),
-        };
-      },
-      regions as unknown as [string, string][],
-    );
-    if (stop.where === "end") break;
-    expect(stop.ring, `${stop.name} shows a focus ring`).toBe(true);
-    if (seen.at(-1) !== stop.where && stop.where !== "other") seen.push(stop.where);
+    const stop = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el === document.body) return null;
+      const regions: [string, string][] = [
+        ["nav", '[data-slot="sidebar"], nav[aria-label]:not([aria-label="Explorer"])'],
+        ["header", '[data-slot="card-header"]'],
+        ["toolbar", '[data-slot="page-editor-toolbar-row"]'],
+        ["template", '[data-slot="page-editor-template-column"]'],
+        ["preview", '[data-slot="page-editor-preview-column"]'],
+      ];
+      const where = regions.find(([, selector]) => el.closest(selector))?.[0] ?? "other";
+      // A ring is a focus-only outline or shadow on the stop or a near ancestor (the template
+      // card rings when its field has focus; the kit rings the board scroller on its bezel).
+      const chain = [
+        el,
+        el.parentElement,
+        el.parentElement?.parentElement,
+        el.parentElement?.parentElement?.parentElement,
+      ]
+        .concat(el.closest<HTMLElement>('[data-slot="template-card"]'))
+        .filter((node): node is HTMLElement => !!node);
+      const look = () =>
+        chain.map((node) => {
+          const style = getComputedStyle(node);
+          return `${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor} | ${style.boxShadow}`;
+        });
+      const focused = look();
+      el.blur();
+      const unfocused = look();
+      el.focus();
+      const ring = focused.some((value, index) => value !== unfocused[index]);
+      const scroller = el.dataset.slot === "board-viewport-scroller";
+      const name = (el.getAttribute("aria-label") || el.textContent || el.tagName).trim().slice(0, 40);
+      return { where, name, ring, scroller };
+    });
+    if (!stop) break;
+    stops.push(stop);
   }
+  return stops;
+}
+
+test("1440px: Tab runs nav → header → toolbar → template column → preview column, each stop ringed (FP-5)", async ({
+  page,
+}) => {
+  await open(page, 1440);
+  const stops = await tabStops(page);
+  for (const stop of stops) expect(stop.ring, `${stop.name} shows a focus ring`).toBe(true);
+  const seen: string[] = [];
+  for (const { where } of stops) if (seen.at(-1) !== where && where !== "other") seen.push(where);
   expect(seen).toEqual(["nav", "header", "toolbar", "template", "preview"]);
+});
+
+test("a FiestaPanel board at Fit is no Tab stop; at Actual size it is one, with a ring (FP-5, UX-9-2)", async ({
+  page,
+}) => {
+  await mockHub(page, { deviceType: "panel" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(`/tests/layout/editor-window.html?${new URLSearchParams({ path: "/pages/edit/kitchen-morning" })}`);
+  await expect(page.getByRole("tablist", { name: "Inspector" })).toBeVisible();
+  const scroller = page.locator('[data-slot="board-viewport-scroller"]');
+  // The kit calls it a scroll region (the board is wider than its bezel) but Fit clips it.
+  await expect(scroller).toHaveAttribute("role", "region");
+  await expect(scroller).toHaveClass(/overflow-x-hidden/);
+  expect((await tabStops(page)).filter((stop) => stop.scroller)).toEqual([]);
+
+  await page.getByTestId("preview-view-menu").click();
+  await page.getByRole("menuitemradio", { name: /actual size/i }).click();
+  await expect(scroller).toHaveClass(/overflow-x-auto/);
+  const scrollerStops = (await tabStops(page)).filter((stop) => stop.scroller);
+  expect(scrollerStops).toHaveLength(1);
+  expect(scrollerStops[0].ring, "the scrolling board shows a focus ring").toBe(true);
 });
