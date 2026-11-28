@@ -64,7 +64,7 @@ function Harness() {
   });
   return (
     <>
-      {ide.bodyControls}
+      {ide.moreControls}
       {ide.previewFooter}
     </>
   );

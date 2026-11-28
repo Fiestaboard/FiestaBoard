@@ -18,7 +18,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { type ReactNode, type RefObject, useEffect, useMemo, useState } from "react";
+import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { PageBuilderDraftState, PageBuilderHandle } from "@/components/page-builder";
@@ -28,6 +28,7 @@ import { useLocale, useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { offersDraft } from "@/lib/ide/edit-state";
 import { IDE_DESKTOP_QUERY, type IdeTabId, inspectorTabIds, resolveInspectorTab } from "@/lib/ide/inspector-tabs";
+import { OPEN_PROBLEMS_EVENT } from "@/lib/ide/open-problems";
 import { templateReferences } from "@/lib/ide/references";
 
 import { type ConsoleTab, IdeConsole, IdeProblemList, IdeSentPanel } from "./ide-console";
@@ -212,6 +213,17 @@ export default function CreatorIde({
     setTab("problems");
     document.getElementById("ide-inspector")?.scrollIntoView({ block: "nearest" });
   };
+
+  // The preview's Missing panel links here too (UX-4-4).
+  const openProblemsRef = useRef(openProblems);
+  useEffect(() => {
+    openProblemsRef.current = openProblems;
+  });
+  useEffect(() => {
+    const open = () => openProblemsRef.current();
+    window.addEventListener(OPEN_PROBLEMS_EVENT, open);
+    return () => window.removeEventListener(OPEN_PROBLEMS_EVENT, open);
+  }, []);
 
   const tabs = inspectorTabIds(desktop).map((id) => ({ value: id, label: t(`tab.${id}`) }));
   const statusMessage = useStatusMessage(ide);

@@ -3861,7 +3861,7 @@
     "showShortcuts": "키보드 단축키 보기",
     "previewStep": "미리보기를 노트 또는 열 하나만큼 이동",
     "previewEnds": "미리보기의 처음 또는 끝으로 이동",
-    "previewFit": "맞춤 / 실제 크기(미리보기 포커스 시)",
+    "previewFit": "맞춤 / 실제 크기",
     "insertFormula": "수식 삽입",
     "save": "저장",
     "saveAndShow": "저장하고 지금 표시",
@@ -4481,5 +4481,16 @@
     "caret": "{line}줄, {column}열",
     "withShortcut": "{label} ({keys})",
     "spacing": "간격"
+  },
+  "previewView": {
+    "view": "보기",
+    "previewAt": "특정 시각으로 미리보기…",
+    "zoom": "확대/축소",
+    "ruler": "눈금자",
+    "at": "시각",
+    "inspectCaption": "검사: 타일을 클릭하면 토큰과 수식 단계를 볼 수 있습니다 · Esc로 종료",
+    "missingNoDataTitle": "이 페이지에는 연동 데이터가 없습니다",
+    "missingFormulaError": "{line}행의 {error}는 데이터 누락이 아니라 수식 오류입니다.",
+    "seeProblems": "문제 보기"
   }
 }

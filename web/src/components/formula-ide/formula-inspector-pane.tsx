@@ -59,17 +59,8 @@ export function FormulaInspectorPane(props: WorkbenchProps) {
       </Alert>
     );
   }
-  if (focus === null) {
-    return (
-      <Card data-testid="inspector-pane" className="border-2 border-ring py-4">
-        <CardContent className="px-4">
-          <Text size="sm" tone="muted">
-            {t("inspectHint")}
-          </Text>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Nothing picked yet: the caption under the board says what to do (UX-4-4).
+  if (focus === null) return null;
 
   const row = focus.kind === "cell" ? focus.row + 1 : null;
   const source = cell?.origin?.source;

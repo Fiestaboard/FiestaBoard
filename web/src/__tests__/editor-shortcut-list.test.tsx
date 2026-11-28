@@ -139,7 +139,9 @@ describe("EditorShortcutList", () => {
     fireEvent.keyDown(document.body, { key: "?" });
     const list = await screen.findByRole("dialog", { name: "Keyboard shortcuts" });
     expect(within(list).getByText("Move the preview by one Note or column")).toBeInTheDocument();
-    expect(within(list).getByText("Fit / Actual size (preview focused)")).toBeInTheDocument();
+    expect(within(list).getByText("Fit / Actual size")).toBeInTheDocument();
+    // The View menu binds 1 (FP-3), so the list names it.
+    expect(within(list).getByText("Actual size (preview)")).toBeInTheDocument();
   });
 
   it("opens from the header Shortcuts button, which advertises ?", async () => {

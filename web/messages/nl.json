@@ -3861,7 +3861,7 @@
     "showShortcuts": "Sneltoetsen tonen",
     "previewStep": "Voorbeeld één Note of kolom verschuiven",
     "previewEnds": "Naar het begin of einde van het voorbeeld springen",
-    "previewFit": "Passend / Ware grootte (voorbeeld met focus)",
+    "previewFit": "Passend / Ware grootte",
     "insertFormula": "Formule invoegen",
     "save": "Opslaan",
     "saveAndShow": "Opslaan en nu tonen",
@@ -4481,5 +4481,16 @@
     "caret": "Rg {line}, Kol {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Ruimte"
+  },
+  "previewView": {
+    "view": "Weergave",
+    "previewAt": "Voorbeeld op een tijdstip…",
+    "zoom": "Zoom",
+    "ruler": "Liniaal",
+    "at": "Om",
+    "inspectCaption": "Inspecteren: klik op een tegel om het token en de formulestappen te zien · Esc om te stoppen",
+    "missingNoDataTitle": "Geen integratiegegevens op deze pagina",
+    "missingFormulaError": "{error} op regel {line} is een formulefout, geen ontbrekende gegevens.",
+    "seeProblems": "Problemen bekijken"
   }
 }

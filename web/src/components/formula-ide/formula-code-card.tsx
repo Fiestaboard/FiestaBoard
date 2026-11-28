@@ -281,11 +281,11 @@ export function FormulaCodeCard(props: WorkbenchProps) {
     view.current = editor;
     editor.focus();
     // CodeMirror focuses without scrolling: the docked editor sits under the
-    // preview, often below the fold. The whole card comes into view, with its
-    // validation line and Update / Cancel (BB-B-13).
-    (host.current.closest('[data-testid="formula-code-card"]') ?? host.current).scrollIntoView?.({
-      block: "nearest",
-    });
+    // preview, sometimes below the fold. Only the line being edited comes into
+    // view (BB-B-13), not the whole card: scrolling the card's foot into view
+    // carried the board off screen (594 px on Den TV, FABLE-2649). ⌘↵ and Esc
+    // apply and cancel from the editor.
+    host.current.scrollIntoView?.({ block: "nearest" });
     return () => {
       editor.destroy();
       view.current = null;

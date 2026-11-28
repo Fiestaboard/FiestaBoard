@@ -3861,7 +3861,7 @@
     "showShortcuts": "Afficher les raccourcis clavier",
     "previewStep": "Déplacer l’aperçu d’une Note ou d’une colonne",
     "previewEnds": "Aller au début ou à la fin de l’aperçu",
-    "previewFit": "Ajuster / Taille réelle (aperçu actif)",
+    "previewFit": "Ajuster / Taille réelle",
     "insertFormula": "Insérer une formule",
     "save": "Enregistrer",
     "saveAndShow": "Enregistrer et afficher maintenant",
@@ -4481,5 +4481,16 @@
     "caret": "Lig {line}, Col {column}",
     "withShortcut": "{label} ({keys})",
     "spacing": "Espacement"
+  },
+  "previewView": {
+    "view": "Affichage",
+    "previewAt": "Aperçu à une heure…",
+    "zoom": "Zoom",
+    "ruler": "Règle",
+    "at": "À",
+    "inspectCaption": "Inspecter : cliquez sur une case pour voir le jeton et les étapes de la formule · Échap pour quitter",
+    "missingNoDataTitle": "Aucune donnée d’intégration sur cette page",
+    "missingFormulaError": "{error} à la ligne {line} est une erreur de formule, pas une donnée manquante.",
+    "seeProblems": "Voir les problèmes"
   }
 }

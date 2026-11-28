@@ -1,5 +1,6 @@
-// "Missing values (H6)" (07c 307:46094 / 316:97494) and the Sample / render-at
-// notes under the preview board.
+// "Missing values (H6)" (07c 307:46094 / 316:97494) under the preview board,
+// and the one-line caption slot above it (UX-4-4) that carries the Sample,
+// render-at and Inspect notes without moving anything.
 
 "use client";
 
@@ -22,6 +23,7 @@ import { useTranslations } from "@/i18n/translations";
 import type { FormulaDiagnostic, PreviewSource } from "@/lib/api/formula-debug";
 import { appUrl } from "@/lib/base-path";
 import { fallbackTip, type MissingEntry, missingReport } from "@/lib/formula-ide/data-source";
+import { openIdeProblems } from "@/lib/ide/open-problems";
 
 /**
  * Kit `AlertTitle` is always an `<h5>`. In the editor it sits under the page
@@ -31,16 +33,58 @@ import { fallbackTip, type MissingEntry, missingReport } from "@/lib/formula-ide
  */
 const MISSING_TITLE_LEVEL = 2;
 
-export interface MissingValuesCardProps {
+export interface PreviewCaptionProps {
+  /** Desktop: the slot keeps its line even when empty, so nothing under it moves. */
+  reserved: boolean;
+  inspecting: boolean;
   mode: DataSource;
   /** Localized render-at time, or null for now. */
   atLabel: string | null;
+  /** Referenced plugins with no example values (Sample keeps their hub data). */
+  unsampled: readonly string[];
+}
+
+/**
+ * The fixed one-line caption under the board (UX-4-4): Inspect's hint, then
+ * Sample's note, then the render-at note. One line with an ellipsis; the full
+ * text is its tooltip.
+ */
+export function PreviewCaption({ reserved, inspecting, mode, atLabel, unsampled }: PreviewCaptionProps) {
+  const t = useTranslations("formulaIde");
+  const tv = useTranslations("previewView");
+  const text = inspecting
+    ? tv("inspectCaption")
+    : mode === "sample"
+      ? [t("sampleNote"), unsampled.length > 0 && t("sampleUnsampled", { plugins: unsampled.join(", ") })]
+          .filter(Boolean)
+          .join(" ")
+      : atLabel
+        ? t("renderAtNote", { time: atLabel })
+        : "";
+  if (!text && !reserved) return null;
+  return (
+    <Text
+      size="xs"
+      tone="muted"
+      aria-live="polite"
+      title={text || undefined}
+      data-slot="preview-caption"
+      data-testid={
+        inspecting ? "inspect-hint" : mode === "sample" ? "sample-note" : atLabel ? "render-at-note" : undefined
+      }
+      className="block h-4 truncate leading-4"
+    >
+      {text}
+    </Text>
+  );
+}
+
+export interface MissingValuesCardProps {
+  mode: DataSource;
   template: readonly string[];
   roots: readonly string[];
   /** Referenced integrations that are switched off (BB-E-12): named in Live, and as the reason in Missing. */
   offRoots?: readonly { root: string; name: string }[];
-  /** Referenced plugins with no example values (Sample keeps their hub data). */
-  unsampled: readonly string[];
   formulas: readonly FormulaDiagnostic[];
   sources: Record<string, PreviewSource> | null;
   loading: boolean;
@@ -72,11 +116,9 @@ function useReason(offRoots: readonly { root: string; name: string }[]) {
 
 export function MissingValuesCard({
   mode,
-  atLabel,
   template,
   roots,
   offRoots = [],
-  unsampled,
   formulas,
   sources,
   loading,
@@ -84,19 +126,14 @@ export function MissingValuesCard({
   onAddFallback,
 }: MissingValuesCardProps) {
   const t = useTranslations("formulaIde");
+  const tv = useTranslations("previewView");
   const reason = useReason(offRoots);
-
-  const atNote = atLabel ? (
-    <Text size="xs" tone="muted" data-testid="render-at-note">
-      {t("renderAtNote", { time: atLabel })}
-    </Text>
-  ) : null;
 
   // Live: an integration that is switched off prints ??? on the real board, so
   // the panel says which and why (Figma 307:46094, BB-E-12).
   const liveOff = mode === "live" && !failed && offRoots.length > 0;
-  if (mode === "live" && !liveOff) return atNote;
-
+  // Live says what it needs in the caption slot (UX-4-4).
+  if (mode === "live" && !liveOff) return null;
   if (failed && !liveOff) {
     return (
       <Alert variant="destructive" data-testid="preview-context-error">
@@ -104,22 +141,7 @@ export function MissingValuesCard({
       </Alert>
     );
   }
-
-  if (mode === "sample") {
-    return (
-      <Stack gap="1" data-testid="sample-note">
-        <Text size="xs" tone="muted">
-          {t("sampleNote")}
-        </Text>
-        {unsampled.length > 0 && (
-          <Text size="xs" tone="muted">
-            {t("sampleUnsampled", { plugins: unsampled.join(", ") })}
-          </Text>
-        )}
-        {atNote}
-      </Stack>
-    );
-  }
+  if (mode === "sample") return null;
 
   if (loading && !liveOff) return <Skeleton className="h-24 w-full rounded-lg" />;
 
@@ -130,13 +152,32 @@ export function MissingValuesCard({
     sources,
   });
   if (entries.length === 0) {
+    // Nothing is missing, but a formula error still shows on the board: name
+    // it as what it is, and send the user to Problems (UX-4-4).
+    const broken = formulas.find((formula) => formula.error);
+    if (broken) {
+      return (
+        <Stack gap="1" data-testid="missing-values">
+          <Alert>
+            <AlertTitle aria-level={MISSING_TITLE_LEVEL}>{tv("missingNoDataTitle")}</AlertTitle>
+            <AlertDescription>
+              <Flex align="center" gap="2" wrap>
+                <Text size="sm">{tv("missingFormulaError", { error: broken.error!, line: broken.line })}</Text>
+                <Button variant="link" size="sm" className="h-auto px-0" onClick={openIdeProblems}>
+                  {tv("seeProblems")}
+                </Button>
+              </Flex>
+            </AlertDescription>
+          </Alert>
+        </Stack>
+      );
+    }
     return (
       <Stack gap="1" data-testid="missing-values">
         <Alert variant="success">
           <AlertTitle aria-level={MISSING_TITLE_LEVEL}>{t("missingNothingTitle")}</AlertTitle>
           <AlertDescription>{t("missingNothingBody")}</AlertDescription>
         </Alert>
-        {atNote}
       </Stack>
     );
   }
@@ -186,7 +227,6 @@ export function MissingValuesCard({
       <Text size="xs" tone="muted">
         {t("missingExplainer")}
       </Text>
-      {atNote}
     </Stack>
   );
 }
