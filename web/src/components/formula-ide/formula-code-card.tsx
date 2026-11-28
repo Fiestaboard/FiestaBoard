@@ -5,10 +5,16 @@
 
 "use client";
 
-import { autocompletion, type Completion, type CompletionContext } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  closeCompletion,
+  type Completion,
+  type CompletionContext,
+  completionStatus,
+} from "@codemirror/autocomplete";
 import { history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
-import { EditorState, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
+import { EditorState, Prec, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, keymap, lineNumbers, WidgetType } from "@codemirror/view";
 import { Badge, Box, Button, Card, CardContent, Flex, List, ListItem, Text } from "@fiestaboard/ui";
 import { tags } from "@lezer/highlight";
@@ -265,6 +271,21 @@ export function FormulaCodeCard(props: WorkbenchProps) {
           hintField,
           history(),
           EditorView.contentAttributes.of({ "aria-labelledby": labelId, "aria-describedby": noteId }),
+          // Esc closes a completion list that shows. A query still pending
+          // just after a keystroke shows nothing, so Esc there is the editor's
+          // Cancel, not a swallowed key (completion's own Esc would eat it). Before
+          // autocompletion(), so this runs first at the same precedence.
+          Prec.highest(
+            keymap.of([
+              {
+                key: "Escape",
+                run: (target) => {
+                  if (completionStatus(target.state) === "pending") closeCompletion(target);
+                  return false;
+                },
+              },
+            ]),
+          ),
           autocompletion({
             override: [
               completionSource(

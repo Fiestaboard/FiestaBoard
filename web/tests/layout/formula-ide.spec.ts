@@ -503,7 +503,17 @@ for (const width of [900, 1440]) {
     // The caret is in the code, not on the Code tab: a tablet keeps its keyboard.
     await expect(card.locator(".cm-content")).toBeFocused();
 
-    // Esc cancels and hands the caret back to the template.
+    // With a completion list showing, Esc closes the list and keeps the editor.
+    await page.keyboard.type("FO");
+    const completions = page.locator(".cm-tooltip-autocomplete");
+    await expect(completions).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(completions).toHaveCount(0);
+    await expect(card).toBeVisible();
+
+    // Esc cancels and hands the caret back to the template, even straight
+    // after a keystroke (no completion list shows yet).
+    await page.keyboard.type("?");
     await page.keyboard.press("Escape");
     await expect(card).toHaveCount(0);
     await expect(template).toBeFocused();
