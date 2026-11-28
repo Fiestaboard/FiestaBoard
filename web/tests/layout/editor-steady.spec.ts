@@ -163,20 +163,26 @@ test("the ? key still opens the shortcut list once the header button is gone (UX
 });
 
 for (const width of [1440, 900, 390]) {
-  test(`${width}px: "Template" heads its card, above the field (UX-3-3, UX-10-1)`, async ({ page }) => {
+  test(`${width}px: "Template" heads its card in one row with the count, above the rows (UX-3-3, UX-10-1, FABLE-2648)`, async ({
+    page,
+  }) => {
     await mockHub(page);
     await open(page, width);
-    const header = page.locator('[data-slot="page-editor-template-card-header"]');
-    await expect(header).toBeVisible();
+    const card = page.locator('[data-slot="template-card"]');
+    await expect(card).toBeVisible();
+    // One header row, the editor's own: no second strip above the card.
+    await expect(page.locator('[data-slot="page-editor-template-card-header"]')).toHaveCount(0);
+    const header = card.locator('[data-slot="template-card-header"]');
     await expect(header).toContainText("Template");
-    const field = page.locator('[data-slot="template-card"]');
-    await expect(field).toBeVisible();
-    const headerBox = await box(header);
-    const fieldBox = await box(field);
-    // Flush on the field: one card, header then rows.
-    expect(Math.abs(headerBox.y + headerBox.height - fieldBox.y)).toBeLessThanOrEqual(1);
-    expect(Math.abs(headerBox.x - fieldBox.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(headerBox.width - fieldBox.width)).toBeLessThanOrEqual(1);
+    await expect(header.getByRole("group", { name: /editor mode/i })).toBeVisible();
+    const title = await box(header.locator('[data-slot="page-editor-template-title"]'));
+    const meta = await box(header.getByTestId("template-card-meta"));
+    expect(Math.abs(title.y + title.height / 2 - (meta.y + meta.height / 2))).toBeLessThanOrEqual(2);
+    expect(meta.x).toBeGreaterThan(title.x + title.width);
+    const cardBox = await box(card);
+    const rows = await box(card.locator('[data-slot="template-rows"]'));
+    expect(title.y).toBeGreaterThanOrEqual(cardBox.y);
+    expect(title.y + title.height).toBeLessThanOrEqual(rows.y);
   });
 }
 

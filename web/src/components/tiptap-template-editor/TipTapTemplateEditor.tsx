@@ -1483,11 +1483,21 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
               </Text>
             </Flex>
             <Box
-              className="relative flex-1"
+              data-slot="template-rows-area"
+              className="relative flex-1 cursor-text"
               style={{
                 padding: "0.75rem",
                 paddingTop: "0.5rem",
                 minHeight: `${boardLines * 1.5 + 1.25}rem`,
+              }}
+              // The card fills its column (UX-3-1): a click in the empty stretch under
+              // the last row puts the caret at the end, as Docs and VS Code do.
+              onMouseDown={(event) => {
+                if (event.button !== 0 || event.target !== event.currentTarget || !editor) return;
+                const rows = event.currentTarget.querySelector('[data-slot="template-rows"]');
+                if (!rows || event.clientY <= rows.getBoundingClientRect().bottom) return;
+                event.preventDefault();
+                editor.chain().focus("end").run();
               }}
             >
               {/* Rows past the board's height (UX-3-4): tinted so a row made by Enter

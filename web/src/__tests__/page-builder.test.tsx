@@ -66,7 +66,8 @@ describe("PageBuilder — Sync from Board", () => {
     });
   });
 
-  it("does not show the Sync from Board button when editing an existing page", async () => {
+  // UX-2-2 (Fable): the same toolbar set on new and saved pages, Import included.
+  it("shows the Sync from Board button when editing an existing page too", async () => {
     render(<PageBuilder pageId="page-1" onClose={vi.fn()} />, {
       wrapper: TestWrapper,
     });
@@ -76,8 +77,7 @@ describe("PageBuilder — Sync from Board", () => {
     // button exists, so "sync button absent" is trivially true.
     await screen.findByRole("button", { name: "Align right" });
 
-    // The button must not be present in edit mode
-    expect(screen.queryByRole("button", { name: "Sync from current board display" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sync from current board display" })).toBeInTheDocument();
   });
 
   it("populates template lines and shows a success toast on successful sync", async () => {
