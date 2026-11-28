@@ -2738,7 +2738,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     state: shortcutList,
     // Hidden on a pixel board's Canvases surface: the kit then hangs the list
     // from the trigger that opened it (or its gutter on touch).
-    anchorRef: pixelBoard && editingSurface !== "text" ? undefined : templateHeadingRef,
+    // In the rich editor's card the title sits inside the card's padding, so the
+    // list hangs from the card itself; drawing hides the card, then the title row.
+    anchorRef:
+      pixelBoard && editingSurface !== "text"
+        ? undefined
+        : editorMode === "rich" && !baselineDisplay && !editorCharset && !drawMode
+          ? richTemplateContainerRef
+          : templateHeadingRef,
     // Only a split-flap preview can bind BoardViewport's keys; an LED board
     // previews through DevicePreview (draw mode always paints flaps).
     boardViewport: previewBindsBoardViewportKeys({ ledPreview: !drawMode && isLedModel(previewModel) }),
