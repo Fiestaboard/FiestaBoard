@@ -80,18 +80,20 @@ test.describe("Page Builder", () => {
     expect(data.template).toContain("UPDATED CONTENT");
   });
 
-  test("validates required fields — name cannot be empty", async ({ page }) => {
+  // UX-8-1: a blank name never blocks Save; the page is saved as "Untitled page".
+  test("saves a page whose name was cleared as Untitled page", async ({ page }) => {
     await page.goto("/pages/new");
     await expect(page.locator("#page-name")).toBeVisible({
       timeout: 15_000,
     });
 
     const name = page.getByPlaceholder("My Custom Page");
+    await expect(name).toHaveValue("Untitled page");
     await name.fill("");
     await page.getByRole("button", { name: "Save Page", exact: true }).click();
-    await expect(name).toBeFocused();
-    await expect(name).toHaveValue("");
-    await expect(page).toHaveURL(/\/pages\/new/);
+    await expect(page).toHaveURL(/\/pages\/edit\/[^/]+$/, { timeout: 15_000 });
+    await expect(name).toHaveValue("Untitled page");
+    await deletePage(page.url().split("/").pop()!);
   });
 
   test("can preview page content in the builder", async ({ page }) => {
