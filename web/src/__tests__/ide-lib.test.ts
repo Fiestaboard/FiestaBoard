@@ -8,7 +8,7 @@ import { jumpToTemplateLine, lineStartPosition, textOffsetOfLine } from "@/lib/i
 import { problemsFromValidation, substitutionSummary, warningsFromCharset } from "@/lib/ide/problems";
 import { changedRows, changeRegions } from "@/lib/ide/revision-diff";
 import { sendLogModel } from "@/lib/ide/sends";
-import { showsOnModel, windowHolds } from "@/lib/ide/shows-on";
+import { pageDisplayIds, showsOnModel, windowHolds } from "@/lib/ide/shows-on";
 
 describe("inspector tabs (Jev desktop_console_two_option)", () => {
   it("draws five tabs on desktop with Problems docked in the console", () => {
@@ -284,6 +284,23 @@ describe("shows on (H8)", () => {
       { boardId: "hall", boardName: "Hall board", until: null },
     ]);
     expect(model.scheduled).toBe(true);
+  });
+
+  // UX-6-1: the displays that show the page, for the editor to preview it as.
+  it("lists the page's displays: showing now first, then enabled entries, each once", () => {
+    const model = showsOnModel({
+      pageId: "commute",
+      schedules: [
+        entry({ id: "s1", board_id: "office" }),
+        entry({ id: "s2", board_id: "den" }),
+        entry({ id: "s3", board_id: "attic", enabled: false }),
+        entry({ id: "s4", board_id: "office", start_time: "12:00", end_time: "13:00" }),
+      ],
+      collections: [],
+      boards: [board("den", "Den TV"), board("office", "Office"), board("attic", "Attic")],
+      active: { den: answer({ page_id: "other" }), office: undefined, hall: answer({ source: "manual" }) },
+    });
+    expect(pageDisplayIds(model)).toEqual(["hall", "office", "den"]);
   });
 
   it("is not showing while silenced and not scheduled when its entries are off", () => {
