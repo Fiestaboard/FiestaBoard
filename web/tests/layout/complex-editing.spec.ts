@@ -280,16 +280,9 @@ for (const theme of ["light", "dark"] as const) {
       test(`${width}: note array scrolls a column of Notes at a time`, async ({ page }, testInfo) => {
         await openEditor(page, "lobby-menu", width, theme);
         await expect(page.getByRole("radiogroup", { name: "Note focus" })).toHaveCount(0);
-        // 2.5 docks the preview full width below 1024 px: the 2 × 2 wall fits at
-        // 900 (no scroll), and scrolls a column of Notes at a time on a phone.
-        if (width === 900) {
-          await expect(page.locator('[data-slot="editor-preview"] [data-slot="board-viewport"]')).toHaveAttribute(
-            "data-overflow",
-            "false",
-          );
-        } else {
-          await expect(indicator(page)).toContainText("Column 1 of 2");
-        }
+        // At 900 the preview is the right half (UX-4-5, 61:17544), as on a phone it
+        // is the screen's width: the 2 × 2 wall scrolls a column of Notes at a time.
+        await expect(indicator(page)).toContainText("Column 1 of 2");
         await finish(page, testInfo, `impl-${width}-${theme}-note-array`);
       });
     }

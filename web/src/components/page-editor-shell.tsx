@@ -151,8 +151,9 @@ export function PageEditorShell({
   const [explorerSlot, setExplorerSlot] = useState<HTMLElement | null>(null);
   const [templateSlot, setTemplateSlot] = useState<HTMLElement | null>(null);
   const [previewSlot, setPreviewSlot] = useState<HTMLElement | null>(null);
+  const [statusSlot, setStatusSlot] = useState<HTMLElement | null>(null);
   const workspaceSlots = useMemo<PageBuilderWorkspaceSlots>(
-    () => ({ explorer: setExplorerSlot, template: setTemplateSlot, preview: setPreviewSlot }),
+    () => ({ explorer: setExplorerSlot, template: setTemplateSlot, preview: setPreviewSlot, status: setStatusSlot }),
     [],
   );
   // The Explorer's open state lives here, so the column is the same before
@@ -316,6 +317,7 @@ export function PageEditorShell({
             saveActions={saveActions}
             draftState={draftState}
             workspaceSlots={workspaceSlots}
+            explorerOpen={explorer.open}
             onDeviceTypeChange={setBuilderKind}
           />
           {/* Until the IDE is up (a new page, or its chunk still loading), the
@@ -329,6 +331,7 @@ export function PageEditorShell({
                 explorerSlot={explorerSlot}
                 templateSlot={templateSlot}
                 previewSlot={previewSlot}
+                statusSlot={statusSlot}
                 explorer={explorer}
                 boardKind={loadedPage.device_type}
                 savedTick={savedTick}

@@ -56,7 +56,7 @@ for (const width of [1440, 1280, 1024]) {
       expect(b.x + b.width).toBeLessThanOrEqual(template.x + template.width + 1);
     }
     // Under, not beside: the Console starts below the template, the Inspector below the preview card.
-    const templateCard = await box(page.locator('[data-slot="page-editor-template-column"]'));
+    const templateCard = await box(page.locator('[data-slot="page-editor-template-card"]'));
     const previewCard = await box(page.locator('[data-slot="editor-preview"]'));
     expect(consoleBox.y).toBeGreaterThanOrEqual(templateCard.y + templateCard.height - 1);
     expect(inspectorBox.y).toBeGreaterThanOrEqual(previewCard.y + previewCard.height - 1);
