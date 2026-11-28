@@ -1621,6 +1621,20 @@
     "notSentYet": "尚未发送",
     "notSentYetOn": "尚未发送 · {board}"
   },
+  "importFromBoard": {
+    "title": "用 {board} 当前显示的内容替换此模板？",
+    "showing": "{board} 正在显示“{page}”。它的行、对齐和换行将替换此模板的；撤销可恢复你的内容。不会保存或显示任何内容。",
+    "replace": "替换模板",
+    "emptyTitle": "{board} 未显示任何内容",
+    "emptyBody": "没有可导入的内容。",
+    "sizeTitle": "{board} 显示的是另一尺寸的页面",
+    "sizeBody": "“{page}”为 {theirs}；此页面为 {ours}。模板无法在尺寸变化后保留。",
+    "sizeCopyHint": "要在 {board} 上使用此页面，请在 检查器 › 显示于 中创建适合其尺寸的副本。",
+    "errorTitle": "无法读取 {board} 显示的内容",
+    "errorBody": "请稍后重试。",
+    "close": "关闭",
+    "previewLabel": "{board} 当前显示的内容"
+  },
   "changePage": {
     "title": "更换页面",
     "description": "选择 {board} 要显示的内容。选择“立即显示”之前不会有任何更改。",
@@ -1750,7 +1764,7 @@
     "toastNoActiveDisplay": "没有可同步的活动显示",
     "exportPage": "导出",
     "exportPageAriaLabel": "导出页面",
-    "exportPageTooltip": "将页面导出为分享字符串",
+    "exportPageTooltip": "导出页面",
     "exportDisabledTooltip": "导出前请保存您的更改",
     "exportFailed": "获取分享字符串失败",
     "exportDialogTitle": "导出页面",
@@ -2848,8 +2862,8 @@
     "alignLeft": "左对齐",
     "alignCenter": "居中对齐",
     "alignRight": "右对齐",
-    "syncFromBoardTooltip": "从当前 board 上显示的内容填充模板",
-    "syncFromBoard": "从当前 board 显示同步",
+    "syncFromBoardTooltip": "用展板当前显示的内容替换模板",
+    "syncFromBoard": "从展板导入…",
     "alignment": "对齐:",
     "undoAriaLabel": "撤销",
     "redoAriaLabel": "重做",
@@ -3839,6 +3853,11 @@
     "offlineMeta": "上次连接 {time} · 日程仍在中枢上运行",
     "offlineMetaNever": "中枢启动后未连接 · 日程仍在中枢上运行"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "草稿已保存",
+    "saved": "已保存",
+    "saveDraftNow": "立即保存草稿"
+  },
   "editorShortcuts": {
     "title": "键盘快捷键",
     "platformNote": "Mac 上为 ⌘ · Windows 和 Linux 上为 Ctrl",
@@ -3858,7 +3877,7 @@
     "previewFit": "适应 / 实际大小",
     "insertFormula": "插入公式",
     "save": "保存",
-    "saveAndShow": "保存并立即显示",
+    "saveAndShow": "立即显示 / 保存并更新看板",
     "inspect": "检查预览",
     "previewActualSize": "实际大小（预览）",
     "groupEditing": "编辑",
@@ -4070,6 +4089,7 @@
     "overflowChecked": "已由中枢按 {board} 的实际宽度检查 · {time}",
     "overflowCheckedNoBoard": "已由中枢按此看板的实际宽度检查 · {time}",
     "overflowWrap": "第 {line} 行自动换行",
+    "overflowWrapNeedsRows": "还需要 {count, plural, one {# 行} other {# 行}}",
     "overflowMore": "同样被截断：{lines}",
     "bandsLabel": "行分段",
     "bandMoveUp": "上移",

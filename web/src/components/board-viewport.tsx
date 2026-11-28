@@ -4,10 +4,11 @@ import {
   BoardViewport as UIBoardViewport,
   type BoardViewportLabels,
   type BoardViewportProps as UIBoardViewportProps,
+  Box,
   type DeviceType,
   Text,
 } from "@fiestaboard/ui";
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 
 import { useBoardChrome } from "@/components/board-display";
 import { useTranslations } from "@/i18n/translations";
@@ -102,6 +103,32 @@ export function useBoardViewportLabels(regionLabel?: string): Required<BoardView
   );
 }
 
+/**
+ * FP-5 (UX-9-2): the kit makes its scroller a `tabindex=0` region whenever the
+ * board is wider than its bezel, also at Fit, where nothing scrolls and its
+ * keys do nothing the app's F doesn't. A stop that does nothing is noise in
+ * the Tab order, so while it can't scroll it leaves the order (`-1`) and it
+ * comes back the moment it can (Actual size). Kit ask (KIT-ASKS.md W2-A):
+ * `tabIndex` only while the scroller scrolls; drop this once it ships.
+ */
+export function useScrollOnlyTabStop(root: HTMLElement | null) {
+  useEffect(() => {
+    const scroller = root?.querySelector<HTMLElement>("[data-slot=board-viewport-scroller]");
+    if (!scroller) return;
+    const sync = () => {
+      // The kit's region role is its "may scroll" state; a group never has a tab stop.
+      if (scroller.getAttribute("role") !== "region") return;
+      // Fit clips the board (`overflow-x-hidden`); Actual size scrolls it (`overflow-x-auto`).
+      const next = scroller.classList.contains("overflow-x-hidden") ? "-1" : "0";
+      if (scroller.getAttribute("tabindex") !== next) scroller.setAttribute("tabindex", next);
+    };
+    sync();
+    const attributes = new MutationObserver(sync);
+    attributes.observe(scroller, { attributes: true, attributeFilter: ["role", "tabindex", "class"] });
+    return () => attributes.disconnect();
+  }, [root]);
+}
+
 export const BoardViewport = memo(function BoardViewport({
   flapSpeed,
   regionLabel,
@@ -110,13 +137,18 @@ export const BoardViewport = memo(function BoardViewport({
 }: BoardViewportProps) {
   const chrome = useBoardChrome(flapSpeed);
   const labels = useBoardViewportLabels(regionLabel);
+  const [root, setRoot] = useState<HTMLElement | null>(null);
+  useScrollOnlyTabStop(root);
   return (
-    <UIBoardViewport
-      {...props}
-      {...chrome}
-      animationsEnabled={chrome.animationsEnabled && animate}
-      labels={labels}
-      hint={<BoardViewportHint deviceType={props.deviceType} />}
-    />
+    // `display: contents`: a handle on the kit's subtree that draws no box.
+    <Box ref={setRoot} className="contents">
+      <UIBoardViewport
+        {...props}
+        {...chrome}
+        animationsEnabled={chrome.animationsEnabled && animate}
+        labels={labels}
+        hint={<BoardViewportHint deviceType={props.deviceType} />}
+      />
+    </Box>
   );
 });

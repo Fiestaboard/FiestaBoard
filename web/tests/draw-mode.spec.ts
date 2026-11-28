@@ -124,7 +124,7 @@ test.describe("Draw mode", () => {
 
     const pageName = `Draw E2E ${Date.now()}`;
     await page.getByPlaceholder("My Custom Page").fill(pageName);
-    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save page" }).or(page.getByRole("button", { name: /save/i }));
     // The editor stays open after a save (it has its own header, not the
     // section's), so wait for the save itself.
     const saveResponse = page.waitForResponse(
@@ -377,7 +377,7 @@ test.describe("Draw mode", () => {
     await page.keyboard.press("Escape");
     const pageName = `Stamp E2E ${Date.now()}`;
     await page.getByPlaceholder("My Custom Page").fill(pageName);
-    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save page" }).or(page.getByRole("button", { name: /save/i }));
     // The editor stays open after a save (it has its own header, not the
     // section's), so wait for the save itself.
     const saveResponse = page.waitForResponse(
@@ -485,7 +485,7 @@ test.describe("Draw mode", () => {
     // fresh note_array_token avoids the ≥15s send throttle (same recipe as
     // note-array-output.spec.ts), so delivery can be asserted directly.
     await page.keyboard.press("Escape");
-    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save page" }).or(page.getByRole("button", { name: /save/i }));
     // The editor stays open after a save (it has its own header, not the
     // section's), so wait for the save itself.
     const saveResponse = page.waitForResponse(

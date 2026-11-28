@@ -1394,6 +1394,40 @@ class TestPagesAPIEndpoints:
 
         assert response.status_code == 404
 
+    @patch("src.pages.routes.get_settings_service")
+    def test_current_display_reads_the_named_board(self, mock_settings, client, mock_page_service):
+        """GET /pages/current-display?board_id= reads that board's page, not the primary's (DD-W167)."""
+        mock_svc = Mock()
+        mock_svc.get_board_settings.return_value = Mock(boards=[{"id": "kitchen"}, {"id": "den"}])
+        mock_svc.is_schedule_enabled.return_value = False
+        mock_svc.get_active_page_id.side_effect = lambda board_id=None: (
+            "den-page" if board_id == "den" else "kitchen-page"
+        )
+        mock_settings.return_value = mock_svc
+        mock_page_service.get_page.side_effect = lambda page_id: Page(
+            id=page_id, name=page_id, type="template", device_type="flagship", template=[page_id]
+        )
+
+        response = client.get("/pages/current-display", params={"board_id": "den"})
+
+        assert response.status_code == 200
+        assert response.json()["page_id"] == "den-page"
+        mock_svc.is_schedule_enabled.assert_called_with("den")
+
+    @patch("src.pages.routes.get_settings_service")
+    def test_current_display_unknown_board_is_404(self, mock_settings, client, mock_page_service):
+        """An unknown board_id is a 404, never the primary board's page."""
+        mock_svc = Mock()
+        mock_svc.get_board_settings.return_value = Mock(boards=[{"id": "kitchen"}])
+        mock_svc.is_schedule_enabled.return_value = False
+        mock_svc.get_active_page_id.return_value = "kitchen-page"
+        mock_settings.return_value = mock_svc
+
+        response = client.get("/pages/current-display", params={"board_id": "attic"})
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Board not found"
+
     @patch("src.pages.routes.get_collection_service")
     @patch("src.pages.routes.get_settings_service")
     def test_current_display_collection_resolved(self, mock_settings, mock_collection, client, mock_page_service):

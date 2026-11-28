@@ -53,69 +53,188 @@ beforeAll(async () => {
   await import("@/components/tiptap-template-editor/TipTapTemplateEditor");
 });
 
-describe("PageBuilder — Sync from Board", () => {
+// Import from board… (DD-W167, FABLE-2652 §5): a dialog step on new and saved
+// pages; Replace template is one ordinary, undoable edit that saves nothing.
+describe("PageBuilder — Import from board", () => {
+  const IMPORT = "Import from board…";
+  // "{red}" is a spelling the editor writes back as "{{red}}": undo must hand back this one.
+  const ORIGINAL = ["{red}HELLO", "WORLD", "", "", "", ""];
+  const TEMPLATE_PAGE = {
+    id: "tpl-1",
+    name: "Greeting",
+    type: "template",
+    device_type: "flagship",
+    template: ORIGINAL,
+    line_metadata: [
+      { alignment: "center", wrap: false },
+      { alignment: "right", wrap: true },
+      { alignment: "left", wrap: false },
+      { alignment: "left", wrap: false },
+      { alignment: "left", wrap: false },
+      { alignment: "left", wrap: false },
+    ],
+    duration_seconds: 300,
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+  };
+  // What the board shows: two rows and their own metadata.
+  const SHOWING = {
+    page_id: "src-1",
+    page_name: "Weather Page",
+    page_type: "template",
+    device_type: "flagship",
+    notes_wide: 1,
+    notes_tall: 1,
+    grid_rows: null,
+    grid_cols: null,
+    template: ["SUNNY", "HUMID"],
+    line_metadata: [
+      { alignment: "right", wrap: false },
+      { alignment: "left", wrap: false },
+    ],
+  };
+  let writes: { method: string; body: unknown }[];
+  let currentDisplayUrls: string[];
+
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("shows the Sync from Board button when creating a new page", async () => {
-    render(<PageBuilder onClose={vi.fn()} />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Sync from current board display" })).toBeInTheDocument();
-    });
-  });
-
-  it("does not show the Sync from Board button when editing an existing page", async () => {
-    render(<PageBuilder pageId="page-1" onClose={vi.fn()} />, {
-      wrapper: TestWrapper,
-    });
-
-    // Wait for the editor toolbar itself to mount. Without this the assertion
-    // below passes vacuously — before the lazy editor renders, *no* toolbar
-    // button exists, so "sync button absent" is trivially true.
-    await screen.findByRole("button", { name: "Align right" });
-
-    // The button must not be present in edit mode
-    expect(screen.queryByRole("button", { name: "Sync from current board display" })).not.toBeInTheDocument();
-  });
-
-  it("populates template lines and shows a success toast on successful sync", async () => {
-    const toastSpy = vi.spyOn((await import("sonner")).toast, "success");
-    const user = userEvent.setup();
-
-    render(<PageBuilder onClose={vi.fn()} />, { wrapper: TestWrapper });
-
-    const syncBtn = await screen.findByRole("button", {
-      name: "Sync from current board display",
-    });
-    await user.click(syncBtn);
-
-    await waitFor(() => {
-      expect(toastSpy).toHaveBeenCalledWith(expect.stringContaining("Weather Page"));
-    });
-  });
-
-  it("shows an error toast when the sync API call fails", async () => {
-    const toastSpy = vi.spyOn((await import("sonner")).toast, "error");
-    const user = userEvent.setup();
-
+    writes = [];
+    currentDisplayUrls = [];
     server.use(
-      http.get(`${API_BASE}/pages/current-display`, () => {
-        return HttpResponse.json({ detail: "No active page set" }, { status: 404 });
+      http.get(`${API_BASE}/v1/pages/tpl-1`, () => HttpResponse.json(TEMPLATE_PAGE)),
+      http.get(`${API_BASE}/pages/current-display`, ({ request }) => {
+        currentDisplayUrls.push(request.url);
+        return HttpResponse.json(SHOWING);
+      }),
+      http.put(`${API_BASE}/v1/pages/:id`, async ({ request }) => {
+        const body = await request.json();
+        writes.push({ method: "PUT", body });
+        return HttpResponse.json({ ...TEMPLATE_PAGE, ...(body as object) });
+      }),
+      http.post(`${API_BASE}/v1/pages`, async ({ request }) => {
+        writes.push({ method: "POST", body: await request.json() });
+        return HttpResponse.json({ ...TEMPLATE_PAGE, id: "new-1" }, { status: 201 });
       }),
     );
+  });
 
-    render(<PageBuilder onClose={vi.fn()} />, { wrapper: TestWrapper });
+  const editorText = () => screen.getByRole("textbox", { name: "Template editor", hidden: true }).textContent ?? "";
 
-    const syncBtn = await screen.findByRole("button", {
-      name: "Sync from current board display",
-    });
-    await user.click(syncBtn);
+  async function openSavedTemplate() {
+    const user = userEvent.setup();
+    render(<PageBuilder pageId="tpl-1" onClose={vi.fn()} />, { wrapper: TestWrapper });
+    await waitFor(() => expect(editorText()).toContain("HELLO"), { timeout: 5000 });
+    return user;
+  }
 
-    await waitFor(() => {
-      expect(toastSpy).toHaveBeenCalled();
-    });
+  async function replaceFromBoard(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole("button", { name: IMPORT }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent("Replace this template with what Flagship shows now?");
+    const replace = await screen.findByRole("button", { name: "Replace template" });
+    await waitFor(() => expect(replace).toBeEnabled());
+    await user.click(replace);
+    await waitFor(() => expect(editorText()).toContain("SUNNY"));
+  }
+
+  it("offers Import from board… on a new page and on a saved page", async () => {
+    const { unmount } = render(<PageBuilder onClose={vi.fn()} />, { wrapper: TestWrapper });
+    expect(await screen.findByRole("button", { name: IMPORT })).toBeInTheDocument();
+    unmount();
+    render(<PageBuilder pageId="tpl-1" onClose={vi.fn()} />, { wrapper: TestWrapper });
+    expect(await screen.findByRole("button", { name: IMPORT })).toBeInTheDocument();
+  });
+
+  it("asks first: the click opens a dialog and leaves the template alone", async () => {
+    const user = await openSavedTemplate();
+    await user.click(await screen.findByRole("button", { name: IMPORT }));
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(editorText()).toContain("HELLO");
+    expect(editorText()).not.toContain("SUNNY");
+  });
+
+  it("reads the page's own board", async () => {
+    const user = await openSavedTemplate();
+    await user.click(await screen.findByRole("button", { name: IMPORT }));
+    await waitFor(() => expect(currentDisplayUrls).toHaveLength(1));
+    expect(new URL(currentDisplayUrls[0]).searchParams.get("board_id")).toBe("default");
+  });
+
+  it("replaces the rows as an unsaved edit: nothing is saved and no toast", async () => {
+    const success = vi.spyOn((await import("sonner")).toast, "success");
+    const user = await openSavedTemplate();
+    await replaceFromBoard(user);
+    expect(editorText()).not.toContain("HELLO");
+    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
+    expect(writes).toEqual([]);
+    expect(success).not.toHaveBeenCalled();
+    // Saved, it is the board's rows and metadata on this page's geometry.
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    const body = writes[0].body as { template: string[]; line_metadata: unknown[]; device_type: string };
+    expect(body.template.slice(0, 2)).toEqual(["SUNNY", "HUMID"]);
+    expect(body.line_metadata.slice(0, 2)).toEqual([
+      { alignment: "right", wrap: false },
+      { alignment: "left", wrap: false },
+    ]);
+    expect(body.device_type).toBe("flagship");
+  });
+
+  it("one undo restores the previous rows, alignment and wrap exactly", async () => {
+    const user = await openSavedTemplate();
+    await replaceFromBoard(user);
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() => expect(editorText()).toContain("HELLO"));
+    expect(editorText()).not.toContain("SUNNY");
+    // Back to the saved page: nothing left to save.
+    await waitFor(() => expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    const body = writes[0].body as { template: string[]; line_metadata: unknown[] };
+    expect(body.template).toEqual(ORIGINAL);
+    expect(body.line_metadata).toEqual(TEMPLATE_PAGE.line_metadata);
+  });
+
+  it("redo puts the board's rows and metadata back", async () => {
+    const user = await openSavedTemplate();
+    await replaceFromBoard(user);
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() => expect(editorText()).toContain("HELLO"));
+    await user.click(screen.getByRole("button", { name: "Redo" }));
+    await waitFor(() => expect(editorText()).toContain("SUNNY"));
+    await user.click(screen.getByRole("button", { name: /^Save/ }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    const body = writes[0].body as { line_metadata: unknown[] };
+    expect(body.line_metadata.slice(0, 2)).toEqual(SHOWING.line_metadata);
+  });
+
+  it("says so when the board shows nothing, with Close only", async () => {
+    server.use(
+      http.get(`${API_BASE}/pages/current-display`, () =>
+        HttpResponse.json({ detail: "No active page set" }, { status: 404 }),
+      ),
+    );
+    const user = await openSavedTemplate();
+    await user.click(await screen.findByRole("button", { name: IMPORT }));
+    expect(await screen.findByText("Flagship is showing nothing")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Replace template" })).not.toBeInTheDocument();
+    expect(editorText()).toContain("HELLO");
+  });
+
+  it("never changes the page's size: a board showing another size only explains", async () => {
+    server.use(
+      http.get(`${API_BASE}/pages/current-display`, () =>
+        HttpResponse.json({ ...SHOWING, device_type: "note", template: ["NOTE"] }),
+      ),
+    );
+    const user = await openSavedTemplate();
+    await user.click(await screen.findByRole("button", { name: IMPORT }));
+    expect(await screen.findByText("Flagship shows a page of another size")).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("make a copy sized for it from Inspector › Shows on");
+    expect(screen.queryByRole("button", { name: "Replace template" })).not.toBeInTheDocument();
+    expect(editorText()).toContain("HELLO");
   });
 });
 

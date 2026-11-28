@@ -222,7 +222,7 @@ async def list_page_drafts():
     response_model=CurrentDisplayResponse,
     responses=errors(404),
 )
-async def get_current_display():
+async def get_current_display(board_id: str | None = None):
     """Get the template content of the currently active board display.
 
     Resolves collections and schedule mode to find the actual page being shown.
@@ -230,14 +230,22 @@ async def get_current_display():
     caller can use it as a starting point for a new page.  For other page
     types, returns the rendered output lines.
 
-    Returns 404 when no active page can be determined.
+    ``board_id`` (query) reads another board of a multi-board install, as the
+    MCP ``get_current_display`` tool does; omitted, the primary board.
+
+    Returns 404 when the board is unknown or no active page can be determined.
     """
     settings_service = get_settings_service()
     page_service = get_page_service()
     collection_service = get_collection_service()
 
+    if board_id is not None:
+        boards = settings_service.get_board_settings().boards or []
+        if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+            raise HTTPException(status_code=404, detail="Board not found")
+
     # Determine the active page ID (schedule-aware)
-    if settings_service.is_schedule_enabled():
+    if settings_service.is_schedule_enabled(board_id):
         from src.time_service import get_time_service
 
         time_service = get_time_service()
@@ -245,15 +253,15 @@ async def get_current_display():
         current_time = now.time()
         current_day = now.strftime("%A").lower()
         schedule_service = get_schedule_service()
-        active_page_id = schedule_service.get_active_page_id(current_time, current_day)
+        active_page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
     else:
-        active_page_id = settings_service.get_active_page_id()
+        active_page_id = settings_service.get_active_page_id(board_id)
 
     if not active_page_id:
         raise HTTPException(status_code=404, detail="No active page set")
 
     # Native collections follow device selection instead of core's clock.
-    resolved = resolve_active_page_id(active_page_id, lambda: collection_service)
+    resolved = resolve_active_page_id(active_page_id, lambda: collection_service, board_id=board_id)
     if not resolved:
         raise HTTPException(status_code=404, detail="Collection could not be resolved")
     active_page_id = resolved

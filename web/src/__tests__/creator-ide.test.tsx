@@ -376,6 +376,16 @@ describe("Creator IDE below 1024 px", () => {
     expect(screen.getByText("Not shown · the send failed")).toBeInTheDocument();
   });
 
+  it("shows no badge on the Problems tab while there are none (FABLE-2650 §4)", async () => {
+    mockHub();
+    server.use(
+      http.post("/api/templates/validate", () => HttpResponse.json({ valid: true, rows: 12, cols: 29, errors: [] })),
+    );
+    renderIde();
+    const problems = await screen.findByRole("tab", { name: /Problems/ });
+    await waitFor(() => expect(problems).toHaveAccessibleName("Problems"));
+  });
+
   it("does not render the Explorer column", async () => {
     mockHub();
     const { slot } = renderIde();
@@ -460,20 +470,13 @@ describe("Creator IDE at 1024 px and wider", () => {
     expect(within(nav).queryByText("Not in any collection.")).toBeNull();
   });
 
-  it("hides the Explorer to one Show Explorer button and back, moving focus with it (D2)", async () => {
+  it("leaves the Explorer column empty when it is closed: the toggle is the toolbar's (UX-5-1)", async () => {
+    localStorage.setItem("fiestaboard_ide_explorer:panel", "closed");
     mockHub();
     const { slot } = renderIde();
-    const nav = await within(slot).findByRole("navigation", { name: "Explorer" });
-    fireEvent.click(within(nav).getByRole("button", { name: "Hide Explorer" }));
-    expect(within(slot).queryByRole("navigation", { name: "Explorer" })).toBeNull();
-    const show = within(slot).getByRole("button", { name: "Show Explorer" });
-    expect(show).toHaveAttribute("aria-expanded", "false");
-    await waitFor(() => expect(show).toHaveFocus());
-    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("closed");
-    fireEvent.click(show);
-    const hide = await within(slot).findByRole("button", { name: "Hide Explorer" });
-    await waitFor(() => expect(hide).toHaveFocus());
-    expect(localStorage.getItem("fiestaboard_ide_explorer:panel")).toBe("open");
+    await screen.findByRole("tablist", { name: "Inspector" });
+    expect(slot.childElementCount).toBe(0);
+    expect(screen.queryByRole("button", { name: /explorer/i })).toBeNull();
   });
 
   it("keeps the Explorer lists' children listitems (BB-B-20: axe aria-required-children)", async () => {
@@ -485,6 +488,39 @@ describe("Creator IDE at 1024 px and wider", () => {
     const lists = nav.querySelectorAll("ul");
     expect(lists.length).toBeGreaterThan(0);
     for (const list of lists) for (const child of Array.from(list.children)) expect(child.tagName).toBe("LI");
+  });
+
+  it('says when it was last sent the way the header says saves: "3 min ago" (UX-1-3, FABLE-2650)', async () => {
+    mockHub();
+    const at = new Date(Date.now() - 3 * 60_000 - 5_000).toISOString();
+    server.use(
+      http.get(`/api/pages/${PAGE}/sends`, () =>
+        HttpResponse.json({
+          page_id: PAGE,
+          total: 1,
+          sends: [{ at, outcome: "sent", via: "auto", board_id: "den", board_name: "Den TV", count: 1 }],
+        }),
+      ),
+    );
+    renderIde();
+    const console = await screen.findByRole("region", { name: "Console" });
+    expect(await within(console).findByText(/Sent: 3 min ago to Den TV/)).toBeInTheDocument();
+  });
+
+  it("names the board a save would update: Live on it, or Scheduled on it when nothing shows it yet (FABLE-2652 §3.1)", async () => {
+    mockHub({ live: false });
+    const { lastDraft } = renderIde();
+    await waitFor(() => expect(lastDraft()?.live).toBe("Scheduled on Den TV"));
+    expect(lastDraft()?.liveBoardMeta).toBe("Den TV");
+    // Only a display that shows the page keeps the saved version (the leave guard).
+    expect(lastDraft()?.liveBoard).toBeUndefined();
+  });
+
+  it("says Live on the board that shows it, and names that board for the meta", async () => {
+    mockHub();
+    const { lastDraft } = renderIde();
+    await waitFor(() => expect(lastDraft()?.live).toBe("Live on Den TV"));
+    expect(lastDraft()?.liveBoardMeta).toBe("Den TV");
   });
 
   it("validates at the open display's width with the page geometry", async () => {

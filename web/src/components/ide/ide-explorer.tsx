@@ -1,11 +1,23 @@
 "use client";
 
-import { Box, Button, Card, Flex, ListRow, ListRowGroup, Stack, Text } from "@fiestaboard/ui";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { type ReactNode, type Ref, useEffect, useId, useMemo, useRef } from "react";
+import {
+  Box,
+  Button,
+  Card,
+  ListRow,
+  ListRowGroup,
+  Stack,
+  Text,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@fiestaboard/ui";
+import { PanelLeft } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
+import { hasOpenOverlay, isTypingTarget } from "@/lib/editor-shortcuts";
 import { useExplorerOpen } from "@/lib/ide/explorer-pref";
 import type { TemplateReferences } from "@/lib/ide/references";
 
@@ -20,40 +32,104 @@ function GroupLabel({ id, children }: { id: string; children: React.ReactNode })
 }
 
 /**
- * The Explorer's open state for this board kind (D2) with its two buttons'
- * refs: focus follows a toggle to the counterpart button, so a keyboard
- * reader isn't dropped on <body>.
+ * The Explorer's open state for this board kind (D2) and its one toggle's
+ * ref (UX-5-1): the toggle stays in the toolbar row open or closed, so focus
+ * stays on it; dismissing the overlay (D8) puts focus back on it.
  */
 export function useExplorerToggle(kind: DeviceType) {
   const [open, setOpen] = useExplorerOpen(kind);
-  const showRef = useRef<HTMLButtonElement>(null);
-  const hideRef = useRef<HTMLButtonElement>(null);
-  const toggled = useRef(false);
-  useEffect(() => {
-    if (!toggled.current) return;
-    toggled.current = false;
-    (open ? hideRef : showRef).current?.focus();
-  }, [open]);
-  const toggle = (next: boolean) => {
-    toggled.current = true;
-    setOpen(next);
-  };
-  return { open, show: () => toggle(true), hide: () => toggle(false), showRef, hideRef };
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const toggle = useCallback(() => setOpen(!open), [open, setOpen]);
+  /** Closes it, and by default returns focus to the toggle (the overlay's Esc and click-outside). */
+  const dismiss = useCallback(
+    (refocus = true) => {
+      setOpen(false);
+      if (refocus) buttonRef.current?.focus();
+    },
+    [setOpen],
+  );
+  return { open, toggle, dismiss, buttonRef };
 }
 
 export type ExplorerToggle = ReturnType<typeof useExplorerToggle>;
 
 /**
- * The Explorer column before the page has an id (/pages/new, BB-E-11): the
- * same frame as a saved page's, so the first save moves nothing. Open, it is
- * the Explorer card with a note (none while a saved page's IDE is loading);
- * closed, the Show Explorer button.
+ * D8 (DD-W157): at 1024–1279 px the open Explorer is a panel over the
+ * template, so it dismisses like one (FABLE-2652 §3.6): Esc, or a press
+ * outside it and its toggle, closes it. Esc returns focus to the toggle; a
+ * press outside leaves focus where the press puts it, except that focus
+ * inside the closing panel goes back to the toggle rather than to <body>.
+ */
+export function useExplorerOverlayDismiss(toggle: ExplorerToggle, panel: HTMLElement | null, overlay: boolean) {
+  const { open, dismiss, buttonRef } = toggle;
+  useEffect(() => {
+    if (!open || !overlay || !panel) return;
+    const inside = (target: EventTarget | null) =>
+      target instanceof Node && (panel.contains(target) || !!buttonRef.current?.contains(target));
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      // A dialog or picker owns its Esc; so does a text field outside the panel (rename, template).
+      if (hasOpenOverlay()) return;
+      if (isTypingTarget(event.target) && !inside(event.target)) return;
+      dismiss();
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (inside(event.target)) return;
+      // A press inside a dialog or menu opened over the editor is not "outside" the panel.
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')
+      )
+        return;
+      dismiss(panel.contains(document.activeElement));
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, [open, overlay, panel, dismiss, buttonRef]);
+}
+
+/**
+ * The Explorer's one toggle (UX-5-1, DD-W168; VS Code activity bar, Docs
+ * outline): a pressed/unpressed icon button at the toolbar row's left end,
+ * in the same place open or closed. Its name is the panel's; the tooltip
+ * says what a press does.
+ */
+export function IdeExplorerToggle({ toggle }: { toggle: ExplorerToggle }) {
+  const t = useTranslations("creatorIde");
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          ref={toggle.buttonRef}
+          variant={toggle.open ? "secondary" : "ghost"}
+          size="icon"
+          data-slot="ide-explorer-toggle"
+          aria-label={t("explorer")}
+          aria-pressed={toggle.open}
+          onClick={toggle.toggle}
+        >
+          <PanelLeft className="size-4" aria-hidden="true" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{toggle.open ? t("hideExplorer") : t("showExplorer")}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * The open Explorer before the page has an id (/pages/new, BB-E-11): the
+ * same card as a saved page's, so the first save moves nothing, with a note
+ * (none while a saved page's IDE is loading). Closed, the column is empty.
  */
 export function IdeExplorerPlaceholder({ toggle, saved = false }: { toggle: ExplorerToggle; saved?: boolean }) {
   const t = useTranslations("creatorIde");
-  if (!toggle.open) return <IdeExplorerShow onShow={toggle.show} buttonRef={toggle.showRef} />;
+  if (!toggle.open) return null;
   return (
-    <ExplorerCard onHide={toggle.hide} hideRef={toggle.hideRef}>
+    <ExplorerCard>
       {/* A saved page's Explorer is only loading: no "once it is saved" note. */}
       {!saved && (
         <Text size="sm" tone="muted">
@@ -69,15 +145,7 @@ export function IdeExplorerPlaceholder({ toggle, saved = false }: { toggle: Expl
  * sticky header and toolbar (184:159319), sticking below them as the
  * workspace scrolls.
  */
-function ExplorerCard({
-  onHide,
-  hideRef,
-  children,
-}: {
-  onHide?: () => void;
-  hideRef?: Ref<HTMLButtonElement>;
-  children: ReactNode;
-}) {
+function ExplorerCard({ children }: { children: ReactNode }) {
   const t = useTranslations("creatorIde");
   return (
     <Card
@@ -85,52 +153,12 @@ function ExplorerCard({
       className="hidden lg:flex sticky top-[var(--editor-chrome-h,8rem)] w-[220px] shrink-0 self-start overflow-y-auto gap-0 py-0 h-[calc(100dvh-var(--editor-chrome-h,8rem)-2rem)]"
     >
       <Box as="nav" aria-label={t("explorer")} className="flex flex-col gap-2 p-3.5">
-        <Flex align="center" justify="between" gap="2">
-          <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
-            {t("explorer")}
-          </Text>
-          {onHide && (
-            <Button
-              ref={hideRef}
-              variant="ghost"
-              size="icon"
-              className="-my-1.5 -mr-1.5"
-              aria-label={t("hideExplorer")}
-              aria-expanded={true}
-              onClick={onHide}
-            >
-              <PanelLeftClose className="size-4" aria-hidden="true" />
-            </Button>
-          )}
-        </Flex>
+        <Text as="p" size="xs" tone="muted" className="font-mono uppercase tracking-wide">
+          {t("explorer")}
+        </Text>
         {children}
       </Box>
     </Card>
-  );
-}
-
-/**
- * The closed Explorer (D2, BB-E-3): one button at the head of the column it
- * gives back to the editor.
- */
-export function IdeExplorerShow({ onShow, buttonRef }: { onShow: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
-  const t = useTranslations("creatorIde");
-  return (
-    <Box
-      data-slot="ide-explorer-closed"
-      className="hidden lg:flex sticky top-[var(--editor-chrome-h,8rem)] shrink-0 self-start"
-    >
-      <Button
-        ref={buttonRef}
-        variant="ghost"
-        size="icon"
-        aria-label={t("showExplorer")}
-        aria-expanded={false}
-        onClick={onShow}
-      >
-        <PanelLeftOpen className="size-4" aria-hidden="true" />
-      </Button>
-    </Box>
   );
 }
 
@@ -162,20 +190,16 @@ function ExplorerGroup({ label, children }: { label: string; children: React.Rea
  * page itself, the boards it is live or scheduled on, the parts its template
  * reads, and snippets, with a "used by" facet beneath. It lists no other
  * page and links nowhere: the way to another page is back to Pages.
- * Collapsible (D2): `onHide` closes it to `IdeExplorerShow`.
+ * Collapsible (D2) from `IdeExplorerToggle` in the toolbar row.
  */
 export function IdeExplorer({
   ide,
   pageId,
   references,
-  onHide,
-  hideRef,
 }: {
   ide: CreatorIdeState;
   pageId: string;
   references: TemplateReferences;
-  onHide?: () => void;
-  hideRef?: Ref<HTMLButtonElement>;
 }) {
   const t = useTranslations("creatorIde");
   const page = ide.pages.find((entry) => entry.id === pageId);
@@ -198,7 +222,7 @@ export function IdeExplorer({
   const usedBy = ide.showsOn.collections.map((entry) => entry.collection.name);
 
   return (
-    <ExplorerCard onHide={onHide} hideRef={hideRef}>
+    <ExplorerCard>
       {/* UX-5-2: on a page that shows on one display (or none) the page and its
           display are the header's facts; the Explorer is then a Parts outline. */}
       {boards.length > 1 && (

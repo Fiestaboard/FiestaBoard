@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -78,6 +78,43 @@ describe("useLineOverflow", () => {
     renderHook(() => useLineOverflow({ template: ["", " "] }, 22, true), { wrapper });
     renderHook(() => useLineOverflow(target, 22, false), { wrapper });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  // FABLE-2653 §3.2: the editor's first paint waits for the first check, so the
+  // H4 card never pushes the IDE row down after it (Den TV load CLS).
+  it("is settled only once the first check has answered, or when there is nothing to check", async () => {
+    mockFetch({ valid: true, errors: [] });
+    const { result } = renderHook(() => useLineOverflow(target, 22, true), { wrapper });
+    expect(result.current.settled).toBe(false);
+    await waitFor(() => expect(result.current.settled).toBe(true));
+    expect(renderHook(() => useLineOverflow(target, 22, false), { wrapper }).result.current.settled).toBe(true);
+    expect(renderHook(() => useLineOverflow({ template: [""] }, 22, true), { wrapper }).result.current.settled).toBe(
+      true,
+    );
+  });
+
+  it("is settled after a failed check too, so a hub error never holds the editor back", async () => {
+    mockFetch({ detail: "boom" }, 500);
+    const { result } = renderHook(() => useLineOverflow(target, 22, true), { wrapper });
+    await waitFor(() => expect(result.current.settled).toBe(true));
+  });
+
+  it("stops waiting for a check that never answers", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => new Promise<Response>(() => {})),
+      );
+      const { result } = renderHook(() => useLineOverflow(target, 22, true), { wrapper });
+      expect(result.current.settled).toBe(false);
+      await act(async () => {
+        vi.advanceTimersByTime(1500);
+      });
+      expect(result.current.settled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows nothing when the check fails", async () => {

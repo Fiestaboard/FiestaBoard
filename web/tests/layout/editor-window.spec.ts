@@ -52,7 +52,7 @@ for (const width of [1440, 1280, 1024]) {
 
       // D2: a Flagship page opens with the Explorer closed, and says how to open it.
       await expect(explorer(page)).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "Show Explorer" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Explorer", exact: true, pressed: false })).toBeVisible();
 
       // BB-E-4: the name gets at least 240 px and every header action stays on screen.
       const name = await nameRoom(page).boundingBox();
@@ -87,7 +87,7 @@ for (const width of [1440, 1280, 1024]) {
       await page.screenshot({ path: path.join(shots, `editor-${width}-${theme}.png`) });
 
       // With the Explorer opened, the name keeps its 240 px and the actions stay on screen.
-      await page.getByRole("button", { name: "Show Explorer" }).click();
+      await page.getByRole("button", { name: "Explorer", exact: true, pressed: false }).click();
       await expect(explorer(page)).toBeVisible();
       expect((await nameRoom(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
       const publishWithExplorer = await page.getByRole("button", { name: "Save & update board" }).boundingBox();
@@ -127,7 +127,7 @@ for (const width of [1440, 1280, 1024]) {
       ).toBeVisible();
       await expectHeaderFits(page);
       expect((await nameRoom(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
-      await page.getByRole("button", { name: "Show Explorer" }).click();
+      await page.getByRole("button", { name: "Explorer", exact: true, pressed: false }).click();
       await expect(explorer(page)).toBeVisible();
       await expectHeaderFits(page);
       expect((await nameRoom(page).boundingBox())!.width).toBeGreaterThanOrEqual(240);
@@ -187,16 +187,16 @@ test.describe("D2: the Explorer", () => {
     await openApp(page, 1440);
     await expect(explorer(page)).toHaveCount(0);
     const before = await nameRoom(page).boundingBox();
-    await page.getByRole("button", { name: "Show Explorer" }).click();
+    await page.getByRole("button", { name: "Explorer", exact: true, pressed: false }).click();
     await expect(explorer(page)).toBeVisible();
     // Opening it never squeezes the name under 240 px.
     expect((await nameRoom(page).boundingBox())!.width).toBeGreaterThanOrEqual(Math.min(240, before!.width));
     await page.reload();
     await expect(pageName(page)).toHaveValue("Kitchen morning");
     await expect(explorer(page)).toBeVisible();
-    await page.getByRole("button", { name: "Hide Explorer" }).click();
+    await page.getByRole("button", { name: "Explorer", exact: true, pressed: true }).click();
     await expect(explorer(page)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Show Explorer" })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Explorer", exact: true, pressed: false })).toBeFocused();
   });
 
   test("a big-board (FiestaPanel) page opens it; closing it there leaves Flagship pages alone", async ({ page }) => {
@@ -204,7 +204,7 @@ test.describe("D2: the Explorer", () => {
     await openApp(page, 1440);
     await expect(pageName(page)).toHaveValue("Kitchen morning");
     await expect(explorer(page)).toBeVisible();
-    await page.getByRole("button", { name: "Hide Explorer" }).click();
+    await page.getByRole("button", { name: "Explorer", exact: true, pressed: true }).click();
     await expect(explorer(page)).toHaveCount(0);
     await page.reload();
     await expect(pageName(page)).toHaveValue("Kitchen morning");
