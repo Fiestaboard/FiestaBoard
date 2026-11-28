@@ -62,7 +62,9 @@ for (const width of [1440, 1024]) {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("menuitemradio", { name: "1 min" }).click();
     await expect(duration).toContainText("1 min");
-    await expect(status).toContainText("Unsaved");
+    // D6 (DD-W158): the header meta line says it, not a status-row chip.
+    await expect(page.getByTestId("page-editor-save-state")).toHaveText(/Unsaved changes|Saving draft…|Draft saved/);
+    await expect(status).not.toContainText("Unsaved");
     await page.screenshot({ path: path.join(shots, `quiet-${width}-duration.png`), fullPage: true });
   });
 }
