@@ -3845,6 +3845,11 @@
     "offlineMeta": "Dernière connexion {time} · Le programme continue sur le hub",
     "offlineMetaNever": "Pas joint depuis le démarrage du hub · Le programme continue sur le hub"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Brouillon enregistré",
+    "saved": "Enregistré",
+    "saveDraftNow": "Enregistrer le brouillon"
+  },
   "editorShortcuts": {
     "title": "Raccourcis clavier",
     "platformNote": "⌘ sur Mac · Ctrl sous Windows et Linux",

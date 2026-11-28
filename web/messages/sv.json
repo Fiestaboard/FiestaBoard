@@ -3845,6 +3845,11 @@
     "offlineMeta": "Senast ansluten {time} · Schemat fortsätter på hubben",
     "offlineMetaNever": "Inte nådd sedan hubben startade · Schemat fortsätter på hubben"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Utkast sparat",
+    "saved": "Sparad",
+    "saveDraftNow": "Spara utkast nu"
+  },
   "editorShortcuts": {
     "title": "Kortkommandon",
     "platformNote": "⌘ på Mac · Ctrl på Windows och Linux",

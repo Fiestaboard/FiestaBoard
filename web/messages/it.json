@@ -3845,6 +3845,11 @@
     "offlineMeta": "Ultima connessione {time} · Il programma continua sull'hub",
     "offlineMetaNever": "Non raggiunto dall'avvio dell'hub · Il programma continua sull'hub"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Bozza salvata",
+    "saved": "Salvato",
+    "saveDraftNow": "Salva bozza ora"
+  },
   "editorShortcuts": {
     "title": "Scorciatoie da tastiera",
     "platformNote": "⌘ su Mac · Ctrl su Windows e Linux",

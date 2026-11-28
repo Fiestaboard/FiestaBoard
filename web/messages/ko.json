@@ -3845,6 +3845,11 @@
     "offlineMeta": "마지막 연결 {time} · 일정은 허브에서 계속 실행됨",
     "offlineMetaNever": "허브 시작 후 연결되지 않음 · 일정은 허브에서 계속 실행됨"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "초안 저장됨",
+    "saved": "저장됨",
+    "saveDraftNow": "지금 초안 저장"
+  },
   "editorShortcuts": {
     "title": "키보드 단축키",
     "platformNote": "Mac은 ⌘ · Windows와 Linux는 Ctrl",

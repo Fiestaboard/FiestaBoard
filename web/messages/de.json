@@ -3845,6 +3845,11 @@
     "offlineMeta": "Zuletzt verbunden {time} · Der Zeitplan läuft auf dem Hub weiter",
     "offlineMetaNever": "Seit dem Hub-Start nicht erreicht · Der Zeitplan läuft auf dem Hub weiter"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Entwurf gespeichert",
+    "saved": "Gespeichert",
+    "saveDraftNow": "Entwurf jetzt speichern"
+  },
   "editorShortcuts": {
     "title": "Tastenkürzel",
     "platformNote": "⌘ auf dem Mac · Strg unter Windows und Linux",

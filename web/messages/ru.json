@@ -3845,6 +3845,11 @@
     "offlineMeta": "Последнее подключение {time} · Расписание продолжает работать на хабе",
     "offlineMetaNever": "Нет связи с запуска хаба · Расписание продолжает работать на хабе"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Черновик сохранён",
+    "saved": "Сохранено",
+    "saveDraftNow": "Сохранить черновик сейчас"
+  },
   "editorShortcuts": {
     "title": "Сочетания клавиш",
     "platformNote": "⌘ на Mac · Ctrl в Windows и Linux",

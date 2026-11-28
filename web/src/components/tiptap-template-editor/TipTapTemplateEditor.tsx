@@ -43,12 +43,13 @@ import { brushToCell } from "./utils/draw-mode";
 import { parsePastedText, parseTemplateSimple, serializeTemplateSimple } from "./utils/serialization";
 import { buildStrokeTransaction } from "./utils/stroke-transaction";
 export type LineAlignment = "left" | "center" | "right";
-import { Box, Flex, Stack, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Box, Flex, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 
 import { useFormulaIdeBridge } from "@/components/formula-ide/formula-ide-context";
 import { useTranslations } from "@/i18n/translations";
 
 import { TemplateEditorToolbar } from "./components/TemplateEditorToolbar";
+import { TemplateCardPlaceholder } from "./template-card-placeholder";
 
 /** A single painted board cell within a stroke, in row/col board coordinates. */
 export interface StrokePaint {
@@ -1365,15 +1366,16 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         ? effectiveAlignments[currentLineIndex] || "left"
         : "left";
 
+    // The first render has no editor yet: draw the loaded card's box (title,
+    // meta line, rows) so its height never changes when the editor arrives.
     if (!editor) {
       return (
-        <Box className={cn("min-h-[9rem] border rounded-md p-2 bg-muted/30", className)}>
-          <Stack gap="1">
-            {Array.from({ length: boardLines }).map((_, i) => (
-              <Box key={i} className="h-6 bg-background/50 rounded" />
-            ))}
-          </Stack>
-        </Box>
+        <TemplateCardPlaceholder
+          boardLines={boardLines}
+          cardTitle={cardTitle}
+          roundedTop={!showToolbar}
+          className={className}
+        />
       );
     }
     const currentWrapEnabled =

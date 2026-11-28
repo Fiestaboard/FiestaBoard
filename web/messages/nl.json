@@ -3845,6 +3845,11 @@
     "offlineMeta": "Laatst verbonden {time} · Het schema loopt door op de hub",
     "offlineMetaNever": "Niet bereikt sinds de hub startte · Het schema loopt door op de hub"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Concept opgeslagen",
+    "saved": "Opgeslagen",
+    "saveDraftNow": "Concept nu opslaan"
+  },
   "editorShortcuts": {
     "title": "Sneltoetsen",
     "platformNote": "⌘ op Mac · Ctrl op Windows en Linux",

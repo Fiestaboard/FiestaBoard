@@ -3845,6 +3845,11 @@
     "offlineMeta": "Son bağlantı {time} · Program hub üzerinde çalışmaya devam ediyor",
     "offlineMetaNever": "Hub başladığından beri ulaşılamadı · Program hub üzerinde çalışmaya devam ediyor"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Taslak kaydedildi",
+    "saved": "Kaydedildi",
+    "saveDraftNow": "Taslağı şimdi kaydet"
+  },
   "editorShortcuts": {
     "title": "Klavye kısayolları",
     "platformNote": "Mac'te ⌘ · Windows ve Linux'ta Ctrl",

@@ -3845,6 +3845,11 @@
     "toastNotSent": "Saved, but sending to {board} failed.",
     "toastError": "Couldn’t change the page"
   },
+  "editorHeaderPhone": {
+    "draftSaved": "Draft saved",
+    "saved": "Saved",
+    "saveDraftNow": "Save draft now"
+  },
   "editorShortcuts": {
     "title": "Keyboard shortcuts",
     "platformNote": "⌘ on Mac · Ctrl on Windows and Linux",
