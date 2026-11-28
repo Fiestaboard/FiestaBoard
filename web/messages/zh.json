@@ -4070,6 +4070,7 @@
     "overflowChecked": "已由中枢按 {board} 的实际宽度检查 · {time}",
     "overflowCheckedNoBoard": "已由中枢按此看板的实际宽度检查 · {time}",
     "overflowWrap": "第 {line} 行自动换行",
+    "overflowWrapNeedsRows": "还需要 {count} 行",
     "overflowMore": "同样被截断：{lines}",
     "bandsLabel": "行分段",
     "bandMoveUp": "上移",

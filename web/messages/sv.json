@@ -4070,6 +4070,7 @@
     "overflowChecked": "Kontrollerat av hubben vid {board}s verkliga bredd · {time}",
     "overflowCheckedNoBoard": "Kontrollerat av hubben vid tavlans verkliga bredd · {time}",
     "overflowWrap": "Radbryt rad {line}",
+    "overflowWrapNeedsRows": "Behöver {count, plural, one {# rad till} other {# rader till}}",
     "overflowMore": "Även avklippta: {lines}",
     "bandsLabel": "Radband",
     "bandMoveUp": "Flytta upp",

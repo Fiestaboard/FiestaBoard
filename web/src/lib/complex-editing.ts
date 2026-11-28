@@ -161,6 +161,42 @@ export function lineOverflows(response: TemplateValidationAtResponse | undefined
   );
 }
 
+/** A line the hub says the board runs out of rows for (`beyond_board`), in the hub's words (W-1). */
+export interface RowsPastBoard {
+  /** One-based template line. */
+  line: number;
+  message: string;
+}
+
+/** The validator's `beyond_board` verdicts: a line past the last row, or a wrap that runs off it. */
+export function rowsPastBoard(response: TemplateValidationAtResponse | undefined): RowsPastBoard[] {
+  if (!response) return [];
+  return response.errors.flatMap((error) =>
+    error.code === "beyond_board" ? [{ line: error.line, message: error.message }] : [],
+  );
+}
+
+/**
+ * How many rows a Wrap of a too-long line needs that the board cannot give it.
+ * A wrap fills the rows below while they are blank or wrap themselves, up to
+ * the board's last row (the hub's `_overflow_budget`); the line needs at least
+ * `columns / maxColumns` rows (word breaks only add to it). 0: the wrap fits.
+ */
+export function wrapRowsShort(
+  overflow: Pick<LineOverflow, "line" | "columns" | "maxColumns">,
+  lines: readonly string[],
+  wraps: readonly boolean[],
+  rows: number,
+): number {
+  const needed = Math.ceil(overflow.columns / Math.max(1, overflow.maxColumns));
+  let available = 1;
+  for (let index = overflow.line; index < rows; index++) {
+    if ((lines[index] ?? "").trim() !== "" && !wraps[index]) break;
+    available++;
+  }
+  return Math.max(0, needed - available);
+}
+
 /**
  * Template rows the board will draw something on: up to the last row with
  * content. Blank rows after it (a smaller board's padding) are not lines the

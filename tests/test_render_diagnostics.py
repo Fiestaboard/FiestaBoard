@@ -309,6 +309,59 @@ def test_validate_allows_blank_lines_past_the_rows(client):
     assert body == {"valid": True, "errors": [], "rows": 3, "cols": 15}
 
 
+def test_validate_words_a_line_past_the_rows_as_the_editor_shows_it(client):
+    body = client.post("/templates/validate", json={"template": ["A", "B", "C", "D"], "device_type": "note"}).json()
+
+    assert body["errors"][0]["message"] == "Line 4 is past the board's 3 rows · it won't show"
+
+
+# W-1: a wrap that needs rows the board does not have loses its tail on the
+# board. Render keeps the rows that fit (``board_end``); validate says so.
+LUNCH = "LUNCH AT NOON TODAY FOR EVERYONE IN THE OFFICE"  # 3 rows at 22 columns
+
+
+def _wrapped_at(line: int, rows: int = 6) -> list[dict]:
+    return [{"alignment": "left", "wrap": index == line - 1} for index in range(rows)]
+
+
+def test_validate_flags_a_wrap_that_runs_off_the_last_row(client):
+    template = ["", "", "", "HELLO WORLD", LUNCH, ""]
+    body = client.post(
+        "/templates/validate", json={"template": template, "line_metadata": _wrapped_at(5), "device_type": "flagship"}
+    ).json()
+
+    assert body["valid"] is False
+    assert [(e["line"], e["code"], e["message"]) for e in body["errors"]] == [
+        (5, "beyond_board", "Line 5 wraps past the board's 6 rows · 1 row won't show")
+    ]
+
+
+def test_validate_counts_every_row_a_last_row_wrap_loses(client):
+    template = ["", "", "", "", "", LUNCH]
+    body = client.post(
+        "/templates/validate", json={"template": template, "line_metadata": _wrapped_at(6), "device_type": "flagship"}
+    ).json()
+
+    assert [(e["line"], e["message"]) for e in body["errors"]] == [
+        (6, "Line 6 wraps past the board's 6 rows · 2 rows won't show")
+    ]
+
+
+def test_validate_passes_a_wrap_that_fits_the_rows_below(client):
+    template = ["", "", LUNCH, "", "", ""]
+    body = client.post(
+        "/templates/validate", json={"template": template, "line_metadata": _wrapped_at(3), "device_type": "flagship"}
+    ).json()
+
+    assert body == {"valid": True, "errors": [], "rows": 6, "cols": 22}
+
+
+def test_validate_flags_a_wrap_filter_that_runs_off_the_board(engine):
+    errors = engine.validate_template("A\nB\nC\n{{demo.words|wrap}}", cols=15, rows=4, context=dict(CTX))
+
+    assert [e.line for e in errors if e.code == "beyond_board"] == [4]
+
+
 def test_validate_leaves_a_string_template_alone(client):
     body = client.post("/templates/validate", json={"template": "A\nB\nC\nD", "device_type": "note"}).json()
 
