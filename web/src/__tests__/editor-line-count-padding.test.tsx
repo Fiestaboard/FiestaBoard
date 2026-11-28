@@ -53,6 +53,8 @@ describe("rich editor line caption", () => {
     expect(screen.getByText("5 / 3 lines")).toHaveClass("text-warning");
     expect(screen.getByTestId("template-rows-past-board")).toHaveTextContent("6 > 3 rows");
     expect(screen.getByTestId("template-rows-past-board")).toHaveClass("text-warning");
+    // Content past the board: the kit's warning tint on those rows.
+    expect(screen.getByTestId("template-overflow-rows")).toHaveClass("bg-tint-warning");
   });
 
   it("counts blank padding rows past the board without warning about them (BB-E-18, UX-3-4)", async () => {
@@ -69,9 +71,12 @@ describe("rich editor line caption", () => {
     expect(screen.getByTestId("template-rows-past-board")).not.toHaveClass("text-warning");
     expect(screen.getByText("1 / 3 lines")).not.toHaveClass("text-warning");
     expect(document.querySelector('[data-slot="template-card"]')).not.toHaveClass("border-warning");
-    // The rows past the board are tinted, and their numbers say so.
-    expect(screen.getByTestId("template-overflow-rows")).toHaveClass("bg-warning/10");
-    expect(document.querySelectorAll("[data-past-board]")).toHaveLength(3);
+    // The rows past the board get the quiet tint, not the warning one, and their numbers stay muted.
+    expect(screen.getByTestId("template-overflow-rows")).toHaveClass("bg-muted");
+    expect(screen.getByTestId("template-overflow-rows")).not.toHaveClass("bg-tint-warning");
+    const past = document.querySelectorAll<HTMLElement>("[data-past-board]");
+    expect(past).toHaveLength(3);
+    expect(past[0].style.color).toBe("var(--muted-foreground)");
   });
 });
 

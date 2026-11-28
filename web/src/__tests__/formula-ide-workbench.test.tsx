@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useCallback, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -116,6 +116,16 @@ describe("FormulaBuilderCard", () => {
     wrap(<Workbench card={(p) => <FormulaBuilderCard {...p} />} initial={opened()} onState={onState} />);
     await userEvent.click(screen.getByRole("button", { name: "Edit in Code" }));
     expect(onState).toHaveBeenLastCalledWith(expect.objectContaining({ tab: "code" }));
+  });
+
+  it("cancels on Esc, as the Code card does (UX-2-5)", () => {
+    const apply = vi.fn();
+    const cancel = vi.fn();
+    wrap(<Workbench card={(p) => <FormulaBuilderCard {...p} />} initial={opened({ apply, cancel })} />);
+    fireEvent.keyDown(screen.getByTestId("formula-builder-card"), { key: "Escape" });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(apply).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("formula-builder-card")).toBeNull();
   });
 
   it("cancels without applying", async () => {

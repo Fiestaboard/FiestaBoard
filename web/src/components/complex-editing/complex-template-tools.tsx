@@ -215,15 +215,22 @@ export function RowBandGutter<A>({
     // Only the template text moves rows: the gutter's own re-renders, the
     // placeholder and anything else under the root must not re-measure it
     // (BB-E-31: every unrelated mutation forced a full layout per frame).
+    // The editable itself is observed too: it goes from no box to a box when
+    // draw mode shows it again, even when the root keeps its size.
+    const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    resize?.observe(root);
+    if (editable) resize?.observe(editable);
     const mutations = new MutationObserver((records) => {
       const current = root.querySelector(TEMPLATE_TEXT);
       const remounted = current !== editable;
+      if (remounted) {
+        if (editable) resize?.unobserve(editable);
+        if (current) resize?.observe(current);
+      }
       editable = current;
       if (remounted || records.some((record) => current?.contains(record.target))) measure();
     });
     mutations.observe(root, { childList: true, subtree: true, characterData: true });
-    const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    resize?.observe(root);
     return () => {
       cancelAnimationFrame(frame);
       mutations.disconnect();

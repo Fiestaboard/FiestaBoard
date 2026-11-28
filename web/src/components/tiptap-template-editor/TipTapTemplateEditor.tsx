@@ -276,7 +276,13 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     const t = useTranslations("templateEditor");
     const tCard = useTranslations("templateCard");
     // The caret readout in the card header (UX-3-2): it follows the selection.
-    const [caret, setCaret] = useState<CaretPosition>({ line: 1, column: 1 });
+    const [caret, setCaretState] = useState<CaretPosition>({ line: 1, column: 1 });
+    // Every selection change reports; only a moved caret re-renders the editor.
+    const setCaret = useCallback(
+      (next: CaretPosition) =>
+        setCaretState((current) => (current.line === next.line && current.column === next.column ? current : next)),
+      [],
+    );
     // Use device-aware defaults when props not provided
     const effectiveAlignments = lineAlignments || Array.from({ length: boardLines }, () => "left" as LineAlignment);
     const effectiveWrapEnabled = lineWrapEnabled || Array.from({ length: boardLines }, () => false);
@@ -1482,13 +1488,17 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                 minHeight: `${boardLines * 1.5 + 1.25}rem`,
               }}
             >
-              {/* Rows past the board's height (UX-3-4): tinted, as cut-off text is,
-                  so a row made by Enter on the last line reads as off the board. */}
+              {/* Rows past the board's height (UX-3-4): tinted so a row made by Enter
+                  on the last line reads as off the board. Blank ones get the quiet
+                  muted tint, content the warning tint (BB-E-18: nothing to warn about). */}
               {rowsPastBoard > 0 && (
                 <Box
                   aria-hidden="true"
                   data-testid="template-overflow-rows"
-                  className="pointer-events-none absolute inset-x-1.5 rounded-sm bg-warning/10"
+                  className={cn(
+                    "pointer-events-none absolute inset-x-1.5 rounded-sm",
+                    isOverLineLimit ? "bg-tint-warning" : "bg-muted",
+                  )}
                   style={{
                     top: `calc(0.5rem + ${pastBoardTop}px)`,
                     height: `${pastBoardHeight}px`,
@@ -1527,7 +1537,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                         lineHeight: "1.5rem",
                         // Muted, not faded: 40 % opacity failed AA contrast (axe, 2.9).
                         color:
-                          i >= boardLines
+                          i >= boardLines && isOverLineLimit
                             ? "var(--warning)"
                             : i === currentLineIndex
                               ? "var(--foreground)"

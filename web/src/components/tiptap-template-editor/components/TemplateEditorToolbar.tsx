@@ -41,8 +41,11 @@ export function TemplateEditorToolbar(
   const { data, isLoading } = useQuery({ queryKey: ["template-variables"], queryFn: api.getTemplateVariables });
   const tCard = useTranslations("templateCard");
   const platform = useKbdPlatform();
-  // Every desktop tooltip names its shortcut, "Undo (⌘Z)" (UX-2-3); the
-  // aria-labels stay plain. Touch tools are labelled buttons with no keyboard.
+  // Every desktop tooltip names its shortcut, "Undo (⌘Z)" (UX-2-3). Where the
+  // kit has a separate aria-label (undo, redo, cut, copy, paste) the name stays
+  // plain; Insert formula and Exit drawing mode use one string for both, so
+  // their names carry the chord until the kit takes a `shortcut` (KIT-ASKS).
+  // Touch tools are labelled buttons with no keyboard.
   const withKeys = (label: string, chord: readonly string[]) =>
     touch ? label : tCard("withShortcut", { label, keys: chordText(chord, platform) });
   const labels = {

@@ -39,9 +39,12 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
     await expect(list.getByRole("term")).toHaveText([
       "Undo",
       "Redo",
+      "Insert a formula",
       "Apply a formula (formula editor)",
       "Close a picker",
       "Leave draw mode",
+      "Save",
+      "Inspect the preview",
       "Move the preview by one Note or column",
       "Jump to the start or end of the preview",
       "Fit / Actual size (preview focused)",

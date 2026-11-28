@@ -397,6 +397,21 @@ describe("RowBandGutter", () => {
     vi.restoreAllMocks();
   });
 
+  it("watches the editable's own size, so it re-measures when draw mode shows it again (BB-E-31)", () => {
+    const observed: Element[] = [];
+    const Original = window.ResizeObserver;
+    window.ResizeObserver = class {
+      observe(el: Element) {
+        observed.push(el);
+      }
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+    setup(["HEADER", ""]);
+    expect(observed).toContain(document.querySelector('[contenteditable="true"]'));
+    window.ResizeObserver = Original;
+  });
+
   it("renders no gutter when off", () => {
     setup(["HEADER"], false);
     expect(screen.queryByRole("list", { name: "Row bands" })).toBeNull();
