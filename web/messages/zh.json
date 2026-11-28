@@ -3911,6 +3911,25 @@
     "discardDraft": "放弃",
     "lastSaved": "上次保存 {time}"
   },
+  "editorHeader": {
+    "justNow": "刚刚",
+    "minutesAgo": "{count} 分钟前",
+    "yesterday": "昨天 {time}",
+    "saved": "已于 {time} 保存",
+    "unsavedChanges": "有未保存的更改",
+    "saving": "正在保存…",
+    "savingDraft": "正在保存草稿…",
+    "draftSaved": "草稿已于 {time} 保存",
+    "unsaved": "未保存",
+    "newPage": "新页面",
+    "boardLabel": "{board} 看板",
+    "untitledPage": "未命名页面",
+    "draftDiscarded": "已放弃草稿",
+    "undo": "撤销",
+    "deleteTitle": "删除“{name}”？",
+    "deleteDescription": "它将从所有显示它的日程和合集中移除。此操作无法撤销。",
+    "deleteAction": "删除页面"
+  },
   "phonePairing": {
     "title": "连接手机",
     "description": "使用 FiestaBoard 应用扫描此码。此码只能使用一次，5 分钟后过期。",

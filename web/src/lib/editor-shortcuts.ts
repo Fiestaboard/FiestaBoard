@@ -46,7 +46,7 @@ export const EDITOR_SHORTCUTS = {
   insertFormula: { id: "insertFormula", labelKey: "insertFormula", keys: ["Mod", "E"] },
   /** Save / Save draft (PageBuilder's key handler). */
   save: { id: "save", labelKey: "save", keys: ["Mod", "S"] },
-  /** Show now / Save & update board. Not bound yet: FP-1 binds it, then lists it. */
+  /** Show now / Save & update board: the header primary (PageBuilder's key handler, FP-1). */
   saveAndShow: { id: "saveAndShow", labelKey: "saveAndShow", keys: ["Mod", "Shift", "S"] },
   /** Toggles Inspect on the desktop preview (`use-formula-ide`). */
   inspect: { id: "inspect", labelKey: "inspect", keys: ["I"] },
@@ -71,6 +71,7 @@ const LISTED: readonly { group: ListGroupId; shortcut: EditorShortcut }[] = [
   { group: "editing", shortcut: EDITOR_SHORTCUTS.closePicker },
   { group: "editing", shortcut: EDITOR_SHORTCUTS.exitDrawMode },
   { group: "document", shortcut: EDITOR_SHORTCUTS.save },
+  { group: "document", shortcut: EDITOR_SHORTCUTS.saveAndShow },
   { group: "preview", shortcut: EDITOR_SHORTCUTS.inspect },
 ];
 

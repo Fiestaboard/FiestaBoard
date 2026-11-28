@@ -169,18 +169,14 @@ describe("PageBuilder — per-page transition picker", () => {
 
     render(<PageBuilder pageId="page-1" onClose={vi.fn()} />, { wrapper: TestWrapper });
 
-    // Export is gated on hasUnsavedChanges, so it doubles as a dirty-state probe.
-    await user.click(await screen.findByRole("button", { name: "More" }));
-    const exportBtn = await screen.findByRole("button", { name: "Export Page" });
-    await waitFor(() => expect(exportBtn).toBeEnabled());
+    // The header meta line says whether there are unsaved changes (D6).
+    expect(await screen.findByText(/^Saved /)).toBeInTheDocument();
+    expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
 
     await openTransitionMenu(user);
     await user.click(await screen.findByRole("menuitemradio", { name: "Row" }));
 
-    if (!screen.queryByRole("button", { name: "Export Page" })) {
-      await user.click(screen.getByRole("button", { name: "More" }));
-    }
-    await waitFor(() => expect(screen.getByRole("button", { name: "Export Page" })).toBeDisabled());
+    expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
   });
 
   it("offers installed transition plugins as plugin:<id> once the beta flag is on", async () => {

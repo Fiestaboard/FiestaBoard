@@ -3911,6 +3911,25 @@
     "discardDraft": "Verwerfen",
     "lastSaved": "zuletzt gespeichert {time}"
   },
+  "editorHeader": {
+    "justNow": "gerade eben",
+    "minutesAgo": "vor {count} Min.",
+    "yesterday": "gestern {time}",
+    "saved": "Gespeichert {time}",
+    "unsavedChanges": "Ungespeicherte Änderungen",
+    "saving": "Wird gespeichert…",
+    "savingDraft": "Entwurf wird gespeichert…",
+    "draftSaved": "Entwurf gespeichert {time}",
+    "unsaved": "Nicht gespeichert",
+    "newPage": "Neue Seite",
+    "boardLabel": "Board {board}",
+    "untitledPage": "Unbenannte Seite",
+    "draftDiscarded": "Entwurf verworfen",
+    "undo": "Rückgängig",
+    "deleteTitle": "„{name}“ löschen?",
+    "deleteDescription": "Sie wird aus allen Zeitplänen und Sammlungen entfernt, die sie zeigen. Das lässt sich nicht rückgängig machen.",
+    "deleteAction": "Seite löschen"
+  },
   "phonePairing": {
     "title": "Smartphone verbinden",
     "description": "Scanne dies mit der FiestaBoard-App. Der Code ist einmal gültig und läuft nach 5 Minuten ab.",

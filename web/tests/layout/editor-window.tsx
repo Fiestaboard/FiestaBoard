@@ -13,6 +13,7 @@ import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-contex
 import { PageEditorShell } from "@/components/page-editor-shell";
 import { SidebarProvider } from "@/components/sidebar-context";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/hooks/use-theme";
 import i18n from "@/i18n/i18next";
 
@@ -36,6 +37,7 @@ function Shell() {
       <MainContent>
         <Outlet />
       </MainContent>
+      <Toaster />
     </SidebarProvider>
   );
 }

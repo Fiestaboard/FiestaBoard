@@ -166,7 +166,8 @@ describe("PageBuilder note-array preview geometry", () => {
     const create = vi.spyOn(api, "createPage").mockResolvedValue({ ...wideArrayPage, id: "new", canvases });
     const ref = createRef<PageBuilderHandle>();
     render(<PageBuilder ref={ref} onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
-    await waitFor(() => expect(ref.current?.getCurrentPage()).toMatchObject({ name: "", canvases }));
+    // A draft without a name comes back as "Untitled page" (UX-8-1).
+    await waitFor(() => expect(ref.current?.getCurrentPage()).toMatchObject({ name: "Untitled page", canvases }));
     expect(ref.current?.getCurrentPage()?.id).toBeUndefined();
     await ref.current?.save();
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ canvases }));

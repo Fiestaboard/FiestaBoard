@@ -7,7 +7,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CreatorIde from "@/components/ide/creator-ide";
-import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
+import type { PageBuilderDraftState, PageBuilderHandle } from "@/components/page-builder";
 
 import { server } from "./mocks/server";
 
@@ -304,7 +304,9 @@ function renderIde(
 ) {
   const slot = document.createElement("div");
   document.body.append(slot);
-  const onSaveActionsChange = vi.fn();
+  // Every render reports its draft state; the header (page-builder) reads it.
+  const draftSpy = vi.fn((state: PageBuilderDraftState | undefined) => onDraftStateChange?.(state));
+  const lastDraft = () => draftSpy.mock.lastCall?.[0];
   const builderRef = { current: builder };
   const wrap = (node: ReactNode) => (
     <MemoryRouter>
@@ -320,8 +322,7 @@ function renderIde(
         // Commute is a FiestaPanel page: its Explorer opens by default (D2).
         boardKind="panel"
         savedTick={savedTick}
-        onSaveActionsChange={onSaveActionsChange}
-        onDraftStateChange={onDraftStateChange}
+        onDraftStateChange={draftSpy}
         onPageDisplaysChange={onPageDisplaysChange}
       />,
     ),
@@ -335,19 +336,13 @@ function renderIde(
           explorerSlot={slot}
           boardKind="panel"
           savedTick={tick}
-          onSaveActionsChange={onSaveActionsChange}
-          onDraftStateChange={onDraftStateChange}
+          onDraftStateChange={draftSpy}
           onPageDisplaysChange={onPageDisplaysChange}
         />,
       ),
     );
-  return { slot, onSaveActionsChange, rerenderTick, client, unmount: view.unmount };
+  return { slot, lastDraft, rerenderTick, client, unmount: view.unmount };
 }
-
-const latestRenderer = (spy: ReturnType<typeof vi.fn>) => {
-  const call = [...spy.mock.calls].reverse().find(([value]) => typeof value === "function");
-  return call ? (call[0] as () => (actions: PageBuilderSaveActions) => ReactNode)() : undefined;
-};
 
 beforeEach(() => setDesktop(false));
 afterEach(() => {
@@ -720,10 +715,13 @@ describe("status row and header actions", () => {
     expect(await screen.findByText(/Showing on Den TV now · until 8:30/)).toBeInTheDocument();
   });
 
-  it("derives Unsaved, Testing and Draft from the editor and the hub draft", async () => {
+  // D6 (UX-1-1): the header meta is the one place for the save state, so the
+  // status row carries no Unsaved or Draft chip; Testing (mirroring) stays.
+  it("leaves Unsaved and Draft to the header and keeps Testing in the status row", async () => {
     mockHub();
     renderIde(fakeBuilder({ unsaved: true }));
-    expect(await screen.findByText("Unsaved")).toBeInTheDocument();
+    expect(await screen.findByText(/Showing on Den TV now/)).toBeInTheDocument();
+    expect(screen.queryByText("Unsaved")).not.toBeInTheDocument();
     cleanup();
     mockHub();
     renderIde(fakeBuilder({ unsaved: true, mirroring: true }));
@@ -738,30 +736,16 @@ describe("status row and header actions", () => {
         content: { ...snapshot, type: "template" },
       },
     });
-    renderIde(fakeBuilder({ unsaved: true }));
-    expect(await screen.findByText(/^Draft /)).toBeInTheDocument();
+    const { lastDraft } = renderIde(fakeBuilder({ unsaved: true }));
+    await waitFor(() => expect(lastDraft()?.draftSavedAt).toBe("2026-11-17T15:44:00Z"));
+    expect(screen.queryByText(/^Draft /)).not.toBeInTheDocument();
   });
 
-  it("offers Save draft beside Save & update board while live, and saves the editor content as the draft", async () => {
+  it("hands the header Save draft while live, which saves the editor content as the draft", async () => {
     const calls = mockHub();
-    const { onSaveActionsChange } = renderIde();
-    await waitFor(() => expect(latestRenderer(onSaveActionsChange)).toBeDefined());
-    const save = vi.fn();
-    render(
-      <>
-        {latestRenderer(onSaveActionsChange)!({
-          save,
-          saving: false,
-          disabled: false,
-          size: "sm",
-          compact: false,
-          anchor: { "data-ai-anchor": "page-editor.save" },
-        })}
-      </>,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Save & update board" }));
-    expect(save).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    const { lastDraft } = renderIde();
+    await waitFor(() => expect(lastDraft()?.saveDraft).toBeDefined());
+    act(() => lastDraft()!.saveDraft!());
     await waitFor(() => expect(calls.draftPut).toHaveLength(1));
     expect(calls.draftPut[0]).toMatchObject({
       name: "Commute",
@@ -778,13 +762,13 @@ describe("status row and header actions", () => {
         HttpResponse.json({ schedules: [], total: 0, default_page_id: null, enabled: null }),
       ),
     );
-    const { onSaveActionsChange } = renderIde();
-    await waitFor(() => expect(onSaveActionsChange).toHaveBeenLastCalledWith(undefined));
+    const { lastDraft } = renderIde();
     const status = await waitFor(() => {
       const row = document.querySelector<HTMLElement>('[data-slot="preview-status"]');
       expect(row).toHaveAttribute("data-display", "not-scheduled");
       return row!;
     });
+    expect(lastDraft()?.saveDraft).toBeUndefined();
     // Said once (BB-E-26): the chip, not the chip and a sentence repeating it.
     expect(within(status).getByText("Not scheduled")).toBeInTheDocument();
     expect(within(status).queryByText("Not on any display’s schedule")).not.toBeInTheDocument();
@@ -800,23 +784,10 @@ describe("status row and header actions", () => {
 
   it("discards a draft this session saved once the editor saves the page itself", async () => {
     const calls = mockHub();
-    const { onSaveActionsChange, rerenderTick } = renderIde();
-    await waitFor(() => expect(latestRenderer(onSaveActionsChange)).toBeDefined());
-    render(
-      <>
-        {latestRenderer(onSaveActionsChange)!({
-          save: vi.fn(),
-          saving: false,
-          disabled: false,
-          size: "sm",
-          compact: false,
-          anchor: {},
-        })}
-      </>,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    const { lastDraft, rerenderTick } = renderIde();
+    await waitFor(() => expect(lastDraft()?.saveDraft).toBeDefined());
+    act(() => lastDraft()!.saveDraft!());
     await waitFor(() => expect(calls.draftPut).toHaveLength(1));
-    await screen.findByText(/^Draft /);
     act(() => rerenderTick(1));
     await waitFor(() => expect(calls.draftDelete).toEqual(["d1"]));
   });
@@ -837,13 +808,13 @@ describe("status row and header actions", () => {
     await waitFor(() => expect(calls.draftPut).toHaveLength(1), { timeout: 5000 });
     await waitFor(() =>
       expect(onDraftStateChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ label: expect.stringMatching(/^Draft saved/) }),
+        expect.objectContaining({ draftSavedAt: expect.any(String) }),
       ),
     );
     // The editor saves the page: it is clean now, and the shell bumps savedTick.
     unsaved = false;
     act(() => rerenderTick(1));
-    await waitFor(() => expect(onDraftStateChange.mock.lastCall![0]?.label).toBeUndefined());
+    await waitFor(() => expect(onDraftStateChange.mock.lastCall![0]?.draftSavedAt).toBeUndefined());
     await waitFor(() => expect(calls.draftDelete).toEqual(["d1"]));
   }, 10_000);
 
@@ -987,7 +958,7 @@ describe("status row and header actions", () => {
         expect.objectContaining({ label: "Unsaved · a draft from elsewhere is waiting in History" }),
       ),
     );
-    expect(onDraftStateChange.mock.calls.some(([state]) => /^Draft saved/.test(state?.label ?? ""))).toBe(false);
+    expect(onDraftStateChange.mock.calls.some(([state]) => state?.draftSavedAt)).toBe(false);
   });
 
   it("offers Delete page in the Page tab, through the editor's confirmation", async () => {
@@ -1009,22 +980,9 @@ describe("status row and header actions", () => {
         content: { ...snapshot, type: "template" },
       },
     });
-    const { onSaveActionsChange } = renderIde();
-    await screen.findByText(/^Draft /);
-    await waitFor(() => expect(latestRenderer(onSaveActionsChange)).toBeDefined());
-    render(
-      <>
-        {latestRenderer(onSaveActionsChange)!({
-          save: vi.fn(),
-          saving: false,
-          disabled: false,
-          size: "sm",
-          compact: false,
-          anchor: {},
-        })}
-      </>,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    const { lastDraft } = renderIde();
+    await waitFor(() => expect(lastDraft()?.saveDraft).toBeDefined());
+    act(() => lastDraft()!.saveDraft!());
     const dialog = await screen.findByRole("alertdialog", { name: "Replace the newer draft?" });
     expect(calls.draftPut).toEqual([expect.objectContaining({ expected_revision: "d0" })]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Replace draft" }));

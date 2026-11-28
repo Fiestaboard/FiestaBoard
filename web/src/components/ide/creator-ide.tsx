@@ -18,19 +18,10 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
-import { Save, Send } from "lucide-react";
-import {
-  type Dispatch,
-  type ReactNode,
-  type RefObject,
-  type SetStateAction,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type ReactNode, type RefObject, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import type { PageBuilderDraftState, PageBuilderHandle, PageBuilderSaveActions } from "@/components/page-builder";
+import type { PageBuilderDraftState, PageBuilderHandle } from "@/components/page-builder";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRouter } from "@/hooks/use-router";
 import { useLocale, useTranslations } from "@/i18n/translations";
@@ -41,7 +32,7 @@ import { templateReferences } from "@/lib/ide/references";
 
 import { type ConsoleTab, IdeConsole, IdeProblemList, IdeSentPanel } from "./ide-console";
 import { type ExplorerToggle, IdeExplorer, IdeExplorerShow, useExplorerToggle } from "./ide-explorer";
-import { formatClock, formatSavedAt, formatWallTime } from "./ide-format";
+import { formatWallTime } from "./ide-format";
 import { IdeHistory } from "./ide-history";
 import { DuplicateDialog, IdePageTab } from "./ide-page-tab";
 import { IdeReferences } from "./ide-references";
@@ -71,9 +62,10 @@ export interface CreatorIdeProps {
   boardKind?: DeviceType;
   /** Increments after each successful header Save. */
   savedTick: number;
-  /** Supplies the header's Save draft / Save & update board while a display shows the page (a state setter). */
-  onSaveActionsChange: Dispatch<SetStateAction<((actions: PageBuilderSaveActions) => ReactNode) | undefined>>;
-  /** D4: the hub draft's state for the header meta ("Draft restored · Discard", "Draft saved 7:44 AM"). */
+  /**
+   * D4/D6: the hub draft's state for the header meta ("Draft restored · Discard", "Draft saved 7:44 AM"),
+   * and the header's Save draft while a display shows the page.
+   */
   onDraftStateChange?: (state: PageBuilderDraftState | undefined) => void;
   /** UX-6-1: the displays that show the page, for the editor's preview target (page-builder.tsx `pageDisplayIds`). */
   onPageDisplaysChange?: (ids: readonly string[]) => void;
@@ -119,16 +111,13 @@ export default function CreatorIde({
   explorer: explorerProp,
   boardKind = "flagship",
   savedTick,
-  onSaveActionsChange,
   onDraftStateChange,
   onPageDisplaysChange,
 }: CreatorIdeProps) {
   const t = useTranslations("creatorIde");
-  const locale = useLocale();
   const router = useRouter();
   const ide = useCreatorIde(pageId, builderRef, savedTick);
   const desktop = useMediaQuery(IDE_DESKTOP_QUERY);
-  const phone = useMediaQuery("(max-width: 639px)");
   const [tab, setTab] = useState<IdeTabId>("page");
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>("problems");
   const [copyOpen, setCopyOpen] = useState(false);
@@ -150,6 +139,9 @@ export default function CreatorIde({
   // elsewhere that autosave leaves alone says so instead (FABLE-2583).
   const draftSavedAt = ide.draft && ide.builder.unsaved && ide.draftInStep ? ide.draft.saved_at : null;
   const autosavePaused = ide.autosavePaused;
+  // D6: Save draft lives in the header (page-builder); the IDE supplies its action.
+  const draftOffered = offersDraft(ide.display);
+  const { mutate: saveDraftMutate, isPending: savingDraft } = ide.saveDraft;
   const liveBoard = ide.showsOn.showingNow[0]?.boardName ?? null;
   const { discardRestored, discardOwnedDraft } = ide;
   useEffect(() => {
@@ -159,15 +151,16 @@ export default function CreatorIde({
       ? restoredDraft.stale
         ? t("draftRestoredStale")
         : t("draftRestored")
-      : draftSavedAt
-        ? t("draftSavedAt", { time: formatClock(draftSavedAt, locale) })
-        : autosavePaused
-          ? t("autosavePaused")
-          : undefined;
+      : autosavePaused
+        ? t("autosavePaused")
+        : undefined;
     onDraftStateChange({
       live,
       liveBoard: liveBoard ?? undefined,
       label,
+      draftSavedAt: draftSavedAt ?? undefined,
+      savingDraft,
+      saveDraft: draftOffered ? () => saveDraftMutate({}) : undefined,
       onDiscard: restoredDraft ? () => void discardRestored() : undefined,
       discardDraft: discardOwnedDraft,
     });
@@ -179,65 +172,12 @@ export default function CreatorIde({
     liveBoard,
     discardRestored,
     discardOwnedDraft,
+    draftOffered,
+    savingDraft,
+    saveDraftMutate,
     t,
-    locale,
   ]);
   useEffect(() => () => onDraftStateChange?.(undefined), [onDraftStateChange]);
-
-  const draftOffered = offersDraft(ide.display);
-  const { mutate: saveDraftMutate, isPending: savingDraft } = ide.saveDraft;
-  useEffect(() => {
-    if (!draftOffered) {
-      onSaveActionsChange(undefined);
-      return;
-    }
-    // A function value: wrapped so the shell's setState stores it rather than calling it.
-    onSaveActionsChange(() => (actions: PageBuilderSaveActions) => (
-      <>
-        {phone ? (
-          // Phone header: the name keeps its room; Save draft is the icon (named for AT).
-          <Button
-            variant="secondary"
-            size="icon-touch"
-            className="shrink-0"
-            aria-label={t("saveDraft")}
-            disabled={actions.disabled || savingDraft}
-            onClick={() => saveDraftMutate({})}
-          >
-            <Save className="size-4" aria-hidden="true" />
-          </Button>
-        ) : (
-          <Button
-            variant="secondary"
-            size={actions.size}
-            className="shrink-0 gap-1.5 px-3 text-sm"
-            aria-label={actions.compact ? t("saveDraft") : undefined}
-            disabled={actions.disabled || savingDraft}
-            onClick={() => saveDraftMutate({})}
-          >
-            <Save className="size-3.5" aria-hidden="true" />
-            {/* 1024–1279: icon only, so the page name keeps its room (BB-E-4). */}
-            {!actions.compact && (savingDraft ? t("savingDraft") : t("saveDraft"))}
-          </Button>
-        )}
-        <Button
-          variant="brand"
-          size={actions.size}
-          className="shrink-0 gap-1.5 px-3 text-sm"
-          disabled={actions.disabled}
-          onClick={actions.save}
-          // Phone, and 1024–1279: a short label so the page name keeps its room
-          // (BB-B-3, BB-E-4); the full words stay the accessible name.
-          aria-label={(phone || actions.compact) && !actions.saving ? t("saveAndUpdate") : undefined}
-          {...actions.anchor}
-        >
-          <Send className="size-4" aria-hidden="true" />
-          {actions.saving ? t("saving") : phone || actions.compact ? t("updateBoardShort") : t("saveAndUpdate")}
-        </Button>
-      </>
-    ));
-  }, [draftOffered, phone, savingDraft, saveDraftMutate, onSaveActionsChange, t]);
-  useEffect(() => () => onSaveActionsChange(undefined), [onSaveActionsChange]);
 
   const problemCount = ide.problems.length;
   const openProblems = () => {
@@ -252,7 +192,6 @@ export default function CreatorIde({
 
   const tabs = inspectorTabIds(desktop).map((id) => ({ value: id, label: t(`tab.${id}`) }));
   const statusMessage = useStatusMessage(ide);
-  const draftLabel = ide.draft ? t("draftAt", { time: formatSavedAt(ide.draft.saved_at, locale) }) : undefined;
 
   // Console and Timeline: the foot of the template column (184:159319).
   const consoleRegions = (
@@ -278,10 +217,10 @@ export default function CreatorIde({
       display={ide.display}
       displayLabel={t(`display.${ide.display}`)}
       message={statusMessage}
-      // A saved page's state is the header's saved time; a Saved chip
-      // here repeated it (BB-E-26, Figma 184:159319 draws none).
-      editState={ide.editState === "saved" ? undefined : ide.editState}
-      editStateLabel={ide.editState === "draft" && draftLabel ? draftLabel : t(`edit.${ide.editState}`)}
+      // The header meta is the one place for the save state (D6, UX-1-1): no
+      // Saved, Unsaved or Draft chip here. Testing (mirroring) is not a save state.
+      editState={ide.editState === "testing" ? ide.editState : undefined}
+      editStateLabel={t(`edit.${ide.editState}`)}
       problems={problemCount}
       onOpenProblems={openProblems}
       problemsLabel={(count) => t("problemsLink", { count })}
