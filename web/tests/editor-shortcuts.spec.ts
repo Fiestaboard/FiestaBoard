@@ -149,44 +149,47 @@ test.describe("Editor keyboard shortcuts (desktop)", () => {
     await expect(page.getByRole("dialog", LIST)).toHaveCount(0);
   });
 
-  // D5 (bug bash BB-E-13/-20, DESIGN-DELTAS DD-W139): the header's Shortcuts
-  // button is the one entry point on a desktop; the toolbar's "? All shortcuts"
-  // duplicate is gone. The phone and tablet editor keeps its More-sheet row.
-  test("the header Shortcuts button is the only desktop entry point and opens the list", async ({ page }) => {
+  // D5 as Fable ruled it (FABLE-AUDIT-REVIEW-1, UX-1-6, supersedes DD-W139 D5):
+  // the toolbar row's "? All shortcuts" is the one entry wherever that row
+  // shows (768 px and up with a fine pointer); the header has no Shortcuts
+  // button. The phone and touch editor keep their More-sheet row.
+  test("the toolbar's All shortcuts is the only desktop entry point and opens the list", async ({ page }) => {
     await openEditor(page);
-    await expect(page.getByRole("button", { name: /All shortcuts/ })).toHaveCount(0);
-    const shortcuts = page.getByRole("button", { name: "Shortcuts", exact: true });
-    await expect(shortcuts).toHaveCount(1);
-    await shortcuts.click();
+    await expect(page.getByRole("button", { name: "Shortcuts", exact: true })).toHaveCount(0);
+    const hint = page.getByRole("button", { name: /All shortcuts/ });
+    await expect(hint).toHaveCount(1);
+    await hint.click();
     await expect(page.getByRole("dialog", LIST)).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog", LIST)).toBeHidden();
   });
 
   for (const width of [768, 1024]) {
-    test(`at ${width}px shortcut access follows the compact editor layout`, async ({ page }) => {
+    test(`at ${width}px the toolbar row keeps the one entry, and ? and ⌘/ open the list`, async ({ page }) => {
       await page.setViewportSize({ width, height: 1024 });
       await openEditor(page);
       const preview = page.locator('[data-slot="editor-preview"]');
       await expect(preview).toBeVisible();
       await expect(preview).toHaveAttribute("data-variant", width < 1024 ? "docked" : "pane");
       await expect(page.getByRole("button", { name: /show preview|hide preview/i })).toHaveCount(0);
-      await expect(page.getByRole("button", { name: /All shortcuts/ })).toHaveCount(0);
-      if (width < 1024) {
-        await preview.getByRole("button", { name: "More", exact: true }).click();
-        await page.getByRole("button", { name: "Shortcuts", exact: true }).click();
-      } else {
-        await page.getByRole("button", { name: "Shortcuts", exact: true }).click();
-      }
+      await expect(page.getByRole("button", { name: "Shortcuts", exact: true })).toHaveCount(0);
+      const hint = page.getByRole("button", { name: /All shortcuts/ });
+      await expect(hint).toHaveCount(1);
+      await hint.click();
       await expect(page.getByRole("dialog", LIST)).toBeVisible();
       await page.keyboard.press("Escape");
-      // Close More too, if its nested shortcut popup was opened from there.
-      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog", LIST)).toBeHidden();
+      for (const key of ["?", "ControlOrMeta+Slash"]) {
+        await page.locator("body").press(key);
+        await expect(page.getByRole("dialog", LIST)).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("dialog", LIST)).toBeHidden();
+      }
 
-      // Crossing the desktop boundary keeps exactly one entry point: the header's.
+      // Crossing the desktop boundary keeps exactly one entry point: the toolbar's.
       await page.setViewportSize({ width: 1280, height: 720 });
-      await expect(page.getByRole("button", { name: "Shortcuts", exact: true })).toHaveCount(1);
-      await expect(page.getByRole("button", { name: /All shortcuts/ })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /All shortcuts/ })).toHaveCount(1);
+      await expect(page.getByRole("button", { name: "Shortcuts", exact: true })).toHaveCount(0);
     });
   }
 
