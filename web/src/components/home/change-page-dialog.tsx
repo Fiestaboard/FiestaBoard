@@ -70,7 +70,7 @@ export interface ChangePageDialogProps {
   /** Open with this page already picked (the context menu, a page's "Show on…"). */
   initialPageId?: string | null;
   /**
-   * W-2 (DD-W162): the editor's Show now. Only `initialPageId` is offered: the
+   * W-2 (DD-W172): the editor's Show now. Only `initialPageId` is offered: the
    * title names it and the display, and the one question is how long. No list,
    * no search, no Back.
    */

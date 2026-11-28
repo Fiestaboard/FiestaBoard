@@ -4596,7 +4596,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           if (!open) setShowPageId(null);
         }}
         initialPageId={showPageId}
-        // W-2 (DD-W162): the editor's Show now is about this page only, and the
+        // W-2 (DD-W172): the editor's Show now is about this page only, and the
         // editor re-reads its display so the state line and pair say it is live.
         pageScoped
         pageName={name}
